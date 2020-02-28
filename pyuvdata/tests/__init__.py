@@ -17,7 +17,6 @@ import pyuvdata.utils as uvutils
 __all__ = [
     "clearWarnings",
     "checkWarnings",
-
 ]
 
 
@@ -33,8 +32,15 @@ def clearWarnings():
             reg.clear()
 
 
-def checkWarnings(func, func_args=[], func_kwargs={}, nwarnings=1,
-                  category=UserWarning, message=None, known_warning=None):
+def checkWarnings(
+    func,
+    func_args=[],
+    func_kwargs={},
+    nwarnings=1,
+    category=UserWarning,
+    message=None,
+    known_warning=None,
+):
     """Function to check expected warnings in tests.
 
     Useful for checking that appropriate warnings are raised and to capture
@@ -82,20 +88,22 @@ def checkWarnings(func, func_args=[], func_kwargs={}, nwarnings=1,
         else:
             message = [message] * nwarnings
 
-    if known_warning == 'miriad':
+    if known_warning == "miriad":
         # The default warnings for known telescopes when reading miriad files
         category = [UserWarning]
-        message = ['Altitude is not present in Miriad file, using known '
-                   'location values for PAPER.']
+        message = [
+            "Altitude is not present in Miriad file, using known "
+            "location values for PAPER."
+        ]
         nwarnings = 1
-    elif known_warning == 'paper_uvfits':
+    elif known_warning == "paper_uvfits":
         # The default warnings for known telescopes when reading uvfits files
         category = [UserWarning] * 2
-        message = ['Required Antenna frame keyword', 'telescope_location is not set']
+        message = ["Required Antenna frame keyword", "telescope_location is not set"]
         nwarnings = 2
-    elif known_warning == 'fhd':
+    elif known_warning == "fhd":
         category = [UserWarning]
-        message = ['Telescope location derived from obs']
+        message = ["Telescope location derived from obs"]
         nwarnings = 1
 
     category = uvutils._get_iterable(category)
@@ -128,24 +136,26 @@ def checkWarnings(func, func_args=[], func_kwargs={}, nwarnings=1,
         retval = func(*func_args, **func_kwargs)  # Run function
         # Verify
         if len(w) != nwarnings:
-            print('wrong number of warnings. Expected number was {nexp}, '
-                  'actual number was {nact}.'.format(nexp=nwarnings, nact=len(w)))
+            print(
+                "wrong number of warnings. Expected number was {nexp}, "
+                "actual number was {nact}.".format(nexp=nwarnings, nact=len(w))
+            )
             for idx, wi in enumerate(w):
-                print('warning {i} is: {w}'.format(i=idx, w=wi))
-            assert(False)
+                print("warning {i} is: {w}".format(i=idx, w=wi))
+            assert False
         else:
             for i, w_i in enumerate(w):
                 if w_i.category is not category[i]:
-                    print('expected category ' + str(i) + ' was: ', category[i])
-                    print('category ' + str(i) + ' was: ', str(w_i.category))
-                    assert(False)
-                if message[i] is None or message[i] == '':
-                    print('Expected message ' + str(i) + ' was None or an empty string')
-                    print('message ' + str(i) + ' was: ', str(w_i.message))
-                    assert(False)
+                    print("expected category " + str(i) + " was: ", category[i])
+                    print("category " + str(i) + " was: ", str(w_i.category))
+                    assert False
+                if message[i] is None or message[i] == "":
+                    print("Expected message " + str(i) + " was None or an empty string")
+                    print("message " + str(i) + " was: ", str(w_i.message))
+                    assert False
                 else:
                     if message[i] not in str(w_i.message):
-                        print('expected message ' + str(i) + ' was: ', message[i])
-                        print('message ' + str(i) + ' was: ', str(w_i.message))
-                        assert(False)
+                        print("expected message " + str(i) + " was: ", message[i])
+                        print("message " + str(i) + " was: ", str(w_i.message))
+                        assert False
         return retval

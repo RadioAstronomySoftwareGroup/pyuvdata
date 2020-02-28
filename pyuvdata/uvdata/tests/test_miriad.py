@@ -220,7 +220,8 @@ def test_wronglatlon():
     """
     Check for appropriate warnings with incorrect lat/lon values or missing telescope
 
-    To test this, we needed files without altitudes and with wrong lat, lon or telescope values.
+    To test this, we needed files without altitudes and with wrong lat, lon or
+    telescope values.
     These test files were made commenting out the line in miriad.py that adds altitude
     to the file and running the following code:
     import os
@@ -233,7 +234,8 @@ def test_wronglatlon():
     latfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglat.xy.uvcRREAA')
     lonfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglon.xy.uvcRREAA')
     latlonfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglatlon.xy.uvcRREAA')
-    telescopefile = os.path.join(DATA_PATH, 'zen.2456865.60537_wrongtelecope.xy.uvcRREAA')
+    telescopefile = os.path.join(DATA_PATH,
+    'zen.2456865.60537_wrongtelecope.xy.uvcRREAA')
     uv_in.read(miriad_file)
     uv_in.select(times=uv_in.time_array[0])
     uv_in.select(freq_chans=[0])
@@ -257,11 +259,12 @@ def test_wronglatlon():
     uv_in.telescope_name = 'foo'
     uv_in.write_miriad(telescopefile, clobber=True)
     uv_out.read(telescopefile, run_check=False)
+
     """
     uv_in = UVData()
     latfile = os.path.join(DATA_PATH, "zen.2456865.60537_wronglat.xy.uvcRREAA")
     lonfile = os.path.join(DATA_PATH, "zen.2456865.60537_wronglon.xy.uvcRREAA")
-    latlonfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglatlon.xy.uvcRREAA')
+    latlonfile = os.path.join(DATA_PATH, "zen.2456865.60537_wronglatlon.xy.uvcRREAA")
     telescopefile = os.path.join(
         DATA_PATH, "zen.2456865.60537_wrongtelecope.xy.uvcRREAA"
     )
@@ -272,7 +275,8 @@ def test_wronglatlon():
         nwarnings=2,
         message=[
             "Altitude is not present in file and latitude value does not match",
-            "drift RA, Dec is off from lst, latitude by more than 1.0 deg"],
+            "drift RA, Dec is off from lst, latitude by more than 1.0 deg",
+        ],
     )
     uvtest.checkWarnings(
         uv_in.read,
@@ -280,7 +284,8 @@ def test_wronglatlon():
         nwarnings=2,
         message=[
             "Altitude is not present in file and longitude value does not match",
-            "drift RA, Dec is off from lst, latitude by more than 1.0 deg"],
+            "drift RA, Dec is off from lst, latitude by more than 1.0 deg",
+        ],
     )
     uvtest.checkWarnings(
         uv_in.read,
@@ -373,7 +378,8 @@ def test_miriad_location_handling():
         ],
     )
 
-    # Test for handling when antenna positions have a different mean latitude than the file latitude
+    # Test for handling when antenna positions have a different mean latitude
+    # than the file latitude
     # make new file
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
@@ -412,7 +418,8 @@ def test_miriad_location_handling():
         ],
     )
 
-    # Test for handling when antenna positions have a different mean longitude than the file longitude
+    # Test for handling when antenna positions have a different mean longitude
+    # than the file longitude
     # this is harder because of the rotation that's done on the antenna positions
     # make new file
     if os.path.exists(testfile):
@@ -552,8 +559,8 @@ def test_miriad_location_handling():
 
 def test_singletimeselect_drift():
     """
-    Check behavior with writing & reading after selecting a single time from a drift file.
-
+    Check behavior with writing & reading after selecting a single time from
+    a drift file.
     """
     uv_in = UVData()
     uv_out = UVData()
@@ -721,9 +728,7 @@ def test_miriad_extra_keywords():
     uv_in.extra_keywords["complex2"] = 6.9 + 4.6j
     with pytest.raises(TypeError) as cm:
         uv_in.write_miriad(testfile, clobber=True, run_check=False)
-    assert str(cm.value).startswith(
-        "Extra keyword complex2 is of <class 'complex'>"
-    )
+    assert str(cm.value).startswith("Extra keyword complex2 is of <class 'complex'>")
 
     # cleanup
     del uv_in, uv_out
@@ -868,7 +873,8 @@ def test_miriad_write_miriad_unkonwn_phase_error(uv_in_paper):
 
 def test_miriad_write_read_diameters(uv_in_paper):
     uv_in, uv_out, write_file = uv_in_paper
-    # check for backwards compatibility with old keyword 'diameter' for antenna diameters
+    # check for backwards compatibility with old keyword 'diameter' for
+    # antenna diameters
     testfile_diameters = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA")
     uv_in.read(testfile_diameters)
     uv_in.write_miriad(write_file, clobber=True)
@@ -881,9 +887,7 @@ def test_miriad_and_aipy_reads(uv_in_paper):
     # check that variables 'ischan' and 'nschan' were written to new file
     # need to use aipy, since pyuvdata is not currently capturing these variables
     uv_in.read(write_file)
-    uv_aipy = aipy_extracts.UV(
-        write_file
-    )
+    uv_aipy = aipy_extracts.UV(write_file)
     nfreqs = uv_in.Nfreqs
     nschan = uv_aipy["nschan"]
     ischan = uv_aipy["ischan"]
@@ -918,7 +922,8 @@ def test_miriad_integration_time_precision():
     write_file = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
 
     # test that changing precision of integraiton_time is okay
-    # tolerance of integration_time (1e-3) is larger than floating point type conversions
+    # tolerance of integration_time (1e-3) is larger than floating point type
+    # conversions
     uv_in = UVData()
     uv_in.read(testfile)
     uv_in.integration_time = uv_in.integration_time.astype(np.float32)
@@ -961,9 +966,7 @@ def test_read_write_read_miriad_partial_bls(select_kwargs):
     bls = select_kwargs["bls"]
     if isinstance(bls, tuple):
         bls = [bls]
-    assert np.all(
-        [bl[:2] in antpairs or bl[:2][::-1] in antpairs for bl in bls]
-    )
+    assert np.all([bl[:2] in antpairs or bl[:2][::-1] in antpairs for bl in bls])
     exp_uv = full.select(inplace=False, **select_kwargs)
     assert uv_in == exp_uv
 
@@ -1024,8 +1027,8 @@ def test_read_write_read_miriad_partial_times(select_kwargs):
         ]
     )
     assert np.isclose(np.unique(uv_in.time_array), full_times).all()
-    # The exact time are calculated above, pop out the time range to compare time range with
-    # selecting on exact times
+    # The exact time are calculated above, pop out the time range to compare
+    # time range with selecting on exact times
     select_kwargs.pop("time_range", None)
     exp_uv = full.select(times=full_times, inplace=False, **select_kwargs)
     assert uv_in == exp_uv
@@ -1449,7 +1452,7 @@ def test_multi_files():
         func_kwargs={"file_type": "miriad"},
         message=["Telescope EVLA is not"],
         category=2 * [UserWarning],
-        nwarnings=2
+        nwarnings=2,
     )
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(

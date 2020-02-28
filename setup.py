@@ -16,7 +16,7 @@ from distutils.version import LooseVersion
 
 # When setting up, the binary extension modules haven't yet been built, so
 # without a workaround we can't use the pyuvdata code to get the version.
-os.environ['PYUVDATA_IGNORE_EXTMOD_IMPORT_FAIL'] = '1'
+os.environ["PYUVDATA_IGNORE_EXTMOD_IMPORT_FAIL"] = "1"
 
 
 def branch_scheme(version):
@@ -46,12 +46,12 @@ class CustomBuildExtCommand(build_ext):
         build_ext.run(self)
 
 
-with io.open('README.md', 'r', encoding='utf-8') as readme_file:
+with io.open("README.md", "r", encoding="utf-8") as readme_file:
     readme = readme_file.read()
 
 
 def is_platform_mac():
-    return sys.platform == 'darwin'
+    return sys.platform == "darwin"
 
 
 # For mac, ensure extensions are built for macos 10.9 when compiling on a
@@ -60,85 +60,87 @@ def is_platform_mac():
 # MACOSX_DEPLOYMENT_TARGET before calling setup.py
 # implementation based on pandas, see https://github.com/pandas-dev/pandas/issues/23424
 if is_platform_mac():
-    if 'MACOSX_DEPLOYMENT_TARGET' not in os.environ:
+    if "MACOSX_DEPLOYMENT_TARGET" not in os.environ:
         current_system = LooseVersion(platform.mac_ver()[0])
-        python_target = LooseVersion(
-            get_config_var('MACOSX_DEPLOYMENT_TARGET'))
-        if python_target < '10.9' and current_system >= '10.9':
-            os.environ['MACOSX_DEPLOYMENT_TARGET'] = '10.9'
+        python_target = LooseVersion(get_config_var("MACOSX_DEPLOYMENT_TARGET"))
+        if python_target < "10.9" and current_system >= "10.9":
+            os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
 
 global_c_macros = [
-    ('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION'),
+    ("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION"),
 ]
 
-casa_reqs = ['python-casacore']
-healpix_reqs = ['astropy_healpix']
-cst_reqs = ['pyyaml']
-test_reqs = (casa_reqs + healpix_reqs + cst_reqs
-             + ['pytest', 'pytest-cases', 'pytest-cov', 'coverage', 'flake8',
-                'flake8-pytest'])
-doc_reqs = ['sphinx', 'pypandoc']
+casa_reqs = ["python-casacore"]
+healpix_reqs = ["astropy_healpix"]
+cst_reqs = ["pyyaml"]
+test_reqs = (
+    casa_reqs
+    + healpix_reqs
+    + cst_reqs
+    + ["pytest", "pytest-cases", "pytest-cov", "coverage", "flake8", "flake8-pytest"]
+)
+doc_reqs = ["sphinx", "pypandoc"]
 
 setup_args = {
-    'name': 'pyuvdata',
-    'author': 'Radio Astronomy Software Group',
-    'url': 'https://github.com/RadioAstronomySoftwareGroup/pyuvdata',
-    'license': 'BSD',
-    'description': 'an interface for astronomical interferometeric datasets in python',
-    'long_description': readme,
-    'long_description_content_type': 'text/markdown',
-    'package_dir': {'pyuvdata': 'pyuvdata'},
-    'packages': [
-        'pyuvdata',
-        'pyuvdata.tests',
-        'pyuvdata.uvbeam',
-        'pyuvdata.uvcal',
-        'pyuvdata.uvdata',
-        'pyuvdata.uvflag',
+    "name": "pyuvdata",
+    "author": "Radio Astronomy Software Group",
+    "url": "https://github.com/RadioAstronomySoftwareGroup/pyuvdata",
+    "license": "BSD",
+    "description": "an interface for astronomical interferometeric datasets in python",
+    "long_description": readme,
+    "long_description_content_type": "text/markdown",
+    "package_dir": {"pyuvdata": "pyuvdata"},
+    "packages": [
+        "pyuvdata",
+        "pyuvdata.tests",
+        "pyuvdata.uvbeam",
+        "pyuvdata.uvcal",
+        "pyuvdata.uvdata",
+        "pyuvdata.uvflag",
     ],
-    'cmdclass': {'build_ext': CustomBuildExtCommand},
-    'ext_modules': [
+    "cmdclass": {"build_ext": CustomBuildExtCommand},
+    "ext_modules": [
         Extension(
-            'pyuvdata._miriad',
+            "pyuvdata._miriad",
             sources=[
-                'pyuvdata/uvdata/src/miriad_wrap.cpp',
-                'pyuvdata/uvdata/src/uvio.c',
-                'pyuvdata/uvdata/src/hio.c',
-                'pyuvdata/uvdata/src/pack.c',
-                'pyuvdata/uvdata/src/bug.c',
-                'pyuvdata/uvdata/src/dio.c',
-                'pyuvdata/uvdata/src/headio.c',
-                'pyuvdata/uvdata/src/maskio.c',
+                "pyuvdata/uvdata/src/miriad_wrap.cpp",
+                "pyuvdata/uvdata/src/uvio.c",
+                "pyuvdata/uvdata/src/hio.c",
+                "pyuvdata/uvdata/src/pack.c",
+                "pyuvdata/uvdata/src/bug.c",
+                "pyuvdata/uvdata/src/dio.c",
+                "pyuvdata/uvdata/src/headio.c",
+                "pyuvdata/uvdata/src/maskio.c",
             ],
             define_macros=global_c_macros,
-            include_dirs=['pyuvdata/uvdata/src']
+            include_dirs=["pyuvdata/uvdata/src"],
         )
     ],
-    'scripts': [fl for fl in glob.glob('scripts/*') if not os.path.isdir(fl)],
-    'use_scm_version': {
-        'local_scheme': branch_scheme
+    "scripts": [fl for fl in glob.glob("scripts/*") if not os.path.isdir(fl)],
+    "use_scm_version": {"local_scheme": branch_scheme},
+    "include_package_data": True,
+    "install_requires": ["numpy>=1.15", "scipy", "astropy>=3.2.3", "h5py"],
+    "tests_require": ["pytest", "pytest-cases"],
+    "extras_require": {
+        "casa": casa_reqs,
+        "healpix": healpix_reqs,
+        "cst": cst_reqs,
+        "all": casa_reqs + healpix_reqs + cst_reqs,
+        "test": test_reqs,
+        "doc": doc_reqs,
+        "dev": test_reqs + doc_reqs,
     },
-    'include_package_data': True,
-    'install_requires': ['numpy>=1.15', 'scipy', 'astropy>=3.2.3', 'h5py'],
-    'tests_require': ['pytest', 'pytest-cases'],
-    'extras_require': {
-        'casa': casa_reqs,
-        'healpix': healpix_reqs,
-        'cst': cst_reqs,
-        'all': casa_reqs + healpix_reqs + cst_reqs,
-        'test': test_reqs,
-        'doc': doc_reqs,
-        'dev': test_reqs + doc_reqs
-    },
-    'classifiers': ['Development Status :: 5 - Production/Stable',
-                    'Intended Audience :: Science/Research',
-                    'License :: OSI Approved :: BSD License',
-                    'Programming Language :: Python :: 3.6',
-                    'Programming Language :: Python :: 3.7',
-                    'Programming Language :: Python :: 3.8',
-                    'Topic :: Scientific/Engineering :: Astronomy'],
-    'keywords': 'radio astronomy interferometry'
+    "classifiers": [
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: BSD License",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Topic :: Scientific/Engineering :: Astronomy",
+    ],
+    "keywords": "radio astronomy interferometry",
 }
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     setup(**setup_args)

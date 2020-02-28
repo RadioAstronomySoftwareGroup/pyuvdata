@@ -15,11 +15,11 @@ import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 
 # set up FHD file list
-testdir = os.path.join(DATA_PATH, 'fhd_cal_data/')
-testfile_prefix = '1061316296_'
-obs_testfile = os.path.join(testdir, testfile_prefix + 'obs.sav')
-cal_testfile = os.path.join(testdir, testfile_prefix + 'cal.sav')
-settings_testfile = os.path.join(testdir, testfile_prefix + 'settings.txt')
+testdir = os.path.join(DATA_PATH, "fhd_cal_data/")
+testfile_prefix = "1061316296_"
+obs_testfile = os.path.join(testdir, testfile_prefix + "obs.sav")
+cal_testfile = os.path.join(testdir, testfile_prefix + "cal.sav")
+settings_testfile = os.path.join(testdir, testfile_prefix + "settings.txt")
 
 
 def test_read_fhdcal_write_read_calfits():
@@ -31,20 +31,20 @@ def test_read_fhdcal_write_read_calfits():
     """
     fhd_cal = UVCal()
     calfits_cal = UVCal()
-    fhd_cal.read_fhd_cal(cal_testfile, obs_testfile,
-                         settings_file=settings_testfile)
+    fhd_cal.read_fhd_cal(cal_testfile, obs_testfile, settings_file=settings_testfile)
 
-    assert np.max(fhd_cal.gain_array) < 2.
+    assert np.max(fhd_cal.gain_array) < 2.0
 
-    outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
+    outfile = os.path.join(DATA_PATH, "test/outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
 
     # do it again with fit gains (rather than raw)
-    fhd_cal.read_fhd_cal(cal_testfile, obs_testfile,
-                         settings_file=settings_testfile, raw=False)
-    outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
+    fhd_cal.read_fhd_cal(
+        cal_testfile, obs_testfile, settings_file=settings_testfile, raw=False
+    )
+    outfile = os.path.join(DATA_PATH, "test/outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
@@ -54,25 +54,30 @@ def test_extra_history():
     """Test that setting the extra_history keyword works."""
     fhd_cal = UVCal()
     calfits_cal = UVCal()
-    extra_history = 'Some extra history for testing\n'
-    fhd_cal.read_fhd_cal(cal_testfile, obs_testfile,
-                         settings_file=settings_testfile,
-                         extra_history=extra_history)
+    extra_history = "Some extra history for testing\n"
+    fhd_cal.read_fhd_cal(
+        cal_testfile,
+        obs_testfile,
+        settings_file=settings_testfile,
+        extra_history=extra_history,
+    )
 
-    outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
+    outfile = os.path.join(DATA_PATH, "test/outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
     assert extra_history in fhd_cal.history
 
     # try again with a list of history strings
-    extra_history = ['Some extra history for testing',
-                     'And some more history as well']
-    fhd_cal.read_fhd_cal(cal_testfile, obs_testfile,
-                         settings_file=settings_testfile,
-                         extra_history=extra_history)
+    extra_history = ["Some extra history for testing", "And some more history as well"]
+    fhd_cal.read_fhd_cal(
+        cal_testfile,
+        obs_testfile,
+        settings_file=settings_testfile,
+        extra_history=extra_history,
+    )
 
-    outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
+    outfile = os.path.join(DATA_PATH, "test/outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
@@ -82,18 +87,18 @@ def test_extra_history():
 
 def test_flags_galaxy():
     """Test files with time, freq and tile flags and galaxy models behave."""
-    testdir = os.path.join(DATA_PATH, 'fhd_cal_data/flag_set')
-    obs_testfile_flag = os.path.join(testdir, testfile_prefix + 'obs.sav')
-    cal_testfile_flag = os.path.join(testdir, testfile_prefix + 'cal.sav')
-    settings_testfile_flag = os.path.join(testdir,
-                                          testfile_prefix + 'settings.txt')
+    testdir = os.path.join(DATA_PATH, "fhd_cal_data/flag_set")
+    obs_testfile_flag = os.path.join(testdir, testfile_prefix + "obs.sav")
+    cal_testfile_flag = os.path.join(testdir, testfile_prefix + "cal.sav")
+    settings_testfile_flag = os.path.join(testdir, testfile_prefix + "settings.txt")
 
     fhd_cal = UVCal()
     calfits_cal = UVCal()
-    fhd_cal.read_fhd_cal(cal_testfile_flag, obs_testfile_flag,
-                         settings_file=settings_testfile_flag)
+    fhd_cal.read_fhd_cal(
+        cal_testfile_flag, obs_testfile_flag, settings_file=settings_testfile_flag
+    )
 
-    outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
+    outfile = os.path.join(DATA_PATH, "test/outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
@@ -104,32 +109,40 @@ def test_break_read_fhdcal():
     fhd_cal = UVCal()
     pytest.raises(TypeError, fhd_cal.read_fhd_cal, cal_testfile)  # Missing obs
 
-    uvtest.checkWarnings(fhd_cal.read_fhd_cal, [cal_testfile, obs_testfile],
-                         message=['No settings file'])
+    uvtest.checkWarnings(
+        fhd_cal.read_fhd_cal, [cal_testfile, obs_testfile], message=["No settings file"]
+    )
 
     # Check only pyuvdata version history with no settings file
-    assert fhd_cal.history == '\n' + fhd_cal.pyuvdata_version_str
+    assert fhd_cal.history == "\n" + fhd_cal.pyuvdata_version_str
 
 
 def test_read_multi():
     """Test reading in multiple files."""
-    testdir2 = os.path.join(DATA_PATH, 'fhd_cal_data/set2')
-    obs_testfile_list = [obs_testfile,
-                         os.path.join(testdir2, testfile_prefix + 'obs.sav')]
-    cal_testfile_list = [cal_testfile,
-                         os.path.join(testdir2, testfile_prefix + 'cal.sav')]
-    settings_testfile_list = [settings_testfile,
-                              os.path.join(testdir2,
-                                           testfile_prefix + 'settings.txt')]
+    testdir2 = os.path.join(DATA_PATH, "fhd_cal_data/set2")
+    obs_testfile_list = [
+        obs_testfile,
+        os.path.join(testdir2, testfile_prefix + "obs.sav"),
+    ]
+    cal_testfile_list = [
+        cal_testfile,
+        os.path.join(testdir2, testfile_prefix + "cal.sav"),
+    ]
+    settings_testfile_list = [
+        settings_testfile,
+        os.path.join(testdir2, testfile_prefix + "settings.txt"),
+    ]
 
     fhd_cal = UVCal()
     calfits_cal = UVCal()
-    uvtest.checkWarnings(fhd_cal.read_fhd_cal, func_args=[cal_testfile_list,
-                                                          obs_testfile_list],
-                         func_kwargs={'settings_file': settings_testfile_list},
-                         message='UVParameter diffuse_model does not match')
+    uvtest.checkWarnings(
+        fhd_cal.read_fhd_cal,
+        func_args=[cal_testfile_list, obs_testfile_list],
+        func_kwargs={"settings_file": settings_testfile_list},
+        message="UVParameter diffuse_model does not match",
+    )
 
-    outfile = os.path.join(DATA_PATH, 'test/outtest_FHDcal_1061311664.calfits')
+    outfile = os.path.join(DATA_PATH, "test/outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
@@ -137,27 +150,60 @@ def test_read_multi():
 
 def test_break_read_multi():
     """Test errors for different numbers of files."""
-    testdir2 = os.path.join(DATA_PATH, 'fhd_cal_data/set2')
-    obs_testfile_list = [obs_testfile,
-                         os.path.join(testdir2, testfile_prefix + 'obs.sav')]
-    cal_testfile_list = [cal_testfile,
-                         os.path.join(testdir2, testfile_prefix + 'cal.sav')]
-    settings_testfile_list = [settings_testfile,
-                              os.path.join(testdir2,
-                                           testfile_prefix + 'settings.txt')]
+    testdir2 = os.path.join(DATA_PATH, "fhd_cal_data/set2")
+    obs_testfile_list = [
+        obs_testfile,
+        os.path.join(testdir2, testfile_prefix + "obs.sav"),
+    ]
+    cal_testfile_list = [
+        cal_testfile,
+        os.path.join(testdir2, testfile_prefix + "cal.sav"),
+    ]
+    settings_testfile_list = [
+        settings_testfile,
+        os.path.join(testdir2, testfile_prefix + "settings.txt"),
+    ]
 
     fhd_cal = UVCal()
-    pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
-                  obs_testfile_list[0], settings_file=settings_testfile_list)
-    pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
-                  obs_testfile_list, settings_file=settings_testfile_list[0])
-    pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
-                  obs_testfile_list + obs_testfile_list,
-                  settings_file=settings_testfile_list)
-    pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list,
-                  obs_testfile_list, settings_file=settings_testfile_list
-                  + settings_testfile_list)
-    pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list[0],
-                  obs_testfile_list, settings_file=settings_testfile_list[0])
-    pytest.raises(ValueError, fhd_cal.read_fhd_cal, cal_testfile_list[0],
-                  obs_testfile_list[0], settings_file=settings_testfile_list)
+    pytest.raises(
+        ValueError,
+        fhd_cal.read_fhd_cal,
+        cal_testfile_list,
+        obs_testfile_list[0],
+        settings_file=settings_testfile_list,
+    )
+    pytest.raises(
+        ValueError,
+        fhd_cal.read_fhd_cal,
+        cal_testfile_list,
+        obs_testfile_list,
+        settings_file=settings_testfile_list[0],
+    )
+    pytest.raises(
+        ValueError,
+        fhd_cal.read_fhd_cal,
+        cal_testfile_list,
+        obs_testfile_list + obs_testfile_list,
+        settings_file=settings_testfile_list,
+    )
+    pytest.raises(
+        ValueError,
+        fhd_cal.read_fhd_cal,
+        cal_testfile_list,
+        obs_testfile_list,
+        settings_file=settings_testfile_list + settings_testfile_list,
+    )
+    pytest.raises(
+        ValueError,
+        fhd_cal.read_fhd_cal,
+        cal_testfile_list[0],
+        obs_testfile_list,
+        settings_file=settings_testfile_list[0],
+    )
+    pytest.raises(
+        ValueError,
+        fhd_cal.read_fhd_cal,
+        cal_testfile_list[0],
+        obs_testfile_list[0],
+        settings_file=settings_testfile_list,
+    )

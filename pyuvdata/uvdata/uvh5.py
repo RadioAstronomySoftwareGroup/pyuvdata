@@ -16,8 +16,9 @@ from .. import utils as uvutils
 __all__ = ["UVH5"]
 
 
-# define HDF5 type for interpreting HERA correlator outputs (integers) as complex numbers
-_hera_corr_dtype = np.dtype([('r', '<i4'), ('i', '<i4')])
+# define HDF5 type for interpreting HERA correlator outputs (integers) as
+# complex numbers
+_hera_corr_dtype = np.dtype([("r", "<i4"), ("i", "<i4")])
 
 
 def _check_uvh5_dtype(dtype):
@@ -46,12 +47,17 @@ def _check_uvh5_dtype(dtype):
     """
     if not isinstance(dtype, np.dtype):
         raise ValueError("dtype in a uvh5 file must be a numpy dtype")
-    if 'r' not in dtype.names or 'i' not in dtype.names:
-        raise ValueError("dtype must be a compound datatype with an 'r' field and an 'i' field")
-    rkind = dtype['r'].kind
-    ikind = dtype['i'].kind
+    if "r" not in dtype.names or "i" not in dtype.names:
+        raise ValueError(
+            "dtype must be a compound datatype with an 'r' field and an 'i' field"
+        )
+    rkind = dtype["r"].kind
+    ikind = dtype["i"].kind
     if rkind != ikind:
-        raise ValueError("dtype must have the same kind ('i4', 'r8', etc.) for both real and imaginary fields")
+        raise ValueError(
+            "dtype must have the same kind ('i4', 'r8', etc.) for both real "
+            "and imaginary fields"
+        )
     return
 
 
@@ -64,7 +70,8 @@ def _read_complex_astype(dset, indices, dtype_out=np.complex64):
     dset : h5py dataset
         A reference to an HDF5 dataset on disk.
     indices : tuple
-        The indices to extract. Should be either lists of indices or numpy slice objects.
+        The indices to extract. Should be either lists of indices or numpy
+        slice objects.
     dtype_out : str or numpy dtype
         The datatype of the output array. One of (complex, np.complex64,
         np.complex128). Default is np.complex64 (single-precision real and
@@ -81,7 +88,9 @@ def _read_complex_astype(dset, indices, dtype_out=np.complex64):
         This is raised if dtype_out is not an acceptable value.
     """
     if dtype_out not in (complex, np.complex64, np.complex128):
-        raise ValueError("output datatype must be one of (complex, np.complex64, np.complex128)")
+        raise ValueError(
+            "output datatype must be one of (complex, np.complex64, np.complex128)"
+        )
     dset_shape = [0, 0, 0, 0]
     for i in range(len(dset_shape)):
         if indices[i] == np.s_[:]:
@@ -91,8 +100,8 @@ def _read_complex_astype(dset, indices, dtype_out=np.complex64):
     output_array = np.empty(dset_shape, dtype=dtype_out)
     dtype_in = dset.dtype
     with dset.astype(dtype_in):
-        output_array.real = dset['r'][indices]
-        output_array.imag = dset['i'][indices]
+        output_array.real = dset["r"][indices]
+        output_array.imag = dset["i"][indices]
 
     return output_array
 
@@ -122,8 +131,8 @@ def _write_complex_astype(data, dset, indices):
     # make doubly sure dtype is valid; should be unless user is pathological
     _check_uvh5_dtype(dtype_out)
     with dset.astype(dtype_out):
-        dset[indices[0], indices[1], indices[2], indices[3], 'r'] = data.real
-        dset[indices[0], indices[1], indices[2], indices[3], 'i'] = data.imag
+        dset[indices[0], indices[1], indices[2], indices[3], "r"] = data.real
+        dset[indices[0], indices[1], indices[2], indices[3], "i"] = data.imag
     return
 
 
@@ -157,79 +166,85 @@ class UVH5(UVData):
         None
         """
         # get telescope information
-        latitude = header['latitude'][()]
-        longitude = header['longitude'][()]
-        altitude = header['altitude'][()]
+        latitude = header["latitude"][()]
+        longitude = header["longitude"][()]
+        altitude = header["altitude"][()]
         self.telescope_location_lat_lon_alt_degrees = (latitude, longitude, altitude)
-        self.instrument = header['instrument'][()].tostring().decode("utf8")
-        self.telescope_name = header['telescope_name'][()].tostring().decode("utf8")
+        self.instrument = header["instrument"][()].tostring().decode("utf8")
+        self.telescope_name = header["telescope_name"][()].tostring().decode("utf8")
 
         # get source information
-        self.object_name = header['object_name'][()].tostring().decode("utf8")
+        self.object_name = header["object_name"][()].tostring().decode("utf8")
 
         # set history appropriately
-        self.history = header['history'][()].tostring().decode("utf8")
+        self.history = header["history"][()].tostring().decode("utf8")
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         # check for vis_units
-        if 'vis_units' in header:
-            self.vis_units = header['vis_units'][()].tostring().decode("utf8")
+        if "vis_units" in header:
+            self.vis_units = header["vis_units"][()].tostring().decode("utf8")
         else:
             # default to uncalibrated data
-            self.vis_units = 'UNCALIB'
+            self.vis_units = "UNCALIB"
 
         # check for optional values
-        if 'dut1' in header:
-            self.dut1 = float(header['dut1'][()])
-        if 'earth_omega' in header:
-            self.earth_omega = float(header['earth_omega'][()])
-        if 'gst0' in header:
-            self.gst0 = float(header['gst0'][()])
-        if 'rdate' in header:
-            self.rdate = header['rdate'][()].tostring().decode("utf8")
-        if 'timesys' in header:
-            self.timesys = header['timesys'][()].tostring().decode("utf8")
-        if 'x_orientation' in header:
-            self.x_orientation = header['x_orientation'][()].tostring().decode("utf8")
-        if 'blt_order' in header:
-            blt_order_str = header['blt_order'][()].tostring().decode("utf8")
-            self.blt_order = tuple(blt_order_str.split(', '))
-            if self.blt_order == ('bda',):
+        if "dut1" in header:
+            self.dut1 = float(header["dut1"][()])
+        if "earth_omega" in header:
+            self.earth_omega = float(header["earth_omega"][()])
+        if "gst0" in header:
+            self.gst0 = float(header["gst0"][()])
+        if "rdate" in header:
+            self.rdate = header["rdate"][()].tostring().decode("utf8")
+        if "timesys" in header:
+            self.timesys = header["timesys"][()].tostring().decode("utf8")
+        if "x_orientation" in header:
+            self.x_orientation = header["x_orientation"][()].tostring().decode("utf8")
+        if "blt_order" in header:
+            blt_order_str = header["blt_order"][()].tostring().decode("utf8")
+            self.blt_order = tuple(blt_order_str.split(", "))
+            if self.blt_order == ("bda",):
                 self._blt_order.form = (1,)
 
-        if 'antenna_diameters' in header:
-            self.antenna_diameters = header['antenna_diameters'][()]
-        if 'uvplane_reference_time' in header:
-            self.uvplane_reference_time = int(header['uvplane_reference_time'][()])
-        if 'eq_coeffs' in header:
-            self.eq_coeffs = header['eq_coeffs'][()]
-        if 'eq_coeffs_convention' in header:
-            self.eq_coeffs_convention = header['eq_coeffs_convention'][()].tostring().decode("utf8")
+        if "antenna_diameters" in header:
+            self.antenna_diameters = header["antenna_diameters"][()]
+        if "uvplane_reference_time" in header:
+            self.uvplane_reference_time = int(header["uvplane_reference_time"][()])
+        if "eq_coeffs" in header:
+            self.eq_coeffs = header["eq_coeffs"][()]
+        if "eq_coeffs_convention" in header:
+            self.eq_coeffs_convention = (
+                header["eq_coeffs_convention"][()].tostring().decode("utf8")
+            )
 
         # check for phasing information
-        self.phase_type = header['phase_type'][()].tostring().decode("utf8")
-        if self.phase_type == 'phased':
+        self.phase_type = header["phase_type"][()].tostring().decode("utf8")
+        if self.phase_type == "phased":
             self.set_phased()
-            self.phase_center_ra = float(header['phase_center_ra'][()])
-            self.phase_center_dec = float(header['phase_center_dec'][()])
-            self.phase_center_epoch = float(header['phase_center_epoch'][()])
-            if 'phase_center_frame' in header:
-                self.phase_center_frame = header['phase_center_frame'][()].tostring().decode("utf8")
-        elif self.phase_type == 'drift':
+            self.phase_center_ra = float(header["phase_center_ra"][()])
+            self.phase_center_dec = float(header["phase_center_dec"][()])
+            self.phase_center_epoch = float(header["phase_center_epoch"][()])
+            if "phase_center_frame" in header:
+                self.phase_center_frame = (
+                    header["phase_center_frame"][()].tostring().decode("utf8")
+                )
+        elif self.phase_type == "drift":
             self.set_drift()
         else:
             self.set_unknown_phase_type()
 
         # get antenna arrays
         # cast to native python int type
-        self.Nants_data = int(header['Nants_data'][()])
-        self.Nants_telescope = int(header['Nants_telescope'][()])
-        self.ant_1_array = header['ant_1_array'][:]
-        self.ant_2_array = header['ant_2_array'][:]
-        self.antenna_names = [n.tostring().decode("utf8") for n in header['antenna_names'][:]]
-        self.antenna_numbers = header['antenna_numbers'][:]
-        self.antenna_positions = header['antenna_positions'][:]
+        self.Nants_data = int(header["Nants_data"][()])
+        self.Nants_telescope = int(header["Nants_telescope"][()])
+        self.ant_1_array = header["ant_1_array"][:]
+        self.ant_2_array = header["ant_2_array"][:]
+        self.antenna_names = [
+            n.tostring().decode("utf8") for n in header["antenna_names"][:]
+        ]
+        self.antenna_numbers = header["antenna_numbers"][:]
+        self.antenna_positions = header["antenna_positions"][:]
 
         # set telescope params
         try:
@@ -238,65 +253,97 @@ class UVH5(UVData):
             warnings.warn(str(ve))
 
         # get baseline array
-        self.baseline_array = self.antnums_to_baseline(self.ant_1_array,
-                                                       self.ant_2_array)
+        self.baseline_array = self.antnums_to_baseline(
+            self.ant_1_array, self.ant_2_array
+        )
         self.Nbls = len(np.unique(self.baseline_array))
 
         # get uvw array
-        self.uvw_array = header['uvw_array'][:, :]
+        self.uvw_array = header["uvw_array"][:, :]
 
         # get time information
-        self.time_array = header['time_array'][:]
-        integration_time = header['integration_time']
+        self.time_array = header["time_array"][:]
+        integration_time = header["integration_time"]
         self.integration_time = integration_time[:]
-        if 'lst_array' in header:
-            self.lst_array = header['lst_array'][:]
+        if "lst_array" in header:
+            self.lst_array = header["lst_array"][:]
             # check that lst_array in file is self-consistent
             if run_check_acceptability:
-                latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
-                lst_array = uvutils.get_lst_for_time(self.time_array, latitude, longitude,
-                                                     altitude)
-                if not np.all(np.isclose(self.lst_array, lst_array, rtol=self._lst_array.tols[0],
-                                         atol=self._lst_array.tols[1])):
-                    warnings.warn("LST values stored in {file} are not self-consistent with time_array "
-                                  "and telescope location. Consider recomputing with "
-                                  "utils.get_lst_for_time.".format(file=filename))
+                (
+                    latitude,
+                    longitude,
+                    altitude,
+                ) = self.telescope_location_lat_lon_alt_degrees
+                lst_array = uvutils.get_lst_for_time(
+                    self.time_array, latitude, longitude, altitude
+                )
+                if not np.all(
+                    np.isclose(
+                        self.lst_array,
+                        lst_array,
+                        rtol=self._lst_array.tols[0],
+                        atol=self._lst_array.tols[1],
+                    )
+                ):
+                    warnings.warn(
+                        "LST values stored in {file} are not self-consistent "
+                        "with time_array and telescope location. Consider "
+                        "recomputing with utils.get_lst_for_time.".format(file=filename)
+                    )
         else:
             # compute lst_array from time_array and telescope location
             latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
-            self.lst_array = uvutils.get_lst_for_time(self.time_array, latitude, longitude,
-                                                      altitude)
+            self.lst_array = uvutils.get_lst_for_time(
+                self.time_array, latitude, longitude, altitude
+            )
 
         # get frequency information
-        self.freq_array = header['freq_array'][:, :]
-        self.channel_width = float(header['channel_width'][()])
-        self.spw_array = header['spw_array'][:]
+        self.freq_array = header["freq_array"][:, :]
+        self.channel_width = float(header["channel_width"][()])
+        self.spw_array = header["spw_array"][:]
 
         # get polarization information
-        self.polarization_array = header['polarization_array'][:]
+        self.polarization_array = header["polarization_array"][:]
 
         # get data shapes
-        self.Nfreqs = int(header['Nfreqs'][()])
-        self.Npols = int(header['Npols'][()])
-        self.Ntimes = int(header['Ntimes'][()])
-        self.Nblts = int(header['Nblts'][()])
-        self.Nspws = int(header['Nspws'][()])
+        self.Nfreqs = int(header["Nfreqs"][()])
+        self.Npols = int(header["Npols"][()])
+        self.Ntimes = int(header["Ntimes"][()])
+        self.Nblts = int(header["Nblts"][()])
+        self.Nspws = int(header["Nspws"][()])
 
         # get extra_keywords
         if "extra_keywords" in header:
             self.extra_keywords = {}
             for key in header["extra_keywords"].keys():
                 if header["extra_keywords"][key].dtype.type in (np.string_, np.object_):
-                    self.extra_keywords[key] = header["extra_keywords"][key][()].tostring().decode("utf8")
+                    self.extra_keywords[key] = (
+                        header["extra_keywords"][key][()].tostring().decode("utf8")
+                    )
                 else:
                     self.extra_keywords[key] = header["extra_keywords"][key][()]
 
         return
 
-    def _get_data(self, dgrp, antenna_nums, antenna_names, ant_str,
-                  bls, frequencies, freq_chans, times, time_range, polarizations,
-                  blt_inds, run_check, check_extra, run_check_acceptability,
-                  data_array_dtype, keep_all_metadata):
+    def _get_data(
+        self,
+        dgrp,
+        antenna_nums,
+        antenna_names,
+        ant_str,
+        bls,
+        frequencies,
+        freq_chans,
+        times,
+        time_range,
+        polarizations,
+        blt_inds,
+        run_check,
+        check_extra,
+        run_check_acceptability,
+        data_array_dtype,
+        keep_all_metadata,
+    ):
         """
         Read the data-size arrays (data, flags, nsamples) from a file.
 
@@ -324,10 +371,18 @@ class UVH5(UVData):
             datatype (np.complex64 or np.complex128).
         """
         # figure out what data to read in
-        blt_inds, freq_inds, pol_inds, history_update_string = \
-            self._select_preprocess(antenna_nums, antenna_names, ant_str, bls,
-                                    frequencies, freq_chans, times, time_range,
-                                    polarizations, blt_inds)
+        blt_inds, freq_inds, pol_inds, history_update_string = self._select_preprocess(
+            antenna_nums,
+            antenna_names,
+            ant_str,
+            bls,
+            frequencies,
+            freq_chans,
+            times,
+            time_range,
+            polarizations,
+            blt_inds,
+        )
 
         if blt_inds is not None:
             blt_frac = len(blt_inds) / float(self.Nblts)
@@ -346,12 +401,15 @@ class UVH5(UVData):
 
         min_frac = np.min([blt_frac, freq_frac, pol_frac])
 
-        # get the fundamental datatype of the visdata; if integers, we need to cast to floats
-        visdata_dtype = dgrp['visdata'].dtype
-        if visdata_dtype not in ('complex64', 'complex128'):
+        # get the fundamental datatype of the visdata; if integers, we need to
+        # cast to floats
+        visdata_dtype = dgrp["visdata"].dtype
+        if visdata_dtype not in ("complex64", "complex128"):
             _check_uvh5_dtype(visdata_dtype)
             if data_array_dtype not in (np.complex64, np.complex128):
-                raise ValueError("data_array_dtype must be np.complex64 or np.complex128")
+                raise ValueError(
+                    "data_array_dtype must be np.complex64 or np.complex128"
+                )
             custom_dtype = True
         else:
             custom_dtype = False
@@ -360,20 +418,24 @@ class UVH5(UVData):
             # no select, read in all the data
             if custom_dtype:
                 inds = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
-                self.data_array = _read_complex_astype(dgrp['visdata'], inds, data_array_dtype)
+                self.data_array = _read_complex_astype(
+                    dgrp["visdata"], inds, data_array_dtype
+                )
             else:
-                self.data_array = dgrp['visdata'][:, :, :, :]
-            self.flag_array = dgrp['flags'][:, :, :, :]
-            self.nsample_array = dgrp['nsamples'][:, :, :, :]
+                self.data_array = dgrp["visdata"][:, :, :, :]
+            self.flag_array = dgrp["flags"][:, :, :, :]
+            self.nsample_array = dgrp["nsamples"][:, :, :, :]
         else:
-            # do select operations on everything except data_array, flag_array and nsample_array
-            self._select_metadata(blt_inds, freq_inds, pol_inds, history_update_string,
-                                  keep_all_metadata)
+            # do select operations on everything except data_array, flag_array
+            # and nsample_array
+            self._select_metadata(
+                blt_inds, freq_inds, pol_inds, history_update_string, keep_all_metadata
+            )
 
             # open references to datasets
-            visdata_dset = dgrp['visdata']
-            flags_dset = dgrp['flags']
-            nsamples_dset = dgrp['nsamples']
+            visdata_dset = dgrp["visdata"]
+            flags_dset = dgrp["flags"]
+            nsamples_dset = dgrp["nsamples"]
 
             # just read in the right portions of the data and flag arrays
             if blt_frac == min_frac:
@@ -385,7 +447,7 @@ class UVH5(UVData):
                 flags = flags_dset[blt_inds, :, :, :]
                 nsamples = nsamples_dset[blt_inds, :, :, :]
 
-                assert(self.Nspws == visdata.shape[1])
+                assert self.Nspws == visdata.shape[1]
 
                 if freq_frac < 1:
                     visdata = visdata[:, :, freq_inds, :]
@@ -437,17 +499,32 @@ class UVH5(UVData):
 
         # check if object has all required UVParameters set
         if run_check:
-            self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
+            self.check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )
 
         return
 
-    def read_uvh5(self, filename, antenna_nums=None, antenna_names=None,
-                  ant_str=None, bls=None, frequencies=None, freq_chans=None,
-                  times=None, time_range=None, polarizations=None,
-                  blt_inds=None, read_data=True,
-                  run_check=True, check_extra=True, run_check_acceptability=True,
-                  data_array_dtype=np.complex128, keep_all_metadata=True):
+    def read_uvh5(
+        self,
+        filename,
+        antenna_nums=None,
+        antenna_names=None,
+        ant_str=None,
+        bls=None,
+        frequencies=None,
+        freq_chans=None,
+        times=None,
+        time_range=None,
+        polarizations=None,
+        blt_inds=None,
+        read_data=True,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        data_array_dtype=np.complex128,
+        keep_all_metadata=True,
+    ):
         """
         Read in data from a UVH5 file.
 
@@ -494,7 +571,8 @@ class UVH5(UVData):
             object. Ignored if read_data is False.
         times : array_like of float, optional
             The times to include when reading data into the object, each value
-            passed here should exist in the time_array. Cannot be used with `time_range`.
+            passed here should exist in the time_array. Cannot be used with
+            `time_range`.
         time_range : array_like of float, optional
             The time range in Julian Date to keep in the object, must be
             length 2. Some of the times in the object should fall between the
@@ -547,13 +625,15 @@ class UVH5(UVData):
 
         """
         if not os.path.exists(filename):
-            raise IOError(filename + ' not found')
+            raise IOError(filename + " not found")
 
         # open hdf5 file for reading
-        with h5py.File(filename, 'r') as f:
+        with h5py.File(filename, "r") as f:
             # extract header information
-            header = f['/Header']
-            self._read_header(header, filename, run_check_acceptability=run_check_acceptability)
+            header = f["/Header"]
+            self._read_header(
+                header, filename, run_check_acceptability=run_check_acceptability
+            )
 
             if not read_data:
                 # don't read in the data. This means the object is incomplete,
@@ -561,12 +641,25 @@ class UVH5(UVData):
                 return
 
             # Now read in the data
-            dgrp = f['/Data']
-            self._get_data(dgrp, antenna_nums, antenna_names, ant_str,
-                           bls, frequencies, freq_chans, times, time_range,
-                           polarizations, blt_inds, run_check,
-                           check_extra, run_check_acceptability,
-                           data_array_dtype, keep_all_metadata)
+            dgrp = f["/Data"]
+            self._get_data(
+                dgrp,
+                antenna_nums,
+                antenna_names,
+                ant_str,
+                bls,
+                frequencies,
+                freq_chans,
+                times,
+                time_range,
+                polarizations,
+                blt_inds,
+                run_check,
+                check_extra,
+                run_check_acceptability,
+                data_array_dtype,
+                keep_all_metadata,
+            )
 
         return
 
@@ -585,73 +678,73 @@ class UVH5(UVData):
         None
         """
         # write out telescope and source information
-        header['latitude'] = self.telescope_location_lat_lon_alt_degrees[0]
-        header['longitude'] = self.telescope_location_lat_lon_alt_degrees[1]
-        header['altitude'] = self.telescope_location_lat_lon_alt_degrees[2]
-        header['telescope_name'] = np.string_(self.telescope_name)
-        header['instrument'] = np.string_(self.instrument)
-        header['object_name'] = np.string_(self.object_name)
+        header["latitude"] = self.telescope_location_lat_lon_alt_degrees[0]
+        header["longitude"] = self.telescope_location_lat_lon_alt_degrees[1]
+        header["altitude"] = self.telescope_location_lat_lon_alt_degrees[2]
+        header["telescope_name"] = np.string_(self.telescope_name)
+        header["instrument"] = np.string_(self.instrument)
+        header["object_name"] = np.string_(self.object_name)
 
         # write out required UVParameters
-        header['Nants_data'] = self.Nants_data
-        header['Nants_telescope'] = self.Nants_telescope
-        header['Nbls'] = self.Nbls
-        header['Nblts'] = self.Nblts
-        header['Nfreqs'] = self.Nfreqs
-        header['Npols'] = self.Npols
-        header['Nspws'] = self.Nspws
-        header['Ntimes'] = self.Ntimes
-        header['antenna_numbers'] = self.antenna_numbers
-        header['uvw_array'] = self.uvw_array
-        header['vis_units'] = np.string_(self.vis_units)
-        header['channel_width'] = self.channel_width
-        header['time_array'] = self.time_array
-        header['freq_array'] = self.freq_array
-        header['integration_time'] = self.integration_time
-        header['lst_array'] = self.lst_array
-        header['polarization_array'] = self.polarization_array
-        header['spw_array'] = self.spw_array
-        header['ant_1_array'] = self.ant_1_array
-        header['ant_2_array'] = self.ant_2_array
-        header['antenna_positions'] = self.antenna_positions
+        header["Nants_data"] = self.Nants_data
+        header["Nants_telescope"] = self.Nants_telescope
+        header["Nbls"] = self.Nbls
+        header["Nblts"] = self.Nblts
+        header["Nfreqs"] = self.Nfreqs
+        header["Npols"] = self.Npols
+        header["Nspws"] = self.Nspws
+        header["Ntimes"] = self.Ntimes
+        header["antenna_numbers"] = self.antenna_numbers
+        header["uvw_array"] = self.uvw_array
+        header["vis_units"] = np.string_(self.vis_units)
+        header["channel_width"] = self.channel_width
+        header["time_array"] = self.time_array
+        header["freq_array"] = self.freq_array
+        header["integration_time"] = self.integration_time
+        header["lst_array"] = self.lst_array
+        header["polarization_array"] = self.polarization_array
+        header["spw_array"] = self.spw_array
+        header["ant_1_array"] = self.ant_1_array
+        header["ant_2_array"] = self.ant_2_array
+        header["antenna_positions"] = self.antenna_positions
 
         # handle antenna_names
-        header['antenna_names'] = np.string_(self.antenna_names, keepdims=True)
+        header["antenna_names"] = np.string_(self.antenna_names, keepdims=True)
 
         # write out phasing information
-        header['phase_type'] = np.string_(self.phase_type)
+        header["phase_type"] = np.string_(self.phase_type)
         if self.phase_center_ra is not None:
-            header['phase_center_ra'] = self.phase_center_ra
+            header["phase_center_ra"] = self.phase_center_ra
         if self.phase_center_dec is not None:
-            header['phase_center_dec'] = self.phase_center_dec
+            header["phase_center_dec"] = self.phase_center_dec
         if self.phase_center_epoch is not None:
-            header['phase_center_epoch'] = self.phase_center_epoch
+            header["phase_center_epoch"] = self.phase_center_epoch
         if self.phase_center_frame is not None:
-            header['phase_center_frame'] = np.string_(self.phase_center_frame)
+            header["phase_center_frame"] = np.string_(self.phase_center_frame)
 
         # write out optional parameters
         if self.dut1 is not None:
-            header['dut1'] = self.dut1
+            header["dut1"] = self.dut1
         if self.earth_omega is not None:
-            header['earth_omega'] = self.earth_omega
+            header["earth_omega"] = self.earth_omega
         if self.gst0 is not None:
-            header['gst0'] = self.gst0
+            header["gst0"] = self.gst0
         if self.rdate is not None:
-            header['rdate'] = np.string_(self.rdate)
+            header["rdate"] = np.string_(self.rdate)
         if self.timesys is not None:
-            header['timesys'] = np.string_(self.timesys)
+            header["timesys"] = np.string_(self.timesys)
         if self.x_orientation is not None:
-            header['x_orientation'] = np.string_(self.x_orientation)
+            header["x_orientation"] = np.string_(self.x_orientation)
         if self.blt_order is not None:
-            header['blt_order'] = np.string_(', '.join(self.blt_order))
+            header["blt_order"] = np.string_(", ".join(self.blt_order))
         if self.antenna_diameters is not None:
-            header['antenna_diameters'] = self.antenna_diameters
+            header["antenna_diameters"] = self.antenna_diameters
         if self.uvplane_reference_time is not None:
-            header['uvplane_reference_time'] = self.uvplane_reference_time
+            header["uvplane_reference_time"] = self.uvplane_reference_time
         if self.eq_coeffs is not None:
-            header['eq_coeffs'] = self.eq_coeffs
+            header["eq_coeffs"] = self.eq_coeffs
         if self.eq_coeffs_convention is not None:
-            header['eq_coeffs_convention'] = np.string_(self.eq_coeffs_convention)
+            header["eq_coeffs_convention"] = np.string_(self.eq_coeffs_convention)
 
         # write out extra keywords if it exists and has elements
         if self.extra_keywords:
@@ -663,14 +756,23 @@ class UVH5(UVData):
                     extra_keywords[k] = self.extra_keywords[k]
 
         # write out history
-        header['history'] = np.string_(self.history)
+        header["history"] = np.string_(self.history)
 
         return
 
-    def write_uvh5(self, filename, run_check=True, check_extra=True,
-                   run_check_acceptability=True, clobber=False,
-                   data_compression=None, flags_compression="lzf", nsample_compression="lzf",
-                   data_write_dtype=None, add_to_history=None):
+    def write_uvh5(
+        self,
+        filename,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        clobber=False,
+        data_compression=None,
+        flags_compression="lzf",
+        nsample_compression="lzf",
+        data_write_dtype=None,
+        add_to_history=None,
+    ):
         """
         Write an in-memory UVData object to a UVH5 file.
 
@@ -732,8 +834,9 @@ class UVH5(UVData):
         data_array encoded with bitshuffle (or an error will be raised).
         """
         if run_check:
-            self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
+            self.check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )
 
         if os.path.exists(filename):
             if clobber:
@@ -742,7 +845,7 @@ class UVH5(UVData):
                 raise IOError("File exists; skipping")
 
         # open file for writing
-        with h5py.File(filename, 'w') as f:
+        with h5py.File(filename, "w") as f:
             # write header
             header = f.create_group("Header")
             self._write_header(header)
@@ -750,33 +853,53 @@ class UVH5(UVData):
             # write out data, flags, and nsample arrays
             dgrp = f.create_group("Data")
             if data_write_dtype is None:
-                if self.data_array.dtype == 'complex64':
-                    data_write_dtype = 'c8'
+                if self.data_array.dtype == "complex64":
+                    data_write_dtype = "c8"
                 else:
-                    data_write_dtype = 'c16'
-            if data_write_dtype not in ('c8', 'c16'):
+                    data_write_dtype = "c16"
+            if data_write_dtype not in ("c8", "c16"):
                 _check_uvh5_dtype(data_write_dtype)
-                visdata = dgrp.create_dataset("visdata", self.data_array.shape, chunks=True,
-                                              compression=data_compression, dtype=data_write_dtype)
+                visdata = dgrp.create_dataset(
+                    "visdata",
+                    self.data_array.shape,
+                    chunks=True,
+                    compression=data_compression,
+                    dtype=data_write_dtype,
+                )
                 indices = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
                 _write_complex_astype(self.data_array, visdata, indices)
             else:
-                visdata = dgrp.create_dataset("visdata", chunks=True,
-                                              data=self.data_array,
-                                              compression=data_compression,
-                                              dtype=data_write_dtype)
-            dgrp.create_dataset("flags", chunks=True,
-                                data=self.flag_array,
-                                compression=flags_compression)
-            dgrp.create_dataset("nsamples", chunks=True,
-                                data=self.nsample_array.astype(np.float32),
-                                compression=nsample_compression)
+                visdata = dgrp.create_dataset(
+                    "visdata",
+                    chunks=True,
+                    data=self.data_array,
+                    compression=data_compression,
+                    dtype=data_write_dtype,
+                )
+            dgrp.create_dataset(
+                "flags",
+                chunks=True,
+                data=self.flag_array,
+                compression=flags_compression,
+            )
+            dgrp.create_dataset(
+                "nsamples",
+                chunks=True,
+                data=self.nsample_array.astype(np.float32),
+                compression=nsample_compression,
+            )
 
         return
 
-    def initialize_uvh5_file(self, filename, clobber=False, data_compression=None,
-                             flags_compression="lzf", nsample_compression="lzf",
-                             data_write_dtype=None):
+    def initialize_uvh5_file(
+        self,
+        filename,
+        clobber=False,
+        data_compression=None,
+        flags_compression="lzf",
+        nsample_compression="lzf",
+        data_write_dtype=None,
+    ):
         """
         Initialize a UVH5 file on disk to be written to in parts.
 
@@ -841,7 +964,7 @@ class UVH5(UVData):
                 raise IOError("File exists; skipping")
 
         # write header and empty arrays to file
-        with h5py.File(filename, 'w') as f:
+        with h5py.File(filename, "w") as f:
             # write header
             header = f.create_group("Header")
             self._write_header(header)
@@ -851,16 +974,31 @@ class UVH5(UVData):
             dgrp = f.create_group("Data")
             if data_write_dtype is None:
                 # we don't know what kind of data we'll get--default to double-precision
-                data_write_dtype = 'c16'
-            if data_write_dtype not in ('c8', 'c16'):
+                data_write_dtype = "c16"
+            if data_write_dtype not in ("c8", "c16"):
                 # make sure the data type is correct
                 _check_uvh5_dtype(data_write_dtype)
-            dgrp.create_dataset("visdata", data_size, chunks=True,
-                                dtype=data_write_dtype, compression=data_compression)
-            dgrp.create_dataset("flags", data_size, chunks=True,
-                                dtype='b1', compression=flags_compression)
-            dgrp.create_dataset("nsamples", data_size, chunks=True,
-                                dtype='f4', compression=nsample_compression)
+            dgrp.create_dataset(
+                "visdata",
+                data_size,
+                chunks=True,
+                dtype=data_write_dtype,
+                compression=data_compression,
+            )
+            dgrp.create_dataset(
+                "flags",
+                data_size,
+                chunks=True,
+                dtype="b1",
+                compression=flags_compression,
+            )
+            dgrp.create_dataset(
+                "nsamples",
+                data_size,
+                chunks=True,
+                dtype="f4",
+                compression=nsample_compression,
+            )
 
         return
 
@@ -890,9 +1028,11 @@ class UVH5(UVData):
         much smaller than the size of the data.
         """
         uvd_file = UVH5()
-        with h5py.File(filename, 'r') as f:
-            header = f['/Header']
-            uvd_file._read_header(header, filename, run_check_acceptability=run_check_acceptability)
+        with h5py.File(filename, "r") as f:
+            header = f["/Header"]
+            uvd_file._read_header(
+                header, filename, run_check_acceptability=run_check_acceptability
+            )
 
         # temporarily remove data, flag, and nsample arrays, so we only check metadata
         if self.data_array is not None:
@@ -915,7 +1055,9 @@ class UVH5(UVData):
             replace_nsamples = False
 
         if self != uvd_file:
-            raise AssertionError("The object metadata in memory and metadata on disk are different")
+            raise AssertionError(
+                "The object metadata in memory and metadata on disk are different"
+            )
         else:
             # clean up after ourselves
             if replace_data:
@@ -927,12 +1069,26 @@ class UVH5(UVData):
             del uvd_file
         return
 
-    def write_uvh5_part(self, filename, data_array, flag_array, nsample_array,
-                        check_header=True, antenna_nums=None, antenna_names=None,
-                        ant_str=None, bls=None, frequencies=None,
-                        freq_chans=None, times=None, time_range=None,
-                        polarizations=None, blt_inds=None,
-                        run_check_acceptability=True, add_to_history=None):
+    def write_uvh5_part(
+        self,
+        filename,
+        data_array,
+        flag_array,
+        nsample_array,
+        check_header=True,
+        antenna_nums=None,
+        antenna_names=None,
+        ant_str=None,
+        bls=None,
+        frequencies=None,
+        freq_chans=None,
+        times=None,
+        time_range=None,
+        polarizations=None,
+        blt_inds=None,
+        run_check_acceptability=True,
+        add_to_history=None,
+    ):
         """
         Write out a part of a UVH5 file that has been previously initialized.
 
@@ -995,9 +1151,9 @@ class UVH5(UVData):
         times : array_like of float, optional
             The times in Julian Day to include when writing data to the file.
         time_range : array_like of float, optional
-            The time range in Julian Date to include when writing data to the file, must be
-            length 2. Some of the times in the object should fall between the
-            first and last elements. Cannot be used with `times`.
+            The time range in Julian Date to include when writing data to the
+            file, must be length 2. Some of the times in the object should fall
+            between the first and last elements. Cannot be used with `times`.
         polarizations : array_like of int, optional
             The polarizations to include when writing data to the file.
         blt_inds : array_like of int, optional
@@ -1028,23 +1184,37 @@ class UVH5(UVData):
         """
         # check that the file already exists
         if not os.path.exists(filename):
-            raise AssertionError("{0} does not exists; please first initialize it with initialize_uvh5_file".format(
-                filename))
+            raise AssertionError(
+                "{0} does not exists; please first initialize it with "
+                "initialize_uvh5_file".format(filename)
+            )
 
         if check_header:
-            self._check_header(filename, run_check_acceptability=run_check_acceptability)
+            self._check_header(
+                filename, run_check_acceptability=run_check_acceptability
+            )
 
         # figure out which "full file" indices to write data to
         blt_inds, freq_inds, pol_inds, _ = self._select_preprocess(
-            antenna_nums, antenna_names, ant_str, bls, frequencies, freq_chans,
-            times, time_range,
-            polarizations, blt_inds)
+            antenna_nums,
+            antenna_names,
+            ant_str,
+            bls,
+            frequencies,
+            freq_chans,
+            times,
+            time_range,
+            polarizations,
+            blt_inds,
+        )
 
         # make sure that the dimensions of the data to write are correct
         if data_array.shape != flag_array.shape:
             raise AssertionError("data_array and flag_array must have the same shape")
         if data_array.shape != nsample_array.shape:
-            raise AssertionError("data_array and nsample_array must have the same shape")
+            raise AssertionError(
+                "data_array and nsample_array must have the same shape"
+            )
 
         # check what part of each dimension to grab
         # we can use numpy slice objects to index the h5py indices
@@ -1109,24 +1279,30 @@ class UVH5(UVData):
         # check for proper size of input arrays
         proper_shape = (Nblts, 1, Nfreqs, Npols)
         if data_array.shape != proper_shape:
-            raise AssertionError("data_array has shape {0}; was expecting {1}".format(data_array.shape,
-                                                                                      proper_shape))
+            raise AssertionError(
+                "data_array has shape {0}; was expecting {1}".format(
+                    data_array.shape, proper_shape
+                )
+            )
 
         # actually write the data
-        with h5py.File(filename, 'r+') as f:
-            dgrp = f['/Data']
-            visdata_dset = dgrp['visdata']
-            flags_dset = dgrp['flags']
-            nsamples_dset = dgrp['nsamples']
+        with h5py.File(filename, "r+") as f:
+            dgrp = f["/Data"]
+            visdata_dset = dgrp["visdata"]
+            flags_dset = dgrp["flags"]
+            nsamples_dset = dgrp["nsamples"]
             visdata_dtype = visdata_dset.dtype
-            if visdata_dtype not in ('complex64', 'complex128'):
+            if visdata_dtype not in ("complex64", "complex128"):
                 custom_dtype = True
             else:
                 custom_dtype = False
 
             # check if we can do fancy indexing
-            # as long as at least 2 out of 3 axes can be written as slices, we can be fancy
-            n_reg_spaced = np.count_nonzero([blt_reg_spaced, freq_reg_spaced, pol_reg_spaced])
+            # as long as at least 2 out of 3 axes can be written as slices,
+            # we can be fancy
+            n_reg_spaced = np.count_nonzero(
+                [blt_reg_spaced, freq_reg_spaced, pol_reg_spaced]
+            )
             if n_reg_spaced >= 2:
                 if custom_dtype:
                     indices = (blt_inds, np.s_[:], freq_inds, pol_inds)
@@ -1142,31 +1318,55 @@ class UVH5(UVData):
                         for ipol, pol_idx in enumerate(pol_inds):
                             if custom_dtype:
                                 indices = (blt_inds, np.s_[:], freq_idx, pol_idx)
-                                _write_complex_astype(data_array[:, :, ifreq, ipol], visdata_dset, indices)
+                                _write_complex_astype(
+                                    data_array[:, :, ifreq, ipol], visdata_dset, indices
+                                )
                             else:
-                                visdata_dset[blt_inds, :, freq_idx, pol_idx] = data_array[:, :, ifreq, ipol]
-                            flags_dset[blt_inds, :, freq_idx, pol_idx] = flag_array[:, :, ifreq, ipol]
-                            nsamples_dset[blt_inds, :, freq_idx, pol_idx] = nsample_array[:, :, ifreq, ipol]
+                                visdata_dset[
+                                    blt_inds, :, freq_idx, pol_idx
+                                ] = data_array[:, :, ifreq, ipol]
+                            flags_dset[blt_inds, :, freq_idx, pol_idx] = flag_array[
+                                :, :, ifreq, ipol
+                            ]
+                            nsamples_dset[
+                                blt_inds, :, freq_idx, pol_idx
+                            ] = nsample_array[:, :, ifreq, ipol]
                 elif freq_reg_spaced:
                     for iblt, blt_idx in enumerate(blt_inds):
                         for ipol, pol_idx in enumerate(pol_inds):
                             if custom_dtype:
                                 indices = (blt_idx, np.s_[:], freq_inds, pol_idx)
-                                _write_complex_astype(data_array[iblt, :, :, ipol], visdata_dset, indices)
+                                _write_complex_astype(
+                                    data_array[iblt, :, :, ipol], visdata_dset, indices
+                                )
                             else:
-                                visdata_dset[blt_idx, :, freq_inds, pol_idx] = data_array[iblt, :, :, ipol]
-                            flags_dset[blt_idx, :, freq_inds, pol_idx] = flag_array[iblt, :, :, ipol]
-                            nsamples_dset[blt_idx, :, freq_inds, pol_idx] = nsample_array[iblt, :, :, ipol]
+                                visdata_dset[
+                                    blt_idx, :, freq_inds, pol_idx
+                                ] = data_array[iblt, :, :, ipol]
+                            flags_dset[blt_idx, :, freq_inds, pol_idx] = flag_array[
+                                iblt, :, :, ipol
+                            ]
+                            nsamples_dset[
+                                blt_idx, :, freq_inds, pol_idx
+                            ] = nsample_array[iblt, :, :, ipol]
                 else:  # pol_reg_spaced
                     for iblt, blt_idx in enumerate(blt_inds):
                         for ifreq, freq_idx in enumerate(freq_inds):
                             if custom_dtype:
                                 indices = (blt_idx, np.s_[:], freq_idx, pol_inds)
-                                _write_complex_astype(data_array[iblt, :, ifreq, :], visdata_dset, indices)
+                                _write_complex_astype(
+                                    data_array[iblt, :, ifreq, :], visdata_dset, indices
+                                )
                             else:
-                                visdata_dset[blt_idx, :, freq_idx, pol_inds] = data_array[iblt, :, ifreq, :]
-                            flags_dset[blt_idx, :, freq_idx, pol_inds] = flag_array[iblt, :, ifreq, :]
-                            nsamples_dset[blt_idx, :, freq_idx, pol_inds] = nsample_array[iblt, :, ifreq, :]
+                                visdata_dset[
+                                    blt_idx, :, freq_idx, pol_inds
+                                ] = data_array[iblt, :, ifreq, :]
+                            flags_dset[blt_idx, :, freq_idx, pol_inds] = flag_array[
+                                iblt, :, ifreq, :
+                            ]
+                            nsamples_dset[
+                                blt_idx, :, freq_idx, pol_inds
+                            ] = nsample_array[iblt, :, ifreq, :]
             else:
                 # all axes irregularly spaced
                 # perform a triple loop -- probably very slow!
@@ -1175,18 +1375,28 @@ class UVH5(UVData):
                         for ipol, pol_idx in enumerate(pol_inds):
                             if custom_dtype:
                                 indices = (blt_idx, np.s_[:], freq_idx, pol_idx)
-                                _write_complex_astype(data_array[iblt, :, ifreq, ipol], visdata_dset, indices)
+                                _write_complex_astype(
+                                    data_array[iblt, :, ifreq, ipol],
+                                    visdata_dset,
+                                    indices,
+                                )
                             else:
-                                visdata_dset[blt_idx, :, freq_idx, pol_idx] = data_array[iblt, :, ifreq, ipol]
-                            flags_dset[blt_idx, :, freq_idx, pol_idx] = flag_array[iblt, :, ifreq, ipol]
-                            nsamples_dset[blt_idx, :, freq_idx, pol_idx] = nsample_array[iblt, :, ifreq, ipol]
+                                visdata_dset[
+                                    blt_idx, :, freq_idx, pol_idx
+                                ] = data_array[iblt, :, ifreq, ipol]
+                            flags_dset[blt_idx, :, freq_idx, pol_idx] = flag_array[
+                                iblt, :, ifreq, ipol
+                            ]
+                            nsamples_dset[
+                                blt_idx, :, freq_idx, pol_idx
+                            ] = nsample_array[iblt, :, ifreq, ipol]
 
             # append to history if desired
             if add_to_history is not None:
                 history = np.string_(self.history) + np.string_(add_to_history)
-                if 'history' in f['Header']:
+                if "history" in f["Header"]:
                     # erase dataset first b/c it has fixed-length string datatype
-                    del f['Header']['history']
-                f['Header']['history'] = np.string_(history)
+                    del f["Header"]["history"]
+                f["Header"]["history"] = np.string_(history)
 
         return

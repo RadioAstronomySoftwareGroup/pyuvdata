@@ -16,11 +16,13 @@ from pyuvdata import UVData
 
 def parse_range(string):
     """Parse numbers from a range string."""
-    m = re.match(r'(\d+)(?:-(\d+))?$', string)
+    m = re.match(r"(\d+)(?:-(\d+))?$", string)
     if not m:
         raise argparse.ArgumentTypeError(
-            "'{}' is not a range of numbers. Expected forms like '0-5' or '2'."
-            .format(string))
+            "'{}' is not a range of numbers. Expected forms like '0-5' or '2'.".format(
+                string
+            )
+        )
     start = int(m.group(1))
     end = int(m.group(2)) or start
 
@@ -28,29 +30,42 @@ def parse_range(string):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('fhd_run_folder',
-                    help='name of an FHD output folder that contains a '
-                         'vis_data folder and a metadata folder')
-parser.add_argument('--obsid_range', type=parse_range,
-                    help='range of obsids to use, can be a single value or '
-                         'a min and max with a dash between')
-parser.add_argument('--no-dirty', dest='dirty', action='store_false',
-                    help='do not convert dirty visibilities')
+parser.add_argument(
+    "fhd_run_folder",
+    help="name of an FHD output folder that contains a "
+    "vis_data folder and a metadata folder",
+)
+parser.add_argument(
+    "--obsid_range",
+    type=parse_range,
+    help="range of obsids to use, can be a single value or "
+    "a min and max with a dash between",
+)
+parser.add_argument(
+    "--no-dirty",
+    dest="dirty",
+    action="store_false",
+    help="do not convert dirty visibilities",
+)
 parser.set_defaults(dirty=True)
-parser.add_argument('--no-model', dest='model', action='store_false',
-                    help='do not convert model visibilities')
+parser.add_argument(
+    "--no-model",
+    dest="model",
+    action="store_false",
+    help="do not convert model visibilities",
+)
 parser.set_defaults(model=True)
 args = parser.parse_args()
 
-vis_folder = op.join(args.fhd_run_folder, 'vis_data')
+vis_folder = op.join(args.fhd_run_folder, "vis_data")
 if not op.isdir(vis_folder):
-    raise IOError('There is no vis_data folder in {}'.format(args.fhd_run_folder))
+    raise IOError("There is no vis_data folder in {}".format(args.fhd_run_folder))
 
-metadata_folder = op.join(args.fhd_run_folder, 'metadata')
+metadata_folder = op.join(args.fhd_run_folder, "metadata")
 if not op.isdir(vis_folder):
-    raise IOError('There is no metadata folder in {}'.format(args.fhd_run_folder))
+    raise IOError("There is no metadata folder in {}".format(args.fhd_run_folder))
 
-output_folder = op.join(args.fhd_run_folder, 'uvfits')
+output_folder = op.join(args.fhd_run_folder, "uvfits")
 if not op.exists(output_folder):
     os.mkdir(output_folder)
 
@@ -65,7 +80,7 @@ for f in os.listdir(metadata_folder):
 file_dict = {}
 for f in files:
     dirname, fname = op.split(f)
-    fparts = fname.split('_')
+    fparts = fname.split("_")
     try:
         obsid = int(fparts[0])
         if obsid in file_dict:
@@ -88,21 +103,25 @@ for k in list(file_dict.keys()):
 
 for i, (k, v) in enumerate(file_dict.items()):
     if args.dirty:
-        print('converting dirty vis for obsid {}, ({} of {})'.format(k, i, len(file_dict)))
-        uvfits_file = op.join(output_folder, str(k) + '.uvfits')
+        print(
+            "converting dirty vis for obsid {}, ({} of {})".format(k, i, len(file_dict))
+        )
+        uvfits_file = op.join(output_folder, str(k) + ".uvfits")
         this_uv = UVData()
         this_uv.read_fhd(v)
 
         this_uv.write_uvfits(uvfits_file, spoof_nonessential=True)
 
-        del(this_uv)
+        del this_uv
 
     if args.model:
-        print('converting model vis for obsid {}, ({} of {})'.format(k, i, len(file_dict)))
-        uvfits_file = op.join(output_folder, str(k) + '_model.uvfits')
+        print(
+            "converting model vis for obsid {}, ({} of {})".format(k, i, len(file_dict))
+        )
+        uvfits_file = op.join(output_folder, str(k) + "_model.uvfits")
         this_uv = UVData()
         this_uv.read_fhd(v, use_model=True)
 
         this_uv.write_uvfits(uvfits_file, spoof_nonessential=True)
 
-        del(this_uv)
+        del this_uv

@@ -16,70 +16,87 @@ from astropy.time import Time
 
 def write_index_rst(readme_file=None, write_file=None):
     t = Time.now()
-    t.out_subfmt = 'date'
-    out = ('.. pyuvdata documentation master file, created by\n'
-           '   make_index.py on {date}\n\n').format(date=t.iso)
+    t.out_subfmt = "date"
+    out = (
+        ".. pyuvdata documentation master file, created by\n"
+        "   make_index.py on {date}\n\n"
+    ).format(date=t.iso)
 
     if readme_file is None:
-        main_path = os.path.dirname(os.path.dirname(os.path.abspath(inspect.stack()[0][1])))
-        readme_file = os.path.join(main_path, 'README.md')
+        main_path = os.path.dirname(
+            os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
+        )
+        readme_file = os.path.join(main_path, "README.md")
 
-    readme_text = pypandoc.convert_file(readme_file, 'rst')
+    readme_text = pypandoc.convert_file(readme_file, "rst")
 
     title_badge_text = (
-        'pyuvdata\n========\n\n'
-        '.. image:: https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata.svg?style=svg\n'
-        '    :target: https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata\n\n'
-        '.. image:: https://github.com/RadioAstronomySoftwareGroup/pyuvdata/workflows/Run%20Tests/badge.svg?branch=master\n'
-        '    :target: https://github.com/RadioAstronomySoftwareGroup/pyuvdata/actions\n\n'
-        '.. image:: https://dev.azure.com/radioastronomysoftwaregroup/pyuvdata/_apis/build/status/RadioAstronomySoftwareGroup.pyuvdata?branchName=master\n'
-        '    :target: https://dev.azure.com/radioastronomysoftwaregroup/pyuvdata/_build/latest?definitionId=1&branchName=master\n\n'
-        '.. image:: https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/branch/master/graph/badge.svg\n'
-        '  :target: https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata\n\n'
-        '.. image:: http://joss.theoj.org/papers/10.21105/joss.00140/status.svg\n'
-        '  :target: https://doi.org/10.21105/joss.00140\n\n')
+        "pyuvdata\n========\n\n"
+        ".. image:: https://circleci.com/gh/RadioAstronomySoftwareGroup/"
+        "pyuvdata.svg?style=svg\n"
+        "    :target: https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata\n\n"
+        ".. image:: https://github.com/RadioAstronomySoftwareGroup/pyuvdata/"
+        "workflows/Run%20Tests/badge.svg?branch=master\n"
+        "    :target: https://github.com/RadioAstronomySoftwareGroup/pyuvdata/"
+        "actions\n\n"
+        ".. image:: https://dev.azure.com/radioastronomysoftwaregroup/pyuvdata/"
+        "_apis/build/status/RadioAstronomySoftwareGroup.pyuvdata?branchName=master\n"
+        "    :target: https://dev.azure.com/radioastronomysoftwaregroup/pyuvdata/"
+        "_build/latest?definitionId=1&branchName=master\n\n"
+        ".. image:: https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/"
+        "branch/master/graph/badge.svg\n"
+        "  :target: https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata\n\n"
+        ".. image:: http://joss.theoj.org/papers/10.21105/joss.00140/status.svg\n"
+        "  :target: https://doi.org/10.21105/joss.00140\n\n"
+    )
 
-    begin_desc = 'pyuvdata defines a pythonic interface'
+    begin_desc = "pyuvdata defines a pythonic interface"
     start_desc = str.find(readme_text, begin_desc)
 
     readme_text = readme_text[start_desc:]
 
     # convert relative links in readme to explicit links
     readme_text = readme_text.replace(
-        '<docs/', '<https://github.com/RadioAstronomySoftwareGroup/pyuvdata/tree/master/docs/')
+        "<docs/",
+        "<https://github.com/RadioAstronomySoftwareGroup/pyuvdata/tree/master/docs/",
+    )
 
     readme_text = readme_text.replace(
-        '<.github/', '<https://github.com/RadioAstronomySoftwareGroup/pyuvdata/tree/master/.github/')
+        "<.github/",
+        "<https://github.com/RadioAstronomySoftwareGroup/pyuvdata/tree/master/.github/",
+    )
 
     readme_text = title_badge_text + readme_text
 
-    end_text = 'parameters descriptions'
-    regex = re.compile(end_text.replace(' ', r'\s+'))
+    end_text = "parameters descriptions"
+    regex = re.compile(end_text.replace(" ", r"\s+"))
     loc = re.search(regex, readme_text).start()
 
-    out += readme_text[0:loc] + end_text + '.'
-    out += ('\n\nFurther Documentation\n====================================\n'
-            '.. toctree::\n'
-            '   :maxdepth: 1\n\n'
-            '   tutorial\n'
-            '   uvdata_parameters\n'
-            '   uvdata\n'
-            '   uvcal_parameters\n'
-            '   uvcal\n'
-            '   uvbeam_parameters\n'
-            '   uvbeam\n'
-            '   uvflag_parameters\n'
-            '   uvflag\n'
-            '   cst_settings_yaml\n'
-            '   utility_functions\n'
-            '   known_telescopes\n'
-            '   developer_docs\n')
+    out += readme_text[0:loc] + end_text + "."
+    out += (
+        "\n\nFurther Documentation\n====================================\n"
+        ".. toctree::\n"
+        "   :maxdepth: 1\n\n"
+        "   tutorial\n"
+        "   uvdata_parameters\n"
+        "   uvdata\n"
+        "   uvcal_parameters\n"
+        "   uvcal\n"
+        "   uvbeam_parameters\n"
+        "   uvbeam\n"
+        "   uvflag_parameters\n"
+        "   uvflag\n"
+        "   cst_settings_yaml\n"
+        "   utility_functions\n"
+        "   known_telescopes\n"
+        "   developer_docs\n"
+    )
 
     out.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(u"\xa0", " ")
 
     if write_file is None:
         write_path = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
-        write_file = os.path.join(write_path, 'index.rst')
-    F = open(write_file, 'w')
+        write_file = os.path.join(write_path, "index.rst")
+    F = open(write_file, "w")
     F.write(out)
     print("wrote " + write_file)

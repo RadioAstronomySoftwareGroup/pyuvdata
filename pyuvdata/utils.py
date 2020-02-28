@@ -27,9 +27,9 @@ def _str_to_bytes(s):
         "_str_to_bytes is deprecated and will be removed in pyuvdata version 2.2. "
         "For an input string s, this function is a thin wrapper on s.encode('utf8'). "
         "The use of encode is preferred over calling this function.",
-        DeprecationWarning
+        DeprecationWarning,
     )
-    return s.encode('utf8')
+    return s.encode("utf8")
 
 
 def _bytes_to_str(b):
@@ -37,9 +37,9 @@ def _bytes_to_str(b):
         "_bytes_to_str is deprecated and will be removed in pyuvdata version 2.2. "
         "For an input string s, this function is a thin wrapper on s.decode('utf8'). "
         "The use of decode is preferred over calling this function.",
-        DeprecationWarning
+        DeprecationWarning,
     )
-    return b.decode('utf8')
+    return b.decode("utf8")
 
 
 __all__ = [
@@ -82,30 +82,98 @@ __all__ = [
 
 # polarization constants
 # maps polarization strings to polarization integers
-POL_STR2NUM_DICT = {'pI': 1, 'pQ': 2, 'pU': 3, 'pV': 4,
-                    'I': 1, 'Q': 2, 'U': 3, 'V': 4,  # support straight stokes names
-                    'rr': -1, 'll': -2, 'rl': -3, 'lr': -4,
-                    'xx': -5, 'yy': -6, 'xy': -7, 'yx': -8}
+POL_STR2NUM_DICT = {
+    "pI": 1,
+    "pQ": 2,
+    "pU": 3,
+    "pV": 4,
+    "I": 1,
+    "Q": 2,
+    "U": 3,
+    "V": 4,  # support straight stokes names
+    "rr": -1,
+    "ll": -2,
+    "rl": -3,
+    "lr": -4,
+    "xx": -5,
+    "yy": -6,
+    "xy": -7,
+    "yx": -8,
+}
 # maps polarization integers to polarization strings
-POL_NUM2STR_DICT = {1: 'pI', 2: 'pQ', 3: 'pU', 4: 'pV',
-                    -1: 'rr', -2: 'll', -3: 'rl', -4: 'lr',
-                    -5: 'xx', -6: 'yy', -7: 'xy', -8: 'yx'}
+POL_NUM2STR_DICT = {
+    1: "pI",
+    2: "pQ",
+    3: "pU",
+    4: "pV",
+    -1: "rr",
+    -2: "ll",
+    -3: "rl",
+    -4: "lr",
+    -5: "xx",
+    -6: "yy",
+    -7: "xy",
+    -8: "yx",
+}
 
 # maps how polarizations change when antennas are swapped
-CONJ_POL_DICT = {'xx': 'xx', 'yy': 'yy', 'xy': 'yx', 'yx': 'xy',
-                 'ee': 'ee', 'nn': 'nn', 'en': 'ne', 'ne': 'en',
-                 'rr': 'rr', 'll': 'll', 'rl': 'lr', 'lr': 'rl',
-                 'I': 'I', 'Q': 'Q', 'U': 'U', 'V': 'V',
-                 'pI': 'pI', 'pQ': 'pQ', 'pU': 'pU', 'pV': 'pV'}
+CONJ_POL_DICT = {
+    "xx": "xx",
+    "yy": "yy",
+    "xy": "yx",
+    "yx": "xy",
+    "ee": "ee",
+    "nn": "nn",
+    "en": "ne",
+    "ne": "en",
+    "rr": "rr",
+    "ll": "ll",
+    "rl": "lr",
+    "lr": "rl",
+    "I": "I",
+    "Q": "Q",
+    "U": "U",
+    "V": "V",
+    "pI": "pI",
+    "pQ": "pQ",
+    "pU": "pU",
+    "pV": "pV",
+}
 
 # maps jones matrix element strings to jones integers
-JONES_STR2NUM_DICT = {'Jxx': -5, 'Jyy': -6, 'Jxy': -7, 'Jyx': -8,
-                      'xx': -5, 'x': -5, 'yy': -6, 'y': -6, 'xy': -7, 'yx': -8,  # Allow shorthand
-                      'Jrr': -1, 'Jll': -2, 'Jrl': -3, 'Jlr': -4,
-                      'rr': -1, 'r': -1, 'll': -2, 'l': -2, 'rl': -3, 'lr': -4}
+JONES_STR2NUM_DICT = {
+    "Jxx": -5,
+    "Jyy": -6,
+    "Jxy": -7,
+    "Jyx": -8,
+    "xx": -5,
+    "x": -5,
+    "yy": -6,
+    "y": -6,
+    "xy": -7,
+    "yx": -8,  # Allow shorthand
+    "Jrr": -1,
+    "Jll": -2,
+    "Jrl": -3,
+    "Jlr": -4,
+    "rr": -1,
+    "r": -1,
+    "ll": -2,
+    "l": -2,
+    "rl": -3,
+    "lr": -4,
+}
 # maps jones integers to jones matrix element strings
-JONES_NUM2STR_DICT = {-1: 'Jrr', -2: 'Jll', -3: 'Jrl', -4: 'Jlr',
-                      -5: 'Jxx', -6: 'Jyy', -7: 'Jxy', -8: 'Jyx'}
+JONES_NUM2STR_DICT = {
+    -1: "Jrr",
+    -2: "Jll",
+    -3: "Jrl",
+    -4: "Jlr",
+    -5: "Jxx",
+    -6: "Jyy",
+    -7: "Jxy",
+    -8: "Jyx",
+}
 
 
 def _get_iterable(x):
@@ -134,10 +202,10 @@ def _fits_gethduaxis(hdu, axis):
 
     """
     ax = str(axis)
-    axis_num = hdu.header['NAXIS' + ax]
-    val = hdu.header['CRVAL' + ax]
-    delta = hdu.header['CDELT' + ax]
-    index = hdu.header['CRPIX' + ax] - 1
+    axis_num = hdu.header["NAXIS" + ax]
+    val = hdu.header["CRVAL" + ax]
+    delta = hdu.header["CDELT" + ax]
+    index = hdu.header["CRPIX" + ax] - 1
 
     return delta * (np.arange(axis_num) - index) + val
 
@@ -160,15 +228,15 @@ def _fits_indexhdus(hdulist):
     tablenames = {}
     for i in range(len(hdulist)):
         try:
-            tablenames[hdulist[i].header['EXTNAME']] = i
-        except(KeyError):
+            tablenames[hdulist[i].header["EXTNAME"]] = i
+        except (KeyError):
             continue
     return tablenames
 
 
 def _check_history_version(history, version_string):
     """Check if version_string is present in history string."""
-    if (version_string.replace(' ', '') in history.replace('\n', '').replace(' ', '')):
+    if version_string.replace(" ", "") in history.replace("\n", "").replace(" ", ""):
         return True
     else:
         return False
@@ -176,7 +244,9 @@ def _check_history_version(history, version_string):
 
 def _check_histories(history1, history2):
     """Check if two histories are the same."""
-    if (history1.replace('\n', '').replace(' ', '') == history2.replace('\n', '').replace(' ', '')):
+    if history1.replace("\n", "").replace(" ", "") == history2.replace(
+        "\n", ""
+    ).replace(" ", ""):
         return True
     else:
         return False
@@ -184,19 +254,20 @@ def _check_histories(history1, history2):
 
 def _combine_histories(history1, history2):
     """Combine histories with minimal repeats."""
-    hist2_words = history2.split(' ')
-    add_hist = ''
-    test_hist1 = ' ' + history1 + ' '
+    hist2_words = history2.split(" ")
+    add_hist = ""
+    test_hist1 = " " + history1 + " "
     for i, word in enumerate(hist2_words):
-        if ' ' + word + ' ' not in test_hist1:
-            add_hist += ' ' + word
-            keep_going = (i + 1 < len(hist2_words))
+        if " " + word + " " not in test_hist1:
+            add_hist += " " + word
+            keep_going = i + 1 < len(hist2_words)
             while keep_going:
-                if ((hist2_words[i + 1] == ' ')
-                        or (' ' + hist2_words[i + 1] + ' ' not in test_hist1)):
-                    add_hist += ' ' + hist2_words[i + 1]
-                    del(hist2_words[i + 1])
-                    keep_going = (i + 1 < len(hist2_words))
+                if (hist2_words[i + 1] == " ") or (
+                    " " + hist2_words[i + 1] + " " not in test_hist1
+                ):
+                    add_hist += " " + hist2_words[i + 1]
+                    del hist2_words[i + 1]
+                    keep_going = i + 1 < len(hist2_words)
                 else:
                     keep_going = False
 
@@ -223,13 +294,14 @@ def baseline_to_antnums(baseline, Nants_telescope):
 
     """
     if Nants_telescope > 2048:
-        raise Exception('error Nants={Nants}>2048 not '
-                        'supported'.format(Nants=Nants_telescope))
+        raise Exception(
+            "error Nants={Nants}>2048 not " "supported".format(Nants=Nants_telescope)
+        )
 
     baseline = np.asarray(baseline, dtype=np.int64)
-    if np.min(baseline) > 2**16:
-        ant2 = (baseline - 2**16) % 2048 - 1
-        ant1 = (baseline - 2**16 - (ant2 + 1)) / 2048 - 1
+    if np.min(baseline) > 2 ** 16:
+        ant2 = (baseline - 2 ** 16) % 2048 - 1
+        ant1 = (baseline - 2 ** 16 - (ant2 + 1)) / 2048 - 1
     else:
         ant2 = (baseline) % 256 - 1
         ant1 = (baseline - (ant2 + 1)) / 256 - 1
@@ -261,21 +333,23 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
     """
     ant1, ant2 = np.int64((ant1, ant2))
     if Nants_telescope is not None and Nants_telescope > 2048:
-        raise Exception('cannot convert ant1, ant2 to a baseline index '
-                        'with Nants={Nants}>2048.'
-                        .format(Nants=Nants_telescope))
+        raise Exception(
+            "cannot convert ant1, ant2 to a baseline index "
+            "with Nants={Nants}>2048.".format(Nants=Nants_telescope)
+        )
     if attempt256:
-        if (np.max(ant1) < 255 and np.max(ant2) < 255):
+        if np.max(ant1) < 255 and np.max(ant2) < 255:
             return 256 * (ant1 + 1) + (ant2 + 1)
         else:
-            print('Max antnums are {} and {}'.format(
-                np.max(ant1), np.max(ant2)))
-            message = 'antnums_to_baseline: found > 256 antennas, using ' \
-                      '2048 baseline indexing. Beware compatibility ' \
-                      'with CASA etc'
+            print("Max antnums are {} and {}".format(np.max(ant1), np.max(ant2)))
+            message = (
+                "antnums_to_baseline: found > 256 antennas, using "
+                "2048 baseline indexing. Beware compatibility "
+                "with CASA etc"
+            )
             warnings.warn(message)
 
-    baseline = 2048 * (ant1 + 1) + (ant2 + 1) + 2**16
+    baseline = 2048 * (ant1 + 1) + (ant2 + 1) + 2 ** 16
 
     if isinstance(baseline, np.ndarray):
         return np.asarray(baseline, dtype=np.int64)
@@ -291,12 +365,12 @@ def baseline_index_flip(baseline, Nants_telescope):
 
 def _x_orientation_rep_dict(x_orientation):
     """Create replacement dict based on x_orientation."""
-    if x_orientation.lower() == 'east' or x_orientation.lower() == 'e':
-        return {'x': 'e', 'y': 'n'}
-    elif x_orientation.lower() == 'north' or x_orientation.lower() == 'n':
-        return {'x': 'n', 'y': 'e'}
+    if x_orientation.lower() == "east" or x_orientation.lower() == "e":
+        return {"x": "e", "y": "n"}
+    elif x_orientation.lower() == "north" or x_orientation.lower() == "n":
+        return {"x": "n", "y": "e"}
     else:
-        raise ValueError('x_orientation not recognized.')
+        raise ValueError("x_orientation not recognized.")
 
 
 def polstr2num(pol, x_orientation=None):
@@ -337,10 +411,10 @@ def polstr2num(pol, x_orientation=None):
         try:
             rep_dict = _x_orientation_rep_dict(x_orientation)
             for key, value in POL_STR2NUM_DICT.items():
-                new_key = key.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
+                new_key = key.replace("x", rep_dict["x"]).replace("y", rep_dict["y"])
                 dict_use[new_key] = value
         except ValueError:
-            warnings.warn('x_orientation not recognized.')
+            warnings.warn("x_orientation not recognized.")
 
     poldict = {k.lower(): v for k, v in dict_use.items()}
     if isinstance(pol, str):
@@ -348,7 +422,11 @@ def polstr2num(pol, x_orientation=None):
     elif isinstance(pol, Iterable):
         out = [poldict[key.lower()] for key in pol]
     else:
-        raise ValueError('Polarization {p} cannot be converted to a polarization number.'.format(p=pol))
+        raise ValueError(
+            "Polarization {p} cannot be converted to a polarization number.".format(
+                p=pol
+            )
+        )
     return out
 
 
@@ -389,17 +467,19 @@ def polnum2str(num, x_orientation=None):
         try:
             rep_dict = _x_orientation_rep_dict(x_orientation)
             for key, value in POL_NUM2STR_DICT.items():
-                new_val = value.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
+                new_val = value.replace("x", rep_dict["x"]).replace("y", rep_dict["y"])
                 dict_use[key] = new_val
         except ValueError:
-            warnings.warn('x_orientation not recognized.')
+            warnings.warn("x_orientation not recognized.")
 
     if isinstance(num, (int, np.int32, np.int64)):
         out = dict_use[num]
     elif isinstance(num, Iterable):
         out = [dict_use[i] for i in num]
     else:
-        raise ValueError('Polarization {p} cannot be converted to string.'.format(p=num))
+        raise ValueError(
+            "Polarization {p} cannot be converted to string.".format(p=num)
+        )
     return out
 
 
@@ -438,10 +518,10 @@ def jstr2num(jstr, x_orientation=None):
         try:
             rep_dict = _x_orientation_rep_dict(x_orientation)
             for key, value in JONES_STR2NUM_DICT.items():
-                new_key = key.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
+                new_key = key.replace("x", rep_dict["x"]).replace("y", rep_dict["y"])
                 dict_use[new_key] = value
         except ValueError:
-            warnings.warn('x_orientation not recognized.')
+            warnings.warn("x_orientation not recognized.")
 
     jdict = {k.lower(): v for k, v in dict_use.items()}
     if isinstance(jstr, str):
@@ -449,7 +529,9 @@ def jstr2num(jstr, x_orientation=None):
     elif isinstance(jstr, Iterable):
         out = [jdict[key.lower()] for key in jstr]
     else:
-        raise ValueError('Jones polarization {j} cannot be converted to index.'.format(j=jstr))
+        raise ValueError(
+            "Jones polarization {j} cannot be converted to index.".format(j=jstr)
+        )
     return out
 
 
@@ -474,7 +556,8 @@ def jnum2str(jnum, x_orientation=None):
     Raises
     ------
     ValueError
-        If the jones polarization number cannot be converted to a jones polarization string.
+        If the jones polarization number cannot be converted to a jones
+        polarization string.
 
     Warns
     -----
@@ -487,17 +570,19 @@ def jnum2str(jnum, x_orientation=None):
         try:
             rep_dict = _x_orientation_rep_dict(x_orientation)
             for key, value in JONES_NUM2STR_DICT.items():
-                new_val = value.replace('x', rep_dict['x']).replace('y', rep_dict['y'])
+                new_val = value.replace("x", rep_dict["x"]).replace("y", rep_dict["y"])
                 dict_use[key] = new_val
         except ValueError:
-            warnings.warn('x_orientation not recognized.')
+            warnings.warn("x_orientation not recognized.")
 
     if isinstance(jnum, (int, np.int32, np.int64)):
         out = dict_use[jnum]
     elif isinstance(jnum, Iterable):
         out = [dict_use[i] for i in jnum]
     else:
-        raise ValueError('Jones polarization {j} cannot be converted to string.'.format(j=jnum))
+        raise ValueError(
+            "Jones polarization {j} cannot be converted to string.".format(j=jnum)
+        )
     return out
 
 
@@ -533,8 +618,9 @@ def parse_polstr(polstr, x_orientation=None):
         If the x_orientation not recognized.
 
     """
-    return polnum2str(polstr2num(polstr, x_orientation=x_orientation),
-                      x_orientation=x_orientation)
+    return polnum2str(
+        polstr2num(polstr, x_orientation=x_orientation), x_orientation=x_orientation
+    )
 
 
 def parse_jpolstr(jpolstr, x_orientation=None):
@@ -564,8 +650,9 @@ def parse_jpolstr(jpolstr, x_orientation=None):
         If the x_orientation not recognized.
 
     """
-    return jnum2str(jstr2num(jpolstr, x_orientation=x_orientation),
-                    x_orientation=x_orientation)
+    return jnum2str(
+        jstr2num(jpolstr, x_orientation=x_orientation), x_orientation=x_orientation
+    )
 
 
 def conj_pol(pol):
@@ -599,7 +686,7 @@ def conj_pol(pol):
     elif isinstance(pol, (int, np.int32, np.int64)):
         cpol = polstr2num(cpol_dict[polnum2str(pol).lower()])
     else:
-        raise ValueError('Polarization not recognized, cannot be conjugated.')
+        raise ValueError("Polarization not recognized, cannot be conjugated.")
     return cpol
 
 
@@ -627,11 +714,13 @@ def reorder_conj_pols(pols):
         Indices to reorder polarization array.
     """
     if not isinstance(pols, Iterable):
-        raise ValueError('reorder_conj_pols must be given an array of polarizations.')
+        raise ValueError("reorder_conj_pols must be given an array of polarizations.")
     cpols = np.array([conj_pol(p) for p in pols])  # Array needed for np.where
     conj_order = [np.where(cpols == p)[0][0] if p in cpols else -1 for p in pols]
     if -1 in conj_order:
-        raise ValueError('Not all conjugate pols exist in the polarization array provided.')
+        raise ValueError(
+            "Not all conjugate pols exist in the polarization array provided."
+        )
     return conj_order
 
 
@@ -659,7 +748,7 @@ def LatLonAlt_from_XYZ(xyz, check_acceptability=True):
     # convert to a numpy array
     xyz = np.array(xyz)
     if xyz.ndim > 1 and xyz.shape[1] != 3:
-        raise ValueError('The expected shape of ECEF xyz array is (Npts, 3).')
+        raise ValueError("The expected shape of ECEF xyz array is (Npts, 3).")
 
     else:
         xyz_use = xyz
@@ -669,22 +758,23 @@ def LatLonAlt_from_XYZ(xyz, check_acceptability=True):
 
     # checking for acceptable values
     if check_acceptability:
-        if (np.any(np.linalg.norm(xyz_use, axis=1) < 6.35e6)
-                or np.any(np.linalg.norm(xyz_use, axis=1) > 6.39e6)):
-            raise ValueError(
-                'xyz values should be ECEF x, y, z coordinates in meters')
+        if np.any(np.linalg.norm(xyz_use, axis=1) < 6.35e6) or np.any(
+            np.linalg.norm(xyz_use, axis=1) > 6.39e6
+        ):
+            raise ValueError("xyz values should be ECEF x, y, z coordinates in meters")
 
     # see wikipedia geodetic_datum and Datum transformations of
     # GPS positions PDF in docs/references folder
-    gps_p = np.sqrt(xyz_use[:, 0]**2 + xyz_use[:, 1]**2)
+    gps_p = np.sqrt(xyz_use[:, 0] ** 2 + xyz_use[:, 1] ** 2)
     gps_theta = np.arctan2(xyz_use[:, 2] * gps_a, gps_p * gps_b)
-    latitude = np.arctan2(xyz_use[:, 2] + e_prime_squared * gps_b
-                          * np.sin(gps_theta)**3, gps_p - e_squared * gps_a
-                          * np.cos(gps_theta)**3)
+    latitude = np.arctan2(
+        xyz_use[:, 2] + e_prime_squared * gps_b * np.sin(gps_theta) ** 3,
+        gps_p - e_squared * gps_a * np.cos(gps_theta) ** 3,
+    )
 
     longitude = np.arctan2(xyz_use[:, 1], xyz_use[:, 0])
-    gps_n = gps_a / np.sqrt(1 - e_squared * np.sin(latitude)**2)
-    altitude = ((gps_p / np.cos(latitude)) - gps_n)
+    gps_n = gps_a / np.sqrt(1 - e_squared * np.sin(latitude) ** 2)
+    altitude = (gps_p / np.cos(latitude)) - gps_n
 
     if xyz.ndim == 1:
         longitude = longitude[0]
@@ -718,18 +808,20 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude):
     n_pts = latitude.size
     if longitude.size != n_pts:
         raise ValueError(
-            'latitude, longitude and altitude must all have the same length')
+            "latitude, longitude and altitude must all have the same length"
+        )
     if altitude.size != n_pts:
         raise ValueError(
-            'latitude, longitude and altitude must all have the same length')
+            "latitude, longitude and altitude must all have the same length"
+        )
 
     # see wikipedia geodetic_datum and Datum transformations of
     # GPS positions PDF in docs/references folder
-    gps_n = gps_a / np.sqrt(1 - e_squared * np.sin(latitude)**2)
+    gps_n = gps_a / np.sqrt(1 - e_squared * np.sin(latitude) ** 2)
     xyz = np.zeros((n_pts, 3))
-    xyz[:, 0] = ((gps_n + altitude) * np.cos(latitude) * np.cos(longitude))
-    xyz[:, 1] = ((gps_n + altitude) * np.cos(latitude) * np.sin(longitude))
-    xyz[:, 2] = ((gps_b**2 / gps_a**2 * gps_n + altitude) * np.sin(latitude))
+    xyz[:, 0] = (gps_n + altitude) * np.cos(latitude) * np.cos(longitude)
+    xyz[:, 1] = (gps_n + altitude) * np.cos(latitude) * np.sin(longitude)
+    xyz[:, 2] = (gps_b ** 2 / gps_a ** 2 * gps_n + altitude) * np.sin(latitude)
 
     xyz = np.squeeze(xyz)
     return xyz
@@ -757,9 +849,13 @@ def rotECEF_from_ECEF(xyz, longitude):
 
     """
     angle = -1 * longitude
-    rot_matrix = np.array([[np.cos(angle), -1 * np.sin(angle), 0],
-                           [np.sin(angle), np.cos(angle), 0],
-                           [0, 0, 1]])
+    rot_matrix = np.array(
+        [
+            [np.cos(angle), -1 * np.sin(angle), 0],
+            [np.sin(angle), np.cos(angle), 0],
+            [0, 0, 1],
+        ]
+    )
     return rot_matrix.dot(xyz.T).T
 
 
@@ -782,9 +878,13 @@ def ECEF_from_rotECEF(xyz, longitude):
 
     """
     angle = longitude
-    rot_matrix = np.array([[np.cos(angle), -1 * np.sin(angle), 0],
-                           [np.sin(angle), np.cos(angle), 0],
-                           [0, 0, 1]])
+    rot_matrix = np.array(
+        [
+            [np.cos(angle), -1 * np.sin(angle), 0],
+            [np.sin(angle), np.cos(angle), 0],
+            [0, 0, 1],
+        ]
+    )
     return rot_matrix.dot(xyz.T).T
 
 
@@ -811,7 +911,7 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
     """
     xyz = np.array(xyz)
     if xyz.ndim > 1 and xyz.shape[1] != 3:
-        raise ValueError('The expected shape of ECEF xyz array is (Npts, 3).')
+        raise ValueError("The expected shape of ECEF xyz array is (Npts, 3).")
 
     xyz_in = xyz
 
@@ -822,10 +922,12 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
     # on the order of Earth's radius
     ecef_magnitudes = np.linalg.norm(xyz_in, axis=1)
     sensible_radius_range = (6.35e6, 6.39e6)
-    if (np.any(ecef_magnitudes <= sensible_radius_range[0])
-            or np.any(ecef_magnitudes >= sensible_radius_range[1])):
+    if np.any(ecef_magnitudes <= sensible_radius_range[0]) or np.any(
+        ecef_magnitudes >= sensible_radius_range[1]
+    ):
         raise ValueError(
-            'ECEF vector magnitudes must be on the order of the radius of the earth')
+            "ECEF vector magnitudes must be on the order of the radius of the earth"
+        )
 
     xyz_center = XYZ_from_LatLonAlt(latitude, longitude, altitude)
 
@@ -835,14 +937,17 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
     xyz_use[:, 2] = xyz_in[:, 2] - xyz_center[2]
 
     enu = np.zeros_like(xyz_use)
-    enu[:, 0] = (-np.sin(longitude) * xyz_use[:, 0]
-                 + np.cos(longitude) * xyz_use[:, 1])
-    enu[:, 1] = (-np.sin(latitude) * np.cos(longitude) * xyz_use[:, 0]
-                 - np.sin(latitude) * np.sin(longitude) * xyz_use[:, 1]
-                 + np.cos(latitude) * xyz_use[:, 2])
-    enu[:, 2] = (np.cos(latitude) * np.cos(longitude) * xyz_use[:, 0]
-                 + np.cos(latitude) * np.sin(longitude) * xyz_use[:, 1]
-                 + np.sin(latitude) * xyz_use[:, 2])
+    enu[:, 0] = -np.sin(longitude) * xyz_use[:, 0] + np.cos(longitude) * xyz_use[:, 1]
+    enu[:, 1] = (
+        -np.sin(latitude) * np.cos(longitude) * xyz_use[:, 0]
+        - np.sin(latitude) * np.sin(longitude) * xyz_use[:, 1]
+        + np.cos(latitude) * xyz_use[:, 2]
+    )
+    enu[:, 2] = (
+        np.cos(latitude) * np.cos(longitude) * xyz_use[:, 0]
+        + np.cos(latitude) * np.sin(longitude) * xyz_use[:, 1]
+        + np.sin(latitude) * xyz_use[:, 2]
+    )
     if len(xyz.shape) == 1:
         enu = np.squeeze(enu)
 
@@ -873,7 +978,7 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
     """
     enu = np.array(enu)
     if enu.ndim > 1 and enu.shape[1] != 3:
-        raise ValueError('The expected shape of the ENU array is (Npts, 3).')
+        raise ValueError("The expected shape of the ENU array is (Npts, 3).")
 
     enu_use = enu
 
@@ -881,14 +986,17 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
         enu_use = enu_use[np.newaxis, :]
 
     xyz = np.zeros_like(enu_use)
-    xyz[:, 0] = (-np.sin(latitude) * np.cos(longitude) * enu_use[:, 1]
-                 - np.sin(longitude) * enu_use[:, 0]
-                 + np.cos(latitude) * np.cos(longitude) * enu_use[:, 2])
-    xyz[:, 1] = (-np.sin(latitude) * np.sin(longitude) * enu_use[:, 1]
-                 + np.cos(longitude) * enu_use[:, 0]
-                 + np.cos(latitude) * np.sin(longitude) * enu_use[:, 2])
-    xyz[:, 2] = (np.cos(latitude) * enu_use[:, 1]
-                 + np.sin(latitude) * enu_use[:, 2])
+    xyz[:, 0] = (
+        -np.sin(latitude) * np.cos(longitude) * enu_use[:, 1]
+        - np.sin(longitude) * enu_use[:, 0]
+        + np.cos(latitude) * np.cos(longitude) * enu_use[:, 2]
+    )
+    xyz[:, 1] = (
+        -np.sin(latitude) * np.sin(longitude) * enu_use[:, 1]
+        + np.cos(longitude) * enu_use[:, 0]
+        + np.cos(latitude) * np.sin(longitude) * enu_use[:, 2]
+    )
+    xyz[:, 2] = np.cos(latitude) * enu_use[:, 1] + np.sin(latitude) * enu_use[:, 2]
 
     xyz_center = XYZ_from_LatLonAlt(latitude, longitude, altitude)
     xyz[:, 0] = xyz[:, 0] + xyz_center[0]
@@ -931,15 +1039,18 @@ def phase_uvw(ra, dec, initial_uvw):
         initial_uvw = initial_uvw[np.newaxis, :]
 
     uvw = np.zeros_like(initial_uvw)
-    uvw[:, 0] = (-np.sin(ra) * initial_uvw[:, 0]
-                 + np.cos(ra) * initial_uvw[:, 1])
-    uvw[:, 1] = (-np.sin(dec) * np.cos(ra) * initial_uvw[:, 0]
-                 - np.sin(dec) * np.sin(ra) * initial_uvw[:, 1]
-                 + np.cos(dec) * initial_uvw[:, 2])
-    uvw[:, 2] = (np.cos(dec) * np.cos(ra) * initial_uvw[:, 0]
-                 + np.cos(dec) * np.sin(ra) * initial_uvw[:, 1]
-                 + np.sin(dec) * initial_uvw[:, 2])
-    return(uvw)
+    uvw[:, 0] = -np.sin(ra) * initial_uvw[:, 0] + np.cos(ra) * initial_uvw[:, 1]
+    uvw[:, 1] = (
+        -np.sin(dec) * np.cos(ra) * initial_uvw[:, 0]
+        - np.sin(dec) * np.sin(ra) * initial_uvw[:, 1]
+        + np.cos(dec) * initial_uvw[:, 2]
+    )
+    uvw[:, 2] = (
+        np.cos(dec) * np.cos(ra) * initial_uvw[:, 0]
+        + np.cos(dec) * np.sin(ra) * initial_uvw[:, 1]
+        + np.sin(dec) * initial_uvw[:, 2]
+    )
+    return uvw
 
 
 def unphase_uvw(ra, dec, uvw):
@@ -970,18 +1081,21 @@ def unphase_uvw(ra, dec, uvw):
         uvw = uvw[np.newaxis, :]
 
     unphased_uvws = np.zeros_like(uvw)
-    unphased_uvws[:, 0] = (-np.sin(ra) * uvw[:, 0]
-                           - np.sin(dec) * np.cos(ra) * uvw[:, 1]
-                           + np.cos(dec) * np.cos(ra) * uvw[:, 2])
+    unphased_uvws[:, 0] = (
+        -np.sin(ra) * uvw[:, 0]
+        - np.sin(dec) * np.cos(ra) * uvw[:, 1]
+        + np.cos(dec) * np.cos(ra) * uvw[:, 2]
+    )
 
-    unphased_uvws[:, 1] = (np.cos(ra) * uvw[:, 0]
-                           - np.sin(dec) * np.sin(ra) * uvw[:, 1]
-                           + np.cos(dec) * np.sin(ra) * uvw[:, 2])
+    unphased_uvws[:, 1] = (
+        np.cos(ra) * uvw[:, 0]
+        - np.sin(dec) * np.sin(ra) * uvw[:, 1]
+        + np.cos(dec) * np.sin(ra) * uvw[:, 2]
+    )
 
-    unphased_uvws[:, 2] = (np.cos(dec) * uvw[:, 1]
-                           + np.sin(dec) * uvw[:, 2])
+    unphased_uvws[:, 2] = np.cos(dec) * uvw[:, 1] + np.sin(dec) * uvw[:, 2]
 
-    return(unphased_uvws)
+    return unphased_uvws
 
 
 def get_lst_for_time(jd_array, latitude, longitude, altitude):
@@ -1007,18 +1121,28 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
     """
     lst_array = np.zeros_like(jd_array)
     for ind, jd in enumerate(np.unique(jd_array)):
-        t = Time(jd, format='jd', location=(Angle(longitude, unit='deg'),
-                                            Angle(latitude, unit='deg')))
+        t = Time(
+            jd,
+            format="jd",
+            location=(Angle(longitude, unit="deg"), Angle(latitude, unit="deg")),
+        )
 
-        # avoid errors if iers.conf.auto_max_age is set to None, as we do in testing if the iers url is down
+        # avoid errors if iers.conf.auto_max_age is set to None, as we do in
+        # testing if the iers url is down
         if iers.conf.auto_max_age is None:  # pragma: no cover
             delta, status = t.get_delta_ut1_utc(return_status=True)
-            if ((status == iers.TIME_BEFORE_IERS_RANGE) or (status == iers.TIME_BEYOND_IERS_RANGE)):
-                warnings.warn('time is out of IERS range, setting delta ut1 utc to extrapolated value')
+            if (status == iers.TIME_BEFORE_IERS_RANGE) or (
+                status == iers.TIME_BEYOND_IERS_RANGE
+            ):
+                warnings.warn(
+                    "time is out of IERS range, setting delta ut1 utc to "
+                    "extrapolated value"
+                )
                 t.delta_ut1_utc = delta
 
-        lst_array[np.where(np.isclose(
-            jd, jd_array, atol=1e-6, rtol=1e-12))] = t.sidereal_time('apparent').radian
+        lst_array[
+            np.where(np.isclose(jd, jd_array, atol=1e-6, rtol=1e-12))
+        ] = t.sidereal_time("apparent").radian
 
     return lst_array
 
@@ -1056,7 +1180,7 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
     if not baseline_vecs.shape == (Nbls, 3):
         raise ValueError("Baseline vectors must be shape (Nbls, 3)")
 
-    baseline_vecs = copy.copy(baseline_vecs)              # Protect the vectors passed in.
+    baseline_vecs = copy.copy(baseline_vecs)  # Protect the vectors passed in.
 
     if with_conjugates:
         conjugates = []
@@ -1069,14 +1193,16 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
             conjugates.append(uneg or (uzer and vneg) or (uzer and vzer and wneg))
 
         conjugates = np.array(conjugates, dtype=bool)
-        baseline_vecs[conjugates] *= (-1)
+        baseline_vecs[conjugates] *= -1
         baseline_ind_conj = baselines[conjugates]
-        bl_gps, vec_bin_centers, lens = get_baseline_redundancies(baselines, baseline_vecs, tol=tol, with_conjugates=False)
+        bl_gps, vec_bin_centers, lens = get_baseline_redundancies(
+            baselines, baseline_vecs, tol=tol, with_conjugates=False
+        )
         return bl_gps, vec_bin_centers, lens, baseline_ind_conj
 
     # For each baseline, list all others that are within the tolerance distance.
     adj_triu_mat = pdist(baseline_vecs) < tol
-    adj = {}    # Adjacency dictionary
+    adj = {}  # Adjacency dictionary
 
     for bi, col in enumerate(squareform(adj_triu_mat)):
         col[bi] = True
@@ -1111,15 +1237,19 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
         inds = [np.where(i == baselines)[0] for i in gp]
         vec_bin_centers[gi] = np.mean(baseline_vecs[inds, :], axis=0)
 
-    lens = np.sqrt(np.sum(vec_bin_centers**2, axis=1))
+    lens = np.sqrt(np.sum(vec_bin_centers ** 2, axis=1))
     if np.sum([len(bg) for bg in bl_gps]) > Nbls:
-        raise ValueError("Some baselines are falling into multiple"
-                         " redundant groups. Lower the tolerance to resolve ambiguity.")
+        raise ValueError(
+            "Some baselines are falling into multiple"
+            " redundant groups. Lower the tolerance to resolve ambiguity."
+        )
 
     return bl_gps, vec_bin_centers, lens
 
 
-def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, include_autos=False):
+def get_antenna_redundancies(
+    antenna_numbers, antenna_positions, tol=1.0, include_autos=False
+):
     """
     Find redundant baseline groups based on antenna positions.
 
@@ -1128,7 +1258,8 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
     antenna_numbers : array_like of int
         Antenna numbers, shape (Nants,).
     antenna_positions : array_like of float
-        Antenna position vectors in the ENU (topocentric) frame in meters, shape (Nants, 3).
+        Antenna position vectors in the ENU (topocentric) frame in meters,
+        shape (Nants, 3).
     tol : float
         Redundancy tolerance in meters.
     include_autos : bool
@@ -1176,7 +1307,9 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
             bls.append(bidx)
     bls = np.array(bls)
     bl_vecs = np.array(bl_vecs)
-    gps, vecs, lens, conjs = get_baseline_redundancies(bls, bl_vecs, tol=tol, with_conjugates=True)
+    gps, vecs, lens, conjs = get_baseline_redundancies(
+        bls, bl_vecs, tol=tol, with_conjugates=True
+    )
     # Flip the baselines in the groups.
     for gi, gp in enumerate(gps):
         for bi, bl in enumerate(gp):
@@ -1186,8 +1319,9 @@ def get_antenna_redundancies(antenna_numbers, antenna_positions, tol=1.0, includ
     return gps, vecs, lens
 
 
-def mean_collapse(arr, weights=None, axis=None, return_weights=False,
-                  return_weights_square=False):
+def mean_collapse(
+    arr, weights=None, axis=None, return_weights=False, return_weights_square=False
+):
     """
     Collapse by averaging data.
 
@@ -1219,13 +1353,13 @@ def mean_collapse(arr, weights=None, axis=None, return_weights=False,
     arr[np.isinf(arr)] = 0
     weight_out = np.sum(weights, axis=axis)
     if return_weights_square:
-        weights_square = weights**2
+        weights_square = weights ** 2
         weights_square_out = np.sum(weights_square, axis=axis)
     out = np.sum(weights * arr, axis=axis)
-    where = (weight_out > 1e-10)
+    where = weight_out > 1e-10
     out = np.true_divide(out, weight_out, where=where)
     out = np.where(where, out, np.inf)
-    if (return_weights and return_weights_square):
+    if return_weights and return_weights_square:
         return out, weight_out, weights_square_out
     elif return_weights:
         return out, weight_out
@@ -1235,8 +1369,9 @@ def mean_collapse(arr, weights=None, axis=None, return_weights=False,
         return out
 
 
-def absmean_collapse(arr, weights=None, axis=None, return_weights=False,
-                     return_weights_square=False):
+def absmean_collapse(
+    arr, weights=None, axis=None, return_weights=False, return_weights_square=False
+):
     """
     Collapse by averaging absolute value of data.
 
@@ -1255,13 +1390,18 @@ def absmean_collapse(arr, weights=None, axis=None, return_weights=False,
         whether to return the sum of the squares of the weights. Default is False.
 
     """
-    return mean_collapse(np.abs(arr), weights=weights, axis=axis,
-                         return_weights=return_weights,
-                         return_weights_square=return_weights_square)
+    return mean_collapse(
+        np.abs(arr),
+        weights=weights,
+        axis=axis,
+        return_weights=return_weights,
+        return_weights_square=return_weights_square,
+    )
 
 
-def quadmean_collapse(arr, weights=None, axis=None, return_weights=False,
-                      return_weights_square=False):
+def quadmean_collapse(
+    arr, weights=None, axis=None, return_weights=False, return_weights_square=False
+):
     """
     Collapse by averaging in quadrature.
 
@@ -1280,9 +1420,13 @@ def quadmean_collapse(arr, weights=None, axis=None, return_weights=False,
         whether to return the sum of the squares of the weights. Default is False.
 
     """
-    out = mean_collapse(np.abs(arr)**2, weights=weights, axis=axis,
-                        return_weights=return_weights,
-                        return_weights_square=return_weights_square)
+    out = mean_collapse(
+        np.abs(arr) ** 2,
+        weights=weights,
+        axis=axis,
+        return_weights=return_weights,
+        return_weights_square=return_weights_square,
+    )
     if return_weights and return_weights_square:
         return np.sqrt(out[0]), out[1], out[2]
     elif return_weights or return_weights_square:
@@ -1291,8 +1435,9 @@ def quadmean_collapse(arr, weights=None, axis=None, return_weights=False,
         return np.sqrt(out)
 
 
-def or_collapse(arr, weights=None, axis=None, return_weights=False,
-                return_weights_square=False):
+def or_collapse(
+    arr, weights=None, axis=None, return_weights=False, return_weights_square=False
+):
     """
     Collapse using OR operation.
 
@@ -1312,18 +1457,19 @@ def or_collapse(arr, weights=None, axis=None, return_weights=False,
 
     """
     if arr.dtype != np.bool:
-        raise ValueError('Input to or_collapse function must be boolean array')
+        raise ValueError("Input to or_collapse function must be boolean array")
     out = np.any(arr, axis=axis)
     if (weights is not None) and not np.all(weights == weights.reshape(-1)[0]):
-        warnings.warn('Currently weights are not handled when OR-ing boolean arrays.')
+        warnings.warn("Currently weights are not handled when OR-ing boolean arrays.")
     if return_weights:
         return out, np.ones_like(out, dtype=np.float)
     else:
         return out
 
 
-def and_collapse(arr, weights=None, axis=None, return_weights=False,
-                 return_weights_square=False):
+def and_collapse(
+    arr, weights=None, axis=None, return_weights=False, return_weights_square=False
+):
     """
     Collapse using AND operation.
 
@@ -1343,18 +1489,19 @@ def and_collapse(arr, weights=None, axis=None, return_weights=False,
 
     """
     if arr.dtype != np.bool:
-        raise ValueError('Input to and_collapse function must be boolean array')
+        raise ValueError("Input to and_collapse function must be boolean array")
     out = np.all(arr, axis=axis)
     if (weights is not None) and not np.all(weights == weights.reshape(-1)[0]):
-        warnings.warn('Currently weights are not handled when AND-ing boolean arrays.')
+        warnings.warn("Currently weights are not handled when AND-ing boolean arrays.")
     if return_weights:
         return out, np.ones_like(out, dtype=np.float)
     else:
         return out
 
 
-def collapse(arr, alg, weights=None, axis=None, return_weights=False,
-             return_weights_square=False):
+def collapse(
+    arr, alg, weights=None, axis=None, return_weights=False, return_weights_square=False
+):
     """
     Parent function to collapse an array with a given algorithm.
 
@@ -1377,20 +1524,40 @@ def collapse(arr, alg, weights=None, axis=None, return_weights=False,
         Whether to return the sum of the squares of the weights. Default is False.
 
     """
-    collapse_dict = {'mean': mean_collapse, 'absmean': absmean_collapse,
-                     'quadmean': quadmean_collapse, 'or': or_collapse,
-                     'and': and_collapse}
+    collapse_dict = {
+        "mean": mean_collapse,
+        "absmean": absmean_collapse,
+        "quadmean": quadmean_collapse,
+        "or": or_collapse,
+        "and": and_collapse,
+    }
     try:
-        out = collapse_dict[alg](arr, weights=weights, axis=axis, return_weights=return_weights,
-                                 return_weights_square=return_weights_square)
+        out = collapse_dict[alg](
+            arr,
+            weights=weights,
+            axis=axis,
+            return_weights=return_weights,
+            return_weights_square=return_weights_square,
+        )
     except KeyError:
-        raise ValueError('Collapse algorithm must be one of: '
-                         + ', '.join(collapse_dict.keys()) + '.')
+        raise ValueError(
+            "Collapse algorithm must be one of: "
+            + ", ".join(collapse_dict.keys())
+            + "."
+        )
     return out
 
 
-def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
-                Dterm_cal=False, delay_convention='minus', undo=False):
+def uvcalibrate(
+    uvdata,
+    uvcal,
+    inplace=True,
+    prop_flags=True,
+    flag_missing=True,
+    Dterm_cal=False,
+    delay_convention="minus",
+    undo=False,
+):
     """
     Calibrate a UVData object with a UVCal object.
 
@@ -1430,7 +1597,7 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
         uvdata = copy.deepcopy(uvdata)
 
     # input checks
-    if uvcal.cal_type == 'delay':
+    if uvcal.cal_type == "delay":
         # make a copy that is converted to gain
         uvcal = copy.deepcopy(uvcal)
         uvcal.convert_to_gain(delay_convention=delay_convention)
@@ -1439,8 +1606,10 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
     if Dterm_cal:
         # check for D-terms
         if -7 not in uvcal.jones_array and -8 not in uvcal.jones_array:
-            raise ValueError("Cannot apply D-term calibration without -7 or -8"
-                             "Jones polarization in uvcal object.")
+            raise ValueError(
+                "Cannot apply D-term calibration without -7 or -8"
+                "Jones polarization in uvcal object."
+            )
         raise NotImplementedError("D-term calibration is not yet implemented.")
 
     # No D-term calibration
@@ -1449,7 +1618,11 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
         for key in uvdata.get_antpairpols():
             # get indices for this key
             blt_inds = uvdata.antpair2ind(key)
-            pol_ind = np.argmin(np.abs(uvdata.polarization_array - polstr2num(key[2], uvdata.x_orientation)))
+            pol_ind = np.argmin(
+                np.abs(
+                    uvdata.polarization_array - polstr2num(key[2], uvdata.x_orientation)
+                )
+            )
 
             # try to get gains for each antenna
             ant1 = (key[0], key[2][0])
@@ -1458,7 +1631,9 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
                 if flag_missing:
                     uvdata.flag_array[blt_inds, 0, :, pol_ind] = True
                 continue
-            gain = (uvcal.get_gains(ant1) * np.conj(uvcal.get_gains(ant2))).T  # tranpose to match uvdata shape
+            gain = (
+                uvcal.get_gains(ant1) * np.conj(uvcal.get_gains(ant2))
+            ).T  # tranpose to match uvdata shape
             flag = (uvcal.get_flags(ant1) | uvcal.get_flags(ant2)).T
 
             # propagate flags
@@ -1468,7 +1643,7 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
                 uvdata.flag_array[blt_inds, 0, :, pol_ind] += mask
 
             # apply to data
-            mult_gains = uvcal.gain_convention == 'multiply'
+            mult_gains = uvcal.gain_convention == "multiply"
             if undo:
                 mult_gains = not mult_gains
             if mult_gains:
@@ -1479,7 +1654,7 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
     # update attributes
     uvdata.history += "\nCalibrated with pyuvdata.utils.uvcalibrate."
     if undo:
-        uvdata.vis_units = 'UNCALIB'
+        uvdata.vis_units = "UNCALIB"
     else:
         if uvcal.gain_scale is not None:
             uvdata.vis_units = uvcal.gain_scale
@@ -1488,8 +1663,9 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
         return uvdata
 
 
-def apply_uvflag(uvd, uvf, inplace=True, unflag_first=False,
-                 flag_missing=True, force_pol=True):
+def apply_uvflag(
+    uvd, uvf, inplace=True, unflag_first=False, flag_missing=True, force_pol=True
+):
     """
     Apply flags from a UVFlag to a UVData instantiation.
 
@@ -1521,7 +1697,7 @@ def apply_uvflag(uvd, uvf, inplace=True, unflag_first=False,
 
     """
     # assertions
-    if uvf.mode != 'flag':
+    if uvf.mode != "flag":
         raise ValueError("UVFlag must be flag mode")
 
     if not inplace:
@@ -1531,13 +1707,16 @@ def apply_uvflag(uvd, uvf, inplace=True, unflag_first=False,
     uvf = copy.deepcopy(uvf)
 
     # convert to baseline type
-    if uvf.type != 'baseline':
+    if uvf.type != "baseline":
         # edits inplace
         uvf.to_baseline(uvd, force_pol=force_pol)
 
     else:
         # make sure polarizations match or force_pol
-        uvd_pols, uvf_pols = uvd.polarization_array.tolist(), uvf.polarization_array.tolist()
+        uvd_pols, uvf_pols = (
+            uvd.polarization_array.tolist(),
+            uvf.polarization_array.tolist(),
+        )
         if set(uvd_pols) != set(uvf_pols):
             if uvf.Npols == 1 and force_pol:
                 # if uvf is 1pol we can make them match: also edits inplace
@@ -1549,9 +1728,12 @@ def apply_uvflag(uvd, uvf, inplace=True, unflag_first=False,
                 raise ValueError("Input uvf and uvd polarizations do not match")
 
         # make sure polarization ordering is correct: also edits inplace
-        uvf.polarization_array = uvf.polarization_array[[uvd_pols.index(pol) for pol in uvf_pols]]
+        uvf.polarization_array = uvf.polarization_array[
+            [uvd_pols.index(pol) for pol in uvf_pols]
+        ]
 
-    # check time and freq shapes match: if Ntimes or Nfreqs is 1, allow implicit broadcasting
+    # check time and freq shapes match: if Ntimes or Nfreqs is 1, allow
+    # implicit broadcasting
     if uvf.Ntimes == 1:
         mismatch_times = False
     elif uvf.Ntimes == uvd.Ntimes:
@@ -1576,7 +1758,8 @@ def apply_uvflag(uvd, uvf, inplace=True, unflag_first=False,
     if unflag_first:
         uvd.flag_array[:] = False
 
-    # iterate over antpairs and apply flags: TODO need to be able to handle conjugated antpairs
+    # iterate over antpairs and apply flags: TODO need to be able to handle
+    # conjugated antpairs
     uvf_antpairs = uvf.get_antpairs()
     for ap in uvd.get_antpairs():
         uvd_ap_inds = uvd.antpair2ind(ap)

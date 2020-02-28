@@ -24,25 +24,26 @@ from pyuvdata.data import DATA_PATH
 def test_read_nrao():
     """Test reading in a CASA tutorial uvfits file."""
     uvobj = UVData()
-    testfile = os.path.join(DATA_PATH,
-                            'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    expected_extra_keywords = ['OBSERVER', 'SORTORD', 'SPECSYS',
-                               'RESTFREQ', 'ORIGIN']
-    uvtest.checkWarnings(uvobj.read_uvfits, func_args=[testfile],
-                         message='Telescope EVLA is not')
-    assert (expected_extra_keywords.sort()
-            == list(uvobj.extra_keywords.keys()).sort())
+    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    expected_extra_keywords = ["OBSERVER", "SORTORD", "SPECSYS", "RESTFREQ", "ORIGIN"]
+    uvtest.checkWarnings(
+        uvobj.read_uvfits, func_args=[testfile], message="Telescope EVLA is not"
+    )
+    assert expected_extra_keywords.sort() == list(uvobj.extra_keywords.keys()).sort()
 
     # test reading in header & metadata first, then data
     uvobj2 = UVData()
-    uvtest.checkWarnings(uvobj2.read, func_args=[testfile],
-                         func_kwargs={'read_data': False},
-                         message='Telescope EVLA is not')
-    assert (expected_extra_keywords.sort()
-            == list(uvobj2.extra_keywords.keys()).sort())
+    uvtest.checkWarnings(
+        uvobj2.read,
+        func_args=[testfile],
+        func_kwargs={"read_data": False},
+        message="Telescope EVLA is not",
+    )
+    assert expected_extra_keywords.sort() == list(uvobj2.extra_keywords.keys()).sort()
     assert uvobj2.check()
-    uvtest.checkWarnings(uvobj2.read, func_args=[testfile],
-                         message='Telescope EVLA is not')
+    uvtest.checkWarnings(
+        uvobj2.read, func_args=[testfile], message="Telescope EVLA is not"
+    )
     assert uvobj == uvobj2
 
 
@@ -51,27 +52,27 @@ def test_read_nrao():
 def test_no_spw():
     """Test reading in a PAPER uvfits file with no spw axis."""
     uvobj = UVData()
-    testfile_no_spw = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAAM.uvfits')
+    testfile_no_spw = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAAM.uvfits")
     uvobj.read(testfile_no_spw)
-    del(uvobj)
+    del uvobj
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_break_read_uvfits():
     """Test errors on reading in a uvfits file with subarrays and other problems."""
     uvobj = UVData()
-    multi_subarray_file = os.path.join(DATA_PATH, 'multi_subarray.uvfits')
+    multi_subarray_file = os.path.join(DATA_PATH, "multi_subarray.uvfits")
     with pytest.raises(ValueError) as cm:
         uvobj.read(multi_subarray_file)
-    assert str(cm.value).startswith('This file appears to have multiple subarray')
+    assert str(cm.value).startswith("This file appears to have multiple subarray")
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_source_group_params():
     # make a file with a single source to test that it works
     uv_in = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    write_file = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
+    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    write_file = os.path.join(DATA_PATH, "test/outtest_casa.uvfits")
     uv_in.read(testfile)
     uv_in.write_uvfits(write_file)
 
@@ -88,9 +89,10 @@ def test_source_group_params():
         for index, name in enumerate(par_names):
             par_value = vis_hdu.data.par(name)
             # lst_array needs to be split in 2 parts to get high enough accuracy
-            if name.lower() == 'lst':
+            if name.lower() == "lst":
                 if lst_ind == 0:
-                    # first lst entry, par_value has full lst value (astropy adds the 2 values)
+                    # first lst entry, par_value has full lst value
+                    # (astropy adds the 2 values)
                     lst_array_1 = np.float32(par_value)
                     lst_array_2 = np.float32(par_value - np.float64(lst_array_1))
                     par_value = lst_array_1
@@ -99,17 +101,18 @@ def test_source_group_params():
                     par_value = lst_array_2
 
             # need to account for PZERO values
-            group_parameter_list.append(par_value - vis_hdr['PZERO' + str(index + 1)])
+            group_parameter_list.append(par_value - vis_hdr["PZERO" + str(index + 1)])
 
-        par_names.append('SOURCE')
-        source_array = np.ones_like(vis_hdu.data.par('BASELINE'))
+        par_names.append("SOURCE")
+        source_array = np.ones_like(vis_hdu.data.par("BASELINE"))
         group_parameter_list.append(source_array)
 
-        vis_hdu = fits.GroupData(raw_data_array, parnames=par_names,
-                                 pardata=group_parameter_list, bitpix=-32)
+        vis_hdu = fits.GroupData(
+            raw_data_array, parnames=par_names, pardata=group_parameter_list, bitpix=-32
+        )
         vis_hdu = fits.GroupsHDU(vis_hdu)
         vis_hdu.header = vis_hdr
-        ant_hdu = hdu_list[hdunames['AIPS AN']]
+        ant_hdu = hdu_list[hdunames["AIPS AN"]]
 
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
         hdulist.writeto(write_file, overwrite=True)
@@ -123,8 +126,8 @@ def test_source_group_params():
 def test_multisource_error():
     # make a file with multiple sources to test error condition
     uv_in = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    write_file = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
+    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    write_file = os.path.join(DATA_PATH, "test/outtest_casa.uvfits")
     uv_in.read(testfile)
     uv_in.write_uvfits(write_file)
 
@@ -141,9 +144,10 @@ def test_multisource_error():
         for index, name in enumerate(par_names):
             par_value = vis_hdu.data.par(name)
             # lst_array needs to be split in 2 parts to get high enough accuracy
-            if name.lower() == 'lst':
+            if name.lower() == "lst":
                 if lst_ind == 0:
-                    # first lst entry, par_value has full lst value (astropy adds the 2 values)
+                    # first lst entry, par_value has full lst value
+                    # (astropy adds the 2 values)
                     lst_array_1 = np.float32(par_value)
                     lst_array_2 = np.float32(par_value - np.float64(lst_array_1))
                     par_value = lst_array_1
@@ -152,68 +156,197 @@ def test_multisource_error():
                     par_value = lst_array_2
 
             # need to account for PZERO values
-            group_parameter_list.append(par_value - vis_hdr['PZERO' + str(index + 1)])
+            group_parameter_list.append(par_value - vis_hdr["PZERO" + str(index + 1)])
 
-        par_names.append('SOURCE')
-        source_array = np.ones_like(vis_hdu.data.par('BASELINE'))
+        par_names.append("SOURCE")
+        source_array = np.ones_like(vis_hdu.data.par("BASELINE"))
         mid_index = source_array.shape[0] // 2
         source_array[mid_index:] = source_array[mid_index:] * 2
         group_parameter_list.append(source_array)
 
-        vis_hdu = fits.GroupData(raw_data_array, parnames=par_names,
-                                 pardata=group_parameter_list, bitpix=-32)
+        vis_hdu = fits.GroupData(
+            raw_data_array, parnames=par_names, pardata=group_parameter_list, bitpix=-32
+        )
         vis_hdu = fits.GroupsHDU(vis_hdu)
         vis_hdu.header = vis_hdr
-        ant_hdu = hdu_list[hdunames['AIPS AN']]
+        ant_hdu = hdu_list[hdunames["AIPS AN"]]
 
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
         hdulist.writeto(write_file, overwrite=True)
 
     with pytest.raises(ValueError) as cm:
         uv_in.read(write_file)
-    assert str(cm.value).startswith('This file has multiple sources')
+    assert str(cm.value).startswith("This file has multiple sources")
 
 
 def test_spwnotsupported():
     """Test errors on reading in a uvfits file with multiple spws."""
     uvobj = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1scan.uvfits')
+    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1scan.uvfits")
     with pytest.raises(ValueError) as cm:
         uvobj.read(testfile)
-    assert str(cm.value).startswith('Sorry.  Files with more than one spectral'
-                                    'window (spw) are not yet supported')
+    assert str(cm.value).startswith(
+        "Sorry.  Files with more than one spectral" "window (spw) are not yet supported"
+    )
 
 
 def test_casa_nonascii_bytes_antenna_names():
     """Test that nonascii bytes in antenna names are handled properly."""
     uv1 = UVData()
-    testfile = os.path.join(DATA_PATH,
-                            'corrected2_zen.2458106.28114.ant012.HH.uvfits')
+    testfile = os.path.join(DATA_PATH, "corrected2_zen.2458106.28114.ant012.HH.uvfits")
     # this file has issues with the telescope location so turn checking off
     uvtest.checkWarnings(
         uv1.read,
         func_args=[testfile],
         func_kwargs={"run_check": False},
-        message=["Telescope mock-HERA is not in known_telescopes."]
+        message=["Telescope mock-HERA is not in known_telescopes."],
     )
     expected_ant_names = [
-        'HH0', 'HH1', 'HH2', 'H2', 'H2', 'H2', 'H2', 'H2', 'H2', 'H2',
-        'H2', 'HH11', 'HH12', 'HH13', 'HH14', 'H14', 'H14', 'H14', 'H14',
-        'H14', 'H14', 'H14', 'H14', 'HH23', 'HH24', 'HH25', 'HH26', 'HH27',
-        'H27', 'H27', 'H27', 'H27', 'H27', 'H27', 'H27', 'H27', 'HH36',
-        'HH37', 'HH38', 'HH39', 'HH40', 'HH41', 'H41', 'H41', 'H41', 'H41',
-        'H41', 'H41', 'H41', 'H41', 'HH50', 'HH51', 'HH52', 'HH53', 'HH54',
-        'HH55', 'H55', 'H55', 'H55', 'H55', 'H55', 'H55', 'H55', 'H55',
-        'H55', 'HH65', 'HH66', 'HH67', 'HH68', 'HH69', 'HH70', 'HH71',
-        'H71', 'H71', 'H71', 'H71', 'H71', 'H71', 'H71', 'H71', 'H71',
-        'H71', 'HH82', 'HH83', 'HH84', 'HH85', 'HH86', 'HH87', 'HH88',
-        'H88', 'H88', 'H88', 'H88', 'H88', 'H88', 'H88', 'H88', 'H88',
-        'HH98', 'H98', 'H98', 'H98', 'H98', 'H98', 'H98', 'H98', 'H98',
-        'H98', 'H98', 'H98', 'H98', 'H98', 'H98', 'H98', 'H98', 'H98',
-        'H98', 'H98', 'H98', 'H98', 'HH120', 'HH121', 'HH122', 'HH123',
-        'HH124', 'H124', 'H124', 'H124', 'H124', 'H124', 'H124', 'H124',
-        'H124', 'H124', 'H124', 'H124', 'HH136', 'HH137', 'HH138', 'HH139',
-        'HH140', 'HH141', 'HH142', 'HH143']
+        "HH0",
+        "HH1",
+        "HH2",
+        "H2",
+        "H2",
+        "H2",
+        "H2",
+        "H2",
+        "H2",
+        "H2",
+        "H2",
+        "HH11",
+        "HH12",
+        "HH13",
+        "HH14",
+        "H14",
+        "H14",
+        "H14",
+        "H14",
+        "H14",
+        "H14",
+        "H14",
+        "H14",
+        "HH23",
+        "HH24",
+        "HH25",
+        "HH26",
+        "HH27",
+        "H27",
+        "H27",
+        "H27",
+        "H27",
+        "H27",
+        "H27",
+        "H27",
+        "H27",
+        "HH36",
+        "HH37",
+        "HH38",
+        "HH39",
+        "HH40",
+        "HH41",
+        "H41",
+        "H41",
+        "H41",
+        "H41",
+        "H41",
+        "H41",
+        "H41",
+        "H41",
+        "HH50",
+        "HH51",
+        "HH52",
+        "HH53",
+        "HH54",
+        "HH55",
+        "H55",
+        "H55",
+        "H55",
+        "H55",
+        "H55",
+        "H55",
+        "H55",
+        "H55",
+        "H55",
+        "HH65",
+        "HH66",
+        "HH67",
+        "HH68",
+        "HH69",
+        "HH70",
+        "HH71",
+        "H71",
+        "H71",
+        "H71",
+        "H71",
+        "H71",
+        "H71",
+        "H71",
+        "H71",
+        "H71",
+        "H71",
+        "HH82",
+        "HH83",
+        "HH84",
+        "HH85",
+        "HH86",
+        "HH87",
+        "HH88",
+        "H88",
+        "H88",
+        "H88",
+        "H88",
+        "H88",
+        "H88",
+        "H88",
+        "H88",
+        "H88",
+        "HH98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "H98",
+        "HH120",
+        "HH121",
+        "HH122",
+        "HH123",
+        "HH124",
+        "H124",
+        "H124",
+        "H124",
+        "H124",
+        "H124",
+        "H124",
+        "H124",
+        "H124",
+        "H124",
+        "H124",
+        "H124",
+        "HH136",
+        "HH137",
+        "HH138",
+        "HH139",
+        "HH140",
+        "HH141",
+        "HH142",
+        "HH143",
+    ]
 
     assert uv1.antenna_names == expected_ant_names
 
@@ -228,8 +361,8 @@ def test_readwriteread():
     """
     uv_in = UVData()
     uv_out = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    write_file = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
+    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    write_file = os.path.join(DATA_PATH, "test/outtest_casa.uvfits")
     uv_in.read(testfile)
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file)
@@ -241,7 +374,7 @@ def test_readwriteread():
     assert uv_in == uv_out
 
     # check that if x_orientation is set, it's read back out properly
-    uv_in.x_orientation = 'east'
+    uv_in.x_orientation = "east"
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file)
     assert uv_in == uv_out
@@ -258,9 +391,14 @@ def test_readwriteread():
     uv_in.antenna_numbers = uv_in.antenna_numbers + 256
     uv_in.ant_1_array = uv_in.ant_1_array + 256
     uv_in.ant_2_array = uv_in.ant_2_array + 256
-    uv_in.baseline_array = uv_in.antnums_to_baseline(uv_in.ant_1_array, uv_in.ant_2_array)
-    uvtest.checkWarnings(uv_in.write_uvfits, [write_file],
-                         message='antnums_to_baseline: found > 256 antennas, using 2048 baseline')
+    uv_in.baseline_array = uv_in.antnums_to_baseline(
+        uv_in.ant_1_array, uv_in.ant_2_array
+    )
+    uvtest.checkWarnings(
+        uv_in.write_uvfits,
+        [write_file],
+        message="antnums_to_baseline: found > 256 antennas, using 2048 baseline",
+    )
     uv_out.read(write_file)
     assert uv_in == uv_out
 
@@ -270,16 +408,16 @@ def test_readwriteread():
         vis_hdu = hdu_list[0]
         vis_hdr = vis_hdu.header.copy()
 
-        vis_hdr.pop('TELESCOP')
+        vis_hdr.pop("TELESCOP")
 
         vis_hdu.header = vis_hdr
 
-        ant_hdu = hdu_list[hdunames['AIPS AN']]
+        ant_hdu = hdu_list[hdunames["AIPS AN"]]
         ant_hdr = ant_hdu.header.copy()
 
-        time_sys = ant_hdr.pop('TIMSYS')
-        ant_hdr['TIMESYS'] = time_sys
-        ant_hdr['FRAME'] = '????'
+        time_sys = ant_hdr.pop("TIMSYS")
+        ant_hdr["TIMESYS"] = time_sys
+        ant_hdr["FRAME"] = "????"
 
         ant_hdu.header = ant_hdr
 
@@ -287,17 +425,18 @@ def test_readwriteread():
         hdulist.writeto(write_file, overwrite=True)
 
     uv_out.read(write_file)
-    assert uv_out.telescope_name == 'EVLA'
+    assert uv_out.telescope_name == "EVLA"
     assert uv_out.timesys == time_sys
 
     # check error if timesys is 'IAT'
     uv_in.read(testfile)
-    uv_in.timesys = 'IAT'
+    uv_in.timesys = "IAT"
     with pytest.raises(ValueError) as cm:
         uv_in.write_uvfits(write_file)
-    assert str(cm.value).startswith('This file has a time system IAT. '
-                                    'Only "UTC" time system files are supported')
-    uv_in.timesys = 'UTC'
+    assert str(cm.value).startswith(
+        "This file has a time system IAT. " 'Only "UTC" time system files are supported'
+    )
+    uv_in.timesys = "UTC"
 
     # check error if one time & no inttime specified
     uv_singlet = uv_in.select(times=uv_in.time_array[0], inplace=False)
@@ -310,123 +449,150 @@ def test_readwriteread():
         raw_data_array = vis_hdu.data.data
 
         par_names = np.array(vis_hdu.data.parnames)
-        pars_use = np.where(par_names != 'INTTIM')[0]
+        pars_use = np.where(par_names != "INTTIM")[0]
         par_names = par_names[pars_use].tolist()
 
         group_parameter_list = [vis_hdu.data.par(name) for name in par_names]
 
-        vis_hdu = fits.GroupData(raw_data_array, parnames=par_names,
-                                 pardata=group_parameter_list, bitpix=-32)
+        vis_hdu = fits.GroupData(
+            raw_data_array, parnames=par_names, pardata=group_parameter_list, bitpix=-32
+        )
         vis_hdu = fits.GroupsHDU(vis_hdu)
         vis_hdu.header = vis_hdr
 
-        ant_hdu = hdu_list[hdunames['AIPS AN']]
+        ant_hdu = hdu_list[hdunames["AIPS AN"]]
 
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
         hdulist.writeto(write_file, overwrite=True)
 
     with pytest.raises(ValueError) as cm:
-        uvtest.checkWarnings(uv_out.read, func_args=[write_file],
-                             message=['Telescope EVLA is not',
-                                      'ERFA function "utcut1" yielded 1 of "dubious year (Note 3)"',
-                                      'ERFA function "utctai" yielded 1 of "dubious year (Note 3)"',
-                                      'LST values stored in this file are not self-consistent'],
-                             nwarnings=4,
-                             category=[UserWarning, astropy._erfa.core.ErfaWarning,
-                             astropy._erfa.core.ErfaWarning, UserWarning])
-    assert str(cm.value).startswith('integration time not specified and only one time present')
+        uvtest.checkWarnings(
+            uv_out.read,
+            func_args=[write_file],
+            message=[
+                "Telescope EVLA is not",
+                'ERFA function "utcut1" yielded 1 of "dubious year (Note 3)"',
+                'ERFA function "utctai" yielded 1 of "dubious year (Note 3)"',
+                "LST values stored in this file are not self-consistent",
+            ],
+            nwarnings=4,
+            category=[
+                UserWarning,
+                astropy._erfa.core.ErfaWarning,
+                astropy._erfa.core.ErfaWarning,
+                UserWarning,
+            ],
+        )
+    assert str(cm.value).startswith(
+        "integration time not specified and only one time present"
+    )
 
     # check that unflagged data with nsample = 0 will cause warnings
     uv_in.nsample_array[list(range(11, 22))] = 0
     uv_in.flag_array[list(range(11, 22))] = False
-    uvtest.checkWarnings(uv_in.write_uvfits, [write_file], message='Some unflagged data has nsample = 0')
+    uvtest.checkWarnings(
+        uv_in.write_uvfits, [write_file], message="Some unflagged data has nsample = 0"
+    )
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_extra_keywords():
     uv_in = UVData()
     uv_out = UVData()
-    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    testfile = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
+    uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    testfile = os.path.join(DATA_PATH, "test/outtest_casa.uvfits")
     uv_in.read(uvfits_file)
 
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
-    uv_in.extra_keywords['testdict'] = {'testkey': 23}
-    uvtest.checkWarnings(uv_in.check, message=['testdict in extra_keywords is a '
-                                               'list, array or dict'])
+    uv_in.extra_keywords["testdict"] = {"testkey": 23}
+    uvtest.checkWarnings(
+        uv_in.check, message=["testdict in extra_keywords is a " "list, array or dict"]
+    )
     with pytest.raises(TypeError) as cm:
         uv_in.write_uvfits(testfile, run_check=False)
     assert str(cm.value).startswith("Extra keyword testdict is of <class 'dict'>")
-    uv_in.extra_keywords.pop('testdict')
+    uv_in.extra_keywords.pop("testdict")
 
-    uv_in.extra_keywords['testlist'] = [12, 14, 90]
-    uvtest.checkWarnings(uv_in.check, message=['testlist in extra_keywords is a '
-                                               'list, array or dict'])
+    uv_in.extra_keywords["testlist"] = [12, 14, 90]
+    uvtest.checkWarnings(
+        uv_in.check, message=["testlist in extra_keywords is a " "list, array or dict"]
+    )
     with pytest.raises(TypeError) as cm:
         uv_in.write_uvfits(testfile, run_check=False)
     assert str(cm.value).startswith("Extra keyword testlist is of <class 'list'>")
-    uv_in.extra_keywords.pop('testlist')
+    uv_in.extra_keywords.pop("testlist")
 
-    uv_in.extra_keywords['testarr'] = np.array([12, 14, 90])
-    uvtest.checkWarnings(uv_in.check, message=['testarr in extra_keywords is a '
-                                               'list, array or dict'])
+    uv_in.extra_keywords["testarr"] = np.array([12, 14, 90])
+    uvtest.checkWarnings(
+        uv_in.check, message=["testarr in extra_keywords is a " "list, array or dict"]
+    )
     with pytest.raises(TypeError) as cm:
         uv_in.write_uvfits(testfile, run_check=False)
-    assert str(cm.value).startswith("Extra keyword testarr is of <class 'numpy.ndarray'>")
-    uv_in.extra_keywords.pop('testarr')
+    assert str(cm.value).startswith(
+        "Extra keyword testarr is of <class 'numpy.ndarray'>"
+    )
+    uv_in.extra_keywords.pop("testarr")
 
     # check for warnings with extra_keywords keys that are too long
-    uv_in.extra_keywords['test_long_key'] = True
-    uvtest.checkWarnings(uv_in.check, message=['key test_long_key in extra_keywords '
-                                               'is longer than 8 characters'])
-    uvtest.checkWarnings(uv_in.write_uvfits, [testfile], {'run_check': False},
-                         message=['key test_long_key in extra_keywords is longer than 8 characters'])
-    uv_in.extra_keywords.pop('test_long_key')
+    uv_in.extra_keywords["test_long_key"] = True
+    uvtest.checkWarnings(
+        uv_in.check,
+        message=["key test_long_key in extra_keywords " "is longer than 8 characters"],
+    )
+    uvtest.checkWarnings(
+        uv_in.write_uvfits,
+        [testfile],
+        {"run_check": False},
+        message=["key test_long_key in extra_keywords is longer than 8 characters"],
+    )
+    uv_in.extra_keywords.pop("test_long_key")
 
     # check handling of boolean keywords
-    uv_in.extra_keywords['bool'] = True
-    uv_in.extra_keywords['bool2'] = False
+    uv_in.extra_keywords["bool"] = True
+    uv_in.extra_keywords["bool2"] = False
     uv_in.write_uvfits(testfile)
     uv_out.read(testfile)
 
     assert uv_in == uv_out
-    uv_in.extra_keywords.pop('bool')
-    uv_in.extra_keywords.pop('bool2')
+    uv_in.extra_keywords.pop("bool")
+    uv_in.extra_keywords.pop("bool2")
 
     # check handling of int-like keywords
-    uv_in.extra_keywords['int1'] = np.int(5)
-    uv_in.extra_keywords['int2'] = 7
+    uv_in.extra_keywords["int1"] = np.int(5)
+    uv_in.extra_keywords["int2"] = 7
     uv_in.write_uvfits(testfile)
     uv_out.read(testfile)
 
     assert uv_in == uv_out
-    uv_in.extra_keywords.pop('int1')
-    uv_in.extra_keywords.pop('int2')
+    uv_in.extra_keywords.pop("int1")
+    uv_in.extra_keywords.pop("int2")
 
     # check handling of float-like keywords
-    uv_in.extra_keywords['float1'] = np.int64(5.3)
-    uv_in.extra_keywords['float2'] = 6.9
+    uv_in.extra_keywords["float1"] = np.int64(5.3)
+    uv_in.extra_keywords["float2"] = 6.9
     uv_in.write_uvfits(testfile)
     uv_out.read(testfile)
 
     assert uv_in == uv_out
-    uv_in.extra_keywords.pop('float1')
-    uv_in.extra_keywords.pop('float2')
+    uv_in.extra_keywords.pop("float1")
+    uv_in.extra_keywords.pop("float2")
 
     # check handling of complex-like keywords
-    uv_in.extra_keywords['complex1'] = np.complex64(5.3 + 1.2j)
-    uv_in.extra_keywords['complex2'] = 6.9 + 4.6j
+    uv_in.extra_keywords["complex1"] = np.complex64(5.3 + 1.2j)
+    uv_in.extra_keywords["complex2"] = 6.9 + 4.6j
     uv_in.write_uvfits(testfile)
     uv_out.read(testfile)
 
     assert uv_in == uv_out
-    uv_in.extra_keywords.pop('complex1')
-    uv_in.extra_keywords.pop('complex2')
+    uv_in.extra_keywords.pop("complex1")
+    uv_in.extra_keywords.pop("complex2")
 
     # check handling of comment keywords
-    uv_in.extra_keywords['comment'] = ('this is a very long comment that will '
-                                       'be broken into several lines\nif '
-                                       'everything works properly.')
+    uv_in.extra_keywords["comment"] = (
+        "this is a very long comment that will "
+        "be broken into several lines\nif "
+        "everything works properly."
+    )
     uv_in.write_uvfits(testfile)
     uv_out.read(testfile)
 
@@ -437,8 +603,8 @@ def test_extra_keywords():
 def test_roundtrip_blt_order():
     uv_in = UVData()
     uv_out = UVData()
-    testfile = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    write_file = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
+    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    write_file = os.path.join(DATA_PATH, "test/outtest_casa.uvfits")
     uv_in.read(testfile)
 
     uv_in.reorder_blts()
@@ -448,7 +614,7 @@ def test_roundtrip_blt_order():
     assert uv_in == uv_out
 
     # test with bda as well (single entry in tuple)
-    uv_in.reorder_blts(order='bda')
+    uv_in.reorder_blts(order="bda")
 
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file)
@@ -461,7 +627,7 @@ def test_roundtrip_blt_order():
 def test_select_read():
     uvfits_uv = UVData()
     uvfits_uv2 = UVData()
-    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+    uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
 
     # select on antennas
     ants_to_keep = np.array([0, 19, 11, 24, 3, 23, 1, 20, 21])
@@ -479,7 +645,7 @@ def test_select_read():
 
     # check writing & reading single frequency files
     uvfits_uv.select(freq_chans=[0])
-    testfile = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
+    testfile = os.path.join(DATA_PATH, "test/outtest_casa.uvfits")
     uvfits_uv.write_uvfits(testfile)
     uvfits_uv2.read(testfile)
     assert uvfits_uv == uvfits_uv2
@@ -500,34 +666,49 @@ def test_select_read():
 
     # now test selecting on multiple axes
     # frequencies first
-    uvfits_uv.read(uvfits_file, antenna_nums=ants_to_keep,
-                   freq_chans=chans_to_keep, polarizations=pols_to_keep)
+    uvfits_uv.read(
+        uvfits_file,
+        antenna_nums=ants_to_keep,
+        freq_chans=chans_to_keep,
+        polarizations=pols_to_keep,
+    )
     uvfits_uv2.read(uvfits_file)
-    uvfits_uv2.select(antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
-                      polarizations=pols_to_keep)
+    uvfits_uv2.select(
+        antenna_nums=ants_to_keep, freq_chans=chans_to_keep, polarizations=pols_to_keep
+    )
     assert uvfits_uv == uvfits_uv2
 
     # baselines first
     ants_to_keep = np.array([0, 1])
-    uvfits_uv.read(uvfits_file, antenna_nums=ants_to_keep,
-                   freq_chans=chans_to_keep, polarizations=pols_to_keep)
+    uvfits_uv.read(
+        uvfits_file,
+        antenna_nums=ants_to_keep,
+        freq_chans=chans_to_keep,
+        polarizations=pols_to_keep,
+    )
     uvfits_uv2.read(uvfits_file)
-    uvfits_uv2.select(antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
-                      polarizations=pols_to_keep)
+    uvfits_uv2.select(
+        antenna_nums=ants_to_keep, freq_chans=chans_to_keep, polarizations=pols_to_keep
+    )
     assert uvfits_uv == uvfits_uv2
 
     # polarizations first
     ants_to_keep = np.array([0, 1, 2, 3, 6, 7, 8, 11, 14, 18, 19, 20, 21, 22])
     chans_to_keep = np.arange(12, 64)
-    uvfits_uv.read(uvfits_file, antenna_nums=ants_to_keep,
-                   freq_chans=chans_to_keep, polarizations=pols_to_keep)
+    uvfits_uv.read(
+        uvfits_file,
+        antenna_nums=ants_to_keep,
+        freq_chans=chans_to_keep,
+        polarizations=pols_to_keep,
+    )
     uvfits_uv2.read(uvfits_file)
-    uvfits_uv2.select(antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
-                      polarizations=pols_to_keep)
+    uvfits_uv2.select(
+        antenna_nums=ants_to_keep, freq_chans=chans_to_keep, polarizations=pols_to_keep
+    )
     assert uvfits_uv == uvfits_uv2
 
     # repeat with no spw file
-    uvfitsfile_no_spw = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAAM.uvfits')
+    uvfitsfile_no_spw = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAAM.uvfits")
 
     # select on antennas
     ants_to_keep = np.array([2, 4, 5])
@@ -552,42 +733,42 @@ def test_select_read():
         raw_data_array = vis_hdu.data.data
         raw_data_array = raw_data_array[:, :, :, 0, :, :, :]
 
-        vis_hdr['NAXIS'] = 6
+        vis_hdr["NAXIS"] = 6
 
-        vis_hdr['NAXIS5'] = vis_hdr['NAXIS6']
-        vis_hdr['CTYPE5'] = vis_hdr['CTYPE6']
-        vis_hdr['CRVAL5'] = vis_hdr['CRVAL6']
-        vis_hdr['CDELT5'] = vis_hdr['CDELT6']
-        vis_hdr['CRPIX5'] = vis_hdr['CRPIX6']
-        vis_hdr['CROTA5'] = vis_hdr['CROTA6']
+        vis_hdr["NAXIS5"] = vis_hdr["NAXIS6"]
+        vis_hdr["CTYPE5"] = vis_hdr["CTYPE6"]
+        vis_hdr["CRVAL5"] = vis_hdr["CRVAL6"]
+        vis_hdr["CDELT5"] = vis_hdr["CDELT6"]
+        vis_hdr["CRPIX5"] = vis_hdr["CRPIX6"]
+        vis_hdr["CROTA5"] = vis_hdr["CROTA6"]
 
-        vis_hdr['NAXIS6'] = vis_hdr['NAXIS7']
-        vis_hdr['CTYPE6'] = vis_hdr['CTYPE7']
-        vis_hdr['CRVAL6'] = vis_hdr['CRVAL7']
-        vis_hdr['CDELT6'] = vis_hdr['CDELT7']
-        vis_hdr['CRPIX6'] = vis_hdr['CRPIX7']
-        vis_hdr['CROTA6'] = vis_hdr['CROTA7']
+        vis_hdr["NAXIS6"] = vis_hdr["NAXIS7"]
+        vis_hdr["CTYPE6"] = vis_hdr["CTYPE7"]
+        vis_hdr["CRVAL6"] = vis_hdr["CRVAL7"]
+        vis_hdr["CDELT6"] = vis_hdr["CDELT7"]
+        vis_hdr["CRPIX6"] = vis_hdr["CRPIX7"]
+        vis_hdr["CROTA6"] = vis_hdr["CROTA7"]
 
-        vis_hdr.pop('NAXIS7')
-        vis_hdr.pop('CTYPE7')
-        vis_hdr.pop('CRVAL7')
-        vis_hdr.pop('CDELT7')
-        vis_hdr.pop('CRPIX7')
-        vis_hdr.pop('CROTA7')
+        vis_hdr.pop("NAXIS7")
+        vis_hdr.pop("CTYPE7")
+        vis_hdr.pop("CRVAL7")
+        vis_hdr.pop("CDELT7")
+        vis_hdr.pop("CRPIX7")
+        vis_hdr.pop("CROTA7")
 
         par_names = vis_hdu.data.parnames
 
-        group_parameter_list = [vis_hdu.data.par(ind) for
-                                ind in range(len(par_names))]
+        group_parameter_list = [vis_hdu.data.par(ind) for ind in range(len(par_names))]
 
-        vis_hdu = fits.GroupData(raw_data_array, parnames=par_names,
-                                 pardata=group_parameter_list, bitpix=-32)
+        vis_hdu = fits.GroupData(
+            raw_data_array, parnames=par_names, pardata=group_parameter_list, bitpix=-32
+        )
         vis_hdu = fits.GroupsHDU(vis_hdu)
         vis_hdu.header = vis_hdr
 
-        ant_hdu = hdu_list[hdunames['AIPS AN']]
+        ant_hdu = hdu_list[hdunames["AIPS AN"]]
 
-        write_file = os.path.join(DATA_PATH, 'test/outtest_casa.uvfits')
+        write_file = os.path.join(DATA_PATH, "test/outtest_casa.uvfits")
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
         hdulist.writeto(write_file, overwrite=True)
 
@@ -607,8 +788,8 @@ def test_read_uvfits_write_miriad():
     """
     uvfits_uv = UVData()
     miriad_uv = UVData()
-    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    testfile = os.path.join(DATA_PATH, 'test/outtest_miriad')
+    uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    testfile = os.path.join(DATA_PATH, "test/outtest_miriad")
     uvfits_uv.read(uvfits_file)
     uvfits_uv.write_miriad(testfile, clobber=True)
     miriad_uv.read_miriad(testfile)
@@ -616,12 +797,14 @@ def test_read_uvfits_write_miriad():
     assert miriad_uv == uvfits_uv
 
     # check that setting the phase_type keyword also works
-    miriad_uv.read_miriad(testfile, phase_type='phased')
+    miriad_uv.read_miriad(testfile, phase_type="phased")
 
     # check that setting the phase_type to drift raises an error
     with pytest.raises(ValueError) as cm:
-        miriad_uv.read_miriad(testfile, phase_type='drift')
-    assert str(cm.value).startswith('phase_type is "drift" but the RA values are constant.')
+        miriad_uv.read_miriad(testfile, phase_type="drift")
+    assert str(cm.value).startswith(
+        'phase_type is "drift" but the RA values are constant.'
+    )
 
     # check that setting it works after selecting a single time
     uvfits_uv.select(times=uvfits_uv.time_array[0])
@@ -637,9 +820,9 @@ def test_multi_files():
     Reading multiple files at once.
     """
     uv_full = UVData()
-    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    testfile1 = os.path.join(DATA_PATH, 'test/uv1.uvfits')
-    testfile2 = os.path.join(DATA_PATH, 'test/uv2.uvfits')
+    uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    testfile1 = os.path.join(DATA_PATH, "test/uv1.uvfits")
+    testfile2 = os.path.join(DATA_PATH, "test/uv2.uvfits")
     uv_full.read(uvfits_file)
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
@@ -653,24 +836,30 @@ def test_multi_files():
         func_kwargs={"file_type": "uvfits"},
         message=2 * ["Telescope EVLA is not"],
         category=2 * [UserWarning],
-        nwarnings=2
+        nwarnings=2,
     )
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(uv_full.history + '  Downselected to '
-                                    'specific frequencies using pyuvdata. '
-                                    'Combined data along frequency axis '
-                                    'using pyuvdata.', uv1.history)
+    assert uvutils._check_histories(
+        uv_full.history + "  Downselected to "
+        "specific frequencies using pyuvdata. "
+        "Combined data along frequency axis "
+        "using pyuvdata.",
+        uv1.history,
+    )
 
     uv1.history = uv_full.history
     assert uv1 == uv_full
 
     # again, setting axis
-    uv1.read([testfile1, testfile2], axis='freq')
+    uv1.read([testfile1, testfile2], axis="freq")
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(uv_full.history + '  Downselected to '
-                                    'specific frequencies using pyuvdata. '
-                                    'Combined data along frequency axis '
-                                    'using pyuvdata.', uv1.history)
+    assert uvutils._check_histories(
+        uv_full.history + "  Downselected to "
+        "specific frequencies using pyuvdata. "
+        "Combined data along frequency axis "
+        "using pyuvdata.",
+        uv1.history,
+    )
 
     uv1.history = uv_full.history
     assert uv1 == uv_full
@@ -682,10 +871,13 @@ def test_multi_files():
     uv1.read([testfile1, testfile2], read_data=False)
 
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(uv_full.history + '  Downselected to '
-                                    'specific frequencies using pyuvdata. '
-                                    'Combined data along frequency axis '
-                                    'using pyuvdata.', uv1.history)
+    assert uvutils._check_histories(
+        uv_full.history + "  Downselected to "
+        "specific frequencies using pyuvdata. "
+        "Combined data along frequency axis "
+        "using pyuvdata.",
+        uv1.history,
+    )
 
     uv1.history = uv_full.history
     assert uv1 == uv_full
@@ -696,9 +888,9 @@ def test_multi_files():
 def test_multi_unphase_on_read():
     uv_full = UVData()
     uv_full2 = UVData()
-    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    testfile1 = os.path.join(DATA_PATH, 'test/uv1.uvfits')
-    testfile2 = os.path.join(DATA_PATH, 'test/uv2.uvfits')
+    uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    testfile1 = os.path.join(DATA_PATH, "test/uv1.uvfits")
+    testfile2 = os.path.join(DATA_PATH, "test/uv2.uvfits")
     uv_full.read(uvfits_file)
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
@@ -707,18 +899,27 @@ def test_multi_unphase_on_read():
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
     uvtest.checkWarnings(
-        uv1.read, func_args=[np.array([testfile1, testfile2])],
-        func_kwargs={'unphase_to_drift': True},
-        message=(['Telescope EVLA is not'] * 2
-                 + ['Unphasing this UVData object to drift',
-                    'Unphasing other UVData object to drift']),
-        nwarnings=4)
+        uv1.read,
+        func_args=[np.array([testfile1, testfile2])],
+        func_kwargs={"unphase_to_drift": True},
+        message=(
+            ["Telescope EVLA is not"] * 2
+            + [
+                "Unphasing this UVData object to drift",
+                "Unphasing other UVData object to drift",
+            ]
+        ),
+        nwarnings=4,
+    )
 
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(uv_full.history + '  Downselected to '
-                                    'specific frequencies using pyuvdata. '
-                                    'Combined data along frequency axis '
-                                    'using pyuvdata.', uv1.history)
+    assert uvutils._check_histories(
+        uv_full.history + "  Downselected to "
+        "specific frequencies using pyuvdata. "
+        "Combined data along frequency axis "
+        "using pyuvdata.",
+        uv1.history,
+    )
 
     uv_full.unphase_to_drift()
 
@@ -727,11 +928,12 @@ def test_multi_unphase_on_read():
 
     # check unphasing when reading only one file
     uvtest.checkWarnings(
-        uv_full2.read, func_args=[uvfits_file],
-        func_kwargs={'unphase_to_drift': True},
-        message=(['Telescope EVLA is not',
-                  'Unphasing this UVData object to drift']),
-        nwarnings=2)
+        uv_full2.read,
+        func_args=[uvfits_file],
+        func_kwargs={"unphase_to_drift": True},
+        message=(["Telescope EVLA is not", "Unphasing this UVData object to drift"]),
+        nwarnings=2,
+    )
     assert uv_full2 == uv_full
 
 
@@ -741,12 +943,14 @@ def test_multi_unphase_on_read():
 def test_multi_phase_on_read():
     uv_full = UVData()
     uv_full2 = UVData()
-    uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-    testfile1 = os.path.join(DATA_PATH, 'test/uv1.uvfits')
-    testfile2 = os.path.join(DATA_PATH, 'test/uv2.uvfits')
+    uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    testfile1 = os.path.join(DATA_PATH, "test/uv1.uvfits")
+    testfile2 = os.path.join(DATA_PATH, "test/uv2.uvfits")
     uv_full.read(uvfits_file)
-    phase_center_radec = [uv_full.phase_center_ra + 0.01,
-                          uv_full.phase_center_dec + 0.01]
+    phase_center_radec = [
+        uv_full.phase_center_ra + 0.01,
+        uv_full.phase_center_dec + 0.01,
+    ]
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
     uv1.select(freq_chans=np.arange(0, 32))
@@ -754,18 +958,27 @@ def test_multi_phase_on_read():
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
     uvtest.checkWarnings(
-        uv1.read, func_args=[np.array([testfile1, testfile2])],
-        func_kwargs={'phase_center_radec': phase_center_radec},
-        message=(['Telescope EVLA is not'] * 2
-                 + ['Phasing this UVData object to phase_center_radec',
-                    'Phasing this UVData object to phase_center_radec']),
-        nwarnings=4)
+        uv1.read,
+        func_args=[np.array([testfile1, testfile2])],
+        func_kwargs={"phase_center_radec": phase_center_radec},
+        message=(
+            ["Telescope EVLA is not"] * 2
+            + [
+                "Phasing this UVData object to phase_center_radec",
+                "Phasing this UVData object to phase_center_radec",
+            ]
+        ),
+        nwarnings=4,
+    )
 
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(uv_full.history + '  Downselected to '
-                                    'specific frequencies using pyuvdata. '
-                                    'Combined data along frequency axis '
-                                    'using pyuvdata.', uv1.history)
+    assert uvutils._check_histories(
+        uv_full.history + "  Downselected to "
+        "specific frequencies using pyuvdata. "
+        "Combined data along frequency axis "
+        "using pyuvdata.",
+        uv1.history,
+    )
 
     uv_full.phase(*phase_center_radec)
     uv1.history = uv_full.history
@@ -773,16 +986,22 @@ def test_multi_phase_on_read():
 
     # check phasing when reading only one file
     uvtest.checkWarnings(
-        uv_full2.read, func_args=[uvfits_file],
-        func_kwargs={'phase_center_radec': phase_center_radec},
-        message=(['Telescope EVLA is not',
-                  'Phasing this UVData object to phase_center_radec']),
-        nwarnings=2)
+        uv_full2.read,
+        func_args=[uvfits_file],
+        func_kwargs={"phase_center_radec": phase_center_radec},
+        message=(
+            [
+                "Telescope EVLA is not",
+                "Phasing this UVData object to phase_center_radec",
+            ]
+        ),
+        nwarnings=2,
+    )
     assert uv_full2 == uv_full
 
     with pytest.raises(ValueError) as cm:
         uv_full2.read(uvfits_file, phase_center_radec=phase_center_radec[0])
-    assert str(cm.value).startswith('phase_center_radec should have length 2.')
+    assert str(cm.value).startswith("phase_center_radec should have length 2.")
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -794,8 +1013,8 @@ def test_read_ms_write_uvfits_casa_history():
     pytest.importorskip("casacore")
     ms_uv = UVData()
     uvfits_uv = UVData()
-    ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
-    testfile = os.path.join(DATA_PATH, 'test/outtest.uvfits')
+    ms_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
+    testfile = os.path.join(DATA_PATH, "test/outtest.uvfits")
     ms_uv.read_ms(ms_file)
     ms_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read(testfile)
