@@ -30,8 +30,8 @@ __all__ = ["MS"]
 This dictionary defines the mapping between CASA polarization numbers and
 AIPS polarization numbers
 """
-polDict = {1: 1, 2: 2, 3: 3, 4: 4, 5: -1, 6: -3,
-           7: -4, 8: -2, 9: -5, 10: -7, 11: -8, 12: -6}
+pol_dict = {1: 1, 2: 2, 3: 3, 4: 4, 5: -1, 6: -3,
+            7: -4, 8: -2, 9: -5, 10: -7, 11: -8, 12: -6}
 
 # convert from casa polarization integers to pyuvdata
 
@@ -237,8 +237,8 @@ class MS(UVData):
             tb.getcol('TIME') / (3600. * 24.), format='mjd').jd
 
         # Polarization array
-        tbPol = tables.table(filepath + '/POLARIZATION', ack=False)
-        num_pols = tbPol.getcol('NUM_CORR')
+        tb_pol = tables.table(filepath + '/POLARIZATION', ack=False)
+        num_pols = tb_pol.getcol('NUM_CORR')
         # get pol setup ID from data description table
         tb_data_desc = tables.table(filepath + '/DATA_DESCRIPTION', ack=False)
         pol_id = tb_data_desc.getcol('POLARIZATION_ID')[0]
@@ -247,14 +247,14 @@ class MS(UVData):
 
         if np.unique(num_pols).size > 1:
             # use getvarcol method, which returns a dict
-            polList = tbPol.getvarcol('CORR_TYPE')['r' + str(pol_id + 1)][0].tolist()
+            pol_list = tb_pol.getvarcol('CORR_TYPE')['r' + str(pol_id + 1)][0].tolist()
         else:
             # list of lists, probably with each list corresponding to SPW.
-            polList = tbPol.getcol('CORR_TYPE')[pol_id]
-        self.polarization_array = np.zeros(len(polList), dtype=np.int32)
-        for polnum in range(len(polList)):
-            self.polarization_array[polnum] = int(polDict[polList[polnum]])
-        tbPol.close()
+            pol_list = tb_pol.getcol('CORR_TYPE')[pol_id]
+        self.polarization_array = np.zeros(len(pol_list), dtype=np.int32)
+        for polnum in range(len(pol_list)):
+            self.polarization_array[polnum] = int(pol_dict[pol_list[polnum]])
+        tb_pol.close()
 
         # Integration time
         # use first interval and assume rest are constant (though measurement set has all integration times for each Nblt )
@@ -267,22 +267,22 @@ class MS(UVData):
             int_time = self._calc_single_integration_time()
             self.integration_time = np.ones_like(self.time_array, dtype=np.float64) * int_time
         # open table with antenna location information
-        tbAnt = tables.table(filepath + '/ANTENNA', ack=False)
-        tbObs = tables.table(filepath + '/OBSERVATION', ack=False)
-        self.telescope_name = tbObs.getcol('TELESCOPE_NAME')[0]
-        self.instrument = tbObs.getcol('TELESCOPE_NAME')[0]
-        tbObs.close()
+        tb_ant = tables.table(filepath + '/ANTENNA', ack=False)
+        tb_obs = tables.table(filepath + '/OBSERVATION', ack=False)
+        self.telescope_name = tb_obs.getcol('TELESCOPE_NAME')[0]
+        self.instrument = tb_obs.getcol('TELESCOPE_NAME')[0]
+        tb_obs.close()
         # Use Telescopes.py dictionary to set array position
-        full_antenna_positions = tbAnt.getcol('POSITION')
-        xyz_telescope_frame = tbAnt.getcolkeyword(
+        full_antenna_positions = tb_ant.getcol('POSITION')
+        xyz_telescope_frame = tb_ant.getcolkeyword(
             'POSITION', 'MEASINFO')['Ref']
-        antFlags = np.empty(len(full_antenna_positions), dtype=bool)
-        antFlags[:] = False
-        for antnum in range(len(antFlags)):
-            antFlags[antnum] = np.all(full_antenna_positions[antnum, :] == 0)
+        ant_flags = np.empty(len(full_antenna_positions), dtype=bool)
+        ant_flags[:] = False
+        for antnum in range(len(ant_flags)):
+            ant_flags[antnum] = np.all(full_antenna_positions[antnum, :] == 0)
         if(xyz_telescope_frame == 'ITRF'):
             self.telescope_location = np.array(
-                np.mean(full_antenna_positions[np.invert(antFlags), :], axis=0))
+                np.mean(full_antenna_positions[np.invert(ant_flags), :], axis=0))
         if self.telescope_location is None:
             try:
                 self.set_telescope_params()
@@ -291,12 +291,12 @@ class MS(UVData):
                               'in known_telescopes, so telescope_location is not set.')
 
         # antenna names
-        ant_names = tbAnt.getcol('STATION')
-        ant_diams = tbAnt.getcol('DISH_DIAMETER')
+        ant_names = tb_ant.getcol('STATION')
+        ant_diams = tb_ant.getcol('DISH_DIAMETER')
 
         self.antenna_diameters = ant_diams[ant_diams > 0]
 
-        self.Nants_telescope = len(antFlags[np.invert(antFlags)])
+        self.Nants_telescope = len(ant_flags[np.invert(ant_flags)])
         test_name = ant_names[0]
         names_same = True
         for antnum in range(len(ant_names)):
@@ -307,25 +307,25 @@ class MS(UVData):
             self.antenna_names = ant_names
         else:
             # importuvfits measurement sets store antenna names in the STATION column.
-            self.antenna_names = tbAnt.getcol('NAME')
+            self.antenna_names = tb_ant.getcol('NAME')
         self.antenna_numbers = np.arange(len(self.antenna_names)).astype(int)
         ant_names = []
-        for antNum in range(len(self.antenna_names)):
-            if not(antFlags[antNum]):
-                ant_names.append(self.antenna_names[antNum])
+        for ant_num in range(len(self.antenna_names)):
+            if not(ant_flags[ant_num]):
+                ant_names.append(self.antenna_names[ant_num])
         self.antenna_names = ant_names
-        self.antenna_numbers = self.antenna_numbers[np.invert(antFlags)]
+        self.antenna_numbers = self.antenna_numbers[np.invert(ant_flags)]
 
         relative_positions = np.zeros_like(full_antenna_positions)
         relative_positions = full_antenna_positions - self.telescope_location.reshape(1, 3)
-        self.antenna_positions = relative_positions[np.invert(antFlags), :]
+        self.antenna_positions = relative_positions[np.invert(ant_flags), :]
 
-        tbAnt.close()
-        tbField = tables.table(filepath + '/FIELD', ack=False)
-        if(tbField.getcol('PHASE_DIR').shape[1] == 2):
+        tb_ant.close()
+        tb_field = tables.table(filepath + '/FIELD', ack=False)
+        if(tb_field.getcol('PHASE_DIR').shape[1] == 2):
             self.phase_type = 'drift'
             self.set_drift()
-        elif(tbField.getcol('PHASE_DIR').shape[1] == 1):
+        elif(tb_field.getcol('PHASE_DIR').shape[1] == 1):
             self.phase_type = 'phased'
             # MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
             epoch_string = tb.getcolkeyword('UVW', 'MEASINFO')['Ref']
@@ -335,8 +335,8 @@ class MS(UVData):
             else:
                 self.phase_center_epoch = float(
                     tb.getcolkeyword('UVW', 'MEASINFO')['Ref'][1:])
-            self.phase_center_ra = float(tbField.getcol('PHASE_DIR')[0][0][0])
-            self.phase_center_dec = float(tbField.getcol('PHASE_DIR')[0][0][1])
+            self.phase_center_ra = float(tb_field.getcol('PHASE_DIR')[0][0][0])
+            self.phase_center_dec = float(tb_field.getcol('PHASE_DIR')[0][0][1])
             self.set_phased()
         # set LST array from times and itrf
         self.set_lsts_from_time_array()
@@ -355,8 +355,8 @@ class MS(UVData):
             self.nsample_array = np.stack([self.nsample_array for chan in range(self.Nfreqs)], axis=1)
         if(len(self.nsample_array.shape) == 3):
             self.nsample_array = np.expand_dims(self.nsample_array, axis=1)
-        self.object_name = tbField.getcol('NAME')[0]
-        tbField.close()
+        self.object_name = tb_field.getcol('NAME')[0]
+        tb_field.close()
         tb.close()
         # order polarizations
         self.reorder_pols(order=pol_order)

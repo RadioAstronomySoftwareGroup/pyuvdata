@@ -678,16 +678,16 @@ class UVBeam(UVBase):
         Returns
         -------
         array of float
-            Array containing the Mij values, shape: (Npixels,) for Healpix beams
+            Mueller array containing the Mij values, shape: (Npixels,) for Healpix beams
             or (Naxes1 * Naxes2,) otherwise.
         """
         pauli_mat1 = self._stokes_matrix(pol_index1)
         pauli_mat2 = self._stokes_matrix(pol_index2)
 
-        Mij = 0.5 * np.einsum('...ab,...bc,...cd,...ad', pauli_mat1, jones, pauli_mat2, np.conj(jones))
-        Mij = np.abs(Mij)
+        mueller = 0.5 * np.einsum('...ab,...bc,...cd,...ad', pauli_mat1, jones, pauli_mat2, np.conj(jones))
+        mueller = np.abs(mueller)
 
-        return Mij
+        return mueller
 
     def efield_to_pstokes(self, inplace=True, run_check=True, check_extra=True,
                           run_check_acceptability=True):

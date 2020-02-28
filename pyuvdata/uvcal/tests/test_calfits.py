@@ -95,14 +95,14 @@ def test_errors():
         unit = list(hdr_dict.keys())[0]
         keyword = hdr_dict[unit]
 
-        F = fits.open(write_file)
-        data = F[0].data
-        primary_hdr = F[0].header
-        hdunames = uvutils._fits_indexhdus(F)
-        ant_hdu = F[hdunames['ANTENNAS']]
-        flag_hdu = F[hdunames['FLAGS']]
+        fname = fits.open(write_file)
+        data = fname[0].data
+        primary_hdr = fname[0].header
+        hdunames = uvutils._fits_indexhdus(fname)
+        ant_hdu = fname[hdunames['ANTENNAS']]
+        flag_hdu = fname[hdunames['FLAGS']]
         flag_hdr = flag_hdu.header
-        totqualhdu = F[hdunames['TOTQLTY']]
+        totqualhdu = fname[hdunames['TOTQLTY']]
         totqualhdr = totqualhdu.header
 
         if unit == 'flag':
@@ -145,12 +145,12 @@ def test_errors():
         unit = list(hdr_dict.keys())[0]
         keyword = hdr_dict[unit]
 
-        F = fits.open(write_file)
-        data = F[0].data
-        primary_hdr = F[0].header
-        hdunames = uvutils._fits_indexhdus(F)
-        ant_hdu = F[hdunames['ANTENNAS']]
-        totqualhdu = F[hdunames['TOTQLTY']]
+        fname = fits.open(write_file)
+        data = fname[0].data
+        primary_hdr = fname[0].header
+        hdunames = uvutils._fits_indexhdus(fname)
+        ant_hdu = fname[hdunames['ANTENNAS']]
+        totqualhdu = fname[hdunames['TOTQLTY']]
         totqualhdr = totqualhdu.header
 
         if unit == 'totqual':
@@ -416,11 +416,11 @@ def test_read_noversion_history():
 
     cal_in.write_calfits(write_file, clobber=True)
 
-    F = fits.open(write_file)
-    data = F[0].data
-    primary_hdr = F[0].header
-    hdunames = uvutils._fits_indexhdus(F)
-    ant_hdu = F[hdunames['ANTENNAS']]
+    fname = fits.open(write_file)
+    data = fname[0].data
+    primary_hdr = fname[0].header
+    hdunames = uvutils._fits_indexhdus(fname)
+    ant_hdu = fname[hdunames['ANTENNAS']]
 
     primary_hdr['HISTORY'] = ''
 

@@ -216,8 +216,8 @@ def test_stokes_matrix():
     pytest.raises(ValueError, beam._stokes_matrix, 5)
 
 
-@uvtest.skipIf_no_healpix
 def test_efield_to_pstokes():
+    pytest.importorskip("astropy_healpix")
     efield_beam = UVBeam()
     efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
                               telescope_name='TEST', feed_name='bob',
@@ -779,8 +779,8 @@ def test_interp_longitude_branch_cut():
                        atol=beam._data_array.tols[1]))
 
 
-@uvtest.skipIf_no_healpix
 def test_healpix_interpolation():
+    pytest.importorskip("astropy_healpix")
     efield_beam = UVBeam()
     efield_beam.read_cst_beam(cst_files, beam_type='efield', frequency=[150e6, 123e6],
                               telescope_name='TEST', feed_name='bob',
@@ -937,8 +937,8 @@ def test_healpix_interpolation():
     pytest.raises(ValueError, power_beam.interp, az_array=az_orig_vals, za_array=za_orig_vals)
 
 
-@uvtest.skipIf_no_healpix
 def test_to_healpix():
+    pytest.importorskip("astropy_healpix")
     power_beam = UVBeam()
     power_beam.read_cst_beam(cst_files[0], beam_type='power', frequency=150e6,
                              telescope_name='TEST', feed_name='bob',
@@ -1665,8 +1665,8 @@ def test_add():
     pytest.raises(ValueError, beam1.__iadd__, beam2)
 
 
-@uvtest.skipIf_no_healpix
 def test_healpix():
+    pytest.importorskip("astropy_healpix")
     # put all the testing on healpix in this one function to minimize slow calls
     # to uvbeam.to_healpix()
     power_beam = UVBeam()
@@ -1906,29 +1906,29 @@ def test_healpix():
 
     # Check for the case of a uniform beam over the whole sky
     hp_obj = HEALPix(nside=healpix_norm.nside)
-    dOmega = hp_obj.pixel_area.to('steradian').value
+    d_omega = hp_obj.pixel_area.to('steradian').value
     npix = healpix_norm.Npixels
     healpix_norm.data_array = np.ones_like(healpix_norm.data_array)
-    assert np.allclose(np.sum(healpix_norm.get_beam_area(pol='xx')), numfreqs * npix * dOmega)
+    assert np.allclose(np.sum(healpix_norm.get_beam_area(pol='xx')), numfreqs * npix * d_omega)
     healpix_norm.data_array = 2. * np.ones_like(healpix_norm.data_array)
-    assert np.allclose(np.sum(healpix_norm.get_beam_sq_area(pol='xx')), numfreqs * 4. * npix * dOmega)
+    assert np.allclose(np.sum(healpix_norm.get_beam_sq_area(pol='xx')), numfreqs * 4. * npix * d_omega)
 
     # check XX and YY beam areas work and match to within 5 sigfigs
-    XX_area = healpix_norm.get_beam_area('XX')
+    xx_area = healpix_norm.get_beam_area('XX')
     xx_area = healpix_norm.get_beam_area('xx')
-    assert np.allclose(xx_area, XX_area)
-    YY_area = healpix_norm.get_beam_area('YY')
-    assert np.allclose(YY_area / XX_area, np.ones(numfreqs))
-    # nt.assert_almost_equal(YY_area / XX_area, 1.0, places=5)
-    XX_area = healpix_norm.get_beam_sq_area("XX")
-    YY_area = healpix_norm.get_beam_sq_area("YY")
-    assert np.allclose(YY_area / XX_area, np.ones(numfreqs))
-    # nt.assert_almost_equal(YY_area / XX_area, 1.0, places=5)
+    assert np.allclose(xx_area, xx_area)
+    yy_area = healpix_norm.get_beam_area('YY')
+    assert np.allclose(yy_area / xx_area, np.ones(numfreqs))
+    # nt.assert_almost_equal(yy_area / xx_area, 1.0, places=5)
+    xx_area = healpix_norm.get_beam_sq_area("XX")
+    yy_area = healpix_norm.get_beam_sq_area("YY")
+    assert np.allclose(yy_area / xx_area, np.ones(numfreqs))
+    # nt.assert_almost_equal(yy_area / xx_area, 1.0, places=5)
 
     # Check that if pseudo-Stokes I (pI) is in the beam polarization_array, it just uses it
     healpix_norm.polarization_array = [1, 2]
-    # nt.assert_almost_equal(np.sum(healpix_norm.get_beam_area()), 2. * numfreqs * npix * dOmega)
-    # nt.assert_almost_equal(np.sum(healpix_norm.get_beam_sq_area()), 4. * numfreqs * npix * dOmega)
+    # nt.assert_almost_equal(np.sum(healpix_norm.get_beam_area()), 2. * numfreqs * npix * d_omega)
+    # nt.assert_almost_equal(np.sum(healpix_norm.get_beam_sq_area()), 4. * numfreqs * npix * d_omega)
 
     # Check error if desired pol is allowed but isn't in the polarization_array
     pytest.raises(ValueError, healpix_norm.get_beam_area, pol='xx')
@@ -1941,17 +1941,17 @@ def test_healpix():
 
     healpix_norm_fullpol = efield_beam.efield_to_power(inplace=False)
     healpix_norm_fullpol.peak_normalize()
-    XX_area = healpix_norm_fullpol.get_beam_sq_area("XX")
-    YY_area = healpix_norm_fullpol.get_beam_sq_area("YY")
+    xx_area = healpix_norm_fullpol.get_beam_sq_area("XX")
+    yy_area = healpix_norm_fullpol.get_beam_sq_area("YY")
     XY_area = healpix_norm_fullpol.get_beam_sq_area("XY")
     YX_area = healpix_norm_fullpol.get_beam_sq_area("YX")
     # check if XY beam area is equal to beam YX beam area
     assert np.allclose(XY_area, YX_area)
     # check if XY/YX beam area is less than XX/YY beam area
-    assert np.all(np.less(XY_area, XX_area))
-    assert np.all(np.less(XY_area, YY_area))
-    assert np.all(np.less(YX_area, XX_area))
-    assert np.all(np.less(YX_area, YY_area))
+    assert np.all(np.less(XY_area, xx_area))
+    assert np.all(np.less(XY_area, yy_area))
+    assert np.all(np.less(YX_area, xx_area))
+    assert np.all(np.less(YX_area, yy_area))
 
     # Check if power is scalar
     healpix_vec_norm = efield_beam.efield_to_power(keep_basis_vector=True,

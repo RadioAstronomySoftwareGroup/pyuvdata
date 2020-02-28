@@ -461,7 +461,7 @@ def test_known_telescopes():
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
-def test_HERA_diameters():
+def test_hera_diameters():
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     uv_in = UVData()
     uv_in.read_miriad(miriad_file)
@@ -504,95 +504,95 @@ def test_generic_read():
 
     ]
 )
-def test_phase_unphaseHERA(uv1_2_set_uvws, phase_kwargs):
+def test_phase_unphase_hera(uv1_2_set_uvws, phase_kwargs):
     """
     Read in drift data, phase to an RA/DEC, unphase and check for object equality.
     """
-    uv1, UV_raw = uv1_2_set_uvws
+    uv1, uv_raw = uv1_2_set_uvws
     uv1.phase(**phase_kwargs)
     uv1.unphase_to_drift()
     # check that phase + unphase gets back to raw
-    assert UV_raw == uv1
+    assert uv_raw == uv1
 
 
-def test_phase_unphaseHERA_one_bl(uv1_2_set_uvws):
-    UV_phase, UV_raw = uv1_2_set_uvws
+def test_phase_unphase_hera_one_bl(uv1_2_set_uvws):
+    uv_phase, uv_raw = uv1_2_set_uvws
     # check that phase + unphase work with one baseline
-    UV_raw_small = UV_raw.select(blt_inds=[0], inplace=False)
-    UV_phase_small = copy.deepcopy(UV_raw_small)
-    UV_phase_small.phase(Angle('23h').rad, Angle('15d').rad)
-    UV_phase_small.unphase_to_drift()
-    assert UV_raw_small == UV_phase_small
+    uv_raw_small = uv_raw.select(blt_inds=[0], inplace=False)
+    uv_phase_small = copy.deepcopy(uv_raw_small)
+    uv_phase_small.phase(Angle('23h').rad, Angle('15d').rad)
+    uv_phase_small.unphase_to_drift()
+    assert uv_raw_small == uv_phase_small
 
 
-def test_phase_unphaseHERA_antpos(uv1_2_set_uvws):
-    UV_phase, UV_raw = uv1_2_set_uvws
+def test_phase_unphase_hera_antpos(uv1_2_set_uvws):
+    uv_phase, uv_raw = uv1_2_set_uvws
     # check that they match if you phase & unphase using antenna locations
     # first replace the uvws with the right values
-    antenna_enu = uvutils.ENU_from_ECEF((UV_raw.antenna_positions + UV_raw.telescope_location),
-                                        *UV_raw.telescope_location_lat_lon_alt)
-    uvw_calc = np.zeros_like(UV_raw.uvw_array)
-    unique_times, unique_inds = np.unique(UV_raw.time_array, return_index=True)
+    antenna_enu = uvutils.ENU_from_ECEF((uv_raw.antenna_positions + uv_raw.telescope_location),
+                                        *uv_raw.telescope_location_lat_lon_alt)
+    uvw_calc = np.zeros_like(uv_raw.uvw_array)
+    unique_times, unique_inds = np.unique(uv_raw.time_array, return_index=True)
     for ind, jd in enumerate(unique_times):
-        inds = np.where(UV_raw.time_array == jd)[0]
+        inds = np.where(uv_raw.time_array == jd)[0]
         for bl_ind in inds:
-            ant1_index = np.where(UV_raw.antenna_numbers == UV_raw.ant_1_array[bl_ind])[0][0]
-            ant2_index = np.where(UV_raw.antenna_numbers == UV_raw.ant_2_array[bl_ind])[0][0]
+            ant1_index = np.where(uv_raw.antenna_numbers == uv_raw.ant_1_array[bl_ind])[0][0]
+            ant2_index = np.where(uv_raw.antenna_numbers == uv_raw.ant_2_array[bl_ind])[0][0]
             uvw_calc[bl_ind, :] = antenna_enu[ant2_index, :] - antenna_enu[ant1_index, :]
 
-    UV_raw_new = copy.deepcopy(UV_raw)
-    UV_raw_new.uvw_array = uvw_calc
-    UV_phase.phase(0., 0., epoch="J2000", use_ant_pos=True)
-    UV_phase2 = copy.deepcopy(UV_raw_new)
-    UV_phase2.phase(0., 0., epoch="J2000")
+    uv_raw_new = copy.deepcopy(uv_raw)
+    uv_raw_new.uvw_array = uvw_calc
+    uv_phase.phase(0., 0., epoch="J2000", use_ant_pos=True)
+    uv_phase2 = copy.deepcopy(uv_raw_new)
+    uv_phase2.phase(0., 0., epoch="J2000")
 
     # The uvw's only agree to ~1mm. should they be better?
-    assert np.allclose(UV_phase2.uvw_array, UV_phase.uvw_array, atol=1e-3)
+    assert np.allclose(uv_phase2.uvw_array, uv_phase.uvw_array, atol=1e-3)
     # the data array are just multiplied by the w's for phasing, so a difference
     # at the 1e-3 level makes the data array different at that level too.
     # -> change the tolerance on data_array for this test
-    UV_phase2._data_array.tols = (0, 1e-3 * np.amax(np.abs(UV_phase2.data_array)))
-    assert UV_phase2 == UV_phase
+    uv_phase2._data_array.tols = (0, 1e-3 * np.amax(np.abs(uv_phase2.data_array)))
+    assert uv_phase2 == uv_phase
 
     # check that phase + unphase gets back to raw using antpos
-    UV_phase.unphase_to_drift(use_ant_pos=True)
-    assert UV_raw_new == UV_phase
+    uv_phase.unphase_to_drift(use_ant_pos=True)
+    assert uv_raw_new == uv_phase
 
 
-def test_phase_unphaseHERA_zenith_timestamp(uv1_2_set_uvws):
-    UV_phase, UV_raw = uv1_2_set_uvws
+def test_phase_unphase_hera_zenith_timestamp(uv1_2_set_uvws):
+    uv_phase, uv_raw = uv1_2_set_uvws
     # check that phasing to zenith with one timestamp has small changes
     # (it won't be identical because of precession/nutation changing the coordinate axes)
     # use gcrs rather than icrs to reduce differences (don't include abberation)
-    UV_raw_small = UV_raw.select(times=UV_raw.time_array[0], inplace=False)
-    UV_phase_simple_small = copy.deepcopy(UV_raw_small)
-    UV_phase_simple_small.phase_to_time(time=Time(UV_raw.time_array[0], format='jd'),
+    uv_raw_small = uv_raw.select(times=uv_raw.time_array[0], inplace=False)
+    uv_phase_simple_small = copy.deepcopy(uv_raw_small)
+    uv_phase_simple_small.phase_to_time(time=Time(uv_raw.time_array[0], format='jd'),
                                         phase_frame='gcrs')
 
     # it's unclear to me how close this should be...
-    assert np.allclose(UV_phase_simple_small.uvw_array, UV_raw_small.uvw_array, atol=1e-1)
+    assert np.allclose(uv_phase_simple_small.uvw_array, uv_raw_small.uvw_array, atol=1e-1)
 
 
 def test_phase_to_time_jd_input(uv1_2_set_uvws):
-    UV_phase, UV_raw = uv1_2_set_uvws
-    UV_phase.phase_to_time(UV_raw.time_array[0])
-    UV_phase.unphase_to_drift()
-    assert UV_phase == UV_raw
+    uv_phase, uv_raw = uv1_2_set_uvws
+    uv_phase.phase_to_time(uv_raw.time_array[0])
+    uv_phase.unphase_to_drift()
+    assert uv_phase == uv_raw
 
 
 def test_phase_to_time_error(uv1_2_set_uvws):
-    UV_phase, UV_raw = uv1_2_set_uvws
+    uv_phase, uv_raw = uv1_2_set_uvws
     # check error if not passing a Time object to phase_to_time
     with pytest.raises(TypeError) as cm:
-        UV_phase.phase_to_time('foo')
+        uv_phase.phase_to_time('foo')
     assert str(cm.value).startswith("time must be an astropy.time.Time object")
 
 
 def test_unphase_drift_data_error(uv1_2_set_uvws):
-    UV_phase, UV_raw = uv1_2_set_uvws
+    uv_phase, uv_raw = uv1_2_set_uvws
     # check error if not passing a Time object to phase_to_time
     with pytest.raises(ValueError) as cm:
-        UV_phase.unphase_to_drift()
+        uv_phase.unphase_to_drift()
     assert str(cm.value).startswith("The data is already drift scanning;")
 
 
@@ -606,22 +606,22 @@ def test_unphase_drift_data_error(uv1_2_set_uvws):
       "The phasing type of the data is unknown. Set the phase_type")
      ]
 )
-def test_unknown_phase_unphaseHERA_errors(
+def test_unknown_phase_unphase_hera_errors(
     uv1_2_set_uvws, phase_func, phase_kwargs, err_msg
 ):
-    UV_phase, UV_raw = uv1_2_set_uvws
+    uv_phase, uv_raw = uv1_2_set_uvws
 
     # Set phase type to unkown on some tests, ignore on others.
-    UV_phase.set_unknown_phase_type()
+    uv_phase.set_unknown_phase_type()
     # if this is phase_to_time, use this index set in the dictionary and
     # assign the value of the time_array associated with that index
-    # this is a little hacky, but we cannot acces UV_phase.time_array in the
+    # this is a little hacky, but we cannot acces uv_phase.time_array in the
     # parametrize
     if phase_func == "phase_to_time":
-        phase_kwargs["time"] = UV_phase.time_array[phase_kwargs["time"]]
+        phase_kwargs["time"] = uv_phase.time_array[phase_kwargs["time"]]
 
     with pytest.raises(ValueError) as cm:
-        getattr(UV_phase, phase_func)(**phase_kwargs)
+        getattr(uv_phase, phase_func)(**phase_kwargs)
     assert str(cm.value).startswith(err_msg)
 
 
@@ -633,30 +633,30 @@ def test_unknown_phase_unphaseHERA_errors(
       "The data is already phased;")
      ]
 )
-def test_phase_rephaseHERA_errors(
+def test_phase_rephase_hera_errors(
     uv1_2_set_uvws, phase_func, phase_kwargs, err_msg
 ):
-    UV_phase, UV_raw = uv1_2_set_uvws
+    uv_phase, uv_raw = uv1_2_set_uvws
 
     # Set phase type to unkown on some tests, ignore on others.
-    UV_phase.phase(0., 0., epoch="J2000")
+    uv_phase.phase(0., 0., epoch="J2000")
     # if this is phase_to_time, use this index set in the dictionary and
     # assign the value of the time_array associated with that index
-    # this is a little hacky, but we cannot acces UV_phase.time_array in the
+    # this is a little hacky, but we cannot acces uv_phase.time_array in the
     # parametrize
     if phase_func == "phase_to_time":
-        phase_kwargs["time"] = UV_phase.time_array[phase_kwargs["time"]]
+        phase_kwargs["time"] = uv_phase.time_array[phase_kwargs["time"]]
 
     with pytest.raises(ValueError) as cm:
-        getattr(UV_phase, phase_func)(**phase_kwargs)
+        getattr(uv_phase, phase_func)(**phase_kwargs)
     assert str(cm.value).startswith(err_msg)
 
 
-def test_phase_unphaseHERA_bad_frame(uv1_2_set_uvws):
-    UV_phase, UV_raw = uv1_2_set_uvws
+def test_phase_unphase_hera_bad_frame(uv1_2_set_uvws):
+    uv_phase, uv_raw = uv1_2_set_uvws
     # check errors when trying to phase to an unsupported frame
     with pytest.raises(ValueError) as cm:
-        UV_phase.phase(0., 0., epoch="J2000", phase_frame='cirs')
+        uv_phase.phase(0., 0., epoch="J2000", phase_frame='cirs')
     assert str(cm.value).startswith("phase_frame can only be set to icrs or gcrs.")
 
 
@@ -3336,7 +3336,7 @@ def test_get_ants():
         assert ant in ants
 
 
-def test_get_ENU_antpos():
+def test_get_enu_antpos():
     uvd = UVData()
     uvd.read_miriad(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA"))
     # no center, no pick data ants
@@ -3358,7 +3358,7 @@ def test_get_ENU_antpos():
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
-def test_telescope_loc_XYZ_check():
+def test_telescope_loc_xyz_check():
     # test that improper telescope locations can still be read
     miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
     uv = UVData()
@@ -4130,12 +4130,12 @@ def test_redundancy_missing_groups():
     uv0 = UVData()
     uv0.read_uvfits(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
     tol = 0.02
-    Nselect = 19
+    num_select = 19
 
     uv0.compress_by_redundancy(tol=tol)
     fname = 'temp_hera19_missingreds.uvfits'
 
-    bls = np.unique(uv0.baseline_array)[:Nselect]         # First twenty baseline groups
+    bls = np.unique(uv0.baseline_array)[:num_select]         # First twenty baseline groups
     uv0.select(bls=[uv0.baseline_to_antnums(bl) for bl in bls])
     uv0.write_uvfits(fname)
     uv1 = UVData()
@@ -4152,7 +4152,7 @@ def test_redundancy_missing_groups():
 
     uv2 = uv1.compress_by_redundancy(tol=tol, inplace=False)
 
-    assert np.unique(uv2.baseline_array).size == Nselect
+    assert np.unique(uv2.baseline_array).size == num_select
 
 
 def test_quick_redundant_vs_redundant_test_array():

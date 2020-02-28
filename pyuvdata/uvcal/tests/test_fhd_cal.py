@@ -22,7 +22,7 @@ cal_testfile = os.path.join(testdir, testfile_prefix + 'cal.sav')
 settings_testfile = os.path.join(testdir, testfile_prefix + 'settings.txt')
 
 
-def test_ReadFHDcalWriteReadcalfits():
+def test_read_fhdcal_write_read_calfits():
     """
     FHD cal to calfits loopback test.
 
@@ -99,7 +99,7 @@ def test_flags_galaxy():
     assert fhd_cal == calfits_cal
 
 
-def test_breakReadFHDcal():
+def test_break_read_fhdcal():
     """Try various cases of missing files."""
     fhd_cal = UVCal()
     pytest.raises(TypeError, fhd_cal.read_fhd_cal, cal_testfile)  # Missing obs

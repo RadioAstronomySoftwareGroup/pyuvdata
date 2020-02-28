@@ -30,7 +30,7 @@ for s in testfile_suffix:
     testfiles.append(testdir + testfile_prefix + s)
 
 
-def test_ReadFHDWriteReadUVFits():
+def test_read_fhd_write_read_uvfits():
     """
     FHD to uvfits loopback test.
 
@@ -47,7 +47,7 @@ def test_ReadFHDWriteReadUVFits():
     assert fhd_uv == uvfits_uv
 
 
-def test_ReadFHD_select():
+def test_read_fhd_select():
     """
     test select on read with FHD files.
 
@@ -71,7 +71,7 @@ def test_ReadFHD_select():
     assert fhd_uv == fhd_uv2
 
 
-def test_ReadFHDWriteReadUVFits_no_layout():
+def test_read_fhd_write_read_uvfits_no_layout():
     """
     Test errors/warnings with with no layout file.
     """
@@ -99,7 +99,7 @@ def test_ReadFHDWriteReadUVFits_no_layout():
     assert str(cm.value).startswith('Required UVParameter _antenna_positions has not been set')
 
 
-def test_ReadFHDWriteReadUVFits_variant_flag():
+def test_read_fhd_write_read_uvfits_variant_flag():
     """
     FHD to uvfits loopback test with variant flag file.
 
@@ -118,7 +118,7 @@ def test_ReadFHDWriteReadUVFits_variant_flag():
     assert fhd_uv == uvfits_uv
 
 
-def test_ReadFHDWriteReadUVFits_fix_layout():
+def test_read_fhd_write_read_uvfits_fix_layout():
     """
     FHD to uvfits loopback test with fixed array center layout file.
 
@@ -137,7 +137,7 @@ def test_ReadFHDWriteReadUVFits_fix_layout():
     assert fhd_uv == uvfits_uv
 
 
-def test_ReadFHDWriteReadUVFits_fix_layout_bad_obs_loc():
+def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc():
     """
     FHD to uvfits loopback test with fixed array center layout file, bad obs location.
 
@@ -161,7 +161,7 @@ def test_ReadFHDWriteReadUVFits_fix_layout_bad_obs_loc():
     assert fhd_uv == uvfits_uv
 
 
-def test_ReadFHDWriteReadUVFits_bad_obs_loc():
+def test_read_fhd_write_read_uvfits_bad_obs_loc():
     """
     FHD to uvfits loopback test with bad obs location (and bad layout location).
 
@@ -184,7 +184,7 @@ def test_ReadFHDWriteReadUVFits_bad_obs_loc():
     assert fhd_uv == uvfits_uv
 
 
-def test_ReadFHDWriteReadUVFits_altered_layout():
+def test_read_fhd_write_read_uvfits_altered_layout():
     """
     FHD to uvfits loopback test with altered layout file.
 
@@ -205,7 +205,7 @@ def test_ReadFHDWriteReadUVFits_altered_layout():
     assert fhd_uv == uvfits_uv
 
 
-def test_ReadFHDWriteReadUVFits_no_settings():
+def test_read_fhd_write_read_uvfits_no_settings():
     """
     FHD to uvfits loopback test with no settings file.
 
@@ -227,7 +227,7 @@ def test_ReadFHDWriteReadUVFits_no_settings():
     assert fhd_uv == uvfits_uv
 
 
-def test_breakReadFHD():
+def test_break_read_fhd():
     """Try various cases of incomplete file lists."""
     fhd_uv = UVData()
     # missing flags
@@ -248,7 +248,7 @@ def test_breakReadFHD():
     del(fhd_uv)
 
 
-def test_ReadFHD_warnings():
+def test_read_fhd_warnings():
     """Test warnings with various broken inputs."""
     # bad obs structure values
     broken_data_file = testdir + testfile_prefix + 'broken_vis_XX.sav'
@@ -334,7 +334,7 @@ def test_ReadFHD_warnings():
     os.remove(extra_settings_file)
 
 
-def test_ReadFHD_model():
+def test_read_fhd_model():
     """FHD to uvfits loopback test with model visibilities."""
     fhd_uv = UVData()
     uvfits_uv = UVData()

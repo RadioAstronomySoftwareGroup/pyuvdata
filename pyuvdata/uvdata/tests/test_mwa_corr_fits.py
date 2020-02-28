@@ -23,7 +23,7 @@ testfiles = ['1131733552.metafits', '1131733552_20151116182537_mini_gpubox01_00.
 filelist = [testdir + i for i in testfiles]
 
 
-def test_ReadMWAWriteUVFits():
+def test_read_mwa_write_uvfits():
     """
     MWA correlator fits to uvfits loopback test.
 
@@ -98,7 +98,7 @@ def test_select_on_read():
 
 @pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-def test_ReadMWA_ReadCotter():
+def test_read_mwa_read_cotter():
     """
     Pyuvdata and cotter equality test.
 
@@ -120,7 +120,7 @@ def test_ReadMWA_ReadCotter():
                        cotter_uv.data_array[:, :, :, :], atol=1e-4, rtol=0)
 
 
-def test_ReadMWAWriteUVFits_meta_mod():
+def test_read_mwa_write_uvfits_meta_mod():
     """
     MWA correlator fits to uvfits loopback test with a modified metafits file.
 
@@ -147,7 +147,7 @@ def test_ReadMWAWriteUVFits_meta_mod():
 @pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 @pytest.mark.filterwarnings("ignore:Combined frequencies are not contiguous")
-def test_ReadMWA_multi():
+def test_read_mwa_multi():
     """Test reading in two sets of files."""
     set1 = filelist[0:2]
     set2 = [filelist[0], filelist[2]]
@@ -177,7 +177,7 @@ def test_ReadMWA_multi():
 
 @pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-def test_ReadMWA_multi_concat():
+def test_read_mwa_multi_concat():
     """Test reading in two sets of files with fast concatenation."""
     # modify file so that time arrays are matching
     mod_mini_6 = os.path.join(DATA_PATH, 'test/mini_gpubox06_01.fits')
@@ -211,7 +211,7 @@ def test_ReadMWA_multi_concat():
 
 @pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-def test_ReadMWA_flags():
+def test_read_mwa_flags():
     """Test handling of flag files."""
     mwa_uv = UVData()
     subfiles = [filelist[0], filelist[1], filelist[3], filelist[4]]
@@ -277,7 +277,7 @@ def test_fine_channels():
                           ([filelist[1]], "no metafits file submitted"),
                           ([filelist[0], filelist[1], filelist[5]],
                            "multiple metafits files in filelist")])
-def test_break_ReadMWAcorrFITS(files, err_msg):
+def test_break_read_mwacorrfits(files, err_msg):
     """Break read_mwa_corr_fits by submitting files incorrectly."""
     mwa_uv = UVData()
     with pytest.raises(ValueError) as cm:

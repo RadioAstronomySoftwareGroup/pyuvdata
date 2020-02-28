@@ -116,13 +116,13 @@ def _get_iterable(x):
         return (x,)
 
 
-def _fits_gethduaxis(HDU, axis):
+def _fits_gethduaxis(hdu, axis):
     """
     Make axis arrays for fits files.
 
     Parameters
     ----------
-    HDU : astropy.io.fits HDU object
+    hdu : astropy.io.fits HDU object
         The HDU to make an axis array for.
     axis : int
         The axis number of interest (1-based).
@@ -134,12 +134,12 @@ def _fits_gethduaxis(HDU, axis):
 
     """
     ax = str(axis)
-    N = HDU.header['NAXIS' + ax]
-    X0 = HDU.header['CRVAL' + ax]
-    dX = HDU.header['CDELT' + ax]
-    Xi0 = HDU.header['CRPIX' + ax] - 1
+    axis_num = hdu.header['NAXIS' + ax]
+    val = hdu.header['CRVAL' + ax]
+    delta = hdu.header['CDELT' + ax]
+    index = hdu.header['CRPIX' + ax] - 1
 
-    return dX * (np.arange(N) - Xi0) + X0
+    return delta * (np.arange(axis_num) - index) + val
 
 
 def _fits_indexhdus(hdulist):
@@ -211,7 +211,7 @@ def baseline_to_antnums(baseline, Nants_telescope):
     ----------
     baseline : int or array_like of ints
         baseline number
-    Nant_telescope : int
+    Nants_telescope : int
         number of antennas
 
     Returns
@@ -246,7 +246,7 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
         first antenna number
     ant2 : int or array_like of int
         second antenna number
-    Nant_telescope : int
+    Nants_telescope : int
         number of antennas
     attempt256 : bool
         Option to try to use the older 256 standard used in
@@ -683,8 +683,8 @@ def LatLonAlt_from_XYZ(xyz, check_acceptability=True):
                           * np.cos(gps_theta)**3)
 
     longitude = np.arctan2(xyz_use[:, 1], xyz_use[:, 0])
-    gps_N = gps_a / np.sqrt(1 - e_squared * np.sin(latitude)**2)
-    altitude = ((gps_p / np.cos(latitude)) - gps_N)
+    gps_n = gps_a / np.sqrt(1 - e_squared * np.sin(latitude)**2)
+    altitude = ((gps_p / np.cos(latitude)) - gps_n)
 
     if xyz.ndim == 1:
         longitude = longitude[0]
@@ -715,21 +715,21 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude):
     latitude = np.array(latitude)
     longitude = np.array(longitude)
     altitude = np.array(altitude)
-    Npts = latitude.size
-    if longitude.size != Npts:
+    n_pts = latitude.size
+    if longitude.size != n_pts:
         raise ValueError(
             'latitude, longitude and altitude must all have the same length')
-    if altitude.size != Npts:
+    if altitude.size != n_pts:
         raise ValueError(
             'latitude, longitude and altitude must all have the same length')
 
     # see wikipedia geodetic_datum and Datum transformations of
     # GPS positions PDF in docs/references folder
-    gps_N = gps_a / np.sqrt(1 - e_squared * np.sin(latitude)**2)
-    xyz = np.zeros((Npts, 3))
-    xyz[:, 0] = ((gps_N + altitude) * np.cos(latitude) * np.cos(longitude))
-    xyz[:, 1] = ((gps_N + altitude) * np.cos(latitude) * np.sin(longitude))
-    xyz[:, 2] = ((gps_b**2 / gps_a**2 * gps_N + altitude) * np.sin(latitude))
+    gps_n = gps_a / np.sqrt(1 - e_squared * np.sin(latitude)**2)
+    xyz = np.zeros((n_pts, 3))
+    xyz[:, 0] = ((gps_n + altitude) * np.cos(latitude) * np.cos(longitude))
+    xyz[:, 1] = ((gps_n + altitude) * np.cos(latitude) * np.sin(longitude))
+    xyz[:, 2] = ((gps_b**2 / gps_a**2 * gps_n + altitude) * np.sin(latitude))
 
     xyz = np.squeeze(xyz)
     return xyz
@@ -1105,8 +1105,8 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
     # remove the dummy pad baselines from each list
     bl_gps = [[bl for bl in gp if bl != -1] for gp in bl_gps]
 
-    N_unique = len(bl_gps)
-    vec_bin_centers = np.zeros((N_unique, 3))
+    n_unique = len(bl_gps)
+    vec_bin_centers = np.zeros((n_unique, 3))
     for gi, gp in enumerate(bl_gps):
         inds = [np.where(i == baselines)[0] for i in gp]
         vec_bin_centers[gi] = np.mean(baseline_vecs[inds, :], axis=0)

@@ -893,9 +893,9 @@ def test_add_frequencies(gain_data):
 def test_add_times(gain_data):
     """Test adding times between two UVCal objects"""
     gain_object_full = copy.deepcopy(gain_data.gain_object)
-    Nt2 = gain_data.gain_object.Ntimes // 2
-    times1 = gain_data.gain_object.time_array[:Nt2]
-    times2 = gain_data.gain_object.time_array[Nt2:]
+    n_times2 = gain_data.gain_object.Ntimes // 2
+    times1 = gain_data.gain_object.time_array[:n_times2]
+    times2 = gain_data.gain_object.time_array[n_times2:]
     gain_data.gain_object.select(times=times1)
     gain_data.gain_object2.select(times=times2)
     gain_data.gain_object += gain_data.gain_object2
@@ -1039,9 +1039,9 @@ def test_add_multiple_axes(gain_data):
     ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
     freqs1 = gain_data.gain_object.freq_array[0, np.arange(0, 5)]
     freqs2 = gain_data.gain_object2.freq_array[0, np.arange(5, 10)]
-    Nt2 = gain_data.gain_object.Ntimes // 2
-    times1 = gain_data.gain_object.time_array[:Nt2]
-    times2 = gain_data.gain_object.time_array[Nt2:]
+    n_times2 = gain_data.gain_object.Ntimes // 2
+    times1 = gain_data.gain_object.time_array[:n_times2]
+    times2 = gain_data.gain_object.time_array[n_times2:]
     # artificially change the Jones value to permit addition
     gain_data.gain_object2.jones_array[0] = -6
 
@@ -1140,10 +1140,10 @@ def test_parameter_warnings(gain_data):
 def test_multi_files(gain_data):
     """Test read function when multiple files are included"""
     gain_object_full = copy.deepcopy(gain_data.gain_object)
-    Nt2 = gain_data.gain_object.Ntimes // 2
+    n_times2 = gain_data.gain_object.Ntimes // 2
     # Break up delay object into two objects, divided in time
-    times1 = gain_data.gain_object.time_array[:Nt2]
-    times2 = gain_data.gain_object.time_array[Nt2:]
+    times1 = gain_data.gain_object.time_array[:n_times2]
+    times2 = gain_data.gain_object.time_array[n_times2:]
     gain_data.gain_object.select(times=times1)
     gain_data.gain_object2.select(times=times2)
     # Write those objects to files
@@ -1224,9 +1224,9 @@ def test_add_antennas_delay(delay_data):
 def test_add_times_delay(delay_data):
     """Test adding times between two UVCal objects"""
     delay_object_full = copy.deepcopy(delay_data.delay_object)
-    Nt2 = delay_data.delay_object.Ntimes // 2
-    times1 = delay_data.delay_object.time_array[:Nt2]
-    times2 = delay_data.delay_object.time_array[Nt2:]
+    n_times2 = delay_data.delay_object.Ntimes // 2
+    times1 = delay_data.delay_object.time_array[:n_times2]
+    times2 = delay_data.delay_object.time_array[n_times2:]
     delay_data.delay_object.select(times=times1)
     delay_data.delay_object2.select(times=times2)
     delay_data.delay_object += delay_data.delay_object2
@@ -1415,10 +1415,10 @@ def test_add_errors_delay(delay_data):
 def test_multi_files_delay(delay_data):
     """Test read function when multiple files are included"""
     delay_object_full = copy.deepcopy(delay_data.delay_object)
-    Nt2 = delay_data.delay_object.Ntimes // 2
+    n_times2 = delay_data.delay_object.Ntimes // 2
     # Break up delay object into two objects, divided in time
-    times1 = delay_data.delay_object.time_array[:Nt2]
-    times2 = delay_data.delay_object.time_array[Nt2:]
+    times1 = delay_data.delay_object.time_array[:n_times2]
+    times2 = delay_data.delay_object.time_array[n_times2:]
     delay_data.delay_object.select(times=times1)
     delay_data.delay_object2.select(times=times2)
     # Write those objects to files
