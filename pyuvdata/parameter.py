@@ -17,11 +17,7 @@ import numpy as np
 
 from . import utils
 
-__all__ = [
-    "UVParameter",
-    "AngleParameter",
-    "LocationParameter"
-]
+__all__ = ["UVParameter", "AngleParameter", "LocationParameter"]
 
 
 class UVParameter(object):
@@ -49,7 +45,8 @@ class UVParameter(object):
 
         Form examples:
             - 'str': a string value
-            - ('Nblts', 3): the value should be an array of shape: Nblts (another UVParameter name), 3
+            - ('Nblts', 3): the value should be an array of shape:
+               Nblts (another UVParameter name), 3
 
     description : str
         Description of the data or metadata in the object.
@@ -67,9 +64,19 @@ class UVParameter(object):
 
     """
 
-    def __init__(self, name, required=True, value=None, spoof_val=None,
-                 form=(), description='', expected_type=int, acceptable_vals=None,
-                 acceptable_range=None, tols=(1e-05, 1e-08)):
+    def __init__(
+        self,
+        name,
+        required=True,
+        value=None,
+        spoof_val=None,
+        form=(),
+        description="",
+        expected_type=int,
+        acceptable_vals=None,
+        acceptable_range=None,
+        tols=(1e-05, 1e-08),
+    ):
         """Init UVParameter object."""
         self.name = name
         self.required = required
@@ -79,7 +86,7 @@ class UVParameter(object):
         self.value = value
         self.description = description
         self.form = form
-        if self.form == 'str':
+        if self.form == "str":
             self.expected_type = str
         else:
             self.expected_type = expected_type
@@ -89,27 +96,40 @@ class UVParameter(object):
             # Only one tolerance given, assume absolute, set relative to zero
             self.tols = (0, tols)
         else:
-            self.tols = tols  # relative and absolute tolerances to be used in np.isclose
+            self.tols = (
+                tols  # relative and absolute tolerances to be used in np.isclose
+            )
 
     def __eq__(self, other):
         """Equal if classes match and values are identical."""
         if isinstance(other, self.__class__):
             # only check that value is identical
             if not isinstance(self.value, other.value.__class__):
-                print('{name} parameter value classes are different. Left is '
-                      '{lclass}, right is {rclass}'.format(name=self.name,
-                                                           lclass=self.value.__class__,
-                                                           rclass=other.value.__class__))
+                print(
+                    "{name} parameter value classes are different. Left is "
+                    "{lclass}, right is {rclass}".format(
+                        name=self.name,
+                        lclass=self.value.__class__,
+                        rclass=other.value.__class__,
+                    )
+                )
                 return False
-            if isinstance(self.value, np.ndarray) and not isinstance(self.value[0], str):
+            if isinstance(self.value, np.ndarray) and not isinstance(
+                self.value[0], str
+            ):
                 if self.value.shape != other.value.shape:
-                    print('{name} parameter value is array, shapes are '
-                          'different'.format(name=self.name))
+                    print(
+                        "{name} parameter value is array, shapes are "
+                        "different".format(name=self.name)
+                    )
                     return False
-                elif not np.allclose(self.value, other.value,
-                                     rtol=self.tols[0], atol=self.tols[1]):
-                    print('{name} parameter value is array, values are not '
-                          'close'.format(name=self.name))
+                elif not np.allclose(
+                    self.value, other.value, rtol=self.tols[0], atol=self.tols[1]
+                ):
+                    print(
+                        "{name} parameter value is array, values are not "
+                        "close".format(name=self.name)
+                    )
                     return False
             else:
                 str_type = False
@@ -121,37 +141,60 @@ class UVParameter(object):
 
                 if not str_type:
                     try:
-                        if not np.allclose(np.array(self.value),
-                                           np.array(other.value),
-                                           rtol=self.tols[0], atol=self.tols[1]):
-                            print('{name} parameter value can be cast to an array'
-                                  ' and tested with np.allclose. The values are '
-                                  'not close'.format(name=self.name))
+                        if not np.allclose(
+                            np.array(self.value),
+                            np.array(other.value),
+                            rtol=self.tols[0],
+                            atol=self.tols[1],
+                        ):
+                            print(
+                                "{name} parameter value can be cast to an array"
+                                " and tested with np.allclose. The values are "
+                                "not close".format(name=self.name)
+                            )
                             return False
-                    except(TypeError):
+                    except (TypeError):
                         if self.value != other.value:
                             if isinstance(self.value, dict):
-                                # check to see if they are equal other than upper/lower case keys
-                                self_lower = {k.lower(): v for k, v in self.value.items()}
-                                other_lower = {k.lower(): v for k, v in other.value.items()}
+                                # check to see if they are equal other than
+                                # upper/lower case keys
+                                self_lower = {
+                                    k.lower(): v for k, v in self.value.items()
+                                }
+                                other_lower = {
+                                    k.lower(): v for k, v in other.value.items()
+                                }
                                 if self_lower != other_lower:
-                                    message_str = '{name} parameter is a dict'.format(name=self.name)
-                                    if set(self_lower.keys()) != set(other_lower.keys()):
-                                        message_str += ', keys are not the same.'
+                                    message_str = "{name} parameter is a dict".format(
+                                        name=self.name
+                                    )
+                                    if set(self_lower.keys()) != set(
+                                        other_lower.keys()
+                                    ):
+                                        message_str += ", keys are not the same."
                                     else:
-                                        # need to check if values are close, not just equal
+                                        # need to check if values are close,
+                                        # not just equal
                                         values_close = True
                                         for key in self_lower.keys():
                                             try:
-                                                if not np.isclose(self_lower[key], other_lower[key]):
-                                                    message_str += (', key {key} is not '
-                                                                    'equal'.format(key=key))
+                                                if not np.isclose(
+                                                    self_lower[key], other_lower[key]
+                                                ):
+                                                    message_str += (
+                                                        ", key {key} is not "
+                                                        "equal".format(key=key)
+                                                    )
                                                     values_close = False
-                                            except(TypeError):
-                                                # this isn't a type that can be handled by np.isclose, test for equality
+                                            except (TypeError):
+                                                # this isn't a type that can be
+                                                # handled by np.isclose,
+                                                # test for equality
                                                 if self_lower[key] != other_lower[key]:
-                                                    message_str += (', key {key} is not '
-                                                                    'equal'.format(key=key))
+                                                    message_str += (
+                                                        ", key {key} is not "
+                                                        "equal".format(key=key)
+                                                    )
                                                     values_close = False
                                         if values_close is False:
                                             print(message_str)
@@ -161,29 +204,40 @@ class UVParameter(object):
                                 else:
                                     return True
                             else:
-                                print('{name} parameter value is not a string '
-                                      'or a dict and cannot be cast as a numpy '
-                                      'array. The values are not equal.'.format(name=self.name))
+                                print(
+                                    "{name} parameter value is not a string "
+                                    "or a dict and cannot be cast as a numpy "
+                                    "array. The values are not equal.".format(
+                                        name=self.name
+                                    )
+                                )
 
                             return False
 
                 else:
                     if isinstance(self.value, (list, np.ndarray)):
-                        if [s.strip() for s in self.value] != [s.strip() for s in other.value]:
-                            print('{name} parameter value is a list of strings, '
-                                  'values are different'.format(name=self.name))
+                        if [s.strip() for s in self.value] != [
+                            s.strip() for s in other.value
+                        ]:
+                            print(
+                                "{name} parameter value is a list of strings, "
+                                "values are different".format(name=self.name)
+                            )
                             return False
                     else:
                         if self.value.strip() != other.value.strip():
-                            if (self.value.replace('\n', '').replace(' ', '')
-                                    != other.value.replace('\n', '').replace(' ', '')):
-                                print('{name} parameter value is a string, '
-                                      'values are different'.format(name=self.name))
+                            if self.value.replace("\n", "").replace(
+                                " ", ""
+                            ) != other.value.replace("\n", "").replace(" ", ""):
+                                print(
+                                    "{name} parameter value is a string, "
+                                    "values are different".format(name=self.name)
+                                )
                                 return False
 
             return True
         else:
-            print('{name} parameter classes are different'.format(name=self.name))
+            print("{name} parameter classes are different".format(name=self.name))
             return False
 
     def __ne__(self, other):
@@ -209,11 +263,11 @@ class UVParameter(object):
         tuple
             The expected shape of the value.
         """
-        if self.form == 'str':
+        if self.form == "str":
             return self.form
         elif isinstance(self.form, np.int):
             # Fixed shape, just return the form
-            return (self.form, )
+            return (self.form,)
         else:
             # Given by other attributes, look up values
             eshape = ()
@@ -223,15 +277,17 @@ class UVParameter(object):
                 else:
                     val = getattr(uvbase, p)
                     if val is None:
-                        raise ValueError('Missing UVBase parameter {p} needed to '
-                                         'calculate expected shape of parameter'.format(p=p))
+                        raise ValueError(
+                            "Missing UVBase parameter {p} needed to "
+                            "calculate expected shape of parameter".format(p=p)
+                        )
                     eshape = eshape + (val,)
             return eshape
 
     def check_acceptability(self):
         """Check that values are acceptable."""
         if self.acceptable_vals is None and self.acceptable_range is None:
-            return True, 'No acceptability check'
+            return True, "No acceptability check"
         else:
             # either acceptable_vals or acceptable_range is set. Prefer acceptable_vals
             if self.acceptable_vals is not None:
@@ -252,18 +308,28 @@ class UVParameter(object):
                     acceptable_vals = self.acceptable_vals
                 for elem in value_set:
                     if elem not in acceptable_vals:
-                        message = ('Value {val}, is not in allowed values: '
-                                   '{acceptable_vals}'.format(val=elem, acceptable_vals=acceptable_vals))
+                        message = (
+                            "Value {val}, is not in allowed values: "
+                            "{acceptable_vals}".format(
+                                val=elem, acceptable_vals=acceptable_vals
+                            )
+                        )
                         return False, message
-                return True, 'Value is acceptable'
+                return True, "Value is acceptable"
             else:
                 # acceptable_range is a tuple giving a range of allowed magnitudes
                 testval = np.mean(np.abs(self.value))
-                if (testval >= self.acceptable_range[0]) and (testval <= self.acceptable_range[1]):
-                    return True, 'Value is acceptable'
+                if (testval >= self.acceptable_range[0]) and (
+                    testval <= self.acceptable_range[1]
+                ):
+                    return True, "Value is acceptable"
                 else:
-                    message = ('Mean of abs values, {val}, is not in allowed range: '
-                               '{acceptable_range}'.format(val=testval, acceptable_range=self.acceptable_range))
+                    message = (
+                        "Mean of abs values, {val}, is not in allowed range: "
+                        "{acceptable_range}".format(
+                            val=testval, acceptable_range=self.acceptable_range
+                        )
+                    )
                     return False, message
 
 
@@ -280,7 +346,7 @@ class AngleParameter(UVParameter):
         if self.value is None:
             return None
         else:
-            return self.value * 180. / np.pi
+            return self.value * 180.0 / np.pi
 
     def set_degrees(self, degree_val):
         """
@@ -294,7 +360,7 @@ class AngleParameter(UVParameter):
         if degree_val is None:
             self.value = None
         else:
-            self.value = degree_val * np.pi / 180.
+            self.value = degree_val * np.pi / 180.0
 
 
 class LocationParameter(UVParameter):
@@ -307,13 +373,27 @@ class LocationParameter(UVParameter):
 
     """
 
-    def __init__(self, name, required=True, value=None, spoof_val=None, description='',
-                 acceptable_range=(6.35e6, 6.39e6), tols=1e-3):
-        super(LocationParameter, self).__init__(name, required=required, value=value,
-                                                spoof_val=spoof_val, form=3,
-                                                description=description,
-                                                expected_type=np.float,
-                                                acceptable_range=acceptable_range, tols=tols)
+    def __init__(
+        self,
+        name,
+        required=True,
+        value=None,
+        spoof_val=None,
+        description="",
+        acceptable_range=(6.35e6, 6.39e6),
+        tols=1e-3,
+    ):
+        super(LocationParameter, self).__init__(
+            name,
+            required=required,
+            value=value,
+            spoof_val=spoof_val,
+            form=3,
+            description=description,
+            expected_type=np.float,
+            acceptable_range=acceptable_range,
+            tols=tols,
+        )
 
     def lat_lon_alt(self):
         """Get value in (latitude, longitude, altitude) tuple in radians."""
@@ -336,8 +416,9 @@ class LocationParameter(UVParameter):
         if lat_lon_alt is None:
             self.value = None
         else:
-            self.value = utils.XYZ_from_LatLonAlt(lat_lon_alt[0], lat_lon_alt[1],
-                                                  lat_lon_alt[2])
+            self.value = utils.XYZ_from_LatLonAlt(
+                lat_lon_alt[0], lat_lon_alt[1], lat_lon_alt[2]
+            )
 
     def lat_lon_alt_degrees(self):
         """Get value in (latitude, longitude, altitude) tuple in degrees."""
@@ -345,7 +426,7 @@ class LocationParameter(UVParameter):
             return None
         else:
             latitude, longitude, altitude = self.lat_lon_alt()
-            return latitude * 180. / np.pi, longitude * 180. / np.pi, altitude
+            return latitude * 180.0 / np.pi, longitude * 180.0 / np.pi, altitude
 
     def set_lat_lon_alt_degrees(self, lat_lon_alt_degree):
         """
@@ -362,20 +443,26 @@ class LocationParameter(UVParameter):
             self.value = None
         else:
             latitude, longitude, altitude = lat_lon_alt_degree
-            self.value = utils.XYZ_from_LatLonAlt(latitude * np.pi / 180.,
-                                                  longitude * np.pi / 180.,
-                                                  altitude)
+            self.value = utils.XYZ_from_LatLonAlt(
+                latitude * np.pi / 180.0, longitude * np.pi / 180.0, altitude
+            )
 
     def check_acceptability(self):
         """Check that vector magnitudes are in range."""
         if self.acceptable_range is None:
-            return True, 'No acceptability check'
+            return True, "No acceptability check"
         else:
             # acceptable_range is a tuple giving a range of allowed vector magnitudes
-            testval = np.sqrt(np.sum(np.abs(self.value)**2))
-            if (testval >= self.acceptable_range[0]) and (testval <= self.acceptable_range[1]):
-                return True, 'Value is acceptable'
+            testval = np.sqrt(np.sum(np.abs(self.value) ** 2))
+            if (testval >= self.acceptable_range[0]) and (
+                testval <= self.acceptable_range[1]
+            ):
+                return True, "Value is acceptable"
             else:
-                message = ('Value {val}, is not in allowed range: '
-                           '{acceptable_range}'.format(val=testval, acceptable_range=self.acceptable_range))
+                message = (
+                    "Value {val}, is not in allowed range: "
+                    "{acceptable_range}".format(
+                        val=testval, acceptable_range=self.acceptable_range
+                    )
+                )
                 return False, message

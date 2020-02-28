@@ -24,53 +24,89 @@ class UVTest(UVBase):
         """ UVBase test object. """
         # add some test UVParameters to the class
 
-        self._int1 = uvp.UVParameter('int1', description='integer value',
-                                     expected_type=int, value=3)
+        self._int1 = uvp.UVParameter(
+            "int1", description="integer value", expected_type=int, value=3
+        )
 
-        self._int2 = uvp.UVParameter('int2', description='integer value',
-                                     expected_type=int, value=5)
+        self._int2 = uvp.UVParameter(
+            "int2", description="integer value", expected_type=int, value=5
+        )
 
-        self._float1 = uvp.UVParameter('float1', description='float value',
-                                       expected_type=np.float, value=18.2)
+        self._float1 = uvp.UVParameter(
+            "float1", description="float value", expected_type=np.float, value=18.2
+        )
 
-        self._string1 = uvp.UVParameter('string1', description='string value',
-                                        form='str', value='test')
+        self._string1 = uvp.UVParameter(
+            "string1", description="string value", form="str", value="test"
+        )
 
-        self._string2 = uvp.UVParameter('string2', description='string value',
-                                        expected_type='str', value='test')
+        self._string2 = uvp.UVParameter(
+            "string2", description="string value", expected_type="str", value="test"
+        )
 
-        self._floatarr = uvp.UVParameter('floatarr', description='float array',
-                                         form=('int1', 'int2'),
-                                         expected_type=np.float,
-                                         value=np.random.rand(self._int1.value,
-                                                              self._int2.value))
+        self._floatarr = uvp.UVParameter(
+            "floatarr",
+            description="float array",
+            form=("int1", "int2"),
+            expected_type=np.float,
+            value=np.random.rand(self._int1.value, self._int2.value),
+        )
 
-        self._floatarr2 = uvp.UVParameter('floatarr2', description='float array',
-                                          form=4, expected_type=np.float,
-                                          value=np.random.rand(4))
+        self._floatarr2 = uvp.UVParameter(
+            "floatarr2",
+            description="float array",
+            form=4,
+            expected_type=np.float,
+            value=np.random.rand(4),
+        )
 
-        self._strlist = uvp.UVParameter('strlist', description='string list',
-                                        form=('int1',), expected_type=str,
-                                        value=['s' + str(i) for i in np.arange(self._int1.value)])
+        self._strlist = uvp.UVParameter(
+            "strlist",
+            description="string list",
+            form=("int1",),
+            expected_type=str,
+            value=["s" + str(i) for i in np.arange(self._int1.value)],
+        )
 
-        self._intlist = uvp.UVParameter('intlist', description='integer list',
-                                        form=('int1',), expected_type=int,
-                                        value=list(range(self._int1.value)))
+        self._intlist = uvp.UVParameter(
+            "intlist",
+            description="integer list",
+            form=("int1",),
+            expected_type=int,
+            value=list(range(self._int1.value)),
+        )
 
-        self._angle = uvp.AngleParameter('angle', description='angle',
-                                         expected_type=np.float, value=np.pi / 4.)
+        self._angle = uvp.AngleParameter(
+            "angle", description="angle", expected_type=np.float, value=np.pi / 4.0
+        )
 
-        self._location = uvp.LocationParameter('location', description='location',
-                                               value=np.array(ref_xyz))
+        self._location = uvp.LocationParameter(
+            "location", description="location", value=np.array(ref_xyz)
+        )
 
-        self._optional_int1 = uvp.UVParameter('optional_int1', description='optional integer value',
-                                              expected_type=int, value=3, required=False)
+        self._optional_int1 = uvp.UVParameter(
+            "optional_int1",
+            description="optional integer value",
+            expected_type=int,
+            value=3,
+            required=False,
+        )
 
-        self._optional_int2 = uvp.UVParameter('optional_int2', description='optional integer value',
-                                              expected_type=int, value=5, required=False)
+        self._optional_int2 = uvp.UVParameter(
+            "optional_int2",
+            description="optional integer value",
+            expected_type=int,
+            value=5,
+            required=False,
+        )
 
-        self._unset_int1 = uvp.UVParameter('unset_int1', description='An unset parameter.',
-                                           expected_type=int, value=None, required=False)
+        self._unset_int1 = uvp.UVParameter(
+            "unset_int1",
+            description="An unset parameter.",
+            expected_type=int,
+            value=None,
+            required=False,
+        )
 
         super(UVTest, self).__init__()
 
@@ -82,7 +118,7 @@ def test_equality():
 
 
 def test_equality_nocheckextra():
-    """Test that objects are equal if optional params are different and check_extra is false"""
+    """Test equality if optional params are different and check_extra is false."""
     test_obj = UVTest()
     test_obj2 = copy.deepcopy(test_obj)
     test_obj2.optional_int1 = 4
@@ -101,8 +137,13 @@ def test_inequality_different_extras():
     """Basic equality test."""
     test_obj = UVTest()
     test_obj2 = copy.deepcopy(test_obj)
-    test_obj2._optional_int3 = uvp.UVParameter('optional_int3', description='optional integer value',
-                                               expected_type=int, value=7, required=False)
+    test_obj2._optional_int3 = uvp.UVParameter(
+        "optional_int3",
+        description="optional integer value",
+        expected_type=int,
+        value=7,
+        required=False,
+    )
     assert test_obj != test_obj2
 
 
@@ -170,25 +211,25 @@ def test_check_array_shape():
 def test_list_dims():
     """Test check function with wrong list dimensions."""
     test_obj = UVTest()
-    test_obj.strlist = ['s' + str(i) for i in np.arange(test_obj.int2)]
+    test_obj.strlist = ["s" + str(i) for i in np.arange(test_obj.int2)]
     pytest.raises(ValueError, test_obj.check)
 
 
 def test_list_type():
     """Test check function with wrong list type."""
     test_obj = UVTest()
-    test_obj.intlist = ['s' + str(i) for i in np.arange(test_obj.int1)]
+    test_obj.intlist = ["s" + str(i) for i in np.arange(test_obj.int1)]
     pytest.raises(ValueError, test_obj.check)
 
     test_obj.intlist = list(np.arange(test_obj.int1))
-    test_obj.intlist[1] = 'test'
+    test_obj.intlist[1] = "test"
     pytest.raises(ValueError, test_obj.check)
 
 
 def test_angle():
     test_obj = UVTest()
     test_obj2 = copy.deepcopy(test_obj)
-    test_obj2.angle_degrees = 45.
+    test_obj2.angle_degrees = 45.0
     assert test_obj == test_obj2
 
 
@@ -210,7 +251,11 @@ def test_location():
 def test_location_degree():
     test_obj = UVTest()
     test_obj2 = copy.deepcopy(test_obj)
-    test_obj2.location_lat_lon_alt_degrees = (np.rad2deg(ref_latlonalt[0]), np.rad2deg(ref_latlonalt[1]), ref_latlonalt[2])
+    test_obj2.location_lat_lon_alt_degrees = (
+        np.rad2deg(ref_latlonalt[0]),
+        np.rad2deg(ref_latlonalt[1]),
+        ref_latlonalt[2],
+    )
     assert test_obj == test_obj2
 
 

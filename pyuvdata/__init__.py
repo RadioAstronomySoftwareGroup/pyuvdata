@@ -32,7 +32,7 @@ __all__ = [
     "UVBeam",
     "Telescope",
     "known_telescopes",
-    "get_telescope"
+    "get_telescope",
 ]
 
 
@@ -43,6 +43,7 @@ __all__ = [
 # Delete everything that is not in __all__, a magic function,
 # or is a submodule of this package
 from types import ModuleType as __module_type__  # noqa
+
 for varname in dir():
     if not (
         varname in __all__
@@ -50,7 +51,7 @@ for varname in dir():
         or (
             varname[0] != "_"
             and isinstance(locals()[varname], __module_type__)
-            and locals()[varname].__name__.startswith(__name__ + '.')
+            and locals()[varname].__name__.startswith(__name__ + ".")
         )
     ):
         del locals()[varname]

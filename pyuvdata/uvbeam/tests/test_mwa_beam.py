@@ -14,7 +14,7 @@ from pyuvdata.uvbeam.mwa_beam import P1sin, P1sin_array
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 
-filename = os.path.join(DATA_PATH, 'mwa_full_EE_test.h5')
+filename = os.path.join(DATA_PATH, "mwa_full_EE_test.h5")
 
 
 def test_read_write_mwa():
@@ -24,8 +24,8 @@ def test_read_write_mwa():
 
     beam1.read_mwa_beam(filename, pixels_per_deg=1)
 
-    assert beam1.pixel_coordinate_system == 'az_za'
-    assert beam1.beam_type == 'efield'
+    assert beam1.pixel_coordinate_system == "az_za"
+    assert beam1.beam_type == "efield"
     assert beam1.data_array.shape == (2, 1, 2, 3, 91, 360)
 
     # this is entirely empirical, just to prevent unexpected changes.
@@ -33,11 +33,11 @@ def test_read_write_mwa():
     # the mwa_pb repo.
     assert np.isclose(np.max(np.abs(beam1.data_array)), 0.6823676193472403)
 
-    assert 'x' in beam1.feed_array
-    assert 'y' in beam1.feed_array
-    assert beam1.x_orientation == 'east'
+    assert "x" in beam1.feed_array
+    assert "y" in beam1.feed_array
+    assert beam1.x_orientation == "east"
 
-    outfile_name = os.path.join(DATA_PATH, 'test', 'mwa_beam_out.fits')
+    outfile_name = os.path.join(DATA_PATH, "test", "mwa_beam_out.fits")
     beam1.write_beamfits(outfile_name, clobber=True)
 
     beam2.read_beamfits(outfile_name)
@@ -61,17 +61,19 @@ def test_freq_range():
     assert beam1 == beam2
 
     uvtest.checkWarnings(
-        beam1.read_mwa_beam, func_args=[filename],
-        func_kwargs={'pixels_per_deg': 1, 'freq_range': [100e6, 130e6]},
-        message=('Only one available frequency in freq_range'))
+        beam1.read_mwa_beam,
+        func_args=[filename],
+        func_kwargs={"pixels_per_deg": 1, "freq_range": [100e6, 130e6]},
+        message=("Only one available frequency in freq_range"),
+    )
 
     with pytest.raises(ValueError) as cm:
         beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6, 110e6])
-    assert str(cm.value).startswith('No frequencies available in freq_range')
+    assert str(cm.value).startswith("No frequencies available in freq_range")
 
     with pytest.raises(ValueError) as cm:
         beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6])
-    assert str(cm.value).startswith('freq_range must have 2 elements.')
+    assert str(cm.value).startswith("freq_range must have 2 elements.")
 
 
 def test_p1sin_array():
@@ -98,48 +100,59 @@ def test_bad_amps():
     amps = np.ones([2, 8])
     with pytest.raises(ValueError) as cm:
         beam1.read_mwa_beam(filename, pixels_per_deg=1, amplitudes=amps)
-    assert str(cm.value).startswith('amplitudes must be shape')
+    assert str(cm.value).startswith("amplitudes must be shape")
 
 
 def test_bad_delays():
     beam1 = UVBeam()
 
-    delays = np.zeros([2, 8], dtype='int')
+    delays = np.zeros([2, 8], dtype="int")
     with pytest.raises(ValueError) as cm:
         beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
-    assert str(cm.value).startswith('delays must be shape')
+    assert str(cm.value).startswith("delays must be shape")
 
-    delays = np.zeros((2, 16), dtype='int')
+    delays = np.zeros((2, 16), dtype="int")
     delays = delays + 64
     with pytest.raises(ValueError) as cm:
         beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
-    assert str(cm.value).startswith('There are delays greater than 32')
+    assert str(cm.value).startswith("There are delays greater than 32")
 
-    delays = np.zeros((2, 16), dtype='float')
+    delays = np.zeros((2, 16), dtype="float")
     with pytest.raises(ValueError) as cm:
         beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
-    assert str(cm.value).startswith('Delays must be integers.')
+    assert str(cm.value).startswith("Delays must be integers.")
 
 
 def test_dead_dipoles():
     beam1 = UVBeam()
 
-    delays = np.zeros((2, 16), dtype='int')
+    delays = np.zeros((2, 16), dtype="int")
     delays[:, 0] = 32
 
     uvtest.checkWarnings(
-        beam1.read_mwa_beam, func_args=[filename],
-        func_kwargs={'pixels_per_deg': 1, 'delays': delays},
-        message=('There are some terminated dipoles'))
+        beam1.read_mwa_beam,
+        func_args=[filename],
+        func_kwargs={"pixels_per_deg": 1, "delays": delays},
+        message=("There are some terminated dipoles"),
+    )
 
-    delay_str = ('[[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], '
-                 '[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]')
-    gain_str = ('[[0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, '
-                '1.0, 1.0, 1.0, 1.0, 1.0], '
-                '[0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, '
-                '1.0, 1.0, 1.0, 1.0]]')
-    history_str = ('Sujito et al. full embedded element beam, derived from '
-                   'https://github.com/MWATelescope/mwa_pb/'
-                   + '  delays set to ' + delay_str + '  gains set to ' + gain_str
-                   + beam1.pyuvdata_version_str)
+    delay_str = (
+        "[[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "
+        "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]"
+    )
+    gain_str = (
+        "[[0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, "
+        "1.0, 1.0, 1.0, 1.0, 1.0], "
+        "[0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, "
+        "1.0, 1.0, 1.0, 1.0]]"
+    )
+    history_str = (
+        "Sujito et al. full embedded element beam, derived from "
+        "https://github.com/MWATelescope/mwa_pb/"
+        + "  delays set to "
+        + delay_str
+        + "  gains set to "
+        + gain_str
+        + beam1.pyuvdata_version_str
+    )
     assert uvutils._check_histories(history_str, beam1.history)

@@ -46,9 +46,11 @@ def P1sin(nmax, theta):
     Returns
     -------
     P_sin : array of float
-        P_{n}^{abs(m)}(cos(theta))/sin(theta) with FEKO order M,N. Shape (nmax ** 2 + 2 * nmax).
+        P_{n}^{abs(m)}(cos(theta))/sin(theta) with FEKO order M,N.
+        Shape (nmax ** 2 + 2 * nmax).
     P1 : array of float
-        P_{n}^{abs(m)+1}(cos(theta)) with FEKO order M,N.  Shape (nmax ** 2 + 2 * nmax).
+        P_{n}^{abs(m)+1}(cos(theta)) with FEKO order M,N.
+        Shape (nmax ** 2 + 2 * nmax).
 
     """
     # initialize for nmax, we have 2(1+...+nmax)+nmax=nmax^2+2*nmax long array
@@ -91,7 +93,9 @@ def P1sin(nmax, theta):
             # Instead use slope estimate with a small delta_cos
             # Pn(cos x)/sin x = -dPn(cos_th)/dcos_th
             Pm_cos_delta_cos = lpmv(orders, n, cos_th - delta_cos)
-            Pm_sin[1, 0] = -(P[0] - Pm_cos_delta_cos[0]) / delta_cos  # backward difference
+            Pm_sin[1, 0] = (
+                -(P[0] - Pm_cos_delta_cos[0]) / delta_cos
+            )  # backward difference
 
         elif cos_th == -1:
             # The first approach, to just use the analytical derivative
@@ -99,7 +103,9 @@ def P1sin(nmax, theta):
             # Instead use slope estimate with a small delta_cos
             # Pn(cos x)/sin x = -dPn(cos_th)/dcos_th
             Pm_cos_delta_cos = lpmv(orders, n, cos_th - delta_cos)
-            Pm_sin[1, 0] = -(Pm_cos_delta_cos[0] - P[0]) / delta_cos  # forward difference
+            Pm_sin[1, 0] = (
+                -(Pm_cos_delta_cos[0] - P[0]) / delta_cos
+            )  # forward difference
         else:
             Pm_sin = P / sin_th
 
@@ -107,7 +113,9 @@ def P1sin(nmax, theta):
         ind_start = (n - 1) ** 2 + 2 * (n - 1)  # start index to populate
         ind_stop = n ** 2 + 2 * n  # stop index to populate
         # assign
-        P_sin[np.arange(ind_start, ind_stop)] = np.append(np.flipud(Pm_sin[1::, 0]), Pm_sin)
+        P_sin[np.arange(ind_start, ind_stop)] = np.append(
+            np.flipud(Pm_sin[1::, 0]), Pm_sin
+        )
         P1[np.arange(ind_start, ind_stop)] = np.append(np.flipud(Pm1[1::, 0]), Pm1)
 
     return P_sin, P1
@@ -133,9 +141,11 @@ def P1sin_array(nmax, theta):
     Returns
     -------
     P_sin : array of float
-        P_{n}^{abs(m)}(cos(theta))/sin(theta) with FEKO order M,N. Shape (nmax ** 2 + 2 * nmax, theta.size).
+        P_{n}^{abs(m)}(cos(theta))/sin(theta) with FEKO order M,N.
+        Shape (nmax ** 2 + 2 * nmax, theta.size).
     P1 : array of float
-        P_{n}^{abs(m)+1}(cos(theta)) with FEKO order M,N.  Shape (nmax ** 2 + 2 * nmax, theta.size).
+        P_{n}^{abs(m)+1}(cos(theta)) with FEKO order M,N.
+        Shape (nmax ** 2 + 2 * nmax, theta.size).
 
     """
     cos_th = np.cos(theta)
@@ -169,10 +179,13 @@ def P1sin_array(nmax, theta):
         # stop index to populate
         ind_stop = n ** 2 + 2 * n
         # assign
-        P_sin[np.arange(ind_start, ind_stop), :] = np.vstack([np.flipud(Pm_sin[1::, :]), Pm_sin])
+        P_sin[np.arange(ind_start, ind_stop), :] = np.vstack(
+            [np.flipud(Pm_sin[1::, :]), Pm_sin]
+        )
         P1[np.arange(ind_start, ind_stop), :] = np.vstack([np.flipud(Pm1[1::, :]), Pm1])
 
-    # fix for theta = 0 and theta = pi (properly handled in P1sin, so use that function )
+    # fix for theta = 0 and theta = pi
+    # (properly handled in P1sin, so use that function)
     P_sin[:, theta == 0] = np.array([P1sin(nmax, 0)[0]]).transpose()
     P_sin[:, theta == np.pi] = np.array([P1sin(nmax, np.pi)[0]]).transpose()
 
@@ -217,11 +230,11 @@ class MWABeam(UVBeam):
         freqs_hz = set()
         other_names = []
         max_length = {}
-        with h5py.File(h5filepath, 'r') as h5f:
+        with h5py.File(h5filepath, "r") as h5f:
             for name in h5f.keys():
-                if name.startswith('X') or name.startswith('Y'):
+                if name.startswith("X") or name.startswith("Y"):
                     pol = name[0]
-                    dipole, freq = name[1:].split('_')
+                    dipole, freq = name[1:].split("_")
                     pol_names.add(pol)
                     dipole_names.add(dipole)
                     freq = np.int(freq)
@@ -247,8 +260,16 @@ class MWABeam(UVBeam):
 
         return freqs_hz, pol_names, dipole_names, max_length
 
-    def _get_beam_modes(self, h5filepath, freqs_hz, pol_names, dipole_names,
-                        max_length, delays, amplitudes):
+    def _get_beam_modes(
+        self,
+        h5filepath,
+        freqs_hz,
+        pol_names,
+        dipole_names,
+        max_length,
+        delays,
+        amplitudes,
+    ):
         """
         Get beam modes from input file and save as a dict to the object.
 
@@ -269,8 +290,8 @@ class MWABeam(UVBeam):
         delays : array of ints
             Array of MWA beamformer delay steps. Should be shape (n_pols, n_dipoles).
         amplitudes : array of floats
-            Array of dipole amplitudes, these are absolute values (i.e. relatable to physical units).
-            Should be shape (n_pols, n_dipoles).
+            Array of dipole amplitudes, these are absolute values
+            (i.e. relatable to physical units). Should be shape (n_pols, n_dipoles).
 
         Returns
         -------
@@ -292,8 +313,8 @@ class MWABeam(UVBeam):
                 Q2_accum = np.zeros(max_length[pol][freq], dtype=np.complex128)
 
                 # Read in modes
-                with h5py.File(h5filepath, 'r') as h5f:
-                    Q_modes_all = h5f['modes'][()].T
+                with h5py.File(h5filepath, "r") as h5f:
+                    Q_modes_all = h5f["modes"][()].T
                     Nmax = 0
                     M_accum = None
                     N_accum = None
@@ -303,7 +324,7 @@ class MWABeam(UVBeam):
                         Q2 = np.zeros(max_length[pol][freq], dtype=np.complex128)
 
                         # select spherical wave table
-                        name = pol + dp + '_' + str(freq)
+                        name = pol + dp + "_" + str(freq)
                         Q_all = h5f[name][()].T
 
                         # current length
@@ -334,15 +355,23 @@ class MWABeam(UVBeam):
                             Nmax = np.max(N_accum)
 
                         # grab Q1mn and Q2mn and make them complex
-                        Q1[0:my_len_half] = Q_all[s1, 0] * np.exp(1.0j * np.deg2rad(Q_all[s1, 1]))
-                        Q2[0:my_len_half] = Q_all[s2, 0] * np.exp(1.0j * np.deg2rad(Q_all[s2, 1]))
+                        Q1[0:my_len_half] = Q_all[s1, 0] * np.exp(
+                            1.0j * np.deg2rad(Q_all[s1, 1])
+                        )
+                        Q2[0:my_len_half] = Q_all[s2, 0] * np.exp(
+                            1.0j * np.deg2rad(Q_all[s2, 1])
+                        )
 
                         # accumulate Q1 and Q2, scaled by excitation voltage
                         Q1_accum = Q1_accum + Q1 * Vcplx[dp_i]
                         Q2_accum = Q2_accum + Q2 * Vcplx[dp_i]
 
-                    beam_modes[pol][freq] = {'Q1': Q1_accum, 'Q2': Q2_accum,
-                                             'M': M_accum, 'N': N_accum}
+                    beam_modes[pol][freq] = {
+                        "Q1": Q1_accum,
+                        "Q2": Q2_accum,
+                        "M": M_accum,
+                        "N": N_accum,
+                    }
         return beam_modes
 
     def _get_response(self, freqs_hz, pol_names, beam_modes, phi_arr, theta_arr):
@@ -370,28 +399,35 @@ class MWABeam(UVBeam):
                 [J_21=Ytheta J_21=Yphi]
 
         """
-        jones = np.zeros((len(pol_names), 2, freqs_hz.size, phi_arr.size,
-                          theta_arr.size), dtype=np.complex128)
+        jones = np.zeros(
+            (len(pol_names), 2, freqs_hz.size, phi_arr.size, theta_arr.size),
+            dtype=np.complex128,
+        )
 
         phi_arr = np.pi / 2 - phi_arr  # Convert to East through North (FEKO coords)
         phi_arr[phi_arr < 0] += 2 * np.pi  # 360 wrap
 
         for pol_i, pol in enumerate(pol_names):
             for freq_i, freq in enumerate(freqs_hz):
-                M = beam_modes[pol][freq]['M']
-                N = beam_modes[pol][freq]['N']
-                Q1 = beam_modes[pol][freq]['Q1']
-                Q2 = beam_modes[pol][freq]['Q2']
+                M = beam_modes[pol][freq]["M"]
+                N = beam_modes[pol][freq]["N"]
+                Q1 = beam_modes[pol][freq]["Q1"]
+                Q2 = beam_modes[pol][freq]["Q2"]
 
-                # form P(cos(theta))/(sin\theta) and P^{m+1}(cos(theta))with FEKO M,N order
+                # form P(cos(theta))/(sin\theta) and P^{m+1}(cos(theta))with
+                # FEKO M,N order
                 nmax = int(np.max(N))
-                assert np.max(N) - nmax == 0, 'The maximum of N should be an integer value!'
+                assert (
+                    np.max(N) - nmax == 0
+                ), "The maximum of N should be an integer value!"
 
                 # calculate equation C_mn from equation 4 of
                 # pyuvdata/docs/references/Far_field_spherical_FEKO_draft2.pdf
                 # These are the normalization factors for the associated
                 # Legendre function of order n and rank abs(m)
-                C_MN = (0.5 * (2 * N + 1) * factorial(N - abs(M)) / factorial(N + abs(M))) ** 0.5
+                C_MN = (
+                    0.5 * (2 * N + 1) * factorial(N - abs(M)) / factorial(N + abs(M))
+                ) ** 0.5
 
                 # 1 for M<=0, -1 for odd M>0
                 MabsM = np.ones(M.shape)
@@ -401,19 +437,31 @@ class MWABeam(UVBeam):
                 # T and P are the sky polarisations theta and phi
                 # theta and phi are direction coordinates
 
-                phi_comp = np.ascontiguousarray(np.exp(1.0j * np.outer(phi_arr, range(-nmax, nmax + 1))))
+                phi_comp = np.ascontiguousarray(
+                    np.exp(1.0j * np.outer(phi_arr, range(-nmax, nmax + 1)))
+                )
 
                 (P_sin, P1) = P1sin_array(nmax, theta_arr)
                 M_u = np.outer(np.cos(theta_arr), np.abs(M))
                 phi_const = C_MN * MabsM / (N * (N + 1)) ** 0.5
 
-                emn_T = (1.0j) ** N * (P_sin * (M_u * Q2 - M * Q1) + Q2 * P1) * phi_const
-                emn_P = (1.0j) ** (N + 1) * (P_sin * (M * Q2 - Q1 * M_u) - Q1 * P1) * phi_const
+                emn_T = (
+                    (1.0j) ** N * (P_sin * (M_u * Q2 - M * Q1) + Q2 * P1) * phi_const
+                )
+                emn_P = (
+                    (1.0j) ** (N + 1)
+                    * (P_sin * (M * Q2 - Q1 * M_u) - Q1 * P1)
+                    * phi_const
+                )
 
                 # Use a matrix multiplication to calculate Emn_P and Emn_T.
                 # Sum results of Emn_P and emn_T for each unique M
-                emn_P_sum = np.zeros((len(theta_arr), 2 * nmax + 1), dtype=np.complex128)
-                emn_T_sum = np.zeros((len(theta_arr), 2 * nmax + 1), dtype=np.complex128)
+                emn_P_sum = np.zeros(
+                    (len(theta_arr), 2 * nmax + 1), dtype=np.complex128
+                )
+                emn_T_sum = np.zeros(
+                    (len(theta_arr), 2 * nmax + 1), dtype=np.complex128
+                )
                 for m in range(-nmax, nmax + 1):
                     emn_P_sum[:, m + nmax] = np.sum(emn_P[:, M == m], axis=1)
                     emn_T_sum[:, m + nmax] = np.sum(emn_T[:, M == m], axis=1)
@@ -426,10 +474,17 @@ class MWABeam(UVBeam):
 
         return jones
 
-    def read_mwa_beam(self, h5filepath, delays=None, amplitudes=None,
-                      pixels_per_deg=5, freq_range=None,
-                      run_check=True, check_extra=True,
-                      run_check_acceptability=True):
+    def read_mwa_beam(
+        self,
+        h5filepath,
+        delays=None,
+        amplitudes=None,
+        pixels_per_deg=5,
+        freq_range=None,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
         """
         Read in the full embedded element MWA beam.
 
@@ -437,11 +492,13 @@ class MWABeam(UVBeam):
         ----------
         h5filepath : str
             path to input h5 file containing the MWA full embedded element spherical
-            harmonic modes. Download via `wget http://cerberus.mwa128t.org/mwa_full_embedded_element_pattern.h5`
+            harmonic modes. Download via
+            `wget http://cerberus.mwa128t.org/mwa_full_embedded_element_pattern.h5`
         delays : array of ints
             Array of MWA beamformer delay steps. Should be shape (n_pols, n_dipoles).
         amplitudes : array of floats
-            Array of dipole amplitudes, these are absolute values (i.e. relatable to physical units).
+            Array of dipole amplitudes, these are absolute values
+            (i.e. relatable to physical units).
             Should be shape (n_pols, n_dipoles).
         pixels_per_deg : float
             Number of theta/phi pixels per degree. Sets the resolution of the beam.
@@ -476,50 +533,66 @@ class MWABeam(UVBeam):
         n_pol = len(pol_names)
 
         if delays is None:
-            delays = np.zeros([n_pol, n_dp], dtype='int')
+            delays = np.zeros([n_pol, n_dp], dtype="int")
         else:
             if not np.issubdtype(delays.dtype, np.integer):
-                raise ValueError('Delays must be integers.')
+                raise ValueError("Delays must be integers.")
 
         if amplitudes is None:
             amplitudes = np.ones([n_pol, n_dp])
 
         if amplitudes.shape != (n_pol, n_dp):
-            raise ValueError('amplitudes must be shape ({npol}, {nd})'.format(npol=n_pol, nd=n_dp))
+            raise ValueError(
+                "amplitudes must be shape ({npol}, {nd})".format(npol=n_pol, nd=n_dp)
+            )
 
         if delays.shape != (n_pol, n_dp):
-            raise ValueError('delays must be shape ({npol}, {nd})'.format(npol=n_pol, nd=n_dp))
+            raise ValueError(
+                "delays must be shape ({npol}, {nd})".format(npol=n_pol, nd=n_dp)
+            )
 
         if (delays > 32).any():
-            raise ValueError('There are delays greater than 32: {delays}'.format(delays=delays))
+            raise ValueError(
+                "There are delays greater than 32: {delays}".format(delays=delays)
+            )
 
         # check for terminated dipoles and reset delays and amplitudes
         terminated = delays == 32
         if (terminated).any():
-            warnings.warn('There are some terminated dipoles '
-                          '(delay setting 32). Setting the amplitudes and '
-                          'delays of terminated dipoles to zero.')
+            warnings.warn(
+                "There are some terminated dipoles "
+                "(delay setting 32). Setting the amplitudes and "
+                "delays of terminated dipoles to zero."
+            )
             delays[terminated] = 0
             amplitudes[terminated] = 0
 
         if freq_range is not None:
             if np.array(freq_range).size != 2:
-                raise ValueError('freq_range must have 2 elements.')
-            freqs_use = freqs_hz[np.nonzero((freqs_hz >= freq_range[0])
-                                            & (freqs_hz <= freq_range[1]))]
+                raise ValueError("freq_range must have 2 elements.")
+            freqs_use = freqs_hz[
+                np.nonzero((freqs_hz >= freq_range[0]) & (freqs_hz <= freq_range[1]))
+            ]
             if freqs_use.size < 1:
-                raise ValueError('No frequencies available in freq_range. '
-                                 'Available frequencies are between {fmin} Hz '
-                                 'and {fmax} Hz'.format(fmin=np.min(freqs_hz),
-                                                        fmax=np.max(freqs_hz)))
+                raise ValueError(
+                    "No frequencies available in freq_range. "
+                    "Available frequencies are between {fmin} Hz "
+                    "and {fmax} Hz".format(fmin=np.min(freqs_hz), fmax=np.max(freqs_hz))
+                )
             if freqs_use.size < 2:
-                warnings.warn('Only one available frequency in freq_range.')
+                warnings.warn("Only one available frequency in freq_range.")
         else:
             freqs_use = freqs_hz
 
-        beam_modes = self._get_beam_modes(h5filepath, freqs_hz, pol_names,
-                                          dipole_names, max_length, delays,
-                                          amplitudes)
+        beam_modes = self._get_beam_modes(
+            h5filepath,
+            freqs_hz,
+            pol_names,
+            dipole_names,
+            max_length,
+            delays,
+            amplitudes,
+        )
 
         n_phi = np.floor(360 * pixels_per_deg)
         n_theta = np.floor(90 * pixels_per_deg) + 1
@@ -528,30 +601,37 @@ class MWABeam(UVBeam):
 
         jones = self._get_response(freqs_use, pol_names, beam_modes, phi_arr, theta_arr)
 
-        # work out zenith normalization (MWA beams are peak normalized to 1 when pointed at zenith)
+        # work out zenith normalization
+        # (MWA beams are peak normalized to 1 when pointed at zenith)
 
         # start filling in the object
-        self.telescope_name = 'MWA'
-        self.feed_name = 'MWA'
-        self.feed_version = '1.0'
-        self.model_name = 'full embedded element'
-        self.model_version = '1.0'
-        self.history = ('Sujito et al. full embedded element beam, derived from '
-                        'https://github.com/MWATelescope/mwa_pb/')
+        self.telescope_name = "MWA"
+        self.feed_name = "MWA"
+        self.feed_version = "1.0"
+        self.model_name = "full embedded element"
+        self.model_version = "1.0"
+        self.history = (
+            "Sujito et al. full embedded element beam, derived from "
+            "https://github.com/MWATelescope/mwa_pb/"
+        )
 
         delay_str_list = []
         gain_str_list = []
         for pol in range(n_pol):
-            delay_str_list.append('[' + ', '.join([str(x) for x in delays[pol, :]]) + ']')
-            gain_str_list.append('[' + ', '.join([str(x) for x in amplitudes[pol, :]]) + ']')
-        delay_str = '[' + ', '.join(delay_str_list) + ']'
-        gain_str = '[' + ', '.join(gain_str_list) + ']'
+            delay_str_list.append(
+                "[" + ", ".join([str(x) for x in delays[pol, :]]) + "]"
+            )
+            gain_str_list.append(
+                "[" + ", ".join([str(x) for x in amplitudes[pol, :]]) + "]"
+            )
+        delay_str = "[" + ", ".join(delay_str_list) + "]"
+        gain_str = "[" + ", ".join(gain_str_list) + "]"
 
-        self.history += ('  delays set to ' + delay_str + '  gains set to ' + gain_str)
+        self.history += "  delays set to " + delay_str + "  gains set to " + gain_str
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
-        self.x_orientation = 'east'
+        self.x_orientation = "east"
 
         self.set_efield()
         self.Naxes_vec = 2
@@ -559,10 +639,11 @@ class MWABeam(UVBeam):
         self.feed_array = np.array([str(pol.lower()) for pol in pol_names])
         self.Nfeeds = self.feed_array.size
 
-        self.data_normalization = 'physical'
+        self.data_normalization = "physical"
 
-        # for now this returns a simple beam because it requires amps & delays to make the beam
-        self.antenna_type = 'simple'
+        # for now this returns a simple beam because it requires amps & delays
+        # to make the beam
+        self.antenna_type = "simple"
 
         self.Nspws = 1
         self.spw_array = np.array([0])
@@ -571,7 +652,7 @@ class MWABeam(UVBeam):
         self.freq_array = self.freq_array[np.newaxis, :]
         self.bandpass_array = np.ones((self.Nspws, self.Nfreqs))
 
-        self.pixel_coordinate_system = 'az_za'
+        self.pixel_coordinate_system = "az_za"
         self.set_cs_params()
 
         self.axis1_array = phi_arr
@@ -579,8 +660,10 @@ class MWABeam(UVBeam):
         self.axis2_array = theta_arr
         self.Naxes2 = self.axis2_array.size
 
-        # The array that come from `_get_response` has shape shape (Npol, 2, Nfreq, Nphi, Ntheta)
-        # UVBeam wants shape ('Naxes_vec', 'Nspws', 'Nfeeds', 'Nfreqs', 'Naxes2', 'Naxes1')
+        # The array that come from `_get_response` has shape shape
+        # (Npol, 2, Nfreq, Nphi, Ntheta)
+        # UVBeam wants shape
+        # ('Naxes_vec', 'Nspws', 'Nfeeds', 'Nfreqs', 'Naxes2', 'Naxes1')
         # where the Naxes_vec dimension lines up with the 2 from `_get_response`,
         # Nfeeds is UVBeam's Npol for E-field beams,
         # and axes (2, 1) correspond to (theta, phi)
@@ -588,11 +671,13 @@ class MWABeam(UVBeam):
         self.data_array = np.transpose(jones, axes=[1, 0, 2, 4, 3])
         self.data_array = self.data_array[:, np.newaxis, :, :, :, :]
 
-        self.basis_vector_array = np.zeros((self.Naxes_vec, self.Ncomponents_vec,
-                                            self.Naxes2, self.Naxes1))
+        self.basis_vector_array = np.zeros(
+            (self.Naxes_vec, self.Ncomponents_vec, self.Naxes2, self.Naxes1)
+        )
         self.basis_vector_array[0, 0, :, :] = 1.0
         self.basis_vector_array[1, 1, :, :] = 1.0
 
         if run_check:
-            self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
+            self.check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )

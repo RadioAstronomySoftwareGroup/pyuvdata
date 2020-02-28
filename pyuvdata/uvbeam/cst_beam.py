@@ -41,22 +41,36 @@ class CSTBeam(UVBeam):
         float
             Frequency extracted from filename in Hz.
         """
-        fi = fname.rfind('Hz')
-        frequency = float(re.findall(r'\d*\.\d+|\d+', fname[:fi])[-1])
+        fi = fname.rfind("Hz")
+        frequency = float(re.findall(r"\d*\.\d+|\d+", fname[:fi])[-1])
 
         si_prefix = fname[fi - 1]
-        si_dict = {'k': 1e3, 'M': 1e6, 'G': 1e9}
+        si_dict = {"k": 1e3, "M": 1e6, "G": 1e9}
         if si_prefix in si_dict.keys():
             frequency = frequency * si_dict[si_prefix]
 
         return frequency
 
-    def read_cst_beam(self, filename, beam_type='power', feed_pol='x',
-                      rotate_pol=True, frequency=None, telescope_name=None,
-                      feed_name=None, feed_version=None, model_name=None,
-                      model_version=None, history='', x_orientation=None,
-                      reference_impedance=None, extra_keywords=None,
-                      run_check=True, check_extra=True, run_check_acceptability=True):
+    def read_cst_beam(
+        self,
+        filename,
+        beam_type="power",
+        feed_pol="x",
+        rotate_pol=True,
+        frequency=None,
+        telescope_name=None,
+        feed_name=None,
+        feed_version=None,
+        model_name=None,
+        model_version=None,
+        history="",
+        x_orientation=None,
+        reference_impedance=None,
+        extra_keywords=None,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
         """
         Read in data from a cst file.
 
@@ -67,7 +81,8 @@ class CSTBeam(UVBeam):
         beam_type : str
             What beam_type to read in ('power' or 'efield').
         feed_pol : str
-            The feed or polarization or list of feeds or polarizations the files correspond to.
+            The feed or polarization or list of feeds or polarizations the
+            files correspond to.
             Defaults to 'x' (meaning x for efield or xx for power beams).
         rotate_pol : bool
             If True, assume the structure in the simulation is symmetric under
@@ -126,19 +141,20 @@ class CSTBeam(UVBeam):
         if extra_keywords is not None:
             self.extra_keywords = extra_keywords
 
-        if beam_type == 'power':
+        if beam_type == "power":
             self.Naxes_vec = 1
 
-            if feed_pol == 'x':
-                feed_pol = 'xx'
-            elif feed_pol == 'y':
-                feed_pol = 'yy'
+            if feed_pol == "x":
+                feed_pol = "xx"
+            elif feed_pol == "y":
+                feed_pol = "yy"
 
             if rotate_pol:
-                rot_pol_dict = {'xx': 'yy', 'yy': 'xx', 'xy': 'yx', 'yx': 'xy'}
+                rot_pol_dict = {"xx": "yy", "yy": "xx", "xy": "yx", "yx": "xy"}
                 pol2 = rot_pol_dict[feed_pol]
-                self.polarization_array = np.array([uvutils.polstr2num(feed_pol),
-                                                    uvutils.polstr2num(pol2)])
+                self.polarization_array = np.array(
+                    [uvutils.polstr2num(feed_pol), uvutils.polstr2num(pol2)]
+                )
             else:
                 self.polarization_array = np.array([uvutils.polstr2num(feed_pol)])
 
@@ -148,20 +164,20 @@ class CSTBeam(UVBeam):
             self.Naxes_vec = 2
             self.Ncomponents_vec = 2
             if rotate_pol:
-                if feed_pol == 'x':
-                    self.feed_array = np.array(['x', 'y'])
+                if feed_pol == "x":
+                    self.feed_array = np.array(["x", "y"])
                 else:
-                    self.feed_array = np.array(['y', 'x'])
+                    self.feed_array = np.array(["y", "x"])
             else:
-                if feed_pol == 'x':
-                    self.feed_array = np.array(['x'])
+                if feed_pol == "x":
+                    self.feed_array = np.array(["x"])
                 else:
-                    self.feed_array = np.array(['y'])
+                    self.feed_array = np.array(["y"])
             self.Nfeeds = self.feed_array.size
             self.set_efield()
 
-        self.data_normalization = 'physical'
-        self.antenna_type = 'simple'
+        self.data_normalization = "physical"
+        self.antenna_type = "simple"
 
         self.Nfreqs = 1
         self.Nspws = 1
@@ -169,31 +185,31 @@ class CSTBeam(UVBeam):
         self.bandpass_array = np.zeros((self.Nspws, self.Nfreqs))
 
         self.spw_array = np.array([0])
-        self.pixel_coordinate_system = 'az_za'
+        self.pixel_coordinate_system = "az_za"
         self.set_cs_params()
 
-        out_file = open(filename, 'r')
+        out_file = open(filename, "r")
         line = out_file.readline().strip()  # Get the first line
         out_file.close()
-        raw_names = line.split(']')
-        raw_names = [raw_name for raw_name in raw_names if not raw_name == '']
+        raw_names = line.split("]")
+        raw_names = [raw_name for raw_name in raw_names if not raw_name == ""]
         column_names = []
         units = []
         for raw_name in raw_names:
-            column_name, unit = tuple(raw_name.split('['))
-            column_names.append(''.join(column_name.lower().split(' ')))
+            column_name, unit = tuple(raw_name.split("["))
+            column_names.append("".join(column_name.lower().split(" ")))
             units.append(unit.lower().strip())
 
         data = np.loadtxt(filename, skiprows=2)
 
-        theta_col = np.where(np.array(column_names) == 'theta')[0][0]
-        phi_col = np.where(np.array(column_names) == 'phi')[0][0]
+        theta_col = np.where(np.array(column_names) == "theta")[0][0]
+        phi_col = np.where(np.array(column_names) == "phi")[0][0]
 
-        if 'deg' in units[theta_col]:
+        if "deg" in units[theta_col]:
             theta_data = np.radians(data[:, theta_col])
         else:
             theta_data = data[:, theta_col]
-        if 'deg' in units[phi_col]:
+        if "deg" in units[phi_col]:
             phi_data = np.radians(data[:, phi_col])
         else:
             phi_data = data[:, phi_col]
@@ -201,19 +217,23 @@ class CSTBeam(UVBeam):
         theta_axis = np.sort(np.unique(theta_data))
         phi_axis = np.sort(np.unique(phi_data))
         if not theta_axis.size * phi_axis.size == theta_data.size:
-            raise ValueError('Data does not appear to be on a grid')
+            raise ValueError("Data does not appear to be on a grid")
 
-        theta_data = theta_data.reshape((theta_axis.size, phi_axis.size), order='F')
-        phi_data = phi_data.reshape((theta_axis.size, phi_axis.size), order='F')
+        theta_data = theta_data.reshape((theta_axis.size, phi_axis.size), order="F")
+        phi_data = phi_data.reshape((theta_axis.size, phi_axis.size), order="F")
 
         delta_theta = np.diff(theta_axis)
         if not np.isclose(np.max(delta_theta), np.min(delta_theta)):
-            raise ValueError('Data does not appear to be regularly gridded in zenith angle')
+            raise ValueError(
+                "Data does not appear to be regularly gridded in zenith angle"
+            )
         delta_theta = delta_theta[0]
 
         delta_phi = np.diff(phi_axis)
         if not np.isclose(np.max(delta_phi), np.min(delta_phi)):
-            raise ValueError('Data does not appear to be regularly gridded in azimuth angle')
+            raise ValueError(
+                "Data does not appear to be regularly gridded in azimuth angle"
+            )
         delta_phi = delta_phi[0]
 
         self.axis1_array = phi_axis
@@ -221,11 +241,17 @@ class CSTBeam(UVBeam):
         self.axis2_array = theta_axis
         self.Naxes2 = self.axis2_array.size
 
-        if self.beam_type == 'power':
-            # type depends on whether cross pols are present (if so, complex, else float)
-            self.data_array = np.zeros(self._data_array.expected_shape(self), dtype=self._data_array.expected_type)
+        if self.beam_type == "power":
+            # type depends on whether cross pols are present
+            # (if so, complex, else float)
+            self.data_array = np.zeros(
+                self._data_array.expected_shape(self),
+                dtype=self._data_array.expected_type,
+            )
         else:
-            self.data_array = np.zeros(self._data_array.expected_shape(self), dtype=np.complex)
+            self.data_array = np.zeros(
+                self._data_array.expected_shape(self), dtype=np.complex
+            )
 
         if frequency is not None:
             self.freq_array[0] = frequency
@@ -238,25 +264,34 @@ class CSTBeam(UVBeam):
             rot_phi[np.where(rot_phi >= 2 * np.pi)] -= 2 * np.pi
             roll_rot_phi = np.roll(rot_phi, int((np.pi / 2) / delta_phi), axis=1)
             if not np.allclose(roll_rot_phi, phi_data):
-                raise ValueError('Rotating by pi/2 failed')
+                raise ValueError("Rotating by pi/2 failed")
 
             # theta is not affected by the rotation
 
         # get beam
-        if self.beam_type == 'power':
+        if self.beam_type == "power":
 
-            data_col_enum = ['abs(e)', 'abs(v)']
+            data_col_enum = ["abs(e)", "abs(v)"]
             data_col = []
             for name in data_col_enum:
                 this_col = np.where(np.array(column_names) == name)[0]
                 if this_col.size > 0:
                     data_col = data_col + this_col.tolist()
             if len(data_col) == 0:
-                raise ValueError('No power column found in file: {f}'.format(f=filename))
+                raise ValueError(
+                    "No power column found in file: {f}".format(f=filename)
+                )
             elif len(data_col) > 1:
-                raise ValueError('Multiple possible power columns found in file: {f}'.format(f=filename))
+                raise ValueError(
+                    "Multiple possible power columns found in file: {f}".format(
+                        f=filename
+                    )
+                )
             data_col = data_col[0]
-            power_beam1 = data[:, data_col].reshape((theta_axis.size, phi_axis.size), order='F') ** 2.
+            power_beam1 = (
+                data[:, data_col].reshape((theta_axis.size, phi_axis.size), order="F")
+                ** 2.0
+            )
 
             self.data_array[0, 0, 0, 0, :, :] = power_beam1
 
@@ -265,28 +300,35 @@ class CSTBeam(UVBeam):
                 power_beam2 = np.roll(power_beam1, int((np.pi / 2) / delta_phi), axis=1)
                 self.data_array[0, 0, 1, 0, :, :] = power_beam2
         else:
-            self.basis_vector_array = np.zeros((self.Naxes_vec, self.Ncomponents_vec,
-                                                self.Naxes2, self.Naxes1))
+            self.basis_vector_array = np.zeros(
+                (self.Naxes_vec, self.Ncomponents_vec, self.Naxes2, self.Naxes1)
+            )
             self.basis_vector_array[0, 0, :, :] = 1.0
             self.basis_vector_array[1, 1, :, :] = 1.0
 
-            theta_mag_col = np.where(np.array(column_names) == 'abs(theta)')[0][0]
-            theta_phase_col = np.where(np.array(column_names) == 'phase(theta)')[0][0]
-            phi_mag_col = np.where(np.array(column_names) == 'abs(phi)')[0][0]
-            phi_phase_col = np.where(np.array(column_names) == 'phase(phi)')[0][0]
+            theta_mag_col = np.where(np.array(column_names) == "abs(theta)")[0][0]
+            theta_phase_col = np.where(np.array(column_names) == "phase(theta)")[0][0]
+            phi_mag_col = np.where(np.array(column_names) == "abs(phi)")[0][0]
+            phi_phase_col = np.where(np.array(column_names) == "phase(phi)")[0][0]
 
-            theta_mag = data[:, theta_mag_col].reshape((theta_axis.size, phi_axis.size), order='F')
-            phi_mag = data[:, phi_mag_col].reshape((theta_axis.size, phi_axis.size), order='F')
-            if 'deg' in units[theta_phase_col]:
+            theta_mag = data[:, theta_mag_col].reshape(
+                (theta_axis.size, phi_axis.size), order="F"
+            )
+            phi_mag = data[:, phi_mag_col].reshape(
+                (theta_axis.size, phi_axis.size), order="F"
+            )
+            if "deg" in units[theta_phase_col]:
                 theta_phase = np.radians(data[:, theta_phase_col])
             else:
                 theta_phase = data[:, theta_phase_col]
-            if 'deg' in units[phi_phase_col]:
+            if "deg" in units[phi_phase_col]:
                 phi_phase = np.radians(data[:, phi_phase_col])
             else:
                 phi_phase = data[:, phi_phase_col]
-            theta_phase = theta_phase.reshape((theta_axis.size, phi_axis.size), order='F')
-            phi_phase = phi_phase.reshape((theta_axis.size, phi_axis.size), order='F')
+            theta_phase = theta_phase.reshape(
+                (theta_axis.size, phi_axis.size), order="F"
+            )
+            phi_phase = phi_phase.reshape((theta_axis.size, phi_axis.size), order="F")
 
             theta_beam = theta_mag * np.exp(1j * theta_phase)
             phi_beam = phi_mag * np.exp(1j * phi_phase)
@@ -304,9 +346,12 @@ class CSTBeam(UVBeam):
         self.bandpass_array[0] = 1
 
         if frequency is None:
-            warnings.warn('No frequency provided. Detected frequency is: '
-                          '{freqs} Hz'.format(freqs=self.freq_array))
+            warnings.warn(
+                "No frequency provided. Detected frequency is: "
+                "{freqs} Hz".format(freqs=self.freq_array)
+            )
 
         if run_check:
-            self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
+            self.check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )

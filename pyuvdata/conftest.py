@@ -18,9 +18,9 @@ from pyuvdata.data import DATA_PATH
 @pytest.fixture(autouse=True, scope="session")
 def setup_and_teardown_package():
     """Make data/test directory to put test output files in."""
-    testdir = os.path.join(DATA_PATH, 'test/')
+    testdir = os.path.join(DATA_PATH, "test/")
     if not os.path.exists(testdir):
-        print('making test directory')
+        print("making test directory")
         os.mkdir(testdir)
 
     # Do a calculation that requires a current IERS table. This will trigger
@@ -33,7 +33,7 @@ def setup_and_teardown_package():
     try:
         t1 = Time.now()
         t1.ut1
-    except(Exception):
+    except (Exception):
         iers.conf.auto_max_age = None
 
     yield

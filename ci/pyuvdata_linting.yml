@@ -6,6 +6,7 @@ dependencies:
   - flake8
   - pip
   - pip:
+    - flake8-black
     - flake8-builtins
     - flake8-comprehensions
     - flake8-docstrings

@@ -26,9 +26,17 @@ class FHDCal(UVCal):
 
     """
 
-    def read_fhd_cal(self, cal_file, obs_file, settings_file=None, raw=True,
-                     extra_history=None, run_check=True, check_extra=True,
-                     run_check_acceptability=True):
+    def read_fhd_cal(
+        self,
+        cal_file,
+        obs_file,
+        settings_file=None,
+        raw=True,
+        extra_history=None,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
         """
         Read data from an FHD cal.sav file.
 
@@ -57,17 +65,19 @@ class FHDCal(UVCal):
 
         """
         this_dict = readsav(cal_file, python_dict=True)
-        cal_data = this_dict['cal']
+        cal_data = this_dict["cal"]
 
         this_dict = readsav(obs_file, python_dict=True)
-        obs_data = this_dict['obs']
+        obs_data = this_dict["obs"]
 
         self.Nspws = 1
         self.spw_array = np.array([0])
 
-        self.Nfreqs = int(cal_data['n_freq'][0])
-        self.freq_array = np.zeros((self.Nspws, len(cal_data['freq'][0])), dtype=np.float_)
-        self.freq_array[0, :] = cal_data['freq'][0]
+        self.Nfreqs = int(cal_data["n_freq"][0])
+        self.freq_array = np.zeros(
+            (self.Nspws, len(cal_data["freq"][0])), dtype=np.float_
+        )
+        self.freq_array[0, :] = cal_data["freq"][0]
         self.channel_width = float(np.mean(np.diff(self.freq_array)))
 
         # FHD only calculates one calibration over all the times.
@@ -75,11 +85,11 @@ class FHDCal(UVCal):
         # calibration, UVCal.Ntimes gives the number of separate calibrations
         # along the time axis.
         self.Ntimes = 1
-        time_array = obs_data['baseline_info'][0]['jdate'][0]
+        time_array = obs_data["baseline_info"][0]["jdate"][0]
         self.integration_time = np.round(np.mean(np.diff(time_array)) * 24 * 3600, 2)
         self.time_array = np.array([np.mean(time_array)])
 
-        self.Njones = int(cal_data['n_pol'][0])
+        self.Njones = int(cal_data["n_pol"][0])
         # FHD only has the diagonal elements (jxx, jyy) and if there's only one
         # present it must be jxx
         if self.Njones == 1:
@@ -87,58 +97,69 @@ class FHDCal(UVCal):
         else:
             self.jones_array = np.array([-5, -6])
 
-        self.telescope_name = obs_data['instrument'][0].decode("utf8")
+        self.telescope_name = obs_data["instrument"][0].decode("utf8")
 
-        self.Nants_data = int(cal_data['n_tile'][0])
-        self.Nants_telescope = int(cal_data['n_tile'][0])
-        self.antenna_names = np.array([n.decode("utf8") for n in cal_data['tile_names'][0].tolist()])
+        self.Nants_data = int(cal_data["n_tile"][0])
+        self.Nants_telescope = int(cal_data["n_tile"][0])
+        self.antenna_names = np.array(
+            [n.decode("utf8") for n in cal_data["tile_names"][0].tolist()]
+        )
         self.antenna_numbers = np.arange(self.Nants_telescope)
         self.ant_array = np.arange(self.Nants_data)
 
         self.set_sky()
-        self.sky_field = 'phase center (RA, Dec): ({ra}, {dec})'.format(
-            ra=obs_data['orig_phasera'][0], dec=obs_data['orig_phasedec'][0])
-        self.sky_catalog = cal_data['skymodel'][0]['catalog_name'][0].decode("utf8")
-        self.ref_antenna_name = cal_data['ref_antenna_name'][0].decode("utf8")
-        self.Nsources = int(cal_data['skymodel'][0]['n_sources'][0])
-        self.baseline_range = [float(cal_data['min_cal_baseline'][0]),
-                               float(cal_data['max_cal_baseline'][0])]
+        self.sky_field = "phase center (RA, Dec): ({ra}, {dec})".format(
+            ra=obs_data["orig_phasera"][0], dec=obs_data["orig_phasedec"][0]
+        )
+        self.sky_catalog = cal_data["skymodel"][0]["catalog_name"][0].decode("utf8")
+        self.ref_antenna_name = cal_data["ref_antenna_name"][0].decode("utf8")
+        self.Nsources = int(cal_data["skymodel"][0]["n_sources"][0])
+        self.baseline_range = [
+            float(cal_data["min_cal_baseline"][0]),
+            float(cal_data["max_cal_baseline"][0]),
+        ]
 
-        galaxy_model = cal_data['skymodel'][0]['galaxy_model'][0]
-        if isinstance(galaxy_model, bytes):  # In Python 3, we sometimes get Unicode, sometimes bytes
+        galaxy_model = cal_data["skymodel"][0]["galaxy_model"][0]
+        if isinstance(
+            galaxy_model, bytes
+        ):  # In Python 3, we sometimes get Unicode, sometimes bytes
             galaxy_model = galaxy_model.decode("utf8")
         if galaxy_model == 0:
             galaxy_model = None
         else:
-            galaxy_model = 'gsm'
+            galaxy_model = "gsm"
 
-        diffuse_model = cal_data['skymodel'][0]['diffuse_model'][0]
+        diffuse_model = cal_data["skymodel"][0]["diffuse_model"][0]
         if isinstance(diffuse_model, bytes):
             diffuse_model = diffuse_model.decode("utf8")
-        if diffuse_model == '':
+        if diffuse_model == "":
             diffuse_model = None
         else:
             diffuse_model = os.path.basename(diffuse_model)
 
         if galaxy_model is not None:
             if diffuse_model is not None:
-                self.diffuse_model = galaxy_model + ' + ' + diffuse_model
+                self.diffuse_model = galaxy_model + " + " + diffuse_model
             else:
                 self.diffuse_model = galaxy_model
         elif diffuse_model is not None:
             self.diffuse_model = diffuse_model
 
-        self.gain_convention = 'divide'
-        self.x_orientation = 'east'
+        self.gain_convention = "divide"
+        self.x_orientation = "east"
 
         self.set_gain()
-        fit_gain_array_in = cal_data['gain'][0]
-        fit_gain_array = np.zeros(self._gain_array.expected_shape(self), dtype=np.complex_)
+        fit_gain_array_in = cal_data["gain"][0]
+        fit_gain_array = np.zeros(
+            self._gain_array.expected_shape(self), dtype=np.complex_
+        )
         for jones_i, arr in enumerate(fit_gain_array_in):
             fit_gain_array[:, 0, :, 0, jones_i] = arr
         if raw:
-            res_gain_array_in = cal_data['gain_residual'][0]
-            res_gain_array = np.zeros(self._gain_array.expected_shape(self), dtype=np.complex_)
+            res_gain_array_in = cal_data["gain_residual"][0]
+            res_gain_array = np.zeros(
+                self._gain_array.expected_shape(self), dtype=np.complex_
+            )
             for jones_i, arr in enumerate(res_gain_array_in):
                 res_gain_array[:, 0, :, 0, jones_i] = arr
             self.gain_array = fit_gain_array + res_gain_array
@@ -149,22 +170,23 @@ class FHDCal(UVCal):
         # The solution converged well if this is less than the convergence
         # threshold ('conv_thresh' in extra_keywords).
         self.quality_array = np.zeros_like(self.gain_array, dtype=np.float)
-        convergence = cal_data['convergence'][0]
+        convergence = cal_data["convergence"][0]
         for jones_i, arr in enumerate(convergence):
             self.quality_array[:, 0, :, 0, jones_i] = arr
 
         # array of used frequencies (1: used, 0: flagged)
-        freq_use = obs_data['baseline_info'][0]['freq_use'][0]
+        freq_use = obs_data["baseline_info"][0]["freq_use"][0]
         # array of used antennas (1: used, 0: flagged)
-        ant_use = obs_data['baseline_info'][0]['tile_use'][0]
+        ant_use = obs_data["baseline_info"][0]["tile_use"][0]
         # array of used times (1: used, 0: flagged)
-        time_use = obs_data['baseline_info'][0]['time_use'][0]
+        time_use = obs_data["baseline_info"][0]["time_use"][0]
 
         time_array_use = time_array[np.where(time_use > 0)]
         self.time_range = [np.min(time_array_use), np.max(time_array_use)]
 
         # Currently this can't include the times because the flag array
-        # dimensions has to match the gain array dimensions. This is somewhat artificial...
+        # dimensions has to match the gain array dimensions.
+        # This is somewhat artificial...
         self.flag_array = np.zeros_like(self.gain_array, dtype=np.bool)
         flagged_ants = np.where(ant_use == 0)[0]
         for ant in flagged_ants:
@@ -174,44 +196,49 @@ class FHDCal(UVCal):
             self.flag_array[:, :, freq] = 1
 
         # currently don't have branch info. may change in future.
-        self.git_origin_cal = 'https://github.com/EoRImaging/FHD'
-        self.git_hash_cal = obs_data['code_version'][0].decode("utf8")
+        self.git_origin_cal = "https://github.com/EoRImaging/FHD"
+        self.git_hash_cal = obs_data["code_version"][0].decode("utf8")
 
-        self.extra_keywords['autoscal'] = \
-            '[' + ', '.join(str(d) for d in cal_data['auto_scale'][0]) + ']'
-        self.extra_keywords['nvis_cal'] = cal_data['n_vis_cal'][0]
-        self.extra_keywords['time_avg'] = cal_data['time_avg'][0]
-        self.extra_keywords['cvgthres'] = cal_data['conv_thresh'][0]
-        if 'DELAYS' in obs_data.dtype.names:
-            if obs_data['delays'][0] is not None:
-                self.extra_keywords['delays'] = \
-                    '[' + ', '.join(str(int(d)) for d in obs_data['delays'][0]) + ']'
+        self.extra_keywords["autoscal"] = (
+            "[" + ", ".join(str(d) for d in cal_data["auto_scale"][0]) + "]"
+        )
+        self.extra_keywords["nvis_cal"] = cal_data["n_vis_cal"][0]
+        self.extra_keywords["time_avg"] = cal_data["time_avg"][0]
+        self.extra_keywords["cvgthres"] = cal_data["conv_thresh"][0]
+        if "DELAYS" in obs_data.dtype.names:
+            if obs_data["delays"][0] is not None:
+                self.extra_keywords["delays"] = (
+                    "[" + ", ".join(str(int(d)) for d in obs_data["delays"][0]) + "]"
+                )
 
         if not raw:
-            self.extra_keywords['polyfit'] = cal_data['polyfit'][0]
-            self.extra_keywords['bandpass'] = cal_data['bandpass'][0]
-            self.extra_keywords['mode_fit'] = cal_data['mode_fit'][0]
-            self.extra_keywords['amp_deg'] = cal_data['amp_degree'][0]
-            self.extra_keywords['phse_deg'] = cal_data['phase_degree'][0]
+            self.extra_keywords["polyfit"] = cal_data["polyfit"][0]
+            self.extra_keywords["bandpass"] = cal_data["bandpass"][0]
+            self.extra_keywords["mode_fit"] = cal_data["mode_fit"][0]
+            self.extra_keywords["amp_deg"] = cal_data["amp_degree"][0]
+            self.extra_keywords["phse_deg"] = cal_data["phase_degree"][0]
 
         if settings_file is not None:
-            self.history, self.observer = get_fhd_history(settings_file, return_user=True)
+            self.history, self.observer = get_fhd_history(
+                settings_file, return_user=True
+            )
         else:
-            warnings.warn('No settings file, history will be incomplete')
-            self.history = ''
+            warnings.warn("No settings file, history will be incomplete")
+            self.history = ""
 
         if extra_history is not None:
             if isinstance(extra_history, (list, tuple)):
-                self.history += '\n' + '\n'.join(extra_history)
+                self.history += "\n" + "\n".join(extra_history)
             else:
-                self.history += '\n' + extra_history
+                self.history += "\n" + extra_history
 
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-            if self.history.endswith('\n'):
+            if self.history.endswith("\n"):
                 self.history += self.pyuvdata_version_str
             else:
-                self.history += '\n' + self.pyuvdata_version_str
+                self.history += "\n" + self.pyuvdata_version_str
 
         if run_check:
-            self.check(check_extra=check_extra,
-                       run_check_acceptability=run_check_acceptability)
+            self.check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )
