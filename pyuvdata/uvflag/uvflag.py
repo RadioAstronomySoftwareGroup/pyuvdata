@@ -74,6 +74,7 @@ def flags2waterfall(uv, flag_array=None, keep_pol=False):
 
     Averages over baselines and polarizations (in the case of visibility data),
     or antennas and jones parameters (in case of calibrationd data).
+
     Parameters
     ----------
     uv : A UVData or UVCal object
@@ -2065,7 +2066,7 @@ class UVFlag(UVBase):
             The file to write to.
         clobber : bool
             Option to overwrite the file if it already exists.
-         data_compression : str
+        data_compression : str
             HDF5 filter to apply when writing the data_array.
             If no compression is wanted, set to None.
 

@@ -46,9 +46,9 @@ def P1sin(nmax, theta):
     Returns
     -------
     P_sin : array of float
-        P_{n}^{|m|}(cos(theta))/sin(theta) with FEKO order M,N. Shape (nmax ** 2 + 2 * nmax).
+        P_{n}^{abs(m)}(cos(theta))/sin(theta) with FEKO order M,N. Shape (nmax ** 2 + 2 * nmax).
     P1 : array of float
-        P_{n}^{|m|+1}(cos(theta)) with FEKO order M,N.  Shape (nmax ** 2 + 2 * nmax).
+        P_{n}^{abs(m)+1}(cos(theta)) with FEKO order M,N.  Shape (nmax ** 2 + 2 * nmax).
 
     """
     # initialize for nmax, we have 2(1+...+nmax)+nmax=nmax^2+2*nmax long array
@@ -62,7 +62,7 @@ def P1sin(nmax, theta):
 
     # step from 1 to nmax
     for n in range(1, nmax + 1):
-        # legendre P_{n}^{|m|=0...n} (cos_th)
+        # legendre P_{n}^{abs(m)=0...n} (cos_th)
         orders = np.arange(0, n + 1)
         orders = orders.reshape(n + 1, 1)
         P = lpmv(orders, n, cos_th)
@@ -74,11 +74,11 @@ def P1sin(nmax, theta):
         # a=a.reshape(3,1)
         # lpmv(b,2,np.arange(0,0.3,0.1))
 
-        # P_{n}^{|m|+1} (cos_th)
+        # P_{n}^{abs(m)+1} (cos_th)
         Pm1 = np.append(P[1::], 0)
         Pm1 = Pm1.reshape(len(Pm1), 1)
 
-        # P_{n}^{|m|}(cos_th)/sin_th
+        # P_{n}^{abs(m)}(cos_th)/sin_th
         Pm_sin = np.zeros((n + 1, 1))  # initialize
 
         if cos_th == 1:
@@ -115,7 +115,7 @@ def P1sin(nmax, theta):
 
 def P1sin_array(nmax, theta):
     """
-    Calculate P^|m|_n(cos(theta))/sin(theta) and P^(|m|+1)_n(cos(theta)).
+    Calculate P^abs(m)_n(cos(theta))/sin(theta) and P^(abs(m)+1)_n(cos(theta)).
 
     Similar to the "P1sin" function, but calculates for all theta in one go.
     At the end of the function, patches are made using the original P1sin function
@@ -133,9 +133,9 @@ def P1sin_array(nmax, theta):
     Returns
     -------
     P_sin : array of float
-        P_{n}^{|m|}(cos(theta))/sin(theta) with FEKO order M,N. Shape (nmax ** 2 + 2 * nmax, theta.size).
+        P_{n}^{abs(m)}(cos(theta))/sin(theta) with FEKO order M,N. Shape (nmax ** 2 + 2 * nmax, theta.size).
     P1 : array of float
-        P_{n}^{|m|+1}(cos(theta)) with FEKO order M,N.  Shape (nmax ** 2 + 2 * nmax, theta.size).
+        P_{n}^{abs(m)+1}(cos(theta)) with FEKO order M,N.  Shape (nmax ** 2 + 2 * nmax, theta.size).
 
     """
     cos_th = np.cos(theta)
@@ -149,7 +149,7 @@ def P1sin_array(nmax, theta):
     P_sin = np.zeros((nmax ** 2 + 2 * nmax, np.size(theta)))
     P1 = np.zeros((nmax ** 2 + 2 * nmax, np.size(theta)))
     for n in range(1, nmax + 1):
-        # legendre P_{n}^{|m|=0...n} (cos_th)
+        # legendre P_{n}^{abs(m)=0...n} (cos_th)
         orders = np.arange(0, n + 1)
         orders = orders.reshape(n + 1, 1)
 
@@ -157,10 +157,10 @@ def P1sin_array(nmax, theta):
         # in theory, fetching for all n in one go should also be possible
         P = lpmv(orders, n, cos_th)
 
-        # P_{n}^{|m|+1} (cos_th)
+        # P_{n}^{abs(m)+1} (cos_th)
         Pm1 = np.vstack([P[1::, :], np.zeros((1, np.size(theta)))])
 
-        # P_{n}^{|m|}(u)/sin_th
+        # P_{n}^{abs(m)}(u)/sin_th
         Pm_sin = P / sin_theta
 
         # accumulate Psin and P1 for the m values
@@ -390,7 +390,7 @@ class MWABeam(UVBeam):
                 # calculate equation C_mn from equation 4 of
                 # pyuvdata/docs/references/Far_field_spherical_FEKO_draft2.pdf
                 # These are the normalization factors for the associated
-                # Legendre function of order n and rank |m|
+                # Legendre function of order n and rank abs(m)
                 C_MN = (0.5 * (2 * N + 1) * factorial(N - abs(M)) / factorial(N + abs(M))) ** 0.5
 
                 # 1 for M<=0, -1 for odd M>0

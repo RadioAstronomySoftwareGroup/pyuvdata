@@ -40,6 +40,9 @@ class MS(UVData):
     """
     Defines a class for reading and writing casa measurement sets.
 
+    This class should not be interacted with directly, instead use the read_ms
+    method on the UVData class.
+
     Attributes
     ----------
     ms_required_extra : list of str

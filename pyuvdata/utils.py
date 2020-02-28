@@ -1208,6 +1208,7 @@ def mean_collapse(arr, weights=None, axis=None, return_weights=False,
         Whether to return sum of weights.
     return_weights_square: bool
         Whether to return the sum of the square of the weights. Default is False.
+
     """
     arr = copy.deepcopy(arr)  # avoid changing outside
     if weights is None:
@@ -1277,6 +1278,7 @@ def quadmean_collapse(arr, weights=None, axis=None, return_weights=False,
         Whether to return sum of weights.
     return_weights_square: bool
         whether to return the sum of the squares of the weights. Default is False.
+
     """
     out = mean_collapse(np.abs(arr)**2, weights=weights, axis=axis,
                         return_weights=return_weights,
@@ -1307,6 +1309,7 @@ def or_collapse(arr, weights=None, axis=None, return_weights=False,
         NOTE: the dummy weights will simply be an array of ones
     return_weights_square: bool
         NOT USED, but kept for symmetry with other collapsing functions.
+
     """
     if arr.dtype != np.bool:
         raise ValueError('Input to or_collapse function must be boolean array')
@@ -1337,6 +1340,7 @@ def and_collapse(arr, weights=None, axis=None, return_weights=False,
         NOTE: the dummy weights will simply be an array of ones
     return_weights_square: bool
         NOT USED, but kept for symmetry with other collapsing functions.
+
     """
     if arr.dtype != np.bool:
         raise ValueError('Input to and_collapse function must be boolean array')
@@ -1371,6 +1375,7 @@ def collapse(arr, alg, weights=None, axis=None, return_weights=False,
         Whether to return sum of weights.
     return_weights_square: bool
         Whether to return the sum of the squares of the weights. Default is False.
+
     """
     collapse_dict = {'mean': mean_collapse, 'absmean': absmean_collapse,
                      'quadmean': quadmean_collapse, 'or': or_collapse,
@@ -1391,9 +1396,11 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
 
     Parameters
     ----------
-    uvdata: UVData object
-    uvcal: UVCal object
-    inplace: bool, optional
+    uvdata : UVData object
+        UVData object to calibrate.
+    uvcal : UVCal object
+        UVCal object containing the calibration.
+    inplace : bool, optional
         if True edit uvdata in place, else deepcopy
     prop_flags : bool, optional
         if True, propagate calibration flags to data flags
@@ -1416,6 +1423,7 @@ def uvcalibrate(uvdata, uvcal, inplace=True, prop_flags=True, flag_missing=True,
     -------
     UVData, optional
         Returns if not inplace
+
     """
     # deepcopy for not inplace
     if not inplace:

@@ -2181,9 +2181,9 @@ class UVData(UVBase):
             If other is not a UVData object, self and other are not compatible
             or if data in self and other overlap. One way they can not be
             compatible if if they have different phasing, in that case set
-            `unphase_to_drift` or `phase_center_radec`to (un)phase them so they
+            `unphase_to_drift` or `phase_center_radec` to (un)phase them so they
             are compatible.
-            If phase_center_radec is not None and is not length 2.
+            If `phase_center_radec` is not None and is not length 2.
 
         """
         if inplace:

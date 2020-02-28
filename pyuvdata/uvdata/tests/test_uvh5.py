@@ -2272,7 +2272,7 @@ def test_uvh5_partial_write_ints_irregular_multi4(uv_uvh5):
 
 
 def test_antenna_names_not_list(uv_uvfits):
-    """Test if antenna_names is cast to an array, dimensions are preserved in np.string_ call during uvh5 write."""
+    """Test if antenna_names is cast to an array, dimensions are preserved in ``np.string_`` call during uvh5 write."""
     uv_in = uv_uvfits
     uv_out = UVData()
     testfile = os.path.join(DATA_PATH, 'test', 'outtest_uvfits_ant_names.uvh5')

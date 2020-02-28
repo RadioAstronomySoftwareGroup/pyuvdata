@@ -10,4 +10,5 @@ dependencies:
     - flake8-comprehensions
     - flake8-docstrings
     - flake8-pytest
+    - flake8-rst-docstrings
     - pep8-naming
