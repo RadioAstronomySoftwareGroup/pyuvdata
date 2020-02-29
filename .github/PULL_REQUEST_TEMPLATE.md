@@ -36,7 +36,7 @@ New feature checklist:
 - [ ] All new and existing tests pass.
 - [ ] I have updated the [CHANGELOG](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/master/CHANGELOG.md).
 
-Breaking change checklist:  
+Breaking change checklist:
 - [ ] I have updated the docstrings associated with my change using the [numpy docstring format](https://numpydoc.readthedocs.io/en/latest/format.html).
 - [ ] I have updated the tutorial to reflect my changes (if appropriate).
 - [ ] My change includes backwards compatibility and deprecation warnings (if possible).
