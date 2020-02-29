@@ -857,10 +857,10 @@ and combined with the previous file(s).
   >>> uv1 = uv.select(freq_chans=np.arange(0, 20), inplace=False)
   >>> uv2 = uv.select(freq_chans=np.arange(20, 40), inplace=False)
   >>> uv3 = uv.select(freq_chans=np.arange(40, 64), inplace=False)
-  >>> uv1.write_uvfits(os.path.join(DATA_PATH, 'tutorial1.uvfits'))
-  >>> uv2.write_uvfits(os.path.join(DATA_PATH, 'tutorial2.uvfits'))
-  >>> uv3.write_uvfits(os.path.join(DATA_PATH, 'tutorial3.uvfits'))
-  >>> filenames = [os.path.join(DATA_PATH, f) for f
+  >>> uv1.write_uvfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial1.uvfits'))
+  >>> uv2.write_uvfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial2.uvfits'))
+  >>> uv3.write_uvfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial3.uvfits'))
+  >>> filenames = [os.path.join(DATA_PATH, 'tutorial_output', f) for f
   ...             in ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']]
   >>> uv.read(filenames)
 
@@ -897,10 +897,10 @@ stored in the uvh5 format.
   >>> uv1 = uv.select(freq_chans=np.arange(0, 20), inplace=False)
   >>> uv2 = uv.select(freq_chans=np.arange(20, 40), inplace=False)
   >>> uv3 = uv.select(freq_chans=np.arange(40, 64), inplace=False)
-  >>> uv1.write_uvfits(os.path.join(DATA_PATH, 'tutorial1.uvfits'))
-  >>> uv2.write_uvfits(os.path.join(DATA_PATH, 'tutorial2.uvfits'))
-  >>> uv3.write_uvfits(os.path.join(DATA_PATH, 'tutorial3.uvfits'))
-  >>> filenames = [os.path.join(DATA_PATH, f) for f
+  >>> uv1.write_uvfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial1.uvfits'))
+  >>> uv2.write_uvfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial2.uvfits'))
+  >>> uv3.write_uvfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial3.uvfits'))
+  >>> filenames = [os.path.join(DATA_PATH, 'tutorial_output', f) for f
   ...             in ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']]
   >>> uv.read(filenames, axis='freq')
 
@@ -1038,7 +1038,7 @@ are written to the appropriate parts of the file on disk.
   >>> uv = UVData()
   >>> filename = os.path.join(DATA_PATH, 'zen.2458432.34569.uvh5')
   >>> uv.read(filename, read_data=False)
-  >>> partfile = os.path.join(DATA_PATH, 'tutorial_partial_io.uvh5')
+  >>> partfile = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial_partial_io.uvh5')
   >>> uv.initialize_uvh5_file(partfile, clobber=True)
 
   # read in the lower and upper halves of the band separately, and apply different scalings
@@ -1324,7 +1324,7 @@ b) FHD cal to cal fits
 
   >>> fhd_cal = UVCal()
   >>> fhd_cal.read_fhd_cal(cal_testfile, obs_testfile, settings_file=settings_testfile)
-  >>> fhd_cal.write_calfits(os.path.join(DATA_PATH, 'tutorial_cal.fits'), clobber=True)
+  >>> fhd_cal.write_calfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial_cal.fits'), clobber=True)
 
 
 UVCal: Quick data access
@@ -1527,10 +1527,10 @@ each file will be read in succession and added to the previous.
   >>> cal1 = cal.select(freq_chans=np.arange(0, 2), inplace=False)
   >>> cal2 = cal.select(freq_chans=np.arange(2, 4), inplace=False)
   >>> cal3 = cal.select(freq_chans=np.arange(4, 7), inplace=False)
-  >>> cal1.write_calfits(os.path.join(DATA_PATH, 'tutorial1.fits'))
-  >>> cal2.write_calfits(os.path.join(DATA_PATH, 'tutorial2.fits'))
-  >>> cal3.write_calfits(os.path.join(DATA_PATH, 'tutorial3.fits'))
-  >>> filenames = [os.path.join(DATA_PATH, f) for f
+  >>> cal1.write_calfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial1.fits'))
+  >>> cal2.write_calfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial2.fits'))
+  >>> cal3.write_calfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial3.fits'))
+  >>> filenames = [os.path.join(DATA_PATH, 'tutorial_output', f) for f
   ...              in ['tutorial1.fits', 'tutorial2.fits', 'tutorial3.fits']]
   >>> cal.read_calfits(filenames)
 
