@@ -304,7 +304,7 @@ class UVParameter(object):
                     if isinstance(self.value, (list, np.ndarray)):
                         value_set = set(self.value)
                     else:
-                        value_set = set(self.value)
+                        value_set = {self.value}
                     acceptable_vals = self.acceptable_vals
                 for elem in value_set:
                     if elem not in acceptable_vals:
