@@ -6398,9 +6398,29 @@ def test_resample_in_time_only_upsample(bda_test_file):
     return
 
 
+@pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
+def test_downsample_in_time_mwa():
+    """Test resample in time works with MWA data."""
+    filename = os.path.join(DATA_PATH, "mwa_integration_time.uvh5")
+    uv = UVData()
+    uv.read(filename)
+
+    init_data = uv.get_data((61, 58))
+
+    # all data within 5 milliseconds of 2 second integrations
+    assert np.allclose(uv.integration_time, 2, atol=5e-3)
+    uv.resample_in_time(4.0, only_downsample=True, keep_ragged=False)
+
+    assert np.allclose(uv.integration_time, 4, atol=5e-3)
+    assert uv.Ntimes == 5
+
+    out_data = uv.get_data((61, 58))
+
+    assert np.isclose(np.mean(init_data[0:2, 0, 0]), out_data[0, 0, 0])
+
+
 def test_frequency_average(uvdata_data):
     """Test averaging in frequency."""
-
     eq_coeffs = np.tile(
         np.arange(uvdata_data.uv_object.Nfreqs, dtype=np.float),
         (uvdata_data.uv_object.Nants_telescope, 1),
