@@ -77,7 +77,7 @@ test_reqs = (
     casa_reqs
     + healpix_reqs
     + cst_reqs
-    + ["pytest", "pytest-cases", "pytest-cov", "coverage", "flake8", "flake8-pytest"]
+    + ["pytest", "pytest-cases", "pytest-cov", "coverage", "pre-commit"]
 )
 doc_reqs = ["sphinx", "pypandoc"]
 
