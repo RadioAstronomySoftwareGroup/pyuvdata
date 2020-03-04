@@ -659,9 +659,8 @@ class Miriad(UVData):
 
             # use skycoord to simplify calculating sky separations.
             # Note, this should be done in the TEE frame, which isn't supported
-            # by astropy
-            # Frame doesn't really matter, though, because this is just
-            # geometrical, so use icrs
+            # by astropy. Frame doesn't really matter, though, because this is just
+            # geometrical, so use icrs.
             pointing_coords = SkyCoord(
                 ra=ra_list, dec=dec_list, unit="radian", frame="icrs"
             )

@@ -99,12 +99,7 @@ def test_properties():
 
 def test_known_telescopes():
     """Test known_telescopes function returns expected results."""
-    # using np.sort here and casting to list instead of .sort()
-    # since .sort() acts inplace and returns None
-    assert (
-        np.sort(pyuvdata.known_telescopes()).tolist()
-        == np.sort(expected_known_telescopes).tolist()
-    )
+    assert sorted(pyuvdata.known_telescopes()) == sorted(expected_known_telescopes)
 
 
 def test_get_telescope():

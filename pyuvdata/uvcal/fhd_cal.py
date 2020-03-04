@@ -120,9 +120,8 @@ class FHDCal(UVCal):
         ]
 
         galaxy_model = cal_data["skymodel"][0]["galaxy_model"][0]
-        if isinstance(
-            galaxy_model, bytes
-        ):  # In Python 3, we sometimes get Unicode, sometimes bytes
+        # In Python 3, we sometimes get Unicode, sometimes bytes
+        if isinstance(galaxy_model, bytes):
             galaxy_model = galaxy_model.decode("utf8")
         if galaxy_model == 0:
             galaxy_model = None

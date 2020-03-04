@@ -93,9 +93,8 @@ def P1sin(nmax, theta):
             # Instead use slope estimate with a small delta_cos
             # Pn(cos x)/sin x = -dPn(cos_th)/dcos_th
             Pm_cos_delta_cos = lpmv(orders, n, cos_th - delta_cos)
-            Pm_sin[1, 0] = (
-                -(P[0] - Pm_cos_delta_cos[0]) / delta_cos
-            )  # backward difference
+            # backward difference
+            Pm_sin[1, 0] = -(P[0] - Pm_cos_delta_cos[0]) / delta_cos
 
         elif cos_th == -1:
             # The first approach, to just use the analytical derivative
@@ -103,9 +102,8 @@ def P1sin(nmax, theta):
             # Instead use slope estimate with a small delta_cos
             # Pn(cos x)/sin x = -dPn(cos_th)/dcos_th
             Pm_cos_delta_cos = lpmv(orders, n, cos_th - delta_cos)
-            Pm_sin[1, 0] = (
-                -(Pm_cos_delta_cos[0] - P[0]) / delta_cos
-            )  # forward difference
+            # forward difference
+            Pm_sin[1, 0] = -(Pm_cos_delta_cos[0] - P[0]) / delta_cos
         else:
             Pm_sin = P / sin_th
 

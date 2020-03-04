@@ -24,7 +24,8 @@ jobs:
           name: linting for PEP8 and PEP257 (with numpy style) compliance
           command: |
             source activate ${ENV_NAME}
-            flake8
+            pre-commit install
+            pre-commit run -a
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_linting.yml" }}
           paths:
