@@ -125,6 +125,9 @@ datasets in python, Journal of Open Source Software, 2(10), 140, doi:10.21105/jo
 [Bibtex entry](http://adsabs.harvard.edu/cgi-bin/nph-bib_query?bibcode=2017JOSS....2..140H&data_type=BIBTEX&db_key=GEN&nocookieset=1)
 
 # Installation
+Simple installation via conda is available for users, developers should follow
+the directions under [Developer Installation](#developer_installation) below.
+
 For simple installation, the latest stable version is available via conda
 (preferred: ```conda install -c conda-forge pyuvdata```) or pip (```pip install pyuvdata```).
 
@@ -133,22 +136,6 @@ which will not be installed automatically by conda or pip.
 See [Dependencies](#dependencies) for details on installing optional dependencies.
 
 Note that as of v2, `pyuvdata` is only supported on python 3.6+.
-
-## Optionally install the development version
-Clone the repository using
-```git clone https://github.com/RadioAstronomySoftwareGroup/pyuvdata.git```
-
-Navigate into the pyuvdata directory and run `pip install .`
-(note that `python setup.py install` does not work).
-Note that this will attempt to automatically install any missing dependencies.
-If you use anaconda or another package manager you might prefer to first install
-the dependencies as described in [Dependencies](#dependencies).
-
-To install without dependencies, run `pip install --no-deps`
-
-To compile the binary extension modules such that you can successfully run
-`import pyuvdata` from the top-level directory of your Git checkout, run:
-```python setup.py build_ext --inplace```
 
 ## Dependencies
 
@@ -169,10 +156,7 @@ The numpy and astropy versions are important, so make sure these are up to date.
 
 We suggest using conda to install all the dependencies. If you want to install
 python-casacore and astropy-healpix, you'll need to add conda-forge as a channel
-(```conda config --add channels conda-forge```). Developers may wish to use
-the included `environment.yaml` file to create a new environment that will
-contain all the optional dependencies along with dependencies required for
-testing and development (```conda env create -f environment.yml```).
+(```conda config --add channels conda-forge```).
 
 If you do not want to use conda, the packages are also available on PyPI
 (python-casacore may require more effort, see details for that package below).
@@ -180,11 +164,10 @@ You can install the optional dependencies via pip by specifying an option
 when you install pyuvdata, as in ```pip install pyuvdata[healpix]```
 which will install all the required packages for using the HEALPix functionality
 in pyuvdata. The options that can be passed in this way are:
-[casa, healpix, cst, all, test, doc, dev]. The first three (`casa`, `healpix`, `cst`)
+[`casa`, `healpix`, `cst`, `all`, `test`, `doc`, `dev`]. The first three (`casa`, `healpix`, `cst`)
 enable various specific functionality while `all` will install all optional
 dependencies. The last three (`test`, `doc`, `dev`) may be useful for developers
-of pyuvdata to install the packages needed for testing (including coverage and
-linting) and documentation development; `dev` includes everything in `test` and `doc`.
+of pyuvdata.
 
 ### Installing python-casacore
 python-casacore requires the casacore c++ libraries. It can be installed easily
@@ -195,6 +178,40 @@ ubuntu through the [kern suite](http://kernsuite.info/). On OSX, casacore is
 available through the [ska-sa brew tap](https://github.com/ska-sa/homebrew-tap).
 The python-casacore library (with manual install instructions) is available at
 https://github.com/casacore/python-casacore
+
+## Developer Installation
+Clone the repository using
+```git clone https://github.com/RadioAstronomySoftwareGroup/pyuvdata.git```
+
+Navigate into the pyuvdata directory and run `pip install .`
+(note that `python setup.py install` does not work).
+Note that this will attempt to automatically install any missing dependencies.
+If you use anaconda or another package manager you might prefer to first install
+the dependencies as described in [Dependencies](#dependencies).
+
+To install without dependencies, run `pip install --no-deps`
+
+To compile the binary extension modules such that you can successfully run
+`import pyuvdata` from the top-level directory of your Git checkout, run:
+```python setup.py build_ext --inplace```
+
+If you want to do development on pyuvdata, in addition to the other dependencies
+you will need the following packages:
+
+* pytest
+* pytest-cases
+* pytest-cov
+* coverage
+* pre-commit
+* sphinx
+* pypandoc
+
+One way to ensure you have all the needed packages is to use the included `environment.yaml` file to create a new environment that will
+contain all the optional dependencies along with dependencies required for
+testing and development (```conda env create -f environment.yml```). Alternatively, you can specify `test`, `doc`, or `dev` when installing pyuvdata (as in `pip install pyuvdata[dev]`) to install the packages needed for testing (including coverage and
+linting) and documentation development; `dev` includes everything in `test` and `doc`.
+
+To use pre-commit to prevent committing code that does not follow our style, you'll need to run `pre-commit install` in the top level `pyuvdata` directory.
 
 ## Tests
 Uses the `pytest` package to execute test suite.
