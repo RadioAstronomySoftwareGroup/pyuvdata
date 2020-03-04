@@ -15,10 +15,6 @@ formats: []
 build:
     image: latest
 
-# specify the conda environment yaml to use
-# conda:
-#   environment: ci/rtd_env.yml
-
 # Optionally set the version of Python and requirements required to build your docs
 python:
   version: 3.7
@@ -26,4 +22,4 @@ python:
     - method: pip
       path: .
       extra_requirements:
-         - docs
+         - doc
