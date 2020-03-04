@@ -126,7 +126,7 @@ datasets in python, Journal of Open Source Software, 2(10), 140, doi:10.21105/jo
 
 # Installation
 Simple installation via conda is available for users, developers should follow
-the directions under [Developer Installation](#developer_installation) below.
+the directions under [Developer Installation](#developerinstallation) below.
 
 For simple installation, the latest stable version is available via conda
 (preferred: ```conda install -c conda-forge pyuvdata```) or pip (```pip install pyuvdata```).
