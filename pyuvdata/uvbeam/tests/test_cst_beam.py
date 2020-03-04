@@ -916,16 +916,6 @@ def test_no_deg_units():
     # remove a row to make data not on a grid to catch that error
     data = data[1:, :]
 
-    new_format = [
-        "%15.12e",
-        "%15.12e",
-        "%20.3e",
-        "%19.3e",
-        "%19.12f",
-        "%19.3e",
-        "%19.12f",
-        "%19.3e",
-    ]
     np.savetxt(
         testfile, data, fmt=new_format, header=new_header + "\n" + line2, comments=""
     )

@@ -107,28 +107,20 @@ class MS(UVData):
             times = history_table.getcol("TIME")
             # Now loop through columns and generate history string
             ntimes = len(times)
+            tables = [
+                app_params,
+                cli_command,
+                application,
+                message,
+                obj_id,
+                obs_id,
+                origin,
+                priority,
+                times,
+            ]
             for tbrow in range(ntimes):
                 message_str += str(message[tbrow])
-                newline = (
-                    str(app_params[tbrow])
-                    + ";"
-                    + str(cli_command[tbrow])
-                    + ";"
-                    + str(application[tbrow])
-                    + ";"
-                    + str(message[tbrow])
-                    + ";"
-                    + str(obj_id[tbrow])
-                    + ";"
-                    + str(obs_id[tbrow])
-                    + ";"
-                    + str(origin[tbrow])
-                    + ";"
-                    + str(priority[tbrow])
-                    + ";"
-                    + str(times[tbrow])
-                    + "\n"
-                )
+                newline = ";".join([str(table[tbrow]) for table in tables]) + "\n"
                 history_str += newline
                 if tbrow < ntimes - 1:
                     message_str += "\n"

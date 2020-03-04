@@ -96,9 +96,8 @@ class UVParameter(object):
             # Only one tolerance given, assume absolute, set relative to zero
             self.tols = (0, tols)
         else:
-            self.tols = (
-                tols  # relative and absolute tolerances to be used in np.isclose
-            )
+            # relative and absolute tolerances to be used in np.isclose
+            self.tols = tols
 
     def __eq__(self, other):
         """Equal if classes match and values are identical."""

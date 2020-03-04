@@ -93,8 +93,8 @@ class Telescope(uvbase.UVBase):
             required=False,
             description=desc,
             expected_type=np.float,
-            tols=1e-3,
-        )  # 1 mm
+            tols=1e-3,  # 1 mm
+        )
         # possibly add in future versions:
         # Antenna positions (but what about reconfigurable/growing telescopes?)
 

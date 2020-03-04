@@ -278,14 +278,10 @@ class CSTBeam(UVBeam):
                 if this_col.size > 0:
                     data_col = data_col + this_col.tolist()
             if len(data_col) == 0:
-                raise ValueError(
-                    "No power column found in file: {f}".format(f=filename)
-                )
+                raise ValueError("No power column found in file: {}".format(filename))
             elif len(data_col) > 1:
                 raise ValueError(
-                    "Multiple possible power columns found in file: {f}".format(
-                        f=filename
-                    )
+                    "Multiple possible power columns found in file: {}".format(filename)
                 )
             data_col = data_col[0]
             power_beam1 = (

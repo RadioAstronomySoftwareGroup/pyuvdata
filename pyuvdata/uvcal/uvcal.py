@@ -959,10 +959,9 @@ class UVCal(UVBase):
                 ).astype(np.bool)[order, :, :, :, :]
 
         if len(fnew_inds) > 0:
-            # Exploit the fact that quality array has the same dimensions as
-            # the main data
-            # Also do not need to worry about different cases for
-            # gain v. delay type
+            # Exploit the fact that quality array has the same dimensions as the
+            # main data.
+            # Also do not need to worry about different cases for gain v. delay type
             zero_pad = np.zeros(
                 (
                     this.quality_array.shape[0],

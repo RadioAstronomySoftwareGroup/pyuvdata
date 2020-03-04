@@ -418,11 +418,9 @@ def test_efield_to_power():
     new_basis_vecs[0, 1, :, :] = np.sqrt(0.5)
     new_basis_vecs[1, :, :, :] = efield_beam.basis_vector_array[1, :, :, :]
     new_data = np.zeros_like(efield_beam.data_array)
-    new_data[0, :, :, :, :, :] = np.sqrt(2) * efield_beam.data_array[0, :, :, :, :, :]
-    new_data[1, :, :, :, :, :] = (
-        efield_beam.data_array[1, :, :, :, :, :]
-        - efield_beam.data_array[0, :, :, :, :, :]
-    )
+    # drop all the trailing colons in the slicing below
+    new_data[0] = np.sqrt(2) * efield_beam.data_array[0]
+    new_data[1] = efield_beam.data_array[1] - efield_beam.data_array[0]
     efield_beam2 = copy.deepcopy(efield_beam)
     efield_beam2.basis_vector_array = new_basis_vecs
     efield_beam2.data_array = new_data

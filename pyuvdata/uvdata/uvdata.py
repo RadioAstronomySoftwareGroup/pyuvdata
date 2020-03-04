@@ -408,8 +408,8 @@ class UVData(UVBase):
             description=desc,
             form=("Nants_telescope", 3),
             expected_type=np.float,
-            tols=1e-3,
-        )  # 1 mm
+            tols=1e-3,  # 1 mm
+        )
 
         # -------- extra, non-required parameters ----------
         desc = (
@@ -466,8 +466,8 @@ class UVData(UVBase):
             description=desc,
             form=("Nants_telescope",),
             expected_type=np.float,
-            tols=1e-3,
-        )  # 1 mm
+            tols=1e-3,  # 1 mm
+        )
 
         # --- other stuff ---
         # the below are copied from AIPS memo 117, but could be revised to
@@ -2782,28 +2782,28 @@ class UVData(UVBase):
             len(both_pol) > 0 and len(both_freq) > 0 and len(both_blts) > 0
         ):
             # check that overlapping data is not valid
-            this_all_zero = np.all(
-                this.data_array[this_blts_ind][:, :, this_freq_ind][
-                    :, :, :, this_pol_ind
-                ]
-                == 0
-            )
-            this_all_flag = np.all(
-                this.flag_array[this_blts_ind][:, :, this_freq_ind][
-                    :, :, :, this_pol_ind
-                ]
-            )
-            other_all_zero = np.all(
-                other.data_array[other_blts_ind][:, :, other_freq_ind][
-                    :, :, :, other_pol_ind
-                ]
-                == 0
-            )
-            other_all_flag = np.all(
-                other.flag_array[other_blts_ind][:, :, other_freq_ind][
-                    :, :, :, other_pol_ind
-                ]
-            )
+            this_inds = np.ravel_multi_index(
+                (
+                    this_blts_ind[:, np.newaxis, np.newaxis, np.newaxis],
+                    np.zeros((this.Nspws, 1, 1, 1), dtype=np.int),
+                    this_freq_ind[np.newaxis, np.newaxis, :, np.newaxis],
+                    this_pol_ind[np.newaxis, np.newaxis, np.newaxis, :],
+                ),
+                this.data_array.shape,
+            ).flatten()
+            this_all_zero = np.all(this.data_array.flatten()[this_inds] == 0)
+            this_all_flag = np.all(this.flag_array.flatten()[this_inds])
+            other_inds = np.ravel_multi_index(
+                (
+                    other_blts_ind[:, np.newaxis, np.newaxis, np.newaxis],
+                    np.zeros((this.Nspws, 1, 1, 1), dtype=np.int),
+                    other_freq_ind[np.newaxis, np.newaxis, :, np.newaxis],
+                    other_pol_ind[np.newaxis, np.newaxis, np.newaxis, :],
+                ),
+                other.data_array.shape,
+            ).flatten()
+            other_all_zero = np.all(other.data_array.flatten()[other_inds] == 0)
+            other_all_flag = np.all(other.flag_array.flatten()[other_inds])
 
             if this_all_zero and this_all_flag:
                 # we're fine to overwrite; update history accordingly
@@ -4802,13 +4802,11 @@ class UVData(UVBase):
         # now re-compute inds_to_downsample, in case things have changed
         inds_to_downsample = np.nonzero(
             (self.integration_time < min_int_time)
-            & (
-                ~np.isclose(
-                    self.integration_time,
-                    min_int_time,
-                    rtol=self._integration_time.tols[0],
-                    atol=self._integration_time.tols[1],
-                )
+            & ~np.isclose(
+                self.integration_time,
+                min_int_time,
+                rtol=self._integration_time.tols[0],
+                atol=self._integration_time.tols[1],
             )
         )
 
@@ -4985,11 +4983,9 @@ class UVData(UVBase):
 
         # make sure we've populated the right number of baseline-times
         assert temp_idx == temp_Nblts, (
-            "Wrong number of baselines. Got {:d}, "
-            "expected {:d}. This is a bug, please "
-            "make an issue at https://github.com/"
-            "RadioAstronomySoftwareGroup/pyuvdata/"
-            "issues".format(temp_idx, temp_Nblts)
+            "Wrong number of baselines. Got {:d},  expected {:d}. This is a bug, "
+            "please make an issue at https://github.com/RadioAstronomySoftwareGroup/"
+            "pyuvdata/issues".format(temp_idx, temp_Nblts)
         )
 
         # harmonize temporary arrays with existing ones

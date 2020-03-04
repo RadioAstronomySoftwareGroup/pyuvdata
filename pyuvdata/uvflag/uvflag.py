@@ -2635,9 +2635,8 @@ class UVFlag(UVBase):
         """
         if not issubclass(input.__class__, UVData):
             raise ValueError(
-                "from_uvdata can only initialize a UVFlag object "
-                "from an input UVData object or a subclass "
-                " of a UVData object."
+                "from_uvdata can only initialize a UVFlag object from an input "
+                "UVData object or a subclass of a UVData object."
             )
 
         if mode.lower() == "metric":
@@ -2669,9 +2668,8 @@ class UVFlag(UVBase):
             self.lst_array = input.lst_array[ri]
             if copy_flags:
                 raise NotImplementedError(
-                    "Cannot copy flags when "
-                    "initializing waterfall UVFlag "
-                    "from UVData or UVCal."
+                    "Cannot copy flags when initializing waterfall UVFlag from "
+                    "UVData or UVCal."
                 )
             else:
                 if self.mode == "flag":
@@ -2795,9 +2793,8 @@ class UVFlag(UVBase):
         """
         if not issubclass(input.__class__, UVCal):
             raise ValueError(
-                "from_uvcal can only initialize a UVFlag object "
-                "from an input UVCal object or a subclass "
-                "of a UVCal object."
+                "from_uvcal can only initialize a UVFlag object from an input "
+                "UVCal object or a subclass of a UVCal object."
             )
 
         if mode.lower() == "metric":
