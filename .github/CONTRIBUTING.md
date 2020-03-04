@@ -62,7 +62,7 @@ http://makeapullrequest.com/ and http://www.firsttimersonly.com/. If you have mo
 
 1. Create your own fork or branch of the code.
 2. Do the changes in your fork or branch.
-3. Follow the [Developer Installation](../README.md#developerinstallation) instructions to ensure that you have all the required packages for testing your changes.
+3. Follow the [Developer Installation](../README.md#developer-installation) instructions to ensure that you have all the required packages for testing your changes.
 4. If you like the change and think the project could use it:
   - If you're fixing a bug, include a new test that breaks as a result of the bug (if possible).
   - Ensure that all your new code is covered by tests and that the existing tests pass. Tests can be run by running `pytest` in the top level `pyuvdata` directory. To run tests and automatically create a coverage report, run the script `test_coverage.sh` in the `scripts` directory. Coverage reports require the `pytest-cov` plug-in. Testing of `UVFlag` module requires the `pytest-cases` plug-in.
