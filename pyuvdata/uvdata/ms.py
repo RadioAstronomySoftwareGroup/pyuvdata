@@ -17,13 +17,6 @@ import astropy.time as time
 from .uvdata import UVData
 from .. import utils as uvutils
 
-try:
-    import casacore.tables as tables
-except ImportError as e:  # pragma: no cover
-    raise ImportError(
-        "casacore is not installed but is required for " "measurement set functionality"
-    ) from e
-
 __all__ = ["MS"]
 
 
@@ -186,6 +179,14 @@ class MS(UVData):
             If the data have multiple data description ID values.
 
         """
+        try:
+            import casacore.tables as tables
+        except ImportError as e:  # pragma: no cover
+            raise ImportError(
+                "casacore is not installed but is required for "
+                "measurement set functionality"
+            ) from e
+
         # make sure user requests a valid data_column
         if data_column not in ["DATA", "CORRECTED_DATA", "MODEL"]:
             raise ValueError(
