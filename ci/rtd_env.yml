@@ -6,9 +6,9 @@ channels:
 dependencies:
   - python=3.6
   - astropy
-  - h5py
   - numpy
-  - python-casacore
-  - pypandoc
-  - scipy
-  - setuptools_scm
+  - pip:
+    - h5py
+    - pypandoc
+    - scipy
+    - setuptools_scm
