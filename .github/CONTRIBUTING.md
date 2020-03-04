@@ -60,12 +60,13 @@ http://makeapullrequest.com/ and http://www.firsttimersonly.com/. If you have mo
 
 ### Getting started
 
-1. Create your own fork of the code
-2. Do the changes in your fork
-3. If you like the change and think the project could use it:
-  - If you're fixing a bug, include a new test that breaks as a result of the bug (if possible)
-  - Ensure that all your new code is covered by tests and that the existing tests pass. Tests can be run and coverage automatically created by running the script `test_coverage.sh` in the `scripts` directory. Coverage reports require the `pytest-cov` plug-in. Testing of `UVFlag` module requires the `pytest-cases` plug-in.
-  - Ensure that your code meets the PEP8 style guidelines. You can check that your code will pass our linting tests by running `pycodestyle . --ignore=E501,W503` in the top-level pyuvdata directory.
+1. Create your own fork or branch of the code.
+2. Do the changes in your fork or branch.
+3. Follow the [Developer Installation](../README.md#developerinstallation) instructions to ensure that you have all the required packages for testing your changes.
+4. If you like the change and think the project could use it:
+  - If you're fixing a bug, include a new test that breaks as a result of the bug (if possible).
+  - Ensure that all your new code is covered by tests and that the existing tests pass. Tests can be run by running `pytest` in the top level `pyuvdata` directory. To run tests and automatically create a coverage report, run the script `test_coverage.sh` in the `scripts` directory. Coverage reports require the `pytest-cov` plug-in. Testing of `UVFlag` module requires the `pytest-cases` plug-in.
+  - Ensure that your code meets the Black style guidelines. You can check that your code will pass our linting tests by running `pre-commit run -a`  in the top-level pyuvdata directory.
   - Ensure that you fully document any new features via docstrings and in the [tutorial](../docs/tutorial.rst)
   - You can see the full pull request checklist [here](PULL_REQUEST_TEMPLATE.md)
 
