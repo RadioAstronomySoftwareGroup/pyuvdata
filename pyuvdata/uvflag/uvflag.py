@@ -291,6 +291,18 @@ class UVFlag(UVBase):
         )
 
         desc = (
+            "Floating point weight information about sum of squares of weights"
+            " when weighted data converted from baseline to waterfall  mode."
+        )
+        self._weights_square_array = uvp.UVParameter(
+            "weights_square_array",
+            description=desc,
+            form=("Nblts", "Nspws", "Nfreqs", "Npols"),
+            expected_type=np.float,
+            required=False
+        )
+
+        desc = (
             "Array of times, center of integration, shape (Nblts), " "units Julian Date"
         )
         self._time_array = uvp.UVParameter(
@@ -667,6 +679,7 @@ class UVFlag(UVBase):
         self._Nants_data.required = False
         self._Nbls.required = False
         self._Nspws.required = False
+        self._weights_square_array.required = False
 
         self.Nblts = self.Ntimes
 
