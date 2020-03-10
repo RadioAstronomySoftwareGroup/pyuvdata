@@ -514,7 +514,10 @@ class UVFlag(UVBase):
         elif self.mode == "flag":
             return ["flag_array"]
         elif self.mode == "metric":
-            return ["metric_array", "weights_array"]
+            if self.weights_square_array is None:
+                return ["metric_array", "weights_array"]
+            else:
+                return ["metric_array", "weights_array", "weights_square_array"]
         else:
             raise ValueError(
                 "Invalid mode. Mode must be one of "
