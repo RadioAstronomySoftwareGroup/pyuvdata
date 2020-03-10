@@ -906,6 +906,7 @@ class UVFlag(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        return_weights_square=False
     ):
         """Convert an 'antenna' or 'baseline' type object to waterfall.
 
@@ -927,6 +928,10 @@ class UVFlag(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             converting to waterfall type.
+        return_weights_square: bool
+            Option to compute the sum of the squares of the weights when
+            collapsing baseline object to waterfall. Not used if type is not
+            baseline to begin with. Fills an optional parameter if so.
 
         """
         method = method.lower()
@@ -966,16 +971,30 @@ class UVFlag(UVBase):
                     _weights = self.weights_array[ind, :, :]
                 else:
                     _weights = np.ones_like(darr[ind, :, :], dtype=float)
-                d[i, :, :], w[i, :, :] = uvutils.collapse(
-                    darr[ind, :, :],
-                    method,
-                    axis=0,
-                    weights=_weights,
-                    return_weights=True,
-                )
+                if return_weights_square:
+                    ws = np.zeros((Nt, Nf, Np))
+                    d[i, :, :], w[i, :, :], ws[i, :, :] = uvutils.collapse(
+                        dar[ind, :, :],
+                        method,
+                        axis=0
+                        weights=_weights
+                        return_weights=True,
+                        return_weights_square=return_weights_square
+                    )
+                else:
+                    d[i, :, :], w[i, :, :] = uvutils.collapse(
+                        darr[ind, :, :],
+                        method,
+                        axis=0,
+                        weights=_weights,
+                        return_weights=True,
+                        return_weights_square=return_weights_square
+                    )
             darr = d
             if self.mode == "metric":
                 self.weights_array = w
+                if return_weights_square:
+                    self.weights_square_array = ws
             self.time_array, ri = np.unique(self.time_array, return_index=True)
             self.lst_array = self.lst_array[ri]
         if ((method == "or") or (method == "and")) and (self.mode == "flag"):
