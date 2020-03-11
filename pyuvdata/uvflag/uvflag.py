@@ -968,6 +968,8 @@ class UVFlag(UVBase):
             Np = len(self.polarization_array)
             d = np.zeros((Nt, Nf, Np))
             w = np.zeros((Nt, Nf, Np))
+            if return_weights_square:
+                ws = np.zeros((Nt, Nf, Np))
             for i, t in enumerate(np.unique(self.time_array)):
                 ind = self.time_array == t
                 if self.mode == "metric":
@@ -975,7 +977,6 @@ class UVFlag(UVBase):
                 else:
                     _weights = np.ones_like(darr[ind, :, :], dtype=float)
                 if return_weights_square:
-                    ws = np.zeros((Nt, Nf, Np))
                     d[i, :, :], w[i, :, :], ws[i, :, :] = uvutils.collapse(
                         darr[ind, :, :],
                         method,
