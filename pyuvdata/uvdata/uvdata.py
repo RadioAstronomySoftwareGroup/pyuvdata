@@ -4718,7 +4718,8 @@ class UVData(UVBase):
 
     def downsample_in_time(
         self,
-        min_int_time,
+        min_int_time=None,
+        n_times_to_avg=None,
         blt_order="time",
         minor_order="baseline",
         keep_ragged=True,
@@ -4741,6 +4742,8 @@ class UVData(UVBase):
         min_int_time : float
             Minimum integration time to downsample the UVData integration_time to
             in seconds.
+        n_times_to_avg : int
+            Number of time integrations to average together.
         blt_order : str
             Major baseline ordering for output object. Default is "time". See the
             documentation on the `reorder_blts` method for more details.
@@ -4748,9 +4751,10 @@ class UVData(UVBase):
             Minor baseline ordering for output object. Default is "baseline".
         keep_ragged : bool
             When averaging baselines that do not evenly divide into min_int_time,
-            keep_ragged controls whether to keep the (summed) integrations
-            corresponding to the remaining samples (keep_ragged=True), or
-            discard them (keep_ragged=False).
+            or that have a number of integrations that do not evenly divide by
+            n_times_to_avg, keep_ragged controls whether to keep the (summed)
+            integrations corresponding to the remaining samples (keep_ragged=True),
+            or discard them (keep_ragged=False).
         summing_correlator_mode : bool
             Option to integrate the flux from the original samples rather than
             average the flux to emulate the behavior in some correlators (e.g. HERA).
@@ -4765,81 +4769,109 @@ class UVData(UVBase):
         None
 
         """
-        # check that min_int_time is sensible given integration_time
-        max_integration_time = np.amax(self.integration_time)
-        sensible_max = 1e2 * max_integration_time
-        if min_int_time > sensible_max:
-            raise ValueError(
-                "Increasing the integration time by more than a "
-                "factor of 100 is not supported. Also note that "
-                "min_int_time should be in seconds."
+        if min_int_time is None and n_times_to_avg is None:
+            raise ValueError("Either min_int_time or n_times_to_avg must be set.")
+
+        if min_int_time is not None and n_times_to_avg is not None:
+            raise ValueError("Only one of min_int_time or n_times_to_avg can be set.")
+
+        if self.Ntimes == 1:
+            raise ValueError("Only one time in this object, cannot downsample.")
+
+        if min_int_time is not None:
+            # check that min_int_time is sensible given integration_time
+            max_integration_time = np.amax(self.integration_time)
+            sensible_max = 1e2 * max_integration_time
+            if min_int_time > sensible_max:
+                raise ValueError(
+                    "Increasing the integration time by more than a "
+                    "factor of 100 is not supported. Also note that "
+                    "min_int_time should be in seconds."
+                )
+
+            # first figure out where integration_time is shorter than min_int_time
+            inds_to_downsample = np.nonzero(
+                (self.integration_time < min_int_time)
+                & (
+                    ~np.isclose(
+                        self.integration_time,
+                        min_int_time,
+                        rtol=self._integration_time.tols[0],
+                        atol=self._integration_time.tols[1],
+                    )
+                )
             )
 
-        # first figure out where integration_time is shorter than min_int_time
-        inds_to_downsample = np.nonzero(
-            (self.integration_time < min_int_time)
-            & (
-                ~np.isclose(
+            if len(inds_to_downsample[0]) == 0:
+                warnings.warn(
+                    "All values in the integration_time array are already "
+                    "longer than the value specified; doing nothing."
+                )
+                return
+        else:
+            if not isinstance(n_times_to_avg, (int, np.int)):
+                raise ValueError("n_times_to_avg must be an integer.")
+        # If we're going to do actual work, reorder the baselines to ensure time is
+        # monotonically increasing.
+        # Default of reorder_blts is baseline major, time minor, which is what we want.
+        self.reorder_blts()
+
+        if min_int_time is not None:
+            # now re-compute inds_to_downsample, in case things have changed
+            inds_to_downsample = np.nonzero(
+                (self.integration_time < min_int_time)
+                & ~np.isclose(
                     self.integration_time,
                     min_int_time,
                     rtol=self._integration_time.tols[0],
                     atol=self._integration_time.tols[1],
                 )
             )
-        )
+            bls_to_downsample = np.unique(self.baseline_array[inds_to_downsample])
+        else:
+            bls_to_downsample = np.unique(self.baseline_array)
 
-        if len(inds_to_downsample[0]) == 0:
-            warnings.warn(
-                "All values in the integration_time array are already "
-                "shorter than the value specified; doing nothing."
-            )
-            return
-        # If we're going to do actual work, reorder the baselines to ensure time is
-        # monotonically increasing.
-        # Default of reorder_blts is baseline major, time minor, which is what we want.
-        self.reorder_blts()
-
-        # now re-compute inds_to_downsample, in case things have changed
-        inds_to_downsample = np.nonzero(
-            (self.integration_time < min_int_time)
-            & ~np.isclose(
-                self.integration_time,
-                min_int_time,
-                rtol=self._integration_time.tols[0],
-                atol=self._integration_time.tols[1],
-            )
-        )
-
-        # figure out how many baselines we'll end up with at the end
-        bls_to_downsample = np.unique(self.baseline_array[inds_to_downsample])
+        # figure out how many baseline times we'll end up with at the end
         n_new_samples = 0
         for bl in bls_to_downsample:
             bl_inds = np.nonzero(self.baseline_array == bl)[0]
-            running_int_time = 0.0
-            for itime, int_time in enumerate(self.integration_time[bl_inds]):
-                running_int_time += int_time
-                over_min_int_time = running_int_time > min_int_time or np.isclose(
-                    running_int_time,
-                    min_int_time,
-                    rtol=self._integration_time.tols[0],
-                    atol=self._integration_time.tols[1],
-                )
-                last_sample = itime == len(bl_inds) - 1
-                # We sum up all the samples found so far if we're over the
-                # target minimum time, or we've hit the end of the time
-                # samples for this baseline.
-                if over_min_int_time or last_sample:
-                    if last_sample and not (over_min_int_time or keep_ragged):
-                        # don't do anything -- implicitly drop these integrations
-                        continue
-                    n_new_samples += 1
-                    running_int_time = 0.0
+            int_times = self.integration_time[bl_inds]
+
+            if min_int_time is not None:
+                running_int_time = 0.0
+                for itime, int_time in enumerate(int_times):
+                    running_int_time += int_time
+                    over_min_int_time = running_int_time > min_int_time or np.isclose(
+                        running_int_time,
+                        min_int_time,
+                        rtol=self._integration_time.tols[0],
+                        atol=self._integration_time.tols[1],
+                    )
+                    last_sample = itime == len(bl_inds) - 1
+                    # We sum up all the samples found so far if we're over the
+                    # target minimum time, or we've hit the end of the time
+                    # samples for this baseline.
+                    if over_min_int_time or last_sample:
+                        if last_sample and not (over_min_int_time or keep_ragged):
+                            # don't do anything -- implicitly drop these integrations
+                            continue
+                        n_new_samples += 1
+                        running_int_time = 0.0
+            else:
+                n_bl_times = self.time_array[bl_inds].size
+                n_sample_temp = np.sum(n_bl_times / n_times_to_avg)
+                if keep_ragged and not np.isclose(
+                    n_sample_temp, np.floor(n_sample_temp)
+                ):
+                    n_new_samples += np.ceil(n_sample_temp).astype(int)
+                else:
+                    n_new_samples += np.floor(n_sample_temp).astype(int)
 
             # figure out if there are any time gaps in the data
             # meaning that the time differences are larger than the integration times
             # time_array is in JD, need to convert to seconds for the diff
             dtime = np.ediff1d(self.time_array[bl_inds]) * 24 * 3600
-            int_times = self.integration_time[bl_inds]
+            int_times = int_times
             if len(np.unique(int_times)) == 1:
                 # this baseline has all the same integration times
                 if len(np.unique(dtime)) > 1:
@@ -4916,12 +4948,15 @@ class UVData(UVBase):
             for itime, int_time in enumerate(self.integration_time[bl_inds]):
                 running_int_time += int_time
                 n_sum += 1
-                over_min_int_time = running_int_time > min_int_time or np.isclose(
-                    running_int_time,
-                    min_int_time,
-                    rtol=self._integration_time.tols[0],
-                    atol=self._integration_time.tols[1],
-                )
+                if min_int_time is not None:
+                    over_min_int_time = running_int_time > min_int_time or np.isclose(
+                        running_int_time,
+                        min_int_time,
+                        rtol=self._integration_time.tols[0],
+                        atol=self._integration_time.tols[1],
+                    )
+                else:
+                    over_min_int_time = n_sum >= n_times_to_avg
                 last_sample = itime == len(bl_inds) - 1
                 # We sum up all the samples found so far if we're over the
                 # target minimum time, or we've hit the end of the time
@@ -5004,7 +5039,10 @@ class UVData(UVBase):
         )
 
         # harmonize temporary arrays with existing ones
-        inds_to_keep = np.nonzero(self.integration_time >= min_int_time)
+        if min_int_time is not None:
+            inds_to_keep = np.nonzero(self.integration_time >= min_int_time)
+        else:
+            inds_to_keep = np.nonzero(np.zeros_like(self.integration_time, dtype=bool))
         self._harmonize_resample_arrays(
             inds_to_keep,
             temp_baseline,
@@ -5026,10 +5064,16 @@ class UVData(UVBase):
         self.check()
 
         # add to the history
-        history_update_string = (
-            " Downsampled data to {:f} second integration "
-            "time using pyuvdata.".format(min_int_time)
-        )
+        if min_int_time is not None:
+            history_update_string = (
+                " Downsampled data to {:f} second integration "
+                "time using pyuvdata.".format(min_int_time)
+            )
+        else:
+            history_update_string = (
+                " Downsampled data by a factor of {} in "
+                "time using pyuvdata.".format(n_times_to_avg)
+            )
         self.history = self.history + history_update_string
 
         return

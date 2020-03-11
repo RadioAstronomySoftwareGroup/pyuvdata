@@ -5299,6 +5299,7 @@ def test_downsample_in_time(resample_in_time_file):
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object2 = uv_object.copy()
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -5311,7 +5312,7 @@ def test_downsample_in_time(resample_in_time_file):
     # change the target integration time
     min_integration_time = original_int_time * 2.0
     uv_object.downsample_in_time(
-        min_integration_time, blt_order="baseline", minor_order="time"
+        min_int_time=min_integration_time, blt_order="baseline", minor_order="time"
     )
 
     # Should have half the size of the data array and all the new integration time
@@ -5327,7 +5328,13 @@ def test_downsample_in_time(resample_in_time_file):
     out_ns = uv_object.get_nsamples(0, 1)
     assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0, out_ns[0, 0, 0])
 
-    return
+    # Compare doing it with n_times_to_avg
+    uv_object2.downsample_in_time(
+        n_times_to_avg=2, blt_order="baseline", minor_order="time"
+    )
+    assert uv_object.history != uv_object2.history
+    uv_object2.history = uv_object.history
+    assert uv_object == uv_object2
 
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
@@ -5338,7 +5345,6 @@ def test_downsample_in_time_partial_flags(resample_in_time_file):
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
-
     # save some values for later
     init_wf = uv_object.get_data(0, 1)
     original_int_time = np.amax(uv_object.integration_time)
@@ -5354,8 +5360,10 @@ def test_downsample_in_time_partial_flags(resample_in_time_file):
     # and the output should not be flagged.
     inds01 = uv_object.antpair2ind(0, 1)
     uv_object.flag_array[inds01[0], 0, 0, 0] = True
+    uv_object2 = uv_object.copy()
+
     uv_object.downsample_in_time(
-        min_integration_time, blt_order="baseline", minor_order="time"
+        min_int_time=min_integration_time, blt_order="baseline", minor_order="time"
     )
     out_wf = uv_object.get_data(0, 1)
     assert np.isclose(init_wf[1, 0, 0], out_wf[0, 0, 0])
@@ -5367,7 +5375,13 @@ def test_downsample_in_time_partial_flags(resample_in_time_file):
     # check that there are still no flags
     assert np.nonzero(uv_object.flag_array)[0].size == 0
 
-    return
+    # Compare doing it with n_times_to_avg
+    uv_object2.downsample_in_time(
+        n_times_to_avg=2, blt_order="baseline", minor_order="time"
+    )
+    assert uv_object.history != uv_object2.history
+    uv_object2.history = uv_object.history
+    assert uv_object == uv_object2
 
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
@@ -5378,6 +5392,7 @@ def test_downsample_in_time_totally_flagged(resample_in_time_file):
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object2 = uv_object.copy()
 
     # save some values for later
     init_wf = uv_object.get_data(0, 1)
@@ -5394,8 +5409,10 @@ def test_downsample_in_time_totally_flagged(resample_in_time_file):
     # should be flagged
     inds01 = uv_object.antpair2ind(0, 1)
     uv_object.flag_array[inds01[:2], 0, 0, 0] = True
+    uv_object2 = uv_object.copy()
+
     uv_object.downsample_in_time(
-        min_integration_time, blt_order="baseline", minor_order="time"
+        min_int_time=min_integration_time, blt_order="baseline", minor_order="time"
     )
     out_wf = uv_object.get_data(0, 1)
     assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0, out_wf[0, 0, 0])
@@ -5408,7 +5425,13 @@ def test_downsample_in_time_totally_flagged(resample_in_time_file):
     out_flag = uv_object.get_flags(0, 1)
     assert out_flag[0, 0, 0]
 
-    return
+    # Compare doing it with n_times_to_avg
+    uv_object2.downsample_in_time(
+        n_times_to_avg=2, blt_order="baseline", minor_order="time"
+    )
+    assert uv_object.history != uv_object2.history
+    uv_object2.history = uv_object.history
+    assert uv_object == uv_object2
 
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
@@ -5419,6 +5442,7 @@ def test_downsample_in_time_uneven_samples(resample_in_time_file):
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object2 = uv_object.copy()
 
     # save some values for later
     init_wf = uv_object.get_data(0, 1)
@@ -5430,7 +5454,7 @@ def test_downsample_in_time_uneven_samples(resample_in_time_file):
     # number of samples
     min_integration_time = original_int_time * 3.0
     uv_object.downsample_in_time(
-        min_integration_time,
+        min_int_time=min_integration_time,
         blt_order="baseline",
         minor_order="time",
         keep_ragged=False,
@@ -5450,7 +5474,13 @@ def test_downsample_in_time_uneven_samples(resample_in_time_file):
     out_wf = uv_object.get_data(0, 1)
     assert np.isclose(np.mean(init_wf[0:3, 0, 0]), out_wf[0, 0, 0])
 
-    return
+    # Compare doing it with n_times_to_avg
+    uv_object2.downsample_in_time(
+        n_times_to_avg=3, blt_order="baseline", minor_order="time", keep_ragged=False
+    )
+    assert uv_object.history != uv_object2.history
+    uv_object2.history = uv_object.history
+    assert uv_object == uv_object2
 
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
@@ -5463,6 +5493,7 @@ def test_downsample_in_time_uneven_samples_discard_ragged(resample_in_time_file)
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object2 = uv_object.copy()
 
     # save some values for later
     init_wf = uv_object.get_data(0, 1)
@@ -5476,7 +5507,7 @@ def test_downsample_in_time_uneven_samples_discard_ragged(resample_in_time_file)
 
     # test again with keep_ragged=False
     uv_object.downsample_in_time(
-        min_integration_time,
+        min_int_time=min_integration_time,
         blt_order="baseline",
         minor_order="time",
         keep_ragged=False,
@@ -5490,7 +5521,13 @@ def test_downsample_in_time_uneven_samples_discard_ragged(resample_in_time_file)
     out_wf = uv_object.get_data(0, 1)
     assert np.isclose(np.mean(init_wf[0:3, 0, 0]), out_wf[0, 0, 0])
 
-    return
+    # Compare doing it with n_times_to_avg
+    uv_object2.downsample_in_time(
+        n_times_to_avg=3, blt_order="baseline", minor_order="time", keep_ragged=False
+    )
+    assert uv_object.history != uv_object2.history
+    uv_object2.history = uv_object.history
+    assert uv_object == uv_object2
 
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
@@ -5513,7 +5550,7 @@ def test_downsample_in_time_summing_correlator_mode(resample_in_time_file):
     # change the target integration time
     min_integration_time = original_int_time * 2.0
     uv_object.downsample_in_time(
-        min_integration_time,
+        min_int_time=min_integration_time,
         blt_order="baseline",
         minor_order="time",
         summing_correlator_mode=True,
@@ -5564,7 +5601,7 @@ def test_downsample_in_time_summing_correlator_mode_partial_flags(
     inds01 = uv_object.antpair2ind(0, 1)
     uv_object.flag_array[inds01[0], 0, 0, 0] = True
     uv_object.downsample_in_time(
-        min_integration_time,
+        min_int_time=min_integration_time,
         blt_order="baseline",
         minor_order="time",
         summing_correlator_mode=True,
@@ -5611,7 +5648,7 @@ def test_downsample_in_time_summing_correlator_mode_totally_flagged(
     inds01 = uv_object.antpair2ind(0, 1)
     uv_object.flag_array[inds01[:2], 0, 0, 0] = True
     uv_object.downsample_in_time(
-        min_integration_time,
+        min_int_time=min_integration_time,
         blt_order="baseline",
         minor_order="time",
         summing_correlator_mode=True,
@@ -5654,7 +5691,7 @@ def test_downsample_in_time_summing_correlator_mode_uneven_samples(
     # number of samples
     min_integration_time = original_int_time * 3.0
     uv_object.downsample_in_time(
-        min_integration_time,
+        min_int_time=min_integration_time,
         blt_order="baseline",
         minor_order="time",
         keep_ragged=False,
@@ -5705,7 +5742,7 @@ def test_downsample_in_time_summing_correlator_mode_uneven_samples_drop_ragged(
     # test again with keep_ragged=False
     min_integration_time = original_int_time * 3.0
     uv_object.downsample_in_time(
-        min_integration_time,
+        min_int_time=min_integration_time,
         blt_order="baseline",
         minor_order="time",
         keep_ragged=False,
@@ -5751,7 +5788,9 @@ def test_partial_downsample_in_time(resample_in_time_file):
 
     # change the target integration time
     min_integration_time = np.amax(uv_object.integration_time)
-    uv_object.downsample_in_time(min_integration_time, blt_order="baseline")
+    uv_object.downsample_in_time(
+        min_int_time=min_integration_time, blt_order="baseline"
+    )
 
     # Should have all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
@@ -5784,6 +5823,7 @@ def test_downsample_in_time_drift(resample_in_time_file):
 
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object2 = uv_object.copy()
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -5796,7 +5836,7 @@ def test_downsample_in_time_drift(resample_in_time_file):
     # change the target integration time
     min_integration_time = original_int_time * 2.0
     uv_object.downsample_in_time(
-        min_integration_time, blt_order="baseline", allow_drift=True
+        min_int_time=min_integration_time, blt_order="baseline", allow_drift=True
     )
 
     # Should have half the size of the data array and all the new integration time
@@ -5815,7 +5855,13 @@ def test_downsample_in_time_drift(resample_in_time_file):
     # check that there are no flags
     assert np.nonzero(uv_object.flag_array)[0].size == 0
 
-    return
+    # Compare doing it with n_times_to_avg
+    uv_object2.downsample_in_time(
+        n_times_to_avg=2, blt_order="baseline", allow_drift=True
+    )
+    assert uv_object.history != uv_object2.history
+    uv_object2.history = uv_object.history
+    assert uv_object == uv_object2
 
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
@@ -5826,6 +5872,7 @@ def test_downsample_in_time_drift_no_phasing(resample_in_time_file):
 
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object2 = uv_object.copy()
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -5840,7 +5887,7 @@ def test_downsample_in_time_drift_no_phasing(resample_in_time_file):
 
     # try again with allow_drift=False
     uv_object.downsample_in_time(
-        min_integration_time, blt_order="baseline", allow_drift=False,
+        min_int_time=min_integration_time, blt_order="baseline", allow_drift=False,
     )
 
     # Should have half the size of the data array and all the new integration time
@@ -5863,7 +5910,13 @@ def test_downsample_in_time_drift_no_phasing(resample_in_time_file):
     # check that there are no flags
     assert np.nonzero(uv_object.flag_array)[0].size == 0
 
-    return
+    # Compare doing it with n_times_to_avg
+    uv_object2.downsample_in_time(
+        n_times_to_avg=2, blt_order="baseline", minor_order="time"
+    )
+    assert uv_object.history != uv_object2.history
+    uv_object2.history = uv_object.history
+    assert uv_object == uv_object2
 
 
 def test_downsample_in_time_errors(resample_in_time_file):
@@ -5873,22 +5926,48 @@ def test_downsample_in_time_errors(resample_in_time_file):
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
 
+    # raise an error if set neither min_int_time and n_times_to_avg
+    with pytest.raises(
+        ValueError, match="Either min_int_time or n_times_to_avg must be set."
+    ):
+        uv_object.downsample_in_time()
+
+    # raise an error if set both min_int_time and n_times_to_avg
+    with pytest.raises(
+        ValueError, match="Only one of min_int_time or n_times_to_avg can be set."
+    ):
+        uv_object.downsample_in_time(
+            min_int_time=2 * np.amin(uv_object.integration_time), n_times_to_avg=2
+        )
+    # raise an error if only one time
+    uv_object2 = uv_object.copy()
+    uv_object2.select(times=uv_object2.time_array[0])
+    with pytest.raises(
+        ValueError, match="Only one time in this object, cannot downsample."
+    ):
+        uv_object2.downsample_in_time(n_times_to_avg=2)
+
     # raise an error for a too-large integration time
     max_integration_time = 1e3 * np.amax(uv_object.integration_time)
-    with pytest.raises(ValueError) as cm:
-        uv_object.downsample_in_time(max_integration_time)
-    assert str(cm.value).startswith("Increasing the integration time by more than")
+    with pytest.raises(
+        ValueError, match="Increasing the integration time by more than"
+    ):
+        uv_object.downsample_in_time(min_int_time=max_integration_time)
 
     # catch a warning for doing no work
     uv_object2 = uv_object.copy()
     max_integration_time = 0.5 * np.amin(uv_object.integration_time)
-    uvtest.checkWarnings(
-        uv_object.downsample_in_time,
-        [max_integration_time],
-        message="All values in the integration_time array are " "already longer",
-    )
+    with pytest.warns(
+        UserWarning, match="All values in the integration_time array are already longer"
+    ):
+        uv_object.downsample_in_time(min_int_time=max_integration_time)
+
     assert uv_object == uv_object2
     del uv_object2
+
+    # raise an error if n_times_to_avg is not an integer
+    with pytest.raises(ValueError, match="n_times_to_avg must be an integer."):
+        uv_object.downsample_in_time(n_times_to_avg=2.5)
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -5904,11 +5983,10 @@ def test_downsample_in_time_errors(resample_in_time_file):
     uv_object.time_array[inds01[-1]] += initial_int_time / (24 * 3600)
     uv_object.Ntimes += 1
     min_integration_time = 2 * np.amin(uv_object.integration_time)
-    uvtest.checkWarnings(
-        uv_object.downsample_in_time,
-        [min_integration_time],
-        message=["There is a gap in the times of baseline (0, 1)"],
-    )
+    times_01 = uv_object.get_times(0, 1)
+    assert np.unique(np.diff(times_01)).size > 1
+    with pytest.warns(UserWarning, match=("There is a gap in the times of baseline")):
+        uv_object.downsample_in_time(min_int_time=min_integration_time)
 
     # Should have half the size of the data array and all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
@@ -5946,12 +6024,11 @@ def test_downsample_in_time_int_time_mismatch_warning(resample_in_time_file):
     # not matching the time delta between integrations
     uv_object.integration_time *= 0.5
     min_integration_time = 2 * np.amin(uv_object.integration_time)
-    uvtest.checkWarnings(
-        uv_object.downsample_in_time,
-        [min_integration_time],
-        message=["The time difference between integrations is " "not the same"],
-        nwarnings=10,
-    )
+    with pytest.warns(
+        UserWarning, match="The time difference between integrations is not the same"
+    ) as record:
+        uv_object.downsample_in_time(min_int_time=min_integration_time)
+    assert len(record) == 10
 
     # Should have half the size of the data array and all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
@@ -5994,9 +6071,9 @@ def test_downsample_in_time_varying_integration_time(resample_in_time_file):
     uv_object.integration_time[inds01[-2:]] += initial_int_time
     uv_object.Ntimes = np.unique(uv_object.time_array).size
     min_integration_time = 2 * np.amin(uv_object.integration_time)
-    uvtest.checkWarnings(
-        uv_object.downsample_in_time, [min_integration_time], nwarnings=0
-    )
+    with pytest.warns(None) as record:
+        uv_object.downsample_in_time(min_int_time=min_integration_time)
+    assert len(record) == 0
 
     # Should have all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
@@ -6033,11 +6110,10 @@ def test_downsample_in_time_varying_integration_time_warning(resample_in_time_fi
     initial_int_time = uv_object.integration_time[inds01[0]]
     uv_object.integration_time[inds01[-2:]] += initial_int_time
     min_integration_time = 2 * np.amin(uv_object.integration_time)
-    uvtest.checkWarnings(
-        uv_object.downsample_in_time,
-        [min_integration_time],
-        message="The time difference between integrations is " "different than",
-    )
+    with pytest.warns(
+        UserWarning, match="The time difference between integrations is different than"
+    ):
+        uv_object.downsample_in_time(min_int_time=min_integration_time)
 
     # Should have all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
@@ -6099,7 +6175,7 @@ def test_upsample_downsample_in_time(resample_in_time_file):
     assert uv_object.Nblts == new_Nblts
 
     uv_object.downsample_in_time(
-        np.amin(uv_object2.integration_time), blt_order="baseline"
+        min_int_time=np.amin(uv_object2.integration_time), blt_order="baseline"
     )
 
     # increase tolerance on LST if iers.conf.auto_max_age is set to None, as we
@@ -6123,22 +6199,23 @@ def test_upsample_downsample_in_time(resample_in_time_file):
 
     # check that calling downsample again with the same min_integration_time
     # gives warning and does nothing
-    uvtest.checkWarnings(
-        uv_object.downsample_in_time,
-        func_args=[np.amin(uv_object2.integration_time)],
-        func_kwargs={"blt_order": "baseline"},
-        message="All values in the integration_time array are " "already shorter",
-    )
+    with pytest.warns(
+        UserWarning, match="All values in the integration_time array are already longer"
+    ):
+        uv_object.downsample_in_time(
+            min_int_time=np.amin(uv_object2.integration_time), blt_order="baseline"
+        )
     assert uv_object.Nblts == uv_object2.Nblts
 
     # check that calling upsample again with the almost the same min_integration_time
     # gives warning and does nothing
-    uvtest.checkWarnings(
-        uv_object.downsample_in_time,
-        func_args=[np.amin(uv_object2.integration_time) + small_number],
-        func_kwargs={"blt_order": "baseline"},
-        message="All values in the integration_time array are " "already shorter",
-    )
+    with pytest.warns(
+        UserWarning, match="All values in the integration_time array are already longer"
+    ):
+        uv_object.upsample_in_time(
+            np.amin(uv_object2.integration_time) + small_number, blt_order="baseline"
+        )
+
     assert uv_object.Nblts == uv_object2.Nblts
 
     return
@@ -6400,10 +6477,16 @@ def test_resample_in_time_only_upsample(bda_test_file):
 
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
 def test_downsample_in_time_mwa():
-    """Test resample in time works with MWA data."""
+    """
+    Test resample in time works with numerical weirdnesses.
+
+    In particular, when min_int_time is not quite an integer mulitple of
+    integration_time. This text broke with a prior bug (see issue 773).
+    """
     filename = os.path.join(DATA_PATH, "mwa_integration_time.uvh5")
     uv = UVData()
     uv.read(filename)
+    uv_object2 = uv.copy()
 
     # all data within 5 milliseconds of 2 second integrations
     assert np.allclose(uv.integration_time, 2, atol=5e-3)
@@ -6411,6 +6494,16 @@ def test_downsample_in_time_mwa():
     uv.resample_in_time(min_int_time, only_downsample=True, keep_ragged=False)
 
     assert np.all(uv.integration_time > (min_int_time - 5e-3))
+
+    # Now do the human expected thing:
+    init_data = uv_object2.get_data((61, 58))
+    uv_object2.downsample_in_time(n_times_to_avg=2, keep_ragged=False)
+
+    assert uv_object2.Ntimes == 5
+
+    out_data = uv_object2.get_data((61, 58))
+
+    assert np.isclose(np.mean(init_data[0:2, 0, 0]), out_data[0, 0, 0])
 
 
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
