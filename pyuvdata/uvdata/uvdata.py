@@ -4815,11 +4815,26 @@ class UVData(UVBase):
         n_new_samples = 0
         for bl in bls_to_downsample:
             bl_inds = np.nonzero(self.baseline_array == bl)[0]
-            n_sample_temp = np.sum(self.integration_time[bl_inds] / min_int_time)
-            if keep_ragged and not np.isclose(n_sample_temp, np.floor(n_sample_temp)):
-                n_new_samples += np.ceil(n_sample_temp).astype(int)
-            else:
-                n_new_samples += np.floor(n_sample_temp).astype(int)
+            running_int_time = 0.0
+            for itime, int_time in enumerate(self.integration_time[bl_inds]):
+                running_int_time += int_time
+                over_min_int_time = running_int_time > min_int_time or np.isclose(
+                    running_int_time,
+                    min_int_time,
+                    rtol=self._integration_time.tols[0],
+                    atol=self._integration_time.tols[1],
+                )
+                last_sample = itime == len(bl_inds) - 1
+                # We sum up all the samples found so far if we're over the
+                # target minimum time, or we've hit the end of the time
+                # samples for this baseline.
+                if over_min_int_time or last_sample:
+                    if last_sample and not (over_min_int_time or keep_ragged):
+                        # don't do anything -- implicitly drop these integrations
+                        continue
+                    n_new_samples += 1
+                    running_int_time = 0.0
+
             # figure out if there are any time gaps in the data
             # meaning that the time differences are larger than the integration times
             # time_array is in JD, need to convert to seconds for the diff

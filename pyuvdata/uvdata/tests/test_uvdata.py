@@ -6404,18 +6404,12 @@ def test_downsample_in_time_mwa():
     uv = UVData()
     uv.read(filename)
 
-    init_data = uv.get_data((61, 58))
-
     # all data within 5 milliseconds of 2 second integrations
     assert np.allclose(uv.integration_time, 2, atol=5e-3)
-    uv.resample_in_time(4.0, only_downsample=True, keep_ragged=False)
+    min_int_time = 4.0
+    uv.resample_in_time(min_int_time, only_downsample=True, keep_ragged=False)
 
-    assert np.allclose(uv.integration_time, 4, atol=5e-3)
-    assert uv.Ntimes == 5
-
-    out_data = uv.get_data((61, 58))
-
-    assert np.isclose(np.mean(init_data[0:2, 0, 0]), out_data[0, 0, 0])
+    assert np.all(uv.integration_time > (min_int_time - 5e-3))
 
 
 def test_frequency_average(uvdata_data):
