@@ -299,7 +299,7 @@ class UVFlag(UVBase):
             description=desc,
             form=("Nblts", "Nspws", "Nfreqs", "Npols"),
             expected_type=np.float,
-            required=False
+            required=False,
         )
 
         desc = (
@@ -704,7 +704,7 @@ class UVFlag(UVBase):
             " Has shape (Nblts, Nfreqs, Npols)."
         )
         self._weights_square_array.desc = desc
-        self._weights_square_array.form = ("Nblts, Nfreqs, Npols")
+        self._weights_square_array.form = ("Nblts", "Nfreqs", "Npols")
 
         desc = (
             "Array of unique times, center of integration, shape (Ntimes), "
@@ -738,7 +738,7 @@ class UVFlag(UVBase):
             if (
                 not attr.required
                 and attr.value is not None
-                and attr.name != "x-orientation"
+                and attr.name != "x_orientation"
                 and attr.name != "weights_square_array"
             ):
                 attr.value = None
@@ -920,7 +920,7 @@ class UVFlag(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        return_weights_square=False
+        return_weights_square=False,
     ):
         """Convert an 'antenna' or 'baseline' type object to waterfall.
 
@@ -994,7 +994,7 @@ class UVFlag(UVBase):
                         axis=0,
                         weights=_weights,
                         return_weights=True,
-                        return_weights_square=return_weights_square
+                        return_weights_square=return_weights_square,
                     )
                 else:
                     d[i, :, :], w[i, :, :] = uvutils.collapse(
@@ -1003,7 +1003,7 @@ class UVFlag(UVBase):
                         axis=0,
                         weights=_weights,
                         return_weights=True,
-                        return_weights_square=return_weights_square
+                        return_weights_square=return_weights_square,
                     )
             darr = d
             if self.mode == "metric":
