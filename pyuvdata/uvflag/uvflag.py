@@ -977,7 +977,7 @@ class UVFlag(UVBase):
                 if return_weights_square:
                     ws = np.zeros((Nt, Nf, Np))
                     d[i, :, :], w[i, :, :], ws[i, :, :] = uvutils.collapse(
-                        dar[ind, :, :],
+                        darr[ind, :, :],
                         method,
                         axis=0,
                         weights=_weights,
