@@ -979,8 +979,8 @@ class UVFlag(UVBase):
                     d[i, :, :], w[i, :, :], ws[i, :, :] = uvutils.collapse(
                         dar[ind, :, :],
                         method,
-                        axis=0
-                        weights=_weights
+                        axis=0,
+                        weights=_weights,
                         return_weights=True,
                         return_weights_square=return_weights_square
                     )
