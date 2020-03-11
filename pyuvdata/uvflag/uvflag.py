@@ -727,7 +727,8 @@ class UVFlag(UVBase):
         """Remove unused attributes.
 
         Useful when changing type or mode or to save memory.
-        Will set all non-required attributes to None, except x_orientation.
+        Will set all non-required attributes to None, except x_orientation and
+        weights_square_array.
 
 
         """
