@@ -699,6 +699,14 @@ class UVFlag(UVBase):
         self._weights_array.form = ("Nblts", "Nfreqs", "Npols")
 
         desc = (
+            "Floating point weight information about sum of squares of weights"
+            " when weighted data converted from baseline to waterfall  mode."
+            " Has shape (Nblts, Nfreqs, Npols)."
+        )
+        self._weights_square_array.desc = desc
+        self._weights_square_array.form = ("Nblts, Nfreqs, Npols")
+
+        desc = (
             "Array of unique times, center of integration, shape (Ntimes), "
             "units Julian Date"
         )
@@ -723,12 +731,14 @@ class UVFlag(UVBase):
 
 
         """
+
         for p in self:
             attr = getattr(self, p)
             if (
                 not attr.required
                 and attr.value is not None
-                and attr.name != "x_orientation"
+                and attr.name != "x-orientation"
+                and attr.name != "weights_square_array"
             ):
                 attr.value = None
                 setattr(self, p, attr)
