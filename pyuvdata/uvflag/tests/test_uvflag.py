@@ -1047,6 +1047,14 @@ def test_to_waterfall_bl_multi_pol():
     )
 
 
+def test_to_waterfall_bl_ret_wt_sq():
+    uvf = UVFlag(test_f_file)
+    Nbls = uvf.Nbls
+    uvf.weights_array = 2 * np.ones_like(uvf.weights_array)
+    uvf.to_waterfall(return_weights_square=True)
+    assert np.all(uvf.weights_square_array == 4 * Nbls)
+
+
 def test_collapse_pol():
     uvf = UVFlag(test_f_file)
     uvf.weights_array = np.ones_like(uvf.weights_array)
