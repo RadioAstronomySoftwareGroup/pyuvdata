@@ -9,6 +9,7 @@ import pytest
 import os
 import copy
 import itertools
+import h5py
 
 import numpy as np
 from astropy.time import Time
@@ -6792,3 +6793,13 @@ def test_multifile_read_errors(read_func, filelist):
         "Reading multiple files from class specific read functions is no "
         "longer supported."
     )
+
+def test_multifile_read_check():
+    uv = UVData() 
+    uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
+    with h5py.File(uvh5_file, "r+") as h5f:
+        del h5f["Header/ant_1_array"]
+    with pytest.raises(KeyError) as cm:
+        uv.read(uvh5_file)
+    assert str(cm.value).startswith("Unable to open object")
+        
