@@ -290,6 +290,15 @@ class MWACorrFITS(UVData):
                     )
                     if start_time == 0.0:
                         start_time = first_time
+                    # check that files with a timing offset can be aligned
+                    elif (
+                        np.abs(start_time - first_time) % data[1].header["INTTIME"]
+                        != 0.0
+                    ):
+                        raise ValueError(
+                            "coarse channel start times are misaligned by an amount that is not \
+                                an integer multiple of the integration time"
+                        )
                     elif start_time > first_time:
                         start_time = first_time
                     if end_time < last_time:

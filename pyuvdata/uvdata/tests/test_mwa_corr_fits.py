@@ -352,6 +352,24 @@ def test_diff_obs():
     del mwa_uv
 
 
+def test_misaligned_times():
+    """
+    Break read_mwa_corr_fits by submitting files with misaligned times.
+
+    Test that error is raised if file start times are different by an amount
+    that is not an integer multiiple of the integration time.
+    """
+    mwa_uv = UVData()
+    bad_obs = os.path.join(DATA_PATH, "test/bad3_gpubox06_01.fits")
+    with fits.open(filelist[2]) as mini6:
+        mini6[1].header["MILLITIM"] = 250
+        mini6.writeto(bad_obs)
+    with pytest.raises(ValueError) as cm:
+        mwa_uv.read([bad_obs, filelist[0], filelist[1]])
+    assert str(cm.value).startswith("coarse channel start times are misaligned")
+    del mwa_uv
+
+
 @pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
 @pytest.mark.filterwarnings(
     "ignore:coarse channels are not contiguous for this observation"
