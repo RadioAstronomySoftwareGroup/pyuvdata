@@ -6797,9 +6797,9 @@ def test_multifile_read_errors(read_func, filelist):
 def test_multifile_read_check():
     uv = UVData() 
     uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-    with h5py.File(uvh5_file, "r+") as h5f:
+    with h5py.File(uvh5_file, "r") as h5f:
         del h5f["Header/ant_1_array"]
     with pytest.raises(KeyError) as cm:
         uv.read(uvh5_file)
-    assert str(cm.value).startswith("Unable to open object")
+    assert str(cm.value).startswith("Unable to open object (object \'ant_1_array\' doesn\'t exist)")
         
