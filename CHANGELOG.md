@@ -10,6 +10,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 - `frequency_average` method on UVData to average data along the frequency axis.
 
+### Fixed
+- A bug in `UVData.downsample_in_time` in calculating the number of new blts.
+
 ## [2.0.0] - 2020-2-12
 
 ### Changed
