@@ -6513,7 +6513,7 @@ class UVData(UVBase):
                 phase_center_radec = [self.phase_center_ra, self.phase_center_dec]
 
             if len(filename) > 1:
-                for f in filename[file_num:]:
+                for f in filename[file_num+1:]:
                     uv2 = UVData()
                     if check_file_status:
                         try:
