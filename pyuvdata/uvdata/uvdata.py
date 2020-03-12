@@ -6438,32 +6438,70 @@ class UVData(UVBase):
 
         if multi:
 
-            self.read(
-                filename[0],
-                file_type=file_type,
-                antenna_nums=antenna_nums,
-                antenna_names=antenna_names,
-                ant_str=ant_str,
-                bls=bls,
-                frequencies=frequencies,
-                freq_chans=freq_chans,
-                times=times,
-                polarizations=polarizations,
-                blt_inds=blt_inds,
-                time_range=time_range,
-                keep_all_metadata=keep_all_metadata,
-                read_data=read_data,
-                phase_type=phase_type,
-                correct_lat_lon=correct_lat_lon,
-                use_model=use_model,
-                data_column=data_column,
-                pol_order=pol_order,
-                data_array_dtype=data_array_dtype,
-                run_check=run_check,
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
-                check_file_status=check_file_status,
-            )
+            file_num = 0
+            if check_file_status:
+                unread = True
+                while unread:
+                    try:
+                        self.read(
+                            filename[file_num],
+                            file_type=file_type,
+                            antenna_nums=antenna_nums,
+                            antenna_names=antenna_names,
+                            ant_str=ant_str,
+                            bls=bls,
+                            frequencies=frequencies,
+                            freq_chans=freq_chans,
+                            times=times,
+                            polarizations=polarizations,
+                            blt_inds=blt_inds,
+                            time_range=time_range,
+                            keep_all_metadata=keep_all_metadata,
+                            read_data=read_data,
+                            phase_type=phase_type,
+                            correct_lat_lon=correct_lat_lon,
+                            use_model=use_model,
+                            data_column=data_column,
+                            pol_order=pol_order,
+                            data_array_dtype=data_array_dtype,
+                            run_check=run_check,
+                            check_extra=check_extra,
+                            run_check_acceptability=run_check_acceptability,
+                            check_file_status=check_file_status,
+                        )
+                        unread=False
+                    except KeyError:
+                        warnings.warn(
+                            "Failed to read {f}".format(f=f)
+                        )
+                        file_num += 1
+            else:
+                self.read(
+                        filename[0],
+                        file_type=file_type,
+                        antenna_nums=antenna_nums,
+                        antenna_names=antenna_names,
+                        ant_str=ant_str,
+                        bls=bls,
+                        frequencies=frequencies,
+                        freq_chans=freq_chans,
+                        times=times,
+                        polarizations=polarizations,
+                        blt_inds=blt_inds,
+                        time_range=time_range,
+                        keep_all_metadata=keep_all_metadata,
+                        read_data=read_data,
+                        phase_type=phase_type,
+                        correct_lat_lon=correct_lat_lon,
+                        use_model=use_model,
+                        data_column=data_column,
+                        pol_order=pol_order,
+                        data_array_dtype=data_array_dtype,
+                        run_check=run_check,
+                        check_extra=check_extra,
+                        run_check_acceptability=run_check_acceptability,
+                        check_file_status=check_file_status,
+                    )
 
             if (
                 allow_rephase
@@ -6475,7 +6513,7 @@ class UVData(UVBase):
                 phase_center_radec = [self.phase_center_ra, self.phase_center_dec]
 
             if len(filename) > 1:
-                for f in filename[1:]:
+                for f in filename[file_num:]:
                     uv2 = UVData()
                     if check_file_status:
                         try:
