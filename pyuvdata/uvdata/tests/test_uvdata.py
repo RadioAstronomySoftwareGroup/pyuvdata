@@ -10,7 +10,6 @@ import os
 import copy
 import itertools
 import h5py
-import warnings
 
 import numpy as np
 from astropy.time import Time
@@ -6795,36 +6794,37 @@ def test_multifile_read_errors(read_func, filelist):
         "longer supported."
     )
 
+
 def test_multifile_read_check():
     """Test setting check_file_status=True when reading in files"""
-    
+
     uv = UVData()
     uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-    
-    #Create a test file and remove header info to 'corrupt' it
+
+    # Create a test file and remove header info to 'corrupt' it
     testfile = os.path.join(DATA_PATH, "test", "zen.2458661.23480.HH.uvh5")
     uv.read(uvh5_file)
     uv.write_uvh5(testfile)
     with h5py.File(testfile, "r+") as h5f:
         del h5f["Header/ant_1_array"]
-        
-    #Test that the expected error arises
+
+    # Test that the expected error arises
     with pytest.raises(KeyError) as cm:
         uv.read(testfile, check_file_status=True)
     assert "Unable to open object (object 'ant_1_array' doesn't exist)" in str(cm.value)
-    
-    #Test when the corrupted file is at the end
+
+    # Test when the corrupted file is at the end
     uvTrue = UVData()
     uvTrue.read(uvh5_file)
     fileList = [uvh5_file, testfile]
     with pytest.warns(UserWarning) as cm:
         uv.read(fileList, check_file_status=True)
-    #Check that a warning was issued
+    # Check that a warning was issued
     assert len(cm) == 1
-    #Check that the uncorrupted file was still read in
+    # Check that the uncorrupted file was still read in
     assert uv == uvTrue
-    
-    #Test when the corrupted file is at the beggining
+
+    # Test when the corrupted file is at the beggining
     uvTrue = UVData()
     uvTrue.read(uvh5_file)
     fileList = [testfile, uvh5_file]
@@ -6832,21 +6832,26 @@ def test_multifile_read_check():
         uv.read(fileList, check_file_status=True)
     assert len(cm) == 1
     assert uv == uvTrue
-    
+
     os.remove(testfile)
-    
+
     return
 
+
 def test_multifile_read_check_long_list():
-    """Test setting check_file_status=True when reading in files for a list of length >2"""
-    #Create mini files for testing
+    """
+    Test setting check_file_status=True when reading in files for a list of length >2
+    """
+    # Create mini files for testing
     uv = UVData()
     uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
     uv.read(uvh5_file)
     fileList = []
-    for i in range(0,4):
-        uv2 = uv.select(times=np.unique(uv.time_array)[i*5:i*5 + 4], inplace=False)
-        fname = os.path.join(DATA_PATH, 'minifile_%i.uvh5' % i)
+    for i in range(0, 4):
+        uv2 = uv.select(
+            times=np.unique(uv.time_array)[i * 5 : i * 5 + 4], inplace=False
+        )
+        fname = os.path.join(DATA_PATH, "minifile_%i.uvh5" % i)
         fileList.append(fname)
         uv2.write_uvh5(fname)
     with h5py.File(fileList[-1], "r+") as h5f:
@@ -6856,14 +6861,14 @@ def test_multifile_read_check_long_list():
         uvTest.read(fileList[0:4], check_file_status=True)
     uvTrue = UVData()
     uvTrue.read(fileList[0:3], check_file_status=True)
-    
+
     assert len(cm) == 1
-    assert uvTest == uvTrue 
-    
-    #Repeat above test, but with corrupted file as first file in list
+    assert uvTest == uvTrue
+
+    # Repeat above test, but with corrupted file as first file in list
     os.remove(fileList[3])
     uv2 = uv.select(times=np.unique(uv.time_array)[15:19], inplace=False)
-    fname = os.path.join(DATA_PATH, 'minifile_%i.uvh5' % 3)
+    fname = os.path.join(DATA_PATH, "minifile_%i.uvh5" % 3)
     uv2.write_uvh5(fname)
     with h5py.File(fileList[0], "r+") as h5f:
         del h5f["Header/ant_1_array"]
@@ -6872,14 +6877,14 @@ def test_multifile_read_check_long_list():
         uvTest.read(fileList[0:4], check_file_status=True)
     uvTrue = UVData()
     uvTrue.read(fileList[1:4], check_file_status=True)
-    
+
     assert len(cm) == 1
     assert uvTest == uvTrue
-    
-    #Repeat above test, but with corrupted file in the middle of the list
+
+    # Repeat above test, but with corrupted file in the middle of the list
     os.remove(fileList[0])
     uv2 = uv.select(times=np.unique(uv.time_array)[0:4], inplace=False)
-    fname = os.path.join(DATA_PATH, 'minifile_%i.uvh5' % 0)
+    fname = os.path.join(DATA_PATH, "minifile_%i.uvh5" % 0)
     uv2.write_uvh5(fname)
     with h5py.File(fileList[1], "r+") as h5f:
         del h5f["Header/ant_1_array"]
@@ -6888,14 +6893,13 @@ def test_multifile_read_check_long_list():
         uvTest.read(fileList[0:4], check_file_status=True)
     uvTrue = UVData()
     uvTrue.read([fileList[0], fileList[2], fileList[3]], check_file_status=True)
-    
+
     assert len(cm) == 1
     assert uvTest == uvTrue
-    
+
     os.remove(fileList[0])
     os.remove(fileList[1])
     os.remove(fileList[2])
     os.remove(fileList[3])
-    
-    
+
     return
