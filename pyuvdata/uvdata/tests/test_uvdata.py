@@ -6796,7 +6796,7 @@ def test_multifile_read_errors(read_func, filelist):
 
 
 def test_multifile_read_check():
-    """Test setting check_file_status=True when reading in files"""
+    """Test setting skip_bad_files=True when reading in files"""
 
     uv = UVData()
     uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
@@ -6850,7 +6850,7 @@ def test_multifile_read_check():
 
 def test_multifile_read_check_long_list():
     """
-    Test setting check_file_status=True when reading in files for a list of length >2
+    Test setting skip_bad_files=True when reading in files for a list of length >2
     """
     # Create mini files for testing
     uv = UVData()
