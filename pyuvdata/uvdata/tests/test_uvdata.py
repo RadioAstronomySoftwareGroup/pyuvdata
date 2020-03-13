@@ -6866,6 +6866,8 @@ def test_multifile_read_check_long_list():
         uv2.write_uvh5(fname)
     with h5py.File(fileList[-1], "r+") as h5f:
         del h5f["Header/ant_1_array"]
+
+    # Test with corrupted file as last file in list, skip_bad_files=True
     uvTest = UVData()
     with pytest.warns(UserWarning) as cm:
         uvTest.read(fileList[0:4], skip_bad_files=True)
@@ -6906,6 +6908,16 @@ def test_multifile_read_check_long_list():
 
     assert len(cm) == 1
     assert uvTest == uvTrue
+
+    # Test with corrupted file in middle of list, but with skip_bad_files=False
+    uvTest = UVData()
+    with pytest.raises(KeyError, match="Unable to open object"):
+        with pytest.warns(UserWarning, match="Failed to read"):
+            uvTest.read(fileList[0:4], skip_bad_files=False)
+    uvTrue = UVData()
+    uvTrue.read([fileList[0], fileList[2], fileList[3]], skip_bad_files=False)
+
+    assert uvTest != uvTrue
 
     os.remove(fileList[0])
     os.remove(fileList[1])
