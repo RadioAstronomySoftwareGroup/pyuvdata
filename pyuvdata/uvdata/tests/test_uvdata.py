@@ -6810,27 +6810,37 @@ def test_multifile_read_check():
 
     # Test that the expected error arises
     with pytest.raises(KeyError) as cm:
-        uv.read(testfile, skip_bad_files=True)
+        uv.read(testfile, skip_bad_files=False)
     assert "Unable to open object (object 'ant_1_array' doesn't exist)" in str(cm.value)
 
-    # Test when the corrupted file is at the end
-    uvTrue = UVData()
-    uvTrue.read(uvh5_file)
-    fileList = [uvh5_file, testfile]
-    with pytest.warns(UserWarning) as cm:
-        uv.read(fileList, skip_bad_files=True)
-    # Check that a warning was issued
-    assert len(cm) == 1
-    # Check that the uncorrupted file was still read in
-    assert uv == uvTrue
-
-    # Test when the corrupted file is at the beggining
+    # Test when the corrupted file is at the beggining, skip_bad_files=False
+    uv = UVData()
     uvTrue = UVData()
     uvTrue.read(uvh5_file)
     fileList = [testfile, uvh5_file]
-    with pytest.warns(UserWarning) as cm:
+    with pytest.raises(KeyError) as cm:
+        with pytest.warns(UserWarning, match="Failed to read"):
+            uv.read(fileList, skip_bad_files=False)
+    assert "Unable to open object (object 'ant_1_array' doesn't exist)" in str(cm.value)
+    assert uv != uvTrue
+
+    # Test when the corrupted file is at the beggining, skip_bad_files=True
+    uv = UVData()
+    uvTrue = UVData()
+    uvTrue.read(uvh5_file)
+    fileList = [testfile, uvh5_file]
+    with pytest.warns(UserWarning, match="Failed to read") as cm:
         uv.read(fileList, skip_bad_files=True)
     assert len(cm) == 1
+    assert uv == uvTrue
+
+    # Test when the corrupted file is at the end of a list
+    uvTrue = UVData()
+    uvTrue.read(uvh5_file)
+    fileList = [uvh5_file, testfile]
+    with pytest.warns(UserWarning, match="Failed to read") as cm:
+        uv.read(fileList, skip_bad_files=True)
+    # Check that the uncorrupted file was still read in
     assert uv == uvTrue
 
     os.remove(testfile)
