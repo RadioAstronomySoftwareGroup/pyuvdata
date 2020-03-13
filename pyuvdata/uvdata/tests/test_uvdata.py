@@ -6810,7 +6810,7 @@ def test_multifile_read_check():
 
     # Test that the expected error arises
     with pytest.raises(KeyError) as cm:
-        uv.read(testfile, check_file_status=True)
+        uv.read(testfile, skip_bad_files=True)
     assert "Unable to open object (object 'ant_1_array' doesn't exist)" in str(cm.value)
 
     # Test when the corrupted file is at the end
@@ -6818,7 +6818,7 @@ def test_multifile_read_check():
     uvTrue.read(uvh5_file)
     fileList = [uvh5_file, testfile]
     with pytest.warns(UserWarning) as cm:
-        uv.read(fileList, check_file_status=True)
+        uv.read(fileList, skip_bad_files=True)
     # Check that a warning was issued
     assert len(cm) == 1
     # Check that the uncorrupted file was still read in
@@ -6829,7 +6829,7 @@ def test_multifile_read_check():
     uvTrue.read(uvh5_file)
     fileList = [testfile, uvh5_file]
     with pytest.warns(UserWarning) as cm:
-        uv.read(fileList, check_file_status=True)
+        uv.read(fileList, skip_bad_files=True)
     assert len(cm) == 1
     assert uv == uvTrue
 
@@ -6858,9 +6858,9 @@ def test_multifile_read_check_long_list():
         del h5f["Header/ant_1_array"]
     uvTest = UVData()
     with pytest.warns(UserWarning) as cm:
-        uvTest.read(fileList[0:4], check_file_status=True)
+        uvTest.read(fileList[0:4], skip_bad_files=True)
     uvTrue = UVData()
-    uvTrue.read(fileList[0:3], check_file_status=True)
+    uvTrue.read(fileList[0:3], skip_bad_files=True)
 
     assert len(cm) == 1
     assert uvTest == uvTrue
@@ -6874,9 +6874,9 @@ def test_multifile_read_check_long_list():
         del h5f["Header/ant_1_array"]
     uvTest = UVData()
     with pytest.warns(UserWarning) as cm:
-        uvTest.read(fileList[0:4], check_file_status=True)
+        uvTest.read(fileList[0:4], skip_bad_files=True)
     uvTrue = UVData()
-    uvTrue.read(fileList[1:4], check_file_status=True)
+    uvTrue.read(fileList[1:4], skip_bad_files=True)
 
     assert len(cm) == 1
     assert uvTest == uvTrue
@@ -6890,9 +6890,9 @@ def test_multifile_read_check_long_list():
         del h5f["Header/ant_1_array"]
     uvTest = UVData()
     with pytest.warns(UserWarning) as cm:
-        uvTest.read(fileList[0:4], check_file_status=True)
+        uvTest.read(fileList[0:4], skip_bad_files=True)
     uvTrue = UVData()
-    uvTrue.read([fileList[0], fileList[2], fileList[3]], check_file_status=True)
+    uvTrue.read([fileList[0], fileList[2], fileList[3]], skip_bad_files=True)
 
     assert len(cm) == 1
     assert uvTest == uvTrue

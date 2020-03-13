@@ -6173,7 +6173,7 @@ class UVData(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        check_file_status=False,
+        skip_bad_files=False,
     ):
         """
         Read a generic file into a UVData object.
@@ -6348,7 +6348,7 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
-        check_file_status : bool
+        skip_bad_files : bool
             Option when reading multiple files to catch read errors such that
             the read continues even if one or more files are corrupted. Files
             that produce errors will be printed.
@@ -6439,7 +6439,7 @@ class UVData(UVBase):
         if multi:
 
             file_num = 0
-            if check_file_status:
+            if skip_bad_files:
                 unread = True
                 while unread:
                     try:
@@ -6467,7 +6467,7 @@ class UVData(UVBase):
                             run_check=run_check,
                             check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability,
-                            check_file_status=check_file_status,
+                            skip_bad_files=skip_bad_files,
                         )
                         unread = False
                     except KeyError:
@@ -6498,7 +6498,7 @@ class UVData(UVBase):
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
-                    check_file_status=check_file_status,
+                    skip_bad_files=skip_bad_files,
                 )
 
             if (
@@ -6513,7 +6513,7 @@ class UVData(UVBase):
             if len(filename) > file_num + 1:
                 for f in filename[file_num + 1 :]:
                     uv2 = UVData()
-                    if check_file_status:
+                    if skip_bad_files:
                         try:
                             uv2.read(
                                 f,
@@ -6540,7 +6540,7 @@ class UVData(UVBase):
                                 run_check=run_check,
                                 check_extra=check_extra,
                                 run_check_acceptability=run_check_acceptability,
-                                check_file_status=check_file_status,
+                                skip_bad_files=skip_bad_files,
                             )
                         except KeyError:
                             warnings.warn("Failed to read {f}".format(f=f))
@@ -6571,7 +6571,7 @@ class UVData(UVBase):
                             run_check=run_check,
                             check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability,
-                            check_file_status=check_file_status,
+                            skip_bad_files=skip_bad_files,
                         )
                     if axis is not None:
                         self.fast_concat(
