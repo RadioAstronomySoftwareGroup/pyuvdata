@@ -6351,7 +6351,8 @@ class UVData(UVBase):
         skip_bad_files : bool
             Option when reading multiple files to catch read errors such that
             the read continues even if one or more files are corrupted. Files
-            that produce errors will be printed.
+            that produce errors will be printed. Default is False (files will
+            not be skipped).
 
         Raises
         ------
