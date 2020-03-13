@@ -6446,6 +6446,7 @@ class UVData(UVBase):
                     self.read(
                         filename[file_num],
                         file_type=file_type,
+                        phase_center_radec=phase_center_radec,
                         antenna_nums=antenna_nums,
                         antenna_names=antenna_names,
                         ant_str=ant_str,
