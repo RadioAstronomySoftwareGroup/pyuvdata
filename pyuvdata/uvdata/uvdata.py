@@ -6349,9 +6349,9 @@ class UVData(UVBase):
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
         check_file_status : bool
-            Option when reading multiple files to catch read errors such that 
+            Option when reading multiple files to catch read errors such that
             the read continues even if one or more files are corrupted. Files
-            that produce errors will be printed. 
+            that produce errors will be printed.
 
         Raises
         ------
@@ -6469,39 +6469,37 @@ class UVData(UVBase):
                             run_check_acceptability=run_check_acceptability,
                             check_file_status=check_file_status,
                         )
-                        unread=False
+                        unread = False
                     except KeyError:
-                        warnings.warn(
-                            "Failed to read {f}".format(f=filename[file_num])
-                        )
+                        warnings.warn("Failed to read {f}".format(f=filename[file_num]))
                         file_num += 1
             else:
                 self.read(
-                        filename[0],
-                        file_type=file_type,
-                        antenna_nums=antenna_nums,
-                        antenna_names=antenna_names,
-                        ant_str=ant_str,
-                        bls=bls,
-                        frequencies=frequencies,
-                        freq_chans=freq_chans,
-                        times=times,
-                        polarizations=polarizations,
-                        blt_inds=blt_inds,
-                        time_range=time_range,
-                        keep_all_metadata=keep_all_metadata,
-                        read_data=read_data,
-                        phase_type=phase_type,
-                        correct_lat_lon=correct_lat_lon,
-                        use_model=use_model,
-                        data_column=data_column,
-                        pol_order=pol_order,
-                        data_array_dtype=data_array_dtype,
-                        run_check=run_check,
-                        check_extra=check_extra,
-                        run_check_acceptability=run_check_acceptability,
-                        check_file_status=check_file_status,
-                    )
+                    filename[0],
+                    file_type=file_type,
+                    antenna_nums=antenna_nums,
+                    antenna_names=antenna_names,
+                    ant_str=ant_str,
+                    bls=bls,
+                    frequencies=frequencies,
+                    freq_chans=freq_chans,
+                    times=times,
+                    polarizations=polarizations,
+                    blt_inds=blt_inds,
+                    time_range=time_range,
+                    keep_all_metadata=keep_all_metadata,
+                    read_data=read_data,
+                    phase_type=phase_type,
+                    correct_lat_lon=correct_lat_lon,
+                    use_model=use_model,
+                    data_column=data_column,
+                    pol_order=pol_order,
+                    data_array_dtype=data_array_dtype,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                    check_file_status=check_file_status,
+                )
 
             if (
                 allow_rephase
@@ -6512,8 +6510,8 @@ class UVData(UVBase):
                 # set the phase center to be the phase center of the first file
                 phase_center_radec = [self.phase_center_ra, self.phase_center_dec]
 
-            if len(filename) > file_num+1:
-                for f in filename[file_num+1:]:
+            if len(filename) > file_num + 1:
+                for f in filename[file_num + 1 :]:
                     uv2 = UVData()
                     if check_file_status:
                         try:
@@ -6545,9 +6543,7 @@ class UVData(UVBase):
                                 check_file_status=check_file_status,
                             )
                         except KeyError:
-                            warnings.warn(
-                                "Failed to read {f}".format(f=f)
-                            )
+                            warnings.warn("Failed to read {f}".format(f=f))
                             continue
                     else:
                         uv2.read(
