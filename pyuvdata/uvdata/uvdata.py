@@ -6439,67 +6439,41 @@ class UVData(UVBase):
         if multi:
 
             file_num = 0
-            if skip_bad_files:
-                unread = True
-                while unread:
-                    try:
-                        self.read(
-                            filename[file_num],
-                            file_type=file_type,
-                            antenna_nums=antenna_nums,
-                            antenna_names=antenna_names,
-                            ant_str=ant_str,
-                            bls=bls,
-                            frequencies=frequencies,
-                            freq_chans=freq_chans,
-                            times=times,
-                            polarizations=polarizations,
-                            blt_inds=blt_inds,
-                            time_range=time_range,
-                            keep_all_metadata=keep_all_metadata,
-                            read_data=read_data,
-                            phase_type=phase_type,
-                            correct_lat_lon=correct_lat_lon,
-                            use_model=use_model,
-                            data_column=data_column,
-                            pol_order=pol_order,
-                            data_array_dtype=data_array_dtype,
-                            run_check=run_check,
-                            check_extra=check_extra,
-                            run_check_acceptability=run_check_acceptability,
-                            skip_bad_files=skip_bad_files,
-                        )
-                        unread = False
-                    except KeyError:
-                        warnings.warn("Failed to read {f}".format(f=filename[file_num]))
-                        file_num += 1
-            else:
-                self.read(
-                    filename[0],
-                    file_type=file_type,
-                    antenna_nums=antenna_nums,
-                    antenna_names=antenna_names,
-                    ant_str=ant_str,
-                    bls=bls,
-                    frequencies=frequencies,
-                    freq_chans=freq_chans,
-                    times=times,
-                    polarizations=polarizations,
-                    blt_inds=blt_inds,
-                    time_range=time_range,
-                    keep_all_metadata=keep_all_metadata,
-                    read_data=read_data,
-                    phase_type=phase_type,
-                    correct_lat_lon=correct_lat_lon,
-                    use_model=use_model,
-                    data_column=data_column,
-                    pol_order=pol_order,
-                    data_array_dtype=data_array_dtype,
-                    run_check=run_check,
-                    check_extra=check_extra,
-                    run_check_acceptability=run_check_acceptability,
-                    skip_bad_files=skip_bad_files,
-                )
+            unread = True
+            while unread:
+                try:
+                    self.read(
+                        filename[file_num],
+                        file_type=file_type,
+                        antenna_nums=antenna_nums,
+                        antenna_names=antenna_names,
+                        ant_str=ant_str,
+                        bls=bls,
+                        frequencies=frequencies,
+                        freq_chans=freq_chans,
+                        times=times,
+                        polarizations=polarizations,
+                        blt_inds=blt_inds,
+                        time_range=time_range,
+                        keep_all_metadata=keep_all_metadata,
+                        read_data=read_data,
+                        phase_type=phase_type,
+                        correct_lat_lon=correct_lat_lon,
+                        use_model=use_model,
+                        data_column=data_column,
+                        pol_order=pol_order,
+                        data_array_dtype=data_array_dtype,
+                        run_check=run_check,
+                        check_extra=check_extra,
+                        run_check_acceptability=run_check_acceptability,
+                        skip_bad_files=skip_bad_files,
+                    )
+                    unread = False
+                except KeyError:
+                    warnings.warn("Failed to read {f}".format(f=filename[file_num]))
+                    file_num += 1
+                    if skip_bad_files is False:
+                        raise
 
             if (
                 allow_rephase
@@ -6513,39 +6487,7 @@ class UVData(UVBase):
             if len(filename) > file_num + 1:
                 for f in filename[file_num + 1 :]:
                     uv2 = UVData()
-                    if skip_bad_files:
-                        try:
-                            uv2.read(
-                                f,
-                                file_type=file_type,
-                                phase_center_radec=phase_center_radec,
-                                antenna_nums=antenna_nums,
-                                antenna_names=antenna_names,
-                                ant_str=ant_str,
-                                bls=bls,
-                                frequencies=frequencies,
-                                freq_chans=freq_chans,
-                                times=times,
-                                polarizations=polarizations,
-                                blt_inds=blt_inds,
-                                time_range=time_range,
-                                keep_all_metadata=keep_all_metadata,
-                                read_data=read_data,
-                                phase_type=phase_type,
-                                correct_lat_lon=correct_lat_lon,
-                                use_model=use_model,
-                                data_column=data_column,
-                                pol_order=pol_order,
-                                data_array_dtype=data_array_dtype,
-                                run_check=run_check,
-                                check_extra=check_extra,
-                                run_check_acceptability=run_check_acceptability,
-                                skip_bad_files=skip_bad_files,
-                            )
-                        except KeyError:
-                            warnings.warn("Failed to read {f}".format(f=f))
-                            continue
-                    else:
+                    try:
                         uv2.read(
                             f,
                             file_type=file_type,
@@ -6573,6 +6515,12 @@ class UVData(UVBase):
                             run_check_acceptability=run_check_acceptability,
                             skip_bad_files=skip_bad_files,
                         )
+                    except KeyError:
+                        warnings.warn("Failed to read {f}".format(f=f))
+                        if skip_bad_files:
+                            continue
+                        else:
+                            raise
                     if axis is not None:
                         self.fast_concat(
                             uv2,
