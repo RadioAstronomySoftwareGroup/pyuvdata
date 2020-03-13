@@ -6472,7 +6472,7 @@ class UVData(UVBase):
                         unread=False
                     except KeyError:
                         warnings.warn(
-                            "Failed to read {f}".format(f=f)
+                            "Failed to read {f}".format(f=filename[file_num])
                         )
                         file_num += 1
             else:
@@ -6512,7 +6512,7 @@ class UVData(UVBase):
                 # set the phase center to be the phase center of the first file
                 phase_center_radec = [self.phase_center_ra, self.phase_center_dec]
 
-            if len(filename) > 1:
+            if len(filename) > file_num+1:
                 for f in filename[file_num+1:]:
                     uv2 = UVData()
                     if check_file_status:
