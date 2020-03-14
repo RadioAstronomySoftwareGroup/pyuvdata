@@ -2630,6 +2630,13 @@ class UVFlag(UVBase):
                     data=self.weights_array,
                     compression=data_compression,
                 )
+                if self.weights_square_array is not None:
+                    dgrp.create_dataset(
+                        "weights_square_array",
+                        chunks=True,
+                        data=self.weights_square_array,
+                        compression=data_compression,
+                    )
             elif self.mode == "flag":
                 dgrp.create_dataset(
                     "flag_array",
