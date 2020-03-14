@@ -682,7 +682,6 @@ class UVFlag(UVBase):
         self._Nants_data.required = False
         self._Nbls.required = False
         self._Nspws.required = False
-        self._weights_square_array.required = False
 
         self.Nblts = self.Ntimes
 
