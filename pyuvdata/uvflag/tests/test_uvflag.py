@@ -432,6 +432,16 @@ def test_read_write_loop_waterfal():
     assert uvf.__eq__(uvf2, check_history=True)
 
 
+def test_read_write_loop_ret_wt_sq():
+    uvf = UVFlag(test_f_file)
+    Nbls = uvf.Nbls
+    uvf.weights_array = 2 * np.ones_like(uvf.weights_array)
+    uvf.to_waterfall(return_weights_square=True)
+    uvf.write(test_outfile, clobber=True)
+    uvf2 = UVFlag(test_outfile)
+    assert uvf.__eq__(uvf2, check_history=True)
+
+
 def test_bad_mode_savefile():
     uv = UVData()
     uv.read_miriad(test_d_file)
