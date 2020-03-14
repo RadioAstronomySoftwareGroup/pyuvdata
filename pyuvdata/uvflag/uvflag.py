@@ -2534,6 +2534,8 @@ class UVFlag(UVBase):
                 if self.mode == "metric":
                     self.metric_array = dgrp["metric_array"][()]
                     self.weights_array = dgrp["weights_array"][()]
+                    if "weights_square_array" in dgrp:
+                        self.weights_square_array = dgrp["weights_square_array"][()]
                 elif self.mode == "flag":
                     self.flag_array = dgrp["flag_array"][()]
 
