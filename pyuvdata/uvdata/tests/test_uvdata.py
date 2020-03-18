@@ -6413,6 +6413,22 @@ def test_downsample_in_time_mwa():
     assert np.all(uv.integration_time > (min_int_time - 5e-3))
 
 
+@pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
+def test_resample_in_time_warning():
+    filename = os.path.join(DATA_PATH, "mwa_integration_time.uvh5")
+    uv = UVData()
+    uv.read(filename)
+
+    uv2 = uv.copy()
+
+    with pytest.warns(
+        UserWarning, match="No resampling will be done because target time"
+    ):
+        uv.resample_in_time(3, keep_ragged=False)
+
+    assert uv2 == uv
+
+
 def test_frequency_average(uvdata_data):
     """Test averaging in frequency."""
     eq_coeffs = np.tile(

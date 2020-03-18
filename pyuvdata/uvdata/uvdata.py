@@ -5095,6 +5095,15 @@ class UVData(UVBase):
         else:
             upsample = False
 
+        if not downsample and not upsample:
+            warnings.warn(
+                "No resampling will be done because target time is not "
+                "a factor of 2 or more off from integration_time. To "
+                "force resampling set only_upsample or only_downsample "
+                "keywords or call upsample_in_time or downsample_in_time."
+            )
+            return
+
         if downsample:
             self.downsample_in_time(
                 target_time,
