@@ -556,7 +556,7 @@ class MWACorrFITS(UVData):
 
         # read data into an array with dimensions (time, uv, baselines*pols)
         self.data_array = np.zeros(
-            (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.complex64
+            (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.complex128
         )
         self.nsample_array = np.zeros(
             (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.float32
@@ -611,7 +611,7 @@ class MWACorrFITS(UVData):
         # these are the indices for the data corresponding to the initial
         # antenna/pol pair
         # generate a mapping index array
-        map_inds = np.zeros(self.Nbls * self.Npols, dtype=np.int16)
+        map_inds = np.zeros(self.Nbls * self.Npols, dtype=np.int32)
         # generate a conjugation array
         conj = np.full(self.Nbls * self.Npols, False)
         pfb_inputs_to_outputs = input_output_mapping()
@@ -684,6 +684,7 @@ class MWACorrFITS(UVData):
         self.flag_array = np.swapaxes(self.flag_array, 1, 2)
 
         # generage baseline flags for flagged ants
+        print(flagged_ants)
         bad_ant_inds = []
         for ant1 in range(128):
             for ant2 in range(ant1, 128):

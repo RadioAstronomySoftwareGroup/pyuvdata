@@ -128,7 +128,7 @@ def test_read_mwa_read_cotter():
     assert np.allclose(
         mwa_uv.data_array[:, :, :, :],
         cotter_uv.data_array[:, :, :, :],
-        atol=1e-8,
+        atol=1e-4,
         rtol=0,
     )
 
@@ -375,6 +375,38 @@ def test_misaligned_times():
     "ignore:coarse channels are not contiguous for this observation"
 )
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_flag_not_init():
+    """
+    Test that MWA flagging without flag_init works as intended.
+    """
+    uv = UVData()
+    uv.read_mwa_corr_fits(filelist[0:3], flag_init=False)
+    # check that only bad antennas are flagged for all times, freqs, pols
+    bad_ants = [59, 114]
+    good_ants = list(range(128))
+    for j in bad_ants:
+        good_ants.remove(j)
+    bad = uv.select(antenna_nums=bad_ants, inplace=False)
+    good = uv.select(antenna_nums=good_ants, inplace=False)
+    assert np.all(bad.flag_array)
+    good.flag_array = good.flag_array.reshape(
+        (good.Ntimes, good.Nbls, good.Nspws, good.Nfreqs, good.Npols)
+    )
+    assert not np.any(np.all(good.flag_array, axis=(0, 2, 3, 4)))
+    # check that only empty times are flagged for all baselines, freqs, pols
+    # only the first and last time are not empty
+    uv.flag_array = uv.flag_array.reshape(
+        (uv.Ntimes, uv.Nbls, uv.Nspws, uv.Nfreqs, uv.Npols)
+    )
+    assert np.all(uv.flag_array[1:-1, :, :, :, :])
+    assert not np.any(np.all(uv.flag_array[[0, -1], :, :, :, :], axis=(1, 2, 3, 4)))
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
+@pytest.mark.filterwarnings(
+    "ignore:coarse channels are not contiguous for this observation"
+)
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 def test_flag_init():
     """
     Test that routine MWA flagging works as intended.
@@ -391,7 +423,6 @@ def test_flag_init():
         mini1[2].header["TIME"] = mini1[1].header["TIME"]
         mini1[3].header["MILLITIM"] = 0
         mini1[3].header["TIME"] = mini1[1].header["TIME"] + 1
-        print(mini1[1].data.shape)
         mini1.writeto(spoof_file1)
 
     with fits.open(filelist[2]) as mini6:
@@ -433,8 +464,9 @@ def test_flag_init():
         uv.flag_array.reshape(reshape)[time_inds, :, :, :, :]
     ), "Not all of start and end times are flagged."
     # Check that it didn't just flag everything
+    # Should have unflagged data for time inds [2, -3]
     assert not np.any(
-        np.all(uv.flag_array.reshape(reshape)[2:-2, :, :, :, :], axis=(1, 2, 3, 4))
+        np.all(uv.flag_array.reshape(reshape)[[2, -3], :, :, :, :], axis=(1, 2, 3, 4))
     ), "All the data is flagged for some intermediate times!"
 
     # give noninteger multiple inputs
