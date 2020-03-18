@@ -684,7 +684,6 @@ class MWACorrFITS(UVData):
         self.flag_array = np.swapaxes(self.flag_array, 1, 2)
 
         # generage baseline flags for flagged ants
-        print(flagged_ants)
         bad_ant_inds = []
         for ant1 in range(128):
             for ant2 in range(ant1, 128):
