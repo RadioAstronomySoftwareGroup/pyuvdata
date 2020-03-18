@@ -128,7 +128,7 @@ def test_read_mwa_read_cotter():
     assert np.allclose(
         mwa_uv.data_array[:, :, :, :],
         cotter_uv.data_array[:, :, :, :],
-        atol=1e-4,
+        atol=1e-8,
         rtol=0,
     )
 

@@ -555,9 +555,16 @@ class MWACorrFITS(UVData):
             )
 
         # read data into an array with dimensions (time, uv, baselines*pols)
-        data_dump = np.zeros(
+        self.data_array = np.zeros(
             (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.complex64
         )
+        self.nsample_array = np.zeros(
+            (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.float32
+        )
+        self.flag_array = np.full(
+            (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), True
+        )
+
         # read data files
         for file in file_dict["data"]:
             # get the file number from the file name
@@ -578,23 +585,19 @@ class MWACorrFITS(UVData):
                     time_ind = np.where(time_array == time)[0][0]
                     # dump data into matrix
                     # and take data from real to complex numbers
-                    data_dump[time_ind, freq_ind : freq_ind + num_fine_chans, :] = (
-                        hdu_list[i].data[:, 0::2] + 1j * hdu_list[i].data[:, 1::2]
-                    )
+                    self.data_array[
+                        time_ind, freq_ind : freq_ind + num_fine_chans, :
+                    ] = (hdu_list[i].data[:, 0::2] + 1j * hdu_list[i].data[:, 1::2])
+                    self.nsample_array[
+                        time_ind, freq_ind : freq_ind + num_fine_chans, :
+                    ] = 1.0
+                    self.flag_array[
+                        time_ind, freq_ind : freq_ind + num_fine_chans, :
+                    ] = False
 
         # polarizations are ordered yy, yx, xy, xx
         self.polarization_array = np.array([-6, -8, -7, -5])
 
-        # initialize matrices for data reordering
-        self.nsample_array = np.zeros(
-            (self.Ntimes, self.Nbls, self.Nfreqs, self.Npols), dtype=np.float32
-        )
-        self.data_array = np.zeros(
-            (self.Ntimes, self.Nbls, self.Nfreqs, self.Npols), dtype=np.complex64
-        )
-        self.flag_array = np.full(
-            (self.Ntimes, self.Nbls, self.Nfreqs, self.Npols), True
-        )
         # build mapper from antenna numbers and polarizations to pfb inputs
         corr_ants_to_pfb_inputs = {}
         for i in range(len(antenna_numbers)):
@@ -607,6 +610,10 @@ class MWACorrFITS(UVData):
         # map the pfb input indices to the pfb output indices
         # these are the indices for the data corresponding to the initial
         # antenna/pol pair
+        # generate a mapping index array
+        map_inds = np.zeros(self.Nbls * self.Npols, dtype=np.int16)
+        # generate a conjugation array
+        conj = np.full(self.Nbls * self.Npols, False)
         pfb_inputs_to_outputs = input_output_mapping()
         for ant1 in range(128):
             for ant2 in range(ant1, 128):
@@ -646,9 +653,8 @@ class MWACorrFITS(UVData):
                                 + out_p1
                             )
                             # need to take the complex conjugate of the data
-                            self.data_array[:, bls_ind, :, pol_ind] = np.conj(
-                                data_dump[:, :, data_index]
-                            )
+                            map_inds[bls_ind * 4 + pol_ind] = data_index
+                            conj[bls_ind * 4 + pol_ind] = True
                         else:
                             data_index = int(
                                 2 * out_ant1 * (out_ant1 + 1)
@@ -656,13 +662,26 @@ class MWACorrFITS(UVData):
                                 + 2 * out_p1
                                 + out_p2
                             )
-                            self.data_array[:, bls_ind, :, pol_ind] = data_dump[
-                                :, :, data_index
-                            ]
-                        # unflag where the data is
-                        self.flag_array[:, bls_ind, :, pol_ind] = False
-                        # nsamples = 1 where the data is
-                        self.nsample_array[:, bls_ind, :, pol_ind] = 1.0
+                            map_inds[bls_ind * 4 + pol_ind] = data_index
+        # reorder data
+        self.data_array = self.data_array[:, :, map_inds]
+        self.nsample_array = self.nsample_array[:, :, map_inds]
+        self.flag_array = self.flag_array[:, :, map_inds]
+        # conjugate data
+        self.data_array[:, :, conj] = np.conj(self.data_array[:, :, conj])
+        # reshape data
+        self.data_array = self.data_array.reshape(
+            (self.Ntimes, self.Nfreqs, self.Nbls, self.Npols)
+        )
+        self.nsample_array = self.nsample_array.reshape(
+            (self.Ntimes, self.Nfreqs, self.Nbls, self.Npols)
+        )
+        self.flag_array = self.flag_array.reshape(
+            (self.Ntimes, self.Nfreqs, self.Nbls, self.Npols)
+        )
+        self.data_array = np.swapaxes(self.data_array, 1, 2)
+        self.nsample_array = np.swapaxes(self.nsample_array, 1, 2)
+        self.flag_array = np.swapaxes(self.flag_array, 1, 2)
 
         # generage baseline flags for flagged ants
         bad_ant_inds = []
@@ -670,7 +689,6 @@ class MWACorrFITS(UVData):
             for ant2 in range(ant1, 128):
                 if ant1 in flagged_ants or ant2 in flagged_ants:
                     bad_ant_inds.append(int(128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2))
-
         self.flag_array[:, bad_ant_inds, :, :] = True
 
         # combine baseline and time axes
