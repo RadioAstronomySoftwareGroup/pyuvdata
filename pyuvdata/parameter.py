@@ -123,7 +123,11 @@ class UVParameter(object):
                     )
                     return False
                 elif not np.allclose(
-                    self.value, other.value, rtol=self.tols[0], atol=self.tols[1]
+                    self.value,
+                    other.value,
+                    rtol=self.tols[0],
+                    atol=self.tols[1],
+                    equal_nan=True,
                 ):
                     print(
                         "{name} parameter value is array, values are not "
@@ -145,6 +149,7 @@ class UVParameter(object):
                             np.array(other.value),
                             rtol=self.tols[0],
                             atol=self.tols[1],
+                            equal_nan=True,
                         ):
                             print(
                                 "{name} parameter value can be cast to an array"

@@ -37,6 +37,13 @@ def test_array_inequality():
     assert param1 != param3
 
 
+def test_array_equality_nans():
+    """Test array equality with nans present."""
+    param1 = uvp.UVParameter(name="p1", value=np.array([0, 1, np.nan]))
+    param2 = uvp.UVParameter(name="p2", value=np.array([0, 1, np.nan]))
+    assert param1 == param2
+
+
 def test_string_inequality():
     """Test equality error for different string values."""
     param1 = uvp.UVParameter(name="p1", value="Alice")
