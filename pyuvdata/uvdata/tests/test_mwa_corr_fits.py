@@ -375,9 +375,9 @@ def test_misaligned_times():
     "ignore:coarse channels are not contiguous for this observation"
 )
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-def test_flag_not_init():
+def test_flag_nsample_basic():
     """
-    Test that MWA flagging without flag_init works as intended.
+    Test that the flag(without flag_int) and nsample arrays correctly reflect data.
     """
     uv = UVData()
     uv.read_mwa_corr_fits(filelist[0:3], flag_init=False)
@@ -392,14 +392,22 @@ def test_flag_not_init():
     good.flag_array = good.flag_array.reshape(
         (good.Ntimes, good.Nbls, good.Nspws, good.Nfreqs, good.Npols)
     )
-    assert not np.any(np.all(good.flag_array, axis=(0, 2, 3, 4)))
-    # check that only empty times are flagged for all baselines, freqs, pols
-    # only the first and last time are not empty
-    uv.flag_array = uv.flag_array.reshape(
+    # good ants should be flagged except for the first time and second freq,
+    # and for the second time and first freq
+    assert np.all(good.flag_array[1:-1, :, :, :, :])
+    assert np.all(good.flag_array[0, :, :, 1, :] == 0)
+    assert np.all(good.flag_array[-1, :, :, 0, :] == 0)
+    assert np.all(good.flag_array[0, :, :, 0, :])
+    assert np.all(good.flag_array[-1, :, :, 1, :])
+    # check that nsample array is filled properly
+    uv.nsample_array = uv.nsample_array.reshape(
         (uv.Ntimes, uv.Nbls, uv.Nspws, uv.Nfreqs, uv.Npols)
     )
-    assert np.all(uv.flag_array[1:-1, :, :, :, :])
-    assert not np.any(np.all(uv.flag_array[[0, -1], :, :, :, :], axis=(1, 2, 3, 4)))
+    assert np.all(uv.nsample_array[1:-1, :, :, :, :] == 0.0)
+    assert np.all(uv.nsample_array[0, :, :, 1, :] == 1.0)
+    assert np.all(uv.nsample_array[-1, :, :, 0, :] == 1.0)
+    assert np.all(uv.nsample_array[0, :, :, 0, :] == 0.0)
+    assert np.all(uv.nsample_array[-1, :, :, 1, :] == 0.0)
 
 
 @pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
