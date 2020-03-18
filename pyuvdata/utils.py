@@ -1544,6 +1544,7 @@ def uvcalibrate(
     Dterm_cal=False,
     delay_convention="minus",
     undo=False,
+    override_time_check=False,
 ):
     """
     Calibrate a UVData object with a UVCal object.
@@ -1572,6 +1573,9 @@ def uvcalibrate(
     undo : bool, optional
         If True, undo the provided calibration. i.e. apply the calibration with
         flipped gain_convention. Flag propagation rules apply the same.
+    override_time_check : bool
+        Option to override the check that times match between the UVCal and UVData
+        objects. Only used in UVCal has only one time.
 
     Returns
     -------
@@ -1581,6 +1585,49 @@ def uvcalibrate(
     """
     if not inplace:
         uvdata = uvdata.copy()
+
+    # Things to check between UVData & UVCal:
+    # - times match unless override keyword is set
+    # - warning if antennas names with data in UVData are not present in UVCal
+    # - if frequencies in UVData are not in UVCal, error or downselect,
+    # - if frequencies in UVCal are not in UVData, downselect UVCal
+    # - similar for pols
+    if uvcal.time_array is not None:
+        try:
+            time_arr_match = np.allclose(
+                np.unique(uvcal.time_array), np.unique(uvdata.time_array)
+            )
+        except ValueError:
+            time_arr_match = False
+
+        if not time_arr_match:
+            # check more carefully
+            uvcal_times_to_keep = []
+            for this_time in np.unique(uvdata.time_array):
+                wh_time_match = np.nonzero(
+                    np.isclose(
+                        uvcal.time_array - this_time,
+                        0,
+                        atol=uvdata._time_array.tol[1],
+                        rtol=uvdata._time_array.tol[0],
+                    )
+                )
+                if wh_time_match[0].size > 0:
+                    uvcal_times_to_keep.append(uvcal.time_array[wh_time_match][0])
+                else:
+                    if uvcal.time_array.size == 1 and override_time_check:
+                        warnings.warn(
+                            "Times do not match between UVData and UVCal "
+                            "but override_time_check is set, so calibration "
+                            "will be applied anyway."
+                        )
+                    else:
+                        raise ValueError(
+                            "Times do not match between UVData and UVCal. "
+                            "If UVCal.time_array is length 1, set the "
+                            "override_time_check keyword to apply "
+                            "calibration anyway."
+                        )
 
     # input checks
     if uvcal.cal_type == "delay":
