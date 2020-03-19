@@ -247,6 +247,7 @@ class MWACorrFITS(UVData):
 
         """
         metafits_file = None
+        ppds_file = None
         obs_id = None
         file_dict = {}
         start_time = 0.0
@@ -264,37 +265,31 @@ class MWACorrFITS(UVData):
                 if metafits_file is not None:
                     raise ValueError("multiple metafits files in filelist")
                 metafits_file = file
-            # organize data files
             elif file.lower().endswith(".fits"):
-                # get the file number from the file name;
-                # this will later be mapped to a coarse channel
-                file_num = int(file.split("_")[-2][-2:])
-                if file_num not in included_file_nums:
-                    included_file_nums.append(file_num)
-                with fits.open(file) as data:
-                    # check obs id
+                # check if ppds file
+                try:
+                    fits.getheader(file, extname="ppds")
+                    ppds_file = file
+                except Exception:
+                    # check obsid
+                    head0 = fits.getheader(file, 0)
                     if obs_id is None:
-                        obs_id = data[0].header["OBSID"]
+                        obs_id = head0["OBSID"]
                     else:
-                        if data[0].header["OBSID"] != obs_id:
+                        if head0["OBSID"] != obs_id:
                             raise ValueError(
                                 "files from different observations submitted "
                                 "in same list"
                             )
                     # check headers for first and last times containing data
-                    first_time = (
-                        data[1].header["TIME"] + data[1].header["MILLITIM"] / 1000.0
-                    )
-                    last_time = (
-                        data[-1].header["TIME"] + data[-1].header["MILLITIM"] / 1000.0
-                    )
+                    headstart = fits.getheader(file, 1)
+                    headfin = fits.getheader(file, -1)
+                    first_time = headstart["TIME"] + headstart["MILLITIM"] / 1000.0
+                    last_time = headfin["TIME"] + headfin["MILLITIM"] / 1000.0
                     if start_time == 0.0:
                         start_time = first_time
                     # check that files with a timing offset can be aligned
-                    elif (
-                        np.abs(start_time - first_time) % data[1].header["INTTIME"]
-                        != 0.0
-                    ):
+                    elif np.abs(start_time - first_time) % headstart["INTTIME"] != 0.0:
                         raise ValueError(
                             "coarse channel start times are misaligned by an amount that is not \
                                 an integer multiple of the integration time"
@@ -305,17 +300,21 @@ class MWACorrFITS(UVData):
                         end_time = last_time
                     # get number of fine channels
                     if num_fine_chans == 0:
-                        num_fine_chans = data[1].header["NAXIS2"]
-                    elif num_fine_chans != data[1].header["NAXIS2"]:
+                        num_fine_chans = headstart["NAXIS2"]
+                    elif num_fine_chans != headstart["NAXIS2"]:
                         raise ValueError(
                             "files submitted have different fine channel widths"
                         )
-
-                # organize files
-                if "data" not in file_dict.keys():
-                    file_dict["data"] = [file]
-                else:
-                    file_dict["data"].append(file)
+                    # get the file number from the file name;
+                    # this will later be mapped to a coarse channel
+                    file_num = int(file.split("_")[-2][-2:])
+                    if file_num not in included_file_nums:
+                        included_file_nums.append(file_num)
+                    # organize files
+                    if "data" not in file_dict.keys():
+                        file_dict["data"] = [file]
+                    else:
+                        file_dict["data"].append(file)
             # look for flag files
             elif file.lower().endswith(".mwaf"):
                 if use_cotter_flags is False and cotter_warning is False:
@@ -329,8 +328,16 @@ class MWACorrFITS(UVData):
                 raise ValueError("only fits, metafits, and mwaf files supported")
 
         # checks:
-        if metafits_file is None:
+        if metafits_file is None and ppds_file is None:
             raise ValueError("no metafits file submitted")
+        elif metafits_file is None:
+            metafits_file = ppds_file
+        elif ppds_file is not None:
+            ppds = fits.getheader(ppds_file, 0)
+            meta = fits.getheader(metafits_file, 0)
+            for key in ppds.keys():
+                if key not in meta.keys():
+                    self.extra_keywords[key] = ppds[key]
         if "data" not in file_dict.keys():
             raise ValueError("no data files submitted")
         if "flags" not in file_dict.keys() and use_cotter_flags:
@@ -389,7 +396,6 @@ class MWACorrFITS(UVData):
                     self.extra_keywords[key] = str(meta_hdr.get(key))
                 elif key != "":
                     self.extra_keywords[key] = meta_hdr.get(key)
-
             # get antenna data from metafits file table
             meta_tbl = meta[1].data
 
