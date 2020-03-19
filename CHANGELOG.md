@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - `frequency_average` method on UVData to average data along the frequency axis.
+- `weights_square_array` (optional) parameter on UVFlag - stores sum of squares of weights when converting to waterfall
 
 ### Fixed
 - `metafits_ppds.fits` files can now be passed to `mwa_corr_fits.read` without throwing an error.
