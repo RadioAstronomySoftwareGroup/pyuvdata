@@ -374,12 +374,15 @@ class MWACorrFITS(UVData):
             # get parameters from header
             # this assumes no averaging by this code so will need to be updated
             self.channel_width = float(meta_hdr.pop("FINECHAN") * 1000)
-            self.history = str(meta_hdr["HISTORY"])
+            if "HISTORY" in meta_hdr:
+                self.history = str(meta_hdr["HISTORY"])
+                meta_hdr.remove("HISTORY", remove_all=True)
+            else:
+                self.history = ""
             if not uvutils._check_history_version(
                 self.history, self.pyuvdata_version_str
             ):
                 self.history += self.pyuvdata_version_str
-            meta_hdr.remove("HISTORY", remove_all=True)
             self.instrument = meta_hdr["TELESCOP"]
             self.telescope_name = meta_hdr.pop("TELESCOP")
             self.object_name = meta_hdr.pop("FILENAME")

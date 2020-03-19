@@ -24,6 +24,7 @@ testfiles = [
     "1131733552_mini_06.mwaf",
     "1131733552_mod.metafits",
     "1131733552_mini_cotter.uvfits",
+    "1131733552_metafits_ppds.fits",
 ]
 filelist = [testdir + i for i in testfiles]
 
@@ -277,6 +278,28 @@ def test_multiple_coarse():
         mwa_uv2.read, func_args=[order2], nwarnings=3, message=messages
     )
     assert mwa_uv1 == mwa_uv2
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_ppds():
+    """Test handling of ppds files"""
+    # turnaround test with just ppds file given
+    mwa_uv = UVData()
+    mwa_uv.read_mwa_corr_fits([filelist[1], filelist[7]], phase_to_pointing_center=True)
+    testfile = os.path.join(DATA_PATH, "test/outtest_MWAcorr.uvfits")
+    mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
+    uvfits_uv = UVData()
+    uvfits_uv.read_uvfits(testfile)
+    assert mwa_uv == uvfits_uv
+
+    del mwa_uv
+    del uvfits_uv
+
+    # check that extra keywords are added when both ppds file and metafits file given
+    mwa_uv = UVData()
+    mwa_uv.read_mwa_corr_fits([filelist[0], filelist[1], filelist[7]])
+    assert "MWAVER" in mwa_uv.extra_keywords and "MWADATE" in mwa_uv.extra_keywords
 
 
 def test_fine_channels():
