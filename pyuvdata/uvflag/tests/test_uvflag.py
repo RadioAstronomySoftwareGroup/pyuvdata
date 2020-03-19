@@ -434,7 +434,6 @@ def test_read_write_loop_waterfal():
 
 def test_read_write_loop_ret_wt_sq():
     uvf = UVFlag(test_f_file)
-    Nbls = uvf.Nbls
     uvf.weights_array = 2 * np.ones_like(uvf.weights_array)
     uvf.to_waterfall(return_weights_square=True)
     uvf.write(test_outfile, clobber=True)
