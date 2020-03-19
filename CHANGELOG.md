@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - `frequency_average` method on UVData to average data along the frequency axis.
 
 ### Fixed
+- A bug in `mwa_corr_fits.read` in filling flag and nsample arrays.
 - A bug in `UVData.downsample_in_time` in calculating the number of new blts.
 
 ## [2.0.0] - 2020-2-12
