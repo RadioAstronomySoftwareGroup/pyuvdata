@@ -4727,20 +4727,25 @@ class UVData(UVBase):
         allow_drift=False,
     ):
         """
-        Resample to a longer integration time.
+        Average to a longer integration time.
 
-        This method will resample a UVData object such that nearly all data
-        samples have an integration time greater than or equal to the `min_int_time`.
-        Note that if the integrations for a baseline do not divide evenly into
-        the specified `min_int_time`, the final integrations for that baseline
-        in the output may have integration times less than `min_int_time`.
-        This behavior can be controlled with the `keep_ragged` argument. The new
-        samples are averages of the original samples (not interpolations).
+        This method will average a UVData object either by an integer factor
+        (by setting `n_times_to_avg`) or by a factor that can differ by
+        baseline-time sample such that after averaging, the samples have an
+        integration time greater than or equal to the `min_int_time` (up to the
+        tolerance on the integration_time).
+
+        Note that if the integrations for a baseline do not divide evenly by the
+        `n_times_to_avg` or into the specified `min_int_time`, the final
+        integrations for that baseline may have integration times less than
+        `min_int_time` or be composed of fewer input integrations than `n_times_to_avg`.
+        This behavior can be controlled with the `keep_ragged` argument.
+        The new samples are averages of the original samples (not interpolations).
 
         Parameters
         ----------
         min_int_time : float
-            Minimum integration time to downsample the UVData integration_time to
+            Minimum integration time to average the UVData integration_time to
             in seconds.
         n_times_to_avg : int
             Number of time integrations to average together.
@@ -4752,17 +4757,17 @@ class UVData(UVBase):
         keep_ragged : bool
             When averaging baselines that do not evenly divide into min_int_time,
             or that have a number of integrations that do not evenly divide by
-            n_times_to_avg, keep_ragged controls whether to keep the (summed)
+            n_times_to_avg, keep_ragged controls whether to keep the (averaged)
             integrations corresponding to the remaining samples (keep_ragged=True),
             or discard them (keep_ragged=False).
         summing_correlator_mode : bool
             Option to integrate the flux from the original samples rather than
             average the flux to emulate the behavior in some correlators (e.g. HERA).
         allow_drift : bool
-            Option to allow resampling of drift mode data. If this is False,
+            Option to allow averaging of drift mode data. If this is False,
             drift mode data will be phased before resampling and then unphased
             after resampling. Phasing and unphasing can introduce small errors,
-            but resampling in drift mode may result in unexpected behavior.
+            but averaging in drift mode may result in more decoherence.
 
         Returns
         -------
