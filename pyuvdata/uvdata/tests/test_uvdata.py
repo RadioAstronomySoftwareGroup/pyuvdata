@@ -805,14 +805,13 @@ def test_unknown_phase_unphase_hera_errors(
 def test_phase_rephase_hera_errors(uv1_2_set_uvws, phase_func, phase_kwargs, err_msg):
     uv_phase, uv_raw = uv1_2_set_uvws
 
-    # Set phase type to unkown on some tests, ignore on others.
     uv_phase.phase(0.0, 0.0, epoch="J2000")
     # if this is phase_to_time, use this index set in the dictionary and
     # assign the value of the time_array associated with that index
     # this is a little hacky, but we cannot acces uv_phase.time_array in the
     # parametrize
     if phase_func == "phase_to_time":
-        phase_kwargs["time"] = uv_phase.time_array[phase_kwargs["time"]]
+        phase_kwargs["time"] = uv_phase.time_array[int(phase_kwargs["time"])]
 
     with pytest.raises(ValueError) as cm:
         getattr(uv_phase, phase_func)(**phase_kwargs)
@@ -5470,6 +5469,10 @@ def test_downsample_in_time_uneven_samples(resample_in_time_file):
         )
     )
 
+    # make sure integration time is correct
+    # in this case, all integration times should be the target one
+    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+
     # as usual, the new data should be the average of the input data (3 points now)
     out_wf = uv_object.get_data(0, 1)
     assert np.isclose(np.mean(init_wf[0:3, 0, 0]), out_wf[0, 0, 0])
@@ -5485,7 +5488,7 @@ def test_downsample_in_time_uneven_samples(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_downsample_in_time_uneven_samples_discard_ragged(resample_in_time_file):
+def test_downsample_in_time_uneven_samples_keep_ragged(resample_in_time_file):
     """Test the downsample_in_time method with uneven downsampling and
     discarding the ragged samples.
     """
@@ -5510,12 +5513,8 @@ def test_downsample_in_time_uneven_samples_discard_ragged(resample_in_time_file)
         min_int_time=min_integration_time,
         blt_order="baseline",
         minor_order="time",
-        keep_ragged=False,
+        keep_ragged=True,
     )
-
-    # make sure integration time is correct
-    # in this case, all integration times should be the target one
-    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
 
     # as usual, the new data should be the average of the input data
     out_wf = uv_object.get_data(0, 1)
@@ -5523,7 +5522,7 @@ def test_downsample_in_time_uneven_samples_discard_ragged(resample_in_time_file)
 
     # Compare doing it with n_times_to_avg
     uv_object2.downsample_in_time(
-        n_times_to_avg=3, blt_order="baseline", minor_order="time", keep_ragged=False
+        n_times_to_avg=3, blt_order="baseline", minor_order="time", keep_ragged=True
     )
     assert uv_object.history != uv_object2.history
     uv_object2.history = uv_object.history
