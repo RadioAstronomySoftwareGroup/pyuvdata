@@ -6486,6 +6486,7 @@ def test_downsample_in_time_mwa():
     filename = os.path.join(DATA_PATH, "mwa_integration_time.uvh5")
     uv = UVData()
     uv.read(filename)
+    uv.phase_to_time(np.mean(uv.time_array))
     uv_object2 = uv.copy()
 
     # all data within 5 milliseconds of 2 second integrations
