@@ -382,6 +382,11 @@ Use the ``frequency_average`` method to average along the frequency axis.
 
 a) Averaging (Downsampling) in time
 ***********************************
+Use either the `n_times_to_avg` keyword to specify an integer factor to average
+by or `min_int_time` to specify a minimum final integration time. Specifying
+`min_int_time` is most appropriate when the integration time varies, e.g. if
+the data have had baseline-dependent averaging applied.
+
 ::
 
   >>> import os
@@ -391,18 +396,30 @@ a) Averaging (Downsampling) in time
   >>> uv_object = UVData()
   >>> datafile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
   >>> uv_object.read(datafile)
+  >>> uv_object2 = uv_object.copy()
   >>> print("Range of integration times: ", np.amin(uv_object.integration_time),
   ...       "-", np.amax(uv_object.integration_time))
   Range of integration times:  1.879048192 - 1.879048192
 
-  >>> min_integration_time = np.amax(uv_object.integration_time) * 2.0
-  >>> uv_object.downsample_in_time(min_integration_time)
+  # first use n_times_to_avg to average by a factor of 2 in time.
+  >>> uv_object.downsample_in_time(n_times_to_avg=2)
   Data are in drift mode, phasing before resampling.
   Unphasing back to drift mode.
 
   >>> print("Range of integration times after downsampling: ", np.amin(uv_object.integration_time),
   ...       "-", np.amax(uv_object.integration_time))
   Range of integration times after downsampling:  3.758096384 - 3.758096384
+
+  # Now use min_int_time to average by a factor of 2 in time.
+  >>> min_integration_time = np.amax(uv_object2.integration_time) * 2.0
+  >>> uv_object2.downsample_in_time(min_int_time=min_integration_time)
+  Data are in drift mode, phasing before resampling.
+  Unphasing back to drift mode.
+
+  >>> print("Range of integration times after downsampling: ", np.amin(uv_object2.integration_time),
+  ...       "-", np.amax(uv_object2.integration_time))
+  Range of integration times after downsampling:  3.758096384 - 3.758096384
+
 
 b) Upsampling in time
 *********************
