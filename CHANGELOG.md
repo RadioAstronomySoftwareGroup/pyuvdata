@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.1] - 2020-3-24
+
 ### Changed
 - UVData allows conjugation of metadata only objects.
 - Handling of strings in UVFlag files has been made more widely compatible.
@@ -10,7 +12,6 @@ All notable changes to this project will be documented in this file.
 ### Added
 - `weights_square_array` (optional) parameter on UVFlag - stores sum of squares of weights when converting to waterfall
 - `frequency_average` method on UVData to average data along the frequency axis.
-
 
 ### Fixed
 - `metafits_ppds.fits` files can now be passed to `mwa_corr_fits.read` without throwing an error.
