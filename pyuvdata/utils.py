@@ -1586,16 +1586,66 @@ def uvcalibrate(
     if not inplace:
         uvdata = uvdata.copy()
 
-    # Things to check between UVData & UVCal:
-    # - times match unless override keyword is set
-    # - warning if antennas names with data in UVData are not present in UVCal
-    # - if frequencies in UVData are not in UVCal, error or downselect,
-    # - if frequencies in UVCal are not in UVData, downselect UVCal
-    # - similar for pols
-    if uvcal.time_array is not None:
+    uvdata_unique_nums = np.unique(np.append(uvdata.ant_1_array, uvdata.ant_2_array))
+    uvdata.antenna_names = np.array(uvdata.antenna_names)
+    uvdata_used_antnames = np.array(
+        [
+            uvdata.antenna_names[np.where(uvdata.antenna_numbers == antnum)][0]
+            for antnum in uvdata_unique_nums
+        ]
+    )
+    uvcal_used_antnames = np.array(
+        [
+            uvcal.antenna_names[np.where(uvcal.antenna_numbers == antnum)][0]
+            for antnum in np.unique(uvcal.ant_array)
+        ]
+    )
+
+    try:
+        ant_arr_match = uvcal_used_antnames.tolist() == uvdata_used_antnames.tolist()
+    except ValueError:
+        ant_arr_match = False
+
+    if not ant_arr_match:
+        # check more carefully
+        for this_ant_name in uvdata_used_antnames:
+            wh_ant_match = np.nonzero(uvcal_used_antnames == this_ant_name)
+            if wh_ant_match[0].size > 0:
+                # Check that the antenna has the same number between uvdata & uvcal
+                uvdata_ant_num = uvdata.antenna_numbers[
+                    np.where(uvdata.antenna_names == this_ant_name)
+                ]
+                uvcal_ant_num = uvcal.antenna_numbers[
+                    np.where(uvcal.antenna_names == this_ant_name)
+                ]
+                if uvdata_ant_num != uvcal_ant_num:
+                    warnings.warn(
+                        "Antennas are not consistently numbered between the "
+                        f"UVData and UVCal objects. Antenna {this_ant_name} is "
+                        f"number {uvdata_ant_num} on the UVData object and "
+                        f"{uvcal_ant_num} on the UVCal object. Numbering must be "
+                        "consistent to so that the correct calibration solutions "
+                        "will be applied to the correct baselines. "
+                        "This will become an error in version 2.2",
+                        DeprecationWarning,
+                    )
+            else:
+                warnings.warn(
+                    f"Antenna {this_ant_name} has data on UVData but not on UVCal. "
+                    "This will become an error in version 2.2",
+                    DeprecationWarning,
+                )
+
+    uvdata_times = np.unique(uvdata.time_array)
+    downselect_cal_times = False
+    if uvcal.Ntimes > 1:
+        uvcal_times = np.unique(uvcal.time_array)
         try:
             time_arr_match = np.allclose(
-                np.unique(uvcal.time_array), np.unique(uvdata.time_array)
+                uvcal_times,
+                uvdata_times,
+                atol=uvdata._time_array.tols[1],
+                rtol=uvdata._time_array.tols[0],
             )
         except ValueError:
             time_arr_match = False
@@ -1603,42 +1653,151 @@ def uvcalibrate(
         if not time_arr_match:
             # check more carefully
             uvcal_times_to_keep = []
-            for this_time in np.unique(uvdata.time_array):
+            for this_time in uvdata_times:
                 wh_time_match = np.nonzero(
                     np.isclose(
                         uvcal.time_array - this_time,
                         0,
-                        atol=uvdata._time_array.tol[1],
-                        rtol=uvdata._time_array.tol[0],
+                        atol=uvdata._time_array.tols[1],
+                        rtol=uvdata._time_array.tols[0],
                     )
                 )
                 if wh_time_match[0].size > 0:
                     uvcal_times_to_keep.append(uvcal.time_array[wh_time_match][0])
                 else:
-                    if uvcal.time_array.size == 1 and override_time_check:
-                        warnings.warn(
-                            "Times do not match between UVData and UVCal "
-                            "but override_time_check is set, so calibration "
-                            "will be applied anyway."
-                        )
-                    else:
-                        raise ValueError(
-                            "Times do not match between UVData and UVCal. "
-                            "If UVCal.time_array is length 1, set the "
-                            "override_time_check keyword to apply "
-                            "calibration anyway."
-                        )
+                    warnings.warn(
+                        f"Time {this_time} exists on UVData but not on UVCal. "
+                        "This will become an error in version 2.2",
+                        DeprecationWarning,
+                    )
+            if len(uvcal_times_to_keep) < uvcal.Ntimes:
+                downselect_cal_times = True
+    elif uvcal.time_range is None:
+        if uvdata.Ntimes > 1 or not np.isclose(
+            uvdata_times,
+            uvcal.time_array,
+            atol=uvdata._time_array.tols[1],
+            rtol=uvdata._time_array.tols[0],
+        ):
+            if override_time_check:
+                warnings.warn(
+                    "Times do not match between UVData and UVCal "
+                    "but override_time_check is set, so calibration "
+                    "will be applied anyway."
+                )
+            else:
+                warnings.warn(
+                    "Times do not match between UVData and UVCal. "
+                    "Set the override_time_check keyword to apply calibration anyway. "
+                    "This will become an error in version 2.2",
+                    DeprecationWarning,
+                )
+    else:
+        # time_array is length 1 and time_range exists: check uvdata_times in time_range
+        if (
+            np.min(uvdata_times) < uvcal.time_range[0]
+            or np.max(uvdata_times) > uvcal.time_range[1]
+        ):
+            if override_time_check:
+                warnings.warn(
+                    "Times in UVData not included in and UVCal time_range "
+                    "but override_time_check is set, so calibration "
+                    "will be applied anyway."
+                )
+            else:
+                warnings.warn(
+                    "Times in UVData not included in and UVCal time_range. "
+                    "Set the override_time_check keyword to apply calibration anyway. "
+                    "This will become an error in version 2.2",
+                    DeprecationWarning,
+                )
+
+    downselect_cal_freq = False
+    try:
+        freq_arr_match = np.allclose(
+            np.sort(uvcal.freq_array[0, :]),
+            np.sort(uvdata.freq_array[0, :]),
+            atol=uvdata._freq_array.tols[1],
+            rtol=uvdata._freq_array.tols[0],
+        )
+    except ValueError:
+        freq_arr_match = False
+
+    if freq_arr_match is False:
+        # check more carefully
+        uvcal_freqs_to_keep = []
+        for this_freq in uvdata.freq_array[0, :]:
+            wh_freq_match = np.nonzero(
+                np.isclose(
+                    uvcal.freq_array - this_freq,
+                    0,
+                    atol=uvdata._freq_array.tols[1],
+                    rtol=uvdata._freq_array.tols[0],
+                )
+            )
+            if wh_freq_match[0].size > 0:
+                uvcal_freqs_to_keep.append(uvcal.freq_array[wh_freq_match][0])
+            else:
+                warnings.warn(
+                    f"Frequency {this_freq} exists on UVData but not on UVCal. "
+                    "This will become an error in version 2.2",
+                    DeprecationWarning,
+                )
+        if len(uvcal_freqs_to_keep) < uvcal.Nfreqs:
+            downselect_cal_freq = True
+
+    uvdata_pol_strs = polnum2str(
+        uvdata.polarization_array, x_orientation=uvdata.x_orientation
+    )
+    uvcal_pol_strs = jnum2str(uvcal.jones_array, x_orientation=uvcal.x_orientation)
+    uvdata_antenna_pols = {p for pol in uvdata_pol_strs for p in pol}
+    uvcal_antenna_pols = {p for pol in uvcal_pol_strs for p in pol[1:]}
+    for pol in uvdata_antenna_pols:
+        if pol not in uvcal_antenna_pols:
+            warnings.warn(
+                f"Feed polarization {pol} exists on UVData but not on UVCal. "
+                "This will become an error in version 2.2",
+                DeprecationWarning,
+            )
+
+    # downselect UVCal times, frequencies
+    if downselect_cal_freq or downselect_cal_times:
+        if not downselect_cal_times:
+            uvcal_times_to_keep = None
+        elif not downselect_cal_freq:
+            uvcal_freqs_to_keep = None
+
+        # handle backwards compatibility: prevent downselecting to nothing
+        # or to shapes that don't match
+        if downselect_cal_times and len(uvcal_times_to_keep) < uvdata.Ntimes:
+            downselect_cal_times = False
+            uvcal_times_to_keep = None
+        if downselect_cal_freq and len(uvcal_freqs_to_keep) < uvdata.Nfreqs:
+            downselect_cal_freq = False
+            uvcal_freqs_to_keep = None
+
+    if downselect_cal_freq or downselect_cal_times:
+        uvcal_use = uvcal.select(
+            times=uvcal_times_to_keep, frequencies=uvcal_freqs_to_keep, inplace=False
+        )
+
+        new_uvcal = True
+    else:
+        uvcal_use = uvcal
+        new_uvcal = False
 
     # input checks
-    if uvcal.cal_type == "delay":
-        # make a copy that is converted to gain
-        uvcal = uvcal.copy()
-        uvcal.convert_to_gain(delay_convention=delay_convention)
+    if uvcal_use.cal_type == "delay":
+        if not new_uvcal:
+            # make a copy to convert to gain
+            uvcal_use = uvcal_use.copy()
+            new_uvcal = True
+        uvcal_use.convert_to_gain(delay_convention=delay_convention)
 
     # D-term calibration
     if Dterm_cal:
         # check for D-terms
-        if -7 not in uvcal.jones_array and -8 not in uvcal.jones_array:
+        if -7 not in uvcal_use.jones_array and -8 not in uvcal_use.jones_array:
             raise ValueError(
                 "Cannot apply D-term calibration without -7 or -8"
                 "Jones polarization in uvcal object."
@@ -1660,14 +1819,38 @@ def uvcalibrate(
             # try to get gains for each antenna
             ant1 = (key[0], key[2][0])
             ant2 = (key[1], key[2][1])
-            if not uvcal._has_key(*ant1) or not uvcal._has_key(*ant2):
+            if not uvcal_use._has_key(*ant1):
+                warn_str = (
+                    f"UVCal object does not have information for {ant1}. "
+                    "Data for this antenna will not be calibrated"
+                )
+                if flag_missing:
+                    warn_str += (
+                        " and will be flagged, set flag_missing=False to not flag it."
+                    )
+                else:
+                    warn_str += ", set flag_missing=True to flag it."
+                warnings.warn(warn_str)
+            if not uvcal_use._has_key(*ant2):
+                warn_str = (
+                    f"UVCal object does not have information for {ant2}. "
+                    "Data for this antenna will not be calibrated"
+                )
+                if flag_missing:
+                    warn_str += (
+                        " and will be flagged, set flag_missing=False to not flag it."
+                    )
+                else:
+                    warn_str += ", set flag_missing=True to flag it."
+                warnings.warn(warn_str)
+            if not uvcal_use._has_key(*ant1) or not uvcal_use._has_key(*ant2):
                 if flag_missing:
                     uvdata.flag_array[blt_inds, 0, :, pol_ind] = True
                 continue
             gain = (
-                uvcal.get_gains(ant1) * np.conj(uvcal.get_gains(ant2))
+                uvcal_use.get_gains(ant1) * np.conj(uvcal_use.get_gains(ant2))
             ).T  # tranpose to match uvdata shape
-            flag = (uvcal.get_flags(ant1) | uvcal.get_flags(ant2)).T
+            flag = (uvcal_use.get_flags(ant1) | uvcal_use.get_flags(ant2)).T
 
             # propagate flags
             if prop_flags:
@@ -1676,7 +1859,7 @@ def uvcalibrate(
                 uvdata.flag_array[blt_inds, 0, :, pol_ind] += mask
 
             # apply to data
-            mult_gains = uvcal.gain_convention == "multiply"
+            mult_gains = uvcal_use.gain_convention == "multiply"
             if undo:
                 mult_gains = not mult_gains
             if mult_gains:
@@ -1689,8 +1872,8 @@ def uvcalibrate(
     if undo:
         uvdata.vis_units = "UNCALIB"
     else:
-        if uvcal.gain_scale is not None:
-            uvdata.vis_units = uvcal.gain_scale
+        if uvcal_use.gain_scale is not None:
+            uvdata.vis_units = uvcal_use.gain_scale
 
     if not inplace:
         return uvdata
