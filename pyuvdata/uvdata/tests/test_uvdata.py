@@ -5331,6 +5331,7 @@ def test_downsample_in_time(resample_in_time_file):
     uv_object2.downsample_in_time(
         n_times_to_avg=2, blt_order="baseline", minor_order="time"
     )
+    # histories are different when n_times_to_avg is set vs min_int_time
     assert uv_object.history != uv_object2.history
     uv_object2.history = uv_object.history
     assert uv_object == uv_object2
