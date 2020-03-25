@@ -6069,6 +6069,8 @@ def test_downsample_in_time_varying_integration_time(resample_in_time_file):
     uv_object.integration_time[inds01[-2:]] += initial_int_time
     uv_object.Ntimes = np.unique(uv_object.time_array).size
     min_integration_time = 2 * np.amin(uv_object.integration_time)
+    # check that there are no warnings about inconsistencies between
+    # integration_time & time_array
     with pytest.warns(None) as record:
         uv_object.downsample_in_time(min_int_time=min_integration_time)
     assert len(record) == 0
