@@ -5489,9 +5489,7 @@ def test_downsample_in_time_uneven_samples(resample_in_time_file):
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 def test_downsample_in_time_uneven_samples_keep_ragged(resample_in_time_file):
-    """Test the downsample_in_time method with uneven downsampling and
-    discarding the ragged samples.
-    """
+    """Test downsample_in_time with uneven downsampling and keep_ragged=True."""
     uv_object = resample_in_time_file
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
