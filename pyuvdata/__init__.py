@@ -5,14 +5,26 @@
 """Init file for pyuvdata."""
 from __future__ import absolute_import, division, print_function
 import warnings
+from setuptools_scm import get_version
+from pathlib import Path
 from pkg_resources import get_distribution, DistributionNotFound
 
-# Set the version automatically from the package details.
+from .branch_scheme import branch_scheme
+
+
 try:
-    __version__ = get_distribution(__name__).version
-except DistributionNotFound:  # pragma: nocover
-    # package is not installed
-    pass
+    # get accurate version for developer installs
+    version_str = get_version(Path(__file__).parent.parent, local_scheme=branch_scheme)
+
+    __version__ = version_str
+
+except (LookupError, ImportError):
+    try:
+        # Set the version automatically from the package details.
+        __version__ = get_distribution(__name__).version
+    except DistributionNotFound:  # pragma: nocover
+        # package is not installed
+        pass
 
 # Filter annoying Cython warnings that serve no good purpose. see numpy#432
 # needs to be done before the imports to work properly
