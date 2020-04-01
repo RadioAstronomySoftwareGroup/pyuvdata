@@ -5,7 +5,7 @@
 """Define branch_scheme for versioning."""
 
 
-def branch_scheme(version):
+def branch_scheme(version):  # pragma: nocover
     """
     Local version scheme that adds the branch name for absolute reproducibility.
 

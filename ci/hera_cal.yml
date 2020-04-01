@@ -15,6 +15,7 @@ dependencies:
   - pyyaml
   - scikit-learn
   - scipy
+  - setuptools_scm
   - basemap
   - pip:
     - git+https://github.com/HERA-Team/linsolve.git

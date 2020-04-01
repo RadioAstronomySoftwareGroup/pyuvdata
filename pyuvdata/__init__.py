@@ -12,7 +12,7 @@ from pkg_resources import get_distribution, DistributionNotFound
 from .branch_scheme import branch_scheme
 
 
-try:
+try:  # pragma: nocover
     # get accurate version for developer installs
     version_str = get_version(Path(__file__).parent.parent, local_scheme=branch_scheme)
 
