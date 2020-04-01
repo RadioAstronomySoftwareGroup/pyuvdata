@@ -81,31 +81,40 @@ __all__ = [
 # fmt: off
 # polarization constants
 # maps polarization strings to polarization integers
-POL_STR2NUM_DICT = {'pI': 1, 'pQ': 2, 'pU': 3, 'pV': 4,
-                    'I': 1, 'Q': 2, 'U': 3, 'V': 4,  # support straight stokes names
-                    'rr': -1, 'll': -2, 'rl': -3, 'lr': -4,
-                    'xx': -5, 'yy': -6, 'xy': -7, 'yx': -8}
+POL_STR2NUM_DICT = {"pI": 1, "pQ": 2, "pU": 3, "pV": 4,
+                    "I": 1, "Q": 2, "U": 3, "V": 4,  # support straight stokes names
+                    "rr": -1, "ll": -2, "rl": -3, "lr": -4,
+                    "xx": -5, "yy": -6, "xy": -7, "yx": -8}
 # maps polarization integers to polarization strings
-POL_NUM2STR_DICT = {1: 'pI', 2: 'pQ', 3: 'pU', 4: 'pV',
-                    -1: 'rr', -2: 'll', -3: 'rl', -4: 'lr',
-                    -5: 'xx', -6: 'yy', -7: 'xy', -8: 'yx'}
+POL_NUM2STR_DICT = {1: "pI", 2: "pQ", 3: "pU", 4: "pV",
+                    -1: "rr", -2: "ll", -3: "rl", -4: "lr",
+                    -5: "xx", -6: "yy", -7: "xy", -8: "yx"}
 
 # maps how polarizations change when antennas are swapped
-CONJ_POL_DICT = {'xx': 'xx', 'yy': 'yy', 'xy': 'yx', 'yx': 'xy',
-                 'ee': 'ee', 'nn': 'nn', 'en': 'ne', 'ne': 'en',
-                 'rr': 'rr', 'll': 'll', 'rl': 'lr', 'lr': 'rl',
-                 'I': 'I', 'Q': 'Q', 'U': 'U', 'V': 'V',
-                 'pI': 'pI', 'pQ': 'pQ', 'pU': 'pU', 'pV': 'pV'}
+CONJ_POL_DICT = {"xx": "xx", "yy": "yy", "xy": "yx", "yx": "xy",
+                 "ee": "ee", "nn": "nn", "en": "ne", "ne": "en",
+                 "rr": "rr", "ll": "ll", "rl": "lr", "lr": "rl",
+                 "I": "I", "Q": "Q", "U": "U", "V": "V",
+                 "pI": "pI", "pQ": "pQ", "pU": "pU", "pV": "pV"}
 
 # maps jones matrix element strings to jones integers
-# Add entries that don't start with 'J' to allow shorthand versions
-JONES_STR2NUM_DICT = {'Jxx': -5, 'Jyy': -6, 'Jxy': -7, 'Jyx': -8,
-                      'xx': -5, 'x': -5, 'yy': -6, 'y': -6, 'xy': -7, 'yx': -8,
-                      'Jrr': -1, 'Jll': -2, 'Jrl': -3, 'Jlr': -4,
-                      'rr': -1, 'r': -1, 'll': -2, 'l': -2, 'rl': -3, 'lr': -4}
+# Add entries that don't start with "J" to allow shorthand versions
+JONES_STR2NUM_DICT = {"Jxx": -5, "Jyy": -6, "Jxy": -7, "Jyx": -8,
+                      "xx": -5, "x": -5, "yy": -6, "y": -6, "xy": -7, "yx": -8,
+                      "Jrr": -1, "Jll": -2, "Jrl": -3, "Jlr": -4,
+                      "rr": -1, "r": -1, "ll": -2, "l": -2, "rl": -3, "lr": -4}
 # maps jones integers to jones matrix element strings
-JONES_NUM2STR_DICT = {-1: 'Jrr', -2: 'Jll', -3: 'Jrl', -4: 'Jlr',
-                      -5: 'Jxx', -6: 'Jyy', -7: 'Jxy', -8: 'Jyx'}
+JONES_NUM2STR_DICT = {-1: "Jrr", -2: "Jll", -3: "Jrl", -4: "Jlr",
+                      -5: "Jxx", -6: "Jyy", -7: "Jxy", -8: "Jyx"}
+
+# maps uvdata pols to input feed polarizations
+POL_TO_FEED_DICT = {"xx": ["x", "x"], "yy": ["y", "y"],
+                    "xy": ["x", "y"], "yx": ["y", "x"],
+                    "ee": ["e", "e"], "nn": ["n", "n"],
+                    "en": ["e", "n"], "ne": ["n", "e"],
+                    "rr": ["r", "r"], "ll": ["l", "l"],
+                    "rl": ["r", "l"], "lr": ["l", "r"]}
+
 # fmt: on
 
 
@@ -1599,10 +1608,11 @@ def uvcalibrate(
             for antnum in uvdata_unique_nums
         ]
     )
+    uvcal_unique_nums = np.unique(uvcal.ant_array)
     uvcal_used_antnames = np.array(
         [
             uvcal.antenna_names[np.where(uvcal.antenna_numbers == antnum)][0]
-            for antnum in np.unique(uvcal.ant_array)
+            for antnum in uvcal_unique_nums
         ]
     )
 
@@ -1615,33 +1625,29 @@ def uvcalibrate(
         # check more carefully
         for this_ant_name in uvdata_used_antnames:
             wh_ant_match = np.nonzero(uvcal_used_antnames == this_ant_name)
-            if wh_ant_match[0].size > 0:
-                # Check that the antenna has the same number between uvdata & uvcal
+            if wh_ant_match[0].size == 0:
+                # old behavior only required that antenna numbers were present,#
+                # not names. Check numbers, if they are present issue
+                # deprecation warning
                 uvdata_ant_num = uvdata.antenna_numbers[
-                    np.where(uvdata.antenna_names == this_ant_name)
+                    np.where(uvdata.antenna_names == this_ant_name)[0][0]
                 ]
-                uvcal_ant_num = uvcal.antenna_numbers[
-                    np.where(uvcal.antenna_names == this_ant_name)
-                ]
-                if uvdata_ant_num != uvcal_ant_num:
-                    warnings.warn(
-                        "Antennas are not consistently numbered between the "
-                        f"UVData and UVCal objects. Antenna {this_ant_name} is "
-                        f"number {uvdata_ant_num} on the UVData object and "
-                        f"{uvcal_ant_num} on the UVCal object. Numbering must be "
-                        "consistent to so that the correct calibration solutions "
-                        "will be applied to the correct baselines. "
-                        "If you think this is a mistake please make an issue in "
-                        "our issue log. "
-                        "This will become an error in version 2.2",
-                        DeprecationWarning,
-                    )
-            else:
                 if override_ant_check:
                     warnings.warn(
                         f"Antenna {this_ant_name} has data on UVData but not on UVCal. "
                         "override_ant_check is True, so the data associated with "
                         "this antenna will be flagged."
+                    )
+                elif uvdata_ant_num in uvcal_unique_nums:
+                    warnings.warn(
+                        f"Antenna {this_ant_name} has data on UVData but not on UVCal. "
+                        f"Its antenna number is {uvdata_ant_num}, which is present "
+                        "on UVCal. Currently the data will be calibrated using the "
+                        "matching antenna number, but that will be deprecated in "
+                        "version 2.2 and this will become an error. "
+                        "Set override_ant_check=True to proceed "
+                        "with calibration and flag the data for this antenna. ",
+                        DeprecationWarning,
                     )
                 else:
                     warn_str = (
@@ -1655,11 +1661,13 @@ def uvcalibrate(
                             "version 2.2, use override_ant_check instead."
                         )
                     else:
-                        warn_str += ", set override_ant_check=True to proceed "
-                        "with calibration and flag the data for this antenna. "
-                        "Currently calibration will proceed, the data will not "
-                        "be flagged and not be calibrated. This behavior will "
-                        "deprected in version 2.2."
+                        warn_str += (
+                            ", set override_ant_check=True to proceed "
+                            "with calibration and flag the data for this antenna. "
+                            "Currently calibration will proceed, the data will not "
+                            "be flagged and not be calibrated. This behavior will "
+                            "deprected in version 2.2."
+                        )
                     warnings.warn(warn_str, DeprecationWarning)
 
     uvdata_times = np.unique(uvdata.time_array)
@@ -1776,12 +1784,15 @@ def uvcalibrate(
         uvdata.polarization_array, x_orientation=uvdata.x_orientation
     )
     uvcal_pol_strs = jnum2str(uvcal.jones_array, x_orientation=uvcal.x_orientation)
-    uvdata_antenna_pols = {p for pol in uvdata_pol_strs for p in pol}
-    uvcal_antenna_pols = {p for pol in uvcal_pol_strs for p in pol[1:]}
-    for pol in uvdata_antenna_pols:
-        if pol not in uvcal_antenna_pols:
+    uvdata_feed_pols = {
+        feed for pol in uvdata_pol_strs for feed in POL_TO_FEED_DICT[pol]
+    }
+    for feed in uvdata_feed_pols:
+        # get diagonal jones str
+        jones_str = parse_jpolstr(feed, x_orientation=uvcal.x_orientation)
+        if jones_str not in uvcal_pol_strs:
             warnings.warn(
-                f"Feed polarization {pol} exists on UVData but not on UVCal. "
+                f"Feed polarization {feed} exists on UVData but not on UVCal. "
                 "This will become an error in version 2.2",
                 DeprecationWarning,
             )
@@ -1832,6 +1843,11 @@ def uvcalibrate(
 
     # No D-term calibration
     else:
+        # key is number, value is name
+        uvdata_ant_dict = dict(zip(uvdata.antenna_numbers, uvdata.antenna_names))
+        # opposite: key is name, value is number
+        uvcal_ant_dict = dict(zip(uvcal.antenna_names, uvcal.antenna_numbers))
+
         # iterate over keys
         for key in uvdata.get_antpairpols():
             # get indices for this key
@@ -1843,16 +1859,45 @@ def uvcalibrate(
             )
 
             # try to get gains for each antenna
-            ant1 = (key[0], key[2][0])
-            ant2 = (key[1], key[2][1])
-            if not uvcal_use._has_key(*ant1) or not uvcal_use._has_key(*ant2):
-                if flag_missing or override_ant_check:
+            ant1_num = key[0]
+            ant2_num = key[1]
+
+            feed1, feed2 = POL_TO_FEED_DICT[key[2]]
+
+            try:
+                uvcal_ant1_num = uvcal_ant_dict[uvdata_ant_dict[ant1_num]]
+            except KeyError:
+                if not override_ant_check:
+                    # backwards compatibility -- this will be removed in version 2.2
+                    uvcal_ant1_num = ant1_num
+                else:
+                    uvcal_ant1_num = None
+            try:
+                uvcal_ant2_num = uvcal_ant_dict[uvdata_ant_dict[ant2_num]]
+            except KeyError:
+                if not override_ant_check:
+                    # backwards compatibility -- this will be removed in version 2.2
+                    uvcal_ant2_num = ant2_num
+                else:
+                    uvcal_ant2_num = None
+
+            uvcal_key1 = (uvcal_ant1_num, feed1)
+            uvcal_key2 = (uvcal_ant2_num, feed2)
+
+            if uvcal_ant1_num is None or uvcal_ant2_num is None:
+                uvdata.flag_array[blt_inds, 0, :, pol_ind] = True
+                continue
+            elif not uvcal_use._has_key(*uvcal_key1) or not uvcal_use._has_key(
+                *uvcal_key2
+            ):
+                if flag_missing:
                     uvdata.flag_array[blt_inds, 0, :, pol_ind] = True
                 continue
             gain = (
-                uvcal_use.get_gains(ant1) * np.conj(uvcal_use.get_gains(ant2))
+                uvcal_use.get_gains(uvcal_key1)
+                * np.conj(uvcal_use.get_gains(uvcal_key2))
             ).T  # tranpose to match uvdata shape
-            flag = (uvcal_use.get_flags(ant1) | uvcal_use.get_flags(ant2)).T
+            flag = (uvcal_use.get_flags(uvcal_key1) | uvcal_use.get_flags(uvcal_key2)).T
 
             # propagate flags
             if prop_flags:
