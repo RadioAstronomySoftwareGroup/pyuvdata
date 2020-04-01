@@ -12,6 +12,7 @@ dependencies:
   - numpy
   - scikit-learn
   - scipy
+  - setuptools_scm
   - basemap
   - pytest
   - pytest-cov
