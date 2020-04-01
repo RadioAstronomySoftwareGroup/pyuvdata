@@ -1545,6 +1545,7 @@ def uvcalibrate(
     delay_convention="minus",
     undo=False,
     override_time_check=False,
+    override_ant_check=False,
 ):
     """
     Calibrate a UVData object with a UVCal object.
@@ -1573,6 +1574,10 @@ def uvcalibrate(
     undo : bool, optional
         If True, undo the provided calibration. i.e. apply the calibration with
         flipped gain_convention. Flag propagation rules apply the same.
+    override_ant_check : bool
+        Option to override the check that all antennas with data on the UVData
+        object are present in the UVCal object. If this option is set to True,
+        data for antennas without calibrations will be flagged.
     override_time_check : bool
         Option to override the check that times match between the UVCal and UVData
         objects. Only used in UVCal has only one time.
@@ -1626,15 +1631,36 @@ def uvcalibrate(
                         f"{uvcal_ant_num} on the UVCal object. Numbering must be "
                         "consistent to so that the correct calibration solutions "
                         "will be applied to the correct baselines. "
+                        "If you think this is a mistake please make an issue in "
+                        "our issue log. "
                         "This will become an error in version 2.2",
                         DeprecationWarning,
                     )
             else:
-                warnings.warn(
-                    f"Antenna {this_ant_name} has data on UVData but not on UVCal. "
-                    "This will become an error in version 2.2",
-                    DeprecationWarning,
-                )
+                if override_ant_check:
+                    warnings.warn(
+                        f"Antenna {this_ant_name} has data on UVData but not on UVCal. "
+                        "override_ant_check is True, so the data associated with "
+                        "this antenna will be flagged."
+                    )
+                else:
+                    warn_str = (
+                        f"Antenna {this_ant_name} has data on UVData but not on UVCal. "
+                        "Data for this antenna will not be calibrated"
+                    )
+                    if flag_missing:
+                        warn_str += (
+                            " and will be flagged because flag_missing is True. "
+                            "The flag_missing keyword will be deprected in "
+                            "version 2.2, use override_ant_check instead."
+                        )
+                    else:
+                        warn_str += ", set override_ant_check=True to proceed "
+                        "with calibration and flag the data for this antenna. "
+                        "Currently calibration will proceed, the data will not "
+                        "be flagged and not be calibrated. This behavior will "
+                        "deprected in version 2.2."
+                    warnings.warn(warn_str, DeprecationWarning)
 
     uvdata_times = np.unique(uvdata.time_array)
     downselect_cal_times = False
@@ -1682,7 +1708,7 @@ def uvcalibrate(
             if override_time_check:
                 warnings.warn(
                     "Times do not match between UVData and UVCal "
-                    "but override_time_check is set, so calibration "
+                    "but override_time_check is True, so calibration "
                     "will be applied anyway."
                 )
             else:
@@ -1819,32 +1845,8 @@ def uvcalibrate(
             # try to get gains for each antenna
             ant1 = (key[0], key[2][0])
             ant2 = (key[1], key[2][1])
-            if not uvcal_use._has_key(*ant1):
-                warn_str = (
-                    f"UVCal object does not have information for {ant1}. "
-                    "Data for this antenna will not be calibrated"
-                )
-                if flag_missing:
-                    warn_str += (
-                        " and will be flagged, set flag_missing=False to not flag it."
-                    )
-                else:
-                    warn_str += ", set flag_missing=True to flag it."
-                warnings.warn(warn_str)
-            if not uvcal_use._has_key(*ant2):
-                warn_str = (
-                    f"UVCal object does not have information for {ant2}. "
-                    "Data for this antenna will not be calibrated"
-                )
-                if flag_missing:
-                    warn_str += (
-                        " and will be flagged, set flag_missing=False to not flag it."
-                    )
-                else:
-                    warn_str += ", set flag_missing=True to flag it."
-                warnings.warn(warn_str)
             if not uvcal_use._has_key(*ant1) or not uvcal_use._has_key(*ant2):
-                if flag_missing:
+                if flag_missing or override_ant_check:
                     uvdata.flag_array[blt_inds, 0, :, pol_ind] = True
                 continue
             gain = (
