@@ -1340,11 +1340,7 @@ def test_uvcalibrate_flag_propagation():
         "This will become an error in version 2.2"
         for this_freq in uvd.freq_array[0, :]
     }
-    pol_expected = {
-        "Feed polarization x exists on UVData but not on UVCal. "
-        "This will become an error in version 2.2"
-    }
-    assert warns == (ant_expected | time_expected | freq_expected | pol_expected)
+    assert warns == (ant_expected | time_expected | freq_expected)
 
     assert uvdcal.get_flags(9, 20, "xx").min()  # assert completely flagged
     assert uvdcal.get_flags(10, 20, "xx").min()  # assert completely flagged
@@ -1386,7 +1382,7 @@ def test_uvcalibrate_flag_propagation():
             "with calibration and flag the data for this antenna. "
         )
 
-    assert warns == (ant_expected | time_expected | freq_expected | pol_expected)
+    assert warns == (ant_expected | time_expected | freq_expected)
 
     assert not uvdcal.get_flags(20, 72, "xx").max()  # assert no flags exist
     with pytest.warns(DeprecationWarning) as warninfo:
@@ -1417,7 +1413,7 @@ def test_uvcalibrate_flag_propagation():
             "with calibration and flag the data for this antenna. "
         )
 
-    assert warns == (ant_expected | time_expected | freq_expected | pol_expected)
+    assert warns == (ant_expected | time_expected | freq_expected)
 
     assert uvdcal.get_flags(20, 72, "xx").min()  # assert completely flagged
 
