@@ -145,6 +145,7 @@ Required:
 * scipy
 * astropy >= 3.2.3
 * h5py
+* setuptools_scm
 
 Optional:
 

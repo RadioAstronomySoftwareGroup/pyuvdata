@@ -18,16 +18,9 @@ from distutils.version import LooseVersion
 # without a workaround we can't use the pyuvdata code to get the version.
 os.environ["PYUVDATA_IGNORE_EXTMOD_IMPORT_FAIL"] = "1"
 
-
-def branch_scheme(version):
-    """Local version scheme that adds the branch name for absolute reproducibility."""
-    if version.exact or version.node is None:
-        return version.format_choice("", "+d{time:{time_format}}", time_format="%Y%m%d")
-    else:
-        if version.branch == "master":
-            return version.format_choice("+{node}", "+{node}.dirty")
-        else:
-            return version.format_choice("+{node}.{branch}", "+{node}.{branch}.dirty")
+# add pyuvdata to our path in order to use the branch_scheme function
+sys.path.append("pyuvdata")
+from branch_scheme import branch_scheme  # noqa
 
 
 # this solution works for `pip install .`` but not `python setup.py install`...
@@ -119,7 +112,13 @@ setup_args = {
     "scripts": [fl for fl in glob.glob("scripts/*") if not os.path.isdir(fl)],
     "use_scm_version": {"local_scheme": branch_scheme},
     "include_package_data": True,
-    "install_requires": ["numpy>=1.15", "scipy", "astropy>=3.2.3", "h5py"],
+    "install_requires": [
+        "numpy>=1.15",
+        "scipy",
+        "astropy>=3.2.3",
+        "h5py",
+        "setuptools_scm",
+    ],
     "tests_require": ["pytest", "pytest-cases"],
     "extras_require": {
         "casa": casa_reqs,
