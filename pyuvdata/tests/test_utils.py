@@ -23,6 +23,24 @@ ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
 ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
 
 
+@pytest.fixture
+def uvcalibrate_data():
+    uvdata = UVData()
+    uvdata.read(
+        os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"),
+        file_type="uvh5",
+    )
+    uvcal = UVCal()
+    uvcal.read_calfits(
+        os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
+    )
+
+    # fix the antenna names in the uvcal object to match the uvdata object
+    uvcal.antenna_names = [name.replace("ant", "HH") for name in uvcal.antenna_names]
+
+    yield uvdata, uvcal
+
+
 def test_XYZ_from_LatLonAlt():
     """Test conversion from lat/lon/alt to ECEF xyz with reference values."""
     out_xyz = uvutils.XYZ_from_LatLonAlt(
@@ -1173,7 +1191,7 @@ def test_and_collapse_errors():
     pytest.raises(ValueError, uvutils.and_collapse, data)
 
 
-def test_uvcalibrate_apply_gains():
+def test_uvcalibrate_apply_gains_oldfiles():
     # read data
     uvd = UVData()
     uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA"))
@@ -1271,95 +1289,117 @@ def test_uvcalibrate_apply_gains():
     warns = {warn.message.args[0] for warn in warninfo}
     assert warns == (ant_expected | time_expected | freq_expected)
 
+
+def test_uvcalibrate_divide(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
+    # set the gain_scale to "Jy" to test that vis units are set properly
+    assert uvc.gain_convention == "divide"
+    assert uvc.gain_scale is None
+
+    uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False)
+    assert uvdcal.vis_units == "UNCALIB"
+
+    key = (1, 13, "xx")
+    ant1 = (1, "Jxx")
+    ant2 = (13, "Jxx")
+
+    np.testing.assert_array_almost_equal(
+        uvdcal.get_data(key),
+        uvd.get_data(key) / (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T,
+    )
+
+    # test undo
+    uvdcal = uvutils.uvcalibrate(
+        uvdcal, uvc, prop_flags=True, flag_missing=False, inplace=False, undo=True
+    )
+
+    np.testing.assert_array_almost_equal(uvd.get_data(key), uvdcal.get_data(key))
+    assert uvdcal.vis_units == "UNCALIB"
+
+
+def test_uvcalibrate_multiply(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
+    # use multiply gain convention
+    uvc.gain_convention = "multiply"
+
+    # set the gain_scale to "Jy" to test that vis units are set properly in that case
+    uvc.gain_scale = "Jy"
+    uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False)
+
+    key = (12, 23, "xx")
+    ant1 = (12, "Jxx")
+    ant2 = (23, "Jxx")
+
+    np.testing.assert_array_almost_equal(
+        uvdcal.get_data(key),
+        uvd.get_data(key) * (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T,
+    )
+    assert uvdcal.vis_units == "Jy"
+
+    # test undo
+    uvdcal = uvutils.uvcalibrate(
+        uvdcal, uvc, prop_flags=True, flag_missing=False, inplace=False, undo=True
+    )
+
+    np.testing.assert_array_almost_equal(uvd.get_data(key), uvdcal.get_data(key))
+    assert uvdcal.vis_units == "UNCALIB"
+
+
+def test_uvcalibrate_dterm_handling(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
     # test d-term exception
-    with pytest.warns(DeprecationWarning) as warninfo:
-        with pytest.raises(
-            ValueError, match="Cannot apply D-term calibration without -7 or -8"
-        ):
-            uvutils.uvcalibrate(uvd, uvc, Dterm_cal=True)
-    warns = {warn.message.args[0] for warn in warninfo}
-    assert warns == (ant_expected | time_expected | freq_expected)
+    with pytest.raises(
+        ValueError, match="Cannot apply D-term calibration without -7 or -8"
+    ):
+        uvutils.uvcalibrate(uvd, uvc, Dterm_cal=True)
 
     # d-term not implemented error
     uvcDterm = copy.deepcopy(uvc)
-    uvcDterm.jones_array = np.array([-7])
+    uvcDterm.jones_array = np.array([-7, -8])
     uvcDterm = uvc + uvcDterm
-    with pytest.warns(DeprecationWarning) as warninfo:
-        with pytest.raises(
-            NotImplementedError, match="D-term calibration is not yet implemented."
-        ):
-            uvutils.uvcalibrate(uvd, uvcDterm, Dterm_cal=True)
-    warns = {warn.message.args[0] for warn in warninfo}
-    assert warns == (ant_expected | time_expected | freq_expected)
+    with pytest.raises(
+        NotImplementedError, match="D-term calibration is not yet implemented."
+    ):
+        uvutils.uvcalibrate(uvd, uvcDterm, Dterm_cal=True)
 
 
-def test_uvcalibrate_flag_propagation():
-    # read data
-    uvd = UVData()
-    uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA"))
-    uvc = UVCal()
-    uvc.read_calfits(os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits"))
-    # downselect to match each other in shape (but not in actual values!)
-    uvd.select(frequencies=uvd.freq_array[0, :10])
-    uvc.select(times=uvc.time_array[:3])
+def test_uvcalibrate_flag_propagation(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
 
     # test flag propagation
     uvc.flag_array[0] = True
     uvc.gain_array[1] = 0.0
-    with pytest.warns(DeprecationWarning) as warninfo:
-        uvdcal = uvutils.uvcalibrate(
-            uvd, uvc, prop_flags=True, flag_missing=False, inplace=False
-        )
-    warns = {warn.message.args[0] for warn in warninfo}
-    uvdata_unique_nums = np.unique(np.append(uvd.ant_1_array, uvd.ant_2_array))
-    uvd.antenna_names = np.array(uvd.antenna_names)
-    uvdata_used_antnames = np.array(
-        [
-            uvd.antenna_names[np.where(uvd.antenna_numbers == antnum)][0]
-            for antnum in uvdata_unique_nums
-        ]
-    )
-    ant_expected = {
-        f"Antenna {antname} has data on UVData but not on UVCal. "
-        f"Its antenna number is {uvdata_unique_nums[num]}, which is present "
-        "on UVCal. Currently the data will be calibrated using the "
-        "matching antenna number, but that will be deprecated in "
-        "version 2.2 and this will become an error. "
-        "Set override_ant_check=True to proceed "
-        "with calibration and flag the data for this antenna. "
-        for num, antname in enumerate(uvdata_used_antnames)
-    }
-    missing_times = [2457698.4036761867, 2457698.4038004624]
-    time_expected = {
-        f"Time {this_time} exists on UVData but not on UVCal. "
-        "This will become an error in version 2.2"
-        for this_time in missing_times
-    }
-    freq_expected = {
-        f"Frequency {this_freq} exists on UVData but not on UVCal. "
-        "This will become an error in version 2.2"
-        for this_freq in uvd.freq_array[0, :]
-    }
-    assert warns == (ant_expected | time_expected | freq_expected)
-
-    assert uvdcal.get_flags(9, 20, "xx").min()  # assert completely flagged
-    assert uvdcal.get_flags(10, 20, "xx").min()  # assert completely flagged
-    np.testing.assert_array_almost_equal(
-        uvd.get_data(9, 20, "xx"), uvdcal.get_data(9, 20, "xx")
-    )
-    np.testing.assert_array_almost_equal(
-        uvd.get_data(10, 20, "xx"), uvdcal.get_data(10, 20, "xx")
+    uvdcal = uvutils.uvcalibrate(
+        uvd, uvc, prop_flags=True, flag_missing=False, inplace=False
     )
 
-    uvc_sub = uvc.select(antenna_nums=[9, 10], inplace=False)
+    assert uvdcal.get_flags(1, 13, "xx").min()  # assert completely flagged
+    assert uvdcal.get_flags(0, 12, "xx").min()  # assert completely flagged
+    np.testing.assert_array_almost_equal(
+        uvd.get_data(1, 13, "xx"), uvdcal.get_data(1, 13, "xx")
+    )
+    np.testing.assert_array_almost_equal(
+        uvd.get_data(0, 12, "xx"), uvdcal.get_data(0, 12, "xx")
+    )
+
+    uvc_sub = uvc.select(antenna_nums=[1, 12], inplace=False)
     with pytest.warns(DeprecationWarning) as warninfo:
         uvdcal = uvutils.uvcalibrate(
             uvd, uvc_sub, prop_flags=True, flag_missing=False, inplace=False
         )
     warns = {warn.message.args[0] for warn in warninfo}
+    uvdata_unique_nums = np.unique(np.append(uvd.ant_1_array, uvd.ant_2_array))
+    uvd.antenna_names = np.array(uvd.antenna_names)
     missing_ants = uvdata_unique_nums.tolist()
-    missing_ants.remove(9)
-    missing_ants.remove(10)
+    missing_ants.remove(1)
+    missing_ants.remove(12)
+    missing_ant_names = [
+        uvd.antenna_names[np.where(uvd.antenna_numbers == antnum)[0][0]]
+        for antnum in missing_ants
+    ]
     ant_expected = {
         f"Antenna {antname} has data on UVData but not on UVCal. "
         "Data for this antenna will not be calibrated"
@@ -1368,54 +1408,27 @@ def test_uvcalibrate_flag_propagation():
         "Currently calibration will proceed, the data will not "
         "be flagged and not be calibrated. This behavior will "
         "deprected in version 2.2."
-        for antname in missing_ants
+        for antname in missing_ant_names
     }
 
-    for ant in [9, 10]:
-        ant_expected.add(
-            f"Antenna {ant} has data on UVData but not on UVCal. "
-            f"Its antenna number is {ant}, which is present "
-            "on UVCal. Currently the data will be calibrated using the "
-            "matching antenna number, but that will be deprecated in "
-            "version 2.2 and this will become an error. "
-            "Set override_ant_check=True to proceed "
-            "with calibration and flag the data for this antenna. "
-        )
-
-    assert warns == (ant_expected | time_expected | freq_expected)
-
-    assert not uvdcal.get_flags(20, 72, "xx").max()  # assert no flags exist
+    assert not uvdcal.get_flags(13, 24, "xx").max()  # assert no flags exist
     with pytest.warns(DeprecationWarning) as warninfo:
         uvdcal = uvutils.uvcalibrate(
             uvd, uvc_sub, prop_flags=True, flag_missing=True, inplace=False
         )
     warns = {warn.message.args[0] for warn in warninfo}
-    missing_ants = uvdata_unique_nums.tolist()
-    missing_ants.remove(9)
-    missing_ants.remove(10)
     ant_expected = {
         f"Antenna {antname} has data on UVData but not on UVCal. "
         "Data for this antenna will not be calibrated"
         " and will be flagged because flag_missing is True. "
         "The flag_missing keyword will be deprected in "
         "version 2.2, use override_ant_check instead."
-        for antname in missing_ants
+        for antname in missing_ant_names
     }
 
-    for ant in [9, 10]:
-        ant_expected.add(
-            f"Antenna {ant} has data on UVData but not on UVCal. "
-            f"Its antenna number is {ant}, which is present "
-            "on UVCal. Currently the data will be calibrated using the "
-            "matching antenna number, but that will be deprecated in "
-            "version 2.2 and this will become an error. "
-            "Set override_ant_check=True to proceed "
-            "with calibration and flag the data for this antenna. "
-        )
+    assert warns == ant_expected
 
-    assert warns == (ant_expected | time_expected | freq_expected)
-
-    assert uvdcal.get_flags(20, 72, "xx").min()  # assert completely flagged
+    assert uvdcal.get_flags(13, 24, "xx").min()  # assert completely flagged
 
 
 def test_apply_uvflag():

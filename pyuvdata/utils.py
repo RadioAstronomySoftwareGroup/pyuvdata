@@ -1609,6 +1609,7 @@ def uvcalibrate(
         ]
     )
     uvcal_unique_nums = np.unique(uvcal.ant_array)
+    uvcal.antenna_names = np.array(uvcal.antenna_names)
     uvcal_used_antnames = np.array(
         [
             uvcal.antenna_names[np.where(uvcal.antenna_numbers == antnum)][0]
