@@ -229,7 +229,7 @@ class Miriad(UVData):
                     else:
                         bl_str_list.append(str(bl[1]) + "_" + str(bl[0]))
                         if len(bl) == 3:
-                            bl_pols.add(bl[2][::-1])
+                            bl_pols.add(uvutils.conj_pol(bl[2].lower()))
 
                 if n_selects > 0:
                     # combine antpair_str_list and bl_str_list with an intersection

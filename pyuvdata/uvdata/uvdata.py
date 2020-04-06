@@ -4061,7 +4061,8 @@ class UVData(UVBase):
                 elif len(wh2) > 0:
                     bls_blt_inds = np.append(bls_blt_inds, list(wh2))
                     if len(bl) == 3:
-                        bl_pols.add(bl[2][::-1])  # reverse polarization string
+                        # find conjugate polarization
+                        bl_pols.add(uvutils.conj_pol(bl[2]))
                 else:
                     raise ValueError(
                         "Antenna pair {p} does not have any data "
