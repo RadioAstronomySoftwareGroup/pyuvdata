@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - `frequency_average` method on UVData to average data along the frequency axis.
 
 ### Fixed
+- A bug in `select` where baseline-polarization tuples would not be conjugated correctly in `UVData` and `UVFlag`, and select on read for Miriad files.
 - `metafits_ppds.fits` files can now be passed to `mwa_corr_fits.read` without throwing an error.
 - UVParameters that are array_like and have NaNs are now properly identified as equal if the NaNs are in the same locations and all non-NaN entries are equal.
 - A bug in `mwa_corr_fits.read` in filling flag and nsample arrays.
