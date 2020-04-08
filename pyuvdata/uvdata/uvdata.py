@@ -5560,9 +5560,14 @@ class UVData(UVBase):
             baselines, baseline_vecs, tol=tol, with_conjugates=include_conjugates
         )
 
-    def compress_by_redundancy(self, tol=1.0, inplace=True, keep_all_metadata=True):
+    def compress_by_redundancy(
+        self, method="select", tol=1.0, inplace=True, keep_all_metadata=True
+    ):
         """
-        Downselect to only have one baseline per redundant group on the object.
+        Downselect or average to only have one baseline per redundant group.
+
+        Either select the first baseline in the redundant group or average over
+        the baselines in the redundant group.
 
         Uses utility functions to find redundant baselines to the given tolerance,
         then select on those.
@@ -5571,6 +5576,10 @@ class UVData(UVBase):
         ----------
         tol : float
             Redundancy tolerance in meters, default is 1.0 corresponding to 1 meter.
+        method : str
+            Options are "select", which just keeps the first baseline in each
+            redundant group or "average" which averages over the baselines in each
+            redundant group and assigns the average to the first baseline in the group.
         inplace : bool
             Option to do selection on current object.
         keep_all_metadata : bool
@@ -5583,14 +5592,42 @@ class UVData(UVBase):
             if inplace is False, return the compressed UVData object
 
         """
+        allowed_methods = ["select", "average"]
+        if method not in allowed_methods:
+            raise ValueError(f"method must be one of {allowed_methods}")
+
         red_gps, centers, lengths, conjugates = self.get_redundancies(
             tol, include_conjugates=True
         )
 
         bl_ants = [self.baseline_to_antnums(gp[0]) for gp in red_gps]
-        return self.select(
-            bls=bl_ants, inplace=inplace, keep_all_metadata=keep_all_metadata
-        )
+
+        if method == "average":
+            # do a metadata only select to get all the metadata right
+            new_obj = self.copy(metadata_only=True)
+            new_obj.select(bls=bl_ants, keep_all_metadata=keep_all_metadata)
+            for grp_ind, group in enumerate(red_gps):
+                conj_group = conjugates[grp_ind]
+                group_times = []
+                group_inds = []
+                conj_group_inds = []
+                for bl in group:
+                    bl_inds = np.where(self.baseline_array == bl)[0]
+                    group_inds.extend(bl_inds)
+                    group_times.extend(self.time_array[bl_inds])
+                for bl in conj_group:
+                    bl_inds = np.where(self.baseline_array == bl)[0]
+                    conj_group_inds.extend(bl_inds)
+                    group_times.extend(self.time_array[bl_inds])
+
+                # now we have to figure out which times are the same to a tolerance
+                # so we can average over them. Maybe re-use logic from
+                # utils.get_baseline_redundancies?
+
+        else:
+            return self.select(
+                bls=bl_ants, inplace=inplace, keep_all_metadata=keep_all_metadata
+            )
 
     def inflate_by_redundancy(self, tol=1.0, blt_order="time", blt_minor_order=None):
         """
