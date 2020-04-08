@@ -1617,10 +1617,7 @@ def uvcalibrate(
         ]
     )
 
-    try:
-        ant_arr_match = uvcal_used_antnames.tolist() == uvdata_used_antnames.tolist()
-    except ValueError:
-        ant_arr_match = False
+    ant_arr_match = uvcal_used_antnames.tolist() == uvdata_used_antnames.tolist()
 
     if not ant_arr_match:
         # check more carefully
@@ -1735,13 +1732,13 @@ def uvcalibrate(
         ):
             if override_time_check:
                 warnings.warn(
-                    "Times in UVData not included in and UVCal time_range "
-                    "but override_time_check is set, so calibration "
+                    "Times do not match between UVData and UVCal "
+                    "but override_time_check is True, so calibration "
                     "will be applied anyway."
                 )
             else:
                 warnings.warn(
-                    "Times in UVData not included in and UVCal time_range. "
+                    "Times do not match between UVData and UVCal. "
                     "Set the override_time_check keyword to apply calibration anyway. "
                     "This will become an error in version 2.2",
                     DeprecationWarning,
