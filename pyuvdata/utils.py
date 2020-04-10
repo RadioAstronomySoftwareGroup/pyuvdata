@@ -1586,7 +1586,8 @@ def uvcalibrate(
     override_ant_check : bool
         Option to override the check that all antennas with data on the UVData
         object are present in the UVCal object. If this option is set to True,
-        data for antennas without calibrations will be flagged.
+        uvcalibrate will proceed without erroring and data for antennas without
+        calibrations will be flagged.
     override_time_check : bool
         Option to override the check that times match between the UVCal and UVData
         objects. Only used in UVCal has only one time.
