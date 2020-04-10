@@ -25,7 +25,7 @@ ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
 
 
 @pytest.fixture
-def uvcalibrate_data():
+def uvcalibrate_init_data():
     uvdata = UVData()
     uvdata.read(
         os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"),
@@ -35,6 +35,13 @@ def uvcalibrate_data():
     uvcal.read_calfits(
         os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
     )
+
+    yield uvdata, uvcal
+
+
+@pytest.fixture
+def uvcalibrate_data(uvcalibrate_init_data):
+    uvdata, uvcal = uvcalibrate_init_data
 
     # fix the antenna names in the uvcal object to match the uvdata object
     uvcal.antenna_names = [name.replace("ant", "HH") for name in uvcal.antenna_names]
@@ -1279,16 +1286,56 @@ def test_uvcalibrate_apply_gains_oldfiles():
     )
     assert uvdcal.vis_units == "Jy"
 
-    # test delay conversion runs through
+
+def test_uvcalibrate_delay_oldfiles():
+    uvd = UVData()
+    uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA"))
+
+    uvc = UVCal()
     uvc.read_calfits(os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits"))
-    uvc.select(times=uvc.time_array[:3], frequencies=uvc.freq_array[0, :10])
+    # downselect to match each other in shape (but not in actual values!)
+    uvc.select(times=uvc.time_array[:3])
     uvc.gain_convention = "multiply"
     with pytest.warns(DeprecationWarning) as warninfo:
         uvdcal = uvutils.uvcalibrate(
             uvd, uvc, prop_flags=False, flag_missing=False, inplace=False
         )
     warns = {warn.message.args[0] for warn in warninfo}
-    assert warns == (ant_expected | time_expected | freq_expected)
+    uvdata_unique_nums = np.unique(np.append(uvd.ant_1_array, uvd.ant_2_array))
+    uvd.antenna_names = np.array(uvd.antenna_names)
+    uvdata_used_antnames = np.array(
+        [
+            uvd.antenna_names[np.where(uvd.antenna_numbers == antnum)][0]
+            for antnum in uvdata_unique_nums
+        ]
+    )
+    ant_expected = {
+        f"Antenna {antname} has data on UVData but not on UVCal. "
+        f"Its antenna number is {uvdata_unique_nums[num]}, which is present "
+        "on UVCal. Currently the data will be calibrated using the "
+        "matching antenna number, but that will be deprecated in "
+        "version 2.2 and this will become an error. "
+        "Set override_ant_check=True to proceed "
+        "with calibration and flag the data for this antenna. "
+        for num, antname in enumerate(uvdata_used_antnames)
+    }
+    missing_times = [2457698.4036761867, 2457698.4038004624]
+    time_expected = {
+        f"Time {this_time} exists on UVData but not on UVCal. "
+        "This will become an error in version 2.2"
+        for this_time in missing_times
+    }
+    assert warns == (ant_expected | time_expected)
+
+    uvc.convert_to_gain()
+    with pytest.warns(DeprecationWarning) as warninfo:
+        uvdcal2 = uvutils.uvcalibrate(
+            uvd, uvc, prop_flags=False, flag_missing=False, inplace=False
+        )
+    warns = {warn.message.args[0] for warn in warninfo}
+    assert warns == (ant_expected | time_expected)
+
+    assert uvdcal == uvdcal2
 
 
 def test_uvcalibrate_divide(uvcalibrate_data):
@@ -1348,6 +1395,7 @@ def test_uvcalibrate_multiply(uvcalibrate_data):
     assert uvdcal.vis_units == "UNCALIB"
 
 
+@pytest.mark.filterwarnings("ignore:Combined frequencies are not contiguous.")
 def test_uvcalibrate_dterm_handling(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
@@ -1367,6 +1415,7 @@ def test_uvcalibrate_dterm_handling(uvcalibrate_data):
         uvutils.uvcalibrate(uvd, uvcDterm, Dterm_cal=True)
 
 
+@pytest.mark.filterwarnings("ignore:Cannot preserve total_quality_array")
 def test_uvcalibrate_flag_propagation(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
@@ -1377,8 +1426,8 @@ def test_uvcalibrate_flag_propagation(uvcalibrate_data):
         uvd, uvc, prop_flags=True, flag_missing=False, inplace=False
     )
 
-    assert uvdcal.get_flags(1, 13, "xx").min()  # assert completely flagged
-    assert uvdcal.get_flags(0, 12, "xx").min()  # assert completely flagged
+    assert np.all(uvdcal.get_flags(1, 13, "xx"))  # assert completely flagged
+    assert np.all(uvdcal.get_flags(0, 12, "xx"))  # assert completely flagged
     np.testing.assert_array_almost_equal(
         uvd.get_data(1, 13, "xx"), uvdcal.get_data(1, 13, "xx")
     )
@@ -1412,7 +1461,7 @@ def test_uvcalibrate_flag_propagation(uvcalibrate_data):
         for antname in missing_ant_names
     }
 
-    assert not uvdcal.get_flags(13, 24, "xx").max()  # assert no flags exist
+    assert not np.any(uvdcal.get_flags(13, 24, "xx"))  # assert no flags exist
     with pytest.warns(DeprecationWarning) as warninfo:
         uvdcal = uvutils.uvcalibrate(
             uvd, uvc_sub, prop_flags=True, flag_missing=True, inplace=False
@@ -1429,7 +1478,7 @@ def test_uvcalibrate_flag_propagation(uvcalibrate_data):
 
     assert warns == ant_expected
 
-    assert uvdcal.get_flags(13, 24, "xx").min()  # assert completely flagged
+    assert np.all(uvdcal.get_flags(13, 24, "xx"))  # assert completely flagged
 
     with pytest.warns(UserWarning) as warninfo:
         uvdcal = uvutils.uvcalibrate(
@@ -1445,7 +1494,7 @@ def test_uvcalibrate_flag_propagation(uvcalibrate_data):
 
     assert warns == ant_expected
 
-    assert uvdcal.get_flags(13, 24, "xx").min()  # assert completely flagged
+    assert np.all(uvdcal.get_flags(13, 24, "xx"))  # assert completely flagged
 
 
 def test_uvcalibrate_extra_cal_antennas(uvcalibrate_data):
@@ -1453,8 +1502,6 @@ def test_uvcalibrate_extra_cal_antennas(uvcalibrate_data):
 
     # remove some antennas from the data
     uvd.select(antenna_nums=[0, 1, 12, 13])
-    print(np.unique(uvd.ant_1_array))
-    print(np.unique(uvd.ant_2_array))
 
     uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
@@ -1466,6 +1513,56 @@ def test_uvcalibrate_extra_cal_antennas(uvcalibrate_data):
         uvdcal.get_data(key),
         uvd.get_data(key) / (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T,
     )
+
+
+def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data):
+    uvd, uvc = uvcalibrate_init_data
+
+    with pytest.warns(DeprecationWarning) as warninfo:
+        uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False)
+    warns = {warn.message.args[0] for warn in warninfo}
+    uvdata_unique_nums = np.unique(np.append(uvd.ant_1_array, uvd.ant_2_array))
+    uvd.antenna_names = np.array(uvd.antenna_names)
+    uvdata_unique_names = [
+        uvd.antenna_names[np.where(uvd.antenna_numbers == antnum)[0][0]]
+        for antnum in uvdata_unique_nums
+    ]
+    ant_expected = {
+        f"Antenna {antname} has data on UVData but not on UVCal. "
+        f"Its antenna number is {antnum}, which is present "
+        "on UVCal. Currently the data will be calibrated using the "
+        "matching antenna number, but that will be deprecated in "
+        "version 2.2 and this will become an error. "
+        "Set override_ant_check=True to proceed "
+        "with calibration and flag the data for this antenna. "
+        for antnum, antname in zip(uvdata_unique_nums, uvdata_unique_names)
+    }
+
+    assert warns == ant_expected
+
+    key = (1, 13, "xx")
+    ant1 = (1, "Jxx")
+    ant2 = (13, "Jxx")
+
+    np.testing.assert_array_almost_equal(
+        uvdcal.get_data(key),
+        uvd.get_data(key) / (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T,
+    )
+
+    # now test that they're all flagged if override_ant_check is True
+    with pytest.warns(UserWarning) as warninfo:
+        uvdcal = uvutils.uvcalibrate(uvd, uvc, override_ant_check=True, inplace=False)
+    warns = {warn.message.args[0] for warn in warninfo}
+    ant_expected = {
+        f"Antenna {antname} has data on UVData but not on UVCal. "
+        "override_ant_check is True, so the data associated with "
+        "this antenna will be flagged."
+        for antname in uvdata_unique_names
+    }
+
+    assert warns == ant_expected
+
+    assert np.all(uvdcal.flag_array)  # assert completely flagged
 
 
 def test_uvcalibrate_time_mismatch(uvcalibrate_data):
@@ -1500,9 +1597,32 @@ def test_uvcalibrate_time_types(uvcalibrate_data, len_time_range):
     # only one time
     uvc.select(times=uvc.time_array[0])
     if len_time_range == 0:
-        uvc.time_array = None
+        uvc.time_range = None
+    else:
+        # check cal runs fine with a good time range
+        uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
-    uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False)
+        key = (1, 13, "xx")
+        ant1 = (1, "Jxx")
+        ant2 = (13, "Jxx")
+
+        np.testing.assert_array_almost_equal(
+            uvdcal.get_data(key),
+            uvd.get_data(key) / (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T,
+        )
+
+        # then change time_range to get warnings
+        uvc.time_range = np.array(uvc.time_range) + 1
+
+    with pytest.warns(
+        DeprecationWarning,
+        match=(
+            "Times do not match between UVData and UVCal. "
+            "Set the override_time_check keyword to apply calibration anyway. "
+            "This will become an error in version 2.2"
+        ),
+    ):
+        uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
     key = (1, 13, "xx")
     ant1 = (1, "Jxx")
@@ -1512,20 +1632,6 @@ def test_uvcalibrate_time_types(uvcalibrate_data, len_time_range):
         uvdcal.get_data(key),
         uvd.get_data(key) / (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T,
     )
-
-    # change time_range to get warnings
-    uvc.time_range = np.array(uvc.time_range) + 1
-    with pytest.warns(
-        DeprecationWarning,
-        match=(
-            "Times do not match between UVData and UVCal. "
-            "Set the override_time_check keyword to apply calibration anyway. "
-            "This will become an error in version 2.2"
-        ),
-    ):
-        uvdcal2 = uvutils.uvcalibrate(uvd, uvc, inplace=False)
-
-    assert uvdcal == uvdcal2
 
     # set override_time_check to test the user warning
     with pytest.warns(
@@ -1541,6 +1647,7 @@ def test_uvcalibrate_time_types(uvcalibrate_data, len_time_range):
     assert uvdcal == uvdcal2
 
 
+@pytest.mark.filterwarnings("ignore:Combined frequencies are not contiguous.")
 def test_uvcalibrate_extra_cal_times(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
@@ -1586,6 +1693,7 @@ def test_uvcalibrate_freq_mismatch(uvcalibrate_data):
     )
 
 
+@pytest.mark.filterwarnings("ignore:Combined frequencies are not evenly spaced.")
 def test_uvcalibrate_extra_cal_freqs(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
