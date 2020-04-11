@@ -1169,6 +1169,7 @@ class UVBeam(UVBase):
         freq_interp_tol=1.0,
         polarizations=None,
         reuse_spline=False,
+        spline_opts=None,
     ):
         """
         Interpolate in az_za coordinate system with a simple spline.
@@ -1191,6 +1192,8 @@ class UVBeam(UVBase):
             Default is all polarizations in self.polarization_array.
         reuse_spline : bool
             Save the interpolation functions for reuse.
+        spline_opts : dict
+            Options (kx, ky, s) for  RectBivariateSpline.
 
         Returns
         -------
@@ -1330,6 +1333,8 @@ class UVBeam(UVBase):
         data_shape = (self.Naxes_vec, self.Nspws, Npol_feeds, input_nfreqs, npoints)
         interp_data = np.zeros(data_shape, dtype=data_type)
 
+        if spline_opts is None or not isinstance(spline_opts, dict):
+            spline_opts = {}
         if reuse_spline and not hasattr(self, "saved_interp_functions"):
             int_dict = {}
             self.saved_interp_functions = int_dict
@@ -1352,11 +1357,13 @@ class UVBeam(UVBase):
                                     theta_use[:, 0],
                                     phi_use[0, :],
                                     data_use[index0, index1, index2, index3, :].real,
+                                    **spline_opts,
                                 )
                                 imag_lut = interpolate.RectBivariateSpline(
                                     theta_use[:, 0],
                                     phi_use[0, :],
                                     data_use[index0, index1, index2, index3, :].imag,
+                                    **spline_opts,
                                 )
                                 lut = get_lambda(real_lut, imag_lut)
                             else:
@@ -1364,6 +1371,7 @@ class UVBeam(UVBase):
                                     theta_use[:, 0],
                                     phi_use[0, :],
                                     data_use[index0, index1, index2, index3, :],
+                                    **spline_opts,
                                 )
                                 lut = get_lambda(lut)
                             if reuse_spline:
