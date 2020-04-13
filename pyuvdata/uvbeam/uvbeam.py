@@ -1579,6 +1579,7 @@ class UVBeam(UVBase):
         polarizations=None,
         return_bandpass=False,
         reuse_spline=False,
+        spline_opts=None,
         new_object=False,
         run_check=True,
         check_extra=True,
@@ -1715,6 +1716,7 @@ class UVBeam(UVBase):
         extra_keyword_dict = {}
         if interp_func == "_interp_az_za_rect_spline":
             extra_keyword_dict["reuse_spline"] = reuse_spline
+            extra_keyword_dict["spline_opts"] = spline_opts
 
         interp_data, interp_basis_vector, interp_bandpass = getattr(self, interp_func)(
             az_array_use,
