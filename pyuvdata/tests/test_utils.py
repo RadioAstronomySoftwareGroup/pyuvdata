@@ -1293,8 +1293,8 @@ def test_uvcalibrate_delay_oldfiles():
 
     uvc = UVCal()
     uvc.read_calfits(os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits"))
-    # downselect to match each other in shape (but not in actual values!)
-    uvc.select(times=uvc.time_array[:3])
+    # downselect to match each other in shape (but not in actual time values!)
+    uvc.select(times=uvc.time_array[:3], frequencies=uvd.freq_array[0, :])
     uvc.gain_convention = "multiply"
     with pytest.warns(DeprecationWarning) as warninfo:
         uvdcal = uvutils.uvcalibrate(
