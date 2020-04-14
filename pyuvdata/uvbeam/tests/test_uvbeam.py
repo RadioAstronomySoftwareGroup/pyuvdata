@@ -961,6 +961,19 @@ def test_efield_spatial_interpolation():
 
     assert np.all(reused_data_array == orig_data_array)
 
+    # test passing spline options
+    spline_opts = {"kx": 4, "ky": 4}
+    quartic_data_array, interp_basis_vector = efield_beam.interp(
+        az_array=az_interp_vals,
+        za_array=za_interp_vals,
+        freq_array=freq_interp_vals,
+        spline_opts=spline_opts,
+    )
+
+    # slightly different interpolation, so not identical.
+    assert np.allclose(quartic_data_array, orig_data_array, atol=1e-10)
+    assert not np.all(quartic_data_array == orig_data_array)
+
     select_data_array_orig, interp_basis_vector = efield_beam.interp(
         az_array=az_interp_vals[0:1],
         za_array=za_interp_vals[0:1],
