@@ -1193,7 +1193,7 @@ class UVBeam(UVBase):
         reuse_spline : bool
             Save the interpolation functions for reuse.
         spline_opts : dict
-            Options (kx, ky, s) for  RectBivariateSpline.
+            Options (kx, ky, s) for numpy.RectBivariateSpline.
 
         Returns
         -------
@@ -1617,13 +1617,17 @@ class UVBeam(UVBase):
             polarizations to interpolate if beam_type is 'power'.
             Default is all polarizations in self.polarization_array.
         new_object : bool
-            Option to return a new UVData object with the interpolated data,
+            Option to return a new UVBeam object with the interpolated data,
             if possible. Note that this is only possible for Healpix pixels or
             if az_za_grid is True and `az_array` and `za_array` are evenly spaced
             or for frequency only interpolation.
         reuse_spline : bool
             Save the interpolation functions for reuse. Only applies for
             `az_za_simple` interpolation.
+        spline_opts : dict
+            Provide options to numpy.RectBivariateSpline. This includes spline
+            order parameters `kx` and `ky`, and smoothing parameter `s`.
+            Only applies for `az_za_simple` interpolation.
         run_check : bool
             Only used if new_object is True. Option to check for the existence
             and proper shapes of required parameters on the new object.
