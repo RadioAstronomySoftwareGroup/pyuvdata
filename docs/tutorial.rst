@@ -1466,11 +1466,10 @@ a) Add frequencies.
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
   >>> import numpy as np
-  >>> import copy
   >>> cal1 = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
   >>> cal1.read_calfits(filename)
-  >>> cal2 = copy.deepcopy(cal1)
+  >>> cal2 = cal1.copy()
 
   # Downselect frequencies to recombine
   >>> cal1.select(freq_chans=np.arange(0, 5))
@@ -1487,11 +1486,10 @@ b) Add times.
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
   >>> import numpy as np
-  >>> import copy
   >>> cal1 = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
   >>> cal1.read_calfits(filename)
-  >>> cal2 = copy.deepcopy(cal1)
+  >>> cal2 = cal1.copy()
 
   # Downselect times to recombine
   >>> times = np.unique(cal1.time_array)
@@ -1511,18 +1509,17 @@ directly without creating a third uvcal object.
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
   >>> import numpy as np
-  >>> import copy
   >>> cal1 = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
   >>> cal1.read_calfits(filename)
-  >>> cal2 = copy.deepcopy(cal1)
+  >>> cal2 = cal1.copy()
   >>> times = np.unique(cal1.time_array)
   >>> cal1.select(times=times[0:len(times) // 2])
   >>> cal2.select(times=times[len(times) // 2:])
   >>> cal1.__add__(cal2, inplace=True)
 
   >>> cal1.read_calfits(filename)
-  >>> cal2 = copy.deepcopy(cal1)
+  >>> cal2 = cal1.copy()
   >>> cal1.select(times=times[0:len(times) // 2])
   >>> cal2.select(times=times[len(times) // 2:])
   >>> cal1 += cal2
@@ -1537,7 +1534,6 @@ each file will be read in succession and added to the previous.
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
   >>> import numpy as np
-  >>> import copy
   >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
   >>> cal.read_calfits(filename)
@@ -1854,7 +1850,6 @@ c) Convert a regularly gridded efield beam to a power beam (leaving original int
   >>> import os
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> import copy
   >>> import numpy as np
   >>> import matplotlib.pyplot as plt # doctest: +SKIP
   >>> beam = UVBeam()
