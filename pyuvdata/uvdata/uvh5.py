@@ -91,17 +91,12 @@ def _read_complex_astype(dset, indices, dtype_out=np.complex64):
         raise ValueError(
             "output datatype must be one of (complex, np.complex64, np.complex128)"
         )
-    dset_shape = [0, 0, 0, 0]
-    for i in range(len(dset_shape)):
-        if indices[i] == np.s_[:]:
-            dset_shape[i] = dset.shape[i]
-        else:
-            dset_shape[i] = len(indices[i])
+    dset_shape = _get_dset_shape(dset, indices)
     output_array = np.empty(dset_shape, dtype=dtype_out)
     dtype_in = dset.dtype
     with dset.astype(dtype_in):
-        output_array.real = dset["r"][indices]
-        output_array.imag = dset["i"][indices]
+        output_array.real = _index_dset(dset["r"], indices)
+        output_array.imag = _index_dset(dset["i"], indices)
 
     return output_array
 
@@ -134,6 +129,213 @@ def _write_complex_astype(data, dset, indices):
         dset[indices[0], indices[1], indices[2], indices[3], "r"] = data.real
         dset[indices[0], indices[1], indices[2], indices[3], "i"] = data.imag
     return
+
+
+def _convert_to_slices(indices, max_Nslice_frac=0.1):
+    """
+    Determine whether a list of indices can be represented as a
+    list of slices.
+
+    Parameters
+    ----------
+    indices : list
+        A 1D list of (preferably monotonically increasing) integers for
+        array indexing.
+    max_Nslice_frac : float
+        A float from 0 -- 1. If the number of slices
+        needed to represent input 'indices' divided by len(indices)
+        exceeds this fraction, then we determine that we cannot
+        easily represent 'indices' with a list of slices.
+
+    Returns
+    -------
+    list
+        list of slice objects used to represent indices
+    bool
+        If True, indices is easily represented by slices
+        (max_Nslice_frac condition met), otherwise False
+    """
+    # assert indices is longer than 2, or return trivial solutions
+    if len(indices) == 0:
+        return [slice(0, 0, 0)], False
+    elif len(indices) == 1:
+        return [slice(indices[0], indices[0] + 1, 1)], True
+    elif len(indices) == 2:
+        return [slice(indices[0], indices[1] + 1, indices[1] - indices[0])], True
+
+    # setup empty slices list
+    Ninds = len(indices)
+    slices = []
+
+    # iterate over indices
+    for i, ind in enumerate(indices):
+        if i == 0:
+            # start the first slice object
+            start = ind
+            last_step = indices[i + 1] - ind
+            continue
+
+        # calculate step from previous index
+        step = ind - indices[i - 1]
+
+        # if step != last_step, this ends the slice
+        if step != last_step:
+            # append to list
+            slices.append(slice(start, indices[i - 1] + 1, last_step))
+
+            # check if this is the last element
+            if i == Ninds - 1:
+                # append last element
+                slices.append(slice(ind, ind + 1, 1))
+                continue
+
+            # setup next step
+            start = ind
+            last_step = indices[i + 1] - ind
+
+        # check if this is the last element
+        elif i == Ninds - 1:
+            # end slice and append
+            slices.append(slice(start, ind + 1, step))
+
+    # determine whether slices are a reasonable representation
+    Nslices = len(slices)
+    passed = (float(Nslices) / len(indices)) < max_Nslice_frac
+
+    return slices, passed
+
+
+def _get_slice_len(s, axlen):
+    """
+    Get length of a slice s into array of len axlen
+
+    Parameters
+    ----------
+    s : slice object
+    axlen : int
+        Length of axis s slices into
+
+    Returns
+    -------
+    int
+        Length of slice object
+    """
+    if s.start is None:
+        start = 0
+    else:
+        start = s.start
+    if s.stop is None:
+        stop = axlen
+    else:
+        stop = s.stop
+    if s.step is None:
+        step = 1
+    else:
+        step = s.step
+
+    return (stop - start) // step
+
+
+def _get_dset_shape(dset, indices):
+    """
+    Given a 4-tuple of indices, determine the indexed array shape.
+
+    Parameters
+    ----------
+    dset : h5py dataset
+        A reference to an HDF5 dataset on disk.
+    indices : tuple
+        A 4-tuple with the indices to extract along each dimension of dset.
+        Each element should contain a list of indices, a slice element,
+        or a list of slice elements that will be concatenated after slicing.
+
+    Returns
+    -------
+    tuple
+        4-tuple with the shape of the indexed array
+    """
+    dset_shape = list(dset.shape)
+    for i, inds in enumerate(indices):
+        # check for integer
+        if isinstance(inds, (int, np.integer)):
+            dset_shape[i] = 1
+        # check for slice object
+        if isinstance(inds, slice):
+            dset_shape[i] = _get_slice_len(inds, dset_shape[i])
+        # check for list
+        if isinstance(inds, list):
+            # check for list of integers
+            if isinstance(inds[0], (int, np.integer)):
+                dset_shape[i] = len(inds)
+            elif isinstance(inds[0], slice):
+                dset_shape[i] = sum([_get_slice_len(s, dset_shape[i]) for s in inds])
+
+    return dset_shape
+
+
+def _index_dset(dset, indices):
+    """
+    Index a UVH5 data, flags or nsamples h5py dataset.
+
+    Parameters
+    ----------
+    dset : h5py dataset
+        A reference to an HDF5 dataset on disk.
+    indices : tuple
+        A 4-tuple with the indices to extract along each dimension of dset.
+        Each element should contain a list of indices, a slice element,
+        or a list of slice elements that will be concatenated after slicing.
+        Indices must be provided such that all dimensions can be indexed
+        simultaneously. 
+
+    Returns
+    -------
+    ndarray
+        The indexed dset
+    """
+    # get dset shape
+    dset_shape = _get_dset_shape(dset, indices)
+
+    # create empty array of dset dtype
+    arr = np.empty(dset_shape, dtype=dset.dtype)
+
+    # get arr and dest indices for each dimension in indices
+    dset_indices = []
+    arr_indices = []
+    for i, dset_inds in enumerate(indices):
+        if isinstance(dset_inds, (int, np.integer)):
+            # this dimension is len 1, so slice is fine
+            arr_indices.append([slice(None)])
+            dset_indices.append([dset_inds])
+
+        elif isinstance(dset_inds, slice):
+            # this dimension is just a slice, so slice is fine
+            arr_indices.append([slice(None)])
+            dset_indices.append([dset_inds])
+
+        elif isinstance(dset_inds, list):
+            if isinstance(dset_inds[0], (int, np.integer)):
+                # this is a list of integers, append slice
+                arr_indices.append([slice(None)])
+                dset_indices.append([dset_inds])
+            elif isinstance(dset_inds[0], slice):
+                # this is a list of slices, need list of slice lens
+                slens = [_get_slice_len(s, dset_shape[i]) for s in dset_inds]
+                ssums = [sum(slens[:i]) for i in range(len(slens))]
+                arr_inds = [slice(ssums[i], ssums[i] + slens[i]) for i in range(len(slens))]
+                arr_indices.append(arr_inds)
+                dset_indices.append(dset_inds)
+
+    # iterate over each of the 4 axes and fill the array
+    for blt_arr, blt_dset in zip(arr_indices[0], dset_indices[0]):
+        for spw_arr, spw_dset in zip(arr_indices[1], dset_indices[1]):
+            for freq_arr, freq_dset in zip(arr_indices[2], dset_indices[2]):
+                for pol_arr, pol_dset in zip(arr_indices[3], dset_indices[3]):
+                    # index dset and assign to arr
+                    arr[blt_arr, spw_arr, freq_arr, pol_arr] = \
+                    dset[blt_dset, spw_dset, freq_dset, pol_dset]
+
+    return arr
 
 
 class UVH5(UVData):
@@ -384,6 +586,7 @@ class UVH5(UVData):
             blt_inds,
         )
 
+        # figure out which axis is the most selective
         if blt_inds is not None:
             blt_frac = len(blt_inds) / float(self.Nblts)
         else:
@@ -432,6 +635,32 @@ class UVH5(UVData):
                 blt_inds, freq_inds, pol_inds, history_update_string, keep_all_metadata
             )
 
+            # determine which axes can be sliced, rather than fancy indexed
+            # max_Nslice_frac of 0.1 yields slice speedup over fancy index for HERA data
+            if blt_inds is not None:
+                blt_slices, blt_sliceable = _convert_to_slices(blt_inds, max_Nslice_frac=0.1)
+                if blt_sliceable:
+                    blt_inds = blt_slices
+            else:
+                blt_inds = np.s_[:]
+                blt_sliceable = True
+
+            if freq_inds is not None:
+                freq_slices, freq_sliceable = _convert_to_slices(freq_inds, max_Nslice_frac=0.1)
+                if freq_sliceable:
+                    freq_inds = freq_slices
+            else:
+                freq_inds = np.s_[:]
+                freq_sliceable = True
+
+            if pol_inds is not None:
+                pol_slices, pol_sliceable = _convert_to_slices(pol_inds, max_Nslice_frac=0.5)
+                if pol_sliceable:
+                    pol_inds = pol_slices
+            else:
+                pol_inds = np.s_[:]
+                pol_sliceable = True
+
             # open references to datasets
             visdata_dset = dgrp["visdata"]
             flags_dset = dgrp["flags"]
@@ -439,55 +668,94 @@ class UVH5(UVData):
 
             # just read in the right portions of the data and flag arrays
             if blt_frac == min_frac:
+                # construct inds list given simultaneous sliceability
+                inds = [blt_inds, np.s_[:]]
+                if freq_sliceable:
+                    inds.append(freq_inds)
+                else:
+                    inds.append(np.s_[:])
+                if pol_sliceable:
+                    inds.append(pol_inds)
+                else:
+                    inds.append(np.s_[:])
+                inds = tuple(inds)
+
                 if custom_dtype:
-                    inds = (blt_inds, np.s_[:], np.s_[:], np.s_[:])
                     visdata = _read_complex_astype(visdata_dset, inds, data_array_dtype)
                 else:
-                    visdata = visdata_dset[blt_inds, :, :, :]
-                flags = flags_dset[blt_inds, :, :, :]
-                nsamples = nsamples_dset[blt_inds, :, :, :]
+                    visdata = _index_dset(visdata_dset, inds)
+                flags = _index_dset(flags_dset, inds)
+                nsamples = _index_dset(nsamples_dset, inds)
 
                 assert self.Nspws == visdata.shape[1]
 
-                if freq_frac < 1:
+                if not freq_sliceable:
                     visdata = visdata[:, :, freq_inds, :]
                     flags = flags[:, :, freq_inds, :]
                     nsamples = nsamples[:, :, freq_inds, :]
-                if pol_frac < 1:
+                if not pol_sliceable:
                     visdata = visdata[:, :, :, pol_inds]
                     flags = flags[:, :, :, pol_inds]
                     nsamples = nsamples[:, :, :, pol_inds]
+
             elif freq_frac == min_frac:
+                # construct inds list given simultaneous sliceability
+                inds = []
+                if blt_sliceable:
+                    inds.append(blt_inds)
+                else:
+                    inds.append(np.s_[:])
+                inds.append(np.s_[:])
+                inds.append(freq_inds)
+                if pol_sliceable:
+                    inds.append(pol_inds)
+                else:
+                    inds.append(np.s_[:])
+                inds = tuple(inds)
+
                 if custom_dtype:
-                    inds = (np.s_[:], np.s_[:], freq_inds, np.s_[:])
                     visdata = _read_complex_astype(visdata_dset, inds, data_array_dtype)
                 else:
-                    visdata = visdata_dset[:, :, freq_inds, :]
-                flags = flags_dset[:, :, freq_inds, :]
-                nsamples = nsamples_dset[:, :, freq_inds, :]
+                    visdata = _index_dset(visdata_dset, inds)
+                flags = _index_dset(flags_dset, inds)
+                nsamples = _index_dset(nsamples_dset, inds)
 
-                if blt_frac < 1:
+                if not blt_sliceable:
                     visdata = visdata[blt_inds, :, :, :]
                     flags = flags[blt_inds, :, :, :]
                     nsamples = nsamples[blt_inds, :, :, :]
-                if pol_frac < 1:
+                if not pol_sliceable:
                     visdata = visdata[:, :, :, pol_inds]
                     flags = flags[:, :, :, pol_inds]
                     nsamples = nsamples[:, :, :, pol_inds]
+
             else:
+                # construct inds list given simultaneous sliceability
+                inds = []
+                if blt_sliceable:
+                    inds.append(blt_inds)
+                else:
+                    inds.append(np.s_[:])
+                inds.append(np.s_[:])
+                if freq_sliceable:
+                    inds.append(freq_inds)
+                else:
+                    inds.append(np.s_[:])
+                inds.append(pol_inds)
+                inds = tuple(inds)
+
                 if custom_dtype:
-                    inds = (np.s_[:], np.s_[:], np.s_[:], pol_inds)
                     visdata = _read_complex_astype(visdata_dset, inds, data_array_dtype)
                 else:
-                    visdata = visdata_dset[:, :, :, pol_inds]
-                flags = flags_dset[:, :, :, pol_inds]
-                nsamples = nsamples_dset[:, :, :, pol_inds]
+                    visdata = _index_dset(visdata_dset, inds)
+                flags = _index_dset(flags_dset, inds)
+                nsamples = _index_dset(nsamples_dset, inds)
 
-                if blt_frac < 1:
+                if not blt_sliceable:
                     visdata = visdata[blt_inds, :, :, :]
                     flags = flags[blt_inds, :, :, :]
                     nsamples = nsamples[blt_inds, :, :, :]
-                if freq_frac < 1:
+                if not freq_sliceable:
                     visdata = visdata[:, :, freq_inds, :]
                     flags = flags[:, :, freq_inds, :]
                     nsamples = nsamples[:, :, freq_inds, :]
