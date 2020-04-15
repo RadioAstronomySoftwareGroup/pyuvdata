@@ -1728,7 +1728,7 @@ class UVBeam(UVBase):
             freq_array,
             freq_interp_kind=kind_use,
             polarizations=polarizations,
-            **extra_keyword_dict
+            **extra_keyword_dict,
         )
 
         # return just the interpolated arrays
