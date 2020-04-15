@@ -131,17 +131,16 @@ def _write_complex_astype(data, dset, indices):
     return
 
 
-def _convert_to_slices(indices, max_Nslice_frac=0.1):
+def _convert_to_slices(indices, max_nslice_frac=0.1):
     """
-    Determine whether a list of indices can be represented as a
-    list of slices.
+    Convert list of indices to a list of slices.
 
     Parameters
     ----------
     indices : list
         A 1D list of (preferably monotonically increasing) integers for
         array indexing.
-    max_Nslice_frac : float
+    max_nslice_frac : float
         A float from 0 -- 1. If the number of slices
         needed to represent input 'indices' divided by len(indices)
         exceeds this fraction, then we determine that we cannot
@@ -153,7 +152,7 @@ def _convert_to_slices(indices, max_Nslice_frac=0.1):
         list of slice objects used to represent indices
     bool
         If True, indices is easily represented by slices
-        (max_Nslice_frac condition met), otherwise False
+        (max_nslice_frac condition met), otherwise False
     """
     # assert indices is longer than 2, or return trivial solutions
     if len(indices) == 0:
@@ -200,18 +199,19 @@ def _convert_to_slices(indices, max_Nslice_frac=0.1):
 
     # determine whether slices are a reasonable representation
     Nslices = len(slices)
-    passed = (float(Nslices) / len(indices)) < max_Nslice_frac
+    passed = (float(Nslices) / len(indices)) < max_nslice_frac
 
     return slices, passed
 
 
 def _get_slice_len(s, axlen):
     """
-    Get length of a slice s into array of len axlen
+    Get length of a slice s into array of len axlen.
 
     Parameters
     ----------
     s : slice object
+        Slice object to index with
     axlen : int
         Length of axis s slices into
 
@@ -268,7 +268,7 @@ def _get_dset_shape(dset, indices):
             if isinstance(inds[0], (int, np.integer)):
                 dset_shape[i] = len(inds)
             elif isinstance(inds[0], slice):
-                dset_shape[i] = sum([_get_slice_len(s, dset_shape[i]) for s in inds])
+                dset_shape[i] = sum((_get_slice_len(s, dset_shape[i]) for s in inds))
 
     return dset_shape
 
@@ -286,7 +286,7 @@ def _index_dset(dset, indices):
         Each element should contain a list of indices, a slice element,
         or a list of slice elements that will be concatenated after slicing.
         Indices must be provided such that all dimensions can be indexed
-        simultaneously. 
+        simultaneously.
 
     Returns
     -------
@@ -300,7 +300,7 @@ def _index_dset(dset, indices):
     # create empty array of dset dtype
     arr = np.empty(arr_shape, dtype=dset.dtype)
 
-    # get arr and dest indices for each dimension in indices
+    # get arr and dset indices for each dimension in indices
     dset_indices = []
     arr_indices = []
     for i, dset_inds in enumerate(indices):
@@ -323,7 +323,7 @@ def _index_dset(dset, indices):
                 # this is a list of slices, need list of slice lens
                 slens = [_get_slice_len(s, dset_shape[i]) for s in dset_inds]
                 ssums = [sum(slens[:j]) for j in range(len(slens))]
-                arr_inds = [slice(ssums[j], ssums[j] + slens[j]) for j in range(len(slens))]
+                arr_inds = [slice(s, s + l) for s, l in zip(ssums, slens)]
                 arr_indices.append(arr_inds)
                 dset_indices.append(dset_inds)
 
@@ -334,7 +334,7 @@ def _index_dset(dset, indices):
                 for pol_arr, pol_dset in zip(arr_indices[3], dset_indices[3]):
                     # index dset and assign to arr
                     arr[blt_arr, spw_arr, freq_arr, pol_arr] = \
-                    dset[blt_dset, spw_dset, freq_dset, pol_dset]
+                        dset[blt_dset, spw_dset, freq_dset, pol_dset]
 
     return arr
 
@@ -637,9 +637,10 @@ class UVH5(UVData):
             )
 
             # determine which axes can be sliced, rather than fancy indexed
-            # max_Nslice_frac of 0.1 yields slice speedup over fancy index for HERA data
+            # max_nslice_frac of 0.1 yields slice speedup over fancy index for HERA data
             if blt_inds is not None:
-                blt_slices, blt_sliceable = _convert_to_slices(blt_inds, max_Nslice_frac=0.1)
+                blt_slices, blt_sliceable = _convert_to_slices(blt_inds,
+                                                               max_nslice_frac=0.1)
                 if blt_sliceable:
                     blt_inds = blt_slices
             else:
@@ -647,7 +648,8 @@ class UVH5(UVData):
                 blt_sliceable = True
 
             if freq_inds is not None:
-                freq_slices, freq_sliceable = _convert_to_slices(freq_inds, max_Nslice_frac=0.1)
+                freq_slices, freq_sliceable = _convert_to_slices(freq_inds,
+                                                                 max_nslice_frac=0.1)
                 if freq_sliceable:
                     freq_inds = freq_slices
             else:
@@ -655,7 +657,8 @@ class UVH5(UVData):
                 freq_sliceable = True
 
             if pol_inds is not None:
-                pol_slices, pol_sliceable = _convert_to_slices(pol_inds, max_Nslice_frac=0.5)
+                pol_slices, pol_sliceable = _convert_to_slices(pol_inds,
+                                                               max_nslice_frac=0.5)
                 if pol_sliceable:
                     pol_inds = pol_slices
             else:
