@@ -6580,7 +6580,13 @@ def test_frequency_average_uneven(uvdata_data):
     # check that there's no flagging
     assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
 
-    uvdata_data.uv_object.frequency_average(7)
+    with pytest.warns(
+        UserWarning,
+        match="Nfreqs does not divide by `n_chan_to_avg` evenly. The final 1 "
+        "frequencies will be excluded, to control which frequencies to exclude, "
+        "use a select to control.",
+    ):
+        uvdata_data.uv_object.frequency_average(7)
 
     assert uvdata_data.uv_object2.Nfreqs % 7 != 0
 

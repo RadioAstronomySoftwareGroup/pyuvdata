@@ -928,13 +928,17 @@ class UVData(UVBase):
         else:
             uv = UVData()
             # include all attributes, not just UVParameter ones.
-            for param in self.__iter__(uvparams_only=False):
-                # parameter names have a leading underscore we want to ignore
-                if param.lstrip("_") in self._data_params:
+            for attr in self.__iter__(uvparams_only=False):
+                # skip properties
+                if isinstance(getattr(type(self), attr, None), property):
                     continue
-                setattr(uv, param, copy.deepcopy(getattr(self, param)))
 
-                return uv
+                # parameter names have a leading underscore we want to ignore
+                if attr.lstrip("_") in self._data_params:
+                    continue
+                setattr(uv, attr, copy.deepcopy(getattr(self, attr)))
+
+            return uv
 
     def baseline_to_antnums(self, baseline):
         """
