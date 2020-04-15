@@ -1583,14 +1583,14 @@ def uvcalibrate(
     undo : bool, optional
         If True, undo the provided calibration. i.e. apply the calibration with
         flipped gain_convention. Flag propagation rules apply the same.
+    override_time_check : bool
+        Option to override the check that times match between the UVCal and UVData
+        objects. Only used in UVCal has only one time.
     override_ant_check : bool
         Option to override the check that all antennas with data on the UVData
         object are present in the UVCal object. If this option is set to True,
         uvcalibrate will proceed without erroring and data for antennas without
         calibrations will be flagged.
-    override_time_check : bool
-        Option to override the check that times match between the UVCal and UVData
-        objects. Only used in UVCal has only one time.
 
     Returns
     -------
@@ -1601,8 +1601,10 @@ def uvcalibrate(
     if not inplace:
         uvdata = uvdata.copy()
 
+    # Check whether the UVData antennas *that have data associated with them*
+    # have associated data in the UVCal object
     uvdata_unique_nums = np.unique(np.append(uvdata.ant_1_array, uvdata.ant_2_array))
-    uvdata.antenna_names = np.array(uvdata.antenna_names)
+    uvdata.antenna_names = np.asarray(uvdata.antenna_names)
     uvdata_used_antnames = np.array(
         [
             uvdata.antenna_names[np.where(uvdata.antenna_numbers == antnum)][0]
@@ -1610,7 +1612,7 @@ def uvcalibrate(
         ]
     )
     uvcal_unique_nums = np.unique(uvcal.ant_array)
-    uvcal.antenna_names = np.array(uvcal.antenna_names)
+    uvcal.antenna_names = np.asarray(uvcal.antenna_names)
     uvcal_used_antnames = np.array(
         [
             uvcal.antenna_names[np.where(uvcal.antenna_numbers == antnum)][0]
