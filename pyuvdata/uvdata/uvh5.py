@@ -227,13 +227,13 @@ def _get_slice_len(s, axlen):
     if s.stop is None:
         stop = axlen
     else:
-        stop = s.stop
+        stop = np.min([s.stop, axlen])
     if s.step is None:
         step = 1
     else:
         step = s.step
 
-    return (stop - start) // step
+    return (stop - 1 - start) // step + 1
 
 
 def _get_dset_shape(dset, indices):
@@ -293,11 +293,12 @@ def _index_dset(dset, indices):
     ndarray
         The indexed dset
     """
-    # get dset shape
-    dset_shape = _get_dset_shape(dset, indices)
+    # get dset and arr shape
+    dset_shape = dset.shape
+    arr_shape = _get_dset_shape(dset, indices)
 
     # create empty array of dset dtype
-    arr = np.empty(dset_shape, dtype=dset.dtype)
+    arr = np.empty(arr_shape, dtype=dset.dtype)
 
     # get arr and dest indices for each dimension in indices
     dset_indices = []
@@ -321,8 +322,8 @@ def _index_dset(dset, indices):
             elif isinstance(dset_inds[0], slice):
                 # this is a list of slices, need list of slice lens
                 slens = [_get_slice_len(s, dset_shape[i]) for s in dset_inds]
-                ssums = [sum(slens[:i]) for i in range(len(slens))]
-                arr_inds = [slice(ssums[i], ssums[i] + slens[i]) for i in range(len(slens))]
+                ssums = [sum(slens[:j]) for j in range(len(slens))]
+                arr_inds = [slice(ssums[j], ssums[j] + slens[j]) for j in range(len(slens))]
                 arr_indices.append(arr_inds)
                 dset_indices.append(dset_inds)
 
