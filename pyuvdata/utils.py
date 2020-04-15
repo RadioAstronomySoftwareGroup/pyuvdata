@@ -1501,7 +1501,7 @@ def uvcalibrate(
     uvcal : UVCal object
         UVCal object containing the calibration.
     inplace : bool, optional
-        if True edit uvdata in place, else deepcopy
+        if True edit uvdata in place, else return a calibrated copy
     prop_flags : bool, optional
         if True, propagate calibration flags to data flags
         and doesn't use flagged gains. Otherwise, uses flagged gains and
@@ -1525,14 +1525,13 @@ def uvcalibrate(
         Returns if not inplace
 
     """
-    # deepcopy for not inplace
     if not inplace:
-        uvdata = copy.deepcopy(uvdata)
+        uvdata = uvdata.copy()
 
     # input checks
     if uvcal.cal_type == "delay":
         # make a copy that is converted to gain
-        uvcal = copy.deepcopy(uvcal)
+        uvcal = uvcal.copy()
         uvcal.convert_to_gain(delay_convention=delay_convention)
 
     # D-term calibration
@@ -1634,10 +1633,10 @@ def apply_uvflag(
         raise ValueError("UVFlag must be flag mode")
 
     if not inplace:
-        uvd = copy.deepcopy(uvd)
+        uvd = uvd.copy()
 
     # make a deepcopy by default b/c it is generally edited inplace downstream
-    uvf = copy.deepcopy(uvf)
+    uvf = uvf.copy()
 
     # convert to baseline type
     if uvf.type != "baseline":

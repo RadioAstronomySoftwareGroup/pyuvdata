@@ -6,7 +6,6 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import warnings
-import copy
 
 from ..uvbase import UVBase
 from .. import parameter as uvp
@@ -759,7 +758,7 @@ class UVCal(UVBase):
         if inplace:
             this = self
         else:
-            this = copy.deepcopy(self)
+            this = self.copy()
         # Check that both objects are UVCal and valid
         this.check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
@@ -1363,7 +1362,7 @@ class UVCal(UVBase):
         if inplace:
             cal_object = self
         else:
-            cal_object = copy.deepcopy(self)
+            cal_object = self.copy()
 
         # build up history string as we go
         history_update_string = "  Downselected to specific "

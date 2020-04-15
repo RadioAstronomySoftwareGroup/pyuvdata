@@ -10,7 +10,6 @@ from __future__ import absolute_import, division, print_function
 import pytest
 import os
 import numpy as np
-import copy
 
 from pyuvdata import UVCal
 import pyuvdata.utils as uvutils
@@ -238,7 +237,7 @@ def gain_data():
     gainfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     gain_object.read_calfits(gainfile)
 
-    gain_object2 = copy.deepcopy(gain_object)
+    gain_object2 = gain_object.copy()
     delay_object = UVCal()
     delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
     delay_object.read_calfits(delayfile)
@@ -339,7 +338,7 @@ def test_convert_filetype(gain_data):
 def test_convert_to_gain(gain_data):
     conventions = ["minus", "plus"]
     for c in conventions:
-        gain_data.new_object = copy.deepcopy(gain_data.delay_object)
+        gain_data.new_object = gain_data.delay_object.copy()
 
         gain_data.new_object.convert_to_gain(delay_convention=c)
         assert np.isclose(
@@ -385,7 +384,7 @@ def test_convert_to_gain(gain_data):
         )
 
     # test a file with a total_quality_array
-    gain_data.new_object = copy.deepcopy(gain_data.delay_object)
+    gain_data.new_object = gain_data.delay_object.copy()
     tqa_size = gain_data.new_object.delay_array.shape[1:]
     gain_data.new_object.total_quality_array = np.ones(tqa_size)
     gain_data.new_object.convert_to_gain(delay_convention="minus")
@@ -502,8 +501,6 @@ def test_select_antennas(gain_data):
 
 
 def test_select_times(gain_data):
-    # self.gain_object2 = copy.deepcopy(self.gain_object)
-
     old_history = gain_data.gain_object.history
     times_to_keep = gain_data.gain_object.time_array[2:5]
 
@@ -522,7 +519,7 @@ def test_select_times(gain_data):
 
     write_file_calfits = os.path.join(DATA_PATH, "test/select_test.calfits")
     # test writing calfits with only one time
-    gain_data.gain_object2 = copy.deepcopy(gain_data.gain_object)
+    gain_data.gain_object2 = gain_data.gain_object.copy()
     times_to_keep = gain_data.gain_object.time_array[[1]]
     gain_data.gain_object2.select(times=times_to_keep)
     gain_data.gain_object2.write_calfits(write_file_calfits, clobber=True)
@@ -538,7 +535,7 @@ def test_select_times(gain_data):
     )
 
     # check for warnings and errors associated with unevenly spaced times
-    gain_data.gain_object2 = copy.deepcopy(gain_data.gain_object)
+    gain_data.gain_object2 = gain_data.gain_object.copy()
     uvtest.checkWarnings(
         gain_data.gain_object2.select,
         [],
@@ -577,7 +574,7 @@ def test_select_frequencies(gain_data):
 
     write_file_calfits = os.path.join(DATA_PATH, "test/select_test.calfits")
     # test writing calfits with only one frequency
-    gain_data.gain_object2 = copy.deepcopy(gain_data.gain_object)
+    gain_data.gain_object2 = gain_data.gain_object.copy()
     freqs_to_keep = gain_data.gain_object.freq_array[0, 5]
     gain_data.gain_object2.select(frequencies=freqs_to_keep)
     gain_data.gain_object2.write_calfits(write_file_calfits, clobber=True)
@@ -593,7 +590,7 @@ def test_select_frequencies(gain_data):
     )
 
     # check for warnings and errors associated with unevenly spaced frequencies
-    gain_data.gain_object2 = copy.deepcopy(gain_data.gain_object)
+    gain_data.gain_object2 = gain_data.gain_object.copy()
     uvtest.checkWarnings(
         gain_data.gain_object2.select,
         [],
@@ -639,7 +636,7 @@ def test_select_freq_chans(gain_data):
     ]  # Overlaps with chans
     all_chans_to_keep = np.arange(4, 10)
 
-    gain_data.gain_object2 = copy.deepcopy(gain_data.gain_object)
+    gain_data.gain_object2 = gain_data.gain_object.copy()
     gain_data.gain_object2.select(frequencies=freqs_to_keep, freq_chans=chans_to_keep)
 
     assert len(all_chans_to_keep) == gain_data.gain_object2.Nfreqs
@@ -687,7 +684,7 @@ def test_select_polarizations(gain_data):
     )
 
     assert gain_data.gain_object.check()
-    gain_data.gain_object2 = copy.deepcopy(gain_data.gain_object)
+    gain_data.gain_object2 = gain_data.gain_object.copy()
 
     old_history = gain_data.gain_object.history
     jones_to_keep = [-5, -6]
@@ -790,7 +787,7 @@ def delay_data():
     class DataHolder(object):
         def __init__(self, delay_object):
             self.delay_object = delay_object
-            self.delay_object2 = copy.deepcopy(delay_object)
+            self.delay_object2 = delay_object.copy()
 
     delay_data = DataHolder(delay_object)
 
@@ -817,7 +814,7 @@ def test_select_antennas_delay(delay_data):
     )
 
     # now test using antenna_names to specify antennas to keep
-    delay_data.delay_object3 = copy.deepcopy(delay_data.delay_object)
+    delay_data.delay_object3 = delay_data.delay_object.copy()
     ants_to_keep = np.array(sorted(ants_to_keep))
     ant_names = []
     for a in ants_to_keep:
@@ -886,7 +883,7 @@ def test_select_times_delay(delay_data):
     )
 
     # check for warnings and errors associated with unevenly spaced times
-    delay_data.delay_object2 = copy.deepcopy(delay_data.delay_object)
+    delay_data.delay_object2 = delay_data.delay_object.copy()
     uvtest.checkWarnings(
         delay_data.delay_object2.select,
         [],
@@ -939,7 +936,7 @@ def test_select_frequencies_delay(delay_data):
     )
 
     # check for warnings and errors associated with unevenly spaced frequencies
-    delay_data.delay_object2 = copy.deepcopy(delay_data.delay_object)
+    delay_data.delay_object2 = delay_data.delay_object.copy()
     uvtest.checkWarnings(
         delay_data.delay_object2.select,
         [],
@@ -990,7 +987,7 @@ def test_select_freq_chans_delay(delay_data):
     ]  # Overlaps with chans
     all_chans_to_keep = np.arange(73, 1000)
 
-    delay_data.delay_object2 = copy.deepcopy(delay_data.delay_object)
+    delay_data.delay_object2 = delay_data.delay_object.copy()
     delay_data.delay_object2.select(frequencies=freqs_to_keep, freq_chans=chans_to_keep)
 
     assert len(all_chans_to_keep) == delay_data.delay_object2.Nfreqs
@@ -1046,7 +1043,7 @@ def test_select_polarizations_delay(delay_data):
         )
     )
     assert delay_data.delay_object.check()
-    delay_data.delay_object2 = copy.deepcopy(delay_data.delay_object)
+    delay_data.delay_object2 = delay_data.delay_object.copy()
 
     old_history = delay_data.delay_object.history
     jones_to_keep = [-5, -6]
@@ -1131,7 +1128,7 @@ def test_select_delay(delay_data):
 
 def test_add_antennas(gain_data):
     """Test adding antennas between two UVCal objects"""
-    gain_object_full = copy.deepcopy(gain_data.gain_object)
+    gain_object_full = gain_data.gain_object.copy()
     ants1 = np.array([9, 10, 20, 22, 31, 43, 53, 64, 65, 72])
     ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
     gain_data.gain_object.select(antenna_nums=ants1)
@@ -1162,7 +1159,7 @@ def test_add_antennas(gain_data):
 
 def test_add_frequencies(gain_data):
     """Test adding frequencies between two UVCal objects"""
-    gain_object_full = copy.deepcopy(gain_data.gain_object)
+    gain_object_full = gain_data.gain_object.copy()
     freqs1 = gain_data.gain_object.freq_array[0, np.arange(0, 5)]
     freqs2 = gain_data.gain_object2.freq_array[0, np.arange(5, 10)]
     gain_data.gain_object.select(frequencies=freqs1)
@@ -1242,8 +1239,8 @@ def test_add_frequencies(gain_data):
     )
 
     # Out of order - freqs
-    gain_data.gain_object = copy.deepcopy(gain_object_full)
-    gain_data.gain_object2 = copy.deepcopy(gain_object_full)
+    gain_data.gain_object = gain_object_full.copy()
+    gain_data.gain_object2 = gain_object_full.copy()
     gain_data.gain_object.select(frequencies=freqs2)
     gain_data.gain_object2.select(frequencies=freqs1)
     gain_data.gain_object += gain_data.gain_object2
@@ -1253,7 +1250,7 @@ def test_add_frequencies(gain_data):
 
 def test_add_times(gain_data):
     """Test adding times between two UVCal objects"""
-    gain_object_full = copy.deepcopy(gain_data.gain_object)
+    gain_object_full = gain_data.gain_object.copy()
     n_times2 = gain_data.gain_object.Ntimes // 2
     times1 = gain_data.gain_object.time_array[:n_times2]
     times2 = gain_data.gain_object.time_array[n_times2:]
@@ -1336,7 +1333,7 @@ def test_add_times(gain_data):
 
 def test_add_jones(gain_data):
     """Test adding Jones axes between two UVCal objects"""
-    gain_object_original = copy.deepcopy(gain_data.gain_object)
+    gain_object_original = gain_data.gain_object.copy()
     # artificially change the Jones value to permit addition
     gain_data.gain_object2.jones_array[0] = -6
     gain_data.gain_object += gain_data.gain_object2
@@ -1346,7 +1343,7 @@ def test_add_jones(gain_data):
     assert sorted(gain_data.gain_object.jones_array) == [-6, -5]
 
     # test for when total_quality_array is present in first file but not second
-    gain_data.gain_object = copy.deepcopy(gain_object_original)
+    gain_data.gain_object = gain_object_original.copy()
     tqa = np.ones(
         gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
     )
@@ -1366,7 +1363,7 @@ def test_add_jones(gain_data):
     )
 
     # test for when total_quality_array is present in second file but not first
-    gain_data.gain_object = copy.deepcopy(gain_object_original)
+    gain_data.gain_object = gain_object_original.copy()
     tqa = np.zeros(
         gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
     )
@@ -1386,7 +1383,7 @@ def test_add_jones(gain_data):
     )
 
     # test for when total_quality_array is present in both
-    gain_data.gain_object = copy.deepcopy(gain_object_original)
+    gain_data.gain_object = gain_object_original.copy()
     tqa = np.ones(
         gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
     )
@@ -1411,7 +1408,7 @@ def test_add_jones(gain_data):
 def test_add(gain_data):
     """Test miscellaneous aspects of add method"""
     # test not-in-place addition
-    gain_object = copy.deepcopy(gain_data.gain_object)
+    gain_object = gain_data.gain_object.copy()
     ants1 = np.array([9, 10, 20, 22, 31, 43, 53, 64, 65, 72])
     ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
     gain_data.gain_object.select(antenna_nums=ants1)
@@ -1493,8 +1490,8 @@ def test_jones_warning(gain_data):
 def test_frequency_warnings(gain_data):
     """Test having uneven or non-contiguous frequencies"""
     # test having unevenly spaced frequency separations
-    go1 = copy.deepcopy(gain_data.gain_object)
-    go2 = copy.deepcopy(gain_data.gain_object2)
+    go1 = gain_data.gain_object.copy()
+    go2 = gain_data.gain_object2.copy()
     freqs1 = gain_data.gain_object.freq_array[0, np.arange(0, 5)]
     freqs2 = gain_data.gain_object2.freq_array[0, np.arange(5, 10)]
     gain_data.gain_object.select(frequencies=freqs1)
@@ -1516,8 +1513,8 @@ def test_frequency_warnings(gain_data):
     assert len(gain_data.gain_object.freq_array[0, :]) == gain_data.gain_object.Nfreqs
 
     # now check having "non-contiguous" frequencies
-    gain_data.gain_object = copy.deepcopy(go1)
-    gain_data.gain_object2 = copy.deepcopy(go2)
+    gain_data.gain_object = go1.copy()
+    gain_data.gain_object2 = go2.copy()
     freqs1 = gain_data.gain_object.freq_array[0, np.arange(0, 5)]
     freqs2 = gain_data.gain_object2.freq_array[0, np.arange(5, 10)]
     gain_data.gain_object.select(frequencies=freqs1)
@@ -1566,7 +1563,7 @@ def test_parameter_warnings(gain_data):
 
 def test_multi_files(gain_data):
     """Test read function when multiple files are included"""
-    gain_object_full = copy.deepcopy(gain_data.gain_object)
+    gain_object_full = gain_data.gain_object.copy()
     n_times2 = gain_data.gain_object.Ntimes // 2
     # Break up delay object into two objects, divided in time
     times1 = gain_data.gain_object.time_array[:n_times2]
@@ -1592,7 +1589,7 @@ def test_multi_files(gain_data):
 
 def test_add_antennas_delay(delay_data):
     """Test adding antennas between two UVCal objects"""
-    delay_object_full = copy.deepcopy(delay_data.delay_object)
+    delay_object_full = delay_data.delay_object.copy()
     ants1 = np.array([9, 10, 20, 22, 31, 43, 53, 64, 65, 72])
     ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
     delay_data.delay_object.select(antenna_nums=ants1)
@@ -1659,8 +1656,8 @@ def test_add_antennas_delay(delay_data):
     assert np.allclose(delay_data.delay_object.input_flag_array, tot_ifa)
 
     # Out of order - antennas
-    delay_data.delay_object = copy.deepcopy(delay_object_full)
-    delay_data.delay_object2 = copy.deepcopy(delay_data.delay_object)
+    delay_data.delay_object = delay_object_full.copy()
+    delay_data.delay_object2 = delay_data.delay_object.copy()
     delay_data.delay_object.select(antenna_nums=ants2)
     delay_data.delay_object2.select(antenna_nums=ants1)
     delay_data.delay_object += delay_data.delay_object2
@@ -1670,7 +1667,7 @@ def test_add_antennas_delay(delay_data):
 
 def test_add_times_delay(delay_data):
     """Test adding times between two UVCal objects"""
-    delay_object_full = copy.deepcopy(delay_data.delay_object)
+    delay_object_full = delay_data.delay_object.copy()
     n_times2 = delay_data.delay_object.Ntimes // 2
     times1 = delay_data.delay_object.time_array[:n_times2]
     times2 = delay_data.delay_object.time_array[n_times2:]
@@ -1793,8 +1790,8 @@ def test_add_times_delay(delay_data):
     assert np.allclose(delay_data.delay_object.input_flag_array, tot_ifa)
 
     # Out of order - times
-    delay_data.delay_object = copy.deepcopy(delay_object_full)
-    delay_data.delay_object2 = copy.deepcopy(delay_data.delay_object)
+    delay_data.delay_object = delay_object_full.copy()
+    delay_data.delay_object2 = delay_data.delay_object.copy()
     delay_data.delay_object.select(times=times2)
     delay_data.delay_object2.select(times=times1)
     delay_data.delay_object += delay_data.delay_object2
@@ -1804,7 +1801,7 @@ def test_add_times_delay(delay_data):
 
 def test_add_jones_delay(delay_data):
     """Test adding Jones axes between two UVCal objects"""
-    delay_object_original = copy.deepcopy(delay_data.delay_object)
+    delay_object_original = delay_data.delay_object.copy()
     # artificially change the Jones value to permit addition
     delay_data.delay_object2.jones_array[0] = -6
     delay_data.delay_object += delay_data.delay_object2
@@ -1814,7 +1811,7 @@ def test_add_jones_delay(delay_data):
     assert sorted(delay_data.delay_object.jones_array) == [-6, -5]
 
     # test for when total_quality_array is present in first file but not second
-    delay_data.delay_object = copy.deepcopy(delay_object_original)
+    delay_data.delay_object = delay_object_original.copy()
     tqa = np.ones(
         delay_data.delay_object._total_quality_array.expected_shape(
             delay_data.delay_object
@@ -1836,7 +1833,7 @@ def test_add_jones_delay(delay_data):
     )
 
     # test for when total_quality_array is present in second file but not first
-    delay_data.delay_object = copy.deepcopy(delay_object_original)
+    delay_data.delay_object = delay_object_original.copy()
     tqa = np.zeros(
         delay_data.delay_object._total_quality_array.expected_shape(
             delay_data.delay_object
@@ -1858,7 +1855,7 @@ def test_add_jones_delay(delay_data):
     )
 
     # test for when total_quality_array is present in both
-    delay_data.delay_object = copy.deepcopy(delay_object_original)
+    delay_data.delay_object = delay_object_original.copy()
     tqa = np.ones(
         delay_data.delay_object._total_quality_array.expected_shape(
             delay_data.delay_object
@@ -1882,7 +1879,7 @@ def test_add_jones_delay(delay_data):
     )
 
     # test for when input_flag_array is present in first file but not second
-    delay_data.delay_object = copy.deepcopy(delay_object_original)
+    delay_data.delay_object = delay_object_original.copy()
     ifa = np.zeros(
         delay_data.delay_object._input_flag_array.expected_shape(
             delay_data.delay_object
@@ -1900,7 +1897,7 @@ def test_add_jones_delay(delay_data):
     assert np.allclose(delay_data.delay_object.input_flag_array, tot_ifa)
 
     # test for when input_flag_array is present in second file but not first
-    delay_data.delay_object = copy.deepcopy(delay_object_original)
+    delay_data.delay_object = delay_object_original.copy()
     ifa = np.ones(
         delay_data.delay_object._input_flag_array.expected_shape(
             delay_data.delay_object
@@ -1918,11 +1915,11 @@ def test_add_jones_delay(delay_data):
     assert np.allclose(delay_data.delay_object.input_flag_array, tot_ifa)
 
     # Out of order - jones
-    delay_data.delay_object = copy.deepcopy(delay_object_original)
-    delay_data.delay_object2 = copy.deepcopy(delay_object_original)
+    delay_data.delay_object = delay_object_original.copy()
+    delay_data.delay_object2 = delay_object_original.copy()
     delay_data.delay_object.jones_array[0] = -6
     delay_data.delay_object += delay_data.delay_object2
-    delay_data.delay_object2 = copy.deepcopy(delay_data.delay_object)
+    delay_data.delay_object2 = delay_data.delay_object.copy()
     delay_data.delay_object.select(jones=-5)
     delay_data.delay_object.history = delay_object_original.history
     assert delay_data.delay_object == delay_object_original
@@ -1940,7 +1937,7 @@ def test_add_errors_delay(delay_data):
 
 def test_multi_files_delay(delay_data):
     """Test read function when multiple files are included"""
-    delay_object_full = copy.deepcopy(delay_data.delay_object)
+    delay_object_full = delay_data.delay_object.copy()
     n_times2 = delay_data.delay_object.Ntimes // 2
     # Break up delay object into two objects, divided in time
     times1 = delay_data.delay_object.time_array[:n_times2]
