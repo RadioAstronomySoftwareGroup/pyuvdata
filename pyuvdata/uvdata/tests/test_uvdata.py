@@ -224,7 +224,7 @@ def uvdata_data():
     class DataHolder:
         def __init__(self, uv_object):
             self.uv_object = uv_object
-            self.uv_object2 = copy.deepcopy(uv_object)
+            self.uv_object2 = uv_object.copy()
 
     uvdata_data = DataHolder(uv_object)
     # yields the data we need but will continue to the del call after tests
@@ -661,7 +661,7 @@ def test_phase_unphase_hera_one_bl(uv1_2_set_uvws):
     uv_phase, uv_raw = uv1_2_set_uvws
     # check that phase + unphase work with one baseline
     uv_raw_small = uv_raw.select(blt_inds=[0], inplace=False)
-    uv_phase_small = copy.deepcopy(uv_raw_small)
+    uv_phase_small = uv_raw_small.copy()
     uv_phase_small.phase(Angle("23h").rad, Angle("15d").rad)
     uv_phase_small.unphase_to_drift()
     assert uv_raw_small == uv_phase_small
@@ -688,10 +688,10 @@ def test_phase_unphase_hera_antpos(uv1_2_set_uvws):
                 antenna_enu[ant2_index, :] - antenna_enu[ant1_index, :]
             )
 
-    uv_raw_new = copy.deepcopy(uv_raw)
+    uv_raw_new = uv_raw.copy()
     uv_raw_new.uvw_array = uvw_calc
     uv_phase.phase(0.0, 0.0, epoch="J2000", use_ant_pos=True)
-    uv_phase2 = copy.deepcopy(uv_raw_new)
+    uv_phase2 = uv_raw_new.copy()
     uv_phase2.phase(0.0, 0.0, epoch="J2000")
 
     # The uvw's only agree to ~1mm. should they be better?
@@ -714,7 +714,7 @@ def test_phase_unphase_hera_zenith_timestamp(uv1_2_set_uvws):
     # coordinate axes)
     # use gcrs rather than icrs to reduce differences (don't include abberation)
     uv_raw_small = uv_raw.select(times=uv_raw.time_array[0], inplace=False)
-    uv_phase_simple_small = copy.deepcopy(uv_raw_small)
+    uv_phase_simple_small = uv_raw_small.copy()
     uv_phase_simple_small.phase_to_time(
         time=Time(uv_raw.time_array[0], format="jd"), phase_frame="gcrs"
     )
@@ -835,14 +835,14 @@ def test_phasing():
     uvd1.read_uvfits(file1)
     uvd2.read_uvfits(file2)
 
-    uvd1_drift = copy.deepcopy(uvd1)
+    uvd1_drift = uvd1.copy()
     uvd1_drift.unphase_to_drift(phase_frame="gcrs")
-    uvd1_drift_antpos = copy.deepcopy(uvd1)
+    uvd1_drift_antpos = uvd1.copy()
     uvd1_drift_antpos.unphase_to_drift(phase_frame="gcrs", use_ant_pos=True)
 
-    uvd2_drift = copy.deepcopy(uvd2)
+    uvd2_drift = uvd2.copy()
     uvd2_drift.unphase_to_drift(phase_frame="gcrs")
-    uvd2_drift_antpos = copy.deepcopy(uvd2)
+    uvd2_drift_antpos = uvd2.copy()
     uvd2_drift_antpos.unphase_to_drift(phase_frame="gcrs", use_ant_pos=True)
 
     # the tolerances here are empirical -- based on what was seen in the
@@ -960,7 +960,7 @@ def test_select_blts():
     # fmt: on
     selected_data = uv_object.data_array[np.sort(blt_inds), :, :, :]
 
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(blt_inds=blt_inds)
     assert len(blt_inds) == uv_object2.Nblts
 
@@ -975,7 +975,7 @@ def test_select_blts():
     assert np.all(selected_data == uv_object2.data_array)
 
     # check that it also works with higher dimension array
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(blt_inds=blt_inds[np.newaxis, :])
     assert len(blt_inds) == uv_object2.Nblts
 
@@ -986,7 +986,7 @@ def test_select_blts():
     assert np.all(selected_data == uv_object2.data_array)
 
     # check that just doing the metadata works properly
-    uv_object3 = copy.deepcopy(uv_object)
+    uv_object3 = uv_object.copy()
     uv_object3.data_array = None
     uv_object3.flag_array = None
     uv_object3.nsample_array = None
@@ -1029,7 +1029,7 @@ def test_select_antennas():
     ]
     Nblts_selected = np.sum(blts_select)
 
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(antenna_nums=ants_to_keep)
 
     assert len(ants_to_keep) == uv_object2.Nants_data
@@ -1047,7 +1047,7 @@ def test_select_antennas():
     )
 
     # check that it also works with higher dimension array
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(antenna_nums=ants_to_keep[np.newaxis, :])
 
     assert len(ants_to_keep) == uv_object2.Nants_data
@@ -1065,7 +1065,7 @@ def test_select_antennas():
     )
 
     # now test using antenna_names to specify antennas to keep
-    uv_object3 = copy.deepcopy(uv_object)
+    uv_object3 = uv_object.copy()
     ants_to_keep = np.array(sorted(ants_to_keep))
     ant_names = []
     for a in ants_to_keep:
@@ -1077,7 +1077,7 @@ def test_select_antennas():
     assert uv_object2 == uv_object3
 
     # check that it also works with higher dimension array
-    uv_object3 = copy.deepcopy(uv_object)
+    uv_object3 = uv_object.copy()
     ants_to_keep = np.array(sorted(ants_to_keep))
     ant_names = []
     for a in ants_to_keep:
@@ -1095,7 +1095,7 @@ def test_select_antennas():
     )
     for i in range(uv_object.Nants_telescope):
         uv_object.antenna_diameters += i
-    uv_object4 = copy.deepcopy(uv_object)
+    uv_object4 = uv_object.copy()
     uv_object4.select(antenna_nums=ants_to_keep, keep_all_metadata=False)
     assert uv_object4.Nants_telescope == 9
     assert set(uv_object4.antenna_numbers) == set(ants_to_keep)
@@ -1147,7 +1147,7 @@ def test_select_bls():
     ]
     Nblts_selected = np.sum(blts_select)
 
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(bls=ant_pairs_to_keep)
     sorted_pairs_object2 = [
         sort_bl(p) for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array)
@@ -1185,7 +1185,7 @@ def test_select_bls():
     ]
     Nblts_selected = np.sum(blts_select)
 
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(bls=bls_to_keep)
     sorted_pairs_object2 = [
         sort_bl(p) + ("RR",)
@@ -1294,7 +1294,7 @@ def test_select_times():
 
     Nblts_selected = np.sum([t in times_to_keep for t in uv_object.time_array])
 
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(times=times_to_keep)
 
     assert len(times_to_keep) == uv_object2.Ntimes
@@ -1309,7 +1309,7 @@ def test_select_times():
         uv_object2.history,
     )
     # check that it also works with higher dimension array
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(times=times_to_keep[np.newaxis, :])
 
     assert len(times_to_keep) == uv_object2.Ntimes
@@ -1420,7 +1420,7 @@ def test_select_frequencies():
     old_history = uv_object.history
     freqs_to_keep = uv_object.freq_array[0, np.arange(12, 22)]
 
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(frequencies=freqs_to_keep)
 
     assert len(freqs_to_keep) == uv_object2.Nfreqs
@@ -1435,7 +1435,7 @@ def test_select_frequencies():
     )
 
     # check that it also works with higher dimension array
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(frequencies=freqs_to_keep[np.newaxis, :])
 
     assert len(freqs_to_keep) == uv_object2.Nfreqs
@@ -1450,7 +1450,7 @@ def test_select_frequencies():
     )
 
     # check that selecting one frequency works
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(frequencies=freqs_to_keep[0])
     assert 1 == uv_object2.Nfreqs
     assert freqs_to_keep[0] in uv_object2.freq_array
@@ -1471,7 +1471,7 @@ def test_select_frequencies():
 
     # check for warnings and errors associated with unevenly spaced or
     # non-contiguous frequencies
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uvtest.checkWarnings(
         uv_object2.select,
         [],
@@ -1483,7 +1483,7 @@ def test_select_frequencies():
     pytest.raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
     pytest.raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uvtest.checkWarnings(
         uv_object2.select,
         [],
@@ -1502,7 +1502,7 @@ def test_select_freq_chans():
     old_history = uv_object.history
     chans_to_keep = np.arange(12, 22)
 
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(freq_chans=chans_to_keep)
 
     assert len(chans_to_keep) == uv_object2.Nfreqs
@@ -1517,7 +1517,7 @@ def test_select_freq_chans():
     )
 
     # check that it also works with higher dimension array
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(freq_chans=chans_to_keep[np.newaxis, :])
 
     assert len(chans_to_keep) == uv_object2.Nfreqs
@@ -1535,7 +1535,7 @@ def test_select_freq_chans():
     freqs_to_keep = uv_object.freq_array[0, np.arange(20, 30)]  # Overlaps with chans
     all_chans_to_keep = np.arange(12, 30)
 
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(frequencies=freqs_to_keep, freq_chans=chans_to_keep)
 
     assert len(all_chans_to_keep) == uv_object2.Nfreqs
@@ -1553,7 +1553,7 @@ def test_select_polarizations():
     old_history = uv_object.history
     pols_to_keep = [-1, -2]
 
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(polarizations=pols_to_keep)
 
     assert len(pols_to_keep) == uv_object2.Npols
@@ -1568,7 +1568,7 @@ def test_select_polarizations():
     )
 
     # check that it also works with higher dimension array
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(polarizations=[pols_to_keep])
 
     assert len(pols_to_keep) == uv_object2.Npols
@@ -1650,7 +1650,7 @@ def test_select():
         ]
     )
 
-    uv_object2 = copy.deepcopy(uv_object)
+    uv_object2 = uv_object.copy()
     uv_object2.select(
         blt_inds=blt_inds,
         antenna_nums=ants_to_keep,
@@ -1727,7 +1727,7 @@ def test_conjugate_bls(metadata_only):
     assert np.min(uv1.ant_2_array - uv1.ant_1_array) >= 0
 
     # check everything swapped & conjugated when go to ant2<ant1
-    uv2 = copy.deepcopy(uv1)
+    uv2 = uv1.copy()
     uv2.conjugate_bls(convention="ant2<ant1")
     assert np.min(uv2.ant_1_array - uv2.ant_2_array) >= 0
 
@@ -1888,7 +1888,7 @@ def test_reorder_pols():
     uv1 = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     uv1.read_uvfits(testfile)
-    uv2 = copy.deepcopy(uv1)
+    uv2 = uv1.copy()
     # reorder uv2 manually
     order = [1, 3, 2, 0]
     uv2.polarization_array = uv2.polarization_array[order]
@@ -1908,7 +1908,7 @@ def test_reorder_pols():
     aips_pols = np.array([-1, -2, -3, -4]).astype(int)
     assert np.all(uv1.polarization_array == aips_pols)
 
-    uv2 = copy.deepcopy(uv1)
+    uv2 = uv1.copy()
     uv2.reorder_pols(order="CASA")
     # check that we have casa ordering
     casa_pols = np.array([-1, -3, -4, -2]).astype(int)
@@ -1937,7 +1937,7 @@ def test_reorder_blts():
     uv1.read_uvfits(testfile)
 
     # test default reordering in detail
-    uv2 = copy.deepcopy(uv1)
+    uv2 = uv1.copy()
     uv2.reorder_blts()
     assert uv2.blt_order == ("time", "baseline")
     assert np.min(np.diff(uv2.time_array)) >= 0
@@ -1960,7 +1960,7 @@ def test_reorder_blts():
         assert np.allclose(data_1[bl_inds, :, :, :], data_2)
 
     # check that ordering by time, ant1 is identical to time, baseline
-    uv3 = copy.deepcopy(uv1)
+    uv3 = uv1.copy()
     uv3.reorder_blts(order="time", minor_order="ant1")
     assert uv3.blt_order == ("time", "ant1")
     assert np.min(np.diff(uv3.time_array)) >= 0
@@ -2065,7 +2065,7 @@ def test_sum_vis():
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     uv_full.read_uvfits(testfile)
 
-    uv_half = copy.deepcopy(uv_full)
+    uv_half = uv_full.copy()
     uv_half.data_array = uv_full.data_array / 2
     uv_summed = uv_half.sum_vis(uv_half)
 
@@ -2105,8 +2105,8 @@ def test_add():
     uv_full.read_uvfits(testfile)
 
     # Add frequencies
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(32, 64))
     uv1 += uv2
@@ -2123,8 +2123,8 @@ def test_add():
     assert uv1 == uv_full
 
     # Add frequencies - out of order
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(32, 64))
     uv2 += uv1
@@ -2132,8 +2132,8 @@ def test_add():
     assert uv2 == uv_full
 
     # Add polarizations
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv1 += uv2
@@ -2148,8 +2148,8 @@ def test_add():
     assert uv1 == uv_full
 
     # Add polarizations - out of order
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv2 += uv1
@@ -2157,8 +2157,8 @@ def test_add():
     assert uv2 == uv_full
 
     # Add times
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     times = np.unique(uv_full.time_array)
     uv1.select(times=times[0 : len(times) // 2])
     uv2.select(times=times[len(times) // 2 :])
@@ -2174,8 +2174,8 @@ def test_add():
     assert uv1 == uv_full
 
     # Add baselines
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     ant_list = list(range(15))  # Roughly half the antennas in the data
     # All blts where ant_1 is in list
     ind1 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] in ant_list]
@@ -2194,9 +2194,9 @@ def test_add():
     assert uv1 == uv_full
 
     # Add baselines - out of order
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
-    uv3 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
+    uv3 = uv_full.copy()
     ants = uv_full.get_ants()
     ants1 = ants[0:6]
     ants2 = ants[6:12]
@@ -2232,9 +2232,9 @@ def test_add():
     assert uv1 == uv_full
 
     # Add multiple axes
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
-    uv_ref = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
+    uv_ref = uv_full.copy()
     times = np.unique(uv_full.time_array)
     uv1.select(
         times=times[0 : len(times) // 2], polarizations=uv1.polarization_array[0:2]
@@ -2276,9 +2276,9 @@ def test_add():
     assert uv1 == uv_ref
 
     # Another combo
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
-    uv_ref = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
+    uv_ref = uv_full.copy()
     times = np.unique(uv_full.time_array)
     uv1.select(times=times[0 : len(times) // 2], freq_chans=np.arange(0, 32))
     uv2.select(times=times[len(times) // 2 :], freq_chans=np.arange(32, 64))
@@ -2316,8 +2316,8 @@ def test_add():
     assert uv1 == uv_ref
 
     # Add without inplace
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     times = np.unique(uv_full.time_array)
     uv1.select(times=times[0 : len(times) // 2])
     uv2.select(times=times[len(times) // 2 :])
@@ -2333,31 +2333,31 @@ def test_add():
     assert uv1 == uv_full
 
     # Check warnings
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(33, 64))
     uvtest.checkWarnings(
         uv1.__add__, [uv2], message="Combined frequencies are not evenly spaced"
     )
 
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(freq_chans=[0])
     uv2.select(freq_chans=[3])
     uvtest.checkWarnings(
         uv1.__iadd__, [uv2], message="Combined frequencies are not contiguous"
     )
 
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(freq_chans=[0])
     uv2.select(freq_chans=[1])
     uv2.freq_array += uv2._channel_width.tols[1] / 2.0
     uvtest.checkWarnings(uv1.__iadd__, [uv2], nwarnings=0)
 
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[3])
     uvtest.checkWarnings(
@@ -2365,8 +2365,8 @@ def test_add():
     )
 
     # Combining histories
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv2.history += " testing the history. AIPS WTSCAL = 1.0"
@@ -2403,8 +2403,8 @@ def test_add_drift():
     uv_full.unphase_to_drift()
 
     # Add frequencies
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(32, 64))
     uv1 += uv2
@@ -2420,8 +2420,8 @@ def test_add_drift():
     assert uv1 == uv_full
 
     # Add polarizations
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv1 += uv2
@@ -2436,8 +2436,8 @@ def test_add_drift():
     assert uv1 == uv_full
 
     # Add times
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     times = np.unique(uv_full.time_array)
     uv1.select(times=times[0 : len(times) // 2])
     uv2.select(times=times[len(times) // 2 :])
@@ -2453,8 +2453,8 @@ def test_add_drift():
     assert uv1 == uv_full
 
     # Add baselines
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     ant_list = list(range(15))  # Roughly half the antennas in the data
     # All blts where ant_1 is in list
     ind1 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] in ant_list]
@@ -2473,9 +2473,9 @@ def test_add_drift():
     assert uv1 == uv_full
 
     # Add multiple axes
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
-    uv_ref = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
+    uv_ref = uv_full.copy()
     times = np.unique(uv_full.time_array)
     uv1.select(
         times=times[0 : len(times) // 2], polarizations=uv1.polarization_array[0:2]
@@ -2517,9 +2517,9 @@ def test_add_drift():
     assert uv1 == uv_ref
 
     # Another combo
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
-    uv_ref = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
+    uv_ref = uv_full.copy()
     times = np.unique(uv_full.time_array)
     uv1.select(times=times[0 : len(times) // 2], freq_chans=np.arange(0, 32))
     uv2.select(times=times[len(times) // 2 :], freq_chans=np.arange(32, 64))
@@ -2557,8 +2557,8 @@ def test_add_drift():
     assert uv1 == uv_ref
 
     # Add without inplace
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     times = np.unique(uv_full.time_array)
     uv1.select(times=times[0 : len(times) // 2])
     uv2.select(times=times[len(times) // 2 :])
@@ -2574,24 +2574,24 @@ def test_add_drift():
     assert uv1 == uv_full
 
     # Check warnings
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(33, 64))
     uvtest.checkWarnings(
         uv1.__add__, [uv2], message="Combined frequencies are not evenly spaced"
     )
 
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(freq_chans=[0])
     uv2.select(freq_chans=[3])
     uvtest.checkWarnings(
         uv1.__iadd__, [uv2], message="Combined frequencies are not contiguous"
     )
 
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[3])
     uvtest.checkWarnings(
@@ -2599,8 +2599,8 @@ def test_add_drift():
     )
 
     # Combining histories
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv2.history += " testing the history. AIPS WTSCAL = 1.0"
@@ -2624,28 +2624,28 @@ def test_break_add():
     uv_full.read_uvfits(testfile)
 
     # Wrong class
-    uv1 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     pytest.raises(ValueError, uv1.__iadd__, np.zeros(5))
 
     # One phased, one not
-    uv2 = copy.deepcopy(uv_full)
+    uv2 = uv_full.copy()
     uv2.unphase_to_drift()
 
     pytest.raises(ValueError, uv1.__iadd__, uv2)
 
     # Different units
-    uv2 = copy.deepcopy(uv_full)
+    uv2 = uv_full.copy()
     uv2.select(freq_chans=np.arange(32, 64))
     uv2.vis_units = "Jy"
     pytest.raises(ValueError, uv1.__iadd__, uv2)
 
     # Overlapping data
-    uv2 = copy.deepcopy(uv_full)
+    uv2 = uv_full.copy()
     pytest.raises(ValueError, uv1.__iadd__, uv2)
 
     # Different integration_time
-    uv2 = copy.deepcopy(uv_full)
+    uv2 = uv_full.copy()
     uv2.select(freq_chans=np.arange(32, 64))
     uv2.integration_time *= 2
     pytest.raises(ValueError, uv1.__iadd__, uv2)
@@ -2836,8 +2836,8 @@ def test_fast_concat():
     uv_full.read_uvfits(testfile)
 
     # Add frequencies
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.fast_concat(uv2, "freq", inplace=True)
@@ -2854,8 +2854,8 @@ def test_fast_concat():
     assert uv1 == uv_full
 
     # Add frequencies - out of order
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(32, 64))
     uvtest.checkWarnings(
@@ -2879,8 +2879,8 @@ def test_fast_concat():
     assert uv2 == uv_full
 
     # Add polarizations
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv1.fast_concat(uv2, "polarization", inplace=True)
@@ -2895,8 +2895,8 @@ def test_fast_concat():
     assert uv1 == uv_full
 
     # Add polarizations - out of order
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uvtest.checkWarnings(
@@ -2914,8 +2914,8 @@ def test_fast_concat():
     assert uv2 == uv_full
 
     # Add times
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     times = np.unique(uv_full.time_array)
     uv1.select(times=times[0 : len(times) // 2])
     uv2.select(times=times[len(times) // 2 :])
@@ -2931,8 +2931,8 @@ def test_fast_concat():
     assert uv1 == uv_full
 
     # Add baselines
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     # divide in half to keep in order
     ind1 = np.arange(uv1.Nblts // 2)
     ind2 = np.arange(uv1.Nblts // 2, uv1.Nblts)
@@ -2950,8 +2950,8 @@ def test_fast_concat():
     assert uv1, uv_full
 
     # Add baselines out of order
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(blt_inds=ind1)
     uv2.select(blt_inds=ind2)
     uv2.fast_concat(uv1, "blt", inplace=True)
@@ -2981,8 +2981,8 @@ def test_fast_concat():
     assert uv2 == uv_full
 
     # add baselines such that Nants_data needs to change
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     ant_list = list(range(15))  # Roughly half the antennas in the data
     # All blts where ant_1 is in list
     ind1 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] in ant_list]
@@ -3025,8 +3025,8 @@ def test_fast_concat():
     assert uv2 == uv_full
 
     # Add multiple axes
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     times = np.unique(uv_full.time_array)
     uv1.select(
         times=times[0 : len(times) // 2], polarizations=uv1.polarization_array[0:2]
@@ -3037,16 +3037,16 @@ def test_fast_concat():
     pytest.raises(ValueError, uv1.fast_concat, uv2, "blt", inplace=True)
 
     # Another combo
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     times = np.unique(uv_full.time_array)
     uv1.select(times=times[0 : len(times) // 2], freq_chans=np.arange(0, 32))
     uv2.select(times=times[len(times) // 2 :], freq_chans=np.arange(32, 64))
     pytest.raises(ValueError, uv1.fast_concat, uv2, "blt", inplace=True)
 
     # Add without inplace
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     times = np.unique(uv_full.time_array)
     uv1.select(times=times[0 : len(times) // 2])
     uv2.select(times=times[len(times) // 2 :])
@@ -3062,8 +3062,8 @@ def test_fast_concat():
     assert uv1 == uv_full
 
     # Check warnings
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(33, 64))
     uvtest.checkWarnings(
@@ -3072,8 +3072,8 @@ def test_fast_concat():
         message="Combined frequencies are not evenly spaced",
     )
 
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(freq_chans=[0])
     uv2.select(freq_chans=[3])
     uvtest.checkWarnings(
@@ -3082,15 +3082,15 @@ def test_fast_concat():
         message="Combined frequencies are not contiguous",
     )
 
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(freq_chans=[0])
     uv2.select(freq_chans=[1])
     uv2.freq_array += uv2._channel_width.tols[1] / 2.0
     uvtest.checkWarnings(uv1.fast_concat, [uv2, "freq"], nwarnings=0)
 
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[3])
     uvtest.checkWarnings(
@@ -3100,8 +3100,8 @@ def test_fast_concat():
     )
 
     # Combining histories
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv2.history += " testing the history. AIPS WTSCAL = 1.0"
@@ -3136,8 +3136,8 @@ def test_fast_concat_errors():
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     uv_full.read_uvfits(testfile)
 
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(32, 64))
     pytest.raises(ValueError, uv1.fast_concat, uv2, "foo", inplace=True)
@@ -4581,7 +4581,7 @@ def test_redundancy_contract_expand():
     uv2 = uv0.compress_by_redundancy(tol=tol, inplace=False)
 
     # Compare in-place to separated compression.
-    uv3 = copy.deepcopy(uv0)
+    uv3 = uv0.copy()
     uv3.compress_by_redundancy(tol=tol)
     assert uv2 == uv3
 

@@ -7,7 +7,6 @@ from __future__ import print_function, division, absolute_import
 import numpy as np
 import os
 import warnings
-import copy
 import h5py
 
 from ..uvbase import UVBase
@@ -784,10 +783,6 @@ class UVFlag(UVBase):
         return not self.__eq__(
             other, check_history=check_history, check_extra=check_extra
         )
-
-    def copy(self):
-        """Return a copy of this object."""
-        return copy.deepcopy(self)
 
     def antpair2ind(self, ant1, ant2):
         """Get blt indices for given (ordered) antenna pair.
@@ -2255,7 +2250,7 @@ class UVFlag(UVBase):
         if inplace:
             uv_object = self
         else:
-            uv_object = copy.deepcopy(self)
+            uv_object = self.copy()
 
         (
             blt_inds,

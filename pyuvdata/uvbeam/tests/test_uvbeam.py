@@ -327,18 +327,18 @@ def test_efield_to_pstokes():
         model_version="1.0",
     )
 
-    pstokes_beam = copy.deepcopy(efield_beam)
+    pstokes_beam = efield_beam.copy()
     pstokes_beam.interpolation_function = "az_za_simple"
     pstokes_beam.to_healpix()
     pstokes_beam.efield_to_pstokes()
 
-    pstokes_beam_2 = copy.deepcopy(efield_beam)
+    pstokes_beam_2 = efield_beam.copy()
     pstokes_beam_2.interpolation_function = "az_za_simple"
     pstokes_beam_2.to_healpix()
     # convert to pstokes after interpolating
     beam_return = pstokes_beam_2.efield_to_pstokes(inplace=False)
 
-    pstokes_beam = copy.deepcopy(efield_beam)
+    pstokes_beam = efield_beam.copy()
 
     # interpolate after converting to pstokes
     pstokes_beam.interpolation_function = "az_za_simple"
@@ -421,12 +421,12 @@ def test_efield_to_power():
     # drop all the trailing colons in the slicing below
     new_data[0] = np.sqrt(2) * efield_beam.data_array[0]
     new_data[1] = efield_beam.data_array[1] - efield_beam.data_array[0]
-    efield_beam2 = copy.deepcopy(efield_beam)
+    efield_beam2 = efield_beam.copy()
     efield_beam2.basis_vector_array = new_basis_vecs
     efield_beam2.data_array = new_data
     efield_beam2.check()
     # now convert to power. Should get the same result
-    new_power_beam2 = copy.deepcopy(efield_beam2)
+    new_power_beam2 = efield_beam2.copy()
     new_power_beam2.efield_to_power(calc_cross_pols=False)
 
     assert new_power_beam == new_power_beam2
@@ -447,12 +447,12 @@ def test_efield_to_power():
         - efield_beam.data_array[1, :, :, :, :, :]
     )
     new_data[1, :, :, :, :, :] = np.sqrt(2) * efield_beam.data_array[1, :, :, :, :, :]
-    efield_beam2 = copy.deepcopy(efield_beam)
+    efield_beam2 = efield_beam.copy()
     efield_beam2.basis_vector_array = new_basis_vecs
     efield_beam2.data_array = new_data
     efield_beam2.check()
     # now convert to power. Should get the same result
-    new_power_beam2 = copy.deepcopy(efield_beam2)
+    new_power_beam2 = efield_beam2.copy()
     new_power_beam2.efield_to_power(calc_cross_pols=False)
 
     assert new_power_beam == new_power_beam2
@@ -472,12 +472,12 @@ def test_efield_to_power():
         -1 * efield_beam.data_array[0, :, :, :, :, :]
         + efield_beam.data_array[1, :, :, :, :, :]
     )
-    efield_beam2 = copy.deepcopy(efield_beam)
+    efield_beam2 = efield_beam.copy()
     efield_beam2.basis_vector_array = new_basis_vecs
     efield_beam2.data_array = new_data
     efield_beam2.check()
     # now convert to power. Should get the same result
-    new_power_beam2 = copy.deepcopy(efield_beam2)
+    new_power_beam2 = efield_beam2.copy()
     new_power_beam2.efield_to_power(calc_cross_pols=False)
 
     assert new_power_beam == new_power_beam2
@@ -1086,7 +1086,7 @@ def test_healpix_interpolation():
         model_version="1.0",
     )
     efield_beam.interpolation_function = "az_za_simple"
-    orig_efield_beam = copy.deepcopy(efield_beam)
+    orig_efield_beam = efield_beam.copy()
 
     # test calling interp with healpix parameters directly gives same result
     min_res = np.min(
@@ -1427,7 +1427,7 @@ def test_select_axis():
     pytest.raises(ValueError, power_beam2.select, axis1_inds=[power_beam.Naxes1 - 1])
 
     # check for warnings and errors associated with unevenly spaced image pixels
-    power_beam2 = copy.deepcopy(power_beam)
+    power_beam2 = power_beam.copy()
     uvtest.checkWarnings(
         power_beam2.select,
         [],
@@ -1465,7 +1465,7 @@ def test_select_axis():
     pytest.raises(ValueError, power_beam2.select, axis2_inds=[power_beam.Naxes2 - 1])
 
     # check for warnings and errors associated with unevenly spaced image pixels
-    power_beam2 = copy.deepcopy(power_beam)
+    power_beam2 = power_beam.copy()
     uvtest.checkWarnings(
         power_beam2.select,
         [],
@@ -1491,7 +1491,7 @@ def test_select_frequencies():
 
     # generate more frequencies for testing by copying and adding several times
     while power_beam.Nfreqs < 8:
-        new_beam = copy.deepcopy(power_beam)
+        new_beam = power_beam.copy()
         new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
         power_beam += new_beam
 
@@ -1540,7 +1540,7 @@ def test_select_frequencies():
     )
 
     # check for warnings and errors associated with unevenly spaced frequencies
-    power_beam2 = copy.deepcopy(power_beam)
+    power_beam2 = power_beam.copy()
     uvtest.checkWarnings(
         power_beam2.select,
         [],
@@ -1660,7 +1660,7 @@ def test_select_polarizations():
 
     # generate more polarizations for testing by copying and adding several times
     while power_beam.Npols < 4:
-        new_beam = copy.deepcopy(power_beam)
+        new_beam = power_beam.copy()
         new_beam.polarization_array = power_beam.polarization_array - power_beam.Npols
         power_beam += new_beam
 
@@ -1728,7 +1728,7 @@ def test_select():
     )
 
     # generate more frequencies for testing by copying and adding
-    new_beam = copy.deepcopy(power_beam)
+    new_beam = power_beam.copy()
     new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
     power_beam += new_beam
 
@@ -1810,7 +1810,7 @@ def test_select():
         model_version="1.0",
     )
     # generate more frequencies for testing by copying and adding
-    new_beam = copy.deepcopy(efield_beam)
+    new_beam = efield_beam.copy()
     new_beam.freq_array = efield_beam.freq_array + efield_beam.Nfreqs * 1e6
     efield_beam += new_beam
 
@@ -1888,7 +1888,7 @@ def test_add():
     )
 
     # generate more frequencies for testing by copying and adding
-    new_beam = copy.deepcopy(power_beam)
+    new_beam = power_beam.copy()
     new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
     power_beam += new_beam
 
@@ -2007,7 +2007,7 @@ def test_add():
         model_version="1.0",
     )
     # generate more frequencies for testing by copying and adding
-    new_beam = copy.deepcopy(efield_beam)
+    new_beam = efield_beam.copy()
     new_beam.freq_array = efield_beam.freq_array + efield_beam.Nfreqs * 1e6
     efield_beam += new_beam
 
@@ -2047,7 +2047,7 @@ def test_add():
     assert beam1, efield_beam
 
     # Add multiple axes
-    beam_ref = copy.deepcopy(power_beam)
+    beam_ref = power_beam.copy()
     beam1 = power_beam.select(
         axis1_inds=np.arange(0, power_beam.Naxes1 // 2),
         polarizations=power_beam.polarization_array[0],
@@ -2073,7 +2073,7 @@ def test_add():
     assert beam1 == beam_ref
 
     # Another combo with efield
-    beam_ref = copy.deepcopy(efield_beam)
+    beam_ref = efield_beam.copy()
     beam1 = efield_beam.select(
         axis1_inds=np.arange(0, efield_beam.Naxes1 // 2),
         axis2_inds=np.arange(0, efield_beam.Naxes2 // 2),
@@ -2114,7 +2114,7 @@ def test_add():
     # Check warnings
     # generate more frequencies for testing by copying and adding several times
     while power_beam.Nfreqs < 8:
-        new_beam = copy.deepcopy(power_beam)
+        new_beam = power_beam.copy()
         new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
         power_beam += new_beam
 
@@ -2126,7 +2126,7 @@ def test_add():
 
     # generate more polarizations for testing by copying and adding several times
     while power_beam.Npols < 4:
-        new_beam = copy.deepcopy(power_beam)
+        new_beam = power_beam.copy()
         new_beam.polarization_array = power_beam.polarization_array - power_beam.Npols
         power_beam += new_beam
 
@@ -2181,7 +2181,7 @@ def test_add():
     # Test failure modes of add function
 
     # Wrong class
-    beam1 = copy.deepcopy(power_beam)
+    beam1 = power_beam.copy()
     pytest.raises(ValueError, beam1.__iadd__, np.zeros(5))
 
     params_to_change = {
@@ -2205,7 +2205,7 @@ def test_add():
         pytest.raises(ValueError, beam1.__iadd__, beam2)
 
     # Overlapping data
-    beam2 = copy.deepcopy(power_beam)
+    beam2 = power_beam.copy()
     pytest.raises(ValueError, beam1.__iadd__, beam2)
 
 
@@ -2227,7 +2227,7 @@ def test_healpix():
     )
 
     # generate more frequencies for testing by copying and adding
-    new_beam = copy.deepcopy(power_beam)
+    new_beam = power_beam.copy()
     new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
     power_beam += new_beam
 
@@ -2361,7 +2361,7 @@ def test_healpix():
         model_version="1.0",
     )
     # generate more frequencies for testing by copying and adding
-    new_beam = copy.deepcopy(efield_beam)
+    new_beam = efield_beam.copy()
     new_beam.freq_array = efield_beam.freq_array + efield_beam.Nfreqs * 1e6
     efield_beam += new_beam
 
@@ -2406,7 +2406,7 @@ def test_healpix():
 
     # -------------------
     # Test adding a different combo with healpix
-    beam_ref = copy.deepcopy(power_beam_healpix)
+    beam_ref = power_beam_healpix.copy()
     beam1 = power_beam_healpix.select(
         pixels=power_beam_healpix.pixel_array[0 : power_beam_healpix.Npixels // 2],
         freq_chans=0,
@@ -2432,7 +2432,7 @@ def test_healpix():
     assert beam1 == beam_ref
 
     # Test adding another combo with efield
-    beam_ref = copy.deepcopy(efield_beam)
+    beam_ref = efield_beam.copy()
     beam1 = efield_beam.select(
         freq_chans=0, feeds=efield_beam.feed_array[0], inplace=False
     )
@@ -2471,8 +2471,8 @@ def test_healpix():
 
     # ---------------
     # Test error: adding overlapping data with healpix
-    beam1 = copy.deepcopy(power_beam_healpix)
-    beam2 = copy.deepcopy(power_beam_healpix)
+    beam1 = power_beam_healpix.copy()
+    beam2 = power_beam_healpix.copy()
     pytest.raises(ValueError, beam1.__iadd__, beam2)
 
     # ---------------
@@ -2480,7 +2480,7 @@ def test_healpix():
     # Check that non-peak normalizations error
     pytest.raises(ValueError, power_beam_healpix.get_beam_area)
     pytest.raises(ValueError, power_beam_healpix.get_beam_sq_area)
-    healpix_norm = copy.deepcopy(power_beam_healpix)
+    healpix_norm = power_beam_healpix.copy()
     healpix_norm.data_normalization = "solid_angle"
     pytest.raises(ValueError, healpix_norm.get_beam_area)
     pytest.raises(ValueError, healpix_norm.get_beam_sq_area)

@@ -9,7 +9,6 @@ from __future__ import absolute_import, division, print_function
 
 import pytest
 import numpy as np
-import copy
 
 from pyuvdata.uvbase import UVBase
 from pyuvdata.uvbase import _warning
@@ -120,7 +119,7 @@ def test_equality():
 def test_equality_nocheckextra():
     """Test equality if optional params are different and check_extra is false."""
     test_obj = UVTest()
-    test_obj2 = copy.deepcopy(test_obj)
+    test_obj2 = test_obj.copy()
     test_obj2.optional_int1 = 4
     assert test_obj.__eq__(test_obj2, check_extra=False)
 
@@ -128,7 +127,7 @@ def test_equality_nocheckextra():
 def test_inequality_extra():
     """Basic equality test."""
     test_obj = UVTest()
-    test_obj2 = copy.deepcopy(test_obj)
+    test_obj2 = test_obj.copy()
     test_obj2.optional_int1 = 4
     assert test_obj != test_obj2
 
@@ -136,7 +135,7 @@ def test_inequality_extra():
 def test_inequality_different_extras():
     """Basic equality test."""
     test_obj = UVTest()
-    test_obj2 = copy.deepcopy(test_obj)
+    test_obj2 = test_obj.copy()
     test_obj2._optional_int3 = uvp.UVParameter(
         "optional_int3",
         description="optional integer value",
@@ -150,7 +149,7 @@ def test_inequality_different_extras():
 def test_inequality():
     """Check that inequality is handled correctly."""
     test_obj = UVTest()
-    test_obj2 = copy.deepcopy(test_obj)
+    test_obj2 = test_obj.copy()
     test_obj2.float1 = 13
     assert test_obj != test_obj2
 
@@ -228,14 +227,14 @@ def test_list_type():
 
 def test_angle():
     test_obj = UVTest()
-    test_obj2 = copy.deepcopy(test_obj)
+    test_obj2 = test_obj.copy()
     test_obj2.angle_degrees = 45.0
     assert test_obj == test_obj2
 
 
 def test_angle_none():
     test_obj = UVTest()
-    test_obj2 = copy.deepcopy(test_obj)
+    test_obj2 = test_obj.copy()
     test_obj.angle = None
     test_obj2.angle_degrees = None
     assert test_obj == test_obj2
@@ -243,14 +242,14 @@ def test_angle_none():
 
 def test_location():
     test_obj = UVTest()
-    test_obj2 = copy.deepcopy(test_obj)
+    test_obj2 = test_obj.copy()
     test_obj2.location_lat_lon_alt = ref_latlonalt
     assert test_obj == test_obj2
 
 
 def test_location_degree():
     test_obj = UVTest()
-    test_obj2 = copy.deepcopy(test_obj)
+    test_obj2 = test_obj.copy()
     test_obj2.location_lat_lon_alt_degrees = (
         np.rad2deg(ref_latlonalt[0]),
         np.rad2deg(ref_latlonalt[1]),
@@ -261,7 +260,7 @@ def test_location_degree():
 
 def test_location_none():
     test_obj = UVTest()
-    test_obj2 = copy.deepcopy(test_obj)
+    test_obj2 = test_obj.copy()
     test_obj.location = None
     test_obj2.location_lat_lon_alt = None
     assert test_obj == test_obj2
@@ -269,7 +268,7 @@ def test_location_none():
 
 def test_location_degree_none():
     test_obj = UVTest()
-    test_obj2 = copy.deepcopy(test_obj)
+    test_obj2 = test_obj.copy()
     test_obj.location = None
     test_obj2.location_lat_lon_alt_degrees = None
     assert test_obj == test_obj2

@@ -910,7 +910,8 @@ class UVData(UVBase):
         return True
 
     def copy(self, metadata_only=False):
-        """Make and return a copy of the UVData object.
+        """
+        Make and return a copy of the UVData object.
 
         Parameters
         ----------
@@ -919,17 +920,21 @@ class UVData(UVBase):
 
         Returns
         -------
-        uv : UVData
+        UVData
             Copy of self.
         """
-        uv = UVData()
-        for param in self:
-            # parameter names have a leading underscore we want to ignore
-            if metadata_only and param.lstrip("_") in self._data_params:
-                continue
-            setattr(uv, param, copy.deepcopy(getattr(self, param)))
+        if not metadata_only:
+            return super(UVData, self).copy()
+        else:
+            uv = UVData()
+            # include all attributes, not just UVParameter ones.
+            for param in self.__iter__(uvparams_only=False):
+                # parameter names have a leading underscore we want to ignore
+                if param.lstrip("_") in self._data_params:
+                    continue
+                setattr(uv, param, copy.deepcopy(getattr(self, param)))
 
-        return uv
+                return uv
 
     def baseline_to_antnums(self, baseline):
         """
@@ -2694,7 +2699,7 @@ class UVData(UVBase):
         if inplace:
             this = self
         else:
-            this = copy.deepcopy(self)
+            this = self.copy()
 
         # Check that both objects are UVData and valid
         this.check(
@@ -3257,7 +3262,7 @@ class UVData(UVBase):
         if inplace:
             this = self
         else:
-            this = copy.deepcopy(self)
+            this = self.copy()
         # Check that both objects are UVData and valid
         this.check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
@@ -3553,7 +3558,7 @@ class UVData(UVBase):
         if inplace:
             this = self
         else:
-            this = copy.deepcopy(self)
+            this = self.copy()
 
         # Check that both objects are UVData and valid
         this.check(
@@ -4479,7 +4484,7 @@ class UVData(UVBase):
         if inplace:
             uv_object = self
         else:
-            uv_object = copy.deepcopy(self)
+            uv_object = self.copy()
 
         (
             blt_inds,

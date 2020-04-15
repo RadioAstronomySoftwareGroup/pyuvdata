@@ -7,10 +7,10 @@ Base class for objects with UVParameter attributes.
 
 Subclassed by UVData and Telescope.
 """
-from __future__ import absolute_import, division, print_function
+import copy
+import warnings
 
 import numpy as np
-import warnings
 
 from . import parameter as uvp
 from . import __version__
@@ -161,7 +161,7 @@ class UVBase(object):
 
         return fset
 
-    def __iter__(self):
+    def __iter__(self, uvparams_only=True):
         """Iterate over all UVParameter attributes."""
         attribute_list = [
             a
@@ -171,7 +171,10 @@ class UVBase(object):
         param_list = []
         for a in attribute_list:
             attr = getattr(self, a)
-            if isinstance(attr, uvp.UVParameter):
+            if uvparams_only:
+                if isinstance(attr, uvp.UVParameter):
+                    param_list.append(a)
+            else:
                 param_list.append(a)
         for a in param_list:
             yield a
@@ -367,3 +370,7 @@ class UVBase(object):
                         )
 
         return True
+
+    def copy(self):
+        """Make and return a copy of the object."""
+        return copy.deepcopy(self)

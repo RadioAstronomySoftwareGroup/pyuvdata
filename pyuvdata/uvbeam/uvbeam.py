@@ -810,7 +810,7 @@ class UVBeam(UVBase):
         if inplace:
             beam_object = self
         else:
-            beam_object = copy.deepcopy(self)
+            beam_object = self.copy()
 
         if beam_object.beam_type != "efield":
             raise ValueError("beam_type must be efield")
@@ -1015,7 +1015,7 @@ class UVBeam(UVBase):
         if inplace:
             beam_object = self
         else:
-            beam_object = copy.deepcopy(self)
+            beam_object = self.copy()
 
         if beam_object.beam_type != "efield":
             raise ValueError("beam_type must be efield.")
@@ -1741,7 +1741,7 @@ class UVBeam(UVBase):
         # return a new UVBeam object with interpolated data
         else:
             # make a new object
-            new_uvb = copy.deepcopy(self)
+            new_uvb = self.copy()
 
             history_update_string = " Interpolated"
             if freq_array is not None:
@@ -2082,7 +2082,7 @@ class UVBeam(UVBase):
         if inplace:
             this = self
         else:
-            this = copy.deepcopy(self)
+            this = self.copy()
         # Check that both objects are UVBeam and valid
         this.check(check_extra=check_extra, run_check_acceptability=False)
         if not issubclass(other.__class__, this.__class__):
@@ -2561,7 +2561,7 @@ class UVBeam(UVBase):
         if inplace:
             beam_object = self
         else:
-            beam_object = copy.deepcopy(self)
+            beam_object = self.copy()
 
         # build up history string as we go
         history_update_string = "  Downselected to specific "
