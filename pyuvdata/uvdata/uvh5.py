@@ -644,31 +644,25 @@ class UVH5(UVData):
                 blt_slices, blt_sliceable = _convert_to_slices(
                     blt_inds, max_nslice_frac=0.1
                 )
-                if blt_sliceable:
-                    blt_inds = blt_slices
             else:
                 blt_inds = np.s_[:]
-                blt_sliceable = True
+                blt_sliceable = False
 
             if freq_inds is not None:
                 freq_slices, freq_sliceable = _convert_to_slices(
                     freq_inds, max_nslice_frac=0.1
                 )
-                if freq_sliceable:
-                    freq_inds = freq_slices
             else:
                 freq_inds = np.s_[:]
-                freq_sliceable = True
+                freq_sliceable = False
 
             if pol_inds is not None:
                 pol_slices, pol_sliceable = _convert_to_slices(
                     pol_inds, max_nslice_frac=0.5
                 )
-                if pol_sliceable:
-                    pol_inds = pol_slices
             else:
                 pol_inds = np.s_[:]
-                pol_sliceable = True
+                pol_sliceable = False
 
             # open references to datasets
             visdata_dset = dgrp["visdata"]
@@ -678,17 +672,23 @@ class UVH5(UVData):
             # just read in the right portions of the data and flag arrays
             if blt_frac == min_frac:
                 # construct inds list given simultaneous sliceability
-                inds = [blt_inds, np.s_[:]]
-                if freq_sliceable and multidim_slice:
-                    inds.append(freq_inds)
-                else:
-                    inds.append(np.s_[:])
-                if pol_sliceable and multidim_slice:
-                    inds.append(pol_inds)
-                else:
-                    inds.append(np.s_[:])
+                inds = [blt_inds, np.s_[:], np.s_[:], np.s_[:]]
+                if blt_sliceable:
+                    inds[0] = blt_slices
+                if multidim_slice:
+                    if freq_sliceable:
+                        inds[2] = freq_slices
+                    else:
+                        inds[2] = freq_inds
+                if multidim_slice:
+                    if pol_sliceable:
+                        inds[3] = pol_slices
+                    else:
+                        inds[3] = pol_inds
+
                 inds = tuple(inds)
 
+                # index datasets
                 if custom_dtype:
                     visdata = _read_complex_astype(visdata_dset, inds, data_array_dtype)
                 else:
@@ -698,30 +698,36 @@ class UVH5(UVData):
 
                 assert self.Nspws == visdata.shape[1]
 
-                if not freq_sliceable or not multidim_slice:
+                # down select on other dimensions if necessary
+                # just use indices here: generally not the bottleneck
+                if not multidim_slice and freq_frac < 1:
                     visdata = visdata[:, :, freq_inds, :]
                     flags = flags[:, :, freq_inds, :]
                     nsamples = nsamples[:, :, freq_inds, :]
-                if not pol_sliceable or not multidim_slice:
+                if not multidim_slice and pol_frac < 1:
                     visdata = visdata[:, :, :, pol_inds]
                     flags = flags[:, :, :, pol_inds]
                     nsamples = nsamples[:, :, :, pol_inds]
 
             elif freq_frac == min_frac:
                 # construct inds list given simultaneous sliceability
-                inds = []
-                if blt_sliceable and multidim_slice:
-                    inds.append(blt_inds)
-                else:
-                    inds.append(np.s_[:])
-                inds.append(np.s_[:])
-                inds.append(freq_inds)
-                if pol_sliceable and multidim_slice:
-                    inds.append(pol_inds)
-                else:
-                    inds.append(np.s_[:])
+                inds = [np.s_[:], np.s_[:], freq_inds, np.s_[:]]
+                if freq_sliceable:
+                    inds[2] = freq_slices
+                if multidim_slice:
+                    if blt_sliceable:
+                        inds[0] = blt_slices
+                    else:
+                        inds[0] = blt_inds
+                if multidim_slice:
+                    if pol_sliceable:
+                        inds[3] = pol_slices
+                    else:
+                        inds[3] = pol_inds
+
                 inds = tuple(inds)
 
+                # index datasets
                 if custom_dtype:
                     visdata = _read_complex_astype(visdata_dset, inds, data_array_dtype)
                 else:
@@ -729,30 +735,36 @@ class UVH5(UVData):
                 flags = _index_dset(flags_dset, inds)
                 nsamples = _index_dset(nsamples_dset, inds)
 
-                if not blt_sliceable or not multidim_slice:
+                # down select on other dimensions if necessary
+                # just use indices here: generally not the bottleneck
+                if not multidim_slice and blt_frac < 1:
                     visdata = visdata[blt_inds, :, :, :]
                     flags = flags[blt_inds, :, :, :]
                     nsamples = nsamples[blt_inds, :, :, :]
-                if not pol_sliceable or not multidim_slice:
+                if not multidim_slice and pol_frac < 1:
                     visdata = visdata[:, :, :, pol_inds]
                     flags = flags[:, :, :, pol_inds]
                     nsamples = nsamples[:, :, :, pol_inds]
 
             else:
                 # construct inds list given simultaneous sliceability
-                inds = []
-                if blt_sliceable and multidim_slice:
-                    inds.append(blt_inds)
-                else:
-                    inds.append(np.s_[:])
-                inds.append(np.s_[:])
-                if freq_sliceable and multidim_slice:
-                    inds.append(freq_inds)
-                else:
-                    inds.append(np.s_[:])
-                inds.append(pol_inds)
+                inds = [np.s_[:], np.s_[:], np.s_[:], pol_inds]
+                if pol_sliceable:
+                    inds[3] = pol_slices
+                if multidim_slice:
+                    if blt_sliceable:
+                        inds[0] = blt_slices
+                    else:
+                        inds[0] = blt_inds
+                if multidim_slice:
+                    if freq_sliceable:
+                        inds[2] = freq_slices
+                    else:
+                        inds[2] = freq_inds
+
                 inds = tuple(inds)
 
+                # index datasets
                 if custom_dtype:
                     visdata = _read_complex_astype(visdata_dset, inds, data_array_dtype)
                 else:
@@ -760,11 +772,13 @@ class UVH5(UVData):
                 flags = _index_dset(flags_dset, inds)
                 nsamples = _index_dset(nsamples_dset, inds)
 
-                if not blt_sliceable or not multidim_slice:
+                # down select on other dimensions if necessary
+                # just use indices here: generally not the bottleneck
+                if not multidim_slice and blt_frac < 1:
                     visdata = visdata[blt_inds, :, :, :]
                     flags = flags[blt_inds, :, :, :]
                     nsamples = nsamples[blt_inds, :, :, :]
-                if not freq_sliceable or not multidim_slice:
+                if not multidim_slice and freq_frac < 1:
                     visdata = visdata[:, :, freq_inds, :]
                     flags = flags[:, :, freq_inds, :]
                     nsamples = nsamples[:, :, freq_inds, :]
@@ -1076,7 +1090,7 @@ class UVH5(UVData):
             Option to overwrite the file if it already exists.
         chunks : tuple or bool
             h5py.create_dataset chunks keyword. Tuple for chunk shape,
-            True for auto-chunking, None for no chunking. Defaullt is True.
+            True for auto-chunking, None for no chunking. Default is True.
         data_compression : str
             HDF5 filter to apply when writing the data_array. Default is None
             (no filter/compression). Dataset must be chunked.
