@@ -6071,7 +6071,7 @@ class UVData(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        multidim_slice=False,
+        multidim_index=False,
     ):
         """
         Read a UVH5 file.
@@ -6164,10 +6164,11 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
-        multidim_slice : bool
-            [Only for HDF5] If True, attempt to slice the HDF5 dataset
-            simultaneously along all data axes. Otherwise load one axis at-a-time.
-            If axis indices are not well-matched to data chunks, this can be slow.
+        multidim_index : bool
+            [Only for HDF5] If True, attempt to index the HDF5 dataset
+            simultaneously along all data axes. Otherwise index one axis at-a-time.
+            This only works if data selection is sliceable along all but one axis.
+            If indices are not well-matched to data chunks, this can be slow.
 
         Raises
         ------
@@ -6208,7 +6209,7 @@ class UVData(UVBase):
             run_check_acceptability=run_check_acceptability,
             data_array_dtype=data_array_dtype,
             keep_all_metadata=keep_all_metadata,
-            multidim_slice=multidim_slice,
+            multidim_index=multidim_index,
         )
         self._convert_from_filetype(uvh5_obj)
         del uvh5_obj
@@ -6254,7 +6255,7 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         skip_bad_files=False,
-        multidim_slice=False,
+        multidim_index=False,
     ):
         """
         Read a generic file into a UVData object.
@@ -6434,10 +6435,11 @@ class UVData(UVBase):
             the read continues even if one or more files are corrupted. Files
             that produce errors will be printed. Default is False (files will
             not be skipped).
-        multidim_slice : bool
-            [Only for HDF5] If True, attempt to slice the HDF5 dataset
-            simultaneously along all data axes. Otherwise load one axis at-a-time.
-            If axis indices are not well-matched to data chunks, this can be slow.
+        multidim_index : bool
+            [Only for HDF5] If True, attempt to index the HDF5 dataset
+            simultaneously along all data axes. Otherwise index one axis at-a-time.
+            This only works if data selection is sliceable along all but one axis.
+            If indices are not well-matched to data chunks, this can be slow.
 
         Raises
         ------
@@ -6811,7 +6813,7 @@ class UVData(UVBase):
                     run_check_acceptability=run_check_acceptability,
                     data_array_dtype=data_array_dtype,
                     keep_all_metadata=keep_all_metadata,
-                    multidim_slice=multidim_slice,
+                    multidim_index=multidim_index,
                 )
                 select = False
 

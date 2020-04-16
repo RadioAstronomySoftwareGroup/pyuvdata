@@ -292,6 +292,15 @@ def _index_dset(dset, indices):
     -------
     ndarray
         The indexed dset
+
+    Notes
+    -----
+    This makes and fills an empty array with dset indices.
+    For trivial indexing, (e.g. a trivial slice), constructing
+    a new array and filling it is suboptimal over direct
+    indexing, e.g. dset[indices].
+    This function specializes in repeated slices over the same axis,
+    e.g. if indices is [[slice(0, 5), slice(10, 15), ...], ..., ]
     """
     # get dset and arr shape
     dset_shape = dset.shape
@@ -307,7 +316,7 @@ def _index_dset(dset, indices):
         if isinstance(dset_inds, (int, np.integer)):
             # this dimension is len 1, so slice is fine
             arr_indices.append([slice(None)])
-            dset_indices.append([dset_inds])
+            dset_indices.append([[dset_inds]])
 
         elif isinstance(dset_inds, slice):
             # this dimension is just a slice, so slice is fine
@@ -547,7 +556,7 @@ class UVH5(UVData):
         run_check_acceptability,
         data_array_dtype,
         keep_all_metadata,
-        multidim_slice,
+        multidim_index,
     ):
         """
         Read the data-size arrays (data, flags, nsamples) from a file.
@@ -675,12 +684,12 @@ class UVH5(UVData):
                 inds = [blt_inds, np.s_[:], np.s_[:], np.s_[:]]
                 if blt_sliceable:
                     inds[0] = blt_slices
-                if multidim_slice:
+                if multidim_index:
                     if freq_sliceable:
                         inds[2] = freq_slices
                     else:
                         inds[2] = freq_inds
-                if multidim_slice:
+                if multidim_index:
                     if pol_sliceable:
                         inds[3] = pol_slices
                     else:
@@ -700,11 +709,11 @@ class UVH5(UVData):
 
                 # down select on other dimensions if necessary
                 # just use indices here: generally not the bottleneck
-                if not multidim_slice and freq_frac < 1:
+                if not multidim_index and freq_frac < 1:
                     visdata = visdata[:, :, freq_inds, :]
                     flags = flags[:, :, freq_inds, :]
                     nsamples = nsamples[:, :, freq_inds, :]
-                if not multidim_slice and pol_frac < 1:
+                if not multidim_index and pol_frac < 1:
                     visdata = visdata[:, :, :, pol_inds]
                     flags = flags[:, :, :, pol_inds]
                     nsamples = nsamples[:, :, :, pol_inds]
@@ -714,12 +723,12 @@ class UVH5(UVData):
                 inds = [np.s_[:], np.s_[:], freq_inds, np.s_[:]]
                 if freq_sliceable:
                     inds[2] = freq_slices
-                if multidim_slice:
+                if multidim_index:
                     if blt_sliceable:
                         inds[0] = blt_slices
                     else:
                         inds[0] = blt_inds
-                if multidim_slice:
+                if multidim_index:
                     if pol_sliceable:
                         inds[3] = pol_slices
                     else:
@@ -737,11 +746,11 @@ class UVH5(UVData):
 
                 # down select on other dimensions if necessary
                 # just use indices here: generally not the bottleneck
-                if not multidim_slice and blt_frac < 1:
+                if not multidim_index and blt_frac < 1:
                     visdata = visdata[blt_inds, :, :, :]
                     flags = flags[blt_inds, :, :, :]
                     nsamples = nsamples[blt_inds, :, :, :]
-                if not multidim_slice and pol_frac < 1:
+                if not multidim_index and pol_frac < 1:
                     visdata = visdata[:, :, :, pol_inds]
                     flags = flags[:, :, :, pol_inds]
                     nsamples = nsamples[:, :, :, pol_inds]
@@ -751,12 +760,12 @@ class UVH5(UVData):
                 inds = [np.s_[:], np.s_[:], np.s_[:], pol_inds]
                 if pol_sliceable:
                     inds[3] = pol_slices
-                if multidim_slice:
+                if multidim_index:
                     if blt_sliceable:
                         inds[0] = blt_slices
                     else:
                         inds[0] = blt_inds
-                if multidim_slice:
+                if multidim_index:
                     if freq_sliceable:
                         inds[2] = freq_slices
                     else:
@@ -774,11 +783,11 @@ class UVH5(UVData):
 
                 # down select on other dimensions if necessary
                 # just use indices here: generally not the bottleneck
-                if not multidim_slice and blt_frac < 1:
+                if not multidim_index and blt_frac < 1:
                     visdata = visdata[blt_inds, :, :, :]
                     flags = flags[blt_inds, :, :, :]
                     nsamples = nsamples[blt_inds, :, :, :]
-                if not multidim_slice and freq_frac < 1:
+                if not multidim_index and freq_frac < 1:
                     visdata = visdata[:, :, freq_inds, :]
                     flags = flags[:, :, freq_inds, :]
                     nsamples = nsamples[:, :, freq_inds, :]
@@ -815,7 +824,7 @@ class UVH5(UVData):
         run_check_acceptability=True,
         data_array_dtype=np.complex128,
         keep_all_metadata=True,
-        multidim_slice=False,
+        multidim_index=False,
     ):
         """
         Read in data from a UVH5 file.
@@ -900,10 +909,11 @@ class UVH5(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
-        multidim_slice : bool
-            If True, attempt to slice the HDF5 dataset
-            simultaneously along all data axes. Otherwise load one axis at-a-time.
-            If axis indices are not well-matched to data chunks, this can be slow.
+        multidim_index : bool
+            If True, attempt to index the HDF5 dataset
+            simultaneously along all data axes. Otherwise index one axis at-a-time.
+            This only works if data selection is sliceable along all but one axis.
+            If indices are not well-matched to data chunks, this can be slow.
 
         Returns
         -------
@@ -955,7 +965,7 @@ class UVH5(UVData):
                 run_check_acceptability,
                 data_array_dtype,
                 keep_all_metadata,
-                multidim_slice,
+                multidim_index,
             )
 
         return
