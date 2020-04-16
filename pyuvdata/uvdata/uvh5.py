@@ -333,8 +333,9 @@ def _index_dset(dset, indices):
             for freq_arr, freq_dset in zip(arr_indices[2], dset_indices[2]):
                 for pol_arr, pol_dset in zip(arr_indices[3], dset_indices[3]):
                     # index dset and assign to arr
-                    arr[blt_arr, spw_arr, freq_arr, pol_arr] = \
-                        dset[blt_dset, spw_dset, freq_dset, pol_dset]
+                    arr[blt_arr, spw_arr, freq_arr, pol_arr] = dset[
+                        blt_dset, spw_dset, freq_dset, pol_dset
+                    ]
 
     return arr
 
@@ -546,6 +547,7 @@ class UVH5(UVData):
         run_check_acceptability,
         data_array_dtype,
         keep_all_metadata,
+        multidim_slice,
     ):
         """
         Read the data-size arrays (data, flags, nsamples) from a file.
@@ -620,15 +622,15 @@ class UVH5(UVData):
 
         if min_frac == 1:
             # no select, read in all the data
+            inds = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
             if custom_dtype:
-                inds = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
                 self.data_array = _read_complex_astype(
                     dgrp["visdata"], inds, data_array_dtype
                 )
             else:
-                self.data_array = dgrp["visdata"][:, :, :, :]
-            self.flag_array = dgrp["flags"][:, :, :, :]
-            self.nsample_array = dgrp["nsamples"][:, :, :, :]
+                self.data_array = _index_dset(dgrp["visdata"], inds)
+            self.flag_array = _index_dset(dgrp["flags"], inds)
+            self.nsample_array = _index_dset(dgrp["nsamples"], inds)
         else:
             # do select operations on everything except data_array, flag_array
             # and nsample_array
@@ -639,8 +641,9 @@ class UVH5(UVData):
             # determine which axes can be sliced, rather than fancy indexed
             # max_nslice_frac of 0.1 yields slice speedup over fancy index for HERA data
             if blt_inds is not None:
-                blt_slices, blt_sliceable = _convert_to_slices(blt_inds,
-                                                               max_nslice_frac=0.1)
+                blt_slices, blt_sliceable = _convert_to_slices(
+                    blt_inds, max_nslice_frac=0.1
+                )
                 if blt_sliceable:
                     blt_inds = blt_slices
             else:
@@ -648,8 +651,9 @@ class UVH5(UVData):
                 blt_sliceable = True
 
             if freq_inds is not None:
-                freq_slices, freq_sliceable = _convert_to_slices(freq_inds,
-                                                                 max_nslice_frac=0.1)
+                freq_slices, freq_sliceable = _convert_to_slices(
+                    freq_inds, max_nslice_frac=0.1
+                )
                 if freq_sliceable:
                     freq_inds = freq_slices
             else:
@@ -657,8 +661,9 @@ class UVH5(UVData):
                 freq_sliceable = True
 
             if pol_inds is not None:
-                pol_slices, pol_sliceable = _convert_to_slices(pol_inds,
-                                                               max_nslice_frac=0.5)
+                pol_slices, pol_sliceable = _convert_to_slices(
+                    pol_inds, max_nslice_frac=0.5
+                )
                 if pol_sliceable:
                     pol_inds = pol_slices
             else:
@@ -674,11 +679,11 @@ class UVH5(UVData):
             if blt_frac == min_frac:
                 # construct inds list given simultaneous sliceability
                 inds = [blt_inds, np.s_[:]]
-                if freq_sliceable:
+                if freq_sliceable and multidim_slice:
                     inds.append(freq_inds)
                 else:
                     inds.append(np.s_[:])
-                if pol_sliceable:
+                if pol_sliceable and multidim_slice:
                     inds.append(pol_inds)
                 else:
                     inds.append(np.s_[:])
@@ -693,11 +698,11 @@ class UVH5(UVData):
 
                 assert self.Nspws == visdata.shape[1]
 
-                if not freq_sliceable:
+                if not freq_sliceable or not multidim_slice:
                     visdata = visdata[:, :, freq_inds, :]
                     flags = flags[:, :, freq_inds, :]
                     nsamples = nsamples[:, :, freq_inds, :]
-                if not pol_sliceable:
+                if not pol_sliceable or not multidim_slice:
                     visdata = visdata[:, :, :, pol_inds]
                     flags = flags[:, :, :, pol_inds]
                     nsamples = nsamples[:, :, :, pol_inds]
@@ -705,13 +710,13 @@ class UVH5(UVData):
             elif freq_frac == min_frac:
                 # construct inds list given simultaneous sliceability
                 inds = []
-                if blt_sliceable:
+                if blt_sliceable and multidim_slice:
                     inds.append(blt_inds)
                 else:
                     inds.append(np.s_[:])
                 inds.append(np.s_[:])
                 inds.append(freq_inds)
-                if pol_sliceable:
+                if pol_sliceable and multidim_slice:
                     inds.append(pol_inds)
                 else:
                     inds.append(np.s_[:])
@@ -724,11 +729,11 @@ class UVH5(UVData):
                 flags = _index_dset(flags_dset, inds)
                 nsamples = _index_dset(nsamples_dset, inds)
 
-                if not blt_sliceable:
+                if not blt_sliceable or not multidim_slice:
                     visdata = visdata[blt_inds, :, :, :]
                     flags = flags[blt_inds, :, :, :]
                     nsamples = nsamples[blt_inds, :, :, :]
-                if not pol_sliceable:
+                if not pol_sliceable or not multidim_slice:
                     visdata = visdata[:, :, :, pol_inds]
                     flags = flags[:, :, :, pol_inds]
                     nsamples = nsamples[:, :, :, pol_inds]
@@ -736,12 +741,12 @@ class UVH5(UVData):
             else:
                 # construct inds list given simultaneous sliceability
                 inds = []
-                if blt_sliceable:
+                if blt_sliceable and multidim_slice:
                     inds.append(blt_inds)
                 else:
                     inds.append(np.s_[:])
                 inds.append(np.s_[:])
-                if freq_sliceable:
+                if freq_sliceable and multidim_slice:
                     inds.append(freq_inds)
                 else:
                     inds.append(np.s_[:])
@@ -755,11 +760,11 @@ class UVH5(UVData):
                 flags = _index_dset(flags_dset, inds)
                 nsamples = _index_dset(nsamples_dset, inds)
 
-                if not blt_sliceable:
+                if not blt_sliceable or not multidim_slice:
                     visdata = visdata[blt_inds, :, :, :]
                     flags = flags[blt_inds, :, :, :]
                     nsamples = nsamples[blt_inds, :, :, :]
-                if not freq_sliceable:
+                if not freq_sliceable or not multidim_slice:
                     visdata = visdata[:, :, freq_inds, :]
                     flags = flags[:, :, freq_inds, :]
                     nsamples = nsamples[:, :, freq_inds, :]
@@ -796,6 +801,7 @@ class UVH5(UVData):
         run_check_acceptability=True,
         data_array_dtype=np.complex128,
         keep_all_metadata=True,
+        multidim_slice=False,
     ):
         """
         Read in data from a UVH5 file.
@@ -880,6 +886,10 @@ class UVH5(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
+        multidim_slice : bool
+            If True, attempt to slice the HDF5 dataset
+            simultaneously along all data axes. Otherwise load one axis at-a-time.
+            If axis indices are not well-matched to data chunks, this can be slow.
 
         Returns
         -------
@@ -931,6 +941,7 @@ class UVH5(UVData):
                 run_check_acceptability,
                 data_array_dtype,
                 keep_all_metadata,
+                multidim_slice,
             )
 
         return
@@ -1039,6 +1050,7 @@ class UVH5(UVData):
         check_extra=True,
         run_check_acceptability=True,
         clobber=False,
+        chunks=True,
         data_compression=None,
         flags_compression="lzf",
         nsample_compression="lzf",
@@ -1062,15 +1074,18 @@ class UVH5(UVData):
             writing the file.
         clobber : bool
             Option to overwrite the file if it already exists.
+        chunks : tuple or bool
+            h5py.create_dataset chunks keyword. Tuple for chunk shape,
+            True for auto-chunking, None for no chunking. Defaullt is True.
         data_compression : str
             HDF5 filter to apply when writing the data_array. Default is None
-            (no filter/compression).
+            (no filter/compression). Dataset must be chunked.
         flags_compression : str
             HDF5 filter to apply when writing the flags_array. Default is the
-            LZF filter.
+            LZF filter. Dataset must be chunked.
         nsample_compression : str
             HDF5 filter to apply when writing the nsample_array. Default is the
-            LZF filter.
+            LZF filter. Dataset must be chunked.
         data_write_dtype : numpy dtype
             The datatype of output visibility data. If 'None', then the same
             datatype as data_array will be used. The user may specify 'c8' for
@@ -1134,7 +1149,7 @@ class UVH5(UVData):
                 visdata = dgrp.create_dataset(
                     "visdata",
                     self.data_array.shape,
-                    chunks=True,
+                    chunks=chunks,
                     compression=data_compression,
                     dtype=data_write_dtype,
                 )
@@ -1143,20 +1158,20 @@ class UVH5(UVData):
             else:
                 visdata = dgrp.create_dataset(
                     "visdata",
-                    chunks=True,
+                    chunks=chunks,
                     data=self.data_array,
                     compression=data_compression,
                     dtype=data_write_dtype,
                 )
             dgrp.create_dataset(
                 "flags",
-                chunks=True,
+                chunks=chunks,
                 data=self.flag_array,
                 compression=flags_compression,
             )
             dgrp.create_dataset(
                 "nsamples",
-                chunks=True,
+                chunks=chunks,
                 data=self.nsample_array.astype(np.float32),
                 compression=nsample_compression,
             )
@@ -1167,6 +1182,7 @@ class UVH5(UVData):
         self,
         filename,
         clobber=False,
+        chunks=True,
         data_compression=None,
         flags_compression="lzf",
         nsample_compression="lzf",
@@ -1181,15 +1197,18 @@ class UVH5(UVData):
             The UVH5 file to write to.
         clobber : bool
             Option to overwrite the file if it already exists.
+        chunks : tuple or bool
+            h5py.create_dataset chunks keyword. Tuple for chunk shape,
+            True for auto-chunking, None for no chunking. Default is True.
         data_compression : str
             HDF5 filter to apply when writing the data_array. Default is None
-            (no filter/compression).
+            (no filter/compression). Dataset must be chunked.
         flags_compression : str
             HDF5 filter to apply when writing the flags_array. Default is the
-            LZF filter.
+            LZF filter. Dataset must be chunked.
         nsample_compression : str
             HDF5 filter to apply when writing the nsample_array. Default is the
-            LZF filter.
+            LZF filter. Dataset must be chunked.
         data_write_dtype : str or numpy dtype
             The datatype of output visibility data. If 'None', then double-
             precision floats will be used. The user may specify 'c8' for
@@ -1253,21 +1272,21 @@ class UVH5(UVData):
             dgrp.create_dataset(
                 "visdata",
                 data_size,
-                chunks=True,
+                chunks=chunks,
                 dtype=data_write_dtype,
                 compression=data_compression,
             )
             dgrp.create_dataset(
                 "flags",
                 data_size,
-                chunks=True,
+                chunks=chunks,
                 dtype="b1",
                 compression=flags_compression,
             )
             dgrp.create_dataset(
                 "nsamples",
                 data_size,
-                chunks=True,
+                chunks=chunks,
                 dtype="f4",
                 compression=nsample_compression,
             )
