@@ -468,9 +468,10 @@ def test_uvh5_partial_read_pols(uv_uvfits):
     assert uvh5_uv == uvh5_uv2
 
     # select on pols (non contiguous in file)
+    # and check consistent results with and without multidim_slice
     pols_to_keep = [-1, -2, -4]
-    uvh5_uv.read(testfile, polarizations=pols_to_keep)
-    uvh5_uv2.read(testfile)
+    uvh5_uv.read(testfile, polarizations=pols_to_keep, multidim_slice=True)
+    uvh5_uv2.read(testfile, multidim_slice=False)
     uvh5_uv2.select(polarizations=pols_to_keep)
     assert uvh5_uv == uvh5_uv2
 
