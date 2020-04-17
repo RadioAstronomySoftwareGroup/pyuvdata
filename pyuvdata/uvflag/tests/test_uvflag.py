@@ -71,7 +71,7 @@ def uvf_from_waterfall():
 try:
     import pytest_cases
 
-    cases_decorator = pytest_cases.pytest_parametrize_plus(
+    cases_decorator = pytest_cases.parametrize_plus(
         "input_uvf",
         [
             pytest_cases.fixture_ref(uvf_from_miriad),
@@ -80,7 +80,7 @@ try:
         ],
     )
 
-    cases_decorator_no_waterfall = pytest_cases.pytest_parametrize_plus(
+    cases_decorator_no_waterfall = pytest_cases.parametrize_plus(
         "input_uvf",
         [
             pytest_cases.fixture_ref(uvf_from_miriad),
