@@ -104,9 +104,13 @@ except ImportError:
 test_d_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA")
 test_c_file = os.path.join(DATA_PATH, "zen.2457555.42443.HH.uvcA.omni.calfits")
 test_f_file = test_d_file + ".testuvflag.h5"
-test_outfile = os.path.join(DATA_PATH, "test", "outtest_uvflag.h5")
 
 pyuvdata_version_str = "  Read/written with pyuvdata version: " + __version__ + "."
+
+
+@pytest.fixture()
+def test_outfile(tmp_path):
+    yield str(tmp_path / "outtest_uvflag.h5")
 
 
 def test_init_bad_mode():
@@ -403,7 +407,7 @@ def test_data_like_property_mode_tamper():
     assert str(cm.value).startswith("Invalid mode. Mode must be one of")
 
 
-def test_read_write_loop():
+def test_read_write_loop(test_outfile):
     uv = UVData()
     uv.read_miriad(test_d_file)
     uvf = UVFlag(uv, label="test")
@@ -412,7 +416,7 @@ def test_read_write_loop():
     assert uvf.__eq__(uvf2, check_history=True)
 
 
-def test_read_write_loop_with_optional_x_orientation():
+def test_read_write_loop_with_optional_x_orientation(test_outfile):
     uv = UVData()
     uv.read_miriad(test_d_file)
     uvf = UVFlag(uv, label="test")
@@ -422,7 +426,7 @@ def test_read_write_loop_with_optional_x_orientation():
     assert uvf.__eq__(uvf2, check_history=True)
 
 
-def test_read_write_loop_waterfal():
+def test_read_write_loop_waterfal(test_outfile):
     uv = UVData()
     uv.read_miriad(test_d_file)
     uvf = UVFlag(uv, label="test")
@@ -432,7 +436,7 @@ def test_read_write_loop_waterfal():
     assert uvf.__eq__(uvf2, check_history=True)
 
 
-def test_read_write_loop_ret_wt_sq():
+def test_read_write_loop_ret_wt_sq(test_outfile):
     uvf = UVFlag(test_f_file)
     uvf.weights_array = 2 * np.ones_like(uvf.weights_array)
     uvf.to_waterfall(return_weights_square=True)
@@ -441,7 +445,7 @@ def test_read_write_loop_ret_wt_sq():
     assert uvf.__eq__(uvf2, check_history=True)
 
 
-def test_bad_mode_savefile():
+def test_bad_mode_savefile(test_outfile):
     uv = UVData()
     uv.read_miriad(test_d_file)
     uvf = UVFlag(uv, label="test")
@@ -456,7 +460,7 @@ def test_bad_mode_savefile():
     assert str(cm.value).startswith("File cannot be read. Received mode")
 
 
-def test_bad_type_savefile():
+def test_bad_type_savefile(test_outfile):
     uv = UVData()
     uv.read_miriad(test_d_file)
     uvf = UVFlag(uv, label="test")
@@ -471,7 +475,7 @@ def test_bad_type_savefile():
     assert str(cm.value).startswith("File cannot be read. Received type")
 
 
-def test_write_add_version_str():
+def test_write_add_version_str(test_outfile):
     uv = UVData()
     uv.read_miriad(test_d_file)
     uvf = UVFlag(uv, label="test")
@@ -486,7 +490,7 @@ def test_write_add_version_str():
     assert pyuvdata_version_str in hist
 
 
-def test_read_add_version_str():
+def test_read_add_version_str(test_outfile):
     uv = UVData()
     uv.read_miriad(test_d_file)
     uvf = UVFlag(uv, label="test")
@@ -503,7 +507,7 @@ def test_read_add_version_str():
     assert uvf == uvf2
 
 
-def test_read_write_ant():
+def test_read_write_ant(test_outfile):
     uv = UVCal()
     uv.read_calfits(test_c_file)
     uvf = UVFlag(uv, mode="flag", label="test")
@@ -512,7 +516,7 @@ def test_read_write_ant():
     assert uvf.__eq__(uvf2, check_history=True)
 
 
-def test_read_missing_nants_data():
+def test_read_missing_nants_data(test_outfile):
     uv = UVCal()
     uv.read_calfits(test_c_file)
     uvf = UVFlag(uv, mode="flag", label="test")
@@ -538,7 +542,7 @@ def test_read_missing_nants_data():
     assert uvf.__eq__(uvf2, check_history=True)
 
 
-def test_read_missing_nspws():
+def test_read_missing_nspws(test_outfile):
     uv = UVCal()
     uv.read_calfits(test_c_file)
     uvf = UVFlag(uv, mode="flag", label="test")
@@ -555,7 +559,7 @@ def test_read_missing_nspws():
     assert uvf.__eq__(uvf2, check_history=True)
 
 
-def test_read_write_nocompress():
+def test_read_write_nocompress(test_outfile):
     uv = UVData()
     uv.read_miriad(test_d_file)
     uvf = UVFlag(uv, label="test")
@@ -564,7 +568,7 @@ def test_read_write_nocompress():
     assert uvf.__eq__(uvf2, check_history=True)
 
 
-def test_read_write_nocompress_flag():
+def test_read_write_nocompress_flag(test_outfile):
     uv = UVData()
     uv.read_miriad(test_d_file)
     uvf = UVFlag(uv, mode="flag", label="test")
@@ -604,7 +608,7 @@ def test_init_list():
     assert np.all(uvf.polarization_array == uv.polarization_array)
 
 
-def test_read_list():
+def test_read_list(test_outfile):
     uv = UVData()
     uv.read_miriad(test_d_file)
     uv.time_array -= 1
@@ -643,7 +647,7 @@ def test_read_error():
     assert str(cm.value).startswith("foo not found")
 
 
-def test_read_change_type():
+def test_read_change_type(test_outfile):
     uv = UVData()
     uv.read_miriad(test_d_file)
     uvc = UVCal()
@@ -669,7 +673,7 @@ def test_read_change_type():
     assert uvf.ant_2_array is None
 
 
-def test_read_change_mode():
+def test_read_change_mode(test_outfile):
     uv = UVData()
     uv.read_miriad(test_d_file)
     uvf = UVFlag(uv, mode="flag")
@@ -1064,7 +1068,7 @@ def test_to_waterfall_bl_ret_wt_sq():
     assert np.all(uvf.weights_square_array == 4 * Nbls)
 
 
-def test_collapse_pol():
+def test_collapse_pol(test_outfile):
     uvf = UVFlag(test_f_file)
     uvf.weights_array = np.ones_like(uvf.weights_array)
     uvf2 = uvf.copy()
@@ -1847,8 +1851,8 @@ def test_get_antpairs():
         assert (a1, a2) in antpairs
 
 
-def test_missing_nants_telescope():
-    testfile = os.path.join(DATA_PATH, "test_missing_Nants.h5")
+def test_missing_nants_telescope(tmp_path):
+    testfile = str(tmp_path / "test_missing_Nants.h5")
     shutil.copyfile(test_f_file, testfile)
 
     with h5py.File(testfile, "r+") as f:
