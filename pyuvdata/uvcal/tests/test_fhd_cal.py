@@ -22,7 +22,7 @@ cal_testfile = os.path.join(testdir, testfile_prefix + "cal.sav")
 settings_testfile = os.path.join(testdir, testfile_prefix + "settings.txt")
 
 
-def test_read_fhdcal_write_read_calfits():
+def test_read_fhdcal_write_read_calfits(tmp_path):
     """
     FHD cal to calfits loopback test.
 
@@ -35,7 +35,7 @@ def test_read_fhdcal_write_read_calfits():
 
     assert np.max(fhd_cal.gain_array) < 2.0
 
-    outfile = os.path.join(DATA_PATH, "test/outtest_FHDcal_1061311664.calfits")
+    outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
@@ -44,13 +44,13 @@ def test_read_fhdcal_write_read_calfits():
     fhd_cal.read_fhd_cal(
         cal_testfile, obs_testfile, settings_file=settings_testfile, raw=False
     )
-    outfile = os.path.join(DATA_PATH, "test/outtest_FHDcal_1061311664.calfits")
+    outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
 
 
-def test_extra_history():
+def test_extra_history(tmp_path):
     """Test that setting the extra_history keyword works."""
     fhd_cal = UVCal()
     calfits_cal = UVCal()
@@ -62,7 +62,7 @@ def test_extra_history():
         extra_history=extra_history,
     )
 
-    outfile = os.path.join(DATA_PATH, "test/outtest_FHDcal_1061311664.calfits")
+    outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
@@ -77,7 +77,7 @@ def test_extra_history():
         extra_history=extra_history,
     )
 
-    outfile = os.path.join(DATA_PATH, "test/outtest_FHDcal_1061311664.calfits")
+    outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
@@ -85,7 +85,7 @@ def test_extra_history():
         assert line in fhd_cal.history
 
 
-def test_flags_galaxy():
+def test_flags_galaxy(tmp_path):
     """Test files with time, freq and tile flags and galaxy models behave."""
     testdir = os.path.join(DATA_PATH, "fhd_cal_data/flag_set")
     obs_testfile_flag = os.path.join(testdir, testfile_prefix + "obs.sav")
@@ -98,7 +98,7 @@ def test_flags_galaxy():
         cal_testfile_flag, obs_testfile_flag, settings_file=settings_testfile_flag
     )
 
-    outfile = os.path.join(DATA_PATH, "test/outtest_FHDcal_1061311664.calfits")
+    outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
@@ -117,7 +117,7 @@ def test_break_read_fhdcal():
     assert fhd_cal.history == "\n" + fhd_cal.pyuvdata_version_str
 
 
-def test_read_multi():
+def test_read_multi(tmp_path):
     """Test reading in multiple files."""
     testdir2 = os.path.join(DATA_PATH, "fhd_cal_data/set2")
     obs_testfile_list = [
@@ -142,7 +142,7 @@ def test_read_multi():
         message="UVParameter diffuse_model does not match",
     )
 
-    outfile = os.path.join(DATA_PATH, "test/outtest_FHDcal_1061311664.calfits")
+    outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
