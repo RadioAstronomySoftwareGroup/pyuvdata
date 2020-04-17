@@ -21,7 +21,7 @@ cst_folder = "NicCSTbeams"
 cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
 
 
-def test_read_cst_write_read_fits(cst_efield_1freq):
+def test_read_cst_write_read_fits(cst_efield_1freq, tmp_path):
     beam_in = cst_efield_1freq.copy()
     beam_out = UVBeam()
 
@@ -42,7 +42,7 @@ def test_read_cst_write_read_fits(cst_efield_1freq):
     beam_in.interpolation_function = "az_za_simple"
     beam_in.freq_interp_kind = "linear"
 
-    write_file = os.path.join(DATA_PATH, "test/outtest_beam.fits")
+    write_file = str(tmp_path / "outtest_beam.fits")
 
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
@@ -125,11 +125,11 @@ def test_read_cst_write_read_fits(cst_efield_1freq):
     assert beam_in == beam_out
 
 
-def test_writeread_healpix(cst_efield_1freq_cut_healpix):
+def test_writeread_healpix(cst_efield_1freq_cut_healpix, tmp_path):
     beam_in = cst_efield_1freq_cut_healpix.copy()
     beam_out = UVBeam()
 
-    write_file = os.path.join(DATA_PATH, "test/outtest_beam_hpx.fits")
+    write_file = str(tmp_path / "outtest_beam_hpx.fits")
 
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
@@ -182,12 +182,12 @@ def test_writeread_healpix(cst_efield_1freq_cut_healpix):
     assert beam_in == beam_out
 
 
-def test_errors(cst_efield_1freq):
+def test_errors(cst_efield_1freq, tmp_path):
     beam_in = cst_efield_1freq
     beam_out = UVBeam()
     beam_in.beam_type = "foo"
 
-    write_file = os.path.join(DATA_PATH, "test/outtest_beam.fits")
+    write_file = str(tmp_path / "outtest_beam.fits")
     pytest.raises(ValueError, beam_in.write_beamfits, write_file, clobber=True)
     pytest.raises(
         ValueError, beam_in.write_beamfits, write_file, clobber=True, run_check=False
@@ -195,7 +195,7 @@ def test_errors(cst_efield_1freq):
 
     beam_in.beam_type = "efield"
     beam_in.antenna_type = "phased_array"
-    write_file = os.path.join(DATA_PATH, "test/outtest_beam.fits")
+    write_file = str(tmp_path / "outtest_beam.fits")
     pytest.raises(ValueError, beam_in.write_beamfits, write_file, clobber=True)
 
     # now change values for various items in primary hdu to test errors
@@ -294,10 +294,10 @@ def test_errors(cst_efield_1freq):
         pytest.raises(ValueError, beam_out.read_beamfits, write_file)
 
 
-def test_healpix_errors(cst_efield_1freq_cut_healpix):
+def test_healpix_errors(cst_efield_1freq_cut_healpix, tmp_path):
     beam_in = cst_efield_1freq_cut_healpix.copy()
     beam_out = UVBeam()
-    write_file = os.path.join(DATA_PATH, "test/outtest_beam_hpx.fits")
+    write_file = str(tmp_path / "outtest_beam_hpx.fits")
 
     # now change values for various items in primary hdu to test errors
     header_vals_to_change = [{"CTYPE1": "foo"}, {"NAXIS1": ""}]
@@ -381,12 +381,12 @@ def test_healpix_errors(cst_efield_1freq_cut_healpix):
         pytest.raises(ValueError, beam_out.read_beamfits, write_file)
 
 
-def test_casa_beam():
+def test_casa_beam(tmp_path):
     # test reading in CASA power beam. Some header items are missing...
     beam_in = UVBeam()
     beam_out = UVBeam()
     casa_file = os.path.join(DATA_PATH, "HERABEAM.FITS")
-    write_file = os.path.join(DATA_PATH, "test/outtest_beam.fits")
+    write_file = str(tmp_path / "outtest_beam.fits")
     beam_in.read_beamfits(casa_file, run_check=False)
 
     # fill in missing parameters
@@ -424,11 +424,11 @@ def test_casa_beam():
     assert beam_in == beam_out
 
 
-def test_extra_keywords():
+def test_extra_keywords(tmp_path):
     beam_in = UVBeam()
     beam_out = UVBeam()
     casa_file = os.path.join(DATA_PATH, "HERABEAM.FITS")
-    testfile = os.path.join(DATA_PATH, "test/outtest_beam.fits")
+    testfile = str(tmp_path / "outtest_beam.fits")
     beam_in.read_beamfits(casa_file, run_check=False)
 
     # fill in missing parameters
@@ -520,7 +520,7 @@ def test_extra_keywords():
     assert beam_in == beam_out
 
 
-def test_multi_files(cst_efield_2freq):
+def test_multi_files(cst_efield_2freq, tmp_path):
     """
     Reading multiple files at once.
     """
@@ -543,8 +543,8 @@ def test_multi_files(cst_efield_2freq):
         0.0, 0.3, size=(4, beam_full.Nspws, beam_full.Nfreqs)
     )
 
-    testfile1 = os.path.join(DATA_PATH, "test/outtest_beam1.fits")
-    testfile2 = os.path.join(DATA_PATH, "test/outtest_beam2.fits")
+    testfile1 = str(tmp_path / "outtest_beam1.fits")
+    testfile2 = str(tmp_path / "outtest_beam2.fits")
 
     beam1 = beam_full.select(freq_chans=0, inplace=False)
     beam2 = beam_full.select(freq_chans=1, inplace=False)

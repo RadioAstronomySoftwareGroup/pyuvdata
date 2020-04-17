@@ -240,12 +240,12 @@ def test_read_yaml_multi_pol():
     os.remove(test_yaml_file)
 
 
-def test_read_yaml_errors():
+def test_read_yaml_errors(tmp_path):
     pytest.importorskip("yaml")
     # test error if required key is not present in yaml file
     import yaml
 
-    test_yaml_file = os.path.join(DATA_PATH, cst_folder, "test_cst_settings.yaml")
+    test_yaml_file = str(tmp_path / "test_cst_settings.yaml")
     with open(cst_yaml_file, "r") as file:
         settings_dict = yaml.safe_load(file)
 
@@ -588,9 +588,9 @@ def test_read_efield(cst_efield_2freq):
     )
 
 
-def test_no_deg_units():
+def test_no_deg_units(tmp_path):
     # need to write a modified file to test headers not in degrees
-    testfile = os.path.join(DATA_PATH, "test", "HERA_NicCST_150MHz_modified.txt")
+    testfile = str(tmp_path / "HERA_NicCST_150MHz_modified.txt")
     with open(cst_files[0], "r") as file:
         line1 = file.readline()
         line2 = file.readline()
@@ -786,9 +786,9 @@ def test_no_deg_units():
     )
 
 
-def test_wrong_column_names():
+def test_wrong_column_names(tmp_path):
     # need to write modified files to test headers with wrong column names
-    testfile = os.path.join(DATA_PATH, "test", "HERA_NicCST_150MHz_modified.txt")
+    testfile = str(tmp_path / "HERA_NicCST_150MHz_modified.txt")
     with open(cst_files[0], "r") as file:
         line1 = file.readline()
         line2 = file.readline()
