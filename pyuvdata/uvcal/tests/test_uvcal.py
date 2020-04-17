@@ -434,7 +434,7 @@ def test_convert_to_gain(gain_data):
     pytest.raises(ValueError, gain_data.gain_object.convert_to_gain)
 
 
-def test_select_antennas(gain_data):
+def test_select_antennas(gain_data, tmp_path):
     old_history = gain_data.gain_object.history
     ants_to_keep = np.array([65, 96, 9, 97, 89, 22, 20, 72])
     gain_data.gain_object2.select(antenna_nums=ants_to_keep)
@@ -479,7 +479,7 @@ def test_select_antennas(gain_data):
     )
 
     # check that write_calfits works with Nants_data < Nants_telescope
-    write_file_calfits = os.path.join(DATA_PATH, "test/select_test.calfits")
+    write_file_calfits = str(tmp_path / "select_test.calfits")
     gain_data.gain_object2.write_calfits(write_file_calfits, clobber=True)
 
     # check that reading it back in works too
@@ -500,7 +500,7 @@ def test_select_antennas(gain_data):
     assert gain_data.gain_object.total_quality_array is None
 
 
-def test_select_times(gain_data):
+def test_select_times(gain_data, tmp_path):
     old_history = gain_data.gain_object.history
     times_to_keep = gain_data.gain_object.time_array[2:5]
 
@@ -517,7 +517,7 @@ def test_select_times(gain_data):
         gain_data.gain_object2.history,
     )
 
-    write_file_calfits = os.path.join(DATA_PATH, "test/select_test.calfits")
+    write_file_calfits = str(tmp_path / "select_test.calfits")
     # test writing calfits with only one time
     gain_data.gain_object2 = gain_data.gain_object.copy()
     times_to_keep = gain_data.gain_object.time_array[[1]]
@@ -545,7 +545,7 @@ def test_select_times(gain_data):
     pytest.raises(ValueError, gain_data.gain_object2.write_calfits, write_file_calfits)
 
 
-def test_select_frequencies(gain_data):
+def test_select_frequencies(gain_data, tmp_path):
     old_history = gain_data.gain_object.history
     freqs_to_keep = gain_data.gain_object.freq_array[0, np.arange(4, 8)]
 
@@ -572,7 +572,7 @@ def test_select_frequencies(gain_data):
         gain_data.gain_object2.history,
     )
 
-    write_file_calfits = os.path.join(DATA_PATH, "test/select_test.calfits")
+    write_file_calfits = str(tmp_path / "select_test.calfits")
     # test writing calfits with only one frequency
     gain_data.gain_object2 = gain_data.gain_object.copy()
     freqs_to_keep = gain_data.gain_object.freq_array[0, 5]
@@ -768,14 +768,14 @@ def test_select(gain_data):
 
 
 @pytest.fixture(scope="function")
-def delay_data():
+def delay_data(tmp_path):
     """Initialization for some basic uvcal tests."""
 
     delay_object = UVCal()
     delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
 
     # add an input flag array to the file to test for that.
-    write_file = os.path.join(DATA_PATH, "test/outtest_input_flags.fits")
+    write_file = str(tmp_path / "outtest_input_flags.fits")
     uv_in = UVCal()
     uv_in.read_calfits(delayfile)
     uv_in.input_flag_array = np.zeros(
@@ -896,7 +896,7 @@ def test_select_times_delay(delay_data):
     )
 
 
-def test_select_frequencies_delay(delay_data):
+def test_select_frequencies_delay(delay_data, tmp_path):
     old_history = delay_data.delay_object.history
     freqs_to_keep = delay_data.delay_object.freq_array[0, np.arange(73, 944)]
 
@@ -943,7 +943,7 @@ def test_select_frequencies_delay(delay_data):
         {"frequencies": delay_data.delay_object2.freq_array[0, [0, 5, 6]]},
         message="Selected frequencies are not evenly spaced",
     )
-    write_file_calfits = os.path.join(DATA_PATH, "test/select_test.calfits")
+    write_file_calfits = str(tmp_path / "select_test.calfits")
     pytest.raises(
         ValueError, delay_data.delay_object2.write_calfits, write_file_calfits
     )
@@ -1000,7 +1000,7 @@ def test_select_freq_chans_delay(delay_data):
         assert f in delay_data.delay_object.freq_array[0, all_chans_to_keep]
 
 
-def test_select_polarizations_delay(delay_data):
+def test_select_polarizations_delay(delay_data, tmp_path):
     # add more jones terms to allow for better testing of selections
     while delay_data.delay_object.Njones < 4:
         new_jones = np.min(delay_data.delay_object.jones_array) - 1
@@ -1073,7 +1073,7 @@ def test_select_polarizations_delay(delay_data):
         {"jones": delay_data.delay_object.jones_array[[0, 1, 3]]},
         message="Selected jones polarization terms are not evenly spaced",
     )
-    write_file_calfits = os.path.join(DATA_PATH, "test/select_test.calfits")
+    write_file_calfits = str(tmp_path / "select_test.calfits")
     pytest.raises(ValueError, delay_data.delay_object.write_calfits, write_file_calfits)
 
 
@@ -1561,7 +1561,7 @@ def test_parameter_warnings(gain_data):
     )
 
 
-def test_multi_files(gain_data):
+def test_multi_files(gain_data, tmp_path):
     """Test read function when multiple files are included"""
     gain_object_full = gain_data.gain_object.copy()
     n_times2 = gain_data.gain_object.Ntimes // 2
@@ -1571,8 +1571,8 @@ def test_multi_files(gain_data):
     gain_data.gain_object.select(times=times1)
     gain_data.gain_object2.select(times=times2)
     # Write those objects to files
-    f1 = os.path.join(DATA_PATH, "test/read_multi1.calfits")
-    f2 = os.path.join(DATA_PATH, "test/read_multi2.calfits")
+    f1 = str(tmp_path / "read_multi1.calfits")
+    f2 = str(tmp_path / "read_multi2.calfits")
     gain_data.gain_object.write_calfits(f1, clobber=True)
     gain_data.gain_object2.write_calfits(f2, clobber=True)
     # Read both files together
@@ -1935,7 +1935,7 @@ def test_add_errors_delay(delay_data):
     pytest.raises(ValueError, delay_data.delay_object.__add__, delay_data.delay_object2)
 
 
-def test_multi_files_delay(delay_data):
+def test_multi_files_delay(delay_data, tmp_path):
     """Test read function when multiple files are included"""
     delay_object_full = delay_data.delay_object.copy()
     n_times2 = delay_data.delay_object.Ntimes // 2
@@ -1945,8 +1945,8 @@ def test_multi_files_delay(delay_data):
     delay_data.delay_object.select(times=times1)
     delay_data.delay_object2.select(times=times2)
     # Write those objects to files
-    f1 = os.path.join(DATA_PATH, "test/read_multi1.calfits")
-    f2 = os.path.join(DATA_PATH, "test/read_multi2.calfits")
+    f1 = str(tmp_path / "read_multi1.calfits")
+    f2 = str(tmp_path / "read_multi2.calfits")
     delay_data.delay_object.write_calfits(f1, clobber=True)
     delay_data.delay_object2.write_calfits(f2, clobber=True)
     # Read both files together
@@ -2015,7 +2015,7 @@ def test_uvcal_get_methods():
     pytest.raises(ValueError, uvc.get_gains, 10)
 
 
-def test_write_read_optional_attrs():
+def test_write_read_optional_attrs(tmp_path):
     # read a test file
     cal_in = UVCal()
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
@@ -2026,7 +2026,7 @@ def test_write_read_optional_attrs():
     cal_in.sky_field = "GLEAM"
 
     # write
-    write_file_calfits = os.path.join(DATA_PATH, "test/test.calfits")
+    write_file_calfits = str(tmp_path / "test.calfits")
     cal_in.write_calfits(write_file_calfits, clobber=True)
 
     # read and compare
