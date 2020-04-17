@@ -159,7 +159,7 @@ def test_read_ms_read_uvfits():
     del uvfits_uv
 
 
-def test_read_ms_write_uvfits():
+def test_read_ms_write_uvfits(tmp_path):
     """
     read ms, write uvfits test.
     Read in ms file, write out as uvfits, read back in and check for
@@ -168,7 +168,7 @@ def test_read_ms_write_uvfits():
     ms_uv = UVData()
     uvfits_uv = UVData()
     ms_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
-    testfile = os.path.join(DATA_PATH, "test/outtest.uvfits")
+    testfile = str(tmp_path / "outtest.uvfits")
     ms_uv.read(ms_file)
     ms_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvtest.checkWarnings(uvfits_uv.read, [testfile], message="Telescope EVLA is not")
@@ -178,7 +178,7 @@ def test_read_ms_write_uvfits():
     del uvfits_uv
 
 
-def test_read_ms_write_miriad():
+def test_read_ms_write_miriad(tmp_path):
     """
     read ms, write miriad test.
     Read in ms file, write out as miriad, read back in and check for
@@ -187,7 +187,7 @@ def test_read_ms_write_miriad():
     ms_uv = UVData()
     miriad_uv = UVData()
     ms_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
-    testfile = os.path.join(DATA_PATH, "test/outtest_miriad")
+    testfile = str(tmp_path / "outtest_miriad")
     ms_uv.read(ms_file)
     ms_uv.write_miriad(testfile, clobber=True)
     uvtest.checkWarnings(miriad_uv.read, [testfile], message="Telescope EVLA is not")
@@ -195,7 +195,7 @@ def test_read_ms_write_miriad():
     assert miriad_uv == ms_uv
 
 
-def test_multi_files():
+def test_multi_files(tmp_path):
     """
     Reading multiple files at once.
     """
@@ -203,8 +203,8 @@ def test_multi_files():
     uv_multi = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     uvtest.checkWarnings(uv_full.read, [uvfits_file], message="Telescope EVLA is not")
-    testfile1 = os.path.join(DATA_PATH, "multi_1.ms")
-    testfile2 = os.path.join(DATA_PATH, "multi_2.ms")
+    testfile1 = str(tmp_path / "multi_1.ms")
+    testfile2 = str(tmp_path / "multi_2.ms")
     uv_multi.read(np.array([testfile1, testfile2]))
     # Casa scrambles the history parameter. Replace for now.
     uv_multi.history = uv_full.history
@@ -235,7 +235,7 @@ def test_multi_files():
     del uv_multi
 
 
-def test_multi_files_axis():
+def test_multi_files_axis(tmp_path):
     """
     Reading multiple files at once, setting axis keyword
     """
@@ -243,8 +243,8 @@ def test_multi_files_axis():
     uv_multi = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     uvtest.checkWarnings(uv_full.read, [uvfits_file], message="Telescope EVLA is not")
-    testfile1 = os.path.join(DATA_PATH, "multi_1.ms")
-    testfile2 = os.path.join(DATA_PATH, "multi_2.ms")
+    testfile1 = str(tmp_path / "multi_1.ms")
+    testfile2 = str(tmp_path / "multi_2.ms")
     uv_multi.read([testfile1, testfile2], axis="freq")
     # Casa scrambles the history parameter. Replace for now.
     uv_multi.history = uv_full.history

@@ -40,10 +40,10 @@ pytestmark = pytest.mark.filterwarnings("ignore:Altitude is not present in Miria
 
 
 @pytest.fixture
-def uv_in_paper():
+def uv_in_paper(tmp_path):
     uv_in = UVData()
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    write_file = str(tmp_path / "outtest_miriad.uv")
     uv_in.read(testfile)
     uv_in.write_miriad(write_file, clobber=True)
     uv_out = UVData()
@@ -58,10 +58,10 @@ def uv_in_paper():
 
 
 @pytest.fixture
-def uv_in_uvfits():
+def uv_in_uvfits(tmp_path):
     uv_in = UVData()
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = os.path.join(DATA_PATH, "test/outtest_miriad.uvfits")
+    write_file = str(tmp_path / "outtest_miriad.uvfits")
 
     uv_in.read(testfile)
     uv_out = UVData()
@@ -76,11 +76,11 @@ def uv_in_uvfits():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope ATCA is not")
-def test_read_write_read_atca():
+def test_read_write_read_atca(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
     atca_file = os.path.join(DATA_PATH, "atca_miriad")
-    testfile = os.path.join(DATA_PATH, "test/outtest_atca_miriad.uv")
+    testfile = str(tmp_path / "outtest_atca_miriad.uv")
     uvtest.checkWarnings(
         uv_in.read,
         [atca_file],
@@ -109,12 +109,12 @@ def test_read_write_read_atca():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_read_nrao_write_miriad_read_miriad():
+def test_read_nrao_write_miriad_read_miriad(tmp_path):
     """Test reading in a CASA tutorial uvfits file, writing and reading as miriad"""
     uvfits_uv = UVData()
     miriad_uv = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    writefile = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    writefile = str(tmp_path / "outtest_miriad.uv")
     uvfits_uv.read_uvfits(testfile)
     uvfits_uv.write_miriad(writefile, clobber=True)
     miriad_uv.read(writefile)
@@ -319,11 +319,11 @@ def test_wronglatlon():
     gc.collect()
 
 
-def test_miriad_location_handling():
+def test_miriad_location_handling(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
     miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    testfile = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    testfile = str(tmp_path / "outtest_miriad.uv")
     aipy_uv = aipy_extracts.UV(miriad_file)
 
     if os.path.exists(testfile):
@@ -557,7 +557,7 @@ def test_miriad_location_handling():
     shutil.rmtree(testfile)
 
 
-def test_singletimeselect_drift():
+def test_singletimeselect_drift(tmp_path):
     """
     Check behavior with writing & reading after selecting a single time from
     a drift file.
@@ -565,7 +565,7 @@ def test_singletimeselect_drift():
     uv_in = UVData()
     uv_out = UVData()
     miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    testfile = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    testfile = str(tmp_path / "outtest_miriad.uv")
     uv_in.read(miriad_file)
 
     uv_in.select(times=uv_in.time_array[0])
@@ -624,11 +624,11 @@ def test_poltoind():
     gc.collect()
 
 
-def test_miriad_extra_keywords():
+def test_miriad_extra_keywords(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
     miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    testfile = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    testfile = str(tmp_path / "outtest_miriad.uv")
     uv_in.read(miriad_file)
 
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
@@ -736,11 +736,11 @@ def test_miriad_extra_keywords():
     shutil.rmtree(testfile)
 
 
-def test_roundtrip_optional_params():
+def test_roundtrip_optional_params(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
     miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    testfile = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    testfile = str(tmp_path / "outtest_miriad.uv")
     uv_in.read(miriad_file)
 
     uv_in.x_orientation = "east"
@@ -765,7 +765,7 @@ def test_roundtrip_optional_params():
     shutil.rmtree(testfile)
 
 
-def test_breakread_miriad():
+def test_breakread_miriad(tmp_path):
     """Test Miriad file checking."""
     uv_in = UVData()
     uv_out = UVData()
@@ -774,7 +774,7 @@ def test_breakread_miriad():
     assert str(cm.value).startswith("foo not found")
 
     miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    testfile = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    testfile = str(tmp_path / "outtest_miriad.uv")
     uv_in.read(miriad_file)
 
     uv_in.Nblts += 10
@@ -917,9 +917,9 @@ def test_miriad_telescope_locations():
     gc.collect()
 
 
-def test_miriad_integration_time_precision():
+def test_miriad_integration_time_precision(tmp_path):
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    write_file = str(tmp_path / "outtest_miriad.uv")
 
     # test that changing precision of integraiton_time is okay
     # tolerance of integration_time (1e-3) is larger than floating point type
@@ -949,9 +949,9 @@ def test_miriad_integration_time_precision():
         {"bls": [(4, 4, "xy")]},
     ],
 )
-def test_read_write_read_miriad_partial_bls(select_kwargs):
+def test_read_write_read_miriad_partial_bls(select_kwargs, tmp_path):
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    write_file = str(tmp_path / "outtest_miriad.uv")
 
     # check partial read selections
     full = UVData()
@@ -976,9 +976,9 @@ def test_read_write_read_miriad_partial_bls(select_kwargs):
     shutil.rmtree(write_file)
 
 
-def test_read_write_read_miriad_partial_antenna_nums():
+def test_read_write_read_miriad_partial_antenna_nums(tmp_path):
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    write_file = str(tmp_path / "outtest_miriad.uv")
 
     # check partial read selections
     full = UVData()
@@ -1008,9 +1008,9 @@ def test_read_write_read_miriad_partial_antenna_nums():
         {"time_range": [2456865.607, 2456865.609], "polarizations": [-7]},
     ],
 )
-def test_read_write_read_miriad_partial_times(select_kwargs):
+def test_read_write_read_miriad_partial_times(select_kwargs, tmp_path):
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    write_file = str(tmp_path / "outtest_miriad.uv")
 
     # check partial read selections
     full = UVData()
@@ -1040,9 +1040,9 @@ def test_read_write_read_miriad_partial_times(select_kwargs):
 
 
 @pytest.mark.parametrize("pols", [["xy"], [-7]])
-def test_read_write_read_miriad_partial_pols(pols):
+def test_read_write_read_miriad_partial_pols(pols, tmp_path):
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    write_file = str(tmp_path / "outtest_miriad.uv")
 
     # check partial read selections
     full = UVData()
@@ -1062,9 +1062,9 @@ def test_read_write_read_miriad_partial_pols(pols):
     shutil.rmtree(write_file)
 
 
-def test_read_write_read_miriad_partial_ant_str():
+def test_read_write_read_miriad_partial_ant_str(tmp_path):
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    write_file = str(tmp_path / "outtest_miriad.uv")
 
     # check partial read selections
     full = UVData()
@@ -1188,9 +1188,11 @@ def test_read_write_read_miriad_partial_ant_str():
         (AssertionError, {"ant_str": 0}, "ant_str must be fed as a string"),
     ],
 )
-def test_read_write_read_miriad_partial_errors(err_type, select_kwargs, err_msg):
+def test_read_write_read_miriad_partial_errors(
+    err_type, select_kwargs, err_msg, tmp_path
+):
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    write_file = str(tmp_path / "outtest_miriad.uv")
 
     # check partial read selections
     full = UVData()
@@ -1208,9 +1210,9 @@ def test_read_write_read_miriad_partial_errors(err_type, select_kwargs, err_msg)
         shutil.rmtree(write_file)
 
 
-def test_read_write_read_miriad_partial_error_special_cases():
+def test_read_write_read_miriad_partial_error_special_cases(tmp_path):
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    write_file = str(tmp_path / "outtest_miriad.uv")
 
     # check partial read selections
     full = UVData()
@@ -1230,9 +1232,9 @@ def test_read_write_read_miriad_partial_error_special_cases():
     shutil.rmtree(write_file)
 
 
-def test_read_write_read_miriad_partial_with_warnings():
+def test_read_write_read_miriad_partial_with_warnings(tmp_path):
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    write_file = str(tmp_path / "outtest_miriad.uv")
 
     # check partial read selections
     full = UVData()
@@ -1282,10 +1284,10 @@ def test_read_write_read_miriad_partial_with_warnings():
     shutil.rmtree(write_file)
 
 
-def test_read_write_read_miriad_partial_metadata_only():
+def test_read_write_read_miriad_partial_metadata_only(tmp_path):
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
-    write_file2 = os.path.join(DATA_PATH, "test/outtest_miriad2.uv")
+    write_file = str(tmp_path / "outtest_miriad.uv")
+    write_file2 = str(tmp_path / "outtest_miriad2.uv")
 
     # try metadata only read
     uv_in = UVData()
@@ -1331,7 +1333,7 @@ def test_read_write_read_miriad_partial_metadata_only():
     shutil.rmtree(write_file2)
 
 
-def test_read_ms_write_miriad_casa_history():
+def test_read_ms_write_miriad_casa_history(tmp_path):
     """
     Read in .ms file.
     Write to a miriad file, read back in and check for history parameter
@@ -1340,7 +1342,7 @@ def test_read_ms_write_miriad_casa_history():
     ms_uv = UVData()
     miriad_uv = UVData()
     ms_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
-    testfile = os.path.join(DATA_PATH, "test/outtest_miriad")
+    testfile = str(tmp_path / "outtest_miriad")
     uvtest.checkWarnings(
         ms_uv.read, [ms_file], message="Telescope EVLA is not", nwarnings=0
     )
@@ -1355,7 +1357,7 @@ def test_read_ms_write_miriad_casa_history():
     shutil.rmtree(testfile)
 
 
-def test_rwr_miriad_antpos_issues():
+def test_rwr_miriad_antpos_issues(tmp_path):
     """
     test warnings and errors associated with antenna position issues in Miriad files
 
@@ -1365,7 +1367,7 @@ def test_rwr_miriad_antpos_issues():
     uv_in = UVData()
     uv_out = UVData()
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = os.path.join(DATA_PATH, "test/outtest_miriad.uv")
+    write_file = str(tmp_path / "outtest_miriad.uv")
     uv_in.read(testfile)
     uv_in.antenna_positions = None
     uv_in.write_miriad(write_file, clobber=True, run_check=False)
@@ -1425,14 +1427,14 @@ def test_rwr_miriad_antpos_issues():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_multi_files():
+def test_multi_files(tmp_path):
     """
     Reading multiple files at once.
     """
     uv_full = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    testfile1 = os.path.join(DATA_PATH, "test/uv1")
-    testfile2 = os.path.join(DATA_PATH, "test/uv2")
+    testfile1 = str(tmp_path / "uv1")
+    testfile2 = str(tmp_path / "uv2")
     uv_full.read_uvfits(uvfits_file)
     # rename telescope to avoid name warning
     uv_full.unphase_to_drift()
@@ -1487,13 +1489,13 @@ def test_multi_files():
     shutil.rmtree(testfile2)
 
 
-def test_antpos_units():
+def test_antpos_units(tmp_path):
     """
     Read uvfits, write miriad. Check written antpos are in ns.
     """
     uv = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    testfile = os.path.join(DATA_PATH, "test/uv_antpos_units")
+    testfile = str(tmp_path / "uv_antpos_units")
     uvtest.checkWarnings(uv.read_uvfits, [uvfits_file], message="Telescope EVLA is not")
     uv.write_miriad(testfile, clobber=True)
     auv = aipy_extracts.UV(testfile)
@@ -1511,7 +1513,7 @@ def test_antpos_units():
     shutil.rmtree(testfile)
 
 
-def test_readmiriad_write_miriad_check_time_format():
+def test_readmiriad_write_miriad_check_time_format(tmp_path):
     """
     test time_array is converted properly from Miriad format
     """
@@ -1539,7 +1541,7 @@ def test_readmiriad_write_miriad_check_time_format():
     tolerance = 1e-8
     assert np.allclose(uvd_l, uv_l, atol=tolerance)
     # test write-out
-    fout = os.path.join(DATA_PATH, "ex_miriad")
+    fout = str(tmp_path / "ex_miriad")
     uvd.write_miriad(fout, clobber=True)
     # assert equal to original miriad time
     uv2 = aipy_extracts.UV(fout)

@@ -38,7 +38,7 @@ for s in testfile_suffix:
     testfiles.append(testdir + testfile_prefix + s)
 
 
-def test_read_fhd_write_read_uvfits():
+def test_read_fhd_write_read_uvfits(tmp_path):
     """
     FHD to uvfits loopback test.
 
@@ -49,11 +49,11 @@ def test_read_fhd_write_read_uvfits():
     uvfits_uv = UVData()
     uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles], known_warning="fhd")
 
+    outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(
-        os.path.join(DATA_PATH, "test/outtest_FHD_1061316296.uvfits"),
-        spoof_nonessential=True,
+        outfile, spoof_nonessential=True,
     )
-    uvfits_uv.read_uvfits(os.path.join(DATA_PATH, "test/outtest_FHD_1061316296.uvfits"))
+    uvfits_uv.read_uvfits(outfile)
     assert fhd_uv == uvfits_uv
 
 
@@ -113,7 +113,7 @@ def test_read_fhd_write_read_uvfits_no_layout():
     )
 
 
-def test_read_fhd_write_read_uvfits_variant_flag():
+def test_read_fhd_write_read_uvfits_variant_flag(tmp_path):
     """
     FHD to uvfits loopback test with variant flag file.
 
@@ -126,15 +126,15 @@ def test_read_fhd_write_read_uvfits_variant_flag():
     files_use = testfiles[1:] + [variant_flag_file]
     uvtest.checkWarnings(fhd_uv.read, [files_use], known_warning="fhd")
 
+    outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(
-        os.path.join(DATA_PATH, "test/outtest_FHD_1061316296.uvfits"),
-        spoof_nonessential=True,
+        outfile, spoof_nonessential=True,
     )
-    uvfits_uv.read_uvfits(os.path.join(DATA_PATH, "test/outtest_FHD_1061316296.uvfits"))
+    uvfits_uv.read_uvfits(outfile)
     assert fhd_uv == uvfits_uv
 
 
-def test_read_fhd_write_read_uvfits_fix_layout():
+def test_read_fhd_write_read_uvfits_fix_layout(tmp_path):
     """
     FHD to uvfits loopback test with fixed array center layout file.
 
@@ -146,16 +146,16 @@ def test_read_fhd_write_read_uvfits_fix_layout():
     layout_fixed_file = testdir + testfile_prefix + "fixed_arr_center_layout.sav"
     files_use = testfiles[0:6] + [layout_fixed_file, testfiles[7]]
     fhd_uv.read(files_use)
+    outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
 
     fhd_uv.write_uvfits(
-        os.path.join(DATA_PATH, "test/outtest_FHD_1061316296.uvfits"),
-        spoof_nonessential=True,
+        outfile, spoof_nonessential=True,
     )
-    uvfits_uv.read_uvfits(os.path.join(DATA_PATH, "test/outtest_FHD_1061316296.uvfits"))
+    uvfits_uv.read_uvfits(outfile)
     assert fhd_uv == uvfits_uv
 
 
-def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc():
+def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc(tmp_path):
     """
     FHD to uvfits loopback test with fixed array center layout file, bad obs location.
 
@@ -179,15 +179,15 @@ def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc():
     ]
     uvtest.checkWarnings(fhd_uv.read, [files_use], message=messages, nwarnings=2)
 
+    outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(
-        os.path.join(DATA_PATH, "test/outtest_FHD_1061316296.uvfits"),
-        spoof_nonessential=True,
+        outfile, spoof_nonessential=True,
     )
-    uvfits_uv.read_uvfits(os.path.join(DATA_PATH, "test/outtest_FHD_1061316296.uvfits"))
+    uvfits_uv.read_uvfits(outfile)
     assert fhd_uv == uvfits_uv
 
 
-def test_read_fhd_write_read_uvfits_bad_obs_loc():
+def test_read_fhd_write_read_uvfits_bad_obs_loc(tmp_path):
     """
     FHD to uvfits loopback test with bad obs location (and bad layout location).
 
@@ -210,15 +210,15 @@ def test_read_fhd_write_read_uvfits_bad_obs_loc():
     ]
     uvtest.checkWarnings(fhd_uv.read, [files_use], message=messages, nwarnings=2)
 
+    outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(
-        os.path.join(DATA_PATH, "test/outtest_FHD_1061316296.uvfits"),
-        spoof_nonessential=True,
+        outfile, spoof_nonessential=True,
     )
-    uvfits_uv.read_uvfits(os.path.join(DATA_PATH, "test/outtest_FHD_1061316296.uvfits"))
+    uvfits_uv.read_uvfits(outfile)
     assert fhd_uv == uvfits_uv
 
 
-def test_read_fhd_write_read_uvfits_altered_layout():
+def test_read_fhd_write_read_uvfits_altered_layout(tmp_path):
     """
     FHD to uvfits loopback test with altered layout file.
 
@@ -233,15 +233,15 @@ def test_read_fhd_write_read_uvfits_altered_layout():
     files_use = testfiles[0:6] + [altered_layout_file, testfiles[7]]
     fhd_uv.read(files_use)
 
+    outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(
-        os.path.join(DATA_PATH, "test/outtest_FHD_1061316296.uvfits"),
-        spoof_nonessential=True,
+        outfile, spoof_nonessential=True,
     )
-    uvfits_uv.read_uvfits(os.path.join(DATA_PATH, "test/outtest_FHD_1061316296.uvfits"))
+    uvfits_uv.read_uvfits(outfile)
     assert fhd_uv == uvfits_uv
 
 
-def test_read_fhd_write_read_uvfits_no_settings():
+def test_read_fhd_write_read_uvfits_no_settings(tmp_path):
     """
     FHD to uvfits loopback test with no settings file.
 
@@ -256,11 +256,11 @@ def test_read_fhd_write_read_uvfits_no_settings():
     # Check only pyuvdata history with no settings file
     assert fhd_uv.history == fhd_uv.pyuvdata_version_str
 
+    outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(
-        os.path.join(DATA_PATH, "test/outtest_FHD_1061316296.uvfits"),
-        spoof_nonessential=True,
+        outfile, spoof_nonessential=True,
     )
-    uvfits_uv.read_uvfits(os.path.join(DATA_PATH, "test/outtest_FHD_1061316296.uvfits"))
+    uvfits_uv.read_uvfits(outfile)
     assert fhd_uv == uvfits_uv
 
 
@@ -386,7 +386,7 @@ def test_read_fhd_warnings():
     os.remove(extra_settings_file)
 
 
-def test_read_fhd_model():
+def test_read_fhd_model(tmp_path):
     """FHD to uvfits loopback test with model visibilities."""
     fhd_uv = UVData()
     uvfits_uv = UVData()
@@ -394,13 +394,11 @@ def test_read_fhd_model():
         fhd_uv.read, [testfiles], {"use_model": True}, known_warning="fhd"
     )
 
+    outfile = str(tmp_path / "outtest_FHD_1061316296_model.uvfits")
     fhd_uv.write_uvfits(
-        os.path.join(DATA_PATH, "test/outtest_FHD_1061316296_model.uvfits"),
-        spoof_nonessential=True,
+        outfile, spoof_nonessential=True,
     )
-    uvfits_uv.read_uvfits(
-        os.path.join(DATA_PATH, "test/outtest_FHD_1061316296_model.uvfits")
-    )
+    uvfits_uv.read_uvfits(outfile)
     assert fhd_uv == uvfits_uv
 
 

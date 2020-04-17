@@ -91,11 +91,9 @@ def test_parse_ants():
     return
 
 
-def test_uv_wrhd():
+def test_uv_wrhd(tmp_path):
     """Test _wrdh method on UV object"""
-    test_file = os.path.join(DATA_PATH, "test", "miriad_test.uv")
-    if os.path.exists(test_file):
-        shutil.rmtree(test_file)
+    test_file = str(tmp_path / "miriad_test.uv")
     uv = ae.UV(test_file, status="new", corrmode="r")
 
     # test writing freqs
@@ -114,11 +112,9 @@ def test_uv_wrhd():
     return
 
 
-def test_uv_wrhd_special():
+def test_uv_wrhd_special(tmp_path):
     """Test _wrhd_special method on UV object"""
-    test_file = os.path.join(DATA_PATH, "test", "miriad_test.uv")
-    if os.path.exists(test_file):
-        shutil.rmtree(test_file)
+    test_file = str(tmp_path / "miriad_test.uv")
     uv = ae.UV(test_file, status="new", corrmode="r")
     freqs = [3, 1, 0.1, 0.2, 2, 0.2, 0.3, 3, 0.3, 0.4]
     uv._wrhd_special("freqs", freqs)
@@ -135,10 +131,10 @@ def test_uv_wrhd_special():
     return
 
 
-def test_uv_rdhd_special():
+def test_uv_rdhd_special(tmp_path):
     """Test _rdhd_special method on UV object"""
     infile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    test_file = os.path.join(DATA_PATH, "test", "miriad_test.uv")
+    test_file = str(tmp_path / "miriad_test.uv")
     if os.path.exists(test_file):
         shutil.rmtree(test_file)
     # make a new file using an old one as a template

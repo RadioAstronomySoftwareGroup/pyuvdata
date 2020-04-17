@@ -29,7 +29,7 @@ testfiles = [
 filelist = [testdir + i for i in testfiles]
 
 
-def test_read_mwa_write_uvfits():
+def test_read_mwa_write_uvfits(tmp_path):
     """
     MWA correlator fits to uvfits loopback test.
 
@@ -51,7 +51,7 @@ def test_read_mwa_write_uvfits():
         message=messages,
         category=category,
     )
-    testfile = os.path.join(DATA_PATH, "test/outtest_MWAcorr.uvfits")
+    testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read_uvfits(testfile)
     assert mwa_uv == uvfits_uv
@@ -69,7 +69,7 @@ def test_read_mwa_write_uvfits():
         message=messages,
         category=category,
     )
-    testfile = os.path.join(DATA_PATH, "test/outtest_MWAcorr.uvfits")
+    testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read_uvfits(testfile)
     assert mwa_uv == uvfits_uv
@@ -134,7 +134,7 @@ def test_read_mwa_read_cotter():
     )
 
 
-def test_read_mwa_write_uvfits_meta_mod():
+def test_read_mwa_write_uvfits_meta_mod(tmp_path):
     """
     MWA correlator fits to uvfits loopback test with a modified metafits file.
 
@@ -157,7 +157,7 @@ def test_read_mwa_write_uvfits_meta_mod():
         nwarnings=2,
         message=messages,
     )
-    testfile = os.path.join(DATA_PATH, "test/outtest_MWAcorr.uvfits")
+    testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read_uvfits(testfile)
     assert mwa_uv == uvfits_uv
@@ -196,10 +196,10 @@ def test_read_mwa_multi():
 
 @pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-def test_read_mwa_multi_concat():
+def test_read_mwa_multi_concat(tmp_path):
     """Test reading in two sets of files with fast concatenation."""
     # modify file so that time arrays are matching
-    mod_mini_6 = os.path.join(DATA_PATH, "test/mini_gpubox06_01.fits")
+    mod_mini_6 = str(tmp_path / "mini_gpubox06_01.fits")
     with fits.open(filelist[2]) as mini6:
         mini6[1].header["time"] = 1447698337
         mini6.writeto(mod_mini_6)
@@ -282,12 +282,12 @@ def test_multiple_coarse():
 
 @pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-def test_ppds():
+def test_ppds(tmp_path):
     """Test handling of ppds files"""
     # turnaround test with just ppds file given
     mwa_uv = UVData()
     mwa_uv.read_mwa_corr_fits([filelist[1], filelist[7]], phase_to_pointing_center=True)
-    testfile = os.path.join(DATA_PATH, "test/outtest_MWAcorr.uvfits")
+    testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv = UVData()
     uvfits_uv.read_uvfits(testfile)
@@ -302,7 +302,7 @@ def test_ppds():
     assert "MWAVER" in mwa_uv.extra_keywords and "MWADATE" in mwa_uv.extra_keywords
 
 
-def test_fine_channels():
+def test_fine_channels(tmp_path):
     """
     Break read_mwa_corr_fits by submitting files with different fine channels.
 
@@ -310,7 +310,7 @@ def test_fine_channels():
     are submitted.
     """
     mwa_uv = UVData()
-    bad_fine = os.path.join(DATA_PATH, "test/bad_gpubox06_01.fits")
+    bad_fine = str(tmp_path / "bad_gpubox06_01.fits")
     with fits.open(filelist[2]) as mini6:
         mini6[1].data = np.concatenate((mini6[1].data, mini6[1].data))
         mini6.writeto(bad_fine)
@@ -340,7 +340,7 @@ def test_break_read_mwacorrfits(files, err_msg):
     del mwa_uv
 
 
-def test_file_extension():
+def test_file_extension(tmp_path):
     """
     Break read_mwa_corr_fits by submitting file with the wrong extension.
 
@@ -348,7 +348,7 @@ def test_file_extension():
     metafits, or mwaf is submitted.
     """
     mwa_uv = UVData()
-    bad_ext = os.path.join(DATA_PATH, "test/1131733552.meta")
+    bad_ext = str(tmp_path / "1131733552.meta")
     with fits.open(filelist[0]) as meta:
         meta.writeto(bad_ext)
     with pytest.raises(ValueError) as cm:
@@ -357,7 +357,7 @@ def test_file_extension():
     del mwa_uv
 
 
-def test_diff_obs():
+def test_diff_obs(tmp_path):
     """
     Break read_mwa_corr_fits by submitting files from different observations.
 
@@ -365,7 +365,7 @@ def test_diff_obs():
     submitted in the same file list.
     """
     mwa_uv = UVData()
-    bad_obs = os.path.join(DATA_PATH, "test/bad2_gpubox06_01.fits")
+    bad_obs = str(tmp_path / "bad2_gpubox06_01.fits")
     with fits.open(filelist[2]) as mini6:
         mini6[0].header["OBSID"] = "1131733555"
         mini6.writeto(bad_obs)
@@ -375,7 +375,7 @@ def test_diff_obs():
     del mwa_uv
 
 
-def test_misaligned_times():
+def test_misaligned_times(tmp_path):
     """
     Break read_mwa_corr_fits by submitting files with misaligned times.
 
@@ -383,7 +383,7 @@ def test_misaligned_times():
     that is not an integer multiiple of the integration time.
     """
     mwa_uv = UVData()
-    bad_obs = os.path.join(DATA_PATH, "test/bad3_gpubox06_01.fits")
+    bad_obs = str(tmp_path / "bad3_gpubox06_01.fits")
     with fits.open(filelist[2]) as mini6:
         mini6[1].header["MILLITIM"] = 250
         mini6.writeto(bad_obs)
@@ -438,12 +438,12 @@ def test_flag_nsample_basic():
     "ignore:coarse channels are not contiguous for this observation"
 )
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-def test_flag_init():
+def test_flag_init(tmp_path):
     """
     Test that routine MWA flagging works as intended.
     """
-    spoof_file1 = os.path.join(DATA_PATH, "test/spoof_01_00.fits")
-    spoof_file6 = os.path.join(DATA_PATH, "test/spoof_06_00.fits")
+    spoof_file1 = str(tmp_path / "spoof_01_00.fits")
+    spoof_file6 = str(tmp_path / "spoof_06_00.fits")
     # spoof box files of the appropriate size
     with fits.open(filelist[1]) as mini1:
         mini1[1].data = np.repeat(mini1[1].data, 8, axis=0)
