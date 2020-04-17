@@ -68,11 +68,11 @@ def test_break_read_uvfits():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_source_group_params():
+def test_source_group_params(tmp_path):
     # make a file with a single source to test that it works
     uv_in = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    write_file = os.path.join(DATA_PATH, "test/outtest_casa.uvfits")
+    write_file = str(tmp_path / "outtest_casa.uvfits")
     uv_in.read(testfile)
     uv_in.write_uvfits(write_file)
 
@@ -123,11 +123,11 @@ def test_source_group_params():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_multisource_error():
+def test_multisource_error(tmp_path):
     # make a file with multiple sources to test error condition
     uv_in = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    write_file = os.path.join(DATA_PATH, "test/outtest_casa.uvfits")
+    write_file = str(tmp_path / "outtest_casa.uvfits")
     uv_in.read(testfile)
     uv_in.write_uvfits(write_file)
 
@@ -225,7 +225,7 @@ def test_casa_nonascii_bytes_antenna_names():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_readwriteread():
+def test_readwriteread(tmp_path):
     """
     CASA tutorial uvfits loopback test.
 
@@ -235,7 +235,7 @@ def test_readwriteread():
     uv_in = UVData()
     uv_out = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    write_file = os.path.join(DATA_PATH, "test/outtest_casa.uvfits")
+    write_file = str(tmp_path / "outtest_casa.uvfits")
     uv_in.read(testfile)
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file)
@@ -369,11 +369,11 @@ def test_readwriteread():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_extra_keywords():
+def test_extra_keywords(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    testfile = os.path.join(DATA_PATH, "test/outtest_casa.uvfits")
+    testfile = str(tmp_path / "outtest_casa.uvfits")
     uv_in.read(uvfits_file)
 
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
@@ -473,11 +473,11 @@ def test_extra_keywords():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_roundtrip_blt_order():
+def test_roundtrip_blt_order(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    write_file = os.path.join(DATA_PATH, "test/outtest_casa.uvfits")
+    write_file = str(tmp_path / "outtest_casa.uvfits")
     uv_in.read(testfile)
 
     uv_in.reorder_blts()
@@ -497,7 +497,7 @@ def test_roundtrip_blt_order():
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:Required Antenna frame keyword")
 @pytest.mark.filterwarnings("ignore:telescope_location is not set")
-def test_select_read():
+def test_select_read(tmp_path):
     uvfits_uv = UVData()
     uvfits_uv2 = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
@@ -518,7 +518,7 @@ def test_select_read():
 
     # check writing & reading single frequency files
     uvfits_uv.select(freq_chans=[0])
-    testfile = os.path.join(DATA_PATH, "test/outtest_casa.uvfits")
+    testfile = str(tmp_path / "outtest_casa.uvfits")
     uvfits_uv.write_uvfits(testfile)
     uvfits_uv2.read(testfile)
     assert uvfits_uv == uvfits_uv2
@@ -641,7 +641,7 @@ def test_select_read():
 
         ant_hdu = hdu_list[hdunames["AIPS AN"]]
 
-        write_file = os.path.join(DATA_PATH, "test/outtest_casa.uvfits")
+        write_file = str(tmp_path / "outtest_casa.uvfits")
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
         hdulist.writeto(write_file, overwrite=True)
 
@@ -653,7 +653,7 @@ def test_select_read():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_read_uvfits_write_miriad():
+def test_read_uvfits_write_miriad(tmp_path):
     """
     read uvfits, write miriad test.
     Read in uvfits file, write out as miriad, read back in and check for
@@ -662,7 +662,7 @@ def test_read_uvfits_write_miriad():
     uvfits_uv = UVData()
     miriad_uv = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    testfile = os.path.join(DATA_PATH, "test/outtest_miriad")
+    testfile = str(tmp_path / "outtest_miriad")
     uvfits_uv.read(uvfits_file)
     uvfits_uv.write_miriad(testfile, clobber=True)
     miriad_uv.read_miriad(testfile)
@@ -688,14 +688,14 @@ def test_read_uvfits_write_miriad():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_multi_files():
+def test_multi_files(tmp_path):
     """
     Reading multiple files at once.
     """
     uv_full = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    testfile1 = os.path.join(DATA_PATH, "test/uv1.uvfits")
-    testfile2 = os.path.join(DATA_PATH, "test/uv2.uvfits")
+    testfile1 = str(tmp_path / "uv1.uvfits")
+    testfile2 = str(tmp_path / "uv2.uvfits")
     uv_full.read(uvfits_file)
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
@@ -758,12 +758,12 @@ def test_multi_files():
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
-def test_multi_unphase_on_read():
+def test_multi_unphase_on_read(tmp_path):
     uv_full = UVData()
     uv_full2 = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    testfile1 = os.path.join(DATA_PATH, "test/uv1.uvfits")
-    testfile2 = os.path.join(DATA_PATH, "test/uv2.uvfits")
+    testfile1 = str(tmp_path / "uv1.uvfits")
+    testfile2 = str(tmp_path / "uv2.uvfits")
     uv_full.read(uvfits_file)
     uv1 = copy.deepcopy(uv_full)
     uv2 = copy.deepcopy(uv_full)
@@ -813,12 +813,12 @@ def test_multi_unphase_on_read():
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_multi_phase_on_read():
+def test_multi_phase_on_read(tmp_path):
     uv_full = UVData()
     uv_full2 = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    testfile1 = os.path.join(DATA_PATH, "test/uv1.uvfits")
-    testfile2 = os.path.join(DATA_PATH, "test/uv2.uvfits")
+    testfile1 = str(tmp_path / "uv1.uvfits")
+    testfile2 = str(tmp_path / "uv2.uvfits")
     uv_full.read(uvfits_file)
     phase_center_radec = [
         uv_full.phase_center_ra + 0.01,
@@ -878,7 +878,7 @@ def test_multi_phase_on_read():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_read_ms_write_uvfits_casa_history():
+def test_read_ms_write_uvfits_casa_history(tmp_path):
     """
     read in .ms file.
     Write to a uvfits file, read back in and check for casa_history parameter
@@ -887,7 +887,7 @@ def test_read_ms_write_uvfits_casa_history():
     ms_uv = UVData()
     uvfits_uv = UVData()
     ms_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
-    testfile = os.path.join(DATA_PATH, "test/outtest.uvfits")
+    testfile = str(tmp_path / "outtest.uvfits")
     ms_uv.read_ms(ms_file)
     ms_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read(testfile)

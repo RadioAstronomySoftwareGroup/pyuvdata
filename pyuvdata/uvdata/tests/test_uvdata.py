@@ -1413,7 +1413,7 @@ def test_select_time_range_one_elem():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select_frequencies():
+def test_select_frequencies(tmp_path):
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     uv_object.read_uvfits(testfile)
@@ -1478,8 +1478,8 @@ def test_select_frequencies():
         {"frequencies": uv_object2.freq_array[0, [0, 5, 6]]},
         message="Selected frequencies are not evenly spaced",
     )
-    write_file_uvfits = os.path.join(DATA_PATH, "test/select_test.uvfits")
-    write_file_miriad = os.path.join(DATA_PATH, "test/select_test.uv")
+    write_file_uvfits = str(tmp_path / "select_test.uvfits")
+    write_file_miriad = str(tmp_path / "select_test.uv")
     pytest.raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
     pytest.raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
@@ -4822,7 +4822,7 @@ def test_redundancy_finder_when_nblts_not_nbls_times_ntimes():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_overlapping_data_add():
+def test_overlapping_data_add(tmp_path):
     # read in test data
     uv = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
@@ -4864,13 +4864,13 @@ def test_overlapping_data_add():
     pytest.raises(ValueError, uv4.__add__, uv4, uvfull)
 
     # write individual objects out, and make sure that we can read in the list
-    uv1_out = os.path.join(DATA_PATH, "uv1.uvfits")
+    uv1_out = str(tmp_path / "uv1.uvfits")
     uv1.write_uvfits(uv1_out)
-    uv2_out = os.path.join(DATA_PATH, "uv2.uvfits")
+    uv2_out = str(tmp_path / "uv2.uvfits")
     uv2.write_uvfits(uv2_out)
-    uv3_out = os.path.join(DATA_PATH, "uv3.uvfits")
+    uv3_out = str(tmp_path / "uv3.uvfits")
     uv3.write_uvfits(uv3_out)
-    uv4_out = os.path.join(DATA_PATH, "uv4.uvfits")
+    uv4_out = str(tmp_path / "uv4.uvfits")
     uv4.write_uvfits(uv4_out)
 
     uvfull = UVData()
@@ -6925,14 +6925,14 @@ def test_multifile_read_errors(read_func, filelist):
     )
 
 
-def test_multifile_read_check():
+def test_multifile_read_check(tmp_path):
     """Test setting skip_bad_files=True when reading in files"""
 
     uv = UVData()
     uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
 
     # Create a test file and remove header info to 'corrupt' it
-    testfile = os.path.join(DATA_PATH, "test", "zen.2458661.23480.HH.uvh5")
+    testfile = str(tmp_path / "zen.2458661.23480.HH.uvh5")
     uv.read(uvh5_file)
     uv.write_uvh5(testfile)
     with h5py.File(testfile, "r+") as h5f:
@@ -6978,7 +6978,7 @@ def test_multifile_read_check():
     return
 
 
-def test_multifile_read_check_long_list():
+def test_multifile_read_check_long_list(tmp_path):
     """
     Test setting skip_bad_files=True when reading in files for a list of length >2
     """
@@ -6991,7 +6991,7 @@ def test_multifile_read_check_long_list():
         uv2 = uv.select(
             times=np.unique(uv.time_array)[i * 5 : i * 5 + 4], inplace=False
         )
-        fname = os.path.join(DATA_PATH, "minifile_%i.uvh5" % i)
+        fname = str(tmp_path / "minifile_%i.uvh5" % i)
         fileList.append(fname)
         uv2.write_uvh5(fname)
     with h5py.File(fileList[-1], "r+") as h5f:
@@ -7010,7 +7010,7 @@ def test_multifile_read_check_long_list():
     # Repeat above test, but with corrupted file as first file in list
     os.remove(fileList[3])
     uv2 = uv.select(times=np.unique(uv.time_array)[15:19], inplace=False)
-    fname = os.path.join(DATA_PATH, "minifile_%i.uvh5" % 3)
+    fname = str(tmp_path / "minifile_%i.uvh5" % 3)
     uv2.write_uvh5(fname)
     with h5py.File(fileList[0], "r+") as h5f:
         del h5f["Header/ant_1_array"]
@@ -7026,7 +7026,7 @@ def test_multifile_read_check_long_list():
     # Repeat above test, but with corrupted file in the middle of the list
     os.remove(fileList[0])
     uv2 = uv.select(times=np.unique(uv.time_array)[0:4], inplace=False)
-    fname = os.path.join(DATA_PATH, "minifile_%i.uvh5" % 0)
+    fname = str(tmp_path / "minifile_%i.uvh5" % 0)
     uv2.write_uvh5(fname)
     with h5py.File(fileList[1], "r+") as h5f:
         del h5f["Header/ant_1_array"]
