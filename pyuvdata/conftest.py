@@ -4,7 +4,6 @@
 
 """Testing environment setup and teardown for pytest."""
 import os
-import shutil
 
 import pytest
 from astropy.utils import iers
@@ -18,15 +17,9 @@ filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
 cst_folder = "NicCSTbeams"
 cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
 
-
 @pytest.fixture(autouse=True, scope="session")
 def setup_and_teardown_package():
     """Make data/test directory to put test output files in."""
-    testdir = os.path.join(DATA_PATH, "test/")
-    if not os.path.exists(testdir):
-        print("making test directory")
-        os.mkdir(testdir)
-
     # Do a calculation that requires a current IERS table. This will trigger
     # automatic downloading of the IERS table if needed, including trying the
     # mirror site in python 3 (but won't redownload if a current one exists).
@@ -43,8 +36,6 @@ def setup_and_teardown_package():
     yield
 
     iers.conf.auto_max_age = 30
-
-    shutil.rmtree(testdir)
 
 
 def make_cst_beam(beam_type, nfreq):
