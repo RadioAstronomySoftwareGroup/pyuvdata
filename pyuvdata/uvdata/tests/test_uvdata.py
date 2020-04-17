@@ -673,7 +673,7 @@ def test_phase_unphase_hera_antpos(uv1_2_set_uvws):
     # first replace the uvws with the right values
     antenna_enu = uvutils.ENU_from_ECEF(
         (uv_raw.antenna_positions + uv_raw.telescope_location),
-        *uv_raw.telescope_location_lat_lon_alt
+        *uv_raw.telescope_location_lat_lon_alt,
     )
     uvw_calc = np.zeros_like(uv_raw.uvw_array)
     unique_times, unique_inds = np.unique(uv_raw.time_array, return_index=True)
@@ -1546,7 +1546,7 @@ def test_select_freq_chans():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select_polarizations():
+def test_select_polarizations(tmp_path):
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     uv_object.read_uvfits(testfile)
@@ -1592,7 +1592,7 @@ def test_select_polarizations():
         {"polarizations": uv_object.polarization_array[[0, 1, 3]]},
         message="Selected polarization values are not evenly spaced",
     )
-    write_file_uvfits = os.path.join(DATA_PATH, "test/select_test.uvfits")
+    write_file_uvfits = str(tmp_path / "select_test.uvfits")
     pytest.raises(ValueError, uv_object.write_uvfits, write_file_uvfits)
 
 
@@ -3783,13 +3783,13 @@ def test_get_enu_antpos():
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
-def test_telescope_loc_xyz_check():
+def test_telescope_loc_xyz_check(tmp_path):
     # test that improper telescope locations can still be read
     miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
     uv = UVData()
     uv.read(miriad_file)
     uv.telescope_location = uvutils.XYZ_from_LatLonAlt(*uv.telescope_location)
-    fname = DATA_PATH + "/test/test.uv"
+    fname = str(tmp_path / "test.uv")
     uv.write_miriad(fname, run_check=False, check_extra=False, clobber=True)
 
     # try to read file without checks (passing is implicit)
@@ -6991,7 +6991,7 @@ def test_multifile_read_check_long_list(tmp_path):
         uv2 = uv.select(
             times=np.unique(uv.time_array)[i * 5 : i * 5 + 4], inplace=False
         )
-        fname = str(tmp_path / "minifile_%i.uvh5" % i)
+        fname = str(tmp_path / f"minifile_{i}.uvh5")
         fileList.append(fname)
         uv2.write_uvh5(fname)
     with h5py.File(fileList[-1], "r+") as h5f:
@@ -7010,7 +7010,7 @@ def test_multifile_read_check_long_list(tmp_path):
     # Repeat above test, but with corrupted file as first file in list
     os.remove(fileList[3])
     uv2 = uv.select(times=np.unique(uv.time_array)[15:19], inplace=False)
-    fname = str(tmp_path / "minifile_%i.uvh5" % 3)
+    fname = str(tmp_path / f"minifile_{3}.uvh5")
     uv2.write_uvh5(fname)
     with h5py.File(fileList[0], "r+") as h5f:
         del h5f["Header/ant_1_array"]
@@ -7026,7 +7026,7 @@ def test_multifile_read_check_long_list(tmp_path):
     # Repeat above test, but with corrupted file in the middle of the list
     os.remove(fileList[0])
     uv2 = uv.select(times=np.unique(uv.time_array)[0:4], inplace=False)
-    fname = str(tmp_path / "minifile_%i.uvh5" % 0)
+    fname = str(tmp_path / f"minifile_{0}.uvh5")
     uv2.write_uvh5(fname)
     with h5py.File(fileList[1], "r+") as h5f:
         del h5f["Header/ant_1_array"]
