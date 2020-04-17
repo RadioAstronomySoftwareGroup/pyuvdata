@@ -28,7 +28,7 @@ def mwa_beam_1ppd(mwa_beam_1ppd_master):
     return mwa_beam_1ppd_master.copy()
 
 
-def test_read_write_mwa(mwa_beam_1ppd):
+def test_read_write_mwa(mwa_beam_1ppd, tmp_path):
     """Basic read/write test."""
     beam1 = mwa_beam_1ppd
     beam2 = UVBeam()
@@ -48,7 +48,7 @@ def test_read_write_mwa(mwa_beam_1ppd):
     assert "y" in beam1.feed_array
     assert beam1.x_orientation == "east"
 
-    outfile_name = os.path.join(DATA_PATH, "test", "mwa_beam_out.fits")
+    outfile_name = str(tmp_path / "mwa_beam_out.fits")
     beam1.write_beamfits(outfile_name, clobber=True)
 
     beam2.read_beamfits(outfile_name)

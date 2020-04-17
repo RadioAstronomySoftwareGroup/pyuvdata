@@ -314,7 +314,7 @@ def test_efield_to_pstokes_error(cst_power_2freq_cut):
         power_beam.efield_to_pstokes()
 
 
-def test_efield_to_power(cst_efield_2freq_cut, cst_power_2freq_cut):
+def test_efield_to_power(cst_efield_2freq_cut, cst_power_2freq_cut, tmp_path):
     efield_beam = cst_efield_2freq_cut
     power_beam = cst_power_2freq_cut
 
@@ -432,7 +432,7 @@ def test_efield_to_power(cst_efield_2freq_cut, cst_power_2freq_cut):
         )
     )
     # test writing out & reading back in power files (with cross pols which are complex)
-    write_file = os.path.join(DATA_PATH, "test/outtest_beam.fits")
+    write_file = str(tmp_path / "outtest_beam.fits")
     new_power_beam.write_beamfits(write_file, clobber=True)
     new_power_beam2 = UVBeam()
     new_power_beam2.read_beamfits(write_file)
@@ -1218,7 +1218,7 @@ def test_to_healpix(
     assert sq_then_interp == interp_then_sq
 
 
-def test_select_axis(cst_power_1freq):
+def test_select_axis(cst_power_1freq, tmp_path):
     power_beam = cst_power_1freq
 
     # add optional parameters for testing purposes
@@ -1257,7 +1257,7 @@ def test_select_axis(cst_power_1freq):
         power_beam2.history,
     )
 
-    write_file_beamfits = os.path.join(DATA_PATH, "test/select_beam.fits")
+    write_file_beamfits = str(tmp_path / "select_beam.fits")
 
     # test writing beamfits with only one element in axis1
     inds_to_keep = [len(inds1_to_keep) + 1]
@@ -1295,7 +1295,7 @@ def test_select_axis(cst_power_1freq):
         power_beam2.history,
     )
 
-    write_file_beamfits = os.path.join(DATA_PATH, "test/select_beam.fits")
+    write_file_beamfits = str(tmp_path / "select_beam.fits")
 
     # test writing beamfits with only one element in axis2
     inds_to_keep = [len(inds2_to_keep) + 1]
@@ -1316,7 +1316,7 @@ def test_select_axis(cst_power_1freq):
     pytest.raises(ValueError, power_beam2.write_beamfits, write_file_beamfits)
 
 
-def test_select_frequencies(cst_power_1freq):
+def test_select_frequencies(cst_power_1freq, tmp_path):
     power_beam = cst_power_1freq
 
     # generate more frequencies for testing by copying and adding several times
@@ -1357,7 +1357,7 @@ def test_select_frequencies(cst_power_1freq):
         power_beam2.history,
     )
 
-    write_file_beamfits = os.path.join(DATA_PATH, "test/select_beam.fits")
+    write_file_beamfits = str(tmp_path / "select_beam.fits")
     # test writing beamfits with only one frequency
 
     freqs_to_keep = power_beam.freq_array[0, 5]
@@ -1977,7 +1977,7 @@ def test_add(cst_power_1freq, cst_efield_1freq):
 
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
 def test_select_healpix_pixels(
-    beam_type, cst_power_1freq_cut_healpix, cst_efield_1freq_cut_healpix
+    beam_type, cst_power_1freq_cut_healpix, cst_efield_1freq_cut_healpix, tmp_path
 ):
     if beam_type == "power":
         beam_healpix = cst_power_1freq_cut_healpix
@@ -2016,7 +2016,7 @@ def test_select_healpix_pixels(
         beam_healpix2.history,
     )
 
-    write_file_beamfits = os.path.join(DATA_PATH, "test/select_beam.fits")
+    write_file_beamfits = str(tmp_path / "select_beam.fits")
 
     # test writing beamfits with only one pixel
     pixels_to_keep = [43]
