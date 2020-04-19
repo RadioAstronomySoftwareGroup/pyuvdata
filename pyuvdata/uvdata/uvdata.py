@@ -6999,6 +6999,7 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         clobber=False,
+        chunks=True,
         data_compression=None,
         flags_compression="lzf",
         nsample_compression="lzf",
@@ -7013,15 +7014,18 @@ class UVData(UVBase):
              The UVH5 file to write to.
         clobber : bool
             Option to overwrite the file if it already exists.
+        chunks : tuple or bool
+            h5py.create_dataset chunks keyword. Tuple for chunk shape,
+            True for auto-chunking, None for no chunking. Default is True.
         data_compression : str
             HDF5 filter to apply when writing the data_array. Default is
-            None meaning no filter or compression.
+            None meaning no filter or compression. Dataset must be chunked.
         flags_compression : str
             HDF5 filter to apply when writing the flags_array. Default is "lzf"
-            for the LZF filter.
+            for the LZF filter. Dataset must be chunked.
         nsample_compression : str
             HDF5 filter to apply when writing the nsample_array. Default is "lzf"
-            for the LZF filter.
+            for the LZF filter. Dataset must be chunked.
         data_write_dtype : numpy dtype
             datatype of output visibility data. If 'None', then the same datatype
             as data_array will be used. Otherwise, a numpy dtype object must be
@@ -7046,6 +7050,7 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             clobber=clobber,
+            chunks=chunks,
             data_compression=data_compression,
             flags_compression=flags_compression,
             nsample_compression=nsample_compression,
@@ -7057,6 +7062,7 @@ class UVData(UVBase):
         self,
         filename,
         clobber=False,
+        chunks=True,
         data_compression=None,
         flags_compression="lzf",
         nsample_compression="lzf",
@@ -7071,15 +7077,18 @@ class UVData(UVBase):
              The UVH5 file to write to.
         clobber : bool
             Option to overwrite the file if it already exists.
+        chunks : tuple or bool
+            h5py.create_dataset chunks keyword. Tuple for chunk shape,
+            True for auto-chunking, None for no chunking. Default is True.
         data_compression : str
             HDF5 filter to apply when writing the data_array. Default is
-            None meaning no filter or compression.
+            None meaning no filter or compression. Dataset must be chunked.
         flags_compression : str
             HDF5 filter to apply when writing the flags_array. Default is "lzf"
-            for the LZF filter.
+            for the LZF filter. Dataset must be chunked.
         nsample_compression : str
             HDF5 filter to apply when writing the nsample_array. Default is "lzf"
-            for the LZF filter.
+            for the LZF filter. Dataset must be chunked.
         data_write_dtype : numpy dtype
             datatype of output visibility data. If 'None', then the same datatype
             as data_array will be used. Otherwise, a numpy dtype object must be
@@ -7098,6 +7107,7 @@ class UVData(UVBase):
         uvh5_obj.initialize_uvh5_file(
             filename,
             clobber=clobber,
+            chunks=chunks,
             data_compression=data_compression,
             flags_compression=flags_compression,
             nsample_compression=nsample_compression,

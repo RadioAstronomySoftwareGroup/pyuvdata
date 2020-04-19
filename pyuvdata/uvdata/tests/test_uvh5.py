@@ -267,6 +267,8 @@ def test_uvh5_compression_options(uv_uvfits):
     """
     Test writing data with compression filters.
     """
+    import h5py
+
     uv_in = uv_uvfits
     uv_out = UVData()
     testfile = os.path.join(DATA_PATH, "test", "outtest_uvfits_compression.uvh5")
@@ -275,12 +277,30 @@ def test_uvh5_compression_options(uv_uvfits):
     uv_in.write_uvh5(
         testfile,
         clobber=True,
+        chunks=True,
         data_compression="lzf",
         flags_compression=None,
         nsample_compression=None,
     )
     uv_out.read(testfile)
     assert uv_in == uv_out
+
+    # test with non-auto chunking
+    chunks = (680, 1, 16, 1)
+    uv_in.write_uvh5(
+        testfile,
+        clobber=True,
+        chunks=chunks,
+        data_compression="lzf",
+        flags_compression=None,
+        nsample_compression=None,
+    )
+    uv_out.read(testfile)
+    assert uv_in == uv_out
+
+    # check that chunks match
+    with h5py.File(testfile, "r") as f:
+        assert f["Data"]["visdata"].chunks == chunks
 
     # clean up
     os.remove(testfile)
@@ -534,6 +554,29 @@ def test_uvh5_partial_read_multi1(uv_uvfits):
     )
     assert uvh5_uv == uvh5_uv2
 
+    # now check with multidim_index
+    # use different versions of blt_inds and pol_inds
+    # ones that are and are not sliceable by UVH5 standards
+    chans_to_keep = np.arange(20, 31)
+    uvh5_uv3 = UVData()
+    uvh5_uv4 = UVData()
+    for blts_to_keep in [[0, 2, 5], np.arange(100)]:
+        for pols_to_keep in [[-1, -2], [-1, -2, -4]]:
+            uvh5_uv3.read(
+                testfile,
+                blt_inds=blts_to_keep,
+                polarizations=pols_to_keep,
+                freq_chans=chans_to_keep,
+                multidim_index=True,
+            )
+            uvh5_uv4.read(testfile)
+            uvh5_uv4.select(
+                blt_inds=blts_to_keep,
+                polarizations=pols_to_keep,
+                freq_chans=chans_to_keep,
+            )
+            assert uvh5_uv3 == uvh5_uv4
+
     # clean up
     os.remove(testfile)
 
@@ -570,6 +613,29 @@ def test_uvh5_partial_read_multi2(uv_uvfits):
     )
     assert uvh5_uv == uvh5_uv2
 
+    # now check with multidim_index
+    # use different versions of freq_inds and pol_inds
+    # ones that are and are not sliceable by UVH5 standards
+    blts_to_keep = np.arange(100)
+    uvh5_uv3 = UVData()
+    uvh5_uv4 = UVData()
+    for chans_to_keep in [[0, 2, 5], np.arange(50)]:
+        for pols_to_keep in [[-1, -2], [-1, -2, -4]]:
+            uvh5_uv3.read(
+                testfile,
+                blt_inds=blts_to_keep,
+                freq_chans=chans_to_keep,
+                polarizations=pols_to_keep,
+                multidim_index=True,
+            )
+            uvh5_uv4.read(testfile)
+            uvh5_uv4.select(
+                blt_inds=blts_to_keep,
+                freq_chans=chans_to_keep,
+                polarizations=pols_to_keep,
+            )
+            assert uvh5_uv3 == uvh5_uv4
+
     # clean up
     os.remove(testfile)
 
@@ -605,6 +671,56 @@ def test_uvh5_partial_read_multi3(uv_uvfits):
         antenna_nums=ants_to_keep, freq_chans=chans_to_keep, polarizations=pols_to_keep
     )
     assert uvh5_uv == uvh5_uv2
+
+    # now check with multidim_index
+    # use different versions of blt_inds and freq_inds
+    # ones that are and are not sliceable by UVH5 standards
+    pols_to_keep = [-1, -2]
+    uvh5_uv3 = UVData()
+    uvh5_uv4 = UVData()
+    for blts_to_keep in [[0, 2, 5], np.arange(100)]:
+        for chans_to_keep in [[0, 2, 5], np.arange(50)]:
+            uvh5_uv3.read(
+                testfile,
+                blt_inds=blts_to_keep,
+                freq_chans=chans_to_keep,
+                polarizations=pols_to_keep,
+                multidim_index=True,
+            )
+            uvh5_uv4.read(testfile)
+            uvh5_uv4.select(
+                blt_inds=blts_to_keep,
+                freq_chans=chans_to_keep,
+                polarizations=pols_to_keep,
+            )
+            assert uvh5_uv3 == uvh5_uv4
+
+    # clean up
+    os.remove(testfile)
+
+    return
+
+
+def test_uvh5_read_multdim_index(uv_uvfits):
+    """
+    Test some odd cases for UVH5 multdim indexing
+    """
+    uv_in = uv_uvfits
+    testfile = os.path.join(DATA_PATH, "test", "outtest.uvh5")
+    # change telescope name to avoid errors
+    uv_in.telescope_name = "PAPER"
+    uv_in.write_uvh5(testfile, clobber=True)
+    uvh5_uv = UVData()
+    uvh5_uv.read(testfile)
+
+    # check that non sliceable multidim index is caught
+    # and does not fail
+    ants_to_keep = np.array([0, 19, 11, 24, 3, 23, 1, 20, 21])
+    chans_to_keep = [15, 17, 20]
+    uvh5_uv = UVData()
+    uvh5_uv.read(
+        testfile, antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+    )
 
     # clean up
     os.remove(testfile)
