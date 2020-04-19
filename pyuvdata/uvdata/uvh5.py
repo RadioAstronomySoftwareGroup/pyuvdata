@@ -138,8 +138,7 @@ def _convert_to_slices(indices, max_nslice_frac=0.1):
     Parameters
     ----------
     indices : list
-        A 1D list of (preferably monotonically increasing) integers for
-        array indexing.
+        A 1D list of integers for array indexing.
     max_nslice_frac : float
         A float from 0 -- 1. If the number of slices
         needed to represent input 'indices' divided by len(indices)
@@ -153,6 +152,12 @@ def _convert_to_slices(indices, max_nslice_frac=0.1):
     bool
         If True, indices is easily represented by slices
         (max_nslice_frac condition met), otherwise False
+
+    Notes
+    -----
+    Example:
+        if: indices = [1, 2, 3, 4, 10, 11, 12, 13, 14]
+        then: slices = [slice(1, 5, 1), slice(11, 15, 1)]
     """
     # assert indices is longer than 2, or return trivial solutions
     if len(indices) == 0:
@@ -233,7 +238,7 @@ def _get_slice_len(s, axlen):
     else:
         step = s.step
 
-    return (stop - 1 - start) // step + 1
+    return ((stop - 1 - start) // step) + 1
 
 
 def _get_dset_shape(dset, indices):
@@ -649,34 +654,41 @@ class UVH5(UVData):
 
             # determine which axes can be sliced, rather than fancy indexed
             # max_nslice_frac of 0.1 yields slice speedup over fancy index for HERA data
+            # See pyuvdata PR #805
             if blt_inds is not None:
                 blt_slices, blt_sliceable = _convert_to_slices(
                     blt_inds, max_nslice_frac=0.1
                 )
             else:
-                blt_inds = np.s_[:]
-                blt_sliceable = False
+                blt_inds, blt_slices = np.s_[:], np.s_[:]
+                blt_sliceable = True
 
             if freq_inds is not None:
                 freq_slices, freq_sliceable = _convert_to_slices(
                     freq_inds, max_nslice_frac=0.1
                 )
             else:
-                freq_inds = np.s_[:]
-                freq_sliceable = False
+                freq_inds, freq_slices = np.s_[:], np.s_[:]
+                freq_sliceable = True
 
             if pol_inds is not None:
                 pol_slices, pol_sliceable = _convert_to_slices(
                     pol_inds, max_nslice_frac=0.5
                 )
             else:
-                pol_inds = np.s_[:]
-                pol_sliceable = False
+                pol_inds, pol_slices = np.s_[:], np.s_[:]
+                pol_sliceable = True
 
             # open references to datasets
             visdata_dset = dgrp["visdata"]
             flags_dset = dgrp["flags"]
             nsamples_dset = dgrp["nsamples"]
+
+            # check that multidim_index is appropriate
+            if multidim_index:
+                # if more than one dim is not sliceable, then not appropriate
+                if sum([blt_sliceable, freq_sliceable, pol_sliceable]) < 2:
+                    multidim_index = False
 
             # just read in the right portions of the data and flag arrays
             if blt_frac == min_frac:
@@ -708,7 +720,7 @@ class UVH5(UVData):
                 assert self.Nspws == visdata.shape[1]
 
                 # down select on other dimensions if necessary
-                # just use indices here: generally not the bottleneck
+                # use indices not slices here: generally not the bottleneck
                 if not multidim_index and freq_frac < 1:
                     visdata = visdata[:, :, freq_inds, :]
                     flags = flags[:, :, freq_inds, :]
@@ -745,7 +757,7 @@ class UVH5(UVData):
                 nsamples = _index_dset(nsamples_dset, inds)
 
                 # down select on other dimensions if necessary
-                # just use indices here: generally not the bottleneck
+                # use indices not slices here: generally not the bottleneck
                 if not multidim_index and blt_frac < 1:
                     visdata = visdata[blt_inds, :, :, :]
                     flags = flags[blt_inds, :, :, :]
@@ -782,7 +794,7 @@ class UVH5(UVData):
                 nsamples = _index_dset(nsamples_dset, inds)
 
                 # down select on other dimensions if necessary
-                # just use indices here: generally not the bottleneck
+                # use indices not slices here: generally not the bottleneck
                 if not multidim_index and blt_frac < 1:
                     visdata = visdata[blt_inds, :, :, :]
                     flags = flags[blt_inds, :, :, :]
