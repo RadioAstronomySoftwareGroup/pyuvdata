@@ -1237,7 +1237,7 @@ def test_uvcalibrate_apply_gains_oldfiles():
         "on UVCal. Currently the data will be calibrated using the "
         "matching antenna number, but that will be deprecated in "
         "version 2.2 and this will become an error. "
-        "Set override_ant_check=True to proceed "
+        "Set ant_check=False to proceed "
         "with calibration and flag the data for this antenna. "
         for num, antname in enumerate(uvdata_used_antnames)
     }
@@ -1315,7 +1315,7 @@ def test_uvcalibrate_delay_oldfiles():
         "on UVCal. Currently the data will be calibrated using the "
         "matching antenna number, but that will be deprecated in "
         "version 2.2 and this will become an error. "
-        "Set override_ant_check=True to proceed "
+        "Set ant_check=False to proceed "
         "with calibration and flag the data for this antenna. "
         for num, antname in enumerate(uvdata_used_antnames)
     }
@@ -1453,7 +1453,7 @@ def test_uvcalibrate_flag_propagation(uvcalibrate_data):
     ant_expected = {
         f"Antenna {antname} has data on UVData but not on UVCal. "
         "Data for this antenna will not be calibrated"
-        ", set override_ant_check=True to proceed "
+        ", set ant_check=False to proceed "
         "with calibration and flag the data for this antenna. "
         "Currently calibration will proceed, the data will not "
         "be flagged and not be calibrated. This behavior will "
@@ -1472,7 +1472,7 @@ def test_uvcalibrate_flag_propagation(uvcalibrate_data):
         "Data for this antenna will not be calibrated"
         " and will be flagged because flag_missing is True. "
         "The flag_missing keyword will be deprected in "
-        "version 2.2, use override_ant_check instead."
+        "version 2.2, use ant_check=False instead."
         for antname in missing_ant_names
     }
 
@@ -1482,12 +1482,12 @@ def test_uvcalibrate_flag_propagation(uvcalibrate_data):
 
     with pytest.warns(UserWarning) as warninfo:
         uvdcal = uvutils.uvcalibrate(
-            uvd, uvc_sub, prop_flags=True, override_ant_check=True, inplace=False
+            uvd, uvc_sub, prop_flags=True, ant_check=False, inplace=False
         )
     warns = {warn.message.args[0] for warn in warninfo}
     ant_expected = {
         f"Antenna {antname} has data on UVData but not on UVCal. "
-        "override_ant_check is True, so the data associated with "
+        "ant_check is False, so the data associated with "
         "this antenna will be flagged."
         for antname in missing_ant_names
     }
@@ -1533,7 +1533,7 @@ def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data):
         "on UVCal. Currently the data will be calibrated using the "
         "matching antenna number, but that will be deprecated in "
         "version 2.2 and this will become an error. "
-        "Set override_ant_check=True to proceed "
+        "Set ant_check=False to proceed "
         "with calibration and flag the data for this antenna. "
         for antnum, antname in zip(uvdata_unique_nums, uvdata_unique_names)
     }
@@ -1549,13 +1549,13 @@ def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data):
         uvd.get_data(key) / (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T,
     )
 
-    # now test that they're all flagged if override_ant_check is True
+    # now test that they're all flagged if ant_check is False
     with pytest.warns(UserWarning) as warninfo:
-        uvdcal = uvutils.uvcalibrate(uvd, uvc, override_ant_check=True, inplace=False)
+        uvdcal = uvutils.uvcalibrate(uvd, uvc, ant_check=False, inplace=False)
     warns = {warn.message.args[0] for warn in warninfo}
     ant_expected = {
         f"Antenna {antname} has data on UVData but not on UVCal. "
-        "override_ant_check is True, so the data associated with "
+        "ant_check is False, so the data associated with "
         "this antenna will be flagged."
         for antname in uvdata_unique_names
     }
@@ -1618,7 +1618,7 @@ def test_uvcalibrate_time_types(uvcalibrate_data, len_time_range):
         DeprecationWarning,
         match=(
             "Times do not match between UVData and UVCal. "
-            "Set the override_time_check keyword to apply calibration anyway. "
+            "Set time_check=False to apply calibration anyway. "
             "This will become an error in version 2.2"
         ),
     ):
@@ -1633,16 +1633,16 @@ def test_uvcalibrate_time_types(uvcalibrate_data, len_time_range):
         uvd.get_data(key) / (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T,
     )
 
-    # set override_time_check to test the user warning
+    # set time_check=False to test the user warning
     with pytest.warns(
         UserWarning,
         match=(
             "Times do not match between UVData and UVCal "
-            "but override_time_check is True, so calibration "
+            "but time_check is False, so calibration "
             "will be applied anyway."
         ),
     ):
-        uvdcal2 = uvutils.uvcalibrate(uvd, uvc, inplace=False, override_time_check=True)
+        uvdcal2 = uvutils.uvcalibrate(uvd, uvc, inplace=False, time_check=False)
 
     assert uvdcal == uvdcal2
 
