@@ -575,7 +575,7 @@ class CALFITS(UVCal):
             # find all the other header items and keep them as extra_keywords
             for key in hdr:
                 if np.any([key in sub for sub in std_fits_substrings]):
-                    pass 
+                    continue 
                 if key == "COMMENT":
                     self.extra_keywords[key] = str(hdr.get(key))
                 elif key != "":
