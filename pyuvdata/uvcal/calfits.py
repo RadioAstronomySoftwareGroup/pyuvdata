@@ -551,7 +551,6 @@ class CALFITS(UVCal):
 
             # remove standard FITS header items that are still around
             std_fits_substrings = [
-                "HISTORY",
                 "SIMPLE",
                 "BITPIX",
                 "EXTEND",
@@ -570,6 +569,7 @@ class CALFITS(UVCal):
                 "CDELT",
                 "CROTA",
                 "CUNIT",
+                "HISTORY",
             ]
 
             # find all the other header items and keep them as extra_keywords
