@@ -1553,8 +1553,8 @@ def uvcalibrate(
     Dterm_cal=False,
     delay_convention="minus",
     undo=False,
-    override_time_check=False,
-    override_ant_check=False,
+    time_check=True,
+    ant_check=True,
 ):
     """
     Calibrate a UVData object with a UVCal object.
@@ -1572,8 +1572,10 @@ def uvcalibrate(
         and doesn't use flagged gains. Otherwise, uses flagged gains and
         does not propagate calibration flags to data flags.
     flag_missing : bool, optional
-        if True, flag baselines in uvdata
-        if a participating antenna or polarization is missing in uvcal.
+        Deprecated in favor of ant_check.
+        If True, flag baselines in uvdata otherwise don't flag and
+        don't calibrate the baseline if a participating antenna or polarization
+        is missing in uvcal.
     Dterm_cal : bool, optional
         Calibrate the off-diagonal terms in the Jones matrix if present
         in uvcal. Default is False. Currently not implemented.
@@ -1583,14 +1585,15 @@ def uvcalibrate(
     undo : bool, optional
         If True, undo the provided calibration. i.e. apply the calibration with
         flipped gain_convention. Flag propagation rules apply the same.
-    override_time_check : bool
-        Option to override the check that times match between the UVCal and UVData
-        objects. Only used in UVCal has only one time.
-    override_ant_check : bool
-        Option to override the check that all antennas with data on the UVData
-        object are present in the UVCal object. If this option is set to True,
-        uvcalibrate will proceed without erroring and data for antennas without
-        calibrations will be flagged.
+    time_check : bool
+        Option to check that times match between the UVCal and UVData
+        objects if UVCal has a single time or time range. Times are always
+        checked if UVCal has multiple times.
+    ant_check : bool
+        Option to check that all antennas with data on the UVData
+        object have calibration solutions in the UVCal object. If this option is
+        set to False, uvcalibrate will proceed without erroring and data for
+        antennas without calibrations will be flagged.
 
     Returns
     -------
@@ -1627,16 +1630,16 @@ def uvcalibrate(
         for this_ant_name in uvdata_used_antnames:
             wh_ant_match = np.nonzero(uvcal_used_antnames == this_ant_name)
             if wh_ant_match[0].size == 0:
-                # old behavior only required that antenna numbers were present,#
+                # old behavior only required that antenna numbers were present,
                 # not names. Check numbers, if they are present issue
                 # deprecation warning
                 uvdata_ant_num = uvdata.antenna_numbers[
                     np.where(uvdata.antenna_names == this_ant_name)[0][0]
                 ]
-                if override_ant_check:
+                if not ant_check:
                     warnings.warn(
                         f"Antenna {this_ant_name} has data on UVData but not on UVCal. "
-                        "override_ant_check is True, so the data associated with "
+                        "ant_check is False, so the data associated with "
                         "this antenna will be flagged."
                     )
                 elif uvdata_ant_num in uvcal_unique_nums:
@@ -1646,7 +1649,7 @@ def uvcalibrate(
                         "on UVCal. Currently the data will be calibrated using the "
                         "matching antenna number, but that will be deprecated in "
                         "version 2.2 and this will become an error. "
-                        "Set override_ant_check=True to proceed "
+                        "Set ant_check=False to proceed "
                         "with calibration and flag the data for this antenna. ",
                         DeprecationWarning,
                     )
@@ -1659,11 +1662,11 @@ def uvcalibrate(
                         warn_str += (
                             " and will be flagged because flag_missing is True. "
                             "The flag_missing keyword will be deprected in "
-                            "version 2.2, use override_ant_check instead."
+                            "version 2.2, use ant_check=False instead."
                         )
                     else:
                         warn_str += (
-                            ", set override_ant_check=True to proceed "
+                            ", set ant_check=False to proceed "
                             "with calibration and flag the data for this antenna. "
                             "Currently calibration will proceed, the data will not "
                             "be flagged and not be calibrated. This behavior will "
@@ -1708,22 +1711,25 @@ def uvcalibrate(
             if len(uvcal_times_to_keep) < uvcal.Ntimes:
                 downselect_cal_times = True
     elif uvcal.time_range is None:
+        # only one UVCal time, no time_range.
+        # This cannot match if UVData.Ntimes > 1.
+        # If they are both NTimes = 1, then check if they're close.
         if uvdata.Ntimes > 1 or not np.isclose(
             uvdata_times,
             uvcal.time_array,
             atol=uvdata._time_array.tols[1],
             rtol=uvdata._time_array.tols[0],
         ):
-            if override_time_check:
+            if not time_check:
                 warnings.warn(
                     "Times do not match between UVData and UVCal "
-                    "but override_time_check is True, so calibration "
+                    "but time_check is False, so calibration "
                     "will be applied anyway."
                 )
             else:
                 warnings.warn(
                     "Times do not match between UVData and UVCal. "
-                    "Set the override_time_check keyword to apply calibration anyway. "
+                    "Set time_check=False to apply calibration anyway. "
                     "This will become an error in version 2.2",
                     DeprecationWarning,
                 )
@@ -1733,16 +1739,16 @@ def uvcalibrate(
             np.min(uvdata_times) < uvcal.time_range[0]
             or np.max(uvdata_times) > uvcal.time_range[1]
         ):
-            if override_time_check:
+            if not time_check:
                 warnings.warn(
                     "Times do not match between UVData and UVCal "
-                    "but override_time_check is True, so calibration "
+                    "but time_check is False, so calibration "
                     "will be applied anyway."
                 )
             else:
                 warnings.warn(
                     "Times do not match between UVData and UVCal. "
-                    "Set the override_time_check keyword to apply calibration anyway. "
+                    "Set time_check=False to apply calibration anyway. "
                     "This will become an error in version 2.2",
                     DeprecationWarning,
                 )
@@ -1868,7 +1874,7 @@ def uvcalibrate(
             try:
                 uvcal_ant1_num = uvcal_ant_dict[uvdata_ant_dict[ant1_num]]
             except KeyError:
-                if not override_ant_check:
+                if ant_check:
                     # backwards compatibility -- this will be removed in version 2.2
                     uvcal_ant1_num = ant1_num
                 else:
@@ -1876,7 +1882,7 @@ def uvcalibrate(
             try:
                 uvcal_ant2_num = uvcal_ant_dict[uvdata_ant_dict[ant2_num]]
             except KeyError:
-                if not override_ant_check:
+                if ant_check:
                     # backwards compatibility -- this will be removed in version 2.2
                     uvcal_ant2_num = ant2_num
                 else:
