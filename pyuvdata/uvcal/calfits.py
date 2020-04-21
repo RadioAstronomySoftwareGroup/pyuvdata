@@ -443,8 +443,6 @@ class CALFITS(UVCal):
 
                 self.history += self.pyuvdata_version_str
 
-            while "HISTORY" in hdr.keys():
-                hdr.remove("HISTORY")
             self.time_range = list(map(float, hdr.pop("TMERANGE").split(",")))
             self.gain_convention = hdr.pop("GNCONVEN")
             self.gain_scale = hdr.pop("GNSCALE", None)
@@ -553,6 +551,7 @@ class CALFITS(UVCal):
 
             # remove standard FITS header items that are still around
             std_fits_substrings = [
+                "HISTORY",
                 "SIMPLE",
                 "BITPIX",
                 "EXTEND",
@@ -572,13 +571,11 @@ class CALFITS(UVCal):
                 "CROTA",
                 "CUNIT",
             ]
-            for key in list(hdr.keys()):
-                for sub in std_fits_substrings:
-                    if key.find(sub) > -1:
-                        hdr.remove(key)
 
-            # find all the remaining header items and keep them as extra_keywords
+            # find all the other header items and keep them as extra_keywords
             for key in hdr:
+                if np.any([key in sub for sub in std_fits_substrings]):
+                    pass 
                 if key == "COMMENT":
                     self.extra_keywords[key] = str(hdr.get(key))
                 elif key != "":
