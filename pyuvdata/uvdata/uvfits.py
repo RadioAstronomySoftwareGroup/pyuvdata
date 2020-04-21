@@ -475,46 +475,13 @@ class UVFITS(UVData):
             ):
                 self.history += self.pyuvdata_version_str
 
-            while "HISTORY" in vis_hdr.keys():
-                vis_hdr.remove("HISTORY")
-
             self.vis_units = vis_hdr.pop("BUNIT", "UNCALIB")
             self.phase_center_epoch = vis_hdr.pop("EPOCH", None)
             self.phase_center_frame = vis_hdr.pop("PHSFRAME", None)
 
-            # remove standard FITS header items that are still around
-            std_fits_substrings = [
-                "SIMPLE",
-                "BITPIX",
-                "EXTEND",
-                "BLOCKED",
-                "GROUPS",
-                "PCOUNT",
-                "BSCALE",
-                "BZERO",
-                "NAXIS",
-                "PTYPE",
-                "PSCAL",
-                "PZERO",
-                "CTYPE",
-                "CRVAL",
-                "CRPIX",
-                "CDELT",
-                "CROTA",
-                "CUNIT",
-                "DATE-OBS",
-            ]
-            for key in list(vis_hdr.keys()):
-                for sub in std_fits_substrings:
-                    if key.find(sub) > -1:
-                        vis_hdr.remove(key)
-
-            # find all the remaining header items and keep them as extra_keywords
-            for key in vis_hdr:
-                if key == "COMMENT":
-                    self.extra_keywords[key] = str(vis_hdr.get(key))
-                elif key != "":
-                    self.extra_keywords[key] = vis_hdr.get(key)
+            self.extra_keywords = uvutils._get_fits_extra_keywords(
+                vis_hdr, keywords_to_skip=["DATE-OBS"]
+            )
 
             # Next read the antenna table
             ant_hdu = hdu_list[hdunames["AIPS AN"]]

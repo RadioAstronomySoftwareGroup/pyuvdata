@@ -549,37 +549,7 @@ class CALFITS(UVCal):
                         "Jones values are different in FLAGS HDU than in primary HDU"
                     )
 
-            # remove standard FITS header items that are still around
-            std_fits_substrings = [
-                "SIMPLE",
-                "BITPIX",
-                "EXTEND",
-                "BLOCKED",
-                "GROUPS",
-                "PCOUNT",
-                "BSCALE",
-                "BZERO",
-                "NAXIS",
-                "PTYPE",
-                "PSCAL",
-                "PZERO",
-                "CTYPE",
-                "CRVAL",
-                "CRPIX",
-                "CDELT",
-                "CROTA",
-                "CUNIT",
-                "HISTORY",
-            ]
-
-            # find all the other header items and keep them as extra_keywords
-            for key in hdr:
-                if np.any([key in sub for sub in std_fits_substrings]):
-                    continue 
-                if key == "COMMENT":
-                    self.extra_keywords[key] = str(hdr.get(key))
-                elif key != "":
-                    self.extra_keywords[key] = hdr.get(key)
+            self.extra_keywords = uvutils._get_fits_extra_keywords(hdr)
 
             # get total quality array if present
             if "TOTQLTY" in hdunames:

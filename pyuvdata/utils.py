@@ -169,6 +169,63 @@ def _fits_indexhdus(hdulist):
     return tablenames
 
 
+def _get_fits_extra_keywords(header, keywords_to_skip=None):
+    """
+    Get any extra keywords and return as dict.
+
+    Parameters
+    ----------
+    header : FITS header object
+        header object to get extra_keywords from.
+    keywords_to_skip : list of str
+        list of keywords to not include in extra keywords in addition to standard
+        FITS keywords.
+
+    Returns
+    -------
+    dict
+        dict of extra keywords.
+    """
+    # List standard FITS header items that are still should not be included in
+    # extra_keywords
+    std_fits_substrings = [
+        "HISTORY",
+        "SIMPLE",
+        "BITPIX",
+        "EXTEND",
+        "BLOCKED",
+        "GROUPS",
+        "PCOUNT",
+        "BSCALE",
+        "BZERO",
+        "NAXIS",
+        "PTYPE",
+        "PSCAL",
+        "PZERO",
+        "CTYPE",
+        "CRVAL",
+        "CRPIX",
+        "CDELT",
+        "CROTA",
+        "CUNIT",
+    ]
+
+    if keywords_to_skip is not None:
+        std_fits_substrings.extend(keywords_to_skip)
+
+    extra_keywords = {}
+    # find all the other header items and keep them as extra_keywords
+    for key in header:
+        if np.any([sub in key for sub in std_fits_substrings]):
+            continue
+        if key == "COMMENT":
+            extra_keywords[key] = str(header.get(key))
+        elif key != "":
+            extra_keywords[key] = header.get(key)
+
+    return extra_keywords
+
+
 def _check_history_version(history, version_string):
     """Check if version_string is present in history string."""
     if version_string.replace(" ", "") in history.replace("\n", "").replace(" ", ""):

@@ -297,41 +297,8 @@ class BeamFITS(UVBeam):
                 self.history, self.pyuvdata_version_str
             ):
                 self.history += self.pyuvdata_version_str
-            while "HISTORY" in primary_header.keys():
-                primary_header.remove("HISTORY")
 
-            # remove standard FITS header items that are still around
-            std_fits_substrings = [
-                "SIMPLE",
-                "BITPIX",
-                "EXTEND",
-                "BLOCKED",
-                "GROUPS",
-                "PCOUNT",
-                "BSCALE",
-                "BZERO",
-                "NAXIS",
-                "PTYPE",
-                "PSCAL",
-                "PZERO",
-                "CTYPE",
-                "CRVAL",
-                "CRPIX",
-                "CDELT",
-                "CROTA",
-                "CUNIT",
-            ]
-            for key in list(primary_header.keys()):
-                for sub in std_fits_substrings:
-                    if key.find(sub) > -1:
-                        primary_header.remove(key)
-
-            # find all the remaining header items and keep them as extra_keywords
-            for key in primary_header:
-                if key == "COMMENT":
-                    self.extra_keywords[key] = str(primary_header.get(key))
-                elif key != "":
-                    self.extra_keywords[key] = primary_header.get(key)
+            self.extra_keywords = uvutils._get_fits_extra_keywords(primary_header)
 
             # read BASISVEC HDU if present
             if "BASISVEC" in hdunames:
