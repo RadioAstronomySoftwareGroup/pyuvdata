@@ -557,10 +557,11 @@ def test_uvh5_partial_read_multi1(uv_uvfits):
     # now check with multidim_index
     # use different versions of blt_inds and pol_inds
     # ones that are and are not sliceable by UVH5 standards
-    chans_to_keep = np.arange(20, 31)
+    chans_to_keep = np.arange(20, 35)
     uvh5_uv3 = UVData()
     uvh5_uv4 = UVData()
-    for blts_to_keep in [[0, 2, 5], np.arange(100)]:
+    random_blts = np.random.choice(np.arange(uv_in.Nblts), size=1000, replace=False)
+    for blts_to_keep in [random_blts, np.arange(1000)]:
         for pols_to_keep in [[-1, -2], [-1, -2, -4]]:
             uvh5_uv3.read(
                 testfile,
@@ -678,8 +679,10 @@ def test_uvh5_partial_read_multi3(uv_uvfits):
     pols_to_keep = [-1, -2]
     uvh5_uv3 = UVData()
     uvh5_uv4 = UVData()
-    for blts_to_keep in [[0, 2, 5], np.arange(100)]:
-        for chans_to_keep in [[0, 2, 5], np.arange(50)]:
+    random_blts = np.random.choice(np.arange(uv_in.Nblts), size=1000, replace=False)
+    random_freqs = np.random.choice(np.arange(uv_in.Nfreqs), size=50, replace=False)
+    for blts_to_keep in [random_blts, np.arange(1000)]:
+        for chans_to_keep in [random_freqs, np.arange(50)]:
             uvh5_uv3.read(
                 testfile,
                 blt_inds=blts_to_keep,
@@ -2537,3 +2540,25 @@ def test_eq_coeffs_roundtrip(uv_uvfits):
     os.remove(testfile)
 
     return
+
+
+def test_read_slicing(uv_uvfits):
+    """Test HDF5 slicing helper functions"""
+    # check trivial slice representations
+    slices, _ = uvh5._convert_to_slices([])
+    assert slices == [slice(0, 0, 0)]
+    slices, _ = uvh5._convert_to_slices(10)
+    assert slices == [slice(10, 11, 1)]
+
+    # dataset shape checking
+    # check various kinds of indexing give the right answer
+    indices = [slice(0, 10), 0, [0, 1, 2], [0]]
+    dset = np.empty((100, 1, 1024, 2), dtype=np.float)
+    shape = uvh5._get_dset_shape(dset, indices)
+    assert tuple(shape) == (10, 1, 3, 1)
+
+    # dataset indexing
+    # check various kinds of indexing give the right answer
+    slices = [uvh5._convert_to_slices(ind)[0] for ind in indices]
+    data = uvh5._index_dset(dset, slices)
+    assert data.shape == tuple(shape)
