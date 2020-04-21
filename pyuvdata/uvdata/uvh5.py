@@ -95,6 +95,7 @@ def _read_complex_astype(dset, indices, dtype_out=np.complex64):
     output_array = np.empty(dset_shape, dtype=dtype_out)
     dtype_in = dset.dtype
     with dset.astype(dtype_in):
+        # dset is indexed in native dtype, but is upcast upon assignment
         output_array.real = _index_dset(dset["r"], indices)
         output_array.imag = _index_dset(dset["i"], indices)
 
@@ -159,6 +160,12 @@ def _convert_to_slices(indices, max_nslice_frac=0.1):
         if: indices = [1, 2, 3, 4, 10, 11, 12, 13, 14]
         then: slices = [slice(1, 5, 1), slice(11, 15, 1)]
     """
+    # check for integer index
+    if isinstance(indices, (int, np.integer)):
+        indices = [indices]
+    # check for already a slice
+    if isinstance(indices, slice):
+        return [indices], True
     # assert indices is longer than 2, or return trivial solutions
     if len(indices) == 0:
         return [slice(0, 0, 0)], False
