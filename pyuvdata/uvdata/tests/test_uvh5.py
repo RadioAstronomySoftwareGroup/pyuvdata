@@ -620,7 +620,8 @@ def test_uvh5_partial_read_multi2(uv_uvfits):
     blts_to_keep = np.arange(100)
     uvh5_uv3 = UVData()
     uvh5_uv4 = UVData()
-    for chans_to_keep in [[0, 2, 5], np.arange(50)]:
+    random_freqs = np.random.choice(np.arange(uv_in.Nfreqs), size=50, replace=False)
+    for chans_to_keep in [random_freqs, np.arange(50)]:
         for pols_to_keep in [[-1, -2], [-1, -2, -4]]:
             uvh5_uv3.read(
                 testfile,
@@ -2560,5 +2561,6 @@ def test_read_slicing(uv_uvfits):
     # dataset indexing
     # check various kinds of indexing give the right answer
     slices = [uvh5._convert_to_slices(ind)[0] for ind in indices]
+    slices[1] = 0
     data = uvh5._index_dset(dset, slices)
     assert data.shape == tuple(shape)
