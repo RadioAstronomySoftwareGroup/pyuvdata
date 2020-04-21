@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - `multidim_index` to `UVH5.read_uvh5` and `UVData.read` for multidimensional slicing into HDF5 datasets
 
 ### Changed
+- UVCal objects should now read calfits files faster due to a simplified handling of fits header objects, especially when the history is very long.
 - The UVData methods `set_drift`, `set_phased`, and `set_unknown_phase_type` have been made private. The public methods will be removed in a future version.
 
 
