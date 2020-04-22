@@ -446,7 +446,7 @@ class UVH5(UVData):
         # check for phasing information
         self.phase_type = header["phase_type"][()].tostring().decode("utf8")
         if self.phase_type == "phased":
-            self.set_phased()
+            self._set_phased()
             self.phase_center_ra = float(header["phase_center_ra"][()])
             self.phase_center_dec = float(header["phase_center_dec"][()])
             self.phase_center_epoch = float(header["phase_center_epoch"][()])
@@ -455,9 +455,9 @@ class UVH5(UVData):
                     header["phase_center_frame"][()].tostring().decode("utf8")
                 )
         elif self.phase_type == "drift":
-            self.set_drift()
+            self._set_drift()
         else:
-            self.set_unknown_phase_type()
+            self._set_unknown_phase_type()
 
         # get antenna arrays
         # cast to native python int type

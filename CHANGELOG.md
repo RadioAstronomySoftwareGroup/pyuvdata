@@ -3,6 +3,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `chunks` to `UVH5.write_uvh5` and `UVData.write_uvh5` for HDF5 dataset chunking.
+- `multidim_index` to `UVH5.read_uvh5` and `UVData.read` for multidimensional slicing into HDF5 datasets
+
+### Changed
+- The UVData methods `set_drift`, `set_phased`, and `set_unknown_phase_type` have been made private. The public methods will be removed in a future version.
+
+
 ## [2.0.1] - 2020-3-24
 
 ### Changed
@@ -10,8 +18,6 @@ All notable changes to this project will be documented in this file.
 - Handling of strings in UVFlag files has been made more widely compatible.
 
 ### Added
-- `chunks` to `UVH5.write_uvh5` and `UVData.write_uvh5` for HDF5 dataset chunking.
-- `multidim_index` to `UVH5.read_uvh5` and `UVData.read` for multidimensional slicing into HDF5 datasets
 - Option to provide parameters for RectBivariatespline through interp
 - `weights_square_array` (optional) parameter on UVFlag - stores sum of squares of weights when converting to waterfall
 - `frequency_average` method on UVData to average data along the frequency axis.

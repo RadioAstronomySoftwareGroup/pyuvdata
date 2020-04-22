@@ -612,9 +612,9 @@ class Miriad(UVData):
         # first check to see if the phase_type was specified.
         if phase_type is not None:
             if phase_type == "phased":
-                self.set_phased()
+                self._set_phased()
             elif phase_type == "drift":
-                self.set_drift()
+                self._set_drift()
             else:
                 raise ValueError(
                     "The phase_type was not recognized. "
@@ -627,17 +627,17 @@ class Miriad(UVData):
             # check if there's only one unflagged time
             if not single_time:
                 if single_ra:
-                    self.set_phased()
+                    self._set_phased()
                 else:
-                    self.set_drift()
+                    self._set_drift()
             else:
                 # if there's only one time, checking for consistent RAs doesn't work.
                 # instead check for the presence of an epoch variable, which isn't
                 # really a good option, but at least it prevents crashes.
                 if "epoch" in uv.vartable.keys():
-                    self.set_phased()
+                    self._set_phased()
                 else:
-                    self.set_drift()
+                    self._set_drift()
 
         if self.phase_type == "phased":
             # check that the RA values do not vary
@@ -679,7 +679,7 @@ class Miriad(UVData):
                     "so it appears that it is not a zenith drift scan. "
                     'Setting phase_type to "unknown"'.format(acceptable_offset)
                 )
-                self.set_unknown_phase_type()
+                self._set_unknown_phase_type()
 
         try:
             self.set_telescope_params()

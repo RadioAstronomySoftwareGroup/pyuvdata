@@ -210,7 +210,7 @@ def test_read_miriad_phasing_errors(err_type, read_kwargs, err_msg):
 def test_read_miriad_write_uvfits_phasing_error(uv_in_uvfits):
     miriad_uv, uvfits_uv, testfile = uv_in_uvfits
 
-    miriad_uv.set_unknown_phase_type()
+    miriad_uv._set_unknown_phase_type()
     with pytest.raises(ValueError) as cm:
         miriad_uv.write_uvfits(testfile, spoof_nonessential=True)
     assert str(cm.value).startswith("The phasing type of the data is unknown")
@@ -865,7 +865,7 @@ def test_miriad_antenna_diameters(uv_in_paper):
 def test_miriad_write_miriad_unkonwn_phase_error(uv_in_paper):
     uv_in, uv_out, write_file = uv_in_paper
     # check that trying to write a file with unknown phasing raises an error
-    uv_in.set_unknown_phase_type()
+    uv_in._set_unknown_phase_type()
     with pytest.raises(ValueError) as cm:
         uv_in.write_miriad(write_file, clobber=True)
     assert str(cm.value).startswith("The phasing type of the data is unknown")
