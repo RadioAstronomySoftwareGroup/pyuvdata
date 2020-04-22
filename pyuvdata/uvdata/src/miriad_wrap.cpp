@@ -81,6 +81,18 @@ static int UVObject_init(UVObject *self, PyObject *args, PyObject *kwds) {
            |__/
 */
 
+
+/* User-accessible function for closing object
+ */
+PyObject * UVObject_close(UVObject *self) {
+    if (self->tno != -1) {
+      uvclose_c(self->tno);
+    }
+    // set tno to show the file is now closed
+    self->tno = -1;
+    return Py_None;
+}
+
 // Thin wrapper over uvrewind_c
 PyObject * UVObject_rewind(UVObject *self) {
     uvrewind_c(self->tno);
@@ -634,6 +646,8 @@ PyObject * WRAP_hread(PyObject *self, PyObject *args) {
 */
 // Bind methods to object
 static PyMethodDef UVObject_methods[] = {
+    {"close", (PyCFunction)UVObject_close, METH_NOARGS,
+        "close()\nFlush and close the UV file."},
     {"rewind", (PyCFunction)UVObject_rewind, METH_NOARGS,
         "rewind()\nSeek to the beginning of a UV file."},
     {"raw_read", (PyCFunction)UVObject_read, METH_VARARGS,

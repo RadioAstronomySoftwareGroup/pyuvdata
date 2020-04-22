@@ -51,8 +51,8 @@ def uv_in_paper(tmp_path):
     yield uv_in, uv_out, write_file
 
     # cleanup
-    del uv_in, uv_out
-    gc.collect()
+    # del uv_in, uv_out
+    # gc.collect()
     if os.path.exists(write_file):
         shutil.rmtree(write_file)
 
@@ -69,8 +69,8 @@ def uv_in_uvfits(tmp_path):
     yield uv_in, uv_out, write_file
 
     # cleanup
-    del uv_in, uv_out
-    gc.collect()
+    # del uv_in, uv_out
+    # gc.collect()
     if os.path.exists(write_file):
         os.remove(write_file)
 
@@ -103,8 +103,8 @@ def test_read_write_read_atca(tmp_path):
     assert uv_in == uv_out
 
     # cleanup
-    del uv_in, uv_out
-    gc.collect()
+    # del uv_in, uv_out
+    # gc.collect()
     shutil.rmtree(testfile)
 
 
@@ -121,8 +121,8 @@ def test_read_nrao_write_miriad_read_miriad(tmp_path):
     assert uvfits_uv == miriad_uv
 
     # cleanup
-    del uvfits_uv, miriad_uv
-    gc.collect()
+    # del uvfits_uv, miriad_uv
+    # gc.collect()
     shutil.rmtree(writefile)
 
 
@@ -157,8 +157,8 @@ def test_miriad_read_warning_lat_lon_corrected():
     )
 
     # cleanup
-    del miriad_uv
-    gc.collect()
+    # del miriad_uv
+    # gc.collect()
 
 
 @pytest.mark.parametrize(
@@ -203,8 +203,8 @@ def test_read_miriad_phasing_errors(err_type, read_kwargs, err_msg):
     assert str(cm.value).startswith(err_msg)
 
     # cleanup
-    del miriad_uv
-    gc.collect()
+    # del miriad_uv
+    # gc.collect()
 
 
 def test_read_miriad_write_uvfits_phasing_error(uv_in_uvfits):
@@ -315,8 +315,8 @@ def test_wronglatlon():
     )
 
     # cleanup
-    del uv_in
-    gc.collect()
+    # del uv_in
+    # gc.collect()
 
 
 def test_miriad_location_handling(tmp_path):
@@ -356,9 +356,10 @@ def test_miriad_location_handling(tmp_path):
     aipy_uv2.init_from_uv(aipy_uv, override={"telescop": "foo", "antpos": antpos})
     # copy data from old file
     aipy_uv2.pipe(aipy_uv)
+    aipy_uv2.close()
     # close file properly
-    del aipy_uv2
-    gc.collect()
+    # del aipy_uv2
+    # gc.collect()
 
     uvtest.checkWarnings(
         uv_out.read,
@@ -394,9 +395,10 @@ def test_miriad_location_handling(tmp_path):
     )
     # copy data from old file
     aipy_uv2.pipe(aipy_uv)
+    aipy_uv2.close()
     # close file properly
-    del aipy_uv2
-    gc.collect()
+    # del aipy_uv2
+    # gc.collect()
 
     uvtest.checkWarnings(
         uv_out.read,
@@ -435,9 +437,10 @@ def test_miriad_location_handling(tmp_path):
     )
     # copy data from old file
     aipy_uv2.pipe(aipy_uv)
+    aipy_uv2.close()
     # close file properly
-    del aipy_uv2
-    gc.collect()
+    # del aipy_uv2
+    # gc.collect()
 
     uvtest.checkWarnings(
         uv_out.read,
@@ -480,9 +483,10 @@ def test_miriad_location_handling(tmp_path):
     )
     # copy data from old file
     aipy_uv2.pipe(aipy_uv)
+    aipy_uv2.close()
     # close file properly
-    del aipy_uv2
-    gc.collect()
+    # del aipy_uv2
+    # gc.collect()
 
     uvtest.checkWarnings(
         uv_out.read,
@@ -529,9 +533,10 @@ def test_miriad_location_handling(tmp_path):
     )
     # copy data from old file
     aipy_uv2.pipe(aipy_uv)
+    aipy_uv2.close()
     # close file properly
-    del aipy_uv2
-    gc.collect()
+    # del aipy_uv2
+    # gc.collect()
 
     uvtest.checkWarnings(
         uv_out.read,
@@ -552,8 +557,9 @@ def test_miriad_location_handling(tmp_path):
     )
 
     # cleanup
-    del aipy_uv, uv_in, uv_out
-    gc.collect()
+    aipy_uv.close()
+    # del aipy_uv, uv_in, uv_out
+    # gc.collect()
     shutil.rmtree(testfile)
 
 
@@ -595,8 +601,8 @@ def test_singletimeselect_drift(tmp_path):
     assert uv_in == uv_out
 
     # cleanup
-    del uv_in, uv_out
-    gc.collect()
+    # del uv_in, uv_out
+    # gc.collect()
     shutil.rmtree(testfile)
 
 
@@ -895,8 +901,7 @@ def test_miriad_and_aipy_reads(uv_in_paper):
     assert ischan == 1
 
     # cleanup
-    del uv_aipy
-    gc.collect()
+    uv_aipy.close()
 
 
 def test_miriad_telescope_locations():
@@ -906,6 +911,7 @@ def test_miriad_telescope_locations():
     uv = aipy_extracts.UV(testfile)
     uv_in._load_telescope_coords(uv)
     assert uv_in.telescope_location_lat_lon_alt is not None
+    uv.close()
     # test load_antpos w/ blank Miriad
     uv_in = Miriad()
     uv = aipy_extracts.UV(testfile)
@@ -913,8 +919,9 @@ def test_miriad_telescope_locations():
     assert uv_in.antenna_positions is not None
 
     # cleanup
-    del uv, uv_in
-    gc.collect()
+    uv.close()
+    # del uv, uv_in
+    # gc.collect()
 
 
 def test_miriad_integration_time_precision(tmp_path):
@@ -1508,8 +1515,9 @@ def test_antpos_units(tmp_path):
     assert np.allclose(aantpos, uv.antenna_positions)
 
     # cleanup
-    del uv, auv
-    gc.collect()
+    auv.close()
+    # del uv, auv
+    # gc.collect()
     shutil.rmtree(testfile)
 
 
@@ -1549,8 +1557,10 @@ def test_readmiriad_write_miriad_check_time_format(tmp_path):
     assert np.isclose(uv["lst"], uv2["lst"], atol=tolerance)
 
     # cleanup
-    del uv, uv2, uvd
-    gc.collect()
+    # del uv, uv2, uvd
+    # gc.collect()
+    uv.close()
+    uv2.close()
     if os.path.exists(fout):
         shutil.rmtree(fout)
 
