@@ -538,26 +538,86 @@ class UVData(UVBase):
 
         super(UVData, self).__init__()
 
-    def set_drift(self):
-        """Set phase_type to 'drift' and adjust required parameters."""
+    def _set_drift(self):
+        """
+        Set phase_type to 'drift' and adjust required parameters.
+
+        This method should not be called directly by users; instead it is called
+        by phasing methods and file-reading methods to indicate the object has a
+        `phase_type` of "drift" and define which metadata are required.
+        """
         self.phase_type = "drift"
         self._phase_center_epoch.required = False
         self._phase_center_ra.required = False
         self._phase_center_dec.required = False
 
-    def set_phased(self):
-        """Set phase_type to 'phased' and adjust required parameters."""
+    def set_drift(self):
+        """
+        Set phase_type to 'drift' and adjust required parameters.
+
+        This method is deprecated, and will be removed in pyuvdata v2.2. Use
+        `_set_drift` instead.
+        """
+        warnings.warn(
+            "`set_drift` is deprecated, and will be removed in pyuvdata version "
+            "2.2. Use `_set_drift` instead.",
+            DeprecationWarning,
+        )
+        self._set_drift()
+
+    def _set_phased(self):
+        """
+        Set phase_type to 'phased' and adjust required parameters.
+
+        This method should not be called directly by users; instead it is called
+        by phasing methods and file-reading methods to indicate the object has a
+        `phase_type` of "phased" and define which metadata are required.
+        """
         self.phase_type = "phased"
         self._phase_center_epoch.required = True
         self._phase_center_ra.required = True
         self._phase_center_dec.required = True
 
-    def set_unknown_phase_type(self):
-        """Set phase_type to 'unknown' and adjust required parameters."""
+    def set_phased(self):
+        """
+        Set phase_type to 'phased' and adjust required parameters.
+
+        This method is deprecated, and will be removed in pyuvdata v2.2. Use
+        `_set_phased` instead.
+        """
+        warnings.warn(
+            "`set_phased` is deprecated, and will be removed in pyuvdata version "
+            "2.2. Use `_set_phased` instead.",
+            DeprecationWarning,
+        )
+        self._set_phased()
+
+    def _set_unknown_phase_type(self):
+        """
+        Set phase_type to 'unknown' and adjust required parameters.
+
+        This method should not be called directly by users; instead it is called
+        by file-reading methods to indicate the `phase_type` is "unknown" and
+        define which metadata are required.
+        """
         self.phase_type = "unknown"
         self._phase_center_epoch.required = False
         self._phase_center_ra.required = False
         self._phase_center_dec.required = False
+
+    def set_unknown_phase_type(self):
+        """
+        Set phase_type to 'unknown' and adjust required parameters.
+
+        This method is deprecated, and will be removed in pyuvdata v2.2. Use
+        `_set_unknown_phase_type` instead.
+        """
+        warnings.warn(
+            "`set_unknown_phase_type` is deprecated, and will be removed in "
+            "pyuvdata version 2.2. Use `_set_unknown_phase_type` instead.",
+            DeprecationWarning,
+        )
+        self._set_unknown_phase_type()
 
     @property
     def _data_params(self):
@@ -761,11 +821,11 @@ class UVData(UVBase):
         # first run the basic check from UVBase
         # set the phase type based on object's value
         if self.phase_type == "phased":
-            self.set_phased()
+            self._set_phased()
         elif self.phase_type == "drift":
-            self.set_drift()
+            self._set_drift()
         else:
-            self.set_unknown_phase_type()
+            self._set_unknown_phase_type()
 
         super(UVData, self).check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
@@ -2196,7 +2256,7 @@ class UVData(UVBase):
         self.phase_center_ra = None
         self.phase_center_dec = None
         self.phase_center_epoch = None
-        self.set_drift()
+        self._set_drift()
 
     def phase(
         self,
@@ -2406,7 +2466,7 @@ class UVData(UVBase):
             self.data_array *= phs
 
         self.phase_center_frame = phase_frame
-        self.set_phased()
+        self._set_phased()
 
     def phase_to_time(
         self,

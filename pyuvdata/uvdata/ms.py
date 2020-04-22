@@ -381,7 +381,7 @@ class MS(UVData):
         tb_field = tables.table(filepath + "/FIELD", ack=False)
         if tb_field.getcol("PHASE_DIR").shape[1] == 2:
             self.phase_type = "drift"
-            self.set_drift()
+            self._set_drift()
         elif tb_field.getcol("PHASE_DIR").shape[1] == 1:
             self.phase_type = "phased"
             # MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
@@ -396,7 +396,7 @@ class MS(UVData):
                 )
             self.phase_center_ra = float(tb_field.getcol("PHASE_DIR")[0][0][0])
             self.phase_center_dec = float(tb_field.getcol("PHASE_DIR")[0][0][1])
-            self.set_phased()
+            self._set_phased()
         # set LST array from times and itrf
         self.set_lsts_from_time_array()
         # set the history parameter

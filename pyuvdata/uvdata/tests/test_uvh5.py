@@ -1556,7 +1556,7 @@ def test_uvh5_read_header_special_cases(uv_uvfits):
 
     # make input and output values match now
     uv_in.history = uv_out.history
-    uv_in.set_unknown_phase_type()
+    uv_in._set_unknown_phase_type()
     uv_in.phase_center_ra = None
     uv_in.phase_center_dec = None
     uv_in.phase_center_epoch = None

@@ -774,7 +774,7 @@ def test_unknown_phase_unphase_hera_errors(
     uv_phase, uv_raw = uv1_2_set_uvws
 
     # Set phase type to unkown on some tests, ignore on others.
-    uv_phase.set_unknown_phase_type()
+    uv_phase._set_unknown_phase_type()
     # if this is phase_to_time, use this index set in the dictionary and
     # assign the value of the time_array associated with that index
     # this is a little hacky, but we cannot acces uv_phase.time_array in the
@@ -926,7 +926,7 @@ def test_set_phase_unknown():
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     uv_object.read_uvfits(testfile)
 
-    uv_object.set_unknown_phase_type()
+    uv_object._set_unknown_phase_type()
     assert uv_object.phase_type == "unknown"
     assert not uv_object._phase_center_epoch.required
     assert not uv_object._phase_center_ra.required
@@ -7047,5 +7047,39 @@ def test_multifile_read_check_long_list():
     os.remove(fileList[1])
     os.remove(fileList[2])
     os.remove(fileList[3])
+
+    return
+
+
+def test_deprecation_warnings_set_phased():
+    """
+    Test the deprecation warnings in set_phased et al.
+    """
+    uv = UVData()
+    # first call set_phased
+    with pytest.warns(DeprecationWarning, match="`set_phased` is deprecated"):
+        uv.set_phased()
+    assert uv.phase_type == "phased"
+    assert uv._phase_center_epoch.required is True
+    assert uv._phase_center_ra.required is True
+    assert uv._phase_center_dec.required is True
+
+    # now call set_drift
+    with pytest.warns(DeprecationWarning, match="`set_drift` is deprecated"):
+        uv.set_drift()
+    assert uv.phase_type == "drift"
+    assert uv._phase_center_epoch.required is False
+    assert uv._phase_center_ra.required is False
+    assert uv._phase_center_dec.required is False
+
+    # now call set_unknown_phase_type
+    with pytest.warns(
+        DeprecationWarning, match="`set_unknown_phase_type` is deprecated"
+    ):
+        uv.set_unknown_phase_type()
+    assert uv.phase_type == "unknown"
+    assert uv._phase_center_epoch.required is False
+    assert uv._phase_center_ra.required is False
+    assert uv._phase_center_dec.required is False
 
     return

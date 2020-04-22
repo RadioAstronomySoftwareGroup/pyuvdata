@@ -338,7 +338,7 @@ class FHD(UVData):
                 "improperly -- without changing the uvw locations"
             )
 
-        self.set_phased()
+        self._set_phased()
         self.phase_center_ra_degrees = np.float(obs["OBSRA"][0])
         self.phase_center_dec_degrees = np.float(obs["OBSDEC"][0])
 

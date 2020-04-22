@@ -421,7 +421,7 @@ class UVFITS(UVData):
             hdunames = uvutils._fits_indexhdus(hdu_list)  # find the rest of the tables
 
             # First get everything we can out of the header.
-            self.set_phased()
+            self._set_phased()
             # check if we have an spw dimension
             if vis_hdr["NAXIS"] == 7:
                 if vis_hdr["NAXIS5"] > 1:
