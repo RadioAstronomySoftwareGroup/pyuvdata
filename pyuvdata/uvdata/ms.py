@@ -379,24 +379,30 @@ class MS(UVData):
 
         tb_ant.close()
         tb_field = tables.table(filepath + "/FIELD", ack=False)
-        if tb_field.getcol("PHASE_DIR").shape[1] == 2:
-            self.phase_type = "drift"
-            self._set_drift()
-        elif tb_field.getcol("PHASE_DIR").shape[1] == 1:
-            self.phase_type = "phased"
-            # MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
-            epoch_string = tb.getcolkeyword("UVW", "MEASINFO")["Ref"]
-            # for measurement sets made with COTTER, this keyword is ITRF
-            # instead of the epoch
-            if epoch_string == "ITRF":
-                self.phase_center_epoch = 2000.0
-            else:
-                self.phase_center_epoch = float(
-                    tb.getcolkeyword("UVW", "MEASINFO")["Ref"][1:]
-                )
-            self.phase_center_ra = float(tb_field.getcol("PHASE_DIR")[0][0][0])
-            self.phase_center_dec = float(tb_field.getcol("PHASE_DIR")[0][0][1])
-            self._set_phased()
+
+        # Error if the phase_dir has a polynomial term because we don't know
+        # how to handle that
+        message = (
+            "PHASE_DIR is expressed as a polynomial. "
+            "We do not currently support this mode, please make an issue."
+        )
+        assert tb_field.getcol("PHASE_DIR").shape[1] == 1, message
+
+        self.phase_type = "phased"
+        # MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
+        epoch_string = tb.getcolkeyword("UVW", "MEASINFO")["Ref"]
+        # for measurement sets made with COTTER, this keyword is ITRF
+        # instead of the epoch
+        if epoch_string == "ITRF":
+            self.phase_center_epoch = 2000.0
+        else:
+            self.phase_center_epoch = float(
+                tb.getcolkeyword("UVW", "MEASINFO")["Ref"][1:]
+            )
+        self.phase_center_ra = float(tb_field.getcol("PHASE_DIR")[0][0][0])
+        self.phase_center_dec = float(tb_field.getcol("PHASE_DIR")[0][0][1])
+        self._set_phased()
+
         # set LST array from times and itrf
         self.set_lsts_from_time_array()
         # set the history parameter
