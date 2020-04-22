@@ -681,6 +681,9 @@ class Miriad(UVData):
                 )
                 self._set_unknown_phase_type()
 
+        # close out now that we're done
+        uv.close()
+
         try:
             self.set_telescope_params()
         except ValueError as ve:
@@ -1022,6 +1025,11 @@ class Miriad(UVData):
                 preamble = (uvw, t, (i, j))
 
                 uv.write(preamble, data, flags)
+
+        # close out now that we're done
+        uv.close()
+
+        return
 
     def _read_miriad_metadata(self, uv, correct_lat_lon=True):
         """
