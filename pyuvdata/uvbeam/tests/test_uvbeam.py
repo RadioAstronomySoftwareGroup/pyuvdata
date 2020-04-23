@@ -20,16 +20,13 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata.data import DATA_PATH
 
+
 try:
     from astropy_healpix import HEALPix
 
     healpix_installed = True
 except (ImportError):
     healpix_installed = False
-
-filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
-cst_folder = "NicCSTbeams"
-cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
 
 
 @pytest.fixture(scope="function")
@@ -258,19 +255,9 @@ def test_errors():
     pytest.raises(ValueError, beam_obj._convert_to_filetype, "foo")
 
 
-def test_peak_normalize():
-    efield_beam = UVBeam()
-    efield_beam.read_cst_beam(
-        cst_files,
-        beam_type="efield",
-        frequency=[150e6, 123e6],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+def test_peak_normalize(cst_efield_2freq, cst_power_2freq):
+    efield_beam = cst_efield_2freq
+
     orig_bandpass_array = copy.deepcopy(efield_beam.bandpass_array)
     maxima = np.zeros(efield_beam.Nfreqs)
     for freq_i in range(efield_beam.Nfreqs):
@@ -280,18 +267,7 @@ def test_peak_normalize():
     assert np.sum(abs(efield_beam.bandpass_array - orig_bandpass_array * maxima)) == 0
     assert efield_beam.data_normalization == "peak"
 
-    power_beam = UVBeam()
-    power_beam.read_cst_beam(
-        cst_files,
-        beam_type="power",
-        frequency=[150e6, 123e6],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    power_beam = cst_power_2freq
 
     orig_bandpass_array = copy.deepcopy(power_beam.bandpass_array)
     maxima = np.zeros(efield_beam.Nfreqs)
@@ -312,33 +288,14 @@ def test_stokes_matrix():
     pytest.raises(ValueError, beam._stokes_matrix, 5)
 
 
-def test_efield_to_pstokes():
+def test_efield_to_pstokes(cst_efield_2freq_cut, cst_efield_2freq_cut_healpix):
     pytest.importorskip("astropy_healpix")
-    efield_beam = UVBeam()
-    efield_beam.read_cst_beam(
-        cst_files,
-        beam_type="efield",
-        frequency=[150e6, 123e6],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
 
-    pstokes_beam = efield_beam.copy()
-    pstokes_beam.interpolation_function = "az_za_simple"
-    pstokes_beam.to_healpix()
-    pstokes_beam.efield_to_pstokes()
-
-    pstokes_beam_2 = efield_beam.copy()
-    pstokes_beam_2.interpolation_function = "az_za_simple"
-    pstokes_beam_2.to_healpix()
+    pstokes_beam_2 = cst_efield_2freq_cut_healpix
     # convert to pstokes after interpolating
     beam_return = pstokes_beam_2.efield_to_pstokes(inplace=False)
 
-    pstokes_beam = efield_beam.copy()
+    pstokes_beam = cst_efield_2freq_cut
 
     # interpolate after converting to pstokes
     pstokes_beam.interpolation_function = "az_za_simple"
@@ -353,47 +310,18 @@ def test_efield_to_pstokes():
     # This seems to be the fault of interpolation
     assert np.allclose(pstokes_beam.data_array, beam_return.data_array, atol=1e-2)
 
-    power_beam = UVBeam()
-    power_beam.read_cst_beam(
-        cst_files,
-        beam_type="power",
-        frequency=[150e6, 123e6],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
-    pytest.raises(ValueError, power_beam.efield_to_pstokes)
+
+def test_efield_to_pstokes_error(cst_power_2freq_cut):
+    power_beam = cst_power_2freq_cut
+
+    with pytest.raises(ValueError, match="beam_type must be efield."):
+        power_beam.efield_to_pstokes()
 
 
-def test_efield_to_power():
-    efield_beam = UVBeam()
-    efield_beam.read_cst_beam(
-        cst_files,
-        beam_type="efield",
-        frequency=[150e6, 123e6],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+def test_efield_to_power(cst_efield_2freq, cst_power_2freq):
+    efield_beam = cst_efield_2freq
 
-    power_beam = UVBeam()
-    power_beam.read_cst_beam(
-        cst_files,
-        beam_type="power",
-        frequency=[150e6, 123e6],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    power_beam = cst_power_2freq
 
     new_power_beam = efield_beam.efield_to_power(calc_cross_pols=False, inplace=False)
 
@@ -529,19 +457,9 @@ def test_efield_to_power():
     pytest.raises(ValueError, efield_beam.efield_to_power)
 
 
-def test_freq_interpolation():
-    power_beam = UVBeam()
-    power_beam.read_cst_beam(
-        cst_files,
-        beam_type="power",
-        frequency=[150e6, 123e6],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+def test_freq_interpolation(cst_power_2freq):
+    power_beam = cst_power_2freq
+
     power_beam.interpolation_function = "az_za_simple"
 
     # test frequency interpolation returns data arrays for small and large tolerances
@@ -643,20 +561,10 @@ def test_freq_interpolation():
     )
 
 
-def test_freq_interp_real_and_complex():
+def test_freq_interp_real_and_complex(cst_power_2freq):
     # test interpolation of real and complex data are the same
-    power_beam = UVBeam()
-    power_beam.read_cst_beam(
-        cst_files,
-        beam_type="power",
-        frequency=[150e6, 123e6],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    power_beam = cst_power_2freq
+
     power_beam.interpolation_function = "az_za_simple"
 
     # make a new object with more frequencies
@@ -679,19 +587,8 @@ def test_freq_interp_real_and_complex():
     assert np.all(np.isclose(np.abs(pb_int - pb_int2), 0))
 
 
-def test_power_spatial_interpolation():
-    power_beam = UVBeam()
-    power_beam.read_cst_beam(
-        cst_files,
-        beam_type="power",
-        frequency=[150e6, 123e6],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x", "y"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+def test_power_spatial_interpolation(cst_power_2freq_cut):
+    power_beam = cst_power_2freq_cut
 
     # check that interpolating to existing points gives the same answer
     za_orig_vals, az_orig_vals = np.meshgrid(
@@ -786,7 +683,7 @@ def test_power_spatial_interpolation():
         + np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
     )
     za_interp_vals = np.array(
-        (np.zeros((18)) + np.pi / 4).tolist() + (np.zeros((18)) + np.pi / 12).tolist()
+        (np.zeros((18)) + np.pi / 18).tolist() + (np.zeros((18)) + np.pi / 36).tolist()
     )
     freq_interp_vals = np.arange(125e6, 145e6, 5e6)
 
@@ -835,7 +732,6 @@ def test_power_spatial_interpolation():
     )
 
     # test errors if positions outside range
-    power_beam.select(axis2_inds=np.where(power_beam.axis2_array <= np.pi / 2.0)[0])
     pytest.raises(
         ValueError,
         power_beam.interp,
@@ -858,19 +754,8 @@ def test_power_spatial_interpolation():
     )
 
 
-def test_efield_spatial_interpolation():
-    efield_beam = UVBeam()
-    efield_beam.read_cst_beam(
-        cst_files,
-        beam_type="efield",
-        frequency=[150e6, 123e6],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+def test_efield_spatial_interpolation(cst_efield_2freq_cut):
+    efield_beam = cst_efield_2freq_cut
 
     za_orig_vals, az_orig_vals = np.meshgrid(
         efield_beam.axis2_array, efield_beam.axis1_array
@@ -936,7 +821,7 @@ def test_efield_spatial_interpolation():
         + np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
     )
     za_interp_vals = np.array(
-        (np.zeros((18)) + np.pi / 4).tolist() + (np.zeros((18)) + np.pi / 12).tolist()
+        (np.zeros((18)) + np.pi / 18).tolist() + (np.zeros((18)) + np.pi / 36).tolist()
     )
     freq_interp_vals = np.arange(125e6, 145e6, 10e6)
 
@@ -990,19 +875,8 @@ def test_efield_spatial_interpolation():
     del efield_beam.saved_interp_functions
 
 
-def test_interp_longitude_branch_cut():
-    beam = UVBeam()
-    beam.read_cst_beam(
-        cst_files,
-        beam_type="power",
-        frequency=[150e6, 123e6],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+def test_interp_longitude_branch_cut(cst_efield_2freq, cst_power_2freq):
+    beam = cst_power_2freq
 
     beam.interpolation_function = "az_za_simple"
     interp_data_array, interp_basis_vector = beam.interp(
@@ -1031,18 +905,7 @@ def test_interp_longitude_branch_cut():
     )
 
     # repeat with efield
-    beam = UVBeam()
-    beam.read_cst_beam(
-        cst_files,
-        beam_type="efield",
-        frequency=[150e6, 123e6],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    beam = cst_efield_2freq
 
     beam.interpolation_function = "az_za_simple"
     interp_data_array, interp_basis_vector = beam.interp(
@@ -1071,22 +934,11 @@ def test_interp_longitude_branch_cut():
     )
 
 
-def test_healpix_interpolation():
+def test_interp_healpix_nside(cst_efield_2freq_cut, cst_efield_2freq_cut_healpix):
     pytest.importorskip("astropy_healpix")
-    efield_beam = UVBeam()
-    efield_beam.read_cst_beam(
-        cst_files,
-        beam_type="efield",
-        frequency=[150e6, 123e6],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    efield_beam = cst_efield_2freq_cut
+
     efield_beam.interpolation_function = "az_za_simple"
-    orig_efield_beam = efield_beam.copy()
 
     # test calling interp with healpix parameters directly gives same result
     min_res = np.min(
@@ -1097,16 +949,42 @@ def test_healpix_interpolation():
     nside_min_res = np.sqrt(3 / np.pi) * np.radians(60.0) / min_res
     nside = int(2 ** np.ceil(np.log2(nside_min_res)))
 
-    new_efield_beam = efield_beam.interp(healpix_nside=nside, new_object=True)
-    efield_beam2 = efield_beam.to_healpix(inplace=False)
-    efield_beam.to_healpix(nside=nside)
-    assert efield_beam2 == efield_beam
-    assert new_efield_beam == efield_beam
+    new_efield_beam = cst_efield_2freq_cut_healpix
+    assert new_efield_beam.nside == nside
+
+    new_efield_beam.interpolation_function = "healpix_simple"
+
+    # check error with cut sky
+    with pytest.raises(
+        ValueError, match="simple healpix interpolation requires full sky healpix maps."
+    ):
+        new_efield_beam.interp(
+            az_array=efield_beam.axis1_array,
+            za_array=efield_beam.axis2_array,
+            az_za_grid=True,
+            new_object=True,
+        )
+
+
+def test_healpix_interpolation(cst_efield_2freq):
+    pytest.importorskip("astropy_healpix")
+    efield_beam = cst_efield_2freq
+
+    efield_beam.interpolation_function = "az_za_simple"
+
+    # select every fourth point to make it smaller
+    axis1_inds = np.arange(0, efield_beam.Naxes1, 4)
+    axis2_inds = np.arange(0, efield_beam.Naxes2, 4)
+    efield_beam.select(axis1_inds=axis1_inds, axis2_inds=axis2_inds)
+
+    orig_efield_beam = efield_beam.copy()
+
+    efield_beam.to_healpix()
 
     # check that interpolating to existing points gives the same answer
     efield_beam.interpolation_function = "healpix_simple"
     hp_obj = HEALPix(nside=efield_beam.nside)
-    hpx_lon, hpx_lat = hp_obj.healpix_to_lonlat(np.arange(hp_obj.npix))
+    hpx_lon, hpx_lat = hp_obj.healpix_to_lonlat(efield_beam.pixel_array)
     za_orig_vals = (Angle(np.pi / 2, units.radian) - hpx_lat).radian
     az_orig_vals = hpx_lon.radian
 
@@ -1120,24 +998,6 @@ def test_healpix_interpolation():
     data_array_compare = efield_beam.data_array
     interp_data_array = interp_data_array.reshape(data_array_compare.shape, order="F")
     assert np.allclose(data_array_compare, interp_data_array)
-
-    # test calling interp with healpix parameters directly gives same result
-    new_efield_beam = efield_beam.interp(
-        healpix_nside=efield_beam.nside, freq_array=freq_orig_vals, new_object=True
-    )
-    assert new_efield_beam.freq_interp_kind == "nearest"
-    assert new_efield_beam.history == (
-        efield_beam.history + " Interpolated in "
-        "frequency and to a new healpix grid "
-        "using pyuvdata with "
-        "interpolation_function = healpix_simple "
-        "and freq_interp_kind = nearest."
-    )
-    # make histories & freq_interp_kind equal
-    new_efield_beam.history = efield_beam.history
-    new_efield_beam.freq_interp_kind = "linear"
-    assert new_efield_beam == efield_beam
-    del new_efield_beam
 
     # test that interp to every other point returns an object that matches a select
     pixel_inds = np.arange(0, efield_beam.Npixels, 2)
@@ -1163,10 +1023,10 @@ def test_healpix_interpolation():
     # but we can check that the rest of the object makes sense
     diff = new_reg_beam.data_array - orig_efield_beam.data_array
     diff_ratio = diff / orig_efield_beam.data_array
-    assert np.all(np.abs(diff_ratio) < 3)
+    assert np.all(np.abs(diff_ratio) < 4)
     # set data_array tolerances higher to test the rest of the object
     # tols are (relative, absolute)
-    tols = [3, 0]
+    tols = [4, 0]
     new_reg_beam._data_array.tols = tols
     assert new_reg_beam.history != orig_efield_beam.history
     new_reg_beam.history = orig_efield_beam.history
@@ -1175,21 +1035,25 @@ def test_healpix_interpolation():
 
     # test errors with specifying healpix_inds without healpix_nside
     hp_obj = HEALPix(nside=efield_beam.nside)
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="healpix_nside must be set if healpix_inds is set"
+    ):
         efield_beam.interp(
             healpix_inds=np.arange(hp_obj.npix), freq_array=freq_orig_vals
         )
-    assert str(cm.value).startswith("healpix_nside must be set if healpix_inds is set")
 
     # test error setting both healpix_nside and az_array
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError,
+        match="healpix_nside and healpix_inds can not be set if az_array or "
+        "za_array is set.",
+    ):
         efield_beam.interp(
             healpix_nside=efield_beam.nside,
             az_array=az_orig_vals,
             za_array=za_orig_vals,
             freq_array=freq_orig_vals,
         )
-    assert str(cm.value).startswith("healpix_nside and healpix_inds can not be")
 
     # basis_vector exception
     efield_beam.basis_vector_array[0, 1, :] = 10.0
@@ -1255,40 +1119,31 @@ def test_healpix_interpolation():
     assert np.allclose(interp_data_array, interp_data_array2)
 
     # assert polarization value error
-    pytest.raises(
+    with pytest.raises(
         ValueError,
-        power_beam.interp,
-        az_array=az_orig_vals,
-        za_array=za_orig_vals,
-        polarizations=["pI"],
-    )
+        match="Requested polarization 1 not found in self.polarization_array",
+    ):
+        power_beam.interp(
+            az_array=az_orig_vals, za_array=za_orig_vals, polarizations=["pI"]
+        )
 
     # healpix coord exception
     power_beam.pixel_coordinate_system = "foo"
-    pytest.raises(
-        ValueError, power_beam.interp, az_array=az_orig_vals, za_array=za_orig_vals
-    )
+    with pytest.raises(ValueError, match='pixel_coordinate_system must be "healpix"'):
+        power_beam.interp(az_array=az_orig_vals, za_array=za_orig_vals)
 
 
-def test_to_healpix():
+def test_to_healpix(
+    cst_power_2freq_cut,
+    cst_power_2freq_cut_healpix,
+    cst_efield_2freq_cut,
+    cst_efield_2freq_cut_healpix,
+):
     pytest.importorskip("astropy_healpix")
-    power_beam = UVBeam()
-    power_beam.read_cst_beam(
-        cst_files[0],
-        beam_type="power",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    power_beam = cst_power_2freq_cut
+    power_beam_healpix = cst_power_2freq_cut_healpix
 
-    power_beam.select(axis2_inds=np.where(power_beam.axis2_array <= np.pi / 2.0)[0])
-
-    power_beam.interpolation_function = "az_za_simple"
-    power_beam_healpix = power_beam.to_healpix(inplace=False)
+    sky_area_reduction_factor = (1.0 - np.cos(np.deg2rad(10))) / 2.0
 
     # check that history is updated appropriately
     assert power_beam_healpix.history == (
@@ -1301,32 +1156,25 @@ def test_to_healpix():
     )
 
     hp_obj = HEALPix(nside=power_beam_healpix.nside)
-    assert power_beam_healpix.Npixels <= hp_obj.npix * 0.55
+    assert power_beam_healpix.Npixels <= hp_obj.npix * (sky_area_reduction_factor * 1.5)
+
+    # test that Npixels make sense
+    n_max_pix = power_beam.Naxes1 * power_beam.Naxes2
+    assert power_beam_healpix.Npixels <= n_max_pix
 
     # Test error if not az_za
     power_beam.pixel_coordinate_system = "sin_zenith"
     pytest.raises(ValueError, power_beam.to_healpix)
 
     # Now check Efield interpolation
-    efield_beam = UVBeam()
-    efield_beam.read_cst_beam(
-        cst_files[0],
-        beam_type="efield",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
-    efield_beam.interpolation_function = "az_za_simple"
-    interp_then_sq = efield_beam.to_healpix(inplace=False)
+    efield_beam = cst_efield_2freq_cut
+    interp_then_sq = cst_efield_2freq_cut_healpix
     interp_then_sq.efield_to_power(calc_cross_pols=False)
 
     # convert to power and then interpolate to compare.
     # Don't use power read from file because it has rounding errors that will
     # dominate this comparison
+    efield_beam.interpolation_function = "az_za_simple"
     sq_then_interp = efield_beam.efield_to_power(calc_cross_pols=False, inplace=False)
     sq_then_interp.to_healpix()
 
@@ -1334,9 +1182,9 @@ def test_to_healpix():
     # higher level than normally allowed in the equality.
     # We can live with it for now, may need to improve it later
     diff = np.abs(interp_then_sq.data_array - sq_then_interp.data_array)
-    assert np.max(diff) < 0.5
-    reldiff = diff / sq_then_interp.data_array
-    assert np.max(reldiff) < 0.05
+    assert np.max(diff) < 0.6
+    reldiff = diff * 2 / np.abs(interp_then_sq.data_array + sq_then_interp.data_array)
+    assert np.max(reldiff) < 0.005
 
     # set data_array tolerances higher to test the rest of the object
     # tols are (relative, absolute)
@@ -1367,19 +1215,8 @@ def test_to_healpix():
     assert sq_then_interp == interp_then_sq
 
 
-def test_select_axis():
-    power_beam = UVBeam()
-    power_beam.read_cst_beam(
-        cst_files[0],
-        beam_type="power",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+def test_select_axis(cst_power_1freq):
+    power_beam = cst_power_1freq
 
     # add optional parameters for testing purposes
     power_beam.extra_keywords = {"KEY1": "test_keyword"}
@@ -1398,6 +1235,7 @@ def test_select_axis():
     )
 
     old_history = power_beam.history
+
     # Test selecting on axis1
     inds1_to_keep = np.arange(14, 63)
 
@@ -1475,19 +1313,8 @@ def test_select_axis():
     pytest.raises(ValueError, power_beam2.write_beamfits, write_file_beamfits)
 
 
-def test_select_frequencies():
-    power_beam = UVBeam()
-    power_beam.read_cst_beam(
-        cst_files[0],
-        beam_type="power",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+def test_select_frequencies(cst_power_1freq):
+    power_beam = cst_power_1freq
 
     # generate more frequencies for testing by copying and adding several times
     while power_beam.Nfreqs < 8:
@@ -1580,19 +1407,8 @@ def test_select_frequencies():
         assert f in power_beam.freq_array[0, all_chans_to_keep]
 
 
-def test_select_feeds():
-    efield_beam = UVBeam()
-    efield_beam.read_cst_beam(
-        cst_files[0],
-        beam_type="efield",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+def test_select_feeds(cst_efield_1freq):
+    efield_beam = cst_efield_1freq
 
     # add optional parameters for testing purposes
     efield_beam.extra_keywords = {"KEY1": "test_keyword"}
@@ -1644,19 +1460,8 @@ def test_select_feeds():
     pytest.raises(ValueError, efield_beam.check)
 
 
-def test_select_polarizations():
-    power_beam = UVBeam()
-    power_beam.read_cst_beam(
-        cst_files[0],
-        beam_type="power",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol="xx",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+def test_select_polarizations(cst_power_1freq):
+    power_beam = cst_power_1freq
 
     # generate more polarizations for testing by copying and adding several times
     while power_beam.Npols < 4:
@@ -1713,19 +1518,8 @@ def test_select_polarizations():
     pytest.raises(ValueError, power_beam.select, feeds=["x"])
 
 
-def test_select():
-    power_beam = UVBeam()
-    power_beam.read_cst_beam(
-        cst_files[0],
-        beam_type="power",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+def test_select(cst_power_1freq, cst_efield_1freq):
+    power_beam = cst_power_1freq
 
     # generate more frequencies for testing by copying and adding
     new_beam = power_beam.copy()
@@ -1797,18 +1591,8 @@ def test_select():
     )
 
     # repeat for efield beam
-    efield_beam = UVBeam()
-    efield_beam.read_cst_beam(
-        cst_files[0],
-        beam_type="efield",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    efield_beam = cst_efield_1freq
+
     # generate more frequencies for testing by copying and adding
     new_beam = efield_beam.copy()
     new_beam.freq_array = efield_beam.freq_array + efield_beam.Nfreqs * 1e6
@@ -1873,19 +1657,8 @@ def test_select():
     )
 
 
-def test_add():
-    power_beam = UVBeam()
-    power_beam.read_cst_beam(
-        cst_files[0],
-        beam_type="power",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+def test_add(cst_power_1freq, cst_efield_1freq):
+    power_beam = cst_power_1freq
 
     # generate more frequencies for testing by copying and adding
     new_beam = power_beam.copy()
@@ -1994,18 +1767,8 @@ def test_add():
     assert beam1 == power_beam
 
     # Add feeds
-    efield_beam = UVBeam()
-    efield_beam.read_cst_beam(
-        cst_files[0],
-        beam_type="efield",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    efield_beam = cst_efield_1freq
+
     # generate more frequencies for testing by copying and adding
     new_beam = efield_beam.copy()
     new_beam.freq_array = efield_beam.freq_array + efield_beam.Nfreqs * 1e6
@@ -2209,273 +1972,249 @@ def test_add():
     pytest.raises(ValueError, beam1.__iadd__, beam2)
 
 
-def test_healpix():
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
+def test_select_healpix_pixels(
+    beam_type, cst_power_1freq_cut_healpix, cst_efield_1freq_cut_healpix
+):
     pytest.importorskip("astropy_healpix")
-    # put all the testing on healpix in this one function to minimize slow calls
-    # to uvbeam.to_healpix()
-    power_beam = UVBeam()
-    power_beam.read_cst_beam(
-        cst_files[0],
-        beam_type="power",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
-
-    # generate more frequencies for testing by copying and adding
-    new_beam = power_beam.copy()
-    new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
-    power_beam += new_beam
+    if beam_type == "power":
+        beam_healpix = cst_power_1freq_cut_healpix
+    else:
+        beam_healpix = cst_efield_1freq_cut_healpix
 
     # add optional parameters for testing purposes
-    power_beam.extra_keywords = {"KEY1": "test_keyword"}
-    power_beam.reference_impedance = 340.0
-    power_beam.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs)
+    beam_healpix.extra_keywords = {"KEY1": "test_keyword"}
+    beam_healpix.reference_impedance = 340.0
+    beam_healpix.receiver_temperature_array = np.random.normal(
+        50.0, 5, size=(beam_healpix.Nspws, beam_healpix.Nfreqs)
     )
-    power_beam.loss_array = np.random.normal(
-        50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs)
+    beam_healpix.loss_array = np.random.normal(
+        50.0, 5, size=(beam_healpix.Nspws, beam_healpix.Nfreqs)
     )
-    power_beam.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs)
+    beam_healpix.mismatch_array = np.random.normal(
+        0.0, 1.0, size=(beam_healpix.Nspws, beam_healpix.Nfreqs)
     )
-    power_beam.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, power_beam.Nspws, power_beam.Nfreqs)
+    beam_healpix.s_parameters = np.random.normal(
+        0.0, 0.3, size=(4, beam_healpix.Nspws, beam_healpix.Nfreqs)
     )
 
-    power_beam.interpolation_function = "az_za_simple"
-    power_beam_healpix = power_beam.to_healpix(inplace=False)
-
-    # test that Npixels make sense
-    n_max_pix = power_beam.Naxes1 * power_beam.Naxes2
-    assert power_beam_healpix.Npixels <= n_max_pix
-
-    # -----------------------
-    # test selecting on pixels
-    old_history = power_beam_healpix.history
+    old_history = beam_healpix.history
     pixels_to_keep = np.arange(31, 184)
 
-    power_beam_healpix2 = power_beam_healpix.select(
-        pixels=pixels_to_keep, inplace=False
-    )
+    beam_healpix2 = beam_healpix.select(pixels=pixels_to_keep, inplace=False)
 
-    assert len(pixels_to_keep) == power_beam_healpix2.Npixels
+    assert len(pixels_to_keep) == beam_healpix2.Npixels
     for pi in pixels_to_keep:
-        assert pi in power_beam_healpix2.pixel_array
-    for pi in np.unique(power_beam_healpix2.pixel_array):
+        assert pi in beam_healpix2.pixel_array
+    for pi in np.unique(beam_healpix2.pixel_array):
         assert pi in pixels_to_keep
 
     assert uvutils._check_histories(
         old_history + "  Downselected to " "specific healpix pixels using pyuvdata.",
-        power_beam_healpix2.history,
+        beam_healpix2.history,
     )
 
     write_file_beamfits = os.path.join(DATA_PATH, "test/select_beam.fits")
 
     # test writing beamfits with only one pixel
     pixels_to_keep = [43]
-    power_beam_healpix2 = power_beam_healpix.select(
-        pixels=pixels_to_keep, inplace=False
-    )
-    power_beam_healpix2.write_beamfits(write_file_beamfits, clobber=True)
+    beam_healpix2 = beam_healpix.select(pixels=pixels_to_keep, inplace=False)
+    beam_healpix2.write_beamfits(write_file_beamfits, clobber=True)
 
     # check for errors associated with pixels not included in data
     pytest.raises(
-        ValueError,
-        power_beam_healpix.select,
-        pixels=[12 * power_beam_healpix.nside ** 2 + 10],
+        ValueError, beam_healpix.select, pixels=[12 * beam_healpix.nside ** 2 + 10],
     )
 
     # test writing beamfits with non-contiguous pixels
     pixels_to_keep = np.arange(2, 150, 4)
 
-    power_beam_healpix2 = power_beam_healpix.select(
-        pixels=pixels_to_keep, inplace=False
-    )
-    power_beam_healpix2.write_beamfits(write_file_beamfits, clobber=True)
-
-    # check for errors selecting pixels on non-healpix beams
-    pytest.raises(ValueError, power_beam.select, pixels=pixels_to_keep)
+    beam_healpix2 = beam_healpix.select(pixels=pixels_to_keep, inplace=False)
+    beam_healpix2.write_beamfits(write_file_beamfits, clobber=True)
 
     # -----------------
     # check for errors selecting axis1_inds on healpix beams
     inds1_to_keep = np.arange(14, 63)
-    pytest.raises(ValueError, power_beam_healpix.select, axis1_inds=inds1_to_keep)
+    pytest.raises(ValueError, beam_healpix.select, axis1_inds=inds1_to_keep)
 
     # check for errors selecting axis2_inds on healpix beams
     inds2_to_keep = np.arange(5, 14)
-    pytest.raises(ValueError, power_beam_healpix.select, axis2_inds=inds2_to_keep)
+    pytest.raises(ValueError, beam_healpix.select, axis2_inds=inds2_to_keep)
 
     # ------------------------
     # test selecting along all axes at once for healpix beams
-    freqs_to_keep = [power_beam_healpix.freq_array[0, 0]]
-    pols_to_keep = [-5]
+    freqs_to_keep = [beam_healpix.freq_array[0, 0]]
 
-    power_beam_healpix2 = power_beam_healpix.select(
+    if beam_type == "efield":
+        feeds_to_keep = ["x"]
+        pols_to_keep = None
+    else:
+        pols_to_keep = [-5]
+        feeds_to_keep = None
+
+    beam_healpix2 = beam_healpix.select(
         pixels=pixels_to_keep,
         frequencies=freqs_to_keep,
         polarizations=pols_to_keep,
-        inplace=False,
-    )
-
-    assert len(pixels_to_keep) == power_beam_healpix2.Npixels
-    for pi in pixels_to_keep:
-        assert pi in power_beam_healpix2.pixel_array
-    for pi in np.unique(power_beam_healpix2.pixel_array):
-        assert pi in pixels_to_keep
-
-    assert len(freqs_to_keep) == power_beam_healpix2.Nfreqs
-    for f in freqs_to_keep:
-        assert f in power_beam_healpix2.freq_array
-    for f in np.unique(power_beam_healpix2.freq_array):
-        assert f in freqs_to_keep
-
-    assert len(pols_to_keep) == power_beam_healpix2.Npols
-    for p in pols_to_keep:
-        assert p in power_beam_healpix2.polarization_array
-    for p in np.unique(power_beam_healpix2.polarization_array):
-        assert p in pols_to_keep
-
-    assert uvutils._check_histories(
-        old_history + "  Downselected to "
-        "specific healpix pixels, frequencies, "
-        "polarizations using pyuvdata.",
-        power_beam_healpix2.history,
-    )
-
-    # repeat for efield beam
-    efield_beam = UVBeam()
-    efield_beam.read_cst_beam(
-        cst_files[0],
-        beam_type="efield",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
-    # generate more frequencies for testing by copying and adding
-    new_beam = efield_beam.copy()
-    new_beam.freq_array = efield_beam.freq_array + efield_beam.Nfreqs * 1e6
-    efield_beam += new_beam
-
-    efield_beam.interpolation_function = "az_za_simple"
-    efield_beam.to_healpix()
-    old_history = efield_beam.history
-
-    freqs_to_keep = np.array([efield_beam.freq_array[0, 0]])
-    feeds_to_keep = ["x"]
-
-    efield_beam2 = efield_beam.select(
-        pixels=pixels_to_keep,
-        frequencies=freqs_to_keep,
         feeds=feeds_to_keep,
         inplace=False,
     )
 
-    assert len(pixels_to_keep) == efield_beam2.Npixels
+    assert len(pixels_to_keep) == beam_healpix2.Npixels
     for pi in pixels_to_keep:
-        assert pi in efield_beam2.pixel_array
-    for pi in np.unique(efield_beam2.pixel_array):
+        assert pi in beam_healpix2.pixel_array
+    for pi in np.unique(beam_healpix2.pixel_array):
         assert pi in pixels_to_keep
 
-    assert freqs_to_keep.size == efield_beam2.Nfreqs
+    assert len(freqs_to_keep) == beam_healpix2.Nfreqs
     for f in freqs_to_keep:
-        assert f in efield_beam2.freq_array
-    for f in np.unique(efield_beam2.freq_array):
+        assert f in beam_healpix2.freq_array
+    for f in np.unique(beam_healpix2.freq_array):
         assert f in freqs_to_keep
 
-    assert len(feeds_to_keep) == efield_beam2.Nfeeds
-    for f in feeds_to_keep:
-        assert f in efield_beam2.feed_array
-    for f in np.unique(efield_beam2.feed_array):
-        assert f in feeds_to_keep
+    if beam_type == "efield":
+        assert len(feeds_to_keep) == beam_healpix2.Nfeeds
+        for f in feeds_to_keep:
+            assert f in beam_healpix2.feed_array
+        for f in np.unique(beam_healpix2.feed_array):
+            assert f in feeds_to_keep
+    else:
+        assert len(pols_to_keep) == beam_healpix2.Npols
+        for p in pols_to_keep:
+            assert p in beam_healpix2.polarization_array
+        for p in np.unique(beam_healpix2.polarization_array):
+            assert p in pols_to_keep
+
+    if beam_type == "efield":
+        history_add = "feeds"
+    else:
+        history_add = "polarizations"
 
     assert uvutils._check_histories(
         old_history + "  Downselected to "
         "specific healpix pixels, frequencies, "
-        "feeds using pyuvdata.",
-        efield_beam2.history,
+        f"{history_add} using pyuvdata.",
+        beam_healpix2.history,
     )
 
-    # -------------------
+
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
+def test_select_healpix_pixels_error(
+    beam_type, cst_power_2freq_cut, cst_efield_2freq_cut
+):
+    if beam_type == "power":
+        beam = cst_power_2freq_cut
+    else:
+        beam = cst_efield_2freq_cut
+    # check for errors selecting pixels on non-healpix beams
+    with pytest.raises(
+        ValueError, match="pixels can only be used with healpix coordinate system"
+    ):
+        beam.select(pixels=np.arange(31, 184))
+
+
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
+def test_add_healpix(
+    beam_type, cst_power_2freq_cut_healpix, cst_efield_2freq_cut_healpix
+):
+    pytest.importorskip("astropy_healpix")
+    if beam_type == "power":
+        beam_healpix = cst_power_2freq_cut_healpix
+    else:
+        beam_healpix = cst_efield_2freq_cut_healpix
+
+    # add optional parameters for testing purposes
+    beam_healpix.extra_keywords = {"KEY1": "test_keyword"}
+    beam_healpix.reference_impedance = 340.0
+    beam_healpix.receiver_temperature_array = np.random.normal(
+        50.0, 5, size=(beam_healpix.Nspws, beam_healpix.Nfreqs)
+    )
+    beam_healpix.loss_array = np.random.normal(
+        50.0, 5, size=(beam_healpix.Nspws, beam_healpix.Nfreqs)
+    )
+    beam_healpix.mismatch_array = np.random.normal(
+        0.0, 1.0, size=(beam_healpix.Nspws, beam_healpix.Nfreqs)
+    )
+    beam_healpix.s_parameters = np.random.normal(
+        0.0, 0.3, size=(4, beam_healpix.Nspws, beam_healpix.Nfreqs)
+    )
+
     # Test adding a different combo with healpix
-    beam_ref = power_beam_healpix.copy()
-    beam1 = power_beam_healpix.select(
-        pixels=power_beam_healpix.pixel_array[0 : power_beam_healpix.Npixels // 2],
+    beam_ref = beam_healpix.copy()
+    beam1 = beam_healpix.select(
+        pixels=beam_healpix.pixel_array[0 : beam_healpix.Npixels // 2],
         freq_chans=0,
         inplace=False,
     )
-    beam2 = power_beam_healpix.select(
-        pixels=power_beam_healpix.pixel_array[power_beam_healpix.Npixels // 2 :],
+    beam2 = beam_healpix.select(
+        pixels=beam_healpix.pixel_array[beam_healpix.Npixels // 2 :],
         freq_chans=1,
         inplace=False,
     )
     beam1 += beam2
     assert uvutils._check_histories(
-        power_beam_healpix.history + "  Downselected to specific healpix "
+        beam_healpix.history + "  Downselected to specific healpix "
         "pixels, frequencies using pyuvdata. "
         "Combined data along healpix pixel, "
         "frequency axis using pyuvdata.",
         beam1.history,
     )
     # Zero out missing data in reference object
-    beam_ref.data_array[:, :, :, 0, power_beam_healpix.Npixels // 2 :] = 0.0
-    beam_ref.data_array[:, :, :, 1, : power_beam_healpix.Npixels // 2] = 0.0
-    beam1.history = power_beam_healpix.history
+    beam_ref.data_array[:, :, :, 0, beam_healpix.Npixels // 2 :] = 0.0
+    beam_ref.data_array[:, :, :, 1, : beam_healpix.Npixels // 2] = 0.0
+    beam1.history = beam_healpix.history
     assert beam1 == beam_ref
 
-    # Test adding another combo with efield
-    beam_ref = efield_beam.copy()
-    beam1 = efield_beam.select(
-        freq_chans=0, feeds=efield_beam.feed_array[0], inplace=False
-    )
-    beam2 = efield_beam.select(
-        freq_chans=1, feeds=efield_beam.feed_array[1], inplace=False
-    )
-    beam1 += beam2
-    assert uvutils._check_histories(
-        efield_beam.history + "  Downselected to specific frequencies, "
-        "feeds using pyuvdata. Combined data "
-        "along frequency, feed axis using pyuvdata.",
-        beam1.history,
-    )
-    # Zero out missing data in reference object
-    beam_ref.data_array[:, :, 1, 0, :] = 0.0
-    beam_ref.data_array[:, :, 0, 1, :] = 0.0
-    beam1.history = efield_beam.history
-    assert beam1 == beam_ref
+    if beam_type == "efield":
+        # Test adding another combo with efield
+        beam_ref = beam_healpix.copy()
+        beam1 = beam_healpix.select(
+            freq_chans=0, feeds=beam_healpix.feed_array[0], inplace=False
+        )
+        beam2 = beam_healpix.select(
+            freq_chans=1, feeds=beam_healpix.feed_array[1], inplace=False
+        )
+        beam1 += beam2
+        assert uvutils._check_histories(
+            beam_healpix.history + "  Downselected to specific frequencies, "
+            "feeds using pyuvdata. Combined data "
+            "along frequency, feed axis using pyuvdata.",
+            beam1.history,
+        )
+        # Zero out missing data in reference object
+        beam_ref.data_array[:, :, 1, 0, :] = 0.0
+        beam_ref.data_array[:, :, 0, 1, :] = 0.0
+        beam1.history = beam_healpix.history
+        assert beam1 == beam_ref
 
     # Add without inplace
-    beam1 = efield_beam.select(
-        pixels=efield_beam.pixel_array[0 : efield_beam.Npixels // 2], inplace=False
+    beam1 = beam_healpix.select(
+        pixels=beam_healpix.pixel_array[0 : beam_healpix.Npixels // 2], inplace=False
     )
-    beam2 = efield_beam.select(
-        pixels=efield_beam.pixel_array[efield_beam.Npixels // 2 :], inplace=False
+    beam2 = beam_healpix.select(
+        pixels=beam_healpix.pixel_array[beam_healpix.Npixels // 2 :], inplace=False
     )
     beam1 = beam1 + beam2
     assert uvutils._check_histories(
-        efield_beam.history + "  Downselected to specific healpix pixels "
+        beam_healpix.history + "  Downselected to specific healpix pixels "
         "using pyuvdata. Combined data "
         "along healpix pixel axis using pyuvdata.",
         beam1.history,
     )
-    beam1.history = efield_beam.history
-    assert beam1 == efield_beam
+    beam1.history = beam_healpix.history
+    assert beam1 == beam_healpix
 
     # ---------------
     # Test error: adding overlapping data with healpix
-    beam1 = power_beam_healpix.copy()
-    beam2 = power_beam_healpix.copy()
+    beam1 = beam_healpix.copy()
+    beam2 = beam_healpix.copy()
     pytest.raises(ValueError, beam1.__iadd__, beam2)
 
-    # ---------------
+
+def test_beam_area_healpix(cst_power_1freq_cut_healpix, cst_efield_1freq_cut_healpix):
+    pytest.importorskip("astropy_healpix")
+    power_beam_healpix = cst_power_1freq_cut_healpix
+
     # Test beam area methods
     # Check that non-peak normalizations error
     pytest.raises(ValueError, power_beam_healpix.get_beam_area)
@@ -2535,6 +2274,7 @@ def test_healpix():
     pytest.raises(ValueError, healpix_norm.get_beam_area, pol="xx")
     pytest.raises(ValueError, healpix_norm.get_beam_sq_area, pol="xx")
 
+    efield_beam = cst_efield_1freq_cut_healpix
     healpix_norm_fullpol = efield_beam.efield_to_power(inplace=False)
     healpix_norm_fullpol.peak_normalize()
     xx_area = healpix_norm_fullpol.get_beam_sq_area("XX")
@@ -2562,20 +2302,8 @@ def test_healpix():
     pytest.raises(ValueError, efield_beam.get_beam_sq_area)
 
     # check pseudo-Stokes parameters
-    efield_beam = UVBeam()
-    efield_beam.read_cst_beam(
-        cst_files[0],
-        beam_type="efield",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    efield_beam = cst_efield_1freq_cut_healpix
 
-    efield_beam.interpolation_function = "az_za_simple"
-    efield_beam.to_healpix()
     efield_beam.efield_to_pstokes()
     efield_beam.peak_normalize()
     pI_area = efield_beam.get_beam_sq_area("pI")
@@ -2599,18 +2327,8 @@ def test_healpix():
     pytest.raises(ValueError, efield_beam.get_beam_sq_area, "xx")
 
 
-def test_get_beam_functions():
-    power_beam = UVBeam()
-    power_beam.read_cst_beam(
-        cst_files[0],
-        beam_type="power",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+def test_get_beam_functions(cst_power_1freq_cut, cst_power_1freq_cut_healpix):
+    power_beam = cst_power_1freq_cut.copy()
 
     pytest.raises(AssertionError, power_beam._get_beam, "xx")
 
@@ -2621,19 +2339,7 @@ def test_get_beam_functions():
     pytest.raises(ValueError, power_beam.get_beam_sq_area)
 
     if healpix_installed:
-        power_beam = UVBeam()
-        power_beam.read_cst_beam(
-            cst_files[0],
-            beam_type="power",
-            frequency=150e6,
-            telescope_name="TEST",
-            feed_name="bob",
-            feed_version="0.1",
-            model_name="E-field pattern - Rigging height 4.9m",
-            model_version="1.0",
-        )
-        power_beam.interpolation_function = "az_za_simple"
-        power_beam.to_healpix()
-        power_beam.peak_normalize()
-        power_beam._get_beam("xx")
-        pytest.raises(ValueError, power_beam._get_beam, 4)
+        healpix_power_beam = cst_power_1freq_cut_healpix
+        healpix_power_beam.peak_normalize()
+        healpix_power_beam._get_beam("xx")
+        pytest.raises(ValueError, healpix_power_beam._get_beam, 4)

@@ -6,9 +6,9 @@
 
 """
 from __future__ import absolute_import, division, print_function
+import os
 
 import pytest
-import os
 import numpy as np
 from astropy.io import fits
 
@@ -22,20 +22,9 @@ cst_folder = "NicCSTbeams"
 cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
 
 
-def test_read_cst_write_read_fits():
-    beam_in = UVBeam()
+def test_read_cst_write_read_fits(cst_efield_1freq):
+    beam_in = cst_efield_1freq.copy()
     beam_out = UVBeam()
-    beam_in.read_cst_beam(
-        cst_files[0],
-        beam_type="efield",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
 
     # add optional parameters for testing purposes
     beam_in.extra_keywords = {"KEY1": "test_keyword"}
@@ -63,19 +52,8 @@ def test_read_cst_write_read_fits():
 
     # redo for power beam
     del beam_in
-    beam_in = UVBeam()
+    beam_in = cst_efield_1freq
     # read in efield and convert to power to test cross-pols
-    beam_in.read_cst_beam(
-        cst_files[0],
-        beam_type="efield",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
     beam_in.efield_to_power()
 
     # add optional parameters for testing purposes
@@ -148,24 +126,10 @@ def test_read_cst_write_read_fits():
     assert beam_in == beam_out
 
 
-def test_writeread_healpix():
+def test_writeread_healpix(cst_efield_1freq_cut_healpix):
     pytest.importorskip("astropy_healpix")
-    beam_in = UVBeam()
+    beam_in = cst_efield_1freq_cut_healpix.copy()
     beam_out = UVBeam()
-    # fill UVBeam object with dummy data for now for testing purposes
-    beam_in.read_cst_beam(
-        cst_files[0],
-        beam_type="efield",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
-    beam_in.interpolation_function = "az_za_simple"
-    beam_in.to_healpix()
 
     write_file = os.path.join(DATA_PATH, "test/outtest_beam_hpx.fits")
 
@@ -176,19 +140,7 @@ def test_writeread_healpix():
 
     # redo for power beam
     del beam_in
-    beam_in = UVBeam()
-    # read in efield and convert to power to test cross-pols
-    beam_in.read_cst_beam(
-        cst_files[0],
-        beam_type="efield",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    beam_in = cst_efield_1freq_cut_healpix
     beam_in.efield_to_power()
 
     # add optional parameters for testing purposes
@@ -207,11 +159,6 @@ def test_writeread_healpix():
     )
 
     # check that data_array is complex
-    assert np.iscomplexobj(np.real_if_close(beam_in.data_array, tol=10))
-
-    beam_in.interpolation_function = "az_za_simple"
-    beam_in.to_healpix()
-    # check that data_array is complex after interpolation
     assert np.iscomplexobj(np.real_if_close(beam_in.data_array, tol=10))
 
     beam_in.write_beamfits(write_file, clobber=True)
@@ -237,20 +184,9 @@ def test_writeread_healpix():
     assert beam_in == beam_out
 
 
-def test_errors():
-    beam_in = UVBeam()
+def test_errors(cst_efield_1freq):
+    beam_in = cst_efield_1freq
     beam_out = UVBeam()
-    beam_in.read_cst_beam(
-        cst_files[0],
-        beam_type="efield",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
     beam_in.beam_type = "foo"
 
     write_file = os.path.join(DATA_PATH, "test/outtest_beam.fits")
@@ -360,27 +296,13 @@ def test_errors():
         pytest.raises(ValueError, beam_out.read_beamfits, write_file)
 
 
-def test_healpix_errors():
+def test_healpix_errors(cst_efield_1freq_cut_healpix):
     pytest.importorskip("astropy_healpix")
-    beam_in = UVBeam()
+    beam_in = cst_efield_1freq_cut_healpix.copy()
     beam_out = UVBeam()
     write_file = os.path.join(DATA_PATH, "test/outtest_beam_hpx.fits")
 
     # now change values for various items in primary hdu to test errors
-    beam_in.read_cst_beam(
-        cst_files[0],
-        beam_type="efield",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
-    beam_in.interpolation_function = "az_za_simple"
-    beam_in.to_healpix()
-
     header_vals_to_change = [{"CTYPE1": "foo"}, {"NAXIS1": ""}]
 
     for i, hdr_dict in enumerate(header_vals_to_change):
@@ -418,19 +340,7 @@ def test_healpix_errors():
         pytest.raises(ValueError, beam_out.read_beamfits, write_file)
 
     # now change values for various items in basisvec hdu to not match primary hdu
-    beam_in.read_cst_beam(
-        cst_files[0],
-        beam_type="efield",
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
-    beam_in.interpolation_function = "az_za_simple"
-    beam_in.to_healpix()
+    beam_in = cst_efield_1freq_cut_healpix
 
     header_vals_to_change = [{"CTYPE1": "foo"}, {"NAXIS1": ""}]
 
@@ -613,22 +523,11 @@ def test_extra_keywords():
     assert beam_in == beam_out
 
 
-def test_multi_files():
+def test_multi_files(cst_efield_2freq):
     """
     Reading multiple files at once.
     """
-    beam_full = UVBeam()
-    beam_full.read_cst_beam(
-        cst_files,
-        beam_type="efield",
-        frequency=[150e6, 123e6],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        feed_pol=["x"],
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    beam_full = cst_efield_2freq
 
     # add optional parameters for testing purposes
     beam_full.extra_keywords = {"KEY1": "test_keyword"}

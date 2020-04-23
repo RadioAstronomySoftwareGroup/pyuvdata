@@ -1,11 +1,9 @@
 # -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
-
-from __future__ import absolute_import, division, print_function
+import os
 
 import pytest
-import os
 import numpy as np
 
 from pyuvdata.data import DATA_PATH
@@ -17,9 +15,22 @@ import pyuvdata.utils as uvutils
 filename = os.path.join(DATA_PATH, "mwa_full_EE_test.h5")
 
 
-def test_read_write_mwa():
+@pytest.fixture(scope="module")
+def mwa_beam_1ppd_master():
+    beam = UVBeam()
+    beam.read_mwa_beam(filename, pixels_per_deg=1)
+
+    return beam
+
+
+@pytest.fixture(scope="function")
+def mwa_beam_1ppd(mwa_beam_1ppd_master):
+    return mwa_beam_1ppd_master.copy()
+
+
+def test_read_write_mwa(mwa_beam_1ppd):
     """Basic read/write test."""
-    beam1 = UVBeam()
+    beam1 = mwa_beam_1ppd
     beam2 = UVBeam()
 
     beam1.read_mwa_beam(filename, pixels_per_deg=1)
@@ -45,11 +56,10 @@ def test_read_write_mwa():
     assert beam1 == beam2
 
 
-def test_freq_range():
-    beam1 = UVBeam()
+def test_freq_range(mwa_beam_1ppd):
+    beam1 = mwa_beam_1ppd
     beam2 = UVBeam()
 
-    beam1.read_mwa_beam(filename, pixels_per_deg=1)
     # include all
     beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6, 200e6])
     assert beam1 == beam2
@@ -60,20 +70,14 @@ def test_freq_range():
     beam1.history = beam2.history
     assert beam1 == beam2
 
-    uvtest.checkWarnings(
-        beam1.read_mwa_beam,
-        func_args=[filename],
-        func_kwargs={"pixels_per_deg": 1, "freq_range": [100e6, 130e6]},
-        message=("Only one available frequency in freq_range"),
-    )
+    with pytest.warns(UserWarning, match="Only one available frequency in freq_range"):
+        beam1.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6, 130e6])
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="No frequencies available in freq_range"):
         beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6, 110e6])
-    assert str(cm.value).startswith("No frequencies available in freq_range")
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="freq_range must have 2 elements."):
         beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6])
-    assert str(cm.value).startswith("freq_range must have 2 elements.")
 
 
 def test_p1sin_array():

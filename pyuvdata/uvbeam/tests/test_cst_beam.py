@@ -74,7 +74,7 @@ def test_frequencyparse_decimal_non_mhz():
     assert parsed_freqs == [120.87e3, 120.87e9, 120.87]
 
 
-def test_read_yaml():
+def test_read_yaml(cst_efield_2freq):
     pytest.importorskip("yaml")
     beam1 = UVBeam()
     beam2 = UVBeam()
@@ -86,25 +86,7 @@ def test_read_yaml():
         "port_num": 1,
     }
 
-    uvtest.checkWarnings(
-        beam1.read_cst_beam,
-        [cst_files],
-        {
-            "beam_type": "efield",
-            "telescope_name": "HERA",
-            "feed_name": "Dipole",
-            "feed_version": "1.0",
-            "model_name": "Dipole - Rigging height 4.9 m",
-            "model_version": "1.0",
-            "x_orientation": "east",
-            "reference_impedance": 100,
-            "history": "Derived from https://github.com/Nicolas-Fagnoni/Simulations."
-            "\nOnly 2 files included to keep test data volume low.",
-            "extra_keywords": extra_keywords,
-        },
-        nwarnings=2,
-        message="No frequency provided. Detected frequency is",
-    )
+    beam1 = cst_efield_2freq
 
     beam2.read_cst_beam(cst_yaml_file, beam_type="efield")
     assert beam1 == beam2
@@ -113,7 +95,7 @@ def test_read_yaml():
     assert beam2.extra_keywords == extra_keywords
 
 
-def test_read_yaml_override():
+def test_read_yaml_override(cst_efield_2freq):
     pytest.importorskip("yaml")
     beam1 = UVBeam()
     beam2 = UVBeam()
@@ -125,86 +107,43 @@ def test_read_yaml_override():
         "port_num": 1,
     }
 
-    uvtest.checkWarnings(
-        beam1.read_cst_beam,
-        [cst_files],
-        {
-            "beam_type": "efield",
-            "telescope_name": "test",
-            "feed_name": "Dipole",
-            "feed_version": "1.0",
-            "model_name": "Dipole - Rigging height 4.9 m",
-            "model_version": "1.0",
-            "x_orientation": "east",
-            "reference_impedance": 100,
-            "history": "Derived from https://github.com/Nicolas-Fagnoni/Simulations."
-            "\nOnly 2 files included to keep test data volume low.",
-            "extra_keywords": extra_keywords,
-        },
-        nwarnings=2,
-        message="No frequency provided. Detected frequency is",
-    )
+    beam1 = cst_efield_2freq
+    beam1.telescope_name = "test"
 
-    uvtest.checkWarnings(
-        beam2.read_cst_beam,
-        [cst_yaml_file],
-        {"beam_type": "efield", "telescope_name": "test"},
-        message="The telescope_name keyword is set, overriding "
-        "the value in the settings yaml file.",
-    )
+    with pytest.warns(
+        UserWarning,
+        match=(
+            "The telescope_name keyword is set, overriding "
+            "the value in the settings yaml file."
+        ),
+    ):
+        beam2.read_cst_beam(cst_yaml_file, beam_type="efield", telescope_name="test"),
+
     assert beam1 == beam2
 
     assert beam2.reference_impedance == 100
     assert beam2.extra_keywords == extra_keywords
 
 
-def test_read_yaml_freq_select():
+def test_read_yaml_freq_select(cst_efield_1freq):
     pytest.importorskip("yaml")
     # test frequency_select
     beam1 = UVBeam()
     beam2 = UVBeam()
 
-    extra_keywords = {
-        "software": "CST 2016",
-        "sim_type": "E-farfield",
-        "layout": "1 antenna",
-        "port_num": 1,
-    }
-    uvtest.checkWarnings(
-        beam1.read_cst_beam,
-        [cst_files[0]],
-        {
-            "beam_type": "efield",
-            "telescope_name": "HERA",
-            "feed_name": "Dipole",
-            "feed_version": "1.0",
-            "model_name": "Dipole - Rigging height 4.9 m",
-            "model_version": "1.0",
-            "x_orientation": "east",
-            "reference_impedance": 100,
-            "history": "Derived from https://github.com/Nicolas-Fagnoni/Simulations."
-            "\nOnly 2 files included to keep test data volume low.",
-            "extra_keywords": extra_keywords,
-        },
-        nwarnings=1,
-        message="No frequency provided. Detected frequency is",
-    )
+    beam1 = cst_efield_1freq
 
     beam2.read_cst_beam(cst_yaml_file, beam_type="efield", frequency_select=[150e6])
 
     assert beam1 == beam2
 
     # test error with using frequency_select where no such frequency
-    pytest.raises(
-        ValueError,
-        beam2.read_cst_beam,
-        cst_yaml_file,
-        beam_type="power",
-        frequency_select=[180e6],
-    )
+    freq = 180e6
+    with pytest.raises(ValueError, match=f"frequency {freq} not in frequency list"):
+        beam2.read_cst_beam(cst_yaml_file, beam_type="power", frequency_select=[freq])
 
 
-def test_read_yaml_feed_pol_list():
+def test_read_yaml_feed_pol_list(cst_efield_2freq, cst_efield_1freq):
     pytest.importorskip("yaml")
     # make yaml with a list of (the same) feed_pols
     import yaml
@@ -228,25 +167,7 @@ def test_read_yaml_feed_pol_list():
         "port_num": 1,
     }
 
-    uvtest.checkWarnings(
-        beam1.read_cst_beam,
-        [cst_files],
-        {
-            "beam_type": "efield",
-            "telescope_name": "HERA",
-            "feed_name": "Dipole",
-            "feed_version": "1.0",
-            "model_name": "Dipole - Rigging height 4.9 m",
-            "model_version": "1.0",
-            "x_orientation": "east",
-            "reference_impedance": 100,
-            "history": "Derived from https://github.com/Nicolas-Fagnoni/Simulations."
-            "\nOnly 2 files included to keep test data volume low.",
-            "extra_keywords": extra_keywords,
-        },
-        nwarnings=2,
-        message="No frequency provided. Detected frequency is",
-    )
+    beam1 = cst_efield_2freq
 
     beam2.read_cst_beam(test_yaml_file, beam_type="efield")
     assert beam1 == beam2
@@ -255,25 +176,7 @@ def test_read_yaml_feed_pol_list():
     assert beam2.extra_keywords == extra_keywords
 
     # also test with frequency_select
-    uvtest.checkWarnings(
-        beam1.read_cst_beam,
-        [cst_files[0]],
-        {
-            "beam_type": "efield",
-            "telescope_name": "HERA",
-            "feed_name": "Dipole",
-            "feed_version": "1.0",
-            "model_name": "Dipole - Rigging height 4.9 m",
-            "model_version": "1.0",
-            "x_orientation": "east",
-            "reference_impedance": 100,
-            "history": "Derived from https://github.com/Nicolas-Fagnoni/Simulations."
-            "\nOnly 2 files included to keep test data volume low.",
-            "extra_keywords": extra_keywords,
-        },
-        nwarnings=1,
-        message="No frequency provided. Detected frequency is",
-    )
+    beam1 = cst_efield_1freq
 
     beam2.read_cst_beam(test_yaml_file, beam_type="efield", frequency_select=[150e6])
     assert beam1 == beam2
@@ -309,44 +212,29 @@ def test_read_yaml_multi_pol():
         "port_num": 1,
     }
 
-    beam1.read_cst_beam(
-        [cst_files[0], cst_files[0]],
-        beam_type="efield",
-        frequency=[150e6],
-        feed_pol=["x", "y"],
-        telescope_name="HERA",
-        feed_name="Dipole",
-        feed_version="1.0",
-        model_name="Dipole - Rigging height 4.9 m",
-        model_version="1.0",
-        x_orientation="east",
-        reference_impedance=100,
-        history="Derived from https://github.com/Nicolas-Fagnoni/Simulations."
-        "\nOnly 2 files included to keep test data volume low.",
-        extra_keywords=extra_keywords,
-    )
+    with pytest.warns(
+        UserWarning, match="No frequency provided. Detected frequency is"
+    ):
+        beam1.read_cst_beam(
+            [cst_files[0], cst_files[0]],
+            beam_type="efield",
+            feed_pol=["x", "y"],
+            telescope_name="HERA",
+            feed_name="Dipole",
+            feed_version="1.0",
+            model_name="Dipole - Rigging height 4.9 m",
+            model_version="1.0",
+            x_orientation="east",
+            reference_impedance=100,
+            history="Derived from https://github.com/Nicolas-Fagnoni/Simulations."
+            "\nOnly 2 files included to keep test data volume low.",
+            extra_keywords=extra_keywords,
+        )
 
     beam2.read_cst_beam(test_yaml_file, beam_type="efield")
     assert beam1 == beam2
 
     # also test with frequency_select
-    beam1.read_cst_beam(
-        [cst_files[0], cst_files[0]],
-        beam_type="efield",
-        frequency=[150e6],
-        feed_pol=["x", "y"],
-        telescope_name="HERA",
-        feed_name="Dipole",
-        feed_version="1.0",
-        model_name="Dipole - Rigging height 4.9 m",
-        model_version="1.0",
-        x_orientation="east",
-        reference_impedance=100,
-        history="Derived from https://github.com/Nicolas-Fagnoni/Simulations."
-        "\nOnly 2 files included to keep test data volume low.",
-        extra_keywords=extra_keywords,
-    )
-
     beam2.read_cst_beam(test_yaml_file, beam_type="efield", frequency_select=[150e6])
     assert beam2.feed_array.tolist() == ["x", "y"]
     assert beam1 == beam2
@@ -369,29 +257,22 @@ def test_read_yaml_errors():
         yaml.dump(settings_dict, outfile, default_flow_style=False)
 
     beam1 = UVBeam()
-    pytest.raises(ValueError, beam1.read_cst_beam, test_yaml_file, beam_type="power")
+    with pytest.raises(
+        ValueError,
+        match=(
+            "telescope_name is a required key in CST settings files but is "
+            "not present."
+        ),
+    ):
+        beam1.read_cst_beam(test_yaml_file, beam_type="power")
 
     os.remove(test_yaml_file)
 
 
-def test_read_power():
-    beam1 = UVBeam()
+def test_read_power(cst_power_2freq):
     beam2 = UVBeam()
 
-    uvtest.checkWarnings(
-        beam1.read_cst_beam,
-        [cst_files],
-        {
-            "beam_type": "power",
-            "telescope_name": "TEST",
-            "feed_name": "bob",
-            "feed_version": "0.1",
-            "model_name": "E-field pattern - Rigging height 4.9m",
-            "model_version": "1.0",
-        },
-        nwarnings=2,
-        message="No frequency provided. Detected frequency is",
-    )
+    beam1 = cst_power_2freq
 
     assert beam1.pixel_coordinate_system == "az_za"
     assert beam1.beam_type == "power"
@@ -424,24 +305,11 @@ def test_read_power():
     )
 
 
-def test_read_power_single_freq():
+def test_read_power_single_freq(cst_power_1freq):
     # test single frequency
-    beam1 = UVBeam()
     beam2 = UVBeam()
 
-    uvtest.checkWarnings(
-        beam1.read_cst_beam,
-        [[cst_files[0]]],
-        {
-            "beam_type": "power",
-            "telescope_name": "TEST",
-            "feed_name": "bob",
-            "feed_version": "0.1",
-            "model_name": "E-field pattern - Rigging height 4.9m",
-            "model_version": "1.0",
-        },
-        message="No frequency provided. Detected frequency is",
-    )
+    beam1 = cst_power_1freq
 
     assert beam1.freq_array == [150e6]
     assert beam1.pixel_coordinate_system == "az_za"
@@ -651,24 +519,9 @@ def test_read_errors():
     )
 
 
-def test_read_efield():
-    beam1 = UVBeam()
+def test_read_efield(cst_efield_2freq):
+    beam1 = cst_efield_2freq
     beam2 = UVBeam()
-
-    uvtest.checkWarnings(
-        beam1.read_cst_beam,
-        [cst_files],
-        {
-            "beam_type": "efield",
-            "telescope_name": "TEST",
-            "feed_name": "bob",
-            "feed_version": "0.1",
-            "model_name": "E-field pattern - Rigging height 4.9m",
-            "model_version": "1.0",
-        },
-        nwarnings=2,
-        message="No frequency provided. Detected frequency is",
-    )
 
     assert beam1.pixel_coordinate_system == "az_za"
     assert beam1.beam_type == "efield"
