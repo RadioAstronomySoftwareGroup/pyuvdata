@@ -1447,6 +1447,12 @@ class UVBeam(UVBase):
         if self.pixel_coordinate_system != "healpix":
             raise ValueError('pixel_coordinate_system must be "healpix"')
 
+        if not self.Npixels == 12 * self.nside ** 2:
+            raise ValueError(
+                "simple healpix interpolation requires full sky healpix maps."
+            )
+        assert np.max(np.abs(np.diff(self.pixel_array))) == 1
+
         if freq_array is not None:
             assert isinstance(freq_array, np.ndarray)
             input_data_array, interp_bandpass = self._interp_freq(
@@ -1484,8 +1490,8 @@ class UVBeam(UVBase):
                 for pol in pols:
                     if pol not in self.polarization_array:
                         raise ValueError(
-                            "Requested polarization {} not found "
-                            "in self.polarization_array".format(pol)
+                            f"Requested polarization {pol} not found "
+                            "in self.polarization_array"
                         )
                     pol_inds.append(np.where(self.polarization_array == pol)[0][0])
                 pol_inds = np.asarray(pol_inds)
@@ -1534,8 +1540,6 @@ class UVBeam(UVBase):
                 for index0 in range(self.Naxes_vec):
                     for index2 in range(Npol_feeds):
                         if np.iscomplexobj(input_data_array):
-                            assert self.Npixels == 12 * self.nside ** 2
-                            assert np.max(np.abs(np.diff(self.pixel_array))) == 1
                             # interpolate real and imaginary parts separately
                             real_hmap = hp_obj.interpolate_bilinear_lonlat(
                                 lon_array,
@@ -3150,9 +3154,7 @@ class UVBeam(UVBase):
                         for ind in close_inds:
                             freq_inds.append(ind)
                     else:
-                        raise ValueError(
-                            "frequency {f} not in frequency list".format(f=freq)
-                        )
+                        raise ValueError(f"frequency {freq} not in frequency list")
                 freq_inds = np.array(freq_inds)
                 frequency = freq_array[freq_inds].tolist()
                 cst_filename = np.array(cst_filename)[freq_inds].tolist()
