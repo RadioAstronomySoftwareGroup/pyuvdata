@@ -127,7 +127,6 @@ def test_read_cst_write_read_fits(cst_efield_1freq):
 
 
 def test_writeread_healpix(cst_efield_1freq_cut_healpix):
-    pytest.importorskip("astropy_healpix")
     beam_in = cst_efield_1freq_cut_healpix.copy()
     beam_out = UVBeam()
 
@@ -297,7 +296,6 @@ def test_errors(cst_efield_1freq):
 
 
 def test_healpix_errors(cst_efield_1freq_cut_healpix):
-    pytest.importorskip("astropy_healpix")
     beam_in = cst_efield_1freq_cut_healpix.copy()
     beam_out = UVBeam()
     write_file = os.path.join(DATA_PATH, "test/outtest_beam_hpx.fits")

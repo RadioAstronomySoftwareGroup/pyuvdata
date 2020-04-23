@@ -289,8 +289,6 @@ def test_stokes_matrix():
 
 
 def test_efield_to_pstokes(cst_efield_2freq_cut, cst_efield_2freq_cut_healpix):
-    pytest.importorskip("astropy_healpix")
-
     pstokes_beam_2 = cst_efield_2freq_cut_healpix
     # convert to pstokes after interpolating
     beam_return = pstokes_beam_2.efield_to_pstokes(inplace=False)
@@ -935,7 +933,6 @@ def test_interp_longitude_branch_cut(cst_efield_2freq, cst_power_2freq):
 
 
 def test_interp_healpix_nside(cst_efield_2freq_cut, cst_efield_2freq_cut_healpix):
-    pytest.importorskip("astropy_healpix")
     efield_beam = cst_efield_2freq_cut
 
     efield_beam.interpolation_function = "az_za_simple"
@@ -1139,7 +1136,6 @@ def test_to_healpix(
     cst_efield_2freq_cut,
     cst_efield_2freq_cut_healpix,
 ):
-    pytest.importorskip("astropy_healpix")
     power_beam = cst_power_2freq_cut
     power_beam_healpix = cst_power_2freq_cut_healpix
 
@@ -1976,7 +1972,6 @@ def test_add(cst_power_1freq, cst_efield_1freq):
 def test_select_healpix_pixels(
     beam_type, cst_power_1freq_cut_healpix, cst_efield_1freq_cut_healpix
 ):
-    pytest.importorskip("astropy_healpix")
     if beam_type == "power":
         beam_healpix = cst_power_1freq_cut_healpix
     else:
@@ -2117,7 +2112,6 @@ def test_select_healpix_pixels_error(
 def test_add_healpix(
     beam_type, cst_power_2freq_cut_healpix, cst_efield_2freq_cut_healpix
 ):
-    pytest.importorskip("astropy_healpix")
     if beam_type == "power":
         beam_healpix = cst_power_2freq_cut_healpix
     else:
@@ -2212,7 +2206,6 @@ def test_add_healpix(
 
 
 def test_beam_area_healpix(cst_power_1freq_cut_healpix, cst_efield_1freq_cut_healpix):
-    pytest.importorskip("astropy_healpix")
     power_beam_healpix = cst_power_1freq_cut_healpix
 
     # Test beam area methods
@@ -2327,7 +2320,7 @@ def test_beam_area_healpix(cst_power_1freq_cut_healpix, cst_efield_1freq_cut_hea
     pytest.raises(ValueError, efield_beam.get_beam_sq_area, "xx")
 
 
-def test_get_beam_functions(cst_power_1freq_cut, cst_power_1freq_cut_healpix):
+def test_get_beam_function_errors(cst_power_1freq_cut):
     power_beam = cst_power_1freq_cut.copy()
 
     pytest.raises(AssertionError, power_beam._get_beam, "xx")
@@ -2338,8 +2331,9 @@ def test_get_beam_functions(cst_power_1freq_cut, cst_power_1freq_cut_healpix):
     pytest.raises(ValueError, power_beam.get_beam_area)
     pytest.raises(ValueError, power_beam.get_beam_sq_area)
 
-    if healpix_installed:
-        healpix_power_beam = cst_power_1freq_cut_healpix
-        healpix_power_beam.peak_normalize()
-        healpix_power_beam._get_beam("xx")
-        pytest.raises(ValueError, healpix_power_beam._get_beam, 4)
+
+def test_get_beam_functions(cst_power_1freq_cut_healpix):
+    healpix_power_beam = cst_power_1freq_cut_healpix
+    healpix_power_beam.peak_normalize()
+    healpix_power_beam._get_beam("xx")
+    pytest.raises(ValueError, healpix_power_beam._get_beam, 4)
