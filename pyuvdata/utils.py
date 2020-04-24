@@ -188,6 +188,8 @@ def _get_fits_extra_keywords(header, keywords_to_skip=None):
     """
     # List standard FITS header items that are still should not be included in
     # extra_keywords
+    # These are the beginnings of FITS keywords to ignore, the actual keywords
+    # often include integers following these names (e.g. NAXIS1, CTYPE3)
     std_fits_substrings = [
         "HISTORY",
         "SIMPLE",
@@ -216,6 +218,7 @@ def _get_fits_extra_keywords(header, keywords_to_skip=None):
     extra_keywords = {}
     # find all the other header items and keep them as extra_keywords
     for key in header:
+        # check if key contains any of the standard FITS substrings
         if np.any([sub in key for sub in std_fits_substrings]):
             continue
         if key == "COMMENT":
