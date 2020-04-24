@@ -199,6 +199,7 @@ def cst_power_2freq_cut(cst_power_2freq_cut_master):
 @pytest.fixture(scope="session")
 def cst_power_2freq_cut_healpix_master(cst_power_2freq_cut_master):
     """Make session level HEALPix cut down 2-freq power beam."""
+    pytest.importorskip("astropy_healpix")
     beam = cst_power_2freq_cut_master.copy()
     beam.interpolation_function = "az_za_simple"
     beam.to_healpix()
