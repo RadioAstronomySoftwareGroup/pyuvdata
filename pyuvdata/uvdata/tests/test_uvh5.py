@@ -1451,7 +1451,7 @@ def test_initialize_uvh5_file(uv_partial_write, tmp_path):
     return
 
 
-def test_initialize_uvh5_file_errors(uv_partial_write, tmp_path):
+def test_initialize_uvh5_file_errors(uv_partial_write, tmp_path, capsys):
     """
     Test errors in initializing a UVH5 file on disk.
     """
@@ -1470,6 +1470,10 @@ def test_initialize_uvh5_file_errors(uv_partial_write, tmp_path):
         partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=False)
     assert str(cm.value).startswith("File exists; skipping")
 
+    # check we can write to it anyway
+    partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True)
+    captured = capsys.readouterr()
+    assert captured.out.startswith("File exists; clobbering")
     # clean up
     os.remove(partial_testfile)
 
