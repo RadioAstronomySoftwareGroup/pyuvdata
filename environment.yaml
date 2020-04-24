@@ -17,5 +17,6 @@ dependencies:
   - pytest-cov
   - pip
   - pip:
-      - pytest-cases
+      - pytest-cases>=1.12.1
+      - pytest-xdist
       - pre-commit
