@@ -452,7 +452,7 @@ def test_bad_mode_savefile(test_outfile):
 
     # create the file so the clobber gets tested
     with h5py.File(test_outfile, "w") as h5file:
-        h5file.create_dataset("Test")
+        h5file.create_dataset("Test", list(range(10)))
 
     uvf.write(test_outfile, clobber=True)
     # manually re-read and tamper with parameters
