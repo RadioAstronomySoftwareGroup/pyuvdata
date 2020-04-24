@@ -17,6 +17,7 @@ filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
 cst_folder = "NicCSTbeams"
 cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
 
+
 @pytest.fixture(autouse=True, scope="session")
 def setup_and_teardown_package():
     """Make data/test directory to put test output files in."""
