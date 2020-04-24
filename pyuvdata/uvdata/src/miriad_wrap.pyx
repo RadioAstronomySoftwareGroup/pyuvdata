@@ -148,6 +148,8 @@ cpdef hwrite_init(int item_hdl, str type) except +raise_miriad_error:
 
   elif type[0] == "c":
     offset = INIT(item_hdl, cmplx_item, H_CMPLX_SIZE)
+  else:
+    raise ValueError(f"Unknown type {type[0]}")
 
   return offset
 
