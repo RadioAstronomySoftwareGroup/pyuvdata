@@ -3,10 +3,9 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing beamfits files."""
-from __future__ import absolute_import, division, print_function
+import warnings
 
 import numpy as np
-import warnings
 from astropy.io import fits
 
 from .uvbeam import UVBeam
