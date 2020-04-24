@@ -10,9 +10,11 @@ import io
 import sys
 import platform
 from setuptools import setup, Extension
-from setuptools.command.build_ext import build_ext
+
+from Cython.Distutils import build_ext
 from distutils.sysconfig import get_config_var
 from distutils.version import LooseVersion
+from Cython.Build import cythonize
 
 # When setting up, the binary extension modules haven't yet been built, so
 # without a workaround we can't use the pyuvdata code to get the version.
@@ -63,6 +65,24 @@ global_c_macros = [
     ("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION"),
 ]
 
+extensions = [
+    Extension(
+        "pyuvdata._miriad",
+        sources=[
+            "pyuvdata/uvdata/src/miriad_wrap.pyx",
+            "pyuvdata/uvdata/src/uvio.c",
+            "pyuvdata/uvdata/src/hio.c",
+            "pyuvdata/uvdata/src/pack.c",
+            "pyuvdata/uvdata/src/bug.c",
+            "pyuvdata/uvdata/src/dio.c",
+            "pyuvdata/uvdata/src/headio.c",
+            "pyuvdata/uvdata/src/maskio.c",
+        ],
+        define_macros=global_c_macros,
+        include_dirs=["pyuvdata/uvdata/src/"],
+    )
+]
+
 casa_reqs = ["python-casacore"]
 healpix_reqs = ["astropy_healpix"]
 cst_reqs = ["pyyaml"]
@@ -92,23 +112,7 @@ setup_args = {
         "pyuvdata.uvflag",
     ],
     "cmdclass": {"build_ext": CustomBuildExtCommand},
-    "ext_modules": [
-        Extension(
-            "pyuvdata._miriad",
-            sources=[
-                "pyuvdata/uvdata/src/miriad_wrap.cpp",
-                "pyuvdata/uvdata/src/uvio.c",
-                "pyuvdata/uvdata/src/hio.c",
-                "pyuvdata/uvdata/src/pack.c",
-                "pyuvdata/uvdata/src/bug.c",
-                "pyuvdata/uvdata/src/dio.c",
-                "pyuvdata/uvdata/src/headio.c",
-                "pyuvdata/uvdata/src/maskio.c",
-            ],
-            define_macros=global_c_macros,
-            include_dirs=["pyuvdata/uvdata/src"],
-        )
-    ],
+    "ext_modules": cythonize(extensions),
     "scripts": [fl for fl in glob.glob("scripts/*") if not os.path.isdir(fl)],
     "use_scm_version": {"local_scheme": branch_scheme},
     "include_package_data": True,
