@@ -2,6 +2,7 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 import os
+import shutil
 
 import pytest
 import numpy as np
@@ -182,12 +183,17 @@ def test_read_yaml_feed_pol_list(cst_efield_2freq, cst_efield_1freq):
     os.remove(test_yaml_file)
 
 
-def test_read_yaml_multi_pol():
+def test_read_yaml_multi_pol(tmp_path):
     pytest.importorskip("yaml")
     # make yaml for one freq, 2 pols
     import yaml
 
-    test_yaml_file = os.path.join(DATA_PATH, cst_folder, "test_cst_settings.yaml")
+    # copy the beam files to the tmp directory so that it can read them
+    # when the yaml is stored there
+    for fname in cst_files:
+        shutil.copy2(src=fname, dst=tmp_path)
+    test_yaml_file = str(tmp_path / "test_cst_settings.yaml")
+
     with open(cst_yaml_file, "r") as file:
         settings_dict = yaml.safe_load(file)
 
