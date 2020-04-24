@@ -5,8 +5,13 @@
 """Tests for Miriad object.
 
 Note that because of the way that file handling is done in the C++ API, a miriad
-file is not closed until the destructor function (tp_dealloc) is called. Due to
-implementation details of CPython, it is sometimes not enough to `del` the
+file is not closed until the destructor function (tp_dealloc) is called.
+
+As of April 2020, the following lines were made before a major rewrite of
+the miriad interface. They should no longer necessarily be true,
+but are preserved here in case segfaults arise again.
+
+Due to implementation details of CPython, it is sometimes not enough to `del` the
 object--a manual garbage collection may be required. When adding new tests,
 proper cleanup consists of: (1) deleting any Miriad objects or UVData objects,
 (2) performing garbage collection (with `gc.collect()`), and (3) removing the
@@ -847,11 +852,6 @@ def test_miriad_telescope_locations():
     uv_in._load_antpos(uv)
     assert uv_in.antenna_positions is not None
 
-    # cleanup
-    # uv.close()
-    # del uv, uv_in
-    # gc.collect()
-
 
 def test_miriad_integration_time_precision(tmp_path):
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
@@ -867,11 +867,6 @@ def test_miriad_integration_time_precision(tmp_path):
     new_uv = UVData()
     new_uv.read(write_file)
     assert uv_in == new_uv
-
-    # cleanup
-    # del new_uv, uv_in
-    # gc.collect()
-    # shutil.rmtree(write_file)
 
 
 @pytest.mark.parametrize(
@@ -906,11 +901,6 @@ def test_read_write_read_miriad_partial_bls(select_kwargs, tmp_path):
     exp_uv = full.select(inplace=False, **select_kwargs)
     assert uv_in == exp_uv
 
-    # cleanup
-    # del uv_in, full
-    # gc.collect()
-    # shutil.rmtree(write_file)
-
 
 def test_read_write_read_miriad_partial_antenna_nums(tmp_path):
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
@@ -929,11 +919,6 @@ def test_read_write_read_miriad_partial_antenna_nums(tmp_path):
     assert np.max(exp_uv.ant_1_array) == 0
     assert np.max(exp_uv.ant_2_array) == 0
     assert uv_in == exp_uv
-
-    # # cleanup
-    # del uv_in, exp_uv, full
-    # gc.collect()
-    # shutil.rmtree(write_file)
 
 
 @pytest.mark.parametrize(
@@ -968,11 +953,6 @@ def test_read_write_read_miriad_partial_times(select_kwargs, tmp_path):
     exp_uv = full.select(times=full_times, inplace=False, **select_kwargs)
     assert uv_in == exp_uv
 
-    # # cleanup
-    # del uv_in, full, exp_uv
-    # gc.collect()
-    # shutil.rmtree(write_file)
-
 
 @pytest.mark.parametrize("pols", [["xy"], [-7]])
 def test_read_write_read_miriad_partial_pols(pols, tmp_path):
@@ -991,11 +971,6 @@ def test_read_write_read_miriad_partial_pols(pols, tmp_path):
     exp_uv = full.select(polarizations=pols, inplace=False)
     assert uv_in == exp_uv
 
-    # # cleanup
-    # del uv_in, full
-    # gc.collect()
-    # shutil.rmtree(write_file)
-
 
 def test_read_write_read_miriad_partial_ant_str(tmp_path):
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
@@ -1013,10 +988,6 @@ def test_read_write_read_miriad_partial_ant_str(tmp_path):
     assert np.array([blp[0] == blp[1] for blp in uv_in.get_antpairs()]).all()
     exp_uv = full.select(ant_str="auto", inplace=False)
     assert uv_in == exp_uv
-    #
-    # del uv_in
-    # gc.collect()
-    # shutil.rmtree(write_file)
 
     full = UVData()
     full.read(testfile)
@@ -1028,10 +999,6 @@ def test_read_write_read_miriad_partial_ant_str(tmp_path):
     exp_uv = full.select(ant_str="cross", inplace=False)
     assert uv_in == exp_uv
 
-    # del uv_in
-    # gc.collect()
-    # shutil.rmtree(write_file)
-
     full = UVData()
     full.read(testfile)
     full.write_miriad(write_file, clobber=True)
@@ -1039,11 +1006,6 @@ def test_read_write_read_miriad_partial_ant_str(tmp_path):
     uv_in = UVData()
     uv_in.read(write_file, ant_str="all")
     assert uv_in == full
-
-    # cleanup
-    # del uv_in, full, exp_uv
-    # gc.collect()
-    # shutil.rmtree(write_file)
 
 
 @pytest.mark.parametrize(
@@ -1139,11 +1101,6 @@ def test_read_write_read_miriad_partial_errors(
         uv_in.read(write_file, **select_kwargs)
     assert str(cm.value).startswith(err_msg)
 
-    # del uv_in, full
-    # gc.collect()
-    # if os.path.exists(write_file):
-    #     shutil.rmtree(write_file)
-
 
 def test_read_write_read_miriad_partial_error_special_cases(tmp_path):
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
@@ -1160,11 +1117,6 @@ def test_read_write_read_miriad_partial_error_special_cases(tmp_path):
     assert str(cm.value).startswith(
         "Polarization 1.0 cannot be converted to a polarization number"
     )
-
-    # cleanup
-    # del uv_in, full
-    # gc.collect()
-    # shutil.rmtree(write_file)
 
 
 def test_read_write_read_miriad_partial_with_warnings(tmp_path):
@@ -1190,10 +1142,6 @@ def test_read_write_read_miriad_partial_with_warnings(tmp_path):
     )
     exp_uv = full.select(times=times_to_keep, inplace=False)
     assert uv_in == exp_uv
-    #
-    # del uv_in
-    # gc.collect()
-    # shutil.rmtree(write_file)
 
     full = UVData()
     full.read(testfile)
@@ -1212,11 +1160,6 @@ def test_read_write_read_miriad_partial_with_warnings(tmp_path):
     )
     exp_uv = full.select(blt_inds=blts_select, antenna_nums=ants_keep, inplace=False)
     assert uv_in != exp_uv
-
-    # # cleanup
-    # del uv_in, full
-    # gc.collect()
-    # shutil.rmtree(write_file)
 
 
 def test_read_write_read_miriad_partial_metadata_only(tmp_path):
@@ -1343,11 +1286,6 @@ def test_rwr_miriad_antpos_issues(tmp_path):
     )
 
     assert uv_in == uv_out
-
-    # # cleanup
-    # del uv_in, uv_out
-    # gc.collect()
-    # shutil.rmtree(write_file)
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
