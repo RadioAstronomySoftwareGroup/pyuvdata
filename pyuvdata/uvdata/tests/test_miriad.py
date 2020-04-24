@@ -18,7 +18,6 @@ on their own.
 from __future__ import absolute_import, division, print_function
 
 import os
-import gc
 import shutil
 import copy
 import numpy as np
@@ -51,10 +50,7 @@ def uv_in_paper(tmp_path):
     yield uv_in, uv_out, write_file
 
     # cleanup
-    # del uv_in, uv_out
-    # gc.collect()
-    if os.path.exists(write_file):
-        shutil.rmtree(write_file)
+    del uv_in, uv_out
 
 
 @pytest.fixture
@@ -69,10 +65,7 @@ def uv_in_uvfits(tmp_path):
     yield uv_in, uv_out, write_file
 
     # cleanup
-    # del uv_in, uv_out
-    # gc.collect()
-    if os.path.exists(write_file):
-        os.remove(write_file)
+    del uv_in, uv_out
 
 
 @pytest.mark.filterwarnings("ignore:Telescope ATCA is not")
@@ -102,11 +95,6 @@ def test_read_write_read_atca(tmp_path):
     uv_out.read(testfile)
     assert uv_in == uv_out
 
-    # cleanup
-    # del uv_in, uv_out
-    # gc.collect()
-    shutil.rmtree(testfile)
-
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_read_nrao_write_miriad_read_miriad(tmp_path):
@@ -119,11 +107,6 @@ def test_read_nrao_write_miriad_read_miriad(tmp_path):
     uvfits_uv.write_miriad(writefile, clobber=True)
     miriad_uv.read(writefile)
     assert uvfits_uv == miriad_uv
-
-    # cleanup
-    # del uvfits_uv, miriad_uv
-    # gc.collect()
-    shutil.rmtree(writefile)
 
 
 def test_read_miriad_write_uvfits(uv_in_uvfits):
@@ -155,10 +138,6 @@ def test_miriad_read_warning_lat_lon_corrected():
             "PAPER and lat/lon from file."
         ],
     )
-
-    # cleanup
-    # del miriad_uv
-    # gc.collect()
 
 
 @pytest.mark.parametrize(
@@ -201,10 +180,6 @@ def test_read_miriad_phasing_errors(err_type, read_kwargs, err_msg):
     with pytest.raises(err_type) as cm:
         miriad_uv.read(miriad_file, **read_kwargs)
     assert str(cm.value).startswith(err_msg)
-
-    # cleanup
-    # del miriad_uv
-    # gc.collect()
 
 
 def test_read_miriad_write_uvfits_phasing_error(uv_in_uvfits):
@@ -314,10 +289,6 @@ def test_wronglatlon():
         ],
     )
 
-    # cleanup
-    # del uv_in
-    # gc.collect()
-
 
 def test_miriad_location_handling(tmp_path):
     uv_in = UVData()
@@ -357,9 +328,6 @@ def test_miriad_location_handling(tmp_path):
     # copy data from old file
     aipy_uv2.pipe(aipy_uv)
     aipy_uv2.close()
-    # close file properly
-    # del aipy_uv2
-    # gc.collect()
 
     uvtest.checkWarnings(
         uv_out.read,
@@ -396,9 +364,6 @@ def test_miriad_location_handling(tmp_path):
     # copy data from old file
     aipy_uv2.pipe(aipy_uv)
     aipy_uv2.close()
-    # close file properly
-    # del aipy_uv2
-    # gc.collect()
 
     uvtest.checkWarnings(
         uv_out.read,
@@ -438,9 +403,6 @@ def test_miriad_location_handling(tmp_path):
     # copy data from old file
     aipy_uv2.pipe(aipy_uv)
     aipy_uv2.close()
-    # close file properly
-    # del aipy_uv2
-    # gc.collect()
 
     uvtest.checkWarnings(
         uv_out.read,
@@ -484,9 +446,6 @@ def test_miriad_location_handling(tmp_path):
     # copy data from old file
     aipy_uv2.pipe(aipy_uv)
     aipy_uv2.close()
-    # close file properly
-    # del aipy_uv2
-    # gc.collect()
 
     uvtest.checkWarnings(
         uv_out.read,
@@ -534,9 +493,6 @@ def test_miriad_location_handling(tmp_path):
     # copy data from old file
     aipy_uv2.pipe(aipy_uv)
     aipy_uv2.close()
-    # close file properly
-    # del aipy_uv2
-    # gc.collect()
 
     uvtest.checkWarnings(
         uv_out.read,
@@ -558,9 +514,6 @@ def test_miriad_location_handling(tmp_path):
 
     # cleanup
     aipy_uv.close()
-    # del aipy_uv, uv_in, uv_out
-    # gc.collect()
-    shutil.rmtree(testfile)
 
 
 def test_singletimeselect_drift(tmp_path):
@@ -600,11 +553,6 @@ def test_singletimeselect_drift(tmp_path):
     uv_out.read(testfile, phase_type="drift")
     assert uv_in == uv_out
 
-    # cleanup
-    # del uv_in, uv_out
-    # gc.collect()
-    shutil.rmtree(testfile)
-
 
 def test_poltoind():
     miriad_uv = UVData()
@@ -624,10 +572,6 @@ def test_poltoind():
     with pytest.raises(ValueError) as cm:
         miriad._pol_to_ind(pol_arr[0])
     assert str(cm.value).startswith("multiple matches for pol=-7 in polarization_array")
-
-    # cleanup
-    del miriad_uv
-    gc.collect()
 
 
 def test_miriad_extra_keywords(tmp_path):
@@ -736,11 +680,6 @@ def test_miriad_extra_keywords(tmp_path):
         uv_in.write_miriad(testfile, clobber=True, run_check=False)
     assert str(cm.value).startswith("Extra keyword complex2 is of <class 'complex'>")
 
-    # cleanup
-    del uv_in, uv_out
-    gc.collect()
-    shutil.rmtree(testfile)
-
 
 def test_roundtrip_optional_params(tmp_path):
     uv_in = UVData()
@@ -764,11 +703,6 @@ def test_roundtrip_optional_params(tmp_path):
     uv_out.read(testfile)
 
     assert uv_in == uv_out
-
-    # cleanup
-    del uv_in, uv_out
-    gc.collect()
-    shutil.rmtree(testfile)
 
 
 def test_breakread_miriad(tmp_path):
@@ -811,11 +745,6 @@ def test_breakread_miriad(tmp_path):
         {"run_check": False},
         message=["Ntimes does not match the number of unique times in the data"],
     )
-
-    # cleanup
-    del uv_in, uv_out
-    gc.collect()
-    shutil.rmtree(testfile)
 
 
 def test_read_write_read_miriad(uv_in_paper):
@@ -919,7 +848,7 @@ def test_miriad_telescope_locations():
     assert uv_in.antenna_positions is not None
 
     # cleanup
-    uv.close()
+    # uv.close()
     # del uv, uv_in
     # gc.collect()
 
@@ -940,9 +869,9 @@ def test_miriad_integration_time_precision(tmp_path):
     assert uv_in == new_uv
 
     # cleanup
-    del new_uv, uv_in
-    gc.collect()
-    shutil.rmtree(write_file)
+    # del new_uv, uv_in
+    # gc.collect()
+    # shutil.rmtree(write_file)
 
 
 @pytest.mark.parametrize(
@@ -978,9 +907,9 @@ def test_read_write_read_miriad_partial_bls(select_kwargs, tmp_path):
     assert uv_in == exp_uv
 
     # cleanup
-    del uv_in, full
-    gc.collect()
-    shutil.rmtree(write_file)
+    # del uv_in, full
+    # gc.collect()
+    # shutil.rmtree(write_file)
 
 
 def test_read_write_read_miriad_partial_antenna_nums(tmp_path):
@@ -1001,10 +930,10 @@ def test_read_write_read_miriad_partial_antenna_nums(tmp_path):
     assert np.max(exp_uv.ant_2_array) == 0
     assert uv_in == exp_uv
 
-    # cleanup
-    del uv_in, exp_uv, full
-    gc.collect()
-    shutil.rmtree(write_file)
+    # # cleanup
+    # del uv_in, exp_uv, full
+    # gc.collect()
+    # shutil.rmtree(write_file)
 
 
 @pytest.mark.parametrize(
@@ -1023,7 +952,6 @@ def test_read_write_read_miriad_partial_times(select_kwargs, tmp_path):
     full = UVData()
     full.read(testfile)
     full.write_miriad(write_file, clobber=True)
-
     # test time loading
     uv_in = UVData()
     uv_in.read(write_file, **select_kwargs)
@@ -1040,10 +968,10 @@ def test_read_write_read_miriad_partial_times(select_kwargs, tmp_path):
     exp_uv = full.select(times=full_times, inplace=False, **select_kwargs)
     assert uv_in == exp_uv
 
-    # cleanup
-    del uv_in, full, exp_uv
-    gc.collect()
-    shutil.rmtree(write_file)
+    # # cleanup
+    # del uv_in, full, exp_uv
+    # gc.collect()
+    # shutil.rmtree(write_file)
 
 
 @pytest.mark.parametrize("pols", [["xy"], [-7]])
@@ -1063,10 +991,10 @@ def test_read_write_read_miriad_partial_pols(pols, tmp_path):
     exp_uv = full.select(polarizations=pols, inplace=False)
     assert uv_in == exp_uv
 
-    # cleanup
-    del uv_in, full
-    gc.collect()
-    shutil.rmtree(write_file)
+    # # cleanup
+    # del uv_in, full
+    # gc.collect()
+    # shutil.rmtree(write_file)
 
 
 def test_read_write_read_miriad_partial_ant_str(tmp_path):
@@ -1085,10 +1013,10 @@ def test_read_write_read_miriad_partial_ant_str(tmp_path):
     assert np.array([blp[0] == blp[1] for blp in uv_in.get_antpairs()]).all()
     exp_uv = full.select(ant_str="auto", inplace=False)
     assert uv_in == exp_uv
-
-    del uv_in
-    gc.collect()
-    shutil.rmtree(write_file)
+    #
+    # del uv_in
+    # gc.collect()
+    # shutil.rmtree(write_file)
 
     full = UVData()
     full.read(testfile)
@@ -1100,9 +1028,9 @@ def test_read_write_read_miriad_partial_ant_str(tmp_path):
     exp_uv = full.select(ant_str="cross", inplace=False)
     assert uv_in == exp_uv
 
-    del uv_in
-    gc.collect()
-    shutil.rmtree(write_file)
+    # del uv_in
+    # gc.collect()
+    # shutil.rmtree(write_file)
 
     full = UVData()
     full.read(testfile)
@@ -1113,9 +1041,9 @@ def test_read_write_read_miriad_partial_ant_str(tmp_path):
     assert uv_in == full
 
     # cleanup
-    del uv_in, full, exp_uv
-    gc.collect()
-    shutil.rmtree(write_file)
+    # del uv_in, full, exp_uv
+    # gc.collect()
+    # shutil.rmtree(write_file)
 
 
 @pytest.mark.parametrize(
@@ -1211,10 +1139,10 @@ def test_read_write_read_miriad_partial_errors(
         uv_in.read(write_file, **select_kwargs)
     assert str(cm.value).startswith(err_msg)
 
-    del uv_in, full
-    gc.collect()
-    if os.path.exists(write_file):
-        shutil.rmtree(write_file)
+    # del uv_in, full
+    # gc.collect()
+    # if os.path.exists(write_file):
+    #     shutil.rmtree(write_file)
 
 
 def test_read_write_read_miriad_partial_error_special_cases(tmp_path):
@@ -1234,9 +1162,9 @@ def test_read_write_read_miriad_partial_error_special_cases(tmp_path):
     )
 
     # cleanup
-    del uv_in, full
-    gc.collect()
-    shutil.rmtree(write_file)
+    # del uv_in, full
+    # gc.collect()
+    # shutil.rmtree(write_file)
 
 
 def test_read_write_read_miriad_partial_with_warnings(tmp_path):
@@ -1262,10 +1190,10 @@ def test_read_write_read_miriad_partial_with_warnings(tmp_path):
     )
     exp_uv = full.select(times=times_to_keep, inplace=False)
     assert uv_in == exp_uv
-
-    del uv_in
-    gc.collect()
-    shutil.rmtree(write_file)
+    #
+    # del uv_in
+    # gc.collect()
+    # shutil.rmtree(write_file)
 
     full = UVData()
     full.read(testfile)
@@ -1285,10 +1213,10 @@ def test_read_write_read_miriad_partial_with_warnings(tmp_path):
     exp_uv = full.select(blt_inds=blts_select, antenna_nums=ants_keep, inplace=False)
     assert uv_in != exp_uv
 
-    # cleanup
-    del uv_in, full
-    gc.collect()
-    shutil.rmtree(write_file)
+    # # cleanup
+    # del uv_in, full
+    # gc.collect()
+    # shutil.rmtree(write_file)
 
 
 def test_read_write_read_miriad_partial_metadata_only(tmp_path):
@@ -1333,12 +1261,6 @@ def test_read_write_read_miriad_partial_metadata_only(tmp_path):
     uv_in2.history = uv_in.history
     assert uv_in == uv_in2
 
-    # cleanup
-    del uv_in, new_uv, uv_in2
-    gc.collect()
-    shutil.rmtree(write_file)
-    shutil.rmtree(write_file2)
-
 
 def test_read_ms_write_miriad_casa_history(tmp_path):
     """
@@ -1357,11 +1279,6 @@ def test_read_ms_write_miriad_casa_history(tmp_path):
     uvtest.checkWarnings(miriad_uv.read, [testfile], message="Telescope EVLA is not")
 
     assert miriad_uv == ms_uv
-
-    # cleanup
-    del ms_uv, miriad_uv
-    gc.collect()
-    shutil.rmtree(testfile)
 
 
 def test_rwr_miriad_antpos_issues(tmp_path):
@@ -1427,10 +1344,10 @@ def test_rwr_miriad_antpos_issues(tmp_path):
 
     assert uv_in == uv_out
 
-    # cleanup
-    del uv_in, uv_out
-    gc.collect()
-    shutil.rmtree(write_file)
+    # # cleanup
+    # del uv_in, uv_out
+    # gc.collect()
+    # shutil.rmtree(write_file)
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -1489,12 +1406,6 @@ def test_multi_files(tmp_path):
     uv1.history = uv_full.history
     assert uv1 == uv_full
 
-    # cleanup
-    del uv1, uv2, uv_full
-    gc.collect()
-    shutil.rmtree(testfile1)
-    shutil.rmtree(testfile2)
-
 
 def test_antpos_units(tmp_path):
     """
@@ -1513,12 +1424,6 @@ def test_antpos_units(tmp_path):
         - uv.telescope_location
     )
     assert np.allclose(aantpos, uv.antenna_positions)
-
-    # cleanup
-    auv.close()
-    # del uv, auv
-    # gc.collect()
-    shutil.rmtree(testfile)
 
 
 def test_readmiriad_write_miriad_check_time_format(tmp_path):
@@ -1556,14 +1461,6 @@ def test_readmiriad_write_miriad_check_time_format(tmp_path):
     assert np.isclose(uv["time"], uv2["time"])
     assert np.isclose(uv["lst"], uv2["lst"], atol=tolerance)
 
-    # cleanup
-    # del uv, uv2, uvd
-    # gc.collect()
-    uv.close()
-    uv2.close()
-    if os.path.exists(fout):
-        shutil.rmtree(fout)
-
 
 def test_file_with_bad_extra_words():
     """Test file with bad extra words is iterated and popped correctly."""
@@ -1599,7 +1496,3 @@ def test_file_with_bad_extra_words():
         nwarnings=len(warn_message),
         message=warn_message,
     )
-
-    # cleanup
-    del uv
-    gc.collect()
