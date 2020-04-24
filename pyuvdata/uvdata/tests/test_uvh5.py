@@ -710,12 +710,12 @@ def test_uvh5_partial_read_multi3(uv_uvfits, tmp_path):
     return
 
 
-def test_uvh5_read_multdim_index(uv_uvfits):
+def test_uvh5_read_multdim_index(tmp_path, uv_uvfits):
     """
     Test some odd cases for UVH5 multdim indexing
     """
     uv_in = uv_uvfits
-    testfile = os.path.join(DATA_PATH, "test", "outtest.uvh5")
+    testfile = str(tmp_path / "outtest.uvh5")
     # change telescope name to avoid errors
     uv_in.telescope_name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
