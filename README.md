@@ -200,7 +200,7 @@ If you want to do development on pyuvdata, in addition to the other dependencies
 you will need the following packages:
 
 * pytest
-* pytest-cases
+* pytest-cases >= 1.12.1
 * pytest-cov
 * coverage
 * pre-commit

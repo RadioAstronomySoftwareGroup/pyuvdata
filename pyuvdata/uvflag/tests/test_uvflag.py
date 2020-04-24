@@ -5,6 +5,7 @@
 from __future__ import division
 
 import pytest
+from _pytest.outcomes import Skipped
 import os
 import numpy as np
 import pyuvdata.tests as uvtest
@@ -69,7 +70,7 @@ def uvf_from_waterfall():
 # iterate over the three main types of UVFlag objects
 # otherwise make the decorators skip the tests that use these iterators
 try:
-    import pytest_cases
+    pytest_cases = pytest.importorskip("pytest_cases", minversion="1.12.1")
 
     cases_decorator = pytest_cases.parametrize_plus(
         "input_uvf",
@@ -97,9 +98,13 @@ try:
         append=True,
     )
 
-except ImportError:
-    cases_decorator = pytest.importorskip("pytest_cases")
-    cases_decorator_no_waterfall = pytest.importorskip("pytest_cases")
+except Skipped:
+    cases_decorator = pytest.mark.skipif(
+        True, reason="pytest-cases not installed or not required version"
+    )
+    cases_decorator_no_waterfall = pytest.mark.skipif(
+        True, reason="pytest-cases not installed or not required version"
+    )
 
 test_d_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA")
 test_c_file = os.path.join(DATA_PATH, "zen.2457555.42443.HH.uvcA.omni.calfits")
