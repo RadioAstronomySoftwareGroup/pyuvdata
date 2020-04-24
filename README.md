@@ -201,6 +201,7 @@ you will need the following packages:
 
 * pytest
 * pytest-cases >= 1.12.1
+* pytest-xdist
 * pytest-cov
 * coverage
 * pre-commit

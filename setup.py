@@ -90,7 +90,14 @@ test_reqs = (
     casa_reqs
     + healpix_reqs
     + cst_reqs
-    + ["pytest", "pytest-cases>=1.12.1", "pytest-cov", "coverage", "pre-commit"]
+    + [
+        "pytest",
+        "pytest-xdist",
+        "pytest-cases>=1.12.1",
+        "pytest-cov",
+        "coverage",
+        "pre-commit",
+    ]
 )
 doc_reqs = ["sphinx", "pypandoc"]
 
@@ -123,7 +130,7 @@ setup_args = {
         "h5py",
         "setuptools_scm",
     ],
-    "tests_require": ["pytest", "pytest-cases>=1.12.1"],
+    "tests_require": ["pytest", "pytest-xdist", "pytest-cases>=1.12.1"],
     "extras_require": {
         "casa": casa_reqs,
         "healpix": healpix_reqs,
