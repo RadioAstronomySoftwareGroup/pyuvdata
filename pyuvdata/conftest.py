@@ -3,8 +3,6 @@
 # Licensed under the 2-clause BSD License
 
 """Testing environment setup and teardown for pytest."""
-from __future__ import absolute_import, division, print_function
-
 import os
 import shutil
 

@@ -2,10 +2,9 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Read in the Sujinto et al. full embedded element MWA Beam."""
-from __future__ import absolute_import, division, print_function
-import numpy as np
 import warnings
 
+import numpy as np
 import h5py
 from scipy.special import factorial, lpmv  # associated Legendre function
 

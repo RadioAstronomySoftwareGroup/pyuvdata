@@ -1,11 +1,9 @@
 # -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
-
-from __future__ import absolute_import, division, print_function
+import os
 
 import pytest
-import os
 import numpy as np
 
 from pyuvdata.data import DATA_PATH
