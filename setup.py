@@ -130,7 +130,6 @@ setup_args = {
         "h5py",
         "setuptools_scm",
     ],
-    "tests_require": ["pytest", "pytest-xdist", "pytest-cases>=1.12.1"],
     "extras_require": {
         "casa": casa_reqs,
         "healpix": healpix_reqs,
