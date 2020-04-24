@@ -299,8 +299,9 @@ class UV(_miriad.UV):
         """
         assert status in ["old", "new", "append"]
         assert corrmode in ["r", "j"]
-
-        _miriad.UV.__init__(self, filename, status, corrmode)
+        # when reading mutliple files we may get a numpy array of file names
+        # numpy casts arrays as np.str_ and cython does not like this
+        _miriad.UV.__init__(self, str(filename), status, corrmode)
 
         self.status = status
         self.nchan = _miriad.MAXCHAN
