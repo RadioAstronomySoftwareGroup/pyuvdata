@@ -1122,6 +1122,16 @@ def test_healpix_interpolation(cst_efield_2freq):
             az_array=az_orig_vals, za_array=za_orig_vals, polarizations=["pI"]
         )
 
+    # check error when pixels out of order
+    power_beam.pixel_array = power_beam.pixel_array[
+        np.argsort(power_beam.data_array[0, 0, 0, 0, :])
+    ]
+    with pytest.raises(
+        ValueError,
+        match="simple healpix interpolation requires healpix pixels to be in order.",
+    ):
+        power_beam.interp(az_array=az_orig_vals, za_array=za_orig_vals)
+
     # healpix coord exception
     power_beam.pixel_coordinate_system = "foo"
     with pytest.raises(ValueError, match='pixel_coordinate_system must be "healpix"'):

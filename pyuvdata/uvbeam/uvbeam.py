@@ -1449,7 +1449,10 @@ class UVBeam(UVBase):
             raise ValueError(
                 "simple healpix interpolation requires full sky healpix maps."
             )
-        assert np.max(np.abs(np.diff(self.pixel_array))) == 1
+        if not np.max(np.abs(np.diff(self.pixel_array))) == 1:
+            raise ValueError(
+                "simple healpix interpolation requires healpix pixels to be in order."
+            )
 
         if freq_array is not None:
             assert isinstance(freq_array, np.ndarray)
