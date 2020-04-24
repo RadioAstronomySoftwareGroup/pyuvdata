@@ -150,6 +150,11 @@ def test_read_miriad_write_uvh5_read_uvh5(uv_miriad, tmp_path):
     uv_in = uv_miriad
     uv_out = UVData()
     testfile = str(tmp_path / "outtest_miriad.uvh5")
+
+    # create the file so the clobber gets tested
+    with h5py.File(testfile, "w") as h5file:
+        h5file.create_dataset("Test")
+
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile)
     assert uv_in == uv_out

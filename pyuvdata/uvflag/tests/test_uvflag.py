@@ -449,6 +449,11 @@ def test_bad_mode_savefile(test_outfile):
     uv = UVData()
     uv.read_miriad(test_d_file)
     uvf = UVFlag(uv, label="test")
+
+    # create the file so the clobber gets tested
+    with h5py.File(test_outfile, "w") as h5file:
+        h5file.create_dataset("Test")
+
     uvf.write(test_outfile, clobber=True)
     # manually re-read and tamper with parameters
     with h5py.File(test_outfile, "a") as h5:
