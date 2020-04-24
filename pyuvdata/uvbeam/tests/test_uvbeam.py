@@ -314,10 +314,9 @@ def test_efield_to_pstokes_error(cst_power_2freq_cut):
         power_beam.efield_to_pstokes()
 
 
-def test_efield_to_power(cst_efield_2freq, cst_power_2freq):
-    efield_beam = cst_efield_2freq
-
-    power_beam = cst_power_2freq
+def test_efield_to_power(cst_efield_2freq_cut, cst_power_2freq_cut):
+    efield_beam = cst_efield_2freq_cut
+    power_beam = cst_power_2freq_cut
 
     new_power_beam = efield_beam.efield_to_power(calc_cross_pols=False, inplace=False)
 
