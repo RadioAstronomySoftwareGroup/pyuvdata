@@ -69,3 +69,5 @@ pyuvdata/GIT_INFO
 docs/references/*.aux
 docs/references/*.out
 .pytest_cache
+
+pyuvdata/uvdata/src/miriad_wrap.cpp
