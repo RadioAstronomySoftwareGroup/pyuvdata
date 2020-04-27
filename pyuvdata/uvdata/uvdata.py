@@ -5333,12 +5333,16 @@ class UVData(UVBase):
 
             mask = self.flag_array.reshape(shape_tuple)
 
-            # if all inputs are flagged, the flag array should be True,
-            # otherwise it should be False.
-            # The sum below will be zero if it's all flagged and
-            # greater than zero otherwise
-            # Then we use a test against 0 to turn it into a Boolean
-            self.flag_array = np.sum(~self.flag_array.reshape(shape_tuple), axis=3) == 0
+            if propagate_flags:
+                # if any contributors are flagged, the result should be flagged
+                self.flag_array = np.any(self.flag_array.reshape(shape_tuple), axis=3)
+            else:
+                # if all inputs are flagged, the flag array should be True,
+                # otherwise it should be False.
+                # The sum below will be zero if it's all flagged and
+                # greater than zero otherwise
+                # Then we use a test against 0 to turn it into a Boolean
+                self.flag_array = np.sum(~self.flag_array.reshape(shape_tuple), axis=3) == 0
 
             # need to update mask if a downsampled visibility will be flagged
             # so that we don't set it to zero
@@ -5347,7 +5351,11 @@ class UVData(UVBase):
                     ax0_inds, ax1_inds, ax3_inds = np.nonzero(
                         self.flag_array[:, :, n_chan, :]
                     )
-                    mask[ax0_inds, ax1_inds, n_chan, :, ax3_inds] = False
+                    # Only if all entries are masked
+                    # May not happen due to propagate_flags keyword
+                    # mask should be left alone otherwise
+                    if np.all(mask[ax0_inds, ax1_inds, n_chan, :, ax3_inds]):
+                        mask[ax0_inds, ax1_inds, n_chan, :, ax3_inds] = False
 
             masked_data = np.ma.masked_array(
                 self.data_array.reshape(shape_tuple), mask=mask
