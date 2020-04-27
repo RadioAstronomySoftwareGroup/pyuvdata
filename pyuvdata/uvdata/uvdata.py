@@ -834,7 +834,12 @@ class UVData(UVBase):
         # Check internal consistency of numbers which don't explicitly correspond
         # to the shape of another array.
         nants_data_calc = int(
-            len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist()))
+            len(
+                set(
+                    np.unique(self.ant_1_array).tolist()
+                    + np.unique(self.ant_2_array).tolist()
+                )
+            )
         )
         if self.Nants_data != nants_data_calc:
             raise ValueError(
@@ -856,9 +861,9 @@ class UVData(UVBase):
 
         # require that all entries in ant_1_array and ant_2_array exist in
         # antenna_numbers
-        if not all(ant in self.antenna_numbers for ant in self.ant_1_array):
+        if not set(np.unique(self.ant_1_array)).issubset(self.antenna_numbers):
             raise ValueError("All antennas in ant_1_array must be in antenna_numbers.")
-        if not all(ant in self.antenna_numbers for ant in self.ant_2_array):
+        if not set(np.unique(self.ant_2_array)).issubset(self.antenna_numbers):
             raise ValueError("All antennas in ant_2_array must be in antenna_numbers.")
 
         # issue warning if extra_keywords keys are longer than 8 characters
@@ -894,7 +899,7 @@ class UVData(UVBase):
             )
         if np.any(
             np.isclose(
-                [np.linalg.norm(uvw) for uvw in self.uvw_array[~autos]],
+                np.linalg.norm(self.uvw_array[~autos], axis=1),
                 0.0,
                 rtol=self._uvw_array.tols[0],
                 atol=self._uvw_array.tols[1],
