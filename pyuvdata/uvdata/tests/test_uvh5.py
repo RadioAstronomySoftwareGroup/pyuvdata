@@ -472,6 +472,7 @@ def test_uvh5_partial_read_freqs(uv_uvfits, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Selected polarization values are not evenly spaced")
 def test_uvh5_partial_read_pols(uv_uvfits, tmp_path):
     """
     Test reading in only certain polarizations from disk.
@@ -529,6 +530,7 @@ def test_uvh5_partial_read_times(uv_uvfits, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Selected polarization values are not evenly spaced")
 def test_uvh5_partial_read_multi1(uv_uvfits, tmp_path):
     """
     Test select-on-read for multiple axes, frequencies being smallest fraction.
@@ -589,6 +591,8 @@ def test_uvh5_partial_read_multi1(uv_uvfits, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Selected polarization values are not evenly spaced")
+@pytest.mark.filterwarnings("ignore:Selected frequencies are not evenly spaced")
 def test_uvh5_partial_read_multi2(uv_uvfits, tmp_path):
     """
     Test select-on-read for multiple axes, baselines being smallest fraction.
@@ -649,6 +653,7 @@ def test_uvh5_partial_read_multi2(uv_uvfits, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Selected frequencies are not evenly spaced")
 def test_uvh5_partial_read_multi3(uv_uvfits, tmp_path):
     """
     Test select-on-read for multiple axes, polarizations being smallest fraction.
@@ -710,6 +715,7 @@ def test_uvh5_partial_read_multi3(uv_uvfits, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Selected frequencies are not evenly spaced")
 def test_uvh5_read_multdim_index(tmp_path, uv_uvfits):
     """
     Test some odd cases for UVH5 multdim indexing
