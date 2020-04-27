@@ -29,6 +29,39 @@ testfiles = [
 filelist = [testdir + i for i in testfiles]
 
 
+@pytest.fixture(scope="module")
+def flag_file_init(tmp_path_factory):
+    tmp_path = tmp_path_factory.mktemp("pyuvdata_corr_fits", numbered=True)
+    spoof_file1 = str(tmp_path / "spoof_01_00.fits")
+    spoof_file6 = str(tmp_path / "spoof_06_00.fits")
+    # spoof box files of the appropriate size
+    with fits.open(filelist[1]) as mini1:
+        mini1[1].data = np.repeat(mini1[1].data, 8, axis=0)
+        extra_dat = np.copy(mini1[1].data)
+        for app_ind in range(2):
+            mini1.append(fits.ImageHDU(extra_dat))
+        mini1[2].header["MILLITIM"] = 500
+        mini1[2].header["TIME"] = mini1[1].header["TIME"]
+        mini1[3].header["MILLITIM"] = 0
+        mini1[3].header["TIME"] = mini1[1].header["TIME"] + 1
+        mini1.writeto(spoof_file1)
+
+    with fits.open(filelist[2]) as mini6:
+        mini6[1].data = np.repeat(mini6[1].data, 8, axis=0)
+        extra_dat = np.copy(mini6[1].data)
+        for app_ind in range(2):
+            mini6.append(fits.ImageHDU(extra_dat))
+        mini6[2].header["MILLITIM"] = 500
+        mini6[2].header["TIME"] = mini6[1].header["TIME"]
+        mini6[3].header["MILLITIM"] = 0
+        mini6[3].header["TIME"] = mini6[1].header["TIME"] + 1
+        mini6.writeto(spoof_file6)
+
+    flag_testfiles = [spoof_file1, spoof_file6, filelist[0]]
+
+    yield flag_testfiles
+
+
 def test_read_mwa_write_uvfits(tmp_path):
     """
     MWA correlator fits to uvfits loopback test.
@@ -171,6 +204,7 @@ def test_read_mwa_multi():
     set1 = filelist[0:2]
     set2 = [filelist[0], filelist[2]]
     mwa_uv = UVData()
+
     mwa_uv.read([set1, set2])
 
     mwa_uv2 = UVData()
@@ -438,39 +472,13 @@ def test_flag_nsample_basic():
     "ignore:coarse channels are not contiguous for this observation"
 )
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-def test_flag_init(tmp_path):
+def test_flag_init(flag_file_init):
     """
     Test that routine MWA flagging works as intended.
     """
-    spoof_file1 = str(tmp_path / "spoof_01_00.fits")
-    spoof_file6 = str(tmp_path / "spoof_06_00.fits")
-    # spoof box files of the appropriate size
-    with fits.open(filelist[1]) as mini1:
-        mini1[1].data = np.repeat(mini1[1].data, 8, axis=0)
-        extra_dat = np.copy(mini1[1].data)
-        for app_ind in range(2):
-            mini1.append(fits.ImageHDU(extra_dat))
-        mini1[2].header["MILLITIM"] = 500
-        mini1[2].header["TIME"] = mini1[1].header["TIME"]
-        mini1[3].header["MILLITIM"] = 0
-        mini1[3].header["TIME"] = mini1[1].header["TIME"] + 1
-        mini1.writeto(spoof_file1)
-
-    with fits.open(filelist[2]) as mini6:
-        mini6[1].data = np.repeat(mini6[1].data, 8, axis=0)
-        extra_dat = np.copy(mini6[1].data)
-        for app_ind in range(2):
-            mini6.append(fits.ImageHDU(extra_dat))
-        mini6[2].header["MILLITIM"] = 500
-        mini6[2].header["TIME"] = mini6[1].header["TIME"]
-        mini6[3].header["MILLITIM"] = 0
-        mini6[3].header["TIME"] = mini6[1].header["TIME"] + 1
-        mini6.writeto(spoof_file6)
-
-    flag_testfiles = [spoof_file1, spoof_file6, filelist[0]]
-
     uv = UVData()
-    uv.read(flag_testfiles, flag_init=True, start_flag=0, end_flag=0)
+    uv.read(flag_file_init, flag_init=True, start_flag=0, end_flag=0)
+
     freq_inds = [0, 1, 4, 6, 7, 8, 9, 12, 14, 15]
     freq_inds_complement = [ind for ind in range(16) if ind not in freq_inds]
 
@@ -481,14 +489,23 @@ def test_flag_init(tmp_path):
         np.all(uv.flag_array[:, :, freq_inds_complement, :], axis=(0, 1, -1))
     ), "Some non-edge/center channels are entirely flagged!"
 
+
+@pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
+@pytest.mark.filterwarnings(
+    "ignore:coarse channels are not contiguous for this observation"
+)
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_flag_start_flag(flag_file_init):
+    uv = UVData()
     uv.read(
-        flag_testfiles,
+        flag_file_init,
         flag_init=True,
         start_flag=1.0,
         end_flag=1.0,
         edge_width=0,
         flag_dc_offset=False,
     )
+
     reshape = [uv.Ntimes, uv.Nbls, uv.Nspws, uv.Nfreqs, uv.Npols]
     time_inds = [0, 1, -1, -2]
     assert np.all(
@@ -500,15 +517,35 @@ def test_flag_init(tmp_path):
         np.all(uv.flag_array.reshape(reshape)[[2, -3], :, :, :, :], axis=(1, 2, 3, 4))
     ), "All the data is flagged for some intermediate times!"
 
-    # give noninteger multiple inputs
-    with pytest.raises(ValueError):
-        uv.read(
-            flag_testfiles, flag_init=True, start_flag=0, end_flag=0, edge_width=90e3
-        )
-    with pytest.raises(ValueError):
-        uv.read(flag_testfiles, flag_init=True, start_flag=1.2, end_flag=0)
-    with pytest.raises(ValueError):
-        uv.read(flag_testfiles, flag_init=True, start_flag=0, end_flag=1.2)
 
-    for path in [spoof_file1, spoof_file6]:
-        os.remove(path)
+@pytest.mark.parametrize(
+    "err_type,read_kwargs,err_msg",
+    [
+        (
+            ValueError,
+            {"flag_init": True, "start_flag": 0, "end_flag": 0, "edge_width": 90e3},
+            "The edge_width must be an integer multiple of the channel_width",
+        ),
+        (
+            ValueError,
+            {"flag_init": True, "start_flag": 1.2, "end_flag": 0},
+            "The start_flag must be an integer multiple of the integration_time",
+        ),
+        (
+            ValueError,
+            {"flag_init": True, "start_flag": 0, "end_flag": 1.2},
+            "The end_flag must be an integer multiple of the integration_time",
+        ),
+    ],
+)
+@pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
+@pytest.mark.filterwarnings(
+    "ignore:coarse channels are not contiguous for this observation"
+)
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_flag_init_errors(flag_file_init, err_type, read_kwargs, err_msg):
+    uv = UVData()
+    # give noninteger multiple inputs
+    with pytest.raises(err_type) as cm:
+        uv.read(flag_file_init, **read_kwargs)
+    assert str(cm.value).startswith(err_msg)
