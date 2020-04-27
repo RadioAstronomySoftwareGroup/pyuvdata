@@ -6808,6 +6808,55 @@ def test_frequency_average_summing_corr_mode(uvdata_data):
     assert not isinstance(uvdata_data.uv_object.nsample_array, np.ma.MaskedArray)
 
 
+def test_frequency_average_propagate_flags(uvdata_data):
+    """
+    Test averaging in frequency with flagging all of one and only one of
+    another sample averaged, and propagating flags. Data should be identical,
+    but flags should be slightly different compared to other test of the same
+    name.
+    """
+    # check that there's no flagging
+    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+
+    # apply some flagging for testing
+    inds01 = uvdata_data.uv_object.antpair2ind(0, 1)
+    uvdata_data.uv_object.flag_array[inds01[0], :, 0:3, :] = True
+    assert (
+        np.nonzero(uvdata_data.uv_object.flag_array)[0].size
+        == uvdata_data.uv_object.Npols * 3
+    )
+
+    uvdata_data.uv_object.frequency_average(2, propagate_flags=True)
+
+    assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
+
+    expected_freqs = uvdata_data.uv_object2.freq_array.reshape(
+        uvdata_data.uv_object2.Nspws, int(uvdata_data.uv_object2.Nfreqs / 2), 2
+    ).mean(axis=2)
+    assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
+
+    expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze="none")
+    reshape_tuple = (
+        expected_data.shape[0],
+        uvdata_data.uv_object2.Nspws,
+        int(uvdata_data.uv_object2.Nfreqs / 2),
+        2,
+        uvdata_data.uv_object2.Npols,
+    )
+    expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
+
+    expected_data[0, :, 1, :] = uvdata_data.uv_object2.data_array[inds01[0], :, 3, :]
+
+    assert np.allclose(
+        uvdata_data.uv_object.get_data(0, 1, squeeze="none"), expected_data
+    )
+    # Twice as many flags should exist compared to test of previous name.
+    assert (
+        np.nonzero(uvdata_data.uv_object.flag_array)[0].size
+        == 2 * uvdata_data.uv_object.Npols
+    )
+
+
 def test_remove_eq_coeffs_divide(uvdata_data):
     """Test using the remove_eq_coeffs method with divide convention."""
     # give eq_coeffs to the object
