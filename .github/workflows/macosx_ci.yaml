@@ -42,7 +42,7 @@ jobs:
           cd empty
           export PATH="$HOME/miniconda/bin:$PATH"
           source activate $ENV_NAME
-          pytest --pyargs pyuvdata --cov=pyuvdata --cov-config=../.coveragerc --cov-report xml:../coverage.xml
+          pytest -n auto --pyargs pyuvdata --cov=pyuvdata --cov-config=../.coveragerc --cov-report xml:../coverage.xml
           cd ..
 
       - name: Upload Coverage (Mac OS)
