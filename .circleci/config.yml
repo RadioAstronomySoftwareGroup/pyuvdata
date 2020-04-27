@@ -61,7 +61,7 @@ jobs:
             mkdir test-reports
             mkdir -p empty
             cd empty
-            pytest --pyargs pyuvdata --cov=pyuvdata --cov-config="../.coveragerc" --cov-report xml:".././coverage.xml" --junitxml="../test-reports/xunit.xml"
+            pytest --pyargs pyuvdata -n 2 --cov=pyuvdata --cov-config="../.coveragerc" --cov-report xml:".././coverage.xml" --junitxml="../test-reports/xunit.xml"
             cd ..
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
@@ -102,7 +102,7 @@ jobs:
           command: |
             source activate ${ENV_NAME}
             cd docs
-            python -m pytest tutorial.rst
+            python -m pytest -n 2 tutorial.rst
             cd ..
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
