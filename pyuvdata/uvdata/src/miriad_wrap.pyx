@@ -359,58 +359,58 @@ cdef class UV:
     self.close()
     return
 
-  cdef _get_j_type(self, htype, name, length):
+  cdef _get_j_type(self, int htype, char *name, int length):
     cdef numpy.ndarray[dtype=int, ndim=1] arr = np.zeros((length,), dtype=np.int16)
     uvgetvr_c(self.tno, htype, name, <char *>&arr[0], length)
     if length == 1:
       return arr.item(0)
     return arr
 
-  cdef _get_i_type(self, htype, name, length):
+  cdef _get_i_type(self, int htype, char *name, int length):
     cdef numpy.ndarray[dtype=numpy.int32_t, ndim=1] arr = np.zeros((length,), dtype=np.int32)
     uvgetvr_c(self.tno, htype, name, <char *>&arr[0], length)
     if length == 1:
       return arr.item(0)
     return arr
 
-  cdef _get_d_type(self, htype, name, length):
+  cdef _get_d_type(self, int htype, char *name, int length):
     cdef numpy.ndarray[dtype=DTYPE_f64, ndim=1] arr = np.zeros((length,), dtype=np.float64)
     uvgetvr_c(self.tno, htype, name, <char *>&arr[0], length)
     if length == 1:
       return arr.item(0)
     return arr
 
-  cdef _get_r_type(self, htype, name, length):
+  cdef _get_r_type(self, int htype, char *name, int length):
     cdef numpy.ndarray[dtype=numpy.float32_t, ndim=1] arr = np.zeros((length,), dtype=np.float32)
     uvgetvr_c(self.tno, htype, name, <char *>&arr[0], length)
     if length == 1:
       return arr.item(0)
     return arr
 
-  cdef _get_c_type(self, htype, name, length):
+  cdef _get_c_type(self, int htype, char *name, int length):
     cdef numpy.ndarray[dtype=DTYPE_c, ndim=1] arr = np.zeros((length,), dtype=np.complex64)
     uvgetvr_c(self.tno, htype, name, <char *>&arr[0], length)
     if length == 1:
       return arr.item(0)
     return arr
 
-  cdef _store_j_type(self, htype, name, numpy.ndarray[dtype=int] value):
+  cdef _store_j_type(self, int htype, char *name, numpy.ndarray[dtype=int] value):
     uvputvr_c(self.tno, htype, name, <char *>&value[0], value.size)
     return
 
-  cdef _store_i_type(self, htype, name, numpy.ndarray[dtype=numpy.int32_t] value):
+  cdef _store_i_type(self, int htype, char *name, numpy.ndarray[dtype=numpy.int32_t] value):
     uvputvr_c(self.tno, htype, name, <char *>&value[0], value.size)
     return
 
-  cdef _store_d_type(self, htype, name, numpy.ndarray[dtype=DTYPE_f64] value):
+  cdef _store_d_type(self, int htype, char *name, numpy.ndarray[dtype=DTYPE_f64] value):
     uvputvr_c(self.tno, htype, name, <char *>&value[0], value.size)
     return
 
-  cdef _store_r_type(self, htype, name, numpy.ndarray[dtype=numpy.float32_t] value):
+  cdef _store_r_type(self, int htype, char *name, numpy.ndarray[dtype=numpy.float32_t] value):
     uvputvr_c(self.tno, htype, name, <char *>&value[0], value.size)
     return
 
-  cdef _store_c_type(self, htype, name, numpy.ndarray[dtype=DTYPE_c] value):
+  cdef _store_c_type(self, int htype, char *name, numpy.ndarray[dtype=DTYPE_c] value):
     uvputvr_c(self.tno, htype, name, <char *>&value[0], value.size)
     return
 
@@ -447,7 +447,7 @@ cdef class UV:
 
     return (uvw, preamble[3], (i, j)), data, flags, nread
 
-  cpdef raw_write(self, object input_preamble, data, flags):
+  cpdef raw_write(self, object input_preamble, numpy.ndarray[dtype=DTYPE_c, ndim=1] data, numpy.ndarray[dtype=int, ndim=1] flags):
     cdef int nread
     cdef double preamble[PREAMBLE_SIZE]
     cdef double t = input_preamble[1]
@@ -456,22 +456,13 @@ cdef class UV:
     if len(input_preamble[0]) != 3:
       raise ValueError(f"uvw must have shape (3,) but got {len(input_preamble[0])}")
 
-    cdef vector[float] _data
-    cdef vector[int] _flags
-
     preamble[0] = input_preamble[0][0]
     preamble[1] = input_preamble[0][1]
     preamble[2] = input_preamble[0][2]
     preamble[3] = t
     preamble[4] = MKBL(i, j)
 
-    for k in range(len(data)):
-      _data.push_back(data[k].real)
-      _data.push_back(data[k].imag)
-    for k in range(len(flags)):
-      _flags.push_back(flags[k])
-
-    uvwrite_c(self.tno, preamble, &_data[0], &_flags[0], data.shape[0])
+    uvwrite_c(self.tno, preamble, <float *>&data[0], <int *>&flags[0], data.size)
 
     return
 
