@@ -5259,7 +5259,8 @@ class UVData(UVBase):
 
         return
 
-    def frequency_average(self, n_chan_to_avg, summing_correlator_mode=False):
+    def frequency_average(self, n_chan_to_avg, summing_correlator_mode=False,
+                          propagate_flags=False):
         """
         Average in frequency.
 
@@ -5282,6 +5283,11 @@ class UVData(UVBase):
             Option to integrate or split the flux from the original samples
             rather than average or duplicate the flux from the original samples
             to emulate the behavior in some correlators (e.g. HERA).
+        propagate_flags: bool
+            Option to flag an averaged entry even if some of its contributors
+            are not flagged. The averaged result will still leave the flagged
+            samples out of the average, except when all contributors are
+            flagged.
         """
         self._check_freq_spacing()
 
