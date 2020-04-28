@@ -13,33 +13,73 @@
 }
 
 \title{Memo: UVCal FITS Format (\emph{.calfits})}
-\author{Zaki Ali, Bryna Hazelton, Adam Beardsley, Paul La Plante and the pyuvdata team}
+\author{Zaki Ali, Bryna Hazelton, Adam Beardsley, Paul La Plante, and the pyuvdata team}
 \date{July 3, 2017\\
- Revised January 29, 2020} % Activate to display a given date or no date
+ Revised April 2020}
 
 \begin{document}
 \maketitle
 \section{Introduction}
-This memo introduces the new \textit{calfits} file format for storing
-calibration solutions using
-pyuvdata\footnote{\url{https://github.com/RadioAstronomySoftwareGroup/pyuvdata}}, a python package that
-provides an interface to interferometric data. We are defining a file format
-with the code interface. Here, we describe the required and optional parameters
-of the \textit{calfits} format and interface to reading and writing, in addition
-to the structure of the underlying fits file. For examples please see the
-pyuvdata tutorial on ReadTheDocs: \url{http://pyuvdata.readthedocs.io/en/latest/tutorial.html}.
+This memo introduces a new FITS-based file format for storing calibration solutions to use with pyuvdata\footnote{\url{https://github.com/RadioAstronomySoftwareGroup/pyuvdata}}, a python package which
+provides a software interface for interferometry.
+% We are defining a file format with the code interface. 
+We describe the required and optional parameters of a UVCal FITS---hereafter \textit{calfits}---file and pyuvdata's interface for reading and writing these files. 
+For usage examples please refer to the pyuvdata tutorial: \url{http://pyuvdata.readthedocs.io/en/latest/tutorial.html}.
 
-\section{Basics}
+\section{Overview}
+\textit{Calfits} is an adaptation of the FITS file format to enable the storage of calibration information for radio interferometric arrays. %should it just be "for radio interferometers"? Or "for radio interferometry instruments"? 
 
-The \textit{calfits} format is a specification for the storage of radio
-interferometer calibration information in a fits file.  The contents of the file
-are defined via explicit mapping to the UVCal object in the pyuvdata package.
-The UVCal class is a subclass of the of the UVBase class
-with a set of \textbf{uvparameters} which define the UVCal object. A
-\textbf{uvparameter} is a pyuvdata object that has a name, form, description,
-value, required flag, expected type, acceptable values, and tolerances
-associated with it.  \textbf{Uvparameters} are accessed as attributes to the
-UVBase class (and its subclasses, like UVCal).
+Any valid \textit{calfits} file corresponds directly to a UVCal object within pyuvdata.
+As such, every new HDU keyword introduced here has a one-to-one correspondence with UVCal object parameters.
+In this memo, each new keyword is listed with its corresponding UVCal parameter, in parentheses. % or italicized? DECIDE.
+For more information about the UVCal class and its parameters, please refer to pyuvdata's documentation: \url{http://pyuvdata.readthedocs.io/en/latest/uvcal.html}.
+
+\subsection{The FITS file}
+
+A UVCal object stores calibration solutions as either a ``gain'' type solution, or as a ``delay'' type solution.
+These types represent two distinct but mathematically equivalent conventions, both widely used in radio astronomy.
+Depending on the calibration type (gain or delay), the \textit{calfits} format may consist of up to 4 HDUs. 
+In either case, the primary header is the same and consists of relevant meta-information for a UVCal object to be instantiated.
+The second HDU is also the same in either case and is the ANTENNAS HDU. 
+This HDU is a BinaryTable and consists of ANTNAME, ANTINDEX, and ANTARR, corresponding to antenna\_names, antenna\_numbers, and ant\_array in the above list, respectively. %clarify. 
+
+When the calibration type is ``gain'', the essential data contains only these 2 HDUs. 
+In this case, the image data in the primary HDU consists is a 6 dimensional array, where each dimension corresponds to (Nants, Nspws, Nfreqs, Ntimes, Njones, Number of arrays in image array), respectively.
+In other words, the primary data HDU contains the 5 axes of the data given in the list above, and then a sixth axis corresponding to the individual quantities being saved.
+For instance, if there is an input\_flag\_array the image array consists
+of [ real(gain\_array), imag(gain\_array), flag\_array, input\_flag\_array,
+quality\_array], which is concatenated along the last axis and so the last
+dimension is equal to 5. However, if no input\_flag\_array is given, the
+input\_flag\_array is left out of the above array and a the last dimension is
+equal to 4.
+
+When the calibration type is ``delay'', there are 3 data HDUs. The image data in
+the primary HDU is still a 5 dimensional array as before (dimensions are Nants,
+Nfreqs, Ntimes, Njones, number of arrays in image array), but with Nfreqs = 1 as
+a placeholder axis. This axis is added to keep the data arrays the same size
+between the delay-type and gains-type formats. In this case the image data is
+[delay\_array, quality\_array], concatenated along the last axis. The flag
+arrays are stored in the third HDU (ImageHDU) which has the flag\_array and may
+have an input\_flag\_array.
+
+For both delay-types, there is also an optional total\_quality\_array HDU, which
+contains information about the overall $\chi^2$ value of the whole array. The
+size of the array is (Nspws, Nfreqs, Ntimes, Njones). For delay-type
+calibrations, Nfreqs = 1 as above. If present, there will be 3 total HDUs for
+gain-type files, and 4 total HDUs for delay-type. Note that self-consistency
+checks are run when reading and writing calfits files to ensure that arrays have
+the proper size across different HDUs.
+
+%The \textit{calfits} format is a specification for the storage of radio
+%interferometer calibration information in a fits file.
+%The contents of the file are defined via explicit mapping to the UVCal object in the pyuvdata package.
+% beyond this is rubbish
+%The UVCal class is a subclass of the of the UVBase class
+%with a set of \textbf{uvparameters} which define the UVCal object. A
+%\textbf{uvparameter} is a pyuvdata object that has a name, form, description,
+%value, required flag, expected type, acceptable values, and tolerances
+%associated with it.  \textbf{Uvparameters} are accessed as attributes to the
+%UVBase class (and its subclasses, like UVCal).
 
 %\section{Parameters}
 %In order to conform to the \textit{calfits} file format there are a number of
@@ -125,8 +165,8 @@ parameters that may be passed in. These include:
     git\_origin\_cal) used to generate solutions. \emph{git\_hash\_cal}}
 \item{\textbf{input\_flag\_array}: Array of input flags, True is flagged. shape:
     (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), type = bool. \emph{input\_flag\_array}}
-\item{\textbf{observer}: Name of observer who calculated solutions in this
-    file. \emph{observer}}
+%\item{\textbf{observer}: Name of observer who calculated solutions in this
+%    file. \emph{observer}} % why is this here, it's a standard FITS header keyword?
 \item{\textbf{total\_quality\_array}: Array of qualities of the calibration
     solution for the entire array. The shape depends on cal\_type, if the cal\_type is
     "gain" or "unknown", the shape is: (Nspws, Nfreqs, Ntimes, Njones), if the 
