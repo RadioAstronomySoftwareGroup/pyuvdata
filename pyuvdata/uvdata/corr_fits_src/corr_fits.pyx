@@ -51,7 +51,7 @@ cpdef generate_map(
                     )
                     # need to take the complex conjugate of the data
                     map_inds[bls_ind * 4 + pol_ind] = data_index
-                    conj[bls_ind * 4 + pol_ind] = True
+                    conj[bls_ind * 4 + pol_ind] = 1
                 else:
                     data_index = int(
                         2 * out_ant1 * (out_ant1 + 1)
