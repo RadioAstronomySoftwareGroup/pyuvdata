@@ -1649,6 +1649,19 @@ def test_uvcalibrate_time_mismatch(uvcalibrate_data):
     )
 
 
+def test_uvcalibrate_time_wrong_size(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
+    # downselect by one time to get error
+    uvc.select(times=uvc.time_array[1:])
+    with pytest.raises(
+        ValueError,
+        match="The uvcal object has more than one time but fewer than the "
+        "number of unique times on the uvdata object.",
+    ):
+        uvutils.uvcalibrate(uvd, uvc, inplace=False)
+
+
 @pytest.mark.parametrize("len_time_range", [0, 1])
 def test_uvcalibrate_time_types(uvcalibrate_data, len_time_range):
     uvd, uvc = uvcalibrate_data
