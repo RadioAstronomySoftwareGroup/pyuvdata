@@ -78,7 +78,13 @@ extensions = [
         ],
         define_macros=global_c_macros,
         include_dirs=["pyuvdata/uvdata/src/"],
-    )
+    ),
+    Extension(
+        "pyuvdata._corr_fits",
+        sources=["pyuvdata/uvdata/corr_fits_src/corr_fits.pyx"],
+        define_macros=global_c_macros,
+        include_dirs=["pyuvdata/uvdata/corr_fits_src/"],
+    ),
 ]
 
 casa_reqs = ["python-casacore"]
