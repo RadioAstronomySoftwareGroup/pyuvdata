@@ -2622,16 +2622,18 @@ class UVData(UVBase):
         bls, unique_inds, reverse_inds = np.unique(
             self.baseline_array, return_index=True, return_inverse=True
         )
-
+        ant_sort = np.argsort(self.antenna_numbers)
         ant1_index = np.searchsorted(
-            self.antenna_numbers, self.ant_1_array[unique_inds],
+            self.antenna_numbers[ant_sort], self.ant_1_array[unique_inds],
         )
         ant2_index = np.searchsorted(
-            self.antenna_numbers, self.ant_2_array[unique_inds],
+            self.antenna_numbers[ant_sort], self.ant_2_array[unique_inds],
         )
-
         _uvw_array = np.zeros((bls.size, 3))
-        _uvw_array = antenna_locs_ENU[ant2_index, :] - antenna_locs_ENU[ant1_index, :]
+        _uvw_array = (
+            antenna_locs_ENU[ant_sort][ant2_index, :]
+            - antenna_locs_ENU[ant_sort][ant1_index, :]
+        )
         self.uvw_array = _uvw_array[reverse_inds]
 
         if phase_type == "phased":
