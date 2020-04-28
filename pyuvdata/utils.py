@@ -1113,27 +1113,23 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
 
     """
     lst_array = np.zeros_like(jd_array)
-    for ind, jd in enumerate(np.unique(jd_array)):
-        t = Time(
-            jd,
-            format="jd",
-            location=(Angle(longitude, unit="deg"), Angle(latitude, unit="deg")),
-        )
-
-        # avoid errors if iers.conf.auto_max_age is set to None, as we do in
-        # testing if the iers url is down
-        if iers.conf.auto_max_age is None:  # pragma: no cover
-            delta, status = t.get_delta_ut1_utc(return_status=True)
-            if status in (iers.TIME_BEFORE_IERS_RANGE, iers.TIME_BEYOND_IERS_RANGE):
-                warnings.warn(
-                    "time is out of IERS range, setting delta ut1 utc to "
-                    "extrapolated value"
-                )
-                t.delta_ut1_utc = delta
-
-        lst_array[
-            np.where(np.isclose(jd, jd_array, atol=1e-6, rtol=1e-12))
-        ] = t.sidereal_time("apparent").radian
+    jd, reverse_inds = np.unique(jd_array, return_inverse=True)
+    times = Time(
+        jd,
+        format="jd",
+        location=(Angle(longitude, unit="deg"), Angle(latitude, unit="deg")),
+    )
+    if iers.conf.auto_max_age is None:  # pragma: no cover
+        delta, status = times.get_delta_ut1_utc(return_status=True)
+        if np.any(
+            np.isin(status, (iers.TIME_BEFORE_IERS_RANGE, iers.TIME_BEYOND_IERS_RANGE))
+        ):
+            warnings.warn(
+                "time is out of IERS range, setting delta ut1 utc to "
+                "extrapolated value"
+            )
+            times.delta_ut1_utc = delta
+    lst_array = times.sidereal_time("apparent").radian[reverse_inds]
 
     return lst_array
 
