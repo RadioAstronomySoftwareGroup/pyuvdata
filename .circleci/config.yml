@@ -44,6 +44,7 @@ jobs:
     environment:
       PYTHON: << parameters.python_version >>
       ENV_NAME: << parameters.env_name >>
+      WITH_SUDO: true
     steps:
       - checkout
       - restore_cache:
