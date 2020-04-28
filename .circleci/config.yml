@@ -50,6 +50,11 @@ jobs:
       - restore_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
       - run:
+        name: Install miniconda
+        command: |
+          wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ./miniconda.sh;
+          bash ./miniconda.sh -b -p ./miniconda
+      - run:
           name: configure conda environment
           command: ./ci/install_conda.sh
       - run:
