@@ -3,7 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd $DIR/..
 
-python setup.py install
+pip install .
 
 cd pyuvdata
 python -m pytest --cov=pyuvdata --cov-config=../.coveragerc\
