@@ -26,19 +26,7 @@ def input_output_mapping():
     # (from mwa_build_lfiles/antenna_mapping.h):
     # floor(index/4) + index%4 * 16 = input
     # for the first 64 outputs, pfb_mapper[output] = input
-    # fmt: off
-    pfb_mapper = [0, 16, 32, 48, 1, 17, 33, 49, 2, 18, 34, 50, 3, 19, 35, 51,
-                  4, 20, 36, 52, 5, 21, 37, 53, 6, 22, 38, 54, 7, 23, 39, 55,
-                  8, 24, 40, 56, 9, 25, 41, 57, 10, 26, 42, 58, 11, 27, 43, 59,
-                  12, 28, 44, 60, 13, 29, 45, 61, 14, 30, 46, 62, 15, 31, 47,
-                  63]
-    # fmt: on
-    # build a mapper for all 256 inputs
-    pfb_inputs_to_outputs = {}
-    for p in range(4):
-        for i in range(64):
-            pfb_inputs_to_outputs[pfb_mapper[i] + p * 64] = p * 64 + i
-    return pfb_inputs_to_outputs
+    return _corr_fits.input_output_mapping()
 
 
 class MWACorrFITS(UVData):
