@@ -15,6 +15,7 @@ dependencies:
   - sphinx
   - coverage
   - pytest-cov
+  - cython
   - pip
   - pip:
       - pytest-cases>=1.12.1

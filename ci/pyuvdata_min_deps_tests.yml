@@ -9,6 +9,7 @@ dependencies:
   - h5py
   - coverage
   - pytest-cov
+  - cython
   - setuptools_scm
   - pip
   - pip:
