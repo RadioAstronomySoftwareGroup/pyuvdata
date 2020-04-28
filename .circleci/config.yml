@@ -52,19 +52,23 @@ jobs:
       - run:
           name: Install miniconda
           command: |
-            wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ./miniconda.sh;
-            bash ./miniconda.sh -b -p ./miniconda
+            wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $HOME/miniconda.sh;
+            bash $HOME/miniconda.sh -b -p $HOME/miniconda
       - run:
           name: configure conda environment
-          command: ./ci/install_conda.sh
+          command: |
+            export PATH="$HOME/miniconda/bin:$PATH"
+            ./ci/install_conda.sh
       - run:
           name: install
           command: |
+            export PATH="$HOME/miniconda/bin:$PATH"
             source activate ${ENV_NAME}
             pip install .
       - run:
           name: run pyuvdata tests
           command: |
+            export PATH="$HOME/miniconda/bin:$PATH"
             source activate ${ENV_NAME}
             mkdir test-reports
             mkdir -p empty
