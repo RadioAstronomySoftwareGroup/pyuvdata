@@ -6,7 +6,6 @@ cimport cython
 cimport numpy
 cimport libcpp.complex
 from libc.string cimport strcmp
-from libcpp.vector cimport vector
 
 DEF PREAMBLE_SIZE=5
 
