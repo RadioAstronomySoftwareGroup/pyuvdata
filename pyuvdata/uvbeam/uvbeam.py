@@ -1903,16 +1903,15 @@ class UVBeam(UVBase):
         phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
 
         # Don't ask for interpolation to pixels that aren't inside the beam area
-        inds_to_use = []
-        for index in range(pixels.size):
-            pix_dists = np.sqrt(
-                (theta_vals - hpx_theta[index]) ** 2.0
-                + (phi_vals - hpx_phi[index]) ** 2.0
-            )
-            if np.min(pix_dists) < hp_obj.pixel_resolution.to_value(units.radian) * 2:
-                inds_to_use.append(index)
+        pix_dists = np.sqrt(
+            (theta_vals.ravel() - hpx_theta.reshape(-1, 1)) ** 2
+            + (phi_vals.ravel() - hpx_phi.reshape(-1, 1)) ** 2
+        )
 
-        inds_to_use = np.array(inds_to_use)
+        inds_to_use = np.argwhere(
+            np.min(pix_dists, axis=1)
+            < hp_obj.pixel_resolution.to_value(units.radian) * 2
+        ).squeeze(1)
 
         if inds_to_use.size < hp_obj.npix:
             pixels = pixels[inds_to_use]
