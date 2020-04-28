@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file.
 - `multidim_index` to `UVH5.read_uvh5` and `UVData.read` for multidimensional slicing into HDF5 datasets
 
 ### Changed
-- Various serialized calculations in uvdata.py and utils.py to be vectorized with numpy
+- Various serialized calculations in uvdata.py, uvbeam.py, and utils.py to be vectorized with numpy
 - Miriad interface was re-written from a hand written CPython interface to a Cython interface which dynamically creates the CPython during package setup/build.
 - uvfits, calfits and beamfits files should now be read faster due to a simplified handling of fits header objects, especially when the history is very long.
 - The UVData methods `set_drift`, `set_phased`, and `set_unknown_phase_type` have been made private. The public methods will be removed in a future version.
