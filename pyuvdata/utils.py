@@ -1743,6 +1743,11 @@ def uvcalibrate(
     uvdata_times = np.unique(uvdata.time_array)
     downselect_cal_times = False
     if uvcal.Ntimes > 1:
+        if uvcal.Ntimes < uvdata.Ntimes:
+            raise ValueError(
+                "The uvcal object has more than one time but fewer than the "
+                "number of unique times on the uvdata object."
+            )
         uvcal_times = np.unique(uvcal.time_array)
         try:
             time_arr_match = np.allclose(
@@ -1776,6 +1781,7 @@ def uvcalibrate(
                     )
             if len(uvcal_times_to_keep) < uvcal.Ntimes:
                 downselect_cal_times = True
+
     elif uvcal.time_range is None:
         # only one UVCal time, no time_range.
         # This cannot match if UVData.Ntimes > 1.
