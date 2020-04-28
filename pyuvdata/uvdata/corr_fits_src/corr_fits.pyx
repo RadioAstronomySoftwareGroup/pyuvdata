@@ -1,4 +1,6 @@
 # distutils: language = c
+# cython: linetrace=True
+# distutils: define_macros=CYTHON_TRACE_NOGIL=1
 # python imports
 import numpy as np
 # cython imports

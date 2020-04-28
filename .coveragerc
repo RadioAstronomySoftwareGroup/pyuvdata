@@ -1,4 +1,7 @@
 [run]
+plugins = Cython.Coverage
+concurrency = multiprocessing
+parallel = true
 omit =
   */tests/*
   */conftest.py
