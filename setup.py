@@ -99,6 +99,7 @@ test_reqs = (
         "pytest-xdist",
         "pytest-cases>=1.12.1",
         "pytest-cov",
+        "cython",
         "coverage",
         "pre-commit",
     ]
