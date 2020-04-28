@@ -1763,6 +1763,12 @@ e) Writing a HEALPix beam FITS file
   >>> beam.interpolation_function = 'az_za_simple'
 
   # note that the `to_healpix` method requires astropy_healpix to be installed
+  # this beam file is very large. Let's cut down the size to ease the computation
+  # More on the `select` method is covered in the following section
+  >>> za_max = np.deg2rad(10.0)
+  >>> za_inds_use = np.nonzero(beam.axis2_array <= za_max)[0]
+  >>> beam.select(axis2_inds=za_inds_use)
+
   >>> beam.to_healpix()
   >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.fits')
   >>> beam.write_beamfits(write_file, clobber=True)
@@ -1815,6 +1821,12 @@ a) Convert a regularly gridded az_za power beam to HEALpix (leaving original int
 
   # have to specify which interpolation function to use
   >>> beam.interpolation_function = 'az_za_simple'
+
+  # this beam file is very large. Let's cut down the size to ease the computation
+  >>> za_max = np.deg2rad(10.0)
+  >>> za_inds_use = np.nonzero(beam.axis2_array <= za_max)[0]
+  >>> beam.select(axis2_inds=za_inds_use)
+
   >>> hpx_beam = beam.to_healpix(inplace=False)
   >>> hpx_obj = HEALPix(nside=hpx_beam.nside, order=hpx_beam.ordering)
   >>> lon, lat = hpx_obj.healpix_to_lonlat(hpx_beam.pixel_array)
@@ -1837,6 +1849,12 @@ b) Convert a regularly gridded az_za efield beam to HEALpix (leaving original in
 
   # have to specify which interpolation function to use
   >>> beam.interpolation_function = 'az_za_simple'
+
+  # this beam file is very large. Let's cut down the size to ease the computation
+  >>> za_max = np.deg2rad(10.0)
+  >>> za_inds_use = np.nonzero(beam.axis2_array <= za_max)[0]
+  >>> beam.select(axis2_inds=za_inds_use)
+
   >>> hpx_beam = beam.to_healpix(inplace=False)
   >>> hpx_obj = HEALPix(nside=hpx_beam.nside, order=hpx_beam.ordering)
   >>> lon, lat = hpx_obj.healpix_to_lonlat(hpx_beam.pixel_array)
@@ -1882,6 +1900,12 @@ Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam.read_cst_beam(settings_file, beam_type='efield')
   >>> beam.interpolation_function = 'az_za_simple'
+
+  # this beam file is very large. Let's cut down the size to ease the computation
+  >>> za_max = np.deg2rad(10.0)
+  >>> za_inds_use = np.nonzero(beam.axis2_array <= za_max)[0]
+  >>> beam.select(axis2_inds=za_inds_use)
+
   >>> pstokes_beam = beam.to_healpix(inplace=False)
   >>> pstokes_beam.efield_to_pstokes()
   >>> pstokes_beam.peak_normalize()
@@ -1908,6 +1932,11 @@ Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared ar
   >>> beam.interpolation_function = 'az_za_simple'
 
   # note that the `to_healpix` method requires astropy_healpix to be installed
+  # this beam file is very large. Let's cut down the size to ease the computation
+  >>> za_max = np.deg2rad(10.0)
+  >>> za_inds_use = np.nonzero(beam.axis2_array <= za_max)[0]
+  >>> beam.select(axis2_inds=za_inds_use)
+
   >>> pstokes_beam = beam.to_healpix(inplace=False)
   >>> pstokes_beam.efield_to_pstokes()
   >>> pstokes_beam.peak_normalize()
@@ -1925,17 +1954,19 @@ Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared ar
 
   >>> print ('Beam area at {} MHz for pseudo-stokes\nI: {}\nQ: {}\nU: {}\nV: {}'.format(freqs[0][0]*1e-6, pI_area1, pU_area1, pU_area1, pV_area1))
   Beam area at 123.0 MHz for pseudo-stokes
-  I: 0.05734
-  Q: 0.03339
-  U: 0.03339
-  V: 0.05372
+  I: 0.04674
+  Q: 0.02879
+  U: 0.02879
+  V: 0.0464
+
 
   >>> print ('Beam area at {} MHz for pseudo-stokes\nI: {}\nQ: {}\nU: {}\nV: {}'.format(freqs[0][1]*1e-6, pI_area2, pU_area2, pU_area2, pV_area2))
   Beam area at 150.0 MHz for pseudo-stokes
-  I: 0.03965
-  Q: 0.02265
-  U: 0.02265
-  V: 0.03664
+  I: 0.03237
+  Q: 0.01956
+  U: 0.01956
+  V: 0.03186
+
 
   # calculating beam squared area
   >>> freqs = pstokes_beam.freq_array
@@ -1950,14 +1981,15 @@ Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared ar
 
   >>> print ('Beam squared area at {} MHz for pseudo-stokes\nI: {}\nQ: {}\nU: {}\nV: {}'.format(freqs[0][0]*1e-6, pI_sq_area1, pU_sq_area1, pU_sq_area1, pV_sq_area1))
   Beam squared area at 123.0 MHz for pseudo-stokes
-  I: 0.02439
-  Q: 0.01161
-  U: 0.01161
-  V: 0.02426
+  I: 0.02474
+  Q: 0.01179
+  U: 0.01179
+  V: 0.0246
+
 
   >>> print ('Beam squared area at {} MHz for pseudo-stokes\nI: {}\nQ: {}\nU: {}\nV: {}'.format(freqs[0][1]*1e-6, pI_sq_area2, pU_sq_area2, pU_sq_area2, pV_sq_area2))
   Beam squared area at 150.0 MHz for pseudo-stokes
-  I: 0.01693
-  Q: 0.0079
-  U: 0.0079
-  V: 0.01683
+  I: 0.01696
+  Q: 0.00792
+  U: 0.00792
+  V: 0.01686
