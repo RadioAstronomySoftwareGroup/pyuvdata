@@ -5,10 +5,14 @@
 """Tests for telescope objects and functions.
 
 """
+import os
+
 import numpy as np
 import pytest
 
 import pyuvdata
+from pyuvdata.data import DATA_PATH
+from pyuvdata import UVData
 
 required_parameters = ["_telescope_name", "_telescope_location"]
 required_properties = ["telescope_name", "telescope_location"]
@@ -157,4 +161,22 @@ def test_get_telescope_no_loc():
         pyuvdata.get_telescope,
         "test",
         telescope_dict_in=test_telescope_dict,
+    )
+
+
+def test_hera_loc():
+    hera_file = os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected")
+    hera_data = UVData()
+    hera_data.read(hera_file, read_data=False, file_type="uvh5")
+
+    telescope_obj = pyuvdata.get_telescope("HERA")
+
+    print(telescope_obj.telescope_location)
+    print(hera_data.telescope_location)
+
+    assert np.allclose(
+        telescope_obj.telescope_location,
+        hera_data.telescope_location,
+        rtol=hera_data._telescope_location.tols[0],
+        atol=hera_data._telescope_location.tols[1],
     )
