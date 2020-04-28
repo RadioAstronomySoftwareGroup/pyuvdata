@@ -1223,23 +1223,12 @@ def test_uvcalibrate_apply_gains_oldfiles():
             uvd, uvc, prop_flags=True, flag_missing=False, inplace=False
         )
     warns = {warn.message.args[0] for warn in warninfo}
-    uvdata_unique_nums = np.unique(np.append(uvd.ant_1_array, uvd.ant_2_array))
-    uvd.antenna_names = np.array(uvd.antenna_names)
-    uvdata_used_antnames = np.array(
-        [
-            uvd.antenna_names[np.where(uvd.antenna_numbers == antnum)][0]
-            for antnum in uvdata_unique_nums
-        ]
-    )
     ant_expected = {
-        f"Antenna {antname} has data on UVData but not on UVCal. "
-        f"Its antenna number is {uvdata_unique_nums[num]}, which is present "
-        "on UVCal. Currently the data will be calibrated using the "
+        "All antenna names with data on UVData are missing "
+        "on UVCal. They do all have matching antenna numbers on "
+        "UVCal. Currently the data will be calibrated using the "
         "matching antenna number, but that will be deprecated in "
-        "version 2.2 and this will become an error. "
-        "Set ant_check=False to proceed "
-        "with calibration and flag the data for this antenna. "
-        for num, antname in enumerate(uvdata_used_antnames)
+        "version 2.2 and this will become an error."
     }
     missing_times = [2457698.4036761867, 2457698.4038004624]
     time_expected = {
@@ -1301,23 +1290,12 @@ def test_uvcalibrate_delay_oldfiles():
             uvd, uvc, prop_flags=False, flag_missing=False, inplace=False
         )
     warns = {warn.message.args[0] for warn in warninfo}
-    uvdata_unique_nums = np.unique(np.append(uvd.ant_1_array, uvd.ant_2_array))
-    uvd.antenna_names = np.array(uvd.antenna_names)
-    uvdata_used_antnames = np.array(
-        [
-            uvd.antenna_names[np.where(uvd.antenna_numbers == antnum)][0]
-            for antnum in uvdata_unique_nums
-        ]
-    )
     ant_expected = {
-        f"Antenna {antname} has data on UVData but not on UVCal. "
-        f"Its antenna number is {uvdata_unique_nums[num]}, which is present "
-        "on UVCal. Currently the data will be calibrated using the "
+        "All antenna names with data on UVData are missing "
+        "on UVCal. They do all have matching antenna numbers on "
+        "UVCal. Currently the data will be calibrated using the "
         "matching antenna number, but that will be deprecated in "
-        "version 2.2 and this will become an error. "
-        "Set ant_check=False to proceed "
-        "with calibration and flag the data for this antenna. "
-        for num, antname in enumerate(uvdata_used_antnames)
+        "version 2.2 and this will become an error."
     }
     missing_times = [2457698.4036761867, 2457698.4038004624]
     time_expected = {
@@ -1451,14 +1429,13 @@ def test_uvcalibrate_flag_propagation(uvcalibrate_data):
         for antnum in missing_ants
     ]
     ant_expected = {
-        f"Antenna {antname} has data on UVData but not on UVCal. "
-        "Data for this antenna will not be calibrated"
-        ", set ant_check=False to proceed "
-        "with calibration and flag the data for this antenna. "
-        "Currently calibration will proceed, the data will not "
-        "be flagged and not be calibrated. This behavior will "
-        "deprected in version 2.2."
-        for antname in missing_ant_names
+        f"Antennas {missing_ant_names} have data on UVData but "
+        "are missing on UVCal. Currently calibration will "
+        "proceed and since flag_missing is False, the data "
+        "for these antennas will not be calibrated or "
+        "flagged. This will become an error in version 2.2, "
+        "to continue calibration and flag missing "
+        "antennas in the future, set ant_check=False.",
     }
 
     assert not np.any(uvdcal.get_flags(13, 24, "xx"))  # assert no flags exist
@@ -1468,12 +1445,13 @@ def test_uvcalibrate_flag_propagation(uvcalibrate_data):
         )
     warns = {warn.message.args[0] for warn in warninfo}
     ant_expected = {
-        f"Antenna {antname} has data on UVData but not on UVCal. "
-        "Data for this antenna will not be calibrated"
-        " and will be flagged because flag_missing is True. "
-        "The flag_missing keyword will be deprected in "
-        "version 2.2, use ant_check=False instead."
-        for antname in missing_ant_names
+        f"Antennas {missing_ant_names} have data on UVData but "
+        "are missing on UVCal. Currently calibration will "
+        "proceed and since flag_missing is True, the data "
+        "for these antennas will be flagged. This will "
+        "become an error in version 2.2, to continue "
+        "calibration and flag missing antennas in the "
+        "future, set ant_check=False."
     }
 
     assert warns == ant_expected
@@ -1486,15 +1464,112 @@ def test_uvcalibrate_flag_propagation(uvcalibrate_data):
         )
     warns = {warn.message.args[0] for warn in warninfo}
     ant_expected = {
-        f"Antenna {antname} has data on UVData but not on UVCal. "
-        "ant_check is False, so the data associated with "
-        "this antenna will be flagged."
-        for antname in missing_ant_names
+        f"Antennas {missing_ant_names} have data on UVData but are missing "
+        "on UVCal. Since ant_check is False, calibration will "
+        "proceed and the data for these antennas will be flagged."
     }
 
     assert warns == ant_expected
 
     assert np.all(uvdcal.get_flags(13, 24, "xx"))  # assert completely flagged
+
+
+@pytest.mark.filterwarnings("ignore:Cannot preserve total_quality_array")
+def test_uvcalibrate_flag_propagation_name_mismatch(uvcalibrate_init_data):
+    uvd, uvc = uvcalibrate_init_data
+
+    # test flag propagation
+    uvc.flag_array[0] = True
+    uvc.gain_array[1] = 0.0
+    uvdcal = uvutils.uvcalibrate(
+        uvd, uvc, prop_flags=True, flag_missing=False, inplace=False
+    )
+
+    assert np.all(uvdcal.get_flags(1, 13, "xx"))  # assert completely flagged
+    assert np.all(uvdcal.get_flags(0, 12, "xx"))  # assert completely flagged
+    np.testing.assert_array_almost_equal(
+        uvd.get_data(1, 13, "xx"), uvdcal.get_data(1, 13, "xx")
+    )
+    np.testing.assert_array_almost_equal(
+        uvd.get_data(0, 12, "xx"), uvdcal.get_data(0, 12, "xx")
+    )
+
+    uvc_sub = uvc.select(antenna_nums=[1, 12], inplace=False)
+    with pytest.warns(DeprecationWarning) as warninfo:
+        uvdcal = uvutils.uvcalibrate(
+            uvd, uvc_sub, prop_flags=True, flag_missing=False, inplace=False
+        )
+    warns = {warn.message.args[0] for warn in warninfo}
+    uvdata_unique_nums = np.unique(np.append(uvd.ant_1_array, uvd.ant_2_array))
+    uvd.antenna_names = np.array(uvd.antenna_names)
+    missing_ants = uvdata_unique_nums.tolist()
+    missing_ants.remove(1)
+    missing_ants.remove(12)
+    missing_ant_names = [
+        uvd.antenna_names[np.where(uvd.antenna_numbers == antnum)[0][0]]
+        for antnum in missing_ants
+    ]
+    present_ant_names = [
+        uvd.antenna_names[np.where(uvd.antenna_numbers == antnum)[0][0]]
+        for antnum in [1, 12]
+    ]
+    ant_expected = {
+        f"Antennas {present_ant_names} have data on UVData but "
+        "are missing on UVCal. They do have matching antenna "
+        "numbers on UVCal. Currently the data for these antennas "
+        "will be calibrated using the matching antenna number, "
+        "but that will be deprecated in "
+        "version 2.2 and this will become an error.",
+        f"Antennas {missing_ant_names} have data on UVData but "
+        "are missing on UVCal. Currently calibration will "
+        "proceed and since flag_missing is False, the data "
+        "for these antennas will not be calibrated or "
+        "flagged. This will become an error in version 2.2, "
+        "to continue calibration and flag missing "
+        "antennas in the future, set ant_check=False.",
+    }
+
+    assert not np.any(uvdcal.get_flags(13, 24, "xx"))  # assert no flags exist
+    with pytest.warns(DeprecationWarning) as warninfo:
+        uvdcal = uvutils.uvcalibrate(
+            uvd, uvc_sub, prop_flags=True, flag_missing=True, inplace=False
+        )
+    warns = {warn.message.args[0] for warn in warninfo}
+
+    ant_expected = {
+        f"Antennas {present_ant_names} have data on UVData but "
+        "are missing on UVCal. They do have matching antenna "
+        "numbers on UVCal. Currently the data for these antennas "
+        "will be calibrated using the matching antenna number, "
+        "but that will be deprecated in "
+        "version 2.2 and this will become an error.",
+        f"Antennas {missing_ant_names} have data on UVData but "
+        "are missing on UVCal. Currently calibration will "
+        "proceed and since flag_missing is True, the data "
+        "for these antennas will be flagged. This will "
+        "become an error in version 2.2, to continue "
+        "calibration and flag missing antennas in the "
+        "future, set ant_check=False.",
+    }
+
+    assert warns == ant_expected
+
+    assert np.all(uvdcal.get_flags(13, 24, "xx"))  # assert completely flagged
+
+    with pytest.warns(UserWarning) as warninfo:
+        uvdcal = uvutils.uvcalibrate(
+            uvd, uvc_sub, prop_flags=True, ant_check=False, inplace=False
+        )
+    warns = {warn.message.args[0] for warn in warninfo}
+    ant_expected = {
+        "All antenna names with data on UVData are missing "
+        "on UVCal. Since ant_check is False, calibration will "
+        "proceed but all data will be flagged."
+    }
+
+    assert warns == ant_expected
+
+    assert np.all(uvdcal.flag_array)  # assert completely flagged
 
 
 def test_uvcalibrate_extra_cal_antennas(uvcalibrate_data):
@@ -1518,27 +1593,15 @@ def test_uvcalibrate_extra_cal_antennas(uvcalibrate_data):
 def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data):
     uvd, uvc = uvcalibrate_init_data
 
-    with pytest.warns(DeprecationWarning) as warninfo:
-        uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False)
-    warns = {warn.message.args[0] for warn in warninfo}
-    uvdata_unique_nums = np.unique(np.append(uvd.ant_1_array, uvd.ant_2_array))
-    uvd.antenna_names = np.array(uvd.antenna_names)
-    uvdata_unique_names = [
-        uvd.antenna_names[np.where(uvd.antenna_numbers == antnum)[0][0]]
-        for antnum in uvdata_unique_nums
-    ]
-    ant_expected = {
-        f"Antenna {antname} has data on UVData but not on UVCal. "
-        f"Its antenna number is {antnum}, which is present "
-        "on UVCal. Currently the data will be calibrated using the "
+    with pytest.warns(
+        DeprecationWarning,
+        match="All antenna names with data on UVData are missing "
+        "on UVCal. They do all have matching antenna numbers on "
+        "UVCal. Currently the data will be calibrated using the "
         "matching antenna number, but that will be deprecated in "
-        "version 2.2 and this will become an error. "
-        "Set ant_check=False to proceed "
-        "with calibration and flag the data for this antenna. "
-        for antnum, antname in zip(uvdata_unique_nums, uvdata_unique_names)
-    }
-
-    assert warns == ant_expected
+        "version 2.2 and this will become an error.",
+    ):
+        uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
     key = (1, 13, "xx")
     ant1 = (1, "Jxx")
@@ -1550,17 +1613,13 @@ def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data):
     )
 
     # now test that they're all flagged if ant_check is False
-    with pytest.warns(UserWarning) as warninfo:
+    with pytest.warns(
+        UserWarning,
+        match="All antenna names with data on UVData are missing "
+        "on UVCal. Since ant_check is False, calibration will "
+        "proceed but all data will be flagged.",
+    ):
         uvdcal = uvutils.uvcalibrate(uvd, uvc, ant_check=False, inplace=False)
-    warns = {warn.message.args[0] for warn in warninfo}
-    ant_expected = {
-        f"Antenna {antname} has data on UVData but not on UVCal. "
-        "ant_check is False, so the data associated with "
-        "this antenna will be flagged."
-        for antname in uvdata_unique_names
-    }
-
-    assert warns == ant_expected
 
     assert np.all(uvdcal.flag_array)  # assert completely flagged
 
