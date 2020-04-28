@@ -2618,10 +2618,19 @@ class UVData(UVBase):
                     "allow_phasing=True."
                 )
         antenna_locs_ENU, _ = self.get_ENU_antpos(center=False)
+        # this code used to loop through every bl in the unique,
+        # find the index into self.antenna_array of ant1 and ant2
+        # and fill out the self.uvw_array for all matching bls.
 
+        # instead, find the indices and reverse inds from the unique,
+        # create the unique ant1 and ant2 arrays
+        # use searchsorted to find the index of the antenna numbers into ant1 and ant2
+        # create the unique uvw array then broadcast to self.uvw_array
         bls, unique_inds, reverse_inds = np.unique(
             self.baseline_array, return_index=True, return_inverse=True
         )
+        # the first argument of searchsorted must be sorted so find the sort indices
+        # to help with indexing without changing the object.
         ant_sort = np.argsort(self.antenna_numbers)
         ant1_index = np.searchsorted(
             self.antenna_numbers[ant_sort], self.ant_1_array[unique_inds],
