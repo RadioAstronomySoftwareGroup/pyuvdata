@@ -619,15 +619,15 @@ class MWACorrFITS(UVData):
         # these are the indices for the data corresponding to the initial
         # antenna/pol pair
         # generate a mapping index array
-        map_inds = np.zeros(self.Nbls * self.Npols, dtype=np.int32)
+        map_inds = np.zeros((self.Nbls * self.Npols), dtype=np.int32)
         # generate a conjugation array
-        conj = np.full(self.Nbls * self.Npols, False)
+        conj = np.full((self.Nbls * self.Npols), 0, dtype=np.int_)
         pfb_inputs_to_outputs = input_output_mapping()
 
         map_inds, conj = _corr_fits.generate_map(
             corr_ants_to_pfb_inputs, pfb_inputs_to_outputs, map_inds, conj,
         )
-
+        conj = conj.astype(bool)
         # reorder data
         self.data_array = self.data_array[:, :, map_inds]
         self.nsample_array = self.nsample_array[:, :, map_inds]
