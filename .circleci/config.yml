@@ -2,7 +2,9 @@ version: 2.1
 orbs:
   codecov: codecov/codecov@1.0.2 # to get this to work, had to opt-in to using third party orbs in Organization Security settings.
 jobs:
-  build: machine
+  build:
+    machine:
+      image: circleci/classic:latest
   linter:
     parameters:
       python_version:
