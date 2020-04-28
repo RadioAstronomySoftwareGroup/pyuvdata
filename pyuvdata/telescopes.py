@@ -26,13 +26,13 @@ KNOWN_TELESCOPES = {
     },
     "HERA": {
         "center_xyz": None,
-        "latitude": Angle("-30d43m17.5s").radian,
-        "longitude": Angle("21d25m41.9s").radian,
-        "altitude": 1073.0,
+        "latitude": Angle("-30.72152612068925d").radian,
+        "longitude": Angle("21.42830382686301d").radian,
+        "altitude": 1051.69,
         "diameters": 14.0,
         "citation": (
-            "value taken from capo/cals/hsa7458_v000.py, "
-            "comment reads KAT/SA  (GPS), altitude from elevationmap.net"
+            "value taken from hera_mc geo.py script "
+            "(using hera_cm_db_updates under the hood.)"
         ),
     },
     "MWA": {
