@@ -440,11 +440,8 @@ class MWACorrFITS(UVData):
             start_time + int_time / 2.0, end_time + int_time / 2.0 + int_time, int_time
         )
 
-        # convert from unix to julian times
-        julian_time_array = [Time(i, format="unix", scale="utc").jd for i in time_array]
-
-        # convert to integers
-        float_time_array = np.array([float(i) for i in julian_time_array])
+        # convert to time to jd floats
+        float_time_array = Time(time_array, format="unix", scale="utc").jd.astype(float)
         # build into time array
         self.time_array = np.repeat(float_time_array, self.Nbls)
 
@@ -457,7 +454,7 @@ class MWACorrFITS(UVData):
             self.time_array, *self.telescope_location_lat_lon_alt_degrees
         )
 
-        self.integration_time = np.array([int_time for i in range(self.Nblts)])
+        self.integration_time = np.full((self.Nblts), int_time)
 
         # convert antenna positions from enu to ecef
         # antenna positions are "relative to
