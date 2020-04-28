@@ -38,7 +38,7 @@ jobs:
       env_name:
         type: string
     machine:
-      - image: circleci/classic:latest
+      image: circleci/classic:latest
     # docker:
       # - image: continuumio/miniconda:latest
     environment:
