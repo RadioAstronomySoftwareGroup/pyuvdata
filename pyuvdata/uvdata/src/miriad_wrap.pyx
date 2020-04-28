@@ -91,10 +91,10 @@ ctypedef numpy.float64_t DTYPE_f64
 ctypedef numpy.int64_t DTYPE_sl
 
 cdef inline int GETI(int bl):
-  return (bl - 65536) / 2048 - 1 if bl > 65536 else (bl >> 8) - 1
+  return (bl - 65536) // 2048 - 1 if bl > 65536 else (bl >> 8) - 1
 
 cdef inline int GETJ(int bl):
-  return (bl - 65536) % 2048 -1 if bl > 65536 else (bl & 255) - 1
+  return (bl - 65536) % 2048 - 1 if bl > 65536 else (bl & 255) - 1
 
 cdef inline float MKBL(int i, int j):
   return (i + 1) << 8 | (j + 1) if (i + 1 < 256 and j + 1 < 256) else (i + 1) * 2048 + (j + 1 + 65536)

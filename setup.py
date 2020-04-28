@@ -124,7 +124,7 @@ setup_args = {
         "pyuvdata.uvflag",
     ],
     "cmdclass": {"build_ext": CustomBuildExtCommand},
-    "ext_modules": cythonize(extensions),
+    "ext_modules": cythonize(extensions, language_level=3),
     "scripts": [fl for fl in glob.glob("scripts/*") if not os.path.isdir(fl)],
     "use_scm_version": {"local_scheme": branch_scheme},
     "include_package_data": True,
