@@ -2619,19 +2619,21 @@ class UVData(UVBase):
                 )
         antenna_locs_ENU, _ = self.get_ENU_antpos(center=False)
 
-        uvw_array = np.zeros((self.baseline_array.size, 3))
-        for baseline in list(set(self.baseline_array)):
-            baseline_inds = np.where(self.baseline_array == baseline)[0]
-            ant1_index = np.where(
-                self.antenna_numbers == self.ant_1_array[baseline_inds[0]]
-            )[0][0]
-            ant2_index = np.where(
-                self.antenna_numbers == self.ant_2_array[baseline_inds[0]]
-            )[0][0]
-            uvw_array[baseline_inds, :] = (
-                antenna_locs_ENU[ant2_index, :] - antenna_locs_ENU[ant1_index, :]
-            )
-        self.uvw_array = uvw_array
+        bls, unique_inds, reverse_inds = np.unique(
+            self.baseline_array, return_index=True, return_inverse=True
+        )
+
+        ant1_index = np.searchsorted(
+            self.antenna_numbers, self.ant_1_array[unique_inds],
+        )
+        ant2_index = np.searchsorted(
+            self.antenna_numbers, self.ant_2_array[unique_inds],
+        )
+
+        _uvw_array = np.zeros((bls.size, 3))
+        _uvw_array = antenna_locs_ENU[ant2_index, :] - antenna_locs_ENU[ant1_index, :]
+        self.uvw_array = _uvw_array[reverse_inds]
+
         if phase_type == "phased":
             self.phase(
                 phase_center_ra,
