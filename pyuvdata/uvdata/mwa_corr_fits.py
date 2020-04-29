@@ -636,11 +636,8 @@ class MWACorrFITS(UVData):
         self.flag_array = np.swapaxes(self.flag_array, 1, 2)
 
         # generage baseline flags for flagged ants
-        bad_ant_inds = []
-        for ant1 in range(128):
-            for ant2 in range(ant1, 128):
-                if ant1 in flagged_ants or ant2 in flagged_ants:
-                    bad_ant_inds.append(int(128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2))
+        bad_ant_inds = _corr_fits.get_bad_ants(flagged_ants.astype(np.int32))
+
         self.flag_array[:, bad_ant_inds, :, :] = True
 
         # combine baseline and time axes
