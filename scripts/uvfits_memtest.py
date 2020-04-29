@@ -4,8 +4,6 @@
 # Licensed under the 2-clause BSD License
 """Test memory usage of read_uvfits."""
 
-from __future__ import absolute_import, division, print_function
-
 from memory_profiler import profile
 import numpy as np
 from astropy import constants as const

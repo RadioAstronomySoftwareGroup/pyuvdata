@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- mode: python; coding: utf-8 -*-
 # Copyright 2018 the HERA Project
 # Licensed under the 2-clause BSD License
 
@@ -8,8 +8,6 @@ routines. It was copied from AIPY commit
 used by pyuvdata are ``uv_selector`` and ``UV``.
 
 """
-from __future__ import absolute_import, division, print_function
-
 __all__ = ["uv_selector", "UV"]
 
 import numpy as np

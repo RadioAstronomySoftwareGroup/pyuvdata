@@ -7,8 +7,6 @@ Class for reading and writing casa measurement sets.
 
 Requires casacore.
 """
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 import os
 import warnings

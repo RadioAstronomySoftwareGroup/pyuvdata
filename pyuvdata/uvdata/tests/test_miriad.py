@@ -20,8 +20,6 @@ open file handles interfering with other tests. The exception to this is if a
 test uses the `uv_in_paper` or `uv_in_uvfits` fixture, as these handle cleanup
 on their own.
 """
-from __future__ import absolute_import, division, print_function
-
 import os
 import shutil
 import copy

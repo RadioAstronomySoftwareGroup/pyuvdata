@@ -4,8 +4,6 @@
 # Licensed under the 2-clause BSD License
 """Test if two UVData compatible files are equal."""
 
-from __future__ import absolute_import, division, print_function
-
 import argparse
 import os.path as op
 from pyuvdata import UVData

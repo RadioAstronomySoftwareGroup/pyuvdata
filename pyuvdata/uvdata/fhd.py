@@ -3,8 +3,6 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading FHD save files."""
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 import warnings
 from scipy.io.idl import readsav

@@ -3,7 +3,6 @@
 # Licensed under the 2-clause BSD License
 
 """Init file for pyuvdata."""
-from __future__ import absolute_import, division, print_function
 import warnings
 from setuptools_scm import get_version
 from pathlib import Path
