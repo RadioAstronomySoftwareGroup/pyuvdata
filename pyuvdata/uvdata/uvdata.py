@@ -5148,7 +5148,11 @@ class UVData(UVBase):
 
         # harmonize temporary arrays with existing ones
         if min_int_time is not None:
-            inds_to_keep = np.array([], dtype=bool)
+            bls_not_downsampled = set(self.baseline_array) - set(bls_to_downsample)
+            inds_to_keep = []
+            for bl in bls_not_downsampled:
+                inds_to_keep += np.nonzero(self.baseline_array == bl)[0].tolist()
+            inds_to_keep = np.array(inds_to_keep, dtype=np.int)
         else:
             inds_to_keep = np.array([], dtype=bool)
         self._harmonize_resample_arrays(
