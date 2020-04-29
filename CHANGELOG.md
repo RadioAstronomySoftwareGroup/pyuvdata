@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.2] - 2020-4-29
+
 ### Added
 - New `_corr_fits` C extension for performing the index and conjugation mapping calculation for read_mwa_corr_fits
 - `copy` method to UVCal and UVBeam objects
@@ -13,8 +15,7 @@ All notable changes to this project will be documented in this file.
 - Various serialized calculations in uvdata.py, uvbeam.py, and utils.py to be vectorized with numpy
 - Miriad interface was re-written from a hand written CPython interface to a Cython interface which dynamically creates the CPython during package setup/build.
 - uvfits, calfits and beamfits files should now be read faster due to a simplified handling of fits header objects, especially when the history is very long.
-- The UVData methods `set_drift`, `set_phased`, and `set_unknown_phase_type` have been made private. The public methods will be removed in a future version.
-
+- The UVData methods `set_drift`, `set_phased`, and `set_unknown_phase_type` have been made private. The public methods will be removed in version 2.2.
 
 ## [2.0.1] - 2020-3-24
 
