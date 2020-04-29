@@ -609,13 +609,12 @@ class MWACorrFITS(UVData):
         # generate a mapping index array
         map_inds = np.zeros((self.Nbls * self.Npols), dtype=np.int32)
         # generate a conjugation array
-        conj = np.full((self.Nbls * self.Npols), 0, dtype=np.int_)
+        conj = np.full((self.Nbls * self.Npols), False, dtype=np.bool_)
         pfb_inputs_to_outputs = input_output_mapping()
 
         map_inds, conj = _corr_fits.generate_map(
             corr_ants_to_pfb_inputs, pfb_inputs_to_outputs, map_inds, conj,
         )
-        conj = conj.astype(bool)
         # reorder data
         self.data_array = self.data_array[:, :, map_inds]
         self.nsample_array = self.nsample_array[:, :, map_inds]

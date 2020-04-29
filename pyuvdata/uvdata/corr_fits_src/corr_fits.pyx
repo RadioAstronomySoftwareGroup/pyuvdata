@@ -34,7 +34,7 @@ cpdef generate_map(
   dict ants_to_pf,
   dict in_to_out,
   numpy.ndarray[ndim=1, dtype=numpy.int32_t] map_inds,
-  numpy.ndarray[ndim=1, dtype=numpy.int_t] conj
+  numpy.ndarray[ndim=1, dtype=numpy.npy_bool] conj
 ):
   for ant1 in range(128):
     for ant2 in range(ant1, 128):
@@ -75,7 +75,7 @@ cpdef generate_map(
                     )
                     # need to take the complex conjugate of the data
                     map_inds[bls_ind * 4 + pol_ind] = data_index
-                    conj[bls_ind * 4 + pol_ind] = 1
+                    conj[bls_ind * 4 + pol_ind] = True
                 else:
                     data_index = int(
                         2 * out_ant1 * (out_ant1 + 1)
