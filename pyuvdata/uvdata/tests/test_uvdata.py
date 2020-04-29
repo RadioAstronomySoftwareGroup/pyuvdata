@@ -6077,14 +6077,74 @@ def test_downsample_in_time_varying_integration_time(resample_in_time_file):
     # (for this file with 20 integrations and a factor of 2 downsampling)
     assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
 
-    # output data should be the average
     out_wf = uv_object.get_data(0, 1)
+
+    n_times_in = init_wf.shape[0]
+    n_times_out = out_wf.shape[0]
+    assert n_times_out == (n_times_in - 2) / 2 + 2
+
+    # output data should be the average for the first set
     assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0, out_wf[0, 0, 0])
+    # last 2 time samples should be identical to initial ones
+    assert np.isclose(init_wf[-1, 0, 0], out_wf[-1, 0, 0])
+    assert np.isclose(init_wf[-2, 0, 0], out_wf[-2, 0, 0])
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
     assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0, out_ns[0, 0, 0])
+    assert np.isclose(init_ns[-1, 0, 0], out_ns[-1, 0, 0])
+    assert np.isclose(init_ns[-2, 0, 0], out_ns[2, 0, 0])
 
+    return
+
+
+def test_downsample_in_time_varying_int_time_partial_flags(resample_in_time_file):
+    """Test downsample_in_time handling of file with integration time changing
+    within a baseline and partial flagging.
+    """
+    uv_object = resample_in_time_file
+    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
+    # reorder to make sure we get the right value later
+    uv_object.reorder_blts(order="baseline", minor_order="time")
+
+    # downselect to 14 times and one baseline
+    uv_object.select(times=np.unique(uv_object.time_array)[:14])
+
+    # check that there are no flags
+    assert np.nonzero(uv_object.flag_array)[0].size == 0
+
+    # change last 2 integrations to be twice as long
+    # (so 12 normal length, 2 double length)
+    # change integration time & time array to match
+    inds01 = uv_object.antpair2ind(0, 1)
+    initial_int_time = uv_object.integration_time[inds01[0]]
+    # time array is in jd, integration time is in sec
+    uv_object.time_array[inds01[-2]] += (initial_int_time / 2) / (24 * 3600)
+    uv_object.time_array[inds01[-1]] += (3 * initial_int_time / 2) / (24 * 3600)
+    uv_object.integration_time[inds01[-2:]] += initial_int_time
+    uv_object.Ntimes = np.unique(uv_object.time_array).size
+
+    # add a flag on last time
+    uv_object.flag_array[inds01[-1], :, :, :] = True
+    # add a flag on thrid to last time
+    uv_object.flag_array[inds01[-3], :, :, :] = True
+
+    uv_object2 = uv_object.copy()
+
+    with pytest.warns(None) as record:
+        uv_object.downsample_in_time(min_int_time=4 * initial_int_time)
+    assert len(record) == 0
+    with pytest.warns(None) as record:
+        uv_object.downsample_in_time(min_int_time=8 * initial_int_time)
+    assert len(record) == 0
+    with pytest.warns(None) as record:
+        uv_object2.downsample_in_time(min_int_time=8 * initial_int_time)
+    assert len(record) == 0
+
+    assert uv_object.history != uv_object2.history
+    uv_object2.history = uv_object.history
+
+    assert uv_object == uv_object2
     return
 
 
@@ -6470,6 +6530,41 @@ def test_resample_in_time_only_upsample(bda_test_file):
     assert np.isclose(init_data_1_138[0, 0, 0], out_data_1_138[0, 0, 0])
     assert np.isclose(init_data_136_137[0, 0, 0], out_data_136_137[0, 0, 0])
 
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
+@pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
+def test_resample_in_time_partial_flags(bda_test_file):
+    """Test resample_in_time with partial flags"""
+    # Note this file has slight variations in the delta t between integrations
+    # that causes our gap test to issue a warning, but the variations are small
+    # We aren't worried about them, so we filter those warnings
+    uv = bda_test_file
+    # For ease, select a single baseline
+    uv.select(bls=[(1, 136)])
+    # Flag one time
+    uv.flag_array[0, :, :, :] = True
+    uv2 = uv.copy()
+
+    print(uv.data_array[:, 0, 0, 0])
+    print(uv.nsample_array[:, 0, 0, 0])
+    # Downsample in two stages
+    uv.resample_in_time(4.0, only_downsample=True)
+    print(uv.data_array[:, 0, 0, 0])
+    print(uv.nsample_array[:, 0, 0, 0])
+    uv.resample_in_time(8.0, only_downsample=True)
+    # Downsample in a single stage
+    uv2.resample_in_time(8.0, only_downsample=True)
+
+    print(uv.data_array[:, 0, 0, 0])
+    print(uv.nsample_array[:, 0, 0, 0])
+    print(uv2.data_array[:, 0, 0, 0])
+    print(uv.nsample_array[:, 0, 0, 0])
+
+    assert uv.history != uv2.history
+    uv2.history = uv.history
+    assert uv == uv2
     return
 
 

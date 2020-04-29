@@ -4968,13 +4968,23 @@ class UVData(UVBase):
             int_times = int_times
             if len(np.unique(int_times)) == 1:
                 # this baseline has all the same integration times
-                if len(np.unique(dtime)) > 1:
+                if len(np.unique(dtime)) > 1 and not np.isclose(
+                    np.max(dtime),
+                    np.min(dtime),
+                    rtol=self._integration_time.tols[0],
+                    atol=self._integration_time.tols[1],
+                ):
                     warnings.warn(
                         "There is a gap in the times of baseline {bl}. "
                         "The output may include averages across long "
                         "time gaps.".format(bl=self.baseline_to_antnums(bl))
                     )
-                elif not np.isclose(dtime[0], int_times[0]):
+                elif not np.isclose(
+                    dtime[0],
+                    int_times[0],
+                    rtol=self._integration_time.tols[0],
+                    atol=self._integration_time.tols[1],
+                ):
                     warnings.warn(
                         "The time difference between integrations is "
                         "not the same as the integration time for "
@@ -5092,33 +5102,37 @@ class UVData(UVBase):
                         masked_data = np.ma.masked_array(
                             self.data_array[averaging_idx], mask=mask
                         )
-                        if summing_correlator_mode:
-                            temp_data[temp_idx] = np.sum(masked_data, axis=0)
-                        else:
-                            # take potential non-uniformity of integration_time into
-                            # account
-                            masked_int_time = np.ma.masked_array(
-                                np.ones_like(
-                                    self.data_array[averaging_idx],
-                                    dtype=self.integration_time.dtype,
-                                )
-                                * self.integration_time[
-                                    averaging_idx, np.newaxis, np.newaxis, np.newaxis
-                                ],
-                                mask=mask,
-                            )
-                            weighted_data = masked_data * masked_int_time
-                            temp_data[temp_idx] = np.sum(
-                                weighted_data, axis=0
-                            ) / np.sum(masked_int_time, axis=0)
+
                         # nsample array is the fraction of data that we actually kept,
                         # relative to the amount that went into the sum or average
                         masked_nsample = np.ma.masked_array(
                             self.nsample_array[averaging_idx], mask=mask
                         )
-                        temp_nsample[temp_idx] = np.sum(masked_nsample, axis=0) / float(
-                            self.flag_array[averaging_idx].shape[0]
+
+                        masked_int_time = np.ma.masked_array(
+                            np.ones_like(
+                                self.data_array[averaging_idx],
+                                dtype=self.integration_time.dtype,
+                            )
+                            * self.integration_time[
+                                averaging_idx, np.newaxis, np.newaxis, np.newaxis
+                            ],
+                            mask=mask,
                         )
+                        if summing_correlator_mode:
+                            temp_data[temp_idx] = np.sum(masked_data, axis=0)
+                        else:
+                            # take potential non-uniformity of integration_time
+                            # and nsamples into account
+                            weights = masked_nsample * masked_int_time
+                            weighted_data = masked_data * weights
+                            temp_data[temp_idx] = np.sum(
+                                weighted_data, axis=0
+                            ) / np.sum(weights, axis=0)
+
+                        temp_nsample[temp_idx] = np.sum(
+                            masked_nsample * masked_int_time, axis=0
+                        ) / np.sum(self.integration_time[averaging_idx])
                     # increment counters and reset values
                     temp_idx += 1
                     summing_idx += n_sum
@@ -5134,9 +5148,9 @@ class UVData(UVBase):
 
         # harmonize temporary arrays with existing ones
         if min_int_time is not None:
-            inds_to_keep = np.nonzero(self.integration_time >= min_int_time)
+            inds_to_keep = np.array([], dtype=bool)
         else:
-            inds_to_keep = np.nonzero(np.zeros_like(self.integration_time, dtype=bool))
+            inds_to_keep = np.array([], dtype=bool)
         self._harmonize_resample_arrays(
             inds_to_keep,
             temp_baseline,
