@@ -6547,20 +6547,11 @@ def test_resample_in_time_partial_flags(bda_test_file):
     uv.flag_array[0, :, :, :] = True
     uv2 = uv.copy()
 
-    print(uv.data_array[:, 0, 0, 0])
-    print(uv.nsample_array[:, 0, 0, 0])
     # Downsample in two stages
     uv.resample_in_time(4.0, only_downsample=True)
-    print(uv.data_array[:, 0, 0, 0])
-    print(uv.nsample_array[:, 0, 0, 0])
     uv.resample_in_time(8.0, only_downsample=True)
     # Downsample in a single stage
     uv2.resample_in_time(8.0, only_downsample=True)
-
-    print(uv.data_array[:, 0, 0, 0])
-    print(uv.nsample_array[:, 0, 0, 0])
-    print(uv2.data_array[:, 0, 0, 0])
-    print(uv.nsample_array[:, 0, 0, 0])
 
     assert uv.history != uv2.history
     uv2.history = uv.history
