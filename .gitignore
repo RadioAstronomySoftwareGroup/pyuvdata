@@ -42,7 +42,7 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *,cover
-pyuvdata/cover
+pyuvdata/tests/cover
 
 # Translations
 *.mo
