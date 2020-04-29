@@ -3,8 +3,6 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing Miriad files."""
-from __future__ import absolute_import, division, print_function
-
 import os
 import shutil
 import numpy as np

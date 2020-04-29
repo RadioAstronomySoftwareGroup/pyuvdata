@@ -3,8 +3,6 @@
 # Licensed under the 2-clause BSD License
 
 """Commonly used utility functions."""
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 import warnings
 import copy

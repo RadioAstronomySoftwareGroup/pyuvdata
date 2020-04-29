@@ -3,7 +3,6 @@
 # Licensed under the 2-clause BSD License
 
 """Primary container for radio interferometer flag manipulation."""
-from __future__ import print_function, division, absolute_import
 import numpy as np
 import os
 import warnings

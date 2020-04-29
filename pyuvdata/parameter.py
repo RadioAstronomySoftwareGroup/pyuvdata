@@ -11,8 +11,6 @@ UVBase. This module also includes specialized sublasses for particular types
 of metadata.
 
 """
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 
 from . import utils

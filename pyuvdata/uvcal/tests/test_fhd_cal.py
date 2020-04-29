@@ -3,8 +3,6 @@
 # Licensed under the 2-clause BSD License
 
 """Tests for FHD_cal object."""
-from __future__ import absolute_import, division, print_function
-
 import pytest
 import os
 

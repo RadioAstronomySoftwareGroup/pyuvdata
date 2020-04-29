@@ -4,9 +4,6 @@
 # Licensed under the 2-clause BSD License
 """Convert multiple FHD datasets to UVFITS format."""
 
-
-from __future__ import absolute_import, division, print_function
-
 import argparse
 import os
 import os.path as op

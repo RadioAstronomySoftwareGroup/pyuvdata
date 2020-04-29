@@ -4,8 +4,6 @@
 # Licensed under the 2-clause BSD License
 """Inspect attributes of pyuvdata objects."""
 
-from __future__ import absolute_import, division, print_function
-
 import argparse
 from pyuvdata import UVData, UVBeam, UVCal
 import os
