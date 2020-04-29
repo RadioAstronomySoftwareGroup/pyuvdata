@@ -85,3 +85,11 @@ cpdef generate_map(
                     )
                     map_inds[bls_ind * 4 + pol_ind] = data_index
   return map_inds, conj
+
+cpdef get_bad_ants(numpy.ndarray[dtype=numpy.int32_t, ndim=1] flagged_ants):
+  cpdef list bad_ants = []
+  for ant1 in range(128):
+      for ant2 in range(ant1, 128):
+          if ant1 in flagged_ants or ant2 in flagged_ants:
+              bad_ants.append(<int>(128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2))
+  return bad_ants
