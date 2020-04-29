@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 ### Added
 - `propagate_flags` keyword for `UVData.frequency_average` which flags averaged samples if any contributing samples were flagged
 
+### Changed
+- `utils.uvcalibrate` now incorporates many more consistency checks between the uvcal and uvdata object. The new keywords `time_check` and `ant_check` were added to control some of these checks.
+
+### Deprecated
+- `utils.uvcalibrate` will error rather than warn if some of the newly added checks do not pass, including if antenna names do not match between the objects, starting in version 2.2. In addition, the `flag_missing` keyword is deprecated and will be removed in version 2.2.
+
 ## [2.0.2] - 2020-4-29
 
 ### Added
