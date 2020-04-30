@@ -5334,6 +5334,9 @@ def test_downsample_in_time(resample_in_time_file):
     uv_object2.history = uv_object.history
     assert uv_object == uv_object2
 
+    assert not isinstance(uv_object.data_array, np.ma.MaskedArray)
+    assert not isinstance(uv_object.nsample_array, np.ma.MaskedArray)
+
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
