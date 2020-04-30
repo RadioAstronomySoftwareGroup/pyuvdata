@@ -5259,8 +5259,9 @@ class UVData(UVBase):
 
         return
 
-    def frequency_average(self, n_chan_to_avg, summing_correlator_mode=False,
-                          propagate_flags=False):
+    def frequency_average(
+        self, n_chan_to_avg, summing_correlator_mode=False, propagate_flags=False
+    ):
         """
         Average in frequency.
 
@@ -5342,7 +5343,9 @@ class UVData(UVBase):
                 # The sum below will be zero if it's all flagged and
                 # greater than zero otherwise
                 # Then we use a test against 0 to turn it into a Boolean
-                self.flag_array = np.sum(~self.flag_array.reshape(shape_tuple), axis=3) == 0
+                self.flag_array = (
+                    np.sum(~self.flag_array.reshape(shape_tuple), axis=3) == 0
+                )
 
             # need to update mask if a downsampled visibility will be flagged
             # so that we don't set it to zero
