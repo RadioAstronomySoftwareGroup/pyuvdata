@@ -616,8 +616,8 @@ class MWACorrFITS(UVData):
             corr_ants_to_pfb_inputs, pfb_inputs_to_outputs, map_inds, conj,
         )
         # reorder data
-        self.data_array = self.data_array[:, :, map_inds]
-        self.nsample_array = self.nsample_array[:, :, map_inds]
+        self.data_array = np.take(self.data_array, map_inds, axis=2)
+        self.nsample_array = np.take(self.nsample_array, map_inds, axis=2)
         self.flag_array = self.flag_array[:, :, map_inds]
         # conjugate data
         self.data_array[:, :, conj] = np.conj(self.data_array[:, :, conj])
