@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- `propagate_flags` keyword for `UVData.frequency_average` for different resulting flags from averaging
+- `propagate_flags` keyword for `UVData.frequency_average` which flags averaged samples if any contributing samples were flagged
 
 ## [2.0.2] - 2020-4-29
 
