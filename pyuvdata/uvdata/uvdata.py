@@ -833,9 +833,8 @@ class UVData(UVBase):
         # to the shape of another array.
         nants_data_calc = int(
             len(
-                set(
-                    np.unique(self.ant_1_array).tolist()
-                    + np.unique(self.ant_2_array).tolist()
+                set(np.unique(self.ant_1_array).tolist()).union(
+                    np.unique(self.ant_2_array).tolist()
                 )
             )
         )
@@ -897,7 +896,11 @@ class UVData(UVBase):
             )
         if np.any(
             np.isclose(
-                np.linalg.norm(self.uvw_array[~autos], axis=1),
+                np.sqrt(
+                    self.uvw_array[~autos, 0] ** 2
+                    + self.uvw_array[~autos, 1] ** 2
+                    + self.uvw_array[~autos, 2] ** 2
+                ),
                 0.0,
                 rtol=self._uvw_array.tols[0],
                 atol=self._uvw_array.tols[1],
@@ -1865,7 +1868,8 @@ class UVData(UVBase):
             )
 
         self.polarization_array = self.polarization_array[index_array]
-        self.data_array = self.data_array[:, :, :, index_array]
+        # data array is special and large, take is faster here
+        self.data_array = np.take(self.data_array, index_array, axis=3)
         self.nsample_array = self.nsample_array[:, :, :, index_array]
         self.flag_array = self.flag_array[:, :, :, index_array]
 
