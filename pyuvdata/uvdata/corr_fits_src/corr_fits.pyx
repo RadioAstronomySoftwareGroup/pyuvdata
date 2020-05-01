@@ -16,6 +16,8 @@ def input_output_mapping():
   # (from mwa_build_lfiles/antenna_mapping.h):
   # floor(index/4) + index%4 * 16 = input
   # for the first 64 outputs, pfb_mapper[output] = input
+  cdef int p, i
+  cdef dict pfb_inputs_to_outputs = {}
   # fmt: off
   pfb_mapper = [0, 16, 32, 48, 1, 17, 33, 49, 2, 18, 34, 50, 3, 19, 35, 51,
                 4, 20, 36, 52, 5, 21, 37, 53, 6, 22, 38, 54, 7, 23, 39, 55,
@@ -24,7 +26,6 @@ def input_output_mapping():
                 63]
   # fmt: on
   # build a mapper for all 256 inputs
-  pfb_inputs_to_outputs = {}
   for p in range(4):
       for i in range(64):
           pfb_inputs_to_outputs[pfb_mapper[i] + p * 64] = p * 64 + i
@@ -36,6 +37,8 @@ cpdef generate_map(
   numpy.ndarray[ndim=1, dtype=numpy.int32_t] map_inds,
   numpy.ndarray[ndim=1, dtype=numpy.npy_bool] conj
 ):
+  cdef int ant1, atn2, p1, p2, pol_ind, bls_ind, out_ant1, out_ant2
+  cdef int out_p1, out_p2, ind1_1, ind1_2, ind2_1, ind2_2, data_index
   for ant1 in range(128):
     for ant2 in range(ant1, 128):
         for p1 in range(2):
@@ -87,7 +90,8 @@ cpdef generate_map(
   return map_inds, conj
 
 cpdef get_bad_ants(numpy.ndarray[dtype=numpy.int32_t, ndim=1] flagged_ants):
-  cpdef list bad_ants = []
+  cdef list bad_ants = []
+  cdef int ant1, ant2
   for ant1 in range(128):
       for ant2 in range(ant1, 128):
           if ant1 in flagged_ants or ant2 in flagged_ants:
