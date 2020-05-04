@@ -46,22 +46,10 @@ class MWACorrFITS(UVData):
         cable_lens : list of strings
         A list of strings containing the cable lengths for each antenna.
         """
-        # "the velocity factor of electic fields in RG-6 like coax"
         # from MWA_Tools/CONV2UVFITS/convutils.h
-        v_factor = 1.204
-        # check if the cable length already has the velocity factor applied
-        cable_array = []
-        for i in cable_lens:
-            if i[0:3] == "EL_":
-                cable_array.append(float(i[3:]))
-            else:
-                cable_array.append(float(i) * v_factor)
-        # build array of differences
-        cable_len_diffs = np.zeros((self.Nblts, 1))
-        for j in range(self.Nblts):
-            cable_len_diffs[j] = (
-                cable_array[self.ant_2_array[j]] - cable_array[self.ant_1_array[j]]
-            )
+        cable_len_diffs = _corr_fits.get_cable_len_diffs(
+            self.Nblts, self.ant_1_array, self.ant_2_array, cable_lens
+        )
         self.data_array *= np.exp(
             -1j
             * 2
@@ -396,7 +384,7 @@ class MWACorrFITS(UVData):
             antenna_numbers = meta_tbl["Antenna"][1::2]
             antenna_names = meta_tbl["TileName"][1::2]
             antenna_flags = meta_tbl["Flag"][1::2]
-            cable_lens = meta_tbl["Length"][1::2]
+            cable_lens = np.asarray(meta_tbl["Length"][1::2]).astype(np.str_)
 
             # get antenna postions in enu coordinates
             antenna_positions = np.zeros((len(antenna_numbers), 3))

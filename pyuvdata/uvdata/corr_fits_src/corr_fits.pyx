@@ -97,3 +97,26 @@ cpdef list get_bad_ants(numpy.ndarray[dtype=numpy.int32_t, ndim=1] flagged_ants)
           if ant1 in flagged_ants or ant2 in flagged_ants:
               bad_ants.append(<int>(128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2))
   return bad_ants
+
+cpdef numpy.ndarray get_cable_len_diffs(
+  int Nblts,
+  numpy.ndarray[dtype=numpy.int_t, ndim=1] ant1_array,
+  numpy.ndarray[dtype=numpy.int_t, ndim=1] ant2_array,
+  numpy.ndarray cable_lens,
+):
+  cdef int i
+  cdef list cable_array = []
+  cdef numpy.ndarray[ndim=2, dtype=numpy.float64_t] cable_diffs = np.zeros((Nblts, 1))
+  # "the velocity factor of electic fields in RG-6 like coax"
+  # from MWA_Tools/CONV2UVFITS/convutils.h
+  cdef float v_factor = 1.204
+ # check if the cable length already has the velocity factor applied
+  for i in range(len(cable_lens)):
+   if cable_lens[i][0:3] == "EL_":
+     cable_array.append(float(cable_lens[i][3:]))
+   else:
+     cable_array.append(float(cable_lens[i]) * v_factor)
+  # build array of differences
+  for i in range(Nblts):
+    cable_diffs[i] = cable_array[ant2_array[i]] - cable_array[ant1_array[i]]
+  return cable_diffs
