@@ -7,7 +7,7 @@ import numpy as np
 cimport cython
 cimport numpy
 
-def input_output_mapping():
+cpdef dict input_output_mapping():
   """Build a mapping dictionary from pfb input to output numbers."""
   # the polyphase filter bank maps inputs to outputs, which the MWA
   # correlator then records as the antenna indices.
@@ -31,7 +31,7 @@ def input_output_mapping():
           pfb_inputs_to_outputs[pfb_mapper[i] + p * 64] = p * 64 + i
   return pfb_inputs_to_outputs
 
-cpdef generate_map(
+cpdef tuple generate_map(
   dict ants_to_pf,
   dict in_to_out,
   numpy.ndarray[ndim=1, dtype=numpy.int32_t] map_inds,
@@ -89,7 +89,7 @@ cpdef generate_map(
                     map_inds[bls_ind * 4 + pol_ind] = data_index
   return map_inds, conj
 
-cpdef get_bad_ants(numpy.ndarray[dtype=numpy.int32_t, ndim=1] flagged_ants):
+cpdef list get_bad_ants(numpy.ndarray[dtype=numpy.int32_t, ndim=1] flagged_ants):
   cdef list bad_ants = []
   cdef int ant1, ant2
   for ant1 in range(128):
