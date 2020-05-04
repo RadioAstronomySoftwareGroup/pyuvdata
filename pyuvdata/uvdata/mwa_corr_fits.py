@@ -618,7 +618,8 @@ class MWACorrFITS(UVData):
         # reorder data
         self.data_array = np.take(self.data_array, map_inds, axis=2)
         self.nsample_array = np.take(self.nsample_array, map_inds, axis=2)
-        self.flag_array = self.flag_array[:, :, map_inds]
+        self.flag_array = np.take(self.flag_array, map_inds, axis=2)
+        # self.flag_array = self.flag_array[:, :, map_inds]
         # conjugate data
         self.data_array[:, :, conj] = np.conj(self.data_array[:, :, conj])
         # reshape data
