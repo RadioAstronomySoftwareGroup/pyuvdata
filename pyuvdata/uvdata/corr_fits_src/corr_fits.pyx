@@ -27,8 +27,9 @@ cpdef dict input_output_mapping():
   # fmt: on
   # build a mapper for all 256 inputs
   for p in range(4):
-      for i in range(64):
-          pfb_inputs_to_outputs[pfb_mapper[i] + p * 64] = p * 64 + i
+    for i in range(64):
+      pfb_inputs_to_outputs[pfb_mapper[i] + p * 64] = p * 64 + i
+
   return pfb_inputs_to_outputs
 
 cpdef tuple generate_map(
@@ -39,63 +40,67 @@ cpdef tuple generate_map(
 ):
   cdef int ant1, atn2, p1, p2, pol_ind, bls_ind, out_ant1, out_ant2
   cdef int out_p1, out_p2, ind1_1, ind1_2, ind2_1, ind2_2, data_index
+
   for ant1 in range(128):
     for ant2 in range(ant1, 128):
-        for p1 in range(2):
-            for p2 in range(2):
-                # generate the indices in self.data_array for this combination
-                # baselines are ordered (0,0),(0,1),...,(0,127),(1,1),.....
-                # polarizion of 0 (1) corresponds to y (x)
-                pol_ind = int(2 * p1 + p2)
-                bls_ind = int(128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2)
-                # find the pfb input indices for this combination
-                (ind1_1, ind1_2) = (
-                    ants_to_pf[(ant1, p1)],
-                    ants_to_pf[(ant2, p2)],
-                )
-                # find the pfb output indices
-                (ind2_1, ind2_2) = (
-                    in_to_out[(ind1_1)],
-                    in_to_out[(ind1_2)],
-                )
-                out_ant1 = int(ind2_1 / 2)
-                out_ant2 = int(ind2_2 / 2)
-                out_p1 = ind2_1 % 2
-                out_p2 = ind2_2 % 2
-                # the correlator has ind2_2 <= ind2_1 except for
-                # redundant data. The redundant data is not perfectly
-                # redundant; sometimes the values of redundant data
-                # are off by one in the imaginary part.
-                # For consistency, we are ignoring the redundant values
-                # that have ind2_2 > ind2_1
-                if ind2_2 > ind2_1:
-                    # get the index for the data
-                    data_index = int(
-                        2 * out_ant2 * (out_ant2 + 1)
-                        + 4 * out_ant1
-                        + 2 * out_p2
-                        + out_p1
-                    )
-                    # need to take the complex conjugate of the data
-                    map_inds[bls_ind * 4 + pol_ind] = data_index
-                    conj[bls_ind * 4 + pol_ind] = True
-                else:
-                    data_index = int(
-                        2 * out_ant1 * (out_ant1 + 1)
-                        + 4 * out_ant2
-                        + 2 * out_p1
-                        + out_p2
-                    )
-                    map_inds[bls_ind * 4 + pol_ind] = data_index
+      for p1 in range(2):
+        for p2 in range(2):
+          # generate the indices in self.data_array for this combination
+          # baselines are ordered (0,0),(0,1),...,(0,127),(1,1),.....
+          # polarizion of 0 (1) corresponds to y (x)
+          pol_ind = int(2 * p1 + p2)
+          bls_ind = int(128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2)
+          # find the pfb input indices for this combination
+          (ind1_1, ind1_2) = (
+            ants_to_pf[(ant1, p1)],
+            ants_to_pf[(ant2, p2)],
+          )
+          # find the pfb output indices
+          (ind2_1, ind2_2) = (
+            in_to_out[(ind1_1)],
+            in_to_out[(ind1_2)],
+          )
+          out_ant1 = int(ind2_1 / 2)
+          out_ant2 = int(ind2_2 / 2)
+          out_p1 = ind2_1 % 2
+          out_p2 = ind2_2 % 2
+          # the correlator has ind2_2 <= ind2_1 except for
+          # redundant data. The redundant data is not perfectly
+          # redundant; sometimes the values of redundant data
+          # are off by one in the imaginary part.
+          # For consistency, we are ignoring the redundant values
+          # that have ind2_2 > ind2_1
+          if ind2_2 > ind2_1:
+            # get the index for the data
+            data_index = int(
+              2 * out_ant2 * (out_ant2 + 1)
+              + 4 * out_ant1
+              + 2 * out_p2
+              + out_p1
+            )
+            # need to take the complex conjugate of the data
+            map_inds[bls_ind * 4 + pol_ind] = data_index
+            conj[bls_ind * 4 + pol_ind] = True
+          else:
+            data_index = int(
+              2 * out_ant1 * (out_ant1 + 1)
+              + 4 * out_ant2
+              + 2 * out_p1
+              + out_p2
+            )
+            map_inds[bls_ind * 4 + pol_ind] = data_index
+
   return map_inds, conj
 
 cpdef list get_bad_ants(numpy.ndarray[dtype=numpy.int32_t, ndim=1] flagged_ants):
   cdef list bad_ants = []
   cdef int ant1, ant2
+
   for ant1 in range(128):
-      for ant2 in range(ant1, 128):
-          if ant1 in flagged_ants or ant2 in flagged_ants:
-              bad_ants.append(<int>(128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2))
+    for ant2 in range(ant1, 128):
+      if ant1 in flagged_ants or ant2 in flagged_ants:
+        bad_ants.append(<int>(128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2))
+
   return bad_ants
 
 cpdef numpy.ndarray get_cable_len_diffs(
@@ -107,15 +112,18 @@ cpdef numpy.ndarray get_cable_len_diffs(
   cdef int i
   cdef list cable_array = []
   cdef numpy.ndarray[ndim=2, dtype=numpy.float64_t] cable_diffs = np.zeros((Nblts, 1))
+
   # "the velocity factor of electic fields in RG-6 like coax"
   # from MWA_Tools/CONV2UVFITS/convutils.h
   cdef float v_factor = 1.204
- # check if the cable length already has the velocity factor applied
+
+  # check if the cable length already has the velocity factor applied
   for i in range(len(cable_lens)):
    if cable_lens[i][0:3] == "EL_":
      cable_array.append(float(cable_lens[i][3:]))
    else:
      cable_array.append(float(cable_lens[i]) * v_factor)
+
   # build array of differences
   for i in range(Nblts):
     cable_diffs[i] = cable_array[ant2_array[i]] - cable_array[ant1_array[i]]
