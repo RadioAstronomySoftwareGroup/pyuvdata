@@ -110,8 +110,8 @@ cpdef numpy.ndarray get_cable_len_diffs(
   numpy.ndarray cable_lens,
 ):
   cdef int i
-  cdef list cable_array = []
-  cdef numpy.ndarray[ndim=2, dtype=numpy.float64_t] cable_diffs = np.zeros((Nblts, 1))
+  cdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] cable_array = np.zeros(len(cable_lens), dtype=np.float_)
+  cdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] cable_diffs = np.zeros(Nblts, dtype=np.float_)
 
   # "the velocity factor of electic fields in RG-6 like coax"
   # from MWA_Tools/CONV2UVFITS/convutils.h
@@ -119,12 +119,12 @@ cpdef numpy.ndarray get_cable_len_diffs(
 
   # check if the cable length already has the velocity factor applied
   for i in range(len(cable_lens)):
-   if cable_lens[i][0:3] == "EL_":
-     cable_array.append(float(cable_lens[i][3:]))
-   else:
-     cable_array.append(float(cable_lens[i]) * v_factor)
+    if cable_lens[i][0:3] == "EL_":
+      cable_array[i] = float(cable_lens[i][3:])
+    else:
+      cable_array[i] = float(cable_lens[i]) * v_factor
 
   # build array of differences
-  for i in range(Nblts):
-    cable_diffs[i] = cable_array[ant2_array[i]] - cable_array[ant1_array[i]]
+  cable_diffs = cable_array[ant2_array] - cable_array[ant1_array]
+
   return cable_diffs

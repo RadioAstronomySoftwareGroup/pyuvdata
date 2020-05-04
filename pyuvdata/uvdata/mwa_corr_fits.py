@@ -54,7 +54,7 @@ class MWACorrFITS(UVData):
             -1j
             * 2
             * np.pi
-            * cable_len_diffs
+            * cable_len_diffs.reshape(self.Nblts, 1)
             / const.c.to("m/s").value
             * self.freq_array.reshape(1, self.Nfreqs)
         )[:, :, None]
