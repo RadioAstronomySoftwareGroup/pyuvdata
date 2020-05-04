@@ -832,11 +832,7 @@ class UVData(UVBase):
         # Check internal consistency of numbers which don't explicitly correspond
         # to the shape of another array.
         nants_data_calc = int(
-            len(
-                set(np.unique(self.ant_1_array).tolist()).union(
-                    np.unique(self.ant_2_array).tolist()
-                )
-            )
+            len(set(np.unique(self.ant_1_array)).union(np.unique(self.ant_2_array)))
         )
         if self.Nants_data != nants_data_calc:
             raise ValueError(
@@ -3095,7 +3091,7 @@ class UVData(UVBase):
         this.Nfreqs = this.freq_array.shape[1]
         this.Npols = this.polarization_array.shape[0]
         this.Nants_data = len(
-            np.unique(this.ant_1_array.tolist() + this.ant_2_array.tolist())
+            set(np.unique(this.ant_1_array)).union(np.unique(this.ant_2_array))
         )
 
         # Check specific requirements
@@ -3503,7 +3499,7 @@ class UVData(UVBase):
             this.ant_1_array = np.concatenate([this.ant_1_array, other.ant_1_array])
             this.ant_2_array = np.concatenate([this.ant_2_array, other.ant_2_array])
             this.Nants_data = int(
-                len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist()))
+                len(set(np.unique(self.ant_1_array)).union(np.unique(self.ant_2_array)))
             )
             this.uvw_array = np.concatenate([this.uvw_array, other.uvw_array], axis=0)
             this.time_array = np.concatenate([this.time_array, other.time_array])
@@ -4369,14 +4365,15 @@ class UVData(UVBase):
             self.ant_1_array = self.ant_1_array[blt_inds]
             self.ant_2_array = self.ant_2_array[blt_inds]
             self.Nants_data = int(
-                len(set(self.ant_1_array.tolist() + self.ant_2_array.tolist()))
+                len(set(np.unique(self.ant_1_array)).union(np.unique(self.ant_2_array)))
             )
 
             self.Ntimes = len(np.unique(self.time_array))
             if not keep_all_metadata:
-                ants_to_keep = set(
-                    self.ant_1_array.tolist() + self.ant_2_array.tolist()
+                ants_to_keep = set(np.unique(self.ant_1_array)).union(
+                    np.unique(self.ant_2_array)
                 )
+
                 inds_to_keep = [
                     self.antenna_numbers.tolist().index(ant) for ant in ants_to_keep
                 ]
@@ -5568,9 +5565,9 @@ class UVData(UVBase):
         self.ant_1_array, self.ant_2_array = self.baseline_to_antnums(
             self.baseline_array
         )
-        self.Nants_data = np.unique(
-            self.ant_1_array.tolist() + self.ant_2_array.tolist()
-        ).size
+        self.Nants_data = len(
+            set(np.unique(self.ant_1_array)).union(np.unique(self.ant_2_array))
+        )
         self.Nbls = np.unique(self.baseline_array).size
         self.Nblts = Nblts_full
 
