@@ -552,10 +552,10 @@ class MWACorrFITS(UVData):
 
         # read data into an array with dimensions (time, uv, baselines*pols)
         self.data_array = np.zeros(
-            (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.complex128
+            (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.complex64
         )
         self.nsample_array = np.zeros(
-            (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.float32
+            (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.float16
         )
         self.flag_array = np.full(
             (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), True

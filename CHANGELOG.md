@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - `propagate_flags` keyword for `UVData.frequency_average` which flags averaged samples if any contributing samples were flagged
+- Reduced memory consumption when reading MWA data.
 
 ## [2.0.2] - 2020-4-29
 
