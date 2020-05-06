@@ -470,11 +470,7 @@ class MWACorrFITS(UVData):
         # channel 128 will be assigned to the second file
         # then the highest channel will be assigned to the third file
         # and the next hightest channel assigned to the fourth file, and so on
-        count = 0
-        # count the number of channels that are in group 0-128
-        for i in coarse_chans:
-            if i <= 128:
-                count += 1
+        count = np.count_nonzero(coarse_chans <= 128)
         # map all file numbers to coarse channel numbers
         file_nums_to_coarse = {
             i + 1: coarse_chans[i]
