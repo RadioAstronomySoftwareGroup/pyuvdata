@@ -789,6 +789,12 @@ class UVData(UVBase):
                 )
         return True
 
+    def _calc_nants_data(self):
+        """Calculate the number of antennas from ant_1_array and ant_2_array arrays."""
+        return int(
+            len(set(np.unique(self.ant_1_array)).union(np.unique(self.ant_2_array)))
+        )
+
     def check(
         self, check_extra=True, run_check_acceptability=True, check_freq_spacing=False
     ):
@@ -831,10 +837,7 @@ class UVData(UVBase):
 
         # Check internal consistency of numbers which don't explicitly correspond
         # to the shape of another array.
-        nants_data_calc = int(
-            len(set(np.unique(self.ant_1_array)).union(np.unique(self.ant_2_array)))
-        )
-        if self.Nants_data != nants_data_calc:
+        if self.Nants_data != self._calc_nants_data():
             raise ValueError(
                 "Nants_data must be equal to the number of unique "
                 "values in ant_1_array and ant_2_array"
@@ -3090,9 +3093,7 @@ class UVData(UVBase):
         this.Nblts = this.uvw_array.shape[0]
         this.Nfreqs = this.freq_array.shape[1]
         this.Npols = this.polarization_array.shape[0]
-        this.Nants_data = len(
-            set(np.unique(this.ant_1_array)).union(np.unique(this.ant_2_array))
-        )
+        this.Nants_data = this._calc_nants_data()
 
         # Check specific requirements
         if this.Nfreqs > 1:
@@ -3498,9 +3499,7 @@ class UVData(UVBase):
             this.Nblts = this.Nblts + other.Nblts
             this.ant_1_array = np.concatenate([this.ant_1_array, other.ant_1_array])
             this.ant_2_array = np.concatenate([this.ant_2_array, other.ant_2_array])
-            this.Nants_data = int(
-                len(set(np.unique(self.ant_1_array)).union(np.unique(self.ant_2_array)))
-            )
+            this.Nants_data = this._calc_nants_data()
             this.uvw_array = np.concatenate([this.uvw_array, other.uvw_array], axis=0)
             this.time_array = np.concatenate([this.time_array, other.time_array])
             this.Ntimes = len(np.unique(this.time_array))
@@ -4364,9 +4363,7 @@ class UVData(UVBase):
 
             self.ant_1_array = self.ant_1_array[blt_inds]
             self.ant_2_array = self.ant_2_array[blt_inds]
-            self.Nants_data = int(
-                len(set(np.unique(self.ant_1_array)).union(np.unique(self.ant_2_array)))
-            )
+            self.Nants_data = self._calc_nants_data()
 
             self.Ntimes = len(np.unique(self.time_array))
             if not keep_all_metadata:
@@ -5565,9 +5562,7 @@ class UVData(UVBase):
         self.ant_1_array, self.ant_2_array = self.baseline_to_antnums(
             self.baseline_array
         )
-        self.Nants_data = len(
-            set(np.unique(self.ant_1_array)).union(np.unique(self.ant_2_array))
-        )
+        self.Nants_data = self._calc_nants_data()
         self.Nbls = np.unique(self.baseline_array).size
         self.Nblts = Nblts_full
 
