@@ -4700,7 +4700,8 @@ def test_get_antenna_redundancies():
     assert np.allclose(lengths, new_lengths)
 
 
-def test_redundancy_contract_expand():
+@pytest.mark.parametrize("method", ("select", "average"))
+def test_redundancy_contract_expand(method):
     # Test that a UVData object can be reduced to one baseline from each redundant group
     # and restored to its original form.
 
@@ -4722,19 +4723,19 @@ def test_redundancy_contract_expand():
             uv0.data_array[inds] *= 0
             uv0.data_array[inds] += complex(i)
 
-    uv2 = uv0.compress_by_redundancy(tol=tol, inplace=False)
+    uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
 
     # Compare in-place to separated compression.
     uv3 = uv0.copy()
-    uv3.compress_by_redundancy(tol=tol)
+    uv3.compress_by_redundancy(method=method, tol=tol)
     assert uv2 == uv3
 
     # check inflating gets back to the original
-    uvtest.checkWarnings(
-        uv2.inflate_by_redundancy,
-        [tol],
-        message=["Missing some redundant groups. Filling in available data."],
-    )
+    with pytest.warns(
+        UserWarning, match="Missing some redundant groups. Filling in available data."
+    ):
+        uv2.inflate_by_redundancy(tol=tol)
+
     uv2.history = uv0.history
     # Inflation changes the baseline ordering into the order of the redundant groups.
     # reorder bls for comparison
@@ -4743,12 +4744,12 @@ def test_redundancy_contract_expand():
     uv2._uvw_array.tols = [0, tol]
     assert uv2 == uv0
 
-    uv3 = uv2.compress_by_redundancy(tol=tol, inplace=False)
-    uvtest.checkWarnings(
-        uv3.inflate_by_redundancy,
-        [tol],
-        message=["Missing some redundant groups. Filling in available data."],
-    )
+    uv3 = uv2.compress_by_redundancy(method=method, tol=tol, inplace=False)
+    with pytest.warns(
+        UserWarning, match="Missing some redundant groups. Filling in available data."
+    ):
+        uv3.inflate_by_redundancy(tol=tol)
+
     # Confirm that we get the same result looping inflate -> compress -> inflate.
     uv3.reorder_blts(conj_convention="u>0")
     uv2.reorder_blts(conj_convention="u>0")
@@ -4758,7 +4759,8 @@ def test_redundancy_contract_expand():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes():
+@pytest.mark.parametrize("method", ("select", "average"))
+def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method):
     uv0 = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     uv0.read_uvfits(testfile)
@@ -4778,14 +4780,21 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes():
             uv0.data_array[inds, ...] *= 0
             uv0.data_array[inds, ...] += complex(i)
 
-    uv2 = uv0.compress_by_redundancy(tol=tol, inplace=False)
+    if method == "average":
+        with pytest.warns(
+            UserWarning,
+            match="Index baseline in the redundant group does not have all the "
+            "times, compressed object will be missing those times.",
+        ):
+            uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
+    else:
+        uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
 
     # check inflating gets back to the original
-    uvtest.checkWarnings(
-        uv2.inflate_by_redundancy,
-        {tol: tol},
-        message=["Missing some redundant groups. Filling in available data."],
-    )
+    with pytest.warns(
+        UserWarning, match="Missing some redundant groups. Filling in available data."
+    ):
+        uv2.inflate_by_redundancy(tol=tol)
 
     uv2.history = uv0.history
     # Inflation changes the baseline ordering into the order of the redundant groups.
@@ -4813,10 +4822,17 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes():
         orig_inds_keep.remove(ind)
     uv1 = uv0.select(blt_inds=orig_inds_keep, inplace=False)
 
+    if method == "average":
+        # the nsample array in the original object varies, so they
+        # don't come out the same
+        assert not np.allclose(uv3.nsample_array, uv1.nsample_array)
+        uv3.nsample_array = uv1.nsample_array
+
     assert uv3 == uv1
 
 
-def test_compress_redundancy_metadata_only():
+@pytest.mark.parametrize("method", ("select", "average"))
+def test_compress_redundancy_metadata_only(method):
     uv0 = UVData()
     uv0.read_uvfits(
         os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
@@ -4834,16 +4850,17 @@ def test_compress_redundancy_metadata_only():
             uv0.data_array[inds] += complex(i)
 
     uv2 = uv0.copy(metadata_only=True)
-    uv2.compress_by_redundancy(tol=tol, inplace=True)
+    uv2.compress_by_redundancy(method=method, tol=tol, inplace=True)
 
-    uv0.compress_by_redundancy(tol=tol)
+    uv0.compress_by_redundancy(method=method, tol=tol)
     uv0.data_array = None
     uv0.flag_array = None
     uv0.nsample_array = None
     assert uv0 == uv2
 
 
-def test_redundancy_missing_groups(tmp_path):
+@pytest.mark.parametrize("method", ("select", "average"))
+def test_redundancy_missing_groups(method, tmp_path):
     # Check that if I try to inflate a compressed UVData that is missing
     # redundant groups, it will raise the right warnings and fill only what
     # data are available.
@@ -4855,7 +4872,7 @@ def test_redundancy_missing_groups(tmp_path):
     tol = 0.02
     num_select = 19
 
-    uv0.compress_by_redundancy(tol=tol)
+    uv0.compress_by_redundancy(method=method, tol=tol)
     fname = str(tmp_path / "temp_hera19_missingreds.uvfits")
 
     bls = np.unique(uv0.baseline_array)[:num_select]  # First twenty baseline groups
@@ -4866,13 +4883,12 @@ def test_redundancy_missing_groups(tmp_path):
 
     assert uv0 == uv1  # Check that writing compressed files causes no issues.
 
-    uvtest.checkWarnings(
-        uv1.inflate_by_redundancy,
-        [tol],
-        message=["Missing some redundant groups. Filling in available data."],
-    )
+    with pytest.warns(
+        UserWarning, match="Missing some redundant groups. Filling in available data."
+    ):
+        uv1.inflate_by_redundancy(tol=tol)
 
-    uv2 = uv1.compress_by_redundancy(tol=tol, inplace=False)
+    uv2 = uv1.compress_by_redundancy(method=method, tol=tol, inplace=False)
 
     assert np.unique(uv2.baseline_array).size == num_select
 
