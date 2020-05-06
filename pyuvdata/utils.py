@@ -1068,6 +1068,58 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
     return lst_array
 
 
+def find_clusters(location_ids, location_vectors, tol):
+    """
+    Find clusters of vectors (e.g. redundand baselines, times).
+
+    Parameters
+    ----------
+    location_ids : array_like of int
+        ID labels for locations.
+    location_vectors : array_like of float
+        location vectors, can be multidimensional
+    tol : float
+        tolerance for clusters
+
+    Returns
+    -------
+    list of list of location_ids
+
+    """
+    # For each baseline, list all others that are within the tolerance distance.
+    adj_triu_mat = pdist(location_vectors) < tol
+    adj = {}  # Adjacency dictionary
+
+    for bi, col in enumerate(squareform(adj_triu_mat)):
+        col[bi] = True
+        adj[location_ids[bi]] = location_ids[col]
+
+    # The adjacency list defines a set of graph edges.
+    # For each location b0, loop over its adjacency list ai \in adj[b0]
+    #   If adj[b0] is a subset of adj[ai], then ai is in a redundant group with b0
+    loc_gps = []
+    for k in adj.keys():
+        a0 = adj[k]
+        group = [k]
+        for a in a0:
+            if set(a0).issubset(adj[a]) and a not in group:
+                group.append(a)
+        group.sort()
+        loc_gps.append(group)
+
+    # Groups can be different lengths, but we need to take a unique over an axis
+    # to properly identify unique groups
+    # Pad out all the sub-lists to be the same length
+    pad = len(max(loc_gps, key=len))
+    loc_gps = np.array([i + [-1] * (pad - len(i)) for i in loc_gps])
+    # We end up with multiple copies of each redundant group, so remove duplicates
+    loc_gps = np.unique(loc_gps, axis=0).tolist()
+    # remove the dummy pad baselines from each list
+    loc_gps = [[bl for bl in gp if bl != -1] for gp in loc_gps]
+
+    return loc_gps
+
+
 def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates=False):
     """
     Find redundant baseline groups.
@@ -1121,36 +1173,7 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
         )
         return bl_gps, vec_bin_centers, lens, baseline_ind_conj
 
-    # For each baseline, list all others that are within the tolerance distance.
-    adj_triu_mat = pdist(baseline_vecs) < tol
-    adj = {}  # Adjacency dictionary
-
-    for bi, col in enumerate(squareform(adj_triu_mat)):
-        col[bi] = True
-        adj[baselines[bi]] = baselines[col]
-
-    # The adjacency list defines a set of graph edges.
-    # For each baseline b0, loop over its adjacency list ai \in adj[b0]
-    #   If adj[b0] is a subset of adj[ai], then ai is in a redundant group with b0
-    bl_gps = []
-    for k in adj.keys():
-        a0 = adj[k]
-        group = [k]
-        for a in a0:
-            if set(a0).issubset(adj[a]) and a not in group:
-                group.append(a)
-        group.sort()
-        bl_gps.append(group)
-
-    # Groups can be different lengths, but we need to take a unique over an axis
-    # to properly identify unique groups
-    # Pad out all the sub-lists to be the same length
-    pad = len(max(bl_gps, key=len))
-    bl_gps = np.array([i + [-1] * (pad - len(i)) for i in bl_gps])
-    # We end up with multiple copies of each redundant group, so remove duplicates
-    bl_gps = np.unique(bl_gps, axis=0).tolist()
-    # remove the dummy pad baselines from each list
-    bl_gps = [[bl for bl in gp if bl != -1] for gp in bl_gps]
+    bl_gps = find_clusters(baselines, baseline_vecs, tol)
 
     n_unique = len(bl_gps)
     vec_bin_centers = np.zeros((n_unique, 3))
