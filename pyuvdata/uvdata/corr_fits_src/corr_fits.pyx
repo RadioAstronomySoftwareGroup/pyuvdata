@@ -92,17 +92,6 @@ cpdef tuple generate_map(
 
   return map_inds, conj
 
-cpdef list get_bad_ants(numpy.ndarray[dtype=numpy.int32_t, ndim=1] flagged_ants):
-  cdef list bad_ants = []
-  cdef int ant1, ant2
-
-  for ant1 in range(128):
-    for ant2 in range(ant1, 128):
-      if ant1 in flagged_ants or ant2 in flagged_ants:
-        bad_ants.append(<int>(128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2))
-
-  return bad_ants
-
 cpdef numpy.ndarray get_cable_len_diffs(
   int Nblts,
   numpy.ndarray[dtype=numpy.int_t, ndim=1] ant1_array,
