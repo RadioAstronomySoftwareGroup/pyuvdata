@@ -3,8 +3,9 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading MWA correlator FITS files."""
-import numpy as np
 import warnings
+import itertools
+import numpy as np
 from astropy.io import fits
 from astropy.time import Time
 from astropy import constants as const
@@ -445,12 +446,13 @@ class MWACorrFITS(UVData):
         self.antenna_positions = antenna_positions_ecef - self.telescope_location
 
         # make initial antenna arrays, where ant_1 <= ant_2
-        ant_1_array = []
-        ant_2_array = []
-        for i in range(self.Nants_telescope):
-            for j in range(i, self.Nants_telescope):
-                ant_1_array.append(i)
-                ant_2_array.append(j)
+        ant_1_array, ant_2_array = np.transpose(
+            list(
+                itertools.combinations_with_replacement(
+                    np.arange(self.Nants_telescope), 2
+                )
+            )
+        )
 
         self.ant_1_array = np.tile(np.array(ant_1_array), self.Ntimes)
         self.ant_2_array = np.tile(np.array(ant_2_array), self.Ntimes)
