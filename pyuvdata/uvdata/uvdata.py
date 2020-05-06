@@ -5015,13 +5015,11 @@ class UVData(UVBase):
                         running_int_time = 0.0
             else:
                 n_bl_times = self.time_array[bl_inds].size
-                n_sample_temp = np.sum(n_bl_times / n_times_to_avg)
-                if keep_ragged and not np.isclose(
-                    n_sample_temp, np.floor(n_sample_temp)
-                ):
-                    n_new_samples += np.ceil(n_sample_temp).astype(int)
+                nsample_temp = np.sum(n_bl_times / n_times_to_avg)
+                if keep_ragged and not np.isclose(nsample_temp, np.floor(nsample_temp)):
+                    n_new_samples += np.ceil(nsample_temp).astype(int)
                 else:
-                    n_new_samples += np.floor(n_sample_temp).astype(int)
+                    n_new_samples += np.floor(nsample_temp).astype(int)
 
             # figure out if there are any time gaps in the data
             # meaning that the time differences are larger than the integration times
@@ -5472,7 +5470,7 @@ class UVData(UVBase):
             if summing_correlator_mode:
                 self.data_array = np.sum(masked_data, axis=3).data
             else:
-                # need to weight by the n_sample_array
+                # need to weight by the nsample_array
                 self.data_array = (
                     np.sum(masked_data * masked_nsample, axis=3)
                     / np.sum(masked_nsample, axis=3)
@@ -5599,18 +5597,37 @@ class UVData(UVBase):
         red_gps, centers, lengths, conjugates = self.get_redundancies(
             tol, include_conjugates=True
         )
-
         bl_ants = [self.baseline_to_antnums(gp[0]) for gp in red_gps]
 
         if method == "average":
             # do a metadata only select to get all the metadata right
             new_obj = self.copy(metadata_only=True)
             new_obj.select(bls=bl_ants, keep_all_metadata=keep_all_metadata)
+
+            temp_time_array = np.zeros_like(new_obj.time_array)
+            if not self.metadata_only:
+                # initalize the data like arrays
+                temp_data_array = np.zeros(
+                    (new_obj.Nblts, new_obj.Nspws, new_obj.Nfreqs, new_obj.Npols),
+                    dtype=self.data_array.dtype,
+                )
+                temp_nsample_array = np.zeros(
+                    (new_obj.Nblts, new_obj.Nspws, new_obj.Nfreqs, new_obj.Npols),
+                    dtype=self.nsample_array.dtype,
+                )
+                temp_flag_array = np.zeros(
+                    (new_obj.Nblts, new_obj.Nspws, new_obj.Nfreqs, new_obj.Npols),
+                    dtype=self.flag_array.dtype,
+                )
             for grp_ind, group in enumerate(red_gps):
-                conj_group = conjugates[grp_ind]
+                if len(conjugates) > 0:
+                    conj_group = conjugates[grp_ind]
+                else:
+                    conj_group = []
                 group_times = []
                 group_inds = []
                 conj_group_inds = []
+                conj_group_times = []
                 for bl in group:
                     bl_inds = np.where(self.baseline_array == bl)[0]
                     group_inds.extend(bl_inds)
@@ -5618,12 +5635,111 @@ class UVData(UVBase):
                 for bl in conj_group:
                     bl_inds = np.where(self.baseline_array == bl)[0]
                     conj_group_inds.extend(bl_inds)
-                    group_times.extend(self.time_array[bl_inds])
+                    conj_group_times.extend(self.time_array[bl_inds])
 
+                group_inds = np.array(group_inds, dtype=np.int)
+                conj_group_inds = np.array(conj_group_inds, dtype=np.int)
                 # now we have to figure out which times are the same to a tolerance
-                # so we can average over them. Maybe re-use logic from
-                # utils.get_baseline_redundancies?
+                # so we can average over them.
+                time_inds = np.arange(len(group_times + conj_group_times))
+                time_gps = uvutils.find_clusters(
+                    time_inds,
+                    np.array(group_times + conj_group_times),
+                    self._time_array.tols[1],
+                )
 
+                # average over the same times
+                obj_bl = bl_ants[grp_ind]
+                obj_inds = new_obj._key2inds(obj_bl)[0]
+                obj_times = new_obj.time_array[obj_inds]
+
+                avg_vis = []
+                for gp in time_gps:
+                    avg_time = np.average(np.array(group_times + conj_group_times)[gp])
+
+                    obj_time_ind = np.where(
+                        np.abs(obj_times - avg_time) < self._time_array.tols[1]
+                    )[0]
+
+                    if obj_time_ind.size == 1:
+                        this_obj_ind = obj_inds[obj_time_ind[0]]
+                        temp_time_array[this_obj_ind] = avg_time
+                    else:
+                        warnings.warn(
+                            "Index baseline in the redundant group does not "
+                            "have all the times, compressed object will be "
+                            "missing those times."
+                        )
+                        continue
+
+                    if not self.metadata_only:
+                        regular_orientation = np.array(
+                            [time_ind for time_ind in gp if time_ind < len(time_inds)],
+                            dtype=np.int,
+                        )
+                        regular_inds = group_inds[np.array(regular_orientation)]
+                        conj_orientation = np.array(
+                            [time_ind for time_ind in gp if time_ind >= len(time_inds)],
+                            dtype=np.int,
+                        )
+                        conj_inds = np.array(
+                            conj_group_inds[np.array(conj_orientation)]
+                        )
+                        vis_to_avg = np.concatenate(
+                            (
+                                self.data_array[regular_inds, :, :, :],
+                                np.conj(self.data_array[conj_inds, :, :, :]),
+                            )
+                        )
+                        nsample_to_avg = np.concatenate(
+                            (
+                                self.nsample_array[regular_inds, :, :, :],
+                                self.nsample_array[conj_inds, :, :, :],
+                            )
+                        )
+                        flags_to_avg = np.concatenate(
+                            (
+                                self.flag_array[regular_inds, :, :, :],
+                                self.flag_array[conj_inds, :, :, :],
+                            )
+                        )
+                        # if all data is flagged, average it all as if it were not
+                        if np.all(flags_to_avg):
+                            mask = np.zeros_like(flags_to_avg)
+                        else:
+                            mask = flags_to_avg
+
+                        vis_to_avg = np.ma.masked_array(vis_to_avg, mask=mask)
+
+                        nsample_to_avg = np.ma.masked_array(nsample_to_avg, mask=mask)
+
+                        avg_vis = np.average(vis_to_avg, weights=nsample_to_avg)
+                        avg_nsample = np.average(nsample_to_avg)
+                        avg_flag = np.all(flags_to_avg)
+
+                        temp_data_array[this_obj_ind, :, :, :] = avg_vis
+                        temp_nsample_array[this_obj_ind, :, :, :] = avg_nsample
+                        temp_flag_array[this_obj_ind, :, :, :] = avg_flag
+
+            temp_ntimes = np.unique(temp_time_array).size
+
+            if inplace:
+                self.select(bls=bl_ants, keep_all_metadata=keep_all_metadata)
+                self.time_array = temp_time_array
+                self.Ntimes = temp_ntimes
+                if not self.metadata_only:
+                    self.data_array = temp_data_array
+                    self.nsample_array = temp_nsample_array
+                    self.flag_array = temp_flag_array
+                return
+            else:
+                new_obj.time_array = temp_time_array
+                new_obj.Ntimes = temp_ntimes
+                if not self.metadata_only:
+                    new_obj.data_array = temp_data_array
+                    new_obj.nsample_array = temp_nsample_array
+                    new_obj.flag_array = temp_flag_array
+                return new_obj
         else:
             return self.select(
                 bls=bl_ants, inplace=inplace, keep_all_metadata=keep_all_metadata
