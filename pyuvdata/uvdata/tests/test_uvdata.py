@@ -4701,7 +4701,8 @@ def test_get_antenna_redundancies():
 
 
 @pytest.mark.parametrize("method", ("select", "average"))
-def test_redundancy_contract_expand(method):
+@pytest.mark.parametrize("reconjugate", (True, False))
+def test_redundancy_contract_expand(method, reconjugate):
     # Test that a UVData object can be reduced to one baseline from each redundant group
     # and restored to its original form.
 
@@ -4722,6 +4723,9 @@ def test_redundancy_contract_expand(method):
             inds = np.where(bl == uv0.baseline_array)
             uv0.data_array[inds] *= 0
             uv0.data_array[inds] += complex(i)
+
+    if reconjugate:
+        uv0.conjugate_bls()
 
     uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
 
@@ -4857,6 +4861,16 @@ def test_compress_redundancy_metadata_only(method):
     uv0.flag_array = None
     uv0.nsample_array = None
     assert uv0 == uv2
+
+
+def test_compress_redundancy_wrong_method():
+    uv0 = UVData()
+    uv0.read_uvfits(
+        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
+    )
+    tol = 0.05
+    with pytest.raises(ValueError, match="method must be one of"):
+        uv0.compress_by_redundancy(method="foo", tol=tol, inplace=True)
 
 
 @pytest.mark.parametrize("method", ("select", "average"))

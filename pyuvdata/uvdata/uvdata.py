@@ -5621,14 +5621,17 @@ class UVData(UVBase):
                 )
             for grp_ind, group in enumerate(red_gps):
                 if len(conjugates) > 0:
-                    conj_group = conjugates[grp_ind]
+                    conj_group = set(group).intersection(conjugates)
+                    reg_group = list(set(group) - conj_group)
+                    conj_group = list(conj_group)
                 else:
+                    reg_group = group
                     conj_group = []
                 group_times = []
                 group_inds = []
                 conj_group_inds = []
                 conj_group_times = []
-                for bl in group:
+                for bl in reg_group:
                     bl_inds = np.where(self.baseline_array == bl)[0]
                     group_inds.extend(bl_inds)
                     group_times.extend(self.time_array[bl_inds])
@@ -5674,12 +5677,20 @@ class UVData(UVBase):
 
                     if not self.metadata_only:
                         regular_orientation = np.array(
-                            [time_ind for time_ind in gp if time_ind < len(time_inds)],
+                            [
+                                time_ind
+                                for time_ind in gp
+                                if time_ind < len(group_times)
+                            ],
                             dtype=np.int,
                         )
                         regular_inds = group_inds[np.array(regular_orientation)]
                         conj_orientation = np.array(
-                            [time_ind for time_ind in gp if time_ind >= len(time_inds)],
+                            [
+                                time_ind
+                                for time_ind in gp
+                                if time_ind >= len(group_times)
+                            ],
                             dtype=np.int,
                         )
                         conj_inds = np.array(
