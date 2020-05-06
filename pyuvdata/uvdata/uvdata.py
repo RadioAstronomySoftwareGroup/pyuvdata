@@ -791,6 +791,8 @@ class UVData(UVBase):
 
     def _calc_nants_data(self):
         """Calculate the number of antennas from ant_1_array and ant_2_array arrays."""
+        # lots of inline testing resulted in this odd combination of sets and
+        # numpy uniques to quickly find the number of unique ants
         return int(
             len(set(np.unique(self.ant_1_array)).union(np.unique(self.ant_2_array)))
         )
@@ -895,6 +897,9 @@ class UVData(UVBase):
             )
         if np.any(
             np.isclose(
+                # this line used to use np.linalg.norm but it turns out
+                # squaring and sqrt is slightly more efficient unless the array
+                # is "very large".
                 np.sqrt(
                     self.uvw_array[~autos, 0] ** 2
                     + self.uvw_array[~autos, 1] ** 2
