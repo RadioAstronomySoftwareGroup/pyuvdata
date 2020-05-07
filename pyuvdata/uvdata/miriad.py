@@ -528,8 +528,9 @@ class Miriad(UVData):
         # NOTE: Using our lst calculator, which uses astropy,
         # instead of _miriad values which come from pyephem.
         # The differences are of order 5 seconds.
+        proc = None
         if self.telescope_location is not None:
-            self.set_lsts_from_time_array()
+            proc = self.set_lsts_from_time_array(background=True)
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.float)
         self.freq_array = (
             np.arange(self.Nfreqs) * self.channel_width + uv["sfreq"] * 1e9
@@ -636,6 +637,9 @@ class Miriad(UVData):
                     self._set_phased()
                 else:
                     self._set_drift()
+
+        if proc is not None:
+            proc.join()
 
         if self.phase_type == "phased":
             # check that the RA values do not vary

@@ -402,7 +402,7 @@ class MS(UVData):
         self._set_phased()
 
         # set LST array from times and itrf
-        self.set_lsts_from_time_array()
+        proc = self.set_lsts_from_time_array(background=True)
         # set the history parameter
         _, self.history = self._ms_hist_to_string(
             tables.table(filepath + "/HISTORY", ack=False)
@@ -425,6 +425,7 @@ class MS(UVData):
         self.object_name = tb_field.getcol("NAME")[0]
         tb_field.close()
         tb.close()
+        proc.join()
         # order polarizations
         self.reorder_pols(order=pol_order)
         if run_check:

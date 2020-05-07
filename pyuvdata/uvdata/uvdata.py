@@ -8,6 +8,7 @@ import copy
 import re
 import numpy as np
 import warnings
+import threading
 from astropy import constants as const
 import astropy.units as units
 from astropy.time import Time
@@ -744,14 +745,24 @@ class UVData(UVBase):
         # seconds, so we need to convert.
         return np.diff(np.sort(list(set(self.time_array))))[0] * 86400
 
-    def set_lsts_from_time_array(self):
-        """Set the lst_array based from the time_array."""
+    def _set_lsts_helper(self):
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
         unique_times, inverse_inds = np.unique(self.time_array, return_inverse=True)
         unique_lst_array = uvutils.get_lst_for_time(
             unique_times, latitude, longitude, altitude
         )
         self.lst_array = unique_lst_array[inverse_inds]
+        return
+
+    def set_lsts_from_time_array(self, background=False):
+        """Set the lst_array based from the time_array."""
+        if not background:
+            self._set_lsts_helper()
+            return
+        else:
+            proc = threading.Thread(target=self._set_lsts_helper)
+            proc.start()
+            return proc
 
     def _check_freq_spacing(self):
         """

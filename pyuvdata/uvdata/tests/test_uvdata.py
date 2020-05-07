@@ -4902,6 +4902,23 @@ def test_lsts_from_time_with_only_unique():
     assert np.array_equal(full_lsts, uv.lst_array)
 
 
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
+def test_lsts_from_time_with_only_unique_background():
+    """
+    Test `set_lsts_from_time_array` with only unique values is identical to full array.
+    """
+    miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+    uv = UVData()
+    uv.read_miriad(miriad_file)
+    lat, lon, alt = uv.telescope_location_lat_lon_alt_degrees
+    # calculate the lsts for all elements in time array
+    full_lsts = uvutils.get_lst_for_time(uv.time_array, lat, lon, alt)
+    # use `set_lst_from_time_array` to set the uv.lst_array using only unique values
+    proc = uv.set_lsts_from_time_array(background=True)
+    proc.join()
+    assert np.array_equal(full_lsts, uv.lst_array)
+
+
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_copy():
     """Test the copy method"""
