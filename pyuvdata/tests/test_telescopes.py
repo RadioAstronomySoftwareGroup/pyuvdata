@@ -171,9 +171,6 @@ def test_hera_loc():
 
     telescope_obj = pyuvdata.get_telescope("HERA")
 
-    print(telescope_obj.telescope_location)
-    print(hera_data.telescope_location)
-
     assert np.allclose(
         telescope_obj.telescope_location,
         hera_data.telescope_location,
