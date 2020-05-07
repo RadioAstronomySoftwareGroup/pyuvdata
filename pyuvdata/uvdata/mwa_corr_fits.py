@@ -446,6 +446,11 @@ class MWACorrFITS(UVData):
         self.antenna_positions = antenna_positions_ecef - self.telescope_location
 
         # make initial antenna arrays, where ant_1 <= ant_2
+        # itertools.combinations_with_replacement returns
+        # all pairs in the range 0...Nants_telescope
+        # including pairs with the same number (e.g. (0,0) auto-correlation).
+        # this is a little faster than having nested for-loops moving over the
+        # upper triangle of antenna-pair combinations matrix.
         ant_1_array, ant_2_array = np.transpose(
             list(
                 itertools.combinations_with_replacement(
