@@ -7,11 +7,13 @@ All notable changes to this project will be documented in this file.
 - `propagate_flags` keyword for `UVData.frequency_average` which flags averaged samples if any contributing samples were flagged
 
 ### Changed
+- Updated formatting and added more explicit typing in corr_fits.pyx
+- Updated Nants calculations for speed up.
 - updated HERA telescope location to match the HERA defined center of array.
 - `utils.uvcalibrate` now incorporates many more consistency checks between the uvcal and uvdata object. The new keywords `time_check` and `ant_check` were added to control some of these checks.
 
-### Deprecated
 - `utils.uvcalibrate` will error rather than warn if some of the newly added checks do not pass, including if antenna names do not match between the objects, starting in version 2.2. In addition, the `flag_missing` keyword is deprecated and will be removed in version 2.2.
+### Deprecated
 
 ## [2.0.2] - 2020-4-29
 
