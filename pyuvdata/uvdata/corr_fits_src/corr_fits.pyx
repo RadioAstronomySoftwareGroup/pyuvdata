@@ -38,7 +38,7 @@ cpdef tuple generate_map(
   numpy.ndarray[ndim=1, dtype=numpy.int32_t] map_inds,
   numpy.ndarray[ndim=1, dtype=numpy.npy_bool] conj
 ):
-  cdef int ant1, atn2, p1, p2, pol_ind, bls_ind, out_ant1, out_ant2
+  cdef int ant1, ant2, p1, p2, pol_ind, bls_ind, out_ant1, out_ant2
   cdef int out_p1, out_p2, ind1_1, ind1_2, ind2_1, ind2_2, data_index
 
   for ant1 in range(128):
