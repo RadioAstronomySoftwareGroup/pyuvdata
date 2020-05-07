@@ -1,4 +1,4 @@
-primary hdu: image HDU with axes (Narrays, Jones, Time, Freqencies, Spectral window number, Antenna axis)
+primary hdu: image HDU with 6 axes (Narrays, Jones, Time, Freqencies, Spectral window number, Antenna axis)
 
 SIMPLE*
 BITPIX*
@@ -35,4 +35,4 @@ CRVALn*
 COMMENT*
 HISTORY*
 
-2nd HDU:
+2nd HDU: binary table, list of

@@ -93,11 +93,23 @@ the proper size across different HDUs.
 \section{Primary Header}
 The following are required keywords in the primary header of a \emph{calfits} file.
 For a more detailed explanation of what these keywords mean, see the descriptions on pyuvdata's ReadTheDocs uvcal\_parameters page. The uvcal parameter corresponding to each keyword is noted in parentheses. 
-As with all \emph{fits} files, \textbf{HISTORY} and \textbf{COMMENT} cards are optional and allowed.
+As with all FITS files, \textbf{HISTORY} and \textbf{COMMENT} cards are optional and allowed.
 
 \begin{itemize}
-\item{\textbf{CALTYPE}: \emph{string} cal type parameter. Possible values are delay, gain or
-    unknown. (cal\_type)}
+\item{\textbf{GNCONVEN}: \emph{string} Gain convention: the convention for applying the calibration solutions to data.
+Values are ``divide'' or ``multiply'', indicating whether one should divide or multiply uncalibrated data by gains. 
+Mathematically this indicates the alpha exponent in the equation: 
+    (calibrated data) = (gain$^{\alpha}) \,  \times $ (uncalibrated data). A value of
+    ``divide'' represents $\alpha=-1$ and ``multiply'' represents $\alpha=1$. (gain\_convention).}
+\item{\textbf{CALTYPE}: \emph{string} Calibration type parameter. Possible values are ``delay'', ``gain'', or ``unknown''. (cal\_type).}
+\item{\textbf{CALSTYLE}: \emph{string} Style of calibration. Possible values are ``sky'' or ``redundant''. (cal\_style).}
+\item{\textbf{FIELD}: \emph{string} (Required if CALSTYLE = ``sky''.) A short string describing the field center or dominant source. (sky\_field).}
+\item{\textbf{CATALOG}: \emph{string} (Required if CALSTYLE = ``sky''.) Name of the calibration catalog. (sky\_catalog).}
+\item{\textbf{REFANT}: \emph{string} (Required if CALSTYLE = ``sky''.) Phase reference antenna. (ref\_antenna\_name).}
+\item{\textbf{NSOURCES: \emph{integer}}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \item{\textbf{Nants\_data}: Number of antennas that have data associated with them 
     (i.e. number of unique entries in ant\_array). May be smaller than the number of 
     antennas in the telescope'. (Nants\_data)}
@@ -124,11 +136,6 @@ As with all \emph{fits} files, \textbf{HISTORY} and \textbf{COMMENT} cards are o
     Shape: (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), type = bool. (flag\_array)}
 \item{\textbf{freq\_array}: Array of frequencies, shape (Nspws, Nfreqs), units
     Hz. (freq\_array)}
-\item{\textbf{gain\_convention}: The convention for applying the calibration solutions to data.
-    Values are "divide" or "multiply", indicating that to calibrate one should divide or multiply
-    uncalibrated data by gains. Mathematically this indicates the alpha exponent in the equation: 
-    calibrated data = gain$^{\alpha} \times $ uncalibrated data. A value of
-    ``divide'' represents $\alpha=-1$ and ``multiply'' represents $\alpha=1$. (gain\_convention)}
 \item{\textbf{history}: String of history. (history)} %check that this is right.
 \item{\textbf{integration\_time}: Integration time of a time bin, units seconds. (integration\_time)}
 \item{\textbf{jones\_array}: Array of antenna polarization integers, shape
@@ -194,44 +201,44 @@ the parameters from the the fits file.
 
 There are examples of working with pyuvdata UVCal objects and \textit{calfits} files in
 the tutorial (\url{http://pyuvdata.readthedocs.io/en/latest/tutorial.html}).
-
-\subsection{The FITS file}
-Depending on the calibration type (gain vs delay), the \textit{calfits}
-format can consists of up to 4 HDUs. The primary header in either case is the
-same and consists of relevant meta information for a UVCal object to be
-instantiated. Also, the second HDU is the same in either case and is the ANTENNAS
-HDU. This HDU is a BinaryTable and consists of ANTNAME, ANTINDEX, and ANTARR,
-corresponding to antenna\_names, antenna\_numbers, and ant\_array in the above
-list, respectively.
-
-When the calibration type is ``gain'', the essential data contains only these 2
-HDUs. In this case, the image data in the primary HDU consists is a 6
-dimensional array, where each dimension corresponds to (Nants, Nspws, Nfreqs,
-Ntimes, Njones, Number of arrays in image array), respectively. In other words,
-the primary data HDU contains the 5 axes of the data given in the list above,
-and then a sixth axis corresponding to the individual quantities being
-saved. For instance, if there is an input\_flag\_array the image array consists
-of [ real(gain\_array), imag(gain\_array), flag\_array, input\_flag\_array,
-quality\_array], which is concatenated along the last axis and so the last
-dimension is equal to 5. However, if no input\_flag\_array is given, the
-input\_flag\_array is left out of the above array and a the last dimension is
-equal to 4.
-
-When the calibration type is ``delay'', there are 3 data HDUs. The image data in
-the primary HDU is still a 5 dimensional array as before (dimensions are Nants,
-Nfreqs, Ntimes, Njones, number of arrays in image array), but with Nfreqs = 1 as
-a placeholder axis. This axis is added to keep the data arrays the same size
-between the delay-type and gains-type formats. In this case the image data is
-[delay\_array, quality\_array], concatenated along the last axis. The flag
-arrays are stored in the third HDU (ImageHDU) which has the flag\_array and may
-have an input\_flag\_array.
-
-For both delay-types, there is also an optional total\_quality\_array HDU, which
-contains information about the overall $\chi^2$ value of the whole array. The
-size of the array is (Nspws, Nfreqs, Ntimes, Njones). For delay-type
-calibrations, Nfreqs = 1 as above. If present, there will be 3 total HDUs for
-gain-type files, and 4 total HDUs for delay-type. Note that self-consistency
-checks are run when reading and writing calfits files to ensure that arrays have
-the proper size across different HDUs.
+%
+%\subsection{The FITS file}
+%Depending on the calibration type (gain vs delay), the \textit{calfits}
+%format can consists of up to 4 HDUs. The primary header in either case is the
+%same and consists of relevant meta information for a UVCal object to be
+%instantiated. Also, the second HDU is the same in either case and is the ANTENNAS
+%HDU. This HDU is a BinaryTable and consists of ANTNAME, ANTINDEX, and ANTARR,
+%corresponding to antenna\_names, antenna\_numbers, and ant\_array in the above
+%list, respectively.
+%
+%When the calibration type is ``gain'', the essential data contains only these 2
+%HDUs. In this case, the image data in the primary HDU consists is a 6
+%dimensional array, where each dimension corresponds to (Nants, Nspws, Nfreqs,
+%Ntimes, Njones, Number of arrays in image array), respectively. In other words,
+%the primary data HDU contains the 5 axes of the data given in the list above,
+%and then a sixth axis corresponding to the individual quantities being
+%saved. For instance, if there is an input\_flag\_array the image array consists
+%of [ real(gain\_array), imag(gain\_array), flag\_array, input\_flag\_array,
+%quality\_array], which is concatenated along the last axis and so the last
+%dimension is equal to 5. However, if no input\_flag\_array is given, the
+%input\_flag\_array is left out of the above array and a the last dimension is
+%equal to 4.
+%
+%When the calibration type is ``delay'', there are 3 data HDUs. The image data in
+%the primary HDU is still a 5 dimensional array as before (dimensions are Nants,
+%Nfreqs, Ntimes, Njones, number of arrays in image array), but with Nfreqs = 1 as
+%a placeholder axis. This axis is added to keep the data arrays the same size
+%between the delay-type and gains-type formats. In this case the image data is
+%[delay\_array, quality\_array], concatenated along the last axis. The flag
+%arrays are stored in the third HDU (ImageHDU) which has the flag\_array and may
+%have an input\_flag\_array.
+%
+%For both delay-types, there is also an optional total\_quality\_array HDU, which
+%contains information about the overall $\chi^2$ value of the whole array. The
+%size of the array is (Nspws, Nfreqs, Ntimes, Njones). For delay-type
+%calibrations, Nfreqs = 1 as above. If present, there will be 3 total HDUs for
+%gain-type files, and 4 total HDUs for delay-type. Note that self-consistency
+%checks are run when reading and writing calfits files to ensure that arrays have
+%the proper size across different HDUs.
 
 \end{document}  
