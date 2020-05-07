@@ -92,7 +92,7 @@ cpdef tuple generate_map(
 
   return map_inds, conj
 
-cpdef numpy.ndarray get_cable_len_diffs(
+cpdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] get_cable_len_diffs(
   int Nblts,
   numpy.ndarray[dtype=numpy.int_t, ndim=1] ant1_array,
   numpy.ndarray[dtype=numpy.int_t, ndim=1] ant2_array,
