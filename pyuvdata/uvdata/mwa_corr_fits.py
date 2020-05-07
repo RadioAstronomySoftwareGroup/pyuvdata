@@ -429,9 +429,7 @@ class MWACorrFITS(UVData):
         self.Nblts = int(self.Nbls * self.Ntimes)
 
         # convert times to lst
-        self.lst_array = uvutils.get_lst_for_time(
-            self.time_array, *self.telescope_location_lat_lon_alt_degrees
-        )
+        self.set_lsts_from_time_array()
 
         self.integration_time = np.full((self.Nblts), int_time)
 
