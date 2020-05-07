@@ -58,6 +58,7 @@ class UVFITS(UVData):
         # check if lst array is saved. It's not a standard metadata item in uvfits,
         # but if the file was written with pyuvdata it may be present
         # (depending on pyuvdata version)
+        proc = None
         if "LST" in vis_hdu.data.parnames:
             # angles in uvfits files are stored in degrees, so convert to radians
             self.lst_array = np.deg2rad(vis_hdu.data.par("lst"))
@@ -86,7 +87,7 @@ class UVFITS(UVData):
                     )
 
         else:
-            self.set_lsts_from_time_array()
+            proc = self.set_lsts_from_time_array(background=True)
 
         # if antenna arrays are present, use them. otherwise use baseline array
         if "ANTENNA1" in vis_hdu.data.parnames and "ANTENNA2" in vis_hdu.data.parnames:
@@ -163,6 +164,9 @@ class UVFITS(UVData):
                 raise ValueError(
                     "integration time not specified and only " "one time present"
                 )
+
+        if proc is not None:
+            proc.join()
 
     def _get_data(
         self,

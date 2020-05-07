@@ -435,7 +435,8 @@ class MWACorrFITS(UVData):
         self.Nblts = int(self.Nbls * self.Ntimes)
 
         # convert times to lst
-        self.set_lsts_from_time_array()
+        proc = self.set_lsts_from_time_array(background=True)
+        # self.set_lsts_from_time_array()
 
         self.integration_time = np.full((self.Nblts), int_time)
 
@@ -665,8 +666,9 @@ class MWACorrFITS(UVData):
             # be conjugated
             self.data_array = np.conj(self.data_array)
 
-            # reorder polarizations
-            self.reorder_pols()
+        proc.join()
+        # reorder polarizations
+        self.reorder_pols()
 
         # phasing
         if phase_to_pointing_center:
