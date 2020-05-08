@@ -29,7 +29,7 @@ For usage examples please refer to the pyuvdata tutorial: \url{http://pyuvdata.r
 
 \section{Overview}
 \textit{Calfits} is an adaptation of the FITS file format to enable the storage of calibration information for radio interferometric arrays. %should it just be "for radio interferometers"? Or "for radio interferometry instruments"? 
-Because it builds on the existing FITS file format, all \emph{calfits} files should be properly formatted according to the FITS standard which is widely available\footnote{\url{https://fits.gsfc.nasa.gov/fits_documentation.html}}.
+Because it builds on the existing FITS file format, all \emph{calfits} files should be properly formatted according to the FITS standard, which is widely available\footnote{\url{https://fits.gsfc.nasa.gov/fits_documentation.html}}.
 %Accordingly, required standard FITS keywords (e.g., SIMPLE, BITPIX, etc.) will not be discussed in this document, even though they may still be required for a valid \emph{calfits} file.
 
 
@@ -91,24 +91,44 @@ the proper size across different HDUs.
 %required parameters that need to be set as attributes of the UVCal class. Below
 %is a list of the required parameters and their descriptions.
 \section{Primary Header}
+The primary HDU of a \emph{calfits} file is an image-type HDU with six axes.
+These axes, in order, represent 
+\begin{enumerate}
+	\item{Number of image arrays}
+	\item{Integer representing polarization values}
+	\item{Time}
+	\item{Frequency}
+	\item{The spectral window number (currently only a single spectral window is supported)}
+	\item{Antenna number}
+\end{enumerate}
+
 The following are required keywords in the primary header of a \emph{calfits} file.
 For a more detailed explanation of what these keywords mean, see the descriptions on pyuvdata's ReadTheDocs uvcal\_parameters page. The uvcal parameter corresponding to each keyword is noted in parentheses. 
-As with all FITS files, \textbf{HISTORY} and \textbf{COMMENT} cards are optional and allowed.
+%As with all FITS files, \textbf{HISTORY} and \textbf{COMMENT} cards are optional and allowed.
 \subsection{Standard FITS Keywords}
-All text descriptions in this subsection are adapted from the official FITS 4.0 Standard, which is available at \url{https://fits.gsfc.nasa.gov/fits_standard.html}.
+Some text descriptions in this subsection are adapted from the official FITS 4.0 Standard, which is available at \url{https://fits.gsfc.nasa.gov/fits_standard.html}.
 Only FITS standard keywords which are required by the format, and those with corresponding uvcal object parameters will be listed here.
 	\subsubsection{Mandatory standard FITS keywords}
 	\begin{itemize}
-	\item{\textbf{SIMPLE}: \emph{boolean} Does file conform to the Standard? The SIMPLE keyword is required to be the first keyword in
-	the primary header of all FITS files. The value field shall contain a logical constant with the value T if the file conforms to the standard.  This keyword is mandatory for the primary header and is not permitted in extension headers.  A value of F signifies that the file does not conform to this standard.}
 	\item{\textbf{BITPIX}: \emph{integer} Bits per data value, with sign indicating data type. Possible values and their corresponding data types are: -64, double-precision floating point number; -32, single-precision floating point number; 8, character or unsigned 8-bit binary integer; 16, 16-bit two’s complement binary integer; 32, 32-bit two’s complement binary integer; and 64, 64-bit two’s complement binary integer.}
-	\item{\textbf{NAXIS:} \emph{integer} Number of axes in the current HDU. A valid \emph{calfits} file always has NAXIS = 6 for its primary HDU.}
+	\item{\textbf{CTYPEm, CUNITm, CDELTm, CRPIXm, CRVALm}: \emph{string, string, float, float, float} Information about the mth axis. In order, describing coordinate type, coordinate unit, step size (delta) between coordinate values on that axis, coordinate reference pixel, and the coordinate's physical value at that reference pixel. Axes are assumed to be linear.}
+	\item{\textbf{EXTEND}: \emph{boolean} May this FITS file contain extensions? Always \emph{True} in valid \emph{calfits} files.}
+	\item{\textbf{SIMPLE}: \emph{boolean} Does file conform to the Standard? The SIMPLE keyword is required to be the first keyword in
+	the primary header of all FITS files. The value field shall contain a logical constant with the value \emph{True} if the file conforms to the standard.  This keyword is mandatory for the primary header and is not permitted in extension headers.  A value of \emph{False} signifies that the file does not conform to this standard.}
+	\item{\textbf{NAXIS:} \emph{integer} Number of axes in the current HDU. A valid \emph{calfits} file always has NAXIS = 6 in its primary HDU.}
+	\item{\textbf{NAXISn}: \emph{integer} The length of the nth axis.}
+	\item{\textbf{TELESCOP}: \emph{string} Observing telescope. Although this keyword is optional in standard FITS files, it is required for \emph{calfits}. (telescope\_name)}
 	\end{itemize}
 	\subsubsection{Optional, but commonly included standard FITS keywords}
-\subsection{Required Keywords}
-	\subsubsection{Required if CALSTYLE = ``sky''}
-	\subsubsection{Required if CALTYPE = ``delay''}
-\subsection{Optional Keywords}
+	\begin{itemize}
+	\item{\textbf{COMMENT}: \emph{string} Descriptive comment. Any number of COMMENT card images may
+	appear in a header.}
+	\item{\textbf{HISTORY}: \emph{string} Processing history of the data. Any number of HISTORY card images may appear in a header.}
+	\item{\textbf{OBSERVER}: \emph{string} The name of the observer. (observer)}
+	\end{itemize}
+	
+	
+\subsection{Mandatory \emph{calfits} Keywords}
 \begin{itemize}
 \item{\textbf{GNCONVEN}: \emph{string} Gain convention. The convention for applying the calibration solutions to data.
 Values are ``divide'' or ``multiply'', indicating whether one should divide or multiply uncalibrated data by gains. 
@@ -117,20 +137,35 @@ Mathematically this indicates the alpha exponent in the equation:
     ``divide'' represents $\alpha=-1$ and ``multiply'' represents $\alpha=1$. (gain\_convention)}
 \item{\textbf{CALTYPE}: \emph{string} Calibration type parameter. Possible values are ``delay'', ``gain'', or ``unknown''. (cal\_type)}
 \item{\textbf{CALSTYLE}: \emph{string} Style of calibration. Possible values are ``sky'' or ``redundant''. (cal\_style)}
-\item{\textbf{FIELD}: \emph{string} (Required if CALSTYLE = ``sky''.) A short string describing the field center or dominant source. (sky\_field)}
-\item{\textbf{CATALOG}: \emph{string} (Required if CALSTYLE = ``sky''.) Name of the calibration catalog. (sky\_catalog)}
-\item{\textbf{REFANT}: \emph{string} (Required if CALSTYLE = ``sky''.) Phase reference antenna. (ref\_antenna\_name)}
-\item{\textbf{NSOURCES:} \emph{integer} Number of sources used. (Nsources)}
-\item{\textbf{BL\_RANGE:} \emph{float} Range of baselines used for calibration. (baseline\_range)}
-\item{\textbf{DIFFUSE:} \emph{string} Name of diffuse model used. (diffuse\_model)}
-\item{\textbf{GNSCALE:} \emph{string} The gain scale of the calibration, which indicates the units of the calibrated visibilities. For example, Jy or K. (gain\_scale)}
 \item{\textbf{INTTIME:} \emph{float} Integration time of a time bin, in units of seconds. (integration\_time)}
 \item{\textbf{CHWIDTH:} \emph{float} Channel width of of a frequency bin, in units of Hz. (channel\_width)}
 \item{\textbf{XORIENT:} \emph{string} Orientation of the physical dipole corresponding to what is labeled as the x polarization. Possible values are are ``east'' (indicating east/west orientation) or ``north'' (indicating north/south orientation). (x\_orientation)}
-\item{\textbf{FRQRANGE:} \emph{float} Required if CALTYPE = ``delay''. Frequency range that solutions are valid for, in Hz. (freq\_range)}
-\item{\textbf{TMERANGE:} \emph{float} Time range (in JD) that cal solutions are valid for. (time\_range)}
-\item{\textbf{ORIGCAL:} \emph{string} Origin (on github for e.g) of calibration software. Url and branch. (git\_origin\_cal)}
+\item{\textbf{TMERANGE:} (minimum: \emph{float}, maximum: \emph{float}) Time range (in JD) that cal solutions are valid for. (time\_range)}
+\end{itemize}
+
+	\subsubsection{Required if CALSTYLE = ``sky''}
+	\begin{itemize}
+	\item{\textbf{CATALOG}: \emph{string} (Required if CALSTYLE = ``sky''.) Name of the calibration catalog. (sky\_catalog)}
+	\item{\textbf{FIELD}: \emph{string} (Required if CALSTYLE = ``sky''.) A short string describing the field center or dominant source. (sky\_field)}
+	\item{\textbf{REFANT}: \emph{string} (Required if CALSTYLE = ``sky''.) Phase reference antenna. (ref\_antenna\_name)}
+	\end{itemize}
+	
+	
+	\subsubsection{Required if CALTYPE = ``delay''}
+	\begin{itemize}
+	\item{\textbf{FRQRANGE:} \emph{float} Required if CALTYPE = ``delay''. Frequency range that solutions are valid for, in Hz. (freq\_range)}
+	\end{itemize}
+	
+	
+\subsection{Optional Keywords}
+\begin{itemize}
+\item{\textbf{BL\_RANGE:} \emph{float} Range of baselines used for calibration. (baseline\_range)}
+\item{\textbf{DIFFUSE:} \emph{string} Name of diffuse model used for sky model. (diffuse\_model)}
+\item{\textbf{GNSCALE:} \emph{string} The gain scale of the calibration, which indicates the units of the calibrated visibilities. For example, Jy or K. (gain\_scale)}
 \item{\textbf{HASHCAL:} \emph{string} Commit hash of calibration software (from ORIGCAL) used to generate solutions. (git\_hash\_cal)}
+\item{\textbf{NSOURCES:} \emph{integer} Number of sources used in sky model. (Nsources)}
+\item{\textbf{ORIGCAL:} \emph{string} Origin (on github for e.g) of calibration software. Url and branch. (git\_origin\_cal)}
+\end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -178,7 +213,7 @@ Mathematically this indicates the alpha exponent in the equation:
 %\item{\textbf{x\_orientation}: Orientation of the physical dipole corresponding
 %    to what is labelled as the x polarization. Values are east (east/west
 %    orientation), north (north/south orientation) or unknown. (x\_orientation)}
-\end{itemize}
+%\end{itemize}
 
 There are also some optionally required parameters that depend on the
 calibration type. These parameters include.
