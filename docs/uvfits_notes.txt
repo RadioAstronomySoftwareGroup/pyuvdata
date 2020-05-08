@@ -21,9 +21,10 @@ CHWIDTH
 XORIENT
 FRQRANGE
 TMERANGE
-OBSERVER
 ORIGCAL
 HASHCAL
+
+say whether required or not!
 
 n [1, 6]
 CTYPEn*
