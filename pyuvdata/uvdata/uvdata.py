@@ -2230,17 +2230,20 @@ class UVData(UVBase):
                     self.telescope_location_lat_lon_alt[0],
                     self.antenna_positions,
                 )
-
-                for bl_ind in inds:
-                    ant1_index = np.where(
-                        self.antenna_numbers == self.ant_1_array[bl_ind]
-                    )[0][0]
-                    ant2_index = np.where(
-                        self.antenna_numbers == self.ant_2_array[bl_ind]
-                    )[0][0]
-                    self.uvw_array[bl_ind, :] = (
-                        ant_uvw[ant2_index, :] - ant_uvw[ant1_index, :]
-                    )
+                # instead of looping through every ind, find the spot in antenna number
+                # array where ant_num <= ant1 < ant_number and similary for ant2
+                # for all baselines in inds
+                # then find the uvw coordinate for all at the same time
+                ant_sort = np.argsort(self.antenna_numbers)
+                ant1_index = np.searchsorted(
+                    self.antenna_numbers[ant_sort], self.ant_1_array[inds]
+                )
+                ant2_index = np.searchsorted(
+                    self.antenna_numbers[ant_sort], self.ant_2_array[inds]
+                )
+                self.uvw_array[inds] = (
+                    ant_uvw[ant_sort][ant2_index, :] - ant_uvw[ant_sort][ant1_index, :]
+                )
 
             else:
                 uvws_use = self.uvw_array[inds, :]
@@ -2437,17 +2440,21 @@ class UVData(UVBase):
                 frame_ant_uvw = uvutils.phase_uvw(
                     frame_phase_center.ra.rad, frame_phase_center.dec.rad, frame_ant_rel
                 )
-
-                for bl_ind in inds:
-                    ant1_index = np.where(
-                        self.antenna_numbers == self.ant_1_array[bl_ind]
-                    )[0][0]
-                    ant2_index = np.where(
-                        self.antenna_numbers == self.ant_2_array[bl_ind]
-                    )[0][0]
-                    self.uvw_array[bl_ind, :] = (
-                        frame_ant_uvw[ant2_index, :] - frame_ant_uvw[ant1_index, :]
-                    )
+                # instead of looping through every ind, find the spot in antenna number
+                # array where ant_num <= ant1 < ant_number and similary for ant2
+                # for all baselines in inds
+                # then find the uvw coordinate for all at the same time
+                ant_sort = np.argsort(self.antenna_numbers)
+                ant1_index = np.searchsorted(
+                    self.antenna_numbers[ant_sort], self.ant_1_array[inds]
+                )
+                ant2_index = np.searchsorted(
+                    self.antenna_numbers[ant_sort], self.ant_2_array[inds]
+                )
+                self.uvw_array[inds] = (
+                    frame_ant_uvw[ant_sort][ant2_index, :]
+                    - frame_ant_uvw[ant_sort][ant1_index, :]
+                )
             else:
                 # Also, uvws should be thought of like ENU, not ECEF (or rotated ECEF)
                 # convert them to ECEF to transform between frames
