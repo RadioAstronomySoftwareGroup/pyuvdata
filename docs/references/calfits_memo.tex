@@ -38,42 +38,42 @@ As such, every new HDU keyword introduced here has a one-to-one correspondence w
 In this memo, each new keyword is followed by its corresponding UVCal parameter, in parentheses. 
 For more information about the UVCal class and its parameters, please refer to pyuvdata's documentation: \url{http://pyuvdata.readthedocs.io/en/latest/uvcal.html}.
 
-\subsection{The FITS file}
-
-A UVCal object stores calibration solutions as either a ``gain'' type solution, or as a ``delay'' type solution.
+A UVCal object stores calibration solutions as either a ``gain''-type solution, or as a ``delay''-type solution.
 These types represent two distinct but mathematically equivalent conventions, both widely used in radio astronomy.
 Depending on the calibration type (gain or delay), the \textit{calfits} format may consist of up to 4 HDUs. 
 In either case, the primary header is the same and consists of relevant meta-information for a UVCal object to be instantiated.
 The second HDU is also the same in either case and is the ANTENNAS HDU. 
-This HDU is a BinaryTable and consists of ANTNAME, ANTINDEX, and ANTARR, corresponding to antenna\_names, antenna\_numbers, and ant\_array in the above list, respectively. %clarify. 
+%This HDU is a BinaryTable and consists of ANTNAME, ANTINDEX, and ANTARR, corresponding to antenna\_names, antenna\_numbers, and ant\_array in the above list, respectively. %clarify.
+The third HDU, present only in ``delay''-type calibrations, stores flags which indicate which frequencies should have delays applied.
+The fourth HDU is completely optional for both types of calibrations, and stores data pertaining to the overall error of the calibration solution.
 
-When the calibration type is ``gain'', the essential data contains only these 2 HDUs. 
-In this case, the image data in the primary HDU consists is a 6 dimensional array, where each dimension corresponds to (Nants, Nspws, Nfreqs, Ntimes, Njones, Number of arrays in image array), respectively.
-In other words, the primary data HDU contains the 5 axes of the data given in the list above, and then a sixth axis corresponding to the individual quantities being saved.
-For instance, if there is an input\_flag\_array the image array consists
-of [ real(gain\_array), imag(gain\_array), flag\_array, input\_flag\_array,
-quality\_array], which is concatenated along the last axis and so the last
-dimension is equal to 5. However, if no input\_flag\_array is given, the
-input\_flag\_array is left out of the above array and a the last dimension is
-equal to 4.
-
-% the following paragraph says 5 dimensions. Should be 6.
-When the calibration type is ``delay'', there are 3 data HDUs. The image data in
-the primary HDU is still a 5 dimensional array as before (dimensions are Nants,
-Nfreqs, Ntimes, Njones, number of arrays in image array), but with Nfreqs = 1 as
-a placeholder axis. This axis is added to keep the data arrays the same size
-between the delay-type and gains-type formats. In this case the image data is
-[delay\_array, quality\_array], concatenated along the last axis. The flag
-arrays are stored in the third HDU (ImageHDU) which has the flag\_array and may
-have an input\_flag\_array.
-
-For both delay-types, there is also an optional total\_quality\_array HDU, which
-contains information about the overall $\chi^2$ value of the whole array. The
-size of the array is (Nspws, Nfreqs, Ntimes, Njones). For delay-type
-calibrations, Nfreqs = 1 as above. If present, there will be 3 total HDUs for
-gain-type files, and 4 total HDUs for delay-type. Note that self-consistency
-checks are run when reading and writing calfits files to ensure that arrays have
-the proper size across different HDUs.
+%When the calibration type is ``gain'', the essential data contains only these 2 HDUs. 
+%In this case, the image data in the primary HDU consists is a 6 dimensional array, where each dimension corresponds to (Nants, Nspws, Nfreqs, Ntimes, Njones, Number of arrays in image array), respectively.
+%In other words, the primary data HDU contains the 5 axes of the data given in the list above, and then a sixth axis corresponding to the individual quantities being saved.
+%For instance, if there is an input\_flag\_array the image array consists
+%of [ real(gain\_array), imag(gain\_array), flag\_array, input\_flag\_array,
+%quality\_array], which is concatenated along the last axis and so the last
+%dimension is equal to 5. However, if no input\_flag\_array is given, the
+%input\_flag\_array is left out of the above array and a the last dimension is
+%equal to 4.
+%
+%% the following paragraph says 5 dimensions. Should be 6.
+%When the calibration type is ``delay'', there are 3 data HDUs. The image data in
+%the primary HDU is still a 5 dimensional array as before (dimensions are Nants,
+%Nfreqs, Ntimes, Njones, number of arrays in image array), but with Nfreqs = 1 as
+%a placeholder axis. This axis is added to keep the data arrays the same size
+%between the delay-type and gains-type formats. In this case the image data is
+%[delay\_array, quality\_array], concatenated along the last axis. The flag
+%arrays are stored in the third HDU (ImageHDU) which has the flag\_array and may
+%have an input\_flag\_array.
+%
+%For both delay-types, there is also an optional total\_quality\_array HDU, which
+%contains information about the overall $\chi^2$ value of the whole array. The
+%size of the array is (Nspws, Nfreqs, Ntimes, Njones). For delay-type
+%calibrations, Nfreqs = 1 as above. If present, there will be 3 total HDUs for
+%gain-type files, and 4 total HDUs for delay-type. Note that self-consistency
+%checks are run when reading and writing calfits files to ensure that arrays have
+%the proper size across different HDUs.
 
 %The \textit{calfits} format is a specification for the storage of radio
 %interferometer calibration information in a fits file.
@@ -94,12 +94,16 @@ the proper size across different HDUs.
 The primary HDU of a \emph{calfits} file is an image-type HDU with six axes.
 These axes, in order, represent 
 \begin{enumerate}
-	\item{Number of image arrays}
-	\item{Integer representing polarization values}
-	\item{Time}
-	\item{Frequency}
-	\item{The spectral window number (currently only a single spectral window is supported)}
-	\item{Antenna number}
+	\item{Data --- varies between ``delay''- and ``gain''-type calibrations as follows:}
+	\begin{itemize}
+	\item Delay-type: this axis stores the concatenation of the two uvcal arrays [delay\_array, quality\_array], in that order.
+	\item Gain-type: this axis stores the concatenation of the uvcal arrays [real(gain\_array), imaginary(gain\_array), flag\_array, input\_flag\_array], in that order, where real(gain\_array) and imaginary(gain\_array) represent the real and imaginary parts of the complex-valued gain\_array value of the given index. If there is no input\_flag\_array for this calibration, then it is not appended to the axis.
+	\end{itemize}
+	\item{An integer representing polarization values.}
+	\item{Time.}
+	\item{Frequency --- in a ``delay''-type calibration, this is a placeholder axis of length 1.}
+	\item{The spectral window number (currently, uvcal only supports a single spectral window).}
+	\item{Antenna number.}
 \end{enumerate}
 
 The following are required keywords in the primary header of a \emph{calfits} file.
@@ -107,10 +111,18 @@ For a more detailed explanation of what these keywords mean, see the description
 %As with all FITS files, \textbf{HISTORY} and \textbf{COMMENT} cards are optional and allowed.
 \subsection{Standard FITS Keywords}
 Some text descriptions in this subsection are adapted from the official FITS 4.0 Standard, which is available at \url{https://fits.gsfc.nasa.gov/fits_standard.html}.
-Only FITS standard keywords which are required by the format, and those with corresponding uvcal object parameters will be listed here.
+Only FITS standard keywords which are required by the \emph{calfits} format, and those with corresponding uvcal object parameters will be listed here.
 	\subsubsection{Mandatory standard FITS keywords}
 	\begin{itemize}
-	\item{\textbf{BITPIX}: \emph{integer} Bits per data value, with sign indicating data type. Possible values and their corresponding data types are: -64, double-precision floating point number; -32, single-precision floating point number; 8, character or unsigned 8-bit binary integer; 16, 16-bit two’s complement binary integer; 32, 32-bit two’s complement binary integer; and 64, 64-bit two’s complement binary integer.}
+	\item{\textbf{BITPIX}: \emph{integer} Bits per data value, with sign indicating data type. Possible values and their corresponding data types are: 
+	\begin{itemize}
+	\item[$\ast$]{-64: double-precision floating point number}
+	\item[$\ast$]{-32: single-precision floating point number}
+	\item[$\ast$]{8: character or unsigned 8-bit binary integer}
+	\item[$\ast$]{16: 16-bit two’s complement binary integer}
+	\item[$\ast$]{32: 32-bit two’s complement binary integer}
+	\item[$\ast$]{64: 64-bit two’s complement binary integer}
+	\end{itemize}}
 	\item{\textbf{CTYPEm, CUNITm, CDELTm, CRPIXm, CRVALm}: \emph{string, string, float, float, float} Information about the mth axis. In order, describing coordinate type, coordinate unit, step size (delta) between coordinate values on that axis, coordinate reference pixel, and the coordinate's physical value at that reference pixel. Axes are assumed to be linear.}
 	\item{\textbf{EXTEND}: \emph{boolean} May this FITS file contain extensions? Always \emph{True} in valid \emph{calfits} files.}
 	\item{\textbf{SIMPLE}: \emph{boolean} Does file conform to the Standard? The SIMPLE keyword is required to be the first keyword in
@@ -130,17 +142,17 @@ Only FITS standard keywords which are required by the format, and those with cor
 	
 \subsection{Mandatory \emph{calfits} Keywords}
 \begin{itemize}
+\item{\textbf{CALSTYLE}: \emph{string} Style of calibration. Possible values are ``sky'' or ``redundant''. (cal\_style)}
+\item{\textbf{CALTYPE}: \emph{string} Calibration type parameter. Possible values are ``delay'', ``gain'', or ``unknown''. (cal\_type)}
+\item{\textbf{CHWIDTH:} \emph{float} Channel width of of a frequency bin, in units of Hz. (channel\_width)}
 \item{\textbf{GNCONVEN}: \emph{string} Gain convention. The convention for applying the calibration solutions to data.
 Values are ``divide'' or ``multiply'', indicating whether one should divide or multiply uncalibrated data by gains. 
 Mathematically this indicates the alpha exponent in the equation: 
     (calibrated data) = (gain$^{\alpha}) \,  \times $ (uncalibrated data). A value of
     ``divide'' represents $\alpha=-1$ and ``multiply'' represents $\alpha=1$. (gain\_convention)}
-\item{\textbf{CALTYPE}: \emph{string} Calibration type parameter. Possible values are ``delay'', ``gain'', or ``unknown''. (cal\_type)}
-\item{\textbf{CALSTYLE}: \emph{string} Style of calibration. Possible values are ``sky'' or ``redundant''. (cal\_style)}
 \item{\textbf{INTTIME:} \emph{float} Integration time of a time bin, in units of seconds. (integration\_time)}
-\item{\textbf{CHWIDTH:} \emph{float} Channel width of of a frequency bin, in units of Hz. (channel\_width)}
-\item{\textbf{XORIENT:} \emph{string} Orientation of the physical dipole corresponding to what is labeled as the x polarization. Possible values are are ``east'' (indicating east/west orientation) or ``north'' (indicating north/south orientation). (x\_orientation)}
 \item{\textbf{TMERANGE:} (minimum: \emph{float}, maximum: \emph{float}) Time range (in JD) that cal solutions are valid for. (time\_range)}
+\item{\textbf{XORIENT:} \emph{string} Orientation of the physical dipole corresponding to what is labeled as the x polarization. Possible values are are ``east'' (indicating east/west orientation) or ``north'' (indicating north/south orientation). (x\_orientation)}
 \end{itemize}
 
 	\subsubsection{Required if CALSTYLE = ``sky''}
@@ -164,8 +176,38 @@ Mathematically this indicates the alpha exponent in the equation:
 \item{\textbf{GNSCALE:} \emph{string} The gain scale of the calibration, which indicates the units of the calibrated visibilities. For example, Jy or K. (gain\_scale)}
 \item{\textbf{HASHCAL:} \emph{string} Commit hash of calibration software (from ORIGCAL) used to generate solutions. (git\_hash\_cal)}
 \item{\textbf{NSOURCES:} \emph{integer} Number of sources used in sky model. (Nsources)}
-\item{\textbf{ORIGCAL:} \emph{string} Origin (on github for e.g) of calibration software. Url and branch. (git\_origin\_cal)}
+\item{\textbf{ORIGCAL:} \emph{string} Origin (on github for example) of calibration software. URL and branch. (git\_origin\_cal)}
 \end{itemize}
+
+\section{Antenna HDU}
+This HDU is a binary table extension with the extension name ``ANTENNA''.
+The Antennas HDU is mandatory in all \emph{calfits} files, and stores detailed information about the calibration solution, per antenna.
+This binary table has a number of entries equaling the number of antennas in the dataset, and three fields, containing the individual antennas' names, indices, and integer antenna numbers matching the 0th axis of the uvcal object ``gain\_array.''
+
+The three fields of this binary table are:
+\begin{itemize}
+\item{\textbf{ANTNAME}: List of antenna names, length equal to the number of antennas in the telescope (i.e., the value of NAXIS6). (antenna\_names)}
+\item{\textbf{ANTINDEX}: Array of all integer-valued antenna numbers in the telescope with length equal to the number of antennas in the telescope (i.e., the value of NAXIS6). 
+Ordering of elements matches that of ANTNAME. 
+This array is not necessarily identical to ANTARR, in that this array holds all antenna numbers associated with the telescope, not just those antennas with data, and has an in principle non-specific ordering.(antenna\_numbers)}
+\item{\textbf{ANTARR}: Array of integer antenna numbers that appear in this calibration solution, with a length equal to the calfits parameter Nants\_data, which describes the number of antennas with associated gain solutions. (ant\_array)}
+
+\end{itemize}
+
+\section{Flags HDU (CALTYPE = ``delay'' only)}
+This extension is an image HDU with extension name ``FLAGS''.
+For ``delay''-type calibration solutions, the length of the frequency axis in the primary HDU is set equal to 1 as a placeholder value, and the Flags HDU is mandatory.
+
+This image HDU has the same axes as the primary header, however, the length of the frequency axis is increased to cover all frequencies where delays may be applied.
+The first axis in the Flags HDU stores a binary flag, which indicates whether or not to apply the delay, as stored in the data axis of the primary HDU.
+
+\section{Total Quality HDU}
+This is an optional extension with extension name ``TOTQLTY''.
+For both delay-types, this optional HDU may contain information about the overall $\chi^2$ value of the whole array. 
+The axes of this HDU are the same as those of the primary header, except that it lacks the ``antennas'' axis.
+For ``delay''-type calibrations, the frequency axis has a length of 1 as above. 
+If this HDU is present, there will be 3 total HDUs for ``gain''-type files, and 4 total HDUs for ``delay''-type. 
+Note that self-consistency checks are run when reading and writing calfits files to ensure that arrays have the proper size across the various HDUs.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -215,51 +257,51 @@ Mathematically this indicates the alpha exponent in the equation:
 %    orientation), north (north/south orientation) or unknown. (x\_orientation)}
 %\end{itemize}
 
-There are also some optionally required parameters that depend on the
-calibration type. These parameters include.
-\begin{itemize}
-\item{\textbf{delay\_array}: Required if cal\_type =``delay''. Array of delays with
-    units of seconds. Shape: (Nants\_data, Nspws, 1, Ntimes, Njones), type = float. (delay\_array)}
-\item{\textbf{gain\_array}: Required if cal\_type = ``gain''. Array of gains, 
-    shape: (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), type = complex float. (gain\_array)}
-\item{\textbf{freq\_range}: Required if cal\_type = ``delay''. Frequency range that
-   solutions are valid for. list: [start\_frequency, end\_frequency] in Hz. (freq\_range)}
-\end{itemize}
+%There are also some optionally required parameters that depend on the
+%calibration type. These parameters include.
+%\begin{itemize}
+%\item{\textbf{delay\_array}: Required if cal\_type =``delay''. Array of delays with
+%    units of seconds. Shape: (Nants\_data, Nspws, 1, Ntimes, Njones), type = float. (delay\_array)}
+%\item{\textbf{gain\_array}: Required if cal\_type = ``gain''. Array of gains, 
+%    shape: (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), type = complex float. (gain\_array)}
+%\item{\textbf{freq\_range}: Required if cal\_type = ``delay''. Frequency range that
+%   solutions are valid for. list: [start\_frequency, end\_frequency] in Hz. (freq\_range)}
+%\end{itemize}
 
-In addition to the required parameters, there are a number of truly optional
-parameters that may be passed in. These include:
+%In addition to the required parameters, there are a number of truly optional
+%parameters that may be passed in. These include:
 
-\begin{itemize}
-\item{\textbf{git\_origin\_cal}: Origin (on github for e.g) of calibration
-    software. Url and branch. (git\_origin\_cal)}
-\item{\textbf{git\_hash\_cal}: Commit hash of calibration software (from
-    git\_origin\_cal) used to generate solutions. (git\_hash\_cal)}
-\item{\textbf{input\_flag\_array}: Array of input flags, True is flagged. shape:
-    (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), type = bool. (input\_flag\_array)}
+%\begin{itemize}
+%\item{\textbf{git\_origin\_cal}: Origin (on github for e.g) of calibration
+%    software. Url and branch. (git\_origin\_cal)}
+%\item{\textbf{git\_hash\_cal}: Commit hash of calibration software (from
+%    git\_origin\_cal) used to generate solutions. (git\_hash\_cal)}
+%\item{\textbf{input\_flag\_array}: Array of input flags, True is flagged. shape:
+%    (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), type = bool. (input\_flag\_array)}
 %\item{\textbf{observer}: Name of observer who calculated solutions in this
 %    file. \emph{observer}} % why is this here, it's a standard FITS header keyword?
-\item{\textbf{total\_quality\_array}: Array of qualities of the calibration
-    solution for the entire array. The shape depends on cal\_type, if the cal\_type is
-    "gain" or "unknown", the shape is: (Nspws, Nfreqs, Ntimes, Njones), if the 
-    cal\_type is "delay", the shape is (Nspws, 1, Ntimes, Njones), type = float. (total\_quality\_array)}
-\end{itemize}
+%\item{\textbf{total\_quality\_array}: Array of qualities of the calibration
+%    solution for the entire array. The shape depends on cal\_type, if the cal\_type is
+%    "gain" or "unknown", the shape is: (Nspws, Nfreqs, Ntimes, Njones), if the 
+%    cal\_type is "delay", the shape is (Nspws, 1, Ntimes, Njones), type = float. (total\_quality\_array)}
+%\end{itemize}
 
-Once these parameters are set in the UVCal object, a \textit{calfits} file may
-be written out.
+%Once these parameters are set in the UVCal object, a \textit{calfits} file may
+%be written out.
 
-\section{Reading and Writing a \textit{calfits} File}
-Writing out the UVCal object to a file is very simple: just run
-UVCal.write\_calfits(filename). That will write a fits file called
-``filename''. Note that a filename check will be done and a new file will not be
-written with the same name. You can override this functionality with the clobber
-key word.
-
-Reading in a calfits file is also straightforward. First instantiate the UVCal object and
-then run UVCal.read\_calfits(filename). This updates the UVCal object with all
-the parameters from the the fits file.
-
-There are examples of working with pyuvdata UVCal objects and \textit{calfits} files in
-the tutorial (\url{http://pyuvdata.readthedocs.io/en/latest/tutorial.html}).
+%\section{Reading and Writing a \textit{calfits} File}
+%Writing out the UVCal object to a file is very simple: just run
+%UVCal.write\_calfits(filename). That will write a fits file called
+%``filename''. Note that a filename check will be done and a new file will not be
+%written with the same name. You can override this functionality with the clobber
+%key word.
+%
+%Reading in a calfits file is also straightforward. First instantiate the UVCal object and
+%then run UVCal.read\_calfits(filename). This updates the UVCal object with all
+%the parameters from the the fits file.
+%
+%There are examples of working with pyuvdata UVCal objects and \textit{calfits} files in
+%the tutorial (\url{http://pyuvdata.readthedocs.io/en/latest/tutorial.html}).
 %
 %\subsection{The FITS file}
 %Depending on the calibration type (gain vs delay), the \textit{calfits}
