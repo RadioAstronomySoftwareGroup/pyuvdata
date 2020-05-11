@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - `background` keyword in `uvdata.set_lsts_from_time_array` to allow lst calculation in a background thread.
 - `read_data` keyword to read_mwa_corr_fits, allows from metadata only reads of MWA correlator fits files.
 - `propagate_flags` keyword for `UVData.frequency_average` which flags averaged samples if any contributing samples were flagged
+- `nsample_array_dtype` keyword for `UVData.read`, which sets the datatype for the nsample_array. Currently only used for mwa_corr_fits files.
 
 ### Changed
 - The `time_range` parameter on UVCal is no longer required and it is suggested to only set it if the Ntimes axis is length one.
@@ -18,6 +19,7 @@ All notable changes to this project will be documented in this file.
 - Updated Nants calculations for speed up.
 - updated HERA telescope location to match the HERA defined center of array.
 - `utils.uvcalibrate` now incorporates many more consistency checks between the uvcal and uvdata object. The new keywords `time_check` and `ant_check` were added to control some of these checks.
+- `data_array_dtype` keyword for `UVData.read` is now also respected by mwa_corr_fits files. Previously it was only used by uvh5 files.
 
 ### Deprecated
 - The UVCal methods `set_gain`, `set_delay`, `set_unknown_cal_type`, `set_sky`, and `set_redundant` have been made private. The public methods will be removed in version 2.2.
