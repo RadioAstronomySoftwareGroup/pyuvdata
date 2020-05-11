@@ -572,3 +572,55 @@ def test_read_metadata_only(tmp_path):
         category=category,
     )
     assert uvd.metadata_only
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location is not set.")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_data_array_precision():
+    uv = UVData()
+    uv2 = UVData()
+    # read in data array as single precision
+    uv.read(filelist[0:2], data_array_dtype=np.complex64)
+    # now read as double precision
+    uv2.read(filelist[0:2], data_array_dtype=np.complex128)
+
+    assert uv == uv2
+    assert uv.data_array.dtype.type is np.complex64
+    assert uv2.data_array.dtype.type is np.complex128
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location is not set.")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_nsample_array_precision():
+    uv = UVData()
+    uv2 = UVData()
+    uv3 = UVData()
+    # read in nsample array at different precisions
+    uv.read(filelist[0:2], nsample_array_dtype=np.float32)
+    uv2.read(filelist[0:2], nsample_array_dtype=np.float64)
+    uv3.read(filelist[0:2], nsample_array_dtype=np.float16)
+
+    assert uv == uv2
+    assert uv == uv3
+    assert uv.nsample_array.dtype.type is np.float32
+    assert uv2.nsample_array.dtype.type is np.float64
+    assert uv3.nsample_array.dtype.type is np.float16
+
+    return
+
+
+def test_invalid_precision_errors():
+    uv = UVData()
+
+    # raise errors by passing bogus precision values
+    with pytest.raises(ValueError, match="data_array_dtype must be np.complex64"):
+        uv.read_mwa_corr_fits(filelist[0:2], data_array_dtype=np.float64)
+
+    with pytest.raises(
+        ValueError, match="nsample_array_dtype must be one of: np.float64"
+    ):
+        uv.read_mwa_corr_fits(filelist[0:2], nsample_array_dtype=np.complex128)
+
+    return
