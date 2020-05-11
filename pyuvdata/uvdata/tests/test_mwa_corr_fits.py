@@ -552,12 +552,7 @@ def test_flag_init_errors(flag_file_init, err_type, read_kwargs, err_msg):
 
 
 def test_read_metadata_only(tmp_path):
-    """
-    MWA correlator fits to uvfits loopback test.
-
-    Read in MWA correlator files, write out as uvfits, read back in and check
-    for object equality.
-    """
+    """Test reading an MWA corr fits file as metadata only."""
     uvd = UVData()
     messages = [
         "telescope_location is not set",
