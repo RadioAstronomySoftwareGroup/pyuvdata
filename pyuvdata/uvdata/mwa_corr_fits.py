@@ -151,14 +151,15 @@ class MWACorrFITS(UVData):
         use_cotter_flags=False,
         correct_cable_len=False,
         phase_to_pointing_center=False,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
         flag_init=True,
         edge_width=80e3,
         start_flag=2.0,
         end_flag=2.0,
         flag_dc_offset=True,
+        read_data=True,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
     ):
         """
         Read in MWA correlator gpu box files.
@@ -183,17 +184,6 @@ class MWACorrFITS(UVData):
             Option to apply a cable delay correction.
         phase_to_pointing_center : bool
             Option to phase to the observation pointing center.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run).
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done).
         flag_init: bool
             Set to True in order to do routine flagging of coarse channel edges,
             start or end integrations, or the center fine channel of each coarse
@@ -213,6 +203,22 @@ class MWACorrFITS(UVData):
         flag_dc_offset: bool
             Only used if flag_init is True. Set to True to flag the center fine
             channel of each coarse channel.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run).
+        read_data : bool
+            Read in the visibility and flag data. If set to false,
+            only the metadata will be read in. Setting read_data to False
+            results in an incompletely defined object (check will not pass).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done).
+
 
         Raises
         ------
@@ -538,139 +544,152 @@ class MWACorrFITS(UVData):
                 np.arange(first_center, first_center + num_fine_chans * width, width)
                 * 1000
             )
-
-        # read data into an array with dimensions (time, uv, baselines*pols)
-        self.data_array = np.zeros(
-            (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.complex128
-        )
-        self.nsample_array = np.zeros(
-            (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.float32
-        )
-        self.flag_array = np.full(
-            (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), True
-        )
-
-        # read data files
-        for file in file_dict["data"]:
-            # get the file number from the file name
-            file_num = int(file.split("_")[-2][-2:])
-            # map file number to frequency index
-            freq_ind = file_nums_to_index[file_num] * num_fine_chans
-            with fits.open(
-                file, memmap=False, do_not_scale_image_data=False
-            ) as hdu_list:
-                # count number of times
-                end_list = len(hdu_list)
-                for i in range(1, end_list):
-                    time = (
-                        hdu_list[i].header["TIME"]
-                        + hdu_list[i].header["MILLITIM"] / 1000.0
-                        + int_time / 2.0
-                    )
-                    time_ind = np.where(time_array == time)[0][0]
-                    # dump data into matrix
-                    # and take data from real to complex numbers
-                    self.data_array[
-                        time_ind, freq_ind : freq_ind + num_fine_chans, :
-                    ] = (hdu_list[i].data[:, 0::2] + 1j * hdu_list[i].data[:, 1::2])
-                    self.nsample_array[
-                        time_ind, freq_ind : freq_ind + num_fine_chans, :
-                    ] = 1.0
-                    self.flag_array[
-                        time_ind, freq_ind : freq_ind + num_fine_chans, :
-                    ] = False
-
         # polarizations are ordered yy, yx, xy, xx
         self.polarization_array = np.array([-6, -8, -7, -5])
 
-        # build mapper from antenna numbers and polarizations to pfb inputs
-        corr_ants_to_pfb_inputs = {}
-        for i in range(len(antenna_numbers)):
-            for p in range(2):
-                corr_ants_to_pfb_inputs[(antenna_numbers[i], p)] = 2 * i + p
-
-        # for mapping, start with a pair of antennas/polarizations
-        # this is the pair we want to find the data for
-        # map the pair to the corresponding pfb input indices
-        # map the pfb input indices to the pfb output indices
-        # these are the indices for the data corresponding to the initial
-        # antenna/pol pair
-        # generate a mapping index array
-        map_inds = np.zeros((self.Nbls * self.Npols), dtype=np.int32)
-        # generate a conjugation array
-        conj = np.full((self.Nbls * self.Npols), False, dtype=np.bool_)
-        pfb_inputs_to_outputs = input_output_mapping()
-
-        map_inds, conj = _corr_fits.generate_map(
-            corr_ants_to_pfb_inputs, pfb_inputs_to_outputs, map_inds, conj,
-        )
-        # reorder data
-        self.data_array = np.take(self.data_array, map_inds, axis=2)
-        self.nsample_array = np.take(self.nsample_array, map_inds, axis=2)
-        self.flag_array = np.take(self.flag_array, map_inds, axis=2)
-
-        # conjugate data
-        self.data_array[:, :, conj] = np.conj(self.data_array[:, :, conj])
-        # reshape data
-        self.data_array = self.data_array.reshape(
-            (self.Ntimes, self.Nfreqs, self.Nbls, self.Npols)
-        )
-        self.nsample_array = self.nsample_array.reshape(
-            (self.Ntimes, self.Nfreqs, self.Nbls, self.Npols)
-        )
-        self.flag_array = self.flag_array.reshape(
-            (self.Ntimes, self.Nfreqs, self.Nbls, self.Npols)
-        )
-        self.data_array = np.swapaxes(self.data_array, 1, 2)
-        self.nsample_array = np.swapaxes(self.nsample_array, 1, 2)
-        self.flag_array = np.swapaxes(self.flag_array, 1, 2)
-
-        # generage baseline flags for flagged ants
-        bad_ant_inds = np.nonzero(
-            np.logical_or(
-                np.in1d(ant_1_array, flagged_ants), np.in1d(ant_2_array, flagged_ants),
+        if read_data:
+            # read data into an array with dimensions (time, uv, baselines*pols)
+            self.data_array = np.zeros(
+                (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.complex128
             )
-        )[0]
-        self.flag_array[:, bad_ant_inds, :, :] = True
+            self.nsample_array = np.zeros(
+                (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.float32
+            )
+            self.flag_array = np.full(
+                (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), True
+            )
 
-        # combine baseline and time axes
-        self.data_array = self.data_array.reshape((self.Nblts, self.Nfreqs, self.Npols))
-        self.flag_array = self.flag_array.reshape((self.Nblts, self.Nfreqs, self.Npols))
-        self.nsample_array = self.nsample_array.reshape(
-            (self.Nblts, self.Nfreqs, self.Npols)
-        )
+            # read data files
+            for file in file_dict["data"]:
+                # get the file number from the file name
+                file_num = int(file.split("_")[-2][-2:])
+                # map file number to frequency index
+                freq_ind = file_nums_to_index[file_num] * num_fine_chans
+                with fits.open(
+                    file, memmap=False, do_not_scale_image_data=False
+                ) as hdu_list:
+                    # count number of times
+                    end_list = len(hdu_list)
+                    for i in range(1, end_list):
+                        time = (
+                            hdu_list[i].header["TIME"]
+                            + hdu_list[i].header["MILLITIM"] / 1000.0
+                            + int_time / 2.0
+                        )
+                        time_ind = np.where(time_array == time)[0][0]
+                        # dump data into matrix
+                        # and take data from real to complex numbers
+                        self.data_array[
+                            time_ind, freq_ind : freq_ind + num_fine_chans, :
+                        ] = (hdu_list[i].data[:, 0::2] + 1j * hdu_list[i].data[:, 1::2])
+                        self.nsample_array[
+                            time_ind, freq_ind : freq_ind + num_fine_chans, :
+                        ] = 1.0
+                        self.flag_array[
+                            time_ind, freq_ind : freq_ind + num_fine_chans, :
+                        ] = False
 
-        # cable delay corrections
-        if correct_cable_len:
-            self.correct_cable_length(cable_lens)
+            # build mapper from antenna numbers and polarizations to pfb inputs
+            corr_ants_to_pfb_inputs = {}
+            for i in range(len(antenna_numbers)):
+                for p in range(2):
+                    corr_ants_to_pfb_inputs[(antenna_numbers[i], p)] = 2 * i + p
 
-        # add spectral window index
-        self.data_array = self.data_array[:, np.newaxis, :, :]
-        self.flag_array = self.flag_array[:, np.newaxis, :, :]
-        self.nsample_array = self.nsample_array[:, np.newaxis, :, :]
+            # for mapping, start with a pair of antennas/polarizations
+            # this is the pair we want to find the data for
+            # map the pair to the corresponding pfb input indices
+            # map the pfb input indices to the pfb output indices
+            # these are the indices for the data corresponding to the initial
+            # antenna/pol pair
+            # generate a mapping index array
+            map_inds = np.zeros((self.Nbls * self.Npols), dtype=np.int32)
+            # generate a conjugation array
+            conj = np.full((self.Nbls * self.Npols), False, dtype=np.bool_)
+            pfb_inputs_to_outputs = input_output_mapping()
 
-        # because of an annoying discrepancy between file conventions, in order
-        # to be consistent with the uvw vector direction, all the data must
-        # be conjugated
-        self.data_array = np.conj(self.data_array)
+            map_inds, conj = _corr_fits.generate_map(
+                corr_ants_to_pfb_inputs, pfb_inputs_to_outputs, map_inds, conj,
+            )
+            # reorder data
+            self.data_array = np.take(self.data_array, map_inds, axis=2)
+            self.nsample_array = np.take(self.nsample_array, map_inds, axis=2)
+            self.flag_array = np.take(self.flag_array, map_inds, axis=2)
 
-        # reorder polarizations
-        self.reorder_pols()
+            # conjugate data
+            self.data_array[:, :, conj] = np.conj(self.data_array[:, :, conj])
+            # reshape data
+            self.data_array = self.data_array.reshape(
+                (self.Ntimes, self.Nfreqs, self.Nbls, self.Npols)
+            )
+            self.nsample_array = self.nsample_array.reshape(
+                (self.Ntimes, self.Nfreqs, self.Nbls, self.Npols)
+            )
+            self.flag_array = self.flag_array.reshape(
+                (self.Ntimes, self.Nfreqs, self.Nbls, self.Npols)
+            )
+            self.data_array = np.swapaxes(self.data_array, 1, 2)
+            self.nsample_array = np.swapaxes(self.nsample_array, 1, 2)
+            self.flag_array = np.swapaxes(self.flag_array, 1, 2)
+
+            # generage baseline flags for flagged ants
+            bad_ant_inds = np.nonzero(
+                np.logical_or(
+                    np.in1d(ant_1_array, flagged_ants),
+                    np.in1d(ant_2_array, flagged_ants),
+                )
+            )[0]
+            self.flag_array[:, bad_ant_inds, :, :] = True
+
+            # combine baseline and time axes
+            self.data_array = self.data_array.reshape(
+                (self.Nblts, self.Nfreqs, self.Npols)
+            )
+            self.flag_array = self.flag_array.reshape(
+                (self.Nblts, self.Nfreqs, self.Npols)
+            )
+            self.nsample_array = self.nsample_array.reshape(
+                (self.Nblts, self.Nfreqs, self.Npols)
+            )
+
+            # cable delay corrections
+            if correct_cable_len:
+                self.correct_cable_length(cable_lens)
+
+            # add spectral window index
+            self.data_array = self.data_array[:, np.newaxis, :, :]
+            self.flag_array = self.flag_array[:, np.newaxis, :, :]
+            self.nsample_array = self.nsample_array[:, np.newaxis, :, :]
+
+            # because of an annoying discrepancy between file conventions, in order
+            # to be consistent with the uvw vector direction, all the data must
+            # be conjugated
+            self.data_array = np.conj(self.data_array)
+
+            # reorder polarizations
+            self.reorder_pols()
 
         # phasing
         if phase_to_pointing_center:
             self.phase(ra_rad, dec_rad)
 
-        if flag_init:
-            self.flag_init(
-                num_fine_chans,
-                edge_width=edge_width,
-                start_flag=start_flag,
-                end_flag=end_flag,
-                flag_dc_offset=flag_dc_offset,
-            )
+        if not self.metadata_only:
+            if flag_init:
+                self.flag_init(
+                    num_fine_chans,
+                    edge_width=edge_width,
+                    start_flag=start_flag,
+                    end_flag=end_flag,
+                    flag_dc_offset=flag_dc_offset,
+                )
 
-        if use_cotter_flags:
-            raise NotImplementedError(
-                "reading in cotter flag files is not yet available"
-            )
+            if use_cotter_flags:
+                raise NotImplementedError(
+                    "reading in cotter flag files is not yet available"
+                )
+
+            # check if object is self-consistent
+            if run_check:
+                self.check(
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                )
