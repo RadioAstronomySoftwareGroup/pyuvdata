@@ -6079,6 +6079,61 @@ def test_downsample_in_time_drift_no_phasing(resample_in_time_file):
     assert uv_object == uv_object2
 
 
+@pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
+@pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
+def test_downsample_in_time_nsample_precision(resample_in_time_file):
+    """Test the downsample_in_time method with a half-precision nsample_array"""
+    uv_object = resample_in_time_file
+    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
+    # reorder to make sure we get the right value later
+    uv_object.reorder_blts(order="baseline", minor_order="time")
+    # save some values for later
+    init_wf = uv_object.get_data(0, 1)
+    original_int_time = np.amax(uv_object.integration_time)
+    # check that there are no flags
+    assert np.nonzero(uv_object.flag_array)[0].size == 0
+    init_ns = uv_object.get_nsamples(0, 1)
+
+    # change the target integration time
+    min_integration_time = original_int_time * 2.0
+
+    # add flags and try again. With one of the 2 inputs flagged, the data should
+    # just be the unflagged value and nsample should be half the unflagged one
+    # and the output should not be flagged.
+    inds01 = uv_object.antpair2ind(0, 1)
+    uv_object.flag_array[inds01[0], 0, 0, 0] = True
+    uv_object2 = uv_object.copy()
+
+    # change precision of nsample array
+    uv_object.nsample_array = uv_object.nsample_array.astype(np.float16)
+    uv_object.downsample_in_time(
+        min_int_time=min_integration_time, blt_order="baseline", minor_order="time"
+    )
+    out_wf = uv_object.get_data(0, 1)
+    assert np.isclose(init_wf[1, 0, 0], out_wf[0, 0, 0])
+
+    # make sure nsamples is correct
+    out_ns = uv_object.get_nsamples(0, 1)
+    assert np.isclose((init_ns[1, 0, 0]) / 2.0, out_ns[0, 0, 0])
+
+    # make sure nsamples has the right dtype
+    assert uv_object.nsample_array.dtype.type is np.float16
+
+    # check that there are still no flags
+    assert np.nonzero(uv_object.flag_array)[0].size == 0
+
+    # Compare doing it with n_times_to_avg
+    uv_object2.nsample_array = uv_object2.nsample_array.astype(np.float16)
+    uv_object2.downsample_in_time(
+        n_times_to_avg=2, blt_order="baseline", minor_order="time"
+    )
+    assert uv_object.history != uv_object2.history
+    uv_object2.history = uv_object.history
+    assert uv_object == uv_object2
+
+    return
+
+
 def test_downsample_in_time_errors(resample_in_time_file):
     """Test various errors and warnings are raised"""
     uv_object = resample_in_time_file

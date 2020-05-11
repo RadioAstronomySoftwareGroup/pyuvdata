@@ -5167,8 +5167,16 @@ class UVData(UVBase):
 
                         # nsample array is the fraction of data that we actually kept,
                         # relative to the amount that went into the sum or average
+                        nsample_dtype = self.nsample_array.dtype.type
+                        # promote nsample dtype if half-precision
+                        if nsample_dtype is np.float16:
+                            masked_nsample_dtype = np.float32
+                        else:
+                            masked_nsample_dtype = nsample_dtype
                         masked_nsample = np.ma.masked_array(
-                            self.nsample_array[averaging_idx], mask=mask
+                            self.nsample_array[averaging_idx],
+                            mask=mask,
+                            dtype=masked_nsample_dtype,
                         )
 
                         masked_int_time = np.ma.masked_array(
@@ -5192,6 +5200,9 @@ class UVData(UVBase):
                                 weighted_data, axis=0
                             ) / np.sum(weights, axis=0)
 
+                        # output of masked array calculation should be coerced
+                        # to the datatype of temp_nsample (which has the same
+                        # precision as the original nsample_array)
                         temp_nsample[temp_idx] = np.sum(
                             masked_nsample * masked_int_time, axis=0
                         ) / np.sum(self.integration_time[averaging_idx])
