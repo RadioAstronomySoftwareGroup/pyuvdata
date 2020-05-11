@@ -6004,9 +6004,9 @@ class UVData(UVBase):
         end_flag=2.0,
         flag_dc_offset=True,
         phase_to_pointing_center=False,
-        phase_data=None,
-        phase_center=None,
         read_data=True,
+        data_array_dtype=np.complex64,
+        nsample_array_dtype=np.float32,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -6058,6 +6058,16 @@ class UVData(UVBase):
             Read in the visibility and flag data. If set to false, only the
             basic header info and metadata read in. Setting read_data to False
             results in a metdata only object.
+        data_array_dtype : numpy dtype
+            Datatype to store the output data_array as. Must be either
+            np.complex64 (single-precision real and imaginary) or np.complex128
+            (double-precision real and imaginary).
+        nsample_array_dtype : numpy dtype
+            Datatype to store the output nsample_array as. Must be either
+            np.float64 (double-precision), np.float32 (single-precision), or
+            np.float16 (half-precision). Half-precision is only recommended for
+            cases where no sampling or averaging of baselines will occur,
+            because round-off errors can be quite large (~1e-3).
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -6104,6 +6114,8 @@ class UVData(UVBase):
             flag_dc_offset=flag_dc_offset,
             phase_to_pointing_center=phase_to_pointing_center,
             read_data=read_data,
+            data_array_dtype=data_array_dtype,
+            nsample_array_dtype=nsample_array_dtype,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
@@ -6463,6 +6475,7 @@ class UVData(UVBase):
         data_column="DATA",
         pol_order="AIPS",
         data_array_dtype=np.complex128,
+        nsample_array_dtype=np.float32,
         use_cotter_flags=False,
         correct_cable_len=False,
         flag_init=True,
@@ -6606,7 +6619,15 @@ class UVData(UVBase):
             Datatype to store the output data_array as. Must be either
             np.complex64 (single-precision real and imaginary) or np.complex128 (double-
             precision real and imaginary). Only used if the datatype of the visibility
-            data on-disk is not 'c8' or 'c16'. Only used if file_type is 'uvh5'.
+            data on-disk is not 'c8' or 'c16'. Only used if file_type is 'uvh5' or
+            'mwa_corr_fits'.
+        nsample_array_dtype : numpy dtype
+            Datatype to store the output nsample_array as. Must be either
+            np.float64 (double-precision), np.float32 (single-precision), or
+            np.float16 (half-precision). Half-precision is only recommended for
+            cases where no sampling or averaging of baselines will occur,
+            because round-off errors can be quite large (~1e-3). Only used if
+            file_type is 'mwa_corr_fits'.
         use_cotter_flags : bool
             Flag to apply cotter flags. Only used if file_type is 'mwa_corr_fits'.
         correct_cable_len : bool
@@ -6774,6 +6795,7 @@ class UVData(UVBase):
                         data_column=data_column,
                         pol_order=pol_order,
                         data_array_dtype=data_array_dtype,
+                        nsample_array_dtype=nsample_array_dtype,
                         run_check=run_check,
                         check_extra=check_extra,
                         run_check_acceptability=run_check_acceptability,
@@ -6822,6 +6844,7 @@ class UVData(UVBase):
                             data_column=data_column,
                             pol_order=pol_order,
                             data_array_dtype=data_array_dtype,
+                            nsample_array_dtype=nsample_array_dtype,
                             run_check=run_check,
                             check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability,
@@ -6999,6 +7022,8 @@ class UVData(UVBase):
                     flag_dc_offset=True,
                     phase_to_pointing_center=phase_to_pointing_center,
                     read_data=read_data,
+                    data_array_dtype=data_array_dtype,
+                    nsample_array_dtype=nsample_array_dtype,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     background_lsts=background_lsts,

@@ -158,6 +158,8 @@ class MWACorrFITS(UVData):
         flag_dc_offset=True,
         background_lsts=True,
         read_data=True,
+        data_array_dtype=np.complex128,
+        nsample_array_dtype=np.float32,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -204,16 +206,22 @@ class MWACorrFITS(UVData):
         flag_dc_offset: bool
             Only used if flag_init is True. Set to True to flag the center fine
             channel of each coarse channel.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
+        data_array_dtype : numpy dtype
+            Datatype to store the output data_array as. Must be either
+            np.complex64 (single-precision real and imaginary) or np.complex128
+            (double-precision real and imaginary).
+        nsample_array_dtype : numpy dtype
+            Datatype to store the output nsample_array as. Must be either
+            np.float64 (double-precision), np.float32 (single-precision), or
+            np.float16 (half-precision). Half-precision is only recommended for
+            cases where no sampling or averaging of baselines will occur,
+            because round-off errors can be quite large (~1e-3).
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
             meaning the check will be run).
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
-        read_data : bool
-            Read in the visibility, nsample and flag data. If set to False, only
-            the metadata will be read in. Setting read_data to False results in
-            a metadata only object.
         check_extra : bool
             Option to check optional parameters as well as required ones (the
             default is True, meaning the optional parameters will be checked).
@@ -243,6 +251,14 @@ class MWACorrFITS(UVData):
         included_file_nums = []
         cotter_warning = False
         num_fine_chans = 0
+
+        # do datatype checks
+        if data_array_dtype not in (np.complex64, np.complex128):
+            raise ValueError("data_array_dtype must be np.complex64 or np.complex128")
+        if nsample_array_dtype not in (np.float64, np.float32, np.float16):
+            raise ValueError(
+                "nsample_array_dtype must be one of: np.float64, np.float32, np.float16"
+            )
 
         # iterate through files and organize
         # create a list of included coarse channels
@@ -553,10 +569,12 @@ class MWACorrFITS(UVData):
         if read_data:
             # read data into an array with dimensions (time, uv, baselines*pols)
             self.data_array = np.zeros(
-                (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.complex128
+                (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols),
+                dtype=data_array_dtype,
             )
             self.nsample_array = np.zeros(
-                (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), dtype=np.float32
+                (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols),
+                dtype=nsample_array_dtype,
             )
             self.flag_array = np.full(
                 (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), True
