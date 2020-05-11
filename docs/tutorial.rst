@@ -954,13 +954,13 @@ miriad, and MWA correlator fits files.
 
 a) Reading the metadata of a uvfits, uvh5, miriad, or mwa corr fits file
 ********************************************************
-For uvh5, uvfits, miriad, and MWA correlator fits files, reading in the metadata results in a metadata only
+For uvh5, uvfits, and MWA correlator fits files, reading in the metadata results in a metadata only
 UVData object (which has every attribute except the data_array,
 flag_array and nsample_array filled out). For Miriad files, less of the
 metadata can be read without reading the data, but many of the attributes
 are available.
 
-FHD, and measurement set (ms) files do not support
+FHD and measurement set (ms) files do not support
 reading only the metadata
 (the read_data keyword is ignored for these file types).
 ::
