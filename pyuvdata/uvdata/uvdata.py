@@ -5907,6 +5907,7 @@ class UVData(UVBase):
         phase_to_pointing_center=False,
         phase_data=None,
         phase_center=None,
+        read_data=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -5953,6 +5954,10 @@ class UVData(UVBase):
             'mwa_corr_fits'.
         phase_to_pointing_center : bool
             Option to phase to the observation pointing center.
+        read_data : bool
+            Read in the visibility and flag data. If set to false, only the
+            basic header info and metadata read in. Setting read_data to False
+            results in a metdata only object.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -5996,6 +6001,7 @@ class UVData(UVBase):
             end_flag=end_flag,
             flag_dc_offset=flag_dc_offset,
             phase_to_pointing_center=phase_to_pointing_center,
+            read_data=read_data,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
@@ -6874,6 +6880,7 @@ class UVData(UVBase):
                     end_flag=end_flag,
                     flag_dc_offset=True,
                     phase_to_pointing_center=phase_to_pointing_center,
+                    read_data=read_data,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                 )

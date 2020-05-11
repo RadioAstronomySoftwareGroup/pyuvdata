@@ -549,3 +549,31 @@ def test_flag_init_errors(flag_file_init, err_type, read_kwargs, err_msg):
     with pytest.raises(err_type) as cm:
         uv.read(flag_file_init, **read_kwargs)
     assert str(cm.value).startswith(err_msg)
+
+
+def test_read_metadata_only(tmp_path):
+    """
+    MWA correlator fits to uvfits loopback test.
+
+    Read in MWA correlator files, write out as uvfits, read back in and check
+    for object equality.
+    """
+    uvd = UVData()
+    messages = [
+        "telescope_location is not set",
+        "some coarse channel files were not submitted",
+    ]
+    category = [UserWarning] * 2
+    uvtest.checkWarnings(
+        uvd.read_mwa_corr_fits,
+        func_args=[filelist[0:2]],
+        func_kwargs={
+            "correct_cable_len": True,
+            "phase_to_pointing_center": True,
+            "read_data": False,
+        },
+        nwarnings=len(messages),
+        message=messages,
+        category=category,
+    )
+    assert uvd.metadata_only
