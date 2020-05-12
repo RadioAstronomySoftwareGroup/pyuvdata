@@ -391,9 +391,9 @@ class UVFITS(UVData):
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
         read_data : bool
-            Read in the visibility and flag data. If set to false, only the
-            basic header info and metadata read in. Setting read_data to False
-            results in a metdata only object.
+            Read in the visibility, nsample and flag data. If set to False, only
+            the metadata will be read in. Setting read_data to False results in
+            a metadata only object.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,

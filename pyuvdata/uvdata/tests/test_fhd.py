@@ -55,6 +55,21 @@ def test_read_fhd_write_read_uvfits(tmp_path):
     assert fhd_uv == uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
+def test_read_fhd_metadata_only():
+    fhd_uv = UVData()
+    fhd_uv.read_fhd(testfiles, read_data=False)
+
+    print(fhd_uv.metadata_only)
+    assert fhd_uv.metadata_only
+
+    fhd_uv2 = UVData()
+    fhd_uv2.read_fhd(testfiles)
+    fhd_uv3 = fhd_uv2.copy(metadata_only=True)
+
+    assert fhd_uv == fhd_uv3
+
+
 def test_read_fhd_select():
     """
     test select on read with FHD files.
@@ -296,10 +311,10 @@ def test_read_fhd_warnings():
     ]
     warn_messages = [
         "Ntimes does not match",
-        "Nbls does not match",
-        "These visibilities may have been phased improperly",
         "Telescope location derived from obs",
         "Telescope foo is not in known_telescopes.",
+        "These visibilities may have been phased improperly",
+        "Nbls does not match",
     ]
     fhd_uv = UVData()
     uvtest.checkWarnings(

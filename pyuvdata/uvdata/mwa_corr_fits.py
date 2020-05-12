@@ -211,9 +211,9 @@ class MWACorrFITS(UVData):
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
         read_data : bool
-            Read in the visibility and flag data. If set to false,
-            only the metadata will be read in. Setting read_data to False
-            results in an incompletely defined object (check will not pass).
+            Read in the visibility, nsample and flag data. If set to False, only
+            the metadata will be read in. Setting read_data to False results in
+            a metadata only object.
         check_extra : bool
             Option to check optional parameters as well as required ones (the
             default is True, meaning the optional parameters will be checked).

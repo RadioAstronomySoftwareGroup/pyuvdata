@@ -913,9 +913,9 @@ class UVH5(UVData):
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
         read_data : bool
-            Read in the visibility and flag data. If set to false, only the
-            basic header info and metadata will be read in. Setting read_data to
-            False results in an incompletely defined object (check will not pass).
+            Read in the visibility, nsample and flag data. If set to False, only
+            the metadata will be read in. Setting read_data to False results in
+            a metadata only object.
         data_array_dtype : numpy dtype
             Datatype to store the output data_array as. Must be either
             np.complex64 (single-precision real and imaginary) or np.complex128 (double-
