@@ -79,7 +79,7 @@ def test_error_unknown_cal_type(tmp_path):
     write_file = str(tmp_path / "outtest_firstcal.fits")
     cal_in.read_calfits(testfile)
 
-    cal_in.set_unknown_cal_type()
+    cal_in._set_unknown_cal_type()
     with pytest.raises(ValueError, match="unknown calibration type"):
         cal_in.write_calfits(write_file, run_check=False, clobber=True)
 

@@ -34,7 +34,6 @@ def uvcal_data():
         "_spw_array",
         "_jones_array",
         "_time_array",
-        "_time_range",
         "_integration_time",
         "_gain_convention",
         "_flag_array",
@@ -61,7 +60,6 @@ def uvcal_data():
         "spw_array",
         "jones_array",
         "time_array",
-        "time_range",
         "integration_time",
         "gain_convention",
         "flag_array",
@@ -82,6 +80,7 @@ def uvcal_data():
         "_baseline_range",
         "_diffuse_model",
         "_input_flag_array",
+        "_time_range",
         "_freq_range",
         "_observer",
         "_git_origin_cal",
@@ -101,6 +100,7 @@ def uvcal_data():
         "baseline_range",
         "diffuse_model",
         "input_flag_array",
+        "time_range",
         "freq_range",
         "observer",
         "git_origin_cal",
@@ -289,7 +289,7 @@ def test_ant_array_not_in_antnums(gain_data):
 
 
 def test_set_gain(gain_data):
-    gain_data.delay_object.set_gain()
+    gain_data.delay_object._set_gain()
     assert gain_data.delay_object._gain_array.required
     assert not gain_data.delay_object._delay_array.required
     assert (
@@ -300,10 +300,16 @@ def test_set_gain(gain_data):
         gain_data.delay_object._gain_array.form
         == gain_data.delay_object._quality_array.form
     )
+    with pytest.warns(
+        DeprecationWarning,
+        match="`set_gain` is deprecated, and will be removed in "
+        "pyuvdata version 2.2. Use `_set_gain` instead.",
+    ):
+        gain_data.gain_object.set_gain()
 
 
 def test_set_delay(gain_data):
-    gain_data.gain_object.set_delay()
+    gain_data.gain_object._set_delay()
     assert gain_data.gain_object._delay_array.required
     assert not gain_data.gain_object._gain_array.required
     assert (
@@ -313,10 +319,16 @@ def test_set_delay(gain_data):
         gain_data.gain_object._delay_array.form
         == gain_data.gain_object._quality_array.form
     )
+    with pytest.warns(
+        DeprecationWarning,
+        match="`set_delay` is deprecated, and will be removed in "
+        "pyuvdata version 2.2. Use `_set_delay` instead.",
+    ):
+        gain_data.gain_object.set_delay()
 
 
 def test_set_unknown(gain_data):
-    gain_data.gain_object.set_unknown_cal_type()
+    gain_data.gain_object._set_unknown_cal_type()
     assert not gain_data.gain_object._delay_array.required
     assert not gain_data.gain_object._gain_array.required
     assert (
@@ -326,6 +338,13 @@ def test_set_unknown(gain_data):
         gain_data.gain_object._gain_array.form
         == gain_data.gain_object._quality_array.form
     )
+
+    with pytest.warns(
+        DeprecationWarning,
+        match="`set_unknown_cal_type` is deprecated, and will be removed in "
+        "pyuvdata version 2.2. Use `_set_unknown_cal_type` instead.",
+    ):
+        gain_data.gain_object.set_unknown_cal_type()
 
 
 def test_convert_filetype(gain_data):
@@ -428,7 +447,7 @@ def test_convert_to_gain(gain_data):
         ValueError, gain_data.delay_object.convert_to_gain, delay_convention="bogus"
     )
     pytest.raises(ValueError, gain_data.gain_object.convert_to_gain)
-    gain_data.gain_object.set_unknown_cal_type()
+    gain_data.gain_object._set_unknown_cal_type()
     pytest.raises(ValueError, gain_data.gain_object.convert_to_gain)
 
 
