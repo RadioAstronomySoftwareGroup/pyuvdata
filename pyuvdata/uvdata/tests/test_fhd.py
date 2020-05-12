@@ -334,74 +334,46 @@ def test_read_fhd_warnings():
     broken_flag_file = testdir + testfile_prefix + "broken_flags.sav"
     bad_filelist = testfiles[1:] + [broken_flag_file]
     fhd_uv = UVData()
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="No recognized key for visibility weights in flags_file."
+    ):
         fhd_uv.read(bad_filelist)
-    assert str(cm.value).startswith(
-        "No recognized key for visibility weights in flags_file."
-    )
 
+
+@pytest.mark.parametrize(
+    "new_file_end,file_copy,message",
+    [
+        (["extra_vis_XX.sav"], testfiles[1], "multiple xx datafiles in filelist"),
+        (["extra_vis_YY.sav"], testfiles[3], "multiple yy datafiles in filelist"),
+        (
+            ["vis_XY.sav", "extra_vis_XY.sav"],
+            testfiles[1],
+            "multiple xy datafiles in filelist",
+        ),
+        (
+            ["vis_YX.sav", "extra_vis_YX.sav"],
+            testfiles[1],
+            "multiple yx datafiles in filelist",
+        ),
+        (["extra_params.sav"], testfiles[2], "multiple params files in filelist"),
+        (["extra_obs.sav"], testfiles[8], "multiple obs files in filelist"),
+        (["extra_flags.sav"], testfiles[0], "multiple flags files in filelist"),
+        (["extra_layout.sav"], testfiles[6], "multiple layout files in filelist"),
+        (["extra_settings.txt"], testfiles[7], "multiple settings files in filelist"),
+    ],
+)
+def test_read_fhd_extra_files(new_file_end, file_copy, message):
     # try cases with extra files of each type
-    extra_xx_file = testdir + testfile_prefix + "extra_vis_XX.sav"
-    copyfile(testfiles[1], extra_xx_file)
-    with pytest.raises(ValueError) as cm:
-        fhd_uv.read(testfiles + [extra_xx_file])
-    assert str(cm.value).startswith("multiple xx datafiles in filelist")
-    os.remove(extra_xx_file)
-
-    extra_yy_file = testdir + testfile_prefix + "extra_vis_YY.sav"
-    copyfile(testfiles[3], extra_yy_file)
-    with pytest.raises(ValueError) as cm:
-        fhd_uv.read(testfiles + [extra_yy_file])
-    assert str(cm.value).startswith("multiple yy datafiles in filelist")
-    os.remove(extra_yy_file)
-
-    xy_file = testdir + testfile_prefix + "vis_XY.sav"
-    extra_xy_file = testdir + testfile_prefix + "extra_vis_XY.sav"
-    copyfile(testfiles[1], xy_file)
-    copyfile(testfiles[1], extra_xy_file)
-    with pytest.raises(ValueError) as cm:
-        fhd_uv.read(testfiles + [xy_file, extra_xy_file])
-    assert str(cm.value).startswith("multiple xy datafiles in filelist")
-    os.remove(xy_file)
-    os.remove(extra_xy_file)
-
-    yx_file = testdir + testfile_prefix + "vis_YX.sav"
-    extra_yx_file = testdir + testfile_prefix + "extra_vis_YX.sav"
-    copyfile(testfiles[1], yx_file)
-    copyfile(testfiles[1], extra_yx_file)
-    with pytest.raises(ValueError) as cm:
-        fhd_uv.read(testfiles + [yx_file, extra_yx_file])
-    assert str(cm.value).startswith("multiple yx datafiles in filelist")
-    os.remove(yx_file)
-    os.remove(extra_yx_file)
-
-    extra_params_file = testdir + testfile_prefix + "extra_params.sav"
-    copyfile(testfiles[2], extra_params_file)
-    with pytest.raises(ValueError) as cm:
-        fhd_uv.read(testfiles + [extra_params_file])
-    assert str(cm.value).startswith("multiple params files in filelist")
-    os.remove(extra_params_file)
-
-    extra_flags_file = testdir + testfile_prefix + "extra_flags.sav"
-    copyfile(testfiles[0], extra_flags_file)
-    with pytest.raises(ValueError) as cm:
-        fhd_uv.read(testfiles + [extra_flags_file])
-    assert str(cm.value).startswith("multiple flags files in filelist")
-    os.remove(extra_flags_file)
-
-    extra_layout_file = testdir + testfile_prefix + "extra_layout.sav"
-    copyfile(testfiles[6], extra_layout_file)
-    with pytest.raises(ValueError) as cm:
-        fhd_uv.read(testfiles + [extra_layout_file])
-    assert str(cm.value).startswith("multiple layout files in filelist")
-    os.remove(extra_layout_file)
-
-    extra_settings_file = testdir + testfile_prefix + "extra_settings.txt"
-    copyfile(testfiles[7], extra_settings_file)
-    with pytest.raises(ValueError) as cm:
-        fhd_uv.read(testfiles + [extra_settings_file])
-    assert str(cm.value).startswith("multiple settings files in filelist")
-    os.remove(extra_settings_file)
+    new_files = []
+    for file_end in new_file_end:
+        extra_file = testdir + testfile_prefix + file_end
+        new_files.append(extra_file)
+        copyfile(file_copy, extra_file)
+    fhd_uv = UVData()
+    with pytest.raises(ValueError, match=message):
+        fhd_uv.read(testfiles + new_files)
+    for extra_file in new_files:
+        os.remove(extra_file)
 
 
 def test_read_fhd_model(tmp_path):
