@@ -5763,6 +5763,7 @@ class UVData(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        background_lsts=True,
     ):
         """
         Read in data from a miriad file.
@@ -5828,6 +5829,8 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
 
         Raises
         ------
@@ -5865,6 +5868,7 @@ class UVData(UVBase):
             bls=bls,
             polarizations=polarizations,
             time_range=time_range,
+            background_lsts=background_lsts,
         )
         self._convert_from_filetype(miriad_obj)
         del miriad_obj
@@ -5878,6 +5882,7 @@ class UVData(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        background_lsts=True,
     ):
         """
         Read in data from a measurement set.
@@ -5910,6 +5915,8 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done).
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
 
         Raises
         ------
@@ -5939,6 +5946,7 @@ class UVData(UVBase):
             run_check_acceptability=run_check_acceptability,
             data_column=data_column,
             pol_order=pol_order,
+            background_lsts=background_lsts,
         )
         self._convert_from_filetype(ms_obj)
         del ms_obj
@@ -5961,6 +5969,7 @@ class UVData(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        background_lsts=True,
     ):
         """
         Read in MWA correlator gpu box files.
@@ -6019,6 +6028,8 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done).
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
 
         Raises
         ------
@@ -6055,6 +6066,7 @@ class UVData(UVBase):
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
+            background_lsts=background_lsts,
         )
         self._convert_from_filetype(corr_obj)
         del corr_obj
@@ -6078,6 +6090,7 @@ class UVData(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        background_lsts=True,
     ):
         """
         Read in header, metadata and data from a single uvfits file.
@@ -6165,6 +6178,8 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
 
         Raises
         ------
@@ -6206,6 +6221,7 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             keep_all_metadata=keep_all_metadata,
+            background_lsts=background_lsts,
         )
         self._convert_from_filetype(uvfits_obj)
         del uvfits_obj
@@ -6231,6 +6247,7 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         multidim_index=False,
+        background_lsts=True,
     ):
         """
         Read a UVH5 file.
@@ -6328,6 +6345,8 @@ class UVData(UVBase):
             simultaneously along all data axes. Otherwise index one axis at-a-time.
             This only works if data selection is sliceable along all but one axis.
             If indices are not well-matched to data chunks, this can be slow.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
 
         Raises
         ------
@@ -6369,6 +6388,7 @@ class UVData(UVBase):
             data_array_dtype=data_array_dtype,
             keep_all_metadata=keep_all_metadata,
             multidim_index=multidim_index,
+            background_lsts=background_lsts,
         )
         self._convert_from_filetype(uvh5_obj)
         del uvh5_obj
@@ -6415,6 +6435,7 @@ class UVData(UVBase):
         run_check_acceptability=True,
         skip_bad_files=False,
         multidim_index=False,
+        background_lsts=True,
     ):
         """
         Read a generic file into a UVData object.
@@ -6599,6 +6620,8 @@ class UVData(UVBase):
             simultaneously along all data axes. Otherwise index one axis at-a-time.
             This only works if data selection is sliceable along all but one axis.
             If indices are not well-matched to data chunks, this can be slow.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
 
         Raises
         ------
@@ -6714,6 +6737,7 @@ class UVData(UVBase):
                         check_extra=check_extra,
                         run_check_acceptability=run_check_acceptability,
                         skip_bad_files=skip_bad_files,
+                        background_lsts=background_lsts,
                     )
                     unread = False
                 except KeyError:
@@ -6761,6 +6785,7 @@ class UVData(UVBase):
                             check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability,
                             skip_bad_files=skip_bad_files,
+                            background_lsts=background_lsts,
                         )
                     except KeyError:
                         warnings.warn("Failed to read {f}".format(f=f))
@@ -6900,6 +6925,7 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     keep_all_metadata=keep_all_metadata,
+                    background_lsts=background_lsts,
                 )
 
             elif file_type == "miriad":
@@ -6916,6 +6942,7 @@ class UVData(UVBase):
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
+                    background_lsts=background_lsts,
                 )
 
             elif file_type == "mwa_corr_fits":
@@ -6933,6 +6960,7 @@ class UVData(UVBase):
                     read_data=read_data,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
+                    background_lsts=background_lsts,
                 )
 
             elif file_type == "fhd":
@@ -6952,6 +6980,7 @@ class UVData(UVBase):
                     run_check_acceptability=run_check_acceptability,
                     data_column=data_column,
                     pol_order=pol_order,
+                    background_lsts=background_lsts,
                 )
 
             elif file_type == "uvh5":
@@ -6974,6 +7003,7 @@ class UVData(UVBase):
                     data_array_dtype=data_array_dtype,
                     keep_all_metadata=keep_all_metadata,
                     multidim_index=multidim_index,
+                    background_lsts=background_lsts,
                 )
                 select = False
 

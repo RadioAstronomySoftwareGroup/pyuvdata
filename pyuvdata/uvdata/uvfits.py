@@ -39,7 +39,9 @@ class UVFITS(UVData):
         "timesys",
     ]
 
-    def _get_parameter_data(self, vis_hdu, run_check_acceptability):
+    def _get_parameter_data(
+        self, vis_hdu, run_check_acceptability, background_lsts=True
+    ):
         """
         Read just the random parameters portion of the uvfits file ("metadata").
 
@@ -87,7 +89,7 @@ class UVFITS(UVData):
                     )
 
         else:
-            proc = self.set_lsts_from_time_array(background=True)
+            proc = self.set_lsts_from_time_array(background=background_lsts)
 
         # if antenna arrays are present, use them. otherwise use baseline array
         if "ANTENNA1" in vis_hdu.data.parnames and "ANTENNA2" in vis_hdu.data.parnames:
@@ -323,6 +325,7 @@ class UVFITS(UVData):
         check_extra=True,
         run_check_acceptability=True,
         keep_all_metadata=True,
+        background_lsts=True,
     ):
         """
         Read in header, metadata and data from a uvfits file.
@@ -403,6 +406,9 @@ class UVFITS(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
+
 
         Raises
         ------
@@ -592,7 +598,9 @@ class UVFITS(UVData):
                 warnings.warn(str(ve))
 
             # Now read in the random parameter info
-            self._get_parameter_data(vis_hdu, run_check_acceptability)
+            self._get_parameter_data(
+                vis_hdu, run_check_acceptability, background_lsts=background_lsts
+            )
 
             if not read_data:
                 # don't read in the data. This means the object is a metadata

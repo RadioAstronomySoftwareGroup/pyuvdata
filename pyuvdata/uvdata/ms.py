@@ -140,6 +140,7 @@ class MS(UVData):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        background_lsts=True,
     ):
         """
         Read in a casa measurement set.
@@ -165,6 +166,8 @@ class MS(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done).
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
 
         Raises
         ------
@@ -402,7 +405,7 @@ class MS(UVData):
         self._set_phased()
 
         # set LST array from times and itrf
-        proc = self.set_lsts_from_time_array(background=True)
+        proc = self.set_lsts_from_time_array(background=background_lsts)
         # set the history parameter
         _, self.history = self._ms_hist_to_string(
             tables.table(filepath + "/HISTORY", ack=False)
@@ -425,7 +428,10 @@ class MS(UVData):
         self.object_name = tb_field.getcol("NAME")[0]
         tb_field.close()
         tb.close()
-        proc.join()
+
+        if proc is not None:
+            proc.join()
+
         # order polarizations
         self.reorder_pols(order=pol_order)
         if run_check:

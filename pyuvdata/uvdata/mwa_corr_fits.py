@@ -156,6 +156,7 @@ class MWACorrFITS(UVData):
         start_flag=2.0,
         end_flag=2.0,
         flag_dc_offset=True,
+        background_lsts=True,
         read_data=True,
         run_check=True,
         check_extra=True,
@@ -207,6 +208,8 @@ class MWACorrFITS(UVData):
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
             meaning the check will be run).
+        background_lsts: bool
+            When set to True, the lst_array is calculated in a background thread.
         read_data : bool
             Read in the visibility and flag data. If set to false,
             only the metadata will be read in. Setting read_data to False
@@ -435,7 +438,7 @@ class MWACorrFITS(UVData):
         self.Nblts = int(self.Nbls * self.Ntimes)
 
         # convert times to lst
-        proc = self.set_lsts_from_time_array(background=True)
+        proc = self.set_lsts_from_time_array(background=background_lsts)
         # self.set_lsts_from_time_array()
 
         self.integration_time = np.full((self.Nblts), int_time)
@@ -666,10 +669,16 @@ class MWACorrFITS(UVData):
             # be conjugated
             self.data_array = np.conj(self.data_array)
 
+        # wait for LSTs if set in background
+        if proc is not None:
+            proc.join()
+
+        if not self.metadata_only:
             # reorder polarizations
+            # reorder pols calls check so much come after
+            # lst thread is re-joined.
             self.reorder_pols()
 
-        proc.join()
         # phasing
         if phase_to_pointing_center:
             self.phase(ra_rad, dec_rad)

@@ -7242,3 +7242,13 @@ def test_deprecation_warnings_set_phased():
     assert uv._phase_center_dec.required is False
 
     return
+
+
+def test_read_background_lsts():
+    """Test reading a file with the lst calc in the background."""
+    uvd = UVData()
+    uvd2 = UVData()
+    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    uvd.read(testfile, background_lsts=False)
+    uvd2.read(testfile, background_lsts=True)
+    assert uvd == uvd2
