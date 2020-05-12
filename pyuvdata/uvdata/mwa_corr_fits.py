@@ -208,7 +208,7 @@ class MWACorrFITS(UVData):
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
             meaning the check will be run).
-        background_lsts: bool
+        background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
         read_data : bool
             Read in the visibility and flag data. If set to false,
