@@ -57,6 +57,7 @@ class Miriad(UVData):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        background_lsts=True,
     ):
         """
         Read in data from a miriad file.
@@ -118,6 +119,8 @@ class Miriad(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
+        background_lsts: bool
+            When set to True, the lst_array is calculated in a background thread.
 
         Raises
         ------
@@ -530,7 +533,7 @@ class Miriad(UVData):
         # The differences are of order 5 seconds.
         proc = None
         if self.telescope_location is not None:
-            proc = self.set_lsts_from_time_array(background=True)
+            proc = self.set_lsts_from_time_array(background=background_lsts)
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.float)
         self.freq_array = (
             np.arange(self.Nfreqs) * self.channel_width + uv["sfreq"] * 1e9

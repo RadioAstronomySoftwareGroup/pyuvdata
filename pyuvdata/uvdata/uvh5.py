@@ -368,7 +368,9 @@ class UVH5(UVData):
     instead use the read_uvh5 and write_uvh5 methods on the UVData class.
     """
 
-    def _read_header(self, header, filename, run_check_acceptability=True):
+    def _read_header(
+        self, header, filename, run_check_acceptability=True, background_lsts=True
+    ):
         """
         Read header information from a UVH5 file.
 
@@ -383,6 +385,8 @@ class UVH5(UVData):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             reading in the file.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
 
         Returns
         -------
@@ -488,6 +492,7 @@ class UVH5(UVData):
         self.time_array = header["time_array"][:]
         integration_time = header["integration_time"]
         self.integration_time = integration_time[:]
+        proc = None
         if "lst_array" in header:
             self.lst_array = header["lst_array"][:]
             # check that lst_array in file is self-consistent
@@ -515,10 +520,7 @@ class UVH5(UVData):
                     )
         else:
             # compute lst_array from time_array and telescope location
-            latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
-            self.lst_array = uvutils.get_lst_for_time(
-                self.time_array, latitude, longitude, altitude
-            )
+            proc = self.set_lsts_from_time_array(background=background_lsts)
 
         # get frequency information
         self.freq_array = header["freq_array"][:, :]
@@ -545,6 +547,10 @@ class UVH5(UVData):
                     )
                 else:
                     self.extra_keywords[key] = header["extra_keywords"][key][()]
+
+        if proc is not None:
+            # if lsts are in the background wait for them to return
+            proc.join()
 
         return
 
@@ -842,6 +848,7 @@ class UVH5(UVData):
         data_array_dtype=np.complex128,
         keep_all_metadata=True,
         multidim_index=False,
+        background_lsts=True,
     ):
         """
         Read in data from a UVH5 file.
@@ -931,6 +938,9 @@ class UVH5(UVData):
             simultaneously along all data axes. Otherwise index one axis at-a-time.
             This only works if data selection is sliceable along all but one axis.
             If indices are not well-matched to data chunks, this can be slow.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
+
 
         Returns
         -------
@@ -955,7 +965,10 @@ class UVH5(UVData):
             # extract header information
             header = f["/Header"]
             self._read_header(
-                header, filename, run_check_acceptability=run_check_acceptability
+                header,
+                filename,
+                run_check_acceptability=run_check_acceptability,
+                background_lsts=background_lsts,
             )
 
             if not read_data:
@@ -1334,7 +1347,9 @@ class UVH5(UVData):
 
         return
 
-    def _check_header(self, filename, run_check_acceptability=True):
+    def _check_header(
+        self, filename, run_check_acceptability=True, background_lsts=True
+    ):
         """
         Check that the metadata in a file header matches the object's metadata.
 
@@ -1347,6 +1362,8 @@ class UVH5(UVData):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             reading in the file.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
 
         Returns
         -------
@@ -1363,7 +1380,10 @@ class UVH5(UVData):
         with h5py.File(filename, "r") as f:
             header = f["/Header"]
             uvd_file._read_header(
-                header, filename, run_check_acceptability=run_check_acceptability
+                header,
+                filename,
+                run_check_acceptability=run_check_acceptability,
+                background_lsts=background_lsts,
             )
 
         # temporarily remove data, flag, and nsample arrays, so we only check metadata
