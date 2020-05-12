@@ -105,7 +105,7 @@ class FHDCal(UVCal):
         self.antenna_numbers = np.arange(self.Nants_telescope)
         self.ant_array = np.arange(self.Nants_data)
 
-        self.set_sky()
+        self._set_sky()
         self.sky_field = "phase center (RA, Dec): ({ra}, {dec})".format(
             ra=obs_data["orig_phasera"][0], dec=obs_data["orig_phasedec"][0]
         )
@@ -145,7 +145,7 @@ class FHDCal(UVCal):
         self.gain_convention = "divide"
         self.x_orientation = "east"
 
-        self.set_gain()
+        self._set_gain()
         fit_gain_array_in = cal_data["gain"][0]
         fit_gain_array = np.zeros(
             self._gain_array.expected_shape(self), dtype=np.complex_

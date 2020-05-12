@@ -1,6 +1,7 @@
 # -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
+"""Primary container for radio interferometer calibration solutions."""
 
 import numpy as np
 import warnings
@@ -13,15 +14,17 @@ __all__ = ["UVCal"]
 
 
 class UVCal(UVBase):
-    """ A class defining calibration solutions
+    """
+    A class defining calibration solutions.
 
-        Currently supported file types: calfits
+    Currently supported file types: calfits
 
-        Attributes:
-            UVParameter objects: For full list see UVCal Parameters
-                (http://pyuvdata.readthedocs.io/en/latest/uvcal_parameters.html).
-                Some are always required, some are required for certain cal_types
-                and others are always optional.
+    Attributes
+    ----------
+    UVParameter objects: For full list see UVCal Parameters
+        (http://pyuvdata.readthedocs.io/en/latest/uvcal_parameters.html).
+        Some are always required, some are required for certain cal_types
+        and others are always optional.
 
     """
 
@@ -59,10 +62,10 @@ class UVCal(UVBase):
 
         desc = (
             "Time range (in JD) that cal solutions are valid for."
-            "list: [start_time, end_time] in JD."
+            "list: [start_time, end_time] in JD. Should only be set in Ntimes is 1."
         )
         self._time_range = uvp.UVParameter(
-            "time_range", description=desc, form=2, expected_type=float
+            "time_range", description=desc, form=2, expected_type=float, required=False
         )
 
         desc = "Name of telescope. e.g. HERA. String."
@@ -422,7 +425,7 @@ class UVCal(UVBase):
 
         super(UVCal, self).__init__()
 
-    def set_gain(self):
+    def _set_gain(self):
         """Set cal_type to 'gain' and adjust required parameters."""
         self.cal_type = "gain"
         self._gain_array.required = True
@@ -431,7 +434,21 @@ class UVCal(UVBase):
         self._quality_array.form = self._gain_array.form
         self._total_quality_array.form = self._gain_array.form[1:]
 
-    def set_delay(self):
+    def set_gain(self):
+        """
+        Set cal_type to 'gain' and adjust required parameters.
+
+        This method is deprecated, and will be removed in pyuvdata v2.2. Use
+        `_set_gain` instead.
+        """
+        warnings.warn(
+            "`set_gain` is deprecated, and will be removed in pyuvdata version "
+            "2.2. Use `_set_gain` instead.",
+            DeprecationWarning,
+        )
+        self._set_gain()
+
+    def _set_delay(self):
         """Set cal_type to 'delay' and adjust required parameters."""
         self.cal_type = "delay"
         self._gain_array.required = False
@@ -440,7 +457,21 @@ class UVCal(UVBase):
         self._quality_array.form = self._delay_array.form
         self._total_quality_array.form = self._delay_array.form[1:]
 
-    def set_unknown_cal_type(self):
+    def set_delay(self):
+        """
+        Set cal_type to 'delay' and adjust required parameters.
+
+        This method is deprecated, and will be removed in pyuvdata v2.2. Use
+        `_set_delay` instead.
+        """
+        warnings.warn(
+            "`set_delay` is deprecated, and will be removed in pyuvdata version "
+            "2.2. Use `_set_delay` instead.",
+            DeprecationWarning,
+        )
+        self._set_delay()
+
+    def _set_unknown_cal_type(self):
         """Set cal_type to 'unknown' and adjust required parameters."""
         self.cal_type = "unknown"
         self._gain_array.required = False
@@ -449,36 +480,93 @@ class UVCal(UVBase):
         self._quality_array.form = self._gain_array.form
         self._total_quality_array.form = self._gain_array.form[1:]
 
-    def set_sky(self):
+    def set_unknown_cal_type(self):
+        """
+        Set cal_type to 'unknown' and adjust required parameters.
+
+        This method is deprecated, and will be removed in pyuvdata v2.2. Use
+        `_set_unknown_cal_type` instead.
+        """
+        warnings.warn(
+            "`set_unknown_cal_type` is deprecated, and will be removed in "
+            "pyuvdata version 2.2. Use `_set_unknown_cal_type` instead.",
+            DeprecationWarning,
+        )
+        self._set_unknown_cal_type()
+
+    def _set_sky(self):
         """Set cal_style to 'sky' and adjust required parameters."""
         self.cal_style = "sky"
         self._sky_field.required = True
         self._sky_catalog.required = True
         self._ref_antenna_name.required = True
 
-    def set_redundant(self):
+    def set_sky(self):
+        """
+        Set cal_style to 'sky' and adjust required parameters.
+
+        This method is deprecated, and will be removed in pyuvdata v2.2. Use
+        `_set_sky` instead.
+        """
+        warnings.warn(
+            "`set_sky` is deprecated, and will be removed in "
+            "pyuvdata version 2.2. Use `_set_sky` instead.",
+            DeprecationWarning,
+        )
+        self._set_sky()
+
+    def _set_redundant(self):
         """Set cal_style to 'redundant' and adjust required parameters."""
         self.cal_style = "redundant"
         self._sky_field.required = False
         self._sky_catalog.required = False
         self._ref_antenna_name.required = False
 
+    def set_redundant(self):
+        """
+        Set cal_style to 'redundant' and adjust required parameters.
+
+        This method is deprecated, and will be removed in pyuvdata v2.2. Use
+        `_set_redundant` instead.
+        """
+        warnings.warn(
+            "`set_redundant` is deprecated, and will be removed in "
+            "pyuvdata version 2.2. Use `_set_redundant` instead.",
+            DeprecationWarning,
+        )
+        self._set_redundant()
+
     def check(self, check_extra=True, run_check_acceptability=True):
         """
-        Check that all required parameters are set reasonably.
+        Add some extra checks on top of checks on UVBase class.
 
-        Check that required parameters exist and have appropriate shapes.
-        Optionally check if the values are acceptable.
+        Check that required parameters exist. Check that parameters have
+        appropriate shapes and optionally that the values are acceptable.
 
-        Args:
-            run_check_acceptability: Option to check if values in required parameters
-                are acceptable. Default is True.
+        Parameters
+        ----------
+        check_extra : bool
+            If true, check all parameters, otherwise only check required parameters.
+        run_check_acceptability : bool
+            Option to check if values in parameters are acceptable.
+
+        Returns
+        -------
+        bool
+            True if check passes
+
+        Raises
+        ------
+        ValueError
+            if parameter shapes or types are wrong or do not have acceptable
+            values (if run_check_acceptability is True)
+
         """
         # Make sure requirements are set properly for cal_style
         if self.cal_style == "sky":
-            self.set_sky()
+            self._set_sky()
         elif self.cal_style == "redundant":
-            self.set_redundant()
+            self._set_redundant()
 
         # first run the basic check from UVBase
         super(UVCal, self).check(
@@ -511,7 +599,20 @@ class UVCal(UVBase):
 
     def _has_key(self, antnum=None, jpol=None):
         """
-        Check if this UVCal has the requested antenna or polarization
+        Check if this UVCal has the requested antenna or polarization.
+
+        Parameters
+        ----------
+        antnum : int
+            Antenna number to check.
+        jpol : str or int
+            Antenna polarization string or integer to check.
+
+        Returns
+        -------
+        bool
+            Boolean indicator of whether the antenna and/or antenna
+            polarization is present on this object.
         """
         if antnum is not None:
             if antnum not in self.ant_array:
@@ -526,17 +627,17 @@ class UVCal(UVBase):
 
     def ant2ind(self, antnum):
         """
-        Given antenna number return its index in data arrays
+        Get the index in data arrays for an antenna number.
 
         Parameters
         ----------
         antnum : int
-            Antenna number
+            Antenna number to get index for.
 
         Returns
         -------
         int
-            Index in data arrays
+            Antenna index in data arrays.
         """
         if not self._has_key(antnum=antnum):
             raise ValueError("{} not found in ant_array".format(antnum))
@@ -545,17 +646,17 @@ class UVCal(UVBase):
 
     def jpol2ind(self, jpol):
         """
-        Given a jones polarization, return its index in data arrays
+        Get the index in data arrays for an antenna polarization.
 
         Parameters
         ----------
         jpol : int or str
-            Jones polarization
+            Antenna polarization to get index for.
 
         Returns
         -------
         int
-            Index in data arrays
+            Antenna polarization index in data arrays
         """
         if isinstance(jpol, (str, np.str)):
             jpol = uvutils.jstr2num(jpol, x_orientation=self.x_orientation)
@@ -567,7 +668,23 @@ class UVCal(UVBase):
 
     def _slice_array(self, key, data_array, squeeze_pol=True):
         """
-        Slice a data array given a data key
+        Slice a data array given a data key.
+
+        Parameters
+        ----------
+        key : int or length 2 tuple of ints or int and str
+            Antenna or antenna and polarization to get slice for. If it's a length
+            2 tuple, the second value must be an antenna polarization int or string
+            parsable by jpol2ind.
+        data_array : :class: numpy ndarray
+            Array to get slice of. Must have the shape of the gain_array or delay_array.
+        squeeze_pol : bool
+            Option to squeeze pol dimension if possible.
+
+        Returns
+        -------
+        :class: numpy ndarray
+            Slice of the data_array for the key.
         """
         key = uvutils._get_iterable(key)
         if len(key) == 1:
@@ -582,7 +699,23 @@ class UVCal(UVBase):
 
     def _parse_key(self, ant, jpol=None):
         """
-        Parse key inputs and return a standard antenna-polarization key
+        Parse key inputs and return a standard antenna-polarization key.
+
+        Parameters
+        ----------
+        ant : int or length 2 tuple of ints or int and str
+            Antenna or antenna and polarization to get key for. If it's a length
+            2 tuple, the second value must be an antenna polarization int or string
+            parsable by jpol2ind.
+        jpol : int or str
+            Antenna polarization int or string parsable by jpol2ind. Only used
+            if `ant` is an integer.
+
+        Returns
+        -------
+        tuple
+            Standard key tuple.
+
         """
         if isinstance(ant, (list, tuple)):
             # interpret ant as (ant,) or (ant, jpol)
@@ -596,65 +729,83 @@ class UVCal(UVBase):
 
         return key
 
-    def get_gains(self, ant, jpol=None):
+    def get_gains(self, ant, jpol=None, squeeze_pol=True):
         """
         Get the gain associated with an antenna and/or polarization.
 
         Parameters
         ----------
-        ant : int
-            Antenna integer to request
+        ant : int or length 2 tuple of ints or int and str
+            Antenna or antenna and polarization to get gains for. If it's a length
+            2 tuple, the second value must be an antenna polarization int or string
+            parsable by jpol2ind.
         jpol : int or str, optional
             Instrumental polarization to request. Ex. 'Jxx'
+        squeeze_pol : bool
+            Option to squeeze pol dimension if possible.
 
         Returns
         -------
         complex ndarray
-            Gain solution of shape (Nfreqs, Ntimes) or
-            (Nfreqs, Ntimes, Npol) if Njones > 1 and jpol is not fed.
+            Gain solution of shape (Nfreqs, Ntimes, Npol) or (Nfreqs, Ntimes)
+            if jpol is set or if squeeze_pol is True and Njones = 1.
         """
         if self.cal_type != "gain":
             raise ValueError("cal_type must be 'gain' for get_gains() method")
 
-        return self._slice_array(self._parse_key(ant, jpol=jpol), self.gain_array)
+        return self._slice_array(
+            self._parse_key(ant, jpol=jpol), self.gain_array, squeeze_pol=squeeze_pol
+        )
 
-    def get_flags(self, ant, jpol=None):
+    def get_flags(self, ant, jpol=None, squeeze_pol=True):
         """
         Get the flags associated with an antenna and/or polarization.
 
         Parameters
         ----------
-        ant : int
-            Antenna integer to request
+        ant : int or length 2 tuple of ints or int and str
+            Antenna or antenna and polarization to get gains for. If it's a length
+            2 tuple, the second value must be an antenna polarization int or string
+            parsable by jpol2ind.
         jpol : int or str, optional
             Instrumental polarization to request. Ex. 'Jxx'
+        squeeze_pol : bool
+            Option to squeeze pol dimension if possible.
 
         Returns
         -------
         boolean ndarray
-            Flags of shape (Nfreqs, Ntimes) or
-            (Nfreqs, Ntimes, Npol) if Njones > 1 and jpol is not fed.
+            Flags of shape (Nfreqs, Ntimes, Npol) or (Nfreqs, Ntimes)
+            if jpol is set or if squeeze_pol is True and Njones = 1.
         """
-        return self._slice_array(self._parse_key(ant, jpol=jpol), self.flag_array)
+        return self._slice_array(
+            self._parse_key(ant, jpol=jpol), self.flag_array, squeeze_pol=squeeze_pol
+        )
 
-    def get_quality(self, ant, jpol=None):
+    def get_quality(self, ant, jpol=None, squeeze_pol=True):
         """
         Get the qualities associated with an antenna and/or polarization.
 
         Parameters
         ----------
-        ant : int
-            Antenna integer to request
+        ant : int or length 2 tuple of ints or int and str
+            Antenna or antenna and polarization to get gains for. If it's a length
+            2 tuple, the second value must be an antenna polarization int or string
+            parsable by jpol2ind.
         jpol : int or str, optional
             Instrumental polarization to request. Ex. 'Jxx'
+        squeeze_pol : bool
+            Option to squeeze pol dimension if possible.
 
         Returns
         -------
         float ndarray
-            Qualities of shape (Nfreqs, Ntimes) or
-            (Nfreqs, Ntimes, Npol) if Njones > 1 and jpol is not fed.
+            Qualities of shape (Nfreqs, Ntimes, Npol) or (Nfreqs, Ntimes)
+            if jpol is not None or if squeeze_pol is True and Njones = 1.
         """
-        return self._slice_array(self._parse_key(ant, jpol=jpol), self.quality_array)
+        return self._slice_array(
+            self._parse_key(ant, jpol=jpol), self.quality_array, squeeze_pol=squeeze_pol
+        )
 
     def convert_to_gain(
         self,
@@ -670,14 +821,19 @@ class UVCal(UVBase):
             gain = 1 * exp((+/-) * 2 * pi * j * delay * frequency)
             where the (+/-) is dictated by the delay_convention
 
-        Args:
-            delay_convention: exponent sign to use in the conversion. Defaults to minus.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after converting this object. Default is True.
-            check_extra: Option to check shapes and types of optional parameters
-                as well as required ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after converting this object. Default is True.
+        Parameters
+        ----------
+        delay_convention : str
+            Exponent sign to use in the conversion, can be "plus" or "minus".
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after converting.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            converting.
+
         """
         if self.cal_type == "gain":
             raise ValueError("The data is already a gain cal_type.")
@@ -711,7 +867,7 @@ class UVCal(UVBase):
             new_quality = np.repeat(
                 self.quality_array[:, :, :, :, :], self.Nfreqs, axis=2
             )
-            self.set_gain()
+            self._set_gain()
             self.gain_array = gain_array
             self.quality_array = new_quality
             self.delay_array = None
@@ -739,19 +895,23 @@ class UVCal(UVBase):
         inplace=False,
     ):
         """
-        Combine two UVCal objects. Objects can be added along antenna, frequency,
-        time, and/or Jones axis.
+        Combine two UVCal objects along antenna, frequency, time, and/or Jones axis.
 
-        Args:
-            other: Another UVCal object which will be added to self.
-            run_check: Option to check for the existence and proper shapes of
-                parameters after combining objects. Default is True.
-            check_extra: Option to check optional parameters as well as
-                required ones. Default is True.
-            run_check_acceptability: Option to check acceptable range of the values of
-                parameters after combining objects. Default is True.
-            inplace: Overwrite self as we go, otherwise create a third object
-                as the sum of the two (default).
+        Parameters
+        ----------
+        other : :class: UVCal
+            Another UVCal object which will be added to self.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after combining objects.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            combining objects.
+        inplace : bool
+            Option to overwrite self as we go, otherwise create a third object
+            as the sum of the two.
         """
         if inplace:
             this = self
@@ -1307,14 +1467,34 @@ class UVCal(UVBase):
         if not inplace:
             return this
 
-    def __iadd__(self, other):
+    def __iadd__(
+        self, other, run_check=True, check_extra=True, run_check_acceptability=True,
+    ):
         """
-        In place add.
+        Combine two UVCal objects in place.
 
-        Args:
-            other: Another UVCal object which will be added to self.
+        Along antenna, frequency, time, and/or Jones axis.
+
+        Parameters
+        ----------
+        other : :class: UVCal
+            Another UVCal object which will be added to self.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after combining objects.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            combining objects.
         """
-        self.__add__(other, inplace=True)
+        self.__add__(
+            other,
+            inplace=True,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+        )
         return self
 
     def select(
@@ -1331,31 +1511,50 @@ class UVCal(UVBase):
         inplace=True,
     ):
         """
-        Select specific antennas, frequencies, times and
-        jones polarization terms to keep in the object while discarding others.
+        Downselect data to keep on the object along various axes.
+
+        Axes that can be selected along include antennas, frequencies, times and
+        antenna polarization (jones).
 
         The history attribute on the object will be updated to identify the
         operations performed.
 
-        Args:
-            antenna_nums: The antennas numbers to keep in the object (antenna
-                positions and names for the removed antennas will be retained).
-                This cannot be provided if antenna_names is also provided.
-            antenna_names: The antennas names to keep in the object (antenna
-                positions and names for the removed antennas will be retained).
-                This cannot be provided if antenna_nums is also provided.
-            frequencies: The frequencies to keep in the object.
-            freq_chans: The frequency channel numbers to keep in the object.
-            times: The times to keep in the object.
-            jones: The jones polarization terms to keep in the object.
-            run_check: Option to check for the existence and proper shapes of
-                required parameters after downselecting data on this object.
-            check_extra: Option to check shapes and types of optional parameters
-                as well as required ones.
-            run_check_acceptability: Option to check acceptable range of the values of
-                required parameters after  downselecting data on this object.
-            inplace: Option to perform the select directly on self (True, default)
-                or return a new UVCal object, which is a subselection of self (False)
+        Parameters
+        ----------
+        antenna_nums : array_like of int, optional
+            The antennas numbers to keep in the object (antenna positions and
+            names for the removed antennas will be retained).
+            This cannot be provided if `antenna_names` is also provided.
+        antenna_names : array_like of str, optional
+            The antennas names to keep in the object (antenna positions and
+            names for the removed antennas will be retained).
+            This cannot be provided if `antenna_nums` is also provided.
+        frequencies : array_like of float, optional
+            The frequencies to keep in the object, each value passed here should
+            exist in the freq_array.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to keep in the object.
+        times : array_like of float, optional
+            The times to keep in the object, each value passed here should
+            exist in the time_array.
+        jones : array_like of int, optional
+            The antenna polarizations numbers to keep in the object, each value
+            passed here should exist in the jones_array.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after downselecting data on this object (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            downselecting data on this object (the default is True, meaning the
+            acceptable range check will be done).
+        inplace : bool
+            Option to perform the select directly on self or return a new UVCal
+            object with just the selected data (the default is True, meaning the
+            select will be done on self).
         """
         if inplace:
             cal_object = self

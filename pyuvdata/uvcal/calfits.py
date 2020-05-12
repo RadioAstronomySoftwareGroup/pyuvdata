@@ -481,7 +481,7 @@ class CALFITS(UVCal):
 
             # get data.
             if self.cal_type == "gain":
-                self.set_gain()
+                self._set_gain()
                 self.gain_array = data[:, :, :, :, :, 0] + 1j * data[:, :, :, :, :, 1]
                 self.flag_array = data[:, :, :, :, :, 2].astype("bool")
                 if hdr.pop("NAXIS1") == 5:
@@ -498,7 +498,7 @@ class CALFITS(UVCal):
                 self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
 
             if self.cal_type == "delay":
-                self.set_delay()
+                self._set_delay()
                 self.Nants_data = hdr.pop("NAXIS6")
 
                 self.delay_array = data[:, :, :, :, :, 0]
