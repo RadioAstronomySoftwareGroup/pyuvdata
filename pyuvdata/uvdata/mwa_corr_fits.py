@@ -666,10 +666,10 @@ class MWACorrFITS(UVData):
             # be conjugated
             self.data_array = np.conj(self.data_array)
 
-        proc.join()
-        # reorder polarizations
-        self.reorder_pols()
+            # reorder polarizations
+            self.reorder_pols()
 
+        proc.join()
         # phasing
         if phase_to_pointing_center:
             self.phase(ra_rad, dec_rad)
