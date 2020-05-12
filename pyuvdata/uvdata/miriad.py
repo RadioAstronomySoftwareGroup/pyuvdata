@@ -119,7 +119,7 @@ class Miriad(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
-        background_lsts: bool
+        background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
 
         Raises
