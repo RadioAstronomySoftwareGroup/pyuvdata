@@ -439,7 +439,6 @@ class MWACorrFITS(UVData):
 
         # convert times to lst
         proc = self.set_lsts_from_time_array(background=background_lsts)
-        # self.set_lsts_from_time_array()
 
         self.integration_time = np.full((self.Nblts), int_time)
 
