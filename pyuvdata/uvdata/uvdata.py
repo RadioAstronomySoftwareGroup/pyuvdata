@@ -755,7 +755,21 @@ class UVData(UVBase):
         return
 
     def set_lsts_from_time_array(self, background=False):
-        """Set the lst_array based from the time_array."""
+        """Set the lst_array based from the time_array.
+
+        Parameters
+        ----------
+        background : bool, False
+            When set to True, start the calculation on a threading.Thread in the
+            background and return the thread to the user.
+
+        Returns
+        -------
+        proc : None or threading.Thread instance
+            When background is set to True, a thread is returned which must be
+            joined before the lst_array exists on the UVData object.
+
+        """
         if not background:
             self._set_lsts_helper()
             return
