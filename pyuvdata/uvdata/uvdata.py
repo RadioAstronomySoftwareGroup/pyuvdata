@@ -5695,6 +5695,8 @@ class UVData(UVBase):
         filelist,
         use_model=False,
         axis=None,
+        background_lsts=True,
+        read_data=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -5718,6 +5720,13 @@ class UVData(UVBase):
             objects. Please see the docstring for fast_concat for details.
             Allowed values are: 'blt', 'freq', 'polarization'. Only used if
             multiple data sets are passed.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
+        read_data : bool
+            Read in the visibility, nsample and flag data. If set to False, only
+            the metadata will be read in. Setting read_data to False results in
+            a metadata only object. If read_data is False, an obs file must be
+            included in the filelist.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -5751,6 +5760,8 @@ class UVData(UVBase):
         fhd_obj.read_fhd(
             filelist,
             use_model=use_model,
+            background_lsts=background_lsts,
+            read_data=read_data,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
@@ -6977,6 +6988,8 @@ class UVData(UVBase):
                 self.read_fhd(
                     filename,
                     use_model=use_model,
+                    background_lsts=background_lsts,
+                    read_data=read_data,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,

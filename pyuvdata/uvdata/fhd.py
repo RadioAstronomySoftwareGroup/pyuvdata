@@ -105,6 +105,8 @@ class FHD(UVData):
         self,
         filelist,
         use_model=False,
+        background_lsts=True,
+        read_data=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -116,11 +118,19 @@ class FHD(UVData):
         ----------
         filelist : array_like of str
             The list/array of FHD save files to read from. Must include at
-            least one polarization file, a params file and a flag file.
+            least one polarization file, a params file and a flag file. An obs
+            file is also required if `read_data` is False.
         use_model : bool
             Option to read in the model visibilities rather than the dirty
             visibilities (the default is False, meaning the dirty visibilities
             will be read).
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
+        read_data : bool
+            Read in the visibility, nsample and flag data. If set to False, only
+            the metadata will be read in. Setting read_data to False results in
+            a metadata only object. If read_data is False, an obs file must be
+            included in the filelist.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -145,6 +155,7 @@ class FHD(UVData):
         """
         datafiles = {}
         params_file = None
+        obs_file = None
         flags_file = None
         layout_file = None
         settings_file = None
@@ -173,6 +184,10 @@ class FHD(UVData):
                 if params_file is not None:
                     raise ValueError("multiple params files in filelist")
                 params_file = file
+            elif file.lower().endswith("_obs.sav"):
+                if obs_file is not None:
+                    raise ValueError("multiple obs files in filelist")
+                obs_file = file
             elif file.lower().endswith("_flags.sav"):
                 if flags_file is not None:
                     raise ValueError("multiple flags files in filelist")
@@ -191,8 +206,14 @@ class FHD(UVData):
                 # with a jump to the top of the loop
                 continue  # pragma: no cover
 
-        if len(datafiles) < 1:
-            raise ValueError("No data files included in file list")
+        if len(datafiles) < 1 and read_data is True:
+            raise ValueError(
+                "No data files included in file list and read_data is True."
+            )
+        if obs_file is None and read_data is False:
+            raise ValueError(
+                "No obs file included in file list and read_data is False."
+            )
         if params_file is None:
             raise ValueError("No params file included in file list")
         if flags_file is None:
@@ -205,17 +226,22 @@ class FHD(UVData):
         if settings_file is None:
             warnings.warn("No settings file included in file list")
 
-        # TODO: add checking to make sure params, flags and datafiles are
-        # consistent with each other
-        vis_data = {}
-        for pol, file in datafiles.items():
-            this_dict = readsav(file, python_dict=True)
-            if use_model:
-                vis_data[pol] = this_dict["vis_model_ptr"]
-            else:
-                vis_data[pol] = this_dict["vis_ptr"]
-            this_obs = this_dict["obs"]
-            data_shape = vis_data[pol].shape
+        if not read_data:
+            obs_dict = readsav(obs_file, python_dict=True)
+            this_obs = obs_dict["obs"]
+            self.Npols = int(this_obs[0]["N_POL"])
+        else:
+            # TODO: add checking to make sure params, flags and datafiles are
+            # consistent with each other
+            vis_data = {}
+            for pol, file in datafiles.items():
+                this_dict = readsav(file, python_dict=True)
+                if use_model:
+                    vis_data[pol] = this_dict["vis_model_ptr"]
+                else:
+                    vis_data[pol] = this_dict["vis_ptr"]
+                this_obs = this_dict["obs"]
+            self.Npols = len(list(vis_data.keys()))
 
         obs = this_obs
         bl_info = obs["BASELINE_INFO"][0]
@@ -227,61 +253,28 @@ class FHD(UVData):
         params_dict = readsav(params_file, python_dict=True)
         params = params_dict["params"]
 
-        flag_file_dict = readsav(flags_file, python_dict=True)
-        # The name for this variable changed recently (July 2016). Test for both.
-        vis_weights_data = {}
-        if "flag_arr" in flag_file_dict:
-            weights_key = "flag_arr"
-        elif "vis_weights" in flag_file_dict:
-            weights_key = "vis_weights"
-        else:
-            raise ValueError("No recognized key for visibility weights in flags_file.")
-        for index, w in enumerate(flag_file_dict[weights_key]):
-            vis_weights_data[fhd_pol_list[index]] = w
+        if read_data:
+            flag_file_dict = readsav(flags_file, python_dict=True)
+            # The name for this variable changed recently (July 2016). Test for both.
+            vis_weights_data = {}
+            if "flag_arr" in flag_file_dict:
+                weights_key = "flag_arr"
+            elif "vis_weights" in flag_file_dict:
+                weights_key = "vis_weights"
+            else:
+                raise ValueError(
+                    "No recognized key for visibility weights in flags_file."
+                )
+            for index, w in enumerate(flag_file_dict[weights_key]):
+                vis_weights_data[fhd_pol_list[index]] = w
 
         self.Ntimes = int(obs["N_TIME"][0])
         self.Nbls = int(obs["NBASELINES"][0])
-        self.Nblts = data_shape[0]
+        self.Nblts = params["UU"][0].size
         self.Nfreqs = int(obs["N_FREQ"][0])
-        self.Npols = len(list(vis_data.keys()))
         self.Nspws = 1
         self.spw_array = np.array([0])
         self.vis_units = "JY"
-
-        lin_pol_order = ["xx", "yy", "xy", "yx"]
-        linear_pol_dict = dict(zip(lin_pol_order, np.arange(5, 9) * -1))
-        pol_list = []
-        for pol in lin_pol_order:
-            if pol in vis_data:
-                pol_list.append(linear_pol_dict[pol])
-        self.polarization_array = np.asarray(pol_list)
-
-        self.data_array = np.zeros(
-            (self.Nblts, self.Nspws, self.Nfreqs, self.Npols), dtype=np.complex_
-        )
-        self.nsample_array = np.zeros(
-            (self.Nblts, self.Nspws, self.Nfreqs, self.Npols), dtype=np.float_
-        )
-        self.flag_array = np.zeros(
-            (self.Nblts, self.Nspws, self.Nfreqs, self.Npols), dtype=np.bool_
-        )
-        for pol, vis in vis_data.items():
-            pol_i = pol_list.index(linear_pol_dict[pol])
-            # FHD follows the FITS uvw direction convention, which is opposite
-            # ours and Miriad's.
-            # So conjugate the visibilities and flip the uvws:
-            self.data_array[:, 0, :, pol_i] = np.conj(vis)
-            self.flag_array[:, 0, :, pol_i] = vis_weights_data[pol] <= 0
-            self.nsample_array[:, 0, :, pol_i] = np.abs(vis_weights_data[pol])
-
-        # In FHD, uvws are in seconds not meters.
-        # FHD follows the FITS uvw direction convention, which is opposite
-        # ours and Miriad's.
-        # So conjugate the visibilities and flip the uvws:
-        self.uvw_array = np.zeros((self.Nblts, 3))
-        self.uvw_array[:, 0] = (-1) * params["UU"][0] * const.c.to("m/s").value
-        self.uvw_array[:, 1] = (-1) * params["VV"][0] * const.c.to("m/s").value
-        self.uvw_array[:, 2] = (-1) * params["WW"][0] * const.c.to("m/s").value
 
         # bl_info.JDATE (a vector of length Ntimes) is the only safe date/time
         # to use in FHD files.
@@ -306,40 +299,6 @@ class FHD(UVData):
                 else:
                     self.time_array[bin_offset[ii] :] = int_times[ii]
 
-        # Note that FHD antenna arrays are 1-indexed so we subtract 1
-        # to get 0-indexed arrays
-        self.ant_1_array = bl_info["TILE_A"][0] - 1
-        self.ant_2_array = bl_info["TILE_B"][0] - 1
-
-        self.Nants_data = int(
-            len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist()))
-        )
-
-        self.baseline_array = self.antnums_to_baseline(
-            self.ant_1_array, self.ant_2_array
-        )
-        if self.Nbls != len(np.unique(self.baseline_array)):
-            warnings.warn(
-                "Nbls does not match the number of unique baselines in the data"
-            )
-
-        self.freq_array = np.zeros(
-            (self.Nspws, len(bl_info["FREQ"][0])), dtype=np.float_
-        )
-        self.freq_array[0, :] = bl_info["FREQ"][0]
-
-        if not np.isclose(obs["OBSRA"][0], obs["PHASERA"][0]) or not np.isclose(
-            obs["OBSDEC"][0], obs["PHASEDEC"][0]
-        ):
-            warnings.warn(
-                "These visibilities may have been phased "
-                "improperly -- without changing the uvw locations"
-            )
-
-        self._set_phased()
-        self.phase_center_ra_degrees = np.float(obs["OBSRA"][0])
-        self.phase_center_dec_degrees = np.float(obs["OBSDEC"][0])
-
         # this is generated in FHD by subtracting the JD of neighboring
         # integrations. This can have limited accuracy, so it can be slightly
         # off the actual value.
@@ -349,8 +308,6 @@ class FHD(UVData):
         self.integration_time = (
             np.ones_like(self.time_array, dtype=np.float64) * time_res[0]
         )
-        self.channel_width = float(obs["FREQ_RES"][0])
-
         # # --- observation information ---
         self.telescope_name = obs["INSTRUMENT"][0].decode("utf8")
 
@@ -376,17 +333,6 @@ class FHD(UVData):
         latitude = np.deg2rad(float(obs["LAT"][0]))
         longitude = np.deg2rad(float(obs["LON"][0]))
         altitude = float(obs["ALT"][0])
-
-        # history: add the first few lines from the settings file
-        if settings_file is not None:
-            self.history = get_fhd_history(settings_file)
-        else:
-            self.history = ""
-
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-            self.history += self.pyuvdata_version_str
-
-        self.phase_center_epoch = astrometry["EQUINOX"][0]
 
         # get the stuff FHD read from the antenna table (in layout file)
         if layout_file is not None:
@@ -576,7 +522,101 @@ class FHD(UVData):
             warnings.warn(str(ve))
 
         # need to make sure telescope location is defined properly before this call
-        self.set_lsts_from_time_array()
+        proc = self.set_lsts_from_time_array(background=background_lsts)
+
+        if not np.isclose(obs["OBSRA"][0], obs["PHASERA"][0]) or not np.isclose(
+            obs["OBSDEC"][0], obs["PHASEDEC"][0]
+        ):
+            warnings.warn(
+                "These visibilities may have been phased "
+                "improperly -- without changing the uvw locations"
+            )
+
+        self._set_phased()
+        self.phase_center_ra_degrees = np.float(obs["OBSRA"][0])
+        self.phase_center_dec_degrees = np.float(obs["OBSDEC"][0])
+
+        self.phase_center_epoch = astrometry["EQUINOX"][0]
+
+        # Note that FHD antenna arrays are 1-indexed so we subtract 1
+        # to get 0-indexed arrays
+        self.ant_1_array = bl_info["TILE_A"][0] - 1
+        self.ant_2_array = bl_info["TILE_B"][0] - 1
+
+        self.Nants_data = int(
+            len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist()))
+        )
+
+        self.baseline_array = self.antnums_to_baseline(
+            self.ant_1_array, self.ant_2_array
+        )
+        if self.Nbls != len(np.unique(self.baseline_array)):
+            warnings.warn(
+                "Nbls does not match the number of unique baselines in the data"
+            )
+
+        self.freq_array = np.zeros(
+            (self.Nspws, len(bl_info["FREQ"][0])), dtype=np.float_
+        )
+        self.freq_array[0, :] = bl_info["FREQ"][0]
+
+        self.channel_width = float(obs["FREQ_RES"][0])
+
+        # In FHD, uvws are in seconds not meters.
+        # FHD follows the FITS uvw direction convention, which is opposite
+        # ours and Miriad's.
+        # So conjugate the visibilities and flip the uvws:
+        self.uvw_array = np.zeros((self.Nblts, 3))
+        self.uvw_array[:, 0] = (-1) * params["UU"][0] * const.c.to("m/s").value
+        self.uvw_array[:, 1] = (-1) * params["VV"][0] * const.c.to("m/s").value
+        self.uvw_array[:, 2] = (-1) * params["WW"][0] * const.c.to("m/s").value
+
+        lin_pol_order = ["xx", "yy", "xy", "yx"]
+        linear_pol_dict = dict(zip(lin_pol_order, np.arange(5, 9) * -1))
+        pol_list = []
+        if read_data:
+            for pol in lin_pol_order:
+                if pol in vis_data:
+                    pol_list.append(linear_pol_dict[pol])
+            self.polarization_array = np.asarray(pol_list)
+        else:
+            # Use Npols because for FHD, npol fully specifies whih pols to use
+            pol_strings = lin_pol_order[: self.Npols]
+            self.polarization_array = np.asarray(
+                [linear_pol_dict[pol] for pol in pol_strings]
+            )
+
+        # history: add the first few lines from the settings file
+        if settings_file is not None:
+            self.history = get_fhd_history(settings_file)
+        else:
+            self.history = ""
+
+        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+            self.history += self.pyuvdata_version_str
+
+        if read_data:
+            self.data_array = np.zeros(
+                (self.Nblts, self.Nspws, self.Nfreqs, self.Npols), dtype=np.complex_
+            )
+            self.nsample_array = np.zeros(
+                (self.Nblts, self.Nspws, self.Nfreqs, self.Npols), dtype=np.float_
+            )
+            self.flag_array = np.zeros(
+                (self.Nblts, self.Nspws, self.Nfreqs, self.Npols), dtype=np.bool_
+            )
+            for pol, vis in vis_data.items():
+                pol_i = pol_list.index(linear_pol_dict[pol])
+                # FHD follows the FITS uvw direction convention, which is opposite
+                # ours and Miriad's.
+                # So conjugate the visibilities and flip the uvws:
+                self.data_array[:, 0, :, pol_i] = np.conj(vis)
+                self.flag_array[:, 0, :, pol_i] = vis_weights_data[pol] <= 0
+                self.nsample_array[:, 0, :, pol_i] = np.abs(vis_weights_data[pol])
+
+        # wait for LSTs if set in background
+        if proc is not None:
+            proc.join()
 
         # check if object has all required uv_properties set
         if run_check:
