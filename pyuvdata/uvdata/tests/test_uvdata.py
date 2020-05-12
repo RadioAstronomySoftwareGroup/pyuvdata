@@ -7244,6 +7244,7 @@ def test_deprecation_warnings_set_phased():
     return
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 def test_read_background_lsts():
     """Test reading a file with the lst calc in the background."""
     uvd = UVData()
