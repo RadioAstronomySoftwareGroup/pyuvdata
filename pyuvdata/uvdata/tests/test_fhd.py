@@ -60,7 +60,6 @@ def test_read_fhd_metadata_only():
     fhd_uv = UVData()
     fhd_uv.read_fhd(testfiles, read_data=False)
 
-    print(fhd_uv.metadata_only)
     assert fhd_uv.metadata_only
 
     fhd_uv2 = UVData()
@@ -68,6 +67,14 @@ def test_read_fhd_metadata_only():
     fhd_uv3 = fhd_uv2.copy(metadata_only=True)
 
     assert fhd_uv == fhd_uv3
+
+
+def test_read_fhd_metadata_only_error():
+    fhd_uv = UVData()
+    with pytest.raises(
+        ValueError, match="No obs file included in file list and read_data is False."
+    ):
+        fhd_uv.read_fhd(testfiles[:7], read_data=False)
 
 
 def test_read_fhd_select():
@@ -281,21 +288,19 @@ def test_break_read_fhd():
     """Try various cases of incomplete file lists."""
     fhd_uv = UVData()
     # missing flags
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="No flags file included in file list"):
         fhd_uv.read(testfiles[1:])
-    assert str(cm.value).startswith("No flags file included in file list")
 
     # Missing params
     subfiles = [item for sublist in [testfiles[0:2], testfiles[3:]] for item in sublist]
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="No params file included in file list"):
         fhd_uv.read(subfiles)
-    assert str(cm.value).startswith("No params file included in file list")
 
     # No data files
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="No data files included in file list and read_data is True.",
+    ):
         fhd_uv.read(["foo.sav"])
-    assert str(cm.value).startswith("No data files included in file list")
-    del fhd_uv
 
 
 def test_read_fhd_warnings():
