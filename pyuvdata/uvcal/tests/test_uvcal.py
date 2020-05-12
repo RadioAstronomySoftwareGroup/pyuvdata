@@ -347,6 +347,34 @@ def test_set_unknown(gain_data):
         gain_data.gain_object.set_unknown_cal_type()
 
 
+def test_set_sky(gain_data):
+    gain_data.gain_object._set_sky()
+    assert gain_data.gain_object._sky_field.required
+    assert gain_data.gain_object._sky_catalog.required
+    assert gain_data.gain_object._ref_antenna_name.required
+
+    with pytest.warns(
+        DeprecationWarning,
+        match="`set_sky` is deprecated, and will be removed in "
+        "pyuvdata version 2.2. Use `_set_sky` instead.",
+    ):
+        gain_data.gain_object.set_sky()
+
+
+def test_set_redundant(gain_data):
+    gain_data.gain_object._set_redundant()
+    assert not gain_data.gain_object._sky_field.required
+    assert not gain_data.gain_object._sky_catalog.required
+    assert not gain_data.gain_object._ref_antenna_name.required
+
+    with pytest.warns(
+        DeprecationWarning,
+        match="`set_redundant` is deprecated, and will be removed in "
+        "pyuvdata version 2.2. Use `_set_redundant` instead.",
+    ):
+        gain_data.gain_object.set_redundant()
+
+
 def test_convert_filetype(gain_data):
     # error testing
     pytest.raises(ValueError, gain_data.gain_object._convert_to_filetype, "uvfits")
