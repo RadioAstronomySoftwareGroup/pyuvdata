@@ -2259,6 +2259,10 @@ class UVData(UVBase):
                 # array where ant_num <= ant1 < ant_number and similary for ant2
                 # for all baselines in inds
                 # then find the uvw coordinate for all at the same time
+
+                # antenna_numbers does not necessarily need to be in order on the object
+                # but needs to be in order for the searchsorted to work.
+                # ant1_index and ant2_index arrays will preserve the order of blts
                 ant_sort = np.argsort(self.antenna_numbers)
                 ant1_index = np.searchsorted(
                     self.antenna_numbers[ant_sort], self.ant_1_array[inds]
@@ -2469,6 +2473,10 @@ class UVData(UVBase):
                 # array where ant_num <= ant1 < ant_number and similary for ant2
                 # for all baselines in inds
                 # then find the uvw coordinate for all at the same time
+
+                # antenna_numbers does not necessarily need to be in order on the object
+                # but needs to be in order for the searchsorted to work.
+                # ant1_index and ant2_index arrays will preserve the order of blts
                 ant_sort = np.argsort(self.antenna_numbers)
                 ant1_index = np.searchsorted(
                     self.antenna_numbers[ant_sort], self.ant_1_array[inds]
@@ -2667,8 +2675,10 @@ class UVData(UVBase):
         bls, unique_inds, reverse_inds = np.unique(
             self.baseline_array, return_index=True, return_inverse=True
         )
-        # the first argument of searchsorted must be sorted so find the sort indices
-        # to help with indexing without changing the object.
+
+        # antenna_numbers does not necessarily need to be in order on the object
+        # but needs to be in order for the searchsorted to work.
+        # ant1_index and ant2_index arrays will preserve the order of blts
         ant_sort = np.argsort(self.antenna_numbers)
         ant1_index = np.searchsorted(
             self.antenna_numbers[ant_sort], self.ant_1_array[unique_inds],

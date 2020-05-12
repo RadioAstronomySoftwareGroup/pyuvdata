@@ -674,7 +674,7 @@ class MWACorrFITS(UVData):
 
         if not self.metadata_only:
             # reorder polarizations
-            # reorder pols calls check so much come after
+            # reorder pols calls check so must come after
             # lst thread is re-joined.
             self.reorder_pols()
 
