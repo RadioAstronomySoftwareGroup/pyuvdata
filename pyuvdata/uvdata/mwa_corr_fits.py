@@ -158,7 +158,7 @@ class MWACorrFITS(UVData):
         flag_dc_offset=True,
         background_lsts=True,
         read_data=True,
-        data_array_dtype=np.complex128,
+        data_array_dtype=np.complex64,
         nsample_array_dtype=np.float32,
         run_check=True,
         check_extra=True,
