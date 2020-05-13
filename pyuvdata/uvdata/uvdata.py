@@ -5459,7 +5459,15 @@ class UVData(UVBase):
             )
 
             self.nsample_array = self.nsample_array.reshape(shape_tuple)
-            masked_nsample = np.ma.masked_array(self.nsample_array, mask=mask)
+            # promote nsample dtype if half-precision
+            nsample_dtype = self.nsample_array.dtype.type
+            if nsample_dtype is np.float16:
+                masked_nsample_dtype = np.float32
+            else:
+                masked_nsample_dtype = nsample_dtype
+            masked_nsample = np.ma.masked_array(
+                self.nsample_array, mask=mask, dtype=masked_nsample_dtype
+            )
 
             if summing_correlator_mode:
                 self.data_array = np.sum(masked_data, axis=3).data
@@ -5471,10 +5479,11 @@ class UVData(UVBase):
                 ).data
 
             # nsample array is the fraction of data that we actually kept,
-            # relative to the amount that went into the sum or average
+            # relative to the amount that went into the sum or average.
+            # Need to take care to return precision back to original value.
             self.nsample_array = (
                 np.sum(masked_nsample, axis=3) / float(n_chan_to_avg)
-            ).data
+            ).data.astype(nsample_dtype)
 
     def get_redundancies(
         self,

@@ -7162,6 +7162,66 @@ def test_frequency_average_propagate_flags(uvdata_data):
     )
 
 
+def test_frequency_average_nsample_precision(uvdata_data):
+    """Test averaging in frequency with a half-precision nsample_array."""
+    eq_coeffs = np.tile(
+        np.arange(uvdata_data.uv_object.Nfreqs, dtype=np.float),
+        (uvdata_data.uv_object.Nants_telescope, 1),
+    )
+    uvdata_data.uv_object.eq_coeffs = eq_coeffs
+    uvdata_data.uv_object.check()
+
+    # check that there's no flagging
+    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+
+    # change precision of the nsample array
+    uvdata_data.uv_object.nsample_array = uvdata_data.uv_object.nsample_array.astype(
+        np.float16
+    )
+
+    uvtest.checkWarnings(
+        uvdata_data.uv_object.frequency_average,
+        [2],
+        message="eq_coeffs vary by frequency",
+    )
+
+    assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
+
+    expected_freqs = uvdata_data.uv_object2.freq_array.reshape(
+        uvdata_data.uv_object2.Nspws, int(uvdata_data.uv_object2.Nfreqs / 2), 2
+    ).mean(axis=2)
+    assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
+
+    expected_coeffs = eq_coeffs.reshape(
+        uvdata_data.uv_object2.Nants_telescope,
+        int(uvdata_data.uv_object2.Nfreqs / 2),
+        2,
+    ).mean(axis=2)
+    assert np.max(np.abs(uvdata_data.uv_object.eq_coeffs - expected_coeffs)) == 0
+
+    # no flagging, so the following is true
+    expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze="none")
+    reshape_tuple = (
+        expected_data.shape[0],
+        uvdata_data.uv_object2.Nspws,
+        int(uvdata_data.uv_object2.Nfreqs / 2),
+        2,
+        uvdata_data.uv_object2.Npols,
+    )
+    expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
+    assert np.allclose(
+        uvdata_data.uv_object.get_data(0, 1, squeeze="none"), expected_data
+    )
+
+    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+
+    assert not isinstance(uvdata_data.uv_object.data_array, np.ma.MaskedArray)
+    assert not isinstance(uvdata_data.uv_object.nsample_array, np.ma.MaskedArray)
+
+    # make sure we still have a half-precision nsample_array
+    assert uvdata_data.uv_object.nsample_array.dtype.type is np.float16
+
+
 def test_remove_eq_coeffs_divide(uvdata_data):
     """Test using the remove_eq_coeffs method with divide convention."""
     # give eq_coeffs to the object
