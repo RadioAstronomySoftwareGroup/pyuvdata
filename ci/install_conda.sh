@@ -1,8 +1,8 @@
 set -xe
 
 # want 1 script to rule them all
-# but this part is not needed on MACOS
-if [[ ! $OS == 'macos-latest' ]]; then
+# but this part is not needed on MACOS or Windows
+if [ ! $OS == 'macos-latest' ] && [ ! $OS == 'windows-latest' ]; then
   if [ ! -z "$WITH_SUDO" ]; then
     sudo apt-get update
     sudo apt-get install -y gcc g++ curl
