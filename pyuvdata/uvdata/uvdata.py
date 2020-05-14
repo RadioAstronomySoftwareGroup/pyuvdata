@@ -2239,16 +2239,6 @@ class UVData(UVBase):
 
             obs_time = Time(jd, format="jd")
 
-            itrs_telescope_location = SkyCoord(
-                x=self.telescope_location[0] * units.m,
-                y=self.telescope_location[1] * units.m,
-                z=self.telescope_location[2] * units.m,
-                frame="itrs",
-                obstime=obs_time,
-            )
-            frame_telescope_location = itrs_telescope_location.transform_to(phase_frame)
-            itrs_lat_lon_alt = self.telescope_location_lat_lon_alt
-
             if use_ant_pos:
                 ant_uvw = uvutils.phase_uvw(
                     self.telescope_location_lat_lon_alt[1],
@@ -2275,6 +2265,18 @@ class UVData(UVBase):
                 )
 
             else:
+                itrs_telescope_location = SkyCoord(
+                    x=self.telescope_location[0] * units.m,
+                    y=self.telescope_location[1] * units.m,
+                    z=self.telescope_location[2] * units.m,
+                    frame="itrs",
+                    obstime=obs_time,
+                )
+                frame_telescope_location = itrs_telescope_location.transform_to(
+                    phase_frame
+                )
+                itrs_lat_lon_alt = self.telescope_location_lat_lon_alt
+
                 uvws_use = self.uvw_array[inds, :]
 
                 uvw_rel_positions = uvutils.unphase_uvw(
