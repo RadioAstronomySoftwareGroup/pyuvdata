@@ -4086,6 +4086,10 @@ class UVData(UVBase):
                 )
             else:
                 bls, polarizations = self.parse_ants(ant_str)
+                if bls is not None and len(bls) == 0:
+                    raise ValueError(
+                        f"There is no data matching ant_str={ant_str} in this object."
+                    )
 
         # Antennas, times and blt_inds all need to be combined into a set of
         # blts indices to keep.

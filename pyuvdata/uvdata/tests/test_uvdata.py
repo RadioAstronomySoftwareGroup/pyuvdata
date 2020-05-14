@@ -4143,23 +4143,11 @@ def test_select_with_ant_str():
     uv.read_uvfits(testfile)
     inplace = False
 
-    # Check error thrown if ant_str passed with antenna_nums,
-    # antenna_names, ant_pairs_nums, or polarizations
-    pytest.raises(ValueError, uv.select, ant_str="", antenna_nums=[], inplace=inplace)
-    pytest.raises(ValueError, uv.select, ant_str="", antenna_nums=[], inplace=inplace)
-    pytest.raises(ValueError, uv.select, ant_str="", antenna_nums=[], inplace=inplace)
-    pytest.raises(ValueError, uv.select, ant_str="", antenna_nums=[], inplace=inplace)
-
     # All baselines
     ant_str = "all"
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(uv.get_antpairs())
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
-
-    # Auto correlations
-    ant_str = "auto"
-    pytest.raises(ValueError, uv.select, ant_str=ant_str, inplace=inplace)
-    # No auto correlations in this data
 
     # Cross correlations
     ant_str = "cross"
@@ -4167,14 +4155,6 @@ def test_select_with_ant_str():
     assert Counter(uv2.get_antpairs()) == Counter(uv.get_antpairs())
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
     # All baselines in data are cross correlations
-
-    # pseudo-Stokes params
-    ant_str = "pI,pq,pU,pv"
-    pytest.raises(ValueError, uv.select, ant_str=ant_str, inplace=inplace)
-
-    # Unparsible string
-    ant_str = "none"
-    pytest.raises(ValueError, uv.select, ant_str=ant_str, inplace=inplace)
 
     # Single antenna number
     ant_str = "0"
@@ -4479,6 +4459,47 @@ def test_select_with_ant_str():
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.parametrize(
+    "kwargs,message",
+    [
+        (
+            {"ant_str": "", "antenna_nums": []},
+            "Cannot provide ant_str with antenna_nums, antenna_names, bls, or "
+            "polarizations.",
+        ),
+        (
+            {"ant_str": "", "antenna_names": []},
+            "Cannot provide ant_str with antenna_nums, antenna_names, bls, or "
+            "polarizations.",
+        ),
+        (
+            {"ant_str": "", "bls": []},
+            "Cannot provide ant_str with antenna_nums, antenna_names, bls, or "
+            "polarizations.",
+        ),
+        (
+            {"ant_str": "", "polarizations": []},
+            "Cannot provide ant_str with antenna_nums, antenna_names, bls, or "
+            "polarizations.",
+        ),
+        ({"ant_str": "auto"}, "There is no data matching ant_str=auto in this object."),
+        (
+            {"ant_str": "pI,pq,pU,pv"},
+            "Polarization 4 is not present in the polarization_array",
+        ),
+        ({"ant_str": "none"}, "Unparsible argument none"),
+    ],
+)
+def test_select_with_ant_str_errors(kwargs, message):
+    uv = UVData()
+    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    uv.read_uvfits(testfile)
+
+    with pytest.raises(ValueError, match=message):
+        uv.select(**kwargs)
 
 
 def test_set_uvws_from_antenna_pos():
