@@ -88,9 +88,16 @@ corr_fits_extension = Extension(
     sources=["pyuvdata/uvdata/corr_fits_src/corr_fits.pyx"],
     define_macros=global_c_macros,
     include_dirs=["pyuvdata/uvdata/corr_fits_src/"],
+    extra_compile_args=["-O3"],
 )
 
-extensions = [corr_fits_extension]
+utils_extension = Extension(
+    "pyuvdata._utils",
+    sources=["pyuvdata/utils.pyx"],
+    define_macros=global_c_macros,
+    extra_compile_args=["-O3"],
+),
+extensions = [corr_fits_extension, utils_extension]
 
 # don't build miriad on windows
 if not is_platform_windows():

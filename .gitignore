@@ -73,3 +73,5 @@ docs/references/*.out
 pyuvdata/uvdata/src/miriad_wrap.cpp
 
 pyuvdata/uvdata/corr_fits_src/corr_fits.c
+
+pyuvdata/utils.c
