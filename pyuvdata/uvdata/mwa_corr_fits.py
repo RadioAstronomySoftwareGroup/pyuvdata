@@ -10,7 +10,7 @@ from astropy.io import fits
 from astropy.time import Time
 from astropy import constants as const
 
-from pyuvdata import _corr_fits
+from .. import _corr_fits
 
 from . import UVData
 from .. import utils as uvutils
