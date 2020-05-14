@@ -13,6 +13,8 @@ from astropy.time import Time
 from astropy.coordinates import Angle
 from astropy.utils import iers
 
+from . import _utils
+
 # parameters for transforming between xyz & lat/lon/alt
 gps_b = 6356752.31424518
 gps_a = 6378137
@@ -297,17 +299,17 @@ def baseline_to_antnums(baseline, Nants_telescope):
     """
     if Nants_telescope > 2048:
         raise Exception(
-            "error Nants={Nants}>2048 not " "supported".format(Nants=Nants_telescope)
+            "error Nants={Nants}>2048 not supported".format(Nants=Nants_telescope)
         )
 
-    baseline = np.asarray(baseline, dtype=np.int64)
-    if np.min(baseline) > 2 ** 16:
-        ant2 = (baseline - 2 ** 16) % 2048 - 1
-        ant1 = (baseline - 2 ** 16 - (ant2 + 1)) / 2048 - 1
+    return_array = isinstance(baseline, (np.ndarray, list, tuple))
+    ant1, ant2 = _utils.baseline_to_antnums(
+        np.ascontiguousarray(baseline, dtype=np.int_)
+    )
+    if return_array:
+        return ant1, ant2
     else:
-        ant2 = (baseline) % 256 - 1
-        ant1 = (baseline - (ant2 + 1)) / 256 - 1
-    return np.int32(ant1), np.int32(ant2)
+        return ant1.item(0), ant2.item(0)
 
 
 def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
@@ -333,30 +335,22 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
         baseline number corresponding to the two antenna numbers.
 
     """
-    ant1, ant2 = np.int64((ant1, ant2))
     if Nants_telescope is not None and Nants_telescope > 2048:
         raise Exception(
             "cannot convert ant1, ant2 to a baseline index "
             "with Nants={Nants}>2048.".format(Nants=Nants_telescope)
         )
-    if attempt256:
-        if np.max(ant1) < 255 and np.max(ant2) < 255:
-            return 256 * (ant1 + 1) + (ant2 + 1)
-        else:
-            print("Max antnums are {} and {}".format(np.max(ant1), np.max(ant2)))
-            message = (
-                "antnums_to_baseline: found > 256 antennas, using "
-                "2048 baseline indexing. Beware compatibility "
-                "with CASA etc"
-            )
-            warnings.warn(message)
 
-    baseline = 2048 * (ant1 + 1) + (ant2 + 1) + 2 ** 16
-
-    if isinstance(baseline, np.ndarray):
-        return np.asarray(baseline, dtype=np.int64)
+    return_array = isinstance(ant1, (np.ndarray, list, tuple))
+    baseline = _utils.antnums_to_baseline(
+        np.ascontiguousarray(ant1, dtype=np.int64),
+        np.ascontiguousarray(ant2, dtype=np.int64),
+        attempt256=attempt256,
+    )
+    if return_array:
+        return baseline
     else:
-        return np.int64(baseline)
+        return baseline.item(0)
 
 
 def baseline_index_flip(baseline, Nants_telescope):
@@ -1942,7 +1936,7 @@ def uvcalibrate(
             ant2_num = key[1]
 
             feed1, feed2 = POL_TO_FEED_DICT[key[2]]
-
+            print(ant1_num, type(ant1_num))
             try:
                 uvcal_ant1_num = uvcal_ant_dict[uvdata_ant_dict[ant1_num]]
             except KeyError:
