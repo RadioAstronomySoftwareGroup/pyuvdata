@@ -5,11 +5,12 @@
 """Tests for UVFITS object.
 
 """
-import numpy as np
 import copy
 import os
+import gc
 
 import pytest
+import numpy as np
 import astropy
 from astropy.io import fits
 
@@ -114,6 +115,10 @@ def test_source_group_params(tmp_path):
 
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
         hdulist.writeto(write_file, overwrite=True)
+
+        del hdunames, vis_hdu, vis_hdr, raw_data_array
+        del par_names, group_parameter_list, ant_hdu, hdulist
+        gc.collect()
 
     uv_out = UVData()
     uv_out.read(write_file)

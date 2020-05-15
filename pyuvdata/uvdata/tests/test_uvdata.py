@@ -3725,32 +3725,83 @@ def test_antpair2ind():
     # get indices
     inds = uv.antpair2ind(0, 1, ordered=False)
     # fmt: off
-    np.testing.assert_array_equal(inds,
-                                  np.array([1, 22, 43, 64, 85, 106, 127, 148, 169,
-                                            190, 211, 232, 253, 274, 295, 316, 337,
-                                            358, 379]))
+    np.testing.assert_array_equal(
+        inds,
+        np.array(
+            [
+                1, 22, 43, 64, 85, 106, 127, 148, 169,
+                190, 211, 232, 253, 274, 295, 316, 337,
+                358, 379
+            ]
+        )
+    )
     # fmt: on
-    assert inds.dtype == np.int
+    assert np.issubdtype(inds.dtype, np.integer)
 
+    return
+
+
+def test_antpair2ind_conj():
     # conjugate (and use key rather than arg expansion)
+    uv = UVData()
+    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
+    uv.read_uvh5(testfile)
+    inds = uv.antpair2ind(0, 1, ordered=False)
     inds2 = uv.antpair2ind((1, 0), ordered=False)
     np.testing.assert_array_equal(inds, inds2)
+    assert np.issubdtype(inds2.dtype, np.integer)
 
+    return
+
+
+def test_antpair2ind_ordered():
     # test ordered
-    inds3 = uv.antpair2ind(1, 0, ordered=True)
-    assert inds3.size == 0
-    inds3 = uv.antpair2ind(0, 1, ordered=True)
-    np.testing.assert_array_equal(inds, inds3)
+    uv = UVData()
+    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
+    uv.read_uvh5(testfile)
+    inds = uv.antpair2ind(0, 1, ordered=False)
 
+    # make sure conjugated baseline returns nothing
+    inds2 = uv.antpair2ind(1, 0, ordered=True)
+    assert inds2.size == 0
+
+    # now use baseline actually in data
+    inds2 = uv.antpair2ind(0, 1, ordered=True)
+    np.testing.assert_array_equal(inds, inds2)
+    assert np.issubdtype(inds2.dtype, np.integer)
+
+    return
+
+
+def test_antpair2ind_autos():
     # test autos w/ and w/o ordered
-    inds4 = uv.antpair2ind(0, 0, ordered=True)
-    inds5 = uv.antpair2ind(0, 0, ordered=False)
-    np.testing.assert_array_equal(inds4, inds5)
+    uv = UVData()
+    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
+    uv.read_uvh5(testfile)
 
+    inds = uv.antpair2ind(0, 0, ordered=True)
+    inds2 = uv.antpair2ind(0, 0, ordered=False)
+    np.testing.assert_array_equal(inds, inds2)
+    assert np.issubdtype(inds.dtype, np.integer)
+    assert np.issubdtype(inds2.dtype, np.integer)
+
+    return
+
+
+def test_antpair2ind_exceptions():
     # test exceptions
-    pytest.raises(ValueError, uv.antpair2ind, 1)
-    pytest.raises(ValueError, uv.antpair2ind, "bar", "foo")
-    pytest.raises(ValueError, uv.antpair2ind, 0, 1, "foo")
+    uv = UVData()
+    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
+    uv.read_uvh5(testfile)
+
+    with pytest.raises(ValueError, match="antpair2ind must be fed an antpair tuple"):
+        uv.antpair2ind(1)
+    with pytest.raises(ValueError, match="antpair2ind must be fed an antpair tuple"):
+        uv.antpair2ind("bar", "foo")
+    with pytest.raises(ValueError, match="ordered must be a boolean"):
+        uv.antpair2ind(0, 1, "foo")
+
+    return
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -4792,7 +4843,7 @@ def test_compress_redundancy_metadata_only():
     assert uv0 == uv2
 
 
-def test_redundancy_missing_groups():
+def test_redundancy_missing_groups(tmp_path):
     # Check that if I try to inflate a compressed UVData that is missing
     # redundant groups, it will raise the right warnings and fill only what
     # data are available.
@@ -4805,14 +4856,13 @@ def test_redundancy_missing_groups():
     num_select = 19
 
     uv0.compress_by_redundancy(tol=tol)
-    fname = "temp_hera19_missingreds.uvfits"
+    fname = str(tmp_path / "temp_hera19_missingreds.uvfits")
 
     bls = np.unique(uv0.baseline_array)[:num_select]  # First twenty baseline groups
     uv0.select(bls=[uv0.baseline_to_antnums(bl) for bl in bls])
     uv0.write_uvfits(fname)
     uv1 = UVData()
     uv1.read_uvfits(fname)
-    os.remove(fname)
 
     assert uv0 == uv1  # Check that writing compressed files causes no issues.
 

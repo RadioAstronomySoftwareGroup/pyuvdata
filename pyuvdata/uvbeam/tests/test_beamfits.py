@@ -6,6 +6,7 @@
 
 """
 import os
+import gc
 
 import pytest
 import numpy as np
@@ -48,9 +49,11 @@ def test_read_cst_write_read_fits(cst_efield_1freq, tmp_path):
     beam_out.read_beamfits(write_file)
 
     assert beam_in == beam_out
+    del beam_in
+    del beam_out
+    gc.collect()
 
     # redo for power beam
-    del beam_in
     beam_in = cst_efield_1freq
     # read in efield and convert to power to test cross-pols
     beam_in.efield_to_power()
@@ -70,9 +73,12 @@ def test_read_cst_write_read_fits(cst_efield_1freq, tmp_path):
         0.0, 0.3, size=(4, beam_in.Nspws, beam_in.Nfreqs)
     )
 
+    beam_out = UVBeam()
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
     assert beam_in == beam_out
+    del beam_out
+    gc.collect()
 
     # now replace 'power' with 'intensity' for btype
     fname = fits.open(write_file)
@@ -87,8 +93,11 @@ def test_read_cst_write_read_fits(cst_efield_1freq, tmp_path):
 
     hdulist.writeto(write_file, overwrite=True)
 
+    beam_out = UVBeam()
     beam_out.read_beamfits(write_file)
     assert beam_in == beam_out
+    del beam_out
+    gc.collect()
 
     # now remove coordsys but leave ctypes 1 & 2
     fname = fits.open(write_file)
@@ -103,8 +112,11 @@ def test_read_cst_write_read_fits(cst_efield_1freq, tmp_path):
 
     hdulist.writeto(write_file, overwrite=True)
 
+    beam_out = UVBeam()
     beam_out.read_beamfits(write_file)
     assert beam_in == beam_out
+    del beam_out
+    gc.collect()
 
     # now change frequency units
     fname = fits.open(write_file)
@@ -121,6 +133,7 @@ def test_read_cst_write_read_fits(cst_efield_1freq, tmp_path):
 
     hdulist.writeto(write_file, overwrite=True)
 
+    beam_out = UVBeam()
     beam_out.read_beamfits(write_file)
     assert beam_in == beam_out
 
@@ -135,9 +148,11 @@ def test_writeread_healpix(cst_efield_1freq_cut_healpix, tmp_path):
     beam_out.read_beamfits(write_file)
 
     assert beam_in == beam_out
+    del beam_in
+    del beam_out
+    gc.collect()
 
     # redo for power beam
-    del beam_in
     beam_in = cst_efield_1freq_cut_healpix
     beam_in.efield_to_power()
 
@@ -159,10 +174,13 @@ def test_writeread_healpix(cst_efield_1freq_cut_healpix, tmp_path):
     # check that data_array is complex
     assert np.iscomplexobj(np.real_if_close(beam_in.data_array, tol=10))
 
+    beam_out = UVBeam()
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
 
     assert beam_in == beam_out
+    del beam_out
+    gc.collect()
 
     # now remove coordsys but leave ctype 1
     fname = fits.open(write_file)
@@ -178,6 +196,7 @@ def test_writeread_healpix(cst_efield_1freq_cut_healpix, tmp_path):
 
     hdulist.writeto(write_file, overwrite=True)
 
+    beam_out = UVBeam()
     beam_out.read_beamfits(write_file)
     assert beam_in == beam_out
 
@@ -243,6 +262,9 @@ def test_errors(cst_efield_1freq, tmp_path):
 
         pytest.raises(ValueError, beam_out.read_beamfits, write_file)
 
+        del prihdu, hdulist
+        gc.collect()
+
     # now change values for various items in basisvec hdu to not match primary hdu
     header_vals_to_change = [
         {"COORDSYS": "foo"},
@@ -293,6 +315,9 @@ def test_errors(cst_efield_1freq, tmp_path):
 
         pytest.raises(ValueError, beam_out.read_beamfits, write_file)
 
+        del prihdu, basisvec_hdu, hdulist
+        gc.collect()
+
 
 def test_healpix_errors(cst_efield_1freq_cut_healpix, tmp_path):
     beam_in = cst_efield_1freq_cut_healpix.copy()
@@ -335,6 +360,9 @@ def test_healpix_errors(cst_efield_1freq_cut_healpix, tmp_path):
         hdulist.writeto(write_file, overwrite=True)
 
         pytest.raises(ValueError, beam_out.read_beamfits, write_file)
+
+        del prihdu, hdulist
+        gc.collect()
 
     # now change values for various items in basisvec hdu to not match primary hdu
     beam_in = cst_efield_1freq_cut_healpix
@@ -379,6 +407,9 @@ def test_healpix_errors(cst_efield_1freq_cut_healpix, tmp_path):
         hdulist.writeto(write_file, overwrite=True)
 
         pytest.raises(ValueError, beam_out.read_beamfits, write_file)
+
+        del prihdu, basisvec_hdu, hdulist
+        gc.collect()
 
 
 def test_casa_beam(tmp_path):
@@ -490,8 +521,11 @@ def test_extra_keywords(tmp_path):
     assert beam_in == beam_out
     beam_in.extra_keywords.pop("bool")
     beam_in.extra_keywords.pop("bool2")
+    del beam_out
+    gc.collect()
 
     # check handling of int-like keywords
+    beam_out = UVBeam()
     beam_in.extra_keywords["int1"] = np.int(5)
     beam_in.extra_keywords["int2"] = 7
     beam_in.write_beamfits(testfile, clobber=True)
@@ -500,8 +534,11 @@ def test_extra_keywords(tmp_path):
     assert beam_in == beam_out
     beam_in.extra_keywords.pop("int1")
     beam_in.extra_keywords.pop("int2")
+    del beam_out
+    gc.collect()
 
     # check handling of float-like keywords
+    beam_out = UVBeam()
     beam_in.extra_keywords["float1"] = np.int64(5.3)
     beam_in.extra_keywords["float2"] = 6.9
     beam_in.write_beamfits(testfile, clobber=True)
@@ -510,8 +547,11 @@ def test_extra_keywords(tmp_path):
     assert beam_in == beam_out
     beam_in.extra_keywords.pop("float1")
     beam_in.extra_keywords.pop("float2")
+    del beam_out
+    gc.collect()
 
     # check handling of complex-like keywords
+    beam_out = UVBeam()
     beam_in.extra_keywords["complex1"] = np.complex64(5.3 + 1.2j)
     beam_in.extra_keywords["complex2"] = 6.9 + 4.6j
     beam_in.write_beamfits(testfile, clobber=True)

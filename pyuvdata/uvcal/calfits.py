@@ -2,7 +2,6 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Class for reading and writing calibration FITS files."""
-import gc
 import warnings
 
 import numpy as np
@@ -392,7 +391,6 @@ class CALFITS(UVCal):
 
         hdulist.writeto(filename, overwrite=clobber)
         hdulist.close()
-        gc.collect()
 
     def read_calfits(
         self, filename, run_check=True, check_extra=True, run_check_acceptability=True
