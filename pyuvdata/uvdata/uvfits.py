@@ -3,6 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing uvfits files."""
+import gc
 import warnings
 
 import numpy as np
@@ -1039,3 +1040,4 @@ class UVFITS(UVData):
         hdulist = fits.HDUList(hdus=[hdu, ant_hdu])
         hdulist.writeto(filename, overwrite=True)
         hdulist.close()
+        gc.collect()

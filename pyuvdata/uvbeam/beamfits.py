@@ -3,6 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing beamfits files."""
+import gc
 import warnings
 
 import numpy as np
@@ -864,3 +865,4 @@ class BeamFITS(UVBeam):
 
         hdulist.writeto(filename, overwrite=clobber)
         hdulist.close()
+        gc.collect()
