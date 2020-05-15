@@ -1038,3 +1038,4 @@ class UVFITS(UVData):
         # write the file
         hdulist = fits.HDUList(hdus=[hdu, ant_hdu])
         hdulist.writeto(filename, overwrite=True)
+        hdulist.close()
