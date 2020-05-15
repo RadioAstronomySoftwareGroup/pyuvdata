@@ -442,7 +442,7 @@ def test_check(uvdata_data):
 
     # test auto and cross corr uvw_array
     uvd = UVData()
-    uvd.read_miriad(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA"))
+    uvd.read_uvh5(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5"))
     autos = np.isclose(uvd.ant_1_array - uvd.ant_2_array, 0.0)
     auto_inds = np.where(autos)[0]
     cross_inds = np.where(~autos)[0]
@@ -452,7 +452,7 @@ def test_check(uvdata_data):
     pytest.raises(ValueError, uvd.check)
 
     # make cross have |uvw| zero, assert ValueError
-    uvd.read_miriad(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA"))
+    uvd.read_uvh5(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5"))
     uvd.uvw_array[cross_inds[0]][:] = 0.0
     pytest.raises(ValueError, uvd.check)
 
@@ -588,11 +588,10 @@ def test_known_telescopes():
     )
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_hera_diameters():
-    miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+    uvh5_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
     uv_in = UVData()
-    uv_in.read_miriad(miriad_file)
+    uv_in.read_uvh5(uvh5_file)
 
     uv_in.telescope_name = "HERA"
     uvtest.checkWarnings(
@@ -932,11 +931,10 @@ def test_set_phase_unknown():
     assert uv_object.check()
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_select_blts():
     uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    uv_object.read_miriad(testfile)
+    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
+    uv_object.read_uvh5(testfile)
     old_history = uv_object.history
     # fmt: off
     blt_inds = np.array([172, 182, 132, 227, 144, 44, 16, 104, 385, 134, 326, 140, 116,
@@ -1411,7 +1409,7 @@ def test_select_time_range_one_elem():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select_frequencies(tmp_path):
+def test_select_frequencies_uvfits(tmp_path):
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     uv_object.read_uvfits(testfile)
@@ -1477,9 +1475,7 @@ def test_select_frequencies(tmp_path):
         message="Selected frequencies are not evenly spaced",
     )
     write_file_uvfits = str(tmp_path / "select_test.uvfits")
-    write_file_miriad = str(tmp_path / "select_test.uv")
     pytest.raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
-    pytest.raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
     uv_object2 = uv_object.copy()
     uvtest.checkWarnings(
@@ -1489,6 +1485,85 @@ def test_select_frequencies(tmp_path):
         message="Selected frequencies are not contiguous",
     )
     pytest.raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_select_frequencies_miriad(tmp_path):
+    pytest.importorskip("pyuvdata._miriad")
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    uv_object.read_uvfits(testfile)
+    old_history = uv_object.history
+    freqs_to_keep = uv_object.freq_array[0, np.arange(12, 22)]
+
+    uv_object2 = uv_object.copy()
+    uv_object2.select(frequencies=freqs_to_keep)
+
+    assert len(freqs_to_keep) == uv_object2.Nfreqs
+    for f in freqs_to_keep:
+        assert f in uv_object2.freq_array
+    for f in np.unique(uv_object2.freq_array):
+        assert f in freqs_to_keep
+
+    assert uvutils._check_histories(
+        old_history + "  Downselected to " "specific frequencies using pyuvdata.",
+        uv_object2.history,
+    )
+
+    # check that it also works with higher dimension array
+    uv_object2 = uv_object.copy()
+    uv_object2.select(frequencies=freqs_to_keep[np.newaxis, :])
+
+    assert len(freqs_to_keep) == uv_object2.Nfreqs
+    for f in freqs_to_keep:
+        assert f in uv_object2.freq_array
+    for f in np.unique(uv_object2.freq_array):
+        assert f in freqs_to_keep
+
+    assert uvutils._check_histories(
+        old_history + "  Downselected to " "specific frequencies using pyuvdata.",
+        uv_object2.history,
+    )
+
+    # check that selecting one frequency works
+    uv_object2 = uv_object.copy()
+    uv_object2.select(frequencies=freqs_to_keep[0])
+    assert 1 == uv_object2.Nfreqs
+    assert freqs_to_keep[0] in uv_object2.freq_array
+    for f in uv_object2.freq_array:
+        assert f in [freqs_to_keep[0]]
+
+    assert uvutils._check_histories(
+        old_history + "  Downselected to " "specific frequencies using pyuvdata.",
+        uv_object2.history,
+    )
+
+    # check for errors associated with frequencies not included in data
+    pytest.raises(
+        ValueError,
+        uv_object.select,
+        frequencies=[np.max(uv_object.freq_array) + uv_object.channel_width],
+    )
+
+    # check for warnings and errors associated with unevenly spaced or
+    # non-contiguous frequencies
+    uv_object2 = uv_object.copy()
+    uvtest.checkWarnings(
+        uv_object2.select,
+        [],
+        {"frequencies": uv_object2.freq_array[0, [0, 5, 6]]},
+        message="Selected frequencies are not evenly spaced",
+    )
+    write_file_miriad = str(tmp_path / "select_test.uvfits")
+    pytest.raises(ValueError, uv_object2.write_miriad, write_file_miriad)
+
+    uv_object2 = uv_object.copy()
+    uvtest.checkWarnings(
+        uv_object2.select,
+        [],
+        {"frequencies": uv_object2.freq_array[0, [0, 2, 4]]},
+        message="Selected frequencies are not contiguous",
+    )
     pytest.raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
 
@@ -2381,7 +2456,7 @@ def test_add():
 
     # test add of autocorr-only and crosscorr-only objects
     uv_full = UVData()
-    uv_full.read_miriad(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA"))
+    uv_full.read_uvh5(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5"))
     bls = uv_full.get_antpairs()
     autos = [bl for bl in bls if bl[0] == bl[1]]
     cross = sorted(set(bls) - set(autos))
@@ -3116,7 +3191,7 @@ def test_fast_concat():
 
     # test add of autocorr-only and crosscorr-only objects
     uv_full = UVData()
-    uv_full.read_miriad(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA"))
+    uv_full.read_uvh5(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5"))
     bls = uv_full.get_antpairs()
     autos = [bl for bl in bls if bl[0] == bl[1]]
     cross = sorted(set(bls) - set(autos))
@@ -3641,12 +3716,11 @@ def test_get_nsamples():
     assert np.all(dcheck == d)
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_antpair2ind():
     # Test for baseline-time axis indexer
     uv = UVData()
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    uv.read_miriad(testfile)
+    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
+    uv.read_uvh5(testfile)
 
     # get indices
     inds = uv.antpair2ind(0, 1, ordered=False)
@@ -3761,7 +3835,7 @@ def test_get_ants():
 
 def test_get_enu_antpos():
     uvd = UVData()
-    uvd.read_miriad(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA"))
+    uvd.read_uvh5(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5"))
     # no center, no pick data ants
     antpos, ants = uvd.get_ENU_antpos(center=False, pick_data_ants=False)
     assert len(ants) == 113
@@ -3780,15 +3854,16 @@ def test_get_enu_antpos():
     assert np.isclose(antpos[0, 0], -0.0026981323386223721)
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_telescope_loc_xyz_check(tmp_path):
     # test that improper telescope locations can still be read
-    miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+    uvh5_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
     uv = UVData()
-    uv.read(miriad_file)
+    uv.read(uvh5_file)
     uv.telescope_location = uvutils.XYZ_from_LatLonAlt(*uv.telescope_location)
-    fname = str(tmp_path / "test.uv")
-    uv.write_miriad(fname, run_check=False, check_extra=False, clobber=True)
+    # fix LST values
+    uv.set_lsts_from_time_array()
+    fname = str(tmp_path / "test.uvh5")
+    uv.write_uvh5(fname, run_check=False, check_extra=False, clobber=True)
 
     # try to read file without checks (passing is implicit)
     uv.read(fname, run_check=False)
@@ -3808,11 +3883,10 @@ def test_get_pols():
     assert sorted(pols) == sorted(pols_data)
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_get_pols_x_orientation():
-    miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+    uvh5_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
     uv_in = UVData()
-    uv_in.read(miriad_file)
+    uv_in.read(uvh5_file)
 
     uv_in.x_orientation = "east"
 
@@ -4080,7 +4154,7 @@ def test_parse_ants():
 
     # Test ant_str='auto' on file with auto correlations
     uv = UVData()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA")
+    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5")
     uv.read(testfile)
 
     ant_str = "auto"
@@ -4406,7 +4480,7 @@ def test_select_with_ant_str():
 
     # Test ant_str = 'auto' on file with auto correlations
     uv = UVData()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA")
+    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5")
     uv.read(testfile)
 
     ant_str = "auto"
@@ -4907,14 +4981,13 @@ def test_overlapping_data_add(tmp_path):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
 def test_lsts_from_time_with_only_unique():
     """
     Test `set_lsts_from_time_array` with only unique values is identical to full array.
     """
-    miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+    uvh5_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
     uv = UVData()
-    uv.read_miriad(miriad_file)
+    uv.read_uvh5(uvh5_file)
     lat, lon, alt = uv.telescope_location_lat_lon_alt_degrees
     # calculate the lsts for all elements in time array
     full_lsts = uvutils.get_lst_for_time(uv.time_array, lat, lon, alt)

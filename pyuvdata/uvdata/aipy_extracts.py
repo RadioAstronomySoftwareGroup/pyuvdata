@@ -15,20 +15,11 @@ import re
 
 try:
     from pyuvdata import _miriad
-except ImportError:
-    # See setup.py for an explanation. The workaround here is kind of annoying
-    # since the code below needs the name `_miriad.UV` to be a class in order
-    # to import successfully.
-    import os
-
-    if os.environ.get("PYUVDATA_IGNORE_EXTMOD_IMPORT_FAIL", "") != "1":
-        raise
-
-    class UV(object):
-        pass
-
-    _miriad = UV()  # eww gross but it works
-    _miriad.UV = UV
+except ImportError as e:  # pragma: no cover
+    raise ImportError(
+        "The miriad extension is not built but is required for reading miriad "
+        "files. Note that miriad is currently not supported on Windows."
+    ) from e
 
 
 str2pol = {

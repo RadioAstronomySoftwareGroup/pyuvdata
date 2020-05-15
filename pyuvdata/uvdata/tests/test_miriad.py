@@ -34,7 +34,7 @@ import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 
-from pyuvdata.uvdata import aipy_extracts
+pytest.importorskip("pyuvdata._miriad")
 
 # always ignore the Altitude not present warning
 # This does NOT break uvutils.checkWarnings tests for this warning
@@ -294,6 +294,8 @@ def test_wronglatlon():
 
 
 def test_miriad_location_handling(tmp_path):
+    from pyuvdata.uvdata import aipy_extracts
+
     uv_in = UVData()
     uv_out = UVData()
     miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
@@ -821,6 +823,8 @@ def test_miriad_write_read_diameters(uv_in_paper):
 
 
 def test_miriad_and_aipy_reads(uv_in_paper):
+    from pyuvdata.uvdata import aipy_extracts
+
     uv_in, uv_out, write_file = uv_in_paper
     # check that variables 'ischan' and 'nschan' were written to new file
     # need to use aipy, since pyuvdata is not currently capturing these variables
@@ -837,6 +841,8 @@ def test_miriad_and_aipy_reads(uv_in_paper):
 
 
 def test_miriad_telescope_locations():
+    from pyuvdata.uvdata import aipy_extracts
+
     testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
     # test load_telescope_coords w/ blank Miriad
     uv_in = Miriad()
@@ -1347,6 +1353,8 @@ def test_antpos_units(tmp_path):
     """
     Read uvfits, write miriad. Check written antpos are in ns.
     """
+    from pyuvdata.uvdata import aipy_extracts
+
     uv = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     testfile = str(tmp_path / "uv_antpos_units")
@@ -1366,6 +1374,8 @@ def test_readmiriad_write_miriad_check_time_format(tmp_path):
     """
     test time_array is converted properly from Miriad format
     """
+    from pyuvdata.uvdata import aipy_extracts
+
     # test read-in
     fname = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA")
     uvd = UVData()
