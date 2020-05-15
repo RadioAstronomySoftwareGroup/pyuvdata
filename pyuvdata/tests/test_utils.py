@@ -1202,7 +1202,7 @@ def test_and_collapse_errors():
 def test_uvcalibrate_apply_gains_oldfiles():
     # read data
     uvd = UVData()
-    uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA"))
+    uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"))
     # give it an x_orientation
     uvd.x_orientation = "east"
     uvc = UVCal()
@@ -1278,7 +1278,7 @@ def test_uvcalibrate_apply_gains_oldfiles():
 
 def test_uvcalibrate_delay_oldfiles():
     uvd = UVData()
-    uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA"))
+    uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"))
 
     uvc = UVCal()
     uvc.read_calfits(os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits"))
@@ -1817,7 +1817,7 @@ def test_uvcalibrate_feedpol_mismatch(uvcalibrate_data):
 def test_apply_uvflag():
     # load data and insert some flags
     uvd = UVData()
-    uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA"))
+    uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"))
     uvd.flag_array[uvd.antpair2ind(9, 20)] = True
 
     # load a UVFlag into flag type

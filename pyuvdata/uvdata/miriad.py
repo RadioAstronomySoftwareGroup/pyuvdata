@@ -15,8 +15,6 @@ from .uvdata import UVData
 from .. import telescopes as uvtel
 from .. import utils as uvutils
 
-from . import aipy_extracts
-
 __all__ = ["Miriad"]
 
 
@@ -135,6 +133,8 @@ class Miriad(UVData):
             If the metadata are not internally consistent.
 
         """
+        from . import aipy_extracts
+
         if not os.path.exists(filepath):
             raise IOError(filepath + " not found")
         uv = aipy_extracts.UV(filepath)
@@ -753,6 +753,8 @@ class Miriad(UVData):
             If any entry in extra_keywords is not a single string or number.
 
         """
+        from . import aipy_extracts
+
         # change time_array and lst_array to mark beginning of integration,
         # per Miriad format
         miriad_time_array = self.time_array - self.integration_time / (24 * 3600.0) / 2

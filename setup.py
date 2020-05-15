@@ -47,6 +47,10 @@ def is_platform_mac():
     return sys.platform == "darwin"
 
 
+def is_platform_windows():
+    return sys.platform == "win32"
+
+
 # For mac, ensure extensions are built for macos 10.9 when compiling on a
 # 10.9 system or above, overriding distuitls behaviour which is to target
 # the version that python was built for. This may be overridden by setting
@@ -63,29 +67,34 @@ global_c_macros = [
     ("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION"),
 ]
 
-extensions = [
-    Extension(
-        "pyuvdata._miriad",
-        sources=[
-            "pyuvdata/uvdata/src/miriad_wrap.pyx",
-            "pyuvdata/uvdata/src/uvio.c",
-            "pyuvdata/uvdata/src/hio.c",
-            "pyuvdata/uvdata/src/pack.c",
-            "pyuvdata/uvdata/src/bug.c",
-            "pyuvdata/uvdata/src/dio.c",
-            "pyuvdata/uvdata/src/headio.c",
-            "pyuvdata/uvdata/src/maskio.c",
-        ],
-        define_macros=global_c_macros,
-        include_dirs=["pyuvdata/uvdata/src/"],
-    ),
-    Extension(
-        "pyuvdata._corr_fits",
-        sources=["pyuvdata/uvdata/corr_fits_src/corr_fits.pyx"],
-        define_macros=global_c_macros,
-        include_dirs=["pyuvdata/uvdata/corr_fits_src/"],
-    ),
-]
+miriad_extension = Extension(
+    "pyuvdata._miriad",
+    sources=[
+        "pyuvdata/uvdata/src/miriad_wrap.pyx",
+        "pyuvdata/uvdata/src/uvio.c",
+        "pyuvdata/uvdata/src/hio.c",
+        "pyuvdata/uvdata/src/pack.c",
+        "pyuvdata/uvdata/src/bug.c",
+        "pyuvdata/uvdata/src/dio.c",
+        "pyuvdata/uvdata/src/headio.c",
+        "pyuvdata/uvdata/src/maskio.c",
+    ],
+    define_macros=global_c_macros,
+    include_dirs=["pyuvdata/uvdata/src/"],
+)
+
+corr_fits_extension = Extension(
+    "pyuvdata._corr_fits",
+    sources=["pyuvdata/uvdata/corr_fits_src/corr_fits.pyx"],
+    define_macros=global_c_macros,
+    include_dirs=["pyuvdata/uvdata/corr_fits_src/"],
+)
+
+extensions = [corr_fits_extension]
+
+# don't build miriad on windows
+if not is_platform_windows:
+    extensions.append(miriad_extension)
 
 casa_reqs = ["python-casacore"]
 healpix_reqs = ["astropy_healpix"]

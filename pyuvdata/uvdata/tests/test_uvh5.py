@@ -28,6 +28,7 @@ pytestmark = [
 @pytest.fixture(scope="function")
 def uv_miriad():
     # read in a miriad test file
+    pytest.importorskip("pyuvdata._miriad")
     uv_miriad = UVData()
     miriad_filename = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
     uv_miriad.read_miriad(miriad_filename)

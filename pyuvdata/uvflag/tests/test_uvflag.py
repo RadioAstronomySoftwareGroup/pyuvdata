@@ -25,7 +25,7 @@ import h5py
 @pytest.fixture(scope="function")
 def uvf_from_miriad():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag()
     uvf.from_uvdata(uv)
 
@@ -53,7 +53,7 @@ def uvf_from_uvcal():
 @pytest.fixture(scope="function")
 def uvf_from_waterfall():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag()
     uvf.from_uvdata(uv, waterfall=True)
 
@@ -104,9 +104,9 @@ except Skipped:
         True, reason="pytest-cases not installed or not required version"
     )
 
-test_d_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA")
+test_d_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5")
 test_c_file = os.path.join(DATA_PATH, "zen.2457555.42443.HH.uvcA.omni.calfits")
-test_f_file = test_d_file + ".testuvflag.h5"
+test_f_file = test_d_file.rstrip(".uvh5") + ".testuvflag.h5"
 
 pyuvdata_version_str = "  Read/written with pyuvdata version: " + __version__ + "."
 
@@ -118,7 +118,7 @@ def test_outfile(tmp_path):
 
 def test_init_bad_mode():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     with pytest.raises(ValueError) as cm:
         UVFlag(uv, mode="bad_mode", history="I made a UVFlag object", label="test")
     assert str(cm.value).startswith("Input mode must be within acceptable")
@@ -132,7 +132,7 @@ def test_init_bad_mode():
 
 def test_init_uvdata():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv, history="I made a UVFlag object", label="test")
     assert uvf.metric_array.shape == uv.flag_array.shape
     assert np.all(uvf.metric_array == 0)
@@ -155,7 +155,7 @@ def test_init_uvdata():
 
 def test_init_uvdata_x_orientation():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uv.x_orientation = "east"
     uvf = UVFlag(uv, history="I made a UVFlag object", label="test")
     assert uvf.x_orientation == uv.x_orientation
@@ -163,7 +163,7 @@ def test_init_uvdata_x_orientation():
 
 def test_init_uvdata_copy_flags():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = uvtest.checkWarnings(
         UVFlag,
         [uv],
@@ -191,7 +191,7 @@ def test_init_uvdata_copy_flags():
 
 def test_init_uvdata_mode_flag():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag()
     uvf.from_uvdata(uv, copy_flags=False, mode="flag")
     #  with copy flags uvf.metric_array should be none
@@ -277,7 +277,7 @@ def test_init_cal_copy_flags():
 
 def test_init_waterfall_uvd():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv, waterfall=True)
     assert uvf.metric_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Npols)
     assert np.all(uvf.metric_array == 0)
@@ -329,7 +329,7 @@ def test_init_waterfall_flag_uvcal():
 
 def test_init_waterfall_flag_uvdata():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv, waterfall=True, mode="flag")
     assert uvf.flag_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Npols)
     assert not np.any(uvf.flag_array)
@@ -351,7 +351,7 @@ def test_init_waterfall_copy_flags():
     assert str(cm.value).startswith("Cannot copy flags when initializing")
 
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     with pytest.raises(NotImplementedError) as cm:
         UVFlag(uv, copy_flags=True, mode="flag", waterfall=True)
     assert str(cm.value).startswith("Cannot copy flags when initializing")
@@ -366,7 +366,7 @@ def test_init_invalid_input():
 
 def test_from_uvcal_error():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag()
     with pytest.raises(ValueError) as cm:
         uvf.from_uvcal(uv)
@@ -402,7 +402,7 @@ def test_init_list_files_weights(tmpdir):
 
 def test_data_like_property_mode_tamper():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv, label="test")
     uvf.mode = "test"
     with pytest.raises(ValueError) as cm:
@@ -412,7 +412,7 @@ def test_data_like_property_mode_tamper():
 
 def test_read_write_loop(test_outfile):
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv, label="test")
     uvf.write(test_outfile, clobber=True)
     uvf2 = UVFlag(test_outfile)
@@ -421,7 +421,7 @@ def test_read_write_loop(test_outfile):
 
 def test_read_write_loop_with_optional_x_orientation(test_outfile):
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv, label="test")
     uvf.x_orientation = "east"
     uvf.write(test_outfile, clobber=True)
@@ -431,7 +431,7 @@ def test_read_write_loop_with_optional_x_orientation(test_outfile):
 
 def test_read_write_loop_waterfal(test_outfile):
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv, label="test")
     uvf.to_waterfall()
     uvf.write(test_outfile, clobber=True)
@@ -450,7 +450,7 @@ def test_read_write_loop_ret_wt_sq(test_outfile):
 
 def test_bad_mode_savefile(test_outfile):
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv, label="test")
 
     # create the file so the clobber gets tested
@@ -470,7 +470,7 @@ def test_bad_mode_savefile(test_outfile):
 
 def test_bad_type_savefile(test_outfile):
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv, label="test")
     uvf.write(test_outfile, clobber=True)
     # manually re-read and tamper with parameters
@@ -485,7 +485,7 @@ def test_bad_type_savefile(test_outfile):
 
 def test_write_add_version_str(test_outfile):
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv, label="test")
     uvf.history = uvf.history.replace(pyuvdata_version_str, "")
 
@@ -500,7 +500,7 @@ def test_write_add_version_str(test_outfile):
 
 def test_read_add_version_str(test_outfile):
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv, label="test")
 
     assert pyuvdata_version_str in uvf.history
@@ -569,7 +569,7 @@ def test_read_missing_nspws(test_outfile):
 
 def test_read_write_nocompress(test_outfile):
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv, label="test")
     uvf.write(test_outfile, clobber=True, data_compression=None)
     uvf2 = UVFlag(test_outfile)
@@ -578,7 +578,7 @@ def test_read_write_nocompress(test_outfile):
 
 def test_read_write_nocompress_flag(test_outfile):
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv, mode="flag", label="test")
     uvf.write(test_outfile, clobber=True, data_compression=None)
     uvf2 = UVFlag(test_outfile)
@@ -587,7 +587,7 @@ def test_read_write_nocompress_flag(test_outfile):
 
 def test_init_list():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uv.time_array -= 1
     uvf = UVFlag([uv, test_f_file])
     uvf1 = UVFlag(uv)
@@ -618,7 +618,7 @@ def test_init_list():
 
 def test_read_list(test_outfile):
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uv.time_array -= 1
     uvf = UVFlag(uv)
     uvf.write(test_outfile, clobber=True)
@@ -657,7 +657,7 @@ def test_read_error():
 
 def test_read_change_type(test_outfile):
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
     uvf = UVFlag(uvc)
@@ -683,7 +683,7 @@ def test_read_change_type(test_outfile):
 
 def test_read_change_mode(test_outfile):
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv, mode="flag")
     assert hasattr(uvf, "flag_array")
     assert hasattr(uvf, "metric_array")
@@ -708,7 +708,7 @@ def test_write_no_clobber():
 
 def test_lst_from_uv():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     lst_array = lst_from_uv(uv)
     assert np.allclose(uv.lst_array, lst_array)
 
@@ -888,7 +888,7 @@ def test_add_pol():
 
 def test_add_flag():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uv1 = UVFlag(uv, mode="flag")
     uv2 = copy.deepcopy(uv1)
     uv2.time_array += 1  # Add a day
@@ -918,7 +918,7 @@ def test_add_flag():
 
 def test_add_errors():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
     uv1 = UVFlag(uv)
@@ -1258,7 +1258,7 @@ def test_to_waterfall_waterfall():
 
 def test_to_baseline_flags():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv)
     uvf.to_waterfall()
     uvf.to_flag()
@@ -1281,7 +1281,7 @@ def test_to_baseline_flags():
 
 def test_to_baseline_metric():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv)
     uvf.to_waterfall()
     uvf.metric_array[0, 10, 0] = 3.2  # Fill in time0, chan10
@@ -1303,7 +1303,7 @@ def test_to_baseline_metric():
 
 def test_to_baseline_add_version_str():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv)
     uvf.to_waterfall()
     uvf.metric_array[0, 10, 0] = 3.2  # Fill in time0, chan10
@@ -1318,7 +1318,7 @@ def test_to_baseline_add_version_str():
 
 def test_baseline_to_baseline():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv)
     uvf2 = uvf.copy()
     uvf.to_baseline(uv)
@@ -1329,7 +1329,7 @@ def test_to_baseline_metric_error(uvf_from_uvcal):
     uvf = uvf_from_uvcal
     uvf.select(polarizations=uvf.polarization_array[0])
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     with pytest.raises(NotImplementedError) as cm:
         uvf.to_baseline(uv, force_pol=True)
     assert str(cm.value).startswith(
@@ -1342,7 +1342,7 @@ def test_to_baseline_from_antenna(uvf_from_uvcal):
     uvf.select(polarizations=uvf.polarization_array[0])
     uvf.to_flag()
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
 
     ants_data = np.unique(uv.ant_1_array.tolist() + uv.ant_2_array.tolist())
     new_ants = np.setdiff1d(ants_data, uvf.ant_array)
@@ -1389,7 +1389,7 @@ def test_to_baseline_errors():
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
     with pytest.raises(ValueError) as cm:
@@ -1412,7 +1412,7 @@ def test_to_baseline_errors():
 
 def test_to_baseline_force_pol():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv)
     uvf.to_waterfall()
     uvf.to_flag()
@@ -1436,7 +1436,7 @@ def test_to_baseline_force_pol():
 
 def test_to_baseline_force_pol_npol_gt_1():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv)
     uvf.to_waterfall()
     uvf.to_flag()
@@ -1455,7 +1455,7 @@ def test_to_baseline_force_pol_npol_gt_1():
 
 def test_to_baseline_metric_force_pol():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(uv)
     uvf.to_waterfall()
     uvf.metric_array[0, 10, 0] = 3.2  # Fill in time0, chan10
@@ -1556,7 +1556,7 @@ def test_to_antenna_errors():
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
     with pytest.raises(ValueError) as cm:
@@ -1981,7 +1981,7 @@ def test_super():
             self.test_property = test_property
 
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
 
     tc = TestClass(uv, test_property="test_property")
 
@@ -1993,7 +1993,7 @@ def test_super():
 
 def test_flags2waterfall():
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
 
     np.random.seed(0)
     uv.flag_array = np.random.randint(0, 2, size=uv.flag_array.shape, dtype=bool)
@@ -2034,7 +2034,7 @@ def test_flags2waterfall_errors():
     )
 
     uv = UVData()
-    uv.read_miriad(test_d_file)
+    uv.read_uvh5(test_d_file)
     # Flag array must have same shape as uv.flag_array
     with pytest.raises(ValueError) as cm:
         flags2waterfall(uv, np.array([4, 5]))

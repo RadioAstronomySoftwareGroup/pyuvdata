@@ -9,8 +9,11 @@ import os
 import shutil
 import pytest
 
-from pyuvdata.uvdata import aipy_extracts as ae
 from pyuvdata.data import DATA_PATH
+
+pytest.importorskip("pyuvdata._miriad")
+
+from pyuvdata.uvdata import aipy_extracts as ae  # noqa: E402
 
 
 def test_bl2ij():

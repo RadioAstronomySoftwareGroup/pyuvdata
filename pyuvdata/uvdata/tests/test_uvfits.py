@@ -657,6 +657,7 @@ def test_read_uvfits_write_miriad(tmp_path):
     Read in uvfits file, write out as miriad, read back in and check for
     object equality.
     """
+    pytest.importorskip("pyuvdata._miriad")
     uvfits_uv = UVData()
     miriad_uv = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
