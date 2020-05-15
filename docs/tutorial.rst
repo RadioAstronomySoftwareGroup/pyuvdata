@@ -1249,10 +1249,17 @@ b) Compressing/inflating on Redundant Baselines
 Since redundant baselines should have similar visibilities, some level of data
 compression can be achieved by only keeping one out of a set of redundant baselines.
 The :meth:`~pyuvdata.UVData.compress_by_redundancy` method will find groups of baselines that are
-redundant to a given tolerance, choose one baseline from each group, and use the
-:meth:`~pyuvdata.UVData.select` method to choose those baselines only. This action is (almost)
-inverted by the :meth:`~pyuvdata.UVData.inflate_by_redundancy` method, which finds all possible
-baselines from the antenna positions and fills in the full data array based on redundancy.
+redundant to a given tolerance and either average over them or select a single
+baseline from the redundant group. If the data are identical between redundant
+baselines (e.g. if they are from a noiseless simulation) the "select" method
+should be used as it is much faster. If the "average" method is used, the data
+are combined with a weighted average using the `nsample_array` as weights
+and the final `nsample_array` will be a sum of the `nsample_array` of the
+combined baselines (so it can be larger than 1).
+
+This action is (almost) inverted by the :meth:`~pyuvdata.UVData.inflate_by_redundancy`
+method, which finds all possible baselines from the antenna positions and fills
+in the full data array based on redundancy.
 
 ::
 
@@ -1266,8 +1273,8 @@ baselines from the antenna positions and fills in the full data array based on r
 
   # Compression can be run in-place or return a separate UVData object.
   >>> uv_backup = uv0.copy()
-  >>> uv2 = uv0.compress_by_redundancy(tol=tol, inplace=False)
-  >>> uv0.compress_by_redundancy(tol=tol)
+  >>> uv2 = uv0.compress_by_redundancy(method="select", tol=tol, inplace=False)
+  >>> uv0.compress_by_redundancy(method="select", tol=tol)
   >>> uv2 == uv0
   True
 
