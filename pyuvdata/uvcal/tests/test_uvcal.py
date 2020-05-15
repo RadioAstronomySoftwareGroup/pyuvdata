@@ -2031,4 +2031,3 @@ def test_write_read_optional_attrs(tmp_path):
     cal_in2 = UVCal()
     cal_in2.read_calfits(write_file_calfits)
     assert cal_in == cal_in2
-    os.remove(write_file_calfits)

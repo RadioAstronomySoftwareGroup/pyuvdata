@@ -5,6 +5,7 @@
 """Tests for FHD_cal object."""
 import pytest
 import os
+import gc
 
 import numpy as np
 
@@ -37,8 +38,12 @@ def test_read_fhdcal_write_read_calfits(tmp_path):
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
+    del fhd_cal, calfits_cal
+    gc.collect()
 
     # do it again with fit gains (rather than raw)
+    fhd_cal = UVCal()
+    calfits_cal = UVCal()
     fhd_cal.read_fhd_cal(
         cal_testfile, obs_testfile, settings_file=settings_testfile, raw=False
     )
@@ -65,8 +70,12 @@ def test_extra_history(tmp_path):
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
     assert extra_history in fhd_cal.history
+    del fhd_cal, calfits_cal
+    gc.collect()
 
     # try again with a list of history strings
+    fhd_cal = UVCal()
+    calfits_cal = UVCal()
     extra_history = ["Some extra history for testing", "And some more history as well"]
     fhd_cal.read_fhd_cal(
         cal_testfile,

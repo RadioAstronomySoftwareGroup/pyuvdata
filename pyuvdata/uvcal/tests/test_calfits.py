@@ -7,6 +7,7 @@
 """
 import pytest
 import os
+import gc
 import numpy as np
 from astropy.io import fits
 
@@ -31,8 +32,11 @@ def test_readwriteread(tmp_path):
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
     assert cal_in == cal_out
+    del cal_out
+    gc.collect()
 
     # test without freq_range parameter
+    cal_out = UVCal()
     cal_in.freq_range = None
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
@@ -131,6 +135,11 @@ def test_errors(tmp_path):
 
         pytest.raises(ValueError, cal_out.read_calfits, write_file)
 
+        del fname, data, primary_hdr, hdunames, ant_hdu
+        del flag_hdu, flag_hdr, totqualhdu, totqualhdr
+        del prihdu, hdulist
+        gc.collect()
+
     # repeat for gain type file
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     write_file = str(tmp_path / "outtest_omnical.fits")
@@ -183,49 +192,18 @@ def test_errors(tmp_path):
 
         pytest.raises(ValueError, cal_out.read_calfits, write_file)
 
+        del fname, data, primary_hdr, hdunames, ant_hdu
+        del totqualhdu, totqualhdr
+        del prihdu, hdulist
+        gc.collect()
 
-def test_extra_keywords(tmp_path):
+
+def test_extra_keywords_boolean(tmp_path):
     cal_in = UVCal()
     cal_out = UVCal()
     calfits_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     testfile = str(tmp_path / "outtest_omnical.fits")
     cal_in.read_calfits(calfits_file)
-
-    # check for warnings & errors with extra_keywords that are dicts, lists or arrays
-    cal_in.extra_keywords["testdict"] = {"testkey": 23}
-    uvtest.checkWarnings(
-        cal_in.check, message=["testdict in extra_keywords is a " "list, array or dict"]
-    )
-    pytest.raises(TypeError, cal_in.write_calfits, testfile, run_check=False)
-    cal_in.extra_keywords.pop("testdict")
-
-    cal_in.extra_keywords["testlist"] = [12, 14, 90]
-    uvtest.checkWarnings(
-        cal_in.check, message=["testlist in extra_keywords is a " "list, array or dict"]
-    )
-    pytest.raises(TypeError, cal_in.write_calfits, testfile, run_check=False)
-    cal_in.extra_keywords.pop("testlist")
-
-    cal_in.extra_keywords["testarr"] = np.array([12, 14, 90])
-    uvtest.checkWarnings(
-        cal_in.check, message=["testarr in extra_keywords is a " "list, array or dict"]
-    )
-    pytest.raises(TypeError, cal_in.write_calfits, testfile, run_check=False)
-    cal_in.extra_keywords.pop("testarr")
-
-    # check for warnings with extra_keywords keys that are too long
-    cal_in.extra_keywords["test_long_key"] = True
-    uvtest.checkWarnings(
-        cal_in.check,
-        message=["key test_long_key in extra_keywords " "is longer than 8 characters"],
-    )
-    uvtest.checkWarnings(
-        cal_in.write_calfits,
-        [testfile],
-        {"run_check": False, "clobber": True},
-        message=["key test_long_key in extra_keywords is longer than 8 characters"],
-    )
-    cal_in.extra_keywords.pop("test_long_key")
 
     # check handling of boolean keywords
     cal_in.extra_keywords["bool"] = True
@@ -234,8 +212,16 @@ def test_extra_keywords(tmp_path):
     cal_out.read_calfits(testfile)
 
     assert cal_in == cal_out
-    cal_in.extra_keywords.pop("bool")
-    cal_in.extra_keywords.pop("bool2")
+
+    return
+
+
+def test_extra_keywords_int(tmp_path):
+    cal_in = UVCal()
+    cal_out = UVCal()
+    calfits_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
+    testfile = str(tmp_path / "outtest_omnical.fits")
+    cal_in.read_calfits(calfits_file)
 
     # check handling of int-like keywords
     cal_in.extra_keywords["int1"] = np.int(5)
@@ -244,8 +230,16 @@ def test_extra_keywords(tmp_path):
     cal_out.read_calfits(testfile)
 
     assert cal_in == cal_out
-    cal_in.extra_keywords.pop("int1")
-    cal_in.extra_keywords.pop("int2")
+
+    return
+
+
+def test_extra_keywords_float(tmp_path):
+    cal_in = UVCal()
+    cal_out = UVCal()
+    calfits_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
+    testfile = str(tmp_path / "outtest_omnical.fits")
+    cal_in.read_calfits(calfits_file)
 
     # check handling of float-like keywords
     cal_in.extra_keywords["float1"] = np.int64(5.3)
@@ -254,8 +248,16 @@ def test_extra_keywords(tmp_path):
     cal_out.read_calfits(testfile)
 
     assert cal_in == cal_out
-    cal_in.extra_keywords.pop("float1")
-    cal_in.extra_keywords.pop("float2")
+
+    return
+
+
+def test_extra_keywords_complex(tmp_path):
+    cal_in = UVCal()
+    cal_out = UVCal()
+    calfits_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
+    testfile = str(tmp_path / "outtest_omnical.fits")
+    cal_in.read_calfits(calfits_file)
 
     # check handling of complex-like keywords
     cal_in.extra_keywords["complex1"] = np.complex64(5.3 + 1.2j)
@@ -264,8 +266,16 @@ def test_extra_keywords(tmp_path):
     cal_out.read_calfits(testfile)
 
     assert cal_in == cal_out
-    cal_in.extra_keywords.pop("complex1")
-    cal_in.extra_keywords.pop("complex2")
+
+    return
+
+
+def test_extra_keywords_comment(tmp_path):
+    cal_in = UVCal()
+    cal_out = UVCal()
+    calfits_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
+    testfile = str(tmp_path / "outtest_omnical.fits")
+    cal_in.read_calfits(calfits_file)
 
     # check handling of comment keywords
     cal_in.extra_keywords["comment"] = (
@@ -278,8 +288,55 @@ def test_extra_keywords(tmp_path):
 
     assert cal_in == cal_out
 
+    return
 
-def test_input_flag_array(tmp_path):
+
+def test_extra_keywords_errors(tmp_path):
+    cal_in = UVCal()
+    calfits_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
+    testfile = str(tmp_path / "outtest_omnical.fits")
+    cal_in.read_calfits(calfits_file)
+
+    # check for warnings & errors with extra_keywords that are dicts, lists or arrays
+    cal_in.extra_keywords["testdict"] = {"testkey": 23}
+    uvtest.checkWarnings(
+        cal_in.check, message=["testdict in extra_keywords is a list, array or dict"]
+    )
+    pytest.raises(TypeError, cal_in.write_calfits, testfile, run_check=False)
+    cal_in.extra_keywords.pop("testdict")
+
+    cal_in.extra_keywords["testlist"] = [12, 14, 90]
+    uvtest.checkWarnings(
+        cal_in.check, message=["testlist in extra_keywords is a list, array or dict"]
+    )
+    pytest.raises(TypeError, cal_in.write_calfits, testfile, run_check=False)
+    cal_in.extra_keywords.pop("testlist")
+
+    cal_in.extra_keywords["testarr"] = np.array([12, 14, 90])
+    uvtest.checkWarnings(
+        cal_in.check, message=["testarr in extra_keywords is a list, array or dict"]
+    )
+    pytest.raises(TypeError, cal_in.write_calfits, testfile, run_check=False)
+    cal_in.extra_keywords.pop("testarr")
+
+    # check for warnings with extra_keywords keys that are too long
+    cal_in.extra_keywords["test_long_key"] = True
+    uvtest.checkWarnings(
+        cal_in.check,
+        message=["key test_long_key in extra_keywords is longer than 8 characters"],
+    )
+    uvtest.checkWarnings(
+        cal_in.write_calfits,
+        [testfile],
+        {"run_check": False, "clobber": True},
+        message=["key test_long_key in extra_keywords is longer than 8 characters"],
+    )
+    cal_in.extra_keywords.pop("test_long_key")
+
+    return
+
+
+def test_input_flag_array_gain(tmp_path):
     """
     Test when data file has input flag array.
 
@@ -298,8 +355,18 @@ def test_input_flag_array(tmp_path):
     cal_out.read_calfits(write_file)
     assert cal_in == cal_out
 
-    # Repeat for delay version
+
+def test_input_flag_array_delay(tmp_path):
+    """
+    Test when data file has input flag array.
+
+    Currently we do not have a testfile, so we will artifically create one
+    and check for internal consistency.
+    """
+    cal_in = UVCal()
+    cal_out = UVCal()
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
+    write_file = str(tmp_path / "outtest_input_flags.fits")
     cal_in.read_calfits(testfile)
     cal_in.input_flag_array = np.zeros(
         cal_in._input_flag_array.expected_shape(cal_in), dtype=bool
@@ -307,11 +374,9 @@ def test_input_flag_array(tmp_path):
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
     assert cal_in == cal_out
-    del cal_in
-    del cal_out
 
 
-def test_jones(tmp_path):
+def test_jones_gain(tmp_path):
     """
     Test when data file has more than one element in Jones matrix.
 
@@ -337,8 +402,18 @@ def test_jones(tmp_path):
     cal_out.read_calfits(write_file)
     assert cal_in == cal_out
 
-    # Repeat for delay version
+
+def test_jones_delay(tmp_path):
+    """
+    Test when data file has more than one element in Jones matrix.
+
+    Currently we do not have a testfile, so we will artifically create one
+    and check for internal consistency.
+    """
+    cal_in = UVCal()
+    cal_out = UVCal()
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
+    write_file = str(tmp_path / "outtest_jones.fits")
     cal_in.read_calfits(testfile)
 
     # Create filler jones info
@@ -353,8 +428,6 @@ def test_jones(tmp_path):
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
     assert cal_in == cal_out
-    del cal_in
-    del cal_out
 
 
 def test_readwriteread_total_quality_array(tmp_path):
@@ -472,6 +545,10 @@ def test_read_noversion_history(tmp_path):
     hdulist = fits.HDUList([prihdu, ant_hdu])
 
     hdulist.writeto(write_file, overwrite=True)
+
+    del fname, data, primary_hdr, hdunames, ant_hdu
+    del prihdu, hdulist
+    gc.collect()
 
     cal_out.read_calfits(write_file)
     assert cal_in == cal_out
