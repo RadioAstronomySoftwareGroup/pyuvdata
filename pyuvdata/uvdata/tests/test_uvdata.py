@@ -4702,7 +4702,8 @@ def test_get_antenna_redundancies():
 
 @pytest.mark.parametrize("method", ("select", "average"))
 @pytest.mark.parametrize("reconjugate", (True, False))
-def test_redundancy_contract_expand(method, reconjugate):
+@pytest.mark.parametrize("flagging_level", ("none", "some", "all"))
+def test_redundancy_contract_expand(method, reconjugate, flagging_level):
     # Test that a UVData object can be reduced to one baseline from each redundant group
     # and restored to its original form.
 
@@ -4718,16 +4719,63 @@ def test_redundancy_contract_expand(method, reconjugate):
     red_gps, centers, lengths = uv0.get_redundancies(
         tol=tol, use_antpos=True, conjugate_bls=True
     )
-    for i, gp in enumerate(red_gps):
+    for gp_ind, gp in enumerate(red_gps):
         for bl in gp:
             inds = np.where(bl == uv0.baseline_array)
             uv0.data_array[inds] *= 0
-            uv0.data_array[inds] += complex(i)
+            uv0.data_array[inds] += complex(gp_ind)
+
+    index_bls = [gp[0] for gp in red_gps]
+    if flagging_level == "none":
+        assert np.all(~uv0.flag_array)
+    elif flagging_level == "some":
+        # flag all the index baselines in a redundant group
+        for bl in index_bls:
+            bl_locs = np.where(uv0.baseline_array == bl)
+            uv0.flag_array[bl_locs, :, :, :] = True
+    elif flagging_level == "all":
+        uv0.flag_array[:] = True
+        uv0.check()
+        assert np.all(uv0.flag_array)
 
     if reconjugate:
         uv0.conjugate_bls()
 
     uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
+
+    if method == "average":
+        gp_bl_use = []
+        nbls_group = []
+        for gp in red_gps:
+            bls_init = [bl for bl in gp if bl in uv0.baseline_array]
+            nbls_group.append(len(bls_init))
+            bl_use = [bl for bl in gp if bl in uv2.baseline_array]
+            if len(bl_use) == 0:
+                # not all possible baselines were present in uv0
+                gp_bl_use.append(None)
+            else:
+                assert len(bl_use) == 1
+                gp_bl_use.append(bl_use[0])
+
+        for gp_ind, bl in enumerate(gp_bl_use):
+            if bl is None:
+                continue
+            if flagging_level == "none" or flagging_level == "all":
+                assert np.all(uv2.get_nsamples(bl) == nbls_group[gp_ind])
+            else:
+                assert np.all(uv2.get_nsamples(bl) == max((nbls_group[gp_ind] - 1), 1))
+        if flagging_level == "all":
+            assert np.all(uv2.flag_array)
+        else:
+            for gp_ind, bl in enumerate(gp_bl_use):
+                if nbls_group[gp_ind] > 1:
+                    assert np.all(~uv2.get_flags(bl))
+    else:
+        assert np.all(uv2.nsample_array == 1)
+        if flagging_level == "some" or flagging_level == "all":
+            assert np.all(uv2.flag_array)
+        else:
+            assert np.all(~uv2.flag_array)
 
     # Compare in-place to separated compression.
     uv3 = uv0.copy()
@@ -4740,26 +4788,102 @@ def test_redundancy_contract_expand(method, reconjugate):
     ):
         uv2.inflate_by_redundancy(tol=tol)
 
-    uv2.history = uv0.history
-    # Inflation changes the baseline ordering into the order of the redundant groups.
-    # reorder bls for comparison
-    uv0.reorder_blts(conj_convention="u>0")
-    uv2.reorder_blts(conj_convention="u>0")
-    uv2._uvw_array.tols = [0, tol]
-    assert uv2 == uv0
-
+    # Confirm that we get the same result looping inflate -> compress -> inflate.
     uv3 = uv2.compress_by_redundancy(method=method, tol=tol, inplace=False)
     with pytest.warns(
         UserWarning, match="Missing some redundant groups. Filling in available data."
     ):
         uv3.inflate_by_redundancy(tol=tol)
 
-    # Confirm that we get the same result looping inflate -> compress -> inflate.
-    uv3.reorder_blts(conj_convention="u>0")
-    uv2.reorder_blts(conj_convention="u>0")
-
-    uv2.history = uv3.history
+    if method == "average":
+        # with average, the nsample_array goes up by the number of baselines
+        # averaged together.
+        assert not np.allclose(uv3.nsample_array, uv2.nsample_array)
+        # reset it to test other parameters
+        uv3.nsample_array = uv2.nsample_array
+    uv3.history = uv2.history
     assert uv2 == uv3
+
+    uv2.history = uv0.history
+    # Inflation changes the baseline ordering into the order of the redundant groups.
+    # reorder bls for comparison
+    uv0.reorder_blts(conj_convention="u>0")
+    uv2.reorder_blts(conj_convention="u>0")
+    uv2._uvw_array.tols = [0, tol]
+
+    if method == "average":
+        # with average, the nsample_array goes up by the number of baselines
+        # averaged together.
+        assert not np.allclose(uv2.nsample_array, uv0.nsample_array)
+        # reset it to test other parameters
+        uv2.nsample_array = uv0.nsample_array
+    if flagging_level == "some":
+        if method == "select":
+            # inflated array will be entirely flagged
+            assert np.all(uv2.flag_array)
+            assert not np.allclose(uv0.flag_array, uv2.flag_array)
+            uv2.flag_array = uv0.flag_array
+        else:
+            # flag arrays will not match -- inflated array will mostly be unflagged
+            # it will only be flagged if only one in group
+            assert not np.allclose(uv0.flag_array, uv2.flag_array)
+            uv2.flag_array = uv0.flag_array
+
+    assert uv2 == uv0
+
+
+@pytest.mark.parametrize("method", ("select", "average"))
+def test_redundancy_contract_expand_variable_data(method):
+    # Test that a UVData object can be reduced to one baseline from each redundant group
+    # and restored to its original form.
+
+    uv0 = UVData()
+    uv0.read_uvfits(
+        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
+    )
+
+    # Fails at lower precision because some baselines fall into multiple
+    # redundant groups
+    tol = 0.02
+    # Assign identical data to each redundant group in comparison object
+    # Assign data to the index baseline and zeros elsewhere in the one to compress
+    red_gps, centers, lengths = uv0.get_redundancies(
+        tol=tol, use_antpos=True, conjugate_bls=True
+    )
+    index_bls = [gp[0] for gp in red_gps]
+    uv0.data_array *= 0
+    uv1 = uv0.copy()
+    for gp_ind, gp in enumerate(red_gps):
+        for bl in gp:
+            inds = np.where(bl == uv0.baseline_array)
+            uv1.data_array[inds] += complex(gp_ind)
+            if bl in index_bls:
+                uv0.data_array[inds] += complex(gp_ind)
+
+    uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
+
+    # inflate to get back to the original size
+    with pytest.warns(
+        UserWarning, match="Missing some redundant groups. Filling in available data."
+    ):
+        uv2.inflate_by_redundancy(tol=tol)
+
+    uv2.history = uv1.history
+    # Inflation changes the baseline ordering into the order of the redundant groups.
+    # reorder bls for comparison
+    uv1.reorder_blts(conj_convention="u>0")
+    uv2.reorder_blts(conj_convention="u>0")
+    uv2._uvw_array.tols = [0, tol]
+
+    if method == "select":
+        assert uv2 == uv1
+    else:
+        assert uv2.data_array.min() < uv1.data_array.min()
+        assert np.all(uv2.data_array <= uv1.data_array)
+        for gp in red_gps:
+            bls_init = [bl for bl in gp if bl in uv1.baseline_array]
+            for bl in bls_init:
+                assert np.all(uv2.get_data(bl) == (uv1.get_data(bl) / len(bls_init)))
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
