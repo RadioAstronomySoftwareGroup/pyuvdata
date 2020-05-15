@@ -4959,6 +4959,50 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method):
     assert uv3 == uv1
 
 
+def test_compress_redundancy_variable_inttime():
+    uv0 = UVData()
+    uv0.read_uvfits(
+        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
+    )
+    tol = 0.05
+    ntimes_in = uv0.Ntimes
+
+    # Assign identical data to each redundant group:
+    red_gps, centers, lengths = uv0.get_redundancies(
+        tol=tol, use_antpos=True, conjugate_bls=True
+    )
+    index_bls = [gp[0] for gp in red_gps]
+    uv0.data_array *= 0
+    # set different int time for index baseline in object to compress
+    uv1 = uv0.copy()
+    ave_int_time = np.average(uv0.integration_time)
+    nbls_group = np.zeros(len(red_gps))
+    for gp_ind, gp in enumerate(red_gps):
+        for bl in gp:
+            inds = np.where(bl == uv0.baseline_array)
+            if inds[0].size > 0:
+                nbls_group[gp_ind] += 1
+            uv1.data_array[inds] += complex(gp_ind)
+            uv0.data_array[inds] += complex(gp_ind)
+            if bl not in index_bls:
+                uv0.integration_time[inds] = ave_int_time / 2
+
+    assert uv0._integration_time != uv1._integration_time
+
+    with pytest.warns(
+        UserWarning,
+        match="Integrations times are not identical in a redundant "
+        "group. Averaging anyway but this may cause unexpected "
+        "behavior.",
+    ) as warn_record:
+        uv0.compress_by_redundancy(method="average", tol=tol)
+    assert len(warn_record) == np.sum(nbls_group > 1) * ntimes_in
+
+    uv1.compress_by_redundancy(method="average", tol=tol)
+
+    assert uv0 == uv1
+
+
 @pytest.mark.parametrize("method", ("select", "average"))
 def test_compress_redundancy_metadata_only(method):
     uv0 = UVData()
