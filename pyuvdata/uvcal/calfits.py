@@ -390,6 +390,7 @@ class CALFITS(UVCal):
             hdulist.append(totqualhdu)
 
         hdulist.writeto(filename, overwrite=clobber)
+        hdulist.close()
 
     def read_calfits(
         self, filename, run_check=True, check_extra=True, run_check_acceptability=True

@@ -863,3 +863,4 @@ class BeamFITS(UVBeam):
         hdulist.append(bandpass_hdu)
 
         hdulist.writeto(filename, overwrite=clobber)
+        hdulist.close()
