@@ -13,6 +13,7 @@ from astropy import constants as const
 import astropy.units as units
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation, FK5, Angle
+from astropy import coordinates as coord
 
 from ..uvbase import UVBase
 from .. import parameter as uvp
@@ -1668,7 +1669,7 @@ class UVData(UVBase):
         """
         antpos = uvutils.ENU_from_ECEF(
             (self.antenna_positions + self.telescope_location),
-            *self.telescope_location_lat_lon_alt
+            *self.telescope_location_lat_lon_alt,
         )
         ants = self.antenna_numbers
 
@@ -2234,10 +2235,31 @@ class UVData(UVBase):
             self.data_array *= phs
 
         unique_times, unique_inds = np.unique(self.time_array, return_index=True)
+
+        telescope_location = EarthLocation.from_geocentric(
+            *self.telescope_location, unit=units.m
+        )
+        obs_times = Time(unique_times, format="jd")
+        itrs_telescope_locations = telescope_location.get_itrs(obstime=obs_times)
+        # just calling transform_to(coord.GCRS) will delete the obstime information
+        # need to re-add obstimes for a GCRS transformation
+        if phase_frame == "gcrs":
+            frame_telescope_locations = itrs_telescope_locations.transform_to(
+                getattr(coord, f"{phase_frame}".upper())(obstime=obs_times)
+            )
+        else:
+            frame_telescope_locations = itrs_telescope_locations.transform_to(
+                getattr(coord, f"{phase_frame}".upper())
+            )
+
+        # astropy 2 vs 3 use a different keyword name
+        rep_keyword = "representation_type"
+        setattr(frame_telescope_locations, rep_keyword, "cartesian")
+
         for ind, jd in enumerate(unique_times):
             inds = np.where(self.time_array == jd)[0]
 
-            obs_time = Time(jd, format="jd")
+            obs_time = obs_times[ind]
 
             if use_ant_pos:
                 ant_uvw = uvutils.phase_uvw(
@@ -2265,16 +2287,7 @@ class UVData(UVBase):
                 )
 
             else:
-                itrs_telescope_location = SkyCoord(
-                    x=self.telescope_location[0] * units.m,
-                    y=self.telescope_location[1] * units.m,
-                    z=self.telescope_location[2] * units.m,
-                    frame="itrs",
-                    obstime=obs_time,
-                )
-                frame_telescope_location = itrs_telescope_location.transform_to(
-                    phase_frame
-                )
+                frame_telescope_location = frame_telescope_locations[ind]
                 itrs_lat_lon_alt = self.telescope_location_lat_lon_alt
 
                 uvws_use = self.uvw_array[inds, :]
@@ -2283,19 +2296,16 @@ class UVData(UVBase):
                     frame_phase_center.ra.rad, frame_phase_center.dec.rad, uvws_use
                 )
 
-                # astropy 2 vs 3 use a different keyword name
-                rep_keyword = "representation_type"
-                setattr(frame_telescope_location, rep_keyword, "cartesian")
-
                 rep_dict = {}
                 rep_dict[rep_keyword] = "cartesian"
+
                 frame_uvw_coord = SkyCoord(
                     x=uvw_rel_positions[:, 0] * units.m + frame_telescope_location.x,
                     y=uvw_rel_positions[:, 1] * units.m + frame_telescope_location.y,
                     z=uvw_rel_positions[:, 2] * units.m + frame_telescope_location.z,
                     frame=phase_frame,
                     obstime=obs_time,
-                    **rep_dict
+                    **rep_dict,
                 )
 
                 itrs_uvw_coord = frame_uvw_coord.transform_to("itrs")
@@ -2425,25 +2435,35 @@ class UVData(UVBase):
         self.uvw_array = np.float64(self.uvw_array)
 
         unique_times, unique_inds = np.unique(self.time_array, return_index=True)
+
+        telescope_location = EarthLocation.from_geocentric(
+            *self.telescope_location, unit=units.m
+        )
+        obs_times = Time(unique_times, format="jd")
+
+        itrs_telescope_locations = telescope_location.get_itrs(obstime=obs_times)
+        # just calling transform_to(coord.GCRS) will delete the obstime information
+        # need to re-add obstimes for a GCRS transformation
+        if phase_frame == "gcrs":
+            frame_telescope_locations = itrs_telescope_locations.transform_to(
+                getattr(coord, f"{phase_frame}".upper())(obstime=obs_times)
+            )
+        else:
+            frame_telescope_locations = itrs_telescope_locations.transform_to(
+                getattr(coord, f"{phase_frame}".upper())
+            )
+        # astropy 2 vs 3 use a different keyword name
+        rep_keyword = "representation_type"
+        setattr(frame_telescope_locations, rep_keyword, "cartesian")
+
         for ind, jd in enumerate(unique_times):
             inds = np.where(self.time_array == jd)[0]
 
-            obs_time = Time(jd, format="jd")
+            obs_time = obs_times[ind]
 
-            itrs_telescope_location = SkyCoord(
-                x=self.telescope_location[0] * units.m,
-                y=self.telescope_location[1] * units.m,
-                z=self.telescope_location[2] * units.m,
-                frame="itrs",
-                obstime=obs_time,
-            )
             itrs_lat_lon_alt = self.telescope_location_lat_lon_alt
 
-            frame_telescope_location = itrs_telescope_location.transform_to(phase_frame)
-
-            # astropy 2 vs 3 use a different keyword name
-            rep_keyword = "representation_type"
-            setattr(frame_telescope_location, rep_keyword, "cartesian")
+            frame_telescope_location = frame_telescope_locations[ind]
 
             if use_ant_pos:
                 # This promotion is REQUIRED to get the right answer when we
