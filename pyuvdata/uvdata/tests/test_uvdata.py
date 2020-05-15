@@ -705,7 +705,7 @@ def test_phase_unphase_hera_antpos(uv1_2_set_uvws):
     assert uv_raw_new == uv_phase
 
 
-def test_phase_unphase_hera_zenith_timestamp(uv1_2_set_uvws):
+def test_phase_hera_zenith_timestamp_minimal_changes(uv1_2_set_uvws):
     uv_phase, uv_raw = uv1_2_set_uvws
     # check that phasing to zenith with one timestamp has small changes
     # (it won't be identical because of precession/nutation changing the
