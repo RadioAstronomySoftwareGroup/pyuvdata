@@ -5675,27 +5675,34 @@ class UVData(UVBase):
                         )
                         continue
 
+                    regular_orientation = np.array(
+                        [time_ind for time_ind in gp if time_ind < len(group_times)],
+                        dtype=np.int,
+                    )
+                    regular_inds = group_inds[np.array(regular_orientation)]
+                    conj_orientation = np.array(
+                        [time_ind for time_ind in gp if time_ind >= len(group_times)],
+                        dtype=np.int,
+                    )
+                    conj_inds = np.array(conj_group_inds[np.array(conj_orientation)])
+                    # check that the integration times are all the same
+                    int_times = np.concatenate(
+                        (
+                            self.integration_time[regular_inds],
+                            self.integration_time[conj_inds],
+                        )
+                    )
+                    if not np.all(
+                        np.abs(int_times - new_obj.integration_time[obj_time_ind])
+                        < new_obj._integration_time.tols[1]
+                    ):
+                        warnings.warn(
+                            "Integrations times are not identical in a redundant "
+                            "group. Averaging anyway but this may cause unexpected "
+                            "behavior."
+                        )
+
                     if not self.metadata_only:
-                        regular_orientation = np.array(
-                            [
-                                time_ind
-                                for time_ind in gp
-                                if time_ind < len(group_times)
-                            ],
-                            dtype=np.int,
-                        )
-                        regular_inds = group_inds[np.array(regular_orientation)]
-                        conj_orientation = np.array(
-                            [
-                                time_ind
-                                for time_ind in gp
-                                if time_ind >= len(group_times)
-                            ],
-                            dtype=np.int,
-                        )
-                        conj_inds = np.array(
-                            conj_group_inds[np.array(conj_orientation)]
-                        )
                         vis_to_avg = np.concatenate(
                             (
                                 self.data_array[regular_inds, :, :, :],
