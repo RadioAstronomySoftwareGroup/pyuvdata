@@ -23,7 +23,7 @@ import h5py
 # We need to define these here in order to set up
 # some skips for developers who do not have `pytest-cases` installed
 @pytest.fixture(scope="function")
-def uvf_from_miriad():
+def uvf_from_data():
     uv = UVData()
     uv.read_uvh5(test_d_file)
     uvf = UVFlag()
@@ -73,7 +73,7 @@ try:
     cases_decorator = pytest_cases.parametrize_plus(
         "input_uvf",
         [
-            pytest_cases.fixture_ref(uvf_from_miriad),
+            pytest_cases.fixture_ref(uvf_from_data),
             pytest_cases.fixture_ref(uvf_from_uvcal),
             pytest_cases.fixture_ref(uvf_from_waterfall),
         ],
@@ -82,7 +82,7 @@ try:
     cases_decorator_no_waterfall = pytest_cases.parametrize_plus(
         "input_uvf",
         [
-            pytest_cases.fixture_ref(uvf_from_miriad),
+            pytest_cases.fixture_ref(uvf_from_data),
             pytest_cases.fixture_ref(uvf_from_uvcal),
         ],
     )
@@ -2753,16 +2753,16 @@ def test_select(input_uvf, uvf_mode):
         )
 
 
-def test_equality_no_history(uvf_from_miriad):
-    uvf = uvf_from_miriad
+def test_equality_no_history(uvf_from_data):
+    uvf = uvf_from_data
     uvf2 = uvf.copy()
     assert uvf.__eq__(uvf2, check_history=True)
     uvf2.history += "different text"
     assert uvf.__eq__(uvf2, check_history=False)
 
 
-def test_inequality_different_classes(uvf_from_miriad):
-    uvf = uvf_from_miriad
+def test_inequality_different_classes(uvf_from_data):
+    uvf = uvf_from_data
 
     class TestClass(object):
         def __init__(self):
