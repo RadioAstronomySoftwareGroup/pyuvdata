@@ -952,8 +952,8 @@ UVData: Working with large files
 To save on memory and time, pyuvdata supports reading only parts of uvfits, uvh5,
 miriad, and MWA correlator fits files.
 
-a) Reading the metadata of a uvfits, uvh5, miriad, fhd or mwa corr fits files
-********************************************************
+a) Reading the just the metadata of a file
+******************************************
 For uvh5, uvfits, FHD and MWA correlator fits files, reading in the only the
 metadata results in a metadata only
 UVData object (which has every attribute except the data_array,
