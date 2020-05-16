@@ -6,7 +6,6 @@
 
 """
 import os
-import gc
 
 import pytest
 import numpy as np
@@ -22,7 +21,42 @@ cst_folder = "NicCSTbeams"
 cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
 
 
-def test_read_cst_write_read_fits(cst_efield_1freq, tmp_path):
+@pytest.fixture(scope="module")
+def cst_power_1freq(cst_efield_1freq_master):
+    beam_in = cst_efield_1freq_master.copy()
+    beam_in.efield_to_power()
+    return beam_in.copy()
+
+
+@pytest.fixture(scope="module")
+def cst_power_1freq_cut_healpix(cst_efield_1freq_cut_healpix_master):
+    beam_in = cst_efield_1freq_cut_healpix_master.copy()
+    beam_in.efield_to_power()
+    return beam_in.copy()
+
+
+@pytest.fixture(scope="function")
+def hera_beam_casa():
+    beam_in = UVBeam()
+    casa_file = os.path.join(DATA_PATH, "HERABEAM.FITS")
+    beam_in.read_beamfits(casa_file, run_check=False)
+
+    # fill in missing parameters
+    beam_in.data_normalization = "peak"
+    beam_in.feed_name = "casa_ideal"
+    beam_in.feed_version = "v0"
+    beam_in.model_name = "casa_airy"
+    beam_in.model_version = "v0"
+
+    # this file is actually in an orthoslant projection RA/DEC at zenith at a
+    # particular time.
+    # For now pretend it's in a zenith orthoslant projection
+    beam_in.pixel_coordinate_system = "orthoslant_zenith"
+
+    return beam_in
+
+
+def test_read_cst_write_read_fits_efield(cst_efield_1freq, tmp_path):
     beam_in = cst_efield_1freq.copy()
     beam_out = UVBeam()
 
@@ -49,14 +83,14 @@ def test_read_cst_write_read_fits(cst_efield_1freq, tmp_path):
     beam_out.read_beamfits(write_file)
 
     assert beam_in == beam_out
-    del beam_in
-    del beam_out
-    gc.collect()
 
+    return
+
+
+def test_read_cst_write_read_fits_power(cst_power_1freq, tmp_path):
     # redo for power beam
-    beam_in = cst_efield_1freq
-    # read in efield and convert to power to test cross-pols
-    beam_in.efield_to_power()
+    beam_in = cst_power_1freq
+    beam_out = UVBeam()
 
     # add optional parameters for testing purposes
     beam_in.extra_keywords = {"KEY1": "test_keyword"}
@@ -73,69 +107,100 @@ def test_read_cst_write_read_fits(cst_efield_1freq, tmp_path):
         0.0, 0.3, size=(4, beam_in.Nspws, beam_in.Nfreqs)
     )
 
-    beam_out = UVBeam()
+    write_file = str(tmp_path / "outtest_beam.fits")
+
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
     assert beam_in == beam_out
-    del beam_out
-    gc.collect()
+
+    return
+
+
+def test_read_cst_write_read_fits_intensity(cst_power_1freq, tmp_path):
+    # set up power beam
+    beam_in = cst_power_1freq
+    beam_out = UVBeam()
+
+    write_file = str(tmp_path / "outtest_beam.fits")
+    beam_in.write_beamfits(write_file, clobber=True)
 
     # now replace 'power' with 'intensity' for btype
-    fname = fits.open(write_file)
-    data = fname[0].data
-    primary_hdr = fname[0].header
-    primary_hdr["BTYPE"] = "Intensity"
-    hdunames = uvutils._fits_indexhdus(fname)
-    bandpass_hdu = fname[hdunames["BANDPARM"]]
+    with fits.open(write_file) as fname:
+        data = fname[0].data
+        primary_hdr = fname[0].header
+        primary_hdr["BTYPE"] = "Intensity"
+        hdunames = uvutils._fits_indexhdus(fname)
+        bandpass_hdu = fname[hdunames["BANDPARM"]]
 
-    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-    hdulist = fits.HDUList([prihdu, bandpass_hdu])
+        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+        hdulist = fits.HDUList([prihdu, bandpass_hdu])
 
-    hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file, overwrite=True)
+        hdulist.close()
 
-    beam_out = UVBeam()
     beam_out.read_beamfits(write_file)
     assert beam_in == beam_out
-    del beam_out
-    gc.collect()
+
+    return
+
+
+def test_read_cst_write_read_fits_no_coordsys(cst_power_1freq, tmp_path):
+    # set up power beam
+    beam_in = cst_power_1freq
+    beam_out = UVBeam()
+
+    write_file = str(tmp_path / "outtest_beam.fits")
+    beam_in.write_beamfits(write_file, clobber=True)
 
     # now remove coordsys but leave ctypes 1 & 2
-    fname = fits.open(write_file)
-    data = fname[0].data
-    primary_hdr = fname[0].header
-    primary_hdr.pop("COORDSYS")
-    hdunames = uvutils._fits_indexhdus(fname)
-    bandpass_hdu = fname[hdunames["BANDPARM"]]
+    with fits.open(write_file) as fname:
+        data = fname[0].data
+        primary_hdr = fname[0].header
+        primary_hdr.pop("COORDSYS")
+        hdunames = uvutils._fits_indexhdus(fname)
+        bandpass_hdu = fname[hdunames["BANDPARM"]]
 
-    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-    hdulist = fits.HDUList([prihdu, bandpass_hdu])
+        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+        hdulist = fits.HDUList([prihdu, bandpass_hdu])
 
-    hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file, overwrite=True)
+        hdulist.close()
 
-    beam_out = UVBeam()
     beam_out.read_beamfits(write_file)
     assert beam_in == beam_out
-    del beam_out
-    gc.collect()
+
+    return
+
+
+def test_read_cst_write_read_fits_change_freq_units(cst_power_1freq, tmp_path):
+    # set up power beam
+    beam_in = cst_power_1freq
+    beam_out = UVBeam()
+
+    write_file = str(tmp_path / "outtest_beam.fits")
+    beam_in.write_beamfits(write_file, clobber=True)
 
     # now change frequency units
-    fname = fits.open(write_file)
-    data = fname[0].data
-    primary_hdr = fname[0].header
-    primary_hdr["CUNIT3"] = "MHz"
-    primary_hdr["CRVAL3"] = primary_hdr["CRVAL3"] / 1e6
-    primary_hdr["CDELT3"] = primary_hdr["CRVAL3"] / 1e6
-    hdunames = uvutils._fits_indexhdus(fname)
-    bandpass_hdu = fname[hdunames["BANDPARM"]]
+    with fits.open(write_file) as fname:
+        data = fname[0].data
+        primary_hdr = fname[0].header
+        primary_hdr["CUNIT3"] = "MHz"
+        primary_hdr["CRVAL3"] = primary_hdr["CRVAL3"] / 1e6
+        primary_hdr["CDELT3"] = primary_hdr["CRVAL3"] / 1e6
+        hdunames = uvutils._fits_indexhdus(fname)
+        bandpass_hdu = fname[hdunames["BANDPARM"]]
 
-    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-    hdulist = fits.HDUList([prihdu, bandpass_hdu])
+        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+        hdulist = fits.HDUList([prihdu, bandpass_hdu])
 
-    hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file, overwrite=True)
+        hdulist.close()
 
     beam_out = UVBeam()
     beam_out.read_beamfits(write_file)
     assert beam_in == beam_out
+
+    return
 
 
 def test_writeread_healpix(cst_efield_1freq_cut_healpix, tmp_path):
@@ -148,13 +213,16 @@ def test_writeread_healpix(cst_efield_1freq_cut_healpix, tmp_path):
     beam_out.read_beamfits(write_file)
 
     assert beam_in == beam_out
-    del beam_in
-    del beam_out
-    gc.collect()
 
+    return
+
+
+def test_writeread_healpix_power(cst_power_1freq_cut_healpix, tmp_path):
     # redo for power beam
-    beam_in = cst_efield_1freq_cut_healpix
-    beam_in.efield_to_power()
+    beam_in = cst_power_1freq_cut_healpix
+    beam_out = UVBeam()
+
+    write_file = str(tmp_path / "outtest_beam_hpx.fits")
 
     # add optional parameters for testing purposes
     beam_in.extra_keywords = {"KEY1": "test_keyword"}
@@ -174,67 +242,95 @@ def test_writeread_healpix(cst_efield_1freq_cut_healpix, tmp_path):
     # check that data_array is complex
     assert np.iscomplexobj(np.real_if_close(beam_in.data_array, tol=10))
 
-    beam_out = UVBeam()
     beam_in.write_beamfits(write_file, clobber=True)
     beam_out.read_beamfits(write_file)
 
     assert beam_in == beam_out
-    del beam_out
-    gc.collect()
+
+    return
+
+
+def test_writeread_healpix_no_corrdsys(cst_power_1freq_cut_healpix, tmp_path):
+    beam_in = cst_power_1freq_cut_healpix
+    beam_out = UVBeam()
+
+    write_file = str(tmp_path / "outtest_beam.fits")
+    beam_in.write_beamfits(write_file, clobber=True)
 
     # now remove coordsys but leave ctype 1
-    fname = fits.open(write_file)
-    data = fname[0].data
-    primary_hdr = fname[0].header
-    primary_hdr.pop("COORDSYS")
-    hdunames = uvutils._fits_indexhdus(fname)
-    hpx_hdu = fname[hdunames["HPX_INDS"]]
-    bandpass_hdu = fname[hdunames["BANDPARM"]]
+    with fits.open(write_file) as fname:
+        data = fname[0].data
+        primary_hdr = fname[0].header
+        primary_hdr.pop("COORDSYS")
+        hdunames = uvutils._fits_indexhdus(fname)
+        hpx_hdu = fname[hdunames["HPX_INDS"]]
+        bandpass_hdu = fname[hdunames["BANDPARM"]]
 
-    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-    hdulist = fits.HDUList([prihdu, hpx_hdu, bandpass_hdu])
+        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+        hdulist = fits.HDUList([prihdu, hpx_hdu, bandpass_hdu])
 
-    hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file, overwrite=True)
+        hdulist.close()
 
-    beam_out = UVBeam()
     beam_out.read_beamfits(write_file)
     assert beam_in == beam_out
 
+    return
 
-def test_errors(cst_efield_1freq, tmp_path):
+
+def test_error_beam_type(cst_efield_1freq, tmp_path):
     beam_in = cst_efield_1freq
-    beam_out = UVBeam()
     beam_in.beam_type = "foo"
 
     write_file = str(tmp_path / "outtest_beam.fits")
-    pytest.raises(ValueError, beam_in.write_beamfits, write_file, clobber=True)
-    pytest.raises(
-        ValueError, beam_in.write_beamfits, write_file, clobber=True, run_check=False
-    )
 
-    beam_in.beam_type = "efield"
-    beam_in.antenna_type = "phased_array"
-    write_file = str(tmp_path / "outtest_beam.fits")
-    pytest.raises(ValueError, beam_in.write_beamfits, write_file, clobber=True)
-
-    # now change values for various items in primary hdu to test errors
-    beam_in.antenna_type = "simple"
-
-    header_vals_to_change = [
-        {"BTYPE": "foo"},
-        {"COORDSYS": "orthoslant_zenith"},
-        {"NAXIS": ""},
-        {"CUNIT1": "foo"},
-        {"CUNIT2": "foo"},
-        {"CUNIT3": "foo"},
-    ]
-
-    for i, hdr_dict in enumerate(header_vals_to_change):
+    # make sure writing fails
+    with pytest.raises(ValueError, match="foo"):
         beam_in.write_beamfits(write_file, clobber=True)
 
-        keyword = list(hdr_dict.keys())[0]
-        new_val = hdr_dict[keyword]
-        fname = fits.open(write_file)
+    # make sure it fails even if check is off
+    with pytest.raises(ValueError, match="foo"):
+        beam_in.write_beamfits(write_file, clobber=True, run_check=False)
+
+    return
+
+
+def test_error_antenna_type(cst_efield_1freq, tmp_path):
+    beam_in = cst_efield_1freq
+    beam_in.antenna_type = "phased_array"
+
+    write_file = str(tmp_path / "outtest_beam.fits")
+    with pytest.raises(
+        ValueError, match="This beam fits writer currently only supports"
+    ):
+        beam_in.write_beamfits(write_file, clobber=True)
+
+    return
+
+
+@pytest.mark.parametrize(
+    "header_dict,error_msg",
+    [
+        ({"BTYPE": "foo"}, "Unknown beam_type: foo"),
+        ({"COORDSYS": "orthoslant_zenith"}, "Coordinate axis list does not match"),
+        ({"NAXIS": ""}, "beam_type is efield and data dimensionality"),
+        ({"CUNIT1": "foo"}, 'Units of first axis array are not "deg" or "rad"'),
+        ({"CUNIT2": "foo"}, 'Units of second axis array are not "deg" or "rad"'),
+        ({"CUNIT3": "foo"}, "Frequency units not recognized"),
+    ],
+)
+def test_header_val_errors(cst_efield_1freq, tmp_path, header_dict, error_msg):
+    beam_in = cst_efield_1freq
+    beam_out = UVBeam()
+
+    write_file = str(tmp_path / "outtest_beam.fits")
+
+    # now change values for various items in primary hdu to test errors
+    beam_in.write_beamfits(write_file, clobber=True)
+
+    keyword = list(header_dict.keys())[0]
+    new_val = header_dict[keyword]
+    with fits.open(write_file) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
         hdunames = uvutils._fits_indexhdus(fname)
@@ -259,30 +355,46 @@ def test_errors(cst_efield_1freq, tmp_path):
         hdulist = fits.HDUList([prihdu, basisvec_hdu, bandpass_hdu])
 
         hdulist.writeto(write_file, overwrite=True)
+        hdulist.close()
 
-        pytest.raises(ValueError, beam_out.read_beamfits, write_file)
+    with pytest.raises(ValueError, match=error_msg):
+        beam_out.read_beamfits(write_file)
 
-        del prihdu, hdulist
-        gc.collect()
+    return
+
+
+@pytest.mark.parametrize(
+    "header_dict,error_msg",
+    [
+        ({"COORDSYS": "foo"}, "Pixel coordinate system in BASISVEC"),
+        ({"CTYPE1": "foo"}, "Pixel coordinate list in BASISVEC"),
+        ({"CTYPE2": "foo"}, "Pixel coordinate list in BASISVEC"),
+        ({"CDELT1": "foo"}, "First image axis in BASISVEC"),
+        ({"CDELT2": "foo"}, "Second image axis in BASISVEC"),
+        ({"NAXIS4": ""}, "Number of vector coordinate axes in BASISVEC"),
+        ({"CUNIT1": "foo"}, "Units of first axis array in BASISVEC"),
+        ({"CUNIT2": "foo"}, "Units of second axis array in BASISVEC"),
+    ],
+)
+def test_basisvec_hdu_errors(cst_efield_1freq, tmp_path, header_dict, error_msg):
+    beam_in = cst_efield_1freq
+    beam_out = UVBeam()
+
+    write_file = str(tmp_path / "outtest_beam.fits")
 
     # now change values for various items in basisvec hdu to not match primary hdu
-    header_vals_to_change = [
-        {"COORDSYS": "foo"},
-        {"CTYPE1": "foo"},
-        {"CTYPE2": "foo"},
-        {"CDELT1": np.diff(beam_in.axis1_array)[0] * 2},
-        {"CDELT2": np.diff(beam_in.axis2_array)[0] * 2},
-        {"NAXIS4": ""},
-        {"CUNIT1": "foo"},
-        {"CUNIT2": "foo"},
-    ]
+    beam_in.write_beamfits(write_file, clobber=True)
 
-    for i, hdr_dict in enumerate(header_vals_to_change):
-        beam_in.write_beamfits(write_file, clobber=True)
+    keyword = list(header_dict.keys())[0]
+    # hacky treatment of CDELT b/c we need the object to be defined already
+    if keyword == "CDELT1":
+        new_val = np.diff(beam_in.axis1_array)[0] * 2
+    elif keyword == "CDELT2":
+        new_val = np.diff(beam_in.axis2_array)[0] * 2
+    else:
+        new_val = header_dict[keyword]
 
-        keyword = list(hdr_dict.keys())[0]
-        new_val = hdr_dict[keyword]
-        fname = fits.open(write_file)
+    with fits.open(write_file) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
         hdunames = uvutils._fits_indexhdus(fname)
@@ -312,27 +424,32 @@ def test_errors(cst_efield_1freq, tmp_path):
         hdulist = fits.HDUList([prihdu, basisvec_hdu, bandpass_hdu])
 
         hdulist.writeto(write_file, overwrite=True)
+        hdulist.close()
 
-        pytest.raises(ValueError, beam_out.read_beamfits, write_file)
+    with pytest.raises(ValueError, match=error_msg):
+        beam_out.read_beamfits(write_file)
 
-        del prihdu, basisvec_hdu, hdulist
-        gc.collect()
+    return
 
 
-def test_healpix_errors(cst_efield_1freq_cut_healpix, tmp_path):
-    beam_in = cst_efield_1freq_cut_healpix.copy()
+@pytest.mark.parametrize(
+    "header_dict,error_msg",
+    [
+        ({"CTYPE1": "foo"}, "Coordinate axis list does not match"),
+        ({"NAXIS1": ""}, "Number of pixels in HPX_IND extension"),
+    ],
+)
+def test_healpix_errors(cst_efield_1freq_cut_healpix, tmp_path, header_dict, error_msg):
+    beam_in = cst_efield_1freq_cut_healpix
     beam_out = UVBeam()
     write_file = str(tmp_path / "outtest_beam_hpx.fits")
 
+    beam_in.write_beamfits(write_file, clobber=True)
+
     # now change values for various items in primary hdu to test errors
-    header_vals_to_change = [{"CTYPE1": "foo"}, {"NAXIS1": ""}]
-
-    for i, hdr_dict in enumerate(header_vals_to_change):
-        beam_in.write_beamfits(write_file, clobber=True)
-
-        keyword = list(hdr_dict.keys())[0]
-        new_val = hdr_dict[keyword]
-        fname = fits.open(write_file)
+    keyword = list(header_dict.keys())[0]
+    new_val = header_dict[keyword]
+    with fits.open(write_file) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
         hdunames = uvutils._fits_indexhdus(fname)
@@ -358,23 +475,34 @@ def test_healpix_errors(cst_efield_1freq_cut_healpix, tmp_path):
         hdulist = fits.HDUList([prihdu, basisvec_hdu, hpx_hdu, bandpass_hdu])
 
         hdulist.writeto(write_file, overwrite=True)
+        hdulist.close()
 
-        pytest.raises(ValueError, beam_out.read_beamfits, write_file)
+    with pytest.raises(ValueError, match=error_msg):
+        beam_out.read_beamfits(write_file)
 
-        del prihdu, hdulist
-        gc.collect()
+    return
+
+
+@pytest.mark.parametrize(
+    "header_dict,error_msg",
+    [
+        ({"CTYPE1": "foo"}, "First axis in BASISVEC HDU"),
+        ({"NAXIS1": ""}, "Number of pixels in BASISVEC HDU"),
+    ],
+)
+def test_healpix_basisvec_hdu_errors(
+    cst_efield_1freq_cut_healpix, tmp_path, header_dict, error_msg
+):
+    beam_in = cst_efield_1freq_cut_healpix
+    beam_out = UVBeam()
+    write_file = str(tmp_path / "outtest_beam_hpx.fits")
+
+    beam_in.write_beamfits(write_file, clobber=True)
 
     # now change values for various items in basisvec hdu to not match primary hdu
-    beam_in = cst_efield_1freq_cut_healpix
-
-    header_vals_to_change = [{"CTYPE1": "foo"}, {"NAXIS1": ""}]
-
-    for i, hdr_dict in enumerate(header_vals_to_change):
-        beam_in.write_beamfits(write_file, clobber=True)
-
-        keyword = list(hdr_dict.keys())[0]
-        new_val = hdr_dict[keyword]
-        fname = fits.open(write_file)
+    keyword = list(header_dict.keys())[0]
+    new_val = header_dict[keyword]
+    with fits.open(write_file) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
         hdunames = uvutils._fits_indexhdus(fname)
@@ -405,32 +533,19 @@ def test_healpix_errors(cst_efield_1freq_cut_healpix, tmp_path):
         hdulist = fits.HDUList([prihdu, basisvec_hdu, hpx_hdu, bandpass_hdu])
 
         hdulist.writeto(write_file, overwrite=True)
+        hdulist.close()
 
-        pytest.raises(ValueError, beam_out.read_beamfits, write_file)
+    with pytest.raises(ValueError, match=error_msg):
+        beam_out.read_beamfits(write_file)
 
-        del prihdu, basisvec_hdu, hdulist
-        gc.collect()
+    return
 
 
-def test_casa_beam(tmp_path):
+def test_casa_beam(tmp_path, hera_beam_casa):
     # test reading in CASA power beam. Some header items are missing...
-    beam_in = UVBeam()
+    beam_in = hera_beam_casa
     beam_out = UVBeam()
-    casa_file = os.path.join(DATA_PATH, "HERABEAM.FITS")
     write_file = str(tmp_path / "outtest_beam.fits")
-    beam_in.read_beamfits(casa_file, run_check=False)
-
-    # fill in missing parameters
-    beam_in.data_normalization = "peak"
-    beam_in.feed_name = "casa_ideal"
-    beam_in.feed_version = "v0"
-    beam_in.model_name = "casa_airy"
-    beam_in.model_version = "v0"
-
-    # this file is actually in an orthoslant projection RA/DEC at zenith at a
-    # particular time.
-    # For now pretend it's in a zenith orthoslant projection
-    beam_in.pixel_coordinate_system = "orthoslant_zenith"
 
     expected_extra_keywords = [
         "OBSERVER",
@@ -455,12 +570,17 @@ def test_casa_beam(tmp_path):
     assert beam_in == beam_out
 
 
-def test_extra_keywords(tmp_path):
-    beam_in = UVBeam()
-    beam_out = UVBeam()
-    casa_file = os.path.join(DATA_PATH, "HERABEAM.FITS")
+@pytest.mark.parametrize(
+    "ex_val,error_msg",
+    [
+        ({"testdict": {"testkey": 23}}, "Extra keyword testdict is of"),
+        ({"testlist": [12, 14, 90]}, "Extra keyword testlist is of"),
+        ({"testarr": np.array([12, 14, 90])}, "Extra keyword testarr is of"),
+    ],
+)
+def test_extra_keywords_errors(tmp_path, hera_beam_casa, ex_val, error_msg):
+    beam_in = hera_beam_casa
     testfile = str(tmp_path / "outtest_beam.fits")
-    beam_in.read_beamfits(casa_file, run_check=False)
 
     # fill in missing parameters
     beam_in.data_normalization = "peak"
@@ -475,34 +595,28 @@ def test_extra_keywords(tmp_path):
     beam_in.pixel_coordinate_system = "orthoslant_zenith"
 
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
-    beam_in.extra_keywords["testdict"] = {"testkey": 23}
+    keyword = list(ex_val.keys())[0]
+    val = ex_val[keyword]
+    beam_in.extra_keywords[keyword] = val
     uvtest.checkWarnings(
         beam_in.check,
-        message=["testdict in extra_keywords is a " "list, array or dict"],
+        message=[f"{keyword} in extra_keywords is a list, array or dict"],
     )
-    pytest.raises(TypeError, beam_in.write_beamfits, testfile, run_check=False)
-    beam_in.extra_keywords.pop("testdict")
+    with pytest.raises(TypeError, match=error_msg):
+        beam_in.write_beamfits(testfile, run_check=False)
 
-    beam_in.extra_keywords["testlist"] = [12, 14, 90]
-    uvtest.checkWarnings(
-        beam_in.check,
-        message=["testlist in extra_keywords is a " "list, array or dict"],
-    )
-    pytest.raises(TypeError, beam_in.write_beamfits, testfile, run_check=False)
-    beam_in.extra_keywords.pop("testlist")
+    return
 
-    beam_in.extra_keywords["testarr"] = np.array([12, 14, 90])
-    uvtest.checkWarnings(
-        beam_in.check, message=["testarr in extra_keywords is a " "list, array or dict"]
-    )
-    pytest.raises(TypeError, beam_in.write_beamfits, testfile, run_check=False)
-    beam_in.extra_keywords.pop("testarr")
+
+def test_extra_keywords_warnings(tmp_path, hera_beam_casa):
+    beam_in = hera_beam_casa
+    testfile = str(tmp_path / "outtest_beam.fits")
 
     # check for warnings with extra_keywords keys that are too long
     beam_in.extra_keywords["test_long_key"] = True
     uvtest.checkWarnings(
         beam_in.check,
-        message=["key test_long_key in extra_keywords " "is longer than 8 characters"],
+        message=["key test_long_key in extra_keywords is longer than 8 characters"],
     )
     uvtest.checkWarnings(
         beam_in.write_beamfits,
@@ -510,7 +624,14 @@ def test_extra_keywords(tmp_path):
         {"run_check": False, "clobber": True},
         message=["key test_long_key in extra_keywords is longer than 8 characters"],
     )
-    beam_in.extra_keywords.pop("test_long_key")
+
+    return
+
+
+def test_extra_keywords_boolean(tmp_path, hera_beam_casa):
+    beam_in = hera_beam_casa
+    beam_out = UVBeam()
+    testfile = str(tmp_path / "outtest_beam.fits")
 
     # check handling of boolean keywords
     beam_in.extra_keywords["bool"] = True
@@ -519,45 +640,56 @@ def test_extra_keywords(tmp_path):
     beam_out.read_beamfits(testfile, run_check=False)
 
     assert beam_in == beam_out
-    beam_in.extra_keywords.pop("bool")
-    beam_in.extra_keywords.pop("bool2")
-    del beam_out
-    gc.collect()
+
+    return
+
+
+def test_extra_keywords_int(tmp_path, hera_beam_casa):
+    beam_in = hera_beam_casa
+    beam_out = UVBeam()
+    testfile = str(tmp_path / "outtest_beam.fits")
 
     # check handling of int-like keywords
-    beam_out = UVBeam()
     beam_in.extra_keywords["int1"] = np.int(5)
     beam_in.extra_keywords["int2"] = 7
     beam_in.write_beamfits(testfile, clobber=True)
     beam_out.read_beamfits(testfile, run_check=False)
 
     assert beam_in == beam_out
-    beam_in.extra_keywords.pop("int1")
-    beam_in.extra_keywords.pop("int2")
-    del beam_out
-    gc.collect()
+
+    return
+
+
+def test_extra_keywords_float(tmp_path, hera_beam_casa):
+    beam_in = hera_beam_casa
+    beam_out = UVBeam()
+    testfile = str(tmp_path / "outtest_beam.fits")
 
     # check handling of float-like keywords
-    beam_out = UVBeam()
     beam_in.extra_keywords["float1"] = np.int64(5.3)
     beam_in.extra_keywords["float2"] = 6.9
     beam_in.write_beamfits(testfile, clobber=True)
     beam_out.read_beamfits(testfile, run_check=False)
 
     assert beam_in == beam_out
-    beam_in.extra_keywords.pop("float1")
-    beam_in.extra_keywords.pop("float2")
-    del beam_out
-    gc.collect()
+
+    return
+
+
+def test_extra_keywords_complex(tmp_path, hera_beam_casa):
+    beam_in = hera_beam_casa
+    beam_out = UVBeam()
+    testfile = str(tmp_path / "outtest_beam.fits")
 
     # check handling of complex-like keywords
-    beam_out = UVBeam()
     beam_in.extra_keywords["complex1"] = np.complex64(5.3 + 1.2j)
     beam_in.extra_keywords["complex2"] = 6.9 + 4.6j
     beam_in.write_beamfits(testfile, clobber=True)
     beam_out.read_beamfits(testfile, run_check=False)
 
     assert beam_in == beam_out
+
+    return
 
 
 def test_multi_files(cst_efield_2freq, tmp_path):

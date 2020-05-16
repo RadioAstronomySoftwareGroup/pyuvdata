@@ -7,7 +7,6 @@
 """
 import pytest
 import os
-import gc
 import numpy as np
 from astropy.io import fits
 
@@ -21,7 +20,7 @@ def test_readwriteread(tmp_path):
     """
     Omnical fits loopback test.
 
-    Read in uvfits file, write out new uvfits file, read back in and check for
+    Read in calfits file, write out new calfits file, read back in and check for
     object equality.
     """
     cal_in = UVCal()
@@ -32,15 +31,24 @@ def test_readwriteread(tmp_path):
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
     assert cal_in == cal_out
-    del cal_out
-    gc.collect()
 
+    return
+
+
+def test_readwriteread_no_freq_range(tmp_path):
     # test without freq_range parameter
+    cal_in = UVCal()
     cal_out = UVCal()
+    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
+    write_file = str(tmp_path / "outtest_omnical.fits")
+
+    cal_in.read_calfits(testfile)
     cal_in.freq_range = None
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
     assert cal_in == cal_out
+
+    return
 
 
 def test_readwriteread_delays(tmp_path):
@@ -62,25 +70,43 @@ def test_readwriteread_delays(tmp_path):
     del cal_out
 
 
-def test_errors(tmp_path):
+def test_error_unknown_cal_type(tmp_path):
     """
-    Test for various errors.
-
+    Test an error is raised when writing an unknown cal type.
     """
     cal_in = UVCal()
-    cal_out = UVCal()
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
     write_file = str(tmp_path / "outtest_firstcal.fits")
     cal_in.read_calfits(testfile)
 
     cal_in.set_unknown_cal_type()
-    pytest.raises(
-        ValueError, cal_in.write_calfits, write_file, run_check=False, clobber=True
-    )
+    with pytest.raises(ValueError, match="unknown calibration type"):
+        cal_in.write_calfits(write_file, run_check=False, clobber=True)
 
+    return
+
+
+@pytest.mark.parametrize(
+    "header_dict,error_msg",
+    [
+        ({"flag": "CDELT2"}, "Jones values are different in FLAGS"),
+        ({"flag": "CDELT3"}, "Time values are different in FLAGS"),
+        ({"flag": "CRVAL5"}, "Spectral window values are different in FLAGS"),
+        ({"totqual": "CDELT1"}, "Jones values are different in TOTQLTY"),
+        ({"totqual": "CDELT2"}, "Time values are different in TOTQLTY"),
+        ({"totqual": "CRVAL4"}, "Spectral window values are different in TOTQLTY"),
+    ],
+)
+def test_fits_header_errors_delay(tmp_path, header_dict, error_msg):
     # change values for various axes in flag and total quality hdus to not
     # match primary hdu
+    cal_in = UVCal()
+    cal_out = UVCal()
+    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
+    write_file = str(tmp_path / "outtest_firstcal.fits")
+
     cal_in.read_calfits(testfile)
+
     # Create filler jones info
     cal_in.jones_array = np.array([-5, -6, -7, -8])
     cal_in.Njones = 4
@@ -95,21 +121,13 @@ def test_errors(tmp_path):
         cal_in._total_quality_array.expected_shape(cal_in)
     )
 
-    header_vals_to_double = [
-        {"flag": "CDELT2"},
-        {"flag": "CDELT3"},
-        {"flag": "CRVAL5"},
-        {"totqual": "CDELT1"},
-        {"totqual": "CDELT2"},
-        {"totqual": "CRVAL4"},
-    ]
-    for i, hdr_dict in enumerate(header_vals_to_double):
-        cal_in.write_calfits(write_file, clobber=True)
+    # write file
+    cal_in.write_calfits(write_file, clobber=True)
 
-        unit = list(hdr_dict.keys())[0]
-        keyword = hdr_dict[unit]
+    unit = list(header_dict.keys())[0]
+    keyword = header_dict[unit]
 
-        fname = fits.open(write_file)
+    with fits.open(write_file) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
         hdunames = uvutils._fits_indexhdus(fname)
@@ -132,15 +150,27 @@ def test_errors(tmp_path):
         hdulist.append(totqualhdu)
 
         hdulist.writeto(write_file, overwrite=True)
+        hdulist.close()
 
-        pytest.raises(ValueError, cal_out.read_calfits, write_file)
+    with pytest.raises(ValueError, match=error_msg):
+        cal_out.read_calfits(write_file)
 
-        del fname, data, primary_hdr, hdunames, ant_hdu
-        del flag_hdu, flag_hdr, totqualhdu, totqualhdr
-        del prihdu, hdulist
-        gc.collect()
+    return
 
+
+@pytest.mark.parametrize(
+    "header_dict,error_msg",
+    [
+        ({"totqual": "CDELT1"}, "Jones values are different in TOTQLTY"),
+        ({"totqual": "CDELT2"}, "Time values are different in TOTQLTY"),
+        ({"totqual": "CDELT3"}, "Frequency values are different in TOTQLTY"),
+        ({"totqual": "CRVAL4"}, "Spectral window values are different in TOTQLTY"),
+    ],
+)
+def test_fits_header_errors_gain(tmp_path, header_dict, error_msg):
     # repeat for gain type file
+    cal_in = UVCal()
+    cal_out = UVCal()
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     write_file = str(tmp_path / "outtest_omnical.fits")
     cal_in.read_calfits(testfile)
@@ -159,20 +189,13 @@ def test_errors(tmp_path):
         cal_in._total_quality_array.expected_shape(cal_in)
     )
 
-    header_vals_to_double = [
-        {"totqual": "CDELT1"},
-        {"totqual": "CDELT2"},
-        {"totqual": "CDELT3"},
-        {"totqual": "CRVAL4"},
-    ]
+    # write file
+    cal_in.write_calfits(write_file, clobber=True)
 
-    for i, hdr_dict in enumerate(header_vals_to_double):
-        cal_in.write_calfits(write_file, clobber=True)
+    unit = list(header_dict.keys())[0]
+    keyword = header_dict[unit]
 
-        unit = list(hdr_dict.keys())[0]
-        keyword = hdr_dict[unit]
-
-        fname = fits.open(write_file)
+    with fits.open(write_file) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
         hdunames = uvutils._fits_indexhdus(fname)
@@ -189,13 +212,12 @@ def test_errors(tmp_path):
         hdulist.append(totqualhdu)
 
         hdulist.writeto(write_file, overwrite=True)
+        hdulist.close()
 
-        pytest.raises(ValueError, cal_out.read_calfits, write_file)
+    with pytest.raises(ValueError, match=error_msg):
+        cal_out.read_calfits(write_file)
 
-        del fname, data, primary_hdr, hdunames, ant_hdu
-        del totqualhdu, totqualhdr
-        del prihdu, hdulist
-        gc.collect()
+    return
 
 
 def test_extra_keywords_boolean(tmp_path):
@@ -533,22 +555,19 @@ def test_read_noversion_history(tmp_path):
 
     cal_in.write_calfits(write_file, clobber=True)
 
-    fname = fits.open(write_file)
-    data = fname[0].data
-    primary_hdr = fname[0].header
-    hdunames = uvutils._fits_indexhdus(fname)
-    ant_hdu = fname[hdunames["ANTENNAS"]]
+    with fits.open(write_file) as fname:
+        data = fname[0].data
+        primary_hdr = fname[0].header
+        hdunames = uvutils._fits_indexhdus(fname)
+        ant_hdu = fname[hdunames["ANTENNAS"]]
 
-    primary_hdr["HISTORY"] = ""
+        primary_hdr["HISTORY"] = ""
 
-    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-    hdulist = fits.HDUList([prihdu, ant_hdu])
+        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+        hdulist = fits.HDUList([prihdu, ant_hdu])
 
-    hdulist.writeto(write_file, overwrite=True)
-
-    del fname, data, primary_hdr, hdunames, ant_hdu
-    del prihdu, hdulist
-    gc.collect()
+        hdulist.writeto(write_file, overwrite=True)
+        hdulist.close()
 
     cal_out.read_calfits(write_file)
     assert cal_in == cal_out

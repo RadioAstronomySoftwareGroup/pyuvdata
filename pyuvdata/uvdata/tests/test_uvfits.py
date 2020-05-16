@@ -7,7 +7,6 @@
 """
 import copy
 import os
-import gc
 
 import pytest
 import numpy as np
@@ -18,6 +17,15 @@ from pyuvdata import UVData
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
+
+
+@pytest.fixture(scope="function")
+def casa_uvfits():
+    uv_in = UVData()
+    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    uv_in.read(testfile)
+
+    return uv_in
 
 
 def test_read_nrao():
@@ -115,10 +123,7 @@ def test_source_group_params(tmp_path):
 
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
         hdulist.writeto(write_file, overwrite=True)
-
-        del hdunames, vis_hdu, vis_hdr, raw_data_array
-        del par_names, group_parameter_list, ant_hdu, hdulist
-        gc.collect()
+        hdulist.close()
 
     uv_out = UVData()
     uv_out.read(write_file)
@@ -176,6 +181,7 @@ def test_multisource_error(tmp_path):
 
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
         hdulist.writeto(write_file, overwrite=True)
+        hdulist.close()
 
     with pytest.raises(ValueError) as cm:
         uv_in.read(write_file)
@@ -228,26 +234,43 @@ def test_casa_nonascii_bytes_antenna_names():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_readwriteread(tmp_path):
+def test_readwriteread(tmp_path, casa_uvfits):
     """
     CASA tutorial uvfits loopback test.
 
     Read in uvfits file, write out new uvfits file, read back in and check for
     object equality.
     """
-    uv_in = UVData()
+    uv_in = casa_uvfits
     uv_out = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     write_file = str(tmp_path / "outtest_casa.uvfits")
-    uv_in.read(testfile)
+
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file)
     assert uv_in == uv_out
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_readwriteread_no_lst(tmp_path, casa_uvfits):
+    uv_in = casa_uvfits
+    uv_out = UVData()
+    write_file = str(tmp_path / "outtest_casa.uvfits")
 
     # test that it works with write_lst = False
     uv_in.write_uvfits(write_file, write_lst=False)
     uv_out.read(write_file)
     assert uv_in == uv_out
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_readwriteread_x_orientation(tmp_path, casa_uvfits):
+    uv_in = casa_uvfits
+    uv_out = UVData()
+    write_file = str(tmp_path / "outtest_casa.uvfits")
 
     # check that if x_orientation is set, it's read back out properly
     uv_in.x_orientation = "east"
@@ -255,15 +278,31 @@ def test_readwriteread(tmp_path):
     uv_out.read(write_file)
     assert uv_in == uv_out
 
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_readwriteread_antenna_diameters(tmp_path, casa_uvfits):
+    uv_in = casa_uvfits
+    uv_out = UVData()
+    write_file = str(tmp_path / "outtest_casa.uvfits")
+
     # check that if antenna_diameters is set, it's read back out properly
-    uv_in.read(testfile)
     uv_in.antenna_diameters = np.zeros((uv_in.Nants_telescope,), dtype=np.float) + 14.0
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file)
     assert uv_in == uv_out
 
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_readwriteread_large_antnums(tmp_path, casa_uvfits):
+    uv_in = casa_uvfits
+    uv_out = UVData()
+    write_file = str(tmp_path / "outtest_casa.uvfits")
+
     # check that if antenna_numbers are > 256 everything works
-    uv_in.read(testfile)
     uv_in.antenna_numbers = uv_in.antenna_numbers + 256
     uv_in.ant_1_array = uv_in.ant_1_array + 256
     uv_in.ant_2_array = uv_in.ant_2_array + 256
@@ -278,7 +317,17 @@ def test_readwriteread(tmp_path):
     uv_out.read(write_file)
     assert uv_in == uv_out
 
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_readwriteread_missing_info(tmp_path, casa_uvfits):
+    uv_in = casa_uvfits
+    uv_out = UVData()
+    write_file = str(tmp_path / "outtest_casa.uvfits")
+
     # check missing telescope_name, timesys vs timsys spelling, xyz_telescope_frame=????
+    uv_in.write_uvfits(write_file)
     with fits.open(write_file, memmap=True) as hdu_list:
         hdunames = uvutils._fits_indexhdus(hdu_list)
         vis_hdu = hdu_list[0]
@@ -304,15 +353,30 @@ def test_readwriteread(tmp_path):
     assert uv_out.telescope_name == "EVLA"
     assert uv_out.timesys == time_sys
 
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_readwriteread_error_timesys(tmp_path, casa_uvfits):
+    uv_in = casa_uvfits
+    write_file = str(tmp_path / "outtest_casa.uvfits")
+
     # check error if timesys is 'IAT'
-    uv_in.read(testfile)
     uv_in.timesys = "IAT"
     with pytest.raises(ValueError) as cm:
         uv_in.write_uvfits(write_file)
     assert str(cm.value).startswith(
         "This file has a time system IAT. " 'Only "UTC" time system files are supported'
     )
-    uv_in.timesys = "UTC"
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
+    uv_in = casa_uvfits
+    uv_out = UVData()
+    write_file = str(tmp_path / "outtest_casa.uvfits")
 
     # check error if one time & no inttime specified
     uv_singlet = uv_in.select(times=uv_in.time_array[0], inplace=False)
@@ -363,12 +427,22 @@ def test_readwriteread(tmp_path):
         "integration time not specified and only one time present"
     )
 
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_readwriteread_unflagged_data_warnings(tmp_path, casa_uvfits):
+    uv_in = casa_uvfits
+    write_file = str(tmp_path / "outtest_casa.uvfits")
+
     # check that unflagged data with nsample = 0 will cause warnings
     uv_in.nsample_array[list(range(11, 22))] = 0
     uv_in.flag_array[list(range(11, 22))] = False
     uvtest.checkWarnings(
         uv_in.write_uvfits, [write_file], message="Some unflagged data has nsample = 0"
     )
+
+    return
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
