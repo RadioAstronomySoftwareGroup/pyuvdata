@@ -6,7 +6,6 @@ Format the readme.md file into the sphinx index.rst file.
 """
 import os
 import inspect
-import re
 
 import pypandoc
 from astropy.time import Time
@@ -28,31 +27,6 @@ def write_index_rst(readme_file=None, write_file=None):
 
     readme_text = pypandoc.convert_file(readme_file, "rst")
 
-    title_badge_text = (
-        "pyuvdata\n========\n\n"
-        ".. image:: https://circleci.com/gh/RadioAstronomySoftwareGroup/"
-        "pyuvdata.svg?style=svg\n"
-        "    :target: https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata\n\n"
-        ".. image:: https://github.com/RadioAstronomySoftwareGroup/pyuvdata/"
-        "workflows/Run%20Tests/badge.svg?branch=master\n"
-        "    :target: https://github.com/RadioAstronomySoftwareGroup/pyuvdata/"
-        "actions\n\n"
-        ".. image:: https://dev.azure.com/radioastronomysoftwaregroup/pyuvdata/"
-        "_apis/build/status/RadioAstronomySoftwareGroup.pyuvdata?branchName=master\n"
-        "    :target: https://dev.azure.com/radioastronomysoftwaregroup/pyuvdata/"
-        "_build/latest?definitionId=1&branchName=master\n\n"
-        ".. image:: https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/"
-        "branch/master/graph/badge.svg\n"
-        "  :target: https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata\n\n"
-        ".. image:: http://joss.theoj.org/papers/10.21105/joss.00140/status.svg\n"
-        "  :target: https://doi.org/10.21105/joss.00140\n\n"
-    )
-
-    begin_desc = "pyuvdata defines a pythonic interface"
-    start_desc = str.find(readme_text, begin_desc)
-
-    readme_text = readme_text[start_desc:]
-
     # convert relative links in readme to explicit links
     readme_text = readme_text.replace(
         "<docs/",
@@ -64,13 +38,7 @@ def write_index_rst(readme_file=None, write_file=None):
         "<https://github.com/RadioAstronomySoftwareGroup/pyuvdata/tree/master/.github/",
     )
 
-    readme_text = title_badge_text + readme_text
-
-    end_text = "parameters descriptions"
-    regex = re.compile(end_text.replace(" ", r"\s+"))
-    loc = re.search(regex, readme_text).start()
-
-    out += readme_text[0:loc] + end_text + "."
+    out += readme_text
     out += (
         "\n\nFurther Documentation\n====================================\n"
         ".. toctree::\n"

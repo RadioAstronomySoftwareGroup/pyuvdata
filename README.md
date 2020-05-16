@@ -228,13 +228,13 @@ import functionality from all supported file formats (UVFITS, Miriad, UVH5, FHD,
 CASA measurement sets) and export to UVFITS, Miriad, and UVH5 formats and can
 be interacted with directly. Similarly, the primary calibration, beam, and flag
 interfaces are via the UVCal, UVBeam, and UVflag objects. The attributes of the UVData,
-UVCal, UVBeam, and UVFlag objects are described in the uvdata_parameters, uvcal_parameters,
- uvbeam_parameters and uvflag_parameters descriptions at https://pyuvdata.readthedocs.io or
-[here](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/master/docs).
+UVCal, UVBeam, and UVFlag objects are described in the UVData Parameters, UVCal Parameters,
+UVBeam Parameters and UVFlag Parameters pages on [ReadTheDocs](https://pyuvdata.readthedocs.io).
 
 
 # Maintainers
 pyuvdata is maintained by the RASG Managers, which currently include:
+
  - Adam Beardsley (Arizona State University)
  - Bryna Hazelton (University of Washington)
  - Daniel Jacobs (Arizona State University)
