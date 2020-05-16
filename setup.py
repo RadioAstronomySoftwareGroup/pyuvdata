@@ -93,7 +93,7 @@ corr_fits_extension = Extension(
 extensions = [corr_fits_extension]
 
 # don't build miriad on windows
-if not is_platform_windows:
+if not is_platform_windows():
     extensions.append(miriad_extension)
 
 casa_reqs = ["python-casacore"]
