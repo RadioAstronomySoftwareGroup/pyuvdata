@@ -385,7 +385,7 @@ def test_basisvec_hdu_errors(cst_efield_1freq, tmp_path, header_dict, error_msg)
     beam_out = UVBeam()
 
     write_file = str(tmp_path / "outtest_beam.fits")
-    write_file2 = str(tmp_path / "outtest_beam.fits")
+    write_file2 = str(tmp_path / "outtest_beam2.fits")
 
     # now change values for various items in basisvec hdu to not match primary hdu
     beam_in.write_beamfits(write_file, clobber=True)
@@ -502,7 +502,7 @@ def test_healpix_basisvec_hdu_errors(
     beam_in = cst_efield_1freq_cut_healpix
     beam_out = UVBeam()
     write_file = str(tmp_path / "outtest_beam_hpx.fits")
-    write_file2 = str(tmp_path / "outtest_beam_hpx.fits")
+    write_file2 = str(tmp_path / "outtest_beam_hpx2.fits")
 
     beam_in.write_beamfits(write_file, clobber=True)
 
