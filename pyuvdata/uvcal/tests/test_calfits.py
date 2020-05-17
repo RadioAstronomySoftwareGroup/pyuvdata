@@ -104,6 +104,7 @@ def test_fits_header_errors_delay(tmp_path, header_dict, error_msg):
     cal_out = UVCal()
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
     write_file = str(tmp_path / "outtest_firstcal.fits")
+    write_file2 = str(tmp_path / "outtest_firstcal2.fits")
 
     cal_in.read_calfits(testfile)
 
@@ -127,33 +128,33 @@ def test_fits_header_errors_delay(tmp_path, header_dict, error_msg):
     unit = list(header_dict.keys())[0]
     keyword = header_dict[unit]
 
-    with fits.open(write_file) as fname:
-        data = fname[0].data
-        primary_hdr = fname[0].header
-        hdunames = uvutils._fits_indexhdus(fname)
-        ant_hdu = fname[hdunames["ANTENNAS"]]
-        flag_hdu = fname[hdunames["FLAGS"]]
-        flag_hdr = flag_hdu.header
-        totqualhdu = fname[hdunames["TOTQLTY"]]
-        totqualhdr = totqualhdu.header
+    fname = fits.open(write_file)
+    data = fname[0].data
+    primary_hdr = fname[0].header
+    hdunames = uvutils._fits_indexhdus(fname)
+    ant_hdu = fname[hdunames["ANTENNAS"]]
+    flag_hdu = fname[hdunames["FLAGS"]]
+    flag_hdr = flag_hdu.header
+    totqualhdu = fname[hdunames["TOTQLTY"]]
+    totqualhdr = totqualhdu.header
 
-        if unit == "flag":
-            flag_hdr[keyword] *= 2
-        elif unit == "totqual":
-            totqualhdr[keyword] *= 2
+    if unit == "flag":
+        flag_hdr[keyword] *= 2
+    elif unit == "totqual":
+        totqualhdr[keyword] *= 2
 
-        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-        hdulist = fits.HDUList([prihdu, ant_hdu])
-        flag_hdu = fits.ImageHDU(data=flag_hdu.data, header=flag_hdr)
-        hdulist.append(flag_hdu)
-        totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
-        hdulist.append(totqualhdu)
+    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+    hdulist = fits.HDUList([prihdu, ant_hdu])
+    flag_hdu = fits.ImageHDU(data=flag_hdu.data, header=flag_hdr)
+    hdulist.append(flag_hdu)
+    totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
+    hdulist.append(totqualhdu)
 
-        hdulist.writeto(write_file, overwrite=True)
-        hdulist.close()
+    hdulist.writeto(write_file2, overwrite=True)
+    hdulist.close()
 
     with pytest.raises(ValueError, match=error_msg):
-        cal_out.read_calfits(write_file)
+        cal_out.read_calfits(write_file2)
 
     return
 
@@ -173,6 +174,7 @@ def test_fits_header_errors_gain(tmp_path, header_dict, error_msg):
     cal_out = UVCal()
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     write_file = str(tmp_path / "outtest_omnical.fits")
+    write_file2 = str(tmp_path / "outtest_omnical2.fits")
     cal_in.read_calfits(testfile)
 
     # Create filler jones info
@@ -195,27 +197,27 @@ def test_fits_header_errors_gain(tmp_path, header_dict, error_msg):
     unit = list(header_dict.keys())[0]
     keyword = header_dict[unit]
 
-    with fits.open(write_file) as fname:
-        data = fname[0].data
-        primary_hdr = fname[0].header
-        hdunames = uvutils._fits_indexhdus(fname)
-        ant_hdu = fname[hdunames["ANTENNAS"]]
-        totqualhdu = fname[hdunames["TOTQLTY"]]
-        totqualhdr = totqualhdu.header
+    fname = fits.open(write_file)
+    data = fname[0].data
+    primary_hdr = fname[0].header
+    hdunames = uvutils._fits_indexhdus(fname)
+    ant_hdu = fname[hdunames["ANTENNAS"]]
+    totqualhdu = fname[hdunames["TOTQLTY"]]
+    totqualhdr = totqualhdu.header
 
-        if unit == "totqual":
-            totqualhdr[keyword] *= 2
+    if unit == "totqual":
+        totqualhdr[keyword] *= 2
 
-        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-        hdulist = fits.HDUList([prihdu, ant_hdu])
-        totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
-        hdulist.append(totqualhdu)
+    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+    hdulist = fits.HDUList([prihdu, ant_hdu])
+    totqualhdu = fits.ImageHDU(data=totqualhdu.data, header=totqualhdr)
+    hdulist.append(totqualhdu)
 
-        hdulist.writeto(write_file, overwrite=True)
-        hdulist.close()
+    hdulist.writeto(write_file2, overwrite=True)
+    hdulist.close()
 
     with pytest.raises(ValueError, match=error_msg):
-        cal_out.read_calfits(write_file)
+        cal_out.read_calfits(write_file2)
 
     return
 
@@ -551,25 +553,26 @@ def test_read_noversion_history(tmp_path):
     cal_out = UVCal()
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     write_file = str(tmp_path / "outtest_omnical.fits")
+    write_file2 = str(tmp_path / "outtest_omnical2.fits")
     cal_in.read_calfits(testfile)
 
     cal_in.write_calfits(write_file, clobber=True)
 
-    with fits.open(write_file) as fname:
-        data = fname[0].data
-        primary_hdr = fname[0].header
-        hdunames = uvutils._fits_indexhdus(fname)
-        ant_hdu = fname[hdunames["ANTENNAS"]]
+    fname = fits.open(write_file)
+    data = fname[0].data
+    primary_hdr = fname[0].header
+    hdunames = uvutils._fits_indexhdus(fname)
+    ant_hdu = fname[hdunames["ANTENNAS"]]
 
-        primary_hdr["HISTORY"] = ""
+    primary_hdr["HISTORY"] = ""
 
-        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-        hdulist = fits.HDUList([prihdu, ant_hdu])
+    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+    hdulist = fits.HDUList([prihdu, ant_hdu])
 
-        hdulist.writeto(write_file, overwrite=True)
-        hdulist.close()
+    hdulist.writeto(write_file2, overwrite=True)
+    hdulist.close()
 
-    cal_out.read_calfits(write_file)
+    cal_out.read_calfits(write_file2)
     assert cal_in == cal_out
 
 
