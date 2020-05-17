@@ -288,11 +288,13 @@ def test_error_beam_type(cst_efield_1freq, tmp_path):
     write_file = str(tmp_path / "outtest_beam.fits")
 
     # make sure writing fails
-    with pytest.raises(ValueError, match="foo"):
+    with pytest.raises(
+        ValueError, match="UVParameter _beam_type has unacceptable values"
+    ):
         beam_in.write_beamfits(write_file, clobber=True)
 
     # make sure it fails even if check is off
-    with pytest.raises(ValueError, match="foo"):
+    with pytest.raises(ValueError, match="Unknown beam_type: foo"):
         beam_in.write_beamfits(write_file, clobber=True, run_check=False)
 
     return
