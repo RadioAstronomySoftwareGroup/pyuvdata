@@ -107,6 +107,7 @@ jobs:
       - run:
           name: install
           command: |
+            export PATH="$HOME/miniconda/bin:$PATH"
             source activate ${ENV_NAME}
             pip install -e .
       - run:
