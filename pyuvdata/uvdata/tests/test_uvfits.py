@@ -80,6 +80,7 @@ def test_source_group_params(tmp_path):
     uv_in = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     write_file = str(tmp_path / "outtest_casa.uvfits")
+    write_file2 = str(tmp_path / "outtest_casa2.uvfits")
     uv_in.read(testfile)
     uv_in.write_uvfits(write_file)
 
@@ -122,11 +123,11 @@ def test_source_group_params(tmp_path):
         ant_hdu = hdu_list[hdunames["AIPS AN"]]
 
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
-        hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file2, overwrite=True)
         hdulist.close()
 
     uv_out = UVData()
-    uv_out.read(write_file)
+    uv_out.read(write_file2)
     assert uv_in == uv_out
 
 
@@ -136,6 +137,7 @@ def test_multisource_error(tmp_path):
     uv_in = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     write_file = str(tmp_path / "outtest_casa.uvfits")
+    write_file2 = str(tmp_path / "outtest_casa2.uvfits")
     uv_in.read(testfile)
     uv_in.write_uvfits(write_file)
 
@@ -180,11 +182,11 @@ def test_multisource_error(tmp_path):
         ant_hdu = hdu_list[hdunames["AIPS AN"]]
 
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
-        hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file2, overwrite=True)
         hdulist.close()
 
     with pytest.raises(ValueError) as cm:
-        uv_in.read(write_file)
+        uv_in.read(write_file2)
     assert str(cm.value).startswith("This file has multiple sources")
 
 
@@ -325,6 +327,7 @@ def test_readwriteread_missing_info(tmp_path, casa_uvfits):
     uv_in = casa_uvfits
     uv_out = UVData()
     write_file = str(tmp_path / "outtest_casa.uvfits")
+    write_file2 = str(tmp_path / "outtest_casa2.uvfits")
 
     # check missing telescope_name, timesys vs timsys spelling, xyz_telescope_frame=????
     uv_in.write_uvfits(write_file)
@@ -347,9 +350,9 @@ def test_readwriteread_missing_info(tmp_path, casa_uvfits):
         ant_hdu.header = ant_hdr
 
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
-        hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file2, overwrite=True)
 
-    uv_out.read(write_file)
+    uv_out.read(write_file2)
     assert uv_out.telescope_name == "EVLA"
     assert uv_out.timesys == time_sys
 
@@ -377,6 +380,7 @@ def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
     uv_in = casa_uvfits
     uv_out = UVData()
     write_file = str(tmp_path / "outtest_casa.uvfits")
+    write_file2 = str(tmp_path / "outtest_casa2.uvfits")
 
     # check error if one time & no inttime specified
     uv_singlet = uv_in.select(times=uv_in.time_array[0], inplace=False)
@@ -403,12 +407,12 @@ def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
         ant_hdu = hdu_list[hdunames["AIPS AN"]]
 
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
-        hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file2, overwrite=True)
 
     with pytest.raises(ValueError) as cm:
         uvtest.checkWarnings(
             uv_out.read,
-            func_args=[write_file],
+            func_args=[write_file2],
             message=[
                 "Telescope EVLA is not",
                 'ERFA function "utcut1" yielded 1 of "dubious year (Note 3)"',
