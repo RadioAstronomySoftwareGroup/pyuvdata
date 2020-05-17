@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added support for installing the package on Windows.
 - 'background_lsts' keyword in `uvdata.read` to calculate lsts in the background while reading. Defaults to True.
 - `background` keyword in `uvdata.set_lsts_from_time_array` to allow lst calculation in a background thread.
 - `read_data` keyword to read_mwa_corr_fits, allows from metadata only reads of MWA correlator fits files.
