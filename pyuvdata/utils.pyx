@@ -4,9 +4,18 @@
 # python imports
 import numpy as np
 import warnings
+from .utils import gps_a, gps_b, e_squared, e_prime_squared
 # cython imports
 cimport numpy
 cimport cython
+from libc.math cimport sin, cos, sqrt, atan2
+
+# parameters for transforming between xyz & lat/lon/alt
+# make c-viewed versions of these variables
+cdef numpy.float64_t _gps_a = gps_a
+cdef numpy.float64_t _gps_b = gps_b
+cdef numpy.float64_t _e2 = e_squared
+cdef numpy.float64_t _ep2 = e_prime_squared
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -95,3 +104,67 @@ def antnums_to_baseline(
     baseline = _antnum_to_bl_2048(ant1, ant2)
 
   return baseline
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+cpdef _latlonalt_from_xyz(numpy.float64_t[:, ::1] xyz):
+  cdef int n = xyz.shape[0]
+  cdef int i
+
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=1] latitude = np.empty(n, dtype=np.float64)
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=1] longitude = np.empty(n, dtype=np.float64)
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=1] altitude = np.empty(n, dtype=np.float64)
+  # create some memoryviews
+  cdef numpy.float64_t[::1] _lat = latitude
+  cdef numpy.float64_t[::1] _lon = longitude
+  cdef numpy.float64_t[::1] _alt = altitude
+
+  # see wikipedia geodetic_datum and Datum transformations of
+  # GPS positions PDF in docs/references folder
+  cdef numpy.float64_t gps_p, gps_theta, gps_n
+  for i in range(n):
+    gps_p = sqrt(xyz[i, 0] ** 2 + xyz[i, 1] ** 2)
+    gps_theta = atan2(xyz[i, 2] * _gps_a, gps_p * _gps_b)
+
+    _lat[i] = atan2(
+      xyz[i, 2] + _ep2 * _gps_b * sin(gps_theta) ** 3,
+      gps_p - _e2 * _gps_a * cos(gps_theta) ** 3,
+    )
+
+    _lon[i] = atan2(xyz[i, 1], xyz[i, 0])
+
+    gps_n = _gps_a / sqrt(1.0 - _e2 * sin(_lat[i]) ** 2)
+    _alt[i] = (gps_p / cos(_lat[i])) - gps_n
+
+  return latitude, longitude, altitude
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+cpdef numpy.ndarray[dtype=numpy.float64_t] _xyz_from_latlonalt(
+    numpy.float64_t[::1] _lat,
+    numpy.float64_t[::1] _lon,
+    numpy.float64_t[::1] _alt,
+):
+    cdef int n_pts = len(_lat)
+    cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] xyz = np.empty((n_pts, 3))
+    cdef numpy.float64_t _gps_a = gps_a
+    cdef numpy.float64_t _gps_b = gps_b
+    cdef numpy.float64_t _e2 = e_squared
+
+    # create a memoryview
+    cdef numpy.float64_t[:, ::1] _xyz = xyz
+
+    cdef numpy.float64_t gps_n
+    with nogil:
+      for i in range(n_pts):
+        gps_n = _gps_a / sqrt(1.0 - _e2 * sin(_lat[i]) ** 2)
+
+        _xyz[i, 0] = (gps_n + _alt[i]) * cos(_lat[i]) * cos(_lon[i])
+        _xyz[i, 1] = (gps_n + _alt[i]) * cos(_lat[i]) * sin(_lon[i])
+
+        _xyz[i, 2] = (_gps_b ** 2 / _gps_a ** 2 * gps_n + _alt[i]) * sin(_lat[i])
+
+    return xyz.squeeze()

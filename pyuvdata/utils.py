@@ -759,18 +759,9 @@ def LatLonAlt_from_XYZ(xyz, check_acceptability=True):
         ):
             raise ValueError("xyz values should be ECEF x, y, z coordinates in meters")
 
-    # see wikipedia geodetic_datum and Datum transformations of
-    # GPS positions PDF in docs/references folder
-    gps_p = np.sqrt(xyz_use[:, 0] ** 2 + xyz_use[:, 1] ** 2)
-    gps_theta = np.arctan2(xyz_use[:, 2] * gps_a, gps_p * gps_b)
-    latitude = np.arctan2(
-        xyz_use[:, 2] + e_prime_squared * gps_b * np.sin(gps_theta) ** 3,
-        gps_p - e_squared * gps_a * np.cos(gps_theta) ** 3,
+    latitude, longitude, altitude = _utils._latlonalt_from_xyz(
+        np.ascontiguousarray(xyz_use, dtype=np.float64)
     )
-
-    longitude = np.arctan2(xyz_use[:, 1], xyz_use[:, 0])
-    gps_n = gps_a / np.sqrt(1 - e_squared * np.sin(latitude) ** 2)
-    altitude = (gps_p / np.cos(latitude)) - gps_n
 
     if xyz.ndim == 1:
         longitude = longitude[0]
@@ -798,9 +789,9 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude):
         numpy array, shape (Npts, 3), with ECEF x,y,z coordinates.
 
     """
-    latitude = np.array(latitude)
-    longitude = np.array(longitude)
-    altitude = np.array(altitude)
+    latitude = np.ascontiguousarray(latitude, dtype=np.float64)
+    longitude = np.ascontiguousarray(longitude, dtype=np.float64)
+    altitude = np.ascontiguousarray(altitude, dtype=np.float64)
     n_pts = latitude.size
     if longitude.size != n_pts:
         raise ValueError(
@@ -811,16 +802,7 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude):
             "latitude, longitude and altitude must all have the same length"
         )
 
-    # see wikipedia geodetic_datum and Datum transformations of
-    # GPS positions PDF in docs/references folder
-    gps_n = gps_a / np.sqrt(1 - e_squared * np.sin(latitude) ** 2)
-    xyz = np.zeros((n_pts, 3))
-    xyz[:, 0] = (gps_n + altitude) * np.cos(latitude) * np.cos(longitude)
-    xyz[:, 1] = (gps_n + altitude) * np.cos(latitude) * np.sin(longitude)
-    xyz[:, 2] = (gps_b ** 2 / gps_a ** 2 * gps_n + altitude) * np.sin(latitude)
-
-    xyz = np.squeeze(xyz)
-    return xyz
+    return _utils._xyz_from_latlonalt(latitude, longitude, altitude)
 
 
 def rotECEF_from_ECEF(xyz, longitude):
