@@ -907,24 +907,11 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
             "ECEF vector magnitudes must be on the order of the radius of the earth"
         )
 
-    xyz_center = XYZ_from_LatLonAlt(latitude, longitude, altitude)
-
-    xyz_use = np.zeros_like(xyz_in)
-    xyz_use[:, 0] = xyz_in[:, 0] - xyz_center[0]
-    xyz_use[:, 1] = xyz_in[:, 1] - xyz_center[1]
-    xyz_use[:, 2] = xyz_in[:, 2] - xyz_center[2]
-
-    enu = np.zeros_like(xyz_use)
-    enu[:, 0] = -np.sin(longitude) * xyz_use[:, 0] + np.cos(longitude) * xyz_use[:, 1]
-    enu[:, 1] = (
-        -np.sin(latitude) * np.cos(longitude) * xyz_use[:, 0]
-        - np.sin(latitude) * np.sin(longitude) * xyz_use[:, 1]
-        + np.cos(latitude) * xyz_use[:, 2]
-    )
-    enu[:, 2] = (
-        np.cos(latitude) * np.cos(longitude) * xyz_use[:, 0]
-        + np.cos(latitude) * np.sin(longitude) * xyz_use[:, 1]
-        + np.sin(latitude) * xyz_use[:, 2]
+    enu = _utils._ENU_from_ECEF(
+        np.ascontiguousarray(xyz_in, dtype=np.float64),
+        np.ascontiguousarray(latitude, dtype=np.float64),
+        np.ascontiguousarray(longitude, dtype=np.float64),
+        np.ascontiguousarray(altitude, dtype=np.float64),
     )
     if len(xyz.shape) == 1:
         enu = np.squeeze(enu)
@@ -962,24 +949,13 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
 
     if enu_use.ndim == 1:
         enu_use = enu_use[np.newaxis, :]
-
-    xyz = np.zeros_like(enu_use)
-    xyz[:, 0] = (
-        -np.sin(latitude) * np.cos(longitude) * enu_use[:, 1]
-        - np.sin(longitude) * enu_use[:, 0]
-        + np.cos(latitude) * np.cos(longitude) * enu_use[:, 2]
+    xyz = _utils._ECEF_FROM_ENU(
+        np.ascontiguousarray(enu_use, dtype=np.float64),
+        np.ascontiguousarray(latitude, dtype=np.float64),
+        np.ascontiguousarray(longitude, dtype=np.float64),
+        np.ascontiguousarray(altitude, dtype=np.float64),
     )
-    xyz[:, 1] = (
-        -np.sin(latitude) * np.sin(longitude) * enu_use[:, 1]
-        + np.cos(longitude) * enu_use[:, 0]
-        + np.cos(latitude) * np.sin(longitude) * enu_use[:, 2]
-    )
-    xyz[:, 2] = np.cos(latitude) * enu_use[:, 1] + np.sin(latitude) * enu_use[:, 2]
 
-    xyz_center = XYZ_from_LatLonAlt(latitude, longitude, altitude)
-    xyz[:, 0] = xyz[:, 0] + xyz_center[0]
-    xyz[:, 1] = xyz[:, 1] + xyz_center[1]
-    xyz[:, 2] = xyz[:, 2] + xyz_center[2]
     if len(enu.shape) == 1:
         xyz = np.squeeze(xyz)
 
