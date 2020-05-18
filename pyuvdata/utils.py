@@ -15,12 +15,6 @@ from astropy.utils import iers
 
 from . import _utils
 
-# parameters for transforming between xyz & lat/lon/alt
-gps_b = 6356752.31424518
-gps_a = 6378137
-e_squared = 6.69437999014e-3
-e_prime_squared = 6.73949674228e-3
-
 
 def _str_to_bytes(s):
     warnings.warn(
