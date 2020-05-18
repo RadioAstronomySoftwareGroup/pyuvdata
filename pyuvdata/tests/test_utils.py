@@ -2,9 +2,7 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Tests for common utility functions.
-
-"""
+"""Tests for common utility functions."""
 import os
 import copy
 
@@ -240,7 +238,6 @@ def test_enu_from_ecef_shape_errors(enu_ecef_info, shape_type):
 
 def test_enu_from_ecef_magnitude_error(enu_ecef_info):
     """Test ENU_from_ECEF input magnitude errors."""
-
     (
         center_lat,
         center_lon,
