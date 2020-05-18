@@ -4,13 +4,19 @@
 # python imports
 import numpy as np
 import warnings
-from .utils import gps_a, gps_b, e_squared, e_prime_squared
 # cython imports
 cimport numpy
 cimport cython
 from libc.math cimport sin, cos, sqrt, atan2
 
+# in order to not have circular dependencies
+# define transformation parameters here
 # parameters for transforming between xyz & lat/lon/alt
+gps_b = 6356752.31424518
+gps_a = 6378137
+e_squared = 6.69437999014e-3
+e_prime_squared = 6.73949674228e-3
+
 # make c-viewed versions of these variables
 cdef numpy.float64_t _gps_a = gps_a
 cdef numpy.float64_t _gps_b = gps_b
