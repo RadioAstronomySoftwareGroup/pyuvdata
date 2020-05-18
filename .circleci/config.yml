@@ -13,6 +13,7 @@ jobs:
     environment:
       PYTHON: << parameters.python_version >>
       ENV_NAME: << parameters.env_name >>
+      OS: "linux"
     steps:
       - checkout
       - restore_cache:
@@ -45,6 +46,7 @@ jobs:
       PYTHON: << parameters.python_version >>
       ENV_NAME: << parameters.env_name >>
       WITH_SUDO: true
+      OS: "linux"
     steps:
       - checkout
       - restore_cache:
@@ -97,6 +99,7 @@ jobs:
     environment:
       PYTHON: << parameters.python_version >>
       ENV_NAME: << parameters.env_name >>
+      OS: "linux"
     steps:
       - checkout
       - restore_cache:
