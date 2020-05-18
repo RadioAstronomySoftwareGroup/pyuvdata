@@ -168,3 +168,72 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _xyz_from_latlonalt(
         _xyz[i, 2] = (_gps_b ** 2 / _gps_a ** 2 * gps_n + _alt[i]) * sin(_lat[i])
 
     return xyz.squeeze()
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef numpy.ndarray[dtype=numpy.float64_t] _ENU_from_ECEF(
+    numpy.float64_t[:, ::1] xyz,
+    numpy.float64_t[::1] _lat,
+    numpy.float64_t[::1] _lon,
+    numpy.float64_t[::1] _alt,
+):
+  cdef int i
+  cdef int nblts = xyz.shape[0]
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] enu = np.empty((nblts, 3), dtype=np.float64)
+
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=1] xyz_center = _xyz_from_latlonalt(_lat, _lon, _alt)
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=1] xyz_use = np.empty(3, dtype=np.float64)
+
+  cdef numpy.float64_t[:, ::1] _enu = enu
+
+  with nogil:
+    for i in range(nblts):
+      xyz_use[0] = xyz[i, 0] - xyz_center[0]
+      xyz_use[1] = xyz[i, 1] - xyz_center[1]
+      xyz_use[2] = xyz[i, 2] - xyz_center[2]
+
+      _enu[i, 0] = -sin(_lon[0]) * xyz_use[0] + cos(_lon[0]) * xyz_use[1]
+      _enu[i, 1] = (
+        - sin(_lat[0]) * cos(_lon[0]) * xyz_use[0]
+        - sin(_lat[0]) * sin(_lon[0]) * xyz_use[1]
+        + cos(_lat[0]) * xyz_use[2]
+      )
+      _enu[i, 2] = (
+        cos(_lat[0]) * cos(_lon[0]) * xyz_use[0]
+        + cos(_lat[0]) * sin(_lon[0]) * xyz_use[1]
+        + sin(_lat[0]) * xyz_use[2]
+      )
+
+  return enu
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef numpy.ndarray[dtype=numpy.float64_t] _ECEF_FROM_ENU(
+    numpy.float64_t[:, ::1] enu,
+    numpy.float64_t[::1] _lat,
+    numpy.float64_t[::1] _lon,
+    numpy.float64_t[::1] _alt,
+):
+  cdef int i
+  cdef int nblts = enu.shape[0]
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] xyz = np.empty((nblts, 3), dtype=np.float64)
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=1] xyz_center = _xyz_from_latlonalt(_lat, _lon, _alt)
+
+  cdef numpy.float64_t[:, ::1] _xyz = xyz
+  with nogil:
+    for i in range(nblts):
+      _xyz[i, 0] = (
+        - sin(_lat[0]) * cos(_lon[0]) * enu[i, 1]
+        - sin(_lon[0]) * enu[i, 0]
+        + cos(_lat[0]) * cos(_lon[0]) * enu[i, 2]
+        + xyz_center[0]
+      )
+      _xyz[i, 1] = (
+        - sin(_lat[0]) * sin(_lon[0]) * enu[i, 1]
+        + cos(_lon[0]) * enu[i, 0]
+        + cos(_lat[0]) * sin(_lon[0]) * enu[i, 2]
+        + xyz_center[1]
+      )
+      _xyz[i, 2] = cos(_lat[0]) * enu[i, 1] + sin(_lat[0]) * enu[i, 2] + xyz_center[2]
+
+  return xyz
