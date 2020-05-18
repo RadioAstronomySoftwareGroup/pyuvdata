@@ -1936,7 +1936,6 @@ def uvcalibrate(
             ant2_num = key[1]
 
             feed1, feed2 = POL_TO_FEED_DICT[key[2]]
-            print(ant1_num, type(ant1_num))
             try:
                 uvcal_ant1_num = uvcal_ant_dict[uvdata_ant_dict[ant1_num]]
             except KeyError:
