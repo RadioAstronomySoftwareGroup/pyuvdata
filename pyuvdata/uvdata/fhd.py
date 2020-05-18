@@ -580,7 +580,7 @@ class FHD(UVData):
                     pol_list.append(linear_pol_dict[pol])
             self.polarization_array = np.asarray(pol_list)
         else:
-            # Use Npols because for FHD, npol fully specifies whih pols to use
+            # Use Npols because for FHD, npol fully specifies which pols to use
             pol_strings = lin_pol_order[: self.Npols]
             self.polarization_array = np.asarray(
                 [linear_pol_dict[pol] for pol in pol_strings]
