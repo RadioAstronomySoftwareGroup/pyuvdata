@@ -107,7 +107,9 @@ def test_LatLonAlt_from_XYZ():
     pytest.raises(ValueError, uvutils.LatLonAlt_from_XYZ, ref_xyz[0:1])
 
 
-def test_ENU_tofrom_ECEF():
+@pytest.fixture(scope="module")
+def enu_ecef_info():
+    """Some setup info for ENU/ECEF calculations."""
     center_lat = -30.7215261207 * np.pi / 180.0
     center_lon = 21.4283038269 * np.pi / 180.0
     center_alt = 1051.7
@@ -145,66 +147,225 @@ def test_ENU_tofrom_ECEF():
     up = [0.54883333, -0.35004539, -0.50007736, -0.70035299, -0.25148791, 0.33916067,
           -0.02019057, 0.16979185, 0.06945155, -0.64058124]
     # fmt: on
+    yield (
+        center_lat,
+        center_lon,
+        center_alt,
+        lats,
+        lons,
+        alts,
+        x,
+        y,
+        z,
+        east,
+        north,
+        up,
+    )
 
+
+def test_xyz_from_latlonalt(enu_ecef_info):
+    """Test calculating xyz from lat lot alt."""
+    (
+        center_lat,
+        center_lon,
+        center_alt,
+        lats,
+        lons,
+        alts,
+        x,
+        y,
+        z,
+        east,
+        north,
+        up,
+    ) = enu_ecef_info
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
     assert np.allclose(np.stack((x, y, z), axis=1), xyz, atol=1e-3)
 
+
+def test_enu_from_ecef(enu_ecef_info):
+    """Test calculating ENU from ECEF coordinates."""
+    (
+        center_lat,
+        center_lon,
+        center_alt,
+        lats,
+        lons,
+        alts,
+        x,
+        y,
+        z,
+        east,
+        north,
+        up,
+    ) = enu_ecef_info
+    xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
+
     enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
     assert np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
+
+
+@pytest.mark.parametrize("shape_type", ["transpose", "Nblts,2", "Nblts,1"])
+def test_enu_from_ecef_shape_errors(enu_ecef_info, shape_type):
+    """Test ENU_from_ECEF input shape errors."""
+    (
+        center_lat,
+        center_lon,
+        center_alt,
+        lats,
+        lons,
+        alts,
+        x,
+        y,
+        z,
+        east,
+        north,
+        up,
+    ) = enu_ecef_info
+    xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
+    if shape_type == "transpose":
+        xyz = xyz.T.copy()
+    elif shape_type == "Nblts,2":
+        xyz = xyz.copy()[:, 0:2]
+    elif shape_type == "Nblts,1":
+        xyz = xyz.copy()[:, 0:1]
+
     # check error if array transposed
     with pytest.raises(ValueError) as cm:
-        uvutils.ENU_from_ECEF(xyz.T, center_lat, center_lon, center_alt)
+        uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
     assert str(cm.value).startswith(
         "The expected shape of ECEF xyz array is (Npts, 3)."
     )
 
-    # check error if only 2 coordinates
+
+def test_enu_from_ecef_magnitude_error(enu_ecef_info):
+    """Test ENU_from_ECEF input magnitude errors."""
+
+    (
+        center_lat,
+        center_lon,
+        center_alt,
+        lats,
+        lons,
+        alts,
+        x,
+        y,
+        z,
+        east,
+        north,
+        up,
+    ) = enu_ecef_info
+    xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
+    # error checking
     with pytest.raises(ValueError) as cm:
-        uvutils.ENU_from_ECEF(xyz[:, 0:2], center_lat, center_lon, center_alt)
+        uvutils.ENU_from_ECEF(xyz / 2.0, center_lat, center_lon, center_alt)
     assert str(cm.value).startswith(
-        "The expected shape of ECEF xyz array is (Npts, 3)."
+        "ECEF vector magnitudes must be on the order of the radius of the earth"
     )
 
+
+def test_ecef_from_enu_roundtrip(enu_ecef_info):
+    """Test ECEF_from_ENU values."""
+    (
+        center_lat,
+        center_lon,
+        center_alt,
+        lats,
+        lons,
+        alts,
+        x,
+        y,
+        z,
+        east,
+        north,
+        up,
+    ) = enu_ecef_info
+    xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
+    enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
     # check that a round trip gives the original value.
     xyz_from_enu = uvutils.ECEF_from_ENU(enu, center_lat, center_lon, center_alt)
     assert np.allclose(xyz, xyz_from_enu, atol=1e-3)
+
+
+@pytest.mark.parametrize("shape_type", ["transpose", "Nblts,2", "Nblts,1"])
+def test_ecef_from_enu_shape_errors(enu_ecef_info, shape_type):
+    (
+        center_lat,
+        center_lon,
+        center_alt,
+        lats,
+        lons,
+        alts,
+        x,
+        y,
+        z,
+        east,
+        north,
+        up,
+    ) = enu_ecef_info
+    xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
+    enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
+    if shape_type == "transpose":
+        enu = enu.copy().T
+    elif shape_type == "Nblts,2":
+        enu = enu.copy()[:, 0:2]
+    elif shape_type == "Nblts,1":
+        enu = enu.copy()[:, 0:1]
+
     # check error if array transposed
     with pytest.raises(ValueError) as cm:
-        uvutils.ECEF_from_ENU(enu.T, center_lat, center_lon, center_alt)
+        uvutils.ECEF_from_ENU(enu, center_lat, center_lon, center_alt)
     assert str(cm.value).startswith("The expected shape of the ENU array is (Npts, 3).")
 
-    # check error if only 2 coordinates
-    with pytest.raises(ValueError) as cm:
-        uvutils.ECEF_from_ENU(enu[:, 0:2], center_lat, center_lon, center_alt)
-    assert str(cm.value).startswith("The expected shape of the ENU array is (Npts, 3).")
 
+def test_ecef_from_enu_single(enu_ecef_info):
+    """Test single coordinate transform."""
+    (
+        center_lat,
+        center_lon,
+        center_alt,
+        lats,
+        lons,
+        alts,
+        x,
+        y,
+        z,
+        east,
+        north,
+        up,
+    ) = enu_ecef_info
+    xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
     # check passing a single value
+    enu_single = uvutils.ENU_from_ECEF(xyz[0, :], center_lat, center_lon, center_alt)
+
+    assert np.allclose(np.array((east[0], north[0], up[0])), enu_single, atol=1e-3)
+
+
+def test_ecef_from_enu_single_roundtrip(enu_ecef_info):
+    """Test single coordinate roundtrip."""
+    (
+        center_lat,
+        center_lon,
+        center_alt,
+        lats,
+        lons,
+        alts,
+        x,
+        y,
+        z,
+        east,
+        north,
+        up,
+    ) = enu_ecef_info
+    xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
+    # check passing a single value
+    enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
+
     enu_single = uvutils.ENU_from_ECEF(xyz[0, :], center_lat, center_lon, center_alt)
     assert np.allclose(np.array((east[0], north[0], up[0])), enu[0, :], atol=1e-3)
 
     xyz_from_enu = uvutils.ECEF_from_ENU(enu_single, center_lat, center_lon, center_alt)
     assert np.allclose(xyz[0, :], xyz_from_enu, atol=1e-3)
-
-    # error checking
-    pytest.raises(
-        ValueError,
-        uvutils.ENU_from_ECEF,
-        xyz[:, 0:1],
-        center_lat,
-        center_lon,
-        center_alt,
-    )
-    pytest.raises(
-        ValueError,
-        uvutils.ECEF_from_ENU,
-        enu[:, 0:1],
-        center_lat,
-        center_lon,
-        center_alt,
-    )
-    pytest.raises(
-        ValueError, uvutils.ENU_from_ECEF, xyz / 2.0, center_lat, center_lon, center_alt
-    )
 
 
 def test_mwa_ecef_conversion():
