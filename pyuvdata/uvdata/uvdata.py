@@ -2252,9 +2252,7 @@ class UVData(UVBase):
                 getattr(coord, f"{phase_frame}".upper())
             )
 
-        # astropy 2 vs 3 use a different keyword name
-        rep_keyword = "representation_type"
-        setattr(frame_telescope_locations, rep_keyword, "cartesian")
+        frame_telescope_locations.representation_type = "cartesian"
 
         for ind, jd in enumerate(unique_times):
             inds = np.where(self.time_array == jd)[0]
@@ -2296,16 +2294,13 @@ class UVData(UVBase):
                     frame_phase_center.ra.rad, frame_phase_center.dec.rad, uvws_use
                 )
 
-                rep_dict = {}
-                rep_dict[rep_keyword] = "cartesian"
-
                 frame_uvw_coord = SkyCoord(
                     x=uvw_rel_positions[:, 0] * units.m + frame_telescope_location.x,
                     y=uvw_rel_positions[:, 1] * units.m + frame_telescope_location.y,
                     z=uvw_rel_positions[:, 2] * units.m + frame_telescope_location.z,
                     frame=phase_frame,
                     obstime=obs_time,
-                    **rep_dict,
+                    representation_type="cartesian",
                 )
 
                 itrs_uvw_coord = frame_uvw_coord.transform_to("itrs")
