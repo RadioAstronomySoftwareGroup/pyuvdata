@@ -130,7 +130,10 @@ class FHD(UVData):
             Read in the visibility, nsample and flag data. If set to False, only
             the metadata will be read in. Setting read_data to False results in
             a metadata only object. If read_data is False, an obs file must be
-            included in the filelist.
+            included in the filelist. Note that if read_data is False, Npols is
+            derived from the obs file and reflects the number of polarizations
+            used in the FHD run. If read_data is True, Npols is given by the
+            number of visibility data files provided in `filelist`.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
