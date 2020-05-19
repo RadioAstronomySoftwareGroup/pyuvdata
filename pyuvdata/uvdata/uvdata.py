@@ -2447,9 +2447,8 @@ class UVData(UVBase):
             frame_telescope_locations = itrs_telescope_locations.transform_to(
                 getattr(coord, f"{phase_frame}".upper())
             )
-        # astropy 2 vs 3 use a different keyword name
-        rep_keyword = "representation_type"
-        setattr(frame_telescope_locations, rep_keyword, "cartesian")
+        # set the representation_type to cartensian to get xyz later
+        frame_telescope_locations.representation_type = "cartesian"
 
         for ind, jd in enumerate(unique_times):
             inds = np.where(self.time_array == jd)[0]
