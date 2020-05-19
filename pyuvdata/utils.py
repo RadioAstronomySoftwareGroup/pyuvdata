@@ -986,19 +986,11 @@ def phase_uvw(ra, dec, initial_uvw):
     if initial_uvw.ndim == 1:
         initial_uvw = initial_uvw[np.newaxis, :]
 
-    uvw = np.zeros_like(initial_uvw)
-    uvw[:, 0] = -np.sin(ra) * initial_uvw[:, 0] + np.cos(ra) * initial_uvw[:, 1]
-    uvw[:, 1] = (
-        -np.sin(dec) * np.cos(ra) * initial_uvw[:, 0]
-        - np.sin(dec) * np.sin(ra) * initial_uvw[:, 1]
-        + np.cos(dec) * initial_uvw[:, 2]
+    return _utils._phase_uvw(
+        np.float64(ra),
+        np.float64(dec),
+        np.ascontiguousarray(initial_uvw, dtype=np.float64),
     )
-    uvw[:, 2] = (
-        np.cos(dec) * np.cos(ra) * initial_uvw[:, 0]
-        + np.cos(dec) * np.sin(ra) * initial_uvw[:, 1]
-        + np.sin(dec) * initial_uvw[:, 2]
-    )
-    return uvw
 
 
 def unphase_uvw(ra, dec, uvw):
@@ -1028,22 +1020,9 @@ def unphase_uvw(ra, dec, uvw):
     if uvw.ndim == 1:
         uvw = uvw[np.newaxis, :]
 
-    unphased_uvws = np.zeros_like(uvw)
-    unphased_uvws[:, 0] = (
-        -np.sin(ra) * uvw[:, 0]
-        - np.sin(dec) * np.cos(ra) * uvw[:, 1]
-        + np.cos(dec) * np.cos(ra) * uvw[:, 2]
+    return _utils._unphase_uvw(
+        np.float64(ra), np.float64(dec), np.ascontiguousarray(uvw, dtype=np.float64),
     )
-
-    unphased_uvws[:, 1] = (
-        np.cos(ra) * uvw[:, 0]
-        - np.sin(dec) * np.sin(ra) * uvw[:, 1]
-        + np.cos(dec) * np.sin(ra) * uvw[:, 2]
-    )
-
-    unphased_uvws[:, 2] = np.cos(dec) * uvw[:, 1] + np.sin(dec) * uvw[:, 2]
-
-    return unphased_uvws
 
 
 def get_lst_for_time(jd_array, latitude, longitude, altitude):
