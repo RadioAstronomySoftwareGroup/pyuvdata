@@ -1,3 +1,7 @@
+# -*- mode: python; coding: utf-8 -*-
+# Copyright (c) 2020 Radio Astronomy Software Group
+# Licensed under the 2-clause BSD License
+
 # distutils: language = c
 # cython: linetrace=True
 # distutils: define_macros=CYTHON_TRACE_NOGIL=1
