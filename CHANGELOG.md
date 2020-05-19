@@ -4,10 +4,12 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `background` keyword in `uvdata.set_lsts_from_time_array` to allow lst calculation in a background thread.
 - `read_data` keyword to read_mwa_corr_fits, allows from metadata only reads of MWA correlator fits files.
 - `propagate_flags` keyword for `UVData.frequency_average` which flags averaged samples if any contributing samples were flagged
 
 ### Changed
+- FHD now supports metadata only reads.
 - Updated formatting and added more explicit typing in corr_fits.pyx
 - Updated Nants calculations for speed up.
 - updated HERA telescope location to match the HERA defined center of array.
