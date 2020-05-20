@@ -112,6 +112,8 @@ def test_extra_pol_setup():
     shutil.rmtree(new_filename)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_ms_read_uvfits():
     """
     Test that a uvdata object instantiated from an ms file created with CASA's
@@ -124,7 +126,7 @@ def test_read_ms_read_uvfits():
     uvfits_uv = UVData()
     ms_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uvtest.checkWarnings(uvfits_uv.read, [uvfits_file], message="Telescope EVLA is not")
+    uvfits_uv.read(uvfits_file)
     ms_uv.read(ms_file)
     # set histories to identical blank strings since we do not expect
     # them to be the same anyways.
@@ -157,6 +159,8 @@ def test_read_ms_read_uvfits():
     del uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_ms_write_uvfits(tmp_path):
     """
     read ms, write uvfits test.
@@ -169,13 +173,15 @@ def test_read_ms_write_uvfits(tmp_path):
     testfile = str(tmp_path / "outtest.uvfits")
     ms_uv.read(ms_file)
     ms_uv.write_uvfits(testfile, spoof_nonessential=True)
-    uvtest.checkWarnings(uvfits_uv.read, [testfile], message="Telescope EVLA is not")
+    uvfits_uv.read(testfile)
 
     assert uvfits_uv == ms_uv
     del ms_uv
     del uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_ms_write_miriad(tmp_path):
     """
     read ms, write miriad test.
@@ -189,11 +195,13 @@ def test_read_ms_write_miriad(tmp_path):
     testfile = str(tmp_path / "outtest_miriad")
     ms_uv.read(ms_file)
     ms_uv.write_miriad(testfile, clobber=True)
-    uvtest.checkWarnings(miriad_uv.read, [testfile], message="Telescope EVLA is not")
+    miriad_uv.read(testfile)
 
     assert miriad_uv == ms_uv
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_multi_files():
     """
     Reading multiple files at once.
@@ -201,7 +209,7 @@ def test_multi_files():
     uv_full = UVData()
     uv_multi = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uvtest.checkWarnings(uv_full.read, [uvfits_file], message="Telescope EVLA is not")
+    uv_full.read(uvfits_file)
     testfile1 = os.path.join(DATA_PATH, "multi_1.ms")
     testfile2 = os.path.join(DATA_PATH, "multi_2.ms")
     uv_multi.read(np.array([testfile1, testfile2]))
@@ -234,6 +242,8 @@ def test_multi_files():
     del uv_multi
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_multi_files_axis():
     """
     Reading multiple files at once, setting axis keyword
@@ -241,7 +251,7 @@ def test_multi_files_axis():
     uv_full = UVData()
     uv_multi = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uvtest.checkWarnings(uv_full.read, [uvfits_file], message="Telescope EVLA is not")
+    uv_full.read(uvfits_file)
     testfile1 = os.path.join(DATA_PATH, "multi_1.ms")
     testfile2 = os.path.join(DATA_PATH, "multi_2.ms")
     uv_multi.read([testfile1, testfile2], axis="freq")
@@ -279,6 +289,5 @@ def test_bad_col_name():
     uvobj = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Invalid data_column value supplied"):
         uvobj.read_ms(testfile, data_column="FOO")
-    assert str(cm.value).startswith("Invalid data_column value supplied")

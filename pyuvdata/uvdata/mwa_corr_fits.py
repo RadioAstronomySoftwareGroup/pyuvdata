@@ -720,8 +720,10 @@ class MWACorrFITS(UVData):
                 )
 
             # check if object is self-consistent
+            # uvws are calcuated using pyuvdata, so turn off the check for speed.
             if run_check:
                 self.check(
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
+                    uvw_antpos_check_level="off",
                 )

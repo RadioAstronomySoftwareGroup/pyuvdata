@@ -80,8 +80,8 @@ def test_read_write_read_atca(tmp_path):
     uvtest.checkWarnings(
         uv_in.read,
         [atca_file],
-        nwarnings=4,
-        category=[UserWarning, UserWarning, UserWarning, UserWarning],
+        nwarnings=5,
+        category=[UserWarning] * 5,
         message=[
             "Altitude is not present in Miriad file, and "
             "telescope ATCA is not in known_telescopes. ",
@@ -92,6 +92,8 @@ def test_read_write_read_atca(tmp_path):
             "earth. Antenna positions do not appear to be on the surface of the "
             "earth and will be treated as relative.",
             "Telescope ATCA is not in known_telescopes.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
         ],
     )
     uv_in.write_miriad(testfile, clobber=True)
@@ -134,11 +136,13 @@ def test_miriad_read_warning_lat_lon_corrected():
         miriad_uv.read,
         [miriad_file],
         {"correct_lat_lon": False},
-        nwarnings=1,
+        nwarnings=2,
         message=[
             "Altitude is not present in Miriad file, "
             "using known location altitude value for "
-            "PAPER and lat/lon from file."
+            "PAPER and lat/lon from file.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
         ],
     )
 
@@ -250,29 +254,35 @@ def test_wronglatlon():
     uvtest.checkWarnings(
         uv_in.read,
         [latfile],
-        nwarnings=2,
+        nwarnings=3,
         message=[
             "Altitude is not present in file and latitude value does not match",
             "drift RA, Dec is off from lst, latitude by more than 1.0 deg",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
         ],
     )
     uvtest.checkWarnings(
         uv_in.read,
         [lonfile],
-        nwarnings=2,
+        nwarnings=3,
         message=[
             "Altitude is not present in file and longitude value does not match",
             "drift RA, Dec is off from lst, latitude by more than 1.0 deg",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
         ],
     )
     uvtest.checkWarnings(
         uv_in.read,
         func_args=[latlonfile],
         func_kwargs={"correct_lat_lon": False},
-        nwarnings=1,
+        nwarnings=2,
         message=[
             "Altitude is not present in file and latitude and longitude "
             "values do not match",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
         ],
     )
 
@@ -335,7 +345,7 @@ def test_miriad_location_handling(tmp_path):
     uvtest.checkWarnings(
         uv_out.read,
         [testfile],
-        nwarnings=4,
+        nwarnings=5,
         message=[
             "Altitude is not present in Miriad file, and "
             "telescope foo is not in known_telescopes. "
@@ -347,6 +357,8 @@ def test_miriad_location_handling(tmp_path):
             "telescope_position will be set using the mean "
             "of the antenna altitudes",
             "Telescope foo is not in known_telescopes.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
         ],
     )
 
@@ -371,7 +383,7 @@ def test_miriad_location_handling(tmp_path):
     uvtest.checkWarnings(
         uv_out.read,
         [testfile],
-        nwarnings=5,
+        nwarnings=6,
         message=[
             "Altitude is not present in Miriad file, and "
             "telescope foo is not in known_telescopes. "
@@ -385,6 +397,8 @@ def test_miriad_location_handling(tmp_path):
             "value does not match",
             "drift RA, Dec is off from lst, latitude by more than 1.0 deg",
             "Telescope foo is not in known_telescopes.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
         ],
     )
 
@@ -410,7 +424,7 @@ def test_miriad_location_handling(tmp_path):
     uvtest.checkWarnings(
         uv_out.read,
         [testfile],
-        nwarnings=5,
+        nwarnings=6,
         message=[
             "Altitude is not present in Miriad file, and "
             "telescope foo is not in known_telescopes. "
@@ -424,6 +438,8 @@ def test_miriad_location_handling(tmp_path):
             "value does not match",
             "drift RA, Dec is off from lst, latitude by more than 1.0 deg",
             "Telescope foo is not in known_telescopes.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
         ],
     )
 
@@ -453,7 +469,7 @@ def test_miriad_location_handling(tmp_path):
     uvtest.checkWarnings(
         uv_out.read,
         [testfile],
-        nwarnings=5,
+        nwarnings=6,
         message=[
             "Altitude is not present in Miriad file, and "
             "telescope foo is not in known_telescopes. "
@@ -467,6 +483,8 @@ def test_miriad_location_handling(tmp_path):
             "longitude values do not match",
             "drift RA, Dec is off from lst, latitude by more than 1.0 deg",
             "Telescope foo is not in known_telescopes.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
         ],
     )
 
@@ -500,7 +518,7 @@ def test_miriad_location_handling(tmp_path):
     uvtest.checkWarnings(
         uv_out.read,
         [testfile],
-        nwarnings=4,
+        nwarnings=5,
         message=[
             "Altitude is not present in Miriad file, and "
             "telescope foo is not in known_telescopes. "
@@ -512,6 +530,8 @@ def test_miriad_location_handling(tmp_path):
             "does not give a telescope_location on the "
             "surface of the earth.",
             "Telescope foo is not in known_telescopes.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
         ],
     )
 
@@ -577,58 +597,60 @@ def test_poltoind():
     assert str(cm.value).startswith("multiple matches for pol=-7 in polarization_array")
 
 
+@pytest.mark.parametrize(
+    "kwd_name,kwd_value,warnstr,errstr",
+    (
+        [
+            "testdict",
+            {"testkey": 23},
+            "testdict in extra_keywords is a list, array or dict",
+            "Extra keyword testdict is of <class 'dict'>",
+        ],
+        [
+            "testlist",
+            [12, 14, 90],
+            "testlist in extra_keywords is a list, array or dict",
+            "Extra keyword testlist is of <class 'list'>",
+        ],
+        [
+            "testarr",
+            np.array([12, 14, 90]),
+            "testarr in extra_keywords is a list, array or dict",
+            "Extra keyword testarr is of <class 'numpy.ndarray'>",
+        ],
+        [
+            "test_long_key",
+            True,
+            "key test_long_key in extra_keywords is longer than 8 characters",
+            None,
+        ],
+    ),
+)
+def test_miriad_extra_keywords_errors(tmp_path, kwd_name, kwd_value, warnstr, errstr):
+    uv_in = UVData()
+    miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+    testfile = str(tmp_path / "outtest_miriad.uv")
+    uv_in.read(miriad_file)
+
+    # check for warnings & errors with extra_keywords that are dicts, lists or arrays
+    uv_in.extra_keywords[kwd_name] = kwd_value
+    with pytest.warns(UserWarning, match=warnstr):
+        uv_in.check(uvw_antpos_check_level="off")
+
+    if errstr is not None:
+        with pytest.raises(TypeError, match=errstr):
+            uv_in.write_miriad(testfile, clobber=True, run_check=False)
+    else:
+        with pytest.warns(UserWarning, match=warnstr):
+            uv_in.write_miriad(testfile, clobber=True, run_check=False)
+
+
 def test_miriad_extra_keywords(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
     miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
     testfile = str(tmp_path / "outtest_miriad.uv")
     uv_in.read(miriad_file)
-
-    # check for warnings & errors with extra_keywords that are dicts, lists or arrays
-    uv_in.extra_keywords["testdict"] = {"testkey": 23}
-    uvtest.checkWarnings(
-        uv_in.check, message=["testdict in extra_keywords is a " "list, array or dict"]
-    )
-
-    with pytest.raises(TypeError) as cm:
-        uv_in.write_miriad(testfile, clobber=True, run_check=False)
-    assert str(cm.value).startswith("Extra keyword testdict is of <class 'dict'>")
-
-    uv_in.extra_keywords.pop("testdict")
-
-    uv_in.extra_keywords["testlist"] = [12, 14, 90]
-    uvtest.checkWarnings(
-        uv_in.check, message=["testlist in extra_keywords is a " "list, array or dict"]
-    )
-    with pytest.raises(TypeError) as cm:
-        uv_in.write_miriad(testfile, clobber=True, run_check=False)
-    assert str(cm.value).startswith("Extra keyword testlist is of <class 'list'>")
-    uv_in.extra_keywords.pop("testlist")
-
-    uv_in.extra_keywords["testarr"] = np.array([12, 14, 90])
-    uvtest.checkWarnings(
-        uv_in.check, message=["testarr in extra_keywords is a " "list, array or dict"]
-    )
-    with pytest.raises(TypeError) as cm:
-        uv_in.write_miriad(testfile, clobber=True, run_check=False)
-    assert str(cm.value).startswith(
-        "Extra keyword testarr is of <class 'numpy.ndarray'>"
-    )
-    uv_in.extra_keywords.pop("testarr")
-
-    # check for warnings with extra_keywords keys that are too long
-    uv_in.extra_keywords["test_long_key"] = True
-    uvtest.checkWarnings(
-        uv_in.check,
-        message=["key test_long_key in extra_keywords " "is longer than 8 characters"],
-    )
-    uvtest.checkWarnings(
-        uv_in.write_miriad,
-        [testfile],
-        {"clobber": True, "run_check": False},
-        message=["key test_long_key in extra_keywords is longer than 8 characters"],
-    )
-    uv_in.extra_keywords.pop("test_long_key")
 
     # check handling of boolean keywords
     uv_in.extra_keywords["bool"] = True
@@ -671,17 +693,17 @@ def test_miriad_extra_keywords(tmp_path):
     # check handling of complex-like keywords
     # currently they are NOT supported
     uv_in.extra_keywords["complex1"] = np.complex64(5.3 + 1.2j)
-    with pytest.raises(TypeError) as cm:
+    with pytest.raises(
+        TypeError, match="Extra keyword complex1 is of <class 'numpy.complex64'>"
+    ):
         uv_in.write_miriad(testfile, clobber=True, run_check=False)
-    assert str(cm.value).startswith(
-        "Extra keyword complex1 is of <class 'numpy.complex64'>"
-    )
     uv_in.extra_keywords.pop("complex1")
 
     uv_in.extra_keywords["complex2"] = 6.9 + 4.6j
-    with pytest.raises(TypeError) as cm:
+    with pytest.raises(
+        TypeError, match="Extra keyword complex2 is of <class 'complex'>"
+    ):
         uv_in.write_miriad(testfile, clobber=True, run_check=False)
-    assert str(cm.value).startswith("Extra keyword complex2 is of <class 'complex'>")
 
 
 def test_roundtrip_optional_params(tmp_path):
@@ -1134,9 +1156,14 @@ def test_read_write_read_miriad_partial_with_warnings(tmp_path):
     ]
     uvtest.checkWarnings(
         uv_in.read,
-        [write_file],
-        {"times": times_to_keep},
-        message=["Warning: a select on read keyword is set"],
+        func_args=[write_file],
+        func_kwargs={"times": times_to_keep},
+        nwarnings=2,
+        message=[
+            "Warning: a select on read keyword is set",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
     )
     exp_uv = full.select(times=times_to_keep, inplace=False)
     assert uv_in == exp_uv
@@ -1151,10 +1178,14 @@ def test_read_write_read_miriad_partial_with_warnings(tmp_path):
     ants_keep = [0, 2, 4]
     uvtest.checkWarnings(
         uv_in.read,
-        [write_file],
-        {"blt_inds": blts_select, "antenna_nums": ants_keep},
-        nwarnings=1,
-        message=["Warning: blt_inds is set along with select on read"],
+        func_args=[write_file],
+        func_kwargs={"blt_inds": blts_select, "antenna_nums": ants_keep},
+        nwarnings=2,
+        message=[
+            "Warning: blt_inds is set along with select on read",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
     )
     exp_uv = full.select(blt_inds=blts_select, antenna_nums=ants_keep, inplace=False)
     assert uv_in != exp_uv
@@ -1203,6 +1234,8 @@ def test_read_write_read_miriad_partial_metadata_only(tmp_path):
     assert uv_in == uv_in2
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_ms_write_miriad_casa_history(tmp_path):
     """
     Read in .ms file.
@@ -1213,11 +1246,10 @@ def test_read_ms_write_miriad_casa_history(tmp_path):
     miriad_uv = UVData()
     ms_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
     testfile = str(tmp_path / "outtest_miriad")
-    uvtest.checkWarnings(
-        ms_uv.read, [ms_file], message="Telescope EVLA is not", nwarnings=0
-    )
+    ms_uv.read(ms_file)
+
     ms_uv.write_miriad(testfile, clobber=True)
-    uvtest.checkWarnings(miriad_uv.read, [testfile], message="Telescope EVLA is not")
+    miriad_uv.read(testfile)
 
     assert miriad_uv == ms_uv
 
@@ -1254,7 +1286,16 @@ def test_rwr_miriad_antpos_issues(tmp_path):
     ant_ind = np.where(uv_in.antenna_numbers == ants_with_data[0])[0]
     uv_in.antenna_positions[ant_ind, :] = [0, 0, 0]
     uv_in.write_miriad(write_file, clobber=True, no_antnums=True)
-    uvtest.checkWarnings(uv_out.read, [write_file], message=["antenna number"])
+    uvtest.checkWarnings(
+        uv_out.read,
+        func_args=[write_file],
+        nwarnings=2,
+        message=[
+            "antenna number",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+    )
 
     assert uv_in == uv_out
 
@@ -1287,6 +1328,7 @@ def test_rwr_miriad_antpos_issues(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_multi_files(tmp_path):
     """
     Reading multiple files at once.
@@ -1308,14 +1350,8 @@ def test_multi_files(tmp_path):
     uv2.write_miriad(testfile2, clobber=True)
     del uv1
     uv1 = UVData()
-    uvtest.checkWarnings(
-        uv1.read,
-        func_args=[[testfile1, testfile2]],
-        func_kwargs={"file_type": "miriad"},
-        message=["Telescope EVLA is not"],
-        category=2 * [UserWarning],
-        nwarnings=2,
-    )
+    uv1.read([testfile1, testfile2], file_type="miriad")
+
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         uv_full.history + "  Downselected to "
@@ -1343,6 +1379,8 @@ def test_multi_files(tmp_path):
     assert uv1 == uv_full
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_antpos_units(tmp_path):
     """
     Read uvfits, write miriad. Check written antpos are in ns.
@@ -1350,7 +1388,7 @@ def test_antpos_units(tmp_path):
     uv = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     testfile = str(tmp_path / "uv_antpos_units")
-    uvtest.checkWarnings(uv.read_uvfits, [uvfits_file], message="Telescope EVLA is not")
+    uv.read_uvfits(uvfits_file)
     uv.write_miriad(testfile, clobber=True)
     auv = aipy_extracts.UV(testfile)
     aantpos = auv["antpos"].reshape(3, -1).T * const.c.to("m/ns").value
