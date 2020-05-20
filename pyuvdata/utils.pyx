@@ -29,17 +29,17 @@ cdef numpy.float64_t _ep2 = e_prime_squared
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef tuple baseline_to_antnums(numpy.ndarray[ndim=1, dtype=numpy.int_t] baseline):
+cpdef tuple baseline_to_antnums(numpy.ndarray[ndim=1, dtype=numpy.int64_t] baseline):
   cdef unsigned long n = baseline.size
-  cdef numpy.ndarray[ndim=1, dtype=numpy.int_t] ant1 = np.empty(n, dtype=np.int)
-  cdef numpy.ndarray[ndim=1, dtype=numpy.int_t] ant2 = np.empty(n, dtype=np.int)
+  cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] ant1 = np.empty(n, dtype=np.int64)
+  cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] ant2 = np.empty(n, dtype=np.int64)
   cdef long _min = baseline.min()
   cdef int i
   # make views as c-contiguous arrays of a known dtype
   # effectivly turns the numpy array into a c-array
-  cdef numpy.int_t[::1] _a1 = ant1
-  cdef numpy.int_t[::1] _a2 = ant2
-  cdef numpy.int_t[::1] _bl = baseline
+  cdef numpy.int64_t[::1] _a1 = ant1
+  cdef numpy.int64_t[::1] _a2 = ant2
+  cdef numpy.int64_t[::1] _bl = baseline
 
   with nogil:
     for i in range(n):
@@ -60,7 +60,7 @@ numpy.ndarray[ndim=1, dtype=numpy.int64_t] ant2,
 ):
   cdef unsigned long n = ant1.size
   cdef unsigned int i
-  cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] baselines = np.empty(n, dtype=np.int_)
+  cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] baselines = np.empty(n, dtype=np.int64)
   # make views as c-contiguous arrays of a known dtype
   # effectivly turns the numpy array into a c-array
   cdef numpy.int64_t[::1] _bl = baselines
@@ -81,7 +81,7 @@ numpy.ndarray[ndim=1, dtype=numpy.int64_t] ant2,
 ):
   cdef unsigned long n = ant1.size
   cdef unsigned int i
-  cdef numpy.ndarray[dtype=numpy.int64_t, ndim=1] baselines = np.empty(n, dtype=np.int_)
+  cdef numpy.ndarray[dtype=numpy.int64_t, ndim=1] baselines = np.empty(n, dtype=np.int64)
   # make views as c-contiguous arrays of a known dtype
   # effectivly turns the numpy array into a c-array
   cdef numpy.int64_t[::1] _bl = baselines
@@ -93,7 +93,7 @@ numpy.ndarray[ndim=1, dtype=numpy.int64_t] ant2,
       _bl[i] = 256 * (_a1[i] + 1) + (_a2[i] + 1)
   return baselines
 
-def antnums_to_baseline(
+cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
   numpy.ndarray[dtype=numpy.int64_t, ndim=1] ant1,
   numpy.ndarray[dtype=numpy.int64_t, ndim=1] ant2,
   bint attempt256=False
