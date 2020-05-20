@@ -315,33 +315,38 @@ def test_extra_keywords_comment(tmp_path):
     return
 
 
-def test_extra_keywords_errors(tmp_path):
+@pytest.mark.parametrize(
+    "ex_val,error_msg",
+    [
+        ({"testdict": {"testkey": 23}}, "Extra keyword testdict is of"),
+        ({"testlist": [12, 14, 90]}, "Extra keyword testlist is of"),
+        ({"testarr": np.array([12, 14, 90])}, "Extra keyword testarr is of"),
+    ],
+)
+def test_extra_keywords_errors(tmp_path, ex_val, error_msg):
     cal_in = UVCal()
     calfits_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     testfile = str(tmp_path / "outtest_omnical.fits")
     cal_in.read_calfits(calfits_file)
 
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
-    cal_in.extra_keywords["testdict"] = {"testkey": 23}
+    keyword = list(ex_val.keys())[0]
+    val = ex_val[keyword]
+    cal_in.extra_keywords[keyword] = val
     uvtest.checkWarnings(
-        cal_in.check, message=["testdict in extra_keywords is a list, array or dict"]
+        cal_in.check, message=[f"{keyword} in extra_keywords is a list, array or dict"],
     )
-    pytest.raises(TypeError, cal_in.write_calfits, testfile, run_check=False)
-    cal_in.extra_keywords.pop("testdict")
+    with pytest.raises(TypeError, match=error_msg):
+        cal_in.write_calfits(testfile, run_check=False)
 
-    cal_in.extra_keywords["testlist"] = [12, 14, 90]
-    uvtest.checkWarnings(
-        cal_in.check, message=["testlist in extra_keywords is a list, array or dict"]
-    )
-    pytest.raises(TypeError, cal_in.write_calfits, testfile, run_check=False)
-    cal_in.extra_keywords.pop("testlist")
+    return
 
-    cal_in.extra_keywords["testarr"] = np.array([12, 14, 90])
-    uvtest.checkWarnings(
-        cal_in.check, message=["testarr in extra_keywords is a list, array or dict"]
-    )
-    pytest.raises(TypeError, cal_in.write_calfits, testfile, run_check=False)
-    cal_in.extra_keywords.pop("testarr")
+
+def test_extra_keywords_warnings(tmp_path):
+    cal_in = UVCal()
+    calfits_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
+    testfile = str(tmp_path / "outtest_omnical.fits")
+    cal_in.read_calfits(calfits_file)
 
     # check for warnings with extra_keywords keys that are too long
     cal_in.extra_keywords["test_long_key"] = True
@@ -355,7 +360,6 @@ def test_extra_keywords_errors(tmp_path):
         {"run_check": False, "clobber": True},
         message=["key test_long_key in extra_keywords is longer than 8 characters"],
     )
-    cal_in.extra_keywords.pop("test_long_key")
 
     return
 
