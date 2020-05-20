@@ -11,22 +11,21 @@ import pytest
 
 from pyuvdata.data import DATA_PATH
 
-pytest.importorskip("pyuvdata._miriad")
 
-from pyuvdata.uvdata import aipy_extracts as ae  # noqa: E402
+aipy_extracts = pytest.importorskip("pyuvdata.uvdata.aipy_extracts")
 
 
 def test_bl2ij():
     """Test bl2ij function"""
     # small baseline number
     bl = 258
-    assert ae.bl2ij(bl)[0] == 0
-    assert ae.bl2ij(bl)[1] == 1
+    assert aipy_extracts.bl2ij(bl)[0] == 0
+    assert aipy_extracts.bl2ij(bl)[1] == 1
 
     # large baseline number
     bl = 67587
-    assert ae.bl2ij(bl)[0] == 0
-    assert ae.bl2ij(bl)[1] == 2
+    assert aipy_extracts.bl2ij(bl)[0] == 0
+    assert aipy_extracts.bl2ij(bl)[1] == 2
     return
 
 
@@ -35,17 +34,17 @@ def test_ij2bl():
     # test < 256 antennas
     i = 1
     j = 2
-    assert ae.ij2bl(i, j) == 515
+    assert aipy_extracts.ij2bl(i, j) == 515
 
     # test > 256 antennas
     i = 2
     j = 257
-    assert ae.ij2bl(i, j) == 71938
+    assert aipy_extracts.ij2bl(i, j) == 71938
 
     # test case where i > j
     i = 257
     j = 2
-    assert ae.ij2bl(i, j) == 71938
+    assert aipy_extracts.ij2bl(i, j) == 71938
     return
 
 
@@ -56,46 +55,49 @@ def test_parse_ants():
         "all": [],
         "auto": [("auto", 1)],
         "cross": [("auto", 0)],
-        "0_1": [(ae.ij2bl(0, 1), 1)],
-        "0_1,1_2": [(ae.ij2bl(0, 1), 1), (ae.ij2bl(1, 2), 1)],
-        "0x_1x": [(ae.ij2bl(0, 1), 1, "xx")],
-        "(0x,0y)_1x": [(ae.ij2bl(0, 1), 1, "xx"), (ae.ij2bl(0, 1), 1, "yx")],
-        "(0,1)_2": [(ae.ij2bl(0, 2), 1), (ae.ij2bl(1, 2), 1)],
-        "0_(1,2)": [(ae.ij2bl(0, 1), 1), (ae.ij2bl(0, 2), 1)],
-        "(0,1)_(2,3)": [
-            (ae.ij2bl(0, 2), 1),
-            (ae.ij2bl(0, 3), 1),
-            (ae.ij2bl(1, 2), 1),
-            (ae.ij2bl(1, 3), 1),
+        "0_1": [(aipy_extracts.ij2bl(0, 1), 1)],
+        "0_1,1_2": [(aipy_extracts.ij2bl(0, 1), 1), (aipy_extracts.ij2bl(1, 2), 1)],
+        "0x_1x": [(aipy_extracts.ij2bl(0, 1), 1, "xx")],
+        "(0x,0y)_1x": [
+            (aipy_extracts.ij2bl(0, 1), 1, "xx"),
+            (aipy_extracts.ij2bl(0, 1), 1, "yx"),
         ],
-        "0_(1,-2)": [(ae.ij2bl(0, 1), 1), (ae.ij2bl(0, 2), 0)],
+        "(0,1)_2": [(aipy_extracts.ij2bl(0, 2), 1), (aipy_extracts.ij2bl(1, 2), 1)],
+        "0_(1,2)": [(aipy_extracts.ij2bl(0, 1), 1), (aipy_extracts.ij2bl(0, 2), 1)],
+        "(0,1)_(2,3)": [
+            (aipy_extracts.ij2bl(0, 2), 1),
+            (aipy_extracts.ij2bl(0, 3), 1),
+            (aipy_extracts.ij2bl(1, 2), 1),
+            (aipy_extracts.ij2bl(1, 3), 1),
+        ],
+        "0_(1,-2)": [(aipy_extracts.ij2bl(0, 1), 1), (aipy_extracts.ij2bl(0, 2), 0)],
         "(-0,1)_(2,-3)": [
-            (ae.ij2bl(0, 2), 0),
-            (ae.ij2bl(0, 3), 0),
-            (ae.ij2bl(1, 2), 1),
-            (ae.ij2bl(1, 3), 0),
+            (aipy_extracts.ij2bl(0, 2), 0),
+            (aipy_extracts.ij2bl(0, 3), 0),
+            (aipy_extracts.ij2bl(1, 2), 1),
+            (aipy_extracts.ij2bl(1, 3), 0),
         ],
         "0,1,all": [],
     }
     for i in range(nants):
-        cases[str(i)] = [(ae.ij2bl(x, i), 1) for x in range(nants)]
-        cases["-" + str(i)] = [(ae.ij2bl(x, i), 0) for x in range(nants)]
+        cases[str(i)] = [(aipy_extracts.ij2bl(x, i), 1) for x in range(nants)]
+        cases["-" + str(i)] = [(aipy_extracts.ij2bl(x, i), 0) for x in range(nants)]
     # inelegantly paste on the new pol parsing flag on the above tests
     # XXX really should add some new tests for the new pol parsing
     for k in cases:
         cases[k] = [(v + (-1,))[:3] for v in cases[k]]
     for ant_str in cases:
-        assert ae.parse_ants(ant_str, nants) == cases[ant_str]
+        assert aipy_extracts.parse_ants(ant_str, nants) == cases[ant_str]
 
     # check that malformed antstr raises and error
-    pytest.raises(ValueError, ae.parse_ants, "(0_1)_2", nants)
+    pytest.raises(ValueError, aipy_extracts.parse_ants, "(0_1)_2", nants)
     return
 
 
 def test_uv_wrhd(tmp_path):
     """Test _wrdh method on UV object"""
     test_file = str(tmp_path / "miriad_test.uv")
-    uv = ae.UV(test_file, status="new", corrmode="r")
+    uv = aipy_extracts.UV(test_file, status="new", corrmode="r")
 
     # test writing freqs
     freqs = [3, 1, 0.1, 0.2, 2, 0.2, 0.3, 3, 0.3, 0.4]
@@ -116,7 +118,7 @@ def test_uv_wrhd(tmp_path):
 def test_uv_wrhd_special(tmp_path):
     """Test _wrhd_special method on UV object"""
     test_file = str(tmp_path / "miriad_test.uv")
-    uv = ae.UV(test_file, status="new", corrmode="r")
+    uv = aipy_extracts.UV(test_file, status="new", corrmode="r")
     freqs = [3, 1, 0.1, 0.2, 2, 0.2, 0.3, 3, 0.3, 0.4]
     uv._wrhd_special("freqs", freqs)
 
@@ -139,8 +141,8 @@ def test_uv_rdhd_special(tmp_path):
     if os.path.exists(test_file):
         shutil.rmtree(test_file)
     # make a new file using an old one as a template
-    uv1 = ae.UV(infile)
-    uv2 = ae.UV(test_file, status="new", corrmode="r")
+    uv1 = aipy_extracts.UV(infile)
+    uv2 = aipy_extracts.UV(test_file, status="new", corrmode="r")
     uv2.init_from_uv(uv1)
 
     # define freqs to write
@@ -154,7 +156,7 @@ def test_uv_rdhd_special(tmp_path):
     del uv2
 
     # open a new file and check that freqs match the written ones
-    uv3 = ae.UV(test_file)
+    uv3 = aipy_extracts.UV(test_file)
     freqs2 = uv3._rdhd_special("freqs")
     assert freqs == freqs2
 
