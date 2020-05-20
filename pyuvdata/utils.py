@@ -298,7 +298,7 @@ def baseline_to_antnums(baseline, Nants_telescope):
 
     return_array = isinstance(baseline, (np.ndarray, list, tuple))
     ant1, ant2 = _utils.baseline_to_antnums(
-        np.ascontiguousarray(baseline, dtype=np.int_)
+        np.ascontiguousarray(baseline, dtype=np.int64_t)
     )
     if return_array:
         return ant1, ant2
