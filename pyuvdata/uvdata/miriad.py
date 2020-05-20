@@ -324,7 +324,7 @@ class Miriad(UVData):
 
         data_accumulator = {}
         pol_list = []
-        for (uvw, t, (i, j)), d, f in uv.all(raw=True):
+        for (uvw, t, (i, j)), d, f in uv.all_data(raw=True):
             # control for the case of only a single spw not showing up in
             # the dimension
             # Note that the (i, j) tuple is calculated from a baseline number in
@@ -1217,7 +1217,7 @@ class Miriad(UVData):
         ]
 
         extra_miriad_variables = []
-        for variable in uv.vars():
+        for variable in uv.variables():
             if (
                 variable not in default_miriad_variables
                 and variable not in other_miriad_variables

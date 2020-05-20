@@ -2,7 +2,9 @@
 # Copyright 2018 the HERA Project
 # Licensed under the 2-clause BSD License
 
-"""This module extracts some Python code from AIPY used in our MIRIAD I/O
+"""Module for low-level interface to MIRIAD files.
+
+This module extracts some Python code from AIPY used in our MIRIAD I/O
 routines. It was copied from AIPY commit
 6cb5a70876f33dccdd68d4063b076f8d42d9edae, then reformatted. The only items
 used by pyuvdata are ``uv_selector`` and ``UV``.
@@ -40,7 +42,7 @@ str2pol = {
 
 def bl2ij(bl):
     """
-    Convert baseline number to antenna numbers
+    Convert baseline number to antenna numbers.
 
     Parameters
     ----------
@@ -67,7 +69,7 @@ def bl2ij(bl):
 
 def ij2bl(i, j):
     """
-    Convert antenna numbers to baseline number
+    Convert antenna numbers to baseline number.
 
     Parameters
     ----------
@@ -96,7 +98,7 @@ bl_re = "(^(%s_%s|%s),?)" % (ant_re, ant_re, ant_re)
 
 def parse_ants(ant_str, nants):
     """
-    Parse ant string into a list of (baseline, include, pol) tuples
+    Parse ant string into a list of (baseline, include, pol) tuples.
 
     Generate list of (baseline, include, pol) tuples based on parsing of the
     string associated with the 'ants' command-line option.
@@ -198,7 +200,7 @@ def parse_ants(ant_str, nants):
 
 def uv_selector(uv, ants=-1, pol_str=-1):
     """
-    Call select on a Miriad object with string arguments for antennas and polarizations
+    Call select on a Miriad object with string arguments for antennas and polarizations.
 
     Parameters
     ----------
@@ -269,13 +271,11 @@ def _uv_pipe_default_action(uv, p, d):
 
 
 class UV(_miriad.UV):
-    """Top-level interface to a Miriad UV data set.
-
-    """
+    """Top-level interface to a Miriad UV data set."""
 
     def __init__(self, filename, status="old", corrmode="r"):
         """
-        Initialize from a miriad file
+        Initialize from a miriad file.
 
         Parameters
         ----------
@@ -325,7 +325,7 @@ class UV(_miriad.UV):
 
         return vartable
 
-    def vars(self):
+    def variables(self):
         """
         Get the list of available variables.
 
@@ -420,9 +420,7 @@ class UV(_miriad.UV):
             return np.array(rv)
 
     def _wrhd(self, name, val):
-        """Provide write access to header items via low-level calls.
-
-        """
+        """Provide write access to header items via low-level calls."""
         item_type = itemtable[name]
 
         if item_type == "?":
@@ -451,9 +449,7 @@ class UV(_miriad.UV):
         _miriad.hdaccess(h)
 
     def _rdhd_special(self, name):
-        """Provide read access to special header items of type '?' to _rdhd.
-
-        """
+        """Provide read access to special header items of type '?' to _rdhd."""
         if name == "freqs":
             h = self.haccess(name, "read")
             c, o = _miriad.hread(h, 0, "i")
@@ -482,9 +478,7 @@ class UV(_miriad.UV):
             raise ValueError("Unknown special header: " + name)
 
     def _wrhd_special(self, name, val):
-        """Provide write access to special header items of type '?' to _wrhd
-
-        """
+        """Provide write access to special header items of type '?' to _wrhd."""
         if name == "freqs":
             h = self.haccess(name, "write")
             _miriad.hwrite(h, 0, val[0], "i")
@@ -502,9 +496,7 @@ class UV(_miriad.UV):
             raise ValueError("Unknown special header: " + name)
 
     def __getitem__(self, name):
-        """Allow access to variables and header items via ``uv[name]``.
-
-        """
+        """Allow access to variables and header items via ``uv[name]``."""
         try:
             var_type = self.vartable[name]
             return self._rdvr(name, var_type)
@@ -513,9 +505,7 @@ class UV(_miriad.UV):
             return self._rdhd(name)
 
     def __setitem__(self, name, val):
-        """Allow setting variables and header items via ``uv[name] = val``.
-
-        """
+        """Allow setting variables and header items via ``uv[name] = val``."""
         try:
             var_type = self.vartable[name]
             self._wrvr(name, var_type, val)
@@ -556,7 +546,7 @@ class UV(_miriad.UV):
         """
         Return the next data record.
 
-        Calling this function causes vars to change to
+        Calling this function causes variables to change to
         reflect the record which this function returns.
 
         Parameters
@@ -585,18 +575,18 @@ class UV(_miriad.UV):
             return preamble, data, flags
         return preamble, np.ma.array(data, mask=flags)
 
-    def all(self, raw=False):
+    def all_data(self, raw=False):
         """
         Provide an iterator over preamble, data.
 
-        Allows constructs like: ``for preamble, data in uv.all(): ...``
+        Allows constructs like: ``for preamble, data in uv.all_data(): ...``.
 
         Parameters
         ----------
         raw : bool
-            if True data and flags are returned seperately
+            If True data and flags are returned seperately.
 
-        Yields
+        Returns
         -------
         preamble : tuple
             (uvw, t, (i,j)), where uvw is an array of u,v,w, t is the
@@ -665,7 +655,7 @@ class UV(_miriad.UV):
 
         self.vartable = {}
 
-        for k in uv.vars():
+        for k in uv.variables():
             if k in exclude:
                 continue
             elif k == "corr":
@@ -682,7 +672,7 @@ class UV(_miriad.UV):
 
     def pipe(self, uv, mfunc=_uv_pipe_default_action, append2hist="", raw=False):
         """
-        Pipe in data from another UV
+        Pipe in data from another UV.
 
         Uses the function ``mfunc(uv, preamble, data)``, which should return
         ``(preamble, data)``. If mfunc is not provided, the dataset will just be
@@ -704,12 +694,12 @@ class UV(_miriad.UV):
         self._wrhd("history", self["history"] + append2hist)
 
         if raw:
-            for p, d, f in uv.all(raw=raw):
+            for p, d, f in uv.all_data(raw=raw):
                 np, nd, nf = mfunc(uv, p, d, f)
                 self.copyvr(uv)
                 self.write(np, nd, nf)
         else:
-            for p, d in uv.all():
+            for p, d in uv.all_data():
                 np, nd = mfunc(uv, p, d)
                 self.copyvr(uv)
                 self.write(np, nd)
