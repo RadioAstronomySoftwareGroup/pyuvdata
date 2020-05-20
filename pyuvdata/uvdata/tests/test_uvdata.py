@@ -5051,9 +5051,9 @@ def test_lsts_from_time_with_only_unique_background():
     """
     Test `set_lsts_from_time_array` with only unique values is identical to full array.
     """
-    miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+    uvh5_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
     uv = UVData()
-    uv.read_miriad(miriad_file)
+    uv.read_uvh5(uvh5_file)
     lat, lon, alt = uv.telescope_location_lat_lon_alt_degrees
     # calculate the lsts for all elements in time array
     full_lsts = uvutils.get_lst_for_time(uv.time_array, lat, lon, alt)
