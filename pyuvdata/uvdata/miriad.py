@@ -52,10 +52,11 @@ class Miriad(UVData):
         read_data=True,
         phase_type=None,
         correct_lat_lon=True,
+        background_lsts=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        background_lsts=True,
+        uvw_antpos_check_level="warn",
     ):
         """
         Read in data from a miriad file.
@@ -105,6 +106,8 @@ class Miriad(UVData):
         correct_lat_lon : bool
             Option to update the latitude and longitude from the known_telescopes
             list if the altitude is missing.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -117,8 +120,10 @@ class Miriad(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
+        uvw_antpos_check_level : string
+            Setting to control the strictness of the check that uvws match antenna
+            positions. Options are: ['strict', 'warn', 'off']. See the `UVData.check`
+            docstring for more details.
 
         Raises
         ------
@@ -708,7 +713,9 @@ class Miriad(UVData):
         # check if object has all required uv_properties set
         if run_check:
             self.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                uvw_antpos_check_level=uvw_antpos_check_level,
             )
 
     def write_miriad(
@@ -773,6 +780,7 @@ class Miriad(UVData):
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 check_freq_spacing=True,
+                uvw_antpos_check_level="off",
             )
 
         # check for multiple spws

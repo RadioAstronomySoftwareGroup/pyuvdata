@@ -34,7 +34,14 @@ def test_read_nrao():
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     expected_extra_keywords = ["OBSERVER", "SORTORD", "SPECSYS", "RESTFREQ", "ORIGIN"]
     uvtest.checkWarnings(
-        uvobj.read_uvfits, func_args=[testfile], message="Telescope EVLA is not"
+        uvobj.read_uvfits,
+        func_args=[testfile],
+        nwarnings=2,
+        message=[
+            "Telescope EVLA is not in known_telescopes.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
     )
     assert expected_extra_keywords.sort() == list(uvobj.extra_keywords.keys()).sort()
 
@@ -49,7 +56,14 @@ def test_read_nrao():
     assert expected_extra_keywords.sort() == list(uvobj2.extra_keywords.keys()).sort()
     assert uvobj2.check()
     uvtest.checkWarnings(
-        uvobj2.read, func_args=[testfile], message="Telescope EVLA is not"
+        uvobj2.read,
+        func_args=[testfile],
+        nwarnings=2,
+        message=[
+            "Telescope EVLA is not in known_telescopes.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
     )
     assert uvobj == uvobj2
 
@@ -60,7 +74,9 @@ def test_no_spw():
     """Test reading in a PAPER uvfits file with no spw axis."""
     uvobj = UVData()
     testfile_no_spw = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAAM.uvfits")
-    uvobj.read(testfile_no_spw)
+    # This file has a crazy epoch (2291.34057617) which breaks the uvw_antpos check
+    # Since it's a PAPER file, I think this is a bug in the file, not in the check.
+    uvobj.read(testfile_no_spw, uvw_antpos_check_level="off")
     del uvobj
 
 
@@ -450,56 +466,61 @@ def test_readwriteread_unflagged_data_warnings(tmp_path, casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.parametrize(
+    "kwd_name,kwd_value,warnstr,errstr",
+    (
+        [
+            "testdict",
+            {"testkey": 23},
+            "testdict in extra_keywords is a list, array or dict",
+            "Extra keyword testdict is of <class 'dict'>",
+        ],
+        [
+            "testlist",
+            [12, 14, 90],
+            "testlist in extra_keywords is a list, array or dict",
+            "Extra keyword testlist is of <class 'list'>",
+        ],
+        [
+            "testarr",
+            np.array([12, 14, 90]),
+            "testarr in extra_keywords is a list, array or dict",
+            "Extra keyword testarr is of <class 'numpy.ndarray'>",
+        ],
+        [
+            "test_long_key",
+            True,
+            "key test_long_key in extra_keywords is longer than 8 characters",
+            None,
+        ],
+    ),
+)
+def test_extra_keywords_errors(tmp_path, kwd_name, kwd_value, warnstr, errstr):
+    uv_in = UVData()
+    uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    testfile = str(tmp_path / "outtest_casa.uvfits")
+    uv_in.read(uvfits_file)
+
+    # check for warnings & errors with extra_keywords that are dicts, lists or arrays
+    uv_in.extra_keywords[kwd_name] = kwd_value
+    with pytest.warns(UserWarning, match=warnstr):
+        uv_in.check(uvw_antpos_check_level="off")
+
+    if errstr is not None:
+        with pytest.raises(TypeError, match=errstr):
+            uv_in.write_uvfits(testfile, run_check=False)
+    else:
+        with pytest.warns(UserWarning, match=warnstr):
+            uv_in.write_uvfits(testfile, run_check=False)
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_extra_keywords(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     testfile = str(tmp_path / "outtest_casa.uvfits")
     uv_in.read(uvfits_file)
-
-    # check for warnings & errors with extra_keywords that are dicts, lists or arrays
-    uv_in.extra_keywords["testdict"] = {"testkey": 23}
-    uvtest.checkWarnings(
-        uv_in.check, message=["testdict in extra_keywords is a " "list, array or dict"]
-    )
-    with pytest.raises(TypeError) as cm:
-        uv_in.write_uvfits(testfile, run_check=False)
-    assert str(cm.value).startswith("Extra keyword testdict is of <class 'dict'>")
-    uv_in.extra_keywords.pop("testdict")
-
-    uv_in.extra_keywords["testlist"] = [12, 14, 90]
-    uvtest.checkWarnings(
-        uv_in.check, message=["testlist in extra_keywords is a " "list, array or dict"]
-    )
-    with pytest.raises(TypeError) as cm:
-        uv_in.write_uvfits(testfile, run_check=False)
-    assert str(cm.value).startswith("Extra keyword testlist is of <class 'list'>")
-    uv_in.extra_keywords.pop("testlist")
-
-    uv_in.extra_keywords["testarr"] = np.array([12, 14, 90])
-    uvtest.checkWarnings(
-        uv_in.check, message=["testarr in extra_keywords is a " "list, array or dict"]
-    )
-    with pytest.raises(TypeError) as cm:
-        uv_in.write_uvfits(testfile, run_check=False)
-    assert str(cm.value).startswith(
-        "Extra keyword testarr is of <class 'numpy.ndarray'>"
-    )
-    uv_in.extra_keywords.pop("testarr")
-
-    # check for warnings with extra_keywords keys that are too long
-    uv_in.extra_keywords["test_long_key"] = True
-    uvtest.checkWarnings(
-        uv_in.check,
-        message=["key test_long_key in extra_keywords " "is longer than 8 characters"],
-    )
-    uvtest.checkWarnings(
-        uv_in.write_uvfits,
-        [testfile],
-        {"run_check": False},
-        message=["key test_long_key in extra_keywords is longer than 8 characters"],
-    )
-    uv_in.extra_keywords.pop("test_long_key")
 
     # check handling of boolean keywords
     uv_in.extra_keywords["bool"] = True
@@ -663,18 +684,24 @@ def test_select_read(tmp_path):
 
     # repeat with no spw file
     uvfitsfile_no_spw = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAAM.uvfits")
+    # This file has a crazy epoch (2291.34057617) which breaks the uvw_antpos check
+    # Since it's a PAPER file, I think this is a bug in the file, not in the check.
 
     # select on antennas
     ants_to_keep = np.array([2, 4, 5])
-    uvfits_uv.read(uvfitsfile_no_spw, antenna_nums=ants_to_keep)
-    uvfits_uv2.read(uvfitsfile_no_spw)
+    uvfits_uv.read(
+        uvfitsfile_no_spw, uvw_antpos_check_level="off", antenna_nums=ants_to_keep
+    )
+    uvfits_uv2.read(uvfitsfile_no_spw, uvw_antpos_check_level="off")
     uvfits_uv2.select(antenna_nums=ants_to_keep)
     assert uvfits_uv == uvfits_uv2
 
     # select on frequency channels
     chans_to_keep = np.arange(4, 8)
-    uvfits_uv.read(uvfitsfile_no_spw, freq_chans=chans_to_keep)
-    uvfits_uv2.read(uvfitsfile_no_spw)
+    uvfits_uv.read(
+        uvfitsfile_no_spw, uvw_antpos_check_level="off", freq_chans=chans_to_keep
+    )
+    uvfits_uv2.read(uvfitsfile_no_spw, uvw_antpos_check_level="off")
     uvfits_uv2.select(freq_chans=chans_to_keep)
     assert uvfits_uv == uvfits_uv2
 
@@ -770,6 +797,7 @@ def test_read_uvfits_write_miriad(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_multi_files(tmp_path):
     """
     Reading multiple files at once.
@@ -785,14 +813,8 @@ def test_multi_files(tmp_path):
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
-    uvtest.checkWarnings(
-        uv1.read,
-        func_args=[np.array([testfile1, testfile2])],
-        func_kwargs={"file_type": "uvfits"},
-        message=2 * ["Telescope EVLA is not"],
-        category=2 * [UserWarning],
-        nwarnings=2,
-    )
+    uv1.read(np.array([testfile1, testfile2]), file_type="uvfits")
+
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         uv_full.history + "  Downselected to "
@@ -858,13 +880,18 @@ def test_multi_unphase_on_read(tmp_path):
         func_args=[np.array([testfile1, testfile2])],
         func_kwargs={"unphase_to_drift": True},
         message=(
-            ["Telescope EVLA is not"] * 2
+            [
+                "Telescope EVLA is not",
+                "The uvw_array does not match the expected values given the "
+                "antenna positions.",
+            ]
+            * 2
             + [
                 "Unphasing this UVData object to drift",
                 "Unphasing other UVData object to drift",
             ]
         ),
-        nwarnings=4,
+        nwarnings=6,
     )
 
     # Check history is correct, before replacing and doing a full object check
@@ -886,8 +913,13 @@ def test_multi_unphase_on_read(tmp_path):
         uv_full2.read,
         func_args=[uvfits_file],
         func_kwargs={"unphase_to_drift": True},
-        message=(["Telescope EVLA is not", "Unphasing this UVData object to drift"]),
-        nwarnings=2,
+        message=[
+            "Telescope EVLA is not",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Unphasing this UVData object to drift",
+        ],
+        nwarnings=3,
     )
     assert uv_full2 == uv_full
 
@@ -917,13 +949,18 @@ def test_multi_phase_on_read(tmp_path):
         func_args=[np.array([testfile1, testfile2])],
         func_kwargs={"phase_center_radec": phase_center_radec},
         message=(
-            ["Telescope EVLA is not"] * 2
+            [
+                "Telescope EVLA is not",
+                "The uvw_array does not match the expected values given the "
+                "antenna positions.",
+            ]
+            * 2
             + [
                 "Phasing this UVData object to phase_center_radec",
                 "Phasing this UVData object to phase_center_radec",
             ]
         ),
-        nwarnings=4,
+        nwarnings=6,
     )
 
     # Check history is correct, before replacing and doing a full object check
@@ -947,10 +984,12 @@ def test_multi_phase_on_read(tmp_path):
         message=(
             [
                 "Telescope EVLA is not",
+                "The uvw_array does not match the expected values given the antenna "
+                "positions.",
                 "Phasing this UVData object to phase_center_radec",
             ]
         ),
-        nwarnings=2,
+        nwarnings=3,
     )
     assert uv_full2 == uv_full
 

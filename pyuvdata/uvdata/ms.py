@@ -137,10 +137,11 @@ class MS(UVData):
         filepath,
         data_column="DATA",
         pol_order="AIPS",
+        background_lsts=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        background_lsts=True,
+        uvw_antpos_check_level="warn",
     ):
         """
         Read in a casa measurement set.
@@ -155,6 +156,8 @@ class MS(UVData):
         pol_order : str
             Option to specify polarizations order convention, options are
             'CASA' or 'AIPS'.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -166,8 +169,10 @@ class MS(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done).
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
+        uvw_antpos_check_level : string
+            Setting to control the strictness of the check that uvws match antenna
+            positions. Options are: ['strict', 'warn', 'off']. See the `UVData.check`
+            docstring for more details.
 
         Raises
         ------
@@ -436,5 +441,7 @@ class MS(UVData):
         self.reorder_pols(order=pol_order)
         if run_check:
             self.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                uvw_antpos_check_level=uvw_antpos_check_level,
             )

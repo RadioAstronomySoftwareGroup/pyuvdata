@@ -216,7 +216,14 @@ def uvdata_data():
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     uvtest.checkWarnings(
-        uv_object.read_uvfits, [testfile], message="Telescope EVLA is not"
+        uv_object.read_uvfits,
+        [testfile],
+        nwarnings=2,
+        message=[
+            "Telescope EVLA is not in known_telescopes.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
     )
 
     class DataHolder:
@@ -4978,10 +4985,16 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method):
         uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
 
     # check inflating gets back to the original
-    with pytest.warns(
-        UserWarning, match="Missing some redundant groups. Filling in available data."
-    ):
-        uv2.inflate_by_redundancy(tol=tol)
+    uvtest.checkWarnings(
+        uv2.inflate_by_redundancy,
+        func_args={tol: tol},
+        nwarnings=2,
+        message=[
+            "Missing some redundant groups. Filling in available data.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+    )
 
     uv2.history = uv0.history
     # Inflation changes the baseline ordering into the order of the redundant groups.
@@ -7628,9 +7641,13 @@ def test_multifile_read_check(tmp_path):
     uvTrue = UVData()
     uvTrue.read(uvh5_file)
     fileList = [testfile, uvh5_file]
-    with pytest.warns(UserWarning, match="Failed to read") as cm:
+    with pytest.warns(UserWarning, match="Failed to read") as record:
         uv.read(fileList, skip_bad_files=True)
-    assert len(cm) == 1
+    assert len(record) == 2
+    assert str(record[0].message).startswith("Failed to read")
+    assert str(record[1].message).startswith(
+        "The uvw_array does not match the expected values given the antenna positions."
+    )
     assert uv == uvTrue
 
     # Test when the corrupted file is at the end of a list
@@ -7668,12 +7685,23 @@ def test_multifile_read_check_long_list(tmp_path):
 
     # Test with corrupted file as last file in list, skip_bad_files=True
     uvTest = UVData()
-    with pytest.warns(UserWarning) as cm:
-        uvTest.read(fileList[0:4], skip_bad_files=True)
+    uvtest.checkWarnings(
+        uvTest.read,
+        func_args=[fileList[0:4]],
+        func_kwargs={"skip_bad_files": True},
+        nwarnings=4,
+        message=(
+            [
+                "The uvw_array does not match the expected values given the "
+                "antenna positions."
+            ]
+            * 3
+            + ["Failed to read"]
+        ),
+    )
     uvTrue = UVData()
     uvTrue.read(fileList[0:3], skip_bad_files=True)
 
-    assert len(cm) == 1
     assert uvTest == uvTrue
 
     # Repeat above test, but with corrupted file as first file in list
@@ -7684,12 +7712,23 @@ def test_multifile_read_check_long_list(tmp_path):
     with h5py.File(fileList[0], "r+") as h5f:
         del h5f["Header/ant_1_array"]
     uvTest = UVData()
-    with pytest.warns(UserWarning) as cm:
-        uvTest.read(fileList[0:4], skip_bad_files=True)
+    uvtest.checkWarnings(
+        uvTest.read,
+        func_args=[fileList[0:4]],
+        func_kwargs={"skip_bad_files": True},
+        nwarnings=4,
+        message=(
+            ["Failed to read"]
+            + [
+                "The uvw_array does not match the expected values given the "
+                "antenna positions."
+            ]
+            * 3
+        ),
+    )
     uvTrue = UVData()
     uvTrue.read(fileList[1:4], skip_bad_files=True)
 
-    assert len(cm) == 1
     assert uvTest == uvTrue
 
     # Repeat above test, but with corrupted file in the middle of the list
@@ -7700,12 +7739,26 @@ def test_multifile_read_check_long_list(tmp_path):
     with h5py.File(fileList[1], "r+") as h5f:
         del h5f["Header/ant_1_array"]
     uvTest = UVData()
-    with pytest.warns(UserWarning) as cm:
-        uvTest.read(fileList[0:4], skip_bad_files=True)
+    uvtest.checkWarnings(
+        uvTest.read,
+        func_args=[fileList[0:4]],
+        func_kwargs={"skip_bad_files": True},
+        nwarnings=4,
+        message=(
+            [
+                "The uvw_array does not match the expected values given the "
+                "antenna positions.",
+                "Failed to read",
+                "The uvw_array does not match the expected values given the "
+                "antenna positions.",
+                "The uvw_array does not match the expected values given the "
+                "antenna positions.",
+            ]
+        ),
+    )
     uvTrue = UVData()
     uvTrue.read([fileList[0], fileList[2], fileList[3]], skip_bad_files=True)
 
-    assert len(cm) == 1
     assert uvTest == uvTrue
 
     # Test with corrupted file in middle of list, but with skip_bad_files=False
