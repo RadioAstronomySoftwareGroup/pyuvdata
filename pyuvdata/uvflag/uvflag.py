@@ -1550,16 +1550,13 @@ class UVFlag(UVBase):
             )
             this.Npols = len(this.polarization_array)
 
-        if this.mode == "flag":
-            this.flag_array = np.concatenate(
-                [this.flag_array, other.flag_array], axis=ax
-            )
-        elif this.mode == "metric":
-            this.metric_array = np.concatenate(
-                [this.metric_array, other.metric_array], axis=ax
-            )
-            this.weights_array = np.concatenate(
-                [this.weights_array, other.weights_array], axis=ax
+        # Will fail with AttributeError if the objects have different _data_params
+        # Might want a more straight-forward check ahead of time
+        for attr in this._data_params:
+            setattr(
+                this,
+                attr,
+                np.concatenate([getattr(this, attr), getattr(other, attr)], axis=ax),
             )
 
         this.history += "Data combined along " + axis + " axis. "
