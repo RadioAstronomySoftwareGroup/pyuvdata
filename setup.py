@@ -96,7 +96,8 @@ utils_extension = Extension(
     sources=["pyuvdata/utils.pyx"],
     define_macros=global_c_macros,
     extra_compile_args=["-O3"],
-),
+)
+
 extensions = [corr_fits_extension, utils_extension]
 
 # don't build miriad on windows
