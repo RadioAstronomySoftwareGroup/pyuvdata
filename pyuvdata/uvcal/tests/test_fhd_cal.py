@@ -5,7 +5,6 @@
 """Tests for FHD_cal object."""
 import pytest
 import os
-import gc
 
 import numpy as np
 
@@ -21,7 +20,7 @@ cal_testfile = os.path.join(testdir, testfile_prefix + "cal.sav")
 settings_testfile = os.path.join(testdir, testfile_prefix + "settings.txt")
 
 
-def test_read_fhdcal_write_read_calfits(tmp_path):
+def test_read_fhdcal_raw_write_read_calfits(tmp_path):
     """
     FHD cal to calfits loopback test.
 
@@ -38,9 +37,11 @@ def test_read_fhdcal_write_read_calfits(tmp_path):
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
-    del fhd_cal, calfits_cal
-    gc.collect()
 
+    return
+
+
+def test_read_fhdcal_fit_write_read_calfits(tmp_path):
     # do it again with fit gains (rather than raw)
     fhd_cal = UVCal()
     calfits_cal = UVCal()
@@ -51,6 +52,8 @@ def test_read_fhdcal_write_read_calfits(tmp_path):
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
+
+    return
 
 
 def test_extra_history(tmp_path):
@@ -70,9 +73,11 @@ def test_extra_history(tmp_path):
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
     assert extra_history in fhd_cal.history
-    del fhd_cal, calfits_cal
-    gc.collect()
 
+    return
+
+
+def test_extra_history_strings(tmp_path):
     # try again with a list of history strings
     fhd_cal = UVCal()
     calfits_cal = UVCal()
@@ -90,6 +95,8 @@ def test_extra_history(tmp_path):
     assert fhd_cal == calfits_cal
     for line in extra_history:
         assert line in fhd_cal.history
+
+    return
 
 
 def test_flags_galaxy(tmp_path):
