@@ -859,6 +859,20 @@ def test_add_frequency():
     assert "Data combined along frequency axis. " in uv3.history
 
 
+def test_add_frequency_with_weights_square():
+    # Same test as above, just checking an optional parameter (also in waterfall mode)
+    uvf1 = UVFlag(test_f_file)
+    uvf1.weights_array = 2 * np.ones_like(uvf1.weights_array)
+    uvf1.to_waterfall(return_weights_square=True)
+    uvf2 = copy.deepcopy(uvf1)
+    uvf2.freq_array += 1e4
+    uvf3 = uvf1.__add__(uvf2, axis="frequency")
+    assert np.array_equal(
+        np.concatenate((uvf1.weights_square_array, uvf2.weights_square_array), axis=1),
+        uvf3.weights_square_array,
+    )
+
+
 def test_add_pol():
     uv1 = UVFlag(test_f_file)
     uv2 = copy.deepcopy(uv1)
