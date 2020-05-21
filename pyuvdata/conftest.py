@@ -11,11 +11,15 @@ from astropy.time import Time
 import numpy as np
 
 from pyuvdata.data import DATA_PATH
-from pyuvdata import UVBeam
+from pyuvdata import UVData, UVBeam
 
 filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
 cst_folder = "NicCSTbeams"
 cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
+casa_tutorial_uvfits = os.path.join(
+    DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits"
+)
+paper_miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -37,6 +41,47 @@ def setup_and_teardown_package():
     yield
 
     iers.conf.auto_max_age = 30
+
+
+@pytest.fixture(scope="session")
+def casa_uvfits_master():
+    """Read in CASA tutorial uvfits file."""
+    uv_in = UVData()
+    uv_in.read(casa_tutorial_uvfits)
+
+    return uv_in
+
+
+@pytest.fixture(scope="function")
+def casa_uvfits(casa_uvfits_master):
+    """Make function level CASA tutorial uvfits object."""
+    casa_uvfits = casa_uvfits_master.copy()
+    yield casa_uvfits
+
+    # clean up when done
+    del casa_uvfits
+
+    return
+
+
+@pytest.fixture(scope="session")
+def paper_miriad_master():
+    """Read in PAPER miriad file."""
+    uv_in = UVData()
+    uv_in.read(paper_miriad_file)
+
+    return uv_in
+
+
+@pytest.fixture(scope="function")
+def paper_miriad(paper_miriad_master):
+    """Make function level PAPER miriad object."""
+    uv_in = paper_miriad_master.copy()
+
+    yield uv_in
+
+    # cleanup
+    del uv_in
 
 
 def make_cst_beam(beam_type, nfreq):

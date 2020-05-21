@@ -7,8 +7,8 @@
 Note that because of the way that file handling is done in the C++ API, a miriad
 file is not closed until the destructor function (tp_dealloc) is called.
 
-As of April 2020, the following lines were made before a major rewrite of
-the miriad interface. They should no longer necessarily be true,
+The following lines were made before a major rewrite of the miriad interface.
+As of April 2020, they should no longer necessarily be true,
 but are preserved here in case segfaults arise again.
 
 Due to implementation details of CPython, it is sometimes not enough to `del` the
@@ -22,7 +22,6 @@ on their own.
 """
 import os
 import shutil
-import copy
 import numpy as np
 import pytest
 from astropy.time import Time, TimeDelta
@@ -40,13 +39,13 @@ aipy_extracts = pytest.importorskip("pyuvdata.uvdata.aipy_extracts")
 # This does NOT break uvutils.checkWarnings tests for this warning
 pytestmark = pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad")
 
+paper_miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
 
-@pytest.fixture
-def uv_in_paper(tmp_path):
-    uv_in = UVData()
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+
+@pytest.fixture(scope="function")
+def uv_in_paper(paper_miriad, tmp_path):
+    uv_in = paper_miriad
     write_file = str(tmp_path / "outtest_miriad.uv")
-    uv_in.read(testfile)
     uv_in.write_miriad(write_file, clobber=True)
     uv_out = UVData()
 
@@ -56,13 +55,11 @@ def uv_in_paper(tmp_path):
     del uv_in, uv_out
 
 
-@pytest.fixture
-def uv_in_uvfits(tmp_path):
-    uv_in = UVData()
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+@pytest.fixture(scope="function")
+def uv_in_uvfits(paper_miriad, tmp_path):
+    uv_in = paper_miriad
     write_file = str(tmp_path / "outtest_miriad.uvfits")
 
-    uv_in.read(testfile)
     uv_out = UVData()
 
     yield uv_in, uv_out, write_file
@@ -72,6 +69,7 @@ def uv_in_uvfits(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope ATCA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_write_read_atca(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
@@ -102,18 +100,18 @@ def test_read_write_read_atca(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_read_nrao_write_miriad_read_miriad(tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_read_nrao_write_miriad_read_miriad(casa_uvfits, tmp_path):
     """Test reading in a CASA tutorial uvfits file, writing and reading as miriad"""
-    uvfits_uv = UVData()
+    uvfits_uv = casa_uvfits
     miriad_uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     writefile = str(tmp_path / "outtest_miriad.uv")
-    uvfits_uv.read_uvfits(testfile)
     uvfits_uv.write_miriad(writefile, clobber=True)
     miriad_uv.read(writefile)
     assert uvfits_uv == miriad_uv
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_miriad_write_uvfits(uv_in_uvfits):
     """
     Miriad to uvfits loopback test.
@@ -128,13 +126,13 @@ def test_read_miriad_write_uvfits(uv_in_uvfits):
     assert miriad_uv == uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_miriad_read_warning_lat_lon_corrected():
     miriad_uv = UVData()
-    miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
     # check warning when correct_lat_lon is set to False
     uvtest.checkWarnings(
         miriad_uv.read,
-        [miriad_file],
+        [paper_miriad_file],
         {"correct_lat_lon": False},
         nwarnings=2,
         message=[
@@ -147,6 +145,7 @@ def test_miriad_read_warning_lat_lon_corrected():
     )
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "err_type,write_kwargs,err_msg",
     [
@@ -164,9 +163,8 @@ def test_read_miriad_write_uvfits_phasing_errors(
     miriad_uv, uvfits_uv, testfile = uv_in_uvfits
 
     # check error if phase_type is wrong and force_phase not set
-    with pytest.raises(err_type) as cm:
+    with pytest.raises(err_type, match=err_msg):
         miriad_uv.write_uvfits(testfile, **write_kwargs)
-    assert str(cm.value).startswith(err_msg)
 
 
 @pytest.mark.parametrize(
@@ -182,22 +180,21 @@ def test_read_miriad_write_uvfits_phasing_errors(
 )
 def test_read_miriad_phasing_errors(err_type, read_kwargs, err_msg):
     miriad_uv = UVData()
-    miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
     # check that setting the phase_type to something wrong errors
-    with pytest.raises(err_type) as cm:
-        miriad_uv.read(miriad_file, **read_kwargs)
-    assert str(cm.value).startswith(err_msg)
+    with pytest.raises(err_type, match=err_msg):
+        miriad_uv.read(paper_miriad_file, **read_kwargs)
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_miriad_write_uvfits_phasing_error(uv_in_uvfits):
     miriad_uv, uvfits_uv, testfile = uv_in_uvfits
 
     miriad_uv._set_unknown_phase_type()
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="The phasing type of the data is unknown"):
         miriad_uv.write_uvfits(testfile, spoof_nonessential=True)
-    assert str(cm.value).startswith("The phasing type of the data is unknown")
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_wronglatlon():
     """
     Check for appropriate warnings with incorrect lat/lon values or missing telescope
@@ -303,18 +300,18 @@ def test_wronglatlon():
     )
 
 
-def test_miriad_location_handling(tmp_path):
-    uv_in = UVData()
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_miriad_location_handling(paper_miriad_master, tmp_path):
+    uv_in = paper_miriad_master
     uv_out = UVData()
-    miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+
     testfile = str(tmp_path / "outtest_miriad.uv")
-    aipy_uv = aipy_extracts.UV(miriad_file)
+    aipy_uv = aipy_extracts.UV(paper_miriad_file)
 
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
 
     # Test for using antenna positions to get telescope position
-    uv_in.read(miriad_file)
     # extract antenna positions and rotate them for miriad
     nants = aipy_uv["nants"]
     rel_ecef_antpos = np.zeros((nants, 3), dtype=uv_in.antenna_positions.dtype)
@@ -367,7 +364,7 @@ def test_miriad_location_handling(tmp_path):
     # make new file
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
-    aipy_uv = aipy_extracts.UV(miriad_file)
+    aipy_uv = aipy_extracts.UV(paper_miriad_file)
     aipy_uv2 = aipy_extracts.UV(testfile, status="new")
     # initialize headers from old file
     # change telescope name (so the position isn't set from known_telescopes)
@@ -408,7 +405,7 @@ def test_miriad_location_handling(tmp_path):
     # make new file
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
-    aipy_uv = aipy_extracts.UV(miriad_file)
+    aipy_uv = aipy_extracts.UV(paper_miriad_file)
     aipy_uv2 = aipy_extracts.UV(testfile, status="new")
     # initialize headers from old file
     # change telescope name (so the position isn't set from known_telescopes)
@@ -448,7 +445,7 @@ def test_miriad_location_handling(tmp_path):
     # make new file
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
-    aipy_uv = aipy_extracts.UV(miriad_file)
+    aipy_uv = aipy_extracts.UV(paper_miriad_file)
     aipy_uv2 = aipy_extracts.UV(testfile, status="new")
     # initialize headers from old file
     # change telescope name (so the position isn't set from known_telescopes)
@@ -503,7 +500,7 @@ def test_miriad_location_handling(tmp_path):
     # make new file
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
-    aipy_uv = aipy_extracts.UV(miriad_file)
+    aipy_uv = aipy_extracts.UV(paper_miriad_file)
     aipy_uv2 = aipy_extracts.UV(testfile, status="new")
     # initialize headers from old file
     # change telescope name (so the position isn't set from known_telescopes)
@@ -539,17 +536,15 @@ def test_miriad_location_handling(tmp_path):
     aipy_uv.close()
 
 
-def test_singletimeselect_drift(tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_singletimeselect_drift(uv_in_paper, tmp_path):
     """
     Check behavior with writing & reading after selecting a single time from
     a drift file.
     """
-    uv_in = UVData()
-    uv_out = UVData()
-    miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    testfile = str(tmp_path / "outtest_miriad.uv")
-    uv_in.read(miriad_file)
+    uv_in, uv_out, testfile = uv_in_paper
 
+    uv_in_copy = uv_in.copy()
     uv_in.select(times=uv_in.time_array[0])
     uv_in.write_miriad(testfile, clobber=True)
     uv_out.read(testfile)
@@ -560,27 +555,26 @@ def test_singletimeselect_drift(tmp_path):
     assert uv_in == uv_out
 
     # check again with more than one time but only 1 unflagged time
-    uv_in.read(miriad_file)
-    time_gt0_array = np.where(uv_in.time_array > uv_in.time_array[0])[0]
-    uv_in.flag_array[time_gt0_array, :, :, :] = True
+    time_gt0_array = np.where(uv_in_copy.time_array > uv_in_copy.time_array[0])[0]
+    uv_in_copy.flag_array[time_gt0_array, :, :, :] = True
 
     # get unflagged blts
-    blt_good = np.where(~np.all(uv_in.flag_array, axis=(1, 2, 3)))
-    assert np.isclose(np.mean(np.diff(uv_in.time_array[blt_good])), 0.0)
+    blt_good = np.where(~np.all(uv_in_copy.flag_array, axis=(1, 2, 3)))
+    assert np.isclose(np.mean(np.diff(uv_in_copy.time_array[blt_good])), 0.0)
 
-    uv_in.write_miriad(testfile, clobber=True)
+    uv_in_copy.write_miriad(testfile, clobber=True)
     uv_out.read(testfile)
-    assert uv_in == uv_out
+    assert uv_in_copy == uv_out
 
     # check that setting the phase_type works
     uv_out.read(testfile, phase_type="drift")
-    assert uv_in == uv_out
+    assert uv_in_copy == uv_out
 
 
-def test_poltoind():
-    miriad_uv = UVData()
-    miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    miriad_uv.read(miriad_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_poltoind(uv_in_paper):
+    miriad_uv, uv_out, testfile = uv_in_paper
+
     pol_arr = miriad_uv.polarization_array
 
     miriad = miriad_uv._convert_to_filetype("miriad")
@@ -624,18 +618,30 @@ def test_poltoind():
             "key test_long_key in extra_keywords is longer than 8 characters",
             None,
         ],
+        [
+            "complex1",
+            np.complex64(5.3 + 1.2j),
+            None,
+            "Extra keyword complex1 is of <class 'numpy.complex64'>",
+        ],
+        [
+            "complex2",
+            6.9 + 4.6j,
+            None,
+            "Extra keyword complex2 is of <class 'complex'>",
+        ],
     ),
 )
-def test_miriad_extra_keywords_errors(tmp_path, kwd_name, kwd_value, warnstr, errstr):
-    uv_in = UVData()
-    miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    testfile = str(tmp_path / "outtest_miriad.uv")
-    uv_in.read(miriad_file)
+def test_miriad_extra_keywords_errors(
+    uv_in_paper, tmp_path, kwd_name, kwd_value, warnstr, errstr
+):
+    uv_in, uv_out, testfile = uv_in_paper
 
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
     uv_in.extra_keywords[kwd_name] = kwd_value
-    with pytest.warns(UserWarning, match=warnstr):
-        uv_in.check(uvw_antpos_check_level="off")
+    if warnstr is not None:
+        with pytest.warns(UserWarning, match=warnstr):
+            uv_in.check(uvw_antpos_check_level="off")
 
     if errstr is not None:
         with pytest.raises(TypeError, match=errstr):
@@ -645,73 +651,30 @@ def test_miriad_extra_keywords_errors(tmp_path, kwd_name, kwd_value, warnstr, er
             uv_in.write_miriad(testfile, clobber=True, run_check=False)
 
 
-def test_miriad_extra_keywords(tmp_path):
-    uv_in = UVData()
-    uv_out = UVData()
-    miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    testfile = str(tmp_path / "outtest_miriad.uv")
-    uv_in.read(miriad_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize(
+    "kwd_names,kwd_values",
+    (
+        [["bool", "bool2"], [True, False]],
+        [["int1", "int2"], [np.int(5), 7]],
+        [["float1", "float2"], [np.int64(5.3), 6.9]],
+        [["str", "longstr"], ["hello", "this is a very long string " * 1000]],
+    ),
+)
+def test_miriad_extra_keywords(uv_in_paper, tmp_path, kwd_names, kwd_values):
+    uv_in, uv_out, testfile = uv_in_paper
 
-    # check handling of boolean keywords
-    uv_in.extra_keywords["bool"] = True
-    uv_in.extra_keywords["bool2"] = False
+    for name, value in zip(kwd_names, kwd_values):
+        uv_in.extra_keywords[name] = value
     uv_in.write_miriad(testfile, clobber=True)
     uv_out.read(testfile)
 
     assert uv_in == uv_out
-    uv_in.extra_keywords.pop("bool")
-    uv_in.extra_keywords.pop("bool2")
-
-    # check handling of int-like keywords
-    uv_in.extra_keywords["int1"] = np.int(5)
-    uv_in.extra_keywords["int2"] = 7
-    uv_in.write_miriad(testfile, clobber=True)
-    uv_out.read(testfile)
-
-    assert uv_in == uv_out
-    uv_in.extra_keywords.pop("int1")
-    uv_in.extra_keywords.pop("int2")
-
-    # check handling of float-like keywords
-    uv_in.extra_keywords["float1"] = np.int64(5.3)
-    uv_in.extra_keywords["float2"] = 6.9
-    uv_in.write_miriad(testfile, clobber=True)
-    uv_out.read(testfile)
-
-    assert uv_in == uv_out
-    uv_in.extra_keywords.pop("float1")
-    uv_in.extra_keywords.pop("float2")
-
-    # check handling of very long strings
-    long_string = "this is a very long string " * 1000
-    uv_in.extra_keywords["longstr"] = long_string
-    uv_in.write_miriad(testfile, clobber=True)
-    uv_out.read(testfile)
-    assert uv_in == uv_out
-    uv_in.extra_keywords.pop("longstr")
-
-    # check handling of complex-like keywords
-    # currently they are NOT supported
-    uv_in.extra_keywords["complex1"] = np.complex64(5.3 + 1.2j)
-    with pytest.raises(
-        TypeError, match="Extra keyword complex1 is of <class 'numpy.complex64'>"
-    ):
-        uv_in.write_miriad(testfile, clobber=True, run_check=False)
-    uv_in.extra_keywords.pop("complex1")
-
-    uv_in.extra_keywords["complex2"] = 6.9 + 4.6j
-    with pytest.raises(
-        TypeError, match="Extra keyword complex2 is of <class 'complex'>"
-    ):
-        uv_in.write_miriad(testfile, clobber=True, run_check=False)
 
 
-def test_roundtrip_optional_params(tmp_path):
-    uv_in = UVData()
-    uv_out = UVData()
-    miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    testfile = str(tmp_path / "outtest_miriad.uv")
-    uv_in.read(miriad_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_roundtrip_optional_params(uv_in_paper, tmp_path):
+    uv_in, uv_out, testfile = uv_in_paper
 
     uv_in.x_orientation = "east"
     uv_in.reorder_blts()
@@ -730,20 +693,18 @@ def test_roundtrip_optional_params(tmp_path):
     assert uv_in == uv_out
 
 
-def test_breakread_miriad(tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_breakread_miriad(uv_in_paper, tmp_path):
     """Test Miriad file checking."""
-    uv_in = UVData()
-    uv_out = UVData()
+    uv_in, uv_out, testfile = uv_in_paper
+
     with pytest.raises(IOError) as cm:
         uv_in.read("foo", file_type="miriad")
     assert str(cm.value).startswith("foo not found")
 
-    miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    testfile = str(tmp_path / "outtest_miriad.uv")
-    uv_in.read(miriad_file)
-
-    uv_in.Nblts += 10
-    uv_in.write_miriad(testfile, clobber=True, run_check=False)
+    uv_in_copy = uv_in.copy()
+    uv_in_copy.Nblts += 10
+    uv_in_copy.write_miriad(testfile, clobber=True, run_check=False)
     uvtest.checkWarnings(
         uv_out.read,
         [testfile],
@@ -751,9 +712,9 @@ def test_breakread_miriad(tmp_path):
         message=["Nblts does not match the number of unique blts in the data"],
     )
 
-    uv_in.read(miriad_file)
-    uv_in.Nbls += 10
-    uv_in.write_miriad(testfile, clobber=True, run_check=False)
+    uv_in_copy = uv_in.copy()
+    uv_in_copy.Nbls += 10
+    uv_in_copy.write_miriad(testfile, clobber=True, run_check=False)
     uvtest.checkWarnings(
         uv_out.read,
         [testfile],
@@ -761,9 +722,9 @@ def test_breakread_miriad(tmp_path):
         message=["Nbls does not match the number of unique baselines in the data"],
     )
 
-    uv_in.read(miriad_file)
-    uv_in.Ntimes += 10
-    uv_in.write_miriad(testfile, clobber=True, run_check=False)
+    uv_in_copy = uv_in.copy()
+    uv_in_copy.Ntimes += 10
+    uv_in_copy.write_miriad(testfile, clobber=True, run_check=False)
     uvtest.checkWarnings(
         uv_out.read,
         [testfile],
@@ -772,6 +733,7 @@ def test_breakread_miriad(tmp_path):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_write_read_miriad(uv_in_paper):
     """
     PAPER file Miriad loopback test.
@@ -785,7 +747,7 @@ def test_read_write_read_miriad(uv_in_paper):
     assert uv_in == uv_out
 
     # check that we can read & write phased data
-    uv_in2 = copy.deepcopy(uv_in)
+    uv_in2 = uv_in.copy()
     uv_in2.phase_to_time(Time(np.mean(uv_in2.time_array), format="jd"))
     uv_in2.write_miriad(write_file, clobber=True)
     uv_out.read(write_file)
@@ -805,6 +767,7 @@ def test_read_write_read_miriad(uv_in_paper):
     assert uv_in == uv_out
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_miriad_antenna_diameters(uv_in_paper):
     # check that if antenna_diameters is set, it's read back out properly
     uv_in, uv_out, write_file = uv_in_paper
@@ -822,17 +785,20 @@ def test_miriad_antenna_diameters(uv_in_paper):
     assert uv_in == uv_out
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_miriad_write_miriad_unkonwn_phase_error(uv_in_paper):
     uv_in, uv_out, write_file = uv_in_paper
     # check that trying to write a file with unknown phasing raises an error
     uv_in._set_unknown_phase_type()
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="The phasing type of the data is unknown"):
         uv_in.write_miriad(write_file, clobber=True)
-    assert str(cm.value).startswith("The phasing type of the data is unknown")
 
 
-def test_miriad_write_read_diameters(uv_in_paper):
-    uv_in, uv_out, write_file = uv_in_paper
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_miriad_write_read_diameters(tmp_path):
+    uv_in = UVData()
+    uv_out = UVData()
+    write_file = str(tmp_path / "outtest_miriad.uv")
     # check for backwards compatibility with old keyword 'diameter' for
     # antenna diameters
     testfile_diameters = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA")
@@ -842,11 +808,11 @@ def test_miriad_write_read_diameters(uv_in_paper):
     assert uv_in == uv_out
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_miriad_and_aipy_reads(uv_in_paper):
     uv_in, uv_out, write_file = uv_in_paper
     # check that variables 'ischan' and 'nschan' were written to new file
     # need to use aipy, since pyuvdata is not currently capturing these variables
-    uv_in.read(write_file)
     uv_aipy = aipy_extracts.UV(write_file)
     nfreqs = uv_in.Nfreqs
     nschan = uv_aipy["nschan"]
@@ -859,29 +825,26 @@ def test_miriad_and_aipy_reads(uv_in_paper):
 
 
 def test_miriad_telescope_locations():
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
     # test load_telescope_coords w/ blank Miriad
     uv_in = Miriad()
-    uv = aipy_extracts.UV(testfile)
+    uv = aipy_extracts.UV(paper_miriad_file)
     uv_in._load_telescope_coords(uv)
     assert uv_in.telescope_location_lat_lon_alt is not None
     uv.close()
     # test load_antpos w/ blank Miriad
     uv_in = Miriad()
-    uv = aipy_extracts.UV(testfile)
+    uv = aipy_extracts.UV(paper_miriad_file)
     uv_in._load_antpos(uv)
     assert uv_in.antenna_positions is not None
 
 
-def test_miriad_integration_time_precision(tmp_path):
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = str(tmp_path / "outtest_miriad.uv")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_miriad_integration_time_precision(uv_in_paper):
+    uv_in, uv_out, write_file = uv_in_paper
 
     # test that changing precision of integraiton_time is okay
     # tolerance of integration_time (1e-3) is larger than floating point type
     # conversions
-    uv_in = UVData()
-    uv_in.read(testfile)
     uv_in.integration_time = uv_in.integration_time.astype(np.float32)
     uv_in.write_miriad(write_file, clobber=True)
     new_uv = UVData()
@@ -889,6 +852,7 @@ def test_miriad_integration_time_precision(tmp_path):
     assert uv_in == new_uv
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "select_kwargs",
     [
@@ -900,13 +864,10 @@ def test_miriad_integration_time_precision(tmp_path):
         {"bls": [(4, 4, "xy")]},
     ],
 )
-def test_read_write_read_miriad_partial_bls(select_kwargs, tmp_path):
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = str(tmp_path / "outtest_miriad.uv")
-
+def test_read_write_read_miriad_partial_bls(uv_in_paper, select_kwargs, tmp_path):
     # check partial read selections
-    full = UVData()
-    full.read(testfile)
+    full, uv_out, write_file = uv_in_paper
+
     full.write_miriad(write_file, clobber=True)
     uv_in = UVData()
 
@@ -922,13 +883,11 @@ def test_read_write_read_miriad_partial_bls(select_kwargs, tmp_path):
     assert uv_in == exp_uv
 
 
-def test_read_write_read_miriad_partial_antenna_nums(tmp_path):
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = str(tmp_path / "outtest_miriad.uv")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_read_write_read_miriad_partial_antenna_nums(uv_in_paper, tmp_path):
+    full, uv_out, write_file = uv_in_paper
 
     # check partial read selections
-    full = UVData()
-    full.read(testfile)
     full.write_miriad(write_file, clobber=True)
     uv_in = UVData()
     # test all bls w/ 0 are loaded
@@ -941,6 +900,7 @@ def test_read_write_read_miriad_partial_antenna_nums(tmp_path):
     assert uv_in == exp_uv
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "select_kwargs",
     [
@@ -949,13 +909,10 @@ def test_read_write_read_miriad_partial_antenna_nums(tmp_path):
         {"time_range": [2456865.607, 2456865.609], "polarizations": [-7]},
     ],
 )
-def test_read_write_read_miriad_partial_times(select_kwargs, tmp_path):
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = str(tmp_path / "outtest_miriad.uv")
+def test_read_write_read_miriad_partial_times(uv_in_paper, select_kwargs, tmp_path):
+    full, uv_out, write_file = uv_in_paper
 
     # check partial read selections
-    full = UVData()
-    full.read(testfile)
     full.write_miriad(write_file, clobber=True)
     # test time loading
     uv_in = UVData()
@@ -974,14 +931,12 @@ def test_read_write_read_miriad_partial_times(select_kwargs, tmp_path):
     assert uv_in == exp_uv
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("pols", [["xy"], [-7]])
-def test_read_write_read_miriad_partial_pols(pols, tmp_path):
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = str(tmp_path / "outtest_miriad.uv")
+def test_read_write_read_miriad_partial_pols(uv_in_paper, pols, tmp_path):
+    full, uv_out, write_file = uv_in_paper
 
     # check partial read selections
-    full = UVData()
-    full.read(testfile)
     full.write_miriad(write_file, clobber=True)
 
     # test polarization loading
@@ -992,42 +947,29 @@ def test_read_write_read_miriad_partial_pols(pols, tmp_path):
     assert uv_in == exp_uv
 
 
-def test_read_write_read_miriad_partial_ant_str(tmp_path):
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = str(tmp_path / "outtest_miriad.uv")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_read_write_read_miriad_partial_ant_str(uv_in_paper, tmp_path):
+    full, uv_out, write_file = uv_in_paper
 
     # check partial read selections
-    full = UVData()
-    full.read(testfile)
     full.write_miriad(write_file, clobber=True)
-    uv_in = UVData()
     # test ant_str
-    del uv_in
     uv_in = UVData()
     uv_in.read(write_file, ant_str="auto")
     assert np.array([blp[0] == blp[1] for blp in uv_in.get_antpairs()]).all()
     exp_uv = full.select(ant_str="auto", inplace=False)
     assert uv_in == exp_uv
 
-    full = UVData()
-    full.read(testfile)
-    full.write_miriad(write_file, clobber=True)
-
-    uv_in = UVData()
     uv_in.read(write_file, ant_str="cross")
     assert np.array([blp[0] != blp[1] for blp in uv_in.get_antpairs()]).all()
     exp_uv = full.select(ant_str="cross", inplace=False)
     assert uv_in == exp_uv
 
-    full = UVData()
-    full.read(testfile)
-    full.write_miriad(write_file, clobber=True)
-
-    uv_in = UVData()
     uv_in.read(write_file, ant_str="all")
     assert uv_in == full
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "err_type,select_kwargs,err_msg",
     [
@@ -1106,14 +1048,11 @@ def test_read_write_read_miriad_partial_ant_str(tmp_path):
     ],
 )
 def test_read_write_read_miriad_partial_errors(
-    err_type, select_kwargs, err_msg, tmp_path
+    uv_in_paper, err_type, select_kwargs, err_msg, tmp_path
 ):
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = str(tmp_path / "outtest_miriad.uv")
+    full, uv_out, write_file = uv_in_paper
 
     # check partial read selections
-    full = UVData()
-    full.read(testfile)
     full.write_miriad(write_file, clobber=True)
     uv_in = UVData()
 
@@ -1122,13 +1061,11 @@ def test_read_write_read_miriad_partial_errors(
     assert str(cm.value).startswith(err_msg)
 
 
-def test_read_write_read_miriad_partial_error_special_cases(tmp_path):
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = str(tmp_path / "outtest_miriad.uv")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_read_write_read_miriad_partial_error_special_cases(uv_in_paper, tmp_path):
+    full, uv_out, write_file = uv_in_paper
 
     # check partial read selections
-    full = UVData()
-    full.read(testfile)
     full.write_miriad(write_file, clobber=True)
     uv_in = UVData()
 
@@ -1139,13 +1076,11 @@ def test_read_write_read_miriad_partial_error_special_cases(tmp_path):
     )
 
 
-def test_read_write_read_miriad_partial_with_warnings(tmp_path):
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = str(tmp_path / "outtest_miriad.uv")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_read_write_read_miriad_partial_with_warnings(uv_in_paper, tmp_path):
+    full, uv_out, write_file = uv_in_paper
 
     # check partial read selections
-    full = UVData()
-    full.read(testfile)
     full.write_miriad(write_file, clobber=True)
 
     uv_in = UVData()
@@ -1168,10 +1103,6 @@ def test_read_write_read_miriad_partial_with_warnings(tmp_path):
     exp_uv = full.select(times=times_to_keep, inplace=False)
     assert uv_in == exp_uv
 
-    full = UVData()
-    full.read(testfile)
-    full.write_miriad(write_file, clobber=True)
-
     uv_in = UVData()
     # check handling for generic read selections unsupported by read_miriad
     blts_select = np.where(full.time_array == unique_times[0])[0]
@@ -1191,17 +1122,17 @@ def test_read_write_read_miriad_partial_with_warnings(tmp_path):
     assert uv_in != exp_uv
 
 
-def test_read_write_read_miriad_partial_metadata_only(tmp_path):
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = str(tmp_path / "outtest_miriad.uv")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_read_write_read_miriad_partial_metadata_only(uv_in_paper, tmp_path):
+    uv_in, uv_out, write_file = uv_in_paper
     write_file2 = str(tmp_path / "outtest_miriad2.uv")
 
     # try metadata only read
-    uv_in = UVData()
-    uv_in.read(testfile, read_data=False)
-    assert uv_in.time_array is None
-    assert uv_in.data_array is None
-    assert uv_in.integration_time is None
+    uv_in_meta = UVData()
+    uv_in_meta.read(paper_miriad_file, read_data=False)
+    assert uv_in_meta.time_array is None
+    assert uv_in_meta.data_array is None
+    assert uv_in_meta.integration_time is None
     metadata = [
         "antenna_positions",
         "antenna_names",
@@ -1212,20 +1143,18 @@ def test_read_write_read_miriad_partial_metadata_only(tmp_path):
         "telescope_location",
     ]
     for m in metadata:
-        assert getattr(uv_in, m) is not None
+        assert getattr(uv_in_meta, m) is not None
 
     # metadata only multiple file read-in
-    del uv_in
+    del uv_in_meta
 
-    uv_in = UVData()
-    uv_in.read(testfile)
     new_uv = uv_in.select(freq_chans=np.arange(5), inplace=False)
     new_uv.write_miriad(write_file, clobber=True)
     new_uv = uv_in.select(freq_chans=np.arange(5) + 5, inplace=False)
     new_uv.write_miriad(write_file2, clobber=True)
 
-    uv_in.read(testfile)
     uv_in.select(freq_chans=np.arange(10))
+
     uv_in2 = UVData()
     uv_in2.read(np.array([write_file, write_file2]))
 
@@ -1254,20 +1183,19 @@ def test_read_ms_write_miriad_casa_history(tmp_path):
     assert miriad_uv == ms_uv
 
 
-def test_rwr_miriad_antpos_issues(tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_rwr_miriad_antpos_issues(uv_in_paper, tmp_path):
     """
     test warnings and errors associated with antenna position issues in Miriad files
 
     Read in Miriad PAPER file, mess with various antpos issues and write out as
     a new Miriad file, read back in and check for appropriate behavior.
     """
-    uv_in = UVData()
-    uv_out = UVData()
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    write_file = str(tmp_path / "outtest_miriad.uv")
-    uv_in.read(testfile)
-    uv_in.antenna_positions = None
-    uv_in.write_miriad(write_file, clobber=True, run_check=False)
+    uv_in, uv_out, write_file = uv_in_paper
+
+    uv_in_copy = uv_in.copy()
+    uv_in_copy.antenna_positions = None
+    uv_in_copy.write_miriad(write_file, clobber=True, run_check=False)
     uvtest.checkWarnings(
         uv_out.read,
         func_args=[write_file],
@@ -1279,13 +1207,13 @@ def test_rwr_miriad_antpos_issues(tmp_path):
         ],
         category=[UserWarning, UserWarning],
     )
+    assert uv_in_copy == uv_out
 
-    assert uv_in == uv_out
-    uv_in.read(testfile)
-    ants_with_data = list(set(uv_in.ant_1_array).union(uv_in.ant_2_array))
-    ant_ind = np.where(uv_in.antenna_numbers == ants_with_data[0])[0]
-    uv_in.antenna_positions[ant_ind, :] = [0, 0, 0]
-    uv_in.write_miriad(write_file, clobber=True, no_antnums=True)
+    uv_in_copy = uv_in.copy()
+    ants_with_data = list(set(uv_in_copy.ant_1_array).union(uv_in_copy.ant_2_array))
+    ant_ind = np.where(uv_in_copy.antenna_numbers == ants_with_data[0])[0]
+    uv_in_copy.antenna_positions[ant_ind, :] = [0, 0, 0]
+    uv_in_copy.write_miriad(write_file, clobber=True, no_antnums=True)
     uvtest.checkWarnings(
         uv_out.read,
         func_args=[write_file],
@@ -1297,9 +1225,8 @@ def test_rwr_miriad_antpos_issues(tmp_path):
         ],
     )
 
-    assert uv_in == uv_out
+    assert uv_in_copy == uv_out
 
-    uv_in.read(testfile)
     uv_in.antenna_positions = None
     ants_with_data = sorted(set(uv_in.ant_1_array).union(uv_in.ant_2_array))
     new_nums = []
@@ -1329,21 +1256,19 @@ def test_rwr_miriad_antpos_issues(tmp_path):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_multi_files(tmp_path):
+def test_multi_files(casa_uvfits, tmp_path):
     """
     Reading multiple files at once.
     """
-    uv_full = UVData()
-    uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    uv_full = casa_uvfits
     testfile1 = str(tmp_path / "uv1")
     testfile2 = str(tmp_path / "uv2")
-    uv_full.read_uvfits(uvfits_file)
     # rename telescope to avoid name warning
     uv_full.unphase_to_drift()
     uv_full.conjugate_bls("ant1<ant2")
 
-    uv1 = copy.deepcopy(uv_full)
-    uv2 = copy.deepcopy(uv_full)
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.write_miriad(testfile1, clobber=True)
@@ -1381,14 +1306,12 @@ def test_multi_files(tmp_path):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_antpos_units(tmp_path):
+def test_antpos_units(casa_uvfits, tmp_path):
     """
     Read uvfits, write miriad. Check written antpos are in ns.
     """
-    uv = UVData()
-    uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    uv = casa_uvfits
     testfile = str(tmp_path / "uv_antpos_units")
-    uv.read_uvfits(uvfits_file)
     uv.write_miriad(testfile, clobber=True)
     auv = aipy_extracts.UV(testfile)
     aantpos = auv["antpos"].reshape(3, -1).T * const.c.to("m/ns").value
@@ -1400,6 +1323,7 @@ def test_antpos_units(tmp_path):
     assert np.allclose(aantpos, uv.antenna_positions)
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_readmiriad_write_miriad_check_time_format(tmp_path):
     """
     test time_array is converted properly from Miriad format

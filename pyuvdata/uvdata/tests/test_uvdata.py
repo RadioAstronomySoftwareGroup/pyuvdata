@@ -181,8 +181,8 @@ def uvdata_props():
     return
 
 
-@pytest.fixture(scope="function")
-def resample_in_time_file():
+@pytest.fixture(scope="session")
+def hera_uvh5_master():
     # read in test file for the resampling in time functions
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
@@ -197,7 +197,48 @@ def resample_in_time_file():
 
 
 @pytest.fixture(scope="function")
-def bda_test_file():
+def hera_uvh5(hera_uvh5_master):
+    # read in test file for the resampling in time functions
+    uv_object = hera_uvh5_master.copy()
+
+    yield uv_object
+
+    # cleanup
+    del uv_object
+
+    return
+
+
+@pytest.fixture(scope="session")
+def paper_uvh5_master():
+    # read in test file for the resampling in time functions
+    uv_object = UVData()
+    uvh5_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
+    uv_object.read_uvh5(uvh5_file)
+
+    yield uv_object
+
+    # cleanup
+    del uv_object
+
+    return
+
+
+@pytest.fixture(scope="function")
+def paper_uvh5(paper_uvh5_master):
+    # read in test file for the resampling in time functions
+    uv_object = paper_uvh5_master.copy()
+
+    yield uv_object
+
+    # cleanup
+    del uv_object
+
+    return
+
+
+@pytest.fixture(scope="session")
+def bda_test_file_master():
     # read in test file for BDA-like data
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "simulated_bda_file.uvh5")
@@ -212,19 +253,21 @@ def bda_test_file():
 
 
 @pytest.fixture(scope="function")
-def uvdata_data():
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uvtest.checkWarnings(
-        uv_object.read_uvfits,
-        [testfile],
-        nwarnings=2,
-        message=[
-            "Telescope EVLA is not in known_telescopes.",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-        ],
-    )
+def bda_test_file(bda_test_file_master):
+    # read in test file for BDA-like data
+    uv_object = bda_test_file_master.copy()
+
+    yield uv_object
+
+    # cleanup
+    del uv_object
+
+    return
+
+
+@pytest.fixture(scope="function")
+def uvdata_data(casa_uvfits):
+    uv_object = casa_uvfits
 
     class DataHolder:
         def __init__(self, uv_object):
@@ -263,15 +306,23 @@ def uvdata_baseline():
     return
 
 
-@pytest.fixture
-def uv1_2_set_uvws():
-    testfile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-    uv1 = UVData()
-    uv1.read_uvh5(testfile)
+@pytest.fixture(scope="session")
+def set_uvws_master(hera_uvh5_master):
+    uv1 = hera_uvh5_master.copy()
     # uvws in the file are wrong. reset them.
     uv1.set_uvws_from_antenna_positions()
 
-    uv2 = uv1.copy()
+    yield uv1
+
+    del uv1
+
+    return
+
+
+@pytest.fixture
+def uv1_2_set_uvws(set_uvws_master):
+    uv1 = set_uvws_master.copy()
+    uv2 = set_uvws_master.copy()
 
     yield uv1, uv2
 
@@ -396,6 +447,8 @@ def test_properties(uvdata_props):
             raise
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_metadata_only_property(uvdata_data):
     uvdata_data.uv_object.data_array = None
     assert uvdata_data.uv_object.metadata_only is False
@@ -407,12 +460,16 @@ def test_metadata_only_property(uvdata_data):
     assert uvdata_data.uv_object.metadata_only is True
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_equality(uvdata_data):
     """Basic equality test."""
     assert uvdata_data.uv_object == uvdata_data.uv_object
 
 
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_check(uvdata_data):
     """Test simple check function."""
     assert uvdata_data.uv_object.check()
@@ -464,6 +521,8 @@ def test_check(uvdata_data):
     pytest.raises(ValueError, uvd.check)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_nants_data_telescope_larger(uvdata_data):
     # make sure it's okay for Nants_telescope to be strictly greater than Nants_data
     uvdata_data.uv_object.Nants_telescope += 1
@@ -480,6 +539,8 @@ def test_nants_data_telescope_larger(uvdata_data):
     assert uvdata_data.uv_object.check()
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_ant1_array_not_in_antnums(uvdata_data):
     # make sure an error is raised if antennas in ant_1_array not in antenna_numbers
     # remove antennas from antenna_names & antenna_numbers by hand
@@ -496,6 +557,8 @@ def test_ant1_array_not_in_antnums(uvdata_data):
     )
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_ant2_array_not_in_antnums(uvdata_data):
     # make sure an error is raised if antennas in ant_2_array not in antenna_numbers
     # remove antennas from antenna_names & antenna_numbers by hand
@@ -511,6 +574,8 @@ def test_ant2_array_not_in_antnums(uvdata_data):
     )
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_converttofiletype(uvdata_data):
     fhd_obj = uvdata_data.uv_object._convert_to_filetype("fhd")
     uvdata_data.uv_object._convert_from_filetype(fhd_obj)
@@ -595,10 +660,9 @@ def test_known_telescopes():
     )
 
 
-def test_hera_diameters():
-    uvh5_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
-    uv_in = UVData()
-    uv_in.read_uvh5(uvh5_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_hera_diameters(paper_uvh5):
+    uv_in = paper_uvh5
 
     uv_in.telescope_name = "HERA"
     uvtest.checkWarnings(
@@ -613,6 +677,7 @@ def test_hera_diameters():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_generic_read():
     uv_in = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
@@ -638,6 +703,7 @@ def test_generic_read():
     pytest.raises(ValueError, uv_in.read, "foo")
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "phase_kwargs",
     [
@@ -661,6 +727,7 @@ def test_phase_unphase_hera(uv1_2_set_uvws, phase_kwargs):
     assert uv_raw == uv1
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_phase_unphase_hera_one_bl(uv1_2_set_uvws):
     uv_phase, uv_raw = uv1_2_set_uvws
     # check that phase + unphase work with one baseline
@@ -671,6 +738,7 @@ def test_phase_unphase_hera_one_bl(uv1_2_set_uvws):
     assert uv_raw_small == uv_phase_small
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_phase_unphase_hera_antpos(uv1_2_set_uvws):
     uv_phase, uv_raw = uv1_2_set_uvws
     # check that they match if you phase & unphase using antenna locations
@@ -711,6 +779,7 @@ def test_phase_unphase_hera_antpos(uv1_2_set_uvws):
     assert uv_raw_new == uv_phase
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_phase_hera_zenith_timestamp_minimal_changes(uv1_2_set_uvws):
     uv_phase, uv_raw = uv1_2_set_uvws
     # check that phasing to zenith with one timestamp has small changes
@@ -729,6 +798,7 @@ def test_phase_hera_zenith_timestamp_minimal_changes(uv1_2_set_uvws):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_phase_to_time_jd_input(uv1_2_set_uvws):
     uv_phase, uv_raw = uv1_2_set_uvws
     uv_phase.phase_to_time(uv_raw.time_array[0])
@@ -736,6 +806,7 @@ def test_phase_to_time_jd_input(uv1_2_set_uvws):
     assert uv_phase == uv_raw
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_phase_to_time_error(uv1_2_set_uvws):
     uv_phase, uv_raw = uv1_2_set_uvws
     # check error if not passing a Time object to phase_to_time
@@ -744,6 +815,7 @@ def test_phase_to_time_error(uv1_2_set_uvws):
     assert str(cm.value).startswith("time must be an astropy.time.Time object")
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_unphase_drift_data_error(uv1_2_set_uvws):
     uv_phase, uv_raw = uv1_2_set_uvws
     # check error if not passing a Time object to phase_to_time
@@ -752,6 +824,7 @@ def test_unphase_drift_data_error(uv1_2_set_uvws):
     assert str(cm.value).startswith("The data is already drift scanning;")
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "phase_func,phase_kwargs,err_msg",
     [
@@ -791,6 +864,7 @@ def test_unknown_phase_unphase_hera_errors(
     assert str(cm.value).startswith(err_msg)
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "phase_func,phase_kwargs,err_msg",
     [
@@ -822,6 +896,7 @@ def test_phase_rephase_hera_errors(uv1_2_set_uvws, phase_func, phase_kwargs, err
     assert str(cm.value).startswith(err_msg)
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_phase_unphase_hera_bad_frame(uv1_2_set_uvws):
     uv_phase, uv_raw = uv1_2_set_uvws
     # check errors when trying to phase to an unsupported frame
@@ -925,10 +1000,9 @@ def test_phasing():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_set_phase_unknown():
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_object.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_set_phase_unknown(casa_uvfits):
+    uv_object = casa_uvfits
 
     uv_object._set_unknown_phase_type()
     assert uv_object.phase_type == "unknown"
@@ -938,10 +1012,9 @@ def test_set_phase_unknown():
     assert uv_object.check()
 
 
-def test_select_blts():
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
-    uv_object.read_uvh5(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_blts(paper_uvh5):
+    uv_object = paper_uvh5
     old_history = uv_object.history
     # fmt: off
     blt_inds = np.array([172, 182, 132, 227, 144, 44, 16, 104, 385, 134, 326, 140, 116,
@@ -1016,10 +1089,9 @@ def test_select_blts():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select_antennas():
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_object.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_antennas(casa_uvfits):
+    uv_object = casa_uvfits
     old_history = uv_object.history
     unique_ants = np.unique(
         uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist()
@@ -1133,10 +1205,9 @@ def sort_bl(p):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select_bls():
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_object.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_bls(casa_uvfits):
+    uv_object = casa_uvfits
     old_history = uv_object.history
     first_ants = [6, 2, 7, 2, 21, 27, 8]
     second_ants = [0, 20, 8, 1, 2, 3, 22]
@@ -1319,10 +1390,9 @@ def test_select_bls():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select_times():
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_object.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_times(casa_uvfits):
+    uv_object = casa_uvfits
     old_history = uv_object.history
     unique_times = np.unique(uv_object.time_array)
     times_to_keep = unique_times[[0, 3, 5, 6, 7, 10, 14]]
@@ -1368,10 +1438,9 @@ def test_select_times():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select_time_range():
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_object.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_time_range(casa_uvfits):
+    uv_object = casa_uvfits
     old_history = uv_object.history
     unique_times = np.unique(uv_object.time_array)
     mean_time = np.mean(unique_times)
@@ -1402,11 +1471,10 @@ def test_select_time_range():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select_time_range_no_data():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_time_range_no_data(casa_uvfits):
     """Check for error associated with times not included in data."""
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_object.read(testfile)
+    uv_object = casa_uvfits
     unique_times = np.unique(uv_object.time_array)
     with pytest.raises(ValueError) as cm:
         uv_object.select(
@@ -1419,11 +1487,10 @@ def test_select_time_range_no_data():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select_time_and_time_range():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_time_and_time_range(casa_uvfits):
     """Check for error setting times and time_range."""
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_object.read(testfile)
+    uv_object = casa_uvfits
     unique_times = np.unique(uv_object.time_array)
     mean_time = np.mean(unique_times)
     time_range = [np.min(unique_times), mean_time]
@@ -1434,11 +1501,10 @@ def test_select_time_and_time_range():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select_time_range_one_elem():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_time_range_one_elem(casa_uvfits):
     """Check for error if time_range not length 2."""
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_object.read(testfile)
+    uv_object = casa_uvfits
     unique_times = np.unique(uv_object.time_array)
     mean_time = np.mean(unique_times)
     time_range = [np.min(unique_times), mean_time]
@@ -1448,10 +1514,9 @@ def test_select_time_range_one_elem():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select_frequencies_uvfits(tmp_path):
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_object.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_frequencies_uvfits(casa_uvfits, tmp_path):
+    uv_object = casa_uvfits
     old_history = uv_object.history
     freqs_to_keep = uv_object.freq_array[0, np.arange(12, 22)]
 
@@ -1527,11 +1592,10 @@ def test_select_frequencies_uvfits(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select_frequencies_miriad(tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_frequencies_miriad(casa_uvfits, tmp_path):
     pytest.importorskip("pyuvdata._miriad")
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_object.read_uvfits(testfile)
+    uv_object = casa_uvfits
     old_history = uv_object.history
     freqs_to_keep = uv_object.freq_array[0, np.arange(12, 22)]
 
@@ -1607,10 +1671,9 @@ def test_select_frequencies_miriad(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select_freq_chans():
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_object.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_freq_chans(casa_uvfits):
+    uv_object = casa_uvfits
     old_history = uv_object.history
     chans_to_keep = np.arange(12, 22)
 
@@ -1658,10 +1721,9 @@ def test_select_freq_chans():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select_polarizations(tmp_path):
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_object.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_polarizations(casa_uvfits, tmp_path):
+    uv_object = casa_uvfits
     old_history = uv_object.history
     pols_to_keep = [-1, -2]
 
@@ -1709,11 +1771,10 @@ def test_select_polarizations(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select(casa_uvfits):
     # now test selecting along all axes at once
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_object.read_uvfits(testfile)
+    uv_object = casa_uvfits
     old_history = uv_object.history
     # fmt: off
     blt_inds = np.array([1057, 461, 1090, 354, 528, 654, 882, 775, 369, 906, 748,
@@ -1806,11 +1867,10 @@ def test_select():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select_not_inplace():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_not_inplace(casa_uvfits):
     # Test non-inplace select
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_object.read_uvfits(testfile)
+    uv_object = casa_uvfits
     old_history = uv_object.history
     uv1 = uv_object.select(freq_chans=np.arange(32), inplace=False)
     uv1 += uv_object.select(freq_chans=np.arange(32, 64), inplace=False)
@@ -1826,13 +1886,17 @@ def test_select_not_inplace():
     assert uv1 == uv_object
 
 
-@pytest.mark.parametrize("metadata_only", [True, False])
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_conjugate_bls(metadata_only):
-    uv1 = UVData()
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("metadata_only", [True, False])
+def test_conjugate_bls(casa_uvfits, metadata_only):
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
 
-    uv1.read_uvfits(testfile, read_data=not (metadata_only))
+    if not metadata_only:
+        uv1 = casa_uvfits
+    else:
+        uv1 = UVData()
+        uv1.read_uvfits(testfile, read_data=False)
     if metadata_only:
         assert uv1.metadata_only
     # file comes in with ant1<ant2
@@ -1995,12 +2059,12 @@ def test_conjugate_bls(metadata_only):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_reorder_pols():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_reorder_pols(casa_uvfits):
     # Test function to fix polarization order
-    uv1 = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv1.read_uvfits(testfile)
+    uv1 = casa_uvfits
     uv2 = uv1.copy()
+    uv3 = uv1.copy()
     # reorder uv2 manually
     order = [1, 3, 2, 0]
     uv2.polarization_array = uv2.polarization_array[order]
@@ -2011,7 +2075,7 @@ def test_reorder_pols():
     assert uv1 == uv2
 
     # Restore original order
-    uv1.read_uvfits(testfile)
+    uv1 = uv3.copy()
     uv2.reorder_pols()
     assert uv1 == uv2
 
@@ -2043,10 +2107,9 @@ def test_reorder_pols():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_reorder_blts():
-    uv1 = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv1.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_reorder_blts(casa_uvfits):
+    uv1 = casa_uvfits
 
     # test default reordering in detail
     uv2 = uv1.copy()
@@ -2171,11 +2234,10 @@ def test_reorder_blts():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_sum_vis():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_sum_vis(casa_uvfits):
     # check sum_vis
-    uv_full = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_full.read_uvfits(testfile)
+    uv_full = casa_uvfits
 
     uv_half = uv_full.copy()
     uv_half.data_array = uv_full.data_array / 2
@@ -2211,10 +2273,9 @@ def test_sum_vis():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_add():
-    uv_full = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_full.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_add(casa_uvfits):
+    uv_full = casa_uvfits
 
     # Add frequencies
     uv1 = uv_full.copy()
@@ -2508,10 +2569,9 @@ def test_add():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_add_drift():
-    uv_full = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_full.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_add_drift(casa_uvfits):
+    uv_full = casa_uvfits
     uv_full.unphase_to_drift()
 
     # Add frequencies
@@ -2729,11 +2789,10 @@ def test_add_drift():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_break_add():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_break_add(casa_uvfits):
     # Test failure modes of add function
-    uv_full = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_full.read_uvfits(testfile)
+    uv_full = casa_uvfits
 
     # Wrong class
     uv1 = uv_full.copy()
@@ -2764,13 +2823,12 @@ def test_break_add():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "test_func,extra_kwargs", [("__add__", {}), ("fast_concat", {"axis": "blt"})]
 )
-def test_add_error_drift_and_rephase(test_func, extra_kwargs):
-    uv_full = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_full.read_uvfits(testfile)
+def test_add_error_drift_and_rephase(casa_uvfits, test_func, extra_kwargs):
+    uv_full = casa_uvfits
 
     with pytest.raises(ValueError) as cm:
         getattr(uv_full, test_func)(
@@ -2781,6 +2839,7 @@ def test_add_error_drift_and_rephase(test_func, extra_kwargs):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "test_func,extra_kwargs", [("__add__", {}), ("fast_concat", {"axis": "blt"})]
 )
@@ -2808,6 +2867,7 @@ def test_add_this_phased_unphase_to_drift(uv_phase_time_split, test_func, extra_
     assert uv_out == uv_raw
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "test_func,extra_kwargs", [("__add__", {}), ("fast_concat", {"axis": "blt"})]
 )
@@ -2837,6 +2897,7 @@ def test_add_other_phased_unphase_to_drift(
     assert uv_out == uv_raw
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "test_func,extra_kwargs", [("__add__", {}), ("fast_concat", {"axis": "blt"})]
 )
@@ -2879,6 +2940,7 @@ def test_add_this_rephase_new_phase_center(
     assert uv_out == uv_raw
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "test_func,extra_kwargs", [("__add__", {}), ("fast_concat", {"axis": "blt"})]
 )
@@ -2925,6 +2987,7 @@ def test_add_other_rephase_new_phase_center(
     assert uv_out == uv_raw
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "test_func,extra_kwargs", [("__add__", {}), ("fast_concat", {"axis": "blt"})]
 )
@@ -2942,10 +3005,9 @@ def test_add_error_too_long_phase_center(uv_phase_time_split, test_func, extra_k
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_fast_concat():
-    uv_full = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_full.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_fast_concat(casa_uvfits):
+    uv_full = casa_uvfits
 
     # Add frequencies
     uv1 = uv_full.copy()
@@ -3243,10 +3305,9 @@ def test_fast_concat():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_fast_concat_errors():
-    uv_full = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_full.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_fast_concat_errors(casa_uvfits):
+    uv_full = casa_uvfits
 
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
@@ -3259,11 +3320,10 @@ def test_fast_concat_errors():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_key2inds():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_key2inds(casa_uvfits):
     # Test function to interpret key as antpair, pol
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+    uv = casa_uvfits
 
     # Get an antpair/pol combo
     ant1 = uv.ant_1_array[0]
@@ -3354,10 +3414,9 @@ def test_key2inds():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_key2inds_conj_all_pols():
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_key2inds_conj_all_pols(casa_uvfits):
+    uv = casa_uvfits
 
     ant1 = uv.ant_1_array[0]
     ant2 = uv.ant_2_array[0]
@@ -3373,10 +3432,9 @@ def test_key2inds_conj_all_pols():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_key2inds_conj_all_pols_fringe():
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_key2inds_conj_all_pols_fringe(casa_uvfits):
+    uv = casa_uvfits
 
     uv.select(polarizations=["rl"])
     ant1 = uv.ant_1_array[0]
@@ -3394,10 +3452,9 @@ def test_key2inds_conj_all_pols_fringe():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_key2inds_conj_all_pols_bl_fringe():
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_key2inds_conj_all_pols_bl_fringe(casa_uvfits):
+    uv = casa_uvfits
 
     uv.select(polarizations=["rl"])
     ant1 = uv.ant_1_array[0]
@@ -3417,10 +3474,10 @@ def test_key2inds_conj_all_pols_bl_fringe():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_key2inds_conj_all_pols_missing_data():
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_key2inds_conj_all_pols_missing_data(casa_uvfits):
+    uv = casa_uvfits
+
     uv.select(polarizations=["rl"])
     ant1 = uv.ant_1_array[0]
     ant2 = uv.ant_2_array[0]
@@ -3429,10 +3486,9 @@ def test_key2inds_conj_all_pols_missing_data():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_key2inds_conj_all_pols_bls():
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_key2inds_conj_all_pols_bls(casa_uvfits):
+    uv = casa_uvfits
 
     ant1 = uv.ant_1_array[0]
     ant2 = uv.ant_2_array[0]
@@ -3449,10 +3505,9 @@ def test_key2inds_conj_all_pols_bls():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_key2inds_conj_all_pols_missing_data_bls():
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_key2inds_conj_all_pols_missing_data_bls(casa_uvfits):
+    uv = casa_uvfits
     uv.select(polarizations=["rl"])
     ant1 = uv.ant_1_array[0]
     ant2 = uv.ant_2_array[0]
@@ -3462,11 +3517,10 @@ def test_key2inds_conj_all_pols_missing_data_bls():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_smart_slicing():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_smart_slicing(casa_uvfits):
     # Test function to slice data
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+    uv = casa_uvfits
 
     # ind1 reg, ind2 empty, pol reg
     ind1 = 10 * np.arange(9)
@@ -3627,11 +3681,10 @@ def test_smart_slicing():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_get_data():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_get_data(casa_uvfits):
     # Test get_data function for easy access to data
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+    uv = casa_uvfits
 
     # Get an antpair/pol combo
     ant1 = uv.ant_1_array[0]
@@ -3673,11 +3726,10 @@ def test_get_data():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_get_flags():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_get_flags(casa_uvfits):
     # Test function for easy access to flags
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+    uv = casa_uvfits
 
     # Get an antpair/pol combo
     ant1 = uv.ant_1_array[0]
@@ -3715,11 +3767,10 @@ def test_get_flags():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_get_nsamples():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_get_nsamples(casa_uvfits):
     # Test function for easy access to nsample array
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+    uv = casa_uvfits
 
     # Get an antpair/pol combo
     ant1 = uv.ant_1_array[0]
@@ -3755,11 +3806,10 @@ def test_get_nsamples():
     assert np.all(dcheck == d)
 
 
-def test_antpair2ind():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_antpair2ind(paper_uvh5):
     # Test for baseline-time axis indexer
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
-    uv.read_uvh5(testfile)
+    uv = paper_uvh5
 
     # get indices
     inds = uv.antpair2ind(0, 1, ordered=False)
@@ -3780,11 +3830,10 @@ def test_antpair2ind():
     return
 
 
-def test_antpair2ind_conj():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_antpair2ind_conj(paper_uvh5):
     # conjugate (and use key rather than arg expansion)
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
-    uv.read_uvh5(testfile)
+    uv = paper_uvh5
     inds = uv.antpair2ind(0, 1, ordered=False)
     inds2 = uv.antpair2ind((1, 0), ordered=False)
     np.testing.assert_array_equal(inds, inds2)
@@ -3793,11 +3842,10 @@ def test_antpair2ind_conj():
     return
 
 
-def test_antpair2ind_ordered():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_antpair2ind_ordered(paper_uvh5):
     # test ordered
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
-    uv.read_uvh5(testfile)
+    uv = paper_uvh5
     inds = uv.antpair2ind(0, 1, ordered=False)
 
     # make sure conjugated baseline returns nothing
@@ -3812,11 +3860,10 @@ def test_antpair2ind_ordered():
     return
 
 
-def test_antpair2ind_autos():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_antpair2ind_autos(paper_uvh5):
     # test autos w/ and w/o ordered
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
-    uv.read_uvh5(testfile)
+    uv = paper_uvh5
 
     inds = uv.antpair2ind(0, 0, ordered=True)
     inds2 = uv.antpair2ind(0, 0, ordered=False)
@@ -3827,11 +3874,10 @@ def test_antpair2ind_autos():
     return
 
 
-def test_antpair2ind_exceptions():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_antpair2ind_exceptions(paper_uvh5):
     # test exceptions
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
-    uv.read_uvh5(testfile)
+    uv = paper_uvh5
 
     with pytest.raises(ValueError, match="antpair2ind must be fed an antpair tuple"):
         uv.antpair2ind(1)
@@ -3844,12 +3890,10 @@ def test_antpair2ind_exceptions():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_get_times():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_get_times(casa_uvfits):
     # Test function for easy access to times, to work in conjunction with get_data
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
-
+    uv = casa_uvfits
     # Get an antpair/pol combo (pol shouldn't actually effect result)
     ant1 = uv.ant_1_array[0]
     ant2 = uv.ant_2_array[0]
@@ -3883,12 +3927,10 @@ def test_get_times():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_antpairpol_iter():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_antpairpol_iter(casa_uvfits):
     # Test generator
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
-
+    uv = casa_uvfits
     pol_dict = {
         uvutils.polnum2str(uv.polarization_array[i]): i for i in range(uv.Npols)
     }
@@ -3908,11 +3950,10 @@ def test_antpairpol_iter():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_get_ants():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_get_ants(casa_uvfits):
     # Test function to get unique antennas in data
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+    uv = casa_uvfits
 
     ants = uv.get_ants()
     for ant in ants:
@@ -3923,6 +3964,7 @@ def test_get_ants():
         assert ant in ants
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_get_enu_antpos():
     uvd = UVData()
     uvd.read_uvh5(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5"))
@@ -3944,11 +3986,10 @@ def test_get_enu_antpos():
     assert np.isclose(antpos[0, 0], -0.0026981323386223721)
 
 
-def test_telescope_loc_xyz_check(tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_telescope_loc_xyz_check(paper_uvh5, tmp_path):
     # test that improper telescope locations can still be read
-    uvh5_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
-    uv = UVData()
-    uv.read(uvh5_file)
+    uv = paper_uvh5
     uv.telescope_location = uvutils.XYZ_from_LatLonAlt(*uv.telescope_location)
     # fix LST values
     uv.set_lsts_from_time_array()
@@ -3963,20 +4004,18 @@ def test_telescope_loc_xyz_check(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_get_pols():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_get_pols(casa_uvfits):
     # Test function to get unique polarizations in string format
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+    uv = casa_uvfits
     pols = uv.get_pols()
     pols_data = ["rr", "ll", "lr", "rl"]
     assert sorted(pols) == sorted(pols_data)
 
 
-def test_get_pols_x_orientation():
-    uvh5_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
-    uv_in = UVData()
-    uv_in.read(uvh5_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_get_pols_x_orientation(paper_uvh5):
+    uv_in = paper_uvh5
 
     uv_in.x_orientation = "east"
 
@@ -3992,11 +4031,10 @@ def test_get_pols_x_orientation():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_get_feedpols():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_get_feedpols(casa_uvfits):
     # Test function to get unique antenna feed polarizations in data. String format.
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+    uv = casa_uvfits
     pols = uv.get_feedpols()
     pols_data = ["r", "l"]
     assert sorted(pols) == sorted(pols_data)
@@ -4007,11 +4045,10 @@ def test_get_feedpols():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_parse_ants():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_parse_ants(casa_uvfits):
     # Test function to get correct antenna pairs and polarizations
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+    uv = casa_uvfits
 
     # All baselines
     ant_str = "all"
@@ -4300,11 +4337,10 @@ def test_parse_ants():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_select_with_ant_str():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_with_ant_str(casa_uvfits):
     # Test select function with ant_str argument
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+    uv = casa_uvfits
     inplace = False
 
     # All baselines
@@ -4626,6 +4662,7 @@ def test_select_with_ant_str():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "kwargs,message",
     [
@@ -4657,10 +4694,8 @@ def test_select_with_ant_str():
         ({"ant_str": "none"}, "Unparsible argument none"),
     ],
 )
-def test_select_with_ant_str_errors(kwargs, message):
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+def test_select_with_ant_str_errors(casa_uvfits, kwargs, message):
+    uv = casa_uvfits
 
     with pytest.raises(ValueError, match=message):
         uv.select(**kwargs)
@@ -4953,11 +4988,10 @@ def test_redundancy_contract_expand_variable_data(method, flagging_level):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("method", ("select", "average"))
-def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method):
-    uv0 = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv0.read_uvfits(testfile)
+def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method, casa_uvfits):
+    uv0 = casa_uvfits
 
     # check that Nblts != Nbls * Ntimes
     assert uv0.Nblts != uv0.Nbls * uv0.Ntimes
@@ -5191,12 +5225,11 @@ def test_quick_redundant_vs_redundant_test_array():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_redundancy_finder_when_nblts_not_nbls_times_ntimes():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_redundancy_finder_when_nblts_not_nbls_times_ntimes(casa_uvfits):
     """Test the redundancy finder functions when Nblts != Nbls * Ntimes."""
     tol = 1  # meter
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+    uv = casa_uvfits
     uv.conjugate_bls(convention="u>0", use_enu=True)
     # check that Nblts != Nbls * Ntimes
     assert uv.Nblts != uv.Nbls * uv.Ntimes
@@ -5235,11 +5268,10 @@ def test_redundancy_finder_when_nblts_not_nbls_times_ntimes():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_overlapping_data_add(tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_overlapping_data_add(casa_uvfits, tmp_path):
     # read in test data
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv.read_uvfits(testfile)
+    uv = casa_uvfits
 
     # slice into four objects
     blts1 = np.arange(500)
@@ -5301,13 +5333,12 @@ def test_overlapping_data_add(tmp_path):
     return
 
 
-def test_lsts_from_time_with_only_unique():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_lsts_from_time_with_only_unique(paper_uvh5):
     """
     Test `set_lsts_from_time_array` with only unique values is identical to full array.
     """
-    uvh5_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
-    uv = UVData()
-    uv.read_uvh5(uvh5_file)
+    uv = paper_uvh5
     lat, lon, alt = uv.telescope_location_lat_lon_alt_degrees
     # calculate the lsts for all elements in time array
     full_lsts = uvutils.get_lst_for_time(uv.time_array, lat, lon, alt)
@@ -5316,14 +5347,12 @@ def test_lsts_from_time_with_only_unique():
     assert np.array_equal(full_lsts, uv.lst_array)
 
 
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
-def test_lsts_from_time_with_only_unique_background():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_lsts_from_time_with_only_unique_background(paper_uvh5):
     """
     Test `set_lsts_from_time_array` with only unique values is identical to full array.
     """
-    uvh5_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
-    uv = UVData()
-    uv.read_uvh5(uvh5_file)
+    uv = paper_uvh5
     lat, lon, alt = uv.telescope_location_lat_lon_alt_degrees
     # calculate the lsts for all elements in time array
     full_lsts = uvutils.get_lst_for_time(uv.time_array, lat, lon, alt)
@@ -5334,11 +5363,10 @@ def test_lsts_from_time_with_only_unique_background():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_copy():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_copy(casa_uvfits):
     """Test the copy method"""
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_object.read_uvfits(testfile)
+    uv_object = casa_uvfits
 
     uv_object_copy = uv_object.copy()
     assert uv_object_copy == uv_object
@@ -5358,9 +5386,10 @@ def test_copy():
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_upsample_in_time(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_upsample_in_time(hera_uvh5):
     """Test the upsample_in_time method"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
@@ -5393,9 +5422,10 @@ def test_upsample_in_time(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_upsample_in_time_with_flags(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_upsample_in_time_with_flags(hera_uvh5):
     """Test the upsample_in_time method with flags"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
@@ -5428,9 +5458,10 @@ def test_upsample_in_time_with_flags(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_upsample_in_time_noninteger_resampling(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_upsample_in_time_noninteger_resampling(hera_uvh5):
     """Test the upsample_in_time method with a non-integer resampling factor"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
@@ -5461,9 +5492,10 @@ def test_upsample_in_time_noninteger_resampling(resample_in_time_file):
     return
 
 
-def test_upsample_in_time_errors(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_upsample_in_time_errors(hera_uvh5):
     """Test errors and warnings raised by upsample_in_time"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # test using a too-small integration time
@@ -5487,9 +5519,10 @@ def test_upsample_in_time_errors(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_upsample_in_time_summing_correlator_mode(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_upsample_in_time_summing_correlator_mode(hera_uvh5):
     """Test the upsample_in_time method with summing correlator mode"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
@@ -5524,9 +5557,10 @@ def test_upsample_in_time_summing_correlator_mode(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_upsample_in_time_summing_correlator_mode_with_flags(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_upsample_in_time_summing_correlator_mode_with_flags(hera_uvh5):
     """Test the upsample_in_time method with summing correlator mode and flags"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
@@ -5559,13 +5593,12 @@ def test_upsample_in_time_summing_correlator_mode_with_flags(resample_in_time_fi
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_upsample_in_time_summing_correlator_mode_nonint_resampling(
-    resample_in_time_file,
-):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_upsample_in_time_summing_correlator_mode_nonint_resampling(hera_uvh5,):
     """Test the upsample_in_time method with summing correlator mode
     and non-integer resampling
     """
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
@@ -5601,9 +5634,10 @@ def test_upsample_in_time_summing_correlator_mode_nonint_resampling(
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_partial_upsample_in_time(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_partial_upsample_in_time(hera_uvh5):
     """Test the upsample_in_time method with non-uniform upsampling"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # change a whole baseline's integration time
@@ -5644,9 +5678,10 @@ def test_partial_upsample_in_time(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_upsample_in_time_drift(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_upsample_in_time_drift(hera_uvh5):
     """Test the upsample_in_time method on drift mode data"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
 
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline")
@@ -5682,9 +5717,10 @@ def test_upsample_in_time_drift(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_upsample_in_time_drift_no_phasing(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_upsample_in_time_drift_no_phasing(hera_uvh5):
     """Test the upsample_in_time method on drift mode data without phasing"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
 
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline")
@@ -5721,9 +5757,10 @@ def test_upsample_in_time_drift_no_phasing(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_downsample_in_time(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time(hera_uvh5):
     """Test the downsample_in_time method"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -5771,9 +5808,10 @@ def test_downsample_in_time(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_downsample_in_time_partial_flags(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_partial_flags(hera_uvh5):
     """Test the downsample_in_time method with partial flagging"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -5818,9 +5856,10 @@ def test_downsample_in_time_partial_flags(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_downsample_in_time_totally_flagged(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_totally_flagged(hera_uvh5):
     """Test the downsample_in_time method with totally flagged integrations"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -5868,9 +5907,10 @@ def test_downsample_in_time_totally_flagged(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_downsample_in_time_uneven_samples(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_uneven_samples(hera_uvh5):
     """Test the downsample_in_time method with uneven downsampling"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -5921,9 +5961,10 @@ def test_downsample_in_time_uneven_samples(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_downsample_in_time_uneven_samples_keep_ragged(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_uneven_samples_keep_ragged(hera_uvh5):
     """Test downsample_in_time with uneven downsampling and keep_ragged=True."""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -5962,9 +6003,10 @@ def test_downsample_in_time_uneven_samples_keep_ragged(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_downsample_in_time_summing_correlator_mode(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_summing_correlator_mode(hera_uvh5):
     """Test the downsample_in_time method with summing correlator mode"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -6004,13 +6046,12 @@ def test_downsample_in_time_summing_correlator_mode(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_downsample_in_time_summing_correlator_mode_partial_flags(
-    resample_in_time_file,
-):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_summing_correlator_mode_partial_flags(hera_uvh5,):
     """Test the downsample_in_time method with summing correlator mode and
     partial flags
     """
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -6051,13 +6092,12 @@ def test_downsample_in_time_summing_correlator_mode_partial_flags(
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_downsample_in_time_summing_correlator_mode_totally_flagged(
-    resample_in_time_file,
-):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_summing_correlator_mode_totally_flagged(hera_uvh5,):
     """Test the downsample_in_time method with summing correlator mode and
     totally flagged integrations.
     """
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -6099,13 +6139,12 @@ def test_downsample_in_time_summing_correlator_mode_totally_flagged(
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_downsample_in_time_summing_correlator_mode_uneven_samples(
-    resample_in_time_file,
-):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_summing_correlator_mode_uneven_samples(hera_uvh5,):
     """Test the downsample_in_time method with summing correlator mode and
     uneven samples.
     """
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -6151,13 +6190,14 @@ def test_downsample_in_time_summing_correlator_mode_uneven_samples(
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_downsample_in_time_summing_correlator_mode_uneven_samples_drop_ragged(
-    resample_in_time_file,
+    hera_uvh5,
 ):
     """Test the downsample_in_time method with summing correlator mode and
     uneven samples, dropping ragged ones.
     """
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -6196,9 +6236,10 @@ def test_downsample_in_time_summing_correlator_mode_uneven_samples_drop_ragged(
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_partial_downsample_in_time(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_partial_downsample_in_time(hera_uvh5):
     """Test the downsample_in_time method without uniform downsampling"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # change a whole baseline's integration time
@@ -6247,9 +6288,10 @@ def test_partial_downsample_in_time(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_downsample_in_time_drift(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_drift(hera_uvh5):
     """Test the downsample_in_time method on drift mode data"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
 
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -6296,9 +6338,10 @@ def test_downsample_in_time_drift(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_downsample_in_time_drift_no_phasing(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_drift_no_phasing(hera_uvh5):
     """Test the downsample_in_time method on drift mode data without phasing"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
 
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -6349,11 +6392,10 @@ def test_downsample_in_time_drift_no_phasing(resample_in_time_file):
     assert uv_object == uv_object2
 
 
-@pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
-@pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_downsample_in_time_nsample_precision(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_nsample_precision(hera_uvh5):
     """Test the downsample_in_time method with a half-precision nsample_array"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -6404,9 +6446,10 @@ def test_downsample_in_time_nsample_precision(resample_in_time_file):
     return
 
 
-def test_downsample_in_time_errors(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_errors(hera_uvh5):
     """Test various errors and warnings are raised"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -6489,11 +6532,12 @@ def test_downsample_in_time_errors(resample_in_time_file):
     return
 
 
-def test_downsample_in_time_int_time_mismatch_warning(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_int_time_mismatch_warning(hera_uvh5):
     """Test warning in downsample_in_time about mismatch between integration
     times and the time between integrations.
     """
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -6531,11 +6575,12 @@ def test_downsample_in_time_int_time_mismatch_warning(resample_in_time_file):
     return
 
 
-def test_downsample_in_time_varying_integration_time(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_varying_integration_time(hera_uvh5):
     """Test downsample_in_time handling of file with integration time changing
     within a baseline
     """
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -6587,11 +6632,12 @@ def test_downsample_in_time_varying_integration_time(resample_in_time_file):
     return
 
 
-def test_downsample_in_time_varying_int_time_partial_flags(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_varying_int_time_partial_flags(hera_uvh5):
     """Test downsample_in_time handling of file with integration time changing
     within a baseline and partial flagging.
     """
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -6637,11 +6683,12 @@ def test_downsample_in_time_varying_int_time_partial_flags(resample_in_time_file
     return
 
 
-def test_downsample_in_time_varying_integration_time_warning(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_varying_integration_time_warning(hera_uvh5):
     """Test downsample_in_time handling of file with integration time changing
     within a baseline, but without adjusting the time_array so there is a mismatch.
     """
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -6680,9 +6727,10 @@ def test_downsample_in_time_varying_integration_time_warning(resample_in_time_fi
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:Data will be unphased and rephased")
-def test_upsample_downsample_in_time(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_upsample_downsample_in_time(hera_uvh5):
     """Test round trip works"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
 
     # set uvws from antenna positions so they'll agree later.
     # the fact that this is required is a bit concerning, it means that
@@ -6772,9 +6820,10 @@ def test_upsample_downsample_in_time(resample_in_time_file):
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:Data will be unphased and rephased")
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
-def test_upsample_downsample_in_time_odd_resample(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_upsample_downsample_in_time_odd_resample(hera_uvh5):
     """Test round trip works with odd resampling"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
 
     # set uvws from antenna positions so they'll agree later.
     # the fact that this is required is a bit concerning, it means that
@@ -6818,9 +6867,10 @@ def test_upsample_downsample_in_time_odd_resample(resample_in_time_file):
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-def test_upsample_downsample_in_time_metadata_only(resample_in_time_file):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_upsample_downsample_in_time_metadata_only(hera_uvh5):
     """Test round trip works with metadata-only objects"""
-    uv_object = resample_in_time_file
+    uv_object = hera_uvh5
 
     # drop the data arrays
     uv_object.data_array = None
@@ -7096,6 +7146,8 @@ def test_resample_in_time_warning():
     assert uv2 == uv
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_frequency_average(uvdata_data):
     """Test averaging in frequency."""
     eq_coeffs = np.tile(
@@ -7148,6 +7200,8 @@ def test_frequency_average(uvdata_data):
     assert not isinstance(uvdata_data.uv_object.nsample_array, np.ma.MaskedArray)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_frequency_average_uneven(uvdata_data):
     """Test averaging in frequency with a number that is not a factor of Nfreqs."""
     # check that there's no flagging
@@ -7194,6 +7248,8 @@ def test_frequency_average_uneven(uvdata_data):
     assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_frequency_average_flagging(uvdata_data):
     """Test averaging in frequency with flagging all samples averaged."""
     # check that there's no flagging
@@ -7239,6 +7295,8 @@ def test_frequency_average_flagging(uvdata_data):
     )
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_frequency_average_flagging_partial(uvdata_data):
     """Test averaging in frequency with flagging only one sample averaged."""
     # check that there's no flagging
@@ -7279,6 +7337,8 @@ def test_frequency_average_flagging_partial(uvdata_data):
     assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_frequency_average_flagging_full_and_partial(uvdata_data):
     """
     Test averaging in frequency with flagging all of one and only one of
@@ -7325,6 +7385,8 @@ def test_frequency_average_flagging_full_and_partial(uvdata_data):
     )
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_frequency_average_flagging_partial_twostage(uvdata_data):
     """
     Test averaging in frequency in two stages with flagging only one sample averaged.
@@ -7350,6 +7412,8 @@ def test_frequency_average_flagging_partial_twostage(uvdata_data):
     assert uvdata_data.uv_object == uv_object3
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_frequency_average_summing_corr_mode(uvdata_data):
     """Test averaging in frequency."""
     # check that there's no flagging
@@ -7383,6 +7447,8 @@ def test_frequency_average_summing_corr_mode(uvdata_data):
     assert not isinstance(uvdata_data.uv_object.nsample_array, np.ma.MaskedArray)
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_frequency_average_propagate_flags(uvdata_data):
     """
     Test averaging in frequency with flagging all of one and only one of
@@ -7432,6 +7498,7 @@ def test_frequency_average_propagate_flags(uvdata_data):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_frequency_average_nsample_precision(uvdata_data):
     """Test averaging in frequency with a half-precision nsample_array."""
     eq_coeffs = np.tile(
@@ -7492,6 +7559,8 @@ def test_frequency_average_nsample_precision(uvdata_data):
     assert uvdata_data.uv_object.nsample_array.dtype.type is np.float16
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_remove_eq_coeffs_divide(uvdata_data):
     """Test using the remove_eq_coeffs method with divide convention."""
     # give eq_coeffs to the object
@@ -7517,6 +7586,8 @@ def test_remove_eq_coeffs_divide(uvdata_data):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_remove_eq_coeffs_multiply(uvdata_data):
     """Test using the remove_eq_coeffs method with multiply convention."""
     # give eq_coeffs to the object
@@ -7542,6 +7613,8 @@ def test_remove_eq_coeffs_multiply(uvdata_data):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_remove_eq_coeffs_errors(uvdata_data):
     """Test errors raised by remove_eq_coeffs method."""
     # raise error when eq_coeffs are not defined
@@ -7607,28 +7680,27 @@ def test_multifile_read_errors(read_func, filelist):
     )
 
 
-def test_multifile_read_check(tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_multifile_read_check(hera_uvh5, tmp_path):
     """Test setting skip_bad_files=True when reading in files"""
 
-    uv = UVData()
+    uvTrue = hera_uvh5
     uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
 
     # Create a test file and remove header info to 'corrupt' it
     testfile = str(tmp_path / "zen.2458661.23480.HH.uvh5")
-    uv.read(uvh5_file)
-    uv.write_uvh5(testfile)
+
+    uvTrue.write_uvh5(testfile)
     with h5py.File(testfile, "r+") as h5f:
         del h5f["Header/ant_1_array"]
 
+    uv = UVData()
     # Test that the expected error arises
     with pytest.raises(KeyError) as cm:
         uv.read(testfile, skip_bad_files=False)
     assert "Unable to open object (object 'ant_1_array' doesn't exist)" in str(cm.value)
 
     # Test when the corrupted file is at the beggining, skip_bad_files=False
-    uv = UVData()
-    uvTrue = UVData()
-    uvTrue.read(uvh5_file)
     fileList = [testfile, uvh5_file]
     with pytest.raises(KeyError) as cm:
         with pytest.warns(UserWarning, match="Failed to read"):
@@ -7637,9 +7709,6 @@ def test_multifile_read_check(tmp_path):
     assert uv != uvTrue
 
     # Test when the corrupted file is at the beggining, skip_bad_files=True
-    uv = UVData()
-    uvTrue = UVData()
-    uvTrue.read(uvh5_file)
     fileList = [testfile, uvh5_file]
     with pytest.warns(UserWarning, match="Failed to read") as record:
         uv.read(fileList, skip_bad_files=True)
@@ -7651,8 +7720,6 @@ def test_multifile_read_check(tmp_path):
     assert uv == uvTrue
 
     # Test when the corrupted file is at the end of a list
-    uvTrue = UVData()
-    uvTrue.read(uvh5_file)
     fileList = [uvh5_file, testfile]
     with pytest.warns(UserWarning, match="Failed to read") as cm:
         uv.read(fileList, skip_bad_files=True)
@@ -7664,14 +7731,14 @@ def test_multifile_read_check(tmp_path):
     return
 
 
-def test_multifile_read_check_long_list(tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_multifile_read_check_long_list(hera_uvh5, tmp_path):
     """
     Test setting skip_bad_files=True when reading in files for a list of length >2
     """
     # Create mini files for testing
-    uv = UVData()
-    uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-    uv.read(uvh5_file)
+    uv = hera_uvh5
+
     fileList = []
     for i in range(0, 4):
         uv2 = uv.select(
@@ -7814,6 +7881,7 @@ def test_deprecation_warnings_set_phased():
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_background_lsts():
     """Test reading a file with the lst calc in the background."""
     uvd = UVData()
