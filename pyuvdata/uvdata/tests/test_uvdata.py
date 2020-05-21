@@ -475,14 +475,45 @@ def test_check(uvdata_data):
     assert uvdata_data.uv_object.check()
     # Check variety of special cases
     uvdata_data.uv_object.Nants_data += 1
-    pytest.raises(ValueError, uvdata_data.uv_object.check)
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Nants_data must be equal to the number of unique values in "
+            "ant_1_array and ant_2_array"
+        ),
+    ):
+        uvdata_data.uv_object.check()
     uvdata_data.uv_object.Nants_data -= 1
     uvdata_data.uv_object.Nbls += 1
-    pytest.raises(ValueError, uvdata_data.uv_object.check)
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Nbls must be equal to the number of unique baselines in the data_array"
+        ),
+    ):
+        uvdata_data.uv_object.check()
     uvdata_data.uv_object.Nbls -= 1
     uvdata_data.uv_object.Ntimes += 1
-    pytest.raises(ValueError, uvdata_data.uv_object.check)
+    with pytest.raises(
+        ValueError,
+        match=("Ntimes must be equal to the number of unique times in the time_array"),
+    ):
+        uvdata_data.uv_object.check()
     uvdata_data.uv_object.Ntimes -= 1
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "The uvw_array does not match the expected values given the antenna "
+            "positions."
+        ),
+    ):
+        uvdata_data.uv_object.check(uvw_antpos_check_level="strict")
+
+    with pytest.raises(
+        ValueError, match=("uvw_antpos_check_level must be one of"),
+    ):
+        uvdata_data.uv_object.check(uvw_antpos_check_level="foo")
 
     # Check case where all data is autocorrelations
     # Currently only test files that have autos are fhd files
@@ -513,12 +544,20 @@ def test_check(uvdata_data):
 
     # make auto have non-zero uvw coords, assert ValueError
     uvd.uvw_array[auto_inds[0], 0] = 0.1
-    pytest.raises(ValueError, uvd.check)
+    with pytest.raises(
+        ValueError,
+        match=("Some auto-correlations have non-zero uvw_array coordinates."),
+    ):
+        uvd.check()
 
     # make cross have |uvw| zero, assert ValueError
     uvd.read_uvh5(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5"))
     uvd.uvw_array[cross_inds[0]][:] = 0.0
-    pytest.raises(ValueError, uvd.check)
+    with pytest.raises(
+        ValueError,
+        match=("Some cross-correlations have near-zero uvw_array magnitudes."),
+    ):
+        uvd.check()
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")

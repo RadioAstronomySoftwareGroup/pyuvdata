@@ -972,7 +972,7 @@ class UVData(UVBase):
                 )
             ):
                 raise ValueError(
-                    "Some auto-correlations have non-zero " "uvw_array coordinates."
+                    "Some auto-correlations have non-zero uvw_array coordinates."
                 )
             if np.any(
                 np.isclose(
