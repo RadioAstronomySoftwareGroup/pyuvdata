@@ -1054,10 +1054,10 @@ done after the read, which does not save memory.
   [(9, 10), (9, 20)]
 
   # Select certain frequencies from a uvh5 file
-  >>> filename = os.path.join(DATA_PATH, 'zen.2458432.34569.uvh5')
-  >>> uv.read(filename, freq_chans=np.arange(32))
+  >>> filename = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
+  >>> uv.read(filename, freq_chans=np.arange(2))
   >>> print(uv.data_array.shape)
-  (80, 1, 32, 4)
+  (200, 1, 2, 2)
 
 c) Writing to a uvh5 file in parts
 **********************************
@@ -1082,7 +1082,7 @@ are written to the appropriate parts of the file on disk.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> uv = UVData()
-  >>> filename = os.path.join(DATA_PATH, 'zen.2458432.34569.uvh5')
+  >>> filename = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
   >>> uv.read(filename, read_data=False)
   >>> partfile = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial_partial_io.uvh5')
   >>> uv.initialize_uvh5_file(partfile, clobber=True)
