@@ -2266,7 +2266,7 @@ class UVData(UVBase):
                     self.antenna_positions,
                 )
                 # instead of looping through every ind, find the spot in antenna number
-                # array where ant_num <= ant1 < ant_number and similary for ant2
+                # array where ant_num <= ant1 < ant_number and similarly for ant2
                 # for all baselines in inds
                 # then find the uvw coordinate for all at the same time
 
@@ -2486,7 +2486,7 @@ class UVData(UVBase):
                     frame_phase_center.ra.rad, frame_phase_center.dec.rad, frame_ant_rel
                 )
                 # instead of looping through every ind, find the spot in antenna number
-                # array where ant_num <= ant1 < ant_number and similary for ant2
+                # array where ant_num <= ant1 < ant_number and similarly for ant2
                 # for all baselines in inds
                 # then find the uvw coordinate for all at the same time
 
