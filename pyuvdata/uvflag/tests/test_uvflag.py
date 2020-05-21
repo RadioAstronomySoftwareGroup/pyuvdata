@@ -873,6 +873,21 @@ def test_add_frequency_with_weights_square():
     )
 
 
+def test_add_frequency_mix_weights_square():
+    # Same test as above, checking some error handling
+    uvf1 = UVFlag(test_f_file)
+    uvf1.weights_array = 2 * np.ones_like(uvf1.weights_array)
+    uvf2 = copy.deepcopy(uvf1)
+    uvf1.to_waterfall(return_weights_square=True)
+    uvf2.to_waterfall(return_weights_square=False)
+    uvf2.freq_array += 1e4
+    with pytest.raises(
+        ValueError,
+        match="weights_square_array optional parameter is missing from second UVFlag",
+    ):
+        uvf1.__add__(uvf2, axis="frequency", inplace=True)
+
+
 def test_add_pol():
     uv1 = UVFlag(test_f_file)
     uv2 = copy.deepcopy(uv1)
@@ -1088,6 +1103,13 @@ def test_to_waterfall_bl_ret_wt_sq():
     uvf.weights_array = 2 * np.ones_like(uvf.weights_array)
     uvf.to_waterfall(return_weights_square=True)
     assert np.all(uvf.weights_square_array == 4 * Nbls)
+
+    # Check that weights_square_array is required
+    assert uvf._weights_square_array.required
+
+    # Switch to flag and check that it is now unrequired
+    uvf.to_flag()
+    assert not uvf._weights_square_array.required
 
 
 def test_collapse_pol(test_outfile):
