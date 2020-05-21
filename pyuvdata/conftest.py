@@ -67,6 +67,7 @@ def casa_uvfits(casa_uvfits_master):
 @pytest.fixture(scope="session")
 def paper_miriad_master():
     """Read in PAPER miriad file."""
+    pytest.importorskip("pyuvdata.uvdata.aipy_extracts")
     uv_in = UVData()
     uv_in.read(paper_miriad_file)
 
