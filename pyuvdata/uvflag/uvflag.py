@@ -559,6 +559,8 @@ class UVFlag(UVBase):
         self._flag_array.required = True
         self._metric_array.required = False
         self._weights_array.required = False
+        self._weights_square_array.required = False
+
         return
 
     def _set_mode_metric(self):
@@ -570,6 +572,7 @@ class UVFlag(UVBase):
 
         if self.weights_array is None and self.metric_array is not None:
             self.weights_array = np.ones_like(self.metric_array, dtype=float)
+
         return
 
     def _set_type_antenna(self):
@@ -736,7 +739,6 @@ class UVFlag(UVBase):
                 not attr.required
                 and attr.value is not None
                 and attr.name != "x_orientation"
-                and attr.name != "weights_square_array"
             ):
                 attr.value = None
                 setattr(self, p, attr)
@@ -1003,6 +1005,9 @@ class UVFlag(UVBase):
                 self.weights_array = w
                 if return_weights_square:
                     self.weights_square_array = ws
+                    # Once this is calculated it needs to be required
+                    # until switch out of metric mode
+                    self._weights_square_array.required = True
             self.time_array, ri = np.unique(self.time_array, return_index=True)
             self.lst_array = self.lst_array[ri]
         if ((method == "or") or (method == "and")) and (self.mode == "flag"):
@@ -1550,14 +1555,23 @@ class UVFlag(UVBase):
             )
             this.Npols = len(this.polarization_array)
 
-        # Will fail with AttributeError if the objects have different _data_params
-        # Might want a more straight-forward check ahead of time
         for attr in this._data_params:
-            setattr(
-                this,
-                attr,
-                np.concatenate([getattr(this, attr), getattr(other, attr)], axis=ax),
-            )
+            # Check that 'other' also has the attribute filled
+            if getattr(other, attr) is not None:
+                setattr(
+                    this,
+                    attr,
+                    np.concatenate(
+                        [getattr(this, attr), getattr(other, attr)], axis=ax
+                    ),
+                )
+            # May 21, 2020 - should only happen for weights_square_array attr
+            else:
+                raise ValueError(
+                    f"{attr} optional parameter is missing from second UVFlag"
+                    f" object. To concatenate two {this.mode} objects, they"
+                    " must both contain the same optional parameters set."
+                )
 
         this.history += "Data combined along " + axis + " axis. "
         if not uvutils._check_history_version(this.history, this.pyuvdata_version_str):
@@ -2527,6 +2541,8 @@ class UVFlag(UVBase):
                     self.weights_array = dgrp["weights_array"][()]
                     if "weights_square_array" in dgrp:
                         self.weights_square_array = dgrp["weights_square_array"][()]
+                        # Needs to be required now that it exists and is non-null
+                        self._weights_square_array.required = True
                 elif self.mode == "flag":
                     self.flag_array = dgrp["flag_array"][()]
 
