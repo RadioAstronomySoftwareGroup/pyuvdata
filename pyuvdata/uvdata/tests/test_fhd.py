@@ -471,9 +471,7 @@ def test_multi_files_axis(fhd_model):
     fhd_uv2 = UVData()
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])
     test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6, 7]])
-    fhd_uv1.read(
-        np.array([test1, test2]), use_model=True, file_type="fhd", axis="polarization"
-    )
+    fhd_uv1.read(np.array([test1, test2]), use_model=True, axis="polarization")
 
     fhd_uv2 = fhd_model
 
