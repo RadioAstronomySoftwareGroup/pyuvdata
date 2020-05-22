@@ -179,6 +179,8 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _xyz_from_latlonalt(
 
     return xyz.squeeze()
 
+# this function takes memoryviews as inputs
+# that is why _lat, _lon, and _alt are indexed below to get the 0th entry
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef numpy.ndarray[dtype=numpy.float64_t] _ENU_from_ECEF(
@@ -193,7 +195,7 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _ENU_from_ECEF(
 
   cdef numpy.ndarray[dtype=numpy.float64_t, ndim=1] xyz_center = _xyz_from_latlonalt(_lat, _lon, _alt)
   cdef numpy.ndarray[dtype=numpy.float64_t, ndim=1] xyz_use = np.empty(3, dtype=np.float64)
-
+  # make a memoryview for the numpy array in c
   cdef numpy.float64_t[:, ::1] _enu = enu
 
   with nogil:
@@ -216,6 +218,8 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _ENU_from_ECEF(
 
   return enu
 
+# this function takes memoryviews as inputs
+# that is why _lat, _lon, and _alt are indexed below to get the 0th entry
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef numpy.ndarray[dtype=numpy.float64_t] _ECEF_FROM_ENU(
@@ -229,6 +233,7 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _ECEF_FROM_ENU(
   cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] xyz = np.empty((nblts, 3), dtype=np.float64)
   cdef numpy.ndarray[dtype=numpy.float64_t, ndim=1] xyz_center = _xyz_from_latlonalt(_lat, _lon, _alt)
 
+  # make a memoryview for the numpy array in c
   cdef numpy.float64_t[:, ::1] _xyz = xyz
   with nogil:
     for i in range(nblts):
@@ -248,6 +253,7 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _ECEF_FROM_ENU(
 
   return xyz
 
+# inital_uvw is a memoryviewed array as an input
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef numpy.ndarray[dtype=numpy.float64_t] _phase_uvw(
@@ -259,6 +265,7 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _phase_uvw(
   cdef int nuvw = initial_uvw.shape[0]
   cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] uvw = np.empty((nuvw, 3), dtype=np.float64)
 
+  # make a memoryview for the numpy array in c
   cdef numpy.float64_t[:, ::1] _uvw = uvw
   with nogil:
     for i in range(nuvw):
@@ -275,6 +282,7 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _phase_uvw(
       )
   return uvw
 
+# uvw is a memoryviewed array as an input
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef numpy.ndarray[dtype=numpy.float64_t] _unphase_uvw(
@@ -286,6 +294,7 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _unphase_uvw(
   cdef int nuvw = uvw.shape[0]
   cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] unphased_uvw = np.empty((nuvw, 3), dtype=np.float64)
 
+  # make a memoryview for the numpy array in c
   cdef numpy.float64_t[:, ::1] _u_uvw = unphased_uvw
   with nogil:
     for i in range(nuvw):
