@@ -103,9 +103,9 @@ cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
 
   elif attempt256 and np.max([ant1, ant2]) >=  255:
     message = (
-        "antnums_to_baseline: found > 256 antennas, using "
-        "2048 baseline indexing. Beware compatibility "
-        "with CASA etc"
+      "antnums_to_baseline: found > 256 antennas, using "
+      "2048 baseline indexing. Beware compatibility "
+      "with CASA etc"
     )
     warnings.warn(message)
     baseline = _antnum_to_bl_2048(ant1, ant2)
@@ -158,26 +158,26 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _xyz_from_latlonalt(
     numpy.float64_t[::1] _lon,
     numpy.float64_t[::1] _alt,
 ):
-    cdef int n_pts = len(_lat)
-    cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] xyz = np.empty((n_pts, 3))
-    cdef numpy.float64_t _gps_a = gps_a
-    cdef numpy.float64_t _gps_b = gps_b
-    cdef numpy.float64_t _e2 = e_squared
+  cdef int n_pts = len(_lat)
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] xyz = np.empty((n_pts, 3))
+  cdef numpy.float64_t _gps_a = gps_a
+  cdef numpy.float64_t _gps_b = gps_b
+  cdef numpy.float64_t _e2 = e_squared
 
-    # create a memoryview
-    cdef numpy.float64_t[:, ::1] _xyz = xyz
+  # create a memoryview
+  cdef numpy.float64_t[:, ::1] _xyz = xyz
 
-    cdef numpy.float64_t gps_n
-    with nogil:
-      for i in range(n_pts):
-        gps_n = _gps_a / sqrt(1.0 - _e2 * sin(_lat[i]) ** 2)
+  cdef numpy.float64_t gps_n
+  with nogil:
+    for i in range(n_pts):
+      gps_n = _gps_a / sqrt(1.0 - _e2 * sin(_lat[i]) ** 2)
 
-        _xyz[i, 0] = (gps_n + _alt[i]) * cos(_lat[i]) * cos(_lon[i])
-        _xyz[i, 1] = (gps_n + _alt[i]) * cos(_lat[i]) * sin(_lon[i])
+      _xyz[i, 0] = (gps_n + _alt[i]) * cos(_lat[i]) * cos(_lon[i])
+      _xyz[i, 1] = (gps_n + _alt[i]) * cos(_lat[i]) * sin(_lon[i])
 
-        _xyz[i, 2] = (_gps_b ** 2 / _gps_a ** 2 * gps_n + _alt[i]) * sin(_lat[i])
+      _xyz[i, 2] = (_gps_b ** 2 / _gps_a ** 2 * gps_n + _alt[i]) * sin(_lat[i])
 
-    return xyz.squeeze()
+  return xyz.squeeze()
 
 # this function takes memoryviews as inputs
 # that is why _lat, _lon, and _alt are indexed below to get the 0th entry
