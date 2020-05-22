@@ -14,9 +14,10 @@
 }
 
 \title{Memo: UVCal FITS Format (\emph{.calfits})}
-\author{Zaki Ali, Bryna Hazelton, Adam Beardsley, Paul La Plante, and the pyuvdata team}
+\author{Zaki Ali, Bryna Hazelton, Adam Beardsley,\\
+	    Paul La Plante, Theodora Kunicki, and the pyuvdata team}
 \date{July 3, 2017\\
- Revised \today} % Revision 2020 by Theodora Kunicki
+ Revised May 22, 2020} % Revision 2020 by T. Kunicki
 
 \begin{document}
 \maketitle
@@ -38,21 +39,26 @@ In this memo, each new keyword is followed by its corresponding UVCal parameter,
 For more information about the UVCal class and its parameters, please refer to pyuvdata's documentation: \url{http://pyuvdata.readthedocs.io/en/latest/uvcal.html}.
 
 A UVCal object stores calibration solutions as either a ``gain''-type solution, or as a ``delay''-type solution.
-These types represent two distinct but mathematically equivalent conventions, both widely used in radio astronomy.
+These types represent two distinct calibration conventions, both widely used in radio astronomy.
 Depending on the calibration type (gain or delay), the \textit{calfits} format may consist of up to 4 HDUs. 
-In either case, the primary header is the same and consists of relevant meta-information for a UVCal object to be instantiated.
+In either case, the primary header is of the same basic format and consists of relevant meta-information for a UVCal object to be instantiated.
+It should be noted that while ``gain''-type and ``delay''-type \emph{.calfits} files share the same primary header axes, the shape of these are different in each case; for further information, refer to section \ref{primary}.
 The second HDU is also the same in either case and is the ANTENNAS HDU. 
 The third HDU, present only in ``delay''-type calibrations, stores flags which indicate which frequencies should have delays applied.
 The fourth HDU is completely optional for both types of calibrations, and stores data pertaining to the overall error of the calibration solution.
 
-\section{Primary Header}
+\section{Primary Header}\label{primary}
 The primary HDU of a \emph{calfits} file is an image-type HDU with six axes.
 These axes, in order, represent 
 \begin{enumerate}
 	\item{Data --- varies between ``delay''- and ``gain''-type calibrations as follows:}
 	\begin{itemize}
-	\item Delay-type: this axis stores the concatenation of the two uvcal arrays [delay\_array, quality\_array], in that order.
-	\item Gain-type: this axis stores the concatenation of the uvcal arrays [real(gain\_array), imaginary(gain\_array), flag\_array, input\_flag\_array], in that order, where real(gain\_array) and imaginary(gain\_array) represent the real and imaginary parts of the complex-valued gain\_array value of the given index. If there is no input\_flag\_array for this calibration, then it is not appended to the axis.
+	\item Delay-type: this axis stores the concatenation of the two UVCal arrays [delay\_array, quality\_array], in that order.
+	These arrays both have the shape (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), and are both flattened before concatenation, so the length of this axis will be $2\times$(Nants\_data + Nspws + Nfreqs + Ntimes + Njones), where these variables are those stored in the corresponding UVCal object.
+	Note that in a ``delay''-type calibration, Nfreqs always $=1$.
+	\item Gain-type: this axis stores the concatenation of the UVCal arrays [real(gain\_array), imaginary(gain\_array), flag\_array, input\_flag\_array], in that order.
+	If there is no input\_flag\_array for this calibration, then it is \emph{not} appended to the axis.
+	These arrays all have the shape (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), and are all flattened before concatenation, so the length of this axis will be $3\times$(Nants\_data + Nspws + Nfreqs + Ntimes + Njones), or $4\times$(Nants\_data + Nspws + Nfreqs + Ntimes + Njones), depending on whether there is an input\_flag\_array, and where these variables are those stored in the corresponding UVCal object.
 	\end{itemize}
 	\item{An integer representing polarization values.}
 	\item{Time.}
@@ -98,7 +104,7 @@ Only FITS standard keywords which are required by the \emph{calfits} format, and
 \subsection{Mandatory \emph{calfits} Keywords}
 \begin{itemize}
 \item{\textbf{CALSTYLE}: \emph{string} Style of calibration. Possible values are ``sky'' or ``redundant''. (cal\_style)}
-\item{\textbf{CALTYPE}: \emph{string} Calibration type parameter. Possible values are ``delay'', ``gain'', or ``unknown''. (cal\_type)}
+\item{\textbf{CALTYPE}: \emph{string} Calibration type parameter. Possible values are ``delay'' or ``gain''. (cal\_type)}
 \item{\textbf{CHWIDTH:} \emph{float} Channel width of of a frequency bin, in units of Hz. (channel\_width)}
 \item{\textbf{GNCONVEN}: \emph{string} Gain convention. The convention for applying the calibration solutions to data.
 Values are ``divide'' or ``multiply'', indicating whether one should divide or multiply uncalibrated data by gains. 
