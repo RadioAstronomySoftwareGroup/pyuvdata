@@ -836,6 +836,35 @@ class UVFlag(UVBase):
         assert self.type == "baseline", 'Must be "baseline" type UVFlag object.'
         return [self.baseline_to_antnums(bl) for bl in self.get_baseline_nums()]
 
+    def get_ants(self):
+        """
+        Get the unique antennas that have data associated with them.
+
+        Returns
+        -------
+        ndarray of int
+            Array of unique antennas with data associated with them.
+        """
+        if self.type == "baseline":
+            return np.unique(np.append(self.ant_1_array, self.ant_2_array))
+        elif self.type == "antenna":
+            return np.unique(self.ant_array)
+        elif self.type == "waterfall":
+            raise ValueError("A waterfall type UVFlag object has no sense of antennas.")
+
+    def get_pols(self):
+        """
+        Get the polarizations in the data.
+
+        Returns
+        -------
+        list of str
+            list of polarizations (as strings) in the data.
+        """
+        return uvutils.polnum2str(
+            self.polarization_array, x_orientation=self.x_orientation
+        )
+
     def collapse_pol(
         self,
         method="quadmean",
