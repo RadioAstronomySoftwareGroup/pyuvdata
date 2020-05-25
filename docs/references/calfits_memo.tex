@@ -54,11 +54,13 @@ These axes, in order, represent
 	\item{Data --- varies between ``delay''- and ``gain''-type calibrations as follows:}
 	\begin{itemize}
 	\item Delay-type: this axis stores the concatenation of the two UVCal arrays [delay\_array, quality\_array], in that order.
-	These arrays both have the shape (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), and are both flattened before concatenation, so the length of this axis will be $2\times$(Nants\_data + Nspws + Nfreqs + Ntimes + Njones), where these variables are those stored in the corresponding UVCal object.
+	Correspondingly, this axis will be of length 2.
+	These arrays both have the shape (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), where these variables take the values stored in the corresponding UVCal object. 
 	Note that in a ``delay''-type calibration, Nfreqs always $=1$.
 	\item Gain-type: this axis stores the concatenation of the UVCal arrays [real(gain\_array), imaginary(gain\_array), flag\_array, input\_flag\_array], in that order.
 	If there is no input\_flag\_array for this calibration, then it is \emph{not} appended to the axis.
-	These arrays all have the shape (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), and are all flattened before concatenation, so the length of this axis will be $3\times$(Nants\_data + Nspws + Nfreqs + Ntimes + Njones), or $4\times$(Nants\_data + Nspws + Nfreqs + Ntimes + Njones), depending on whether there is an input\_flag\_array, and where these variables are those stored in the corresponding UVCal object.
+	Correspondingly, in a ``gain''-type calibration, this axis may be of length 3 or 4, depending on the inclusion of an input\_flag\_array.
+	These arrays all have the shape (Nants\_data, Nspws, Nfreqs, Ntimes, Njones).
 	\end{itemize}
 	\item{An integer representing polarization values.}
 	\item{Time.}
@@ -143,7 +145,7 @@ Mathematically this indicates the alpha exponent in the equation:
 \section{Antenna HDU}
 This HDU is a binary table extension with the extension name ``ANTENNA''.
 The Antennas HDU is mandatory in all \emph{calfits} files, and stores detailed information about the calibration solution, per antenna.
-This binary table has a number of entries equaling the number of antennas in the dataset, and three fields, containing the individual antennas' names, indices, and integer antenna numbers matching the 0th axis of the uvcal object ``gain\_array.''
+This binary table has a number of rows equaling the number of antennas in the dataset, and three fields, containing the individual antennas' names, indices, and integer antenna numbers matching the 0th axis of the uvcal object ``gain\_array.''
 
 The three fields of this binary table are:
 \begin{itemize}
