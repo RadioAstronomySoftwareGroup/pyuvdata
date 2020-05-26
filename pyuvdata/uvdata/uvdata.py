@@ -5731,7 +5731,9 @@ class UVData(UVBase):
 
                         nsample_to_avg = np.ma.masked_array(nsample_to_avg, mask=mask)
 
-                        avg_vis = np.average(vis_to_avg, weights=nsample_to_avg, axis=0)
+                        avg_vis = np.ma.average(
+                            vis_to_avg, weights=nsample_to_avg, axis=0
+                        )
                         avg_nsample = np.sum(nsample_to_avg, axis=0)
                         avg_flag = np.all(flags_to_avg, axis=0)
 

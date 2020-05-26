@@ -4833,7 +4833,8 @@ def test_redundancy_contract_expand(method, reconjugate, flagging_level):
 
 
 @pytest.mark.parametrize("method", ("select", "average"))
-def test_redundancy_contract_expand_variable_data(method):
+@pytest.mark.parametrize("flagging_level", ("none", "some", "all"))
+def test_redundancy_contract_expand_variable_data(method, flagging_level):
     # Test that a UVData object can be reduced to one baseline from each redundant group
     # and restored to its original form.
 
@@ -4860,6 +4861,19 @@ def test_redundancy_contract_expand_variable_data(method):
             if bl in index_bls:
                 uv0.data_array[inds] += complex(gp_ind)
 
+    if flagging_level == "none":
+        assert np.all(~uv0.flag_array)
+    elif flagging_level == "some":
+        # flag all the non index baselines in a redundant group
+        uv0.flag_array[:, :, :, :] = True
+        for bl in index_bls:
+            bl_locs = np.where(uv0.baseline_array == bl)
+            uv0.flag_array[bl_locs, :, :, :] = False
+    elif flagging_level == "all":
+        uv0.flag_array[:] = True
+        uv0.check()
+        assert np.all(uv0.flag_array)
+
     uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
 
     # inflate to get back to the original size
@@ -4876,14 +4890,27 @@ def test_redundancy_contract_expand_variable_data(method):
     uv2._uvw_array.tols = [0, tol]
 
     if method == "select":
+        if flagging_level == "all":
+            assert uv2._flag_array != uv1._flag_array
+            uv2.flag_array = uv1.flag_array
         assert uv2 == uv1
     else:
-        assert uv2.data_array.min() < uv1.data_array.min()
-        assert np.all(uv2.data_array <= uv1.data_array)
-        for gp in red_gps:
-            bls_init = [bl for bl in gp if bl in uv1.baseline_array]
-            for bl in bls_init:
-                assert np.all(uv2.get_data(bl) == (uv1.get_data(bl) / len(bls_init)))
+        if flagging_level == "some":
+            for gp in red_gps:
+                bls_init = [bl for bl in gp if bl in uv1.baseline_array]
+                for bl in bls_init:
+                    assert np.all(uv2.get_data(bl) == uv1.get_data(bl))
+                    assert np.all(uv2.get_nsamples(bl) == uv1.get_nsamples(bl))
+        else:
+            assert uv2.data_array.min() < uv1.data_array.min()
+            assert np.all(uv2.data_array <= uv1.data_array)
+            for gp in red_gps:
+                bls_init = [bl for bl in gp if bl in uv1.baseline_array]
+                for bl in bls_init:
+                    assert np.all(
+                        uv2.get_data(bl) == (uv1.get_data(bl) / len(bls_init))
+                    )
+                    assert np.all(uv2.get_nsamples(bl) == len(bls_init))
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
