@@ -1167,6 +1167,35 @@ def test_select_bls():
         uv_object2.history,
     )
 
+    # check using baseline index parameter
+    uv_object3 = uv_object.copy()
+    bls_inds_to_keep = [
+        uv_object.antnums_to_baseline(ant1, ant2) for ant1, ant2 in sorted_pairs_to_keep
+    ]
+
+    uv_object3.select(bls=bls_inds_to_keep)
+    sorted_pairs_object3 = [
+        sort_bl(p) for p in zip(uv_object3.ant_1_array, uv_object3.ant_2_array)
+    ]
+
+    assert len(new_unique_ants) == uv_object3.Nants_data
+    assert Nblts_selected == uv_object3.Nblts
+    for ant in new_unique_ants:
+        assert ant in uv_object3.ant_1_array or ant in uv_object3.ant_2_array
+    for ant in np.unique(
+        uv_object3.ant_1_array.tolist() + uv_object3.ant_2_array.tolist()
+    ):
+        assert ant in new_unique_ants
+    for pair in sorted_pairs_to_keep:
+        assert pair in sorted_pairs_object3
+    for pair in sorted_pairs_object3:
+        assert pair in sorted_pairs_to_keep
+
+    assert uvutils._check_histories(
+        old_history + "  Downselected to " "specific baselines using pyuvdata.",
+        uv_object3.history,
+    )
+
     # check select with polarizations
     first_ants = [6, 2, 7, 2, 21, 27, 8]
     second_ants = [0, 20, 8, 1, 2, 3, 22]
@@ -1277,6 +1306,9 @@ def test_select_bls():
     with pytest.raises(ValueError) as cm:
         uv_object.select(bls=[])
     assert str(cm.value).startswith("bls must be a list of tuples of antenna numbers")
+    with pytest.raises(ValueError) as cm:
+        uv_object.select(bls=[100])
+    assert str(cm.value).startswith("Baseline index number 100 is not present in the")
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")

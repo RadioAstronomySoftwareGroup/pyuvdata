@@ -4020,7 +4020,7 @@ class UVData(UVBase):
             names for the removed antennas will be retained unless
             `keep_all_metadata` is False). This cannot be provided if
             `antenna_nums` is also provided.
-        bls : list of tuple, optional
+        bls : list of tuple or list of int, optional
             A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
             baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
             to keep in the object. For length-2 tuples, the ordering of the numbers
@@ -4153,12 +4153,22 @@ class UVData(UVBase):
             ant_blt_inds = None
 
         if bls is not None:
-            if isinstance(bls, tuple) and (len(bls) == 2 or len(bls) == 3):
+            if isinstance(bls, list) and all(
+                isinstance(bl_ind, (int, np.integer,)) for bl_ind in bls
+            ):
+                for bl_ind in bls:
+                    if not (bl_ind in self.baseline_array):
+                        raise ValueError(
+                            "Baseline index number {i} is not present in the "
+                            "baseline_array".format(i=bl_ind)
+                        )
+                bls = [self.baseline_to_antnums(bl) for bl in bls]
+            elif isinstance(bls, tuple) and (len(bls) == 2 or len(bls) == 3):
                 bls = [bls]
             if len(bls) == 0 or not all(isinstance(item, tuple) for item in bls):
                 raise ValueError(
                     "bls must be a list of tuples of antenna numbers "
-                    "(optionally with polarization)."
+                    "(optionally with polarization) or a list of baseline indices."
                 )
             if not all(
                 [isinstance(item[0], (int, np.integer,)) for item in bls]
@@ -4166,7 +4176,7 @@ class UVData(UVBase):
             ):
                 raise ValueError(
                     "bls must be a list of tuples of antenna numbers "
-                    "(optionally with polarization)."
+                    "(optionally with polarization) or a list of baseline indices."
                 )
             if all(len(item) == 3 for item in bls):
                 if polarizations is not None:
