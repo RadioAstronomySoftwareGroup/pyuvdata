@@ -5656,7 +5656,6 @@ class UVData(UVBase):
                 obj_inds = new_obj._key2inds(obj_bl)[0]
                 obj_times = new_obj.time_array[obj_inds]
 
-                avg_vis = []
                 for gp in time_gps:
                     avg_time = np.average(np.array(group_times + conj_group_times)[gp])
 
