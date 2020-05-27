@@ -15,6 +15,7 @@ controlled by the `method` keyword.
 - `propagate_flags` keyword for `UVData.frequency_average` which flags averaged samples if any contributing samples were flagged
 
 ### Changed
+- `select` now also accepts a list of baseline indices for the `bls` parameter.
 - `data_array_dtype` keyword for `UVData.read` is now also respected by mwa_corr_fits files. Previously it was only used by uvh5 files.
 - The `time_range` parameter on UVCal is no longer required and it is suggested to only set it if the Ntimes axis is length one.
 - FHD now supports metadata only reads.
