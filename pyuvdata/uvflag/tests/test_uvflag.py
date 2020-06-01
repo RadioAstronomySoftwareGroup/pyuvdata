@@ -1104,12 +1104,9 @@ def test_to_waterfall_bl_ret_wt_sq():
     uvf.to_waterfall(return_weights_square=True)
     assert np.all(uvf.weights_square_array == 4 * Nbls)
 
-    # Check that weights_square_array is required
-    assert uvf._weights_square_array.required
-
-    # Switch to flag and check that it is now unrequired
+    # Switch to flag and check that it is now set to None
     uvf.to_flag()
-    assert not uvf._weights_square_array.required
+    assert uvf.weights_square_array is None
 
 
 def test_collapse_pol(test_outfile):
