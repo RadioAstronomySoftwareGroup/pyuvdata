@@ -559,7 +559,8 @@ class UVFlag(UVBase):
         self._flag_array.required = True
         self._metric_array.required = False
         self._weights_array.required = False
-        self._weights_square_array.required = False
+        if self.weights_square_array is not None:
+            self.weights_square_array = None
 
         return
 
@@ -739,6 +740,7 @@ class UVFlag(UVBase):
                 not attr.required
                 and attr.value is not None
                 and attr.name != "x_orientation"
+                and attr.name != "weights_square_array"
             ):
                 attr.value = None
                 setattr(self, p, attr)
@@ -1005,9 +1007,6 @@ class UVFlag(UVBase):
                 self.weights_array = w
                 if return_weights_square:
                     self.weights_square_array = ws
-                    # Once this is calculated it needs to be required
-                    # until switch out of metric mode
-                    self._weights_square_array.required = True
             self.time_array, ri = np.unique(self.time_array, return_index=True)
             self.lst_array = self.lst_array[ri]
         if ((method == "or") or (method == "and")) and (self.mode == "flag"):
@@ -2541,8 +2540,6 @@ class UVFlag(UVBase):
                     self.weights_array = dgrp["weights_array"][()]
                     if "weights_square_array" in dgrp:
                         self.weights_square_array = dgrp["weights_square_array"][()]
-                        # Needs to be required now that it exists and is non-null
-                        self._weights_square_array.required = True
                 elif self.mode == "flag":
                     self.flag_array = dgrp["flag_array"][()]
 
