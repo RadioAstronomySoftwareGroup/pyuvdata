@@ -208,6 +208,10 @@ class MWACorrFITS(UVData):
             channel of each coarse channel.
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
+        read_data : bool
+            Read in the visibility, nsample and flag data. If set to False, only
+            the metadata will be read in. Setting read_data to False results in
+            a metadata only object.
         data_array_dtype : numpy dtype
             Datatype to store the output data_array as. Must be either
             np.complex64 (single-precision real and imaginary) or np.complex128
