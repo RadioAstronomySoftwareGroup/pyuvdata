@@ -60,7 +60,7 @@ jobs:
           mkdir -p empty
           cd empty
           source activate $ENV_NAME
-          pytest --pyargs pyuvdata --cov=pyuvdata --cov-config=../.coveragerc --cov-report xml:../coverage.xml
+          pytest --pyargs pyuvdata -c ../setup.cfg --cov=pyuvdata --cov-config=../.coveragerc --cov-report xml:../coverage.xml
           cd ..
       - name: Upload Coverage
         shell: bash

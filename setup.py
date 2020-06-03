@@ -7,7 +7,7 @@ import os
 import io
 import sys
 import platform
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_namespace_packages
 
 from Cython.Distutils import build_ext
 from distutils.sysconfig import get_config_var
@@ -63,6 +63,12 @@ if is_platform_mac():
         if python_target < "10.9" and current_system >= "10.9":
             os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
 
+# define the cython compile args, depending on platform
+if is_platform_windows():
+    extra_compile_args = ["/Ox"]
+else:
+    extra_compile_args = ["-O3"]
+
 global_c_macros = [
     ("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION"),
 ]
@@ -88,14 +94,14 @@ corr_fits_extension = Extension(
     sources=["pyuvdata/uvdata/corr_fits_src/corr_fits.pyx"],
     define_macros=global_c_macros,
     include_dirs=["pyuvdata/uvdata/corr_fits_src/"],
-    extra_compile_args=["-O3"],
+    extra_compile_args=extra_compile_args,
 )
 
 utils_extension = Extension(
     "pyuvdata._utils",
     sources=["pyuvdata/utils.pyx"],
     define_macros=global_c_macros,
-    extra_compile_args=["-O3"],
+    extra_compile_args=extra_compile_args,
 )
 
 extensions = [corr_fits_extension, utils_extension]
@@ -132,14 +138,7 @@ setup_args = {
     "long_description": readme,
     "long_description_content_type": "text/markdown",
     "package_dir": {"pyuvdata": "pyuvdata"},
-    "packages": [
-        "pyuvdata",
-        "pyuvdata.tests",
-        "pyuvdata.uvbeam",
-        "pyuvdata.uvcal",
-        "pyuvdata.uvdata",
-        "pyuvdata.uvflag",
-    ],
+    "packages": find_namespace_packages(),
     "cmdclass": {"build_ext": CustomBuildExtCommand},
     "ext_modules": cythonize(extensions, language_level=3),
     "scripts": [fl for fl in glob.glob("scripts/*") if not os.path.isdir(fl)],
