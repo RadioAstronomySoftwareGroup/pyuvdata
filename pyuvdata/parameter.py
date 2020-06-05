@@ -12,6 +12,7 @@ of metadata.
 
 """
 import numpy as np
+import astropy.units as units
 
 from . import utils
 
@@ -103,23 +104,35 @@ class UVParameter(object):
             # only check that value is identical
             if not isinstance(self.value, other.value.__class__):
                 print(
-                    "{name} parameter value classes are different. Left is "
-                    "{lclass}, right is {rclass}".format(
-                        name=self.name,
-                        lclass=self.value.__class__,
-                        rclass=other.value.__class__,
-                    )
+                    f"{self.name} parameter value classes are different. Left is "
+                    f"{self.value.__class__}, right is {self.value.__class__}"
                 )
                 return False
             if isinstance(self.value, np.ndarray) and not isinstance(
                 self.value[0], str
             ):
                 if self.value.shape != other.value.shape:
-                    print(
-                        "{name} parameter value is array, shapes are "
-                        "different".format(name=self.name)
-                    )
+                    print(f"{self.name} parameter value is array, shapes are different")
                     return False
+                elif isinstance(self.value, units.Quantity):
+                    if not self.value.unit.is_equivalent(other.value.unit):
+                        print(
+                            f"{self.name} parameter value is an astropy Quantity, "
+                            "units are not equivalent"
+                        )
+                        return False
+                    if not units.quantity.allclose(
+                        self.value,
+                        other.value,
+                        rtol=self.tols[0],
+                        atol=self.tols[1],
+                        equal_nan=True,
+                    ):
+                        print(
+                            f"{self.name} parameter value is an astropy Quantity, "
+                            "values are not close"
+                        )
+                        return False
                 elif not np.allclose(
                     self.value,
                     other.value,
@@ -127,10 +140,7 @@ class UVParameter(object):
                     atol=self.tols[1],
                     equal_nan=True,
                 ):
-                    print(
-                        "{name} parameter value is array, values are not "
-                        "close".format(name=self.name)
-                    )
+                    print(f"{self.name} parameter value is array, values are not close")
                     return False
             else:
                 str_type = False
@@ -150,9 +160,9 @@ class UVParameter(object):
                             equal_nan=True,
                         ):
                             print(
-                                "{name} parameter value can be cast to an array"
+                                f"{self.name} parameter value can be cast to an array"
                                 " and tested with np.allclose. The values are "
-                                "not close".format(name=self.name)
+                                "not close"
                             )
                             return False
                     except (TypeError):
@@ -167,9 +177,7 @@ class UVParameter(object):
                                     k.lower(): v for k, v in other.value.items()
                                 }
                                 if self_lower != other_lower:
-                                    message_str = "{name} parameter is a dict".format(
-                                        name=self.name
-                                    )
+                                    message_str = f"{self.name} parameter is a dict"
                                     if set(self_lower.keys()) != set(
                                         other_lower.keys()
                                     ):
@@ -184,8 +192,7 @@ class UVParameter(object):
                                                     self_lower[key], other_lower[key]
                                                 ):
                                                     message_str += (
-                                                        ", key {key} is not "
-                                                        "equal".format(key=key)
+                                                        f", key {key} is not equal"
                                                     )
                                                     values_close = False
                                             except (TypeError):
@@ -194,8 +201,7 @@ class UVParameter(object):
                                                 # test for equality
                                                 if self_lower[key] != other_lower[key]:
                                                     message_str += (
-                                                        ", key {key} is not "
-                                                        "equal".format(key=key)
+                                                        f", key {key} is not equal"
                                                     )
                                                     values_close = False
                                         if values_close is False:
@@ -207,11 +213,9 @@ class UVParameter(object):
                                     return True
                             else:
                                 print(
-                                    "{name} parameter value is not a string "
+                                    f"{self.name} parameter value is not a string "
                                     "or a dict and cannot be cast as a numpy "
-                                    "array. The values are not equal.".format(
-                                        name=self.name
-                                    )
+                                    "array. The values are not equal."
                                 )
 
                             return False
@@ -222,8 +226,8 @@ class UVParameter(object):
                             s.strip() for s in other.value
                         ]:
                             print(
-                                "{name} parameter value is a list of strings, "
-                                "values are different".format(name=self.name)
+                                f"{self.name} parameter value is a list of strings, "
+                                "values are different"
                             )
                             return False
                     else:
@@ -232,14 +236,14 @@ class UVParameter(object):
                                 " ", ""
                             ) != other.value.replace("\n", "").replace(" ", ""):
                                 print(
-                                    "{name} parameter value is a string, "
-                                    "values are different".format(name=self.name)
+                                    f"{self.name} parameter value is a string, "
+                                    "values are different"
                                 )
                                 return False
 
             return True
         else:
-            print("{name} parameter classes are different".format(name=self.name))
+            print(f"{self.name} parameter classes are different")
             return False
 
     def __ne__(self, other):
@@ -280,8 +284,8 @@ class UVParameter(object):
                     val = getattr(uvbase, p)
                     if val is None:
                         raise ValueError(
-                            "Missing UVBase parameter {p} needed to "
-                            "calculate expected shape of parameter".format(p=p)
+                            f"Missing UVBase parameter {p} needed to "
+                            "calculate expected shape of parameter"
                         )
                     eshape = eshape + (val,)
             return eshape
@@ -311,10 +315,7 @@ class UVParameter(object):
                 for elem in value_set:
                     if elem not in acceptable_vals:
                         message = (
-                            "Value {val}, is not in allowed values: "
-                            "{acceptable_vals}".format(
-                                val=elem, acceptable_vals=acceptable_vals
-                            )
+                            f"Value {elem}, is not in allowed values: {acceptable_vals}"
                         )
                         return False, message
                 return True, "Value is acceptable"
@@ -327,10 +328,8 @@ class UVParameter(object):
                     return True, "Value is acceptable"
                 else:
                     message = (
-                        "Mean of abs values, {val}, is not in allowed range: "
-                        "{acceptable_range}".format(
-                            val=testval, acceptable_range=self.acceptable_range
-                        )
+                        f"Mean of abs values, {testval}, is not in allowed range: "
+                        f"{self.acceptable_range}"
                     )
                     return False, message
 
@@ -462,9 +461,6 @@ class LocationParameter(UVParameter):
                 return True, "Value is acceptable"
             else:
                 message = (
-                    "Value {val}, is not in allowed range: "
-                    "{acceptable_range}".format(
-                        val=testval, acceptable_range=self.acceptable_range
-                    )
+                    f"Value {testval}, is not in allowed range: {self.acceptable_range}"
                 )
                 return False, message

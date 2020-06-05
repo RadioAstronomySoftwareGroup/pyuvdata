@@ -4,6 +4,7 @@
 
 import pytest
 import numpy as np
+import astropy.units as units
 
 from pyuvdata import parameter as uvp
 from pyuvdata.uvbase import UVBase
@@ -39,6 +40,49 @@ def test_array_equality_nans():
     """Test array equality with nans present."""
     param1 = uvp.UVParameter(name="p1", value=np.array([0, 1, np.nan]))
     param2 = uvp.UVParameter(name="p2", value=np.array([0, 1, np.nan]))
+    assert param1 == param2
+
+
+def test_quantity_equality():
+    """Test equality for different quantity values."""
+    param1 = uvp.UVParameter(
+        name="p1", value=np.array([0, 1, 3]) * units.m, tols=1 * units.mm
+    )
+    param2 = uvp.UVParameter(
+        name="p2",
+        value=units.Quantity([0 * units.cm, 100 * units.cm, 3000 * units.mm]),
+        tols=1 * units.mm,
+    )
+    assert param1 == param2
+    param3 = uvp.UVParameter(
+        name="p3", value=np.array([0, 1000, 3000]) * units.mm, tols=1 * units.mm
+    )
+    assert param1 == param3
+
+
+def test_quantity_inequality():
+    """Test equality for different quantity values."""
+    param1 = uvp.UVParameter(
+        name="p1", value=np.array([0, 1, 3]) * units.m, tols=1 * units.mm
+    )
+    param2 = uvp.UVParameter(
+        name="p2", value=np.array([0, 2, 4]) * units.m, tols=1 * units.mm
+    )
+    assert param1 != param2
+    param3 = uvp.UVParameter(
+        name="p3", value=np.array([0, 1, 3]) * units.mm, tols=1 * units.mm
+    )
+    assert param1 != param3
+    param4 = uvp.UVParameter(
+        name="p4", value=np.array([0, 1, 3]) * units.Jy, tols=1 * units.mJy
+    )
+    assert param1 != param4
+
+
+def test_quantity_equality_nans():
+    """Test array equality with nans present."""
+    param1 = uvp.UVParameter(name="p1", value=np.array([0, 1, np.nan] * units.m))
+    param2 = uvp.UVParameter(name="p2", value=np.array([0, 1, np.nan] * units.m))
     assert param1 == param2
 
 
