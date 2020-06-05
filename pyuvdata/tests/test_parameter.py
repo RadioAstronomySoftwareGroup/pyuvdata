@@ -43,11 +43,10 @@ def test_array_equality_nans():
     assert param1 == param2
 
 
-def test_quantity_equality():
+@pytest.mark.parametrize("atol", [0.001, 1 * units.mm])
+def test_quantity_equality(atol):
     """Test equality for different quantity values."""
-    param1 = uvp.UVParameter(
-        name="p1", value=np.array([0, 1, 3]) * units.m, tols=1 * units.mm
-    )
+    param1 = uvp.UVParameter(name="p1", value=np.array([0, 1, 3]) * units.m, tols=atol)
     param2 = uvp.UVParameter(
         name="p2",
         value=units.Quantity([0 * units.cm, 100 * units.cm, 3000 * units.mm]),
@@ -58,6 +57,20 @@ def test_quantity_equality():
         name="p3", value=np.array([0, 1000, 3000]) * units.mm, tols=1 * units.mm
     )
     assert param1 == param3
+
+
+def test_quantity_equality_error():
+    """Test equality for different quantity values."""
+    param1 = uvp.UVParameter(
+        name="p1", value=np.array([0, 1, 3]) * units.m, tols=1 * units.mJy
+    )
+    param2 = uvp.UVParameter(
+        name="p2",
+        value=units.Quantity([0 * units.cm, 100 * units.cm, 3000 * units.mm]),
+        tols=1 * units.mm,
+    )
+    with pytest.raises(units.UnitsError):
+        assert param1 == param2
 
 
 def test_quantity_inequality():

@@ -121,11 +121,15 @@ class UVParameter(object):
                             "units are not equivalent"
                         )
                         return False
+                    if not isinstance(self.tols[1], units.Quantity):
+                        atol_use = self.tols[1] * self.value.unit
+                    else:
+                        atol_use = self.tols[1]
                     if not units.quantity.allclose(
                         self.value,
                         other.value,
                         rtol=self.tols[0],
-                        atol=self.tols[1],
+                        atol=atol_use,
                         equal_nan=True,
                     ):
                         print(
