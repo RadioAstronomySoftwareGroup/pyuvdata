@@ -1086,8 +1086,8 @@ def find_clusters(location_ids, location_vectors, tol):
     list of list of location_ids
 
     """
-    if location_vectors.ndim == 1:
-        location_vectors = location_vectors[:, np.newaxis]
+    location_vectors = np.atleast_2d(location_vectors)
+    location_ids = np.asarray(location_ids)
 
     # For each baseline, list all others that are within the tolerance distance.
     adj_triu_mat = pdist(location_vectors) < tol
@@ -1132,7 +1132,7 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
     baselines : array_like of int
         Baseline numbers, shape (Nbls,)
     baseline_vecs : array_like of float
-        Baseline vectors in meters, shape shape (Nbls, 3)
+        Baseline vectors in meters, shape (Nbls, 3)
     tol : float
         Absolute tolerance of redundancy, in meters.
     with_conjugates : bool
