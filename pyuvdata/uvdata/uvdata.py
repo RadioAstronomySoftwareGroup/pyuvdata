@@ -5674,6 +5674,10 @@ class UVData(UVBase):
                         )
                         continue
 
+                    # time_ind contains indices for both regular and conjugated bls
+                    # because we needed to group them together in time.
+                    # The regular ones are first and extend the length of group_times,
+                    # so we use that to split them back up.
                     regular_orientation = np.array(
                         [time_ind for time_ind in gp if time_ind < len(group_times)],
                         dtype=np.int,
