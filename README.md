@@ -2,7 +2,6 @@
 
 [![CircleCI](https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata.svg?style=svg&branch=master)](https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata?branch=master)
 [![](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/workflows/Run%20Tests/badge.svg?branch=master)](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/actions)
-[![Build Status](https://dev.azure.com/radioastronomysoftwaregroup/pyuvdata/_apis/build/status/RadioAstronomySoftwareGroup.pyuvdata?branchName=master)](https://dev.azure.com/radioastronomysoftwaregroup/pyuvdata/_build/latest?definitionId=1&branchName=master)
 [![codecov](https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/badge.svg?branch=master)](https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata)
 [![DOI](http://joss.theoj.org/papers/10.21105/joss.00140/status.svg)](https://doi.org/10.21105/joss.00140)
 
@@ -11,6 +10,7 @@ Currently pyuvdata supports reading and writing of miriad, uvfits, and uvh5 file
 and reading of CASA measurement sets and FHD
 ([Fast Holographic Deconvolution](https://github.com/EoRImaging/FHD)) visibility save files.
 
+API documentation and a tutorial is hosted on [ReadTheDocs](https://pyuvdata.readthedocs.io).
 
 # Motivation
 The main goals are:
@@ -104,10 +104,6 @@ released approximately monthly and which usually do not include breaking API
 changes). We do our best to provide a significant period (usually 2 major
 generations) of deprecation warnings for all breaking changes to the API.
 We track all changes in our [changelog](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/master/CHANGELOG.md).
-
-# Documentation
-A tutorial with example usage and developer API documentation is hosted on
-[ReadTheDocs](https://pyuvdata.readthedocs.io).
 
 # History
 pyuvdata was originally developed in the low frequency 21cm community to support
