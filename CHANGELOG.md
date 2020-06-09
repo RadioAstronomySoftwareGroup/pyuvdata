@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- An option to average rather than select a single baseline in `UVData.compress_by_redundancy`,
+controlled by the `method` keyword.
 - `nsample_array_dtype` keyword for `UVData.read`, which sets the datatype for the nsample_array. Currently only used for mwa_corr_fits files.
 - `utils` cython module to speed up some common utility functions.
 - Added support for installing the package on Windows.
