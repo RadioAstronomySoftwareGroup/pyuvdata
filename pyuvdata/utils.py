@@ -1086,8 +1086,10 @@ def find_clusters(location_ids, location_vectors, tol):
     list of list of location_ids
 
     """
-    location_vectors = np.atleast_2d(location_vectors)
+    location_vectors = np.asarray(location_vectors)
     location_ids = np.asarray(location_ids)
+    if location_vectors.ndim == 1:
+        location_vectors = location_vectors[:, np.newaxis]
 
     # For each baseline, list all others that are within the tolerance distance.
     adj_triu_mat = pdist(location_vectors) < tol
