@@ -589,7 +589,7 @@ class UVBeam(UVBase):
 
         super(UVBeam, self).__init__()
 
-    def set_cs_params(self):
+    def _set_cs_params(self):
         """Set parameters depending on pixel_coordinate_system."""
         if self.pixel_coordinate_system == "healpix":
             self._Naxes1.required = False
@@ -654,7 +654,21 @@ class UVBeam(UVBase):
                     "Naxes1",
                 )
 
-    def set_efield(self):
+    def set_cs_params(self):
+        """
+        Set parameters depending on pixel_coordinate_system.
+
+        This method is deprecated, and will be removed in pyuvdata v2.2. Use
+        `_set_cs_params` instead.
+        """
+        warnings.warn(
+            "`set_cs_params` is deprecated, and will be removed in pyuvdata version "
+            "2.2. Use `_set_cs_params` instead.",
+            DeprecationWarning,
+        )
+        self._set_cs_params()
+
+    def _set_efield(self):
         """Set beam_type to 'efield' and adjust required parameters."""
         self.beam_type = "efield"
         self._Naxes_vec.acceptable_vals = [2, 3]
@@ -666,9 +680,23 @@ class UVBeam(UVBase):
         self._polarization_array.required = False
         self._data_array.expected_type = np.complex
         # call set_cs_params to fix data_array form
-        self.set_cs_params()
+        self._set_cs_params()
 
-    def set_power(self):
+    def set_efield(self):
+        """
+        Set beam_type to 'efield' and adjust required parameters.
+
+        This method is deprecated, and will be removed in pyuvdata v2.2. Use
+        `_set_efield` instead.
+        """
+        warnings.warn(
+            "`set_efield` is deprecated, and will be removed in pyuvdata version "
+            "2.2. Use `_set_efield` instead.",
+            DeprecationWarning,
+        )
+        self._set_efield()
+
+    def _set_power(self):
         """Set beam_type to 'power' and adjust required parameters."""
         self.beam_type = "power"
         self._Naxes_vec.acceptable_vals = [1, 2, 3]
@@ -686,9 +714,23 @@ class UVBeam(UVBase):
                 self._data_array.expected_type = np.complex
 
         # call set_cs_params to fix data_array form
-        self.set_cs_params()
+        self._set_cs_params()
 
-    def set_simple(self):
+    def set_power(self):
+        """
+        Set beam_type to 'power' and adjust required parameters.
+
+        This method is deprecated, and will be removed in pyuvdata v2.2. Use
+        `_set_power` instead.
+        """
+        warnings.warn(
+            "`set_power` is deprecated, and will be removed in pyuvdata version "
+            "2.2. Use `_set_power` instead.",
+            DeprecationWarning,
+        )
+        self._set_power()
+
+    def _set_simple(self):
         """Set antenna_type to 'simple' and adjust required parameters."""
         self.antenna_type = "simple"
         self._Nelements.required = False
@@ -698,7 +740,21 @@ class UVBeam(UVBase):
         self._gain_array.required = False
         self._coupling_matrix.required = False
 
-    def set_phased_array(self):
+    def set_simple(self):
+        """
+        Set antenna_type to 'simple' and adjust required parameters.
+
+        This method is deprecated, and will be removed in pyuvdata v2.2. Use
+        `_set_simple` instead.
+        """
+        warnings.warn(
+            "`set_simple` is deprecated, and will be removed in pyuvdata version "
+            "2.2. Use `_set_simple` instead.",
+            DeprecationWarning,
+        )
+        self._set_simple()
+
+    def _set_phased_array(self):
         """Set antenna_type to 'phased_array' and adjust required parameters."""
         self.antenna_type = "phased_array"
         self._Nelements.required = True
@@ -707,6 +763,20 @@ class UVBeam(UVBase):
         self._delay_array.required = True
         self._gain_array.required = True
         self._coupling_matrix.required = True
+
+    def set_phased_array(self):
+        """
+        Set antenna_type to 'simple' and adjust required parameters.
+
+        This method is deprecated, and will be removed in pyuvdata v2.2. Use
+        `_set_phased_array` instead.
+        """
+        warnings.warn(
+            "`set_phased_array` is deprecated, and will be removed in pyuvdata version "
+            "2.2. Use `_set_phased_array` instead.",
+            DeprecationWarning,
+        )
+        self._set_phased_array()
 
     def check(self, check_extra=True, run_check_acceptability=True):
         """
@@ -725,7 +795,7 @@ class UVBeam(UVBase):
         """
         # first make sure the required parameters and forms are set properly
         # for the pixel_coordinate_system
-        self.set_cs_params()
+        self._set_cs_params()
 
         # first run the basic check from UVBase
         super(UVBeam, self).check(
@@ -843,7 +913,7 @@ class UVBeam(UVBase):
             beam_object.Naxes_vec = 1
 
         # adjust requirements, fix data_array form
-        beam_object.set_power()
+        beam_object._set_power()
         power_data = np.zeros(
             beam_object._data_array.expected_shape(beam_object), dtype=np.complex
         )
@@ -1064,7 +1134,7 @@ class UVBeam(UVBase):
             ]
         )
         beam_object.Naxes_vec = 1
-        beam_object.set_power()
+        beam_object._set_power()
 
         history_update_string = (
             " Converted from efield to pseudo-stokes power using pyuvdata."
@@ -1829,7 +1899,7 @@ class UVBeam(UVBase):
             if hasattr(new_uvb, "saved_interp_functions"):
                 delattr(new_uvb, "saved_interp_functions")
 
-            new_uvb.set_cs_params()
+            new_uvb._set_cs_params()
             if run_check:
                 new_uvb.check(
                     check_extra=check_extra,

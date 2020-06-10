@@ -158,7 +158,7 @@ class CSTBeam(UVBeam):
                 self.polarization_array = np.array([uvutils.polstr2num(feed_pol)])
 
             self.Npols = len(self.polarization_array)
-            self.set_power()
+            self._set_power()
         else:
             self.Naxes_vec = 2
             self.Ncomponents_vec = 2
@@ -173,7 +173,7 @@ class CSTBeam(UVBeam):
                 else:
                     self.feed_array = np.array(["y"])
             self.Nfeeds = self.feed_array.size
-            self.set_efield()
+            self._set_efield()
 
         self.data_normalization = "physical"
         self.antenna_type = "simple"
@@ -185,7 +185,7 @@ class CSTBeam(UVBeam):
 
         self.spw_array = np.array([0])
         self.pixel_coordinate_system = "az_za"
-        self.set_cs_params()
+        self._set_cs_params()
 
         out_file = open(filename, "r")
         line = out_file.readline().strip()  # Get the first line

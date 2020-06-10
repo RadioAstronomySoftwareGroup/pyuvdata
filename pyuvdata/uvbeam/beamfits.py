@@ -84,7 +84,7 @@ class BeamFITS(UVBeam):
 
             # only support simple antenna_types for now.
             # support for phased arrays should be added
-            self.set_simple()
+            self._set_simple()
 
             self.beam_type = primary_header.pop("BTYPE", None)
             if self.beam_type is not None:
@@ -201,9 +201,9 @@ class BeamFITS(UVBeam):
                 self.polarization_array = np.int32(
                     uvutils._fits_gethduaxis(primary_hdu, ax_nums["feed_pol"])
                 )
-                self.set_power()
+                self._set_power()
             elif self.beam_type == "efield":
-                self.set_efield()
+                self._set_efield()
                 if n_dimensions < n_efield_dims:
                     raise ValueError(
                         "beam_type is efield and data dimensionality is too low"
