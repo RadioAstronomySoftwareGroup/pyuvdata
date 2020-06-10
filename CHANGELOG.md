@@ -25,6 +25,7 @@ controlled by the `method` keyword.
 - `utils.uvcalibrate` now incorporates many more consistency checks between the uvcal and uvdata object. The new keywords `time_check` and `ant_check` were added to control some of these checks.
 
 ### Deprecated
+- The UVBeam methods `set_cs_params`, `set_efield`, `set_power`, `set_simple`, and `set_phased_array` have been made private. The public methods will be removed in version 2.2.
 - The UVCal methods `set_gain`, `set_delay`, `set_unknown_cal_type`, `set_sky`, and `set_redundant` have been made private. The public methods will be removed in version 2.2.
 - `utils.uvcalibrate` will error rather than warn if some of the newly added checks do not pass, including if antenna names do not match between the objects, starting in version 2.2. In addition, the `flag_missing` keyword is deprecated and will be removed in version 2.2.
 
