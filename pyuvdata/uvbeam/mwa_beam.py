@@ -630,7 +630,7 @@ class MWABeam(UVBeam):
 
         self.x_orientation = "east"
 
-        self.set_efield()
+        self._set_efield()
         self.Naxes_vec = 2
         self.Ncomponents_vec = 2
         self.feed_array = np.array([str(pol.lower()) for pol in pol_names])
@@ -650,7 +650,7 @@ class MWABeam(UVBeam):
         self.bandpass_array = np.ones((self.Nspws, self.Nfreqs))
 
         self.pixel_coordinate_system = "az_za"
-        self.set_cs_params()
+        self._set_cs_params()
 
         self.axis1_array = phi_arr
         self.Naxes1 = self.axis1_array.size
