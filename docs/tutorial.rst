@@ -632,7 +632,32 @@ c) Select a few antenna pairs to keep
   >>> print(list(set(zip(UV.ant_1_array, UV.ant_2_array))))
   [(0, 6), (0, 21), (0, 2)]
 
-d) Select antenna pairs and polarizations using ant_str argument
+d) Select antenna pairs using baseline numbers
+**********************************************
+::
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> UV = UVData()
+  >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+  >>> UV.read(filename)
+
+  # baseline numbers can be found in the baseline_array
+  >>> print(len(UV.baseline_array))
+  1360
+
+  # select baselines using the baseline numbers
+  >>> UV.select(bls=[73736, 73753, 81945])
+
+  # print unique baselines and antennas after select
+  >>> print(np.unique(UV.baseline_array))
+  [73736 73753 81945]
+  >>> print(list(set(zip(UV.ant_1_array, UV.ant_2_array))))
+  [(3, 24), (3, 7), (7, 24)]
+
+e) Select antenna pairs and polarizations using ant_str argument
 ****************************************************************
 
 Basic options are 'auto', 'cross', or 'all'. 'auto' returns just the
