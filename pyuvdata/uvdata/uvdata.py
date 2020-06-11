@@ -4021,12 +4021,13 @@ class UVData(UVBase):
             `keep_all_metadata` is False). This cannot be provided if
             `antenna_nums` is also provided.
         bls : list of tuple or list of int, optional
-            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
-            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
-            to keep in the object. For length-2 tuples, the ordering of the numbers
-            within the tuple does not matter. For length-3 tuples, the polarization
-            string is in the order of the two antennas. If length-3 tuples are
-            provided, `polarizations` must be None.
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]), a list of
+            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]), or a list of
+            baseline numbers (e.g. [67599, 71699, 73743]) specifying baselines
+            to keep in the object. For length-2 tuples, the ordering of the
+            numbers within the tuple does not matter. For length-3 tuples, the
+            polarization string is in the order of the two antennas. If
+            length-3 tuples are provided, `polarizations` must be None.
         ant_str : str, optional
             A string containing information about what antenna numbers
             and polarizations to keep in the object.  Can be 'auto', 'cross', 'all',
@@ -4159,7 +4160,7 @@ class UVData(UVBase):
                 for bl_ind in bls:
                     if not (bl_ind in self.baseline_array):
                         raise ValueError(
-                            "Baseline index number {i} is not present in the "
+                            "Baseline number {i} is not present in the "
                             "baseline_array".format(i=bl_ind)
                         )
                 bls = [self.baseline_to_antnums(bl) for bl in bls]
@@ -4168,7 +4169,7 @@ class UVData(UVBase):
             if len(bls) == 0 or not all(isinstance(item, tuple) for item in bls):
                 raise ValueError(
                     "bls must be a list of tuples of antenna numbers "
-                    "(optionally with polarization) or a list of baseline indices."
+                    "(optionally with polarization) or a list of baseline numbers."
                 )
             if not all(
                 [isinstance(item[0], (int, np.integer,)) for item in bls]
@@ -4176,7 +4177,7 @@ class UVData(UVBase):
             ):
                 raise ValueError(
                     "bls must be a list of tuples of antenna numbers "
-                    "(optionally with polarization) or a list of baseline indices."
+                    "(optionally with polarization) or a list of baseline numbers."
                 )
             if all(len(item) == 3 for item in bls):
                 if polarizations is not None:

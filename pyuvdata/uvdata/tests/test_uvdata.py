@@ -1167,13 +1167,13 @@ def test_select_bls():
         uv_object2.history,
     )
 
-    # check using baseline index parameter
+    # check using baseline number parameter
     uv_object3 = uv_object.copy()
-    bls_inds_to_keep = [
+    bls_nums_to_keep = [
         uv_object.antnums_to_baseline(ant1, ant2) for ant1, ant2 in sorted_pairs_to_keep
     ]
 
-    uv_object3.select(bls=bls_inds_to_keep)
+    uv_object3.select(bls=bls_nums_to_keep)
     sorted_pairs_object3 = [
         sort_bl(p) for p in zip(uv_object3.ant_1_array, uv_object3.ant_2_array)
     ]
@@ -1308,7 +1308,7 @@ def test_select_bls():
     assert str(cm.value).startswith("bls must be a list of tuples of antenna numbers")
     with pytest.raises(ValueError) as cm:
         uv_object.select(bls=[100])
-    assert str(cm.value).startswith("Baseline index number 100 is not present in the")
+    assert str(cm.value).startswith("Baseline number 100 is not present in the")
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
