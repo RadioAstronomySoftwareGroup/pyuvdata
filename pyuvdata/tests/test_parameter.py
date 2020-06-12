@@ -44,19 +44,19 @@ def test_array_equality_nans():
 
 
 @pytest.mark.parametrize("atol", [0.001, 1 * units.mm])
-def test_quantity_equality(atol):
+@pytest.mark.parametrize(
+    "vals",
+    (
+        units.Quantity([0 * units.cm, 100 * units.cm, 3000 * units.mm]),
+        units.Quantity([0.09 * units.cm, 100.09 * units.cm, 2999.1 * units.mm]),
+        np.array([0, 1000, 3000]) * units.mm,
+    ),
+)
+def test_quantity_equality(atol, vals):
     """Test equality for different quantity values."""
     param1 = uvp.UVParameter(name="p1", value=np.array([0, 1, 3]) * units.m, tols=atol)
-    param2 = uvp.UVParameter(
-        name="p2",
-        value=units.Quantity([0 * units.cm, 100 * units.cm, 3000 * units.mm]),
-        tols=1 * units.mm,
-    )
+    param2 = uvp.UVParameter(name="p2", value=vals, tols=atol)
     assert param1 == param2
-    param3 = uvp.UVParameter(
-        name="p3", value=np.array([0, 1000, 3000]) * units.mm, tols=1 * units.mm
-    )
-    assert param1 == param3
 
 
 def test_quantity_equality_error():
@@ -73,23 +73,29 @@ def test_quantity_equality_error():
         assert param1 == param2
 
 
-def test_quantity_inequality():
-    """Test equality for different quantity values."""
+@pytest.mark.parametrize(
+    "vals,p2_atol",
+    (
+        (np.array([0, 2, 4]) * units.m, 1 * units.mm),
+        (np.array([0, 1, 3]) * units.mm, 1 * units.mm),
+        (np.array([0, 1, 3]) * units.Jy, 1 * units.mJy),
+        (
+            units.Quantity([0.101 * units.cm, 100.09 * units.cm, 2999.1 * units.mm]),
+            1 * units.mm,
+        ),
+        (
+            units.Quantity([0.09 * units.cm, 100.11 * units.cm, 2999.1 * units.mm]),
+            1 * units.mm,
+        ),
+        (np.array([0, 1000, 2998.9]) * units.mm, 1 * units.mm),
+    ),
+)
+def test_quantity_inequality(vals, p2_atol):
     param1 = uvp.UVParameter(
         name="p1", value=np.array([0, 1, 3]) * units.m, tols=1 * units.mm
     )
-    param2 = uvp.UVParameter(
-        name="p2", value=np.array([0, 2, 4]) * units.m, tols=1 * units.mm
-    )
+    param2 = uvp.UVParameter(name="p2", value=vals, tols=p2_atol)
     assert param1 != param2
-    param3 = uvp.UVParameter(
-        name="p3", value=np.array([0, 1, 3]) * units.mm, tols=1 * units.mm
-    )
-    assert param1 != param3
-    param4 = uvp.UVParameter(
-        name="p4", value=np.array([0, 1, 3]) * units.Jy, tols=1 * units.mJy
-    )
-    assert param1 != param4
 
 
 def test_quantity_equality_nans():
