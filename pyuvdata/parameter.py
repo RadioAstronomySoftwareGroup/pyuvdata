@@ -105,7 +105,7 @@ class UVParameter(object):
             if not isinstance(self.value, other.value.__class__):
                 print(
                     f"{self.name} parameter value classes are different. Left is "
-                    f"{self.value.__class__}, right is {self.value.__class__}"
+                    f"{self.value.__class__}, right is {other.value.__class__}"
                 )
                 return False
             if isinstance(self.value, np.ndarray) and not isinstance(
