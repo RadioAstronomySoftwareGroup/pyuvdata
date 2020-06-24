@@ -397,20 +397,20 @@ class UVH5(UVData):
         longitude = header["longitude"][()]
         altitude = header["altitude"][()]
         self.telescope_location_lat_lon_alt_degrees = (latitude, longitude, altitude)
-        self.instrument = header["instrument"][()].tostring().decode("utf8")
-        self.telescope_name = header["telescope_name"][()].tostring().decode("utf8")
+        self.instrument = header["instrument"][()].tobytes().decode("utf8")
+        self.telescope_name = header["telescope_name"][()].tobytes().decode("utf8")
 
         # get source information
-        self.object_name = header["object_name"][()].tostring().decode("utf8")
+        self.object_name = header["object_name"][()].tobytes().decode("utf8")
 
         # set history appropriately
-        self.history = header["history"][()].tostring().decode("utf8")
+        self.history = header["history"][()].tobytes().decode("utf8")
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         # check for vis_units
         if "vis_units" in header:
-            self.vis_units = header["vis_units"][()].tostring().decode("utf8")
+            self.vis_units = header["vis_units"][()].tobytes().decode("utf8")
         else:
             # default to uncalibrated data
             self.vis_units = "UNCALIB"
@@ -423,13 +423,13 @@ class UVH5(UVData):
         if "gst0" in header:
             self.gst0 = float(header["gst0"][()])
         if "rdate" in header:
-            self.rdate = header["rdate"][()].tostring().decode("utf8")
+            self.rdate = header["rdate"][()].tobytes().decode("utf8")
         if "timesys" in header:
-            self.timesys = header["timesys"][()].tostring().decode("utf8")
+            self.timesys = header["timesys"][()].tobytes().decode("utf8")
         if "x_orientation" in header:
-            self.x_orientation = header["x_orientation"][()].tostring().decode("utf8")
+            self.x_orientation = header["x_orientation"][()].tobytes().decode("utf8")
         if "blt_order" in header:
-            blt_order_str = header["blt_order"][()].tostring().decode("utf8")
+            blt_order_str = header["blt_order"][()].tobytes().decode("utf8")
             self.blt_order = tuple(blt_order_str.split(", "))
             if self.blt_order == ("bda",):
                 self._blt_order.form = (1,)
@@ -442,11 +442,11 @@ class UVH5(UVData):
             self.eq_coeffs = header["eq_coeffs"][()]
         if "eq_coeffs_convention" in header:
             self.eq_coeffs_convention = (
-                header["eq_coeffs_convention"][()].tostring().decode("utf8")
+                header["eq_coeffs_convention"][()].tobytes().decode("utf8")
             )
 
         # check for phasing information
-        self.phase_type = header["phase_type"][()].tostring().decode("utf8")
+        self.phase_type = header["phase_type"][()].tobytes().decode("utf8")
         if self.phase_type == "phased":
             self._set_phased()
             self.phase_center_ra = float(header["phase_center_ra"][()])
@@ -454,7 +454,7 @@ class UVH5(UVData):
             self.phase_center_epoch = float(header["phase_center_epoch"][()])
             if "phase_center_frame" in header:
                 self.phase_center_frame = (
-                    header["phase_center_frame"][()].tostring().decode("utf8")
+                    header["phase_center_frame"][()].tobytes().decode("utf8")
                 )
         elif self.phase_type == "drift":
             self._set_drift()
@@ -468,7 +468,7 @@ class UVH5(UVData):
         self.ant_1_array = header["ant_1_array"][:]
         self.ant_2_array = header["ant_2_array"][:]
         self.antenna_names = [
-            n.tostring().decode("utf8") for n in header["antenna_names"][:]
+            n.tobytes().decode("utf8") for n in header["antenna_names"][:]
         ]
         self.antenna_numbers = header["antenna_numbers"][:]
         self.antenna_positions = header["antenna_positions"][:]
@@ -543,7 +543,7 @@ class UVH5(UVData):
             for key in header["extra_keywords"].keys():
                 if header["extra_keywords"][key].dtype.type in (np.string_, np.object_):
                     self.extra_keywords[key] = (
-                        header["extra_keywords"][key][()].tostring().decode("utf8")
+                        header["extra_keywords"][key][()].tobytes().decode("utf8")
                     )
                 else:
                     self.extra_keywords[key] = header["extra_keywords"][key][()]
@@ -1045,8 +1045,8 @@ class UVH5(UVData):
         header["ant_2_array"] = self.ant_2_array
         header["antenna_positions"] = self.antenna_positions
 
-        # handle antenna_names
-        header["antenna_names"] = np.string_(self.antenna_names, keepdims=True)
+        # handle antenna_names; works for lists or arrays
+        header["antenna_names"] = np.asarray(self.antenna_names, dtype="bytes")
 
         # write out phasing information
         header["phase_type"] = np.string_(self.phase_type)
