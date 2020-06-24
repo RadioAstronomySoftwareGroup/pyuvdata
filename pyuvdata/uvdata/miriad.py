@@ -388,7 +388,8 @@ class Miriad(UVData):
             )
 
         for pol, data in data_accumulator.items():
-            data_accumulator[pol] = np.array(data)
+            # make array "object" dtype because underlying array may be ragged
+            data_accumulator[pol] = np.array(data, dtype="object")
 
         self.polarization_array = np.array(pol_list)
         if polarizations is None:
