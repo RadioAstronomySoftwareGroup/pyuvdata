@@ -5633,7 +5633,7 @@ def test_upsample_in_time_summing_correlator_mode_with_flags(hera_uvh5):
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_upsample_in_time_summing_correlator_mode_nonint_resampling(hera_uvh5,):
+def test_upsample_in_time_summing_correlator_mode_nonint_resampling(hera_uvh5):
     """Test the upsample_in_time method with summing correlator mode
     and non-integer resampling
     """
@@ -6086,7 +6086,7 @@ def test_downsample_in_time_summing_correlator_mode(hera_uvh5):
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_downsample_in_time_summing_correlator_mode_partial_flags(hera_uvh5,):
+def test_downsample_in_time_summing_correlator_mode_partial_flags(hera_uvh5):
     """Test the downsample_in_time method with summing correlator mode and
     partial flags
     """
@@ -6132,7 +6132,7 @@ def test_downsample_in_time_summing_correlator_mode_partial_flags(hera_uvh5,):
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_downsample_in_time_summing_correlator_mode_totally_flagged(hera_uvh5,):
+def test_downsample_in_time_summing_correlator_mode_totally_flagged(hera_uvh5):
     """Test the downsample_in_time method with summing correlator mode and
     totally flagged integrations.
     """
@@ -6179,7 +6179,7 @@ def test_downsample_in_time_summing_correlator_mode_totally_flagged(hera_uvh5,):
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_downsample_in_time_summing_correlator_mode_uneven_samples(hera_uvh5,):
+def test_downsample_in_time_summing_correlator_mode_uneven_samples(hera_uvh5):
     """Test the downsample_in_time method with summing correlator mode and
     uneven samples.
     """
