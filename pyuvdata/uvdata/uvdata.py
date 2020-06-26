@@ -7155,6 +7155,11 @@ class UVData(UVBase):
                     file_num += 1
                     if skip_bad_files is False:
                         raise
+                except OSError:
+                    warnings.warn("Failed to read {f}".format(f=filename[file_num]))
+                    file_num += 1
+                    if skip_bad_files is False:
+                        raise
 
             if (
                 allow_rephase
@@ -7206,6 +7211,12 @@ class UVData(UVBase):
                         else:
                             raise
                     except ValueError:
+                        warnings.warn("Failed to read {f}".format(f=f))
+                        if skip_bad_files:
+                            continue
+                        else:
+                            raise
+                    except OSError:
                         warnings.warn("Failed to read {f}".format(f=f))
                         if skip_bad_files:
                             continue
