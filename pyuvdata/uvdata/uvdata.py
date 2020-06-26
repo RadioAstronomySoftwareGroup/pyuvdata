@@ -7205,6 +7205,12 @@ class UVData(UVBase):
                             continue
                         else:
                             raise
+                    except ValueError:
+                        warnings.warn("Failed to read {f}".format(f=f))
+                        if skip_bad_files:
+                            continue
+                        else:
+                            raise
                     if axis is not None:
                         self.fast_concat(
                             uv2,
