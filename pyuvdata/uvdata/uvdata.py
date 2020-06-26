@@ -7150,6 +7150,11 @@ class UVData(UVBase):
                     file_num += 1
                     if skip_bad_files is False:
                         raise
+                except ValueError:
+                    warnings.warn("Failed to read {f}".format(f=filename[file_num]))
+                    file_num += 1
+                    if skip_bad_files is False:
+                        raise
 
             if (
                 allow_rephase
