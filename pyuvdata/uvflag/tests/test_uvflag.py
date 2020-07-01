@@ -2002,7 +2002,7 @@ def test_super():
     class TestClass(UVFlag):
         def __init__(
             self,
-            input,
+            indata,
             mode="metric",
             copy_flags=False,
             waterfall=False,
@@ -2012,7 +2012,7 @@ def test_super():
         ):
 
             super(TestClass, self).__init__(
-                input,
+                indata,
                 mode=mode,
                 copy_flags=copy_flags,
                 waterfall=waterfall,
