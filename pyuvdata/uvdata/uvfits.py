@@ -188,7 +188,7 @@ class UVFITS(UVData):
         run_check,
         check_extra,
         run_check_acceptability,
-        uvw_antpos_check_level,
+        strict_uvw_antpos_check,
     ):
         """
         Read just the visibility and flag data of the uvfits file.
@@ -307,7 +307,7 @@ class UVFITS(UVData):
             self.check(
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
-                uvw_antpos_check_level=uvw_antpos_check_level,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
     def read_uvfits(
@@ -329,7 +329,7 @@ class UVFITS(UVData):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        uvw_antpos_check_level="warn",
+        strict_uvw_antpos_check=False,
     ):
         """
         Read in header, metadata and data from a uvfits file.
@@ -412,10 +412,9 @@ class UVFITS(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
-        uvw_antpos_check_level : string
-            Setting to control the strictness of the check that uvws match antenna
-            positions. Options are: ['strict', 'warn', 'off']. See the `UVData.check`
-            docstring for more details.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
 
         Raises
@@ -633,7 +632,7 @@ class UVFITS(UVData):
                 run_check,
                 check_extra,
                 run_check_acceptability,
-                uvw_antpos_check_level,
+                strict_uvw_antpos_check,
             )
 
     def write_uvfits(
@@ -645,6 +644,7 @@ class UVFITS(UVData):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Write the data to a uvfits file.
@@ -669,6 +669,9 @@ class UVFITS(UVData):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters before
             writing the file.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Raises
         ------
@@ -691,7 +694,7 @@ class UVFITS(UVData):
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 check_freq_spacing=True,
-                uvw_antpos_check_level="off",
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
         if self.phase_type == "phased":

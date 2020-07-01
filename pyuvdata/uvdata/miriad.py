@@ -56,7 +56,7 @@ class Miriad(UVData):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        uvw_antpos_check_level="warn",
+        strict_uvw_antpos_check=False,
     ):
         """
         Read in data from a miriad file.
@@ -120,10 +120,9 @@ class Miriad(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
-        uvw_antpos_check_level : string
-            Setting to control the strictness of the check that uvws match antenna
-            positions. Options are: ['strict', 'warn', 'off']. See the `UVData.check`
-            docstring for more details.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Raises
         ------
@@ -715,16 +714,17 @@ class Miriad(UVData):
             self.check(
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
-                uvw_antpos_check_level=uvw_antpos_check_level,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
     def write_miriad(
         self,
         filepath,
+        clobber=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        clobber=False,
+        strict_uvw_antpos_check=False,
         no_antnums=False,
     ):
         """
@@ -734,6 +734,8 @@ class Miriad(UVData):
         ----------
         filename : str
             The miriad root directory to write to.
+        clobber : bool
+            Option to overwrite the filename if the file already exists.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after before writing the file (the default is True,
@@ -745,8 +747,9 @@ class Miriad(UVData):
             Option to check acceptable range of the values of parameters before
             writing the file (the default is True, meaning the acceptable
             range check will be done).
-        clobber : bool
-            Option to overwrite the filename if the file already exists.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
         no_antnums : bool
             Option to not write the antnums variable to the file.
             Should only be used for testing purposes.
@@ -780,7 +783,7 @@ class Miriad(UVData):
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 check_freq_spacing=True,
-                uvw_antpos_check_level="off",
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
         # check for multiple spws

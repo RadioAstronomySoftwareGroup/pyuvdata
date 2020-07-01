@@ -573,7 +573,7 @@ class UVH5(UVData):
         run_check,
         check_extra,
         run_check_acceptability,
-        uvw_antpos_check_level,
+        strict_uvw_antpos_check,
     ):
         """
         Read the data-size arrays (data, flags, nsamples) from a file.
@@ -826,7 +826,7 @@ class UVH5(UVData):
             self.check(
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
-                uvw_antpos_check_level=uvw_antpos_check_level,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
         return
@@ -852,7 +852,7 @@ class UVH5(UVData):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        uvw_antpos_check_level="warn",
+        strict_uvw_antpos_check=False,
     ):
         """
         Read in data from a UVH5 file.
@@ -944,10 +944,9 @@ class UVH5(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
-        uvw_antpos_check_level : string
-            Setting to control the strictness of the check that uvws match antenna
-            positions. Options are: ['strict', 'warn', 'off']. See the `UVData.check`
-            docstring for more details.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Returns
         -------
@@ -1003,7 +1002,7 @@ class UVH5(UVData):
                 run_check,
                 check_extra,
                 run_check_acceptability,
-                uvw_antpos_check_level,
+                strict_uvw_antpos_check,
             )
 
         return
@@ -1108,9 +1107,6 @@ class UVH5(UVData):
     def write_uvh5(
         self,
         filename,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
         clobber=False,
         chunks=True,
         data_compression=None,
@@ -1118,6 +1114,10 @@ class UVH5(UVData):
         nsample_compression="lzf",
         data_write_dtype=None,
         add_to_history=None,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Write an in-memory UVData object to a UVH5 file.
@@ -1126,14 +1126,6 @@ class UVH5(UVData):
         ----------
         filename : str
             The UVH5 file to write to.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            before writing the file.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters before
-            writing the file.
         clobber : bool
             Option to overwrite the file if it already exists.
         chunks : tuple or bool
@@ -1155,6 +1147,17 @@ class UVH5(UVData):
             numpy dtype object must be specified with an 'r' field and an 'i'
             field for real and imaginary parts, respectively. See uvh5.py for
             an example of defining such a datatype.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            before writing the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Returns
         -------
@@ -1186,7 +1189,7 @@ class UVH5(UVData):
             self.check(
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
-                uvw_antpos_check_level="off",
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
         if os.path.exists(filename):
