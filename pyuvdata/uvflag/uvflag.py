@@ -464,7 +464,7 @@ class UVFlag(UVBase):
                     )
                 del fobj
 
-        elif isinstance(indata, (str, pathlib.PosixPath)):
+        elif isinstance(indata, (str, pathlib.PosixPath, pathlib.WindowsPath)):
             # Given a path, read indata
             self.read(
                 indata,
@@ -502,7 +502,7 @@ class UVFlag(UVBase):
         elif indata is not None:
             raise ValueError(
                 "indata to UVFlag.__init__ must be one of: "
-                "list, tuple, string, PosixPath, UVData, or UVCal."
+                "list, tuple, string, PosixPath, WindowsPath, UVData, or UVCal."
             )
 
     @property
