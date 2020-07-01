@@ -166,7 +166,7 @@ class UVFlag(UVBase):
         creating UVFlag object.
 
     Attributes
-    -----------
+    ----------
      UVParameter objects :
         For full list see the UVFlag Parameters Documentation.
         (https://pyuvdata.readthedocs.io/en/latest/uvflag_parameters.html)
@@ -732,9 +732,7 @@ class UVFlag(UVBase):
         Will set all non-required attributes to None, except x_orientation and
         weights_square_array.
 
-
         """
-
         for p in self:
             attr = getattr(self, p)
             if (
@@ -1455,7 +1453,7 @@ class UVFlag(UVBase):
             object with just the selected data.
 
         Returns
-        --------
+        -------
         uvf : UVFlag
             If inplace==False, return new UVFlag object.
 
@@ -1649,7 +1647,7 @@ class UVFlag(UVBase):
             object with just the selected data.
 
         Returns
-        --------
+        -------
         uvf : UVFlag
             If inplace==False, return new UVFlag object.
 
@@ -1727,7 +1725,7 @@ class UVFlag(UVBase):
             Perform combination in place.
 
         Returns
-        --------
+        -------
         uvf : UVFlag
             If inplace==False, return new UVFlag object with combined metrics.
 
