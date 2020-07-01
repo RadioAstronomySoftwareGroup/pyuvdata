@@ -7,6 +7,7 @@ import numpy as np
 import os
 import warnings
 import h5py
+import pathlib
 
 from ..uvbase import UVBase
 from .. import parameter as uvp
@@ -463,7 +464,7 @@ class UVFlag(UVBase):
                     )
                 del fobj
 
-        elif isinstance(input, str):
+        elif isinstance(input, (str, pathlib.PosixPath)):
             # Given a path, read input
             self.read(
                 input,
