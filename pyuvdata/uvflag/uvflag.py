@@ -139,7 +139,7 @@ class UVFlag(UVBase):
 
     Parameters
     ----------
-    indata : UVData, UVCal, str, PosixPath, list of compatible combination of options
+    indata : UVData, UVCal, str, pathlib.Path, list of compatible combination of options
         Input to initialize UVFlag object. If str, assumed to be path to previously
         saved UVFlag object. UVData and UVCal objects cannot be directly combined,
         unless waterfall is True.
@@ -464,7 +464,7 @@ class UVFlag(UVBase):
                     )
                 del fobj
 
-        elif isinstance(indata, (str, pathlib.PosixPath, pathlib.WindowsPath)):
+        elif issubclass(indata.__class__, (str, pathlib.Path)):
             # Given a path, read indata
             self.read(
                 indata,
@@ -502,7 +502,7 @@ class UVFlag(UVBase):
         elif indata is not None:
             raise ValueError(
                 "indata to UVFlag.__init__ must be one of: "
-                "list, tuple, string, PosixPath, WindowsPath, UVData, or UVCal."
+                "list, tuple, string, pathlib.Path, UVData, or UVCal."
             )
 
     @property
@@ -2363,7 +2363,7 @@ class UVFlag(UVBase):
 
         Parameters
         ----------
-        filename : str or PosixPath
+        filename : str or pathlib.Path
             The file name to read.
         history : str
             History string to append to UVFlag history attribute.
