@@ -139,7 +139,7 @@ class UVFlag(UVBase):
 
     Parameters
     ----------
-    input : UVData, UVCal, str, list of compatible combination of options
+    input : UVData, UVCal, str, PosixPath, list of compatible combination of options
         Input to initialize UVFlag object. If str, assumed to be path to previously
         saved UVFlag object. UVData and UVCal objects cannot be directly combined,
         unless waterfall is True.
@@ -2363,7 +2363,7 @@ class UVFlag(UVBase):
 
         Parameters
         ----------
-        filename : str
+        filename : str or PosixPath
             The file name to read.
         history : str
             History string to append to UVFlag history attribute.
