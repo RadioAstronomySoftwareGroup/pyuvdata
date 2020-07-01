@@ -16,6 +16,7 @@ controlled by the `method` keyword.
 - `propagate_flags` keyword for `UVData.frequency_average` which flags averaged samples if any contributing samples were flagged
 
 ### Changed
+- Changed `input` variable to `indata` in UVFlag to avoid shadowing python builtin.
 - `select` now also accepts a list of baseline indices for the `bls` parameter.
 - `data_array_dtype` keyword for `UVData.read` is now also respected by mwa_corr_fits files. Previously it was only used by uvh5 files.
 - The `time_range` parameter on UVCal is no longer required and it is suggested to only set it if the Ntimes axis is length one.
@@ -31,7 +32,6 @@ controlled by the `method` keyword.
 - `utils.uvcalibrate` will error rather than warn if some of the newly added checks do not pass, including if antenna names do not match between the objects, starting in version 2.2. In addition, the `flag_missing` keyword is deprecated and will be removed in version 2.2.
 
 ### Fixed
-- Remove `input` variable in UVFlag, which was shadowing python builtin.
 - UVFlag.__add__ now properly concatenates all existing data-like parameters of the object, including optional ones.
 - A bug in `UVData.downsample_in_time` where the data were not being properly weighted by the nsample array and the nsample_array was not being properly weighted by the integration times.
 - A bug in `UVData.downsample_in_time` that lead to duplicated data on the final object if a baseline had varying integration times and some integration times were greater than or equal to the requested minimum integration time.
