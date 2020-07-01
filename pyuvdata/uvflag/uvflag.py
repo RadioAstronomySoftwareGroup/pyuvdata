@@ -139,7 +139,7 @@ class UVFlag(UVBase):
 
     Parameters
     ----------
-    indata : UVData, UVCal, str, pathlib.Path, list of compatible combination of options
+    indata : UVData, UVCal, str, pathlib.Path, list of compatible combination
         Input to initialize UVFlag object. If str, assumed to be path to previously
         saved UVFlag object. UVData and UVCal objects cannot be directly combined,
         unless waterfall is True.
@@ -2790,7 +2790,9 @@ class UVFlag(UVBase):
                 if self.mode == "flag":
                     self.flag_array = np.zeros_like(indata.flag_array)
                 elif self.mode == "metric":
-                    self.metric_array = np.zeros_like(indata.flag_array).astype(np.float)
+                    self.metric_array = np.zeros_like(indata.flag_array).astype(
+                        np.float
+                    )
 
         if indata.x_orientation is not None:
             self.x_orientation = indata.x_orientation
@@ -2944,7 +2946,9 @@ class UVFlag(UVBase):
                 if self.mode == "flag":
                     self.flag_array = np.zeros_like(indata.flag_array)
                 elif self.mode == "metric":
-                    self.metric_array = np.zeros_like(indata.flag_array).astype(np.float)
+                    self.metric_array = np.zeros_like(indata.flag_array).astype(
+                        np.float
+                    )
         if self.mode == "metric":
             self.weights_array = np.ones(self.metric_array.shape)
 
