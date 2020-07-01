@@ -125,7 +125,7 @@ class CALFITS(UVCal):
             sechdr["EXTNAME"] = "FLAGS"
         # Conforming to fits format
         prihdr["SIMPLE"] = True
-        prihdr["BITPIX"] = 32
+        prihdr["BITPIX"] = -64
         prihdr["TELESCOP"] = self.telescope_name
         prihdr["GNCONVEN"] = self.gain_convention
         prihdr["CALTYPE"] = self.cal_type
