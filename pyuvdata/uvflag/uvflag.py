@@ -132,14 +132,14 @@ class UVFlag(UVBase):
     Supports reading/writing, and stores all relevant information to combine
     flags and apply to data.
     Initialization of the UVFlag object requires some parameters. Metadata is
-    copied from input object. If input is subclass of UVData or UVCal,
+    copied from indata object. If indata is subclass of UVData or UVCal,
     the weights_array will be set to all ones.
-    Input lists or tuples are iterated through, treating each entry with an
+    Lists or tuples are iterated through, treating each entry with an
     individual UVFlag init.
 
     Parameters
     ----------
-    input : UVData, UVCal, str, PosixPath, list of compatible combination of options
+    indata : UVData, UVCal, str, PosixPath, list of compatible combination of options
         Input to initialize UVFlag object. If str, assumed to be path to previously
         saved UVFlag object. UVData and UVCal objects cannot be directly combined,
         unless waterfall is True.
@@ -147,7 +147,7 @@ class UVFlag(UVBase):
         The mode determines whether the object has a floating point metric_array
         or a boolean flag_array.
     copy_flags : bool, optional
-        Whether to copy flags from input to new UVFlag object
+        Whether to copy flags from indata to new UVFlag object
     waterfall : bool, optional
         Whether to immediately initialize as a waterfall object, with flag/metric
         axes: time, frequency, polarization.
@@ -178,7 +178,7 @@ class UVFlag(UVBase):
 
     def __init__(
         self,
-        input=None,
+        indata=None,
         mode="metric",
         copy_flags=False,
         waterfall=False,
@@ -431,9 +431,9 @@ class UVFlag(UVBase):
         self.history = ""  # Added to at the end
 
         self.label = ""  # Added to at the end
-        if isinstance(input, (list, tuple)):
+        if isinstance(indata, (list, tuple)):
             self.__init__(
-                input[0],
+                indata[0],
                 mode=mode,
                 copy_flags=copy_flags,
                 waterfall=waterfall,
@@ -443,8 +443,8 @@ class UVFlag(UVBase):
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
             )
-            if len(input) > 1:
-                for i in input[1:]:
+            if len(indata) > 1:
+                for i in indata[1:]:
                     fobj = UVFlag(
                         i,
                         mode=mode,
@@ -464,18 +464,18 @@ class UVFlag(UVBase):
                     )
                 del fobj
 
-        elif isinstance(input, (str, pathlib.PosixPath)):
-            # Given a path, read input
+        elif isinstance(indata, (str, pathlib.PosixPath)):
+            # Given a path, read indata
             self.read(
-                input,
+                indata,
                 history,
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
             )
-        elif issubclass(input.__class__, UVData):
+        elif issubclass(indata.__class__, UVData):
             self.from_uvdata(
-                input,
+                indata,
                 mode=mode,
                 copy_flags=copy_flags,
                 waterfall=waterfall,
@@ -486,9 +486,9 @@ class UVFlag(UVBase):
                 run_check_acceptability=run_check_acceptability,
             )
 
-        elif issubclass(input.__class__, UVCal):
+        elif issubclass(indata.__class__, UVCal):
             self.from_uvcal(
-                input,
+                indata,
                 mode=mode,
                 copy_flags=copy_flags,
                 waterfall=waterfall,
@@ -499,9 +499,9 @@ class UVFlag(UVBase):
                 run_check_acceptability=run_check_acceptability,
             )
 
-        elif input is not None:
+        elif indata is not None:
             raise ValueError(
-                "input to UVFlag.__init__ must be one of: "
+                "indata to UVFlag.__init__ must be one of: "
                 "list, tuple, string, UVData, or UVCal."
             )
 
@@ -2654,7 +2654,7 @@ class UVFlag(UVBase):
 
     def from_uvdata(
         self,
-        input,
+        indata,
         mode="metric",
         copy_flags=False,
         waterfall=False,
@@ -2668,13 +2668,13 @@ class UVFlag(UVBase):
 
         Parameters
         ----------
-        input : UVData
+        indata : UVData
             Input to initialize UVFlag object.
         mode : {"metric", "flag"}, optional
             The mode determines whether the object has a floating point metric_array
             or a boolean flag_array.
         copy_flags : bool, optional
-            Whether to copy flags from input to new UVFlag object
+            Whether to copy flags from indata to new UVFlag object
         waterfall : bool, optional
             Whether to immediately initialize as a waterfall object, with flag/metric
             axes: time, frequency, polarization.
@@ -2693,7 +2693,7 @@ class UVFlag(UVBase):
             creating UVFlag object.
 
         """
-        if not issubclass(input.__class__, UVData):
+        if not issubclass(indata.__class__, UVData):
             raise ValueError(
                 "from_uvdata can only initialize a UVFlag object from an input "
                 "UVData object or a subclass of a UVData object."
@@ -2717,15 +2717,15 @@ class UVFlag(UVBase):
             ):
                 self.history += self.pyuvdata_version_str
 
-            self.time_array, ri = np.unique(input.time_array, return_index=True)
+            self.time_array, ri = np.unique(indata.time_array, return_index=True)
             self.Ntimes = len(self.time_array)
-            self.freq_array = input.freq_array[0, :]
+            self.freq_array = indata.freq_array[0, :]
             self.Nspws = None
             self.Nfreqs = len(self.freq_array)
             self.Nblts = len(self.time_array)
-            self.polarization_array = input.polarization_array
+            self.polarization_array = indata.polarization_array
             self.Npols = len(self.polarization_array)
-            self.lst_array = input.lst_array[ri]
+            self.lst_array = indata.lst_array[ri]
             if copy_flags:
                 raise NotImplementedError(
                     "Cannot copy flags when initializing waterfall UVFlag from "
@@ -2758,28 +2758,28 @@ class UVFlag(UVBase):
             ):
                 self.history += self.pyuvdata_version_str
 
-            self.baseline_array = input.baseline_array
+            self.baseline_array = indata.baseline_array
             self.Nbls = np.unique(self.baseline_array).size
             self.Nblts = len(self.baseline_array)
-            self.ant_1_array = input.ant_1_array
-            self.ant_2_array = input.ant_2_array
-            self.Nants_data = input.Nants_data
+            self.ant_1_array = indata.ant_1_array
+            self.ant_2_array = indata.ant_2_array
+            self.Nants_data = indata.Nants_data
 
-            self.time_array = input.time_array
-            self.lst_array = input.lst_array
+            self.time_array = indata.time_array
+            self.lst_array = indata.lst_array
             self.Ntimes = np.unique(self.time_array).size
 
-            self.freq_array = input.freq_array
+            self.freq_array = indata.freq_array
             self.Nfreqs = np.unique(self.freq_array).size
-            self.Nspws = input.Nspws
+            self.Nspws = indata.Nspws
 
-            self.polarization_array = input.polarization_array
+            self.polarization_array = indata.polarization_array
             self.Npols = len(self.polarization_array)
-            self.Nants_telescope = input.Nants_telescope
+            self.Nants_telescope = indata.Nants_telescope
             if copy_flags:
-                self.flag_array = input.flag_array
+                self.flag_array = indata.flag_array
                 self.history += (
-                    " Flags copied from " + str(input.__class__) + " object."
+                    " Flags copied from " + str(indata.__class__) + " object."
                 )
                 if self.mode == "metric":
                     warnings.warn(
@@ -2788,12 +2788,12 @@ class UVFlag(UVBase):
                     self._set_mode_flag()
             else:
                 if self.mode == "flag":
-                    self.flag_array = np.zeros_like(input.flag_array)
+                    self.flag_array = np.zeros_like(indata.flag_array)
                 elif self.mode == "metric":
-                    self.metric_array = np.zeros_like(input.flag_array).astype(np.float)
+                    self.metric_array = np.zeros_like(indata.flag_array).astype(np.float)
 
-        if input.x_orientation is not None:
-            self.x_orientation = input.x_orientation
+        if indata.x_orientation is not None:
+            self.x_orientation = indata.x_orientation
 
         if self.mode == "metric":
             self.weights_array = np.ones(self.metric_array.shape)
@@ -2812,7 +2812,7 @@ class UVFlag(UVBase):
 
     def from_uvcal(
         self,
-        input,
+        indata,
         mode="metric",
         copy_flags=False,
         waterfall=False,
@@ -2826,13 +2826,13 @@ class UVFlag(UVBase):
 
         Parameters
         ----------
-        input : UVData
+        indata : UVData
             Input to initialize UVFlag object.
         mode : {"metric", "flag"}, optional
             The mode determines whether the object has a floating point metric_array
             or a boolean flag_array.
         copy_flags : bool, optional
-            Whether to copy flags from input to new UVFlag object
+            Whether to copy flags from indata to new UVFlag object
         waterfall : bool, optional
             Whether to immediately initialize as a waterfall object, with flag/metric
             axes: time, frequency, polarization.
@@ -2851,7 +2851,7 @@ class UVFlag(UVBase):
             creating UVFlag object.
 
         """
-        if not issubclass(input.__class__, UVCal):
+        if not issubclass(indata.__class__, UVCal):
             raise ValueError(
                 "from_uvcal can only initialize a UVFlag object from an input "
                 "UVCal object or a subclass of a UVCal object."
@@ -2875,15 +2875,15 @@ class UVFlag(UVBase):
             ):
                 self.history += self.pyuvdata_version_str
 
-            self.time_array, ri = np.unique(input.time_array, return_index=True)
+            self.time_array, ri = np.unique(indata.time_array, return_index=True)
             self.Ntimes = len(self.time_array)
-            self.freq_array = input.freq_array[0, :]
+            self.freq_array = indata.freq_array[0, :]
             self.Nspws = None
             self.Nfreqs = len(self.freq_array)
             self.Nblts = len(self.time_array)
-            self.polarization_array = input.jones_array
+            self.polarization_array = indata.jones_array
             self.Npols = len(self.polarization_array)
-            self.lst_array = lst_from_uv(input)[ri]
+            self.lst_array = lst_from_uv(indata)[ri]
             if copy_flags:
                 raise NotImplementedError(
                     "Cannot copy flags when "
@@ -2916,24 +2916,24 @@ class UVFlag(UVBase):
                 self.history, self.pyuvdata_version_str
             ):
                 self.history += self.pyuvdata_version_str
-            self.ant_array = input.ant_array
+            self.ant_array = indata.ant_array
             self.Nants_data = len(self.ant_array)
 
-            self.time_array = input.time_array
-            self.lst_array = lst_from_uv(input)
+            self.time_array = indata.time_array
+            self.lst_array = lst_from_uv(indata)
             self.Ntimes = np.unique(self.time_array).size
             self.Nblts = self.Ntimes
 
-            self.freq_array = input.freq_array
-            self.Nspws = input.Nspws
+            self.freq_array = indata.freq_array
+            self.Nspws = indata.Nspws
             self.Nfreqs = np.unique(self.freq_array).size
 
-            self.polarization_array = input.jones_array
+            self.polarization_array = indata.jones_array
             self.Npols = len(self.polarization_array)
             if copy_flags:
-                self.flag_array = input.flag_array
+                self.flag_array = indata.flag_array
                 self.history += (
-                    " Flags copied from " + str(input.__class__) + " object."
+                    " Flags copied from " + str(indata.__class__) + " object."
                 )
                 if self.mode == "metric":
                     warnings.warn(
@@ -2942,14 +2942,14 @@ class UVFlag(UVBase):
                     self._set_mode_flag()
             else:
                 if self.mode == "flag":
-                    self.flag_array = np.zeros_like(input.flag_array)
+                    self.flag_array = np.zeros_like(indata.flag_array)
                 elif self.mode == "metric":
-                    self.metric_array = np.zeros_like(input.flag_array).astype(np.float)
+                    self.metric_array = np.zeros_like(indata.flag_array).astype(np.float)
         if self.mode == "metric":
             self.weights_array = np.ones(self.metric_array.shape)
 
-        if input.x_orientation is not None:
-            self.x_orientation = input.x_orientation
+        if indata.x_orientation is not None:
+            self.x_orientation = indata.x_orientation
 
         if history not in self.history:
             self.history += history
