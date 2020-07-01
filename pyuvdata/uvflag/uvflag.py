@@ -501,7 +501,7 @@ class UVFlag(UVBase):
 
         elif indata is not None:
             raise ValueError(
-                "indata to UVFlag.__init__ must be one of: "
+                "input to UVFlag.__init__ must be one of: "
                 "list, tuple, string, pathlib.Path, UVData, or UVCal."
             )
 
