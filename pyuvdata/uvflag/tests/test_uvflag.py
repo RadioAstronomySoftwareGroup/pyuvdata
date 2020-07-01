@@ -16,6 +16,7 @@ import shutil
 import copy
 import warnings
 import h5py
+import pathlib
 
 
 # The following three fixtures are used regularly
@@ -398,6 +399,14 @@ def test_init_list_files_weights(tmpdir):
         [os.path.join(tmp_path, "test1.h5"), os.path.join(tmp_path, "test2.h5")]
     )
     assert np.all(uvf2.weights_array == np.concatenate([wts1, wts2], axis=0))
+
+
+def test_init_posix():
+    # Test that weights are preserved when reading list of files
+    testfile_posix = pathlib.Path(test_f_file)
+    uvf1 = UVFlag(test_f_file)
+    uvf2 = UVFlag(testfile_posix)
+    assert uvf1 == uvf2
 
 
 def test_data_like_property_mode_tamper():
