@@ -7112,6 +7112,7 @@ class UVData(UVBase):
         if multi:
 
             file_num = 0
+            file_warnings = "\n"
             unread = True
             while unread:
                 try:
@@ -7146,17 +7147,23 @@ class UVData(UVBase):
                     )
                     unread = False
                 except KeyError:
-                    warnings.warn("Failed to read {f}".format(f=filename[file_num]))
+                    file_warnings = file_warnings + "Failed to read {f} \n".format(
+                        f=filename[file_num]
+                    )
                     file_num += 1
                     if skip_bad_files is False:
                         raise
                 except ValueError:
-                    warnings.warn("Failed to read {f}".format(f=filename[file_num]))
+                    file_warnings = file_warnings + "Failed to read {f} \n".format(
+                        f=filename[file_num]
+                    )
                     file_num += 1
                     if skip_bad_files is False:
                         raise
                 except OSError:
-                    warnings.warn("Failed to read {f}".format(f=filename[file_num]))
+                    file_warnings = file_warnings + "Failed to read {f} \n".format(
+                        f=filename[file_num]
+                    )
                     file_num += 1
                     if skip_bad_files is False:
                         raise
@@ -7205,19 +7212,25 @@ class UVData(UVBase):
                             strict_uvw_antpos_check=strict_uvw_antpos_check,
                         )
                     except KeyError:
-                        warnings.warn("Failed to read {f}".format(f=f))
+                        file_warnings = file_warnings + "Failed to read {f} \n".format(
+                            f=f
+                        )
                         if skip_bad_files:
                             continue
                         else:
                             raise
                     except ValueError:
-                        warnings.warn("Failed to read {f}".format(f=f))
+                        file_warnings = file_warnings + "Failed to read {f} \n".format(
+                            f=f
+                        )
                         if skip_bad_files:
                             continue
                         else:
                             raise
                     except OSError:
-                        warnings.warn("Failed to read {f}".format(f=f))
+                        file_warnings = file_warnings + "Failed to read {f} \n".format(
+                            f=f
+                        )
                         if skip_bad_files:
                             continue
                         else:
@@ -7250,6 +7263,8 @@ class UVData(UVBase):
                         )
 
                 del uv2
+                if len(file_warnings) > 0:
+                    warnings.warn(file_warnings)
         else:
             if file_type in ["fhd", "ms", "mwa_corr_fits"]:
                 if (
