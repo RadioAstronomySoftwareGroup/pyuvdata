@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+- Attempting to track a trivial change
 
 ### Added
 - `UVFlag` can now take `PosixPath` objects as input.
