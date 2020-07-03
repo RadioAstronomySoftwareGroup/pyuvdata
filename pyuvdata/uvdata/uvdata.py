@@ -7112,7 +7112,7 @@ class UVData(UVBase):
         if multi:
 
             file_num = 0
-            file_warnings = "\n"
+            file_warnings = ""
             unread = True
             while unread:
                 try:
@@ -7146,23 +7146,23 @@ class UVData(UVBase):
                         strict_uvw_antpos_check=strict_uvw_antpos_check,
                     )
                     unread = False
-                except KeyError:
-                    file_warnings = file_warnings + "Failed to read {f} \n".format(
-                        f=filename[file_num]
+                except KeyError as err:
+                    file_warnings = file_warnings + "Failed to read {f} due to KeyError: {e}\n".format(
+                        f=filename[file_num],e=err
                     )
                     file_num += 1
                     if skip_bad_files is False:
                         raise
-                except ValueError:
-                    file_warnings = file_warnings + "Failed to read {f} \n".format(
-                        f=filename[file_num]
+                except ValueError as err:
+                    file_warnings = file_warnings + "Failed to read {f} due to ValueError: {e}\n".format(
+                        f=filename[file_num],e=err
                     )
                     file_num += 1
                     if skip_bad_files is False:
                         raise
-                except OSError:
-                    file_warnings = file_warnings + "Failed to read {f} \n".format(
-                        f=filename[file_num]
+                except OSError as err:
+                    file_warnings = file_warnings + "Failed to read {f} due to OSError: {e}\n".format(
+                        f=filename[file_num],e=err
                     )
                     file_num += 1
                     if skip_bad_files is False:
@@ -7211,25 +7211,25 @@ class UVData(UVBase):
                             run_check_acceptability=run_check_acceptability,
                             strict_uvw_antpos_check=strict_uvw_antpos_check,
                         )
-                    except KeyError:
-                        file_warnings = file_warnings + "Failed to read {f} \n".format(
-                            f=f
+                    except KeyError as err:
+                        file_warnings = file_warnings + "Failed to read {f} due to KeyError: {e}\n".format(
+                            f=f,e=err
                         )
                         if skip_bad_files:
                             continue
                         else:
                             raise
-                    except ValueError:
-                        file_warnings = file_warnings + "Failed to read {f} \n".format(
-                            f=f
+                    except ValueError as err:
+                        file_warnings = file_warnings + "Failed to read {f} due to ValueError: {e}\n".format(
+                            f=f,e=err
                         )
                         if skip_bad_files:
                             continue
                         else:
                             raise
-                    except OSError:
-                        file_warnings = file_warnings + "Failed to read {f} \n".format(
-                            f=f
+                    except OSError as err:
+                        file_warnings = file_warnings + "Failed to read {f} due to OSError: {e}\n".format(
+                            f=f,e=err
                         )
                         if skip_bad_files:
                             continue
