@@ -5996,6 +5996,37 @@ class UVData(UVBase):
         self._convert_from_filetype(fhd_obj)
         del fhd_obj
 
+    def read_mir(self, filepath, isource=None, irec=None, isb=None, corrchunk=None):
+        """
+        Read in data from an SMA MIR file.
+
+        Note that with the exception of filepath, the reset of the parameters are
+        used to sub-select a range of data that matches the limitations of the current
+        instantiation of pyuvdata  -- namely 1 spectral window, 1 source. These could
+        be dropped in the future, as pyuvdata capabilities grow.
+
+        Parameters
+        ----------
+        filepath : str
+             The file path to the MIR folder to read from.
+        isource : int
+            Source code for MIR dataset
+        irec : int
+            Receiver code for MIR dataset
+        isb : int
+            Sideband code for MIR dataset
+        corrchunk : int
+            Correlator chunk code for MIR dataset
+        """
+        from . import mir
+
+        mir_obj = mir.Mir()
+        mir_obj.read_mir(
+            filepath, isource=isource, irec=irec, isb=isb, corrchunk=corrchunk
+        )
+        self._convert_from_filetype(mir_obj)
+        del mir_obj
+
     def read_miriad(
         self,
         filepath,
@@ -6946,13 +6977,17 @@ class UVData(UVBase):
                 file_test = filename
 
             if os.path.isdir(file_test):
-                # it's a directory, so it's either miriad or ms file type
+                # it's a directory, so it's either miriad, mir, or ms file type
                 if os.path.exists(os.path.join(file_test, "vartable")):
                     # It's miriad.
                     file_type = "miriad"
                 elif os.path.exists(os.path.join(file_test, "OBSERVATION")):
                     # It's a measurement set.
                     file_type = "ms"
+                elif os.path.exists(os.path.join(file_test, "sch_read")):
+                    # It's Submillimeter Array mir format.
+                    file_type = "mir"
+
             else:
                 basename, extension = os.path.splitext(file_test)
                 if extension == ".uvfits":
@@ -7198,6 +7233,10 @@ class UVData(UVBase):
                     keep_all_metadata=keep_all_metadata,
                     background_lsts=background_lsts,
                 )
+
+            elif file_type == "mir":
+                self.read_mir(filename)
+                select = False
 
             elif file_type == "miriad":
                 self.read_miriad(
