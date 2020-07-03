@@ -7263,8 +7263,8 @@ class UVData(UVBase):
                         )
 
                 del uv2
-                if len(file_warnings) > 0:
-                    warnings.warn(file_warnings)
+            if len(file_warnings) > 0:
+                warnings.warn(file_warnings)
         else:
             if file_type in ["fhd", "ms", "mwa_corr_fits"]:
                 if (
