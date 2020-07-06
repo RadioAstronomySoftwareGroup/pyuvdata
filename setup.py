@@ -45,9 +45,11 @@ if is_platform_mac():
 
 # define the cython compile args, depending on platform
 if is_platform_windows():
-    extra_compile_args = ["/Ox"]
+    extra_compile_args = ["/Ox", "/openmp"]
+    extra_link_args = ["/openmp"]
 else:
-    extra_compile_args = ["-O3"]
+    extra_compile_args = ["-O3", "-fopenmp"]
+    extra_link_args = ["-fopenmp"]
 
 global_c_macros = [
     ("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION"),
@@ -75,6 +77,7 @@ corr_fits_extension = Extension(
     define_macros=global_c_macros,
     include_dirs=["pyuvdata/uvdata/corr_fits_src/", numpy.get_include()],
     extra_compile_args=extra_compile_args,
+    extra_link_args=extra_link_args,
 )
 
 utils_extension = Extension(
