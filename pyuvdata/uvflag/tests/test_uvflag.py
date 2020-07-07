@@ -2809,6 +2809,51 @@ def test_select(input_uvf, uvf_mode):
             uvf2.history,
         )
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+def test_parse_ants_error(uvf_from_uvcal, uvf_mode):
+    uvf = uvf_from_uvcal
+    # used to set the mode depending on which input is given to uvf_mode
+    getattr(uvf, uvf_mode)()
+    err_msg = (
+        "UVFlag objects can only call 'parse_ants' function if type is 'baseline'."
+    )
+    with pytest.raises(ValueError, match=err_msg):
+        uvf.parse_ants("all")
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize(
+    "select_kwargs,err_msg",
+    [
+        (
+            {"ant_str": "all", "antenna_nums": [1, 2, 3]},
+            "Cannot provide ant_str with antenna_nums, bls, or polarizations.",
+        ),
+        (
+            {"ant_str": "all", "bls": [(0, 1), (1, 2)]},
+            "Cannot provide ant_str with antenna_nums, bls, or polarizations.",
+        ),
+        (
+            {"ant_str": "all", "polarizations": [-5, -6, -7]},
+            "Cannot provide ant_str with antenna_nums, bls, or polarizations.",
+        ),
+        (
+            {"ant_str": "auto"},
+            "There is no data matching ant_str=auto in this object.",
+        ),
+    ],
+)
+@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+def test_select_parse_ants_errors(uvf_from_data, uvf_mode, select_kwargs, err_msg):
+    uvf = uvf_from_data
+    # used to set the mode depending on which input is given to uvf_mode
+    getattr(uvf, uvf_mode)()
+    if select_kwargs["ant_str"] == "auto":
+        uvf = uvf.select(ant_str="cross", inplace=False)
+    with pytest.raises(ValueError, match=err_msg):
+        uvf.select(**select_kwargs)
+
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_equality_no_history(uvf_from_data):
