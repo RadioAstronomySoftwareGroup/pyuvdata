@@ -22,5 +22,5 @@ dependencies:
     - git+https://github.com/HERA-Team/hera_qm.git
     - git+https://github.com/HERA-Team/uvtools.git
     - git+https://github.com/HERA-Team/hera_sim.git
-    - git+https://github.com/RadioAstronomySoftwareGroup/pyuvsim.git
-    - git+https://github.com/RadioAstronomySoftwareGroup/pyradiosky.git
+    - pyuvsim
+    - pyradiosky
