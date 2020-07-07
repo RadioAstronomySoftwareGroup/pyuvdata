@@ -508,12 +508,7 @@ def test_check(uvdata_data):
             "positions."
         ),
     ):
-        uvdata_data.uv_object.check(uvw_antpos_check_level="strict")
-
-    with pytest.raises(
-        ValueError, match=("uvw_antpos_check_level must be one of"),
-    ):
-        uvdata_data.uv_object.check(uvw_antpos_check_level="foo")
+        uvdata_data.uv_object.check(strict_uvw_antpos_check=True)
 
     # Check case where all data is autocorrelations
     # Currently only test files that have autos are fhd files
@@ -1615,7 +1610,12 @@ def test_select_frequencies_uvfits(casa_uvfits, tmp_path):
         uv_object2.select,
         [],
         {"frequencies": uv_object2.freq_array[0, [0, 5, 6]]},
-        message="Selected frequencies are not evenly spaced",
+        message=[
+            "Selected frequencies are not evenly spaced",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=2,
     )
     write_file_uvfits = str(tmp_path / "select_test.uvfits")
     pytest.raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
@@ -1625,7 +1625,12 @@ def test_select_frequencies_uvfits(casa_uvfits, tmp_path):
         uv_object2.select,
         [],
         {"frequencies": uv_object2.freq_array[0, [0, 2, 4]]},
-        message="Selected frequencies are not contiguous",
+        message=[
+            "Selected frequencies are not contiguous",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=2,
     )
     pytest.raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
 
@@ -1676,7 +1681,7 @@ def test_select_frequencies_miriad(casa_uvfits, tmp_path):
         assert f in [freqs_to_keep[0]]
 
     assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific frequencies using pyuvdata.",
+        old_history + "  Downselected to specific frequencies using pyuvdata.",
         uv_object2.history,
     )
 
@@ -1694,7 +1699,12 @@ def test_select_frequencies_miriad(casa_uvfits, tmp_path):
         uv_object2.select,
         [],
         {"frequencies": uv_object2.freq_array[0, [0, 5, 6]]},
-        message="Selected frequencies are not evenly spaced",
+        message=[
+            "Selected frequencies are not evenly spaced",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=2,
     )
     write_file_miriad = str(tmp_path / "select_test.uvfits")
     pytest.raises(ValueError, uv_object2.write_miriad, write_file_miriad)
@@ -1704,7 +1714,12 @@ def test_select_frequencies_miriad(casa_uvfits, tmp_path):
         uv_object2.select,
         [],
         {"frequencies": uv_object2.freq_array[0, [0, 2, 4]]},
-        message="Selected frequencies are not contiguous",
+        message=[
+            "Selected frequencies are not contiguous",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=2,
     )
     pytest.raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
@@ -1803,7 +1818,12 @@ def test_select_polarizations(casa_uvfits, tmp_path):
         uv_object.select,
         [],
         {"polarizations": uv_object.polarization_array[[0, 1, 3]]},
-        message="Selected polarization values are not evenly spaced",
+        message=[
+            "Selected polarization values are not evenly spaced",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=2,
     )
     write_file_uvfits = str(tmp_path / "select_test.uvfits")
     pytest.raises(ValueError, uv_object.write_uvfits, write_file_uvfits)
@@ -2550,7 +2570,18 @@ def test_add(casa_uvfits):
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(33, 64))
     uvtest.checkWarnings(
-        uv1.__add__, [uv2], message="Combined frequencies are not evenly spaced"
+        uv1.__add__,
+        func_args=[uv2],
+        message=[
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Combined frequencies are not evenly spaced",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=4,
     )
 
     uv1 = uv_full.copy()
@@ -2558,7 +2589,18 @@ def test_add(casa_uvfits):
     uv1.select(freq_chans=[0])
     uv2.select(freq_chans=[3])
     uvtest.checkWarnings(
-        uv1.__iadd__, [uv2], message="Combined frequencies are not contiguous"
+        uv1.__iadd__,
+        func_args=[uv2],
+        message=[
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Combined frequencies are not contiguous",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=4,
     )
 
     uv1 = uv_full.copy()
@@ -2566,14 +2608,37 @@ def test_add(casa_uvfits):
     uv1.select(freq_chans=[0])
     uv2.select(freq_chans=[1])
     uv2.freq_array += uv2._channel_width.tols[1] / 2.0
-    uvtest.checkWarnings(uv1.__iadd__, [uv2], nwarnings=0)
+    uvtest.checkWarnings(
+        uv1.__iadd__,
+        func_args=[uv2],
+        message=[
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=3,
+    )
 
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[3])
     uvtest.checkWarnings(
-        uv1.__iadd__, [uv2], message="Combined polarizations are not evenly spaced"
+        uv1.__iadd__,
+        func_args=[uv2],
+        message=[
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Combined polarizations are not evenly spaced",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=4,
     )
 
     # Combining histories
@@ -2790,7 +2855,18 @@ def test_add_drift(casa_uvfits):
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(33, 64))
     uvtest.checkWarnings(
-        uv1.__add__, [uv2], message="Combined frequencies are not evenly spaced"
+        uv1.__add__,
+        func_args=[uv2],
+        message=[
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Combined frequencies are not evenly spaced",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=4,
     )
 
     uv1 = uv_full.copy()
@@ -2798,7 +2874,18 @@ def test_add_drift(casa_uvfits):
     uv1.select(freq_chans=[0])
     uv2.select(freq_chans=[3])
     uvtest.checkWarnings(
-        uv1.__iadd__, [uv2], message="Combined frequencies are not contiguous"
+        uv1.__iadd__,
+        func_args=[uv2],
+        message=[
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Combined frequencies are not contiguous",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=4,
     )
 
     uv1 = uv_full.copy()
@@ -2806,7 +2893,18 @@ def test_add_drift(casa_uvfits):
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[3])
     uvtest.checkWarnings(
-        uv1.__iadd__, [uv2], message="Combined polarizations are not evenly spaced"
+        uv1.__iadd__,
+        func_args=[uv2],
+        message=[
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Combined polarizations are not evenly spaced",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=4,
     )
 
     # Combining histories
@@ -3073,9 +3171,18 @@ def test_fast_concat(casa_uvfits):
     uv2.select(freq_chans=np.arange(32, 64))
     uvtest.checkWarnings(
         uv2.fast_concat,
-        [uv1, "freq"],
-        {"inplace": True},
-        message="Combined frequencies are not evenly spaced",
+        func_args=[uv1, "freq"],
+        func_kwargs={"inplace": True},
+        message=[
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Combined frequencies are not evenly spaced",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=4,
     )
     assert uv2.Nfreqs == uv_full.Nfreqs
     assert uv2._freq_array != uv_full._freq_array
@@ -3114,9 +3221,18 @@ def test_fast_concat(casa_uvfits):
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uvtest.checkWarnings(
         uv2.fast_concat,
-        [uv1, "polarization"],
-        {"inplace": True},
-        message="Combined polarizations are not evenly spaced",
+        func_args=[uv1, "polarization"],
+        func_kwargs={"inplace": True},
+        message=[
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Combined polarizations are not evenly spaced",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=4,
     )
     assert uv2._polarization_array != uv_full._polarization_array
     assert uv2._data_array != uv_full._data_array
@@ -3281,8 +3397,17 @@ def test_fast_concat(casa_uvfits):
     uv2.select(freq_chans=np.arange(33, 64))
     uvtest.checkWarnings(
         uv1.fast_concat,
-        [uv2, "freq"],
-        message="Combined frequencies are not evenly spaced",
+        func_args=[uv2, "freq"],
+        message=[
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Combined frequencies are not evenly spaced",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=4,
     )
 
     uv1 = uv_full.copy()
@@ -3291,8 +3416,17 @@ def test_fast_concat(casa_uvfits):
     uv2.select(freq_chans=[3])
     uvtest.checkWarnings(
         uv1.fast_concat,
-        [uv2, "freq"],
-        message="Combined frequencies are not contiguous",
+        func_args=[uv2, "freq"],
+        message=[
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Combined frequencies are not contiguous",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=4,
     )
 
     uv1 = uv_full.copy()
@@ -3300,7 +3434,19 @@ def test_fast_concat(casa_uvfits):
     uv1.select(freq_chans=[0])
     uv2.select(freq_chans=[1])
     uv2.freq_array += uv2._channel_width.tols[1] / 2.0
-    uvtest.checkWarnings(uv1.fast_concat, [uv2, "freq"], nwarnings=0)
+    uvtest.checkWarnings(
+        uv1.fast_concat,
+        func_args=[uv2, "freq"],
+        message=[
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=3,
+    )
 
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
@@ -3308,8 +3454,17 @@ def test_fast_concat(casa_uvfits):
     uv2.select(polarizations=uv2.polarization_array[3])
     uvtest.checkWarnings(
         uv1.fast_concat,
-        [uv2, "polarization"],
-        message="Combined polarizations are not evenly spaced",
+        func_args=[uv2, "polarization"],
+        message=[
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Combined polarizations are not evenly spaced",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=4,
     )
 
     # Combining histories
@@ -4426,8 +4581,12 @@ def test_select_with_ant_str(casa_uvfits):
         uv.select,
         [],
         {"ant_str": ant_str, "inplace": inplace},
-        nwarnings=1,
-        message="Warning: Antenna",
+        nwarnings=2,
+        message=[
+            "Warning: Antenna",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
     )
 
     # Multiple antenna numbers as list
@@ -4493,8 +4652,12 @@ def test_select_with_ant_str(casa_uvfits):
         uv.select,
         [],
         {"ant_str": ant_str, "inplace": inplace},
-        nwarnings=1,
-        message="Warning: Polarization",
+        nwarnings=2,
+        message=[
+            "Warning: Polarization",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
     )
     # with polarizations in data
     ant_str = "1l_3,2_3"
@@ -4511,8 +4674,12 @@ def test_select_with_ant_str(casa_uvfits):
         uv.select,
         [],
         {"ant_str": ant_str, "inplace": inplace},
-        nwarnings=1,
-        message="Warning: Polarization",
+        nwarnings=2,
+        message=[
+            "Warning: Polarization",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
     )
     # with polarizations in data
     ant_str = "1_3l,2_3"
@@ -4529,8 +4696,12 @@ def test_select_with_ant_str(casa_uvfits):
         uv.select,
         [],
         {"ant_str": ant_str, "inplace": inplace},
-        nwarnings=1,
-        message="Warning: Antenna",
+        nwarnings=2,
+        message=[
+            "Warning: Antenna",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
     )
     ant_pairs = [(1, 2), (1, 3)]
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
@@ -5061,9 +5232,11 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method, casa_uvf
     uvtest.checkWarnings(
         uv2.inflate_by_redundancy,
         func_args={tol: tol},
-        nwarnings=2,
+        nwarnings=3,
         message=[
             "Missing some redundant groups. Filling in available data.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
@@ -6596,7 +6769,7 @@ def test_downsample_in_time_int_time_mismatch_warning(hera_uvh5):
         UserWarning, match="The time difference between integrations is not the same"
     ) as record:
         uv_object.downsample_in_time(min_int_time=min_integration_time)
-    assert len(record) == 10
+    assert len(record) == 11
 
     # Should have half the size of the data array and all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
@@ -6642,9 +6815,11 @@ def test_downsample_in_time_varying_integration_time(hera_uvh5):
     min_integration_time = 2 * np.amin(uv_object.integration_time)
     # check that there are no warnings about inconsistencies between
     # integration_time & time_array
-    with pytest.warns(None) as record:
+    with pytest.warns(
+        UserWarning, match="The uvw_array does not match the expected values",
+    ) as record:
         uv_object.downsample_in_time(min_int_time=min_integration_time)
-    assert len(record) == 0
+    assert len(record) == 1
 
     # Should have all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
@@ -6705,15 +6880,19 @@ def test_downsample_in_time_varying_int_time_partial_flags(hera_uvh5):
 
     uv_object2 = uv_object.copy()
 
-    with pytest.warns(None) as record:
+    with pytest.warns(
+        UserWarning, match="The uvw_array does not match the expected values",
+    ) as record:
         uv_object.downsample_in_time(min_int_time=4 * initial_int_time)
-    assert len(record) == 0
+    assert len(record) == 1
     with pytest.warns(None) as record:
         uv_object.downsample_in_time(min_int_time=8 * initial_int_time)
     assert len(record) == 0
-    with pytest.warns(None) as record:
+    with pytest.warns(
+        UserWarning, match="The uvw_array does not match the expected values",
+    ) as record:
         uv_object2.downsample_in_time(min_int_time=8 * initial_int_time)
-    assert len(record) == 0
+    assert len(record) == 1
 
     assert uv_object.history != uv_object2.history
     uv_object2.history = uv_object.history
@@ -7795,13 +7974,13 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path):
         uvTest.read,
         func_args=[fileList[0:4]],
         func_kwargs={"skip_bad_files": True},
-        nwarnings=4,
+        nwarnings=10,
         message=(
             [
                 "The uvw_array does not match the expected values given the "
                 "antenna positions."
             ]
-            * 3
+            * 9
             + ["Failed to read"]
         ),
     )
@@ -7822,14 +8001,14 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path):
         uvTest.read,
         func_args=[fileList[0:4]],
         func_kwargs={"skip_bad_files": True},
-        nwarnings=4,
+        nwarnings=10,
         message=(
             ["Failed to read"]
             + [
                 "The uvw_array does not match the expected values given the "
                 "antenna positions."
             ]
-            * 3
+            * 9
         ),
     )
     uvTrue = UVData()
@@ -7849,17 +8028,18 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path):
         uvTest.read,
         func_args=[fileList[0:4]],
         func_kwargs={"skip_bad_files": True},
-        nwarnings=4,
+        nwarnings=10,
         message=(
             [
                 "The uvw_array does not match the expected values given the "
                 "antenna positions.",
                 "Failed to read",
-                "The uvw_array does not match the expected values given the "
-                "antenna positions.",
+            ]
+            + [
                 "The uvw_array does not match the expected values given the "
                 "antenna positions.",
             ]
+            * 8
         ),
     )
     uvTrue = UVData()

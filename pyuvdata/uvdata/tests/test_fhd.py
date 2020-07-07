@@ -94,6 +94,7 @@ def test_read_fhd_metadata_only_error():
         fhd_uv.read_fhd(testfiles[:7], read_data=False)
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_fhd_select():
     """
     test select on read with FHD files.
@@ -116,8 +117,10 @@ def test_read_fhd_select():
             "matches the known_telescopes values, using them.",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
         ],
-        nwarnings=3,
+        nwarnings=4,
     )
 
     uvtest.checkWarnings(

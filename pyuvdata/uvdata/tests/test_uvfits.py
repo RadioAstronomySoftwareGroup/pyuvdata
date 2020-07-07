@@ -29,7 +29,7 @@ def uvfits_nospw_master():
     uv_in = UVData()
     # This file has a crazy epoch (2291.34057617) which breaks the uvw_antpos check
     # Since it's a PAPER file, I think this is a bug in the file, not in the check.
-    uv_in.read(paper_uvfits, uvw_antpos_check_level="off")
+    uv_in.read(paper_uvfits, run_check_acceptability=False)
 
     return uv_in
 
@@ -310,7 +310,12 @@ def test_readwriteread_large_antnums(tmp_path, casa_uvfits):
     uvtest.checkWarnings(
         uv_in.write_uvfits,
         [write_file],
-        message="antnums_to_baseline: found > 256 antennas, using 2048 baseline",
+        message=[
+            "The uvw_array does not match the expected values given the antenna "
+            "positions",
+            "antnums_to_baseline: found > 256 antennas, using 2048 baseline",
+        ],
+        nwarnings=2,
     )
     uv_out.read(write_file)
     assert uv_in == uv_out
@@ -443,7 +448,14 @@ def test_readwriteread_unflagged_data_warnings(tmp_path, casa_uvfits):
     uv_in.nsample_array[list(range(11, 22))] = 0
     uv_in.flag_array[list(range(11, 22))] = False
     uvtest.checkWarnings(
-        uv_in.write_uvfits, [write_file], message="Some unflagged data has nsample = 0"
+        uv_in.write_uvfits,
+        [write_file],
+        message=[
+            "The uvw_array does not match the expected values given the antenna "
+            "positions",
+            "Some unflagged data has nsample = 0",
+        ],
+        nwarnings=2,
     )
 
     return
@@ -489,7 +501,7 @@ def test_extra_keywords_errors(
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
     uv_in.extra_keywords[kwd_name] = kwd_value
     with pytest.warns(UserWarning, match=warnstr):
-        uv_in.check(uvw_antpos_check_level="off")
+        uv_in.check()
 
     if errstr is not None:
         with pytest.raises(TypeError, match=errstr):
@@ -612,9 +624,9 @@ def test_select_read_nospw(uvfits_nospw, tmp_path, select_kwargs):
     uvfits_uv = UVData()
     # This file has a crazy epoch (2291.34057617) which breaks the uvw_antpos check
     # Since it's a PAPER file, I think this is a bug in the file, not in the check.
-    uvfits_uv.read(paper_uvfits, uvw_antpos_check_level="off", **select_kwargs)
+    uvfits_uv.read(paper_uvfits, run_check_acceptability=False, **select_kwargs)
 
-    uvfits_uv2.select(**select_kwargs)
+    uvfits_uv2.select(run_check_acceptability=False, **select_kwargs)
     assert uvfits_uv == uvfits_uv2
 
 
@@ -795,14 +807,20 @@ def test_multi_unphase_on_read(casa_uvfits, tmp_path):
                 "Telescope EVLA is not",
                 "The uvw_array does not match the expected values given the "
                 "antenna positions.",
-            ]
-            * 2
-            + [
+                "Telescope EVLA is not",
+                "The uvw_array does not match the expected values given the "
+                "antenna positions.",
+                "The uvw_array does not match the expected values given the "
+                "antenna positions.",
+                "The uvw_array does not match the expected values given the "
+                "antenna positions.",
                 "Unphasing this UVData object to drift",
                 "Unphasing other UVData object to drift",
+                "The uvw_array does not match the expected values given the "
+                "antenna positions.",
             ]
         ),
-        nwarnings=6,
+        nwarnings=9,
     )
 
     # Check history is correct, before replacing and doing a full object check
@@ -863,14 +881,20 @@ def test_multi_phase_on_read(casa_uvfits, tmp_path):
                 "Telescope EVLA is not",
                 "The uvw_array does not match the expected values given the "
                 "antenna positions.",
-            ]
-            * 2
-            + [
+                "Telescope EVLA is not",
+                "The uvw_array does not match the expected values given the "
+                "antenna positions.",
                 "Phasing this UVData object to phase_center_radec",
+                "The uvw_array does not match the expected values given the "
+                "antenna positions.",
+                "The uvw_array does not match the expected values given the "
+                "antenna positions.",
                 "Phasing this UVData object to phase_center_radec",
+                "The uvw_array does not match the expected values given the "
+                "antenna positions.",
             ]
         ),
-        nwarnings=6,
+        nwarnings=9,
     )
 
     # Check history is correct, before replacing and doing a full object check
