@@ -2908,3 +2908,28 @@ def test_to_antenna_collapsed_pols(uvf_from_uvcal):
     uvf.to_antenna(uvc, force_pol=True)
     assert not uvf.pol_collapsed
     assert uvf.check()
+
+
+def test_get_ants_error(uvf_from_waterfall):
+    uvf = uvf_from_waterfall
+
+    with pytest.raises(
+        ValueError, match="A waterfall type UVFlag object has no sense of antennas.",
+    ):
+        uvf.get_ants()
+
+
+@cases_decorator_no_waterfall
+@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+def test_get_ants(input_uvf, uvf_mode):
+    uvf = input_uvf
+    getattr(uvf, uvf_mode)()
+    ants = uvf.get_ants()
+    if uvf.type == "baseline":
+        expected_ants = np.sort(
+            list(set(np.unique(uvf.ant_1_array)).union(np.unique(uvf.ant_2_array)))
+        )
+    if uvf.type == "antenna":
+        expected_ants = np.unique(uvf.ant_array)
+
+    assert np.array_equiv(ants, expected_ants)
