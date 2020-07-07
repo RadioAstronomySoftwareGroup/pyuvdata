@@ -1357,6 +1357,7 @@ def test_and_collapse_errors():
     pytest.raises(ValueError, uvutils.and_collapse, data)
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvcalibrate_apply_gains_oldfiles():
     # read data
     uvd = UVData()
@@ -1434,6 +1435,7 @@ def test_uvcalibrate_apply_gains_oldfiles():
     assert uvdcal.vis_units == "Jy"
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvcalibrate_delay_oldfiles():
     uvd = UVData()
     uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"))
@@ -1972,6 +1974,7 @@ def test_uvcalibrate_feedpol_mismatch(uvcalibrate_data):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_apply_uvflag():
     # load data and insert some flags
     uvd = UVData()
