@@ -591,6 +591,7 @@ def test_poltoind(uv_in_paper):
     assert str(cm.value).startswith("multiple matches for pol=-7 in polarization_array")
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "kwd_name,kwd_value,warnstr,errstr",
     (
@@ -640,15 +641,17 @@ def test_miriad_extra_keywords_errors(
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
     uv_in.extra_keywords[kwd_name] = kwd_value
     if warnstr is not None:
-        with pytest.warns(UserWarning, match=warnstr):
-            uv_in.check(uvw_antpos_check_level="off")
+        with pytest.warns(UserWarning, match=warnstr) as record:
+            uv_in.check()
+        assert len(record) == 2
 
     if errstr is not None:
         with pytest.raises(TypeError, match=errstr):
             uv_in.write_miriad(testfile, clobber=True, run_check=False)
     else:
-        with pytest.warns(UserWarning, match=warnstr):
+        with pytest.warns(UserWarning, match=warnstr) as record:
             uv_in.write_miriad(testfile, clobber=True, run_check=False)
+        assert len(record) == 1
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -1093,9 +1096,11 @@ def test_read_write_read_miriad_partial_with_warnings(uv_in_paper, tmp_path):
         uv_in.read,
         func_args=[write_file],
         func_kwargs={"times": times_to_keep},
-        nwarnings=2,
+        nwarnings=3,
         message=[
             "Warning: a select on read keyword is set",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
@@ -1111,9 +1116,11 @@ def test_read_write_read_miriad_partial_with_warnings(uv_in_paper, tmp_path):
         uv_in.read,
         func_args=[write_file],
         func_kwargs={"blt_inds": blts_select, "antenna_nums": ants_keep},
-        nwarnings=2,
+        nwarnings=3,
         message=[
             "Warning: blt_inds is set along with select on read",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],

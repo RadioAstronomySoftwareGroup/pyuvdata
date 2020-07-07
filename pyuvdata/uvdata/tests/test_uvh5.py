@@ -33,7 +33,7 @@ def uv_uvh5():
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
-    uv_uvh5.read_uvh5(uvh5_filename, uvw_antpos_check_level="off")
+    uv_uvh5.read_uvh5(uvh5_filename, run_check_acceptability=False)
     yield uv_uvh5
 
     # clean up when done
@@ -1595,19 +1595,19 @@ def test_uvh5_read_ints(uv_uvh5, tmp_path):
     uv_in = uv_uvh5
     uv_out = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
-    uv_in.write_uvh5(testfile, clobber=True)
+    uv_in.write_uvh5(testfile, run_check_acceptability=False, clobber=True)
 
     # read it back in to make sure data is the same
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
-    uv_out.read(testfile, uvw_antpos_check_level="off")
+    uv_out.read(testfile, run_check_acceptability=False)
     assert uv_in == uv_out
 
     # now read in as np.complex128
     uvh5_filename = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
     uv_in.read_uvh5(
-        uvh5_filename, uvw_antpos_check_level="off", data_array_dtype=np.complex128
+        uvh5_filename, run_check_acceptability=False, data_array_dtype=np.complex128
     )
     assert uv_in == uv_out
     assert uv_in.data_array.dtype == np.dtype(np.complex128)
@@ -1631,7 +1631,7 @@ def test_uvh5_read_ints_error():
     # raise error for bogus data_array_dtype
     with pytest.raises(ValueError) as cm:
         uv_in.read_uvh5(
-            uvh5_filename, uvw_antpos_check_level="off", data_array_dtype=np.int32
+            uvh5_filename, run_check_acceptability=False, data_array_dtype=np.int32
         )
     assert str(cm.value).startswith(
         "data_array_dtype must be np.complex64 or np.complex128"
@@ -1647,13 +1647,18 @@ def test_uvh5_write_ints(uv_uvh5, tmp_path):
     uv_in = uv_uvh5
     uv_out = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
-    uv_in.write_uvh5(testfile, clobber=True, data_write_dtype=uvh5._hera_corr_dtype)
+    uv_in.write_uvh5(
+        testfile,
+        clobber=True,
+        data_write_dtype=uvh5._hera_corr_dtype,
+        run_check_acceptability=False,
+    )
 
     # read it back in to make sure data is the same
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
-    uv_out.read(testfile, uvw_antpos_check_level="off")
+    uv_out.read(testfile, run_check_acceptability=False)
     assert uv_in == uv_out
 
     # also check that the datatype on disk is the right type
@@ -1683,9 +1688,9 @@ def test_uvh5_partial_read_ints_antennas():
 
     # select on antennas
     ants_to_keep = np.array([0, 1])
-    uvh5_uv.read(uvh5_file, uvw_antpos_check_level="off", antenna_nums=ants_to_keep)
-    uvh5_uv2.read(uvh5_file, uvw_antpos_check_level="off")
-    uvh5_uv2.select(antenna_nums=ants_to_keep)
+    uvh5_uv.read(uvh5_file, run_check_acceptability=False, antenna_nums=ants_to_keep)
+    uvh5_uv2.read(uvh5_file, run_check_acceptability=False)
+    uvh5_uv2.select(antenna_nums=ants_to_keep, run_check_acceptability=False)
     assert uvh5_uv == uvh5_uv2
 
     return
@@ -1704,9 +1709,9 @@ def test_uvh5_partial_read_ints_freqs():
 
     # select on frequency channels
     chans_to_keep = np.arange(12, 22)
-    uvh5_uv.read(uvh5_file, uvw_antpos_check_level="off", freq_chans=chans_to_keep)
-    uvh5_uv2.read(uvh5_file, uvw_antpos_check_level="off")
-    uvh5_uv2.select(freq_chans=chans_to_keep)
+    uvh5_uv.read(uvh5_file, run_check_acceptability=False, freq_chans=chans_to_keep)
+    uvh5_uv2.read(uvh5_file, run_check_acceptability=False)
+    uvh5_uv2.select(freq_chans=chans_to_keep, run_check_acceptability=False)
     assert uvh5_uv == uvh5_uv2
 
     return
@@ -1725,9 +1730,9 @@ def test_uvh5_partial_read_ints_pols():
 
     # select on pols
     pols_to_keep = [-5, -6]
-    uvh5_uv.read(uvh5_file, uvw_antpos_check_level="off", polarizations=pols_to_keep)
-    uvh5_uv2.read(uvh5_file, uvw_antpos_check_level="off")
-    uvh5_uv2.select(polarizations=pols_to_keep)
+    uvh5_uv.read(uvh5_file, run_check_acceptability=False, polarizations=pols_to_keep)
+    uvh5_uv2.read(uvh5_file, run_check_acceptability=False)
+    uvh5_uv2.select(polarizations=pols_to_keep, run_check_acceptability=False)
     assert uvh5_uv == uvh5_uv2
 
     return
@@ -1745,15 +1750,15 @@ def test_uvh5_partial_read_ints_times():
     # which breaks the phasing when trying to check if the uvws match the antpos.
 
     # select on read using time_range
-    uvh5_uv.read_uvh5(uvh5_file, uvw_antpos_check_level="off", read_data=False)
+    uvh5_uv.read_uvh5(uvh5_file, run_check_acceptability=False, read_data=False)
     unique_times = np.unique(uvh5_uv.time_array)
     uvh5_uv.read(
         uvh5_file,
-        uvw_antpos_check_level="off",
+        run_check_acceptability=False,
         time_range=[unique_times[0], unique_times[1]],
     )
-    uvh5_uv2.read(uvh5_file, uvw_antpos_check_level="off")
-    uvh5_uv2.select(times=unique_times[0:2])
+    uvh5_uv2.read(uvh5_file, run_check_acceptability=False)
+    uvh5_uv2.select(times=unique_times[0:2], run_check_acceptability=False)
     assert uvh5_uv == uvh5_uv2
 
     return
@@ -1779,11 +1784,14 @@ def test_uvh5_partial_read_ints_multi1():
         antenna_nums=ants_to_keep,
         freq_chans=chans_to_keep,
         polarizations=pols_to_keep,
-        uvw_antpos_check_level="off",
+        run_check_acceptability=False,
     )
-    uvh5_uv2.read(uvh5_file, uvw_antpos_check_level="off")
+    uvh5_uv2.read(uvh5_file, run_check_acceptability=False)
     uvh5_uv2.select(
-        antenna_nums=ants_to_keep, freq_chans=chans_to_keep, polarizations=pols_to_keep
+        antenna_nums=ants_to_keep,
+        freq_chans=chans_to_keep,
+        polarizations=pols_to_keep,
+        run_check_acceptability=False,
     )
     assert uvh5_uv == uvh5_uv2
 
@@ -1810,11 +1818,14 @@ def test_uvh5_partial_read_ints_multi2():
         antenna_nums=ants_to_keep,
         freq_chans=chans_to_keep,
         polarizations=pols_to_keep,
-        uvw_antpos_check_level="off",
+        run_check_acceptability=False,
     )
-    uvh5_uv2.read(uvh5_file, uvw_antpos_check_level="off")
+    uvh5_uv2.read(uvh5_file, run_check_acceptability=False)
     uvh5_uv2.select(
-        antenna_nums=ants_to_keep, freq_chans=chans_to_keep, polarizations=pols_to_keep,
+        antenna_nums=ants_to_keep,
+        freq_chans=chans_to_keep,
+        polarizations=pols_to_keep,
+        run_check_acceptability=False,
     )
     assert uvh5_uv == uvh5_uv2
 
@@ -1841,11 +1852,14 @@ def test_uvh5_partial_read_ints_multi3():
         antenna_nums=ants_to_keep,
         freq_chans=chans_to_keep,
         polarizations=pols_to_keep,
-        uvw_antpos_check_level="off",
+        run_check_acceptability=False,
     )
-    uvh5_uv2.read(uvh5_file, uvw_antpos_check_level="off")
+    uvh5_uv2.read(uvh5_file, run_check_acceptability=False)
     uvh5_uv2.select(
-        antenna_nums=ants_to_keep, freq_chans=chans_to_keep, polarizations=pols_to_keep
+        antenna_nums=ants_to_keep,
+        freq_chans=chans_to_keep,
+        polarizations=pols_to_keep,
+        run_check_acceptability=False,
     )
     assert uvh5_uv == uvh5_uv2
 
@@ -1882,7 +1896,7 @@ def test_uvh5_partial_write_ints_antapirs(uv_uvh5, tmp_path):
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
-    partial_uvh5.read(partial_testfile, uvw_antpos_check_level="off")
+    partial_uvh5.read(partial_testfile, run_check_acceptability=False)
     assert full_uvh5 == partial_uvh5
 
     # clean up
@@ -1931,7 +1945,7 @@ def test_uvh5_partial_write_ints_frequencies(uv_uvh5, tmp_path):
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
-    partial_uvh5.read(partial_testfile, uvw_antpos_check_level="off")
+    partial_uvh5.read(partial_testfile, run_check_acceptability=False)
     assert full_uvh5 == partial_uvh5
 
     # clean up
@@ -1980,7 +1994,7 @@ def test_uvh5_partial_write_ints_blts(uv_uvh5, tmp_path):
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
-    partial_uvh5.read(partial_testfile, uvw_antpos_check_level="off")
+    partial_uvh5.read(partial_testfile, run_check_acceptability=False)
     assert full_uvh5 == partial_uvh5
 
     # clean up
@@ -2037,7 +2051,7 @@ def test_uvh5_partial_write_ints_pols(uv_uvh5, tmp_path):
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
-    partial_uvh5.read(partial_testfile, uvw_antpos_check_level="off")
+    partial_uvh5.read(partial_testfile, run_check_acceptability=False)
     assert full_uvh5 == partial_uvh5
 
     # clean up
@@ -2196,7 +2210,7 @@ def test_uvh5_partial_write_ints_irregular_blt(uv_uvh5, tmp_path):
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
-    partial_uvh5_file.read(partial_testfile, uvw_antpos_check_level="off")
+    partial_uvh5_file.read(partial_testfile, run_check_acceptability=False)
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2246,7 +2260,7 @@ def test_uvh5_partial_write_ints_irregular_freq(uv_uvh5, tmp_path):
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
-    partial_uvh5_file.read(partial_testfile, uvw_antpos_check_level="off")
+    partial_uvh5_file.read(partial_testfile, run_check_acceptability=False)
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2300,7 +2314,7 @@ def test_uvh5_partial_write_ints_irregular_pol(uv_uvh5, tmp_path):
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
-    partial_uvh5_file.read(partial_testfile, uvw_antpos_check_level="off")
+    partial_uvh5_file.read(partial_testfile, run_check_acceptability=False)
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2367,7 +2381,7 @@ def test_uvh5_partial_write_ints_irregular_multi1(uv_uvh5, tmp_path):
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
-    partial_uvh5_file.read(partial_testfile, uvw_antpos_check_level="off")
+    partial_uvh5_file.read(partial_testfile, run_check_acceptability=False)
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2441,7 +2455,7 @@ def test_uvh5_partial_write_ints_irregular_multi2(uv_uvh5, tmp_path):
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
-    partial_uvh5_file.read(partial_testfile, uvw_antpos_check_level="off")
+    partial_uvh5_file.read(partial_testfile, run_check_acceptability=False)
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2505,7 +2519,7 @@ def test_uvh5_partial_write_ints_irregular_multi3(uv_uvh5, tmp_path):
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
-    partial_uvh5_file.read(partial_testfile, uvw_antpos_check_level="off")
+    partial_uvh5_file.read(partial_testfile, run_check_acceptability=False)
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2590,7 +2604,7 @@ def test_uvh5_partial_write_ints_irregular_multi4(uv_uvh5, tmp_path):
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
-    partial_uvh5_file.read(partial_testfile, uvw_antpos_check_level="off")
+    partial_uvh5_file.read(partial_testfile, run_check_acceptability=False)
     assert partial_uvh5_file == partial_uvh5
 
     # clean up

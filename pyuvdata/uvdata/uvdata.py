@@ -7761,7 +7761,6 @@ class UVData(UVBase):
         blt_inds=None,
         add_to_history=None,
         run_check_acceptability=True,
-        strict_uvw_antpos_check=False,
     ):
         """
         Write data to a UVH5 file that has already been initialized.
@@ -7857,6 +7856,5 @@ class UVData(UVBase):
             blt_inds=blt_inds,
             add_to_history=add_to_history,
             run_check_acceptability=run_check_acceptability,
-            strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
         del uvh5_obj
