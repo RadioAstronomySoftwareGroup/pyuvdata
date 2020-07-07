@@ -3876,7 +3876,12 @@ class UVData(UVBase):
             polarization specification.
 
         """
-        return uvutils.parse_ants(uv=self, ant_str=ant_str, print_toggle=print_toggle)
+        return uvutils.parse_ants(
+            uv=self,
+            ant_str=ant_str,
+            print_toggle=print_toggle,
+            x_orientation=self.x_orientation,
+        )
 
     def _select_preprocess(
         self,
