@@ -75,15 +75,11 @@ def test_read_mwa_write_uvfits(tmp_path):
         "telescope_location is not set",
         "some coarse channel files were not submitted",
     ]
-    category = [UserWarning] * 2
-    uvtest.checkWarnings(
-        mwa_uv.read_mwa_corr_fits,
-        func_args=[filelist[0:2]],
-        func_kwargs={"correct_cable_len": True, "phase_to_pointing_center": True},
-        nwarnings=len(messages),
-        message=messages,
-        category=category,
-    )
+    with uvtest.check_warnings(UserWarning, messages):
+        mwa_uv.read_mwa_corr_fits(
+            filelist[0:2], correct_cable_len=True, phase_to_pointing_center=True
+        )
+
     testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read_uvfits(testfile)
@@ -93,15 +89,11 @@ def test_read_mwa_write_uvfits(tmp_path):
         "telescope_location is not set",
         "some coarse channel files were not submitted",
     ]
-    category = [UserWarning] * 2
-    uvtest.checkWarnings(
-        mwa_uv.read_mwa_corr_fits,
-        func_args=[filelist[0:2]],
-        func_kwargs={"correct_cable_len": True, "phase_to_pointing_center": True},
-        nwarnings=len(messages),
-        message=messages,
-        category=category,
-    )
+    with uvtest.check_warnings(UserWarning, messages):
+        mwa_uv.read_mwa_corr_fits(
+            filelist[0:2], correct_cable_len=True, phase_to_pointing_center=True
+        )
+
     testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read_uvfits(testfile)
@@ -122,20 +114,19 @@ def test_select_on_read():
         )
     ]
     mwa_uv.select(times=select_times)
-    uvtest.checkWarnings(
-        mwa_uv2.read,
-        func_args=[filelist[0:2]],
-        func_kwargs={
-            "correct_cable_len": True,
-            "time_range": [np.min(mwa_uv.time_array), np.mean(mwa_uv.time_array)],
-        },
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             'Warning: select on read keyword set, but file_type is "mwa_corr_fits"',
             "telescope_location is not set. Using known values for MWA.",
             "some coarse channel files were not submitted",
         ],
-        nwarnings=3,
-    )
+    ):
+        mwa_uv2.read(
+            filelist[0:2],
+            correct_cable_len=True,
+            time_range=[np.min(mwa_uv.time_array), np.mean(mwa_uv.time_array)],
+        )
     assert mwa_uv == mwa_uv2
 
 
@@ -183,13 +174,8 @@ def test_read_mwa_write_uvfits_meta_mod(tmp_path):
         "some coarse channel files were not submitted",
     ]
     files = [filelist[1], filelist[5]]
-    uvtest.checkWarnings(
-        mwa_uv.read,
-        func_args=[files],
-        func_kwargs={"correct_cable_len": True, "phase_to_pointing_center": True},
-        nwarnings=2,
-        message=messages,
-    )
+    with uvtest.check_warnings(UserWarning, messages):
+        mwa_uv.read(files, correct_cable_len=True, phase_to_pointing_center=True)
     testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read_uvfits(testfile)
@@ -215,15 +201,8 @@ def test_read_mwa_multi():
         "some coarse channel files were not submitted",
         "Combined frequencies are not contiguous",
     ]
-    category = [UserWarning] * 5
-    uvtest.checkWarnings(
-        mwa_uv2.read,
-        func_args=[[set1, set2]],
-        func_kwargs={"file_type": "mwa_corr_fits"},
-        nwarnings=5,
-        message=messages,
-        category=category,
-    )
+    with uvtest.check_warnings(UserWarning, messages):
+        mwa_uv2.read([set1, set2], file_type="mwa_corr_fits")
 
     assert mwa_uv == mwa_uv2
 
@@ -249,15 +228,9 @@ def test_read_mwa_multi_concat(tmp_path):
         "telescope_location is not set",
         "some coarse channel files were not submitted",
     ]
-    category = [UserWarning] * 4
-    uvtest.checkWarnings(
-        mwa_uv2.read,
-        func_args=[[set1, set2]],
-        func_kwargs={"axis": "freq", "file_type": "mwa_corr_fits"},
-        nwarnings=4,
-        message=messages,
-        category=category,
-    )
+    with uvtest.check_warnings(UserWarning, messages):
+        mwa_uv2.read([set1, set2], axis="freq", file_type="mwa_corr_fits")
+
     assert mwa_uv == mwa_uv2
     os.remove(mod_mini_6)
 
@@ -273,9 +246,9 @@ def test_read_mwa_flags():
         "telescope_location is not set",
         "some coarse channel files were not submitted",
     ]
-    uvtest.checkWarnings(
-        mwa_uv.read, func_args=[subfiles], nwarnings=3, message=messages
-    )
+    with uvtest.check_warnings(UserWarning, messages):
+        mwa_uv.read(subfiles)
+
     del mwa_uv
     mwa_uv = UVData()
     with pytest.raises(NotImplementedError) as cm:
@@ -305,12 +278,11 @@ def test_multiple_coarse():
         "coarse channels are not contiguous for this observation",
         "some coarse channel files were not submitted",
     ]
-    uvtest.checkWarnings(
-        mwa_uv1.read, func_args=[order1], nwarnings=3, message=messages
-    )
-    uvtest.checkWarnings(
-        mwa_uv2.read, func_args=[order2], nwarnings=3, message=messages
-    )
+    with uvtest.check_warnings(UserWarning, messages):
+        mwa_uv1.read(order1)
+    with uvtest.check_warnings(UserWarning, messages):
+        mwa_uv2.read(order2)
+
     assert mwa_uv1 == mwa_uv2
 
 
@@ -558,19 +530,14 @@ def test_read_metadata_only(tmp_path):
         "telescope_location is not set",
         "some coarse channel files were not submitted",
     ]
-    category = [UserWarning] * 2
-    uvtest.checkWarnings(
-        uvd.read_mwa_corr_fits,
-        func_args=[filelist[0:2]],
-        func_kwargs={
-            "correct_cable_len": True,
-            "phase_to_pointing_center": True,
-            "read_data": False,
-        },
-        nwarnings=len(messages),
-        message=messages,
-        category=category,
-    )
+    with uvtest.check_warnings(UserWarning, messages):
+        uvd.read_mwa_corr_fits(
+            filelist[0:2],
+            correct_cable_len=True,
+            phase_to_pointing_center=True,
+            read_data=False,
+        )
+
     assert uvd.metadata_only
 
 

@@ -123,9 +123,8 @@ def test_break_read_fhdcal():
     fhd_cal = UVCal()
     pytest.raises(TypeError, fhd_cal.read_fhd_cal, cal_testfile)  # Missing obs
 
-    uvtest.checkWarnings(
-        fhd_cal.read_fhd_cal, [cal_testfile, obs_testfile], message=["No settings file"]
-    )
+    with uvtest.check_warnings(UserWarning, "No settings file"):
+        fhd_cal.read_fhd_cal(cal_testfile, obs_testfile)
 
     # Check only pyuvdata version history with no settings file
     assert fhd_cal.history == "\n" + fhd_cal.pyuvdata_version_str
@@ -149,12 +148,11 @@ def test_read_multi(tmp_path):
 
     fhd_cal = UVCal()
     calfits_cal = UVCal()
-    uvtest.checkWarnings(
-        fhd_cal.read_fhd_cal,
-        func_args=[cal_testfile_list, obs_testfile_list],
-        func_kwargs={"settings_file": settings_testfile_list},
-        message="UVParameter diffuse_model does not match",
-    )
+
+    with uvtest.check_warnings(UserWarning, "UVParameter diffuse_model does not match"):
+        fhd_cal.read_fhd_cal(
+            cal_testfile_list, obs_testfile_list, settings_file=settings_testfile_list
+        )
 
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)

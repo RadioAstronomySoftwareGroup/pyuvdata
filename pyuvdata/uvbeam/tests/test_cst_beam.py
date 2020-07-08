@@ -109,7 +109,7 @@ def test_read_yaml_override(cst_efield_2freq):
     beam1 = cst_efield_2freq
     beam1.telescope_name = "test"
 
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning,
         match=(
             "The telescope_name keyword is set, overriding "
@@ -216,8 +216,8 @@ def test_read_yaml_multi_pol(tmp_path):
         "port_num": 1,
     }
 
-    with pytest.warns(
-        UserWarning, match="No frequency provided. Detected frequency is"
+    with uvtest.check_warnings(
+        UserWarning, "No frequency provided. Detected frequency is", nwarnings=2,
     ):
         beam1.read_cst_beam(
             [cst_files[0], cst_files[0]],
@@ -321,20 +321,19 @@ def test_read_power_single_freq(cst_power_1freq):
     assert beam1.data_array.shape == (1, 1, 2, 1, 181, 360)
 
     # test single frequency and not rotating the polarization
-    uvtest.checkWarnings(
-        beam2.read_cst_beam,
-        [cst_files[0]],
-        {
-            "beam_type": "power",
-            "telescope_name": "TEST",
-            "feed_name": "bob",
-            "feed_version": "0.1",
-            "model_name": "E-field pattern - Rigging height 4.9m",
-            "model_version": "1.0",
-            "rotate_pol": False,
-        },
-        message="No frequency provided. Detected frequency is",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "No frequency provided. Detected frequency is"
+    ):
+        beam2.read_cst_beam(
+            cst_files[0],
+            beam_type="power",
+            telescope_name="TEST",
+            feed_name="bob",
+            feed_version="0.1",
+            model_name="E-field pattern - Rigging height 4.9m",
+            model_version="1.0",
+            rotate_pol=False,
+        )
 
     assert beam2.freq_array == [150e6]
     assert beam2.pixel_coordinate_system == "az_za"
@@ -552,20 +551,19 @@ def test_read_efield(cst_efield_2freq):
     )
 
     # test single frequency and not rotating the polarization
-    uvtest.checkWarnings(
-        beam2.read_cst_beam,
-        [cst_files[0]],
-        {
-            "beam_type": "efield",
-            "telescope_name": "TEST",
-            "feed_name": "bob",
-            "feed_version": "0.1",
-            "model_name": "E-field pattern - Rigging height 4.9m",
-            "model_version": "1.0",
-            "rotate_pol": False,
-        },
-        message="No frequency provided. Detected frequency is",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "No frequency provided. Detected frequency is"
+    ):
+        beam2.read_cst_beam(
+            cst_files[0],
+            beam_type="efield",
+            telescope_name="TEST",
+            feed_name="bob",
+            feed_version="0.1",
+            model_name="E-field pattern - Rigging height 4.9m",
+            model_version="1.0",
+            rotate_pol=False,
+        )
 
     assert beam2.pixel_coordinate_system == "az_za"
     assert beam2.beam_type == "efield"
@@ -738,35 +736,31 @@ def test_no_deg_units(tmp_path):
         testfile, data, fmt=new_format, header=new_header + "\n" + line2, comments=""
     )
 
-    uvtest.checkWarnings(
-        beam1.read_cst_beam,
-        [cst_files[0]],
-        {
-            "beam_type": "efield",
-            "telescope_name": "TEST",
-            "feed_name": "bob",
-            "feed_version": "0.1",
-            "model_name": "E-field pattern - Rigging height 4.9m",
-            "model_version": "1.0",
-        },
-        nwarnings=1,
-        message="No frequency provided. Detected frequency is",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "No frequency provided. Detected frequency is"
+    ):
+        beam1.read_cst_beam(
+            cst_files[0],
+            beam_type="efield",
+            telescope_name="TEST",
+            feed_name="bob",
+            feed_version="0.1",
+            model_name="E-field pattern - Rigging height 4.9m",
+            model_version="1.0",
+        )
 
-    uvtest.checkWarnings(
-        beam2.read_cst_beam,
-        [testfile],
-        {
-            "beam_type": "efield",
-            "telescope_name": "TEST",
-            "feed_name": "bob",
-            "feed_version": "0.1",
-            "model_name": "E-field pattern - Rigging height 4.9m",
-            "model_version": "1.0",
-        },
-        nwarnings=1,
-        message="No frequency provided. Detected frequency is",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "No frequency provided. Detected frequency is"
+    ):
+        beam2.read_cst_beam(
+            testfile,
+            beam_type="efield",
+            telescope_name="TEST",
+            feed_name="bob",
+            feed_version="0.1",
+            model_name="E-field pattern - Rigging height 4.9m",
+            model_version="1.0",
+        )
 
     assert beam1 == beam2
 

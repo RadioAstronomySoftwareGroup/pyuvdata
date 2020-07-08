@@ -197,12 +197,10 @@ def test_casa_nonascii_bytes_antenna_names():
     uv1 = UVData()
     testfile = os.path.join(DATA_PATH, "corrected2_zen.2458106.28114.ant012.HH.uvfits")
     # this file has issues with the telescope location so turn checking off
-    uvtest.checkWarnings(
-        uv1.read,
-        func_args=[testfile],
-        func_kwargs={"run_check": False},
-        message=["Telescope mock-HERA is not in known_telescopes."],
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Telescope mock-HERA is not in known_telescopes."
+    ):
+        uv1.read(testfile, run_check=False)
     # fmt: off
     expected_ant_names = [
         'HH0', 'HH1', 'HH2', 'H2', 'H2', 'H2', 'H2', 'H2', 'H2', 'H2',
@@ -307,16 +305,15 @@ def test_readwriteread_large_antnums(tmp_path, casa_uvfits):
     uv_in.baseline_array = uv_in.antnums_to_baseline(
         uv_in.ant_1_array, uv_in.ant_2_array
     )
-    uvtest.checkWarnings(
-        uv_in.write_uvfits,
-        [write_file],
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "The uvw_array does not match the expected values given the antenna "
             "positions",
             "antnums_to_baseline: found > 256 antennas, using 2048 baseline",
         ],
-        nwarnings=2,
-    )
+    ):
+        uv_in.write_uvfits(write_file)
     uv_out.read(write_file)
     assert uv_in == uv_out
 
@@ -414,23 +411,22 @@ def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
         hdulist.writeto(write_file2, overwrite=True)
 
     with pytest.raises(ValueError) as cm:
-        uvtest.checkWarnings(
-            uv_out.read,
-            func_args=[write_file2],
-            message=[
+        with uvtest.check_warnings(
+            [
+                UserWarning,
+                astropy._erfa.core.ErfaWarning,
+                astropy._erfa.core.ErfaWarning,
+                UserWarning,
+            ],
+            [
                 "Telescope EVLA is not",
                 'ERFA function "utcut1" yielded 1 of "dubious year (Note 3)"',
                 'ERFA function "utctai" yielded 1 of "dubious year (Note 3)"',
                 "LST values stored in this file are not self-consistent",
             ],
-            nwarnings=4,
-            category=[
-                UserWarning,
-                astropy._erfa.core.ErfaWarning,
-                astropy._erfa.core.ErfaWarning,
-                UserWarning,
-            ],
-        )
+        ):
+            uv_out.read(write_file2),
+
     assert str(cm.value).startswith(
         "integration time not specified and only one time present"
     )
@@ -447,16 +443,15 @@ def test_readwriteread_unflagged_data_warnings(tmp_path, casa_uvfits):
     # check that unflagged data with nsample = 0 will cause warnings
     uv_in.nsample_array[list(range(11, 22))] = 0
     uv_in.flag_array[list(range(11, 22))] = False
-    uvtest.checkWarnings(
-        uv_in.write_uvfits,
-        [write_file],
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "The uvw_array does not match the expected values given the antenna "
             "positions",
             "Some unflagged data has nsample = 0",
         ],
-        nwarnings=2,
-    )
+    ):
+        uv_in.write_uvfits(write_file)
 
     return
 
@@ -498,16 +493,22 @@ def test_extra_keywords_errors(
     uv_in = casa_uvfits
     testfile = str(tmp_path / "outtest_casa.uvfits")
 
+    uvw_warn_str = "The uvw_array does not match the expected values"
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
     uv_in.extra_keywords[kwd_name] = kwd_value
-    with pytest.warns(UserWarning, match=warnstr):
+    if warnstr is None:
+        warnstr_list = [uvw_warn_str]
+    else:
+        warnstr_list = [warnstr, uvw_warn_str]
+
+    with uvtest.check_warnings(UserWarning, match=warnstr_list):
         uv_in.check()
 
     if errstr is not None:
         with pytest.raises(TypeError, match=errstr):
             uv_in.write_uvfits(testfile, run_check=False)
     else:
-        with pytest.warns(UserWarning, match=warnstr):
+        with uvtest.check_warnings(UserWarning, match=warnstr):
             uv_in.write_uvfits(testfile, run_check=False)
 
 
@@ -798,30 +799,26 @@ def test_multi_unphase_on_read(casa_uvfits, tmp_path):
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
-    uvtest.checkWarnings(
-        uv1.read,
-        func_args=[np.array([testfile1, testfile2])],
-        func_kwargs={"unphase_to_drift": True},
-        message=(
-            [
-                "Telescope EVLA is not",
-                "The uvw_array does not match the expected values given the "
-                "antenna positions.",
-                "Telescope EVLA is not",
-                "The uvw_array does not match the expected values given the "
-                "antenna positions.",
-                "The uvw_array does not match the expected values given the "
-                "antenna positions.",
-                "The uvw_array does not match the expected values given the "
-                "antenna positions.",
-                "Unphasing this UVData object to drift",
-                "Unphasing other UVData object to drift",
-                "The uvw_array does not match the expected values given the "
-                "antenna positions.",
-            ]
-        ),
-        nwarnings=9,
-    )
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Telescope EVLA is not",
+            "The uvw_array does not match the expected values given the "
+            "antenna positions.",
+            "Telescope EVLA is not",
+            "The uvw_array does not match the expected values given the "
+            "antenna positions.",
+            "The uvw_array does not match the expected values given the "
+            "antenna positions.",
+            "The uvw_array does not match the expected values given the "
+            "antenna positions.",
+            "Unphasing this UVData object to drift",
+            "Unphasing other UVData object to drift",
+            "The uvw_array does not match the expected values given the "
+            "antenna positions.",
+        ],
+    ):
+        uv1.read(np.array([testfile1, testfile2]), unphase_to_drift=True)
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
@@ -838,18 +835,16 @@ def test_multi_unphase_on_read(casa_uvfits, tmp_path):
     assert uv1 == uv_full
 
     # check unphasing when reading only one file
-    uvtest.checkWarnings(
-        uv_full2.read,
-        func_args=[casa_tutorial_uvfits],
-        func_kwargs={"unphase_to_drift": True},
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "Telescope EVLA is not",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
+            "The uvw_array does not match the expected values given the "
+            "antenna positions.",
             "Unphasing this UVData object to drift",
         ],
-        nwarnings=3,
-    )
+    ):
+        uv_full2.read(casa_tutorial_uvfits, unphase_to_drift=True)
     assert uv_full2 == uv_full
 
 
@@ -872,30 +867,28 @@ def test_multi_phase_on_read(casa_uvfits, tmp_path):
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
-    uvtest.checkWarnings(
-        uv1.read,
-        func_args=[np.array([testfile1, testfile2])],
-        func_kwargs={"phase_center_radec": phase_center_radec},
-        message=(
-            [
-                "Telescope EVLA is not",
-                "The uvw_array does not match the expected values given the "
-                "antenna positions.",
-                "Telescope EVLA is not",
-                "The uvw_array does not match the expected values given the "
-                "antenna positions.",
-                "Phasing this UVData object to phase_center_radec",
-                "The uvw_array does not match the expected values given the "
-                "antenna positions.",
-                "The uvw_array does not match the expected values given the "
-                "antenna positions.",
-                "Phasing this UVData object to phase_center_radec",
-                "The uvw_array does not match the expected values given the "
-                "antenna positions.",
-            ]
-        ),
-        nwarnings=9,
-    )
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Telescope EVLA is not",
+            "The uvw_array does not match the expected values given the "
+            "antenna positions.",
+            "Telescope EVLA is not",
+            "The uvw_array does not match the expected values given the "
+            "antenna positions.",
+            "Phasing this UVData object to phase_center_radec",
+            "The uvw_array does not match the expected values given the "
+            "antenna positions.",
+            "The uvw_array does not match the expected values given the "
+            "antenna positions.",
+            "Phasing this UVData object to phase_center_radec",
+            "The uvw_array does not match the expected values given the "
+            "antenna positions.",
+        ],
+    ):
+        uv1.read(
+            np.array([testfile1, testfile2]), phase_center_radec=phase_center_radec
+        )
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
@@ -911,20 +904,16 @@ def test_multi_phase_on_read(casa_uvfits, tmp_path):
     assert uv1 == uv_full
 
     # check phasing when reading only one file
-    uvtest.checkWarnings(
-        uv_full2.read,
-        func_args=[casa_tutorial_uvfits],
-        func_kwargs={"phase_center_radec": phase_center_radec},
-        message=(
-            [
-                "Telescope EVLA is not",
-                "The uvw_array does not match the expected values given the antenna "
-                "positions.",
-                "Phasing this UVData object to phase_center_radec",
-            ]
-        ),
-        nwarnings=3,
-    )
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Telescope EVLA is not",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Phasing this UVData object to phase_center_radec",
+        ],
+    ):
+        uv_full2.read(casa_tutorial_uvfits, phase_center_radec=phase_center_radec)
     assert uv_full2 == uv_full
 
     with pytest.raises(ValueError) as cm:

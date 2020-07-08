@@ -186,13 +186,8 @@ def test_init_uvdata_x_orientation(uvdata_obj):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_init_uvdata_copy_flags(uvdata_obj):
     uv = uvdata_obj
-    uvf = uvtest.checkWarnings(
-        UVFlag,
-        [uv],
-        {"copy_flags": True, "mode": "metric"},
-        nwarnings=1,
-        message='Copying flags to type=="baseline"',
-    )
+    with uvtest.check_warnings(UserWarning, 'Copying flags to type=="baseline"'):
+        uvf = UVFlag(uv, copy_flags=True, mode="metric")
     #  with copy flags uvf.metric_array should be none
     assert hasattr(uvf, "metric_array")
     assert uvf.metric_array is None
@@ -278,13 +273,8 @@ def test_init_uvcal_mode_flag():
 def test_init_cal_copy_flags():
     uv = UVCal()
     uv.read_calfits(test_c_file)
-    uvf = uvtest.checkWarnings(
-        UVFlag,
-        [uv],
-        {"copy_flags": True, "mode": "metric"},
-        nwarnings=1,
-        message='Copying flags to type=="antenna"',
-    )
+    with uvtest.check_warnings(UserWarning, 'Copying flags to type=="antenna"'):
+        uvf = UVFlag(uv, copy_flags=True, mode="metric")
     #  with copy flags uvf.metric_array should be none
     assert hasattr(uvf, "metric_array")
     assert uvf.metric_array is None
@@ -556,14 +546,8 @@ def test_read_missing_nants_data(test_outfile):
     with h5py.File(test_outfile, "a") as h5:
         del h5["Header/Nants_data"]
 
-    uvf2 = uvtest.checkWarnings(
-        UVFlag,
-        [test_outfile],
-        {},
-        nwarnings=1,
-        message=["Nants_data not available in file,"],
-        category=UserWarning,
-    )
+    with uvtest.check_warnings(UserWarning, "Nants_data not available in file,"):
+        uvf2 = UVFlag(test_outfile)
 
     # make sure this was set to None
     assert uvf2.Nants_data == len(uvf2.ant_array)
@@ -1211,9 +1195,8 @@ def test_collapse_single_pol():
     uvf = UVFlag(test_f_file)
     uvf.weights_array = np.ones_like(uvf.weights_array)
     uvf2 = uvf.copy()
-    uvtest.checkWarnings(
-        uvf.collapse_pol, [], {}, nwarnings=1, message="Cannot collapse polarization"
-    )
+    with uvtest.check_warnings(UserWarning, "Cannot collapse polarization"):
+        uvf.collapse_pol()
     assert uvf == uvf2
 
 
@@ -1297,13 +1280,8 @@ def test_to_waterfall_waterfall():
     uvf = UVFlag(test_f_file)
     uvf.weights_array = np.ones_like(uvf.weights_array)
     uvf.to_waterfall()
-    uvtest.checkWarnings(
-        uvf.to_waterfall,
-        [],
-        {},
-        nwarnings=1,
-        message="This object is already a waterfall",
-    )
+    with uvtest.check_warnings(UserWarning, "This object is already a waterfall"):
+        uvf.to_waterfall()
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -1914,7 +1892,9 @@ def test_missing_nants_telescope(tmp_path):
 
     with h5py.File(testfile, "r+") as f:
         del f["/Header/Nants_telescope"]
-    with pytest.warns(UserWarning, match="Nants_telescope not available in file"):
+    with uvtest.check_warnings(
+        UserWarning, match="Nants_telescope not available in file"
+    ):
         uvf = UVFlag(testfile)
     uvf2 = UVFlag(test_f_file)
     uvf2.Nants_telescope = 2047
