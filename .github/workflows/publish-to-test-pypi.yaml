@@ -33,7 +33,7 @@ jobs:
       shell: bash
       run: |
         source activate $ENV_NAME
-        version=$(awk -F. '{if (NF > 3) {print $1"."$2"."$3"."$4} else {print $1"."$2"."$3}}' <<< $(awk -F+ '{print $1$2}' <<< $(python setup.py --version | tail -1)))
+        version=$(./ci/make_dev_version.sh)
         echo "::set-env name=SETUPTOOLS_SCM_PRETEND_VERSION::$version"
 
     - name: Check environment variable
