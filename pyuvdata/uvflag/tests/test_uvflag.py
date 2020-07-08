@@ -18,23 +18,52 @@ import warnings
 import h5py
 import pathlib
 
+test_d_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5")
+test_c_file = os.path.join(DATA_PATH, "zen.2457555.42443.HH.uvcA.omni.calfits")
+test_f_file = test_d_file.rstrip(".uvh5") + ".testuvflag.h5"
+
+pyuvdata_version_str = "  Read/written with pyuvdata version: " + __version__ + "."
+
+
+@pytest.fixture(scope="session")
+def uvdata_obj_master():
+    uvdata_object = UVData()
+    uvdata_object.read(test_d_file)
+
+    yield uvdata_object
+
+    # cleanup
+    del uvdata_object
+
+    return
+
+
+@pytest.fixture(scope="function")
+def uvdata_obj(uvdata_obj_master):
+    uvdata_object = uvdata_obj_master.copy()
+
+    yield uvdata_object
+
+    # cleanup
+    del uvdata_object
+
+    return
+
 
 # The following three fixtures are used regularly
 # to initizize UVFlag objects from standard files
 # We need to define these here in order to set up
 # some skips for developers who do not have `pytest-cases` installed
 @pytest.fixture(scope="function")
-def uvf_from_data():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+def uvf_from_data(uvdata_obj):
     uvf = UVFlag()
-    uvf.from_uvdata(uv)
+    uvf.from_uvdata(uvdata_obj)
 
     # yield the object for the test
     yield uvf
 
     # do some cleanup
-    del (uvf, uv)
+    del (uvf, uvdata_obj)
 
 
 @pytest.fixture(scope="function")
@@ -52,17 +81,15 @@ def uvf_from_uvcal():
 
 
 @pytest.fixture(scope="function")
-def uvf_from_waterfall():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+def uvf_from_waterfall(uvdata_obj):
     uvf = UVFlag()
-    uvf.from_uvdata(uv, waterfall=True)
+    uvf.from_uvdata(uvdata_obj, waterfall=True)
 
     # yield the object for the test
     yield uvf
 
     # do some cleanup
-    del (uvf, uv)
+    del uvf
 
 
 # Try to import `pytest-cases` and define decorators used to
@@ -105,21 +132,15 @@ except Skipped:
         True, reason="pytest-cases not installed or not required version"
     )
 
-test_d_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5")
-test_c_file = os.path.join(DATA_PATH, "zen.2457555.42443.HH.uvcA.omni.calfits")
-test_f_file = test_d_file.rstrip(".uvh5") + ".testuvflag.h5"
-
-pyuvdata_version_str = "  Read/written with pyuvdata version: " + __version__ + "."
-
 
 @pytest.fixture()
 def test_outfile(tmp_path):
     yield str(tmp_path / "outtest_uvflag.h5")
 
 
-def test_init_bad_mode():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_init_bad_mode(uvdata_obj):
+    uv = uvdata_obj
     with pytest.raises(ValueError) as cm:
         UVFlag(uv, mode="bad_mode", history="I made a UVFlag object", label="test")
     assert str(cm.value).startswith("Input mode must be within acceptable")
@@ -131,9 +152,9 @@ def test_init_bad_mode():
     assert str(cm.value).startswith("Input mode must be within acceptable")
 
 
-def test_init_uvdata():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_init_uvdata(uvdata_obj):
+    uv = uvdata_obj
     uvf = UVFlag(uv, history="I made a UVFlag object", label="test")
     assert uvf.metric_array.shape == uv.flag_array.shape
     assert np.all(uvf.metric_array == 0)
@@ -154,17 +175,17 @@ def test_init_uvdata():
     assert uvf.label == "test"
 
 
-def test_init_uvdata_x_orientation():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_init_uvdata_x_orientation(uvdata_obj):
+    uv = uvdata_obj
     uv.x_orientation = "east"
     uvf = UVFlag(uv, history="I made a UVFlag object", label="test")
     assert uvf.x_orientation == uv.x_orientation
 
 
-def test_init_uvdata_copy_flags():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_init_uvdata_copy_flags(uvdata_obj):
+    uv = uvdata_obj
     uvf = uvtest.checkWarnings(
         UVFlag,
         [uv],
@@ -190,9 +211,9 @@ def test_init_uvdata_copy_flags():
     assert pyuvdata_version_str in uvf.history
 
 
-def test_init_uvdata_mode_flag():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_init_uvdata_mode_flag(uvdata_obj):
+    uv = uvdata_obj
     uvf = UVFlag()
     uvf.from_uvdata(uv, copy_flags=False, mode="flag")
     #  with copy flags uvf.metric_array should be none
@@ -276,9 +297,9 @@ def test_init_cal_copy_flags():
     assert pyuvdata_version_str in uvf.history
 
 
-def test_init_waterfall_uvd():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_init_waterfall_uvd(uvdata_obj):
+    uv = uvdata_obj
     uvf = UVFlag(uv, waterfall=True)
     assert uvf.metric_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Npols)
     assert np.all(uvf.metric_array == 0)
@@ -328,9 +349,9 @@ def test_init_waterfall_flag_uvcal():
     assert pyuvdata_version_str in uvf.history
 
 
-def test_init_waterfall_flag_uvdata():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_init_waterfall_flag_uvdata(uvdata_obj):
+    uv = uvdata_obj
     uvf = UVFlag(uv, waterfall=True, mode="flag")
     assert uvf.flag_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Npols)
     assert not np.any(uvf.flag_array)
@@ -344,15 +365,15 @@ def test_init_waterfall_flag_uvdata():
     assert pyuvdata_version_str in uvf.history
 
 
-def test_init_waterfall_copy_flags():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_init_waterfall_copy_flags(uvdata_obj):
     uv = UVCal()
     uv.read_calfits(test_c_file)
     with pytest.raises(NotImplementedError) as cm:
         UVFlag(uv, copy_flags=True, mode="flag", waterfall=True)
     assert str(cm.value).startswith("Cannot copy flags when initializing")
 
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+    uv = uvdata_obj
     with pytest.raises(NotImplementedError) as cm:
         UVFlag(uv, copy_flags=True, mode="flag", waterfall=True)
     assert str(cm.value).startswith("Cannot copy flags when initializing")
@@ -365,9 +386,9 @@ def test_init_invalid_input():
     assert str(cm.value).startswith("input to UVFlag.__init__ must be one of:")
 
 
-def test_from_uvcal_error():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_from_uvcal_error(uvdata_obj):
+    uv = uvdata_obj
     uvf = UVFlag()
     with pytest.raises(ValueError) as cm:
         uvf.from_uvcal(uv)
@@ -409,9 +430,9 @@ def test_init_posix():
     assert uvf1 == uvf2
 
 
-def test_data_like_property_mode_tamper():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_data_like_property_mode_tamper(uvdata_obj):
+    uv = uvdata_obj
     uvf = UVFlag(uv, label="test")
     uvf.mode = "test"
     with pytest.raises(ValueError) as cm:
@@ -419,18 +440,16 @@ def test_data_like_property_mode_tamper():
     assert str(cm.value).startswith("Invalid mode. Mode must be one of")
 
 
-def test_read_write_loop(test_outfile):
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+def test_read_write_loop(uvdata_obj, test_outfile):
+    uv = uvdata_obj
     uvf = UVFlag(uv, label="test")
     uvf.write(test_outfile, clobber=True)
     uvf2 = UVFlag(test_outfile)
     assert uvf.__eq__(uvf2, check_history=True)
 
 
-def test_read_write_loop_with_optional_x_orientation(test_outfile):
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+def test_read_write_loop_with_optional_x_orientation(uvdata_obj, test_outfile):
+    uv = uvdata_obj
     uvf = UVFlag(uv, label="test")
     uvf.x_orientation = "east"
     uvf.write(test_outfile, clobber=True)
@@ -438,9 +457,8 @@ def test_read_write_loop_with_optional_x_orientation(test_outfile):
     assert uvf.__eq__(uvf2, check_history=True)
 
 
-def test_read_write_loop_waterfal(test_outfile):
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+def test_read_write_loop_waterfal(uvdata_obj, test_outfile):
+    uv = uvdata_obj
     uvf = UVFlag(uv, label="test")
     uvf.to_waterfall()
     uvf.write(test_outfile, clobber=True)
@@ -457,9 +475,8 @@ def test_read_write_loop_ret_wt_sq(test_outfile):
     assert uvf.__eq__(uvf2, check_history=True)
 
 
-def test_bad_mode_savefile(test_outfile):
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+def test_bad_mode_savefile(uvdata_obj, test_outfile):
+    uv = uvdata_obj
     uvf = UVFlag(uv, label="test")
 
     # create the file so the clobber gets tested
@@ -477,9 +494,8 @@ def test_bad_mode_savefile(test_outfile):
     assert str(cm.value).startswith("File cannot be read. Received mode")
 
 
-def test_bad_type_savefile(test_outfile):
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+def test_bad_type_savefile(uvdata_obj, test_outfile):
+    uv = uvdata_obj
     uvf = UVFlag(uv, label="test")
     uvf.write(test_outfile, clobber=True)
     # manually re-read and tamper with parameters
@@ -492,9 +508,8 @@ def test_bad_type_savefile(test_outfile):
     assert str(cm.value).startswith("File cannot be read. Received type")
 
 
-def test_write_add_version_str(test_outfile):
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+def test_write_add_version_str(uvdata_obj, test_outfile):
+    uv = uvdata_obj
     uvf = UVFlag(uv, label="test")
     uvf.history = uvf.history.replace(pyuvdata_version_str, "")
 
@@ -507,9 +522,8 @@ def test_write_add_version_str(test_outfile):
     assert pyuvdata_version_str in hist
 
 
-def test_read_add_version_str(test_outfile):
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+def test_read_add_version_str(uvdata_obj, test_outfile):
+    uv = uvdata_obj
     uvf = UVFlag(uv, label="test")
 
     assert pyuvdata_version_str in uvf.history
@@ -576,27 +590,25 @@ def test_read_missing_nspws(test_outfile):
     assert uvf.__eq__(uvf2, check_history=True)
 
 
-def test_read_write_nocompress(test_outfile):
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+def test_read_write_nocompress(uvdata_obj, test_outfile):
+    uv = uvdata_obj
     uvf = UVFlag(uv, label="test")
     uvf.write(test_outfile, clobber=True, data_compression=None)
     uvf2 = UVFlag(test_outfile)
     assert uvf.__eq__(uvf2, check_history=True)
 
 
-def test_read_write_nocompress_flag(test_outfile):
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+def test_read_write_nocompress_flag(uvdata_obj, test_outfile):
+    uv = uvdata_obj
     uvf = UVFlag(uv, mode="flag", label="test")
     uvf.write(test_outfile, clobber=True, data_compression=None)
     uvf2 = UVFlag(test_outfile)
     assert uvf.__eq__(uvf2, check_history=True)
 
 
-def test_init_list():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_init_list(uvdata_obj):
+    uv = uvdata_obj
     uv.time_array -= 1
     uvf = UVFlag([uv, test_f_file])
     uvf1 = UVFlag(uv)
@@ -625,9 +637,8 @@ def test_init_list():
     assert np.all(uvf.polarization_array == uv.polarization_array)
 
 
-def test_read_list(test_outfile):
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+def test_read_list(uvdata_obj, test_outfile):
+    uv = uvdata_obj
     uv.time_array -= 1
     uvf = UVFlag(uv)
     uvf.write(test_outfile, clobber=True)
@@ -665,8 +676,6 @@ def test_read_error():
 
 
 def test_read_change_type(test_outfile):
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
     uvf = UVFlag(uvc)
@@ -690,9 +699,8 @@ def test_read_change_type(test_outfile):
     assert uvf.ant_2_array is None
 
 
-def test_read_change_mode(test_outfile):
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+def test_read_change_mode(uvdata_obj, test_outfile):
+    uv = uvdata_obj
     uvf = UVFlag(uv, mode="flag")
     assert hasattr(uvf, "flag_array")
     assert hasattr(uvf, "metric_array")
@@ -715,9 +723,9 @@ def test_write_no_clobber():
     assert str(cm.value).startswith("File " + test_f_file + " exists;")
 
 
-def test_lst_from_uv():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_lst_from_uv(uvdata_obj):
+    uv = uvdata_obj
     lst_array = lst_from_uv(uv)
     assert np.allclose(uv.lst_array, lst_array)
 
@@ -924,9 +932,9 @@ def test_add_pol():
     assert "Data combined along polarization axis. " in uv3.history
 
 
-def test_add_flag():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_add_flag(uvdata_obj):
+    uv = uvdata_obj
     uv1 = UVFlag(uv, mode="flag")
     uv2 = copy.deepcopy(uv1)
     uv2.time_array += 1  # Add a day
@@ -954,9 +962,9 @@ def test_add_flag():
     assert "Data combined along time axis. " in uv3.history
 
 
-def test_add_errors():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_add_errors(uvdata_obj):
+    uv = uvdata_obj
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
     uv1 = UVFlag(uv)
@@ -1298,9 +1306,9 @@ def test_to_waterfall_waterfall():
     )
 
 
-def test_to_baseline_flags():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_to_baseline_flags(uvdata_obj):
+    uv = uvdata_obj
     uvf = UVFlag(uv)
     uvf.to_waterfall()
     uvf.to_flag()
@@ -1321,9 +1329,9 @@ def test_to_baseline_flags():
     assert uvf.flag_array.mean() == ntrue / uvf.flag_array.size
 
 
-def test_to_baseline_metric():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_to_baseline_metric(uvdata_obj):
+    uv = uvdata_obj
     uvf = UVFlag(uv)
     uvf.to_waterfall()
     uvf.metric_array[0, 10, 0] = 3.2  # Fill in time0, chan10
@@ -1343,9 +1351,9 @@ def test_to_baseline_metric():
     )
 
 
-def test_to_baseline_add_version_str():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_to_baseline_add_version_str(uvdata_obj):
+    uv = uvdata_obj
     uvf = UVFlag(uv)
     uvf.to_waterfall()
     uvf.metric_array[0, 10, 0] = 3.2  # Fill in time0, chan10
@@ -1358,20 +1366,19 @@ def test_to_baseline_add_version_str():
     assert pyuvdata_version_str in uvf.history
 
 
-def test_baseline_to_baseline():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_baseline_to_baseline(uvdata_obj):
+    uv = uvdata_obj
     uvf = UVFlag(uv)
     uvf2 = uvf.copy()
     uvf.to_baseline(uv)
     assert uvf == uvf2
 
 
-def test_to_baseline_metric_error(uvf_from_uvcal):
+def test_to_baseline_metric_error(uvdata_obj, uvf_from_uvcal):
     uvf = uvf_from_uvcal
     uvf.select(polarizations=uvf.polarization_array[0])
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+    uv = uvdata_obj
     with pytest.raises(NotImplementedError) as cm:
         uvf.to_baseline(uv, force_pol=True)
     assert str(cm.value).startswith(
@@ -1379,12 +1386,12 @@ def test_to_baseline_metric_error(uvf_from_uvcal):
     )
 
 
-def test_to_baseline_from_antenna(uvf_from_uvcal):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_to_baseline_from_antenna(uvdata_obj, uvf_from_uvcal):
     uvf = uvf_from_uvcal
     uvf.select(polarizations=uvf.polarization_array[0])
     uvf.to_flag()
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+    uv = uvdata_obj
 
     ants_data = np.unique(uv.ant_1_array.tolist() + uv.ant_2_array.tolist())
     new_ants = np.setdiff1d(ants_data, uvf.ant_array)
@@ -1427,11 +1434,11 @@ def test_to_baseline_from_antenna(uvf_from_uvcal):
         assert np.all(uvf2.flag_array)
 
 
-def test_to_baseline_errors():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_to_baseline_errors(uvdata_obj):
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+    uv = uvdata_obj
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
     with pytest.raises(ValueError) as cm:
@@ -1452,9 +1459,9 @@ def test_to_baseline_errors():
     assert str(cm.value).startswith("Polarizations could not be made to match.")
 
 
-def test_to_baseline_force_pol():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_to_baseline_force_pol(uvdata_obj):
+    uv = uvdata_obj
     uvf = UVFlag(uv)
     uvf.to_waterfall()
     uvf.to_flag()
@@ -1476,9 +1483,9 @@ def test_to_baseline_force_pol():
     assert uvf.flag_array.mean() == ntrue / uvf.flag_array.size
 
 
-def test_to_baseline_force_pol_npol_gt_1():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_to_baseline_force_pol_npol_gt_1(uvdata_obj):
+    uv = uvdata_obj
     uvf = UVFlag(uv)
     uvf.to_waterfall()
     uvf.to_flag()
@@ -1495,9 +1502,9 @@ def test_to_baseline_force_pol_npol_gt_1():
     assert uvf.Npols == len(uvf.polarization_array)
 
 
-def test_to_baseline_metric_force_pol():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_to_baseline_metric_force_pol(uvdata_obj):
+    uv = uvdata_obj
     uvf = UVFlag(uv)
     uvf.to_waterfall()
     uvf.metric_array[0, 10, 0] = 3.2  # Fill in time0, chan10
@@ -1594,11 +1601,11 @@ def test_antenna_to_antenna():
     assert uvf == uvf2
 
 
-def test_to_antenna_errors():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_to_antenna_errors(uvdata_obj):
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+    uv = uvdata_obj
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
     with pytest.raises(ValueError) as cm:
@@ -1998,7 +2005,8 @@ def test_combine_metrics_add_version_str():
     assert pyuvdata_version_str in uvf4.history
 
 
-def test_super():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_super(uvdata_obj):
     class TestClass(UVFlag):
         def __init__(
             self,
@@ -2022,8 +2030,7 @@ def test_super():
 
             self.test_property = test_property
 
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+    uv = uvdata_obj
 
     tc = TestClass(uv, test_property="test_property")
 
@@ -2033,9 +2040,9 @@ def test_super():
     assert tc.test_property == "test_property"
 
 
-def test_flags2waterfall():
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_flags2waterfall(uvdata_obj):
+    uv = uvdata_obj
 
     np.random.seed(0)
     uv.flag_array = np.random.randint(0, 2, size=uv.flag_array.shape, dtype=bool)
@@ -2066,7 +2073,8 @@ def test_flags2waterfall():
     assert wf.shape == (uvc.Ntimes, uvc.Nfreqs, uvc.Njones)
 
 
-def test_flags2waterfall_errors():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_flags2waterfall_errors(uvdata_obj):
 
     # First argument must be UVData or UVCal object
     with pytest.raises(ValueError) as cm:
@@ -2075,8 +2083,7 @@ def test_flags2waterfall_errors():
         "flags2waterfall() requires a UVData or " + "UVCal object"
     )
 
-    uv = UVData()
-    uv.read_uvh5(test_d_file)
+    uv = uvdata_obj
     # Flag array must have same shape as uv.flag_array
     with pytest.raises(ValueError) as cm:
         flags2waterfall(uv, np.array([4, 5]))
@@ -2108,6 +2115,7 @@ def test_select_waterfall_errors(uvf_from_waterfall):
     assert str(cm.value).startswith("Cannot select on bls with waterfall")
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select_blt_inds(input_uvf, uvf_mode):
@@ -2168,6 +2176,7 @@ def test_select_blt_inds(input_uvf, uvf_mode):
     assert str(cm.value).startswith("blt_inds contains indices that are negative")
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator_no_waterfall
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select_antenna_nums(input_uvf, uvf_mode):
@@ -2253,6 +2262,7 @@ def sort_bl(p):
     return (p[1], p[0]) + p[2:]
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator_no_waterfall
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select_bls(input_uvf, uvf_mode):
@@ -2403,6 +2413,7 @@ def test_select_bls(input_uvf, uvf_mode):
         assert str(cm.value).startswith("Antenna pair (97, 97) does not have any")
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select_times(input_uvf, uvf_mode):
@@ -2456,6 +2467,7 @@ def test_select_times(input_uvf, uvf_mode):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select_frequencies(input_uvf, uvf_mode):
@@ -2520,6 +2532,7 @@ def test_select_frequencies(input_uvf, uvf_mode):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select_freq_chans(input_uvf, uvf_mode):
@@ -2606,6 +2619,7 @@ def test_select_freq_chans(input_uvf, uvf_mode):
             assert f in uvf.freq_array[chans_to_keep]
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select_polarizations(input_uvf, uvf_mode):
@@ -2654,6 +2668,7 @@ def test_select_polarizations(input_uvf, uvf_mode):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select(input_uvf, uvf_mode):
@@ -2795,6 +2810,7 @@ def test_select(input_uvf, uvf_mode):
         )
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_equality_no_history(uvf_from_data):
     uvf = uvf_from_data
     uvf2 = uvf.copy()
@@ -2803,6 +2819,7 @@ def test_equality_no_history(uvf_from_data):
     assert uvf.__eq__(uvf2, check_history=False)
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_inequality_different_classes(uvf_from_data):
     uvf = uvf_from_data
 
