@@ -63,8 +63,6 @@ docs/uvflag_parameters.rst
 target/
 
 # exclude data files (can override as needed)
-pyuvdata/data/
-pyuvdata/data/test/
 pyuvdata/GIT_INFO
 docs/references/*.aux
 docs/references/*.out
