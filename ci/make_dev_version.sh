@@ -25,6 +25,11 @@
 # As an added benefit, this approach also handles tagged release versions (such
 # as "2.0.3" with no trailing "dev" information), and does not mangle the
 # version information.
+#
+# Examples showing the conversion from pyuvdata version to pypi version:
+#   1.0.2 -> 1.0.2
+#   1.0.2.dev1+g0123456.branch.name -> 1.0.2.dev100010203040506
+#   1.0.2.dev197+g9aac2d38.branch.name -> 1.0.2.dev1970910101202130308
 
 # get version from python
 ver=$(python setup.py --version | tail -1)
