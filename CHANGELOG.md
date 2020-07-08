@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.1.0] - 2020-7-08
+
 ### Added
 - `UVFlag` can now take `PosixPath` objects as input.
 - An option to average rather than select a single baseline in `UVData.compress_by_redundancy`,
