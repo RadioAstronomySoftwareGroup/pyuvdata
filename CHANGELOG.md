@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- A check that the uvws match the antenna positions, as part of the acceptability checking.
+
 ## [2.1.0] - 2020-7-08
 
 ### Added
