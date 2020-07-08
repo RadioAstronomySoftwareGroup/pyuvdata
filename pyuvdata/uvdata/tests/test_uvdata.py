@@ -667,12 +667,8 @@ def test_antnums_to_baselines(uvdata_baseline):
     # Check attempt256
     assert uvdata_baseline.uv_object.antnums_to_baseline(0, 0, attempt256=True) == 257
     assert uvdata_baseline.uv_object.antnums_to_baseline(257, 256) == 594177
-    uvtest.checkWarnings(
-        uvdata_baseline.uv_object.antnums_to_baseline,
-        [257, 256],
-        {"attempt256": True},
-        message="found > 256 antennas",
-    )
+    with uvtest.check_warnings(UserWarning, "found > 256 antennas"):
+        uvdata_baseline.uv_object.antnums_to_baseline(257, 256, attempt256=True)
     pytest.raises(Exception, uvdata_baseline.uv_object2.antnums_to_baseline, 0, 0)
     # check a len-1 array returns as an array
     ant1 = np.array([1])
@@ -699,10 +695,10 @@ def test_hera_diameters(paper_uvh5):
     uv_in = paper_uvh5
 
     uv_in.telescope_name = "HERA"
-    uvtest.checkWarnings(
-        uv_in.set_telescope_params,
-        message="antenna_diameters " "is not set. Using known values for HERA.",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "antenna_diameters is not set. Using known values for HERA."
+    ):
+        uv_in.set_telescope_params()
 
     assert uv_in.telescope_name == "HERA"
     assert uv_in.antenna_diameters is not None
@@ -1606,32 +1602,28 @@ def test_select_frequencies_uvfits(casa_uvfits, tmp_path):
     # check for warnings and errors associated with unevenly spaced or
     # non-contiguous frequencies
     uv_object2 = uv_object.copy()
-    uvtest.checkWarnings(
-        uv_object2.select,
-        [],
-        {"frequencies": uv_object2.freq_array[0, [0, 5, 6]]},
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "Selected frequencies are not evenly spaced",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=2,
-    )
+    ):
+        uv_object2.select(frequencies=uv_object2.freq_array[0, [0, 5, 6]])
     write_file_uvfits = str(tmp_path / "select_test.uvfits")
     pytest.raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
 
     uv_object2 = uv_object.copy()
-    uvtest.checkWarnings(
-        uv_object2.select,
-        [],
-        {"frequencies": uv_object2.freq_array[0, [0, 2, 4]]},
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "Selected frequencies are not contiguous",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=2,
-    )
+    ):
+        uv_object2.select(frequencies=uv_object2.freq_array[0, [0, 2, 4]])
     pytest.raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
 
 
@@ -1695,32 +1687,28 @@ def test_select_frequencies_miriad(casa_uvfits, tmp_path):
     # check for warnings and errors associated with unevenly spaced or
     # non-contiguous frequencies
     uv_object2 = uv_object.copy()
-    uvtest.checkWarnings(
-        uv_object2.select,
-        [],
-        {"frequencies": uv_object2.freq_array[0, [0, 5, 6]]},
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "Selected frequencies are not evenly spaced",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=2,
-    )
+    ):
+        uv_object2.select(frequencies=uv_object2.freq_array[0, [0, 5, 6]])
     write_file_miriad = str(tmp_path / "select_test.uvfits")
     pytest.raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
     uv_object2 = uv_object.copy()
-    uvtest.checkWarnings(
-        uv_object2.select,
-        [],
-        {"frequencies": uv_object2.freq_array[0, [0, 2, 4]]},
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "Selected frequencies are not contiguous",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=2,
-    )
+    ):
+        uv_object2.select(frequencies=uv_object2.freq_array[0, [0, 2, 4]])
     pytest.raises(ValueError, uv_object2.write_miriad, write_file_miriad)
 
 
@@ -1814,17 +1802,15 @@ def test_select_polarizations(casa_uvfits, tmp_path):
     pytest.raises(ValueError, uv_object2.select, polarizations=[-3, -4])
 
     # check for warnings and errors associated with unevenly spaced polarizations
-    uvtest.checkWarnings(
-        uv_object.select,
-        [],
-        {"polarizations": uv_object.polarization_array[[0, 1, 3]]},
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "Selected polarization values are not evenly spaced",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=2,
-    )
+    ):
+        uv_object.select(polarizations=uv_object.polarization_array[[0, 1, 3]])
     write_file_uvfits = str(tmp_path / "select_test.uvfits")
     pytest.raises(ValueError, uv_object.write_uvfits, write_file_uvfits)
 
@@ -2569,10 +2555,9 @@ def test_add(casa_uvfits):
     uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(33, 64))
-    uvtest.checkWarnings(
-        uv1.__add__,
-        func_args=[uv2],
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
@@ -2581,17 +2566,16 @@ def test_add(casa_uvfits):
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=4,
-    )
+    ):
+        uv1.__add__(uv2)
 
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
     uv1.select(freq_chans=[0])
     uv2.select(freq_chans=[3])
-    uvtest.checkWarnings(
-        uv1.__iadd__,
-        func_args=[uv2],
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
@@ -2600,18 +2584,17 @@ def test_add(casa_uvfits):
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=4,
-    )
+    ):
+        uv1.__iadd__(uv2)
 
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
     uv1.select(freq_chans=[0])
     uv2.select(freq_chans=[1])
     uv2.freq_array += uv2._channel_width.tols[1] / 2.0
-    uvtest.checkWarnings(
-        uv1.__iadd__,
-        func_args=[uv2],
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
@@ -2619,17 +2602,16 @@ def test_add(casa_uvfits):
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=3,
-    )
+    ):
+        uv1.__iadd__(uv2)
 
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[3])
-    uvtest.checkWarnings(
-        uv1.__iadd__,
-        func_args=[uv2],
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
@@ -2638,8 +2620,8 @@ def test_add(casa_uvfits):
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=4,
-    )
+    ):
+        uv1.__iadd__(uv2)
 
     # Combining histories
     uv1 = uv_full.copy()
@@ -2854,10 +2836,9 @@ def test_add_drift(casa_uvfits):
     uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(33, 64))
-    uvtest.checkWarnings(
-        uv1.__add__,
-        func_args=[uv2],
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
@@ -2866,17 +2847,16 @@ def test_add_drift(casa_uvfits):
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=4,
-    )
+    ):
+        uv1.__add__(uv2)
 
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
     uv1.select(freq_chans=[0])
     uv2.select(freq_chans=[3])
-    uvtest.checkWarnings(
-        uv1.__iadd__,
-        func_args=[uv2],
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
@@ -2885,17 +2865,16 @@ def test_add_drift(casa_uvfits):
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=4,
-    )
+    ):
+        uv1.__iadd__(uv2)
 
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[3])
-    uvtest.checkWarnings(
-        uv1.__iadd__,
-        func_args=[uv2],
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
@@ -2904,8 +2883,8 @@ def test_add_drift(casa_uvfits):
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=4,
-    )
+    ):
+        uv1.__iadd__(uv2)
 
     # Combining histories
     uv1 = uv_full.copy()
@@ -2988,12 +2967,8 @@ def test_add_this_phased_unphase_to_drift(uv_phase_time_split, test_func, extra_
         "inplace": False,
     }
     func_kwargs.update(extra_kwargs)
-    uv_out = uvtest.checkWarnings(
-        getattr(uv_phase_1, test_func),
-        func_args=[uv_raw_2],
-        func_kwargs=func_kwargs,
-        message=["Unphasing this UVData object to drift"],
-    )
+    with uvtest.check_warnings(UserWarning, "Unphasing this UVData object to drift"):
+        uv_out = getattr(uv_phase_1, test_func)(uv_raw_2, **func_kwargs)
     # the histories will be different here
     # but everything else should match.
     uv_out.history = copy.deepcopy(uv_raw.history)
@@ -3018,12 +2993,9 @@ def test_add_other_phased_unphase_to_drift(
         "inplace": False,
     }
     func_kwargs.update(extra_kwargs)
-    uv_out = uvtest.checkWarnings(
-        getattr(uv_raw_1, test_func),
-        func_args=[uv_phase_2],
-        func_kwargs=func_kwargs,
-        message=["Unphasing other UVData object to drift"],
-    )
+    with uvtest.check_warnings(UserWarning, "Unphasing other UVData object to drift"):
+        uv_out = getattr(uv_raw_1, test_func)(uv_phase_2, **func_kwargs)
+
     # the histories will be different here
     # but everything else should match.
     uv_out.history = copy.deepcopy(uv_raw.history)
@@ -3061,12 +3033,11 @@ def test_add_this_rephase_new_phase_center(
         "use_ant_pos": True,
     }
     func_kwargs.update(extra_kwargs)
-    uv_out = uvtest.checkWarnings(
-        getattr(uv_raw_1, test_func),
-        func_args=[uv_raw_2],
-        func_kwargs=func_kwargs,
-        message=["Phasing this UVData object to phase_center_radec"],
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Phasing this UVData object to phase_center_radec"
+    ):
+        uv_out = getattr(uv_raw_1, test_func)(uv_raw_2, **func_kwargs)
+
     # the histories will be different here
     # but everything else should match.
     uv_out.history = copy.deepcopy(uv_raw.history)
@@ -3106,12 +3077,11 @@ def test_add_other_rephase_new_phase_center(
         "use_ant_pos": True,
     }
     func_kwargs.update(extra_kwargs)
-    uv_out = uvtest.checkWarnings(
-        getattr(uv_raw_1, test_func),
-        func_args=[uv_raw_2],
-        func_kwargs=func_kwargs,
-        message=["Phasing other UVData object to phase_center_radec"],
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Phasing other UVData object to phase_center_radec"
+    ):
+        uv_out = getattr(uv_raw_1, test_func)(uv_raw_2, **func_kwargs)
+
     # the histories will be different here
     # but everything else should match.
     uv_out.history = copy.deepcopy(uv_raw.history)
@@ -3169,11 +3139,9 @@ def test_fast_concat(casa_uvfits):
     uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(32, 64))
-    uvtest.checkWarnings(
-        uv2.fast_concat,
-        func_args=[uv1, "freq"],
-        func_kwargs={"inplace": True},
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
@@ -3182,8 +3150,9 @@ def test_fast_concat(casa_uvfits):
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=4,
-    )
+    ):
+        uv2.fast_concat(uv1, "freq", inplace=True)
+
     assert uv2.Nfreqs == uv_full.Nfreqs
     assert uv2._freq_array != uv_full._freq_array
     assert uv2._data_array != uv_full._data_array
@@ -3219,11 +3188,9 @@ def test_fast_concat(casa_uvfits):
     uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[2:4])
-    uvtest.checkWarnings(
-        uv2.fast_concat,
-        func_args=[uv1, "polarization"],
-        func_kwargs={"inplace": True},
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
@@ -3232,8 +3199,9 @@ def test_fast_concat(casa_uvfits):
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=4,
-    )
+    ):
+        uv2.fast_concat(uv1, "polarization", inplace=True)
+
     assert uv2._polarization_array != uv_full._polarization_array
     assert uv2._data_array != uv_full._data_array
 
@@ -3395,10 +3363,9 @@ def test_fast_concat(casa_uvfits):
     uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(33, 64))
-    uvtest.checkWarnings(
-        uv1.fast_concat,
-        func_args=[uv2, "freq"],
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
@@ -3407,17 +3374,16 @@ def test_fast_concat(casa_uvfits):
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=4,
-    )
+    ):
+        uv1.fast_concat(uv1, "freq", inplace=True)
 
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
     uv1.select(freq_chans=[0])
     uv2.select(freq_chans=[3])
-    uvtest.checkWarnings(
-        uv1.fast_concat,
-        func_args=[uv2, "freq"],
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
@@ -3426,36 +3392,29 @@ def test_fast_concat(casa_uvfits):
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=4,
-    )
+    ):
+        uv1.fast_concat(uv2, "freq")
 
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
     uv1.select(freq_chans=[0])
     uv2.select(freq_chans=[1])
     uv2.freq_array += uv2._channel_width.tols[1] / 2.0
-    uvtest.checkWarnings(
-        uv1.fast_concat,
-        func_args=[uv2, "freq"],
-        message=[
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-        ],
+    with uvtest.check_warnings(
+        UserWarning,
+        "The uvw_array does not match the expected values given the antenna "
+        "positions.",
         nwarnings=3,
-    )
+    ):
+        uv1.fast_concat(uv2, "freq")
 
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[3])
-    uvtest.checkWarnings(
-        uv1.fast_concat,
-        func_args=[uv2, "polarization"],
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
@@ -3464,8 +3423,8 @@ def test_fast_concat(casa_uvfits):
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-        nwarnings=4,
-    )
+    ):
+        uv1.fast_concat(uv2, "polarization")
 
     # Combining histories
     uv1 = uv_full.copy()
@@ -4287,21 +4246,27 @@ def test_parse_ants(casa_uvfits):
 
     # Single antenna number not in the data
     ant_str = "10"
-    ant_pairs_nums, polarizations = uvtest.checkWarnings(
-        uv.parse_ants, [ant_str], {}, nwarnings=1, message="Warning: Antenna"
-    )
+    with uvtest.check_warnings(
+        UserWarning,
+        "Warning: Antenna number 10 passed, but not present in the ant_1_array "
+        "or ant_2_array",
+    ):
+        ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+
     assert isinstance(ant_pairs_nums, type(None))
     assert isinstance(polarizations, type(None))
 
     # Single antenna number with polarization, both not in the data
     ant_str = "10x"
-    ant_pairs_nums, polarizations = uvtest.checkWarnings(
-        uv.parse_ants,
-        [ant_str],
-        {},
-        nwarnings=2,
-        message=["Warning: Antenna", "Warning: Polarization"],
-    )
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Warning: Antenna number 10 passed, but not present in the ant_1_array or "
+            "ant_2_array",
+            "Warning: Polarization XX,XY is not present in the polarization_array",
+        ],
+    ):
+        ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     assert isinstance(ant_pairs_nums, type(None))
     assert isinstance(polarizations, type(None))
 
@@ -4338,9 +4303,12 @@ def test_parse_ants(casa_uvfits):
 
     # Single baseline with single polarization in first entry
     ant_str = "1l_3,2x_3"
-    ant_pairs_nums, polarizations = uvtest.checkWarnings(
-        uv.parse_ants, [ant_str], {}, nwarnings=1, message="Warning: Polarization"
-    )
+    with uvtest.check_warnings(
+        UserWarning,
+        "Warning: Polarization XX,XY is not present in the polarization_array",
+    ):
+        ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
+
     ant_pairs_expected = [(1, 3), (2, 3)]
     pols_expected = [-2, -4]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
@@ -4348,9 +4316,11 @@ def test_parse_ants(casa_uvfits):
 
     # Single baseline with single polarization in last entry
     ant_str = "1_3l,2_3x"
-    ant_pairs_nums, polarizations = uvtest.checkWarnings(
-        uv.parse_ants, [ant_str], {}, nwarnings=1, message="Warning: Polarization"
-    )
+    with uvtest.check_warnings(
+        UserWarning,
+        "Warning: Polarization XX,YX is not present in the polarization_array",
+    ):
+        ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     ant_pairs_expected = [(1, 3), (2, 3)]
     pols_expected = [-2, -3]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
@@ -4457,9 +4427,10 @@ def test_parse_ants(casa_uvfits):
     # Multiple baselines with multiple polarizations, one pol (not in data)
     # to be removed
     ant_str = "1l_2,1l_3,-1x_3y"
-    ant_pairs_nums, polarizations = uvtest.checkWarnings(
-        uv.parse_ants, [ant_str], {}, nwarnings=1, message="Warning: Polarization"
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Warning: Polarization XY is not present in the polarization_array"
+    ):
+        ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     ant_pairs_expected = [(1, 2), (1, 3)]
     pols_expected = [-2, -4]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
@@ -4577,17 +4548,16 @@ def test_select_with_ant_str(casa_uvfits):
 
     # Single antenna number not present in data
     ant_str = "10"
-    uv2 = uvtest.checkWarnings(
-        uv.select,
-        [],
-        {"ant_str": ant_str, "inplace": inplace},
-        nwarnings=2,
-        message=[
-            "Warning: Antenna",
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Warning: Antenna number 10 passed, but not present in the "
+            "ant_1_array or ant_2_array",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-    )
+    ):
+        uv.select(ant_str=ant_str, inplace=inplace)
 
     # Multiple antenna numbers as list
     ant_str = "22,26"
@@ -4648,17 +4618,15 @@ def test_select_with_ant_str(casa_uvfits):
     # Single baseline with single polarization in first entry
     ant_str = "1l_3,2x_3"
     # x,y pols not present in data
-    uv2 = uvtest.checkWarnings(
-        uv.select,
-        [],
-        {"ant_str": ant_str, "inplace": inplace},
-        nwarnings=2,
-        message=[
-            "Warning: Polarization",
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Warning: Polarization XX,XY is not present in the polarization_array",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-    )
+    ):
+        uv.select(ant_str=ant_str, inplace=inplace)
     # with polarizations in data
     ant_str = "1l_3,2_3"
     ant_pairs = [(1, 3), (2, 3)]
@@ -4670,17 +4638,15 @@ def test_select_with_ant_str(casa_uvfits):
     # Single baseline with single polarization in last entry
     ant_str = "1_3l,2_3x"
     # x,y pols not present in data
-    uv2 = uvtest.checkWarnings(
-        uv.select,
-        [],
-        {"ant_str": ant_str, "inplace": inplace},
-        nwarnings=2,
-        message=[
-            "Warning: Polarization",
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Warning: Polarization XX,YX is not present in the polarization_array",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-    )
+    ):
+        uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     # with polarizations in data
     ant_str = "1_3l,2_3"
     ant_pairs = [(1, 3), (2, 3)]
@@ -4692,17 +4658,17 @@ def test_select_with_ant_str(casa_uvfits):
     # Multiple baselines as list
     ant_str = "1_2,1_3,1_10"
     # Antenna number 10 not in data
-    uv2 = uvtest.checkWarnings(
-        uv.select,
-        [],
-        {"ant_str": ant_str, "inplace": inplace},
-        nwarnings=2,
-        message=[
-            "Warning: Antenna",
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Warning: Antenna number 10 passed, but not present in the "
+            "ant_1_array or ant_2_array",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-    )
+    ):
+        uv2 = uv.select(ant_str=ant_str, inplace=inplace)
+
     ant_pairs = [(1, 2), (1, 3)]
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
@@ -4923,26 +4889,24 @@ def test_set_uvws_from_antenna_pos():
     assert str(cm.value).startswith("UVW calculation requires unphased data.")
 
     with pytest.raises(ValueError) as cm:
-        uvtest.checkWarnings(
-            uv_object.set_uvws_from_antenna_positions,
-            [True, "xyz"],
-            message="Data will be unphased",
-        )
+        with uvtest.check_warnings(UserWarning, "Data will be unphased"):
+            uv_object.set_uvws_from_antenna_positions(
+                allow_phasing=True, orig_phase_frame="xyz"
+            )
     assert str(cm.value).startswith("Invalid parameter orig_phase_frame.")
 
     with pytest.raises(ValueError) as cm:
-        uvtest.checkWarnings(
-            uv_object.set_uvws_from_antenna_positions,
-            [True, "gcrs", "xyz"],
-            message="Data will be unphased",
-        )
+        with uvtest.check_warnings(UserWarning, "Data will be unphased"):
+            uv_object.set_uvws_from_antenna_positions(
+                allow_phasing=True, orig_phase_frame="gcrs", output_phase_frame="xyz"
+            )
     assert str(cm.value).startswith("Invalid parameter output_phase_frame.")
 
-    uvtest.checkWarnings(
-        uv_object.set_uvws_from_antenna_positions,
-        [True, "gcrs", "gcrs"],
-        message="Data will be unphased",
-    )
+    with uvtest.check_warnings(UserWarning, "Data will be unphased"):
+        uv_object.set_uvws_from_antenna_positions(
+            allow_phasing=True, orig_phase_frame="gcrs", output_phase_frame="gcrs"
+        )
+
     max_diff = np.amax(np.absolute(np.subtract(orig_uvw_array, uv_object.uvw_array)))
     assert np.isclose(max_diff, 0.0, atol=2)
 
@@ -5067,14 +5031,14 @@ def test_redundancy_contract_expand(method, reconjugate, flagging_level):
     assert uv2 == uv3
 
     # check inflating gets back to the original
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning, match="Missing some redundant groups. Filling in available data."
     ):
         uv2.inflate_by_redundancy(tol=tol)
 
     # Confirm that we get the same result looping inflate -> compress -> inflate.
     uv3 = uv2.compress_by_redundancy(method=method, tol=tol, inplace=False)
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning, match="Missing some redundant groups. Filling in available data."
     ):
         uv3.inflate_by_redundancy(tol=tol)
@@ -5161,7 +5125,7 @@ def test_redundancy_contract_expand_variable_data(method, flagging_level):
     uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
 
     # inflate to get back to the original size
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning, match="Missing some redundant groups. Filling in available data."
     ):
         uv2.inflate_by_redundancy(tol=tol)
@@ -5219,28 +5183,28 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method, casa_uvf
             uv0.data_array[inds, ...] += complex(i)
 
     if method == "average":
-        with pytest.warns(
+        with uvtest.check_warnings(
             UserWarning,
-            match="Index baseline in the redundant group does not have all the "
+            "Index baseline in the redundant group does not have all the "
             "times, compressed object will be missing those times.",
+            nwarnings=4,
         ):
             uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
     else:
         uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
 
     # check inflating gets back to the original
-    uvtest.checkWarnings(
-        uv2.inflate_by_redundancy,
-        func_args={tol: tol},
-        nwarnings=3,
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "Missing some redundant groups. Filling in available data.",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-    )
+    ):
+        uv2.inflate_by_redundancy(tol=tol)
 
     uv2.history = uv0.history
     # Inflation changes the baseline ordering into the order of the redundant groups.
@@ -5307,11 +5271,12 @@ def test_compress_redundancy_variable_inttime():
 
     assert uv0._integration_time != uv1._integration_time
 
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning,
-        match="Integrations times are not identical in a redundant "
+        "Integrations times are not identical in a redundant "
         "group. Averaging anyway but this may cause unexpected "
         "behavior.",
+        nwarnings=56,
     ) as warn_record:
         uv0.compress_by_redundancy(method="average", tol=tol)
     assert len(warn_record) == np.sum(nbls_group > 1) * ntimes_in
@@ -5383,7 +5348,7 @@ def test_redundancy_missing_groups(method, tmp_path):
 
     assert uv0 == uv1  # Check that writing compressed files causes no issues.
 
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning, match="Missing some redundant groups. Filling in available data."
     ):
         uv1.inflate_by_redundancy(tol=tol)
@@ -5719,11 +5684,10 @@ def test_upsample_in_time_errors(hera_uvh5):
     # catch a warning for doing no work
     uv_object2 = uv_object.copy()
     max_integration_time = 2 * np.amax(uv_object.integration_time)
-    uvtest.checkWarnings(
-        uv_object.upsample_in_time,
-        [max_integration_time],
-        message="All values in integration_time array are already shorter",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "All values in the integration_time array are already longer"
+    ):
+        uv_object.upsample_in_time(max_integration_time)
     assert uv_object == uv_object2
 
     return
@@ -6697,7 +6661,7 @@ def test_downsample_in_time_errors(hera_uvh5):
     # catch a warning for doing no work
     uv_object2 = uv_object.copy()
     max_integration_time = 0.5 * np.amin(uv_object.integration_time)
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning, match="All values in the integration_time array are already longer"
     ):
         uv_object.downsample_in_time(min_int_time=max_integration_time)
@@ -6725,7 +6689,13 @@ def test_downsample_in_time_errors(hera_uvh5):
     min_integration_time = 2 * np.amin(uv_object.integration_time)
     times_01 = uv_object.get_times(0, 1)
     assert np.unique(np.diff(times_01)).size > 1
-    with pytest.warns(UserWarning, match=("There is a gap in the times of baseline")):
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "There is a gap in the times of baseline",
+            "The uvw_array does not match the expected values",
+        ],
+    ):
         uv_object.downsample_in_time(min_int_time=min_integration_time)
 
     # Should have half the size of the data array and all the new integration time
@@ -6922,8 +6892,12 @@ def test_downsample_in_time_varying_integration_time_warning(hera_uvh5):
     initial_int_time = uv_object.integration_time[inds01[0]]
     uv_object.integration_time[inds01[-2:]] += initial_int_time
     min_integration_time = 2 * np.amin(uv_object.integration_time)
-    with pytest.warns(
-        UserWarning, match="The time difference between integrations is different than"
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "The time difference between integrations is different than",
+            "The uvw_array does not match the expected values",
+        ],
     ):
         uv_object.downsample_in_time(min_int_time=min_integration_time)
 
@@ -6968,23 +6942,21 @@ def test_upsample_downsample_in_time(hera_uvh5):
 
     # check that calling upsample again with the same max_integration_time
     # gives warning and does nothing
-    uvtest.checkWarnings(
-        uv_object.upsample_in_time,
-        func_args=[max_integration_time],
-        func_kwargs={"blt_order": "baseline"},
-        message="All values in the integration_time array are " "already longer",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "All values in the integration_time array are already longer"
+    ):
+        uv_object.upsample_in_time(max_integration_time, blt_order="baseline")
     assert uv_object.Nblts == new_Nblts
 
     # check that calling upsample again with the almost the same max_integration_time
     # gives warning and does nothing
     small_number = 0.9 * uv_object._integration_time.tols[1]
-    uvtest.checkWarnings(
-        uv_object.upsample_in_time,
-        func_args=[max_integration_time - small_number],
-        func_kwargs={"blt_order": "baseline"},
-        message="All values in the integration_time array are " "already longer",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "All values in the integration_time array are already longer"
+    ):
+        uv_object.upsample_in_time(
+            max_integration_time - small_number, blt_order="baseline"
+        )
     assert uv_object.Nblts == new_Nblts
 
     uv_object.downsample_in_time(
@@ -7012,7 +6984,7 @@ def test_upsample_downsample_in_time(hera_uvh5):
 
     # check that calling downsample again with the same min_integration_time
     # gives warning and does nothing
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning, match="All values in the integration_time array are already longer"
     ):
         uv_object.downsample_in_time(
@@ -7022,7 +6994,7 @@ def test_upsample_downsample_in_time(hera_uvh5):
 
     # check that calling upsample again with the almost the same min_integration_time
     # gives warning and does nothing
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning, match="All values in the integration_time array are already longer"
     ):
         uv_object.upsample_in_time(
@@ -7356,7 +7328,7 @@ def test_resample_in_time_warning():
 
     uv2 = uv.copy()
 
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning, match="No resampling will be done because target time"
     ):
         uv.resample_in_time(3, keep_ragged=False)
@@ -7378,11 +7350,8 @@ def test_frequency_average(uvdata_data):
     # check that there's no flagging
     assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
 
-    uvtest.checkWarnings(
-        uvdata_data.uv_object.frequency_average,
-        [2],
-        message="eq_coeffs vary by frequency",
-    )
+    with uvtest.check_warnings(UserWarning, "eq_coeffs vary by frequency"):
+        uvdata_data.uv_object.frequency_average(2),
 
     assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
 
@@ -7425,11 +7394,14 @@ def test_frequency_average_uneven(uvdata_data):
     # check that there's no flagging
     assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
 
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning,
-        match="Nfreqs does not divide by `n_chan_to_avg` evenly. The final 1 "
-        "frequencies will be excluded, to control which frequencies to exclude, "
-        "use a select to control.",
+        [
+            "Nfreqs does not divide by `n_chan_to_avg` evenly. The final 1 "
+            "frequencies will be excluded, to control which frequencies to exclude, "
+            "use a select to control.",
+            "The uvw_array does not match the expected values",
+        ],
     ):
         uvdata_data.uv_object.frequency_average(7)
 
@@ -7734,11 +7706,8 @@ def test_frequency_average_nsample_precision(uvdata_data):
         np.float16
     )
 
-    uvtest.checkWarnings(
-        uvdata_data.uv_object.frequency_average,
-        [2],
-        message="eq_coeffs vary by frequency",
-    )
+    with uvtest.check_warnings(UserWarning, "eq_coeffs vary by frequency"):
+        uvdata_data.uv_object.frequency_average(2),
 
     assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
 
@@ -7921,7 +7890,7 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     # Test when the corrupted file is at the beggining, skip_bad_files=False
     fileList = [testfile, uvh5_file]
     with pytest.raises(KeyError) as cm:
-        with pytest.warns(UserWarning, match="Failed to read"):
+        with uvtest.check_warnings(UserWarning, match="Failed to read"):
             uv.read(fileList, skip_bad_files=False)
     assert "Unable to open object (object 'ant_1_array' doesn't exist)" in str(cm.value)
     assert uv != uvTrue
@@ -7939,7 +7908,7 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
 
     # Test when the corrupted file is at the end of a list
     fileList = [uvh5_file, testfile]
-    with pytest.warns(UserWarning, match="Failed to read") as cm:
+    with pytest.warns(UserWarning, match="Failed to read"):
         uv.read(fileList, skip_bad_files=True)
     # Check that the uncorrupted file was still read in
     assert uv == uvTrue
@@ -7977,20 +7946,16 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
 
     # Test with corrupted file as last file in list, skip_bad_files=True
     uvTest = UVData()
-    uvtest.checkWarnings(
-        uvTest.read,
-        func_args=[fileList[0:4]],
-        func_kwargs={"skip_bad_files": True},
-        nwarnings=10,
-        message=(
-            [
-                "The uvw_array does not match the expected values given the "
-                "antenna positions."
-            ]
-            * 9
-            + ["Failed to read"]
-        ),
-    )
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "The uvw_array does not match the expected values given the "
+            "antenna positions."
+        ]
+        * 9
+        + ["Failed to read"],
+    ):
+        uvTest.read(fileList[0:4], skip_bad_files=True)
     uvTrue = UVData()
     uvTrue.read(fileList[0:3], skip_bad_files=True)
 
@@ -8009,7 +7974,15 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
             h5f["Header/antenna_numbers"][3] = 85
             h5f["Header/ant_1_array"][2] = 1024
     uvTest = UVData()
-    with pytest.warns(UserWarning):
+    with uvtest.check_warnings(
+        UserWarning,
+        ["Failed to read"]
+        + [
+            "The uvw_array does not match the expected values given the "
+            "antenna positions."
+        ]
+        * 9,
+    ):
         uvTest.read(fileList[0:4], skip_bad_files=True)
     uvTrue = UVData()
     uvTrue.read(fileList[1:4], skip_bad_files=True)
@@ -8044,7 +8017,19 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
             h5f["Header/antenna_numbers"][3] = 85
             h5f["Header/ant_1_array"][2] = 1024
     uvTest = UVData()
-    with pytest.warns(UserWarning):
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "The uvw_array does not match the expected values given the "
+            "antenna positions.",
+            "Failed to read",
+        ]
+        + [
+            "The uvw_array does not match the expected values given the "
+            "antenna positions.",
+        ]
+        * 8,
+    ):
         uvTest.read(fileList[0:4], skip_bad_files=True)
     uvTrue = UVData()
     uvTrue.read([fileList[0], fileList[2], fileList[3]], skip_bad_files=True)
@@ -8055,11 +8040,11 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     uvTest = UVData()
     if err_type == "KeyError":
         with pytest.raises(KeyError, match="Unable to open object"):
-            with pytest.warns(UserWarning, match="Failed to read"):
+            with uvtest.check_warnings(UserWarning, match="Failed to read"):
                 uvTest.read(fileList[0:4], skip_bad_files=False)
     elif err_type == "ValueError":
         with pytest.raises(ValueError, match="Nants_data must be equal to"):
-            with pytest.warns(UserWarning, match="Failed to read"):
+            with uvtest.check_warnings(UserWarning, match="Failed to read"):
                 uvTest.read(fileList[0:4], skip_bad_files=False)
     uvTrue = UVData()
     uvTrue.read([fileList[0], fileList[2], fileList[3]], skip_bad_files=False)
@@ -8100,7 +8085,7 @@ def test_deprecation_warnings_set_phased():
     """
     uv = UVData()
     # first call set_phased
-    with pytest.warns(DeprecationWarning, match="`set_phased` is deprecated"):
+    with uvtest.check_warnings(DeprecationWarning, match="`set_phased` is deprecated"):
         uv.set_phased()
     assert uv.phase_type == "phased"
     assert uv._phase_center_epoch.required is True
@@ -8108,7 +8093,7 @@ def test_deprecation_warnings_set_phased():
     assert uv._phase_center_dec.required is True
 
     # now call set_drift
-    with pytest.warns(DeprecationWarning, match="`set_drift` is deprecated"):
+    with uvtest.check_warnings(DeprecationWarning, match="`set_drift` is deprecated"):
         uv.set_drift()
     assert uv.phase_type == "drift"
     assert uv._phase_center_epoch.required is False
@@ -8116,7 +8101,7 @@ def test_deprecation_warnings_set_phased():
     assert uv._phase_center_dec.required is False
 
     # now call set_unknown_phase_type
-    with pytest.warns(
+    with uvtest.check_warnings(
         DeprecationWarning, match="`set_unknown_phase_type` is deprecated"
     ):
         uv.set_unknown_phase_type()
