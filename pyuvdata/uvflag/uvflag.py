@@ -2552,13 +2552,6 @@ class UVFlag(UVBase):
                 else:
                     self.Ntimes = np.unique(self.time_array).size
 
-                # for antenna and waterfall, Nblts is used to define
-                # the size of some arrays but is equivalent to _Ntimes
-                # for baseline type nblts is should be stored
-                # if not it is read later
-                if "Nblts" in header.keys():
-                    self.Nblts = int(header["Nblts"][()])
-
                 self.lst_array = header["lst_array"][()]
 
                 self.freq_array = header["freq_array"][()]
@@ -2597,11 +2590,12 @@ class UVFlag(UVBase):
                     self.Npols = len(self.polarization_array)
 
                 if self.type == "baseline":
+
                     self.baseline_array = header["baseline_array"][()]
 
-                    #  if the Nblts was set via the antenna/waterfall method
-                    # it needs to be overwritten  with the correct shape.
-                    if self.Nblts == self.Ntimes:
+                    if "Nblts" in header.keys():
+                        self.Nblts = int(header["Nblts"][()])
+                    else:
                         self.Nblts = len(self.baseline_array)
 
                     if "Nbls" in header.keys():
