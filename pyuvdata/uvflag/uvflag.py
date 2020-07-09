@@ -588,8 +588,8 @@ class UVFlag(UVBase):
         self._Nants_data.required = True
         self._Nbls.required = False
         self._Nspws.required = True
+        self._Nblts.required = False
 
-        self.Nblts = self.Ntimes
         desc = (
             "Floating point metric information, "
             "has shape (Nants_data, Nspws, Nfreqs, Ntimes, Npols)."
@@ -615,13 +615,13 @@ class UVFlag(UVBase):
             "Array of unique times, center of integration, shape (Ntimes), "
             "units Julian Date"
         )
-        self._time_array.form = ("Nblts",)
+        self._time_array.form = ("Ntimes",)
 
         desc = (
             "Array of unique lsts, center of integration, shape (Ntimes), "
             "units radians"
         )
-        self._lst_array.form = ("Nblts",)
+        self._lst_array.form = ("Ntimes",)
 
         desc = (
             "Array of frequencies, center of the channel, "
@@ -639,6 +639,7 @@ class UVFlag(UVBase):
         self._Nants_telescope.required = True
         self._Nants_data.required = True
         self._Nbls.required = True
+        self._Nblts.required = True
         self._Nspws.required = True
 
         if self.time_array is not None:
@@ -685,28 +686,27 @@ class UVFlag(UVBase):
         self._Nants_data.required = False
         self._Nbls.required = False
         self._Nspws.required = False
+        self._Nblts.required = False
 
-        self.Nblts = self.Ntimes
-
-        desc = "Floating point metric information, shape (Nblts, Nfreqs, Npols)."
+        desc = "Floating point metric information, shape (Ntimes, Nfreqs, Npols)."
         self._metric_array.desc = desc
-        self._metric_array.form = ("Nblts", "Nfreqs", "Npols")
+        self._metric_array.form = ("Ntimes", "Nfreqs", "Npols")
 
-        desc = "Boolean flag, True is flagged, shape (Nblts, Nfreqs, Npols)"
+        desc = "Boolean flag, True is flagged, shape (Ntimes, Nfreqs, Npols)"
         self._flag_array.desc = desc
-        self._flag_array.form = ("Nblts", "Nfreqs", "Npols")
+        self._flag_array.form = ("Ntimes", "Nfreqs", "Npols")
 
-        desc = "Floating point weight information, has shape (Nblts, Nfreqs, Npols)."
+        desc = "Floating point weight information, has shape (Ntimes, Nfreqs, Npols)."
         self._weights_array.desc = desc
-        self._weights_array.form = ("Nblts", "Nfreqs", "Npols")
+        self._weights_array.form = ("Ntimes", "Nfreqs", "Npols")
 
         desc = (
             "Floating point weight information about sum of squares of weights"
             " when weighted data converted from baseline to waterfall  mode."
-            " Has shape (Nblts, Nfreqs, Npols)."
+            " Has shape (Ntimes, Nfreqs, Npols)."
         )
         self._weights_square_array.desc = desc
-        self._weights_square_array.form = ("Nblts", "Nfreqs", "Npols")
+        self._weights_square_array.form = ("Ntimes", "Nfreqs", "Npols")
 
         desc = (
             "Array of unique times, center of integration, shape (Ntimes), "
@@ -1951,7 +1951,10 @@ class UVFlag(UVBase):
             blt_inds = uvutils._get_iterable(blt_inds)
             if np.array(blt_inds).ndim > 1:
                 blt_inds = np.array(blt_inds).flatten()
-            history_update_string += "baseline-times"
+            if self.type == "baseline":
+                history_update_string += "baseline-times"
+            else:
+                history_update_string += "times"
             n_selects += 1
 
         if antenna_nums is not None:
@@ -1980,9 +1983,8 @@ class UVFlag(UVBase):
                             "Antenna number {a} is not present in the "
                             "ant_1_array or ant_2_array".format(a=ant)
                         )
-                ant_blt_inds = np.array(
-                    list(set(inds1).intersection(inds2)), dtype=np.int
-                )
+                ant_blt_inds = set(inds1).intersection(inds2)
+
             if self.type == "antenna":
                 ant_blt_inds = None
                 ant_inds = np.zeros(0, dtype=np.int)
@@ -2074,9 +2076,7 @@ class UVFlag(UVBase):
 
             if ant_blt_inds is not None:
                 # Use intersection (and) to join antenna_names/nums & ant_pairs_nums
-                ant_blt_inds = np.array(
-                    list(set(ant_blt_inds).intersection(bls_blt_inds))
-                )
+                ant_blt_inds = set(ant_blt_inds).intersection(bls_blt_inds)
             else:
                 ant_blt_inds = bls_blt_inds
 
@@ -2084,9 +2084,7 @@ class UVFlag(UVBase):
             if blt_inds is not None:
                 # Use intersection (and) to join
                 # antenna_names/nums/ant_pairs_nums with blt_inds
-                blt_inds = np.array(
-                    list(set(blt_inds).intersection(ant_blt_inds)), dtype=np.int
-                )
+                blt_inds = set(blt_inds).intersection(ant_blt_inds)
             else:
                 blt_inds = ant_blt_inds
 
@@ -2094,10 +2092,16 @@ class UVFlag(UVBase):
             times = uvutils._get_iterable(times)
             if np.array(times).ndim > 1:
                 times = np.array(times).flatten()
+
             if n_selects > 0:
-                history_update_string += ", times"
+                if (
+                    self.type != "baseline" and "times" not in history_update_string
+                ) or self.type == "baseline":
+
+                    history_update_string += ", times"
             else:
                 history_update_string += "times"
+
             n_selects += 1
 
             time_blt_inds = np.zeros(0, dtype=np.int)
@@ -2114,16 +2118,20 @@ class UVFlag(UVBase):
             if blt_inds is not None:
                 # Use intesection (and) to join
                 # antenna_names/nums/ant_pairs_nums/blt_inds with times
-                blt_inds = np.array(
-                    list(set(blt_inds).intersection(time_blt_inds)), dtype=np.int
-                )
+                blt_inds = set(blt_inds).intersection(time_blt_inds)
             else:
                 blt_inds = time_blt_inds
 
         if blt_inds is not None:
             if len(blt_inds) == 0:
                 raise ValueError("No baseline-times were found that match criteria")
-            if max(blt_inds) >= self.Nblts:
+
+            if self.type == "baseline":
+                compare_length = self.Nblts
+            else:
+                compare_length = self.Ntimes
+
+            if max(blt_inds) >= compare_length:
                 raise ValueError("blt_inds contains indices that are too large")
             if min(blt_inds) < 0:
                 raise ValueError("blt_inds contains indices that are negative")
@@ -2234,8 +2242,8 @@ class UVFlag(UVBase):
 
         """
         if blt_inds is not None:
-            self.Nblts = len(blt_inds)
             if self.type == "baseline":
+                self.Nblts = len(blt_inds)
                 self.baseline_array = self.baseline_array[blt_inds]
                 self.Nbls = len(np.unique(self.baseline_array))
                 self.ant_1_array = self.ant_1_array[blt_inds]
@@ -2550,8 +2558,6 @@ class UVFlag(UVBase):
                 # if not it is read later
                 if "Nblts" in header.keys():
                     self.Nblts = int(header["Nblts"][()])
-                else:
-                    self.Nblts = self.Ntimes
 
                 self.lst_array = header["lst_array"][()]
 
