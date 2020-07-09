@@ -2104,8 +2104,12 @@ def test_select_blt_inds(input_uvf, uvf_mode):
     # used to set the mode depending on which input is given to uvf_mode
     getattr(uvf, uvf_mode)()
     np.random.seed(0)
-    blt_inds = np.random.choice(uvf.Nblts, size=uvf.Nblts // 2, replace=False)
-    new_nblts = uvf.Nblts // 2
+    if uvf.type == "baseline":
+        n_select = uvf.Nblts
+    else:
+        n_select = uvf.Ntimes
+    blt_inds = np.random.choice(n_select, size=n_select // 2, replace=False)
+    new_nblts = n_select // 2
     uvf1 = uvf.select(blt_inds=blt_inds, inplace=False)
 
     # test the data was extracted correctly for each case
@@ -2118,12 +2122,20 @@ def test_select_blt_inds(input_uvf, uvf_mode):
         if uvf.type == "waterfall":
             assert np.allclose(old_param[blt_inds], new_param)
 
-    assert uvf1.Nblts == new_nblts
+    if uvf.type == "baseline":
+        assert uvf1.Nblts == new_nblts
+    else:
+        assert uvf1.Ntimes == new_nblts
+
     # verify that histories are different
     assert not uvutils._check_histories(uvf.history, uvf1.history)
+    if uvf.type == "baseline":
+        addition_str = "baseline-times"
+    else:
+        addition_str = "times"
 
     assert uvutils._check_histories(
-        uvf.history + "  Downselected to " "specific baseline-times using pyuvdata.",
+        uvf.history + f"  Downselected to specific {addition_str} using pyuvdata.",
         uvf1.history,
     )
 
@@ -2132,13 +2144,17 @@ def test_select_blt_inds(input_uvf, uvf_mode):
 
     # test the data was extraced
     # assert np.allclose(uvf.metric_array[blt_inds], uvf1.metric_array)
-    assert uvf1.Nblts == new_nblts
-    assert "baseline-times" in uvf1.history
+    if uvf.type == "baseline":
+        assert uvf1.Nblts == new_nblts
+        assert "baseline-times" in uvf1.history
+    else:
+        assert uvf1.Ntimes == new_nblts
+        assert "times" in uvf1.history
     # verify that histories are different
     assert not uvutils._check_histories(uvf.history, uvf1.history)
 
     assert uvutils._check_histories(
-        uvf.history + "  Downselected to " "specific baseline-times using pyuvdata.",
+        uvf.history + f"  Downselected to specific {addition_str} using pyuvdata.",
         uvf1.history,
     )
 
@@ -2148,7 +2164,7 @@ def test_select_blt_inds(input_uvf, uvf_mode):
     assert str(cm.value).startswith("No baseline-times were found")
 
     with pytest.raises(ValueError) as cm:
-        uvf.select(blt_inds=[np.max(uvf.Nblts) + 1])
+        uvf.select(blt_inds=[np.max(n_select) + 1])
     assert str(cm.value).startswith("blt_inds contains indices that are too large")
 
     with pytest.raises(ValueError) as cm:
@@ -2413,7 +2429,11 @@ def test_select_times(input_uvf, uvf_mode):
     uvf2.select(times=times_to_keep)
 
     assert len(times_to_keep) == uvf2.Ntimes
-    assert Nblts_selected == uvf2.Nblts
+    if uvf2.type == "baseline":
+        n_compare = uvf2.Nblts
+    else:
+        n_compare = uvf2.Ntimes
+    assert Nblts_selected == n_compare
     for t in times_to_keep:
         assert t in uvf2.time_array
     for t in np.unique(uvf2.time_array):
@@ -2428,7 +2448,7 @@ def test_select_times(input_uvf, uvf_mode):
     uvf2.select(times=times_to_keep[np.newaxis, :])
 
     assert len(times_to_keep) == uvf2.Ntimes
-    assert Nblts_selected == uvf2.Nblts
+    assert Nblts_selected == n_compare
     for t in times_to_keep:
         assert t in uvf2.time_array
     for t in np.unique(uvf2.time_array):
@@ -2659,7 +2679,10 @@ def test_select(input_uvf, uvf_mode):
     old_history = uvf.history
 
     # make new blts
-    blt_inds = np.arange(uvf.Nblts - 1)
+    if uvf.type == "baseline":
+        blt_inds = np.arange(uvf.Nblts - 1)
+    else:
+        blt_inds = np.arange(uvf.Ntimes - 1)
 
     # new freqs
     freqs_to_keep = np.random.choice(
@@ -2725,7 +2748,11 @@ def test_select(input_uvf, uvf_mode):
             ]
         )
     else:
-        blts_blt_select = [i in blt_inds for i in np.arange(uvf.Nblts)]
+        if uvf.type == "baseline":
+            blts_blt_select = [i in blt_inds for i in np.arange(uvf.Nblts)]
+        else:
+            blts_blt_select = [i in blt_inds for i in np.arange(uvf.Ntimes)]
+
         blts_time_select = [t in times_to_keep for t in uvf.time_array]
         Nblts_select = np.sum(
             [bi & ti for (bi, ti) in zip(blts_blt_select, blts_time_select)]
@@ -2741,13 +2768,16 @@ def test_select(input_uvf, uvf_mode):
         polarizations=pols_to_keep,
     )
 
-    assert Nblts_select == uvf2.Nblts
     if uvf.type == "baseline":
+        assert Nblts_select == uvf2.Nblts
         for ant in np.unique(uvf2.ant_1_array.tolist() + uvf2.ant_2_array.tolist()):
             assert ant in ants_to_keep
     elif uvf.type == "antenna":
+        assert Nblts_select == uvf2.Ntimes
         for ant in np.unique(uvf2.ant_array):
             assert ant in ants_to_keep
+    else:
+        assert Nblts_select == uvf2.Ntimes
 
     assert len(freqs_to_keep) == uvf2.Nfreqs
     for f in freqs_to_keep:
@@ -2775,16 +2805,16 @@ def test_select(input_uvf, uvf_mode):
     elif uvf.type == "antenna":
         assert uvutils._check_histories(
             old_history + "  Downselected to "
-            "specific baseline-times, antennas, "
-            "times, frequencies, "
+            "specific times, antennas, "
+            "frequencies, "
             "polarizations using pyuvdata.",
             uvf2.history,
         )
     else:
         assert uvutils._check_histories(
             old_history + "  Downselected to "
-            "specific baseline-times, "
-            "times, frequencies, "
+            "specific times, "
+            "frequencies, "
             "polarizations using pyuvdata.",
             uvf2.history,
         )
