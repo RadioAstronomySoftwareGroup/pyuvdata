@@ -2088,11 +2088,9 @@ def parse_ants(uv, ant_str, print_toggle=False, x_orientation=None):
     ----------
     uv : UVBase Object
         A UVBased object that supports the following functions and parameters:
-         - get_ants
-         - get_antpairs
-         - get_pols
-         - x_orientation
-
+        - get_ants
+        - get_antpairs
+        - get_pols
         These are used to construct the baseline ant_pair_nums
         and polarizations returned.
     ant_str : str
@@ -2121,7 +2119,7 @@ def parse_ants(uv, ant_str, print_toggle=False, x_orientation=None):
         polarization specification.
 
     """
-    required_attrs = ["get_ants", "get_antpairs", "get_pols", "x_orientation"]
+    required_attrs = ["get_ants", "get_antpairs", "get_pols"]
     if not all(hasattr(uv, attr) for attr in required_attrs):
         raise ValueError(
             "UVBased objects must have all the following attributes in order "
@@ -2256,11 +2254,11 @@ def parse_ants(uv, ant_str, print_toggle=False, x_orientation=None):
                             for pol in pols:
                                 if (
                                     pol.lower() in pols_data
-                                    and polstr2num(pol, x_orientation=uv.x_orientation)
+                                    and polstr2num(pol, x_orientation=x_orientation)
                                     not in polarizations
                                 ):
                                     polarizations.append(
-                                        polstr2num(pol, x_orientation=uv.x_orientation)
+                                        polstr2num(pol, x_orientation=x_orientation)
                                     )
                                 elif not (
                                     pol.lower() in pols_data or pol in warned_pols
@@ -2273,12 +2271,12 @@ def parse_ants(uv, ant_str, print_toggle=False, x_orientation=None):
                                     if uv.Npols == 1 and [pol.lower()] == pols_data:
                                         ant_pairs_nums.remove(ant_tuple)
                                     if (
-                                        polstr2num(pol, x_orientation=uv.x_orientation)
+                                        polstr2num(pol, x_orientation=x_orientation)
                                         in polarizations
                                     ):
                                         polarizations.remove(
                                             polstr2num(
-                                                pol, x_orientation=uv.x_orientation,
+                                                pol, x_orientation=x_orientation,
                                             )
                                         )
                                 elif not (
@@ -2308,7 +2306,7 @@ def parse_ants(uv, ant_str, print_toggle=False, x_orientation=None):
         print("\nParsed polarizations:")
         if polarizations is not None:
             for pol in polarizations:
-                print(polnum2str(pol, x_orientation=uv.x_orientation))
+                print(polnum2str(pol, x_orientation=x_orientation))
 
     if len(warned_ants) > 0:
         warnings.warn(
