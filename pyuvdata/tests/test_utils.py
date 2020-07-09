@@ -2096,3 +2096,20 @@ def test_upos_tol_reds():
     red_grps, _, _ = uvutils.get_antenna_redundancies(ant_nums, ant_pos, tol=tol)
 
     assert len(red_grps) == 4
+
+
+class FakeClass:
+    def __init__(self):
+        pass
+
+
+def test_parse_ants_error():
+    test_obj = FakeClass()
+    with pytest.raises(
+        ValueError,
+        match=(
+            "UVBased objects must have all the following attributes in order "
+            "to call 'parse_ants': "
+        ),
+    ):
+        uvutils.parse_ants(test_obj, ant_str="")
