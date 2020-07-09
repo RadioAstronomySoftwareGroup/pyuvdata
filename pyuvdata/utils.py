@@ -2121,6 +2121,13 @@ def parse_ants(uv, ant_str, print_toggle=False, x_orientation=None):
         polarization specification.
 
     """
+    required_attrs = ["get_ants", "get_antpairs", "get_pols", "x_orientation"]
+    if not all(hasattr(uv, attr) for attr in required_attrs):
+        raise ValueError(
+            "UVBased objects must have all the following attributes in order "
+            f"to call 'parse_ants': {required_attrs}."
+        )
+
     ant_re = r"(\(((-?\d+[lrxy]?,?)+)\)|-?\d+[lrxy]?)"
     bl_re = "(^(%s_%s|%s),?)" % (ant_re, ant_re, ant_re)
     str_pos = 0
