@@ -2372,41 +2372,48 @@ def test_select_bls(input_uvf, uvf_mode):
         ]
         assert list(set(sorted_pairs_object2)) == [ant_pairs_to_keep[0]]
 
-        # test some error modes
-        with pytest.raises(ValueError) as cm:
-            uvf.select(bls=[3])
-        assert str(cm.value).startswith("bls must be a list of tuples")
 
-        # must be integers
+@cases_decorator_no_waterfall
+@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+@pytest.mark.parametrize(
+    "select_kwargs,err_msg",
+    [
+        ({"bls": [3]}, "bls must be a list of tuples"),
+        ({"bls": [(np.pi, 2 * np.pi)]}, "bls must be a list of tuples of integer"),
+        (
+            {"bls": (0, 1, "xx"), "polarizations": [-5]},
+            "Cannot provide length-3 tuples and also specify polarizations.",
+        ),
+        (
+            {"bls": (0, 1, 5)},
+            "The third element in each bl must be a polarization string",
+        ),
+        ({"bls": (455, 456)}, "Antenna number 455 is not present"),
+        ({"bls": (97, 456)}, "Antenna number 456 is not present"),
+        (
+            {"bls": (97, 97)},
+            r"Antenna pair \(97, 97\) does not have any data associated with it.",
+        ),
+    ],
+)
+def test_select_bls_errors(input_uvf, uvf_mode, select_kwargs, err_msg):
+    uvf = input_uvf
+    # used to set the mode depending on which input is given to uvf_mode
+    getattr(uvf, uvf_mode)()
+    np.random.seed(0)
+    if uvf.type != "baseline":
         with pytest.raises(ValueError) as cm:
-            uvf.select(bls=[(np.pi, 2 * np.pi)])
-        assert str(cm.value).startswith("bls must be a list of tuples of integer")
-
-        with pytest.raises(ValueError) as cm:
-            uvf.select(bls=(0, 1, "xx"), polarizations=[-5])
+            uvf.select(bls=[(0, 1)])
         assert str(cm.value).startswith(
-            "Cannot provide length-3 tuples and also specify polarizations."
+            'Only "baseline" mode UVFlag '
+            "objects may select along the "
+            "baseline axis"
         )
-
-        with pytest.raises(ValueError) as cm:
-            uvf.select(bls=(0, 1, 5))
-        assert str(cm.value).startswith(
-            "The third element in each bl must be a polarization string"
-        )
-
-        with pytest.raises(ValueError) as cm:
-            uvf.select(bls=(455, 456))
-        assert str(cm.value).startswith("Antenna number 455 is not present")
-
-        with pytest.raises(ValueError) as cm:
-            uvf.select(bls=(first_ants[0], 456))
-        assert str(cm.value).startswith("Antenna number 456 is not present")
-
-        uvf2 = copy.deepcopy(uvf)
-        uvf2.select(bls=[(97, 104), (97, 105), (88, 97)])
-        with pytest.raises(ValueError) as cm:
-            uvf2.select(bls=(97, 97))
-        assert str(cm.value).startswith("Antenna pair (97, 97) does not have any")
+    else:
+        if select_kwargs["bls"] == (97, 97):
+            uvf.select(bls=[(97, 104), (97, 105), (88, 97)])
+        with pytest.raises(ValueError, match=err_msg):
+            uvf.select(**select_kwargs)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
