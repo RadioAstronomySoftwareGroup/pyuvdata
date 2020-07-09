@@ -7949,9 +7949,10 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     return
 
 
-def test_multifile_read_check_KeyError(hera_uvh5, tmp_path):
+def test_multifile_read_check_keyerror(hera_uvh5, tmp_path):
     """
-    Test KeyError catching by setting skip_bad_files=True when reading in files for a list of length >2
+    Test KeyError catching by setting skip_bad_files=True when
+    reading in files for a list of length >2
     """
     # Create mini files for testing
     uv = hera_uvh5
@@ -8063,9 +8064,11 @@ def test_multifile_read_check_KeyError(hera_uvh5, tmp_path):
 
     return
 
-def test_multifile_read_check_ValueError(tmp_path):
+
+def test_multifile_read_check_value_error(tmp_path):
     """
-    Test ValueError catching by setting skip_bad_files=True when reading in files for a list of length >2
+    Test ValueError catching by setting skip_bad_files=True
+    when reading in files for a list of length >2
     """
     # Create mini files for testing
     uv = UVData()
@@ -8081,7 +8084,7 @@ def test_multifile_read_check_ValueError(tmp_path):
         uv2.write_uvh5(fname)
     with h5py.File(fileList[-1], "r+") as h5f:
         h5f["Header/antenna_numbers"][3] = 85
-        h5f["Header/ant_1_array"][2]=1024
+        h5f["Header/ant_1_array"][2] = 1024
 
     # Test with corrupted file as last file in list, skip_bad_files=True
     uvTest = UVData()
