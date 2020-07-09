@@ -2098,7 +2098,8 @@ def test_select_waterfall_errors(uvf_from_waterfall):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
-def test_select_blt_inds(input_uvf, uvf_mode):
+@pytest.mark.parametrize("dimension", list(range(1, 4)))
+def test_select_blt_inds(input_uvf, uvf_mode, dimension):
     uvf = input_uvf
 
     # used to set the mode depending on which input is given to uvf_mode
@@ -2110,6 +2111,14 @@ def test_select_blt_inds(input_uvf, uvf_mode):
         n_select = uvf.Ntimes
     blt_inds = np.random.choice(n_select, size=n_select // 2, replace=False)
     new_nblts = n_select // 2
+
+    if dimension == 1:
+        blt_inds = np.atleast_1d(blt_inds)
+    elif dimension == 2:
+        blt_inds = np.atleast_2d(blt_inds)
+    elif dimension == 3:
+        blt_inds = np.atleast_3d(blt_inds)
+
     uvf1 = uvf.select(blt_inds=blt_inds, inplace=False)
 
     # test the data was extracted correctly for each case
@@ -2139,43 +2148,32 @@ def test_select_blt_inds(input_uvf, uvf_mode):
         uvf1.history,
     )
 
-    # test works with higher dimension arrays:
-    uvf1 = uvf.select(blt_inds=np.atleast_3d(blt_inds), inplace=False)
 
-    # test the data was extraced
-    # assert np.allclose(uvf.metric_array[blt_inds], uvf1.metric_array)
-    if uvf.type == "baseline":
-        assert uvf1.Nblts == new_nblts
-        assert "baseline-times" in uvf1.history
-    else:
-        assert uvf1.Ntimes == new_nblts
-        assert "times" in uvf1.history
-    # verify that histories are different
-    assert not uvutils._check_histories(uvf.history, uvf1.history)
+@cases_decorator
+@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+@pytest.mark.parametrize(
+    "select_kwargs,err_msg",
+    [
+        ({"blt_inds": []}, "No baseline-times were found"),
+        ({"blt_inds": [int(1e9)]}, "blt_inds contains indices that are too large"),
+        ({"blt_inds": [-1]}, "blt_inds contains indices that are negative"),
+    ],
+)
+def test_select_blt_inds_errors(input_uvf, uvf_mode, select_kwargs, err_msg):
+    uvf = input_uvf
 
-    assert uvutils._check_histories(
-        uvf.history + f"  Downselected to specific {addition_str} using pyuvdata.",
-        uvf1.history,
-    )
+    # used to set the mode depending on which input is given to uvf_mode
+    getattr(uvf, uvf_mode)()
 
-    # test the error modes of blt_inds
-    with pytest.raises(ValueError) as cm:
-        uvf.select(blt_inds=[])
-    assert str(cm.value).startswith("No baseline-times were found")
-
-    with pytest.raises(ValueError) as cm:
-        uvf.select(blt_inds=[np.max(n_select) + 1])
-    assert str(cm.value).startswith("blt_inds contains indices that are too large")
-
-    with pytest.raises(ValueError) as cm:
-        uvf.select(blt_inds=[-1])
-    assert str(cm.value).startswith("blt_inds contains indices that are negative")
+    with pytest.raises(ValueError, match=err_msg):
+        uvf.select(**select_kwargs)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator_no_waterfall
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
-def test_select_antenna_nums(input_uvf, uvf_mode):
+@pytest.mark.parametrize("dimension", list(range(1, 4)))
+def test_select_antenna_nums(input_uvf, uvf_mode, dimension):
     uvf = input_uvf
     # used to set the mode depending on which input is given to uvf_mode
     getattr(uvf, uvf_mode)()
@@ -2198,6 +2196,12 @@ def test_select_antenna_nums(input_uvf, uvf_mode):
         ants_to_keep = np.random.choice(
             unique_ants, size=unique_ants.size // 2, replace=False
         )
+    if dimension == 1:
+        ants_to_keep = np.atleast_1d(ants_to_keep)
+    elif dimension == 2:
+        ants_to_keep = np.atleast_2d(ants_to_keep)
+    elif dimension == 3:
+        ants_to_keep = np.atleast_3d(ants_to_keep)
 
     uvf2 = copy.deepcopy(uvf)
     uvf2.select(antenna_nums=ants_to_keep)
@@ -2220,35 +2224,17 @@ def test_select_antenna_nums(input_uvf, uvf_mode):
         uvf2.history,
     )
 
-    # check that it also works with higher dimension array
-    uvf2 = copy.deepcopy(uvf)
-    uvf2.select(antenna_nums=np.atleast_3d(ants_to_keep))
 
-    assert len(ants_to_keep) == uvf2.Nants_data
-    assert len(ants_to_keep) == uvf2.Nants_data
-    if uvf2.type == "baseline":
-        assert Nblts_selected == uvf2.Nblts
-        for ant in ants_to_keep:
-            assert ant in uvf2.ant_1_array or ant in uvf2.ant_2_array
-        for ant in np.unique(uvf2.ant_1_array.tolist() + uvf2.ant_2_array.tolist()):
-            assert ant in ants_to_keep
-    else:
-        for ant in ants_to_keep:
-            assert ant in uvf2.ant_array
-        for ant in np.unique(uvf2.ant_array):
-            assert ant in ants_to_keep
-
-    assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific antennas using pyuvdata.",
-        uvf2.history,
-    )
-
+@cases_decorator_no_waterfall
+@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+def test_select_antenna_nums_error(input_uvf, uvf_mode):
+    uvf = input_uvf
+    # used to set the mode depending on which input is given to uvf_mode
+    getattr(uvf, uvf_mode)()
     # also test for error if antenna numbers not present in data
     with pytest.raises(ValueError) as cm:
-        uvf.select(antenna_nums=np.max(unique_ants) + np.arange(1, 3))
-    assert str(cm.value).startswith(
-        "Antenna number " "{a} is not present".format(a=np.max(unique_ants) + 1)
-    )
+        uvf.select(antenna_nums=[708, 709, 710])
+    assert str(cm.value).startswith("Antenna number 708 is not present")
 
 
 def sort_bl(p):
