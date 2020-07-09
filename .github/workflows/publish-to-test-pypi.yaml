@@ -34,7 +34,7 @@ jobs:
       run: |
         wget https://gist.github.com/plaplant/0902f09e59166bac742bbd554f3cd2f9/raw/make_dev_version.sh
         source activate $ENV_NAME
-        version=$(./make_dev_version.sh)
+        version=$(bash make_dev_version.sh)
         echo "::set-env name=SETUPTOOLS_SCM_PRETEND_VERSION::$version"
 
     - name: Check environment variable
