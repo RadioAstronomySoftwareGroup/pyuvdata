@@ -73,6 +73,10 @@ def uvf_from_uvcal():
     uvf = UVFlag()
     uvf.from_uvcal(uvc)
 
+    # the antenna type test file is large, so downselect to speed up
+    if uvf.type == "antenna":
+        uvf.select(antenna_nums=uvf.ant_array[:5])
+
     # yield the object for the test
     yield uvf
 
@@ -2109,6 +2113,7 @@ def test_select_blt_inds(input_uvf, uvf_mode, dimension):
         n_select = uvf.Nblts
     else:
         n_select = uvf.Ntimes
+
     blt_inds = np.random.choice(n_select, size=n_select // 2, replace=False)
     new_nblts = n_select // 2
 
@@ -2125,11 +2130,11 @@ def test_select_blt_inds(input_uvf, uvf_mode, dimension):
     for param_name, new_param in zip(uvf._data_params, uvf1.data_like_parameters):
         old_param = getattr(uvf, param_name)
         if uvf.type == "baseline":
-            assert np.allclose(old_param[blt_inds], new_param)
+            assert np.allclose(old_param[blt_inds.squeeze()], new_param)
         if uvf.type == "antenna":
-            assert np.allclose(old_param[:, :, :, blt_inds], new_param)
+            assert np.allclose(old_param[:, :, :, blt_inds.squeeze()], new_param)
         if uvf.type == "waterfall":
-            assert np.allclose(old_param[blt_inds], new_param)
+            assert np.allclose(old_param[blt_inds.squeeze()], new_param)
 
     if uvf.type == "baseline":
         assert uvf1.Nblts == new_nblts
@@ -2205,8 +2210,10 @@ def test_select_antenna_nums(input_uvf, uvf_mode, dimension):
 
     uvf2 = copy.deepcopy(uvf)
     uvf2.select(antenna_nums=ants_to_keep)
+    # make 1-D for the remaining iterators in tests
+    ants_to_keep = ants_to_keep.squeeze()
 
-    assert len(ants_to_keep) == uvf2.Nants_data
+    assert ants_to_keep.size == uvf2.Nants_data
     if uvf2.type == "baseline":
         assert Nblts_selected == uvf2.Nblts
         for ant in ants_to_keep:
