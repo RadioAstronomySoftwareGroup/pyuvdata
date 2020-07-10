@@ -132,7 +132,7 @@ class UVFITS(UVData):
 
         # initialize internal variables based on the antenna lists
         self.Nants_data = int(
-            len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist()))
+            np.unique(np.union1d(self.ant_1_array, self.ant_2_array)).size
         )
 
         # read baseline vectors in units of seconds, return in meters
