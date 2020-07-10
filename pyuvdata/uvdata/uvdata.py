@@ -817,8 +817,7 @@ class UVData(UVBase):
 
     def _calc_nants_data(self):
         """Calculate the number of antennas from ant_1_array and ant_2_array arrays."""
-        # a numpy unique of the numpy union seems to be best optimized for numpy arrays
-        return int(np.unique(np.union1d(self.ant_1_array, self.ant_2_array)).size)
+        return int(np.union1d(self.ant_1_array, self.ant_2_array).size)
 
     def check(
         self, check_extra=True, run_check_acceptability=True, check_freq_spacing=False
