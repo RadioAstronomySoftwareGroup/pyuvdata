@@ -551,7 +551,7 @@ class FHD(UVData):
         self.ant_2_array = bl_info["TILE_B"][0] - 1
 
         self.Nants_data = int(
-            len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist()))
+            np.unique(np.union1d(self.ant_1_array, self.ant_2_array)).size
         )
 
         self.baseline_array = self.antnums_to_baseline(
