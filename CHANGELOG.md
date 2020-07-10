@@ -21,6 +21,7 @@ controlled by the `method` keyword.
 - `propagate_flags` keyword for `UVData.frequency_average` which flags averaged samples if any contributing samples were flagged
 
 ### Changed
+- Nants data calculation changed to use numpy functions for small speed up.
 - Changed `input` variable to `indata` in UVFlag to avoid shadowing python builtin.
 - `select` now also accepts a list of baseline indices for the `bls` parameter.
 - `data_array_dtype` keyword for `UVData.read` is now also respected by mwa_corr_fits files. Previously it was only used by uvh5 files.
