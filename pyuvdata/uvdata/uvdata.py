@@ -7114,6 +7114,7 @@ class UVData(UVBase):
             file_num = 0
             file_warnings = ""
             unread = True
+            f = filename[file_num]
             while unread:
                 try:
                     self.read(
@@ -7148,30 +7149,21 @@ class UVData(UVBase):
                     unread = False
                 except KeyError as err:
                     file_warnings = (
-                        file_warnings
-                        + "Failed to read {f} due to KeyError: {e}\n".format(
-                            f=filename[file_num], e=err
-                        )
+                        file_warnings + f"Failed to read {f} due to KeyError: {err}\n"
                     )
                     file_num += 1
                     if skip_bad_files is False:
                         raise
                 except ValueError as err:
                     file_warnings = (
-                        file_warnings
-                        + "Failed to read {f} due to ValueError: {e}\n".format(
-                            f=filename[file_num], e=err
-                        )
+                        file_warnings + f"Failed to read {f} due to ValueError: {err}\n"
                     )
                     file_num += 1
                     if skip_bad_files is False:
                         raise
                 except OSError as err:
                     file_warnings = (
-                        file_warnings
-                        + "Failed to read {f} due to OSError: {e}\n".format(
-                            f=filename[file_num], e=err
-                        )
+                        file_warnings + f"Failed to read {f} due to OSError: {err}\n"
                     )
                     file_num += 1
                     if skip_bad_files is False:
@@ -7223,9 +7215,7 @@ class UVData(UVBase):
                     except KeyError as err:
                         file_warnings = (
                             file_warnings
-                            + "Failed to read {f} due to KeyError: {e}\n".format(
-                                f=f, e=err
-                            )
+                            + f"Failed to read {f} due to KeyError: {err}\n"
                         )
                         if skip_bad_files:
                             continue
@@ -7234,9 +7224,7 @@ class UVData(UVBase):
                     except ValueError as err:
                         file_warnings = (
                             file_warnings
-                            + "Failed to read {f} due to ValueError: {e}\n".format(
-                                f=f, e=err
-                            )
+                            + f"Failed to read {f} due to ValueError: {err}\n"
                         )
                         if skip_bad_files:
                             continue
@@ -7245,9 +7233,7 @@ class UVData(UVBase):
                     except OSError as err:
                         file_warnings = (
                             file_warnings
-                            + "Failed to read {f} due to OSError: {e}\n".format(
-                                f=f, e=err
-                            )
+                            + f"Failed to read {f} due to OSError: {err}\n"
                         )
                         if skip_bad_files:
                             continue
