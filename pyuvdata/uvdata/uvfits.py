@@ -131,9 +131,7 @@ class UVFITS(UVData):
         self.Nbls = len(np.unique(self.baseline_array))
 
         # initialize internal variables based on the antenna lists
-        self.Nants_data = int(
-            np.unique(np.union1d(self.ant_1_array, self.ant_2_array)).size
-        )
+        self.Nants_data = int(np.union1d(self.ant_1_array, self.ant_2_array).size)
 
         # read baseline vectors in units of seconds, return in meters
         # FITS uvw direction convention is opposite ours and Miriad's.

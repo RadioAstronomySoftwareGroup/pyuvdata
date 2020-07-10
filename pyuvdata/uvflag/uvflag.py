@@ -1174,9 +1174,7 @@ class UVFlag(UVBase):
         self.Nbls = np.unique(self.baseline_array).size
         self.ant_1_array = uv.ant_1_array
         self.ant_2_array = uv.ant_2_array
-        self.Nants_data = int(
-            np.unique(np.union1d(self.ant_1_array, self.ant_2_array)).size
-        )
+        self.Nants_data = int(np.union1d(self.ant_1_array, self.ant_2_array).size)
 
         self.time_array = uv.time_array
         self.lst_array = uv.lst_array
@@ -1501,7 +1499,7 @@ class UVFlag(UVBase):
                 this.ant_1_array = np.concatenate([this.ant_1_array, other.ant_1_array])
                 this.ant_2_array = np.concatenate([this.ant_2_array, other.ant_2_array])
                 this.Nants_data = int(
-                    np.unique(np.union1d(this.ant_1_array, this.ant_2_array)).size
+                    np.union1d(this.ant_1_array, this.ant_2_array).size
                 )
 
             this.Ntimes = np.unique(this.time_array).size
@@ -1520,9 +1518,7 @@ class UVFlag(UVBase):
             )
             this.ant_1_array = np.concatenate([this.ant_1_array, other.ant_1_array])
             this.ant_2_array = np.concatenate([this.ant_2_array, other.ant_2_array])
-            this.Nants_data = int(
-                np.unique(np.union1d(self.ant_1_array, self.ant_2_array)).size
-            )
+            this.Nants_data = int(np.union1d(self.ant_1_array, self.ant_2_array).size)
 
             this.Nbls = np.unique(this.baseline_array).size
             this.Nblts = len(this.baseline_array)
@@ -2146,7 +2142,7 @@ class UVFlag(UVBase):
                 self.ant_1_array = self.ant_1_array[blt_inds]
                 self.ant_2_array = self.ant_2_array[blt_inds]
                 self.Nants_data = int(
-                    np.unique(np.union1d(self.ant_1_array, self.ant_2_array)).size
+                    np.union1d(self.ant_1_array, self.ant_2_array).size
                 )
 
             self.time_array = self.time_array[blt_inds]
