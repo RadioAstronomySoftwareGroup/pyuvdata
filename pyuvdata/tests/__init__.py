@@ -154,9 +154,11 @@ class WarningsChecker(warnings.catch_warnings):
                         )
                     elif self.match is not None:
                         for record in self:
-                            if re.compile(self.match[warn_i]).search(
+                            if str(record.message).startswith(
+                                self.match[warn_i]
+                            ) or re.compile(self.match[warn_i]).search(
                                 str(record.message)
-                            ) or str(record.message).startswith(self.match[warn_i]):
+                            ):
                                 if issubclass(
                                     record.category, self.expected_warning[warn_i]
                                 ):
