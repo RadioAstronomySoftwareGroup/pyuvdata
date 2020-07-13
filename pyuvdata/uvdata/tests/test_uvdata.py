@@ -7949,7 +7949,8 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     return
 
 
-def test_multifile_read_check_keyerror(hera_uvh5, tmp_path):
+@pytest.mark.parametrize("err_type", ["KeyError", "ValueError"])
+def test_multifile_read_check_keyerror(hera_uvh5, tmp_path, err_type):
     """
     Test KeyError catching by setting skip_bad_files=True when
     reading in files for a list of length >2
@@ -7965,8 +7966,15 @@ def test_multifile_read_check_keyerror(hera_uvh5, tmp_path):
         fname = str(tmp_path / f"minifile_{i}.uvh5")
         fileList.append(fname)
         uv2.write_uvh5(fname)
-    with h5py.File(fileList[-1], "r+") as h5f:
-        del h5f["Header/ant_1_array"]
+    if err_type == "KeyError":
+        print(err_type)
+        with h5py.File(fileList[-1], "r+") as h5f:
+            del h5f["Header/ant_1_array"]
+    elif err_type == "ValueError":
+        print(err_type)
+        with h5py.File(fileList[-1], "r+") as h5f:
+            h5f["Header/antenna_numbers"][3] = 85
+            h5f["Header/ant_1_array"][2] = 1024
 
     # Test with corrupted file as last file in list, skip_bad_files=True
     uvTest = UVData()
@@ -7994,6 +8002,7 @@ def test_multifile_read_check_keyerror(hera_uvh5, tmp_path):
     uv2 = uv.select(times=np.unique(uv.time_array)[15:19], inplace=False)
     fname = str(tmp_path / f"minifile_{3}.uvh5")
     uv2.write_uvh5(fname)
+<<<<<<< HEAD
     with h5py.File(fileList[0], "r+") as h5f:
         del h5f["Header/ant_1_array"]
     uvTest = UVData()
@@ -8103,6 +8112,17 @@ def test_multifile_read_check_value_error(tmp_path):
     uv2.write_uvh5(fname)
     with h5py.File(fileList[0], "r+") as h5f:
         del h5f["Header/ant_1_array"]
+=======
+    if err_type == "KeyError":
+        print(err_type)
+        with h5py.File(fileList[0], "r+") as h5f:
+            del h5f["Header/ant_1_array"]
+    elif err_type == "ValueError":
+        print(err_type)
+        with h5py.File(fileList[0], "r+") as h5f:
+            h5f["Header/antenna_numbers"][3] = 85
+            h5f["Header/ant_1_array"][2] = 1024
+>>>>>>> Concatenate redundant testing code
     uvTest = UVData()
     with pytest.warns(UserWarning) as cm:
         uvTest.read(fileList[0:4], skip_bad_files=True)
@@ -8117,8 +8137,15 @@ def test_multifile_read_check_value_error(tmp_path):
     uv2 = uv.select(times=np.unique(uv.time_array)[0:4], inplace=False)
     fname = str(tmp_path / f"minifile_{0}.uvh5")
     uv2.write_uvh5(fname)
-    with h5py.File(fileList[1], "r+") as h5f:
-        del h5f["Header/ant_1_array"]
+    if err_type == "KeyError":
+        print(err_type)
+        with h5py.File(fileList[1], "r+") as h5f:
+            del h5f["Header/ant_1_array"]
+    elif err_type == "ValueError":
+        print(err_type)
+        with h5py.File(fileList[1], "r+") as h5f:
+            h5f["Header/antenna_numbers"][3] = 85
+            h5f["Header/ant_1_array"][2] = 1024
     uvTest = UVData()
     with pytest.warns(UserWarning) as cm:
         uvTest.read(fileList[0:4], skip_bad_files=True)
@@ -8130,9 +8157,14 @@ def test_multifile_read_check_value_error(tmp_path):
 
     # Test with corrupted file in middle of list, but with skip_bad_files=False
     uvTest = UVData()
-    with pytest.raises(KeyError, match="Unable to open object"):
-        with pytest.warns(UserWarning, match="Failed to read"):
-            uvTest.read(fileList[0:4], skip_bad_files=False)
+    if err_type == "KeyError":
+        with pytest.raises(KeyError, match="Unable to open object"):
+            with pytest.warns(UserWarning, match="Failed to read"):
+                uvTest.read(fileList[0:4], skip_bad_files=False)
+    elif err_type == "ValueError":
+        with pytest.raises(ValueError, match="Nants_data must be equal to"):
+            with pytest.warns(UserWarning, match="Failed to read"):
+                uvTest.read(fileList[0:4], skip_bad_files=False)
     uvTrue = UVData()
     uvTrue.read([fileList[0], fileList[2], fileList[3]], skip_bad_files=False)
 
