@@ -2809,6 +2809,7 @@ def test_select(input_uvf, uvf_mode):
             uvf2.history,
         )
 
+
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_parse_ants_error(uvf_from_uvcal, uvf_mode):
@@ -2855,8 +2856,8 @@ def test_select_parse_ants_errors(uvf_from_data, uvf_mode, select_kwargs, err_ms
         uvf.select(**select_kwargs)
 
 
-@py@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-test.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 def test_select_parse_ants(uvf_from_data, uvf_mode):
     uvf = uvf_from_data
     # used to set the mode depending on which input is given to uvf_mode
@@ -2871,8 +2872,8 @@ def test_select_parse_ants(uvf_from_data, uvf_mode):
     )
 
 
-def te@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-st_equality_no_history(uvf_from_data):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_equality_no_history(uvf_from_data):
     uvf = uvf_from_data
     uvf2 = uvf.copy()
     assert uvf.__eq__(uvf2, check_history=True)
