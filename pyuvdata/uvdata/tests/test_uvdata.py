@@ -7950,7 +7950,7 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
 
 
 @pytest.mark.parametrize("err_type", ["KeyError", "ValueError"])
-def test_multifile_read_check_keyerror(hera_uvh5, tmp_path, err_type):
+def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     """
     Test KeyError catching by setting skip_bad_files=True when
     reading in files for a list of length >2
