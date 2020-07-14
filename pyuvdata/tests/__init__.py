@@ -32,8 +32,6 @@ class WarningsChecker(warnings.catch_warnings):
         self._entered = False
         self._list = []
 
-        assert isinstance(expected_warning, list)
-
         msg = "exceptions must be derived from Warning, not %s"
         if expected_warning is None:
             expected_warning_list = expected_warning
@@ -101,6 +99,7 @@ class WarningsChecker(warnings.catch_warnings):
         assert _list is not None
         self._list = _list
         warnings.simplefilter("always")
+        # Filter annoying Cython warnings that serve no good purpose. see numpy#432
         warnings.filterwarnings("ignore", message="numpy.dtype size changed")
         warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 
@@ -198,6 +197,14 @@ def check_warnings(expected_warning, match, nwarnings=None, *args, **kwargs):
 
     """
     __tracebackhide__ = True
+
+    if not (
+        isinstance(expected_warning, list) or issubclass(expected_warning, Warning)
+    ):
+        raise TypeError("expected_warning must be a list or be derived from Warning")
+    if not isinstance(match, (list, str)):
+        raise TypeError("match_list must be a list or a string.")
+
     if not isinstance(expected_warning, list):
         expected_warning_list = [expected_warning]
     else:
