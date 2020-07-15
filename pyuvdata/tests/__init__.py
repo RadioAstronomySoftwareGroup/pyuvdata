@@ -135,7 +135,9 @@ class WarningsChecker(warnings.catch_warnings):
 
         # only check if we're not currently handling an exception
         if exc_type is None and exc_val is None and exc_tb is None:
-            if self.expected_warning is not None:
+            if self.expected_warning is None:
+                assert len(self) == 0
+            else:
                 assert len(self) == len(self.expected_warning), (
                     f"{len(self.expected_warning)} warnings expected, "
                     f"{len(self)} warnings issued. The list of emitted warnings is: "
@@ -171,7 +173,7 @@ class WarningsChecker(warnings.catch_warnings):
                             )
 
 
-def check_warnings(expected_warning, match, nwarnings=None, *args, **kwargs):
+def check_warnings(expected_warning, match=None, nwarnings=None, *args, **kwargs):
     """
     Assert that code raises a particular set of warnings, used as a context manager.
 
@@ -182,6 +184,9 @@ def check_warnings(expected_warning, match, nwarnings=None, *args, **kwargs):
     Note that unlike the older checkWarnings function, the warnings can be passed
     in any order, they do not have to match the order the warnings are raised
     in the code.
+
+    To assert that there are no warnings raised by some code, set `expected_warning`
+    to None (i.e. `with check_warnings(None):`)
 
     Parameters
     ----------
@@ -199,40 +204,43 @@ def check_warnings(expected_warning, match, nwarnings=None, *args, **kwargs):
     __tracebackhide__ = True
 
     if not (
-        isinstance(expected_warning, list) or issubclass(expected_warning, Warning)
+        expected_warning is None
+        or isinstance(expected_warning, list)
+        or issubclass(expected_warning, Warning)
     ):
         raise TypeError("expected_warning must be a list or be derived from Warning")
-    if not isinstance(match, (list, str)):
-        raise TypeError("match_list must be a list or a string.")
+    if match is not None and not isinstance(match, (list, str)):
+        raise TypeError("match must be a list or a string.")
 
-    if not isinstance(expected_warning, list):
+    if expected_warning is not None and not isinstance(expected_warning, list):
         expected_warning_list = [expected_warning]
     else:
         expected_warning_list = expected_warning
-    if not isinstance(match, list):
+    if match is not None and not isinstance(match, list):
         match_list = [match]
     else:
         match_list = match
 
-    if (
-        len(expected_warning_list) > 1
-        and len(match_list) > 1
-        and len(expected_warning_list) != len(match_list)
-    ):
-        raise ValueError(
-            "If expected_warning and match both have more than one element, "
-            "they must be the same length."
-        )
+    if expected_warning is not None:
+        if (
+            len(expected_warning_list) > 1
+            and len(match_list) > 1
+            and len(expected_warning_list) != len(match_list)
+        ):
+            raise ValueError(
+                "If expected_warning and match both have more than one element, "
+                "they must be the same length."
+            )
 
-    if len(expected_warning_list) > 1 or len(match_list) > 1:
-        nwarnings = max(len(expected_warning_list), len(match_list))
-    elif nwarnings is None:
-        nwarnings = 1
+        if len(expected_warning_list) > 1 or len(match_list) > 1:
+            nwarnings = max(len(expected_warning_list), len(match_list))
+        elif nwarnings is None:
+            nwarnings = 1
 
-    if len(expected_warning_list) < nwarnings:
-        expected_warning_list = expected_warning_list * nwarnings
-    if len(match_list) < nwarnings:
-        match_list = match_list * nwarnings
+        if len(expected_warning_list) < nwarnings:
+            expected_warning_list = expected_warning_list * nwarnings
+        if len(match_list) < nwarnings:
+            match_list = match_list * nwarnings
 
     if not args:
         if kwargs:
