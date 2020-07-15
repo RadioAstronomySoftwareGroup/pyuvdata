@@ -24,14 +24,14 @@ paper_miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
 
 @pytest.fixture(autouse=True, scope="session")
 def setup_and_teardown_package():
-    """Make data/test directory to put test output files in."""
+    """Handle possible IERS issues."""
     # Do a calculation that requires a current IERS table. This will trigger
     # automatic downloading of the IERS table if needed, including trying the
     # mirror site in python 3 (but won't redownload if a current one exists).
     # If there's not a current IERS table and it can't be downloaded, turn off
     # auto downloading for the tests and turn it back on once all tests are
     # completed (done by extending auto_max_age).
-    # Also, the checkWarnings function will ignore IERS-related warnings.
+    # Also, the check_warnings function will ignore IERS-related warnings.
     try:
         t1 = Time.now()
         t1.ut1
