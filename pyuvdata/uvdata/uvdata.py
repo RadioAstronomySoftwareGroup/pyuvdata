@@ -7161,6 +7161,7 @@ class UVData(UVBase):
                     file_num += 1
                     if skip_bad_files is False:
                         raise
+                # pragma: nocover
                 except OSError as err:
                     file_warnings = (
                         file_warnings + f"Failed to read {f} due to OSError: {err}\n"
@@ -7230,6 +7231,7 @@ class UVData(UVBase):
                             continue
                         else:
                             raise
+                    # pragma: nocover
                     except OSError as err:
                         file_warnings = (
                             file_warnings
