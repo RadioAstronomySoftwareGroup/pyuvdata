@@ -8009,13 +8009,11 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
             h5f["Header/antenna_numbers"][3] = 85
             h5f["Header/ant_1_array"][2] = 1024
     uvTest = UVData()
-    with pytest.warns(UserWarning) as cm:
+    with pytest.warns(UserWarning):
         uvTest.read(fileList[0:4], skip_bad_files=True)
     uvTrue = UVData()
     uvTrue.read(fileList[1:4], skip_bad_files=True)
 
-    print(cm)
-    assert len(cm) == 1
     assert uvTest == uvTrue
 
     # Repeat above test, but with corrupted file in the middle of the list
@@ -8031,12 +8029,11 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
             h5f["Header/antenna_numbers"][3] = 85
             h5f["Header/ant_1_array"][2] = 1024
     uvTest = UVData()
-    with pytest.warns(UserWarning) as cm:
+    with pytest.warns(UserWarning):
         uvTest.read(fileList[0:4], skip_bad_files=True)
     uvTrue = UVData()
     uvTrue.read([fileList[0], fileList[2], fileList[3]], skip_bad_files=True)
 
-    assert len(cm) == 1
     assert uvTest == uvTrue
 
     # Test with corrupted file in middle of list, but with skip_bad_files=False
