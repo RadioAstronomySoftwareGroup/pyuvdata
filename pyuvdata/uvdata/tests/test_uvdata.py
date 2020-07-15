@@ -7931,8 +7931,8 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     with pytest.warns(UserWarning, match="Failed to read") as record:
         uv.read(fileList, skip_bad_files=True)
     assert len(record) == 2
-    assert str(record[0].message).startswith("Failed to read")
-    assert str(record[1].message).startswith(
+    assert str(record[1].message).startswith("Failed to read")
+    assert str(record[0].message).startswith(
         "The uvw_array does not match the expected values given the antenna positions."
     )
     assert uv == uvTrue
@@ -8002,117 +8002,6 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     uv2 = uv.select(times=np.unique(uv.time_array)[15:19], inplace=False)
     fname = str(tmp_path / f"minifile_{3}.uvh5")
     uv2.write_uvh5(fname)
-<<<<<<< HEAD
-    with h5py.File(fileList[0], "r+") as h5f:
-        del h5f["Header/ant_1_array"]
-    uvTest = UVData()
-    uvtest.checkWarnings(
-        uvTest.read,
-        func_args=[fileList[0:4]],
-        func_kwargs={"skip_bad_files": True},
-        nwarnings=10,
-        message=(
-            ["Failed to read"]
-            + [
-                "The uvw_array does not match the expected values given the "
-                "antenna positions."
-            ]
-            * 9
-        ),
-    )
-    uvTrue = UVData()
-    uvTrue.read(fileList[1:4], skip_bad_files=True)
-
-    assert uvTest == uvTrue
-
-    # Repeat above test, but with corrupted file in the middle of the list
-    os.remove(fileList[0])
-    uv2 = uv.select(times=np.unique(uv.time_array)[0:4], inplace=False)
-    fname = str(tmp_path / f"minifile_{0}.uvh5")
-    uv2.write_uvh5(fname)
-    with h5py.File(fileList[1], "r+") as h5f:
-        del h5f["Header/ant_1_array"]
-    uvTest = UVData()
-    uvtest.checkWarnings(
-        uvTest.read,
-        func_args=[fileList[0:4]],
-        func_kwargs={"skip_bad_files": True},
-        nwarnings=10,
-        message=(
-            [
-                "The uvw_array does not match the expected values given the "
-                "antenna positions.",
-                "Failed to read",
-            ]
-            + [
-                "The uvw_array does not match the expected values given the "
-                "antenna positions.",
-            ]
-            * 8
-        ),
-    )
-    uvTrue = UVData()
-    uvTrue.read([fileList[0], fileList[2], fileList[3]], skip_bad_files=True)
-
-    assert uvTest == uvTrue
-
-    # Test with corrupted file in middle of list, but with skip_bad_files=False
-    uvTest = UVData()
-    with pytest.raises(KeyError, match="Unable to open object"):
-        with pytest.warns(UserWarning, match="Failed to read"):
-            uvTest.read(fileList[0:4], skip_bad_files=False)
-    uvTrue = UVData()
-    uvTrue.read([fileList[0], fileList[2], fileList[3]], skip_bad_files=False)
-
-    assert uvTest != uvTrue
-
-    os.remove(fileList[0])
-    os.remove(fileList[1])
-    os.remove(fileList[2])
-    os.remove(fileList[3])
-
-    return
-
-
-def test_multifile_read_check_value_error(tmp_path):
-    """
-    Test ValueError catching by setting skip_bad_files=True
-    when reading in files for a list of length >2
-    """
-    # Create mini files for testing
-    uv = UVData()
-    uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-    uv.read(uvh5_file)
-    fileList = []
-    for i in range(0, 4):
-        uv2 = uv.select(
-            times=np.unique(uv.time_array)[i * 5 : i * 5 + 4], inplace=False
-        )
-        fname = str(tmp_path / f"minifile_{i}.uvh5")
-        fileList.append(fname)
-        uv2.write_uvh5(fname)
-    with h5py.File(fileList[-1], "r+") as h5f:
-        h5f["Header/antenna_numbers"][3] = 85
-        h5f["Header/ant_1_array"][2] = 1024
-
-    # Test with corrupted file as last file in list, skip_bad_files=True
-    uvTest = UVData()
-    with pytest.warns(UserWarning) as cm:
-        uvTest.read(fileList, skip_bad_files=True)
-    uvTrue = UVData()
-    uvTrue.read(fileList[0:3], skip_bad_files=True)
-
-    assert len(cm) == 1
-    assert uvTest == uvTrue
-
-    # Repeat above test, but with corrupted file as first file in list
-    os.remove(fileList[3])
-    uv2 = uv.select(times=np.unique(uv.time_array)[15:19], inplace=False)
-    fname = str(tmp_path / f"minifile_{3}.uvh5")
-    uv2.write_uvh5(fname)
-    with h5py.File(fileList[0], "r+") as h5f:
-        del h5f["Header/ant_1_array"]
-=======
     if err_type == "KeyError":
         print(err_type)
         with h5py.File(fileList[0], "r+") as h5f:
@@ -8122,7 +8011,6 @@ def test_multifile_read_check_value_error(tmp_path):
         with h5py.File(fileList[0], "r+") as h5f:
             h5f["Header/antenna_numbers"][3] = 85
             h5f["Header/ant_1_array"][2] = 1024
->>>>>>> Concatenate redundant testing code
     uvTest = UVData()
     with pytest.warns(UserWarning) as cm:
         uvTest.read(fileList[0:4], skip_bad_files=True)
