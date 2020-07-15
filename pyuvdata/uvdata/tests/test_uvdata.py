@@ -7968,11 +7968,9 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
         fileList.append(fname)
         uv2.write_uvh5(fname)
     if err_type == "KeyError":
-        print(err_type)
         with h5py.File(fileList[-1], "r+") as h5f:
             del h5f["Header/ant_1_array"]
     elif err_type == "ValueError":
-        print(err_type)
         with h5py.File(fileList[-1], "r+") as h5f:
             h5f["Header/antenna_numbers"][3] = 85
             h5f["Header/ant_1_array"][2] = 1024
@@ -8004,11 +8002,9 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     fname = str(tmp_path / f"minifile_{3}.uvh5")
     uv2.write_uvh5(fname)
     if err_type == "KeyError":
-        print(err_type)
         with h5py.File(fileList[0], "r+") as h5f:
             del h5f["Header/ant_1_array"]
     elif err_type == "ValueError":
-        print(err_type)
         with h5py.File(fileList[0], "r+") as h5f:
             h5f["Header/antenna_numbers"][3] = 85
             h5f["Header/ant_1_array"][2] = 1024
@@ -8018,6 +8014,7 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     uvTrue = UVData()
     uvTrue.read(fileList[1:4], skip_bad_files=True)
 
+    print(cm)
     assert len(cm) == 1
     assert uvTest == uvTrue
 
@@ -8027,11 +8024,9 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     fname = str(tmp_path / f"minifile_{0}.uvh5")
     uv2.write_uvh5(fname)
     if err_type == "KeyError":
-        print(err_type)
         with h5py.File(fileList[1], "r+") as h5f:
             del h5f["Header/ant_1_array"]
     elif err_type == "ValueError":
-        print(err_type)
         with h5py.File(fileList[1], "r+") as h5f:
             h5f["Header/antenna_numbers"][3] = 85
             h5f["Header/ant_1_array"][2] = 1024
