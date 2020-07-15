@@ -7949,6 +7949,7 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("err_type", ["KeyError", "ValueError"])
 def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     """
