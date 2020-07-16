@@ -8016,6 +8016,21 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
 
     assert uvTest == uvTrue
 
+    # Test with corrupted file first in list, but with skip_bad_files=False
+    uvTest = UVData()
+    if err_type == "KeyError":
+        with pytest.raises(KeyError, match="Unable to open object"):
+            with pytest.warns(UserWarning, match="Failed to read"):
+                uvTest.read(fileList[0:4], skip_bad_files=False)
+    elif err_type == "ValueError":
+        with pytest.raises(ValueError, match="Nants_data must be equal to"):
+            with pytest.warns(UserWarning, match="Failed to read"):
+                uvTest.read(fileList[0:4], skip_bad_files=False)
+    uvTrue = UVData()
+    uvTrue.read([fileList[1], fileList[2], fileList[3]], skip_bad_files=False)
+
+    assert uvTest != uvTrue
+
     # Repeat above test, but with corrupted file in the middle of the list
     os.remove(fileList[0])
     uv2 = uv.select(times=np.unique(uv.time_array)[0:4], inplace=False)
