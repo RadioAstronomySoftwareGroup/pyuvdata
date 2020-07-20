@@ -6964,7 +6964,6 @@ class UVData(UVBase):
                     file_num += 1
                     if skip_bad_files is False:
                         raise
-
             if (
                 allow_rephase
                 and phase_center_radec is None
@@ -7063,7 +7062,13 @@ class UVData(UVBase):
                         )
 
                 del uv2
-            if len(file_warnings) > 0:
+            if unread is True:
+                warnings.warn(
+                    "########################################################\n"
+                    "ALL FILES FAILED ON READ - NO READABLE FILES IN FILENAME\n"
+                    "########################################################"
+                )
+            elif len(file_warnings) > 0:
                 warnings.warn(file_warnings)
         else:
             if file_type in ["fhd", "ms", "mwa_corr_fits"]:
