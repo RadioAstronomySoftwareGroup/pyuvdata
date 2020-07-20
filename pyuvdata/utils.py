@@ -2106,7 +2106,10 @@ def parse_ants(uv, ant_str, print_toggle=False, x_orientation=None):
     x_orientation : str, optional
         Orientation of the physical dipole corresponding to what is
         labelled as the x polarization ("east" or "north") to allow for
-        converting from E/N strings. See corresonding parameter on UVData
+        converting from E/N strings. If input uv object has an `x_orientation`
+        parameter and the input to this function is `None`, the value from the
+        object will be used. Any input given to this function will overwrite the
+        value on the uv object. See corresonding parameter on UVData
         for more details.
 
     Returns
@@ -2125,6 +2128,11 @@ def parse_ants(uv, ant_str, print_toggle=False, x_orientation=None):
             "UVBased objects must have all the following attributes in order "
             f"to call 'parse_ants': {required_attrs}."
         )
+
+    if x_orientation is None and (
+        hasattr(uv, "x_orientation") and uv.x_orientation is not None
+    ):
+        x_orientation = uv.x_orientation
 
     ant_re = r"(\(((-?\d+[lrxy]?,?)+)\)|-?\d+[lrxy]?)"
     bl_re = "(^(%s_%s|%s),?)" % (ant_re, ant_re, ant_re)
