@@ -8118,3 +8118,12 @@ def test_read_background_lsts():
     uvd.read(testfile, background_lsts=False)
     uvd2.read(testfile, background_lsts=True)
     assert uvd == uvd2
+
+
+def test_parse_ants_x_orientation_kwarg(hera_uvh5):
+    uvd = hera_uvh5
+    # call with x_orientation = None to make parse_ants read from the object
+    ant_pair, pols = uvutils.parse_ants(uvd, "cross")
+    ant_pair2, pols2 = uvd.parse_ants("cross")
+    assert np.array_equal(ant_pair, ant_pair2)
+    assert np.array_equal(pols, pols2)
