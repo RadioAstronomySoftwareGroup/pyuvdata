@@ -7115,7 +7115,7 @@ class UVData(UVBase):
             file_warnings = ""
             unread = True
             f = filename[file_num]
-            while unread:
+            while unread and file_num < len(filename):
                 try:
                     self.read(
                         filename[file_num],
