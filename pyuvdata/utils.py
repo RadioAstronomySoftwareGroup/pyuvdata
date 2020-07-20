@@ -2108,7 +2108,7 @@ def parse_ants(uv, ant_str, print_toggle=False, x_orientation=None):
         labelled as the x polarization ("east" or "north") to allow for
         converting from E/N strings. If input uv object has an `x_orientation`
         parameter and the input to this function is `None`, the value from the
-        object will be used. Any input given to this function will overwrite the
+        object will be used. Any input given to this function will override the
         value on the uv object. See corresonding parameter on UVData
         for more details.
 
