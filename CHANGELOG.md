@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- The 'ant_str' option when making selects on UVFlag objects
 - A check that the uvws match the antenna positions, as part of the acceptability checking.
+
+### Changed
+- Moved `parse_ants` to `utils.py` to allow any UVBased object the potential to use it.
 
 ## [2.1.0] - 2020-7-08
 
