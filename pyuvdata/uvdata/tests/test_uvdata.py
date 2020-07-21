@@ -6735,11 +6735,12 @@ def test_downsample_in_time_int_time_mismatch_warning(hera_uvh5):
     # not matching the time delta between integrations
     uv_object.integration_time *= 0.5
     min_integration_time = 2 * np.amin(uv_object.integration_time)
-    with pytest.warns(
-        UserWarning, match="The time difference between integrations is not the same"
-    ) as record:
+    with uvtest.check_warnings(
+        UserWarning,
+        match="The time difference between integrations is not the same",
+        nwarnings=11,
+    ):
         uv_object.downsample_in_time(min_int_time=min_integration_time)
-    assert len(record) == 11
 
     # Should have half the size of the data array and all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
@@ -6785,11 +6786,10 @@ def test_downsample_in_time_varying_integration_time(hera_uvh5):
     min_integration_time = 2 * np.amin(uv_object.integration_time)
     # check that there are no warnings about inconsistencies between
     # integration_time & time_array
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning, match="The uvw_array does not match the expected values",
-    ) as record:
+    ):
         uv_object.downsample_in_time(min_int_time=min_integration_time)
-    assert len(record) == 1
 
     # Should have all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
@@ -6850,19 +6850,16 @@ def test_downsample_in_time_varying_int_time_partial_flags(hera_uvh5):
 
     uv_object2 = uv_object.copy()
 
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning, match="The uvw_array does not match the expected values",
-    ) as record:
+    ):
         uv_object.downsample_in_time(min_int_time=4 * initial_int_time)
-    assert len(record) == 1
-    with pytest.warns(None) as record:
+    with uvtest.check_warnings(None):
         uv_object.downsample_in_time(min_int_time=8 * initial_int_time)
-    assert len(record) == 0
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning, match="The uvw_array does not match the expected values",
-    ) as record:
+    ):
         uv_object2.downsample_in_time(min_int_time=8 * initial_int_time)
-    assert len(record) == 1
 
     assert uv_object.history != uv_object2.history
     uv_object2.history = uv_object.history
@@ -7897,18 +7894,27 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
 
     # Test when the corrupted file is at the beggining, skip_bad_files=True
     fileList = [testfile, uvh5_file]
-    with pytest.warns(UserWarning, match="Failed to read") as record:
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Failed to read",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+    ):
         uv.read(fileList, skip_bad_files=True)
-    assert len(record) == 2
-    assert str(record[1].message).startswith("Failed to read")
-    assert str(record[0].message).startswith(
-        "The uvw_array does not match the expected values given the antenna positions."
-    )
     assert uv == uvTrue
 
     # Test when the corrupted file is at the end of a list
     fileList = [uvh5_file, testfile]
-    with pytest.warns(UserWarning, match="Failed to read"):
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Failed to read",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+    ):
         uv.read(fileList, skip_bad_files=True)
     # Check that the uncorrupted file was still read in
     assert uv == uvTrue
@@ -7993,11 +7999,11 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     uvTest = UVData()
     if err_type == "KeyError":
         with pytest.raises(KeyError, match="Unable to open object"):
-            with pytest.warns(UserWarning, match="Failed to read"):
+            with uvtest.check_warnings(UserWarning, match="Failed to read"):
                 uvTest.read(fileList[0:4], skip_bad_files=False)
     elif err_type == "ValueError":
         with pytest.raises(ValueError, match="Nants_data must be equal to"):
-            with pytest.warns(UserWarning, match="Failed to read"):
+            with uvtest.check_warnings(UserWarning, match="Failed to read"):
                 uvTest.read(fileList[0:4], skip_bad_files=False)
     uvTrue = UVData()
     uvTrue.read([fileList[1], fileList[2], fileList[3]], skip_bad_files=False)
@@ -8065,7 +8071,14 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
                 h5f["Header/antenna_numbers"][3] = 85
                 h5f["Header/ant_1_array"][2] = 1024
     uvTest = UVData()
-    with pytest.warns(UserWarning):
+    with uvtest.check_warnings(
+        UserWarning,
+        match=(
+            "########################################################\n"
+            "ALL FILES FAILED ON READ - NO READABLE FILES IN FILENAME\n"
+            "########################################################"
+        ),
+    ):
         uvTest.read(fileList[0:4], skip_bad_files=True)
     uvTrue = UVData()
 
