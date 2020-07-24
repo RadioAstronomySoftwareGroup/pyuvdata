@@ -405,7 +405,7 @@ class MirParser:
             winsel = np.unique(self.sp_data["corrchunk"])
             winsel = winsel[winsel != 0].astype(int) - 1
             self.auto_data = self.read_auto_data(
-                self.filepath, self.ac_data, self.ac_filter, winsel=winsel,
+                self.filepath, self.ac_data, winsel=winsel
             )
 
     def unload_data(self):
@@ -729,11 +729,11 @@ class MirParser:
             winsel = np.arange(0, ac_data["nchunks"][0])
 
         winsel = np.array(winsel)
-        auto_data = np.empty((len(ac_data), len(winsel), 2 ** 14), dtype=np.single)
+        auto_data = np.empty((len(ac_data), len(winsel), 2, 2 ** 14), dtype=np.single)
         dataoff = ac_data["dataoff"]
         datasize = ac_data["datasize"]
         del_offset = np.insert(np.diff(dataoff) - datasize[0:-1], 0, dataoff[0])
-        nvals = ac_data["nchunks"] * (2 ** 14)
+        nvals = ac_data["nchunks"] * 2 * (2 ** 14)
         nchunks = ac_data["nchunks"]
 
         with open(filepath + "/autoCorrelations", "rb") as auto_file:
@@ -743,7 +743,7 @@ class MirParser:
                     dtype=np.single,
                     count=nvals[idx],
                     offset=20 + del_offset[idx],
-                ).reshape((nchunks[idx], 2 ** 14))[winsel, :]
+                ).reshape((nchunks[idx], 2, 2 ** 14))[winsel, :, :]
 
         return auto_data
 
