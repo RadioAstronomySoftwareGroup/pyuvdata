@@ -24,7 +24,7 @@ other_attributes = [
     "telescope_location_lat_lon_alt_degrees",
     "pyuvdata_version_str",
 ]
-expected_known_telescopes = ["PAPER", "HERA", "MWA"]
+expected_known_telescopes = ["PAPER", "HERA", "MWA", "SMA"]
 
 
 # Tests for Telescope object
