@@ -179,12 +179,7 @@ sp_dtype = np.dtype(
 )
 
 codes_dtype = np.dtype(
-    [
-        ("v_name", np.character, 12),
-        ("icode", np.int16),
-        ("code", np.character, 26),
-        ("ncode", np.int16),
-    ]
+    [("v_name", "S12"), ("icode", np.int16), ("code", "S26"), ("ncode", np.int16)]
 )
 
 we_dtype = np.dtype(
