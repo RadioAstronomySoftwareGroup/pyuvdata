@@ -108,7 +108,7 @@ class Mir(UVData):
 
         self.antenna_positions = uvutils.ECEF_from_rotECEF(antXYZ, sma_lon)
         self.baseline_array = (
-            2048 * (self.ant_1_array + 1) + (self.ant_2_array + 1) + 2 ^ 16
+            2048 * (self.ant_1_array + 1) + (self.ant_2_array + 1) + (2 ** 16)
         )
 
         # todo: This may need to be reshaped.
@@ -124,21 +124,21 @@ class Mir(UVData):
         self.channel_width = fres
         self.freq_array = fsky + fres * (np.arange(nch) - (nch / 2 - 0.5))
         self.freq_array = np.reshape(self.freq_array, (1, -1))
-        self.history = "Raw data"
+        self.history = "Raw Data"
         self.instrument = "SWARM"
 
         # todo: This won't work when we have multiple spectral windows.
         self.integration_time = mir_data.sp_data["integ"]
 
         # todo: Using MIR V3 convention, will need to be V2 compatible eventually.
-        self.lst_array = mir_data.in_data["lst"][bl_in_maparr]
+        self.lst_array = mir_data.in_data["lst"][bl_in_maparr].astype(float)
 
         # todo: We change between xx yy and rr ll, so we will need to update this.
-        self.polarization_array = [-5]
+        self.polarization_array = np.asarray([-5])
 
-        self.spw_array = [1]
+        self.spw_array = np.asarray([0])
         self.telescope_location_lat_lon_alt = (sma_lat, sma_lon, sma_alt)
-        self.telescope_name = "Submillimeter Array"
+        self.telescope_name = "SMA"
         time_array_mjd = mir_data.in_read["mjd"][bl_in_maparr]
         self.time_array = time_array_mjd + 2400000.5
         self.uvw_array = np.transpose(

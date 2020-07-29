@@ -42,6 +42,14 @@ KNOWN_TELESCOPES = {
         "altitude": 377.827,
         "citation": "Tingay et al., 2013",
     },
+    "SMA": {
+        "center_xyz": None,
+        "latitude": Angle("19d49m27.13895s").radian,
+        "longitude": Angle("-155d28m39.08279s").radian,
+        "altitude": 4083.948144,
+        "citation": "Ho, P. T. P., Moran, J. M., & Lo, K. Y. 2004, ApJL, 616, L1",
+    },
+
 }
 
 
