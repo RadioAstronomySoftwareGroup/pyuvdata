@@ -6,7 +6,6 @@ jobs:
     name: Run Tests
     env:
       PYTHON: ${{ matrix.python-version }}
-      OS: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     defaults:
      run:
