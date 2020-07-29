@@ -16,17 +16,18 @@ jobs:
         os: [macos-latest, windows-latest]
         python-version: [3.6, 3.7, 3.8]
     steps:
-      - name: Set ENV NAME
-        run: |
-          if [[ "${{ runner.os }}" = "Windows" ]]; then
-            echo "::set-env name=ENV_NAME::pyuvdata_tests_windows"
-          else
-            echo "::set-env name=ENV_NAME::pyuvdata_tests"
-          fi
-
       - uses: actions/checkout@master
         with:
           fetch-depth: 1
+
+      - name: Set ENV NAME
+        run: |
+          if [[ "${{ runner.os }}" = "Windows" ]]; then
+            echo "::set-output name=ENV_NAME::pyuvdata_tests_windows"
+          else
+            echo "::set-output name=ENV_NAME::pyuvdata_tests"
+          fi
+        id: env_name
 
       - name: Setup Miniconda
         uses: goanpeca/setup-miniconda@v1.6.0
@@ -34,8 +35,8 @@ jobs:
           auto-update-conda: "true"
           miniconda-version: "latest"
           python-version: ${{ matrix.python-version }}
-          environment-file: ci/${ENV_NAME}.yml
-          activate-environment: ${ENV_NAME}
+          environment-file: ci/${{ steps.env_name.outputs.ENV_NAME }}.yml
+          activate-environment: ${{ steps.env_name.outputs.ENV_NAME }}
 
       - name: Conda Info
         run: |
