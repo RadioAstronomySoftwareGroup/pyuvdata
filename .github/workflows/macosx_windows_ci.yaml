@@ -17,56 +17,47 @@ jobs:
         os: [macos-latest, windows-latest]
         python-version: [3.6, 3.7, 3.8]
     steps:
+      - name: Set ENV NAME
+        run: |
+          if [[ "${{ runner.os }}" = "Windows" ]]; then
+            echo "::set-env name=ENV_NAME::pyuvdata_tests_windows"
+          else
+            echo "::set-env name=ENV_NAME::pyuvdata_tests"
+          fi
+
       - uses: actions/checkout@master
         with:
           fetch-depth: 1
 
-      - name: Install Miniconda
-        shell: bash
+      - name: Setup Miniconda
+        uses: goanpeca/setup-miniconda@v1.6.0
+        with:
+          auto-update-conda: "true"
+          miniconda-version: "latests"
+          python-version: ${{ matrix.python-version }}
+          environment-file: ci/${ENV_NAME}.yml
+          activate-environment: ${ENV_NAME}
+
+      - name: Conda Info
         run: |
-          if [[ "${{ runner.os }}" = "Linux" ]]; then
-            MINICONDA_FILENAME=Miniconda3-latest-Linux-x86_64.sh
-            curl -L -o $MINICONDA_FILENAME "https://repo.continuum.io/miniconda/$MINICONDA_FILENAME"
-            bash ${MINICONDA_FILENAME} -b -f -p $HOME/miniconda3
-          elif [[ "${{ runner.os }}" = "macOS" ]]; then
-            wget https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh -O $HOME/miniconda.sh;
-            bash $HOME/miniconda.sh -b -p $HOME/miniconda3
-          elif [[ "${{ runner.os }}" = "Windows" ]]; then
-            MINICONDA_FILENAME=Miniconda3-latest-Windows-x86_64.exe
-            curl -L -o $MINICONDA_FILENAME "https://repo.continuum.io/miniconda/$MINICONDA_FILENAME"
-            ./Miniconda3-latest-Windows-x86_64.exe //InstallationType=JustMe //RegisterPython=0 //S
+          conda info -a
+          PYVER=`python -c "import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
+          if [[ $PYVER != $PYTHON ]]; then
+            exit 1;
           fi
-      - name: Setup paths
-        shell: bash
-        run: |
-          if [[ "${{ runner.os }}" = "Windows" ]]; then
-            echo "::add-path::$HOME/miniconda3"
-            echo "::add-path::$HOME/miniconda3/Scripts"
-            echo "::set-env name=ENV_NAME::pyuvdata_tests_windows"
-          else
-            echo "::add-path::$HOME/miniconda3/bin"
-            echo "::add-path::$HOME/miniconda3/envs/test/bin"
-            echo "::set-env name=ENV_NAME::pyuvdata_tests"
-          fi
-      - name: Setup Environment
-        shell: bash
-        run: ./ci/install_conda.sh
 
       - name: Install
-        shell: bash
         run: |
-          source activate ${ENV_NAME}
           pip install .
+
       - name: Run Tests
-        shell: bash
         run: |
           mkdir -p empty
           cd empty
-          source activate $ENV_NAME
           pytest --pyargs pyuvdata -c ../setup.cfg --cov=pyuvdata --cov-config=../.coveragerc --cov-report xml:../coverage.xml
           cd ..
+
       - name: Upload Coverage
-        shell: bash
         if: success()
         run: |
           bash <(curl -s https://codecov.io/bash) -t ${{ secrets.CODECOV_TOKEN }}
