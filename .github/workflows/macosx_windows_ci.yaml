@@ -32,7 +32,7 @@ jobs:
         uses: goanpeca/setup-miniconda@v1.6.0
         with:
           auto-update-conda: "true"
-          miniconda-version: "latests"
+          miniconda-version: "latest"
           python-version: ${{ matrix.python-version }}
           environment-file: ci/${ENV_NAME}.yml
           activate-environment: ${ENV_NAME}
