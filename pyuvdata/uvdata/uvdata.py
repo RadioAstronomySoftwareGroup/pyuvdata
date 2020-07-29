@@ -6728,6 +6728,10 @@ class UVData(UVBase):
         skip_bad_files=False,
         multidim_index=False,
         background_lsts=True,
+        isource=None,
+        irec=None,
+        isb=None,
+        corrchunk=None
     ):
         """
         Read a generic file into a UVData object.
@@ -6922,6 +6926,14 @@ class UVData(UVBase):
             If indices are not well-matched to data chunks, this can be slow.
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
+        isource : int
+            Source code for MIR dataset
+        irec : int
+            Receiver code for MIR dataset
+        isb : int
+            Sideband code for MIR dataset
+        corrchunk : int
+            Correlator chunk code for MIR dataset
 
         Raises
         ------
@@ -7235,7 +7247,11 @@ class UVData(UVBase):
                 )
 
             elif file_type == "mir":
-                self.read_mir(filename)
+                self.read_mir(filename,
+                              isource=isource,
+                              irec=irec,
+                              isb=isb,
+                              corrchunk=corrchunk)
                 select = False
 
             elif file_type == "miriad":
