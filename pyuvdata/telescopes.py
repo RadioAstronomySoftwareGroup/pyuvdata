@@ -49,7 +49,6 @@ KNOWN_TELESCOPES = {
         "altitude": 4083.948144,
         "citation": "Ho, P. T. P., Moran, J. M., & Lo, K. Y. 2004, ApJL, 616, L1",
     },
-
 }
 
 

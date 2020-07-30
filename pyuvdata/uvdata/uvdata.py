@@ -6731,7 +6731,7 @@ class UVData(UVBase):
         isource=None,
         irec=None,
         isb=None,
-        corrchunk=None
+        corrchunk=None,
     ):
         """
         Read a generic file into a UVData object.
@@ -7247,11 +7247,9 @@ class UVData(UVBase):
                 )
 
             elif file_type == "mir":
-                self.read_mir(filename,
-                              isource=isource,
-                              irec=irec,
-                              isb=isb,
-                              corrchunk=corrchunk)
+                self.read_mir(
+                    filename, isource=isource, irec=irec, isb=isb, corrchunk=corrchunk
+                )
                 select = False
 
             elif file_type == "miriad":
