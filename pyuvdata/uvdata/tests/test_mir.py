@@ -19,6 +19,7 @@ def uv_in_uvfits(tmp_path):
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     write_file = str(tmp_path / "outtest_mir.uvfits")
 
+    # Currently only one source and one spectral window are supported.
     uv_in.read_mir(testfile, isource=1, irec=0, isb=0, corrchunk=1)
     uv_out = UVData()
 
