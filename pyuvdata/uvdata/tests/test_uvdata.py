@@ -579,7 +579,7 @@ def test_antnums_to_baselines(uvdata_baseline):
 def test_known_telescopes():
     """Test known_telescopes method returns expected results."""
     uv_object = UVData()
-    known_telescopes = ["PAPER", "HERA", "MWA"]
+    known_telescopes = ["PAPER", "HERA", "MWA", "SMA"]
     # calling np.sort().tolist() because [].sort() acts inplace and returns None
     # Before test had None == None
     assert (
