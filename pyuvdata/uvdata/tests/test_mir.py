@@ -6,17 +6,10 @@
 
 """
 import os
-import shutil
-import copy
-import numpy as np
+
 import pytest
-from astropy.time import Time, TimeDelta
-from astropy import constants as const
 
 from pyuvdata import UVData
-from ..miriad import Miriad
-import pyuvdata.utils as uvutils
-import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 
 
