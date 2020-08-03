@@ -73,10 +73,11 @@ class Mir(UVData):
 
         # Load up the visibilities into the MirParser object. This will also update the
         # filters, and will make sure we're looking at the right metadata.
-        try:
-            mir_data.load_data(load_vis=True, load_raw=True)
-        except IndexError:
+        mir_data._update_filter()
+        if len(mir_data.in_data) == 0:
             raise IndexError("No valid records matching those selections!")
+
+        mir_data.load_data(load_vis=True, load_raw=True)
 
         # Create a simple array/list for broadcasting values stored on a
         # per-intergration basis in MIR into the (tasty) per-blt records in UVDATA.

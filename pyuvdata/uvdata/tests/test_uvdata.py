@@ -617,7 +617,9 @@ def test_converttofiletype(uvdata_data):
 
     with pytest.raises(ValueError) as cm:
         uvdata_data.uv_object._convert_to_filetype("foo")
-    assert str(cm.value).startswith("filetype must be uvfits, miriad, fhd, or uvh5")
+    assert str(cm.value).startswith(
+        "filetype must be uvfits, mir, miriad, fhd, or uvh5"
+    )
 
 
 def test_baseline_to_antnums(uvdata_baseline):
