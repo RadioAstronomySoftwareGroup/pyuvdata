@@ -836,6 +836,81 @@ class UVFlag(UVBase):
         assert self.type == "baseline", 'Must be "baseline" type UVFlag object.'
         return [self.baseline_to_antnums(bl) for bl in self.get_baseline_nums()]
 
+    def get_ants(self):
+        """
+        Get the unique antennas that have data associated with them.
+
+        Returns
+        -------
+        ndarray of int
+            Array of unique antennas with data associated with them.
+        """
+        if self.type == "baseline":
+            return np.unique(np.append(self.ant_1_array, self.ant_2_array))
+        elif self.type == "antenna":
+            return np.unique(self.ant_array)
+        elif self.type == "waterfall":
+            raise ValueError("A waterfall type UVFlag object has no sense of antennas.")
+
+    def get_pols(self):
+        """
+        Get the polarizations in the data.
+
+        Returns
+        -------
+        list of str
+            list of polarizations (as strings) in the data.
+        """
+        return uvutils.polnum2str(
+            self.polarization_array, x_orientation=self.x_orientation
+        )
+
+    def parse_ants(self, ant_str, print_toggle=False):
+        """
+        Get antpair and polarization from parsing an aipy-style ant string.
+
+        Used to support the the select function.
+        This function is only useable when the UVFlag type is 'baseline'.
+        Generates two lists of antenna pair tuples and polarization indices based
+        on parsing of the string ant_str.  If no valid polarizations (pseudo-Stokes
+        params, or combinations of [lr] or [xy]) or antenna numbers are found in
+        ant_str, ant_pairs_nums and polarizations are returned as None.
+
+        Parameters
+        ----------
+        ant_str : str
+            String containing antenna information to parse. Can be 'all',
+            'auto', 'cross', or combinations of antenna numbers and polarization
+            indicators 'l' and 'r' or 'x' and 'y'.  Minus signs can also be used
+            in front of an antenna number or baseline to exclude it from being
+            output in ant_pairs_nums. If ant_str has a minus sign as the first
+            character, 'all,' will be appended to the beginning of the string.
+            See the tutorial for examples of valid strings and their behavior.
+        print_toggle : bool
+            Boolean for printing parsed baselines for a visual user check.
+
+        Returns
+        -------
+        ant_pairs_nums : list of tuples of int or None
+            List of tuples containing the parsed pairs of antenna numbers, or
+            None if ant_str is 'all' or a pseudo-Stokes polarizations.
+        polarizations : list of int or None
+            List of desired polarizations or None if ant_str does not contain a
+            polarization specification.
+
+        """
+        if self.type != "baseline":
+            raise ValueError(
+                "UVFlag objects can only call 'parse_ants' function "
+                "if type is 'baseline'."
+            )
+        return uvutils.parse_ants(
+            self,
+            ant_str=ant_str,
+            print_toggle=print_toggle,
+            x_orientation=self.x_orientation,
+        )
+
     def collapse_pol(
         self,
         method="quadmean",
@@ -1174,9 +1249,7 @@ class UVFlag(UVBase):
         self.Nbls = np.unique(self.baseline_array).size
         self.ant_1_array = uv.ant_1_array
         self.ant_2_array = uv.ant_2_array
-        self.Nants_data = int(
-            len(set(self.ant_1_array.tolist() + self.ant_2_array.tolist()))
-        )
+        self.Nants_data = int(np.union1d(self.ant_1_array, self.ant_2_array).size)
 
         self.time_array = uv.time_array
         self.lst_array = uv.lst_array
@@ -1501,7 +1574,7 @@ class UVFlag(UVBase):
                 this.ant_1_array = np.concatenate([this.ant_1_array, other.ant_1_array])
                 this.ant_2_array = np.concatenate([this.ant_2_array, other.ant_2_array])
                 this.Nants_data = int(
-                    len(set(self.ant_1_array.tolist() + self.ant_2_array.tolist()))
+                    np.union1d(this.ant_1_array, this.ant_2_array).size
                 )
 
             this.Ntimes = np.unique(this.time_array).size
@@ -1520,9 +1593,7 @@ class UVFlag(UVBase):
             )
             this.ant_1_array = np.concatenate([this.ant_1_array, other.ant_1_array])
             this.ant_2_array = np.concatenate([this.ant_2_array, other.ant_2_array])
-            this.Nants_data = int(
-                len(set(self.ant_1_array.tolist() + self.ant_2_array.tolist()))
-            )
+            this.Nants_data = int(np.union1d(self.ant_1_array, self.ant_2_array).size)
 
             this.Nbls = np.unique(this.baseline_array).size
             this.Nblts = len(this.baseline_array)
@@ -1776,6 +1847,7 @@ class UVFlag(UVBase):
     def _select_preprocess(
         self,
         antenna_nums,
+        ant_str,
         bls,
         frequencies,
         freq_chans,
@@ -1791,8 +1863,7 @@ class UVFlag(UVBase):
         antenna_nums : array_like of int, optional
             The antennas numbers to keep in the object (antenna positions and
             names for the removed antennas will be retained unless
-            `keep_all_metadata` is False). This cannot be provided if
-            `antenna_names` is also provided.
+            `keep_all_metadata` is False).
         bls : list of tuple, optional
             A list of antenna number tuples (e.g. [(0,1), (3,2)]) or a list of
             baseline 3-tuples (e.g. [(0,1,'xx'), (2,3,'yy')]) specifying baselines
@@ -1800,6 +1871,18 @@ class UVFlag(UVBase):
             within the tuple does not matter. For length-3 tuples, the polarization
             string is in the order of the two antennas. If length-3 tuples are
             provided, `polarizations` must be None.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to keep in the object.  Can be 'auto', 'cross', 'all',
+            or combinations of antenna numbers and polarizations (e.g. '1',
+            '1_2', '1x_2y').  See tutorial for more examples of valid strings and
+            the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1, 2) and (2, 3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `bls` args or the `polarizations` parameters,
+            if it is a ValueError will be raised.
         frequencies : array_like of float, optional
             The frequencies to keep in the object, each value passed here should
             exist in the freq_array.
@@ -1847,6 +1930,18 @@ class UVFlag(UVBase):
                 raise ValueError(
                     "Cannot select on bls with waterfall type " "UVFlag objects."
                 )
+
+        if ant_str is not None:
+            if not (antenna_nums is None and bls is None and polarizations is None):
+                raise ValueError(
+                    "Cannot provide ant_str with antenna_nums, bls, or polarizations."
+                )
+            else:
+                bls, polarizations = self.parse_ants(ant_str)
+                if bls is not None and len(bls) == 0:
+                    raise ValueError(
+                        f"There is no data matching ant_str={ant_str} in this object."
+                    )
 
         # Antennas, times and blt_inds all need to be combined into a set of
         # blts indices to keep.
@@ -2146,7 +2241,7 @@ class UVFlag(UVBase):
                 self.ant_1_array = self.ant_1_array[blt_inds]
                 self.ant_2_array = self.ant_2_array[blt_inds]
                 self.Nants_data = int(
-                    len(set(self.ant_1_array.tolist() + self.ant_2_array.tolist()))
+                    np.union1d(self.ant_1_array, self.ant_2_array).size
                 )
 
             self.time_array = self.time_array[blt_inds]
@@ -2176,6 +2271,7 @@ class UVFlag(UVBase):
         antenna_nums=None,
         ant_inds=None,
         bls=None,
+        ant_str=None,
         frequencies=None,
         freq_chans=None,
         times=None,
@@ -2213,6 +2309,18 @@ class UVFlag(UVBase):
             within the tuple does not matter. For length-3 tuples, the polarization
             string is in the order of the two antennas. If length-3 tuples are
             provided, `polarizations` must be None.
+        ant_str : str, optional
+            A string containing information about what antenna numbers
+            and polarizations to keep in the object.  Can be 'auto', 'cross', 'all',
+            or combinations of antenna numbers and polarizations (e.g. '1',
+            '1_2', '1x_2y').  See tutorial for more examples of valid strings and
+            the behavior of different forms for ant_str.
+            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
+            be kept for both baselines (1, 2) and (2, 3) to return a valid
+            pyuvdata object.
+            An ant_str cannot be passed in addition to any of `antenna_nums`,
+            `antenna_names`, `bls` args or the `polarizations` parameters,
+            if it is a ValueError will be raised.
         frequencies : array_like of float, optional
             The frequencies to keep in the object, each value passed here should
             exist in the freq_array.
@@ -2267,14 +2375,15 @@ class UVFlag(UVBase):
             pol_inds,
             history_update_string,
         ) = uv_object._select_preprocess(
-            antenna_nums,
-            bls,
-            frequencies,
-            freq_chans,
-            times,
-            polarizations,
-            blt_inds,
-            ant_inds,
+            antenna_nums=antenna_nums,
+            ant_str=ant_str,
+            bls=bls,
+            frequencies=frequencies,
+            freq_chans=freq_chans,
+            times=times,
+            polarizations=polarizations,
+            blt_inds=blt_inds,
+            ant_inds=ant_inds,
         )
 
         # do select operations on everything except data_array, flag_array
@@ -2509,7 +2618,9 @@ class UVFlag(UVBase):
                         self.Nants_data = int(header["Nants_data"][()])
                     else:
                         self.Nants_data = int(
-                            len(self.ant_1_array.tolist() + self.ant_2_array.tolist())
+                            np.unique(
+                                np.union1d(self.ant_1_array, self.ant_2_array)
+                            ).size
                         )
 
                     if "Nspws" in header.keys():

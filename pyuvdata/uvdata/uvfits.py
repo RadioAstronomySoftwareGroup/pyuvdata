@@ -131,9 +131,7 @@ class UVFITS(UVData):
         self.Nbls = len(np.unique(self.baseline_array))
 
         # initialize internal variables based on the antenna lists
-        self.Nants_data = int(
-            len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist()))
-        )
+        self.Nants_data = int(np.union1d(self.ant_1_array, self.ant_2_array).size)
 
         # read baseline vectors in units of seconds, return in meters
         # FITS uvw direction convention is opposite ours and Miriad's.
@@ -184,10 +182,11 @@ class UVFITS(UVData):
         polarizations,
         blt_inds,
         read_metadata,
+        keep_all_metadata,
         run_check,
         check_extra,
         run_check_acceptability,
-        keep_all_metadata,
+        strict_uvw_antpos_check,
     ):
         """
         Read just the visibility and flag data of the uvfits file.
@@ -304,7 +303,9 @@ class UVFITS(UVData):
         # check if object has all required UVParameters set
         if run_check:
             self.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
     def read_uvfits(
@@ -320,12 +321,13 @@ class UVFITS(UVData):
         time_range=None,
         polarizations=None,
         blt_inds=None,
+        keep_all_metadata=True,
         read_data=True,
+        background_lsts=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        keep_all_metadata=True,
-        background_lsts=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Read in header, metadata and data from a uvfits file.
@@ -394,6 +396,8 @@ class UVFITS(UVData):
             Read in the visibility, nsample and flag data. If set to False, only
             the metadata will be read in. Setting read_data to False results in
             a metadata only object.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -406,8 +410,9 @@ class UVFITS(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
 
         Raises
@@ -621,10 +626,11 @@ class UVFITS(UVData):
                 polarizations,
                 blt_inds,
                 False,
+                keep_all_metadata,
                 run_check,
                 check_extra,
                 run_check_acceptability,
-                keep_all_metadata,
+                strict_uvw_antpos_check,
             )
 
     def write_uvfits(
@@ -636,6 +642,7 @@ class UVFITS(UVData):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Write the data to a uvfits file.
@@ -660,6 +667,9 @@ class UVFITS(UVData):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters before
             writing the file.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Raises
         ------
@@ -682,6 +692,7 @@ class UVFITS(UVData):
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 check_freq_spacing=True,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
         if self.phase_type == "phased":

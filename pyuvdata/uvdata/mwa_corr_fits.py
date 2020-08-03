@@ -163,6 +163,7 @@ class MWACorrFITS(UVData):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Read in MWA correlator gpu box files.
@@ -233,6 +234,9 @@ class MWACorrFITS(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done).
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
 
         Raises
@@ -720,8 +724,10 @@ class MWACorrFITS(UVData):
                 )
 
             # check if object is self-consistent
+            # uvws are calcuated using pyuvdata, so turn off the check for speed.
             if run_check:
                 self.check(
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
+                    strict_uvw_antpos_check=strict_uvw_antpos_check,
                 )

@@ -26,40 +26,14 @@ pytestmark = [
 
 
 @pytest.fixture(scope="function")
-def uv_miriad():
-    # read in a miriad test file
-    pytest.importorskip("pyuvdata._miriad")
-    uv_miriad = UVData()
-    miriad_filename = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    uv_miriad.read_miriad(miriad_filename)
-    yield uv_miriad
-
-    # clean up when done
-    del uv_miriad
-
-    return
-
-
-@pytest.fixture(scope="function")
-def uv_uvfits():
-    # read in a uvfits test file
-    uv_uvfits = UVData()
-    uvfits_filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_uvfits.read_uvfits(uvfits_filename)
-    yield uv_uvfits
-
-    # clean up when done
-    del uv_uvfits
-
-    return
-
-
-@pytest.fixture(scope="function")
 def uv_uvh5():
     # read in a uvh5 test file
     uv_uvh5 = UVData()
     uvh5_filename = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
-    uv_uvh5.read_uvh5(uvh5_filename)
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
+    uv_uvh5.read_uvh5(uvh5_filename, run_check_acceptability=False)
     yield uv_uvh5
 
     # clean up when done
@@ -69,11 +43,9 @@ def uv_uvh5():
 
 
 @pytest.fixture(scope="function")
-def uv_partial_write(tmp_path):
+def uv_partial_write(casa_uvfits, tmp_path):
     # convert a uvfits file to uvh5, cutting down the amount of data
-    uv_uvfits = UVData()
-    uvfits_filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_uvfits.read_uvfits(uvfits_filename)
+    uv_uvfits = casa_uvfits
     uv_uvfits.select(antenna_nums=[3, 7, 24])
     uv_uvfits.lst_array = uvutils.get_lst_for_time(
         uv_uvfits.time_array, *uv_uvfits.telescope_location_lat_lon_alt_degrees
@@ -142,11 +114,12 @@ def initialize_with_zeros_ints(uvd, filename):
     return
 
 
-def test_read_miriad_write_uvh5_read_uvh5(uv_miriad, tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_read_miriad_write_uvh5_read_uvh5(paper_miriad, tmp_path):
     """
     Test a miriad file round trip.
     """
-    uv_in = uv_miriad
+    uv_in = paper_miriad
     uv_out = UVData()
     testfile = str(tmp_path / "outtest_miriad.uvh5")
 
@@ -171,11 +144,12 @@ def test_read_miriad_write_uvh5_read_uvh5(uv_miriad, tmp_path):
     return
 
 
-def test_read_uvfits_write_uvh5_read_uvh5(uv_uvfits, tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_read_uvfits_write_uvh5_read_uvh5(casa_uvfits, tmp_path):
     """
     Test a uvfits file round trip.
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     uv_out = UVData()
     testfile = str(tmp_path / "outtest_uvfits.uvh5")
     uv_in.write_uvh5(testfile, clobber=True)
@@ -207,11 +181,12 @@ def test_read_uvh5_errors():
     return
 
 
-def test_write_uvh5_errors(uv_uvfits, tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_write_uvh5_errors(casa_uvfits, tmp_path):
     """
     Test raising errors in write_uvh5 function.
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     uv_out = UVData()
     testfile = str(tmp_path / "outtest_uvfits.uvh5")
     with open(testfile, "a"):
@@ -233,11 +208,12 @@ def test_write_uvh5_errors(uv_uvfits, tmp_path):
     return
 
 
-def test_uvh5_optional_parameters(uv_uvfits, tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_uvh5_optional_parameters(casa_uvfits, tmp_path):
     """
     Test reading and writing optional parameters not in sample files.
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     uv_out = UVData()
     testfile = str(tmp_path / "outtest_uvfits.uvh5")
 
@@ -267,13 +243,14 @@ def test_uvh5_optional_parameters(uv_uvfits, tmp_path):
     return
 
 
-def test_uvh5_compression_options(uv_uvfits, tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_uvh5_compression_options(casa_uvfits, tmp_path):
     """
     Test writing data with compression filters.
     """
     import h5py
 
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     uv_out = UVData()
     testfile = str(tmp_path / "outtest_uvfits_compression.uvh5")
 
@@ -312,11 +289,13 @@ def test_uvh5_compression_options(uv_uvfits, tmp_path):
     return
 
 
-def test_uvh5_read_multiple_files(uv_uvfits, tmp_path):
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_uvh5_read_multiple_files(casa_uvfits, tmp_path):
     """
     Test reading multiple uvh5 files.
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     testfile1 = str(tmp_path / "uv1.uvh5")
     testfile2 = str(tmp_path / "uv2.uvh5")
     uv1 = uv_in.copy()
@@ -325,14 +304,8 @@ def test_uvh5_read_multiple_files(uv_uvfits, tmp_path):
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.write_uvh5(testfile1, clobber=True)
     uv2.write_uvh5(testfile2, clobber=True)
-    uvtest.checkWarnings(
-        uv1.read,
-        func_args=[np.array([testfile1, testfile2])],
-        func_kwargs={"file_type": "uvh5"},
-        message=2 * ["Telescope EVLA is not"],
-        category=2 * [UserWarning],
-        nwarnings=2,
-    )
+    uv1.read(np.array([testfile1, testfile2]), file_type="uvh5")
+
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         uv_in.history + "  Downselected to "
@@ -351,11 +324,12 @@ def test_uvh5_read_multiple_files(uv_uvfits, tmp_path):
     return
 
 
-def test_uvh5_read_multiple_files_metadata_only(uv_uvfits, tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_uvh5_read_multiple_files_metadata_only(casa_uvfits, tmp_path):
     """
     Test reading multiple uvh5 files with metadata only.
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     testfile1 = str(tmp_path / "uv1.uvh5")
     testfile2 = str(tmp_path / "uv2.uvh5")
     uv1 = uv_in.copy()
@@ -387,11 +361,12 @@ def test_uvh5_read_multiple_files_metadata_only(uv_uvfits, tmp_path):
     return
 
 
-def test_uvh5_rea_multiple_files_axis(uv_uvfits, tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_uvh5_rea_multiple_files_axis(casa_uvfits, tmp_path):
     """
     Test reading multiple uvh5 files with setting axis.
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     testfile1 = str(tmp_path / "uv1.uvh5")
     testfile2 = str(tmp_path / "uv2.uvh5")
     uv1 = uv_in.copy()
@@ -419,11 +394,12 @@ def test_uvh5_rea_multiple_files_axis(uv_uvfits, tmp_path):
     return
 
 
-def test_uvh5_partial_read_antennas(uv_uvfits, tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_uvh5_partial_read_antennas(casa_uvfits, tmp_path):
     """
     Test reading in only certain antennas from disk.
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
@@ -445,11 +421,12 @@ def test_uvh5_partial_read_antennas(uv_uvfits, tmp_path):
     return
 
 
-def test_uvh5_partial_read_freqs(uv_uvfits, tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_uvh5_partial_read_freqs(casa_uvfits, tmp_path):
     """
     Test reading in only certain frequencies from disk.
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
@@ -471,12 +448,13 @@ def test_uvh5_partial_read_freqs(uv_uvfits, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Selected polarization values are not evenly spaced")
-def test_uvh5_partial_read_pols(uv_uvfits, tmp_path):
+def test_uvh5_partial_read_pols(casa_uvfits, tmp_path):
     """
     Test reading in only certain polarizations from disk.
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
@@ -503,11 +481,12 @@ def test_uvh5_partial_read_pols(uv_uvfits, tmp_path):
     return
 
 
-def test_uvh5_partial_read_times(uv_uvfits, tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_uvh5_partial_read_times(casa_uvfits, tmp_path):
     """
     Test reading in only certain times from disk.
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
@@ -529,12 +508,13 @@ def test_uvh5_partial_read_times(uv_uvfits, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Selected polarization values are not evenly spaced")
-def test_uvh5_partial_read_multi1(uv_uvfits, tmp_path):
+def test_uvh5_partial_read_multi1(casa_uvfits, tmp_path):
     """
     Test select-on-read for multiple axes, frequencies being smallest fraction.
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
@@ -590,13 +570,14 @@ def test_uvh5_partial_read_multi1(uv_uvfits, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Selected polarization values are not evenly spaced")
 @pytest.mark.filterwarnings("ignore:Selected frequencies are not evenly spaced")
-def test_uvh5_partial_read_multi2(uv_uvfits, tmp_path):
+def test_uvh5_partial_read_multi2(casa_uvfits, tmp_path):
     """
     Test select-on-read for multiple axes, baselines being smallest fraction.
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
@@ -652,12 +633,13 @@ def test_uvh5_partial_read_multi2(uv_uvfits, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Selected frequencies are not evenly spaced")
-def test_uvh5_partial_read_multi3(uv_uvfits, tmp_path):
+def test_uvh5_partial_read_multi3(casa_uvfits, tmp_path):
     """
     Test select-on-read for multiple axes, polarizations being smallest fraction.
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
@@ -714,12 +696,13 @@ def test_uvh5_partial_read_multi3(uv_uvfits, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Selected frequencies are not evenly spaced")
-def test_uvh5_read_multdim_index(tmp_path, uv_uvfits):
+def test_uvh5_read_multdim_index(tmp_path, casa_uvfits):
     """
     Test some odd cases for UVH5 multdim indexing
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     testfile = str(tmp_path / "outtest.uvh5")
     # change telescope name to avoid errors
     uv_in.telescope_name = "PAPER"
@@ -742,6 +725,7 @@ def test_uvh5_read_multdim_index(tmp_path, uv_uvfits):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_partial_write_antpairs(uv_partial_write, tmp_path):
     """
     Test writing an entire UVH5 file in pieces by antpairs.
@@ -788,6 +772,7 @@ def test_uvh5_partial_write_antpairs(uv_partial_write, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_partial_write_frequencies(uv_partial_write, tmp_path):
     """
     Test writing an entire UVH5 file in pieces by frequencies.
@@ -832,6 +817,7 @@ def test_uvh5_partial_write_frequencies(uv_partial_write, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_partial_write_blts(uv_partial_write, tmp_path):
     """
     Test writing an entire UVH5 file in pieces by blt.
@@ -876,6 +862,7 @@ def test_uvh5_partial_write_blts(uv_partial_write, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_partial_write_pols(uv_partial_write, tmp_path):
     """
     Test writing an entire UVH5 file in pieces by pol.
@@ -928,6 +915,7 @@ def test_uvh5_partial_write_pols(uv_partial_write, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_partial_write_irregular_blt(uv_partial_write, tmp_path):
     """
     Test writing a uvh5 file using irregular intervals for single blt.
@@ -977,6 +965,7 @@ def test_uvh5_partial_write_irregular_blt(uv_partial_write, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_partial_write_irregular_freq(uv_partial_write, tmp_path):
     """
     Test writing a uvh5 file using irregular intervals for single frequency.
@@ -1026,6 +1015,7 @@ def test_uvh5_partial_write_irregular_freq(uv_partial_write, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_partial_write_irregular_pol(uv_partial_write, tmp_path):
     """
     Test writing a uvh5 file using irregular intervals for single polarization.
@@ -1079,6 +1069,7 @@ def test_uvh5_partial_write_irregular_pol(uv_partial_write, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_partial_write_irregular_multi1(uv_partial_write, tmp_path):
     """
     Test writing a uvh5 file using irregular intervals for blts and freqs.
@@ -1145,6 +1136,7 @@ def test_uvh5_partial_write_irregular_multi1(uv_partial_write, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_partial_write_irregular_multi2(uv_partial_write, tmp_path):
     """
     Test writing a uvh5 file using irregular intervals for freqs and pols.
@@ -1218,6 +1210,7 @@ def test_uvh5_partial_write_irregular_multi2(uv_partial_write, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_partial_write_irregular_multi3(uv_partial_write, tmp_path):
     """
     Test writing a uvh5 file using irregular intervals for blts and pols.
@@ -1279,6 +1272,7 @@ def test_uvh5_partial_write_irregular_multi3(uv_partial_write, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_partial_write_irregular_multi4(uv_partial_write, tmp_path):
     """
     Test writing a uvh5 file using irregular intervals for all axes.
@@ -1364,6 +1358,7 @@ def test_uvh5_partial_write_irregular_multi4(uv_partial_write, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_partial_write_errors(uv_partial_write, tmp_path):
     """
     Test errors in uvh5_write_part method.
@@ -1432,6 +1427,7 @@ def test_uvh5_partial_write_errors(uv_partial_write, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_initialize_uvh5_file(uv_partial_write, tmp_path):
     """
     Test initializing a UVH5 file on disk.
@@ -1456,6 +1452,7 @@ def test_initialize_uvh5_file(uv_partial_write, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_initialize_uvh5_file_errors(uv_partial_write, tmp_path, capsys):
     """
     Test errors in initializing a UVH5 file on disk.
@@ -1485,6 +1482,7 @@ def test_initialize_uvh5_file_errors(uv_partial_write, tmp_path, capsys):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_initialize_uvh5_file_compression_opts(uv_partial_write, tmp_path):
     """
     Test initializing a uvh5 file with compression options.
@@ -1513,11 +1511,12 @@ def test_initialize_uvh5_file_compression_opts(uv_partial_write, tmp_path):
     return
 
 
-def test_uvh5_lst_array(uv_uvfits, tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_uvh5_lst_array(casa_uvfits, tmp_path):
     """
     Test different cases of the lst_array.
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     uv_out = UVData()
     testfile = str(tmp_path / "outtest_uvfits.uvh5")
     uv_in.telescope_name = "PAPER"
@@ -1538,7 +1537,12 @@ def test_uvh5_lst_array(uv_uvfits, tmp_path):
     uvtest.checkWarnings(
         uv_out.read_uvh5,
         [testfile],
-        message="LST values stored in outtest_uvfits.uvh5 are not self-consistent",
+        nwarnings=2,
+        message=[
+            f"LST values stored in {testfile} are not self-consistent",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
     )
     uv_out.lst_array = lst_array
     assert uv_in == uv_out
@@ -1549,11 +1553,12 @@ def test_uvh5_lst_array(uv_uvfits, tmp_path):
     return
 
 
-def test_uvh5_read_header_special_cases(uv_uvfits, tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_uvh5_read_header_special_cases(casa_uvfits, tmp_path):
     """
     Test special cases values when reading files.
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     uv_out = UVData()
     testfile = str(tmp_path / "outtest_uvfits.uvh5")
     uv_in.telescope_name = "PAPER"
@@ -1590,15 +1595,20 @@ def test_uvh5_read_ints(uv_uvh5, tmp_path):
     uv_in = uv_uvh5
     uv_out = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
-    uv_in.write_uvh5(testfile, clobber=True)
+    uv_in.write_uvh5(testfile, run_check_acceptability=False, clobber=True)
 
     # read it back in to make sure data is the same
-    uv_out.read(testfile)
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
+    uv_out.read(testfile, run_check_acceptability=False)
     assert uv_in == uv_out
 
     # now read in as np.complex128
     uvh5_filename = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
-    uv_in.read_uvh5(uvh5_filename, data_array_dtype=np.complex128)
+    uv_in.read_uvh5(
+        uvh5_filename, run_check_acceptability=False, data_array_dtype=np.complex128
+    )
     assert uv_in == uv_out
     assert uv_in.data_array.dtype == np.dtype(np.complex128)
 
@@ -1614,10 +1624,15 @@ def test_uvh5_read_ints_error():
     """
     uv_in = UVData()
     uvh5_filename = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
 
     # raise error for bogus data_array_dtype
     with pytest.raises(ValueError) as cm:
-        uv_in.read_uvh5(uvh5_filename, data_array_dtype=np.int32)
+        uv_in.read_uvh5(
+            uvh5_filename, run_check_acceptability=False, data_array_dtype=np.int32
+        )
     assert str(cm.value).startswith(
         "data_array_dtype must be np.complex64 or np.complex128"
     )
@@ -1632,10 +1647,18 @@ def test_uvh5_write_ints(uv_uvh5, tmp_path):
     uv_in = uv_uvh5
     uv_out = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
-    uv_in.write_uvh5(testfile, clobber=True, data_write_dtype=uvh5._hera_corr_dtype)
+    uv_in.write_uvh5(
+        testfile,
+        clobber=True,
+        data_write_dtype=uvh5._hera_corr_dtype,
+        run_check_acceptability=False,
+    )
 
     # read it back in to make sure data is the same
-    uv_out.read(testfile)
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
+    uv_out.read(testfile, run_check_acceptability=False)
     assert uv_in == uv_out
 
     # also check that the datatype on disk is the right type
@@ -1659,12 +1682,15 @@ def test_uvh5_partial_read_ints_antennas():
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
     uvh5_file = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
 
     # select on antennas
     ants_to_keep = np.array([0, 1])
-    uvh5_uv.read(uvh5_file, antenna_nums=ants_to_keep)
-    uvh5_uv2.read(uvh5_file)
-    uvh5_uv2.select(antenna_nums=ants_to_keep)
+    uvh5_uv.read(uvh5_file, run_check_acceptability=False, antenna_nums=ants_to_keep)
+    uvh5_uv2.read(uvh5_file, run_check_acceptability=False)
+    uvh5_uv2.select(antenna_nums=ants_to_keep, run_check_acceptability=False)
     assert uvh5_uv == uvh5_uv2
 
     return
@@ -1677,12 +1703,15 @@ def test_uvh5_partial_read_ints_freqs():
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
     uvh5_file = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
 
     # select on frequency channels
     chans_to_keep = np.arange(12, 22)
-    uvh5_uv.read(uvh5_file, freq_chans=chans_to_keep)
-    uvh5_uv2.read(uvh5_file)
-    uvh5_uv2.select(freq_chans=chans_to_keep)
+    uvh5_uv.read(uvh5_file, run_check_acceptability=False, freq_chans=chans_to_keep)
+    uvh5_uv2.read(uvh5_file, run_check_acceptability=False)
+    uvh5_uv2.select(freq_chans=chans_to_keep, run_check_acceptability=False)
     assert uvh5_uv == uvh5_uv2
 
     return
@@ -1695,12 +1724,15 @@ def test_uvh5_partial_read_ints_pols():
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
     uvh5_file = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
 
     # select on pols
     pols_to_keep = [-5, -6]
-    uvh5_uv.read(uvh5_file, polarizations=pols_to_keep)
-    uvh5_uv2.read(uvh5_file)
-    uvh5_uv2.select(polarizations=pols_to_keep)
+    uvh5_uv.read(uvh5_file, run_check_acceptability=False, polarizations=pols_to_keep)
+    uvh5_uv2.read(uvh5_file, run_check_acceptability=False)
+    uvh5_uv2.select(polarizations=pols_to_keep, run_check_acceptability=False)
     assert uvh5_uv == uvh5_uv2
 
     return
@@ -1713,13 +1745,20 @@ def test_uvh5_partial_read_ints_times():
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
     uvh5_file = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
 
     # select on read using time_range
-    uvh5_uv.read_uvh5(uvh5_file, read_data=False)
+    uvh5_uv.read_uvh5(uvh5_file, run_check_acceptability=False, read_data=False)
     unique_times = np.unique(uvh5_uv.time_array)
-    uvh5_uv.read(uvh5_file, time_range=[unique_times[0], unique_times[1]])
-    uvh5_uv2.read(uvh5_file)
-    uvh5_uv2.select(times=unique_times[0:2])
+    uvh5_uv.read(
+        uvh5_file,
+        run_check_acceptability=False,
+        time_range=[unique_times[0], unique_times[1]],
+    )
+    uvh5_uv2.read(uvh5_file, run_check_acceptability=False)
+    uvh5_uv2.select(times=unique_times[0:2], run_check_acceptability=False)
     assert uvh5_uv == uvh5_uv2
 
     return
@@ -1732,6 +1771,9 @@ def test_uvh5_partial_read_ints_multi1():
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
     uvh5_file = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
 
     # read frequencies first
     ants_to_keep = np.array([0, 1])
@@ -1742,10 +1784,14 @@ def test_uvh5_partial_read_ints_multi1():
         antenna_nums=ants_to_keep,
         freq_chans=chans_to_keep,
         polarizations=pols_to_keep,
+        run_check_acceptability=False,
     )
-    uvh5_uv2.read(uvh5_file)
+    uvh5_uv2.read(uvh5_file, run_check_acceptability=False)
     uvh5_uv2.select(
-        antenna_nums=ants_to_keep, freq_chans=chans_to_keep, polarizations=pols_to_keep
+        antenna_nums=ants_to_keep,
+        freq_chans=chans_to_keep,
+        polarizations=pols_to_keep,
+        run_check_acceptability=False,
     )
     assert uvh5_uv == uvh5_uv2
 
@@ -1759,6 +1805,9 @@ def test_uvh5_partial_read_ints_multi2():
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
     uvh5_file = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
 
     # read baselines first
     ants_to_keep = np.array([0, 1])
@@ -1769,10 +1818,14 @@ def test_uvh5_partial_read_ints_multi2():
         antenna_nums=ants_to_keep,
         freq_chans=chans_to_keep,
         polarizations=pols_to_keep,
+        run_check_acceptability=False,
     )
-    uvh5_uv2.read(uvh5_file)
+    uvh5_uv2.read(uvh5_file, run_check_acceptability=False)
     uvh5_uv2.select(
-        antenna_nums=ants_to_keep, freq_chans=chans_to_keep, polarizations=pols_to_keep,
+        antenna_nums=ants_to_keep,
+        freq_chans=chans_to_keep,
+        polarizations=pols_to_keep,
+        run_check_acceptability=False,
     )
     assert uvh5_uv == uvh5_uv2
 
@@ -1786,6 +1839,9 @@ def test_uvh5_partial_read_ints_multi3():
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
     uvh5_file = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
 
     # read polarizations first
     ants_to_keep = np.array([0, 1, 12])
@@ -1796,10 +1852,14 @@ def test_uvh5_partial_read_ints_multi3():
         antenna_nums=ants_to_keep,
         freq_chans=chans_to_keep,
         polarizations=pols_to_keep,
+        run_check_acceptability=False,
     )
-    uvh5_uv2.read(uvh5_file)
+    uvh5_uv2.read(uvh5_file, run_check_acceptability=False)
     uvh5_uv2.select(
-        antenna_nums=ants_to_keep, freq_chans=chans_to_keep, polarizations=pols_to_keep
+        antenna_nums=ants_to_keep,
+        freq_chans=chans_to_keep,
+        polarizations=pols_to_keep,
+        run_check_acceptability=False,
     )
     assert uvh5_uv == uvh5_uv2
 
@@ -1833,7 +1893,10 @@ def test_uvh5_partial_write_ints_antapirs(uv_uvh5, tmp_path):
         partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples, bls=key)
 
     # now read in the full file and make sure that it matches the original
-    partial_uvh5.read(partial_testfile)
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
+    partial_uvh5.read(partial_testfile, run_check_acceptability=False)
     assert full_uvh5 == partial_uvh5
 
     # clean up
@@ -1879,7 +1942,10 @@ def test_uvh5_partial_write_ints_frequencies(uv_uvh5, tmp_path):
     )
 
     # read in the full file and make sure it matches
-    partial_uvh5.read(partial_testfile)
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
+    partial_uvh5.read(partial_testfile, run_check_acceptability=False)
     assert full_uvh5 == partial_uvh5
 
     # clean up
@@ -1925,7 +1991,10 @@ def test_uvh5_partial_write_ints_blts(uv_uvh5, tmp_path):
     )
 
     # read in the full file and make sure it matches
-    partial_uvh5.read(partial_testfile)
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
+    partial_uvh5.read(partial_testfile, run_check_acceptability=False)
     assert full_uvh5 == partial_uvh5
 
     # clean up
@@ -1979,7 +2048,10 @@ def test_uvh5_partial_write_ints_pols(uv_uvh5, tmp_path):
     )
 
     # read in the full file and make sure it matches
-    partial_uvh5.read(partial_testfile)
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
+    partial_uvh5.read(partial_testfile, run_check_acceptability=False)
     assert full_uvh5 == partial_uvh5
 
     # clean up
@@ -2134,7 +2206,11 @@ def test_uvh5_partial_write_ints_irregular_blt(uv_uvh5, tmp_path):
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
-    partial_uvh5_file.read(partial_testfile)
+    # read in the full file and make sure it matches
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
+    partial_uvh5_file.read(partial_testfile, run_check_acceptability=False)
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2180,7 +2256,11 @@ def test_uvh5_partial_write_ints_irregular_freq(uv_uvh5, tmp_path):
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
-    partial_uvh5_file.read(partial_testfile)
+    # read in the full file and make sure it matches
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
+    partial_uvh5_file.read(partial_testfile, run_check_acceptability=False)
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2230,7 +2310,11 @@ def test_uvh5_partial_write_ints_irregular_pol(uv_uvh5, tmp_path):
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
-    partial_uvh5_file.read(partial_testfile)
+    # read in the full file and make sure it matches
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
+    partial_uvh5_file.read(partial_testfile, run_check_acceptability=False)
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2293,7 +2377,11 @@ def test_uvh5_partial_write_ints_irregular_multi1(uv_uvh5, tmp_path):
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
-    partial_uvh5_file.read(partial_testfile)
+    # read in the full file and make sure it matches
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
+    partial_uvh5_file.read(partial_testfile, run_check_acceptability=False)
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2363,7 +2451,11 @@ def test_uvh5_partial_write_ints_irregular_multi2(uv_uvh5, tmp_path):
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
-    partial_uvh5_file.read(partial_testfile)
+    # read in the full file and make sure it matches
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
+    partial_uvh5_file.read(partial_testfile, run_check_acceptability=False)
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2423,7 +2515,11 @@ def test_uvh5_partial_write_ints_irregular_multi3(uv_uvh5, tmp_path):
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
-    partial_uvh5_file.read(partial_testfile)
+    # read in the full file and make sure it matches
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
+    partial_uvh5_file.read(partial_testfile, run_check_acceptability=False)
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2504,7 +2600,11 @@ def test_uvh5_partial_write_ints_irregular_multi4(uv_uvh5, tmp_path):
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
-    partial_uvh5_file.read(partial_testfile)
+    # read in the full file and make sure it matches
+    # This file has weird telescope or antenna location information
+    # (not on the surface of the earth)
+    # which breaks the phasing when trying to check if the uvws match the antpos.
+    partial_uvh5_file.read(partial_testfile, run_check_acceptability=False)
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2513,12 +2613,13 @@ def test_uvh5_partial_write_ints_irregular_multi4(uv_uvh5, tmp_path):
     return
 
 
-def test_antenna_names_not_list(uv_uvfits, tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_antenna_names_not_list(casa_uvfits, tmp_path):
     """
     Test if antenna_names is cast to an array, dimensions are preserved in
     ``np.string_`` call during uvh5 write.
     """
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     uv_out = UVData()
     testfile = str(tmp_path / "outtest_uvfits_ant_names.uvh5")
 
@@ -2539,9 +2640,10 @@ def test_antenna_names_not_list(uv_uvfits, tmp_path):
     return
 
 
-def test_eq_coeffs_roundtrip(uv_uvfits, tmp_path):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_eq_coeffs_roundtrip(casa_uvfits, tmp_path):
     """Test reading and writing objects with eq_coeffs defined"""
-    uv_in = uv_uvfits
+    uv_in = casa_uvfits
     uv_out = UVData()
     testfile = str(tmp_path / "outtest_eq_coeffs.uvh5")
     uv_in.eq_coeffs = np.ones((uv_in.Nants_telescope, uv_in.Nfreqs))
@@ -2557,7 +2659,8 @@ def test_eq_coeffs_roundtrip(uv_uvfits, tmp_path):
     return
 
 
-def test_read_slicing(uv_uvfits):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_read_slicing(casa_uvfits):
     """Test HDF5 slicing helper functions"""
     # check trivial slice representations
     slices, _ = uvh5._convert_to_slices([])

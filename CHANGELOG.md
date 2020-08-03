@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- The 'ant_str' option when making selects on UVFlag objects
+- A check that the uvws match the antenna positions, as part of the acceptability checking.
+
+### Changed
+- Moved `parse_ants` to `utils.py` to allow any UVBased object the potential to use it.
+
+## [2.1.0] - 2020-7-08
+
+### Added
 - `UVFlag` can now take `PosixPath` objects as input.
 - An option to average rather than select a single baseline in `UVData.compress_by_redundancy`,
 controlled by the `method` keyword.
@@ -16,6 +25,7 @@ controlled by the `method` keyword.
 - `propagate_flags` keyword for `UVData.frequency_average` which flags averaged samples if any contributing samples were flagged
 
 ### Changed
+- Nants data calculation changed to use numpy functions for small speed up.
 - Changed `input` variable to `indata` in UVFlag to avoid shadowing python builtin.
 - `select` now also accepts a list of baseline indices for the `bls` parameter.
 - `data_array_dtype` keyword for `UVData.read` is now also respected by mwa_corr_fits files. Previously it was only used by uvh5 files.

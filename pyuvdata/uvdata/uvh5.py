@@ -567,12 +567,13 @@ class UVH5(UVData):
         time_range,
         polarizations,
         blt_inds,
-        run_check,
-        check_extra,
-        run_check_acceptability,
         data_array_dtype,
         keep_all_metadata,
         multidim_index,
+        run_check,
+        check_extra,
+        run_check_acceptability,
+        strict_uvw_antpos_check,
     ):
         """
         Read the data-size arrays (data, flags, nsamples) from a file.
@@ -823,7 +824,9 @@ class UVH5(UVData):
         # check if object has all required UVParameters set
         if run_check:
             self.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
         return
@@ -841,14 +844,15 @@ class UVH5(UVData):
         time_range=None,
         polarizations=None,
         blt_inds=None,
+        keep_all_metadata=True,
         read_data=True,
+        data_array_dtype=np.complex128,
+        multidim_index=False,
+        background_lsts=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        data_array_dtype=np.complex128,
-        keep_all_metadata=True,
-        multidim_index=False,
-        background_lsts=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Read in data from a UVH5 file.
@@ -921,6 +925,13 @@ class UVH5(UVData):
             np.complex64 (single-precision real and imaginary) or np.complex128 (double-
             precision real and imaginary). Only used if the datatype of the visibility
             data on-disk is not 'c8' or 'c16'.
+        multidim_index : bool
+            If True, attempt to index the HDF5 dataset
+            simultaneously along all data axes. Otherwise index one axis at-a-time.
+            This only works if data selection is sliceable along all but one axis.
+            If indices are not well-matched to data chunks, this can be slow.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -933,14 +944,9 @@ class UVH5(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
-        multidim_index : bool
-            If True, attempt to index the HDF5 dataset
-            simultaneously along all data axes. Otherwise index one axis at-a-time.
-            This only works if data selection is sliceable along all but one axis.
-            If indices are not well-matched to data chunks, this can be slow.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
-
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Returns
         -------
@@ -990,12 +996,13 @@ class UVH5(UVData):
                 time_range,
                 polarizations,
                 blt_inds,
-                run_check,
-                check_extra,
-                run_check_acceptability,
                 data_array_dtype,
                 keep_all_metadata,
                 multidim_index,
+                run_check,
+                check_extra,
+                run_check_acceptability,
+                strict_uvw_antpos_check,
             )
 
         return
@@ -1100,9 +1107,6 @@ class UVH5(UVData):
     def write_uvh5(
         self,
         filename,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
         clobber=False,
         chunks=True,
         data_compression=None,
@@ -1110,6 +1114,10 @@ class UVH5(UVData):
         nsample_compression="lzf",
         data_write_dtype=None,
         add_to_history=None,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Write an in-memory UVData object to a UVH5 file.
@@ -1118,14 +1126,6 @@ class UVH5(UVData):
         ----------
         filename : str
             The UVH5 file to write to.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            before writing the file.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters before
-            writing the file.
         clobber : bool
             Option to overwrite the file if it already exists.
         chunks : tuple or bool
@@ -1147,6 +1147,17 @@ class UVH5(UVData):
             numpy dtype object must be specified with an 'r' field and an 'i'
             field for real and imaginary parts, respectively. See uvh5.py for
             an example of defining such a datatype.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            before writing the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Returns
         -------
@@ -1176,7 +1187,9 @@ class UVH5(UVData):
         """
         if run_check:
             self.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
         if os.path.exists(filename):

@@ -36,16 +36,33 @@ for s in testfile_suffix:
     testfiles.append(testdir + testfile_prefix + s)
 
 
-def test_read_fhd_write_read_uvfits(tmp_path):
+@pytest.fixture(scope="session")
+def fhd_data():
+    fhd_uv = UVData()
+    fhd_uv.read(testfiles)
+
+    return fhd_uv
+
+
+@pytest.fixture(scope="session")
+def fhd_model():
+    fhd_uv = UVData()
+    fhd_uv.read(testfiles, use_model=True)
+
+    return fhd_uv
+
+
+@pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_read_fhd_write_read_uvfits(fhd_data, tmp_path):
     """
     FHD to uvfits loopback test.
 
     Read in FHD files, write out as uvfits, read back in and check for object
     equality.
     """
-    fhd_uv = UVData()
+    fhd_uv = fhd_data
     uvfits_uv = UVData()
-    uvtest.checkWarnings(fhd_uv.read_fhd, [testfiles], known_warning="fhd")
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(
@@ -56,14 +73,14 @@ def test_read_fhd_write_read_uvfits(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
-def test_read_fhd_metadata_only():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_read_fhd_metadata_only(fhd_data):
     fhd_uv = UVData()
     fhd_uv.read_fhd(testfiles, read_data=False)
 
     assert fhd_uv.metadata_only
 
-    fhd_uv2 = UVData()
-    fhd_uv2.read_fhd(testfiles)
+    fhd_uv2 = fhd_data
     fhd_uv3 = fhd_uv2.copy(metadata_only=True)
 
     assert fhd_uv == fhd_uv3
@@ -77,6 +94,7 @@ def test_read_fhd_metadata_only_error():
         fhd_uv.read_fhd(testfiles[:7], read_data=False)
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_fhd_select():
     """
     test select on read with FHD files.
@@ -91,13 +109,32 @@ def test_read_fhd_select():
         func_args=[testfiles],
         func_kwargs={"freq_chans": np.arange(2)},
         message=[
-            "Warning: select on read keyword set",
-            "Telescope location derived from obs",
+            'Warning: select on read keyword set, but file_type is "fhd" which '
+            "does not support select on read. Entire file will be read and then "
+            "select will be performed",
+            "Telescope location derived from obs lat/lon/alt values does not "
+            "match the location in the layout file. Value from obs lat/lon/alt "
+            "matches the known_telescopes values, using them.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+        nwarnings=4,
+    )
+
+    uvtest.checkWarnings(
+        fhd_uv.read,
+        func_args=[testfiles],
+        message=[
+            "Telescope location derived from obs lat/lon/alt values does not "
+            "match the location in the layout file. Value from obs lat/lon/alt "
+            "matches the known_telescopes values, using them.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
         ],
         nwarnings=2,
     )
-
-    uvtest.checkWarnings(fhd_uv.read, [testfiles], known_warning="fhd")
 
     fhd_uv.select(freq_chans=np.arange(2))
     assert fhd_uv == fhd_uv2
@@ -133,6 +170,8 @@ def test_read_fhd_write_read_uvfits_no_layout():
     )
 
 
+@pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_fhd_write_read_uvfits_variant_flag(tmp_path):
     """
     FHD to uvfits loopback test with variant flag file.
@@ -144,7 +183,7 @@ def test_read_fhd_write_read_uvfits_variant_flag(tmp_path):
     uvfits_uv = UVData()
     variant_flag_file = testdir + testfile_prefix + "variant_flags.sav"
     files_use = testfiles[1:] + [variant_flag_file]
-    uvtest.checkWarnings(fhd_uv.read, [files_use], known_warning="fhd")
+    fhd_uv.read(files_use)
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(
@@ -154,6 +193,7 @@ def test_read_fhd_write_read_uvfits_variant_flag(tmp_path):
     assert fhd_uv == uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_fhd_write_read_uvfits_fix_layout(tmp_path):
     """
     FHD to uvfits loopback test with fixed array center layout file.
@@ -175,6 +215,7 @@ def test_read_fhd_write_read_uvfits_fix_layout(tmp_path):
     assert fhd_uv == uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc(tmp_path):
     """
     FHD to uvfits loopback test with fixed array center layout file, bad obs location.
@@ -196,8 +237,10 @@ def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc(tmp_path):
     messages = [
         "Telescope location derived from obs",
         "tile_names from obs structure does not match",
+        "The uvw_array does not match the expected values given the antenna "
+        "positions.",
     ]
-    uvtest.checkWarnings(fhd_uv.read, [files_use], message=messages, nwarnings=2)
+    uvtest.checkWarnings(fhd_uv.read, [files_use], message=messages, nwarnings=3)
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(
@@ -207,6 +250,7 @@ def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc(tmp_path):
     assert fhd_uv == uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_fhd_write_read_uvfits_bad_obs_loc(tmp_path):
     """
     FHD to uvfits loopback test with bad obs location (and bad layout location).
@@ -227,8 +271,10 @@ def test_read_fhd_write_read_uvfits_bad_obs_loc(tmp_path):
     messages = [
         "Telescope location derived from obs",
         "tile_names from obs structure does not match",
+        "The uvw_array does not match the expected values given the antenna "
+        "positions.",
     ]
-    uvtest.checkWarnings(fhd_uv.read, [files_use], message=messages, nwarnings=2)
+    uvtest.checkWarnings(fhd_uv.read, [files_use], message=messages, nwarnings=3)
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(
@@ -238,6 +284,7 @@ def test_read_fhd_write_read_uvfits_bad_obs_loc(tmp_path):
     assert fhd_uv == uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_fhd_write_read_uvfits_altered_layout(tmp_path):
     """
     FHD to uvfits loopback test with altered layout file.
@@ -261,6 +308,7 @@ def test_read_fhd_write_read_uvfits_altered_layout(tmp_path):
     assert fhd_uv == uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_fhd_write_read_uvfits_no_settings(tmp_path):
     """
     FHD to uvfits loopback test with no settings file.
@@ -270,8 +318,14 @@ def test_read_fhd_write_read_uvfits_no_settings(tmp_path):
     """
     fhd_uv = UVData()
     uvfits_uv = UVData()
-    messages = ["No settings", "Telescope location derived from obs"]
-    uvtest.checkWarnings(fhd_uv.read, [testfiles[:-2]], message=messages, nwarnings=2)
+    messages = [
+        "No settings file included in file list",
+        "Telescope location derived from obs lat/lon/alt values does "
+        "not match the location in the layout file. Value from obs "
+        "lat/lon/alt matches the known_telescopes values, using them.",
+        "The uvw_array does not match the expected values given the antenna positions.",
+    ]
+    uvtest.checkWarnings(fhd_uv.read, [testfiles[:-2]], message=messages, nwarnings=3)
 
     # Check only pyuvdata history with no settings file
     assert fhd_uv.history == fhd_uv.pyuvdata_version_str
@@ -376,13 +430,12 @@ def test_read_fhd_extra_files(new_file_end, file_copy, message):
         os.remove(extra_file)
 
 
-def test_read_fhd_model(tmp_path):
+@pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_read_fhd_model(tmp_path, fhd_model):
     """FHD to uvfits loopback test with model visibilities."""
-    fhd_uv = UVData()
+    fhd_uv = fhd_model
     uvfits_uv = UVData()
-    uvtest.checkWarnings(
-        fhd_uv.read, [testfiles], {"use_model": True}, known_warning="fhd"
-    )
 
     outfile = str(tmp_path / "outtest_FHD_1061316296_model.uvfits")
     fhd_uv.write_uvfits(
@@ -392,24 +445,17 @@ def test_read_fhd_model(tmp_path):
     assert fhd_uv == uvfits_uv
 
 
-def test_multi_files():
+@pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_multi_files(fhd_model):
     """Read multiple files at once."""
     fhd_uv1 = UVData()
     fhd_uv2 = UVData()
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])
     test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6, 7]])
-    uvtest.checkWarnings(
-        fhd_uv1.read,
-        func_args=[np.array([test1, test2])],
-        func_kwargs={"use_model": True, "file_type": "fhd"},
-        message=(2 * ["Telescope location derived from obs"]),
-        category=2 * [UserWarning],
-        nwarnings=2,
-    )
+    fhd_uv1.read(np.array([test1, test2]), use_model=True, file_type="fhd")
 
-    uvtest.checkWarnings(
-        fhd_uv2.read, [testfiles], {"use_model": True}, known_warning="fhd"
-    )
+    fhd_uv2 = fhd_model
 
     assert uvutils._check_histories(
         fhd_uv2.history + " Combined data " "along polarization axis using pyuvdata.",
@@ -420,23 +466,17 @@ def test_multi_files():
     assert fhd_uv1 == fhd_uv2
 
 
-def test_multi_files_axis():
+@pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_multi_files_axis(fhd_model):
     """Read multiple files at once with axis keyword."""
     fhd_uv1 = UVData()
     fhd_uv2 = UVData()
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])
     test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6, 7]])
-    uvtest.checkWarnings(
-        fhd_uv1.read,
-        [[test1, test2]],
-        {"use_model": True, "axis": "polarization"},
-        message=["Telescope location derived from obs"],
-        nwarnings=2,
-    )
+    fhd_uv1.read(np.array([test1, test2]), use_model=True, axis="polarization")
 
-    uvtest.checkWarnings(
-        fhd_uv2.read, [testfiles], {"use_model": True}, known_warning="fhd"
-    )
+    fhd_uv2 = fhd_model
 
     assert uvutils._check_histories(
         fhd_uv2.history + " Combined data " "along polarization axis using pyuvdata.",
@@ -456,8 +496,13 @@ def test_single_time():
     fhd_uv = UVData()
     uvtest.checkWarnings(
         fhd_uv.read,
-        [single_time_filelist],
-        message=["Telescope gaussian is not in known_telescopes."],
+        func_args=[single_time_filelist],
+        nwarnings=2,
+        message=[
+            "Telescope gaussian is not in known_telescopes.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
     )
 
     assert np.unique(fhd_uv.time_array).size == 1
@@ -474,8 +519,13 @@ def test_conjugation():
     fhd_uv = UVData()
     uvtest.checkWarnings(
         fhd_uv.read,
-        [fhd_filelist],
-        message=["Telescope gaussian is not in known_telescopes."],
+        func_args=[fhd_filelist],
+        nwarnings=2,
+        message=[
+            "Telescope gaussian is not in known_telescopes.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
     )
 
     uvfits_uv.select(polarizations=fhd_uv.polarization_array)

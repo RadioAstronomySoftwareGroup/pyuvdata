@@ -5,7 +5,6 @@
 """Primary container for radio interferometer datasets."""
 import os
 import copy
-import re
 import numpy as np
 import warnings
 import threading
@@ -817,14 +816,14 @@ class UVData(UVBase):
 
     def _calc_nants_data(self):
         """Calculate the number of antennas from ant_1_array and ant_2_array arrays."""
-        # lots of inline testing resulted in this odd combination of sets and
-        # numpy uniques to quickly find the number of unique ants
-        return int(
-            len(set(np.unique(self.ant_1_array)).union(np.unique(self.ant_2_array)))
-        )
+        return int(np.union1d(self.ant_1_array, self.ant_2_array).size)
 
     def check(
-        self, check_extra=True, run_check_acceptability=True, check_freq_spacing=False
+        self,
+        check_extra=True,
+        run_check_acceptability=True,
+        check_freq_spacing=False,
+        strict_uvw_antpos_check=False,
     ):
         """
         Add some extra checks on top of checks on UVBase class.
@@ -838,6 +837,13 @@ class UVData(UVBase):
             If true, check all parameters, otherwise only check required parameters.
         run_check_acceptability : bool
             Option to check if values in parameters are acceptable.
+        check_freq_spacing :  bool
+            Option to check if frequencies are evenly spaced and the spacing is
+            equal to their channel_width. This is not required for UVData
+            objects in general but is required to write to uvfits and miriad files.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Returns
         -------
@@ -908,37 +914,70 @@ class UVData(UVBase):
                     "miriad file types".format(key=key)
                 )
 
-        # check auto and cross-corrs have sensible uvws
-        autos = np.isclose(self.ant_1_array - self.ant_2_array, 0.0)
-        if not np.all(
-            np.isclose(
-                self.uvw_array[autos],
-                0.0,
-                rtol=self._uvw_array.tols[0],
-                atol=self._uvw_array.tols[1],
-            )
-        ):
-            raise ValueError(
-                "Some auto-correlations have non-zero " "uvw_array coordinates."
-            )
-        if np.any(
-            np.isclose(
-                # this line used to use np.linalg.norm but it turns out
-                # squaring and sqrt is slightly more efficient unless the array
-                # is "very large".
-                np.sqrt(
-                    self.uvw_array[~autos, 0] ** 2
-                    + self.uvw_array[~autos, 1] ** 2
-                    + self.uvw_array[~autos, 2] ** 2
-                ),
-                0.0,
-                rtol=self._uvw_array.tols[0],
-                atol=self._uvw_array.tols[1],
-            )
-        ):
-            raise ValueError(
-                "Some cross-correlations have near-zero " "uvw_array magnitudes."
-            )
+        if run_check_acceptability:
+            # check that the uvws make sense given the antenna positions
+            # make a metadata only copy of this object to properly calculate uvws
+            temp_obj = self.copy(metadata_only=True)
+
+            if temp_obj.phase_center_frame is not None:
+                output_phase_frame = temp_obj.phase_center_frame
+            else:
+                output_phase_frame = "icrs"
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                temp_obj.set_uvws_from_antenna_positions(
+                    allow_phasing=True, output_phase_frame=output_phase_frame
+                )
+
+            if not np.allclose(temp_obj.uvw_array, self.uvw_array, atol=1):
+                max_diff = np.max(np.abs(temp_obj.uvw_array - self.uvw_array))
+                if not strict_uvw_antpos_check:
+                    warnings.warn(
+                        "The uvw_array does not match the expected values given "
+                        "the antenna positions. The largest discrepancy is "
+                        f"{max_diff} meters. This is a fairly common situation "
+                        "but might indicate an error in the antenna positions, "
+                        "the uvws or the phasing."
+                    )
+                else:
+                    raise ValueError(
+                        "The uvw_array does not match the expected values given "
+                        "the antenna positions. The largest discrepancy is "
+                        f"{max_diff} meters."
+                    )
+
+            # check auto and cross-corrs have sensible uvws
+            autos = np.isclose(self.ant_1_array - self.ant_2_array, 0.0)
+            if not np.all(
+                np.isclose(
+                    self.uvw_array[autos],
+                    0.0,
+                    rtol=self._uvw_array.tols[0],
+                    atol=self._uvw_array.tols[1],
+                )
+            ):
+                raise ValueError(
+                    "Some auto-correlations have non-zero uvw_array coordinates."
+                )
+            if np.any(
+                np.isclose(
+                    # this line used to use np.linalg.norm but it turns out
+                    # squaring and sqrt is slightly more efficient unless the array
+                    # is "very large".
+                    np.sqrt(
+                        self.uvw_array[~autos, 0] ** 2
+                        + self.uvw_array[~autos, 1] ** 2
+                        + self.uvw_array[~autos, 2] ** 2
+                    ),
+                    0.0,
+                    rtol=self._uvw_array.tols[0],
+                    atol=self._uvw_array.tols[1],
+                )
+            ):
+                raise ValueError(
+                    "Some cross-correlations have near-zero uvw_array magnitudes."
+                )
 
         if check_freq_spacing:
             self._check_freq_spacing()
@@ -1155,8 +1194,8 @@ class UVData(UVBase):
                     except ValueError:
                         if len(blt_ind1) == 0:
                             raise KeyError(
-                                "Baseline {bl} not found for polarization"
-                                + " array in data.".format(bl=key)
+                                f"Baseline {key} not found for polarization "
+                                "array in data."
                             )
                         else:
                             pol_ind2 = np.array([], dtype=np.int64)
@@ -1180,8 +1219,7 @@ class UVData(UVBase):
                 except ValueError:
                     if len(blt_ind1) == 0:
                         raise KeyError(
-                            "Baseline {bl} not found for polarization"
-                            + " array in data.".format(bl=key)
+                            f"Baseline {key} not found for polarization array in data."
                         )
                     else:
                         pol_ind2 = np.array([], dtype=np.int64)
@@ -1842,6 +1880,7 @@ class UVData(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Rearrange polarizations in the event they are not uvfits compatible.
@@ -1863,6 +1902,9 @@ class UVData(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             reordering.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Raises
         ------
@@ -1906,7 +1948,9 @@ class UVData(UVBase):
         # check if object is self-consistent
         if run_check:
             self.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
     def reorder_blts(
@@ -1919,6 +1963,7 @@ class UVData(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Arrange blt axis according to desired order.
@@ -1955,6 +2000,9 @@ class UVData(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             reordering.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Raises
         ------
@@ -2101,7 +2149,9 @@ class UVData(UVBase):
         # check if object is self-consistent
         if run_check:
             self.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
     def remove_eq_coeffs(self):
@@ -2720,6 +2770,7 @@ class UVData(UVBase):
     def __add__(
         self,
         other,
+        inplace=False,
         phase_center_radec=None,
         unphase_to_drift=False,
         phase_frame="icrs",
@@ -2728,7 +2779,7 @@ class UVData(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        inplace=False,
+        strict_uvw_antpos_check=False,
     ):
         """
         Combine two UVData objects along frequency, polarization and/or baseline-time.
@@ -2737,6 +2788,9 @@ class UVData(UVBase):
         ----------
         other : UVData object
             Another UVData object which will be added to self.
+        inplace : bool
+            If True, overwrite self as we go, otherwise create a third object
+            as the sum of the two.
         phase_center_radec : array_like of float
             The phase center to phase the files to before adding the objects in
             radians (in the ICRS frame). Note that if this keyword is not set
@@ -2767,9 +2821,9 @@ class UVData(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             combining objects.
-        inplace : bool
-            If True, overwrite self as we go, otherwise create a third object
-            as the sum of the two.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Raises
         ------
@@ -2789,7 +2843,9 @@ class UVData(UVBase):
 
         # Check that both objects are UVData and valid
         this.check(
-            check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
         if not issubclass(other.__class__, this.__class__):
             if not issubclass(this.__class__, other.__class__):
@@ -2798,7 +2854,9 @@ class UVData(UVBase):
                     "added to a UVData (or subclass) object"
                 )
         other.check(
-            check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
 
         if phase_center_radec is not None and unphase_to_drift:
@@ -3197,7 +3255,9 @@ class UVData(UVBase):
         # Check final object is self-consistent
         if run_check:
             this.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
         if not inplace:
@@ -3214,6 +3274,7 @@ class UVData(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         In place add.
@@ -3252,6 +3313,9 @@ class UVData(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             combining objects.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Raises
         ------
@@ -3261,6 +3325,7 @@ class UVData(UVBase):
         """
         self.__add__(
             other,
+            inplace=True,
             phase_center_radec=phase_center_radec,
             unphase_to_drift=unphase_to_drift,
             phase_frame=phase_frame,
@@ -3269,7 +3334,7 @@ class UVData(UVBase):
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
-            inplace=True,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
         return self
 
@@ -3277,6 +3342,7 @@ class UVData(UVBase):
         self,
         other,
         axis,
+        inplace=False,
         phase_center_radec=None,
         unphase_to_drift=False,
         phase_frame="icrs",
@@ -3285,7 +3351,7 @@ class UVData(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        inplace=False,
+        strict_uvw_antpos_check=False,
     ):
         """
         Concatenate two UVData objects along specified axis with almost no checking.
@@ -3303,6 +3369,9 @@ class UVData(UVBase):
             Axis to concatenate files along. This enables fast concatenation
             along the specified axis without the normal checking that all other
             metadata agrees. Allowed values are: 'blt', 'freq', 'polarization'.
+        inplace : bool
+            If True, overwrite self as we go, otherwise create a third object
+            as the sum of the two.
         phase_center_radec : array_like of float
             The phase center to phase the files to before adding the objects in
             radians (in the ICRS frame). Note that if this keyword is not set
@@ -3333,9 +3402,12 @@ class UVData(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             combining objects.
-        inplace : bool
-            If True, overwrite self as we go, otherwise create a third object
-            as the sum of the two.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Raises
         ------
@@ -3349,7 +3421,9 @@ class UVData(UVBase):
             this = self.copy()
         # Check that both objects are UVData and valid
         this.check(
-            check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
         if not issubclass(other.__class__, this.__class__):
             if not issubclass(this.__class__, other.__class__):
@@ -3358,7 +3432,9 @@ class UVData(UVBase):
                     "added to a UVData (or subclass) object"
                 )
         other.check(
-            check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
 
         if phase_center_radec is not None and unphase_to_drift:
@@ -3588,7 +3664,9 @@ class UVData(UVBase):
         # Check final object is self-consistent
         if run_check:
             this.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
         if not inplace:
@@ -3597,11 +3675,12 @@ class UVData(UVBase):
     def sum_vis(
         self,
         other,
+        inplace=False,
+        difference=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        inplace=False,
-        difference=False,
+        strict_uvw_antpos_check=False,
     ):
         """
         Sum visibilities between two UVData objects.
@@ -3610,6 +3689,12 @@ class UVData(UVBase):
         ----------
         other : UVData object
             Another UVData object which will be added to self.
+        difference : bool
+            If True, differences the visibilities of the two UVData objects
+            rather than summing them.
+        inplace : bool
+            If True, overwrite self as we go, otherwise create a third object
+            as the sum of the two.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after combining objects.
@@ -3618,12 +3703,9 @@ class UVData(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             combining objects.
-        inplace : bool
-            If True, overwrite self as we go, otherwise create a third object
-            as the sum of the two.
-        difference : bool
-            If True, differences the visibilities of the two UVData objects
-            rather than summing them.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Returns
         -------
@@ -3644,7 +3726,9 @@ class UVData(UVBase):
 
         # Check that both objects are UVData and valid
         this.check(
-            check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
         if not issubclass(other.__class__, this.__class__):
             if not issubclass(this.__class__, other.__class__):
@@ -3653,7 +3737,9 @@ class UVData(UVBase):
                     "added to a UVData (or subclass) object"
                 )
         other.check(
-            check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
 
         # Define the parameters that need to be the same for objects to be
@@ -3685,7 +3771,9 @@ class UVData(UVBase):
         # Check final object is self-consistent
         if run_check:
             this.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
         if not inplace:
@@ -3694,10 +3782,11 @@ class UVData(UVBase):
     def diff_vis(
         self,
         other,
+        inplace=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        inplace=False,
+        strict_uvw_antpos_check=False,
     ):
         """
         Difference visibilities between two UVData objects.
@@ -3706,6 +3795,9 @@ class UVData(UVBase):
         ----------
         other : UVData object
             Another UVData object which will be added to self.
+        inplace : bool
+            If True, overwrite self as we go, otherwise create a third object
+            as the sum of the two.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after combining objects.
@@ -3714,9 +3806,9 @@ class UVData(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             combining objects.
-        inplace : bool
-            If True, overwrite self as we go, otherwise create a third object
-            as the sum of the two.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Returns
         -------
@@ -3734,19 +3826,21 @@ class UVData(UVBase):
             self.sum_vis(
                 other,
                 difference=True,
+                inplace=inplace,
                 run_check=True,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
-                inplace=inplace,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
         else:
             return self.sum_vis(
                 other,
                 difference=True,
+                inplace=inplace,
                 run_check=True,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
-                inplace=inplace,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
     def parse_ants(self, ant_str, print_toggle=False):
@@ -3782,215 +3876,12 @@ class UVData(UVBase):
             polarization specification.
 
         """
-        ant_re = r"(\(((-?\d+[lrxy]?,?)+)\)|-?\d+[lrxy]?)"
-        bl_re = "(^(%s_%s|%s),?)" % (ant_re, ant_re, ant_re)
-        str_pos = 0
-        ant_pairs_nums = []
-        polarizations = []
-        ants_data = self.get_ants()
-        ant_pairs_data = self.get_antpairs()
-        pols_data = self.get_pols()
-        warned_ants = []
-        warned_pols = []
-
-        if ant_str.startswith("-"):
-            ant_str = "all," + ant_str
-
-        while str_pos < len(ant_str):
-            m = re.search(bl_re, ant_str[str_pos:])
-            if m is None:
-                if ant_str[str_pos:].upper().startswith("ALL"):
-                    if len(ant_str[str_pos:].split(",")) > 1:
-                        ant_pairs_nums = self.get_antpairs()
-                elif ant_str[str_pos:].upper().startswith("AUTO"):
-                    for pair in ant_pairs_data:
-                        if pair[0] == pair[1] and pair not in ant_pairs_nums:
-                            ant_pairs_nums.append(pair)
-                elif ant_str[str_pos:].upper().startswith("CROSS"):
-                    for pair in ant_pairs_data:
-                        if not (pair[0] == pair[1] or pair in ant_pairs_nums):
-                            ant_pairs_nums.append(pair)
-                elif ant_str[str_pos:].upper().startswith("PI"):
-                    polarizations.append(uvutils.polstr2num("pI"))
-                elif ant_str[str_pos:].upper().startswith("PQ"):
-                    polarizations.append(uvutils.polstr2num("pQ"))
-                elif ant_str[str_pos:].upper().startswith("PU"):
-                    polarizations.append(uvutils.polstr2num("pU"))
-                elif ant_str[str_pos:].upper().startswith("PV"):
-                    polarizations.append(uvutils.polstr2num("pV"))
-                else:
-                    raise ValueError("Unparsible argument {s}".format(s=ant_str))
-
-                comma_cnt = ant_str[str_pos:].find(",")
-                if comma_cnt >= 0:
-                    str_pos += comma_cnt + 1
-                else:
-                    str_pos = len(ant_str)
-            else:
-                m = m.groups()
-                str_pos += len(m[0])
-                if m[2] is None:
-                    ant_i_list = [m[8]]
-                    ant_j_list = list(self.get_ants())
-                else:
-                    if m[3] is None:
-                        ant_i_list = [m[2]]
-                    else:
-                        ant_i_list = m[3].split(",")
-
-                    if m[6] is None:
-                        ant_j_list = [m[5]]
-                    else:
-                        ant_j_list = m[6].split(",")
-
-                for ant_i in ant_i_list:
-                    include_i = True
-                    if type(ant_i) == str and ant_i.startswith("-"):
-                        ant_i = ant_i[1:]  # nibble the - off the string
-                        include_i = False
-
-                    for ant_j in ant_j_list:
-                        include_j = True
-                        if type(ant_j) == str and ant_j.startswith("-"):
-                            ant_j = ant_j[1:]
-                            include_j = False
-
-                        pols = None
-                        ant_i, ant_j = str(ant_i), str(ant_j)
-                        if not ant_i.isdigit():
-                            ai = re.search(r"(\d+)([x,y,l,r])", ant_i).groups()
-
-                        if not ant_j.isdigit():
-                            aj = re.search(r"(\d+)([x,y,l,r])", ant_j).groups()
-
-                        if ant_i.isdigit() and ant_j.isdigit():
-                            ai = [ant_i, ""]
-                            aj = [ant_j, ""]
-                        elif ant_i.isdigit() and not ant_j.isdigit():
-                            if "x" in ant_j or "y" in ant_j:
-                                pols = ["x" + aj[1], "y" + aj[1]]
-                            else:
-                                pols = ["l" + aj[1], "r" + aj[1]]
-                            ai = [ant_i, ""]
-                        elif not ant_i.isdigit() and ant_j.isdigit():
-                            if "x" in ant_i or "y" in ant_i:
-                                pols = [ai[1] + "x", ai[1] + "y"]
-                            else:
-                                pols = [ai[1] + "l", ai[1] + "r"]
-                            aj = [ant_j, ""]
-                        elif not ant_i.isdigit() and not ant_j.isdigit():
-                            pols = [ai[1] + aj[1]]
-
-                        ant_tuple = (abs(int(ai[0])), abs(int(aj[0])))
-
-                        # Order tuple according to order in object
-                        if ant_tuple in ant_pairs_data:
-                            pass
-                        elif ant_tuple[::-1] in ant_pairs_data:
-                            ant_tuple = ant_tuple[::-1]
-                        else:
-                            if not (
-                                ant_tuple[0] in ants_data or ant_tuple[0] in warned_ants
-                            ):
-                                warned_ants.append(ant_tuple[0])
-                            if not (
-                                ant_tuple[1] in ants_data or ant_tuple[1] in warned_ants
-                            ):
-                                warned_ants.append(ant_tuple[1])
-                            if pols is not None:
-                                for pol in pols:
-                                    if not (
-                                        pol.lower() in pols_data or pol in warned_pols
-                                    ):
-                                        warned_pols.append(pol)
-                            continue
-
-                        if include_i and include_j:
-                            if ant_tuple not in ant_pairs_nums:
-                                ant_pairs_nums.append(ant_tuple)
-                            if pols is not None:
-                                for pol in pols:
-                                    if (
-                                        pol.lower() in pols_data
-                                        and uvutils.polstr2num(
-                                            pol, x_orientation=self.x_orientation
-                                        )
-                                        not in polarizations
-                                    ):
-                                        polarizations.append(
-                                            uvutils.polstr2num(
-                                                pol, x_orientation=self.x_orientation
-                                            )
-                                        )
-                                    elif not (
-                                        pol.lower() in pols_data or pol in warned_pols
-                                    ):
-                                        warned_pols.append(pol)
-                        else:
-                            if pols is not None:
-                                for pol in pols:
-                                    if pol.lower() in pols_data:
-                                        if (
-                                            self.Npols == 1
-                                            and [pol.lower()] == pols_data
-                                        ):
-                                            ant_pairs_nums.remove(ant_tuple)
-                                        if (
-                                            uvutils.polstr2num(
-                                                pol, x_orientation=self.x_orientation
-                                            )
-                                            in polarizations
-                                        ):
-                                            polarizations.remove(
-                                                uvutils.polstr2num(
-                                                    pol,
-                                                    x_orientation=self.x_orientation,
-                                                )
-                                            )
-                                    elif not (
-                                        pol.lower() in pols_data or pol in warned_pols
-                                    ):
-                                        warned_pols.append(pol)
-                            elif ant_tuple in ant_pairs_nums:
-                                ant_pairs_nums.remove(ant_tuple)
-
-        if ant_str.upper() == "ALL":
-            ant_pairs_nums = None
-        elif len(ant_pairs_nums) == 0:
-            if not ant_str.upper() in ["AUTO", "CROSS"]:
-                ant_pairs_nums = None
-
-        if len(polarizations) == 0:
-            polarizations = None
-        else:
-            polarizations.sort(reverse=True)
-
-        if print_toggle:
-            print("\nParsed antenna pairs:")
-            if ant_pairs_nums is not None:
-                for pair in ant_pairs_nums:
-                    print(pair)
-
-            print("\nParsed polarizations:")
-            if polarizations is not None:
-                for pol in polarizations:
-                    print(uvutils.polnum2str(pol, x_orientation=self.x_orientation))
-
-        if len(warned_ants) > 0:
-            warnings.warn(
-                "Warning: Antenna number {a} passed, but not present "
-                "in the ant_1_array or ant_2_array".format(
-                    a=(",").join(map(str, warned_ants))
-                )
-            )
-
-        if len(warned_pols) > 0:
-            warnings.warn(
-                "Warning: Polarization {p} is not present in "
-                "the polarization_array".format(p=(",").join(warned_pols).upper())
-            )
-
-        return ant_pairs_nums, polarizations
+        return uvutils.parse_ants(
+            uv=self,
+            ant_str=ant_str,
+            print_toggle=print_toggle,
+            x_orientation=self.x_orientation,
+        )
 
     def _select_preprocess(
         self,
@@ -4279,9 +4170,8 @@ class UVData(UVBase):
             )[0]
             if time_blt_inds.size == 0:
                 raise ValueError(
-                    "No elements in time range between {t0} and t1".format(
-                        t0=time_range[0], t1=time_range[1]
-                    )
+                    f"No elements in time range between {time_range[0]} and "
+                    f"{time_range[1]}."
                 )
 
         if times is not None or time_range is not None:
@@ -4481,11 +4371,12 @@ class UVData(UVBase):
         time_range=None,
         polarizations=None,
         blt_inds=None,
+        inplace=True,
+        keep_all_metadata=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        inplace=True,
-        keep_all_metadata=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Downselect data to keep on the object along various axes.
@@ -4546,6 +4437,13 @@ class UVData(UVBase):
         blt_inds : array_like of int, optional
             The baseline-time indices to keep in the object. This is
             not commonly used.
+        inplace : bool
+            Option to perform the select directly on self or return a new UVData
+            object with just the selected data (the default is True, meaning the
+            select will be done on self).
+        keep_all_metadata : bool
+            Option to keep all the metadata associated with antennas, even those
+            that do do not have data associated with them after the select option.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after downselecting data on this object (the default is True,
@@ -4557,13 +4455,9 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             downselecting data on this object (the default is True, meaning the
             acceptable range check will be done).
-        inplace : bool
-            Option to perform the select directly on self or return a new UVData
-            object with just the selected data (the default is True, meaning the
-            select will be done on self).
-        keep_all_metadata : bool
-            Option to keep all the metadata associated with antennas, even those
-            that do do not have data associated with them after the select option.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Returns
         -------
@@ -4633,7 +4527,9 @@ class UVData(UVBase):
         # check if object is uv_object-consistent
         if run_check:
             uv_object.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
         if not inplace:
@@ -5922,11 +5818,12 @@ class UVData(UVBase):
         filelist,
         use_model=False,
         axis=None,
-        background_lsts=True,
         read_data=True,
+        background_lsts=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Read in data from a list of FHD files.
@@ -5947,13 +5844,13 @@ class UVData(UVBase):
             objects. Please see the docstring for fast_concat for details.
             Allowed values are: 'blt', 'freq', 'polarization'. Only used if
             multiple data sets are passed.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
         read_data : bool
             Read in the visibility, nsample and flag data. If set to False, only
             the metadata will be read in. Setting read_data to False results in
             a metadata only object. If read_data is False, an obs file must be
             included in the filelist.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -5965,6 +5862,9 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done).
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Raises
         ------
@@ -5992,6 +5892,7 @@ class UVData(UVBase):
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
         self._convert_from_filetype(fhd_obj)
         del fhd_obj
@@ -6039,10 +5940,11 @@ class UVData(UVBase):
         read_data=True,
         phase_type=None,
         correct_lat_lon=True,
+        background_lsts=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        background_lsts=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Read in data from a miriad file.
@@ -6096,6 +5998,8 @@ class UVData(UVBase):
         correct_lat_lon : bool
             Option to update the latitude and longitude from the known_telescopes
             list if the altitude is missing.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -6108,8 +6012,9 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Raises
         ------
@@ -6137,9 +6042,6 @@ class UVData(UVBase):
         miriad_obj.read_miriad(
             filepath,
             correct_lat_lon=correct_lat_lon,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
             read_data=read_data,
             phase_type=phase_type,
             antenna_nums=antenna_nums,
@@ -6148,6 +6050,10 @@ class UVData(UVBase):
             polarizations=polarizations,
             time_range=time_range,
             background_lsts=background_lsts,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
         self._convert_from_filetype(miriad_obj)
         del miriad_obj
@@ -6158,10 +6064,11 @@ class UVData(UVBase):
         axis=None,
         data_column="DATA",
         pol_order="AIPS",
+        background_lsts=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        background_lsts=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Read in data from a measurement set.
@@ -6183,6 +6090,8 @@ class UVData(UVBase):
         pol_order : str
             Option to specify polarizations order convention, options are
             'CASA' or 'AIPS'.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -6194,8 +6103,9 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done).
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Raises
         ------
@@ -6220,12 +6130,13 @@ class UVData(UVBase):
         ms_obj = ms.MS()
         ms_obj.read_ms(
             filepath,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
             data_column=data_column,
             pol_order=pol_order,
             background_lsts=background_lsts,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
         self._convert_from_filetype(ms_obj)
         del ms_obj
@@ -6245,10 +6156,11 @@ class UVData(UVBase):
         read_data=True,
         data_array_dtype=np.complex64,
         nsample_array_dtype=np.float32,
+        background_lsts=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        background_lsts=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Read in MWA correlator gpu box files.
@@ -6306,6 +6218,8 @@ class UVData(UVBase):
             np.float16 (half-precision). Half-precision is only recommended for
             cases where no sampling or averaging of baselines will occur,
             because round-off errors can be quite large (~1e-3).
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -6317,8 +6231,9 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done).
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Raises
         ------
@@ -6354,10 +6269,11 @@ class UVData(UVBase):
             read_data=read_data,
             data_array_dtype=data_array_dtype,
             nsample_array_dtype=nsample_array_dtype,
+            background_lsts=background_lsts,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
-            background_lsts=background_lsts,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
         self._convert_from_filetype(corr_obj)
         del corr_obj
@@ -6378,10 +6294,11 @@ class UVData(UVBase):
         blt_inds=None,
         keep_all_metadata=True,
         read_data=True,
+        background_lsts=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        background_lsts=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Read in header, metadata and data from a single uvfits file.
@@ -6457,6 +6374,8 @@ class UVData(UVBase):
             Read in the visibility and flag data. If set to false, only the
             basic header info and metadata read in. Setting read_data to False
             results in a metdata only object.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -6469,8 +6388,9 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Raises
         ------
@@ -6507,12 +6427,13 @@ class UVData(UVBase):
             time_range=time_range,
             polarizations=polarizations,
             blt_inds=blt_inds,
+            keep_all_metadata=keep_all_metadata,
             read_data=read_data,
+            background_lsts=background_lsts,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
-            keep_all_metadata=keep_all_metadata,
-            background_lsts=background_lsts,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
         self._convert_from_filetype(uvfits_obj)
         del uvfits_obj
@@ -6534,11 +6455,12 @@ class UVData(UVBase):
         keep_all_metadata=True,
         read_data=True,
         data_array_dtype=np.complex128,
+        multidim_index=False,
+        background_lsts=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        multidim_index=False,
-        background_lsts=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Read a UVH5 file.
@@ -6619,6 +6541,13 @@ class UVData(UVBase):
             np.complex64 (single-precision real and imaginary) or np.complex128 (double-
             precision real and imaginary). Only used if the datatype of the visibility
             data on-disk is not 'c8' or 'c16'.
+        multidim_index : bool
+            [Only for HDF5] If True, attempt to index the HDF5 dataset
+            simultaneously along all data axes. Otherwise index one axis at-a-time.
+            This only works if data selection is sliceable along all but one axis.
+            If indices are not well-matched to data chunks, this can be slow.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -6631,13 +6560,9 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
-        multidim_index : bool
-            [Only for HDF5] If True, attempt to index the HDF5 dataset
-            simultaneously along all data axes. Otherwise index one axis at-a-time.
-            This only works if data selection is sliceable along all but one axis.
-            If indices are not well-matched to data chunks, this can be slow.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Raises
         ------
@@ -6672,14 +6597,15 @@ class UVData(UVBase):
             time_range=time_range,
             polarizations=polarizations,
             blt_inds=blt_inds,
+            data_array_dtype=data_array_dtype,
+            keep_all_metadata=keep_all_metadata,
             read_data=read_data,
+            multidim_index=multidim_index,
+            background_lsts=background_lsts,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
-            data_array_dtype=data_array_dtype,
-            keep_all_metadata=keep_all_metadata,
-            multidim_index=multidim_index,
-            background_lsts=background_lsts,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
         self._convert_from_filetype(uvh5_obj)
         del uvh5_obj
@@ -7029,8 +6955,10 @@ class UVData(UVBase):
         if multi:
 
             file_num = 0
+            file_warnings = ""
             unread = True
-            while unread:
+            f = filename[file_num]
+            while unread and file_num < len(filename):
                 try:
                     self.read(
                         filename[file_num],
@@ -7054,19 +6982,35 @@ class UVData(UVBase):
                         pol_order=pol_order,
                         data_array_dtype=data_array_dtype,
                         nsample_array_dtype=nsample_array_dtype,
+                        skip_bad_files=skip_bad_files,
+                        background_lsts=background_lsts,
                         run_check=run_check,
                         check_extra=check_extra,
                         run_check_acceptability=run_check_acceptability,
-                        skip_bad_files=skip_bad_files,
-                        background_lsts=background_lsts,
+                        strict_uvw_antpos_check=strict_uvw_antpos_check,
                     )
                     unread = False
-                except KeyError:
-                    warnings.warn("Failed to read {f}".format(f=filename[file_num]))
+                except KeyError as err:
+                    file_warnings = (
+                        file_warnings + f"Failed to read {f} due to KeyError: {err}\n"
+                    )
                     file_num += 1
                     if skip_bad_files is False:
                         raise
-
+                except ValueError as err:
+                    file_warnings = (
+                        file_warnings + f"Failed to read {f} due to ValueError: {err}\n"
+                    )
+                    file_num += 1
+                    if skip_bad_files is False:
+                        raise
+                except OSError as err:  # pragma: nocover
+                    file_warnings = (
+                        file_warnings + f"Failed to read {f} due to OSError: {err}\n"
+                    )
+                    file_num += 1
+                    if skip_bad_files is False:
+                        raise
             if (
                 allow_rephase
                 and phase_center_radec is None
@@ -7103,14 +7047,36 @@ class UVData(UVBase):
                             pol_order=pol_order,
                             data_array_dtype=data_array_dtype,
                             nsample_array_dtype=nsample_array_dtype,
+                            skip_bad_files=skip_bad_files,
+                            background_lsts=background_lsts,
                             run_check=run_check,
                             check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability,
-                            skip_bad_files=skip_bad_files,
-                            background_lsts=background_lsts,
+                            strict_uvw_antpos_check=strict_uvw_antpos_check,
                         )
-                    except KeyError:
-                        warnings.warn("Failed to read {f}".format(f=f))
+                    except KeyError as err:
+                        file_warnings = (
+                            file_warnings
+                            + f"Failed to read {f} due to KeyError: {err}\n"
+                        )
+                        if skip_bad_files:
+                            continue
+                        else:
+                            raise
+                    except ValueError as err:
+                        file_warnings = (
+                            file_warnings
+                            + f"Failed to read {f} due to ValueError: {err}\n"
+                        )
+                        if skip_bad_files:
+                            continue
+                        else:
+                            raise
+                    except OSError as err:  # pragma: nocover
+                        file_warnings = (
+                            file_warnings
+                            + f"Failed to read {f} due to OSError: {err}\n"
+                        )
                         if skip_bad_files:
                             continue
                         else:
@@ -7143,6 +7109,14 @@ class UVData(UVBase):
                         )
 
                 del uv2
+            if unread is True:
+                warnings.warn(
+                    "########################################################\n"
+                    "ALL FILES FAILED ON READ - NO READABLE FILES IN FILENAME\n"
+                    "########################################################"
+                )
+            elif len(file_warnings) > 0:
+                warnings.warn(file_warnings)
         else:
             if file_type in ["fhd", "ms", "mwa_corr_fits"]:
                 if (
@@ -7243,11 +7217,12 @@ class UVData(UVBase):
                     polarizations=polarizations,
                     blt_inds=blt_inds,
                     read_data=read_data,
+                    keep_all_metadata=keep_all_metadata,
+                    background_lsts=background_lsts,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
-                    keep_all_metadata=keep_all_metadata,
-                    background_lsts=background_lsts,
+                    strict_uvw_antpos_check=strict_uvw_antpos_check,
                 )
 
             elif file_type == "mir":
@@ -7267,16 +7242,16 @@ class UVData(UVBase):
                     read_data=read_data,
                     phase_type=phase_type,
                     correct_lat_lon=correct_lat_lon,
+                    background_lsts=background_lsts,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
-                    background_lsts=background_lsts,
+                    strict_uvw_antpos_check=strict_uvw_antpos_check,
                 )
 
             elif file_type == "mwa_corr_fits":
                 self.read_mwa_corr_fits(
                     filename,
-                    run_check=run_check,
                     use_cotter_flags=use_cotter_flags,
                     correct_cable_len=correct_cable_len,
                     flag_init=flag_init,
@@ -7288,9 +7263,11 @@ class UVData(UVBase):
                     read_data=read_data,
                     data_array_dtype=data_array_dtype,
                     nsample_array_dtype=nsample_array_dtype,
+                    background_lsts=background_lsts,
+                    run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
-                    background_lsts=background_lsts,
+                    strict_uvw_antpos_check=strict_uvw_antpos_check,
                 )
 
             elif file_type == "fhd":
@@ -7302,17 +7279,19 @@ class UVData(UVBase):
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
+                    strict_uvw_antpos_check=strict_uvw_antpos_check,
                 )
 
             elif file_type == "ms":
                 self.read_ms(
                     filename,
-                    run_check=run_check,
-                    check_extra=check_extra,
-                    run_check_acceptability=run_check_acceptability,
                     data_column=data_column,
                     pol_order=pol_order,
                     background_lsts=background_lsts,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                    strict_uvw_antpos_check=strict_uvw_antpos_check,
                 )
 
             elif file_type == "uvh5":
@@ -7329,13 +7308,14 @@ class UVData(UVBase):
                     polarizations=polarizations,
                     blt_inds=blt_inds,
                     read_data=read_data,
-                    run_check=run_check,
-                    check_extra=check_extra,
-                    run_check_acceptability=run_check_acceptability,
                     data_array_dtype=data_array_dtype,
                     keep_all_metadata=keep_all_metadata,
                     multidim_index=multidim_index,
                     background_lsts=background_lsts,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                    strict_uvw_antpos_check=strict_uvw_antpos_check,
                 )
                 select = False
 
@@ -7351,10 +7331,11 @@ class UVData(UVBase):
                     time_range=select_time_range,
                     polarizations=select_polarizations,
                     blt_inds=select_blt_inds,
+                    keep_all_metadata=keep_all_metadata,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
-                    keep_all_metadata=keep_all_metadata,
+                    strict_uvw_antpos_check=strict_uvw_antpos_check,
                 )
 
             if unphase_to_drift:
@@ -7398,10 +7379,11 @@ class UVData(UVBase):
     def write_miriad(
         self,
         filepath,
+        clobber=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        clobber=False,
+        strict_uvw_antpos_check=False,
         no_antnums=False,
     ):
         """
@@ -7411,6 +7393,8 @@ class UVData(UVBase):
         ----------
         filename : str
             The miriad root directory to write to.
+        clobber : bool
+            Option to overwrite the filename if the file already exists.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after before writing the file (the default is True,
@@ -7422,8 +7406,9 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters before
             writing the file (the default is True, meaning the acceptable
             range check will be done).
-        clobber : bool
-            Option to overwrite the filename if the file already exists.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
         no_antnums : bool
             Option to not write the antnums variable to the file.
             Should only be used for testing purposes.
@@ -7441,10 +7426,11 @@ class UVData(UVBase):
         miriad_obj = self._convert_to_filetype("miriad")
         miriad_obj.write_miriad(
             filepath,
+            clobber=clobber,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
-            clobber=clobber,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
             no_antnums=no_antnums,
         )
         del miriad_obj
@@ -7458,6 +7444,7 @@ class UVData(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Write the data to a uvfits file.
@@ -7485,6 +7472,9 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters before
             writing the file (the default is True, meaning the acceptable
             range check will be done).
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Raises
         ------
@@ -7511,21 +7501,23 @@ class UVData(UVBase):
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
         del uvfits_obj
 
     def write_uvh5(
         self,
         filename,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
         clobber=False,
         chunks=True,
         data_compression=None,
         flags_compression="lzf",
         nsample_compression="lzf",
         data_write_dtype=None,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Write a completely in-memory UVData object to a UVH5 file.
@@ -7564,19 +7556,24 @@ class UVData(UVBase):
             Option to check acceptable range of the values of parameters before
             writing the file (the default is True, meaning the acceptable
             range check will be done).
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
+
         """
         uvh5_obj = self._convert_to_filetype("uvh5")
         uvh5_obj.write_uvh5(
             filename,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
             clobber=clobber,
             chunks=chunks,
             data_compression=data_compression,
             flags_compression=flags_compression,
             nsample_compression=nsample_compression,
             data_write_dtype=data_write_dtype,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
         del uvh5_obj
 
@@ -7653,8 +7650,8 @@ class UVData(UVBase):
         times=None,
         polarizations=None,
         blt_inds=None,
-        run_check_acceptability=True,
         add_to_history=None,
+        run_check_acceptability=True,
     ):
         """
         Write data to a UVH5 file that has already been initialized.
@@ -7721,12 +7718,16 @@ class UVData(UVBase):
         blt_inds : array_like of int, optional
             The baseline-time indices to include when writing data into the file.
             This is not commonly used.
+        add_to_history : str
+            String to append to history before write out. Default is no appending.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters before
             writing the file (the default is True, meaning the acceptable
             range check will be done).
-        add_to_history : str
-            String to append to history before write out. Default is no appending.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
+
         """
         uvh5_obj = self._convert_to_filetype("uvh5")
         uvh5_obj.write_uvh5_part(
@@ -7744,7 +7745,7 @@ class UVData(UVBase):
             times=times,
             polarizations=polarizations,
             blt_inds=blt_inds,
-            run_check_acceptability=run_check_acceptability,
             add_to_history=add_to_history,
+            run_check_acceptability=run_check_acceptability,
         )
         del uvh5_obj
