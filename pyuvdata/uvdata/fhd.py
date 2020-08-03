@@ -110,6 +110,7 @@ class FHD(UVData):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Read in data from a list of FHD files.
@@ -145,6 +146,9 @@ class FHD(UVData):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done).
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
 
         Raises
         ------
@@ -546,9 +550,7 @@ class FHD(UVData):
         self.ant_1_array = bl_info["TILE_A"][0] - 1
         self.ant_2_array = bl_info["TILE_B"][0] - 1
 
-        self.Nants_data = int(
-            len(np.unique(self.ant_1_array.tolist() + self.ant_2_array.tolist()))
-        )
+        self.Nants_data = int(np.union1d(self.ant_1_array, self.ant_2_array).size)
 
         self.baseline_array = self.antnums_to_baseline(
             self.ant_1_array, self.ant_2_array
@@ -624,5 +626,7 @@ class FHD(UVData):
         # check if object has all required uv_properties set
         if run_check:
             self.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
