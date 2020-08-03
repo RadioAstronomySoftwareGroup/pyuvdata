@@ -5783,7 +5783,7 @@ class UVData(UVBase):
         ----------
         filetype : str
             Specifies what file type object to convert to. Options are: 'uvfits',
-            'fhd', 'miriad', 'uvh5'
+            'fhd', 'miriad', 'uvh5', 'mir'
 
         Raises
         ------
@@ -5806,8 +5806,12 @@ class UVData(UVBase):
             from . import uvh5
 
             other_obj = uvh5.UVH5()
+        elif filetype == "mir":
+            from . import mir
+
+            other_obj = mir.Mir()
         else:
-            raise ValueError("filetype must be uvfits, miriad, fhd, or uvh5")
+            raise ValueError("filetype must be uvfits, mir, miriad, fhd, or uvh5")
         for p in self:
             param = getattr(self, p)
             setattr(other_obj, p, param)
@@ -7434,6 +7438,27 @@ class UVData(UVBase):
             no_antnums=no_antnums,
         )
         del miriad_obj
+
+    def write_mir(
+        self, filepath,
+    ):
+        """
+        Write the data to a mir file.
+
+        Parameters
+        ----------
+        filename : str
+            The mir root directory to write to.
+
+        Raises
+        ------
+        NotImplementedError
+            Method is not fully implemented yet, and thus will raise an error
+
+        """
+        mir_obj = self._convert_to_filetype("mir")
+        mir_obj.write_mir(filepath,)
+        del mir_obj
 
     def write_uvfits(
         self,

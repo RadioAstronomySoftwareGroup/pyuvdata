@@ -53,6 +53,15 @@ class Mir(UVData):
         mir_data = mir_parser.MirParser(filepath)
 
         # Select out data that we want to work with.
+        if isource is None:
+            isource = mir_data.in_read["isource"][0]
+        if irec is None:
+            irec = mir_data.bl_read["irec"][0]
+        if isb is None:
+            isb = mir_data.bl_read["isb"][0]
+        if corrchunk is None:
+            corrchunk = mir_data.sp_read["corrchunk"][0]
+
         mir_data.use_in = mir_data.in_read["isource"] == isource
         mir_data.use_bl = np.logical_and(
             np.logical_and(
@@ -64,7 +73,10 @@ class Mir(UVData):
 
         # Load up the visibilities into the MirParser object. This will also update the
         # filters, and will make sure we're looking at the right metadata.
-        mir_data.load_data()
+        try:
+            mir_data.load_data(load_vis=True, load_raw=True)
+        except IndexError:
+            raise IndexError("No valid records matching those selections!")
 
         # Create a simple array/list for broadcasting values stored on a
         # per-intergration basis in MIR into the (tasty) per-blt records in UVDATA.
@@ -80,7 +92,7 @@ class Mir(UVData):
         self.Nants_telescope = 8
         self.Nbls = int(self.Nants_data * (self.Nants_data - 1) / 2)
         self.Nblts = len(mir_data.bl_data)
-        self.Nfreqs = 16384  # 2**14
+        self.Nfreqs = int(mir_data.sp_data["nch"][0])
         self.Npols = 1  # todo: We will need to go back and expand this.
         self.Nspws = 1  # todo: We will need to go back and expand this.
         self.Ntimes = len(mir_data.in_data)
@@ -101,9 +113,9 @@ class Mir(UVData):
         # Prepare the XYZ coordinates of the antenna positions.
         antXYZ = np.zeros([self.Nants_telescope, 3])
         for idx in range(self.Nants_telescope):
-            if idx + 1 in mir_data.antpos_data["antenna"]:
+            if (idx + 1) in mir_data.antpos_data["antenna"]:
                 antXYZ[idx] = mir_data.antpos_data["xyz_pos"][
-                    mir_data.antpos_data["antenna"] == idx + 1
+                    mir_data.antpos_data["antenna"] == (idx + 1)
                 ]
 
         self.antenna_positions = uvutils.ECEF_from_rotECEF(antXYZ, sma_lon)
@@ -112,14 +124,9 @@ class Mir(UVData):
         )
 
         # todo: This may need to be reshaped.
-        if isource is None or irec is None or isb is None or corrchunk is None:
-            fsky = 230e9
-            fres = 139648.4375
-            nch = 16384
-        else:
-            fsky = mir_data.sp_data["fsky"][0] * 1e9
-            fres = mir_data.sp_data["fres"][0] * 1e6
-            nch = mir_data.sp_data["nch"][0]
+        fsky = mir_data.sp_data["fsky"][0] * 1e9
+        fres = mir_data.sp_data["fres"][0] * 1e6
+        nch = mir_data.sp_data["nch"][0]
 
         self.channel_width = fres
         self.freq_array = fsky + fres * (np.arange(nch) - (nch / 2 - 0.5))
@@ -154,21 +161,13 @@ class Mir(UVData):
 
         sou_list = mir_data.codes_data[mir_data.codes_data["v_name"] == b"source"]
 
-        if isource:
-            self.object_name = sou_list[sou_list["icode"] == isource]["code"][0].decode(
-                "utf-8"
-            )
-        else:
-            self.object_name = sou_list[0][2].decode("utf-8")
+        self.object_name = sou_list[sou_list["icode"] == isource]["code"][0].decode(
+            "utf-8"
+        )
 
-        if len(mir_data.in_data):
-            self.phase_center_ra = mir_data.in_data["rar"][0]
-            self.phase_center_dec = mir_data.in_data["decr"][0]
-            self.phase_center_epoch = mir_data.in_data["epoch"][0]
-        else:
-            self.phase_center_ra = 0
-            self.phase_center_dec = 0
-            self.phase_center_epoch = 2000.0
+        self.phase_center_ra = mir_data.in_data["rar"][0]
+        self.phase_center_dec = mir_data.in_data["decr"][0]
+        self.phase_center_epoch = mir_data.in_data["epoch"][0]
 
         self.phase_center_epoch = float(self.phase_center_epoch)
         self.antenna_diameters = np.zeros(self.Nants_telescope) + 6
@@ -177,6 +176,8 @@ class Mir(UVData):
             np.array(mir_data.vis_data),
             (self.Nblts, self.Nspws, self.Nfreqs, self.Npols),
         )
+        # Don't need the data anymore, so drop it
+        mir_data.unload_data()
         self.flag_array = np.zeros(self.data_array.shape, dtype=bool)
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.single)
 
