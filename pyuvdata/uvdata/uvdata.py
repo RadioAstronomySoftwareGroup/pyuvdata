@@ -6722,12 +6722,13 @@ class UVData(UVBase):
         end_flag=2.0,
         flag_dc_offset=True,
         phase_to_pointing_center=False,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
         skip_bad_files=False,
         multidim_index=False,
         background_lsts=True,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
         isource=None,
         irec=None,
         isb=None,
@@ -6902,18 +6903,6 @@ class UVData(UVBase):
         phase_to_pointing_center : bool
             Flag to phase to the pointing center. Only used if file_type is
             'mwa_corr_fits'. Cannot be set if phase_center_radec is not None.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run). Ignored if read_data is False.
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-            Ignored if read_data is False.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done). Ignored if read_data is False.
         skip_bad_files : bool
             Option when reading multiple files to catch read errors such that
             the read continues even if one or more files are corrupted. Files
@@ -6926,6 +6915,21 @@ class UVData(UVBase):
             If indices are not well-matched to data chunks, this can be slow.
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
         isource : int
             Source code for MIR dataset
         irec : int
