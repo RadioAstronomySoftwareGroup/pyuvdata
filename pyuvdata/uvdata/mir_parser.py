@@ -568,7 +568,7 @@ class MirParser:
                         nchunks = int(auto_vals["nChunks"][0])
                         if file_size % (4 * (2 ** 14) * nchunks * 2 + 20):
                             raise IndexError(
-                                "Could not determine" " auto-correlation record size!"
+                                "Could not determine auto-correlation record size!"
                             )
                         # How big the record is for each data set
                     last_offset = 4 * (2 ** 14) * int(nchunks) * 2

@@ -78,7 +78,9 @@ def test_read_mir_no_records(
         uv_in.read_mir(testfile, isource=-1)
 
 
-def test_mir_auto_read():
+def test_mir_auto_read(
+    err_type=IndexError, err_msg="Could not determine auto-correlation record size!"
+):
     """
     Mir read tester
 
@@ -86,13 +88,20 @@ def test_mir_auto_read():
     """
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     mir_data = mir_parser.MirParser(testfile)
-    mir_data.ac_data["nchunks"][:] = 4
+    with pytest.raises(err_type, match=err_msg):
+        ac_data = mir_data.scan_auto_data(testfile, nchunks=999)
+
+    ac_data = mir_data.scan_auto_data(testfile)
+    assert np.all(ac_data["nchunks"] == 8)
+
     mir_data.load_data(load_vis=False, load_auto=True)
 
-    auto_data = mir_data.read_auto_data(testfile, mir_data.ac_data)
+    # Select the relevant auto records, which should be for spwin 0-3
+    auto_data = mir_data.read_auto_data(testfile, ac_data)[:, 0:4, :, :]
     assert np.all(
         np.logical_or(
             auto_data == mir_data.auto_data,
             np.logical_and(np.isnan(auto_data), np.isnan(mir_data.auto_data)),
         )
     )
+    mir_data.unload_data()
