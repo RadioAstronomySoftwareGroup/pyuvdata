@@ -211,7 +211,7 @@ ac_read_dtype = np.dtype(
 antpos_dtype = np.dtype([("antenna", np.int16), ("xyz_pos", np.double, 3)])
 
 
-class MirParser:
+class MirParser(object):
     """General class for Mir datasets.
 
     Does lots of cool things.
@@ -422,7 +422,7 @@ class MirParser:
         filepath : str
             filepath is the path to the folder containing the mir data set.
         """
-        return np.fromfile(filepath + "/in_read", dtype=in_dtype)
+        return np.fromfile(os.path.join(filepath, "in_read"), dtype=in_dtype)
 
     @staticmethod
     def read_eng_data(filepath):
@@ -434,7 +434,7 @@ class MirParser:
         filepath : str
             filepath is the path to the folder containing the mir data set.
         """
-        return np.fromfile(filepath + "/eng_read", dtype=eng_dtype)
+        return np.fromfile(os.path.join(filepath, "eng_read"), dtype=eng_dtype)
 
     @staticmethod
     def read_bl_data(filepath):
@@ -446,7 +446,7 @@ class MirParser:
         filepath : str
             filepath is the path to the folder containing the mir data set.
         """
-        return np.fromfile(filepath + "/bl_read", dtype=bl_dtype)
+        return np.fromfile(os.path.join(filepath, "bl_read"), dtype=bl_dtype)
 
     @staticmethod
     def read_sp_data(filepath):
@@ -458,7 +458,7 @@ class MirParser:
         filepath : str
             filepath is the path to the folder containing the mir data set.
         """
-        return np.fromfile(filepath + "/sp_read", dtype=sp_dtype)
+        return np.fromfile(os.path.join(filepath, "sp_read"), dtype=sp_dtype)
 
     @staticmethod
     def read_codes_data(filepath):
@@ -470,7 +470,7 @@ class MirParser:
         filepath : str
             filepath is the path to the folder containing the mir data set.
         """
-        return np.fromfile(filepath + "/codes_read", dtype=codes_dtype)
+        return np.fromfile(os.path.join(filepath, "codes_read"), dtype=codes_dtype)
 
     @staticmethod
     def read_we_data(filepath):
@@ -482,12 +482,12 @@ class MirParser:
         filepath : str
             filepath is the path to the folder containing the mir data set.
         """
-        return np.fromfile(filepath + "/we_read", dtype=we_dtype)
+        return np.fromfile(os.path.join(filepath, "we_read"), dtype=we_dtype)
 
     @staticmethod
     def read_antennas(filepath):
         """Read "antennas" from a mir dataset into the numpy datatype antpos_dtype."""
-        with open(filepath + "/antennas", "r") as antennas_file:
+        with open(os.path.join(filepath, "antennas"), "r") as antennas_file:
             temp_list = [
                 item for line in antennas_file.readlines() for item in line.split()
             ]
@@ -509,8 +509,9 @@ class MirParser:
         filepath : str
             filepath is the path to the folder containing the mir data set.
         """
-        file_size = os.path.getsize(filepath + "/sch_read")
-        with open(filepath + "/sch_read", "rb") as visibilities_file:
+        full_filepath = os.path.join(filepath, "sch_read")
+        file_size = os.path.getsize(full_filepath)
+        with open(full_filepath, "rb") as visibilities_file:
             data_offset = 0
             last_offset = 0
             in_offset_dict = {}
@@ -543,8 +544,9 @@ class MirParser:
             Specify the number of chunks recorded into the autocorrelations
             (default is 8)
         """
-        file_size = os.path.getsize(filepath + "/autoCorrelations")
-        with open(filepath + "/autoCorrelations", "rb") as auto_file:
+        full_filepath = os.path.join(filepath, "autoCorrelations")
+        file_size = os.path.getsize(full_filepath)
+        with open(full_filepath, "rb") as auto_file:
             data_offset = 0
             last_offset = 0
             acfile_dtype = np.dtype(
@@ -731,7 +733,7 @@ class MirParser:
         nvals = ac_data["nchunks"] * 2 * (2 ** 14)
         nchunks = ac_data["nchunks"]
 
-        with open(filepath + "/autoCorrelations", "rb") as auto_file:
+        with open(os.path.join(filepath, "autoCorrelations"), "rb") as auto_file:
             for idx in range(len(dataoff)):
                 auto_data[idx] = np.fromfile(
                     auto_file,
@@ -776,7 +778,7 @@ class MirParser:
             )
 
         inhid_list = []
-        with open(filepath + "/sch_read", "rb") as visibilities_file:
+        with open(os.path.join(filepath, "sch_read"), "rb") as visibilities_file:
             last_offset = last_size = num_vals = del_offset = 0
             for ind_key in sorted(in_start_dict.keys()):
                 (in_size, in_start) = in_start_dict[ind_key]
