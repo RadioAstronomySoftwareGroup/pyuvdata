@@ -25,9 +25,18 @@ class WarningsChecker(warnings.catch_warnings):
     A context manager to check raised warnings.
 
     Adapted from pytest WarningsRecorder and WarningsChecker.
+
+    Parameters
+    ----------
+    expected_warning : list of Warnings
+        List of expected warnings.
+    match : list of str or regex
+        List of strings to match warnings to.
+
     """
 
     def __init__(self, expected_warning, match):
+        """Check inputs and initalize object."""
         super().__init__(record=True)
         self._entered = False
         self._list = []
@@ -79,7 +88,14 @@ class WarningsChecker(warnings.catch_warnings):
         return len(self._list)
 
     def pop(self, cls):
-        """Pop the first recorded warning, raise exception if not exists."""
+        """
+        Pop the first recorded warning, raise exception if not exists.
+
+        Parameters
+        ----------
+        cls : Warning
+            Warning class to check for.
+        """
         for i, w in enumerate(self._list):
             if issubclass(w.category, cls):
                 return self._list.pop(i)
@@ -179,7 +195,9 @@ def check_warnings(expected_warning, match=None, nwarnings=None, *args, **kwargs
 
     Similar to ``pytest.warns``, but allows for specifying multiple warnings.
     It also better matches warning strings when the warning uses f-strings or
-    formating.
+    formating. Can be used as a drop-in replacement for ``pytest.warns`` if
+    only one warning is issued (if more are issued they will need to be added
+    to the input lists for this to pass).
 
     Note that unlike the older checkWarnings function, the warnings can be passed
     in any order, they do not have to match the order the warnings are raised
@@ -193,9 +211,9 @@ def check_warnings(expected_warning, match=None, nwarnings=None, *args, **kwargs
     expected_warning : list of Warnings or Warning
         List of expected warnings. If a single warning type or a length 1 list,
         will be used for the type of all warnings.
-    match : list of str or str
-        List of strings to match warnings to. If a str or a length 1 list, will
-        be used for all warnings.
+    match : str or regex or list of str or regex
+        List of strings or regexes to match warnings to. If a str or a length 1
+        list, will be used for all warnings.
     nwarnings : int, optional
         Option to specify that multiple of a single type of warning is expected.
         Only used if category and match both only have one element.
