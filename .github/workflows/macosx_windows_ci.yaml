@@ -9,6 +9,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     defaults:
      run:
+       # Adding -l {0} helps ensure conda can be found properly in windows.
        shell: bash -l {0}
     strategy:
       fail-fast: false
