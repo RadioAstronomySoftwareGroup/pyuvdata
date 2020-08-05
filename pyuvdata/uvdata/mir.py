@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (c) 2018 Radio Astronomy Software Group
+# Copyright (c) 2020 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing Mir files."""
@@ -8,8 +8,7 @@ import numpy as np
 from .uvdata import UVData
 from . import mir_parser
 from .. import utils as uvutils
-
-# from pyuvdata import utils
+from .. import get_telescope
 
 __all__ = ["Mir"]
 
@@ -27,7 +26,7 @@ class Mir(UVData):
         """
         Read in data from an SMA MIR file, and map to the UVData model.
 
-        Note that with the exception of filename, the reset of the parameters are
+        Note that with the exception of filename, the rest of the parameters are
         used to sub-select a range of data that matches the limitations of the current
         instantiation of pyuvdata  -- namely 1 spectral window, 1 source. These could
         be dropped in the future, as pyuvdata capabilities grow.
@@ -35,7 +34,7 @@ class Mir(UVData):
         Parameters
         ----------
         filepath : str
-             The file path to the MIR folder to read from.
+            The file path to the MIR folder to read from.
         isource : int
             Source code for MIR dataset
         irec : int
@@ -45,10 +44,6 @@ class Mir(UVData):
         corrchunk : int
             Correlator chunk code for MIR dataset
         """
-        sma_lat = 0.3459976585365961
-        sma_lon = -2.713594675620429
-        sma_alt = 4080.0
-
         # Use the mir_parser to read in metadata, which can be used to select data.
         mir_data = mir_parser.MirParser(filepath)
 
@@ -119,7 +114,11 @@ class Mir(UVData):
                     mir_data.antpos_data["antenna"] == (idx + 1)
                 ]
 
-        self.antenna_positions = uvutils.ECEF_from_rotECEF(antXYZ, sma_lon)
+        # Get the coordinates from the entry in telescope.py
+        lat, lon, alt = get_telescope("SMA")._telescope_location.lat_lon_alt()
+        self.telescope_location_lat_lon_alt = (lat, lon, alt)
+
+        self.antenna_positions = uvutils.ECEF_from_rotECEF(antXYZ, lon)
         self.baseline_array = (
             2048 * (self.ant_1_array + 1) + (self.ant_2_array + 1) + (2 ** 16)
         )
@@ -145,7 +144,7 @@ class Mir(UVData):
         self.polarization_array = np.asarray([-5])
 
         self.spw_array = np.asarray([0])
-        self.telescope_location_lat_lon_alt = (sma_lat, sma_lon, sma_alt)
+
         self.telescope_name = "SMA"
         time_array_mjd = mir_data.in_read["mjd"][bl_in_maparr]
         self.time_array = time_array_mjd + 2400000.5
