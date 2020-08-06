@@ -285,6 +285,11 @@ class MirParser(object):
 
         Expands the internal 'use_in', 'use_bl', and 'use_sp' arrays to
         construct filters for the individual structures/data
+
+        Returns
+        -------
+        filter_changed : bool
+            Indicates whether the underlying selected records changed.
         """
         old_in_filter = self.in_filter
         old_bl_filter = self.bl_filter
@@ -429,6 +434,11 @@ class MirParser(object):
         ----------
         filepath : str
             filepath is the path to the folder containing the mir data set.
+
+        Returns
+        -------
+        ndarray
+            Numpy ndarray of custom dtype of in_dtype.
         """
         return np.fromfile(os.path.join(filepath, "in_read"), dtype=in_dtype)
 
@@ -441,6 +451,11 @@ class MirParser(object):
         ----------
         filepath : str
             filepath is the path to the folder containing the mir data set.
+
+        Returns
+        -------
+        ndarray
+            Numpy ndarray of custom dtype of eng_dtype.
         """
         return np.fromfile(os.path.join(filepath, "eng_read"), dtype=eng_dtype)
 
@@ -453,6 +468,11 @@ class MirParser(object):
         ----------
         filepath : str
             filepath is the path to the folder containing the mir data set.
+
+        Returns
+        -------
+        ndarray
+            Numpy ndarray of custom dtype of bl_dtype.
         """
         return np.fromfile(os.path.join(filepath, "bl_read"), dtype=bl_dtype)
 
@@ -465,6 +485,11 @@ class MirParser(object):
         ----------
         filepath : str
             filepath is the path to the folder containing the mir data set.
+
+        Returns
+        -------
+        ndarray
+            Numpy ndarray of custom dtype of sp_dtype.
         """
         return np.fromfile(os.path.join(filepath, "sp_read"), dtype=sp_dtype)
 
@@ -477,6 +502,11 @@ class MirParser(object):
         ----------
         filepath : str
             filepath is the path to the folder containing the mir data set.
+
+        Returns
+        -------
+        ndarray
+            Numpy ndarray of custom dtype of codes_dtype.
         """
         return np.fromfile(os.path.join(filepath, "codes_read"), dtype=codes_dtype)
 
@@ -489,12 +519,29 @@ class MirParser(object):
         ----------
         filepath : str
             filepath is the path to the folder containing the mir data set.
+
+        Returns
+        -------
+        ndarray
+            Numpy ndarray of custom dtype of we_dtype.
         """
         return np.fromfile(os.path.join(filepath, "we_read"), dtype=we_dtype)
 
     @staticmethod
     def read_antennas(filepath):
-        """Read "antennas" from a mir dataset into the numpy datatype antpos_dtype."""
+        """
+        Read "antennas" from a mir dataset into the numpy datatype antpos_dtype.
+
+        Parameters
+        ----------
+        filepath : str
+            filepath is the path to the folder containing the mir data set.
+
+        Returns
+        -------
+        antpos_data : ndarray
+            Numpy ndarray of custom dtype of antpos_dtype.
+        """
         with open(os.path.join(filepath, "antennas"), "r") as antennas_file:
             temp_list = [
                 item for line in antennas_file.readlines() for item in line.split()
@@ -516,6 +563,11 @@ class MirParser(object):
         ----------
         filepath : str
             filepath is the path to the folder containing the mir data set.
+
+        Returns
+        -------
+        dict
+            Dictionary containing the indexes from sch_read.
         """
         full_filepath = os.path.join(filepath, "sch_read")
         file_size = os.path.getsize(full_filepath)
@@ -551,6 +603,11 @@ class MirParser(object):
         nchunks : int, optional
             Specify the number of chunks recorded into the autocorrelations
             (default is 8)
+
+        Returns
+        -------
+        ac_data : ndarray
+            Numpy ndarray of custom type ac_read_dtype.
         """
         full_filepath = os.path.join(filepath, "autoCorrelations")
         file_size = os.path.getsize(full_filepath)
@@ -580,7 +637,7 @@ class MirParser(object):
                             raise IndexError(
                                 "Could not determine auto-correlation record size!"
                             )
-                        # How big the record is for each data set
+                    # How big the record is for each data set
                     last_offset = 4 * (2 ** 14) * int(nchunks) * 2
                     ac_data = np.zeros(
                         file_size // ((4 * (2 ** 14) * int(nchunks) * 2 + 20)),
