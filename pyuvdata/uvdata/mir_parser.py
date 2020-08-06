@@ -221,10 +221,20 @@ class MirParser(object):
         """
         Read in all files from a mir data set into predefined numpy datatypes.
 
+        The full dataset can be quite large, as such the default behavior of
+        this function is only to load the metadata. Use the keyword params to
+        load other data into memory.
+
         Parameters
         ----------
         filepath : str
             filepath is the path to the folder containing the mir data set.
+        load_vis : bool
+            flag to load visibilities into memory, default is False.
+        load_raw : bool
+            flag to load raw data into memory, default is False.
+        load_auto : bool
+            flag to load auto-correlations into memory, default is False.
         """
         self.filepath = filepath
         self.in_read = self.read_in_data(filepath)
