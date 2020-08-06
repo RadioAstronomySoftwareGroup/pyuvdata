@@ -792,12 +792,20 @@ class MirParser(object):
         Returns
         -------
         auto_data : arr of single
-            An array of size n_ch x n_chunk x n_rec, which containts the auto spectra.
+            An array of shape (n_ch, n_chunk, n_rec), which containts the auto spectra,
+            where n_ch is number of channels (currently always 16384 per chunk),
+            n_chunk is the number of spectral "chunks" (i.e., Nspws), and n_rec is the
+            number of receivers per antenna recorded (always 2 -- 1 per polarization).
         """
         if winsel is None:
             winsel = np.arange(0, ac_data["nchunks"][0])
 
         winsel = np.array(winsel)
+        # The current generation correlator always produces 2**14 == 16384 channels per
+        # spectral window.
+        # TODO: Allow this to be flexible if dealing w/ spectrally averaged data
+        # (although it's only use currently is in its unaveraged formal for
+        # normaliztion of the crosses)
         auto_data = np.empty((len(ac_data), len(winsel), 2, 2 ** 14), dtype=np.float32)
         dataoff = ac_data["dataoff"]
         datasize = ac_data["datasize"]
