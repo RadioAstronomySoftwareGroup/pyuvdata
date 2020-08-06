@@ -574,9 +574,9 @@ class MirParser(object):
                 # common problem with metadata of MIR autos not
                 # being correctly recorded.
                 if data_offset == 0:
-                    if file_size % (4 * (2 ** 14) * nchunks * 2 + 20):
+                    if (file_size % (4 * (2 ** 14) * nchunks * 2 + 20)) != 0:
                         nchunks = int(auto_vals["nChunks"][0])
-                        if file_size % (4 * (2 ** 14) * nchunks * 2 + 20):
+                        if (file_size % (4 * (2 ** 14) * nchunks * 2 + 20)) != 0:
                             raise IndexError(
                                 "Could not determine auto-correlation record size!"
                             )
