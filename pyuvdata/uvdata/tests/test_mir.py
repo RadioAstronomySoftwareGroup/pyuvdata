@@ -13,7 +13,6 @@ import numpy as np
 from ... import UVData
 from ...data import DATA_PATH
 from ...uvdata.mir import mir_parser
-from ... import utils as uvutils
 
 
 @pytest.fixture
@@ -73,10 +72,9 @@ def test_read_mir_write_uvfits(uv_in_uvfits):
     mir_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read_uvfits(testfile)
 
-    assert uvutils._check_histories(
-        mir_uv.history + " Read/written with pyuvdata version:"
-        " 2.0.3.dev294+gb13c2597.submillimeter_array.dirty.",
-        uvfits_uv.history,
+    # Check the history first via issubset
+    assert set(mir_uv.history + " Read/written with pyuvdata version:").issubset(
+        set(uvfits_uv.history)
     )
 
     mir_uv.history = uvfits_uv.history
@@ -95,9 +93,13 @@ def test_read_mir_write_uvh5(uv_in_uvh5):
     mir_uv.write_uvh5(testfile)
     uvh5_uv.read_uvh5(testfile)
 
+    # Check the history first via issubset
+    assert set(mir_uv.history + " Read/written with pyuvdata version:").issubset(
+        set(uvh5_uv.history)
+    )
+
     # test fails because of updated history, so this is our workaround for now.
-    mir_uv.history = ""
-    uvh5_uv.history = ""
+    mir_uv.history = uvh5_uv.history
 
     assert mir_uv == uvh5_uv
 
