@@ -24,11 +24,11 @@ in_dtype = np.dtype(
         ("ha", np.float32),
         ("iut", np.int16),
         ("iref_time", np.int16),
-        ("dhrs", np.double),
+        ("dhrs", np.float64),
         ("vc", np.float32),
-        ("sx", np.double),
-        ("sy", np.double),
-        ("sz", np.double),
+        ("sx", np.float64),
+        ("sy", np.float64),
+        ("sz", np.float64),
         ("rinteg", np.float32),
         ("proid", np.int32),
         ("souid", np.int32),
@@ -38,8 +38,8 @@ in_dtype = np.dtype(
         ("offy", np.float32),
         ("ira", np.int16),
         ("idec", np.int16),
-        ("rar", np.double),
-        ("decr", np.double),
+        ("rar", np.float64),
+        ("decr", np.float64),
         ("epoch", np.float32),
         ("size", np.float32),
         ("vrra", np.float32),
@@ -51,12 +51,12 @@ in_dtype = np.dtype(
         ("obsflag", np.uint8),
         ("spareshort", np.int16),
         ("spareint6", np.int32),
-        ("yIGFreq1", np.double),
-        ("yIGFreq2", np.double),
-        ("sflux", np.double),
-        ("ara", np.double),
-        ("adec", np.double),
-        ("mjd", np.double),
+        ("yIGFreq1", np.float64),
+        ("yIGFreq2", np.float64),
+        ("sflux", np.float64),
+        ("ara", np.float64),
+        ("adec", np.float64),
+        ("mjd", np.float64),
     ]
 )
 
@@ -69,27 +69,27 @@ eng_dtype = np.dtype(
         ("commStatus", np.int32),
         ("inhid", np.int32),
         ("ints", np.int32),
-        ("dhrs", np.double),
-        ("ha", np.double),
-        ("lst", np.double),
-        ("pmdaz", np.double),
-        ("pmdel", np.double),
-        ("tiltx", np.double),
-        ("tilty", np.double),
-        ("actual_az", np.double),
-        ("actual_el", np.double),
-        ("azoff", np.double),
-        ("eloff", np.double),
-        ("az_tracking_error", np.double),
-        ("el_tracking_error", np.double),
-        ("refraction", np.double),
-        ("chopper_x", np.double),
-        ("chopper_y", np.double),
-        ("chopper_z", np.double),
-        ("chopper_angle", np.double),
-        ("tsys", np.double),
-        ("tsys_rx2", np.double),
-        ("ambient_load_temperature", np.double),
+        ("dhrs", np.float64),
+        ("ha", np.float64),
+        ("lst", np.float64),
+        ("pmdaz", np.float64),
+        ("pmdel", np.float64),
+        ("tiltx", np.float64),
+        ("tilty", np.float64),
+        ("actual_az", np.float64),
+        ("actual_el", np.float64),
+        ("azoff", np.float64),
+        ("eloff", np.float64),
+        ("az_tracking_error", np.float64),
+        ("el_tracking_error", np.float64),
+        ("refraction", np.float64),
+        ("chopper_x", np.float64),
+        ("chopper_y", np.float64),
+        ("chopper_z", np.float64),
+        ("chopper_angle", np.float64),
+        ("tsys", np.float64),
+        ("tsys_rx2", np.float64),
+        ("ambient_load_temperature", np.float64),
     ]
 )
 
@@ -108,7 +108,7 @@ bl_dtype = np.dtype(
         ("w", np.float32),
         ("prbl", np.float32),
         ("coh", np.float32),
-        ("avedhrs", np.double),
+        ("avedhrs", np.float64),
         ("ampave", np.float32),
         ("phaave", np.float32),
         ("blsid", np.int32),
@@ -126,12 +126,12 @@ bl_dtype = np.dtype(
         ("spareint4", np.int32),
         ("spareint5", np.int32),
         ("spareint6", np.int32),
-        ("fave", np.double),
-        ("bwave", np.double),
-        ("sparedbl3", np.double),
-        ("sparedbl4", np.double),
-        ("sparedbl5", np.double),
-        ("sparedbl6", np.double),
+        ("fave", np.float64),
+        ("bwave", np.float64),
+        ("sparedbl3", np.float64),
+        ("sparedbl4", np.float64),
+        ("sparedbl5", np.float64),
+        ("sparedbl6", np.float64),
     ]
 )
 
@@ -145,14 +145,14 @@ sp_dtype = np.dtype(
         ("iband", np.int16),
         ("ipstate", np.int16),
         ("tau0", np.float32),
-        ("vel", np.double),
+        ("vel", np.float64),
         ("vres", np.float32),
-        ("fsky", np.double),
+        ("fsky", np.float64),
         ("fres", np.float32),
-        ("gunnLO", np.double),
-        ("cabinLO", np.double),
-        ("corrLO1", np.double),
-        ("corrLO2", np.double),
+        ("gunnLO", np.float64),
+        ("cabinLO", np.float64),
+        ("corrLO1", np.float64),
+        ("corrLO2", np.float64),
         ("integ", np.float32),
         ("wt", np.float32),
         ("flags", np.int32),
@@ -160,7 +160,7 @@ sp_dtype = np.dtype(
         ("nch", np.int16),
         ("nrec", np.int16),
         ("dataoff", np.int32),
-        ("rfreq", np.double),
+        ("rfreq", np.float64),
         ("corrblock", np.int16),
         ("corrchunk", np.int16),
         ("correlator", np.int32),
@@ -169,12 +169,12 @@ sp_dtype = np.dtype(
         ("spareint4", np.int32),
         ("spareint5", np.int32),
         ("spareint6", np.int32),
-        ("sparedbl1", np.double),
-        ("sparedbl2", np.double),
-        ("sparedbl3", np.double),
-        ("sparedbl4", np.double),
-        ("sparedbl5", np.double),
-        ("sparedbl6", np.double),
+        ("sparedbl1", np.float64),
+        ("sparedbl2", np.float64),
+        ("sparedbl3", np.float64),
+        ("sparedbl4", np.float64),
+        ("sparedbl5", np.float64),
+        ("sparedbl6", np.float64),
     ]
 )
 
@@ -204,11 +204,11 @@ ac_read_dtype = np.dtype(
         ("nchunks", np.int32),
         ("datasize", np.int32),
         ("dataoff", np.int64),
-        ("dhrs", np.double),
+        ("dhrs", np.float64),
     ]
 )
 
-antpos_dtype = np.dtype([("antenna", np.int16), ("xyz_pos", np.double, 3)])
+antpos_dtype = np.dtype([("antenna", np.int16), ("xyz_pos", np.float64, 3)])
 
 
 class MirParser(object):
@@ -556,7 +556,7 @@ class MirParser(object):
         antpos_data = np.empty(len(temp_list) // 4, dtype=antpos_dtype)
         antpos_data["antenna"] = np.int16(temp_list[0::4])
         antpos_data["xyz_pos"] = np.array(
-            [temp_list[1::4], temp_list[2::4], temp_list[3::4]], dtype=np.double
+            [temp_list[1::4], temp_list[2::4], temp_list[3::4]], dtype=np.float64
         ).T
 
         return antpos_data
@@ -626,7 +626,7 @@ class MirParser(object):
                     ("antenna", np.int32),
                     ("nChunks", np.int32),
                     ("scan", np.int32),
-                    ("dhrs", np.double),
+                    ("dhrs", np.float64),
                 ]
             )
             marker = 0
