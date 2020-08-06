@@ -212,9 +212,16 @@ antpos_dtype = np.dtype([("antenna", np.int16), ("xyz_pos", np.double, 3)])
 
 
 class MirParser(object):
-    """General class for Mir datasets.
+    """
+    General class for reading Mir datasets.
 
-    Does lots of cool things.
+    Does lots of cool things! There are static functions that allow you low level
+    access to mir files without needing to create an object.  You can also
+    instantiate a MirParser object with the constructor of this class which will only
+    read the metadata into memory by default. Read in the raw data through the
+    use of the load_vis, load_raw, load_auto flags, or by using the load_data() function
+    once the object is created. This allows for the flexible case of quickly loading
+    metadata first to check whether or not to load additional data into memory.
     """
 
     def __init__(self, filepath, load_vis=False, load_raw=False, load_auto=False):
