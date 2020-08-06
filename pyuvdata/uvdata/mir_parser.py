@@ -267,7 +267,7 @@ class MirParser(object):
         self.ac_data = self.ac_read
 
         # Raw data aren't loaded on start, because the datasets can be huge
-        # You can force this with load_data=True
+        # You can force this after creating the object with load_data().
         self.vis_data = None
         self.raw_data = None
         self.auto_data = None
