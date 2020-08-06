@@ -19,44 +19,44 @@ in_dtype = np.dtype(
         ("traid", np.int32),
         ("inhid", np.int32),
         ("ints", np.int32),
-        ("az", np.single),
-        ("el", np.single),
-        ("ha", np.single),
+        ("az", np.float32),
+        ("el", np.float32),
+        ("ha", np.float32),
         ("iut", np.int16),
         ("iref_time", np.int16),
-        ("dhrs", np.double),
-        ("vc", np.single),
-        ("sx", np.double),
-        ("sy", np.double),
-        ("sz", np.double),
-        ("rinteg", np.single),
+        ("dhrs", np.float64),
+        ("vc", np.float32),
+        ("sx", np.float64),
+        ("sy", np.float64),
+        ("sz", np.float64),
+        ("rinteg", np.float32),
         ("proid", np.int32),
         ("souid", np.int32),
         ("isource", np.int16),
         ("ivrad", np.int16),
-        ("offx", np.single),
-        ("offy", np.single),
+        ("offx", np.float32),
+        ("offy", np.float32),
         ("ira", np.int16),
         ("idec", np.int16),
-        ("rar", np.double),
-        ("decr", np.double),
-        ("epoch", np.single),
-        ("size", np.single),
-        ("vrra", np.single),
-        ("vrdec", np.single),
-        ("lst", np.single),
+        ("rar", np.float64),
+        ("decr", np.float64),
+        ("epoch", np.float32),
+        ("size", np.float32),
+        ("vrra", np.float32),
+        ("vrdec", np.float32),
+        ("lst", np.float32),
         ("iproject", np.int16),
         ("tile", np.int16),
         ("obsmode", np.uint8),
         ("obsflag", np.uint8),
         ("spareshort", np.int16),
         ("spareint6", np.int32),
-        ("yIGFreq1", np.double),
-        ("yIGFreq2", np.double),
-        ("sflux", np.double),
-        ("ara", np.double),
-        ("adec", np.double),
-        ("mjd", np.double),
+        ("yIGFreq1", np.float64),
+        ("yIGFreq2", np.float64),
+        ("sflux", np.float64),
+        ("ara", np.float64),
+        ("adec", np.float64),
+        ("mjd", np.float64),
     ]
 )
 
@@ -69,27 +69,27 @@ eng_dtype = np.dtype(
         ("commStatus", np.int32),
         ("inhid", np.int32),
         ("ints", np.int32),
-        ("dhrs", np.double),
-        ("ha", np.double),
-        ("lst", np.double),
-        ("pmdaz", np.double),
-        ("pmdel", np.double),
-        ("tiltx", np.double),
-        ("tilty", np.double),
-        ("actual_az", np.double),
-        ("actual_el", np.double),
-        ("azoff", np.double),
-        ("eloff", np.double),
-        ("az_tracking_error", np.double),
-        ("el_tracking_error", np.double),
-        ("refraction", np.double),
-        ("chopper_x", np.double),
-        ("chopper_y", np.double),
-        ("chopper_z", np.double),
-        ("chopper_angle", np.double),
-        ("tsys", np.double),
-        ("tsys_rx2", np.double),
-        ("ambient_load_temperature", np.double),
+        ("dhrs", np.float64),
+        ("ha", np.float64),
+        ("lst", np.float64),
+        ("pmdaz", np.float64),
+        ("pmdel", np.float64),
+        ("tiltx", np.float64),
+        ("tilty", np.float64),
+        ("actual_az", np.float64),
+        ("actual_el", np.float64),
+        ("azoff", np.float64),
+        ("eloff", np.float64),
+        ("az_tracking_error", np.float64),
+        ("el_tracking_error", np.float64),
+        ("refraction", np.float64),
+        ("chopper_x", np.float64),
+        ("chopper_y", np.float64),
+        ("chopper_z", np.float64),
+        ("chopper_angle", np.float64),
+        ("tsys", np.float64),
+        ("tsys_rx2", np.float64),
+        ("ambient_load_temperature", np.float64),
     ]
 )
 
@@ -103,35 +103,35 @@ bl_dtype = np.dtype(
         ("ant2rx", np.int16),
         ("pointing", np.int16),
         ("irec", np.int16),
-        ("u", np.single),
-        ("v", np.single),
-        ("w", np.single),
-        ("prbl", np.single),
-        ("coh", np.single),
-        ("avedhrs", np.double),
-        ("ampave", np.single),
-        ("phaave", np.single),
+        ("u", np.float32),
+        ("v", np.float32),
+        ("w", np.float32),
+        ("prbl", np.float32),
+        ("coh", np.float32),
+        ("avedhrs", np.float64),
+        ("ampave", np.float32),
+        ("phaave", np.float32),
         ("blsid", np.int32),
         ("iant1", np.int16),
         ("iant2", np.int16),
         ("ant1TsysOff", np.int32),
         ("ant2TsysOff", np.int32),
         ("iblcd", np.int16),
-        ("ble", np.single),
-        ("bln", np.single),
-        ("blu", np.single),
+        ("ble", np.float32),
+        ("bln", np.float32),
+        ("blu", np.float32),
         ("spareint1", np.int32),
         ("spareint2", np.int32),
         ("spareint3", np.int32),
         ("spareint4", np.int32),
         ("spareint5", np.int32),
         ("spareint6", np.int32),
-        ("fave", np.double),
-        ("bwave", np.double),
-        ("sparedbl3", np.double),
-        ("sparedbl4", np.double),
-        ("sparedbl5", np.double),
-        ("sparedbl6", np.double),
+        ("fave", np.float64),
+        ("bwave", np.float64),
+        ("sparedbl3", np.float64),
+        ("sparedbl4", np.float64),
+        ("sparedbl5", np.float64),
+        ("sparedbl6", np.float64),
     ]
 )
 
@@ -144,23 +144,23 @@ sp_dtype = np.dtype(
         ("ipq", np.int16),
         ("iband", np.int16),
         ("ipstate", np.int16),
-        ("tau0", np.single),
-        ("vel", np.double),
-        ("vres", np.single),
-        ("fsky", np.double),
-        ("fres", np.single),
-        ("gunnLO", np.double),
-        ("cabinLO", np.double),
-        ("corrLO1", np.double),
-        ("corrLO2", np.double),
-        ("integ", np.single),
-        ("wt", np.single),
+        ("tau0", np.float32),
+        ("vel", np.float64),
+        ("vres", np.float32),
+        ("fsky", np.float64),
+        ("fres", np.float32),
+        ("gunnLO", np.float64),
+        ("cabinLO", np.float64),
+        ("corrLO1", np.float64),
+        ("corrLO2", np.float64),
+        ("integ", np.float32),
+        ("wt", np.float32),
         ("flags", np.int32),
-        ("vradcat", np.single),
+        ("vradcat", np.float32),
         ("nch", np.int16),
         ("nrec", np.int16),
         ("dataoff", np.int32),
-        ("rfreq", np.double),
+        ("rfreq", np.float64),
         ("corrblock", np.int16),
         ("corrchunk", np.int16),
         ("correlator", np.int32),
@@ -169,12 +169,12 @@ sp_dtype = np.dtype(
         ("spareint4", np.int32),
         ("spareint5", np.int32),
         ("spareint6", np.int32),
-        ("sparedbl1", np.double),
-        ("sparedbl2", np.double),
-        ("sparedbl3", np.double),
-        ("sparedbl4", np.double),
-        ("sparedbl5", np.double),
-        ("sparedbl6", np.double),
+        ("sparedbl1", np.float64),
+        ("sparedbl2", np.float64),
+        ("sparedbl3", np.float64),
+        ("sparedbl4", np.float64),
+        ("sparedbl5", np.float64),
+        ("sparedbl6", np.float64),
     ]
 )
 
@@ -186,13 +186,13 @@ we_dtype = np.dtype(
     [
         ("scanNumber", np.int32),
         ("flags", np.int32, 11),
-        ("N", np.single, 11),
-        ("Tamb", np.single, 11),
-        ("pressure", np.single, 11),
-        ("humid", np.single, 11),
-        ("windSpeed", np.single, 11),
-        ("windDir", np.single, 11),
-        ("h2o", np.single, 11),
+        ("N", np.float32, 11),
+        ("Tamb", np.float32, 11),
+        ("pressure", np.float32, 11),
+        ("humid", np.float32, 11),
+        ("windSpeed", np.float32, 11),
+        ("windDir", np.float32, 11),
+        ("h2o", np.float32, 11),
     ]
 )
 
@@ -204,17 +204,24 @@ ac_read_dtype = np.dtype(
         ("nchunks", np.int32),
         ("datasize", np.int32),
         ("dataoff", np.int64),
-        ("dhrs", np.double),
+        ("dhrs", np.float64),
     ]
 )
 
-antpos_dtype = np.dtype([("antenna", np.int16), ("xyz_pos", np.double, 3)])
+antpos_dtype = np.dtype([("antenna", np.int16), ("xyz_pos", np.float64, 3)])
 
 
 class MirParser(object):
-    """General class for Mir datasets.
+    """
+    General class for reading Mir datasets.
 
-    Does lots of cool things.
+    Does lots of cool things! There are static functions that allow you low level
+    access to mir files without needing to create an object.  You can also
+    instantiate a MirParser object with the constructor of this class which will only
+    read the metadata into memory by default. Read in the raw data through the
+    use of the load_vis, load_raw, load_auto flags, or by using the load_data() function
+    once the object is created. This allows for the flexible case of quickly loading
+    metadata first to check whether or not to load additional data into memory.
     """
 
     def __init__(self, filepath, load_vis=False, load_raw=False, load_auto=False):
@@ -549,7 +556,7 @@ class MirParser(object):
         antpos_data = np.empty(len(temp_list) // 4, dtype=antpos_dtype)
         antpos_data["antenna"] = np.int16(temp_list[0::4])
         antpos_data["xyz_pos"] = np.array(
-            [temp_list[1::4], temp_list[2::4], temp_list[3::4]], dtype=np.double
+            [temp_list[1::4], temp_list[2::4], temp_list[3::4]], dtype=np.float64
         ).T
 
         return antpos_data
@@ -619,7 +626,7 @@ class MirParser(object):
                     ("antenna", np.int32),
                     ("nChunks", np.int32),
                     ("scan", np.int32),
-                    ("dhrs", np.double),
+                    ("dhrs", np.float64),
                 ]
             )
             marker = 0
@@ -659,7 +666,7 @@ class MirParser(object):
     @staticmethod
     def parse_vis_data(filepath, in_start_dict, sp_data):
         """
-        Load data from "sch_read" into visibilities in a python dictionary.
+        Load data from "sch_read" into visibilities into a list of ndarrays.
 
         Parameters
         ----------
@@ -673,8 +680,8 @@ class MirParser(object):
 
         Returns
         -------
-        vis_list : list of ndarray
-            List of ndarrays (dtype=csingle/complex64), with keys equal to sphid
+        vis_list : list of ndarrays
+            List of ndarrays (dtype=csingle/complex64), with indices equal to sphid
             and values being the floating-point visibilities for the spectrum
         """
         # Gather the needed metadata
@@ -695,7 +702,7 @@ class MirParser(object):
             dataoff_subarr = dataoff_arr[data_mask]
             nch_subarr = nch_arr[data_mask]
             sp_pos_subarr = sp_pos[data_mask]
-            scale_fac = np.power(2.0, packdata[dataoff_subarr], dtype=np.single)
+            scale_fac = np.power(2.0, packdata[dataoff_subarr], dtype=np.float32)
             for spec_size in unique_nch:
                 start_list = dataoff_subarr[spec_size == nch_subarr] + 1
                 end_list = start_list + (spec_size * 2)
@@ -704,8 +711,8 @@ class MirParser(object):
                     np.array(
                         [packdata[idx:jdx] for idx, jdx in zip(start_list, end_list)]
                     ),
-                    dtype=np.single,
-                ).view(dtype=np.csingle)
+                    dtype=np.float32,
+                ).view(dtype=np.complex64)
                 vis_list.extend([temp_data[idx, :] for idx in range(len(start_list))])
                 # Record where the data _should_ go in the list
                 sp_pos_list.extend(sp_pos_subarr[spec_size == nch_subarr])
@@ -791,7 +798,7 @@ class MirParser(object):
             winsel = np.arange(0, ac_data["nchunks"][0])
 
         winsel = np.array(winsel)
-        auto_data = np.empty((len(ac_data), len(winsel), 2, 2 ** 14), dtype=np.single)
+        auto_data = np.empty((len(ac_data), len(winsel), 2, 2 ** 14), dtype=np.float32)
         dataoff = ac_data["dataoff"]
         datasize = ac_data["datasize"]
         del_offset = np.insert(np.diff(dataoff) - datasize[0:-1], 0, dataoff[0])
@@ -802,7 +809,7 @@ class MirParser(object):
             for idx in range(len(dataoff)):
                 auto_data[idx] = np.fromfile(
                     auto_file,
-                    dtype=np.single,
+                    dtype=np.float32,
                     count=nvals[idx],
                     offset=20 + del_offset[idx],
                 ).reshape((nchunks[idx], 2, 2 ** 14))[winsel, :, :]
