@@ -182,7 +182,7 @@ class Mir(UVData):
         # Don't need the data anymore, so drop it
         mir_data.unload_data()
         self.flag_array = np.zeros(self.data_array.shape, dtype=bool)
-        self.nsample_array = np.ones(self.data_array.shape, dtype=np.single)
+        self.nsample_array = np.ones(self.data_array.shape, dtype=np.float32)
 
     def write_mir(self, filename):
         """

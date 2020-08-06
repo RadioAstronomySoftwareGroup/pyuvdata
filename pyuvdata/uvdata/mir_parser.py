@@ -19,32 +19,32 @@ in_dtype = np.dtype(
         ("traid", np.int32),
         ("inhid", np.int32),
         ("ints", np.int32),
-        ("az", np.single),
-        ("el", np.single),
-        ("ha", np.single),
+        ("az", np.float32),
+        ("el", np.float32),
+        ("ha", np.float32),
         ("iut", np.int16),
         ("iref_time", np.int16),
         ("dhrs", np.double),
-        ("vc", np.single),
+        ("vc", np.float32),
         ("sx", np.double),
         ("sy", np.double),
         ("sz", np.double),
-        ("rinteg", np.single),
+        ("rinteg", np.float32),
         ("proid", np.int32),
         ("souid", np.int32),
         ("isource", np.int16),
         ("ivrad", np.int16),
-        ("offx", np.single),
-        ("offy", np.single),
+        ("offx", np.float32),
+        ("offy", np.float32),
         ("ira", np.int16),
         ("idec", np.int16),
         ("rar", np.double),
         ("decr", np.double),
-        ("epoch", np.single),
-        ("size", np.single),
-        ("vrra", np.single),
-        ("vrdec", np.single),
-        ("lst", np.single),
+        ("epoch", np.float32),
+        ("size", np.float32),
+        ("vrra", np.float32),
+        ("vrdec", np.float32),
+        ("lst", np.float32),
         ("iproject", np.int16),
         ("tile", np.int16),
         ("obsmode", np.uint8),
@@ -103,23 +103,23 @@ bl_dtype = np.dtype(
         ("ant2rx", np.int16),
         ("pointing", np.int16),
         ("irec", np.int16),
-        ("u", np.single),
-        ("v", np.single),
-        ("w", np.single),
-        ("prbl", np.single),
-        ("coh", np.single),
+        ("u", np.float32),
+        ("v", np.float32),
+        ("w", np.float32),
+        ("prbl", np.float32),
+        ("coh", np.float32),
         ("avedhrs", np.double),
-        ("ampave", np.single),
-        ("phaave", np.single),
+        ("ampave", np.float32),
+        ("phaave", np.float32),
         ("blsid", np.int32),
         ("iant1", np.int16),
         ("iant2", np.int16),
         ("ant1TsysOff", np.int32),
         ("ant2TsysOff", np.int32),
         ("iblcd", np.int16),
-        ("ble", np.single),
-        ("bln", np.single),
-        ("blu", np.single),
+        ("ble", np.float32),
+        ("bln", np.float32),
+        ("blu", np.float32),
         ("spareint1", np.int32),
         ("spareint2", np.int32),
         ("spareint3", np.int32),
@@ -144,19 +144,19 @@ sp_dtype = np.dtype(
         ("ipq", np.int16),
         ("iband", np.int16),
         ("ipstate", np.int16),
-        ("tau0", np.single),
+        ("tau0", np.float32),
         ("vel", np.double),
-        ("vres", np.single),
+        ("vres", np.float32),
         ("fsky", np.double),
-        ("fres", np.single),
+        ("fres", np.float32),
         ("gunnLO", np.double),
         ("cabinLO", np.double),
         ("corrLO1", np.double),
         ("corrLO2", np.double),
-        ("integ", np.single),
-        ("wt", np.single),
+        ("integ", np.float32),
+        ("wt", np.float32),
         ("flags", np.int32),
-        ("vradcat", np.single),
+        ("vradcat", np.float32),
         ("nch", np.int16),
         ("nrec", np.int16),
         ("dataoff", np.int32),
@@ -186,13 +186,13 @@ we_dtype = np.dtype(
     [
         ("scanNumber", np.int32),
         ("flags", np.int32, 11),
-        ("N", np.single, 11),
-        ("Tamb", np.single, 11),
-        ("pressure", np.single, 11),
-        ("humid", np.single, 11),
-        ("windSpeed", np.single, 11),
-        ("windDir", np.single, 11),
-        ("h2o", np.single, 11),
+        ("N", np.float32, 11),
+        ("Tamb", np.float32, 11),
+        ("pressure", np.float32, 11),
+        ("humid", np.float32, 11),
+        ("windSpeed", np.float32, 11),
+        ("windDir", np.float32, 11),
+        ("h2o", np.float32, 11),
     ]
 )
 
@@ -702,7 +702,7 @@ class MirParser(object):
             dataoff_subarr = dataoff_arr[data_mask]
             nch_subarr = nch_arr[data_mask]
             sp_pos_subarr = sp_pos[data_mask]
-            scale_fac = np.power(2.0, packdata[dataoff_subarr], dtype=np.single)
+            scale_fac = np.power(2.0, packdata[dataoff_subarr], dtype=np.float32)
             for spec_size in unique_nch:
                 start_list = dataoff_subarr[spec_size == nch_subarr] + 1
                 end_list = start_list + (spec_size * 2)
@@ -711,7 +711,7 @@ class MirParser(object):
                     np.array(
                         [packdata[idx:jdx] for idx, jdx in zip(start_list, end_list)]
                     ),
-                    dtype=np.single,
+                    dtype=np.float32,
                 ).view(dtype=np.csingle)
                 vis_list.extend([temp_data[idx, :] for idx in range(len(start_list))])
                 # Record where the data _should_ go in the list
@@ -798,7 +798,7 @@ class MirParser(object):
             winsel = np.arange(0, ac_data["nchunks"][0])
 
         winsel = np.array(winsel)
-        auto_data = np.empty((len(ac_data), len(winsel), 2, 2 ** 14), dtype=np.single)
+        auto_data = np.empty((len(ac_data), len(winsel), 2, 2 ** 14), dtype=np.float32)
         dataoff = ac_data["dataoff"]
         datasize = ac_data["datasize"]
         del_offset = np.insert(np.diff(dataoff) - datasize[0:-1], 0, dataoff[0])
@@ -809,7 +809,7 @@ class MirParser(object):
             for idx in range(len(dataoff)):
                 auto_data[idx] = np.fromfile(
                     auto_file,
-                    dtype=np.single,
+                    dtype=np.float32,
                     count=nvals[idx],
                     offset=20 + del_offset[idx],
                 ).reshape((nchunks[idx], 2, 2 ** 14))[winsel, :, :]
