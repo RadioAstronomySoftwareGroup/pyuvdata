@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (c) 2018 Radio Astronomy Software Group
+# Copyright (c) 2020 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Tests for Mir object.
@@ -31,6 +31,22 @@ def uv_in_uvfits(tmp_path):
     del uv_in, uv_out
 
 
+@pytest.fixture
+def uv_in_uvh5(tmp_path):
+    uv_in = UVData()
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    write_file = str(tmp_path / "outtest_mir.uvh5")
+
+    # Currently only one source and one spectral window are supported.
+    uv_in.read(testfile)
+    uv_out = UVData()
+
+    yield uv_in, uv_out, write_file
+
+    # cleanup
+    del uv_in, uv_out
+
+
 def test_read_mir_write_uvfits(uv_in_uvfits):
     """
     Mir to uvfits loopback test.
@@ -48,6 +64,25 @@ def test_read_mir_write_uvfits(uv_in_uvfits):
     uvfits_uv.history = ""
 
     assert mir_uv == uvfits_uv
+
+
+def test_read_mir_write_uvh5(uv_in_uvh5):
+    """
+    Mir to uvfits loopback test.
+
+    Read in Mir files, write out as uvfits, read back in and check for
+    object equality.
+    """
+    mir_uv, uvh5_uv, testfile = uv_in_uvh5
+
+    mir_uv.write_uvh5(testfile)
+    uvh5_uv.read_uvh5(testfile)
+
+    # test fails because of updated history, so this is our workaround for now.
+    mir_uv.history = ""
+    uvh5_uv.history = ""
+
+    assert mir_uv == uvh5_uv
 
 
 def test_write_mir(uv_in_uvfits, err_type=NotImplementedError):

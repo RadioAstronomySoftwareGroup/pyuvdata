@@ -78,7 +78,7 @@ class Mir(UVData):
         # per-intergration basis in MIR into the (tasty) per-blt records in UVDATA.
         bl_in_maparr = [mir_data.inhid_dict[idx] for idx in mir_data.bl_data["inhid"]]
 
-        # Derive Nants_data this value from baselines.
+        # Derive Nants_data from baselines.
         self.Nants_data = len(
             np.unique(
                 np.concatenate((mir_data.bl_data["iant1"], mir_data.bl_data["iant2"]))
@@ -119,17 +119,20 @@ class Mir(UVData):
         self.telescope_location_lat_lon_alt = (lat, lon, alt)
 
         self.antenna_positions = uvutils.ECEF_from_rotECEF(antXYZ, lon)
-        self.baseline_array = (
-            2048 * (self.ant_1_array + 1) + (self.ant_2_array + 1) + (2 ** 16)
+        self.baseline_array = self.antnums_to_baseline(
+            self.ant_1_array, self.ant_2_array, attempt256=False
         )
 
-        # todo: This may need to be reshaped.
-        fsky = mir_data.sp_data["fsky"][0] * 1e9
-        fres = mir_data.sp_data["fres"][0] * 1e6
+        fsky = mir_data.sp_data["fsky"][0] * 1e9  # GHz -> Hz
+        fres = mir_data.sp_data["fres"][0] * 1e6  # MHz -> Hz
         nch = mir_data.sp_data["nch"][0]
 
         self.channel_width = fres
+        # Need the half-channel offset below because of the weird way
+        # in which MIR identifies the "center" of the band
         self.freq_array = fsky + fres * (np.arange(nch) - (nch / 2 - 0.5))
+
+        # TODO: This will need to be fixed when spw > 1
         self.freq_array = np.reshape(self.freq_array, (1, -1))
         self.history = "Raw Data"
         self.instrument = "SWARM"
