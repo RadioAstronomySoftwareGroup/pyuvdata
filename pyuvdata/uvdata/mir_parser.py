@@ -435,7 +435,7 @@ class MirParser(object):
     @staticmethod
     def read_in_data(filepath):
         """
-        Read "in_read" from mir into the predefined numpy datatype in_dtype.
+        Read "in_read" mir file into memory (@staticmethod).
 
         Parameters
         ----------
@@ -452,7 +452,7 @@ class MirParser(object):
     @staticmethod
     def read_eng_data(filepath):
         """
-        Read "eng_read" from mir into the predefined numpy datatype eng_dtype.
+        Read "eng_read" mir file into memory (@staticmethod).
 
         Parameters
         ----------
@@ -469,7 +469,7 @@ class MirParser(object):
     @staticmethod
     def read_bl_data(filepath):
         """
-        Read "bl_read" from mir into the predefined numpy datatype bl_dtype.
+        Read "bl_read" mir file into memory (@staticmethod).
 
         Parameters
         ----------
@@ -486,7 +486,7 @@ class MirParser(object):
     @staticmethod
     def read_sp_data(filepath):
         """
-        Read "sp_read" from mir into the predefined numpy datatype sp_dtype.
+        Read "sp_read" mir file into memory (@staticmethod).
 
         Parameters
         ----------
@@ -503,7 +503,7 @@ class MirParser(object):
     @staticmethod
     def read_codes_data(filepath):
         """
-        Read "codes_read" from mir data into the numpy datatype codes_dtype.
+        Read "codes_read" mir file into memory (@staticmethod).
 
         Parameters
         ----------
@@ -520,7 +520,7 @@ class MirParser(object):
     @staticmethod
     def read_we_data(filepath):
         """
-        Read "we_read" from mir into the numpy datatype we_dtype.
+        Read "we_read" mir file into memory (@staticmethod).
 
         Parameters
         ----------
@@ -537,7 +537,7 @@ class MirParser(object):
     @staticmethod
     def read_antennas(filepath):
         """
-        Read "antennas" from a mir dataset into the numpy datatype antpos_dtype.
+        Read "antennas" mir file into memory (@staticmethod).
 
         Parameters
         ----------
@@ -564,7 +564,7 @@ class MirParser(object):
     @staticmethod
     def scan_int_start(filepath):
         """
-        Read indexes from "sch_read" from mir into a python dictionary.
+        Read "sch_read" mir file into a python dictionary (@staticmethod).
 
         Parameters
         ----------
@@ -601,7 +601,7 @@ class MirParser(object):
     @staticmethod
     def scan_auto_data(filepath, nchunks=8):
         """
-        Read indexes from "autoCorrelations" file into a python dictionary.
+        Read "autoCorrelations" mir file into memory (@staticmethod).
 
         Parameters
         ----------
@@ -666,7 +666,7 @@ class MirParser(object):
     @staticmethod
     def parse_vis_data(filepath, in_start_dict, sp_data):
         """
-        Load data from "sch_read" into visibilities into a list of ndarrays.
+        Read "sch_read" mir file into a list of ndarrays. (@staticmethod).
 
         Parameters
         ----------
@@ -724,7 +724,7 @@ class MirParser(object):
     @staticmethod
     def parse_raw_data(filepath, in_start_dict, sp_data):
         """
-        Load raw data from "sch_read" into a python dictionary.
+        Read "sch_read" mir file into a python dictionary (@staticmethod).
 
         Note that this returns a list rather than a dict to help expedite some
         processing tasks where order of the arrays matters.
@@ -775,7 +775,7 @@ class MirParser(object):
     @staticmethod
     def read_auto_data(filepath, ac_data, winsel=None):
         """
-        Read data from "autoCorrelations" into an ndarray.
+        Read "autoCorrelations" mir file into memory (@staticmethod).
 
         Note that this returns as an array, since there isn't any unique index for the
         autocorrelations file.
@@ -819,7 +819,7 @@ class MirParser(object):
     @staticmethod
     def read_vis_data(filepath, in_start_dict):
         """
-        Read "sch_read" from a mir data set into a python dictionary.
+        Read "sch_read" mir file into memory (@staticmethod).
 
         Parameters
         ----------
