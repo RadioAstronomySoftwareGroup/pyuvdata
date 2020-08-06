@@ -384,10 +384,8 @@ class MirParser(object):
         ----------
         load_vis : bool, optional
             Load the visibility data (floats) into object (deault is True)
-
         load_raw : bool, optional
             Load the raw visibility data (ints) into object (default is False)
-
         load_auto: bool, optional
             Load the autos (floats) into object (default is False)
         """
