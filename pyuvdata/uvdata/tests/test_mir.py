@@ -72,9 +72,9 @@ def test_read_mir_write_uvfits(uv_in_uvfits):
     mir_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read_uvfits(testfile)
 
-    # Check the history first via issubset
-    assert set(mir_uv.history + " Read/written with pyuvdata version:").issubset(
-        set(uvfits_uv.history)
+    # Check the history first via find
+    assert 0 == uvfits_uv.history.find(
+        mir_uv.history + "  Read/written with pyuvdata version:"
     )
 
     mir_uv.history = uvfits_uv.history
@@ -93,9 +93,9 @@ def test_read_mir_write_uvh5(uv_in_uvh5):
     mir_uv.write_uvh5(testfile)
     uvh5_uv.read_uvh5(testfile)
 
-    # Check the history first via issubset
-    assert set(mir_uv.history + " Read/written with pyuvdata version:").issubset(
-        set(uvh5_uv.history)
+    # Check the history first via find
+    assert 0 == uvh5_uv.history.find(
+        mir_uv.history + "  Read/written with pyuvdata version:"
     )
 
     # test fails because of updated history, so this is our workaround for now.
