@@ -666,7 +666,7 @@ class MirParser(object):
     @staticmethod
     def parse_vis_data(filepath, in_start_dict, sp_data):
         """
-        Load data from "sch_read" into visibilities in a python dictionary.
+        Load data from "sch_read" into visibilities into a list of ndarrays.
 
         Parameters
         ----------
@@ -680,8 +680,8 @@ class MirParser(object):
 
         Returns
         -------
-        vis_list : list of ndarray
-            List of ndarrays (dtype=csingle/complex64), with keys equal to sphid
+        vis_list : list of ndarrays
+            List of ndarrays (dtype=csingle/complex64), with indices equal to sphid
             and values being the floating-point visibilities for the spectrum
         """
         # Gather the needed metadata
