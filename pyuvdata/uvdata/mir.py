@@ -117,7 +117,10 @@ class Mir(UVData):
         # Get the coordinates from the entry in telescope.py
         lat, lon, alt = get_telescope("SMA")._telescope_location.lat_lon_alt()
         self.telescope_location_lat_lon_alt = (lat, lon, alt)
-
+        # Calculate antenna postions in EFEF frame. Note that since both
+        # coordinate systems are in relative units, no subtraction from
+        # telescope geocentric position is required , i.e we are going from
+        # relRotECEF -> relECEF
         self.antenna_positions = uvutils.ECEF_from_rotECEF(antXYZ, lon)
         self.baseline_array = self.antnums_to_baseline(
             self.ant_1_array, self.ant_2_array, attempt256=False
@@ -141,7 +144,9 @@ class Mir(UVData):
         self.integration_time = mir_data.sp_data["integ"]
 
         # todo: Using MIR V3 convention, will need to be V2 compatible eventually.
-        self.lst_array = mir_data.in_data["lst"][bl_in_maparr].astype(float)
+        self.lst_array = (
+            mir_data.in_data["lst"][bl_in_maparr].astype(float) + (0.0 / 3600.0)
+        ) * (np.pi / 12.0)
 
         # todo: We change between xx yy and rr ll, so we will need to update this.
         self.polarization_array = np.asarray([-5])
@@ -151,7 +156,10 @@ class Mir(UVData):
         self.telescope_name = "SMA"
         time_array_mjd = mir_data.in_read["mjd"][bl_in_maparr]
         self.time_array = time_array_mjd + 2400000.5
-        self.uvw_array = np.transpose(
+
+        # Need to flip the sign convention here on uvw, since we use a1-a2 versus the
+        # standard a2-a1 that uvdata expects
+        self.uvw_array = (-1.0) * np.transpose(
             np.vstack(
                 (mir_data.bl_data["u"], mir_data.bl_data["v"], mir_data.bl_data["w"])
             )
