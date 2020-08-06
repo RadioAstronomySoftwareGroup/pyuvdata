@@ -712,7 +712,7 @@ class MirParser(object):
                         [packdata[idx:jdx] for idx, jdx in zip(start_list, end_list)]
                     ),
                     dtype=np.float32,
-                ).view(dtype=np.csingle)
+                ).view(dtype=np.complex64)
                 vis_list.extend([temp_data[idx, :] for idx in range(len(start_list))])
                 # Record where the data _should_ go in the list
                 sp_pos_list.extend(sp_pos_subarr[spec_size == nch_subarr])
