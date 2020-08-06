@@ -852,11 +852,24 @@ class MirParser(object):
         inhid_list = []
         with open(os.path.join(filepath, "sch_read"), "rb") as visibilities_file:
             last_offset = last_size = num_vals = del_offset = 0
-            for ind_key in sorted(in_start_dict.keys()):
-                (in_size, in_start) = in_start_dict[ind_key]
+            key_list = sorted(in_start_dict.keys())
+            # We add an extra key here, None, which cannot match any of the values in
+            # in_start_dict (since inhid is type int). This basically tricks the loop
+            # below into spitting out the last integration
+            key_list.append(None)
+            for ind_key in key_list:
+                if ind_key is None:
+                    in_size = in_start = 0
+                else:
+                    (in_size, in_start) = in_start_dict[ind_key]
                 if (in_size != last_size) or (
                     last_offset + last_size * num_vals != in_start
                 ):
+                    # Numpy's fromfile works fastest when reading multiple instances
+                    # of the same dtype. As long as the record sizes are the same, we
+                    # can tie mutiple file reads together into one call. The dtype
+                    # depends on the record size, which is why we have to dump the
+                    # data when last_size changes.
                     if num_vals != 0 and last_size != 0:
                         in_data_dict.update(
                             zip(
@@ -876,17 +889,4 @@ class MirParser(object):
                     inhid_list = []
                 num_vals += 1
                 inhid_list.append(ind_key)
-            # Because of loop construct, run this one last time at the end
-            if num_vals != 0:
-                in_data_dict.update(
-                    zip(
-                        inhid_list,
-                        np.fromfile(
-                            visibilities_file,
-                            dtype=in_dtype_dict[last_size],
-                            count=num_vals,
-                            offset=del_offset,
-                        ),
-                    )
-                )
         return in_data_dict
