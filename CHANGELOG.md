@@ -6,12 +6,12 @@ All notable changes to this project will be documented in this file.
 ## [2.1.1] - 2020-8-07
 
 ### Added
+- Added read-only support for MIR files, adding the `Mir` class to `UVData`.
+- Added the `MirParser` class, which allows for python access to MIR files.
 - A new `check_warnings` method in our test module that behaves like `pytest.warns`
 but adds the ability to check for multiple warnings.
 - The 'ant_str' option when making selects on UVFlag objects
 - A check that the uvws match the antenna positions, as part of the acceptability checking.
-- Added read-only support for MIR files, adding the `Mir` class to `UVData`.
-- Added the `MirParser` class, which allows for python access to MIR files.
 
 ### Changed
 - Moved `parse_ants` to `utils.py` to allow any UVBased object the potential to use it.
