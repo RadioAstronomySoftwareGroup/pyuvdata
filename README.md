@@ -44,6 +44,7 @@ but we will strive to make future versions backwards compatible with the current
 It is probably not compatible with other interferometric HDF5 files defined by other groups.
 * FHD (read-only support, tested against MWA and PAPER data)
 * CASA measurement sets (read-only support)
+* MIR (read-only support, tested agains SMA data)
 
 ## UVCal file formats
 * calfits: a new format defined in pyuvdata, details in the [calfits_memo](docs/references/calfits_memo.pdf).
@@ -63,6 +64,8 @@ metadata, details here: [cst settings file](docs/cst_settings_yaml.rst)
 * UVCal: object and calfits file format (beta version)
 * UVBeam: object and beamfits file format (beta version)
 * UVFlag: object and HDF5 file format. (beta version)
+* Mir: object (part of UVData class) (beta version)
+* MirParser: object and python interface for MIR file format (beta version)
 
 ## Known Issues and Planned Improvements
 * UVData: phasing (and the accuracy on the uvw coordinates) is only known to be
@@ -94,6 +97,7 @@ as many telescopes as possible.
 * ALMA
 * VLA
 * ATCA
+* SMA
 
 # Versioning
 We use a `generation.major.minor` version number format. We use the `generation`
@@ -137,7 +141,7 @@ Note that as of v2, `pyuvdata` is only supported on python 3.6+.
 
 Required:
 
-* numpy >= 1.15
+* numpy >= 1.18
 * scipy
 * astropy >= 3.2.3
 * h5py
