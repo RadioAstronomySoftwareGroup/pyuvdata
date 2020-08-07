@@ -14,6 +14,7 @@ but adds the ability to check for multiple warnings.
 - A check that the uvws match the antenna positions, as part of the acceptability checking.
 
 ### Changed
+- Upated the numpy requirement to >= 1.18
 - Moved `parse_ants` to `utils.py` to allow any UVBased object the potential to use it.
 
 ### Deprecated
