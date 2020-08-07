@@ -70,7 +70,9 @@ def test_freq_range(mwa_beam_1ppd):
     beam1.history = beam2.history
     assert beam1 == beam2
 
-    with pytest.warns(UserWarning, match="Only one available frequency in freq_range"):
+    with uvtest.check_warnings(
+        UserWarning, match="Only one available frequency in freq_range"
+    ):
         beam1.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6, 130e6])
 
     with pytest.raises(ValueError, match="No frequencies available in freq_range"):
@@ -133,12 +135,8 @@ def test_dead_dipoles():
     delays = np.zeros((2, 16), dtype="int")
     delays[:, 0] = 32
 
-    uvtest.checkWarnings(
-        beam1.read_mwa_beam,
-        func_args=[filename],
-        func_kwargs={"pixels_per_deg": 1, "delays": delays},
-        message=("There are some terminated dipoles"),
-    )
+    with uvtest.check_warnings(UserWarning, "There are some terminated dipoles"):
+        beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
 
     delay_str = (
         "[[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "

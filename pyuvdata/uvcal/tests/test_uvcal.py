@@ -300,7 +300,7 @@ def test_set_gain(gain_data):
         gain_data.delay_object._gain_array.form
         == gain_data.delay_object._quality_array.form
     )
-    with pytest.warns(
+    with uvtest.check_warnings(
         DeprecationWarning,
         match="`set_gain` is deprecated, and will be removed in "
         "pyuvdata version 2.2. Use `_set_gain` instead.",
@@ -319,7 +319,7 @@ def test_set_delay(gain_data):
         gain_data.gain_object._delay_array.form
         == gain_data.gain_object._quality_array.form
     )
-    with pytest.warns(
+    with uvtest.check_warnings(
         DeprecationWarning,
         match="`set_delay` is deprecated, and will be removed in "
         "pyuvdata version 2.2. Use `_set_delay` instead.",
@@ -339,7 +339,7 @@ def test_set_unknown(gain_data):
         == gain_data.gain_object._quality_array.form
     )
 
-    with pytest.warns(
+    with uvtest.check_warnings(
         DeprecationWarning,
         match="`set_unknown_cal_type` is deprecated, and will be removed in "
         "pyuvdata version 2.2. Use `_set_unknown_cal_type` instead.",
@@ -353,7 +353,7 @@ def test_set_sky(gain_data):
     assert gain_data.gain_object._sky_catalog.required
     assert gain_data.gain_object._ref_antenna_name.required
 
-    with pytest.warns(
+    with uvtest.check_warnings(
         DeprecationWarning,
         match="`set_sky` is deprecated, and will be removed in "
         "pyuvdata version 2.2. Use `_set_sky` instead.",
@@ -367,7 +367,7 @@ def test_set_redundant(gain_data):
     assert not gain_data.gain_object._sky_catalog.required
     assert not gain_data.gain_object._ref_antenna_name.required
 
-    with pytest.warns(
+    with uvtest.check_warnings(
         DeprecationWarning,
         match="`set_redundant` is deprecated, and will be removed in "
         "pyuvdata version 2.2. Use `_set_redundant` instead.",
@@ -536,12 +536,8 @@ def test_select_antennas(gain_data, tmp_path):
     gain_data.gain_object.total_quality_array = np.zeros(
         gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
     )
-    uvtest.checkWarnings(
-        gain_data.gain_object.select,
-        [],
-        {"antenna_names": ant_names, "inplace": True},
-        message="Cannot preserve total_quality_array",
-    )
+    with uvtest.check_warnings(UserWarning, "Cannot preserve total_quality_array"):
+        gain_data.gain_object.select(antenna_names=ant_names, inplace=True)
     assert gain_data.gain_object.total_quality_array is None
 
 
@@ -581,12 +577,10 @@ def test_select_times(gain_data, tmp_path):
 
     # check for warnings and errors associated with unevenly spaced times
     gain_data.gain_object2 = gain_data.gain_object.copy()
-    uvtest.checkWarnings(
-        gain_data.gain_object2.select,
-        [],
-        {"times": gain_data.gain_object2.time_array[[0, 2, 3]]},
-        message="Selected times are not evenly spaced",
-    )
+    with uvtest.check_warnings(UserWarning, "Selected times are not evenly spaced"):
+        gain_data.gain_object2.select(
+            times=gain_data.gain_object2.time_array[[0, 2, 3]]
+        )
     pytest.raises(ValueError, gain_data.gain_object2.write_calfits, write_file_calfits)
 
 
@@ -636,12 +630,12 @@ def test_select_frequencies(gain_data, tmp_path):
 
     # check for warnings and errors associated with unevenly spaced frequencies
     gain_data.gain_object2 = gain_data.gain_object.copy()
-    uvtest.checkWarnings(
-        gain_data.gain_object2.select,
-        [],
-        {"frequencies": gain_data.gain_object2.freq_array[0, [0, 5, 6]]},
-        message="Selected frequencies are not evenly spaced",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Selected frequencies are not evenly spaced"
+    ):
+        gain_data.gain_object2.select(
+            frequencies=gain_data.gain_object2.freq_array[0, [0, 5, 6]]
+        )
     pytest.raises(ValueError, gain_data.gain_object2.write_calfits, write_file_calfits)
 
 
@@ -753,12 +747,10 @@ def test_select_polarizations(gain_data):
     pytest.raises(ValueError, gain_data.gain_object2.select, jones=[-3, -4])
 
     # check for warnings and errors associated with unevenly spaced polarizations
-    uvtest.checkWarnings(
-        gain_data.gain_object.select,
-        [],
-        {"jones": gain_data.gain_object.jones_array[[0, 1, 3]]},
-        message="Selected jones polarization terms are not evenly spaced",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Selected jones polarization terms are not evenly spaced"
+    ):
+        gain_data.gain_object.select(jones=gain_data.gain_object.jones_array[[0, 1, 3]])
     write_file_calfits = os.path.join(DATA_PATH, "test/select_test.calfits")
     pytest.raises(ValueError, gain_data.gain_object.write_calfits, write_file_calfits)
 
@@ -891,12 +883,8 @@ def test_select_antennas_delay(delay_data):
             delay_data.delay_object
         )
     )
-    uvtest.checkWarnings(
-        delay_data.delay_object.select,
-        [],
-        {"antenna_names": ant_names, "inplace": True},
-        message="Cannot preserve total_quality_array",
-    )
+    with uvtest.check_warnings(UserWarning, "Cannot preserve total_quality_array"):
+        delay_data.delay_object.select(antenna_names=ant_names, inplace=True)
     assert delay_data.delay_object.total_quality_array is None
 
 
@@ -929,12 +917,10 @@ def test_select_times_delay(delay_data):
 
     # check for warnings and errors associated with unevenly spaced times
     delay_data.delay_object2 = delay_data.delay_object.copy()
-    uvtest.checkWarnings(
-        delay_data.delay_object2.select,
-        [],
-        {"times": delay_data.delay_object2.time_array[[0, 2, 3]]},
-        message="Selected times are not evenly spaced",
-    )
+    with uvtest.check_warnings(UserWarning, "Selected times are not evenly spaced"):
+        delay_data.delay_object2.select(
+            times=delay_data.delay_object2.time_array[[0, 2, 3]]
+        )
     write_file_calfits = os.path.join(DATA_PATH, "test/select_test.calfits")
     pytest.raises(
         ValueError, delay_data.delay_object2.write_calfits, write_file_calfits
@@ -982,12 +968,13 @@ def test_select_frequencies_delay(delay_data, tmp_path):
 
     # check for warnings and errors associated with unevenly spaced frequencies
     delay_data.delay_object2 = delay_data.delay_object.copy()
-    uvtest.checkWarnings(
-        delay_data.delay_object2.select,
-        [],
-        {"frequencies": delay_data.delay_object2.freq_array[0, [0, 5, 6]]},
-        message="Selected frequencies are not evenly spaced",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Selected frequencies are not evenly spaced"
+    ):
+        delay_data.delay_object2.select(
+            frequencies=delay_data.delay_object2.freq_array[0, [0, 5, 6]]
+        )
+
     write_file_calfits = str(tmp_path / "select_test.calfits")
     pytest.raises(
         ValueError, delay_data.delay_object2.write_calfits, write_file_calfits
@@ -1112,12 +1099,13 @@ def test_select_polarizations_delay(delay_data, tmp_path):
     pytest.raises(ValueError, delay_data.delay_object2.select, jones=[-3, -4])
 
     # check for warnings and errors associated with unevenly spaced polarizations
-    uvtest.checkWarnings(
-        delay_data.delay_object.select,
-        [],
-        {"jones": delay_data.delay_object.jones_array[[0, 1, 3]]},
-        message="Selected jones polarization terms are not evenly spaced",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Selected jones polarization terms are not evenly spaced"
+    ):
+        delay_data.delay_object.select(
+            jones=delay_data.delay_object.jones_array[[0, 1, 3]]
+        )
+
     write_file_calfits = str(tmp_path / "select_test.calfits")
     pytest.raises(ValueError, delay_data.delay_object.write_calfits, write_file_calfits)
 
@@ -1194,11 +1182,8 @@ def test_add_antennas(gain_data):
     gain_data.gain_object.total_quality_array = np.zeros(
         gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
     )
-    uvtest.checkWarnings(
-        gain_data.gain_object.__iadd__,
-        [gain_data.gain_object2],
-        message="Total quality array detected",
-    )
+    with uvtest.check_warnings(UserWarning, "Total quality array detected"):
+        gain_data.gain_object.__iadd__(gain_data.gain_object2)
     assert gain_data.gain_object.total_quality_array is None
 
 
@@ -1524,11 +1509,8 @@ def test_jones_warning(gain_data):
     gain_data.gain_object2.jones_array[0] = -6
     gain_data.gain_object += gain_data.gain_object2
     gain_data.gain_object2.jones_array[0] = -8
-    uvtest.checkWarnings(
-        gain_data.gain_object.__iadd__,
-        [gain_data.gain_object2],
-        message="Combined Jones elements",
-    )
+    with uvtest.check_warnings(UserWarning, "Combined Jones elements"):
+        gain_data.gain_object.__iadd__(gain_data.gain_object2)
     assert sorted(gain_data.gain_object.jones_array) == [-8, -6, -5]
 
 
@@ -1550,11 +1532,11 @@ def test_frequency_warnings(gain_data):
     gain_data.gain_object2.freq_array[0, -1] = (
         gain_data.gain_object2.freq_array[0, -2] + df / 2
     )
-    uvtest.checkWarnings(
-        gain_data.gain_object.__iadd__,
-        [gain_data.gain_object2],
-        message="Combined frequencies are not evenly spaced",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Combined frequencies are not evenly spaced"
+    ):
+        gain_data.gain_object.__iadd__(gain_data.gain_object2)
+
     assert len(gain_data.gain_object.freq_array[0, :]) == gain_data.gain_object.Nfreqs
 
     # now check having "non-contiguous" frequencies
@@ -1568,11 +1550,9 @@ def test_frequency_warnings(gain_data):
     # artificially space out frequencies
     gain_data.gain_object.freq_array[0, :] *= 10
     gain_data.gain_object2.freq_array[0, :] *= 10
-    uvtest.checkWarnings(
-        gain_data.gain_object.__iadd__,
-        [gain_data.gain_object2],
-        message="Combined frequencies are not contiguous",
-    )
+    with uvtest.check_warnings(UserWarning, "Combined frequencies are not contiguous"):
+        gain_data.gain_object.__iadd__(gain_data.gain_object2)
+
     freqs1 *= 10
     freqs2 *= 10
     freqs = np.concatenate([freqs1, freqs2])
@@ -1592,11 +1572,9 @@ def test_parameter_warnings(gain_data):
     freqs2 = gain_data.gain_object2.freq_array[0, np.arange(5, 10)]
     gain_data.gain_object.select(frequencies=freqs1)
     gain_data.gain_object2.select(frequencies=freqs2)
-    uvtest.checkWarnings(
-        gain_data.gain_object.__iadd__,
-        [gain_data.gain_object2],
-        message="UVParameter observer does not match",
-    )
+    with uvtest.check_warnings(UserWarning, "UVParameter observer does not match"):
+        gain_data.gain_object.__iadd__(gain_data.gain_object2)
+
     freqs = np.concatenate([freqs1, freqs2])
     assert np.allclose(
         gain_data.gain_object.freq_array,
@@ -1657,11 +1635,9 @@ def test_add_antennas_delay(delay_data):
             delay_data.delay_object
         )
     )
-    uvtest.checkWarnings(
-        delay_data.delay_object.__iadd__,
-        [delay_data.delay_object2],
-        message="Total quality array detected",
-    )
+    with uvtest.check_warnings(UserWarning, "Total quality array detected"):
+        delay_data.delay_object.__iadd__(delay_data.delay_object2)
+
     assert delay_data.delay_object.total_quality_array is None
 
     # test for when input_flag_array is present in first file but not second

@@ -540,24 +540,11 @@ def test_pol_funcs_x_orientation():
     assert uvutils.parse_polstr("i", x_orientation=x_orient2) == "pI"
 
     # check warnings for non-recognized x_orientation
-    assert (
-        uvtest.checkWarnings(
-            uvutils.polstr2num,
-            ["xx"],
-            {"x_orientation": "foo"},
-            message="x_orientation not recognized",
-        )
-        == -5
-    )
-    assert (
-        uvtest.checkWarnings(
-            uvutils.polnum2str,
-            [-6],
-            {"x_orientation": "foo"},
-            message="x_orientation not recognized",
-        )
-        == "yy"
-    )
+    with uvtest.check_warnings(UserWarning, "x_orientation not recognized"):
+        assert uvutils.polstr2num("xx", x_orientation="foo") == -5
+
+    with uvtest.check_warnings(UserWarning, "x_orientation not recognized"):
+        assert uvutils.polnum2str(-6, x_orientation="foo") == "yy"
 
 
 def test_jones_num_funcs():
@@ -637,24 +624,11 @@ def test_jones_num_funcs_x_orientation():
     assert uvutils.parse_jpolstr("NE", x_orientation=x_orient2) == "Jne"
 
     # check warnings for non-recognized x_orientation
-    assert (
-        uvtest.checkWarnings(
-            uvutils.jstr2num,
-            ["x"],
-            {"x_orientation": "foo"},
-            message="x_orientation not recognized",
-        )
-        == -5
-    )
-    assert (
-        uvtest.checkWarnings(
-            uvutils.jnum2str,
-            [-6],
-            {"x_orientation": "foo"},
-            message="x_orientation not recognized",
-        )
-        == "Jyy"
-    )
+    with uvtest.check_warnings(UserWarning, "x_orientation not recognized"):
+        assert uvutils.jstr2num("x", x_orientation="foo") == -5
+
+    with uvtest.check_warnings(UserWarning, "x_orientation not recognized"):
+        assert uvutils.jnum2str(-6, x_orientation="foo") == "Jyy"
 
 
 def test_conj_pol():
@@ -913,13 +887,10 @@ def test_redundancy_finder_fully_redundant_array():
 def test_str_to_bytes():
     test_str = "HERA"
 
-    test_bytes = uvtest.checkWarnings(
-        uvutils._str_to_bytes,
-        func_args=[test_str],
-        nwarnings=1,
-        category=DeprecationWarning,
-        message="_str_to_bytes is deprecated and will be removed",
-    )
+    with uvtest.check_warnings(
+        DeprecationWarning, "_str_to_bytes is deprecated and will be removed"
+    ):
+        test_bytes = uvutils._str_to_bytes(test_str)
     assert type(test_bytes) == bytes
     assert test_bytes == b"\x48\x45\x52\x41"
     return
@@ -927,13 +898,10 @@ def test_str_to_bytes():
 
 def test_bytes_to_str():
     test_bytes = b"\x48\x45\x52\x41"
-    test_str = uvtest.checkWarnings(
-        uvutils._bytes_to_str,
-        func_args=[test_bytes],
-        nwarnings=1,
-        category=DeprecationWarning,
-        message="_bytes_to_str is deprecated and will be removed",
-    )
+    with uvtest.check_warnings(
+        DeprecationWarning, "_bytes_to_str is deprecated and will be removed"
+    ):
+        test_str = uvutils._bytes_to_str(test_bytes)
     assert type(test_str) == str
     assert test_str == "HERA"
     return
@@ -1302,13 +1270,8 @@ def test_or_collapse_weights():
     assert np.array_equal(o, ans)
     assert np.array_equal(wo, np.ones_like(o, dtype=np.float))
     w[0, 8] = 0.3
-    o = uvtest.checkWarnings(
-        uvutils.or_collapse,
-        [data],
-        {"axis": 0, "weights": w},
-        nwarnings=1,
-        message="Currently weights are",
-    )
+    with uvtest.check_warnings(UserWarning, "Currently weights are"):
+        o = uvutils.or_collapse(data, axis=0, weights=w)
     assert np.array_equal(o, ans)
 
 
@@ -1342,13 +1305,8 @@ def test_and_collapse_weights():
     assert np.array_equal(o, ans)
     assert np.array_equal(wo, np.ones_like(o, dtype=np.float))
     w[0, 8] = 0.3
-    o = uvtest.checkWarnings(
-        uvutils.and_collapse,
-        [data],
-        {"axis": 0, "weights": w},
-        nwarnings=1,
-        message="Currently weights are",
-    )
+    with uvtest.check_warnings(UserWarning, "Currently weights are"):
+        o = uvutils.and_collapse(data, axis=0, weights=w)
     assert np.array_equal(o, ans)
 
 
@@ -1641,7 +1599,7 @@ def test_uvcalibrate_flag_propagation_name_mismatch(uvcalibrate_init_data):
     # test flag propagation
     uvc.flag_array[0] = True
     uvc.gain_array[1] = 0.0
-    with pytest.warns(
+    with uvtest.check_warnings(
         DeprecationWarning,
         match="All antenna names with data on UVData are missing "
         "on UVCal. They do all have matching antenna numbers on "
@@ -1724,7 +1682,7 @@ def test_uvcalibrate_flag_propagation_name_mismatch(uvcalibrate_init_data):
 
     assert np.all(uvdcal.get_flags(13, 24, "xx"))  # assert completely flagged
 
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning,
         match="All antenna names with data on UVData are missing "
         "on UVCal. Since ant_check is False, calibration will "
@@ -1758,7 +1716,7 @@ def test_uvcalibrate_extra_cal_antennas(uvcalibrate_data):
 def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data):
     uvd, uvc = uvcalibrate_init_data
 
-    with pytest.warns(
+    with uvtest.check_warnings(
         DeprecationWarning,
         match="All antenna names with data on UVData are missing "
         "on UVCal. They do all have matching antenna numbers on "
@@ -1778,7 +1736,7 @@ def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data):
     )
 
     # now test that they're all flagged if ant_check is False
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning,
         match="All antenna names with data on UVData are missing "
         "on UVCal. Since ant_check is False, calibration will "
@@ -1851,7 +1809,7 @@ def test_uvcalibrate_time_types(uvcalibrate_data, len_time_range):
         # then change time_range to get warnings
         uvc.time_range = np.array(uvc.time_range) + 1
 
-    with pytest.warns(
+    with uvtest.check_warnings(
         DeprecationWarning,
         match=(
             "Times do not match between UVData and UVCal. "
@@ -1871,7 +1829,7 @@ def test_uvcalibrate_time_types(uvcalibrate_data, len_time_range):
     )
 
     # set time_check=False to test the user warning
-    with pytest.warns(
+    with uvtest.check_warnings(
         UserWarning,
         match=(
             "Times do not match between UVData and UVCal "

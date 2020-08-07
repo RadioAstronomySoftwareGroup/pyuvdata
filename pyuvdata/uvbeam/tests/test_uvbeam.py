@@ -255,7 +255,9 @@ def test_deprecation_warnings_set_cs_params(cst_efield_2freq):
     efield_beam = cst_efield_2freq
     efield_beam2 = efield_beam.copy()
 
-    with pytest.warns(DeprecationWarning, match="`set_cs_params` is deprecated"):
+    with uvtest.check_warnings(
+        DeprecationWarning, match="`set_cs_params` is deprecated"
+    ):
         efield_beam2.set_cs_params()
 
     assert efield_beam2 == efield_beam
@@ -268,7 +270,7 @@ def test_deprecation_warnings_set_efield(cst_efield_2freq):
     efield_beam = cst_efield_2freq
     efield_beam2 = efield_beam.copy()
 
-    with pytest.warns(DeprecationWarning, match="`set_efield` is deprecated"):
+    with uvtest.check_warnings(DeprecationWarning, match="`set_efield` is deprecated"):
         efield_beam2.set_efield()
 
     assert efield_beam2 == efield_beam
@@ -281,7 +283,7 @@ def test_deprecation_warnings_set_power(cst_power_2freq):
     power_beam = cst_power_2freq
     power_beam2 = power_beam.copy()
 
-    with pytest.warns(DeprecationWarning, match="`set_power` is deprecated"):
+    with uvtest.check_warnings(DeprecationWarning, match="`set_power` is deprecated"):
         power_beam2.set_power()
 
     assert power_beam2 == power_beam
@@ -294,13 +296,15 @@ def test_deprecation_warnings_set_antenna_type(cst_efield_2freq):
     efield_beam = cst_efield_2freq
     efield_beam2 = efield_beam.copy()
 
-    with pytest.warns(DeprecationWarning, match="`set_simple` is deprecated"):
+    with uvtest.check_warnings(DeprecationWarning, match="`set_simple` is deprecated"):
         efield_beam2.set_simple()
 
     assert efield_beam2 == efield_beam
 
     efield_beam._set_phased_array()
-    with pytest.warns(DeprecationWarning, match="`set_phased_array` is deprecated"):
+    with uvtest.check_warnings(
+        DeprecationWarning, match="`set_phased_array` is deprecated"
+    ):
         efield_beam2.set_phased_array()
 
     assert efield_beam2 == efield_beam
@@ -1327,12 +1331,10 @@ def test_select_axis(cst_power_1freq, tmp_path):
 
     # check for warnings and errors associated with unevenly spaced image pixels
     power_beam2 = power_beam.copy()
-    uvtest.checkWarnings(
-        power_beam2.select,
-        [],
-        {"axis1_inds": [0, 5, 6]},
-        message="Selected values along first image axis are not evenly spaced",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Selected values along first image axis are not evenly spaced"
+    ):
+        power_beam2.select(axis1_inds=[0, 5, 6])
     pytest.raises(ValueError, power_beam2.write_beamfits, write_file_beamfits)
 
     # Test selecting on axis2
@@ -1365,12 +1367,10 @@ def test_select_axis(cst_power_1freq, tmp_path):
 
     # check for warnings and errors associated with unevenly spaced image pixels
     power_beam2 = power_beam.copy()
-    uvtest.checkWarnings(
-        power_beam2.select,
-        [],
-        {"axis2_inds": [0, 5, 6]},
-        message="Selected values along second image axis are not evenly spaced",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Selected values along second image axis are not evenly spaced"
+    ):
+        power_beam2.select(axis2_inds=[0, 5, 6])
     pytest.raises(ValueError, power_beam2.write_beamfits, write_file_beamfits)
 
 
@@ -1429,12 +1429,10 @@ def test_select_frequencies(cst_power_1freq, tmp_path):
 
     # check for warnings and errors associated with unevenly spaced frequencies
     power_beam2 = power_beam.copy()
-    uvtest.checkWarnings(
-        power_beam2.select,
-        [],
-        {"frequencies": power_beam2.freq_array[0, [0, 5, 6]]},
-        message="Selected frequencies are not evenly spaced",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Selected frequencies are not evenly spaced"
+    ):
+        power_beam2.select(frequencies=power_beam2.freq_array[0, [0, 5, 6]])
     pytest.raises(ValueError, power_beam2.write_beamfits, write_file_beamfits)
 
     # Test selecting on freq_chans
@@ -1566,12 +1564,10 @@ def test_select_polarizations(cst_power_1freq):
     pytest.raises(ValueError, power_beam.select, polarizations=[-3, -4])
 
     # check for warnings and errors associated with unevenly spaced polarizations
-    uvtest.checkWarnings(
-        power_beam.select,
-        [],
-        {"polarizations": power_beam.polarization_array[[0, 1, 3]]},
-        message="Selected polarizations are not evenly spaced",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Selected polarizations are not evenly spaced"
+    ):
+        power_beam.select(polarizations=power_beam.polarization_array[[0, 1, 3]])
     write_file_beamfits = os.path.join(DATA_PATH, "test/select_beam.fits")
     pytest.raises(ValueError, power_beam.write_beamfits, write_file_beamfits)
 
@@ -1944,9 +1940,10 @@ def test_add(cst_power_1freq, cst_efield_1freq):
 
     beam1 = power_beam.select(freq_chans=np.arange(0, 4), inplace=False)
     beam2 = power_beam.select(freq_chans=np.arange(5, 8), inplace=False)
-    uvtest.checkWarnings(
-        beam1.__add__, [beam2], message="Combined frequencies are not evenly spaced"
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Combined frequencies are not evenly spaced"
+    ):
+        beam1.__add__(beam2)
 
     # generate more polarizations for testing by copying and adding several times
     while power_beam.Npols < 4:
@@ -1961,9 +1958,10 @@ def test_add(cst_power_1freq, cst_efield_1freq):
     beam2 = power_beam.select(
         polarizations=power_beam.polarization_array[3], inplace=False
     )
-    uvtest.checkWarnings(
-        beam1.__iadd__, [beam2], message="Combined polarizations are not evenly spaced"
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Combined polarizations are not evenly spaced"
+    ):
+        beam1.__iadd__(beam2)
 
     beam1 = power_beam.select(
         polarizations=power_beam.polarization_array[0:2], inplace=False
@@ -1973,13 +1971,12 @@ def test_add(cst_power_1freq, cst_efield_1freq):
     )
     beam2.receiver_temperature_array = None
     assert beam1.receiver_temperature_array is not None
-    uvtest.checkWarnings(
-        beam1.__iadd__,
-        [beam2],
-        message=[
-            "Only one of the UVBeam objects being combined " "has optional parameter"
-        ],
-    )
+    with uvtest.check_warnings(
+        UserWarning,
+        "Only one of the UVBeam objects being combined has optional parameter",
+    ):
+        beam1.__iadd__(beam2)
+
     assert beam1.receiver_temperature_array is None
 
     # Combining histories

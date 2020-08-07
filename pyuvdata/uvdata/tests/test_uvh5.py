@@ -1109,12 +1109,17 @@ def test_uvh5_partial_write_irregular_multi1(uv_partial_write, tmp_path):
             nsamples[iblt, :, ifreq, :] = full_uvh5.nsample_array[
                 blt_idx, :, freq_idx, :
             ]
-    uvtest.checkWarnings(
-        partial_uvh5.write_uvh5_part,
-        [partial_testfile, data, flags, nsamples],
-        {"blt_inds": blt_inds, "freq_chans": freq_inds},
-        message="Selected frequencies are not evenly spaced",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Selected frequencies are not evenly spaced"
+    ):
+        partial_uvh5.write_uvh5_part(
+            partial_testfile,
+            data,
+            flags,
+            nsamples,
+            blt_inds=blt_inds,
+            freq_chans=freq_inds,
+        )
 
     # also write the arrays to the partial object
     for iblt, blt_idx in enumerate(blt_inds):
@@ -1176,19 +1181,21 @@ def test_uvh5_partial_write_irregular_multi2(uv_partial_write, tmp_path):
             nsamples[:, :, ifreq, ipol] = full_uvh5.nsample_array[
                 :, :, freq_idx, pol_idx
             ]
-    uvtest.checkWarnings(
-        partial_uvh5.write_uvh5_part,
-        [partial_testfile, data, flags, nsamples],
-        {
-            "freq_chans": freq_inds,
-            "polarizations": full_uvh5.polarization_array[pol_inds],
-        },
-        nwarnings=2,
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "Selected frequencies are not evenly spaced",
             "Selected polarization values are not evenly spaced",
         ],
-    )
+    ):
+        partial_uvh5.write_uvh5_part(
+            partial_testfile,
+            data,
+            flags,
+            nsamples,
+            freq_chans=freq_inds,
+            polarizations=full_uvh5.polarization_array[pol_inds],
+        )
 
     # also write the arrays to the partial object
     for ifreq, freq_idx in enumerate(freq_inds):
@@ -1248,12 +1255,17 @@ def test_uvh5_partial_write_irregular_multi3(uv_partial_write, tmp_path):
             data[iblt, :, :, ipol] = full_uvh5.data_array[blt_idx, :, :, pol_idx]
             flags[iblt, :, :, ipol] = full_uvh5.flag_array[blt_idx, :, :, pol_idx]
             nsamples[iblt, :, :, ipol] = full_uvh5.nsample_array[blt_idx, :, :, pol_idx]
-    uvtest.checkWarnings(
-        partial_uvh5.write_uvh5_part,
-        [partial_testfile, data, flags, nsamples],
-        {"blt_inds": blt_inds, "polarizations": full_uvh5.polarization_array[pol_inds]},
-        message="Selected polarization values are not evenly spaced",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Selected polarization values are not evenly spaced",
+    ):
+        partial_uvh5.write_uvh5_part(
+            partial_testfile,
+            data,
+            flags,
+            nsamples,
+            blt_inds=blt_inds,
+            polarizations=full_uvh5.polarization_array[pol_inds],
+        )
 
     # also write the arrays to the partial object
     for iblt, blt_idx in enumerate(blt_inds):
@@ -1318,20 +1330,22 @@ def test_uvh5_partial_write_irregular_multi4(uv_partial_write, tmp_path):
                 nsamples[iblt, :, ifreq, ipol] = full_uvh5.nsample_array[
                     blt_idx, :, freq_idx, pol_idx
                 ]
-    uvtest.checkWarnings(
-        partial_uvh5.write_uvh5_part,
-        [partial_testfile, data, flags, nsamples],
-        {
-            "blt_inds": blt_inds,
-            "freq_chans": freq_inds,
-            "polarizations": full_uvh5.polarization_array[pol_inds],
-        },
-        nwarnings=2,
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "Selected frequencies are not evenly spaced",
             "Selected polarization values are not evenly spaced",
         ],
-    )
+    ):
+        partial_uvh5.write_uvh5_part(
+            partial_testfile,
+            data,
+            flags,
+            nsamples,
+            blt_inds=blt_inds,
+            freq_chans=freq_inds,
+            polarizations=full_uvh5.polarization_array[pol_inds],
+        )
 
     # also write the arrays to the partial object
     for iblt, blt_idx in enumerate(blt_inds):
@@ -1534,16 +1548,15 @@ def test_uvh5_lst_array(casa_uvfits, tmp_path):
         lst_array = h5f["/Header/lst_array"][:]
         del h5f["/Header/lst_array"]
         h5f["/Header/lst_array"] = 2 * lst_array
-    uvtest.checkWarnings(
-        uv_out.read_uvh5,
-        [testfile],
-        nwarnings=2,
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             f"LST values stored in {testfile} are not self-consistent",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
-    )
+    ):
+        uv_out.read_uvh5(testfile)
     uv_out.lst_array = lst_array
     assert uv_in == uv_out
 
@@ -2359,12 +2372,17 @@ def test_uvh5_partial_write_ints_irregular_multi1(uv_uvh5, tmp_path):
             nsamples[iblt, :, ifreq, :] = full_uvh5.nsample_array[
                 blt_idx, :, freq_idx, :
             ]
-    uvtest.checkWarnings(
-        partial_uvh5.write_uvh5_part,
-        [partial_testfile, data, flags, nsamples],
-        {"blt_inds": blt_inds, "freq_chans": freq_inds},
-        message="Selected frequencies are not evenly spaced",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Selected frequencies are not evenly spaced",
+    ):
+        partial_uvh5.write_uvh5_part(
+            partial_testfile,
+            data,
+            flags,
+            nsamples,
+            blt_inds=blt_inds,
+            freq_chans=freq_inds,
+        )
 
     # also write the arrays to the partial object
     for iblt, blt_idx in enumerate(blt_inds):
@@ -2426,19 +2444,21 @@ def test_uvh5_partial_write_ints_irregular_multi2(uv_uvh5, tmp_path):
             nsamples[:, :, ifreq, ipol] = full_uvh5.nsample_array[
                 :, :, freq_idx, pol_idx
             ]
-    uvtest.checkWarnings(
-        partial_uvh5.write_uvh5_part,
-        [partial_testfile, data, flags, nsamples],
-        {
-            "freq_chans": freq_inds,
-            "polarizations": full_uvh5.polarization_array[pol_inds],
-        },
-        nwarnings=2,
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "Selected frequencies are not evenly spaced",
             "Selected polarization values are not evenly spaced",
         ],
-    )
+    ):
+        partial_uvh5.write_uvh5_part(
+            partial_testfile,
+            data,
+            flags,
+            nsamples,
+            freq_chans=freq_inds,
+            polarizations=full_uvh5.polarization_array[pol_inds],
+        )
 
     # also write the arrays to the partial object
     for ifreq, freq_idx in enumerate(freq_inds):
@@ -2497,12 +2517,17 @@ def test_uvh5_partial_write_ints_irregular_multi3(uv_uvh5, tmp_path):
             data[iblt, :, :, ipol] = full_uvh5.data_array[blt_idx, :, :, pol_idx]
             flags[iblt, :, :, ipol] = full_uvh5.flag_array[blt_idx, :, :, pol_idx]
             nsamples[iblt, :, :, ipol] = full_uvh5.nsample_array[blt_idx, :, :, pol_idx]
-    uvtest.checkWarnings(
-        partial_uvh5.write_uvh5_part,
-        [partial_testfile, data, flags, nsamples],
-        {"blt_inds": blt_inds, "polarizations": full_uvh5.polarization_array[pol_inds]},
-        message="Selected polarization values are not evenly spaced",
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Selected polarization values are not evenly spaced",
+    ):
+        partial_uvh5.write_uvh5_part(
+            partial_testfile,
+            data,
+            flags,
+            nsamples,
+            blt_inds=blt_inds,
+            polarizations=full_uvh5.polarization_array[pol_inds],
+        )
 
     # also write the arrays to the partial object
     for iblt, blt_idx in enumerate(blt_inds):
@@ -2569,20 +2594,22 @@ def test_uvh5_partial_write_ints_irregular_multi4(uv_uvh5, tmp_path):
                 nsamples[iblt, :, ifreq, ipol] = full_uvh5.nsample_array[
                     blt_idx, :, freq_idx, pol_idx
                 ]
-    uvtest.checkWarnings(
-        partial_uvh5.write_uvh5_part,
-        [partial_testfile, data, flags, nsamples],
-        {
-            "blt_inds": blt_inds,
-            "freq_chans": freq_inds,
-            "polarizations": full_uvh5.polarization_array[pol_inds],
-        },
-        nwarnings=2,
-        message=[
+    with uvtest.check_warnings(
+        UserWarning,
+        [
             "Selected frequencies are not evenly spaced",
             "Selected polarization values are not evenly spaced",
         ],
-    )
+    ):
+        partial_uvh5.write_uvh5_part(
+            partial_testfile,
+            data,
+            flags,
+            nsamples,
+            blt_inds=blt_inds,
+            freq_chans=freq_inds,
+            polarizations=full_uvh5.polarization_array[pol_inds],
+        )
 
     # also write the arrays to the partial object
     for iblt, blt_idx in enumerate(blt_inds):
