@@ -4,6 +4,7 @@
 
 """Class for reading and writing Mir files."""
 import numpy as np
+import copy
 
 from .uvdata import UVData
 from . import mir_parser
@@ -22,7 +23,15 @@ class Mir(UVData):
     instead use the read_mir and write_mir methods on the UVData class.
     """
 
-    def read_mir(self, filepath, isource=None, irec=None, isb=None, corrchunk=None):
+    def read_mir(
+        self,
+        filepath,
+        isource=None,
+        irec=None,
+        isb=None,
+        corrchunk=None,
+        pseudo_cont=False
+    ):
         """
         Read in data from an SMA MIR file, and map to the UVData model.
 
@@ -41,8 +50,10 @@ class Mir(UVData):
             Receiver code for MIR dataset
         isb : int
             Sideband code for MIR dataset
-        corrchunk : int
-            Correlator chunk code for MIR dataset
+        corrchunk : list of int
+            Correlator chunk codes for MIR dataset
+        pseudo_cont : boolean
+            Read in pseudo-continuuum values. Default is false.
         """
         # Use the mir_parser to read in metadata, which can be used to select data.
         mir_data = mir_parser.MirParser(filepath)
@@ -54,9 +65,27 @@ class Mir(UVData):
             irec = mir_data.bl_read["irec"][0]
         if isb is None:
             isb = mir_data.bl_read["isb"][0]
-        if corrchunk is None:
-            corrchunk = mir_data.sp_read["corrchunk"][0]
 
+        corrchunk_full_list = np.unique(mir_data.sp_read["corrchunk"]).tolist()
+        if corrchunk is None:
+            if pseudo_cont:
+                corrchunk = [0]
+            else:
+                corrchunk = copy.deepcopy(corrchunk_full_list)
+                corrchunk.remove(0) if 0 in corrchunk else None
+
+        if type(corrchunk) is not list:
+            if type(corrchunk) is int:
+                corrchunk = [corrchunk]
+            else:
+                raise IndexError("corrchunk must be int or list of ints!")
+
+        if (0 in corrchunk) and ([0] != corrchunk):
+            raise NotImplementedError(
+                "cannot load pseudo-cont and spectral windows together!"
+            )
+
+        corrchunk_dict = {key: key in corrchunk for key in corrchunk_full_list}
         mir_data.use_in = mir_data.in_read["isource"] == isource
         mir_data.use_bl = np.logical_and(
             np.logical_and(
@@ -64,7 +93,10 @@ class Mir(UVData):
             ),
             mir_data.bl_read["irec"] == irec,
         )
-        mir_data.use_sp = mir_data.sp_read["corrchunk"] == corrchunk
+
+        mir_data.use_sp = np.array(
+            [corrchunk_dict[key] for key in mir_data.sp_read["corrchunk"]]
+        )
 
         # Load up the visibilities into the MirParser object. This will also update the
         # filters, and will make sure we're looking at the right metadata.
@@ -88,9 +120,8 @@ class Mir(UVData):
         self.Nants_telescope = 8
         self.Nbls = int(self.Nants_data * (self.Nants_data - 1) / 2)
         self.Nblts = len(mir_data.bl_data)
-        self.Nfreqs = int(mir_data.sp_data["nch"][0])
         self.Npols = 1  # todo: We will need to go back and expand this.
-        self.Nspws = 1  # todo: We will need to go back and expand this.
+        self.Nspws = len(corrchunk)
         self.Ntimes = len(mir_data.in_data)
         self.ant_1_array = mir_data.bl_data["iant1"] - 1
         self.ant_2_array = mir_data.bl_data["iant2"] - 1
@@ -117,6 +148,7 @@ class Mir(UVData):
         # Get the coordinates from the entry in telescope.py
         lat, lon, alt = get_telescope("SMA")._telescope_location.lat_lon_alt()
         self.telescope_location_lat_lon_alt = (lat, lon, alt)
+
         # Calculate antenna postions in EFEF frame. Note that since both
         # coordinate systems are in relative units, no subtraction from
         # telescope geocentric position is required , i.e we are going from
@@ -126,32 +158,34 @@ class Mir(UVData):
             self.ant_1_array, self.ant_2_array, attempt256=False
         )
 
-        fsky = mir_data.sp_data["fsky"][0] * 1e9  # GHz -> Hz
-        fres = mir_data.sp_data["fres"][0] * 1e6  # MHz -> Hz
-        nch = mir_data.sp_data["nch"][0]
+        if len(np.unique(mir_data.sp_data["nch"])) != 1:
+            raise NotImplementedError(
+                "Cannot handle spectral windows of different sizes (yet)..."
+            )
+        self.Nfreqs = int(mir_data.sp_data["nch"][0])
 
-        self.channel_width = fres
-        # Need the half-channel offset below because of the weird way
-        # in which MIR identifies the "center" of the band
-        self.freq_array = fsky + fres * (np.arange(nch) - (nch / 2 - 0.5))
+        if len(np.unique(np.abs(mir_data.sp_data["fres"]))) != 1:
+            raise NotImplementedError(
+                "Cannot handle spectral windows with different channel sizes (yet)..."
+            )
+        self.channel_width = float(abs(mir_data.sp_data["fres"][0]))
 
-        # TODO: This will need to be fixed when spw > 1
-        self.freq_array = np.reshape(self.freq_array, (1, -1))
         self.history = "Raw Data"
         self.instrument = "SWARM"
 
-        # todo: This won't work when we have multiple spectral windows.
-        self.integration_time = mir_data.sp_data["integ"]
+        self.integration_time = mir_data.sp_data["integ"][
+            mir_data.sp_data["corrchunk"] == corrchunk[0]
+        ]
 
-        # todo: Using MIR V3 convention, will need to be V2 compatible eventually.
+        # TODO: Using MIR V3 convention, will need to be V2 compatible eventually.
         self.lst_array = (
             mir_data.in_data["lst"][bl_in_maparr].astype(float) + (0.0 / 3600.0)
         ) * (np.pi / 12.0)
 
-        # todo: We change between xx yy and rr ll, so we will need to update this.
+        # TODO: We change between xx yy and rr ll, so we will need to update this.
         self.polarization_array = np.asarray([-5])
 
-        self.spw_array = np.asarray([0])
+        self.spw_array = np.array(corrchunk)
 
         self.telescope_name = "SMA"
         time_array_mjd = mir_data.in_read["mjd"][bl_in_maparr]
@@ -183,12 +217,39 @@ class Mir(UVData):
         self.phase_center_epoch = float(self.phase_center_epoch)
         self.antenna_diameters = np.zeros(self.Nants_telescope) + 6
         self.blt_order = ("time", "baseline")
-        self.data_array = np.reshape(
+
+        data_array = np.reshape(
             np.array(mir_data.vis_data),
             (self.Nblts, self.Nspws, self.Nfreqs, self.Npols),
         )
         # Don't need the data anymore, so drop it
         mir_data.unload_data()
+
+        freq_array = np.empty((self.Nspws, self.Nfreqs))
+        for idx in range(len(corrchunk)):
+            data_mask = mir_data.sp_data["corrchunk"] == corrchunk[idx]
+            spw_fsky = np.unique(mir_data.sp_data["fsky"][data_mask])
+            spw_fres = np.abs(np.unique(mir_data.sp_data["fres"][data_mask]))
+            if (len(spw_fsky) != 1) or (len(spw_fres) != 1):
+                raise ValueError(
+                    "Spectral window must have the same fsky and fres for whole obs!"
+                )
+            spw_fsky *= 1e9  # GHz -> Hz
+            spw_fres *= 1e6   # MHz -> Hz
+            # So the freq array here is a little weird, because the current fsky
+            # refers to the point between the nch/2 and nch/2 + 1 channel in the
+            # raw (unaveraged) spectrum. This was done for the sake of some
+            # convenience, at the cost of clarity. In some future format of the
+            # data, we expect to be able to drop seemingly random offset here.
+            freq_array[idx] = spw_fsky - (np.sign(spw_fres) * 139648437.5) + (
+                spw_fres * (np.arange(self.Nfreqs) + 0.5 - (self.Nfreqs / 2))
+            )
+            if spw_fres < 0:
+                freq_array[idx] = np.flip(freq_array[idx])
+                data_array[:, idx, :, :] = np.flip(data_array[:, idx, :, :], axis=1)
+
+        self.freq_array = freq_array
+        self.data_array = data_array
         self.flag_array = np.zeros(self.data_array.shape, dtype=bool)
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.float32)
 
