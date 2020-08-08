@@ -6,7 +6,7 @@ dependencies:
   - astropy
   - astropy-healpix
   - h5py
-  - numpy>=1.15
+  - numpy>=1.18
   - pypandoc
   - python-casacore
   - pyyaml

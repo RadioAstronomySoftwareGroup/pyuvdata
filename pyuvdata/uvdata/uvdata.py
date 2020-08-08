@@ -5783,7 +5783,7 @@ class UVData(UVBase):
         ----------
         filetype : str
             Specifies what file type object to convert to. Options are: 'uvfits',
-            'fhd', 'miriad', 'uvh5'
+            'fhd', 'miriad', 'uvh5', 'mir'
 
         Raises
         ------
@@ -5806,8 +5806,12 @@ class UVData(UVBase):
             from . import uvh5
 
             other_obj = uvh5.UVH5()
+        elif filetype == "mir":
+            from . import mir
+
+            other_obj = mir.Mir()
         else:
-            raise ValueError("filetype must be uvfits, miriad, fhd, or uvh5")
+            raise ValueError("filetype must be uvfits, mir, miriad, fhd, or uvh5")
         for p in self:
             param = getattr(self, p)
             setattr(other_obj, p, param)
@@ -5896,6 +5900,37 @@ class UVData(UVBase):
         )
         self._convert_from_filetype(fhd_obj)
         del fhd_obj
+
+    def read_mir(self, filepath, isource=None, irec=None, isb=None, corrchunk=None):
+        """
+        Read in data from an SMA MIR file.
+
+        Note that with the exception of filepath, the reset of the parameters are
+        used to sub-select a range of data that matches the limitations of the current
+        instantiation of pyuvdata  -- namely 1 spectral window, 1 source. These could
+        be dropped in the future, as pyuvdata capabilities grow.
+
+        Parameters
+        ----------
+        filepath : str
+             The file path to the MIR folder to read from.
+        isource : int
+            Source code for MIR dataset
+        irec : int
+            Receiver code for MIR dataset
+        isb : int
+            Sideband code for MIR dataset
+        corrchunk : int
+            Correlator chunk code for MIR dataset
+        """
+        from . import mir
+
+        mir_obj = mir.Mir()
+        mir_obj.read_mir(
+            filepath, isource=isource, irec=irec, isb=isb, corrchunk=corrchunk
+        )
+        self._convert_from_filetype(mir_obj)
+        del mir_obj
 
     def read_miriad(
         self,
@@ -6624,6 +6659,10 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        isource=None,
+        irec=None,
+        isb=None,
+        corrchunk=None,
     ):
         """
         Read a generic file into a UVData object.
@@ -6821,6 +6860,14 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        isource : int
+            Source code for MIR dataset
+        irec : int
+            Receiver code for MIR dataset
+        isb : int
+            Sideband code for MIR dataset
+        corrchunk : int
+            Correlator chunk code for MIR dataset
 
         Raises
         ------
@@ -6876,13 +6923,17 @@ class UVData(UVBase):
                 file_test = filename
 
             if os.path.isdir(file_test):
-                # it's a directory, so it's either miriad or ms file type
+                # it's a directory, so it's either miriad, mir, or ms file type
                 if os.path.exists(os.path.join(file_test, "vartable")):
                     # It's miriad.
                     file_type = "miriad"
                 elif os.path.exists(os.path.join(file_test, "OBSERVATION")):
                     # It's a measurement set.
                     file_type = "ms"
+                elif os.path.exists(os.path.join(file_test, "sch_read")):
+                    # It's Submillimeter Array mir format.
+                    file_type = "mir"
+
             else:
                 basename, extension = os.path.splitext(file_test)
                 if extension == ".uvfits":
@@ -7178,6 +7229,12 @@ class UVData(UVBase):
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
                 )
 
+            elif file_type == "mir":
+                self.read_mir(
+                    filename, isource=isource, irec=irec, isb=isb, corrchunk=corrchunk
+                )
+                select = False
+
             elif file_type == "miriad":
                 self.read_miriad(
                     filename,
@@ -7381,6 +7438,27 @@ class UVData(UVBase):
             no_antnums=no_antnums,
         )
         del miriad_obj
+
+    def write_mir(
+        self, filepath,
+    ):
+        """
+        Write the data to a mir file.
+
+        Parameters
+        ----------
+        filename : str
+            The mir root directory to write to.
+
+        Raises
+        ------
+        NotImplementedError
+            Method is not fully implemented yet, and thus will raise an error
+
+        """
+        mir_obj = self._convert_to_filetype("mir")
+        mir_obj.write_mir(filepath,)
+        del mir_obj
 
     def write_uvfits(
         self,

@@ -617,7 +617,9 @@ def test_converttofiletype(uvdata_data):
 
     with pytest.raises(ValueError) as cm:
         uvdata_data.uv_object._convert_to_filetype("foo")
-    assert str(cm.value).startswith("filetype must be uvfits, miriad, fhd, or uvh5")
+    assert str(cm.value).startswith(
+        "filetype must be uvfits, mir, miriad, fhd, or uvh5"
+    )
 
 
 def test_baseline_to_antnums(uvdata_baseline):
@@ -681,7 +683,7 @@ def test_antnums_to_baselines(uvdata_baseline):
 def test_known_telescopes():
     """Test known_telescopes method returns expected results."""
     uv_object = UVData()
-    known_telescopes = ["PAPER", "HERA", "MWA"]
+    known_telescopes = ["PAPER", "HERA", "MWA", "SMA"]
     # calling np.sort().tolist() because [].sort() acts inplace and returns None
     # Before test had None == None
     assert (
