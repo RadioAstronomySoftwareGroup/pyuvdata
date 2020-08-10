@@ -438,11 +438,13 @@ class UVFITS(UVData):
             # check if we have an spw dimension
             if vis_hdr["NAXIS"] == 7:
                 if vis_hdr["NAXIS5"] > 1:
-                    raise ValueError(
-                        "Sorry.  Files with more than one spectral"
-                        "window (spw) are not yet supported. A "
-                        "great project for the interested student!"
-                    )
+                    # TODO Karto: Error, BEGONE!
+                    # raise ValueError(
+                    #     "Sorry.  Files with more than one spectral"
+                    #     "window (spw) are not yet supported. A "
+                    #     "great project for the interested student!"
+                    # )
+                    pass
 
                 self.Nspws = vis_hdr.pop("NAXIS5")
 
@@ -691,7 +693,7 @@ class UVFITS(UVData):
             self.check(
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
-                check_freq_spacing=True,
+                # check_freq_spacing=True,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
@@ -720,11 +722,12 @@ class UVFITS(UVData):
                 "reflect the phasing status of the data"
             )
 
-        if self.Nfreqs > 1:
-            freq_spacing = np.diff(self.freq_array, axis=1)
-            freq_spacing = freq_spacing[0, 0]
-        else:
-            freq_spacing = self.channel_width
+        # if self.Nfreqs > 1:
+        #    freq_spacing = np.diff(self.freq_array, axis=1)
+        #    freq_spacing = freq_spacing[0, 0]
+        # else:
+
+        freq_spacing = self.channel_width
 
         if self.Npols > 1:
             pol_spacing = np.diff(self.polarization_array)
@@ -798,6 +801,8 @@ class UVFITS(UVData):
             "WW      ": uvw_array_sec[:, 2],
             "DATE    ": time_array,
             "BASELINE": baselines_use,
+            # "SOURCE  ": np.ones(time_array.shape, dtype=np.float32),
+            "FREQSEL ": np.ones(time_array.shape, dtype=np.float32),
             "ANTENNA1": self.ant_1_array + 1,
             "ANTENNA2": self.ant_2_array + 1,
             "SUBARRAY": np.ones_like(self.ant_1_array),
@@ -810,6 +815,8 @@ class UVFITS(UVData):
             "WW      ": 1.0,
             "DATE    ": 1.0,
             "BASELINE": 1.0,
+            # "SOURCE  ": 1.0,
+            "FREQSEL ": 1.0,
             "ANTENNA1": 1.0,
             "ANTENNA2": 1.0,
             "SUBARRAY": 1.0,
@@ -821,6 +828,8 @@ class UVFITS(UVData):
             "WW      ": 0.0,
             "DATE    ": tzero,
             "BASELINE": 0.0,
+            # "SOURCE  ": 0.0,
+            "FREQSEL ": 0.0,
             "ANTENNA1": 0.0,
             "ANTENNA2": 0.0,
             "SUBARRAY": 0.0,
@@ -847,6 +856,12 @@ class UVFITS(UVData):
             # baseline array and the antenna arrays in the group parameters.
             # Otherwise just use the antenna arrays
             parnames_use.append("BASELINE")
+
+        # TODO Karto: Mark why here
+        if self.Nspws > 1:
+            parnames_use += ["FREQSEL "]
+
+        # TODO Karto: Here's where to add "SOURCE " item
 
         parnames_use += ["ANTENNA1", "ANTENNA2", "SUBARRAY", "INTTIM  "]
 
@@ -1006,7 +1021,8 @@ class UVFITS(UVData):
         ant_hdu.header["ARRAYZ"] = self.telescope_location[2]
         ant_hdu.header["FRAME"] = "ITRF"
         ant_hdu.header["GSTIA0"] = self.gst0
-        ant_hdu.header["FREQ"] = self.freq_array[0, 0]
+        # TODO Karto: Do this more intelligently in the future
+        ant_hdu.header["FREQ"] = np.mean(self.freq_array)
         ant_hdu.header["RDATE"] = self.rdate
         ant_hdu.header["UT1UTC"] = self.dut1
 
@@ -1032,6 +1048,7 @@ class UVFITS(UVData):
 
         # note: we do not support the concept of "frequency setups"
         # -- lists of spws given in a SU table.
+        # Karto: Here might be a place to address freq setup?
         ant_hdu.header["FREQID"] = -1
 
         # if there are offsets in images, this could be the culprit
@@ -1045,8 +1062,33 @@ class UVFITS(UVData):
 
         # ADD the FQ table
         # skipping for now and limiting to a single spw
+        # Karto: SKIP NO MORE!
+        fqtype_d = "%iD" % self.Nspws
+        fqtype_e = "%iE" % self.Nspws
+        fqtype_j = "%iJ" % self.Nspws
+
+        # TODO Karto: Temp implementation until we fix some other things in UVData
+        if_freq = self.freq_array[:, 0] - np.mean(self.freq_array)
+        ch_width = self.channel_width * np.ones(self.Nspws)
+        total_bw = self.channel_width * self.Nfreqs * np.ones(self.Nspws)
+        sideband = np.sign(self.channel_width) * np.ones(self.Nspws)
+
+        # FQSEL is hardcoded at the moment, could think about doing this
+        # at least somewhat more intelligently...
+        col_list = [
+            fits.Column(name="FRQSEL", format="1J", array=[1]),
+            fits.Column(name="IF FREQ", format=fqtype_d, array=if_freq),
+            fits.Column(name="CH WIDTH", format=fqtype_e, array=ch_width),
+            fits.Column(name="TOTAL BANDWIDTH", format=fqtype_e, array=total_bw),
+            fits.Column(name="SIDEBAND", format=fqtype_j, array=sideband),
+        ]
+
+        fq_hdu = fits.BinTableHDU.from_columns(fits.ColDefs(col_list))
+
+        fq_hdu.header["EXTNAME"] = "AIPS FQ"
+        fq_hdu.header["NO_IF"] = self.Nspws
 
         # write the file
-        hdulist = fits.HDUList(hdus=[hdu, ant_hdu])
+        hdulist = fits.HDUList(hdus=[hdu, ant_hdu, fq_hdu])
         hdulist.writeto(filename, overwrite=True)
         hdulist.close()

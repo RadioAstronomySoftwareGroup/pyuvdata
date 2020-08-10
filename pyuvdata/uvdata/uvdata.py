@@ -5901,7 +5901,15 @@ class UVData(UVBase):
         self._convert_from_filetype(fhd_obj)
         del fhd_obj
 
-    def read_mir(self, filepath, isource=None, irec=None, isb=None, corrchunk=None):
+    def read_mir(
+            self,
+            filepath,
+            isource=None,
+            irec=None,
+            isb=None,
+            corrchunk=None,
+            pseudo_cont=False,
+    ):
         """
         Read in data from an SMA MIR file.
 
@@ -5927,7 +5935,12 @@ class UVData(UVBase):
 
         mir_obj = mir.Mir()
         mir_obj.read_mir(
-            filepath, isource=isource, irec=irec, isb=isb, corrchunk=corrchunk
+            filepath,
+            isource=isource,
+            irec=irec,
+            isb=isb,
+            corrchunk=corrchunk,
+            pseudo_cont=pseudo_cont
         )
         self._convert_from_filetype(mir_obj)
         del mir_obj
