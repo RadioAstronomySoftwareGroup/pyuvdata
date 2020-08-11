@@ -168,7 +168,7 @@ class Mir(UVData):
             raise NotImplementedError(
                 "Cannot handle spectral windows with different channel sizes (yet)..."
             )
-        self.channel_width = float(abs(mir_data.sp_data["fres"][0]))
+        self.channel_width = float(abs(mir_data.sp_data["fres"][0])) * 1e6  # MHz->Hz
 
         self.history = "Raw Data"
         self.instrument = "SWARM"
@@ -185,7 +185,7 @@ class Mir(UVData):
         # TODO: We change between xx yy and rr ll, so we will need to update this.
         self.polarization_array = np.asarray([-5])
 
-        self.spw_array = np.array(corrchunk)
+        self.spw_array = np.arange(len(corrchunk))
 
         self.telescope_name = "SMA"
         time_array_mjd = mir_data.in_read["mjd"][bl_in_maparr]
@@ -229,7 +229,7 @@ class Mir(UVData):
         for idx in range(len(corrchunk)):
             data_mask = mir_data.sp_data["corrchunk"] == corrchunk[idx]
             spw_fsky = np.unique(mir_data.sp_data["fsky"][data_mask])
-            spw_fres = np.abs(np.unique(mir_data.sp_data["fres"][data_mask]))
+            spw_fres = np.unique(mir_data.sp_data["fres"][data_mask])
             if (len(spw_fsky) != 1) or (len(spw_fres) != 1):
                 raise ValueError(
                     "Spectral window must have the same fsky and fres for whole obs!"
