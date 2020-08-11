@@ -458,7 +458,7 @@ class UVFITS(UVData):
 
             if self.Nspws > 1:
                 fq_hdu = hdu_list[hdunames["AIPS FQ"]]
-                if self.Nspws != fq_hdu.header['NO_IF']:
+                if self.Nspws != fq_hdu.header["NO_IF"]:
                     raise IndexError(
                         "NO_IF in AIPS FQ does not match size of primary vis table"
                     )
@@ -468,12 +468,15 @@ class UVFITS(UVData):
 
                 # Get rest freq value
                 rest_freq = uvutils._fits_gethduaxis(vis_hdu, 4)[0]
-                self.freq_array = np.transpose((
-                    rest_freq + fq_hdu.data['IF FREQ']
-                    + np.outer(np.arange(self.Nfreqs), fq_hdu.data['CH WIDTH'])
-                ))
-                self.channel_width = float(fq_hdu.data['CH WIDTH'][0, 0])
-                if np.any(self.channel_width != fq_hdu.data['CH WIDTH']):
+                self.freq_array = np.transpose(
+                    (
+                        rest_freq
+                        + fq_hdu.data["IF FREQ"]
+                        + np.outer(np.arange(self.Nfreqs), fq_hdu.data["CH WIDTH"])
+                    )
+                )
+                self.channel_width = float(fq_hdu.data["CH WIDTH"][0, 0])
+                if np.any(self.channel_width != fq_hdu.data["CH WIDTH"]):
                     raise ValueError(
                         "UVFITS files with different channel widths per spw are not "
                         "supported (yet)."
@@ -743,24 +746,24 @@ class UVFITS(UVData):
         freq_spacing = self.channel_width
         freq_spacing_check = np.unique(np.diff(self.freq_array))
         if not np.allclose(
-                freq_spacing_check,
-                freq_spacing,
-                rtol=self._channel_width.tols[0],
-                atol=self._channel_width.tols[1],
+            freq_spacing_check,
+            freq_spacing,
+            rtol=self._channel_width.tols[0],
+            atol=self._channel_width.tols[1],
         ):
             if len(freq_spacing_check) == 1:
                 freq_spacing = freq_spacing_check[0]
                 warnings.warn(
                     "Values of freq array do not line up with what is expected, given "
                     "channel_width. Spoofing value for now. Expected "
-                    f"{self.channel_width} , got "f"{freq_spacing} instead."
+                    f"{self.channel_width} , got "
+                    f"{freq_spacing} instead."
                 )
                 print("Expected %f, got %f" % (freq_spacing, self.channel_width))
             else:
                 raise ValueError(
                     "The separation in frequency values is non-uniform, which is not "
-                    "supported in the UVFITS file format (should be %f)." %
-                    freq_spacing
+                    "supported in the UVFITS file format (should be %f)." % freq_spacing
                 )
 
         if self.Npols > 1:
@@ -1104,8 +1107,7 @@ class UVFITS(UVData):
             fmt_j = "%iJ" % self.Nspws
 
             # TODO Karto: Temp implementation until we fix some other things in UVData
-            if_freq = np.reshape(self.freq_array[:, 0]
-                                 - self.freq_array[0, 0], (1, -1))
+            if_freq = np.reshape(self.freq_array[:, 0] - self.freq_array[0, 0], (1, -1))
             ch_width = self.channel_width * np.ones((1, self.Nspws))
             tot_bw = self.channel_width * self.Nfreqs * np.ones((1, self.Nspws))
             sideband = np.sign(self.channel_width) * np.ones((1, self.Nspws))

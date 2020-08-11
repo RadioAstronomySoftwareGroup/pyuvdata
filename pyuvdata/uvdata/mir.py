@@ -30,7 +30,7 @@ class Mir(UVData):
         irec=None,
         isb=None,
         corrchunk=None,
-        pseudo_cont=False
+        pseudo_cont=False,
     ):
         """
         Read in data from an SMA MIR file, and map to the UVData model.
@@ -69,14 +69,10 @@ class Mir(UVData):
             isb = isb_full_list.copy()
 
         isb_dict = {key: key in isb for key in isb_full_list}
-        if (len(isb) == 0):
-            raise IndexError(
-                "No valid sidebands selected!"
-            )
+        if len(isb) == 0:
+            raise IndexError("No valid sidebands selected!")
         elif not (set(isb).issubset(set(isb_full_list))):
-            raise IndexError(
-                "isb values contain invalid entries"
-            )
+            raise IndexError("isb values contain invalid entries")
 
         dsb_spws = True if len(isb) == 2 else False
 
@@ -105,9 +101,8 @@ class Mir(UVData):
         mir_data.use_bl = np.logical_and(
             np.logical_and(
                 mir_data.bl_read["irec"] == irec, mir_data.bl_read["ipol"] == 0
-            ), np.array(
-                [isb_dict[key] for key in mir_data.bl_read["isb"]]
             ),
+            np.array([isb_dict[key] for key in mir_data.bl_read["isb"]]),
         )
 
         mir_data.use_sp = np.array(
@@ -118,7 +113,7 @@ class Mir(UVData):
         # different baseline records. To be compatible w/ UVData, we just splice
         # the sidebands together.
         corrchunk_sb = [idx for jdx in sorted(isb) for idx in [jdx] * len(corrchunk)]
-        corrchunk *= (1 + dsb_spws)
+        corrchunk *= 1 + dsb_spws
 
         # Load up the visibilities into the MirParser object. This will also update the
         # filters, and will make sure we're looking at the right metadata.
@@ -131,17 +126,13 @@ class Mir(UVData):
         # Create a simple list for broadcasting values stored on a
         # per-intergration basis in MIR into the (tasty) per-blt records in UVDATA.
         bl_in_maparr = [
-            mir_data.inhid_dict[idx] for idx in
-            mir_data.bl_data["inhid"][
-                mir_data.bl_data["isb"] == isb[0]
-            ]
+            mir_data.inhid_dict[idx]
+            for idx in mir_data.bl_data["inhid"][mir_data.bl_data["isb"] == isb[0]]
         ]
 
         # Create a simple array/list for broadcasting values stored on a
         # per-blt basis into per-spw records.
-        sp_bl_maparr = [
-            mir_data.blhid_dict[idx] for idx in mir_data.sp_data["blhid"]
-        ]
+        sp_bl_maparr = [mir_data.blhid_dict[idx] for idx in mir_data.sp_data["blhid"]]
 
         # Derive Nants_data from baselines.
         self.Nants_data = len(
@@ -156,8 +147,8 @@ class Mir(UVData):
         self.Npols = 1  # todo: We will need to go back and expand this.
         self.Nspws = len(corrchunk)
         self.Ntimes = len(mir_data.in_data)
-        self.ant_1_array = mir_data.bl_data["iant1"][::1 + dsb_spws] - 1
-        self.ant_2_array = mir_data.bl_data["iant2"][::1 + dsb_spws] - 1
+        self.ant_1_array = mir_data.bl_data["iant1"][:: 1 + dsb_spws] - 1
+        self.ant_2_array = mir_data.bl_data["iant2"][:: 1 + dsb_spws] - 1
         self.antenna_names = [
             "Ant 1",
             "Ant 2",
@@ -231,13 +222,15 @@ class Mir(UVData):
 
         # Need to flip the sign convention here on uvw, since we use a1-a2 versus the
         # standard a2-a1 that uvdata expects
-        self.uvw_array = (-1.0) * np.transpose(np.vstack(
-            (
-                mir_data.bl_data["u"][::1 + dsb_spws],
-                mir_data.bl_data["v"][::1 + dsb_spws],
-                mir_data.bl_data["w"][::1 + dsb_spws],
+        self.uvw_array = (-1.0) * np.transpose(
+            np.vstack(
+                (
+                    mir_data.bl_data["u"][:: 1 + dsb_spws],
+                    mir_data.bl_data["v"][:: 1 + dsb_spws],
+                    mir_data.bl_data["w"][:: 1 + dsb_spws],
+                )
             )
-        ))
+        )
 
         # todo: Raw data is in correlation coefficients, we may want to convert to Jy.
         self.vis_units = "uncalib"
@@ -269,7 +262,7 @@ class Mir(UVData):
         for idx in range(len(corrchunk)):
             data_mask = np.logical_and(
                 mir_data.sp_data["corrchunk"] == corrchunk[idx],
-                mir_data.bl_data["isb"][sp_bl_maparr] == corrchunk_sb[idx]
+                mir_data.bl_data["isb"][sp_bl_maparr] == corrchunk_sb[idx],
             )
 
             spw_fsky = np.unique(mir_data.sp_data["fsky"][data_mask])
@@ -279,14 +272,16 @@ class Mir(UVData):
                     "Spectral window must have the same fsky and fres for whole obs!"
                 )
             spw_fsky *= 1e9  # GHz -> Hz
-            spw_fres *= 1e6   # MHz -> Hz
+            spw_fres *= 1e6  # MHz -> Hz
             # So the freq array here is a little weird, because the current fsky
             # refers to the point between the nch/2 and nch/2 + 1 channel in the
             # raw (unaveraged) spectrum. This was done for the sake of some
             # convenience, at the cost of clarity. In some future format of the
             # data, we expect to be able to drop seemingly random offset here.
-            freq_array[idx] = spw_fsky - (np.sign(spw_fres) * 139648437.5) + (
-                spw_fres * (np.arange(self.Nfreqs) + 0.5 - (self.Nfreqs / 2))
+            freq_array[idx] = (
+                spw_fsky
+                - (np.sign(spw_fres) * 139648437.5)
+                + (spw_fres * (np.arange(self.Nfreqs) + 0.5 - (self.Nfreqs / 2)))
             )
             if spw_fres < 0:
                 freq_array[idx] = np.flip(freq_array[idx])
