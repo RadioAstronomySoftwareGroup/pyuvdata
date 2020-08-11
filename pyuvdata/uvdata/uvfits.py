@@ -741,14 +741,27 @@ class UVFITS(UVData):
         # else:
 
         freq_spacing = self.channel_width
-
-        if np.any(np.diff(self.freq_array) != self.channel_width):
-            raise ValueError(
-                "The separation in frequency values do not match what is specified "
-                "by the channel_width parameter, and therefore frequencies are not "
-                "guaranteed to be contiguious. The uvfits format requires spectral "
-                "windows to be contiguious."
-            )
+        freq_spacing_check = np.unique(np.diff(self.freq_array))
+        if not np.allclose(
+                freq_spacing_check,
+                freq_spacing,
+                rtol=self._channel_width.tols[0],
+                atol=self._channel_width.tols[1],
+        ):
+            if len(freq_spacing_check) == 1:
+                freq_spacing = freq_spacing_check[0]
+                warnings.warn(
+                    "Values of freq array do not line up with what is expected, given "
+                    "channel_width. Spoofing value for now. Expected "
+                    f"{self.channel_width} , got "f"{freq_spacing} instead."
+                )
+                print("Expected %f, got %f" % (freq_spacing, self.channel_width))
+            else:
+                raise ValueError(
+                    "The separation in frequency values is non-uniform, which is not "
+                    "supported in the UVFITS file format (should be %f)." %
+                    freq_spacing
+                )
 
         if self.Npols > 1:
             pol_spacing = np.diff(self.polarization_array)
