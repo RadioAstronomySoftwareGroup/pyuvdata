@@ -591,3 +591,33 @@ def test_invalid_precision_errors():
         uv.read_mwa_corr_fits(filelist[0:2], nsample_array_dtype=np.complex128)
 
     return
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location is not set.")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_remove_dig_gains():
+    """Test digital gain removal."""
+    uv1 = UVData()
+    uv1.read(filelist[0:2], remove_dig_gains=True)
+
+    uv2 = UVData()
+    uv2.read(filelist[0:2])
+
+    with fits.open(filelist[0]) as meta:
+        meta_tbl = meta[1].data
+        antenna_numbers = meta_tbl["Antenna"][1::2]
+        dig_gains = meta_tbl["Gains"][1::2, :]
+    reordered_inds = antenna_numbers.argsort()
+    dig_gains = dig_gains[reordered_inds, :]
+    dig_gains = dig_gains[:, np.array([23])]
+    dig_gains = np.repeat(dig_gains, 1, axis=1)
+    dig_gains1 = dig_gains[uv2.ant_1_array, :]
+    dig_gains2 = dig_gains[uv2.ant_2_array, :]
+    dig_gains1 = dig_gains1[:, :, np.newaxis, np.newaxis]
+    dig_gains2 = dig_gains2[:, :, np.newaxis, np.newaxis]
+    print(dig_gains1.shape)
+    print(dig_gains2.shape)
+    uv2.data_array = uv2.data_array / (dig_gains1 * dig_gains2)
+    print(uv2.data_array.shape)
+
+    assert uv1 == uv2

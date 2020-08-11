@@ -149,6 +149,7 @@ class MWACorrFITS(UVData):
         self,
         filelist,
         use_cotter_flags=False,
+        remove_dig_gains=False,
         correct_cable_len=False,
         phase_to_pointing_center=False,
         flag_init=True,
@@ -184,6 +185,8 @@ class MWACorrFITS(UVData):
         use_cotter_flags : bool
             Option to use cotter output mwaf flag files. Otherwise flagging
             will only be applied to missing data and bad antennas.
+        remove_dig_gains : bool
+            Option to divide out digital gains.
         correct_cable_len : bool
             Option to apply a cable delay correction.
         phase_to_pointing_center : bool
@@ -419,6 +422,7 @@ class MWACorrFITS(UVData):
             antenna_names = meta_tbl["TileName"][1::2]
             antenna_flags = meta_tbl["Flag"][1::2]
             cable_lens = np.asarray(meta_tbl["Length"][1::2]).astype(np.str_)
+            dig_gains = meta_tbl["Gains"][1::2, :]
 
             # get antenna postions in enu coordinates
             antenna_positions = np.zeros((len(antenna_numbers), 3))
@@ -433,6 +437,7 @@ class MWACorrFITS(UVData):
         antenna_positions = antenna_positions[reordered_inds, :]
         antenna_flags = antenna_flags[reordered_inds]
         cable_lens = cable_lens[reordered_inds]
+        dig_gains = dig_gains[reordered_inds, :]
 
         # find flagged antenna
         flagged_ants = self.antenna_numbers[np.where(antenna_flags == 1)]
@@ -680,6 +685,21 @@ class MWACorrFITS(UVData):
                 (self.Nblts, self.Nfreqs, self.Npols)
             )
 
+            # divide out digital gains
+            if remove_dig_gains:
+                # get gains for included coarse channels
+                coarse_inds = np.where(np.isin(coarse_chans, included_coarse_chans))[0]
+                print("coarse_inds: " + str(coarse_inds))
+                dig_gains = dig_gains[:, coarse_inds]
+                dig_gains = np.repeat(dig_gains, num_fine_chans, axis=1)
+                dig_gains1 = dig_gains[self.ant_1_array, :]
+                dig_gains2 = dig_gains[self.ant_2_array, :]
+                dig_gains1 = dig_gains1[:, :, np.newaxis]
+                dig_gains2 = dig_gains2[:, :, np.newaxis]
+                print(dig_gains1.shape)
+                print(dig_gains2.shape)
+                self.data_array = self.data_array / (dig_gains1 * dig_gains2)
+                print(self.data_array.shape)
             # cable delay corrections
             if correct_cable_len:
                 self.correct_cable_length(cable_lens)
