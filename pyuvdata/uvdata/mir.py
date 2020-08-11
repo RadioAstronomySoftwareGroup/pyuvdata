@@ -37,8 +37,8 @@ class Mir(UVData):
 
         Note that with the exception of filename, the rest of the parameters are
         used to sub-select a range of data that matches the limitations of the current
-        instantiation of pyuvdata  -- namely 1 spectral window, 1 source. These could
-        be dropped in the future, as pyuvdata capabilities grow.
+        instantiation of pyuvdata  -- namely 1 source. This could be dropped in the
+        future, as pyuvdata capabilities grow.
 
         Parameters
         ----------
