@@ -6150,6 +6150,7 @@ class UVData(UVBase):
         filelist,
         axis=None,
         use_cotter_flags=False,
+        remove_dig_gains=False,
         correct_cable_len=False,
         flag_init=True,
         edge_width=80e3,
@@ -6184,6 +6185,8 @@ class UVData(UVBase):
         use_cotter_flags : bool
             Option to use cotter output mwaf flag files. Otherwise flagging
             will only be applied to missing data and bad antennas.
+        remove_dig_gains : bool
+            Option to divide out digital gains.
         correct_cable_len : bool
             Option to apply a cable delay correction.
         flag_init: bool
@@ -6263,6 +6266,7 @@ class UVData(UVBase):
         corr_obj.read_mwa_corr_fits(
             filelist,
             use_cotter_flags=use_cotter_flags,
+            remove_dig_gains=remove_dig_gains,
             correct_cable_len=correct_cable_len,
             flag_init=flag_init,
             edge_width=edge_width,
@@ -6645,6 +6649,7 @@ class UVData(UVBase):
         data_array_dtype=np.complex128,
         nsample_array_dtype=np.float32,
         use_cotter_flags=False,
+        remove_dig_gains=False,
         correct_cable_len=False,
         flag_init=True,
         edge_width=80e3,
@@ -6803,6 +6808,8 @@ class UVData(UVBase):
             file_type is 'mwa_corr_fits'.
         use_cotter_flags : bool
             Flag to apply cotter flags. Only used if file_type is 'mwa_corr_fits'.
+        remove_dig_gains : bool
+            Option to divide out digital gains.
         correct_cable_len : bool
             Flag to apply cable length correction. Only used if file_type is
             'mwa_corr_fits'.
@@ -7257,6 +7264,7 @@ class UVData(UVBase):
                 self.read_mwa_corr_fits(
                     filename,
                     use_cotter_flags=use_cotter_flags,
+                    remove_dig_gains=remove_dig_gains,
                     correct_cable_len=correct_cable_len,
                     flag_init=flag_init,
                     edge_width=edge_width,
