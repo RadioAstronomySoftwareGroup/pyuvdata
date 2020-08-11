@@ -181,17 +181,6 @@ def test_multisource_error(casa_uvfits, tmp_path):
     assert str(cm.value).startswith("This file has multiple sources")
 
 
-def test_spwnotsupported():
-    """Test errors on reading in a uvfits file with multiple spws."""
-    uvobj = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1scan.uvfits")
-    with pytest.raises(ValueError) as cm:
-        uvobj.read(testfile)
-    assert str(cm.value).startswith(
-        "Sorry.  Files with more than one spectral" "window (spw) are not yet supported"
-    )
-
-
 def test_casa_nonascii_bytes_antenna_names():
     """Test that nonascii bytes in antenna names are handled properly."""
     uv1 = UVData()
