@@ -1634,7 +1634,7 @@ def test_select_frequencies_uvfits(casa_uvfits, tmp_path):
             "positions.",
             "Values of freq array do not line up with what is expected, given "
             "channel_width. Spoofing value for now.",
-        ]
+        ],
     ):
         uv_object2.write_uvfits(write_file_uvfits)
 
