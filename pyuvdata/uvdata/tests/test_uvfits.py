@@ -181,6 +181,8 @@ def test_multisource_error(casa_uvfits, tmp_path):
     assert str(cm.value).startswith("This file has multiple sources")
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_spwsupported():
     """Test eading in a uvfits file with multiple spws."""
     uvobj = UVData()
