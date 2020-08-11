@@ -437,15 +437,6 @@ class UVFITS(UVData):
             self._set_phased()
             # check if we have an spw dimension
             if vis_hdr["NAXIS"] == 7:
-                if vis_hdr["NAXIS5"] > 1:
-                    # TODO Karto: Error, BEGONE!
-                    # raise ValueError(
-                    #     "Sorry.  Files with more than one spectral"
-                    #     "window (spw) are not yet supported. A "
-                    #     "great project for the interested student!"
-                    # )
-                    pass
-
                 self.Nspws = vis_hdr.pop("NAXIS5")
                 self.spw_array = np.int32(uvutils._fits_gethduaxis(vis_hdu, 5)) - 1
 
@@ -481,11 +472,17 @@ class UVFITS(UVData):
                     rest_freq + fq_hdu.data['IF FREQ']
                     + np.outer(np.arange(self.Nfreqs), fq_hdu.data['CH WIDTH'])
                 ))
+                self.channel_width = float(fq_hdu.data['CH WIDTH'][0, 0])
+                if np.any(self.channel_width != fq_hdu.data['CH WIDTH']):
+                    raise ValueError(
+                        "UVFITS files with different channel widths per spw are not "
+                        "supported (yet)."
+                    )
             else:
                 self.freq_array = uvutils._fits_gethduaxis(vis_hdu, 4)
                 self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
+                self.channel_width = vis_hdr.pop("CDELT4")
 
-            self.channel_width = vis_hdr.pop("CDELT4")
             self.polarization_array = np.int32(uvutils._fits_gethduaxis(vis_hdu, 3))
             # other info -- not required but frequently used
             self.object_name = vis_hdr.pop("OBJECT", None)
@@ -1012,7 +1009,6 @@ class UVFITS(UVData):
         rot_ecef_positions = uvutils.rotECEF_from_ECEF(
             self.antenna_positions, longitude
         )
-        print(rot_ecef_positions.shape)
         col2 = fits.Column(name="STABXYZ", format="3D", array=rot_ecef_positions)
         # convert to 1-indexed from 0-indexed indicies
         col3 = fits.Column(name="NOSTA", format="1J", array=self.antenna_numbers + 1)
