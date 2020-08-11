@@ -447,7 +447,6 @@ class UVFITS(UVData):
                     pass
 
                 self.Nspws = vis_hdr.pop("NAXIS5")
-
                 self.spw_array = np.int32(uvutils._fits_gethduaxis(vis_hdu, 5)) - 1
 
                 # the axis number for phase center depends on if the spw exists
@@ -466,11 +465,28 @@ class UVFITS(UVData):
             self.Npols = vis_hdr.pop("NAXIS3")
             self.Nblts = vis_hdr.pop("GCOUNT")
 
-            self.freq_array = uvutils._fits_gethduaxis(vis_hdu, 4)
-            self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
+            if self.Nspws > 1:
+                fq_hdu = hdu_list[hdunames["AIPS FQ"]]
+                if self.Nspws != fq_hdu.header['NO_IF']:
+                    raise IndexError(
+                        "NO_IF in AIPS FQ does not match size of primary vis table"
+                    )
+                # TODO: This is fine for now, although I (karto) think that this
+                # is relative to the rest_freq, which can be specified as part of
+                # the AIPS SU table.
+
+                # Get rest freq value
+                rest_freq = uvutils._fits_gethduaxis(vis_hdu, 4)[0]
+                self.freq_array = np.transpose((
+                    rest_freq + fq_hdu.data['IF FREQ']
+                    + np.outer(np.arange(self.Nfreqs), fq_hdu.data['CH WIDTH'])
+                ))
+            else:
+                self.freq_array = uvutils._fits_gethduaxis(vis_hdu, 4)
+                self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
+
             self.channel_width = vis_hdr.pop("CDELT4")
             self.polarization_array = np.int32(uvutils._fits_gethduaxis(vis_hdu, 3))
-
             # other info -- not required but frequently used
             self.object_name = vis_hdr.pop("OBJECT", None)
             self.telescope_name = vis_hdr.pop("TELESCOP", None)
@@ -802,7 +818,7 @@ class UVFITS(UVData):
             "DATE    ": time_array,
             "BASELINE": baselines_use,
             # "SOURCE  ": np.ones(time_array.shape, dtype=np.float32),
-            "FREQSEL ": np.ones(time_array.shape, dtype=np.float32),
+            "FREQSEL ": np.ones_like(self.time_array, dtype=np.float32),
             "ANTENNA1": self.ant_1_array + 1,
             "ANTENNA2": self.ant_2_array + 1,
             "SUBARRAY": np.ones_like(self.ant_1_array),
@@ -858,8 +874,8 @@ class UVFITS(UVData):
             parnames_use.append("BASELINE")
 
         # TODO Karto: Mark why here
-        if self.Nspws > 1:
-            parnames_use += ["FREQSEL "]
+        # if self.Nspws > 1:
+        #     parnames_use += ["FREQSEL "]
 
         # TODO Karto: Here's where to add "SOURCE " item
 
@@ -901,9 +917,9 @@ class UVFITS(UVData):
         # However, this confusing because it is NOT a true Stokes axis,
         #   it is really the polarization axis.
         hdu.header["CTYPE3  "] = "STOKES  "
-        hdu.header["CRVAL3  "] = self.polarization_array[0]
+        hdu.header["CRVAL3  "] = float(self.polarization_array[0])
         hdu.header["CRPIX3  "] = 1.0
-        hdu.header["CDELT3  "] = pol_spacing
+        hdu.header["CDELT3  "] = float(pol_spacing)
 
         hdu.header["CTYPE4  "] = "FREQ    "
         hdu.header["CRVAL4  "] = self.freq_array[0, 0]
@@ -988,6 +1004,7 @@ class UVFITS(UVData):
         rot_ecef_positions = uvutils.rotECEF_from_ECEF(
             self.antenna_positions, longitude
         )
+        print(rot_ecef_positions.shape)
         col2 = fits.Column(name="STABXYZ", format="3D", array=rot_ecef_positions)
         # convert to 1-indexed from 0-indexed indicies
         col3 = fits.Column(name="NOSTA", format="1J", array=self.antenna_numbers + 1)
@@ -1022,7 +1039,7 @@ class UVFITS(UVData):
         ant_hdu.header["FRAME"] = "ITRF"
         ant_hdu.header["GSTIA0"] = self.gst0
         # TODO Karto: Do this more intelligently in the future
-        ant_hdu.header["FREQ"] = np.mean(self.freq_array)
+        ant_hdu.header["FREQ"] = self.freq_array[0, 0]
         ant_hdu.header["RDATE"] = self.rdate
         ant_hdu.header["UT1UTC"] = self.dut1
 
@@ -1049,7 +1066,7 @@ class UVFITS(UVData):
         # note: we do not support the concept of "frequency setups"
         # -- lists of spws given in a SU table.
         # Karto: Here might be a place to address freq setup?
-        ant_hdu.header["FREQID"] = -1
+        ant_hdu.header["FREQID"] = 1
 
         # if there are offsets in images, this could be the culprit
         ant_hdu.header["POLARX"] = 0.0
@@ -1060,35 +1077,41 @@ class UVFITS(UVData):
         # we always output right handed coordinates
         ant_hdu.header["XYZHAND"] = "RIGHT"
 
-        # ADD the FQ table
-        # skipping for now and limiting to a single spw
-        # Karto: SKIP NO MORE!
-        fqtype_d = "%iD" % self.Nspws
-        fqtype_e = "%iE" % self.Nspws
-        fqtype_j = "%iJ" % self.Nspws
+        fits_tables = [hdu, ant_hdu]
+        # If needed, add the FQ table
+        if self.Nspws > 1:
+            # skipping for now and limiting to a single spw
+            # Karto: SKIP NO MORE!
+            fmt_d = "%iD" % self.Nspws
+            fmt_e = "%iE" % self.Nspws
+            fmt_j = "%iJ" % self.Nspws
 
-        # TODO Karto: Temp implementation until we fix some other things in UVData
-        if_freq = self.freq_array[:, 0] - np.mean(self.freq_array)
-        ch_width = self.channel_width * np.ones(self.Nspws)
-        total_bw = self.channel_width * self.Nfreqs * np.ones(self.Nspws)
-        sideband = np.sign(self.channel_width) * np.ones(self.Nspws)
+            # TODO Karto: Temp implementation until we fix some other things in UVData
+            if_freq = np.reshape(self.freq_array[:, 0]
+                                 - self.freq_array[0, 0], (1, -1))
+            ch_width = self.channel_width * np.ones((1, self.Nspws))
+            tot_bw = self.channel_width * self.Nfreqs * np.ones((1, self.Nspws))
+            sideband = np.sign(self.channel_width) * np.ones((1, self.Nspws))
 
-        # FQSEL is hardcoded at the moment, could think about doing this
-        # at least somewhat more intelligently...
-        col_list = [
-            fits.Column(name="FRQSEL", format="1J", array=[1]),
-            fits.Column(name="IF FREQ", format=fqtype_d, array=if_freq),
-            fits.Column(name="CH WIDTH", format=fqtype_e, array=ch_width),
-            fits.Column(name="TOTAL BANDWIDTH", format=fqtype_e, array=total_bw),
-            fits.Column(name="SIDEBAND", format=fqtype_j, array=sideband),
-        ]
+            # FRQSEL is hardcoded at the moment, could think about doing this
+            # at least somewhat more intelligently...
+            col_list = [
+                fits.Column(name="FRQSEL", format="1J", array=[1]),
+                fits.Column(name="IF FREQ", unit="HZ", format=fmt_d, array=if_freq),
+                fits.Column(name="CH WIDTH", unit="HZ", format=fmt_e, array=ch_width),
+                fits.Column(
+                    name="TOTAL BANDWIDTH", unit="HZ", format=fmt_e, array=tot_bw
+                ),
+                fits.Column(name="SIDEBAND", format=fmt_j, array=sideband),
+            ]
 
-        fq_hdu = fits.BinTableHDU.from_columns(fits.ColDefs(col_list))
+            fq_hdu = fits.BinTableHDU.from_columns(fits.ColDefs(col_list))
 
-        fq_hdu.header["EXTNAME"] = "AIPS FQ"
-        fq_hdu.header["NO_IF"] = self.Nspws
+            fq_hdu.header["EXTNAME"] = "AIPS FQ"
+            fq_hdu.header["NO_IF"] = self.Nspws
+            fits_tables.append(fq_hdu)
 
         # write the file
-        hdulist = fits.HDUList(hdus=[hdu, ant_hdu, fq_hdu])
+        hdulist = fits.HDUList(hdus=fits_tables)
         hdulist.writeto(filename, overwrite=True)
         hdulist.close()
