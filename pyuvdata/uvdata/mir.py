@@ -48,8 +48,8 @@ class Mir(UVData):
             Source code for MIR dataset
         irec : int
             Receiver code for MIR dataset
-        isb : int
-            Sideband code for MIR dataset
+        isb : list of int
+            Sideband codes for MIR dataset (0 = LSB, 1 = USB). Default is both sb.
         corrchunk : list of int
             Correlator chunk codes for MIR dataset
         pseudo_cont : boolean
@@ -63,8 +63,22 @@ class Mir(UVData):
             isource = mir_data.in_read["isource"][0]
         if irec is None:
             irec = mir_data.bl_read["irec"][0]
+
+        isb_full_list = np.unique(mir_data.bl_read["isb"]).tolist()
         if isb is None:
-            isb = mir_data.bl_read["isb"][0]
+            isb = isb_full_list.copy()
+
+        isb_dict = {key: key in isb for key in isb_full_list}
+        if (len(isb) == 0):
+            raise IndexError(
+                "No valid sidebands selected!"
+            )
+        elif not (set(isb).issubset(set(isb_full_list))):
+            raise IndexError(
+                "isb values contain invalid entries"
+            )
+
+        dsb_spws = True if len(isb) == 2 else False
 
         corrchunk_full_list = np.unique(mir_data.sp_read["corrchunk"]).tolist()
         if corrchunk is None:
@@ -86,17 +100,25 @@ class Mir(UVData):
             )
 
         corrchunk_dict = {key: key in corrchunk for key in corrchunk_full_list}
+
         mir_data.use_in = mir_data.in_read["isource"] == isource
         mir_data.use_bl = np.logical_and(
             np.logical_and(
-                mir_data.bl_read["isb"] == isb, mir_data.bl_read["ipol"] == 0
+                mir_data.bl_read["irec"] == irec, mir_data.bl_read["ipol"] == 0
+            ), np.array(
+                [isb_dict[key] for key in mir_data.bl_read["isb"]]
             ),
-            mir_data.bl_read["irec"] == irec,
         )
 
         mir_data.use_sp = np.array(
             [corrchunk_dict[key] for key in mir_data.sp_read["corrchunk"]]
         )
+
+        # Different sidebands in MIR are (strangely enough) recorded as being
+        # different baseline records. To be compatible w/ UVData, we just splice
+        # the sidebands together.
+        corrchunk_sb = [idx for jdx in sorted(isb) for idx in [jdx] * len(corrchunk)]
+        corrchunk *= (1 + dsb_spws)
 
         # Load up the visibilities into the MirParser object. This will also update the
         # filters, and will make sure we're looking at the right metadata.
@@ -106,9 +128,20 @@ class Mir(UVData):
 
         mir_data.load_data(load_vis=True, load_raw=True)
 
-        # Create a simple array/list for broadcasting values stored on a
+        # Create a simple list for broadcasting values stored on a
         # per-intergration basis in MIR into the (tasty) per-blt records in UVDATA.
-        bl_in_maparr = [mir_data.inhid_dict[idx] for idx in mir_data.bl_data["inhid"]]
+        bl_in_maparr = [
+            mir_data.inhid_dict[idx] for idx in
+            mir_data.bl_data["inhid"][
+                mir_data.bl_data["isb"] == isb[0]
+            ]
+        ]
+
+        # Create a simple array/list for broadcasting values stored on a
+        # per-blt basis into per-spw records.
+        sp_bl_maparr = [
+            mir_data.blhid_dict[idx] for idx in mir_data.sp_data["blhid"]
+        ]
 
         # Derive Nants_data from baselines.
         self.Nants_data = len(
@@ -119,12 +152,12 @@ class Mir(UVData):
 
         self.Nants_telescope = 8
         self.Nbls = int(self.Nants_data * (self.Nants_data - 1) / 2)
-        self.Nblts = len(mir_data.bl_data)
+        self.Nblts = len(mir_data.bl_data) // (1 + dsb_spws)
         self.Npols = 1  # todo: We will need to go back and expand this.
         self.Nspws = len(corrchunk)
         self.Ntimes = len(mir_data.in_data)
-        self.ant_1_array = mir_data.bl_data["iant1"] - 1
-        self.ant_2_array = mir_data.bl_data["iant2"] - 1
+        self.ant_1_array = mir_data.bl_data["iant1"][::1 + dsb_spws] - 1
+        self.ant_2_array = mir_data.bl_data["iant2"][::1 + dsb_spws] - 1
         self.antenna_names = [
             "Ant 1",
             "Ant 2",
@@ -177,6 +210,11 @@ class Mir(UVData):
             mir_data.sp_data["corrchunk"] == corrchunk[0]
         ]
 
+        # If using DSB data, then keep in mind that you'll have two records per
+        # Nblt with int time array -- split-filter this
+        if dsb_spws:
+            self.integration_time = self.integration_time[::2]
+
         # TODO: Using MIR V3 convention, will need to be V2 compatible eventually.
         self.lst_array = (
             mir_data.in_data["lst"][bl_in_maparr].astype(float) + (0.0 / 3600.0)
@@ -193,11 +231,13 @@ class Mir(UVData):
 
         # Need to flip the sign convention here on uvw, since we use a1-a2 versus the
         # standard a2-a1 that uvdata expects
-        self.uvw_array = (-1.0) * np.transpose(
-            np.vstack(
-                (mir_data.bl_data["u"], mir_data.bl_data["v"], mir_data.bl_data["w"])
+        self.uvw_array = (-1.0) * np.transpose(np.vstack(
+            (
+                mir_data.bl_data["u"][::1 + dsb_spws],
+                mir_data.bl_data["v"][::1 + dsb_spws],
+                mir_data.bl_data["w"][::1 + dsb_spws],
             )
-        )
+        ))
 
         # todo: Raw data is in correlation coefficients, we may want to convert to Jy.
         self.vis_units = "uncalib"
@@ -227,7 +267,11 @@ class Mir(UVData):
 
         freq_array = np.empty((self.Nspws, self.Nfreqs))
         for idx in range(len(corrchunk)):
-            data_mask = mir_data.sp_data["corrchunk"] == corrchunk[idx]
+            data_mask = np.logical_and(
+                mir_data.sp_data["corrchunk"] == corrchunk[idx],
+                mir_data.bl_data["isb"][sp_bl_maparr] == corrchunk_sb[idx]
+            )
+
             spw_fsky = np.unique(mir_data.sp_data["fsky"][data_mask])
             spw_fres = np.unique(mir_data.sp_data["fres"][data_mask])
             if (len(spw_fsky) != 1) or (len(spw_fres) != 1):
