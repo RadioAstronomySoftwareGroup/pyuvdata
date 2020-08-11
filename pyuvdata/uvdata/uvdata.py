@@ -5902,13 +5902,13 @@ class UVData(UVBase):
         del fhd_obj
 
     def read_mir(
-            self,
-            filepath,
-            isource=None,
-            irec=None,
-            isb=None,
-            corrchunk=None,
-            pseudo_cont=False,
+        self,
+        filepath,
+        isource=None,
+        irec=None,
+        isb=None,
+        corrchunk=None,
+        pseudo_cont=False,
     ):
         """
         Read in data from an SMA MIR file.
@@ -5940,7 +5940,7 @@ class UVData(UVBase):
             irec=irec,
             isb=isb,
             corrchunk=corrchunk,
-            pseudo_cont=pseudo_cont
+            pseudo_cont=pseudo_cont,
         )
         self._convert_from_filetype(mir_obj)
         del mir_obj
