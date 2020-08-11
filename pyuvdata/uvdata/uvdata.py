@@ -121,9 +121,7 @@ class UVData(UVBase):
         self._Nspws = uvp.UVParameter(
             "Nspws",
             description="Number of spectral windows "
-            "(ie non-contiguous spectral chunks). "
-            "More than one spectral window is not "
-            "currently supported.",
+            "(ie non-contiguous spectral chunks). ",
             expected_type=int,
         )
 
@@ -5915,8 +5913,8 @@ class UVData(UVBase):
 
         Note that with the exception of filepath, the reset of the parameters are
         used to sub-select a range of data that matches the limitations of the current
-        instantiation of pyuvdata  -- namely 1 spectral window, 1 source. These could
-        be dropped in the future, as pyuvdata capabilities grow.
+        instantiation of pyuvdata  -- namely 1 source. This could be dropped in the
+        future, as pyuvdata capabilities grow.
 
         Parameters
         ----------
@@ -5930,6 +5928,9 @@ class UVData(UVBase):
             Sideband code for MIR dataset
         corrchunk : int
             Correlator chunk code for MIR dataset
+        pseudo_cont: boolean
+            Whether to load spectral windows or pseudo-cont winodws (cant do both, due
+            to different Nfreqs). Default is false.
         """
         from . import mir
 
@@ -6418,7 +6419,7 @@ class UVData(UVBase):
             antenna selectors, `times` and `time_range`) or select keywords
             exclude all data or if keywords are set to the wrong type.
             If the data are multi source or have multiple
-            spectral windows.
+            spectral windows with differing channel widths.
             If the metadata are not internally consistent or missing.
 
         """
@@ -6890,7 +6891,7 @@ class UVData(UVBase):
             antenna selectors, `times` and `time_range`) or select keywords
             exclude all data or if keywords are set to the wrong type.
             If the data are multi source or have multiple
-            spectral windows.
+            spectral windows (for all but MIR, UVH5, UVFITS formats).
             If phase_center_radec is not None and is not length 2.
 
         """

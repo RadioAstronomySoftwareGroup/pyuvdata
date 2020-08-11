@@ -423,8 +423,8 @@ class UVFITS(UVData):
             If incompatible select keywords are set (e.g. `ant_str` with other
             antenna selectors, `times` and `time_range`) or select keywords
             exclude all data or if keywords are set to the wrong type.
-            If the data are multi source or have multiple
-            spectral windows.
+            If the data are multi source.
+            If the data have multi spw with different channel widths.
             If the metadata are not internally consistent or missing.
 
         """
@@ -737,11 +737,6 @@ class UVFITS(UVData):
                 "Set the phase_type to drift or phased to "
                 "reflect the phasing status of the data"
             )
-
-        # if self.Nfreqs > 1:
-        #    freq_spacing = np.diff(self.freq_array, axis=1)
-        #    freq_spacing = freq_spacing[0, 0]
-        # else:
 
         freq_spacing = self.channel_width
         freq_spacing_check = np.unique(np.diff(self.freq_array))
