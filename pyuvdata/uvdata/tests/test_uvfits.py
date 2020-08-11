@@ -181,6 +181,25 @@ def test_multisource_error(casa_uvfits, tmp_path):
     assert str(cm.value).startswith("This file has multiple sources")
 
 
+def test_spwsupported():
+    """Test eading in a uvfits file with multiple spws."""
+    uvobj = UVData()
+    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1scan.uvfits")
+    uvobj.read(testfile)
+
+    # We know this file has two spws
+    assert uvobj.Nspws == 2
+
+    # Verify that the data array has the right shape
+    assert np.size(uvobj.data_array, axis=1) == uvobj.Nspws
+
+    # Verify that the freq array has the right shape
+    assert np.size(uvobj.freq_array, axis=0) == uvobj.Nspws
+
+    # Verift thaat the spw_array is the right length
+    assert len(uvobj.spw_array) == uvobj.Nspws
+
+
 def test_casa_nonascii_bytes_antenna_names():
     """Test that nonascii bytes in antenna names are handled properly."""
     uv1 = UVData()
