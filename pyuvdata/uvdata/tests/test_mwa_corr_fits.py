@@ -615,9 +615,6 @@ def test_remove_dig_gains():
     dig_gains2 = dig_gains[uv2.ant_2_array, :]
     dig_gains1 = dig_gains1[:, :, np.newaxis, np.newaxis]
     dig_gains2 = dig_gains2[:, :, np.newaxis, np.newaxis]
-    print(dig_gains1.shape)
-    print(dig_gains2.shape)
     uv2.data_array = uv2.data_array / (dig_gains1 * dig_gains2)
-    print(uv2.data_array.shape)
 
     assert uv1 == uv2
