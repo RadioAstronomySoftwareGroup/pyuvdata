@@ -260,6 +260,7 @@ class MWACorrFITS(UVData):
         start_time = 0.0
         end_time = 0.0
         included_file_nums = []
+        included_flag_nums = []
         cotter_warning = False
         num_fine_chans = 0
 
@@ -332,6 +333,8 @@ class MWACorrFITS(UVData):
                         file_dict["data"].append(file)
             # look for flag files
             elif file.lower().endswith(".mwaf"):
+                flag_num = int(file.split("_")[1][0:2])
+                included_flag_nums.append(flag_num)
                 if use_cotter_flags is False and cotter_warning is False:
                     warnings.warn("mwaf files submitted with use_cotter_flags=False")
                     cotter_warning = True
@@ -696,10 +699,10 @@ class MWACorrFITS(UVData):
                 dig_gains2 = dig_gains[self.ant_2_array, :]
                 dig_gains1 = dig_gains1[:, :, np.newaxis]
                 dig_gains2 = dig_gains2[:, :, np.newaxis]
-                print(dig_gains1.shape)
-                print(dig_gains2.shape)
                 self.data_array = self.data_array / (dig_gains1 * dig_gains2)
-                print(self.data_array.shape)
+
+            # divide out coarse band shape
+
             # cable delay corrections
             if correct_cable_len:
                 self.correct_cable_length(cable_lens)
@@ -739,9 +742,28 @@ class MWACorrFITS(UVData):
                 )
 
             if use_cotter_flags:
-                raise NotImplementedError(
-                    "reading in cotter flag files is not yet available"
+                # throw an error if matching files not submitted
+                warnings.warn(
+                    "coarse channel, start time, and end time flagging will default \
+                              to the more aggressive of flag_init and AOFlagger"
                 )
+                if included_file_nums != included_flag_nums:
+                    raise ValueError(
+                        "flag file coarse bands do not match data file coarse bands"
+                    )
+                for file in file_dict["flags"]:
+                    flag_num = int(file.split("_")[-2][-2:])
+                    # map file number to frequency index
+                    freq_ind = file_nums_to_index[flag_num] * num_fine_chans
+                    with fits.open(file) as aoflags:
+                        flags = aoflags[1].data.field("FLAGS")
+                    flags = flags[:, np.newaxis, :, np.newaxis]
+                    self.flag_array[
+                        :, :, freq_ind : freq_ind + num_fine_chans, :
+                    ] = np.logical_or(
+                        self.flag_array[:, :, freq_ind : freq_ind + num_fine_chans, :],
+                        flags,
+                    )
 
             # check if object is self-consistent
             # uvws are calcuated using pyuvdata, so turn off the check for speed.
