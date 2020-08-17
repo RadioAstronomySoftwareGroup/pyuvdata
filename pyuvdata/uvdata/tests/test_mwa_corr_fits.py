@@ -664,6 +664,40 @@ def test_cotter_flags():
 
 
 @pytest.mark.filterwarnings("ignore:telescope_location is not set.")
+@pytest.mark.filterwarnings(
+    "ignore:coarse channels are not contiguous for this observation"
+)
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:coarse channel, start time, and end time flagging")
+def test_cotter_flags_multiple(tmp_path):
+    """Test cotter flags with multiple coarse bands"""
+    mod_mini_6 = str(tmp_path / "mini_gpubox06_01.fits")
+    with fits.open(filelist[2]) as mini6:
+        mini6[1].header["time"] = 1447698337
+        mini6.writeto(mod_mini_6)
+    files = filelist[0:2] + filelist[3:5]
+    files.append(mod_mini_6)
+
+    uv = UVData()
+    uv.read_mwa_corr_fits(files, flag_init=False, use_cotter_flags=True)
+
+    print(uv.data_array.shape)
+
+    with fits.open(filelist[3]) as aoflags:
+        flags1 = aoflags[1].data.field("FLAGS")
+    with fits.open(filelist[4]) as aoflags:
+        flags2 = aoflags[1].data.field("FLAGS")
+    flags = np.array([flags2[:, 0], flags1[:, 0]])
+    flags = np.transpose(flags)
+    flags = flags[:, np.newaxis, :, np.newaxis]
+    flags = np.repeat(flags, 4, axis=3)
+
+    print(flags.shape)
+
+    assert np.all(uv.flag_array == flags)
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location is not set.")
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 @pytest.mark.filterwarnings("ignore:coarse channel, start time, and end time flagging")
 def test_mismatch_flags():
