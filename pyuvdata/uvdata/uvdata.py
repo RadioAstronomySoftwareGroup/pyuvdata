@@ -6151,6 +6151,7 @@ class UVData(UVBase):
         axis=None,
         use_cotter_flags=False,
         remove_dig_gains=False,
+        remove_coarse_band=False,
         correct_cable_len=False,
         flag_init=True,
         edge_width=80e3,
@@ -6187,6 +6188,8 @@ class UVData(UVBase):
             will only be applied to missing data and bad antennas.
         remove_dig_gains : bool
             Option to divide out digital gains.
+        remove_coarse_band : bool
+            Option to divide out coarse band shape.
         correct_cable_len : bool
             Option to apply a cable delay correction.
         flag_init: bool
@@ -6267,6 +6270,7 @@ class UVData(UVBase):
             filelist,
             use_cotter_flags=use_cotter_flags,
             remove_dig_gains=remove_dig_gains,
+            remove_coarse_band=remove_coarse_band,
             correct_cable_len=correct_cable_len,
             flag_init=flag_init,
             edge_width=edge_width,
@@ -6650,6 +6654,7 @@ class UVData(UVBase):
         nsample_array_dtype=np.float32,
         use_cotter_flags=False,
         remove_dig_gains=False,
+        remove_coarse_band=False,
         correct_cable_len=False,
         flag_init=True,
         edge_width=80e3,
@@ -6810,6 +6815,8 @@ class UVData(UVBase):
             Flag to apply cotter flags. Only used if file_type is 'mwa_corr_fits'.
         remove_dig_gains : bool
             Option to divide out digital gains.
+        remove_coarse_band : bool
+            Option to divide out coarse band shape.
         correct_cable_len : bool
             Flag to apply cable length correction. Only used if file_type is
             'mwa_corr_fits'.
@@ -7265,6 +7272,7 @@ class UVData(UVBase):
                     filename,
                     use_cotter_flags=use_cotter_flags,
                     remove_dig_gains=remove_dig_gains,
+                    remove_coarse_band=remove_coarse_band,
                     correct_cable_len=correct_cable_len,
                     flag_init=flag_init,
                     edge_width=edge_width,
