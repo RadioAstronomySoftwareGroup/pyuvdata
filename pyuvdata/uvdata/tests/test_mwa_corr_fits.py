@@ -250,11 +250,7 @@ def test_read_mwa_flags():
         mwa_uv.read(subfiles)
 
     del mwa_uv
-    mwa_uv = UVData()
-    with pytest.raises(NotImplementedError) as cm:
-        mwa_uv.read(subfiles, use_cotter_flags=True)
-    assert str(cm.value).startswith("reading in cotter flag files")
-    del mwa_uv
+
     mwa_uv = UVData()
     with pytest.raises(ValueError) as cm:
         mwa_uv.read(subfiles[0:2], use_cotter_flags=True)
@@ -618,3 +614,63 @@ def test_remove_dig_gains():
     uv2.data_array = uv2.data_array / (dig_gains1 * dig_gains2)
 
     assert uv1 == uv2
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location is not set.")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_remove_coarse_band():
+    """Test coarse band removal."""
+    uv1 = UVData()
+    uv1.read(filelist[0:2], remove_coarse_band=True)
+
+    uv2 = UVData()
+    uv2.read(filelist[0:2])
+
+    with open(DATA_PATH + "/mwa_config_data/MWA_rev_cb_10khz_doubles.txt", "r") as f:
+        cb = f.read().splitlines()
+    cb_array = np.array(cb).astype(np.float64)
+    cb_array = cb_array.reshape(32, 4)
+    cb_array = np.average(cb_array, axis=1)
+    cb_array = cb_array[0]
+
+    uv2.data_array = uv2.data_array.swapaxes(2, 3)
+    uv2.data_array = uv2.data_array / cb_array
+    uv2.data_array = uv2.data_array.swapaxes(2, 3)
+
+    assert uv1 == uv2
+
+
+def test_cotter_flags():
+    """Test using cotter flags"""
+    uv = UVData()
+    files = filelist[0:2]
+    files.append(filelist[3])
+    messages = [
+        "telescope_location is not set.",
+        "some coarse channel files were not submitted",
+        "coarse channel, start time, and end time flagging will default",
+    ]
+    with uvtest.check_warnings(UserWarning, messages):
+        uv.read_mwa_corr_fits(
+            files, flag_init=False, use_cotter_flags=True,
+        )
+
+    with fits.open(filelist[3]) as aoflags:
+        flags = aoflags[1].data.field("FLAGS")
+    flags = flags[:, np.newaxis, :, np.newaxis]
+    flags = np.repeat(flags, 4, axis=3)
+
+    assert np.all(uv.flag_array == flags)
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location is not set.")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:coarse channel, start time, and end time flagging")
+def test_mismatch_flags():
+    """Break by submitting flag and gpubox files from different coarse bands."""
+    uv = UVData()
+    files = filelist[0:2]
+    files.append(filelist[4])
+    with pytest.raises(ValueError) as cm:
+        uv.read(files, use_cotter_flags=True)
+    assert str(cm.value).startswith("flag file coarse bands do not match")

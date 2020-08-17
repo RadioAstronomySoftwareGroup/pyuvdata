@@ -9,6 +9,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.time import Time
 from astropy import constants as const
+from pyuvdata.data import DATA_PATH
 
 from .. import _corr_fits
 
@@ -150,6 +151,7 @@ class MWACorrFITS(UVData):
         filelist,
         use_cotter_flags=False,
         remove_dig_gains=False,
+        remove_coarse_band=False,
         correct_cable_len=False,
         phase_to_pointing_center=False,
         flag_init=True,
@@ -187,6 +189,8 @@ class MWACorrFITS(UVData):
             will only be applied to missing data and bad antennas.
         remove_dig_gains : bool
             Option to divide out digital gains.
+        remove_coarse_band : bool
+            Option to divide out coarse band shape.
         correct_cable_len : bool
             Option to apply a cable delay correction.
         phase_to_pointing_center : bool
@@ -333,7 +337,7 @@ class MWACorrFITS(UVData):
                         file_dict["data"].append(file)
             # look for flag files
             elif file.lower().endswith(".mwaf"):
-                flag_num = int(file.split("_")[1][0:2])
+                flag_num = int(file.split("_")[-1][0:2])
                 included_flag_nums.append(flag_num)
                 if use_cotter_flags is False and cotter_warning is False:
                     warnings.warn("mwaf files submitted with use_cotter_flags=False")
@@ -702,6 +706,19 @@ class MWACorrFITS(UVData):
                 self.data_array = self.data_array / (dig_gains1 * dig_gains2)
 
             # divide out coarse band shape
+            if remove_coarse_band:
+                # get coarse band shape
+                with open(
+                    DATA_PATH + "/mwa_config_data/MWA_rev_cb_10khz_doubles.txt", "r"
+                ) as f:
+                    cb = f.read().splitlines()
+                cb_array = np.array(cb).astype(np.float64)
+                cb_array = cb_array.reshape(int(128 / avg_factor), int(avg_factor))
+                cb_array = np.average(cb_array, axis=1)
+                cb_array = cb_array[0:num_fine_chans]
+                cb_array = np.tile(cb_array, len(included_coarse_chans))
+                cb_array = cb_array[:, np.newaxis]
+                self.data_array = self.data_array / cb_array
 
             # cable delay corrections
             if correct_cable_len:
@@ -745,23 +762,29 @@ class MWACorrFITS(UVData):
                 # throw an error if matching files not submitted
                 warnings.warn(
                     "coarse channel, start time, and end time flagging will default \
-                              to the more aggressive of flag_init and AOFlagger"
+                        to the more aggressive of flag_init and AOFlagger"
                 )
                 if included_file_nums != included_flag_nums:
                     raise ValueError(
                         "flag file coarse bands do not match data file coarse bands"
                     )
                 for file in file_dict["flags"]:
-                    flag_num = int(file.split("_")[-2][-2:])
+                    flag_num = int(file.split("_")[-1][0:2])
                     # map file number to frequency index
                     freq_ind = file_nums_to_index[flag_num] * num_fine_chans
                     with fits.open(file) as aoflags:
                         flags = aoflags[1].data.field("FLAGS")
+                    # some flag files are longer than data; crop the ends
+                    flags = flags[: self.Nblts]
+                    # some flag files are shorter than data; assume same end time
+                    blt_ind = self.Nblts - len(flags)
                     flags = flags[:, np.newaxis, :, np.newaxis]
                     self.flag_array[
-                        :, :, freq_ind : freq_ind + num_fine_chans, :
+                        blt_ind:, :, freq_ind : freq_ind + num_fine_chans, :
                     ] = np.logical_or(
-                        self.flag_array[:, :, freq_ind : freq_ind + num_fine_chans, :],
+                        self.flag_array[
+                            blt_ind:, :, freq_ind : freq_ind + num_fine_chans, :
+                        ],
                         flags,
                     )
 
