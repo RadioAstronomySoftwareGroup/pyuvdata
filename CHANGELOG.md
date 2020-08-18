@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 ## [2.1.1] - 2020-8-07
 
 ### Added
+- Options to remove coarse band shape and digital gains from mwa_corr_fits files.
+- Support for cotter flags in mwa_corr_fits files.
 - Added read-only support for MIR files, adding the `Mir` class to `UVData`.
 - Added the `MirParser` class, which allows for python access to MIR files.
 - A new `check_warnings` method in our test module that behaves like `pytest.warns`
