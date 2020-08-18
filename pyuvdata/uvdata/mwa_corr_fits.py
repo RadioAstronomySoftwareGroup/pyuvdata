@@ -775,7 +775,7 @@ class MWACorrFITS(UVData):
                     with fits.open(file) as aoflags:
                         flags = aoflags[1].data.field("FLAGS")
                     # some flag files are longer than data; crop the ends
-                    flags = flags[: self.Nblts]
+                    flags = flags[: self.Nblts, :]
                     # some flag files are shorter than data; assume same end time
                     blt_ind = self.Nblts - len(flags)
                     flags = flags[:, np.newaxis, :, np.newaxis]
