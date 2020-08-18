@@ -681,8 +681,6 @@ def test_cotter_flags_multiple(tmp_path):
     uv = UVData()
     uv.read_mwa_corr_fits(files, flag_init=False, use_cotter_flags=True)
 
-    print(uv.data_array.shape)
-
     with fits.open(filelist[3]) as aoflags:
         flags1 = aoflags[1].data.field("FLAGS")
     with fits.open(filelist[4]) as aoflags:
@@ -691,8 +689,6 @@ def test_cotter_flags_multiple(tmp_path):
     flags = np.transpose(flags)
     flags = flags[:, np.newaxis, :, np.newaxis]
     flags = np.repeat(flags, 4, axis=3)
-
-    print(flags.shape)
 
     assert np.all(uv.flag_array == flags)
 
