@@ -198,7 +198,8 @@ lacking metadata and not conforming to the uvfits format). pyuvdata can read
 these files along with MWA metafits files (containing the required metadata)
 into a UVData object which can then be written out to uvfits or any other
 supported file type. There are also options for applying cable length corrections,
-common flagging patterns and phasing the data to the pointing center.
+dividing out digital gains, dividing out the coarse band shape, common flagging patterns,
+using cotter flag files, and phasing the data to the pointing center.
 
 ::
 
