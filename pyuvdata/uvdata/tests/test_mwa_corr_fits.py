@@ -142,7 +142,12 @@ def test_read_mwa_read_cotter():
     mwa_uv = UVData()
     cotter_uv = UVData()
     # cotter data has cable correction and is unphased
-    mwa_uv.read(filelist[0:2], correct_cable_len=True)
+    mwa_uv.read(
+        filelist[0:2],
+        correct_cable_len=True,
+        remove_dig_gains=False,
+        remove_coarse_band=False,
+    )
     cotter_uv.read(filelist[6])
     # cotter doesn't record the auto xy polarizations
     # due to a possible bug in cotter, the auto yx polarizations are conjugated
@@ -247,7 +252,7 @@ def test_read_mwa_flags():
         "some coarse channel files were not submitted",
     ]
     with uvtest.check_warnings(UserWarning, messages):
-        mwa_uv.read(subfiles)
+        mwa_uv.read(subfiles, use_cotter_flags=False)
 
     del mwa_uv
 
@@ -594,10 +599,10 @@ def test_invalid_precision_errors():
 def test_remove_dig_gains():
     """Test digital gain removal."""
     uv1 = UVData()
-    uv1.read(filelist[0:2], remove_dig_gains=True)
+    uv1.read(filelist[0:2])
 
     uv2 = UVData()
-    uv2.read(filelist[0:2])
+    uv2.read(filelist[0:2], remove_dig_gains=False)
 
     with fits.open(filelist[0]) as meta:
         meta_tbl = meta[1].data
@@ -621,10 +626,10 @@ def test_remove_dig_gains():
 def test_remove_coarse_band():
     """Test coarse band removal."""
     uv1 = UVData()
-    uv1.read(filelist[0:2], remove_coarse_band=True)
+    uv1.read(filelist[0:2])
 
     uv2 = UVData()
-    uv2.read(filelist[0:2])
+    uv2.read(filelist[0:2], remove_coarse_band=False)
 
     with open(DATA_PATH + "/mwa_config_data/MWA_rev_cb_10khz_doubles.txt", "r") as f:
         cb = f.read().splitlines()
@@ -651,9 +656,7 @@ def test_cotter_flags():
         "coarse channel, start time, and end time flagging will default",
     ]
     with uvtest.check_warnings(UserWarning, messages):
-        uv.read_mwa_corr_fits(
-            files, flag_init=False, use_cotter_flags=True,
-        )
+        uv.read_mwa_corr_fits(files, flag_init=False)
 
     with fits.open(filelist[3]) as aoflags:
         flags = aoflags[1].data.field("FLAGS")
@@ -679,7 +682,7 @@ def test_cotter_flags_multiple(tmp_path):
     files.append(mod_mini_6)
 
     uv = UVData()
-    uv.read_mwa_corr_fits(files, flag_init=False, use_cotter_flags=True)
+    uv.read_mwa_corr_fits(files, flag_init=False)
 
     with fits.open(filelist[3]) as aoflags:
         flags1 = aoflags[1].data.field("FLAGS")
@@ -702,5 +705,5 @@ def test_mismatch_flags():
     files = filelist[0:2]
     files.append(filelist[4])
     with pytest.raises(ValueError) as cm:
-        uv.read(files, use_cotter_flags=True)
+        uv.read(files)
     assert str(cm.value).startswith("flag file coarse bands do not match")
