@@ -6149,9 +6149,9 @@ class UVData(UVBase):
         self,
         filelist,
         axis=None,
-        use_cotter_flags=False,
-        remove_dig_gains=False,
-        remove_coarse_band=False,
+        use_cotter_flags=None,
+        remove_dig_gains=True,
+        remove_coarse_band=True,
         correct_cable_len=False,
         flag_init=True,
         edge_width=80e3,
@@ -6171,6 +6171,10 @@ class UVData(UVBase):
         """
         Read in MWA correlator gpu box files.
 
+        Default settings divide out the digital gains and the coarse band shape.
+        If the desired output is raw correlator data, set remove_dig_gains=False
+        and remove_coarse_band=False.
+
         Parameters
         ----------
         filelist : list of str
@@ -6184,8 +6188,8 @@ class UVData(UVBase):
             Allowed values are: 'blt', 'freq', 'polarization'. Only used if
             multiple files are passed.
         use_cotter_flags : bool
-            Option to use cotter output mwaf flag files. Otherwise flagging
-            will only be applied to missing data and bad antennas.
+            Option to use cotter output mwaf flag files. Defaults to true if cotter
+            flag files are submitted.
         remove_dig_gains : bool
             Option to divide out digital gains.
         remove_coarse_band : bool
@@ -6652,9 +6656,9 @@ class UVData(UVBase):
         pol_order="AIPS",
         data_array_dtype=np.complex128,
         nsample_array_dtype=np.float32,
-        use_cotter_flags=False,
-        remove_dig_gains=False,
-        remove_coarse_band=False,
+        use_cotter_flags=None,
+        remove_dig_gains=True,
+        remove_coarse_band=True,
         correct_cable_len=False,
         flag_init=True,
         edge_width=80e3,
@@ -6812,11 +6816,14 @@ class UVData(UVBase):
             because round-off errors can be quite large (~1e-3). Only used if
             file_type is 'mwa_corr_fits'.
         use_cotter_flags : bool
-            Flag to apply cotter flags. Only used if file_type is 'mwa_corr_fits'.
+            Only used if file_type is 'mwa_corr_fits'. Option to use cotter output
+            mwaf flag files. Defaults to true if cotter flag files are submitted.
         remove_dig_gains : bool
-            Option to divide out digital gains.
+            Only used if file_type is 'mwa_corr_fits'. Option to divide out digital
+            gains.
         remove_coarse_band : bool
-            Option to divide out coarse band shape.
+            Only used if file_type is 'mwa_corr_fits'. Option to divide out coarse
+            band shape.
         correct_cable_len : bool
             Flag to apply cable length correction. Only used if file_type is
             'mwa_corr_fits'.

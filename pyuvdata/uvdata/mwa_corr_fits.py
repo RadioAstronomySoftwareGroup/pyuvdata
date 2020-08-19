@@ -149,9 +149,9 @@ class MWACorrFITS(UVData):
     def read_mwa_corr_fits(
         self,
         filelist,
-        use_cotter_flags=False,
-        remove_dig_gains=False,
-        remove_coarse_band=False,
+        use_cotter_flags=None,
+        remove_dig_gains=True,
+        remove_coarse_band=True,
         correct_cable_len=False,
         phase_to_pointing_center=False,
         flag_init=True,
@@ -171,6 +171,10 @@ class MWACorrFITS(UVData):
         """
         Read in MWA correlator gpu box files.
 
+        Default settings divide out the digital gains and the coarse band shape.
+        If the desired output is raw correlator data, set remove_dig_gains=False
+        and remove_coarse_band=False.
+
         Parameters
         ----------
         filelist : list of str
@@ -185,8 +189,8 @@ class MWACorrFITS(UVData):
             Allowed values are: 'blt', 'freq', 'polarization'. Only used if
             multiple files are passed.
         use_cotter_flags : bool
-            Option to use cotter output mwaf flag files. Otherwise flagging
-            will only be applied to missing data and bad antennas.
+            Option to use cotter output mwaf flag files. Defaults to true if
+            cotter flag files are submitted.
         remove_dig_gains : bool
             Option to divide out digital gains.
         remove_coarse_band : bool
@@ -337,6 +341,8 @@ class MWACorrFITS(UVData):
                         file_dict["data"].append(file)
             # look for flag files
             elif file.lower().endswith(".mwaf"):
+                if use_cotter_flags is None:
+                    use_cotter_flags = True
                 flag_num = int(file.split("_")[-1][0:2])
                 included_flag_nums.append(flag_num)
                 if use_cotter_flags is False and cotter_warning is False:
@@ -696,7 +702,6 @@ class MWACorrFITS(UVData):
             if remove_dig_gains:
                 # get gains for included coarse channels
                 coarse_inds = np.where(np.isin(coarse_chans, included_coarse_chans))[0]
-                print("coarse_inds: " + str(coarse_inds))
                 dig_gains = dig_gains[:, coarse_inds]
                 dig_gains = np.repeat(dig_gains, num_fine_chans, axis=1)
                 dig_gains1 = dig_gains[self.ant_1_array, :]
@@ -718,7 +723,11 @@ class MWACorrFITS(UVData):
                 cb_array = cb_array[0:num_fine_chans]
                 cb_array = np.tile(cb_array, len(included_coarse_chans))
                 cb_array = cb_array[:, np.newaxis]
+                if self.data_array.dtype != np.complex128:
+                    self.data_array = self.data_array.astype(np.complex128)
                 self.data_array = self.data_array / cb_array
+                if self.data_array.dtype != data_array_dtype:
+                    self.data_array = self.data_array.astype(data_array_dtype)
 
             # cable delay corrections
             if correct_cable_len:
@@ -760,14 +769,14 @@ class MWACorrFITS(UVData):
 
             if use_cotter_flags:
                 # throw an error if matching files not submitted
-                warnings.warn(
-                    "coarse channel, start time, and end time flagging will default \
-                        to the more aggressive of flag_init and AOFlagger"
-                )
                 if included_file_nums != included_flag_nums:
                     raise ValueError(
                         "flag file coarse bands do not match data file coarse bands"
                     )
+                warnings.warn(
+                    "coarse channel, start time, and end time flagging will default \
+                        to the more aggressive of flag_init and AOFlagger"
+                )
                 for file in file_dict["flags"]:
                     flag_num = int(file.split("_")[-1][0:2])
                     # map file number to frequency index
