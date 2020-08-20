@@ -560,9 +560,8 @@ class FHD(UVData):
                 "Nbls does not match the number of unique baselines in the data"
             )
 
-        self.freq_array = np.zeros(
-            (self.Nspws, len(bl_info["FREQ"][0])), dtype=np.float_
-        )
+        # TODO: Spw axis to be collapsed in future release
+        self.freq_array = np.zeros((1, len(bl_info["FREQ"][0])), dtype=np.float_)
         self.freq_array[0, :] = bl_info["FREQ"][0]
 
         self.channel_width = float(obs["FREQ_RES"][0])
@@ -601,14 +600,17 @@ class FHD(UVData):
             self.history += self.pyuvdata_version_str
 
         if read_data:
+            # TODO: Spw axis to be collapsed in future release
             self.data_array = np.zeros(
-                (self.Nblts, self.Nspws, self.Nfreqs, self.Npols), dtype=np.complex_
+                (self.Nblts, 1, self.Nfreqs, self.Npols), dtype=np.complex_
             )
+            # TODO: Spw axis to be collapsed in future release
             self.nsample_array = np.zeros(
-                (self.Nblts, self.Nspws, self.Nfreqs, self.Npols), dtype=np.float_
+                (self.Nblts, 1, self.Nfreqs, self.Npols), dtype=np.float_
             )
+            # TODO: Spw axis to be collapsed in future release
             self.flag_array = np.zeros(
-                (self.Nblts, self.Nspws, self.Nfreqs, self.Npols), dtype=np.bool_
+                (self.Nblts, 1, self.Nfreqs, self.Npols), dtype=np.bool_
             )
             for pol, vis in vis_data.items():
                 pol_i = pol_list.index(linear_pol_dict[pol])

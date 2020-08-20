@@ -729,7 +729,9 @@ class UVH5(UVData):
                 flags = _index_dset(flags_dset, inds)
                 nsamples = _index_dset(nsamples_dset, inds)
 
-                assert self.Nspws == visdata.shape[1]
+                # Commenting this out for now, since we are explicitly breaking this
+                # association between data shape and Nspws
+                # assert self.Nspws == visdata.shape[1]
 
                 # down select on other dimensions if necessary
                 # use indices not slices here: generally not the bottleneck
@@ -1328,7 +1330,8 @@ class UVH5(UVData):
             self._write_header(header)
 
             # initialize the data groups on disk
-            data_size = (self.Nblts, self.Nspws, self.Nfreqs, self.Npols)
+            # TODO: Spw axis to be collapsed in future release
+            data_size = (self.Nblts, 1, self.Nfreqs, self.Npols)
             dgrp = f.create_group("Data")
             if data_write_dtype is None:
                 # we don't know what kind of data we'll get--default to double-precision

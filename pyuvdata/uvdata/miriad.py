@@ -528,8 +528,9 @@ class Miriad(UVData):
             self.Nbls = len(np.unique(self.baseline_array))
 
         # slot the data into a grid
+        # TODO: Spw axis to be collapsed in future release
         self.data_array = np.zeros(
-            (self.Nblts, self.Nspws, self.Nfreqs, self.Npols), dtype=np.complex64
+            (self.Nblts, 1, self.Nfreqs, self.Npols), dtype=np.complex64
         )
         self.flag_array = np.ones(self.data_array.shape, dtype=np.bool)
         self.uvw_array = np.zeros((self.Nblts, 3))
@@ -545,6 +546,7 @@ class Miriad(UVData):
         )
         # Tile freq_array to shape (Nspws, Nfreqs).
         # Currently does not actually support Nspws>1!
+        # TODO Karto: This isn't quite right
         self.freq_array = np.tile(self.freq_array, (self.Nspws, 1))
 
         # Temporary arrays to hold polarization axis, which will be collapsed
