@@ -82,7 +82,6 @@ def test_read_mir_write_uvfits(uv_in_uvfits):
     )
 
     mir_uv.history = uvfits_uv.history
-    print(mir_uv.freq_array - uvfits_uv.freq_array)
     assert mir_uv == uvfits_uv
 
 
