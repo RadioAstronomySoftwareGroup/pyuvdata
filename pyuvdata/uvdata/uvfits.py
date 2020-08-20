@@ -294,6 +294,7 @@ class UVFITS(UVData):
         assert len(raw_data_array.shape) == 5
         # FITS uvw direction convention is opposite ours and Miriad's.
         # So conjugate the visibilities and flip the uvws:
+        # TODO Karto: Reshape this array to be of the right size
         self.data_array = (
             raw_data_array[:, :, :, :, 0] - 1j * raw_data_array[:, :, :, :, 1]
         )

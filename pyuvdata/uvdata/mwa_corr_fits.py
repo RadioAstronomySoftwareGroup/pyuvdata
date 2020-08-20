@@ -138,7 +138,9 @@ class MWACorrFITS(UVData):
 
         if (num_start_flag > 0) or (num_end_flag > 0):
             shape = self.flag_array.shape
-            reshape = [self.Ntimes, self.Nbls, self.Nspws, self.Nfreqs, self.Npols]
+            # TODO: Spw axis to be collapsed in future release
+            assert shape[2] == 1
+            reshape = [self.Ntimes, self.Nbls, 1, self.Nfreqs, self.Npols]
             self.flag_array = np.reshape(self.flag_array, reshape)
             if num_start_flag > 0:
                 self.flag_array[:num_start_flag, :, :, :, :] = True
@@ -559,7 +561,8 @@ class MWACorrFITS(UVData):
 
         # build frequency array
         self.Nfreqs = len(included_coarse_chans) * num_fine_chans
-        self.freq_array = np.zeros((self.Nspws, self.Nfreqs))
+        # TODO: Spw axis to be collapsed in future release
+        self.freq_array = np.zeros((1, self.Nfreqs))
 
         # each coarse channel is split into 128 fine channels of width 10 kHz.
         # The first fine channel for each coarse channel is centered on the

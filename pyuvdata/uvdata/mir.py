@@ -251,14 +251,15 @@ class Mir(UVData):
         self.antenna_diameters = np.zeros(self.Nants_telescope) + 6
         self.blt_order = ("time", "baseline")
 
+        # TODO: Spw axis to be collapsed in future release
         data_array = np.reshape(
-            np.array(mir_data.vis_data),
-            (self.Nblts, self.Nspws, self.Nfreqs, self.Npols),
+            np.array(mir_data.vis_data), (self.Nblts, 1, self.Nfreqs, self.Npols),
         )
         # Don't need the data anymore, so drop it
         mir_data.unload_data()
 
-        freq_array = np.empty((self.Nspws, self.Nfreqs))
+        # TODO: Spw axis to be collapsed in future release
+        freq_array = np.empty((1, self.Nfreqs))
         for idx in range(len(corrchunk)):
             data_mask = np.logical_and(
                 mir_data.sp_data["corrchunk"] == corrchunk[idx],
