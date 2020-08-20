@@ -121,7 +121,9 @@ class UVData(UVBase):
         self._Nspws = uvp.UVParameter(
             "Nspws",
             description="Number of spectral windows "
-            "(ie non-contiguous spectral chunks). ",
+            "(ie non-contiguous spectral chunks). "
+            "More than one spectral window is not "
+            "currently supported.",
             expected_type=int,
         )
 
@@ -5899,22 +5901,14 @@ class UVData(UVBase):
         self._convert_from_filetype(fhd_obj)
         del fhd_obj
 
-    def read_mir(
-        self,
-        filepath,
-        isource=None,
-        irec=None,
-        isb=None,
-        corrchunk=None,
-        pseudo_cont=False,
-    ):
+    def read_mir(self, filepath, isource=None, irec=None, isb=None, corrchunk=None):
         """
         Read in data from an SMA MIR file.
 
         Note that with the exception of filepath, the reset of the parameters are
         used to sub-select a range of data that matches the limitations of the current
-        instantiation of pyuvdata  -- namely 1 source. This could be dropped in the
-        future, as pyuvdata capabilities grow.
+        instantiation of pyuvdata  -- namely 1 spectral window, 1 source. These could
+        be dropped in the future, as pyuvdata capabilities grow.
 
         Parameters
         ----------
@@ -5928,20 +5922,12 @@ class UVData(UVBase):
             Sideband code for MIR dataset
         corrchunk : int
             Correlator chunk code for MIR dataset
-        pseudo_cont: boolean
-            Whether to load spectral windows or pseudo-cont winodws (cant do both, due
-            to different Nfreqs). Default is false.
         """
         from . import mir
 
         mir_obj = mir.Mir()
         mir_obj.read_mir(
-            filepath,
-            isource=isource,
-            irec=irec,
-            isb=isb,
-            corrchunk=corrchunk,
-            pseudo_cont=pseudo_cont,
+            filepath, isource=isource, irec=irec, isb=isb, corrchunk=corrchunk
         )
         self._convert_from_filetype(mir_obj)
         del mir_obj
@@ -6433,7 +6419,7 @@ class UVData(UVBase):
             antenna selectors, `times` and `time_range`) or select keywords
             exclude all data or if keywords are set to the wrong type.
             If the data are multi source or have multiple
-            spectral windows with differing channel widths.
+            spectral windows.
             If the metadata are not internally consistent or missing.
 
         """
@@ -6914,7 +6900,7 @@ class UVData(UVBase):
             antenna selectors, `times` and `time_range`) or select keywords
             exclude all data or if keywords are set to the wrong type.
             If the data are multi source or have multiple
-            spectral windows (for all but MIR, UVH5, UVFITS formats).
+            spectral windows.
             If phase_center_radec is not None and is not length 2.
 
         """
