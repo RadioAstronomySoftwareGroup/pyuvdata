@@ -69,13 +69,14 @@ class UVData(UVBase):
         )
 
         desc = (
-            "Array of the visibility data, shape: (Nblts, Nspws, Nfreqs, "
+            "Array of the visibility data, shape: (Nblts, 1, Nfreqs, "
             "Npols), type = complex float, in units of self.vis_units"
         )
+        # TODO: Spw axis to be collapsed in future release
         self._data_array = uvp.UVParameter(
             "data_array",
             description=desc,
-            form=("Nblts", "Nspws", "Nfreqs", "Npols"),
+            form=("Nblts", 1, "Nfreqs", "Npols"),
             expected_type=np.complex,
         )
 
@@ -106,7 +107,7 @@ class UVData(UVBase):
         self._nsample_array = uvp.UVParameter(
             "nsample_array",
             description=desc,
-            form=("Nblts", "Nspws", "Nfreqs", "Npols"),
+            form=("Nblts", 1, "Nfreqs", "Npols"),
             expected_type=(np.float),
         )
 
@@ -114,7 +115,7 @@ class UVData(UVBase):
         self._flag_array = uvp.UVParameter(
             "flag_array",
             description=desc,
-            form=("Nblts", "Nspws", "Nfreqs", "Npols"),
+            form=("Nblts", 1, "Nfreqs", "Npols"),
             expected_type=np.bool,
         )
 
@@ -193,12 +194,13 @@ class UVData(UVBase):
         # to have different dimensions
         desc = (
             "Array of frequencies, center of the channel, "
-            "shape (Nspws, Nfreqs), units Hz"
+            "shape (1, Nfreqs), units Hz"
         )
+        # TODO: Spw axis to be collapsed in future release
         self._freq_array = uvp.UVParameter(
             "freq_array",
             description=desc,
-            form=("Nspws", "Nfreqs"),
+            form=(1, "Nfreqs"),
             expected_type=np.float,
             tols=1e-3,
         )  # mHz
@@ -3032,10 +3034,11 @@ class UVData(UVBase):
             len(both_pol) > 0 and len(both_freq) > 0 and len(both_blts) > 0
         ):
             # check that overlapping data is not valid
+            # TODO: Spw axis to be collapsed in future release
             this_inds = np.ravel_multi_index(
                 (
                     this_blts_ind[:, np.newaxis, np.newaxis, np.newaxis],
-                    np.zeros((this.Nspws, 1, 1, 1), dtype=np.int),
+                    np.zeros((1, 1, 1, 1), dtype=np.int),
                     this_freq_ind[np.newaxis, np.newaxis, :, np.newaxis],
                     this_pol_ind[np.newaxis, np.newaxis, np.newaxis, :],
                 ),
@@ -3043,10 +3046,11 @@ class UVData(UVBase):
             ).flatten()
             this_all_zero = np.all(this.data_array.flatten()[this_inds] == 0)
             this_all_flag = np.all(this.flag_array.flatten()[this_inds])
+            # TODO: Spw axis to be collapsed in future release
             other_inds = np.ravel_multi_index(
                 (
                     other_blts_ind[:, np.newaxis, np.newaxis, np.newaxis],
-                    np.zeros((this.Nspws, 1, 1, 1), dtype=np.int),
+                    np.zeros((1, 1, 1, 1), dtype=np.int),
                     other_freq_ind[np.newaxis, np.newaxis, :, np.newaxis],
                     other_pol_ind[np.newaxis, np.newaxis, np.newaxis, :],
                 ),
@@ -3148,9 +3152,8 @@ class UVData(UVBase):
             this_blts = np.concatenate((this_blts, new_blts))
             blt_order = np.argsort(this_blts)
             if not self.metadata_only:
-                zero_pad = np.zeros(
-                    (len(bnew_inds), this.Nspws, this.Nfreqs, this.Npols)
-                )
+                # TODO: Spw axis to be collapsed in future release
+                zero_pad = np.zeros((len(bnew_inds), 1, this.Nfreqs, this.Npols))
                 this.data_array = np.concatenate([this.data_array, zero_pad], axis=0)
                 this.nsample_array = np.concatenate(
                     [this.nsample_array, zero_pad], axis=0
@@ -3186,8 +3189,9 @@ class UVData(UVBase):
             )
             f_order = np.argsort(this.freq_array[0, :])
             if not self.metadata_only:
+                # TODO: Spw axis to be collapsed in future release
                 zero_pad = np.zeros(
-                    (this.data_array.shape[0], this.Nspws, len(fnew_inds), this.Npols)
+                    (this.data_array.shape[0], 1, len(fnew_inds), this.Npols)
                 )
                 this.data_array = np.concatenate([this.data_array, zero_pad], axis=2)
                 this.nsample_array = np.concatenate(
@@ -3202,10 +3206,11 @@ class UVData(UVBase):
             )
             p_order = np.argsort(np.abs(this.polarization_array))
             if not self.metadata_only:
+                # TODO: Spw axis to be collapsed in future release
                 zero_pad = np.zeros(
                     (
                         this.data_array.shape[0],
-                        this.Nspws,
+                        1,
                         this.data_array.shape[2],
                         len(pnew_inds),
                     )
@@ -4735,16 +4740,17 @@ class UVData(UVBase):
             temp_flag = None
             temp_nsample = None
         else:
+            # TODO: Spw axis to be collapsed in future release
             temp_data = np.zeros(
-                (temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
-                dtype=self.data_array.dtype,
+                (temp_Nblts, 1, self.Nfreqs, self.Npols), dtype=self.data_array.dtype,
             )
+            # TODO: Spw axis to be collapsed in future release
             temp_flag = np.zeros(
-                (temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
-                dtype=self.flag_array.dtype,
+                (temp_Nblts, 1, self.Nfreqs, self.Npols), dtype=self.flag_array.dtype,
             )
+            # TODO: Spw axis to be collapsed in future release
             temp_nsample = np.zeros(
-                (temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
+                (temp_Nblts, 1, self.Nfreqs, self.Npols),
                 dtype=self.nsample_array.dtype,
             )
 
@@ -5039,15 +5045,13 @@ class UVData(UVBase):
             temp_nsample = None
         else:
             temp_data = np.zeros(
-                (temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
-                dtype=self.data_array.dtype,
+                (temp_Nblts, 1, self.Nfreqs, self.Npols), dtype=self.data_array.dtype,
             )
             temp_flag = np.zeros(
-                (temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
-                dtype=self.flag_array.dtype,
+                (temp_Nblts, 1, self.Nfreqs, self.Npols), dtype=self.flag_array.dtype,
             )
             temp_nsample = np.zeros(
-                (temp_Nblts, self.Nspws, self.Nfreqs, self.Npols),
+                (temp_Nblts, 1, self.Nfreqs, self.Npols),
                 dtype=self.nsample_array.dtype,
             )
 
@@ -5346,7 +5350,7 @@ class UVData(UVBase):
             self.select(freq_chans=chan_to_keep)
 
         self.freq_array = self.freq_array.reshape(
-            (self.Nspws, n_final_chan, n_chan_to_avg)
+            (1, n_final_chan, n_chan_to_avg)
         ).mean(axis=2)
         self.channel_width = self.channel_width * n_chan_to_avg
         self.Nfreqs = n_final_chan
@@ -5364,9 +5368,10 @@ class UVData(UVBase):
             ).mean(axis=2)
 
         if not self.metadata_only:
+            # TODO: Spw axis to be collapsed in future release
             shape_tuple = (
                 self.Nblts,
-                self.Nspws,
+                1,
                 n_final_chan,
                 n_chan_to_avg,
                 self.Npols,
@@ -5555,16 +5560,19 @@ class UVData(UVBase):
             temp_time_array = np.zeros_like(new_obj.time_array)
             if not self.metadata_only:
                 # initalize the data like arrays
+                # TODO: Spw axis to be collapsed in future release
                 temp_data_array = np.zeros(
-                    (new_obj.Nblts, new_obj.Nspws, new_obj.Nfreqs, new_obj.Npols),
+                    (new_obj.Nblts, 1, new_obj.Nfreqs, new_obj.Npols),
                     dtype=self.data_array.dtype,
                 )
+                # TODO: Spw axis to be collapsed in future release
                 temp_nsample_array = np.zeros(
-                    (new_obj.Nblts, new_obj.Nspws, new_obj.Nfreqs, new_obj.Npols),
+                    (new_obj.Nblts, 1, new_obj.Nfreqs, new_obj.Npols),
                     dtype=self.nsample_array.dtype,
                 )
+                # TODO: Spw axis to be collapsed in future release
                 temp_flag_array = np.zeros(
-                    (new_obj.Nblts, new_obj.Nspws, new_obj.Nfreqs, new_obj.Npols),
+                    (new_obj.Nblts, 1, new_obj.Nfreqs, new_obj.Npols),
                     dtype=self.flag_array.dtype,
                 )
             for grp_ind, group in enumerate(red_gps):
