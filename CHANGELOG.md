@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+- Changed UVH5 metadata byte conversion method from tobytes() to bytes()
+
+### Deprecated
+
 ## [2.1.1] - 2020-8-07
 
 ### Added
@@ -16,7 +23,6 @@ but adds the ability to check for multiple warnings.
 - A check that the uvws match the antenna positions, as part of the acceptability checking.
 
 ### Changed
-- Changed UVH5 metadata byte conversion method from tobytes() to bytes()
 - Upated the numpy requirement to >= 1.18
 - Moved `parse_ants` to `utils.py` to allow any UVBased object the potential to use it.
 
