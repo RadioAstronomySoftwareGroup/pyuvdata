@@ -2708,3 +2708,23 @@ def test_read_slicing(casa_uvfits):
     slices[1] = 0
     data = uvh5._index_dset(dset, slices)
     assert data.shape == tuple(shape)
+
+
+def test_read_metadata(casa_uvfits, tmp_path):
+    """Test misc properties of reading of metadata"""
+    # test bytes metadata
+    testfile = str(tmp_path / "metadata_read.uvh5")
+    uv_in = casa_uvfits
+    uv_in.write_uvh5(testfile, clobber=True)
+    # alter to make some metadata bytes type
+    with h5py.File(testfile, "r+") as f:
+        tname = f["Header"]["telescope_name"][()]
+        del f["Header"]["telescope_name"]
+        f["Header"]["telescope_name"] = bytes(tname)
+    # now read
+    uv_out = UVData()
+    uv_out.read(testfile)
+    assert isinstance(uv_out.telescope_name, str)
+
+    # clean up when done
+    os.remove(testfile)
