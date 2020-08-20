@@ -6171,9 +6171,11 @@ class UVData(UVBase):
         """
         Read in MWA correlator gpu box files.
 
-        Default settings divide out the digital gains and the coarse band shape.
-        If the desired output is raw correlator data, set remove_dig_gains=False
-        and remove_coarse_band=False.
+        The default settings remove some of the instrumental effects in the bandpass
+        by dividing out the digital gains and the coarse band shape.
+        If the desired output is raw correlator data, set remove_dig_gains=False,
+        remove_coarse_band=False, correct_cable_len=False, and
+        phase_to_pointing_center=False.
 
         Parameters
         ----------
