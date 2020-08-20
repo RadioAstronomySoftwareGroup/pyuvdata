@@ -129,7 +129,7 @@ class UVData(UVBase):
 
         self._spw_array = uvp.UVParameter(
             "spw_array",
-            description="Array of spectral window " "Numbers, shape (Nspws)",
+            description="Array of spectral window numbers, shape (Nspws)",
             form=("Nspws",),
             expected_type=int,
         )
@@ -241,11 +241,14 @@ class UVData(UVBase):
             expected_type=np.float,
             tols=1e-3,
         )  # 1 ms
+
+        desc = (
+            "Width of frequency channels (Hz). If flex_spw = False, then it single "
+            "value of type = float, otherwise it is an array of shape (Nfreqs), type = "
+            "float."
+        )
         self._channel_width = uvp.UVParameter(
-            "channel_width",
-            description="Width of frequency channels (Hz)",
-            expected_type=np.float,
-            tols=1e-3,
+            "channel_width", description=desc, expected_type=np.float, tols=1e-3,
         )  # 1 mHz
 
         # --- observation information ---
@@ -285,6 +288,30 @@ class UVData(UVBase):
             description="String of history, units English",
             form="str",
             expected_type=str,
+        )
+
+        # --- flexible spectral window information ---
+
+        desc = (
+            'Option to construct a "flexible spectral window", which stores'
+            "which stores all spectral channels across the frequency axis of"
+            "data_array. Allows for spectral windows of variable sizes."
+        )
+        self._flex_spw = uvp.UVParameter(
+            "flex_spw", description=desc, expected_type=np.bool, value=False,
+        )
+
+        desc = (
+            "Required if flex_spw = True. Maps individual channels along the "
+            "frequency axis to individual spectral windows, as listed in the "
+            "spw_array (zero-indexed). Shape (Nspws), type = int."
+        )
+        self._flex_spw_id_array = uvp.UVParameter(
+            "flex_spw_id_array",
+            description=desc,
+            form=("Nfreqs",),
+            expected_type=np.int,
+            required=False,
         )
 
         # --- phasing information ---
@@ -536,6 +563,20 @@ class UVData(UVBase):
         )
 
         super(UVData, self).__init__()
+
+    def _set_flex_spw(self):
+        """
+        Set flex_spw to True, and adjust required parameters.
+
+        This method should not be called directly by users; instead it is called
+        by the file-reading methods to indicate that an object has multiple spectral
+        windows concatenated together across the frequency axis.
+        """
+        # Mark once-optional arrays as now required
+        self.flex_spw = True
+        self._flex_spw_id_array.required = True
+        # Now make sure that chan_width is set to be an array
+        self._channel_width.form = ("Nfreqs",)
 
     def _set_drift(self):
         """
