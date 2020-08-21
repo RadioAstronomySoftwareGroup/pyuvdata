@@ -4,7 +4,6 @@
 
 """Class for reading and writing Mir files."""
 import numpy as np
-import copy
 
 from .uvdata import UVData
 from . import mir_parser
@@ -31,6 +30,7 @@ class Mir(UVData):
         isb=None,
         corrchunk=None,
         pseudo_cont=False,
+        flex_spw=True,
     ):
         """
         Read in data from an SMA MIR file, and map to the UVData model.
@@ -54,16 +54,21 @@ class Mir(UVData):
             Correlator chunk codes for MIR dataset
         pseudo_cont : boolean
             Read in pseudo-continuuum values. Default is false.
+        flex_spw : boolean
+            Allow for support of multiple spectral windows. Default is true.
         """
         # Use the mir_parser to read in metadata, which can be used to select data.
         mir_data = mir_parser.MirParser(filepath)
 
-        # Select out data that we want to work with.
+        # Select out the source and receiver that we want to deal with, since we can
+        # only currently handle one of each
         if isource is None:
             isource = mir_data.in_read["isource"][0]
         if irec is None:
             irec = mir_data.bl_read["irec"][0]
 
+        # Begin sorting out the spectral windows, starting with which sidebands to
+        # include in the read
         isb_full_list = np.unique(mir_data.bl_read["isb"]).tolist()
         if isb is None:
             isb = isb_full_list.copy()
@@ -74,26 +79,15 @@ class Mir(UVData):
         elif not (set(isb).issubset(set(isb_full_list))):
             raise IndexError("isb values contain invalid entries")
 
+        # Remember whether or not we're dealing with DSB (2 windows per corrchunk)
         dsb_spws = True if len(isb) == 2 else False
 
+        #
         corrchunk_full_list = np.unique(mir_data.sp_read["corrchunk"]).tolist()
         if corrchunk is None:
-            if pseudo_cont:
-                corrchunk = [0]
-            else:
-                corrchunk = copy.deepcopy(corrchunk_full_list)
+            corrchunk = corrchunk_full_list.copy()
+            if not pseudo_cont:
                 corrchunk.remove(0) if 0 in corrchunk else None
-
-        if type(corrchunk) is not list:
-            if type(corrchunk) is int:
-                corrchunk = [corrchunk]
-            else:
-                raise IndexError("corrchunk must be int or list of ints!")
-
-        if (0 in corrchunk) and ([0] != corrchunk):
-            raise NotImplementedError(
-                "cannot load pseudo-cont and spectral windows together!"
-            )
 
         corrchunk_dict = {key: key in corrchunk for key in corrchunk_full_list}
 
@@ -109,19 +103,10 @@ class Mir(UVData):
             [corrchunk_dict[key] for key in mir_data.sp_read["corrchunk"]]
         )
 
-        # Different sidebands in MIR are (strangely enough) recorded as being
-        # different baseline records. To be compatible w/ UVData, we just splice
-        # the sidebands together.
-        corrchunk_sb = [idx for jdx in sorted(isb) for idx in [jdx] * len(corrchunk)]
-        corrchunk *= 1 + dsb_spws
-
-        # Load up the visibilities into the MirParser object. This will also update the
-        # filters, and will make sure we're looking at the right metadata.
+        # Update the filters, and will make sure we're looking at the right metadata.
         mir_data._update_filter()
         if len(mir_data.in_data) == 0:
             raise IndexError("No valid records matching those selections!")
-
-        mir_data.load_data(load_vis=True, load_raw=True)
 
         # Create a simple list for broadcasting values stored on a
         # per-intergration basis in MIR into the (tasty) per-blt records in UVDATA.
@@ -133,6 +118,88 @@ class Mir(UVData):
         # Create a simple array/list for broadcasting values stored on a
         # per-blt basis into per-spw records.
         sp_bl_maparr = [mir_data.blhid_dict[idx] for idx in mir_data.sp_data["blhid"]]
+
+        # Different sidebands in MIR are (strangely enough) recorded as being
+        # different baseline records. To be compatible w/ UVData, we just splice
+        # the sidebands together.
+        corrchunk_sb = [idx for jdx in sorted(isb) for idx in [jdx] * len(corrchunk)]
+        corrchunk *= 1 + dsb_spws
+
+        # Here we'll want to construct a simple dictionary, that'll basically help us
+        # to construct the frequency axis, and map the UVData spectral window ID number
+        # to our weird mapping system in MIR.
+        self._set_flex_spw()
+        Nfreqs = 0  # Set to zero to starts for flex_spw
+
+        # Initialize some arrays that we'll be appending to
+        flex_spw_id_array = np.array([], dtype=np.int)
+        channel_width = np.array([], dtype=np.float)
+        freq_array = np.array([], dtype=np.float)
+        for idx in range(len(corrchunk)):
+            data_mask = np.logical_and(
+                mir_data.sp_data["corrchunk"] == corrchunk[idx],
+                mir_data.bl_data["isb"][sp_bl_maparr] == corrchunk_sb[idx],
+            )
+
+            # Grab values, get them into appropriate types
+            spw_fsky = np.unique(mir_data.sp_data["fsky"][data_mask])
+            spw_fres = np.unique(mir_data.sp_data["fres"][data_mask])
+            spw_nchan = np.unique(mir_data.sp_data["nch"][data_mask])
+
+            # Make sure that something weird hasn't happend with the metadata (this
+            # really should never happen)
+            if len(spw_fsky) != 1:
+                raise ValueError(
+                    "Spectral window must have the same fsky for whole obs!"
+                )
+            if len(spw_fres) != 1:
+                raise ValueError(
+                    "Spectral window must have the same fres for whole obs!"
+                )
+            if len(spw_nchan) != 1:
+                raise ValueError(
+                    "Spectral window must have the same nch for whole obs!"
+                )
+
+            #  Get the data in the right units and dtype
+            spw_fsky = np.float(spw_fsky * 1e9)  # GHz -> Hz
+            spw_fres = np.float(spw_fres * 1e6)  # MHz -> Hz
+            spw_nchan = np.int(spw_nchan)
+
+            # Tally up the number of channels
+            Nfreqs += spw_nchan
+
+            # Populate the channel width array
+            channel_width = np.append(
+                channel_width, abs(spw_fres) + np.zeros(spw_nchan, dtype=np.float)
+            )
+
+            # Populate the the spw_id_array
+            flex_spw_id_array = np.append(
+                flex_spw_id_array, idx + np.zeros(spw_nchan, dtype=np.int)
+            )
+
+            # So the freq array here is a little weird, because the current fsky
+            # refers to the point between the nch/2 and nch/2 + 1 channel in the
+            # raw (unaveraged) spectrum. This was done for the sake of some
+            # convenience, at the cost of clarity. In some future format of the
+            # data, we expect to be able to drop seemingly random offset here.
+            freq_array = np.append(
+                freq_array,
+                spw_fsky
+                - (np.sign(spw_fres) * 139648437.5)
+                + (spw_fres * (np.arange(spw_nchan) + 0.5 - (spw_nchan / 2))),
+            )
+
+        # Now assign our flexible arrays to the object itself
+        # TODO: Spw axis to be collapsed in future release
+        self.freq_array = freq_array[np.newaxis, :]
+        self.Nfreqs = Nfreqs
+        self.channel_width = channel_width
+        self.flex_spw_id_array = flex_spw_id_array
+
+        # Load up the visibilities into the MirParser object.
+        mir_data.load_data(load_vis=True, load_raw=True)
 
         # Derive Nants_data from baselines.
         self.Nants_data = len(
@@ -182,24 +249,11 @@ class Mir(UVData):
             self.ant_1_array, self.ant_2_array, attempt256=False
         )
 
-        if len(np.unique(mir_data.sp_data["nch"])) != 1:
-            raise NotImplementedError(
-                "Cannot handle spectral windows of different sizes (yet)..."
-            )
-        self.Nfreqs = int(mir_data.sp_data["nch"][0])
-
-        if len(np.unique(np.abs(mir_data.sp_data["fres"]))) != 1:
-            raise NotImplementedError(
-                "Cannot handle spectral windows with different channel sizes (yet)..."
-            )
-        self.channel_width = float(abs(mir_data.sp_data["fres"][0])) * 1e6  # MHz->Hz
-
         self.history = "Raw Data"
         self.instrument = "SWARM"
 
-        self.integration_time = mir_data.sp_data["integ"][
-            mir_data.sp_data["corrchunk"] == corrchunk[0]
-        ]
+        # We can just skip an appropriate number of records
+        self.integration_time = mir_data.sp_data["integ"][:: len(corrchunk)]
 
         # If using DSB data, then keep in mind that you'll have two records per
         # Nblt with int time array -- split-filter this
@@ -253,42 +307,12 @@ class Mir(UVData):
 
         # TODO: Spw axis to be collapsed in future release
         data_array = np.reshape(
-            np.array(mir_data.vis_data), (self.Nblts, 1, self.Nfreqs, self.Npols),
+            np.concatenate(mir_data.vis_data), (self.Nblts, 1, self.Nfreqs, self.Npols),
         )
+
         # Don't need the data anymore, so drop it
         mir_data.unload_data()
 
-        # TODO: Spw axis to be collapsed in future release
-        freq_array = np.empty((1, self.Nfreqs))
-        for idx in range(len(corrchunk)):
-            data_mask = np.logical_and(
-                mir_data.sp_data["corrchunk"] == corrchunk[idx],
-                mir_data.bl_data["isb"][sp_bl_maparr] == corrchunk_sb[idx],
-            )
-
-            spw_fsky = np.unique(mir_data.sp_data["fsky"][data_mask])
-            spw_fres = np.unique(mir_data.sp_data["fres"][data_mask])
-            if (len(spw_fsky) != 1) or (len(spw_fres) != 1):
-                raise ValueError(
-                    "Spectral window must have the same fsky and fres for whole obs!"
-                )
-            spw_fsky *= 1e9  # GHz -> Hz
-            spw_fres *= 1e6  # MHz -> Hz
-            # So the freq array here is a little weird, because the current fsky
-            # refers to the point between the nch/2 and nch/2 + 1 channel in the
-            # raw (unaveraged) spectrum. This was done for the sake of some
-            # convenience, at the cost of clarity. In some future format of the
-            # data, we expect to be able to drop seemingly random offset here.
-            freq_array[idx] = (
-                spw_fsky
-                - (np.sign(spw_fres) * 139648437.5)
-                + (spw_fres * (np.arange(self.Nfreqs) + 0.5 - (self.Nfreqs / 2)))
-            )
-            if spw_fres < 0:
-                freq_array[idx] = np.flip(freq_array[idx])
-                data_array[:, idx, :, :] = np.flip(data_array[:, idx, :, :], axis=1)
-
-        self.freq_array = freq_array
         self.data_array = data_array
         self.flag_array = np.zeros(self.data_array.shape, dtype=bool)
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.float32)
