@@ -445,6 +445,12 @@ class UVH5(UVData):
                 header["eq_coeffs_convention"][()]
             ).decode("utf8")
 
+        if "flex_spw" in header:
+            if bool(header["flex_spw"]):
+                self._set_flex_spw()
+        if "flex_spw_id_array" in header:
+            self.flex_spw_id_array = header["flex_spw_id_array"][()]
+
         # check for phasing information
         self.phase_type = bytes(header["phase_type"][()]).decode("utf8")
         if self.phase_type == "phased":
@@ -524,8 +530,12 @@ class UVH5(UVData):
 
         # get frequency information
         self.freq_array = header["freq_array"][:, :]
-        self.channel_width = float(header["channel_width"][()])
         self.spw_array = header["spw_array"][:]
+        # We've added a new keyword, that did exist before, so
+        if self.flex_spw:
+            self.channel_width = header["channel_width"][:]
+        else:
+            self.channel_width = float(header["channel_width"][()])
 
         # get polarization information
         self.polarization_array = header["polarization_array"][:]
@@ -1053,7 +1063,7 @@ class UVH5(UVData):
         header["ant_1_array"] = self.ant_1_array
         header["ant_2_array"] = self.ant_2_array
         header["antenna_positions"] = self.antenna_positions
-
+        header["flex_spw"] = self.flex_spw
         # handle antenna_names; works for lists or arrays
         header["antenna_names"] = np.asarray(self.antenna_names, dtype="bytes")
 
@@ -1091,6 +1101,8 @@ class UVH5(UVData):
             header["eq_coeffs"] = self.eq_coeffs
         if self.eq_coeffs_convention is not None:
             header["eq_coeffs_convention"] = np.string_(self.eq_coeffs_convention)
+        if self.flex_spw_id_array is not None:
+            header["flex_spw_id_array"] = self.flex_spw_id_array
 
         # write out extra keywords if it exists and has elements
         if self.extra_keywords:

@@ -300,7 +300,11 @@ class UVData(UVBase):
             "data_array. Allows for spectral windows of variable sizes."
         )
         self._flex_spw = uvp.UVParameter(
-            "flex_spw", description=desc, expected_type=np.bool, value=False,
+            "flex_spw",
+            description=desc,
+            expected_type=np.bool,
+            value=False,
+            required=False,
         )
 
         desc = (
