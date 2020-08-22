@@ -834,7 +834,7 @@ class UVFITS(UVData):
             # other exciting things...
             rest_freq = start_freq_array[0, 0]
         else:
-            delta_freq_array = np.array([self.channel_width]).astype(np.float)
+            delta_freq_array = np.array([[self.channel_width]]).astype(np.float)
             freq_spacing_check = np.unique(np.diff(self.freq_array))
             rest_freq = self.freq_array[0, 0]
             if not np.allclose(
@@ -844,7 +844,7 @@ class UVFITS(UVData):
                 atol=self._channel_width.tols[1],
             ):
                 if len(freq_spacing_check) == 1:
-                    delta_freq_array = np.array([freq_spacing_check[0]]).astype(
+                    delta_freq_array = np.array([[freq_spacing_check[0]]]).astype(
                         np.float
                     )
                     warnings.warn(
