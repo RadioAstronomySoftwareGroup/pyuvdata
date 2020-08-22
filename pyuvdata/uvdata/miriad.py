@@ -57,6 +57,7 @@ class Miriad(UVData):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        skip_extra_sources=False,
     ):
         """
         Read in data from a miriad file.
@@ -123,6 +124,10 @@ class Miriad(UVData):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        skip_extra_sources : bool
+            As multiple sources are not (yet) supported, this will simply allow
+            the reader to read just the first source in the dataset, rather than
+            throwing an exception. Default is false.
 
         Raises
         ------
@@ -328,6 +333,7 @@ class Miriad(UVData):
 
         data_accumulator = {}
         pol_list = []
+        warn_extra_sources = True
         for (uvw, t, (i, j)), d, f in uv.all_data(raw=True):
             # control for the case of only a single spw not showing up in
             # the dimension
@@ -357,6 +363,14 @@ class Miriad(UVData):
             inttime = uv["inttime"]
             source = uv["source"]
             if source != _source:
+                if skip_extra_sources:
+                    if warn_extra_sources:
+                        warnings.warn(
+                            "File containts more than one source, only using data "
+                            "where source = %s" % _source
+                        )
+                        warn_extra_sources = False
+                    continue
                 raise ValueError(
                     "This appears to be a multi source file, which is not supported."
                 )
