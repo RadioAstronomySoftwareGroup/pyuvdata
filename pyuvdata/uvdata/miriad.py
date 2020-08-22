@@ -1265,6 +1265,9 @@ class Miriad(UVData):
                 header_value = uv[miriad_header_data[item]]
             setattr(self, item, header_value)
 
+        # Do the units conversion for channel_width
+        self.channel_width *= 1e9  # change from GHz to Hz
+
         # Deal with the spectral axis now
         if self.Nspws > 1:
             self._set_flex_spw()
@@ -1311,7 +1314,6 @@ class Miriad(UVData):
                 np.arange(self.Nfreqs) * self.channel_width + uv["sfreq"] * 1e9, (1, -1)
             )
 
-        self.channel_width *= 1e9  # change from GHz to Hz
         self.spw_array = np.arange(self.Nspws)
 
         self.history = uv["history"]
