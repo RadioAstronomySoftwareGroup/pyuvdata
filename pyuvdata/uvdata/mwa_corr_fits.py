@@ -437,7 +437,8 @@ class MWACorrFITS(UVData):
             antenna_names = meta_tbl["TileName"][1::2]
             antenna_flags = meta_tbl["Flag"][1::2]
             cable_lens = np.asarray(meta_tbl["Length"][1::2]).astype(np.str_)
-            dig_gains = meta_tbl["Gains"][1::2, :]
+            # the digital gains have been multiplied by a factor of 64
+            dig_gains = meta_tbl["Gains"][1::2, :].astype(np.float64) / 64
 
             # get antenna postions in enu coordinates
             antenna_positions = np.zeros((len(antenna_numbers), 3))
@@ -710,8 +711,11 @@ class MWACorrFITS(UVData):
                 dig_gains2 = dig_gains[self.ant_2_array, :]
                 dig_gains1 = dig_gains1[:, :, np.newaxis]
                 dig_gains2 = dig_gains2[:, :, np.newaxis]
+                if self.data_array.dtype != np.complex128:
+                    self.data_array = self.data_array.astype(np.complex128)
                 self.data_array = self.data_array / (dig_gains1 * dig_gains2)
-
+                if self.data_array.dtype != data_array_dtype:
+                    self.data_array = self.data_array.astype(data_array_dtype)
             # divide out coarse band shape
             if remove_coarse_band:
                 # get coarse band shape

@@ -607,7 +607,7 @@ def test_remove_dig_gains():
     with fits.open(filelist[0]) as meta:
         meta_tbl = meta[1].data
         antenna_numbers = meta_tbl["Antenna"][1::2]
-        dig_gains = meta_tbl["Gains"][1::2, :]
+        dig_gains = meta_tbl["Gains"][1::2, :].astype(np.float64) / 64
     reordered_inds = antenna_numbers.argsort()
     dig_gains = dig_gains[reordered_inds, :]
     dig_gains = dig_gains[:, np.array([23])]
