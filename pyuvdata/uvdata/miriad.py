@@ -800,9 +800,10 @@ class Miriad(UVData):
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
+        # Removing this since it's no longer relevant
         # check for multiple spws
-        if self.data_array.shape[1] > 1:
-            raise ValueError("write_miriad currently only handles single spw files.")
+        # if self.data_array.shape[1] > 1:
+        #    raise ValueError("write_miriad currently only handles single spw files.")
 
         if os.path.exists(filepath):
             if clobber:
@@ -825,10 +826,46 @@ class Miriad(UVData):
         uv["nchan"] = self.Nfreqs
         uv.add_var("npol", "i")
         uv["npol"] = self.Npols
+
+        #####################################################
+        # Frequency information here
         uv.add_var("nspect", "i")
         uv["nspect"] = self.Nspws
-        uv.add_var("sdf", "d")
-        uv["sdf"] = self.channel_width / 1e9  # in GHz
+
+        if self.flex_spw:
+            win_start_pos = np.insert(
+                np.where(self.flex_spw_id_array[1:] != self.flex_spw_id_array[:-1])[0]
+                + 1,
+                0,
+                0,
+            ).astype(int)
+
+            uv.add_var("ischan", "i")  # Starting chan of window
+            uv["ischan"] = win_start_pos + 1  # Miriad is 1-based indexed
+
+            uv.add_var("nschan", "i")  # Number of chan per window
+            uv["nschan"] = np.diff(np.append(win_start_pos, self.Nfreqs))
+
+            uv.add_var("sfreq", "d")  # Freq of first channel of the window, Hz -> GHz
+            uv["sfreq"] = (self.freq_array[0][win_start_pos] / 1e9).astype(np.double)
+
+            uv.add_var("sdf", "d")  # Channel width, Hz -> GHz
+            uv["sdf"] = self.channel_width[win_start_pos] / 1e9
+        else:
+            uv.add_var("ischan", "i")  # Starting chan of window
+            uv["ischan"] = 1  # Miriad is 1-based indexed
+
+            uv.add_var("nschan", "i")  # Number of chan per window
+            uv["nschan"] = self.Nfreqs
+
+            uv.add_var("sfreq", "d")  # Freq of first channel of the window, in GHz
+            uv["sfreq"] = (self.freq_array[0, 0] / 1e9).astype(np.double)  # Hz -> GHz
+
+            uv.add_var("sdf", "d")  # Channel width, in GHz
+            uv["sdf"] = self.channel_width / 1e9  # Hz -> GHz
+
+        # NB: restfreq should go in here at some point
+        #####################################################
         uv.add_var("source", "a")
         uv["source"] = self.object_name
         uv.add_var("telescop", "a")
@@ -848,18 +885,6 @@ class Miriad(UVData):
             else:
                 uv.add_var("antdiam", "d")
                 uv["antdiam"] = float(self.antenna_diameters[0])
-
-        # These are added to make files written by pyuvdata more "miriad correct",
-        # and should be changed when support for more than one spectral window
-        # is added.
-        # 'nschan' is the number of channels per spectral window, and 'ischan'
-        # is the starting channel for each spectral window. Both should be
-        # arrays of size Nspws.
-        # Also note that indexing in Miriad is 1-based
-        uv.add_var("nschan", "i")
-        uv["nschan"] = self.Nfreqs
-        uv.add_var("ischan", "i")
-        uv["ischan"] = 1
 
         # Miriad has no way to keep track of antenna numbers, so the antenna
         # numbers are simply the index for each antenna in any array that
@@ -897,10 +922,6 @@ class Miriad(UVData):
                 np.double
             )
 
-        uv.add_var("sfreq", "d")
-        uv["sfreq"] = (self.freq_array[0, 0] / 1e9).astype(
-            np.double
-        )  # first spw; in GHz
         if self.phase_type == "phased":
             uv.add_var("epoch", "r")
             uv["epoch"] = self.phase_center_epoch
@@ -1277,7 +1298,7 @@ class Miriad(UVData):
                 np.array(
                     [
                         [chan_width] * nchan
-                        for (chan_width, nchan) in zip(uv["sdf"], uv["nschan"])
+                        for (chan_width, nchan) in zip(uv["sdf"] * 1e9, uv["nschan"])
                     ]
                 )
                 .flatten()
@@ -1290,7 +1311,7 @@ class Miriad(UVData):
                     [
                         chan_width * np.arange(nchan) + sfreq
                         for (chan_width, nchan, sfreq) in zip(
-                            uv["sdf"], uv["nschan"], uv["sfreq"]
+                            uv["sdf"] * 1e9, uv["nschan"], uv["sfreq"] * 1e9
                         )
                     ]
                 )
