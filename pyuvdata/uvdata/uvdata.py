@@ -834,7 +834,10 @@ class UVData(UVBase):
 
         This is a requirement for writing uvfits & miriad files.
         """
-        if self.Nfreqs > 1:
+        # TODO: Come back and fix/expand this
+        if self.flex_spw:
+            pass
+        elif self.Nfreqs > 1:
             freq_spacing = np.diff(self.freq_array, axis=1)
             if not np.isclose(
                 np.min(freq_spacing),

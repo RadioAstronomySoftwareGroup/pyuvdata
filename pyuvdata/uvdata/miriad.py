@@ -340,16 +340,21 @@ class Miriad(UVData):
             # Note that the (i, j) tuple is calculated from a baseline number in
             # _miriad (see miriad_wrap.h). The i, j values are also adjusted by _miriad
             # to start at 0 rather than 1.
+            # N.B. (Karto): So the below is right, but for the wrong reasons. The data
+            # array return is of length nchan, which encompasses the total number of
+            # channels in all spectral windows, where 'ischan' and 'nschan' demark the
+            # starting positions and length of the individual windows. I don't think
+            # this array should ever _not_ be 1D, but the below does cast the shape of
+            # the data array correctly so that the vestigial spw-axis is preserved. At
+            # some point, the below will need to be fixed -- I'm keeping this here so
+            # that I can skip reading through the MIRIAD programmers guide yet aagain.
             if len(d.shape) == 1:
                 d.shape = (1,) + d.shape
-                self.Nspws = d.shape[0]
-                self.spw_array = np.arange(self.Nspws)
-            else:
-                raise ValueError(
-                    "Sorry.  Files with more than one spectral "
-                    "window (spw) are not yet supported. A great "
-                    "project for the interested student!"
-                )
+                # self.Nspws = d.shape[0]
+                # self.spw_array = np.arange(self.Nspws)
+
+            if np.size(d) != self.Nfreqs:
+                raise ValueError("Number of channels in spectrum has changed!")
             try:
                 cnt = uv["cnt"]
             except (KeyError):
@@ -555,13 +560,6 @@ class Miriad(UVData):
         if self.telescope_location is not None:
             proc = self.set_lsts_from_time_array(background=background_lsts)
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.float)
-        self.freq_array = (
-            np.arange(self.Nfreqs) * self.channel_width + uv["sfreq"] * 1e9
-        )
-        # Tile freq_array to shape (Nspws, Nfreqs).
-        # Currently does not actually support Nspws>1!
-        # TODO Karto: This isn't quite right
-        self.freq_array = np.tile(self.freq_array, (self.Nspws, 1))
 
         # Temporary arrays to hold polarization axis, which will be collapsed
         ra_pol_list = np.zeros((self.Nblts, self.Npols))
@@ -1254,6 +1252,7 @@ class Miriad(UVData):
 
         miriad_header_data = {
             "Nfreqs": "nchan",
+            "Nspws": "nspect",
             "Npols": "npol",
             "channel_width": "sdf",  # in Ghz!
             "object_name": "source",
@@ -1266,10 +1265,58 @@ class Miriad(UVData):
                 header_value = uv[miriad_header_data[item]]
             setattr(self, item, header_value)
 
+        # Deal with the spectral axis now
+        if self.Nspws > 1:
+            self._set_flex_spw()
+            # Channel widths are described per spw, just need to expand it out to be
+            # for each frequency channel.
+            self.channel_width = (
+                np.array(
+                    [
+                        [chan_width] * nchan
+                        for (chan_width, nchan) in zip(uv["sdf"], uv["nschan"])
+                    ]
+                )
+                .flatten()
+                .astype(np.float)
+            )
+            # Now setup frequency array
+            # TODO: Spw axis to be collapsed in future release
+            self.freq_array = np.reshape(
+                np.array(
+                    [
+                        chan_width * np.arange(nchan) + sfreq
+                        for (chan_width, nchan, sfreq) in zip(
+                            uv["sdf"], uv["nschan"], uv["sfreq"]
+                        )
+                    ]
+                )
+                .flatten()
+                .astype(np.float),
+                (1, -1),
+            )
+            # TODO: Fix this to capture unsorted spectra
+            self.flex_spw_id_array = (
+                np.array(
+                    [
+                        [idx] * nchan
+                        for (idx, nchan) in zip(range(self.Nspws), uv["nschan"])
+                    ]
+                )
+                .flatten()
+                .astype(np.int)
+            )
+        else:
+            self.freq_array = np.reshape(
+                np.arange(self.Nfreqs) * self.channel_width + uv["sfreq"] * 1e9, (1, -1)
+            )
+
+        self.channel_width *= 1e9  # change from GHz to Hz
+        self.spw_array = np.arange(self.Nspws)
+
         self.history = uv["history"]
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
-        self.channel_width *= 1e9  # change from GHz to Hz
 
         # check for pyuvdata variables that are not recognized miriad variables
         if "visunits" in uv.vartable.keys():
