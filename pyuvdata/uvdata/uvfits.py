@@ -724,7 +724,7 @@ class UVFITS(UVData):
             self.check(
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
-                # check_freq_spacing=True,
+                check_freq_spacing=True,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
@@ -758,42 +758,13 @@ class UVFITS(UVData):
             nchan_list = []
             start_freq_array = []
             delta_freq_array = []
-            # Use this as a marker to count how many windows we had to spoof values
-            # for, with the idea that we don't want a dozen warnings for the same
-            # underlying issue.
-            weird_freq_space = 0
             for idx in range(self.Nspws):
                 chan_mask = self.flex_spw_id_array == idx
                 nchan_list += [np.sum(chan_mask)]
                 # TODO: Spw axis to be collapsed in future release
-                win_freq_array = self.freq_array[0, chan_mask]
-                chan_width_array = self.channel_width[chan_mask]
-                # UVFITS encodes the direction of increasing frequency by the
-                # 'CH WIDTH' parameter, so we grab that here
-                if nchan_list[-1] != 1:
-                    chan_width_array *= np.sign(np.diff(win_freq_array[0:2]))
+                start_freq_array += [self.freq_array[0, chan_mask][0]]
+                delta_freq_array += [np.median(self.channel_width[chan_mask])]
 
-                if not np.allclose(
-                    np.median(chan_width_array),
-                    chan_width_array,
-                    rtol=self._channel_width.tols[0],
-                    atol=self._channel_width.tols[1],
-                ):
-                    if not np.allclose(
-                        np.median(np.diff(win_freq_array)),
-                        np.diff(win_freq_array),
-                        rtol=self._channel_width.tols[0],
-                        atol=self._channel_width.tols[1],
-                    ):
-                        raise ValueError(
-                            "The separation in frequency values is non-uniform, which "
-                            "is not supported in the UVFITS file format."
-                        )
-                    else:
-                        weird_freq_space += 1
-                        chan_width_array = np.array()
-                start_freq_array += [win_freq_array[0]]
-                delta_freq_array += [np.median(chan_width_array)]
             start_freq_array = np.reshape(np.array(start_freq_array), (1, -1)).astype(
                 np.float
             )
@@ -801,14 +772,6 @@ class UVFITS(UVData):
             delta_freq_array = np.reshape(np.array(delta_freq_array), (1, -1)).astype(
                 np.float
             )
-
-            # Raise a warning if we had to guess delta_freq from freq_array
-            if weird_freq_space != 0:
-                warnings.warn(
-                    "Values of freq array do not line up with what is expected for "
-                    "%i spws, given channel_width. Spoofing value for now."
-                    % weird_freq_space
-                )
 
             # We've constructed a couple of lists with relevant values, now time to
             # check them to make sure that the data will write correctly
@@ -835,33 +798,7 @@ class UVFITS(UVData):
             rest_freq = start_freq_array[0, 0]
         else:
             delta_freq_array = np.array([[self.channel_width]]).astype(np.float)
-            freq_spacing_check = np.unique(np.diff(self.freq_array))
             rest_freq = self.freq_array[0, 0]
-            if not np.allclose(
-                freq_spacing_check,
-                delta_freq_array,
-                rtol=self._channel_width.tols[0],
-                atol=self._channel_width.tols[1],
-            ):
-                if len(freq_spacing_check) == 1:
-                    delta_freq_array = np.array([[freq_spacing_check[0]]]).astype(
-                        np.float
-                    )
-                    warnings.warn(
-                        "Values of freq array do not line up with what is expected, "
-                        "given channel_width. Spoofing value for now. Expected "
-                        f"{self.channel_width} , got "
-                        f"{delta_freq_array} instead."
-                    )
-                    print(
-                        "Expected %f, got %f" % (delta_freq_array, self.channel_width)
-                    )
-                else:
-                    raise ValueError(
-                        "The separation in frequency values is non-uniform, which is "
-                        "not supported in the UVFITS file format (should be %f)."
-                        % delta_freq_array
-                    )
 
         if self.Npols > 1:
             pol_spacing = np.diff(self.polarization_array)
