@@ -482,7 +482,7 @@ class UVFITS(UVData):
                 # Get rest freq value
                 rest_freq = uvutils._fits_gethduaxis(vis_hdu, 4)[0]
                 self.channel_width = np.transpose(
-                    np.tile(np.abs(fq_hdu.data["CH WIDTH"]), (uvfits_nchan, 1))
+                    np.tile(fq_hdu.data["CH WIDTH"], (uvfits_nchan, 1))
                 ).flatten()
                 self.freq_array = np.reshape(
                     np.transpose(
