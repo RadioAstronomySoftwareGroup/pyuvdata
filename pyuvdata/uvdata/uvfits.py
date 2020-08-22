@@ -213,7 +213,7 @@ class UVFITS(UVData):
             blt_frac = 1
 
         if freq_inds is not None:
-            freq_frac = len(freq_inds) / float(self.Nfreqs)
+            freq_frac = len(freq_inds) * float(self.Nspws) / float(self.Nfreqs)
         else:
             freq_frac = 1
 
@@ -292,9 +292,17 @@ class UVFITS(UVData):
                     raw_data_array = raw_data_array[:, :, freq_inds, :, :]
 
         assert len(raw_data_array.shape) == 5
+
+        # Reshape the data array to be the right size if we are working w/ multiple
+        # spectral windows to be 'flex_spw' compliant
+        if self.Nspws > 1:
+            raw_data_array = np.reshape(
+                raw_data_array,
+                (self.Nblts, 1, self.Nfreqs, self.Npols, raw_data_array.shape[4]),
+            )
+
         # FITS uvw direction convention is opposite ours and Miriad's.
         # So conjugate the visibilities and flip the uvws:
-        # TODO Karto: Reshape this array to be of the right size
         self.data_array = (
             raw_data_array[:, :, :, :, 0] - 1j * raw_data_array[:, :, :, :, 1]
         )
@@ -439,52 +447,58 @@ class UVFITS(UVData):
             # check if we have an spw dimension
             if vis_hdr["NAXIS"] == 7:
                 self.Nspws = vis_hdr.pop("NAXIS5")
-                self.spw_array = np.int32(uvutils._fits_gethduaxis(vis_hdu, 5)) - 1
+                self.spw_array = uvutils._fits_gethduaxis(vis_hdu, 5).astype(np.int) - 1
 
                 # the axis number for phase center depends on if the spw exists
                 self.phase_center_ra_degrees = np.float(vis_hdr.pop("CRVAL6"))
                 self.phase_center_dec_degrees = np.float(vis_hdr.pop("CRVAL7"))
             else:
                 self.Nspws = 1
-                self.spw_array = np.array([0])
+                self.spw_array = np.array(np.int32(0))
 
                 # the axis number for phase center depends on if the spw exists
                 self.phase_center_ra_degrees = np.float(vis_hdr.pop("CRVAL5"))
                 self.phase_center_dec_degrees = np.float(vis_hdr.pop("CRVAL6"))
 
             # get shapes
-            self.Nfreqs = vis_hdr.pop("NAXIS4")
             self.Npols = vis_hdr.pop("NAXIS3")
             self.Nblts = vis_hdr.pop("GCOUNT")
 
             if self.Nspws > 1:
+                # If this is multi-spw, use the 'flexibile' spectral window setup
+                self._set_flex_spw()
+                uvfits_nchan = vis_hdr.pop("NAXIS4")
+                self.Nfreqs = uvfits_nchan * self.Nspws
+                self.flex_spw_id_array = np.transpose(
+                    np.tile(np.arange(self.Nspws), (uvfits_nchan, 1))
+                ).flatten()
                 fq_hdu = hdu_list[hdunames["AIPS FQ"]]
-                if self.Nspws != fq_hdu.header["NO_IF"]:
-                    raise IndexError(
-                        "NO_IF in AIPS FQ does not match size of primary vis table"
-                    )
+                assert self.Nspws == fq_hdu.header["NO_IF"]
+
                 # TODO: This is fine for now, although I (karto) think that this
                 # is relative to the rest_freq, which can be specified as part of
                 # the AIPS SU table.
 
                 # Get rest freq value
                 rest_freq = uvutils._fits_gethduaxis(vis_hdu, 4)[0]
-                self.freq_array = np.transpose(
-                    (
-                        rest_freq
-                        + fq_hdu.data["IF FREQ"]
-                        + np.outer(np.arange(self.Nfreqs), fq_hdu.data["CH WIDTH"])
-                    )
+                self.channel_width = np.transpose(
+                    np.tile(np.abs(fq_hdu.data["CH WIDTH"]), (uvfits_nchan, 1))
+                ).flatten()
+                self.freq_array = np.reshape(
+                    np.transpose(
+                        (
+                            rest_freq
+                            + fq_hdu.data["IF FREQ"]
+                            + np.outer(np.arange(uvfits_nchan), fq_hdu.data["CH WIDTH"])
+                        )
+                    ),
+                    (1, -1),
                 )
-                self.channel_width = float(fq_hdu.data["CH WIDTH"][0, 0])
-                if np.any(self.channel_width != fq_hdu.data["CH WIDTH"]):
-                    raise ValueError(
-                        "UVFITS files with different channel widths per spw are not "
-                        "supported (yet)."
-                    )
             else:
+                self.Nfreqs = vis_hdr.pop("NAXIS4")
                 self.freq_array = uvutils._fits_gethduaxis(vis_hdu, 4)
-                self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
+                # TODO: Spw axis to be collapsed in future release
+                self.freq_array.shape = (1,) + self.freq_array.shape
                 self.channel_width = vis_hdr.pop("CDELT4")
 
             self.polarization_array = np.int32(uvutils._fits_gethduaxis(vis_hdu, 3))
@@ -738,29 +752,116 @@ class UVFITS(UVData):
                 "Set the phase_type to drift or phased to "
                 "reflect the phasing status of the data"
             )
+        if self.flex_spw:
+            # If we have a 'flexible' spectral window, we will need to evaluate the
+            # frequency axis slightly differently.
+            nchan_list = []
+            start_freq_array = []
+            delta_freq_array = []
+            # Use this as a marker to count how many windows we had to spoof values
+            # for, with the idea that we don't want a dozen warnings for the same
+            # underlying issue.
+            weird_freq_space = 0
+            for idx in range(self.Nspws):
+                chan_mask = self.flex_spw_id_array == idx
+                nchan_list += [np.sum(chan_mask)]
+                # TODO: Spw axis to be collapsed in future release
+                win_freq_array = self.freq_array[0, chan_mask]
+                chan_width_array = self.channel_width[chan_mask]
+                # UVFITS encodes the direction of increasing frequency by the
+                # 'CH WIDTH' parameter, so we grab that here
+                if nchan_list[-1] != 1:
+                    chan_width_array *= np.sign(np.diff(win_freq_array[0:2]))
 
-        freq_spacing = self.channel_width
-        freq_spacing_check = np.unique(np.diff(self.freq_array))
-        if not np.allclose(
-            freq_spacing_check,
-            freq_spacing,
-            rtol=self._channel_width.tols[0],
-            atol=self._channel_width.tols[1],
-        ):
-            if len(freq_spacing_check) == 1:
-                freq_spacing = freq_spacing_check[0]
+                if not np.allclose(
+                    np.median(chan_width_array),
+                    chan_width_array,
+                    rtol=self._channel_width.tols[0],
+                    atol=self._channel_width.tols[1],
+                ):
+                    if not np.allclose(
+                        np.median(np.diff(win_freq_array)),
+                        np.diff(win_freq_array),
+                        rtol=self._channel_width.tols[0],
+                        atol=self._channel_width.tols[1],
+                    ):
+                        raise ValueError(
+                            "The separation in frequency values is non-uniform, which "
+                            "is not supported in the UVFITS file format."
+                        )
+                    else:
+                        weird_freq_space += 1
+                        chan_width_array = np.array()
+                start_freq_array += [win_freq_array[0]]
+                delta_freq_array += [np.median(chan_width_array)]
+            start_freq_array = np.reshape(np.array(start_freq_array), (1, -1)).astype(
+                np.float
+            )
+
+            delta_freq_array = np.reshape(np.array(delta_freq_array), (1, -1)).astype(
+                np.float
+            )
+
+            # Raise a warning if we had to guess delta_freq from freq_array
+            if weird_freq_space != 0:
                 warnings.warn(
-                    "Values of freq array do not line up with what is expected, given "
-                    "channel_width. Spoofing value for now. Expected "
-                    f"{self.channel_width} , got "
-                    f"{freq_spacing} instead."
+                    "Values of freq array do not line up with what is expected for "
+                    "%i spws, given channel_width. Spoofing value for now."
+                    % weird_freq_space
                 )
-                print("Expected %f, got %f" % (freq_spacing, self.channel_width))
-            else:
-                raise ValueError(
-                    "The separation in frequency values is non-uniform, which is not "
-                    "supported in the UVFITS file format (should be %f)." % freq_spacing
+
+            # We've constructed a couple of lists with relevant values, now time to
+            # check them to make sure that the data will write correctly
+
+            # Make sure that all the windows are of the same size
+            if len(np.unique(nchan_list)) != 1:
+                raise IndexError(
+                    "UVFITS format cannot handle spectral windows of different sizes!"
                 )
+
+            # Make sure freq values are greater zero. Note that I think _technically
+            # one could write negative frequencies into the dataset, but I am pretty
+            # sure that reduction packages may balk hard.
+            if np.any(start_freq_array <= 0):
+                raise ValueError("Frequency values must be > 0 for UVFITS!")
+
+            # Make sure the delta values are non-zero
+            if np.any(delta_freq_array == 0):
+                raise ValueError("Something is wrong, frequency values not unique!")
+
+            # If we passed all the above checks, then it's time to fill some extra
+            # array values. Note that 'rest_freq' is something of a placeholder for
+            # other exciting things...
+            rest_freq = start_freq_array[0, 0]
+        else:
+            delta_freq_array = np.array([self.channel_width]).astype(np.float)
+            freq_spacing_check = np.unique(np.diff(self.freq_array))
+            rest_freq = self.freq_array[0, 0]
+            if not np.allclose(
+                freq_spacing_check,
+                delta_freq_array,
+                rtol=self._channel_width.tols[0],
+                atol=self._channel_width.tols[1],
+            ):
+                if len(freq_spacing_check) == 1:
+                    delta_freq_array = np.array([freq_spacing_check[0]]).astype(
+                        np.float
+                    )
+                    warnings.warn(
+                        "Values of freq array do not line up with what is expected, "
+                        "given channel_width. Spoofing value for now. Expected "
+                        f"{self.channel_width} , got "
+                        f"{delta_freq_array} instead."
+                    )
+                    print(
+                        "Expected %f, got %f" % (delta_freq_array, self.channel_width)
+                    )
+                else:
+                    raise ValueError(
+                        "The separation in frequency values is non-uniform, which is "
+                        "not supported in the UVFITS file format (should be %f)."
+                        % delta_freq_array
+                    )
 
         if self.Npols > 1:
             pol_spacing = np.diff(self.polarization_array)
@@ -798,14 +899,24 @@ class UVFITS(UVData):
                 "these data will appear to be flagged."
             )
 
-        weights_array = self.nsample_array * np.where(self.flag_array, -1, 1)
+        uvfits_data_shape = (
+            self.Nblts,
+            1,
+            1,
+            self.Nspws,
+            self.Nfreqs // self.Nspws,
+            self.Npols,
+            1,
+        )
+
+        # Reshape the arrays so that they match the uvfits conventions
         # FITS uvw direction convention is opposite ours and Miriad's.
         # So conjugate the visibilities and flip the uvws:
-        data_array = np.conj(
-            self.data_array[:, np.newaxis, np.newaxis, :, :, :, np.newaxis]
+        data_array = np.reshape(np.conj(self.data_array), uvfits_data_shape)
+        weights_array = np.reshape(
+            self.nsample_array * np.where(self.flag_array, -1, 1), uvfits_data_shape,
         )
-        weights_array = weights_array[:, np.newaxis, np.newaxis, :, :, :, np.newaxis]
-        # uvfits_array_data shape will be  (Nblts,1,1,[Nspws],Nfreqs,Npols,3)
+
         uvfits_array_data = np.concatenate(
             [data_array.real, data_array.imag, weights_array], axis=6
         )
@@ -939,9 +1050,9 @@ class UVFITS(UVData):
         hdu.header["CDELT3  "] = float(pol_spacing)
 
         hdu.header["CTYPE4  "] = "FREQ    "
-        hdu.header["CRVAL4  "] = self.freq_array[0, 0]
+        hdu.header["CRVAL4  "] = rest_freq
         hdu.header["CRPIX4  "] = 1.0
-        hdu.header["CDELT4  "] = freq_spacing
+        hdu.header["CDELT4  "] = delta_freq_array[0, 0]
 
         hdu.header["CTYPE5  "] = "IF      "
         hdu.header["CRVAL5  "] = 1.0
@@ -1103,10 +1214,10 @@ class UVFITS(UVData):
             fmt_j = "%iJ" % self.Nspws
 
             # TODO Karto: Temp implementation until we fix some other things in UVData
-            if_freq = np.reshape(self.freq_array[:, 0] - self.freq_array[0, 0], (1, -1))
-            ch_width = self.channel_width * np.ones((1, self.Nspws))
-            tot_bw = self.channel_width * self.Nfreqs * np.ones((1, self.Nspws))
-            sideband = np.sign(self.channel_width) * np.ones((1, self.Nspws))
+            if_freq = start_freq_array - rest_freq
+            ch_width = delta_freq_array
+            tot_bw = (self.Nfreqs // self.Nspws) * np.ones((1, self.Nspws))
+            sideband = np.sign(delta_freq_array) * np.ones((1, self.Nspws))
 
             # FRQSEL is hardcoded at the moment, could think about doing this
             # at least somewhat more intelligently...

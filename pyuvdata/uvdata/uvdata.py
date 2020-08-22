@@ -583,6 +583,9 @@ class UVData(UVBase):
         self._flex_spw_id_array.required = True
         # Now make sure that chan_width is set to be an array
         self._channel_width.form = ("Nfreqs",)
+        # If channel_width was previously set, recast to array
+        if isinstance(self.channel_width, float):
+            self.channel_width = np.tile(self.channel_width, self.Nfreqs)
 
     def _set_drift(self):
         """
