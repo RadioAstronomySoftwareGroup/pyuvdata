@@ -184,7 +184,7 @@ def test_multisource_error(casa_uvfits, tmp_path):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_spwsupported():
-    """Test eading in a uvfits file with multiple spws."""
+    """Test reading in a uvfits file with multiple spws."""
     uvobj = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1scan.uvfits")
     uvobj.read(testfile)
