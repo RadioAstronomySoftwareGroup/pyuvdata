@@ -139,7 +139,9 @@ class MWACorrFITS(UVData):
         if (num_start_flag > 0) or (num_end_flag > 0):
             shape = self.flag_array.shape
             # TODO: Spw axis to be collapsed in future release
-            assert shape[2] == 1
+            # Asserting this here because this is effectively a stripped down UVFITS
+            # reader, and thus assuming that this should only support simple tables
+            assert shape[1] == 1
             reshape = [self.Ntimes, self.Nbls, 1, self.Nfreqs, self.Npols]
             self.flag_array = np.reshape(self.flag_array, reshape)
             if num_start_flag > 0:
