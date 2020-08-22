@@ -828,43 +828,116 @@ class UVData(UVBase):
             proc.start()
             return proc
 
+    def _check_flex_spw_contiguous(self):
+        """
+        Check if the spectral windows are contiguous for flex_spw datasets.
+
+        This checks the flex_spw_id_array to make sure that all channels for each
+        spectral window are together in one block, versus being interspersed (e.g.,
+        channel #1 and #3 is in spw #1, channels #2 and #4 are in spw #2). In theory,
+        UVH5 and UVData objects can handle this, but MIRIAD, MIR, UVFITS, and MS file
+        formats cannot, so we just consider it forbidden.
+        """
+        if self.flex_spw:
+            exp_spw_ids = np.arange(self.Nspws, dtype=np.int)
+            # This is an internal consistency check to make sure that the indexes match
+            # up as expected -- this shouldn't error unless someone is mucking with
+            # settings they shouldn't be.
+            assert np.all(np.unique(self.flex_spw_id_array) == exp_spw_ids)
+
+            n_breaks = np.sum(self.flex_spw_id_array[1:] != self.flex_spw_id_array[:-1])
+            if (n_breaks + 1) != self.Nspws:
+                raise ValueError(
+                    "Channels from different spectral windows are interspersed with "
+                    "one another, rather than being grouped together along the "
+                    "frequency axis. Most file formats do not support such "
+                    "non-grouping of data."
+                )
+        else:
+            # If this isn't a flex_spw data set, then there is only 1 spectral window,
+            # which means that the check always passes
+            pass
+        return True
+
     def _check_freq_spacing(self):
         """
         Check if frequencies are evenly spaced and separated by their channel width.
 
         This is a requirement for writing uvfits & miriad files.
         """
-        # TODO: Come back and fix/expand this
-        if self.flex_spw:
+        raise_spacing_error = False
+        raise_chanwidth_error = False
+        # TODO: Spw axis to be collapsed in future release
+        freq_spacing = np.diff(self.freq_array, axis=1)
+        if self.Nfreqs == 1:
+            # Skip all of this if there is only 1 channel
             pass
-        elif self.Nfreqs > 1:
-            freq_spacing = np.diff(self.freq_array, axis=1)
+        elif self.flex_spw:
+            # Check to make sure that the flexible spectral window has indicies set up
+            # correctly (grouped together) for this check
+            self._check_flex_spw_contiguous()
+            diff_chanwidth = np.diff(self.channel_width)
+
+            # Ignore cases where looking at the boundaries of spectral windows
+            bypass_check = self.flex_spw_id_array[1:] != self.flex_spw_id_array[:-1]
+            if not np.all(
+                np.logical_or(
+                    bypass_check,
+                    np.isclose(
+                        diff_chanwidth,
+                        0.0,
+                        rtol=self._freq_array.tols[0],
+                        atol=self._freq_array.tols[1],
+                    ),
+                )
+            ):
+                raise_spacing_error = True
+            if not np.all(
+                np.logical_or(
+                    bypass_check,
+                    np.isclose(
+                        freq_spacing,
+                        self.channel_width[1:],
+                        rtol=self._freq_array.tols[0],
+                        atol=self._freq_array.tols[1],
+                    ),
+                )
+            ):
+                raise_chanwidth_error = True
+        else:
             if not np.isclose(
                 np.min(freq_spacing),
                 np.max(freq_spacing),
                 rtol=self._freq_array.tols[0],
                 atol=self._freq_array.tols[1],
             ):
-                raise ValueError(
-                    "The frequencies are not evenly spaced (probably "
-                    "because of a select operation). Some file formats "
-                    "(e.g. uvfits, miriad) and methods (frequency_average) "
-                    "do not support unevenly spaced frequencies."
-                )
+                raise_spacing_error = True
+            # TODO: Spw axis to be collapsed in future release
             if not np.isclose(
                 freq_spacing[0, 0],
                 self.channel_width,
-                rtol=self._freq_array.tols[0],
-                atol=self._freq_array.tols[1],
+                rtol=self._channel_width.tols[0],
+                atol=self._channel_width.tols[1],
             ):
-                raise ValueError(
-                    "The frequencies are separated by more than their "
-                    "channel width (probably because of a select operation). "
-                    "Some file formats (e.g. uvfits, miriad) and "
-                    "methods (frequency_average) do not support "
-                    "frequencies that are spaced by more than their "
-                    "channel width."
-                )
+                print(freq_spacing[0, 0], self.channel_width, self._channel_width.tols)
+                raise_chanwidth_error = True
+        if raise_spacing_error:
+            raise ValueError(
+                "The frequencies are not evenly spaced (probably "
+                "because of a select operation). Some file formats "
+                "(e.g. uvfits, miriad) and methods (frequency_average) "
+                "do not support unevenly spaced frequencies."
+            )
+        if raise_chanwidth_error:
+            raise ValueError(
+                "The frequencies are separated by more than their "
+                "channel width (probably because of a select operation). "
+                "Some file formats (e.g. uvfits, miriad) and "
+                "methods (frequency_average) do not support "
+                "frequencies that are spaced by more than their "
+                "channel width."
+            )
+
         return True
 
     def _calc_nants_data(self):
