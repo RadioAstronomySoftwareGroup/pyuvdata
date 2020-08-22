@@ -116,6 +116,8 @@ def uvdata_props():
         "_phase_center_frame",
         "_eq_coeffs",
         "_eq_coeffs_convention",
+        "_flex_spw",
+        "_flex_spw_id_array",
     ]
 
     extra_properties = [
@@ -135,6 +137,8 @@ def uvdata_props():
         "phase_center_frame",
         "eq_coeffs",
         "eq_coeffs_convention",
+        "flex_spw",
+        "flex_spw_id_array",
     ]
 
     other_properties = [
@@ -1626,7 +1630,17 @@ def test_select_frequencies_uvfits(casa_uvfits, tmp_path):
         ],
     ):
         uv_object2.select(frequencies=uv_object2.freq_array[0, [0, 2, 4]])
-    pytest.raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
+
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Values of freq array do not line up with what is expected, given "
+            "channel_width. Spoofing value for now.",
+        ],
+    ):
+        uv_object2.write_uvfits(write_file_uvfits)
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
