@@ -6005,6 +6005,7 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        skip_extra_sources=False,
     ):
         """
         Read in data from a miriad file.
@@ -6075,6 +6076,10 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        skip_extra_sources : bool
+            As multiple sources are not (yet) supported, this will simply allow
+            the reader to read just the first source in the dataset, rather than
+            throwing an exception. Default is false.
 
         Raises
         ------
@@ -6114,6 +6119,7 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
+            skip_extra_sources=skip_extra_sources,
         )
         self._convert_from_filetype(miriad_obj)
         del miriad_obj
@@ -6731,6 +6737,7 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        skip_extra_sources=False,
         isource=None,
         irec=None,
         isb=None,
@@ -6939,6 +6946,10 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        skip_extra_sources : bool
+            As multiple sources are not (yet) supported, this will simply allow
+            the reader to read just the first source in the dataset, rather than
+            throwing an exception. Default is false.
         isource : int
             Source code for MIR dataset
         irec : int
@@ -7330,6 +7341,7 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
+                    skip_extra_sources=skip_extra_sources,
                 )
 
             elif file_type == "mwa_corr_fits":
