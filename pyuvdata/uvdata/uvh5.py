@@ -446,7 +446,7 @@ class UVH5(UVData):
             ).decode("utf8")
 
         if "flex_spw" in header:
-            if bool(header["flex_spw"]):
+            if bool(header["flex_spw"][()]):
                 self._set_flex_spw()
         if "flex_spw_id_array" in header:
             self.flex_spw_id_array = header["flex_spw_id_array"][()]
@@ -531,7 +531,7 @@ class UVH5(UVData):
         # get frequency information
         self.freq_array = header["freq_array"][:, :]
         self.spw_array = header["spw_array"][:]
-        # We've added a new keyword, that did exist before, so
+        # We've added a new keyword, that did not exist before, so
         if self.flex_spw:
             self.channel_width = header["channel_width"][:]
         else:
