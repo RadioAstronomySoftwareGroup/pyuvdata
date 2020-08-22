@@ -1631,16 +1631,7 @@ def test_select_frequencies_uvfits(casa_uvfits, tmp_path):
     ):
         uv_object2.select(frequencies=uv_object2.freq_array[0, [0, 2, 4]])
 
-    with uvtest.check_warnings(
-        UserWarning,
-        [
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "Values of freq array do not line up with what is expected, given "
-            "channel_width. Spoofing value for now.",
-        ],
-    ):
-        uv_object2.write_uvfits(write_file_uvfits)
+    pytest.raises(ValueError, uv_object2.write_uvfits, write_file_uvfits)
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
