@@ -454,7 +454,7 @@ class UVFITS(UVData):
                 self.phase_center_dec_degrees = np.float(vis_hdr.pop("CRVAL7"))
             else:
                 self.Nspws = 1
-                self.spw_array = np.array(np.int32(0))
+                self.spw_array = np.array([np.int(0)])
 
                 # the axis number for phase center depends on if the spw exists
                 self.phase_center_ra_degrees = np.float(vis_hdr.pop("CRVAL5"))
