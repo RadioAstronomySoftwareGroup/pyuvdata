@@ -108,6 +108,67 @@ def test_read_nrao_write_miriad_read_miriad(casa_uvfits, tmp_path):
     assert uvfits_uv == miriad_uv
 
 
+@pytest.mark.filterwarnings("ignore:Telescope SZA is not in known_telescopes.")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_read_write_read_carma(tmp_path):
+    uv_in = UVData()
+    uv_out = UVData()
+    carma_file = os.path.join(DATA_PATH, "carma_miriad")
+    testfile = str(tmp_path / "outtest_carma_miriad.uv")
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Altitude is not present in Miriad file, and "
+            "telescope SZA is not in known_telescopes. ",
+            "Altitude is not present",
+            "Telescope location is set at sealevel at the file lat/lon "
+            "coordinates. Antenna positions are present, but the mean antenna "
+            "position does not give a telescope_location on the surface of the "
+            "earth. Antenna positions do not appear to be on the surface of the "
+            "earth and will be treated as relative.",
+            "Telescope SZA is not in known_telescopes.",
+            "File containts more than one source, only using data where source = NOISE",
+            "drift RA, Dec is off from lst, latitude by more than 1.0 deg",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "antaz in extra_keywords is a list, array or dict",
+            "antel in extra_keywords is a list, array or dict",
+            "axisoff in extra_keywords is a list, array or dict",
+            "cable in extra_keywords is a list, array or dict",
+            "dazim in extra_keywords is a list, array or dict",
+            "delev in extra_keywords is a list, array or dict",
+            "jyperka in extra_keywords is a list, array or dict",
+            "pamatten in extra_keywords is a list, array or dict",
+            "phaselo1 in extra_keywords is a list, array or dict",
+            "phaselo2 in extra_keywords is a list, array or dict",
+            "phasem1 in extra_keywords is a list, array or dict",
+            "themt in extra_keywords is a list, array or dict",
+            "wfreq in extra_keywords is a list, array or dict",
+            "wwidth in extra_keywords is a list, array or dict",
+            "wsystemp in extra_keywords is a list, array or dict",
+            "psys in extra_keywords is a list, array or dict",
+            "psysattn in extra_keywords is a list, array or dict",
+            "ambpsys in extra_keywords is a list, array or dict",
+            "bfmask in extra_keywords is a list, array or dict",
+            "wcorr in extra_keywords is a list, array or dict",
+        ],
+    ):
+        uv_in.read(carma_file, skip_extra_sources=True, phase_type="drift")
+
+    # Spoofing these values for now, since the data is from the noise source, which
+    # doesn't neccessarily have correct values
+    uv_in._set_phased()
+    uv_in.phase_center_ra = 0.0
+    uv_in.phase_center_dec = 0.0
+    uv_in.phase_center_epoch = 2000.0
+    uv_in.extra_keywords = {}  # TODO: Capture these extra keywords
+
+    uv_in.write_miriad(testfile, clobber=True)
+
+    uv_out.read(testfile)
+    assert uv_in == uv_out
+
+
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_miriad_write_uvfits(uv_in_uvfits):
     """
