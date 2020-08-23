@@ -39,7 +39,7 @@ def uv_in_uvfits(tmp_path):
     write_file = os.path.join(tmp_path, "outtest_mir.uvfits")
 
     # Currently only one source is supported.
-    uv_in.read(testfile)
+    uv_in.read(testfile, pseudo_cont=True)
     uv_out = UVData()
 
     yield uv_in, uv_out, write_file
@@ -192,7 +192,11 @@ def test_read_mir_no_records(err_type=IndexError):
     uv_in = UVData()
     with pytest.raises(err_type):
         uv_in.read_mir(testfile, isource=-1)
+
+    with pytest.raises(err_type):
         uv_in.read_mir(testfile, isb=[])
+
+    with pytest.raises(err_type):
         uv_in.read_mir(testfile, isb=[-156])
 
 
