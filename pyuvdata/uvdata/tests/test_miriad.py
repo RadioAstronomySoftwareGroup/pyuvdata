@@ -115,6 +115,12 @@ def test_read_write_read_carma(tmp_path):
     uv_out = UVData()
     carma_file = os.path.join(DATA_PATH, "carma_miriad")
     testfile = str(tmp_path / "outtest_carma_miriad.uv")
+
+    # Test file is multi-source, make sure it bugs out
+    pytest.raises(
+        NotImplementedError, uv_in.read, carma_file,
+    )
+
     with uvtest.check_warnings(
         UserWarning,
         [
@@ -153,7 +159,7 @@ def test_read_write_read_carma(tmp_path):
             "wcorr in extra_keywords is a list, array or dict",
         ],
     ):
-        uv_in.read(carma_file, skip_extra_sources=True, phase_type="drift")
+        uv_in.read(carma_file, skip_extra_sources=True)
 
     # Spoofing these values for now, since the data is from the noise source, which
     # doesn't neccessarily have correct values

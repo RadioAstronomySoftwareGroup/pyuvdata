@@ -53,7 +53,7 @@ class Mir(UVData):
         corrchunk : list of int
             Correlator chunk codes for MIR dataset
         pseudo_cont : boolean
-            Read in pseudo-continuuum values. Default is false.
+            Read in only pseudo-continuuum values. Default is false.
         flex_spw : boolean
             Allow for support of multiple spectral windows. Default is true.
         """
@@ -85,10 +85,11 @@ class Mir(UVData):
         #
         corrchunk_full_list = np.unique(mir_data.sp_read["corrchunk"]).tolist()
         if corrchunk is None:
-            corrchunk = corrchunk_full_list.copy()
-            if not pseudo_cont:
+            if pseudo_cont:
+                corrchunk = [0]
+            else:
+                corrchunk = corrchunk_full_list.copy()
                 corrchunk.remove(0) if 0 in corrchunk else None
-
         corrchunk_dict = {key: key in corrchunk for key in corrchunk_full_list}
 
         mir_data.use_in = mir_data.in_read["isource"] == isource
@@ -148,18 +149,9 @@ class Mir(UVData):
 
             # Make sure that something weird hasn't happend with the metadata (this
             # really should never happen)
-            if len(spw_fsky) != 1:
-                raise ValueError(
-                    "Spectral window must have the same fsky for whole obs!"
-                )
-            if len(spw_fres) != 1:
-                raise ValueError(
-                    "Spectral window must have the same fres for whole obs!"
-                )
-            if len(spw_nchan) != 1:
-                raise ValueError(
-                    "Spectral window must have the same nch for whole obs!"
-                )
+            assert len(spw_fsky) == 1
+            assert len(spw_fres) == 1
+            assert len(spw_nchan) == 1
 
             #  Get the data in the right units and dtype
             spw_fsky = np.float(spw_fsky * 1e9)  # GHz -> Hz
