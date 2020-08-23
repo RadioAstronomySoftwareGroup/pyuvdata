@@ -180,6 +180,9 @@ def test_flex_spw_read(tmp_path):
     dummyfile = str(tmp_path / "dummy.mirtest.uvfits")
 
     uv_in2 = uv_in.copy()
+    with pytest.raises(NotImplementedError):
+        uv_in2.frequency_average(2)
+
     uv_in2.flex_spw_id_array[0] = 1
     with pytest.raises(ValueError):
         uv_in2._check_flex_spw_contiguous()
