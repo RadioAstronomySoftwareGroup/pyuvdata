@@ -419,8 +419,9 @@ def test_flag_nsample_basic():
     bad = uv.select(antenna_nums=bad_ants, inplace=False)
     good = uv.select(antenna_nums=good_ants, inplace=False)
     assert np.all(bad.flag_array)
+    # TODO: Spw axis to be collapsed in future release
     good.flag_array = good.flag_array.reshape(
-        (good.Ntimes, good.Nbls, good.Nspws, good.Nfreqs, good.Npols)
+        (good.Ntimes, good.Nbls, 1, good.Nfreqs, good.Npols)
     )
     # good ants should be flagged except for the first time and second freq,
     # and for the second time and first freq
@@ -430,8 +431,9 @@ def test_flag_nsample_basic():
     assert np.all(good.flag_array[0, :, :, 0, :])
     assert np.all(good.flag_array[-1, :, :, 1, :])
     # check that nsample array is filled properly
+    # TODO: Spw axis to be collapsed in future release
     uv.nsample_array = uv.nsample_array.reshape(
-        (uv.Ntimes, uv.Nbls, uv.Nspws, uv.Nfreqs, uv.Npols)
+        (uv.Ntimes, uv.Nbls, 1, uv.Nfreqs, uv.Npols)
     )
     assert np.all(uv.nsample_array[1:-1, :, :, :, :] == 0.0)
     assert np.all(uv.nsample_array[0, :, :, 1, :] == 1.0)
@@ -479,7 +481,8 @@ def test_flag_start_flag(flag_file_init):
         flag_dc_offset=False,
     )
 
-    reshape = [uv.Ntimes, uv.Nbls, uv.Nspws, uv.Nfreqs, uv.Npols]
+    # TODO: Spw axis to be collapsed in future release
+    reshape = [uv.Ntimes, uv.Nbls, 1, uv.Nfreqs, uv.Npols]
     time_inds = [0, 1, -1, -2]
     assert np.all(
         uv.flag_array.reshape(reshape)[time_inds, :, :, :, :]
