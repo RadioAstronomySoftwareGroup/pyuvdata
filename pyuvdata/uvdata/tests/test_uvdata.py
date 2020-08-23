@@ -7359,8 +7359,9 @@ def test_frequency_average(uvdata_data):
 
     assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
 
+    # TODO: Spw axis to be collapsed in future release
     expected_freqs = uvdata_data.uv_object2.freq_array.reshape(
-        uvdata_data.uv_object2.Nspws, int(uvdata_data.uv_object2.Nfreqs / 2), 2
+        1, int(uvdata_data.uv_object2.Nfreqs / 2), 2
     ).mean(axis=2)
     assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
 
@@ -7373,9 +7374,10 @@ def test_frequency_average(uvdata_data):
 
     # no flagging, so the following is true
     expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze="none")
+    # TODO: Spw axis to be collapsed in future release
     reshape_tuple = (
         expected_data.shape[0],
-        uvdata_data.uv_object2.Nspws,
+        1,
         int(uvdata_data.uv_object2.Nfreqs / 2),
         2,
         uvdata_data.uv_object2.Npols,
@@ -7417,8 +7419,9 @@ def test_frequency_average_uneven(uvdata_data):
         :, np.arange((uvdata_data.uv_object2.Nfreqs // 7) * 7)
     ]
 
+    # TODO: Spw axis to be collapsed in future release
     expected_freqs = expected_freqs.reshape(
-        uvdata_data.uv_object2.Nspws, int(uvdata_data.uv_object2.Nfreqs // 7), 7
+        1, int(uvdata_data.uv_object2.Nfreqs // 7), 7
     ).mean(axis=2)
     assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
 
@@ -7427,9 +7430,10 @@ def test_frequency_average_uneven(uvdata_data):
     expected_data = expected_data[
         :, :, 0 : ((uvdata_data.uv_object2.Nfreqs // 7) * 7), :
     ]
+    # TODO: Spw axis to be collapsed in future release
     reshape_tuple = (
         expected_data.shape[0],
-        uvdata_data.uv_object2.Nspws,
+        1,
         int(uvdata_data.uv_object2.Nfreqs // 7),
         7,
         uvdata_data.uv_object2.Npols,
@@ -7461,15 +7465,17 @@ def test_frequency_average_flagging(uvdata_data):
 
     assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
 
+    # TODO: Spw axis to be collapsed in future release
     expected_freqs = uvdata_data.uv_object2.freq_array.reshape(
-        uvdata_data.uv_object2.Nspws, int(uvdata_data.uv_object2.Nfreqs / 2), 2
+        1, int(uvdata_data.uv_object2.Nfreqs / 2), 2
     ).mean(axis=2)
     assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
 
+    # TODO: Spw axis to be collapsed in future release
     expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze="none")
     reshape_tuple = (
         expected_data.shape[0],
-        uvdata_data.uv_object2.Nspws,
+        1,
         int(uvdata_data.uv_object2.Nfreqs / 2),
         2,
         uvdata_data.uv_object2.Npols,
@@ -7508,15 +7514,17 @@ def test_frequency_average_flagging_partial(uvdata_data):
 
     assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
 
+    # TODO: Spw axis to be collapsed in future release
     expected_freqs = uvdata_data.uv_object2.freq_array.reshape(
-        uvdata_data.uv_object2.Nspws, int(uvdata_data.uv_object2.Nfreqs / 2), 2
+        1, int(uvdata_data.uv_object2.Nfreqs / 2), 2
     ).mean(axis=2)
     assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
 
     expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze="none")
+    # TODO: Spw axis to be collapsed in future release
     reshape_tuple = (
         expected_data.shape[0],
-        uvdata_data.uv_object2.Nspws,
+        1,
         int(uvdata_data.uv_object2.Nfreqs / 2),
         2,
         uvdata_data.uv_object2.Npols,
@@ -7553,15 +7561,17 @@ def test_frequency_average_flagging_full_and_partial(uvdata_data):
 
     assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
 
+    # TODO: Spw axis to be collapsed in future release
     expected_freqs = uvdata_data.uv_object2.freq_array.reshape(
-        uvdata_data.uv_object2.Nspws, int(uvdata_data.uv_object2.Nfreqs / 2), 2
+        1, int(uvdata_data.uv_object2.Nfreqs / 2), 2
     ).mean(axis=2)
     assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
 
     expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze="none")
+    # TODO: Spw axis to be collapsed in future release
     reshape_tuple = (
         expected_data.shape[0],
-        uvdata_data.uv_object2.Nspws,
+        1,
         int(uvdata_data.uv_object2.Nfreqs / 2),
         2,
         uvdata_data.uv_object2.Npols,
@@ -7617,16 +7627,18 @@ def test_frequency_average_summing_corr_mode(uvdata_data):
 
     assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
 
+    # TODO: Spw axis to be collapsed in future release
     expected_freqs = uvdata_data.uv_object2.freq_array.reshape(
-        uvdata_data.uv_object2.Nspws, int(uvdata_data.uv_object2.Nfreqs / 2), 2
+        1, int(uvdata_data.uv_object2.Nfreqs / 2), 2
     ).mean(axis=2)
     assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
 
     # no flagging, so the following is true
     expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze="none")
+    # TODO: Spw axis to be collapsed in future release
     reshape_tuple = (
         expected_data.shape[0],
-        uvdata_data.uv_object2.Nspws,
+        1,
         int(uvdata_data.uv_object2.Nfreqs / 2),
         2,
         uvdata_data.uv_object2.Npols,
@@ -7665,15 +7677,17 @@ def test_frequency_average_propagate_flags(uvdata_data):
 
     assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
 
+    # TODO: Spw axis to be collapsed in future release
     expected_freqs = uvdata_data.uv_object2.freq_array.reshape(
-        uvdata_data.uv_object2.Nspws, int(uvdata_data.uv_object2.Nfreqs / 2), 2
+        1, int(uvdata_data.uv_object2.Nfreqs / 2), 2
     ).mean(axis=2)
     assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
 
     expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze="none")
+    # TODO: Spw axis to be collapsed in future release
     reshape_tuple = (
         expected_data.shape[0],
-        uvdata_data.uv_object2.Nspws,
+        1,
         int(uvdata_data.uv_object2.Nfreqs / 2),
         2,
         uvdata_data.uv_object2.Npols,
@@ -7715,8 +7729,9 @@ def test_frequency_average_nsample_precision(uvdata_data):
 
     assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
 
+    # TODO: Spw axis to be collapsed in future release
     expected_freqs = uvdata_data.uv_object2.freq_array.reshape(
-        uvdata_data.uv_object2.Nspws, int(uvdata_data.uv_object2.Nfreqs / 2), 2
+        1, int(uvdata_data.uv_object2.Nfreqs / 2), 2
     ).mean(axis=2)
     assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
 
@@ -7729,9 +7744,10 @@ def test_frequency_average_nsample_precision(uvdata_data):
 
     # no flagging, so the following is true
     expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze="none")
+    # TODO: Spw axis to be collapsed in future release
     reshape_tuple = (
         expected_data.shape[0],
-        uvdata_data.uv_object2.Nspws,
+        1,
         int(uvdata_data.uv_object2.Nfreqs / 2),
         2,
         uvdata_data.uv_object2.Npols,
