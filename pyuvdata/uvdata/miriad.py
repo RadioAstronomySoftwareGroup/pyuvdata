@@ -626,15 +626,19 @@ class Miriad(UVData):
                 dec_list[blt_index] = dec_pol_list[blt_index, 0]
 
         # get unflagged blts
-        # If we have a 1-baseline, single integration data set is, set single_ra and
+        # If we have a 1-baseline, single integration data set, set single_ra and
         # single_time to be true, otherwise evaluate the arrays
         blt_good = np.where(~np.all(self.flag_array, axis=(1, 2, 3)))
-        if len(blt_good[0]) == 1:
-            single_ra = True
-            single_time = True
-        else:
-            single_ra = np.isclose(np.mean(np.diff(ra_list[blt_good])), 0.0)
-            single_time = np.isclose(np.mean(np.diff(self.time_array[blt_good])), 0.0)
+        single_ra = (
+            True
+            if (len(blt_good[0]) == 1)
+            else (np.isclose(np.mean(np.diff(ra_list[blt_good])), 0.0))
+        )
+        single_time = (
+            True
+            if (len(blt_good[0]) == 1)
+            else (np.isclose(np.mean(np.diff(self.time_array[blt_good])), 0.0))
+        )
 
         # first check to see if the phase_type was specified.
         if phase_type is not None:
