@@ -5415,6 +5415,10 @@ class UVData(UVBase):
             samples out of the average, except when all contributors are
             flagged.
         """
+        if self.flex_spw:
+            raise NotImplementedError(
+                "Frequency averaging not (yet) available for flexible spectral windows"
+            )
         self._check_freq_spacing()
 
         n_final_chan = int(np.floor(self.Nfreqs / n_chan_to_avg))
