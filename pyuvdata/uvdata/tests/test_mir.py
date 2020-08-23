@@ -38,7 +38,7 @@ def uv_in_uvfits(tmp_path):
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     write_file = str(tmp_path / "outtest_mir.uvfits")
 
-    # Currently only one source and one spectral window are supported.
+    # Currently only one source is supported.
     uv_in.read(testfile)
     uv_out = UVData()
 
@@ -54,7 +54,7 @@ def uv_in_uvh5(tmp_path):
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     write_file = str(tmp_path / "outtest_mir.uvh5")
 
-    # Currently only one source and one spectral window are supported.
+    # Currently only one source is supported.
     uv_in.read(testfile)
     uv_out = UVData()
 
@@ -64,6 +64,24 @@ def uv_in_uvh5(tmp_path):
     del uv_in, uv_out
 
 
+@pytest.fixture
+def uv_in_miriad(tmp_path):
+    uv_in = UVData()
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    write_file = str(tmp_path / "outtest_mir.miriad")
+
+    # Have to select continuum values only, since MIRAID has a cap on the number of
+    # channels thats < 10^6
+    uv_in.read(testfile, pseudo_cont=True)
+    uv_out = UVData()
+
+    yield uv_in, uv_out, write_file
+
+    # cleanup
+    del uv_in, uv_out
+
+
+@pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
 def test_read_mir_write_uvfits(uv_in_uvfits):
     """
     Mir to uvfits loopback test.
@@ -85,6 +103,7 @@ def test_read_mir_write_uvfits(uv_in_uvfits):
     assert mir_uv == uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:LST values stored ")
 def test_read_mir_write_uvh5(uv_in_uvh5):
     """
     Mir to uvfits loopback test.
@@ -108,6 +127,33 @@ def test_read_mir_write_uvh5(uv_in_uvh5):
     assert mir_uv == uvh5_uv
 
 
+def test_read_mir_write_miriad(uv_in_miriad):
+    """
+    Mir to miriad loopback test.
+
+    Read in Mir files, write out as miriad, read back in and check for
+    object equality.
+    """
+    mir_uv, miriad_uv, testfile = uv_in_miriad
+
+    mir_uv.write_miriad(testfile)
+    miriad_uv.read_miriad(testfile)
+
+    # Check the history first via find
+    assert 0 == miriad_uv.history.find(
+        mir_uv.history + "  Read/written with pyuvdata version:"
+    )
+
+    # test fails because of updated history, so this is our workaround for now.
+    mir_uv.history = miriad_uv.history
+
+    # read_miriad right now forces you to use the astropy-calculated LST. While it
+    # would be good to fix, it is presently beyond the scope of work right now.
+    # TODO: Fix this
+    miriad_uv.lst_array = mir_uv.lst_array
+    assert mir_uv == miriad_uv
+
+
 def test_write_mir(uv_in_uvfits, err_type=NotImplementedError):
     """
     Mir writer test
@@ -122,9 +168,62 @@ def test_write_mir(uv_in_uvfits, err_type=NotImplementedError):
         mir_uv.write_mir("dummy.mir")
 
 
-def test_read_mir_no_records(
-    err_type=IndexError, err_msg="No valid records matching those selections!"
-):
+def test_flex_spw_read(tmp_path):
+    """
+    Mir test for flexible spws.
+
+    Read in Mir files using flexible spectral windows, all of the same nchan
+    """
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    uv_in = UVData()
+    uv_in.read_mir(testfile)
+    dummyfile = str(tmp_path / "dummy.mirtest.uvfits")
+
+    uv_in2 = uv_in.copy()
+    uv_in2.flex_spw_id_array[0] = 1
+    with pytest.raises(ValueError):
+        uv_in2._check_flex_spw_contiguous()
+
+    uv_in2 = uv_in.copy()
+    uv_in2.channel_width[0] = 0
+    with pytest.raises(ValueError, match="The frequencies are not evenly spaced"):
+        uv_in2._check_freq_spacing()
+
+    uv_in2 = uv_in.copy()
+    uv_in2.channel_width[:] = 0
+    with pytest.raises(ValueError, match="The frequencies are separated by more"):
+        uv_in2._check_freq_spacing()
+
+    uv_in2 = uv_in.copy()
+    uv_in2.freq_array *= -1
+    uv_in2.channel_width *= -1
+    with pytest.raises(ValueError, match="Frequency values must be > 0 for UVFITS!"):
+        uv_in2.write_uvfits(dummyfile, spoof_nonessential=True)
+
+    uv_in2 = uv_in.copy()
+    uv_in2.freq_array[:] = 1
+    uv_in2.channel_width *= 0
+    with pytest.raises(ValueError, match="Something is wrong, frequency values not"):
+        uv_in2.write_uvfits(dummyfile, spoof_nonessential=True)
+
+
+def test_multi_nchan_spw_read(tmp_path):
+    """
+    Mir to uvfits error test for spws of different sizes.
+
+    Read in Mir files, write out as uvfits, read back in and check for
+    object equality.
+    """
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    uv_in = UVData()
+    uv_in.read_mir(testfile, corrchunk=[0, 1, 2, 3, 4])
+
+    dummyfile = str(tmp_path / "dummy.mirtest.uvfits")
+    with pytest.raises(IndexError):
+        uv_in.write_uvfits(dummyfile, spoof_nonessential=True)
+
+
+def test_read_mir_no_records(err_type=IndexError):
     """
     Mir no-records check
 
@@ -132,8 +231,10 @@ def test_read_mir_no_records(
     """
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     uv_in = UVData()
-    with pytest.raises(err_type, match=err_msg):
+    with pytest.raises(err_type):
         uv_in.read_mir(testfile, isource=-1)
+        uv_in.read_mir(testfile, isb=[])
+        uv_in.read_mir(testfile, isb=[-156])
 
 
 def test_mir_auto_read(

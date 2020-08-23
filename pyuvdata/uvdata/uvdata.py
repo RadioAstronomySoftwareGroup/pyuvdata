@@ -583,9 +583,6 @@ class UVData(UVBase):
         self._flex_spw_id_array.required = True
         # Now make sure that chan_width is set to be an array
         self._channel_width.form = ("Nfreqs",)
-        # If channel_width was previously set, recast to array
-        if isinstance(self.channel_width, float):
-            self.channel_width = np.tile(self.channel_width, self.Nfreqs)
 
     def _set_drift(self):
         """
@@ -924,7 +921,8 @@ class UVData(UVBase):
         if raise_spacing_error:
             raise ValueError(
                 "The frequencies are not evenly spaced (probably "
-                "because of a select operation). Some file formats "
+                "because of a select operation) or has differing "
+                "values of channel widths. Some file formats "
                 "(e.g. uvfits, miriad) and methods (frequency_average) "
                 "do not support unevenly spaced frequencies."
             )
@@ -6033,7 +6031,15 @@ class UVData(UVBase):
         self._convert_from_filetype(fhd_obj)
         del fhd_obj
 
-    def read_mir(self, filepath, isource=None, irec=None, isb=None, corrchunk=None):
+    def read_mir(
+        self,
+        filepath,
+        isource=None,
+        irec=None,
+        isb=None,
+        corrchunk=None,
+        pseudo_cont=False,
+    ):
         """
         Read in data from an SMA MIR file.
 
@@ -6054,12 +6060,19 @@ class UVData(UVBase):
             Sideband code for MIR dataset
         corrchunk : int
             Correlator chunk code for MIR dataset
+        pseudo_cont : boolean
+            Read in only pseudo-continuuum values. Default is false.
         """
         from . import mir
 
         mir_obj = mir.Mir()
         mir_obj.read_mir(
-            filepath, isource=isource, irec=irec, isb=isb, corrchunk=corrchunk
+            filepath,
+            isource=isource,
+            irec=irec,
+            isb=isb,
+            corrchunk=corrchunk,
+            pseudo_cont=pseudo_cont,
         )
         self._convert_from_filetype(mir_obj)
         del mir_obj
@@ -6818,6 +6831,7 @@ class UVData(UVBase):
         irec=None,
         isb=None,
         corrchunk=None,
+        pseudo_cont=False,
     ):
         """
         Read a generic file into a UVData object.
@@ -7034,6 +7048,8 @@ class UVData(UVBase):
             Sideband code for MIR dataset
         corrchunk : int
             Correlator chunk code for MIR dataset
+        pseudo_cont : boolean
+            Read in only pseudo-continuuum values in MIR dataset. Default is false.
 
         Raises
         ------
@@ -7397,7 +7413,12 @@ class UVData(UVBase):
 
             elif file_type == "mir":
                 self.read_mir(
-                    filename, isource=isource, irec=irec, isb=isb, corrchunk=corrchunk
+                    filename,
+                    isource=isource,
+                    irec=irec,
+                    isb=isb,
+                    corrchunk=corrchunk,
+                    pseudo_cont=pseudo_cont,
                 )
                 select = False
 
