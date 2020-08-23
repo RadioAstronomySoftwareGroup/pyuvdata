@@ -64,23 +64,6 @@ def uv_in_uvh5(tmp_path):
     del uv_in, uv_out
 
 
-@pytest.fixture
-def uv_in_miriad(tmp_path):
-    uv_in = UVData()
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    write_file = os.path.join(tmp_path, "outtest_mir.miriad")
-
-    # Have to select continuum values only, since MIRAID has a cap on the number of
-    # channels thats < 10^6
-    uv_in.read(testfile, pseudo_cont=True)
-    uv_out = UVData()
-
-    yield uv_in, uv_out, write_file
-
-    # cleanup
-    del uv_in, uv_out
-
-
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
 def test_read_mir_write_uvfits(uv_in_uvfits):
     """
@@ -125,33 +108,6 @@ def test_read_mir_write_uvh5(uv_in_uvh5):
     mir_uv.history = uvh5_uv.history
 
     assert mir_uv == uvh5_uv
-
-
-def test_read_mir_write_miriad(uv_in_miriad):
-    """
-    Mir to miriad loopback test.
-
-    Read in Mir files, write out as miriad, read back in and check for
-    object equality.
-    """
-    mir_uv, miriad_uv, testfile = uv_in_miriad
-
-    mir_uv.write_miriad(testfile)
-    miriad_uv.read_miriad(testfile)
-
-    # Check the history first via find
-    assert 0 == miriad_uv.history.find(
-        mir_uv.history + "  Read/written with pyuvdata version:"
-    )
-
-    # test fails because of updated history, so this is our workaround for now.
-    mir_uv.history = miriad_uv.history
-
-    # read_miriad right now forces you to use the astropy-calculated LST. While it
-    # would be good to fix, it is presently beyond the scope of work right now.
-    # TODO: Fix this
-    miriad_uv.lst_array = mir_uv.lst_array
-    assert mir_uv == miriad_uv
 
 
 def test_write_mir(uv_in_uvfits, err_type=NotImplementedError):
