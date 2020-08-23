@@ -36,7 +36,7 @@ def mir_data_object():
 def uv_in_uvfits(tmp_path):
     uv_in = UVData()
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    write_file = str(tmp_path / "outtest_mir.uvfits")
+    write_file = os.path.join(tmp_path, "outtest_mir.uvfits")
 
     # Currently only one source is supported.
     uv_in.read(testfile)
@@ -52,7 +52,7 @@ def uv_in_uvfits(tmp_path):
 def uv_in_uvh5(tmp_path):
     uv_in = UVData()
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    write_file = str(tmp_path / "outtest_mir.uvh5")
+    write_file = os.path.join(tmp_path, "outtest_mir.uvh5")
 
     # Currently only one source is supported.
     uv_in.read(testfile)
@@ -68,7 +68,7 @@ def uv_in_uvh5(tmp_path):
 def uv_in_miriad(tmp_path):
     uv_in = UVData()
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    write_file = str(tmp_path / "outtest_mir.miriad")
+    write_file = os.path.join(tmp_path, "outtest_mir.miriad")
 
     # Have to select continuum values only, since MIRAID has a cap on the number of
     # channels thats < 10^6
@@ -177,7 +177,7 @@ def test_flex_spw_read(tmp_path):
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     uv_in = UVData()
     uv_in.read_mir(testfile)
-    dummyfile = str(tmp_path / "dummy.mirtest.uvfits")
+    dummyfile = os.path.join(tmp_path, "dummy.mirtest.uvfits")
 
     uv_in2 = uv_in.copy()
     with pytest.raises(NotImplementedError):
@@ -221,7 +221,7 @@ def test_multi_nchan_spw_read(tmp_path):
     uv_in = UVData()
     uv_in.read_mir(testfile, corrchunk=[0, 1, 2, 3, 4])
 
-    dummyfile = str(tmp_path / "dummy.mirtest.uvfits")
+    dummyfile = os.path.join(tmp_path, "dummy.mirtest.uvfits")
     with pytest.raises(IndexError):
         uv_in.write_uvfits(dummyfile, spoof_nonessential=True)
 
