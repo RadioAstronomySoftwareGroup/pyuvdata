@@ -182,7 +182,7 @@ def test_multi_nchan_spw_read(tmp_path):
         uv_in.write_uvfits(dummyfile, spoof_nonessential=True)
 
 
-def test_read_mir_no_records(err_type=IndexError):
+def test_read_mir_no_records():
     """
     Mir no-records check
 
@@ -190,13 +190,13 @@ def test_read_mir_no_records(err_type=IndexError):
     """
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     uv_in = UVData()
-    with pytest.raises(err_type):
+    with pytest.raises(IndexError, match="No valid records matching those selections!"):
         uv_in.read_mir(testfile, isource=-1)
 
-    with pytest.raises(err_type):
+    with pytest.raises(IndexError, match="No valid sidebands selected!"):
         uv_in.read_mir(testfile, isb=[])
 
-    with pytest.raises(err_type):
+    with pytest.raises(IndexError, match="isb values contain invalid entries"):
         uv_in.read_mir(testfile, isb=[-156])
 
 

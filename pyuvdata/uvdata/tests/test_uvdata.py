@@ -62,6 +62,7 @@ def uvdata_props():
         "_antenna_numbers",
         "_antenna_positions",
         "_phase_type",
+        "_flex_spw",
     ]
 
     required_properties = [
@@ -97,6 +98,7 @@ def uvdata_props():
         "antenna_numbers",
         "antenna_positions",
         "phase_type",
+        "flex_spw",
     ]
 
     extra_parameters = [
@@ -116,7 +118,6 @@ def uvdata_props():
         "_phase_center_frame",
         "_eq_coeffs",
         "_eq_coeffs_convention",
-        "_flex_spw",
         "_flex_spw_id_array",
     ]
 
@@ -137,7 +138,6 @@ def uvdata_props():
         "phase_center_frame",
         "eq_coeffs",
         "eq_coeffs_convention",
-        "flex_spw",
         "flex_spw_id_array",
     ]
 

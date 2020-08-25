@@ -44,7 +44,7 @@ paper_miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
 @pytest.fixture(scope="function")
 def uv_in_paper(paper_miriad, tmp_path):
     uv_in = paper_miriad
-    write_file = str(tmp_path / "outtest_miriad.uv")
+    write_file = os.path.join(tmp_path, "outtest_miriad.uv")
     uv_in.write_miriad(write_file, clobber=True)
     uv_out = UVData()
 
@@ -57,7 +57,7 @@ def uv_in_paper(paper_miriad, tmp_path):
 @pytest.fixture(scope="function")
 def uv_in_uvfits(paper_miriad, tmp_path):
     uv_in = paper_miriad
-    write_file = str(tmp_path / "outtest_miriad.uvfits")
+    write_file = os.path.join(tmp_path, "outtest_miriad.uvfits")
 
     uv_out = UVData()
 
@@ -73,7 +73,7 @@ def test_read_write_read_atca(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
     atca_file = os.path.join(DATA_PATH, "atca_miriad")
-    testfile = str(tmp_path / "outtest_atca_miriad.uv")
+    testfile = os.path.join(tmp_path, "outtest_atca_miriad.uv")
     with uvtest.check_warnings(
         UserWarning,
         [
@@ -102,7 +102,7 @@ def test_read_nrao_write_miriad_read_miriad(casa_uvfits, tmp_path):
     """Test reading in a CASA tutorial uvfits file, writing and reading as miriad"""
     uvfits_uv = casa_uvfits
     miriad_uv = UVData()
-    writefile = str(tmp_path / "outtest_miriad.uv")
+    writefile = os.path.join(tmp_path, "outtest_miriad.uv")
     uvfits_uv.write_miriad(writefile, clobber=True)
     miriad_uv.read(writefile)
     assert uvfits_uv == miriad_uv
@@ -115,7 +115,7 @@ def test_read_write_read_carma(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
     carma_file = os.path.join(DATA_PATH, "carma_miriad")
-    testfile = str(tmp_path / "outtest_carma_miriad.uv")
+    testfile = os.path.join(tmp_path, "outtest_carma_miriad.uv")
 
     # Test file is multi-source, make sure it bugs out
     pytest.raises(
@@ -168,7 +168,17 @@ def test_read_write_read_carma(tmp_path):
     uv_in.phase_center_ra = 0.0
     uv_in.phase_center_dec = 0.0
     uv_in.phase_center_epoch = 2000.0
-    uv_in.extra_keywords = {}  # TODO: Capture these extra keywords
+
+    # Extra keywords cannnot handle lists, dicts, or arrays, so drop them from the
+    # dataset, so that the writer doesn't run into issues.
+    # TODO: Capture these extra keywords
+    for item in list(uv_in.extra_keywords.keys()):
+        if isinstance(uv_in.extra_keywords[item], dict):
+            uv_in.extra_keywords.pop(item)
+        elif isinstance(uv_in.extra_keywords[item], list):
+            uv_in.extra_keywords.pop(item)
+        elif isinstance(uv_in.extra_keywords[item], np.ndarray):
+            uv_in.extra_keywords.pop(item)
 
     uv_in.write_miriad(testfile, clobber=True)
 
@@ -362,7 +372,7 @@ def test_miriad_location_handling(paper_miriad_master, tmp_path):
     uv_in = paper_miriad_master
     uv_out = UVData()
 
-    testfile = str(tmp_path / "outtest_miriad.uv")
+    testfile = os.path.join(tmp_path, "outtest_miriad.uv")
     aipy_uv = aipy_extracts.UV(paper_miriad_file)
 
     if os.path.exists(testfile):
@@ -850,7 +860,7 @@ def test_miriad_write_miriad_unkonwn_phase_error(uv_in_paper):
 def test_miriad_write_read_diameters(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
-    write_file = str(tmp_path / "outtest_miriad.uv")
+    write_file = os.path.join(tmp_path, "outtest_miriad.uv")
     # check for backwards compatibility with old keyword 'diameter' for
     # antenna diameters
     testfile_diameters = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA")
@@ -1178,7 +1188,7 @@ def test_read_write_read_miriad_partial_with_warnings(uv_in_paper, tmp_path):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_write_read_miriad_partial_metadata_only(uv_in_paper, tmp_path):
     uv_in, uv_out, write_file = uv_in_paper
-    write_file2 = str(tmp_path / "outtest_miriad2.uv")
+    write_file2 = os.path.join(tmp_path, "outtest_miriad2.uv")
 
     # try metadata only read
     uv_in_meta = UVData()
@@ -1227,7 +1237,7 @@ def test_read_ms_write_miriad_casa_history(tmp_path):
     ms_uv = UVData()
     miriad_uv = UVData()
     ms_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
-    testfile = str(tmp_path / "outtest_miriad")
+    testfile = os.path.join(tmp_path, "outtest_miriad")
     ms_uv.read(ms_file)
 
     ms_uv.write_miriad(testfile, clobber=True)
@@ -1300,8 +1310,8 @@ def test_multi_files(casa_uvfits, tmp_path):
     Reading multiple files at once.
     """
     uv_full = casa_uvfits
-    testfile1 = str(tmp_path / "uv1")
-    testfile2 = str(tmp_path / "uv2")
+    testfile1 = os.path.join(tmp_path, "uv1")
+    testfile2 = os.path.join(tmp_path, "uv2")
     # rename telescope to avoid name warning
     uv_full.unphase_to_drift()
     uv_full.conjugate_bls("ant1<ant2")
@@ -1350,7 +1360,7 @@ def test_antpos_units(casa_uvfits, tmp_path):
     Read uvfits, write miriad. Check written antpos are in ns.
     """
     uv = casa_uvfits
-    testfile = str(tmp_path / "uv_antpos_units")
+    testfile = os.path.join(tmp_path, "uv_antpos_units")
     uv.write_miriad(testfile, clobber=True)
     auv = aipy_extracts.UV(testfile)
     aantpos = auv["antpos"].reshape(3, -1).T * const.c.to("m/ns").value
@@ -1393,7 +1403,7 @@ def test_readmiriad_write_miriad_check_time_format(tmp_path):
     tolerance = 1e-8
     assert np.allclose(uvd_l, uv_l, atol=tolerance)
     # test write-out
-    fout = str(tmp_path / "ex_miriad")
+    fout = os.path.join(tmp_path, "ex_miriad")
     uvd.write_miriad(fout, clobber=True)
     # assert equal to original miriad time
     uv2 = aipy_extracts.UV(fout)

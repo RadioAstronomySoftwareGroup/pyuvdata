@@ -739,10 +739,6 @@ class UVH5(UVData):
                 flags = _index_dset(flags_dset, inds)
                 nsamples = _index_dset(nsamples_dset, inds)
 
-                # Commenting this out for now, since we are explicitly breaking this
-                # association between data shape and Nspws
-                # assert self.Nspws == visdata.shape[1]
-
                 # down select on other dimensions if necessary
                 # use indices not slices here: generally not the bottleneck
                 if not multidim_index and freq_frac < 1:
