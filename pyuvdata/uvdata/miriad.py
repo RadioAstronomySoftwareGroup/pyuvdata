@@ -377,7 +377,10 @@ class Miriad(UVData):
                         warn_extra_sources = False
                     continue
                 raise NotImplementedError(
-                    "This appears to be a multi source file, which is not supported."
+                    "This appears to be a multi source file, which is not supported. "
+                    "You can bypass this error bu using skip_extra_sources=True to "
+                    "read in only the data belonging to the first source in the data "
+                    "set (and skip data from other sources)."
                 )
             else:
                 _source = source
@@ -809,11 +812,6 @@ class Miriad(UVData):
                 check_freq_spacing=True,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
-
-        # Removing this since it's no longer relevant
-        # check for multiple spws
-        # if self.data_array.shape[1] > 1:
-        #    raise ValueError("write_miriad currently only handles single spw files.")
 
         if os.path.exists(filepath):
             if clobber:

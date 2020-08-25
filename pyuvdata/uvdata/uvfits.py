@@ -476,18 +476,18 @@ class UVFITS(UVData):
                 assert self.Nspws == fq_hdu.header["NO_IF"]
 
                 # TODO: This is fine for now, although I (karto) think that this
-                # is relative to the rest_freq, which can be specified as part of
+                # is relative to the ref_freq, which can be specified as part of
                 # the AIPS SU table.
 
                 # Get rest freq value
-                rest_freq = uvutils._fits_gethduaxis(vis_hdu, 4)[0]
+                ref_freq = uvutils._fits_gethduaxis(vis_hdu, 4)[0]
                 self.channel_width = np.transpose(
                     np.tile(fq_hdu.data["CH WIDTH"], (uvfits_nchan, 1))
                 ).flatten()
                 self.freq_array = np.reshape(
                     np.transpose(
                         (
-                            rest_freq
+                            ref_freq
                             + fq_hdu.data["IF FREQ"]
                             + np.outer(np.arange(uvfits_nchan), fq_hdu.data["CH WIDTH"])
                         )
@@ -793,12 +793,12 @@ class UVFITS(UVData):
                 raise ValueError("Something is wrong, frequency values not unique!")
 
             # If we passed all the above checks, then it's time to fill some extra
-            # array values. Note that 'rest_freq' is something of a placeholder for
+            # array values. Note that 'ref_freq' is something of a placeholder for
             # other exciting things...
-            rest_freq = start_freq_array[0, 0]
+            ref_freq = start_freq_array[0, 0]
         else:
             delta_freq_array = np.array([[self.channel_width]]).astype(np.float)
-            rest_freq = self.freq_array[0, 0]
+            ref_freq = self.freq_array[0, 0]
 
         if self.Npols > 1:
             pol_spacing = np.diff(self.polarization_array)
@@ -938,11 +938,7 @@ class UVFITS(UVData):
             # Otherwise just use the antenna arrays
             parnames_use.append("BASELINE")
 
-        # TODO Karto: Mark why here
-        # if self.Nspws > 1:
-        #     parnames_use += ["FREQSEL "]
-
-        # TODO Karto: Here's where to add "SOURCE " item
+        # TODO Karto: Here's where to add "SOURCE " item, and potentially "FREQSEL "
 
         parnames_use += ["ANTENNA1", "ANTENNA2", "SUBARRAY", "INTTIM  "]
 
@@ -987,7 +983,7 @@ class UVFITS(UVData):
         hdu.header["CDELT3  "] = float(pol_spacing)
 
         hdu.header["CTYPE4  "] = "FREQ    "
-        hdu.header["CRVAL4  "] = rest_freq
+        hdu.header["CRVAL4  "] = ref_freq
         hdu.header["CRPIX4  "] = 1.0
         hdu.header["CDELT4  "] = delta_freq_array[0, 0]
 
@@ -1144,16 +1140,14 @@ class UVFITS(UVData):
         fits_tables = [hdu, ant_hdu]
         # If needed, add the FQ table
         if self.Nspws > 1:
-            # skipping for now and limiting to a single spw
-            # Karto: SKIP NO MORE!
             fmt_d = "%iD" % self.Nspws
             fmt_e = "%iE" % self.Nspws
             fmt_j = "%iJ" % self.Nspws
 
             # TODO Karto: Temp implementation until we fix some other things in UVData
-            if_freq = start_freq_array - rest_freq
+            if_freq = start_freq_array - ref_freq
             ch_width = delta_freq_array
-            tot_bw = (self.Nfreqs // self.Nspws) * np.ones((1, self.Nspws))
+            tot_bw = (self.Nfreqs // self.Nspws) * np.abs(delta_freq_array)
             sideband = np.sign(delta_freq_array) * np.ones((1, self.Nspws))
 
             # FRQSEL is hardcoded at the moment, could think about doing this

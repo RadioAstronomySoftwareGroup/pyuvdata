@@ -296,15 +296,11 @@ class UVData(UVBase):
 
         desc = (
             'Option to construct a "flexible spectral window", which stores'
-            "which stores all spectral channels across the frequency axis of"
-            "data_array. Allows for spectral windows of variable sizes."
+            "all spectral channels across the frequency axis of data_array. "
+            "Allows for spectral windows of variable sizes."
         )
         self._flex_spw = uvp.UVParameter(
-            "flex_spw",
-            description=desc,
-            expected_type=np.bool,
-            value=False,
-            required=False,
+            "flex_spw", description=desc, expected_type=np.bool, value=False,
         )
 
         desc = (
@@ -916,7 +912,6 @@ class UVData(UVBase):
                 rtol=self._channel_width.tols[0],
                 atol=self._channel_width.tols[1],
             ):
-                print(freq_spacing[0, 0], self.channel_width, self._channel_width.tols)
                 raise_chanwidth_error = True
         if raise_spacing_error:
             raise ValueError(
