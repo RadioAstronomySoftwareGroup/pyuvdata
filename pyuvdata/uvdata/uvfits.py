@@ -482,7 +482,7 @@ class UVFITS(UVData):
                 # Get rest freq value
                 ref_freq = uvutils._fits_gethduaxis(vis_hdu, 4)[0]
                 self.channel_width = np.transpose(
-                    np.tile(fq_hdu.data["CH WIDTH"], (uvfits_nchan, 1))
+                    np.tile(abs(fq_hdu.data["CH WIDTH"]), (uvfits_nchan, 1))
                 ).flatten()
                 self.freq_array = np.reshape(
                     np.transpose(
@@ -763,7 +763,12 @@ class UVFITS(UVData):
                 nchan_list += [np.sum(chan_mask)]
                 # TODO: Spw axis to be collapsed in future release
                 start_freq_array += [self.freq_array[0, chan_mask][0]]
-                delta_freq_array += [np.median(self.channel_width[chan_mask])]
+                # Need the array direction here since channel_width is always supposed
+                # to be > 0, but channels can be in decending freq order
+                freq_dir = np.sign(np.median(np.diff(self.freq_array[0, chan_mask])))
+                delta_freq_array += [
+                    np.median(self.channel_width[chan_mask]) * freq_dir
+                ]
 
             start_freq_array = np.reshape(np.array(start_freq_array), (1, -1)).astype(
                 np.float

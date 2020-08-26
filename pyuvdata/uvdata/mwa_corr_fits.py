@@ -116,7 +116,7 @@ class MWACorrFITS(UVData):
                 "integration_time of the data or zero."
             )
 
-        num_ch_flag = int(edge_width / np.abs(self.channel_width))
+        num_ch_flag = int(edge_width / self.channel_width)
         num_start_flag = int(start_flag / self.integration_time[0])
         num_end_flag = int(end_flag / self.integration_time[0])
 

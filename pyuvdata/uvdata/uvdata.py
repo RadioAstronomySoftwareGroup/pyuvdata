@@ -870,7 +870,16 @@ class UVData(UVBase):
             # correctly (grouped together) for this check
             self._check_flex_spw_contiguous()
             diff_chanwidth = np.diff(self.channel_width)
+            freq_dir = []
+            for idx in range(self.Nspws):
+                chan_mask = self.flex_spw_id_array == idx
+                freq_dir += [
+                    np.sign(np.mean(np.diff(self.freq_array[0][chan_mask])))
+                ] * np.sum(chan_mask)
 
+            # Pop off the first entry, since the above arrays are diff'd
+            # (and thus one element shorter)
+            freq_dir = np.array(freq_dir[1:])
             # Ignore cases where looking at the boundaries of spectral windows
             bypass_check = self.flex_spw_id_array[1:] != self.flex_spw_id_array[:-1]
             if not np.all(
@@ -890,7 +899,7 @@ class UVData(UVBase):
                     bypass_check,
                     np.isclose(
                         freq_spacing,
-                        self.channel_width[1:],
+                        self.channel_width[1:] * freq_dir,
                         rtol=self._freq_array.tols[0],
                         atol=self._freq_array.tols[1],
                     ),
@@ -898,6 +907,7 @@ class UVData(UVBase):
             ):
                 raise_chanwidth_error = True
         else:
+            freq_dir = np.sign(np.mean(freq_spacing))
             if not np.isclose(
                 np.min(freq_spacing),
                 np.max(freq_spacing),
@@ -907,8 +917,8 @@ class UVData(UVBase):
                 raise_spacing_error = True
             # TODO: Spw axis to be collapsed in future release
             if not np.isclose(
-                freq_spacing[0, 0],
-                self.channel_width,
+                np.mean(freq_spacing[0]),
+                self.channel_width * freq_dir,
                 rtol=self._channel_width.tols[0],
                 atol=self._channel_width.tols[1],
             ):

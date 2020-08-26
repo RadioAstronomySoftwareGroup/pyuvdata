@@ -163,7 +163,7 @@ class Mir(UVData):
 
             # Populate the channel width array
             channel_width = np.append(
-                channel_width, spw_fres + np.zeros(spw_nchan, dtype=np.float)
+                channel_width, abs(spw_fres) + np.zeros(spw_nchan, dtype=np.float)
             )
 
             # Populate the the spw_id_array

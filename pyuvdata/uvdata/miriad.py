@@ -857,8 +857,15 @@ class Miriad(UVData):
             uv.add_var("sfreq", "d")  # Freq of first channel of the window, Hz -> GHz
             uv["sfreq"] = (self.freq_array[0][win_start_pos] / 1e9).astype(np.double)
 
+            # Need the array direction here since channel_width is always supposed
+            # to be > 0, but channels can be in decending freq order
+            freq_dir = np.sign(
+                self.freq_array[0][np.append(win_start_pos[1:] - 1, self.Nfreqs - 1)]
+                - self.freq_array[0][win_start_pos]
+            )
+
             uv.add_var("sdf", "d")  # Channel width, Hz -> GHz
-            uv["sdf"] = self.channel_width[win_start_pos] / 1e9
+            uv["sdf"] = self.channel_width[win_start_pos] * freq_dir / 1e9
         else:
             uv.add_var("ischan", "i")  # Starting chan of window
             uv["ischan"] = 1  # Miriad is 1-based indexed
@@ -866,11 +873,15 @@ class Miriad(UVData):
             uv.add_var("nschan", "i")  # Number of chan per window
             uv["nschan"] = self.Nfreqs
 
+            # Need the array direction here since channel_width is always supposed
+            # to be > 0, but channels can be in decending freq order
+            freq_dir = np.sign(np.diff(self.freq_array[0][([0, -1])]))
+
             uv.add_var("sfreq", "d")  # Freq of first channel of the window, in GHz
             uv["sfreq"] = (self.freq_array[0, 0] / 1e9).astype(np.double)  # Hz -> GHz
 
             uv.add_var("sdf", "d")  # Channel width, in GHz
-            uv["sdf"] = self.channel_width / 1e9  # Hz -> GHz
+            uv["sdf"] = self.channel_width * freq_dir / 1e9  # Hz -> GHz
 
         # NB: restfreq should go in here at some point
         #####################################################
@@ -1294,8 +1305,8 @@ class Miriad(UVData):
                 header_value = uv[miriad_header_data[item]]
             setattr(self, item, header_value)
 
-        # Do the units conversion for channel_width
-        self.channel_width *= 1e9  # change from GHz to Hz
+        # Do the units and potential sign conversion for channel_width
+        self.channel_width = np.abs(self.channel_width * 1e9)  # change from GHz to Hz
 
         # Deal with the spectral axis now
         if self.Nspws > 1:
@@ -1305,7 +1316,7 @@ class Miriad(UVData):
             self.channel_width = (
                 np.array(
                     [
-                        [chan_width] * nchan
+                        [np.abs(chan_width)] * nchan
                         for (chan_width, nchan) in zip(uv["sdf"] * 1e9, uv["nschan"])
                     ]
                 )
@@ -1342,6 +1353,7 @@ class Miriad(UVData):
             self.freq_array = np.reshape(
                 np.arange(self.Nfreqs) * self.channel_width + uv["sfreq"] * 1e9, (1, -1)
             )
+            self.channel_width = np.float(self.channel_width)
 
         self.spw_array = np.arange(self.Nspws)
 
