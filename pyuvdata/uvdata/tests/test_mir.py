@@ -155,7 +155,6 @@ def test_flex_spw_read(tmp_path):
 
     uv_in2 = uv_in.copy()
     uv_in2.freq_array *= -1
-    uv_in2.channel_width *= -1
     with pytest.raises(ValueError, match="Frequency values must be > 0 for UVFITS!"):
         uv_in2.write_uvfits(dummyfile, spoof_nonessential=True)
 
