@@ -437,8 +437,7 @@ class MWACorrFITS(UVData):
             antenna_names = meta_tbl["TileName"][1::2]
             antenna_flags = meta_tbl["Flag"][1::2]
             cable_lens = np.asarray(meta_tbl["Length"][1::2]).astype(np.str_)
-            # the digital gains have been multiplied by a factor of 64
-            dig_gains = meta_tbl["Gains"][1::2, :].astype(np.float64) / 64
+            dig_gains = meta_tbl["Gains"][1::2, :].astype(np.float64)
 
             # get antenna postions in enu coordinates
             antenna_positions = np.zeros((len(antenna_numbers), 3))
@@ -705,7 +704,11 @@ class MWACorrFITS(UVData):
             if remove_dig_gains:
                 # get gains for included coarse channels
                 coarse_inds = np.where(np.isin(coarse_chans, included_coarse_chans))[0]
-                dig_gains = dig_gains[:, coarse_inds]
+                # during commissioning a shift in the bit selection in the digital
+                # receiver was implemented which effectively multiplies the data by
+                # a factor of 64. To account for this, the digital gains are divided
+                # by a factor of 64 here. For a more detailed explanation, see PR #908.
+                dig_gains = dig_gains[:, coarse_inds] / 64
                 dig_gains = np.repeat(dig_gains, num_fine_chans, axis=1)
                 dig_gains1 = dig_gains[self.ant_1_array, :]
                 dig_gains2 = dig_gains[self.ant_2_array, :]
