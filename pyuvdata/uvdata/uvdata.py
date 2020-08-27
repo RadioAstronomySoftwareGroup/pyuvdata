@@ -297,7 +297,8 @@ class UVData(UVBase):
         desc = (
             'Option to construct a "flexible spectral window", which stores'
             "all spectral channels across the frequency axis of data_array. "
-            "Allows for spectral windows of variable sizes."
+            "Allows for spectral windows of variable sizes, and channels of "
+            "varying widths."
         )
         self._flex_spw = uvp.UVParameter(
             "flex_spw", description=desc, expected_type=np.bool, value=False,
