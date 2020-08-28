@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 ## [2.1.1] - 2020-8-07
 
 ### Added
+- Adjustment to digital gain removal from mwa_corr_fits files to account for a division by 64 due to a bit selection shift.
 - Options to remove coarse band shape and digital gains from mwa_corr_fits files.
 - Support for cotter flags in mwa_corr_fits files.
 - Added read-only support for MIR files, adding the `Mir` class to `UVData`.
