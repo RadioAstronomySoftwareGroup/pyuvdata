@@ -307,7 +307,7 @@ class UVData(UVBase):
         desc = (
             "Required if flex_spw = True. Maps individual channels along the "
             "frequency axis to individual spectral windows, as listed in the "
-            "spw_array (zero-indexed). Shape (Nspws), type = int."
+            "spw_array (zero-indexed). Shape (Nfreqs), type = int."
         )
         self._flex_spw_id_array = uvp.UVParameter(
             "flex_spw_id_array",
