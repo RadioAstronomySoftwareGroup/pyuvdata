@@ -445,6 +445,9 @@ class UVH5(UVData):
                 header["eq_coeffs_convention"][()]
             ).decode("utf8")
 
+        # We've added a new keyword that did not exist before, so check to see if it
+        # is in the header, and if not, mark the data set as being "regular" (i.e.,
+        # not a flexible spectral window setup).
         if "flex_spw" in header:
             if bool(header["flex_spw"][()]):
                 self._set_flex_spw()
@@ -531,7 +534,9 @@ class UVH5(UVData):
         # get frequency information
         self.freq_array = header["freq_array"][:, :]
         self.spw_array = header["spw_array"][:]
-        # We've added a new keyword, that did not exist before, so
+
+        # Pull in the channel_width parameter as either an array or as a single float,
+        # depending on whether or not the data is stored with a flexible spw.
         if self.flex_spw:
             self.channel_width = header["channel_width"][:]
         else:
