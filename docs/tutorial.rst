@@ -520,7 +520,7 @@ entire file to plot one waterfall.
   >>> plt.show() # doctest: +SKIP
 
   # If using flexible spectral windows (flex_spw=True), plot the 0th window, 0th pol
-  >>> if UV.flex_spw:
+  >>> if UV.flex_spw: # doctest: +SKIP
   ...     window_sel = UV.flex_spw_id_array == 0 # doctest: +SKIP
   ...     plt.imshow(np.abs(UV.data_array[bl_ind, 0, window_sel, 0])) # doctest: +SKIP
   ...     plt.show() # doctest: +SKIP
