@@ -503,9 +503,10 @@ entire file to plot one waterfall.
   >>> UV = UVData()
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> UV.read(filename)
+
+  # Note that the length of the array along axis=1 is always 1.
   >>> print(UV.data_array.shape)
   (1360, 1, 64, 4)
-  # Note that the length of the array along axis=1 is always 1.
   >>> print(UV.Ntimes)
   15
   >>> print(UV.Nfreqs)
