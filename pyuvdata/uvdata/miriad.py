@@ -350,8 +350,6 @@ class Miriad(UVData):
             # that I can skip reading through the MIRIAD programmers guide yet aagain.
             if len(d.shape) == 1:
                 d.shape = (1,) + d.shape
-                # self.Nspws = d.shape[0]
-                # self.spw_array = np.arange(self.Nspws)
 
             if np.size(d) != self.Nfreqs:
                 raise ValueError("Number of channels in spectrum has changed!")
