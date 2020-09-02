@@ -245,9 +245,9 @@ class UVData(UVBase):
         )  # 1 ms
 
         desc = (
-            "Width of frequency channels (Hz). If flex_spw = False, then it single "
-            "value of type = float, otherwise it is an array of shape (Nfreqs), type = "
-            "float."
+            "Width of frequency channels (Hz). If flex_spw = False, then it is a "
+            "single value of type = float, otherwise it is an array of shape "
+            "(Nfreqs), type = float."
         )
         self._channel_width = uvp.UVParameter(
             "channel_width", description=desc, expected_type=np.float, tols=1e-3,
