@@ -505,6 +505,7 @@ entire file to plot one waterfall.
   >>> UV.read(filename)
   >>> print(UV.data_array.shape)
   (1360, 1, 64, 4)
+  # Note that the length of the array along axis=1 is always 1.
   >>> print(UV.Ntimes)
   15
   >>> print(UV.Nfreqs)
@@ -514,9 +515,15 @@ entire file to plot one waterfall.
   69635
   >>> bl_ind = np.where(UV.baseline_array == bl)[0]
 
-  # Amplitude waterfall for 0th spectral window and 0th polarization
+  # Amplitude waterfall for all spectral channels and 0th polarization
   >>> plt.imshow(np.abs(UV.data_array[bl_ind, 0, :, 0])) # doctest: +SKIP
   >>> plt.show() # doctest: +SKIP
+
+  # If using flexible spectral windows (flex_spw=True), plot the 0th window, 0th pol
+  >>> if UV.flex_spw:
+  ...     window_sel = UV.flex_spw_id_array == 0 # doctest: +SKIP
+  ...     plt.imshow(np.abs(UV.data_array[bl_ind, 0, window_sel, 0])) # doctest: +SKIP
+  ...     plt.show() # doctest: +SKIP
 
   # Update: With new UI features, making waterfalls is easier than ever!
   >>> plt.imshow(np.abs(UV.get_data((1, 2, UV.polarization_array[0])))) # doctest: +SKIP
