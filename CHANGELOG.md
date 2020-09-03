@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 - When `flex_spw=True`, the `channel_width` attribute of UVData is expected to be an array of type=float and shape=(`Nfreqs`,). Individual channels are allowed to have different channel widths.
 - Changed `freq_array` to be of shape (1, `Nfreqs`) (formerley (`Nspws`, `Nfreqs`)).
 - Changed  `data_array`, `flag_array`, `nsample_array` to be of shape (`Nblts`, 1, `Nfreqs`, `Npols`) (formerly (`Nblts`, `Nspws`, `Nfreqs`, `Npols`)).
+- Changed UVH5 metadata byte conversion method from tobytes() to bytes()
 
 ## [2.1.1] - 2020-8-07
 
