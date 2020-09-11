@@ -126,6 +126,13 @@ class CALFITS(UVCal):
         # Conforming to fits format
         prihdr["SIMPLE"] = True
         prihdr["TELESCOP"] = self.telescope_name
+        if self.telescope_location is not None:
+            prihdr["ARRAYX"] = self.telescope_location[0]
+            prihdr["ARRAYY"] = self.telescope_location[1]
+            prihdr["ARRAYZ"] = self.telescope_location[2]
+            prihdr["LAT     "] = self.telescope_location_lat_lon_alt_degrees[0]
+            prihdr["LON     "] = self.telescope_location_lat_lon_alt_degrees[1]
+            prihdr["ALT     "] = self.telescope_location_lat_lon_alt[2]
         prihdr["GNCONVEN"] = self.gain_convention
         prihdr["CALTYPE"] = self.cal_type
         prihdr["CALSTYLE"] = self.cal_style
@@ -374,7 +381,11 @@ class CALFITS(UVCal):
                 self.ant_array, np.zeros(nants_add, dtype=np.int) - 1
             )
             col3 = fits.Column(name="ANTARR", format="D", array=ant_array_use)
-        cols = fits.ColDefs([col1, col2, col3])
+        if self.antenna_positions is not None:
+            col4 = fits.Column(name="ANTXYZ", format="3D", array=self.antenna_positions)
+            cols = fits.ColDefs([col1, col2, col3, col4])
+        else:
+            cols = fits.ColDefs([col1, col2, col3])
         ant_hdu = fits.BinTableHDU.from_columns(cols)
         ant_hdu.header["EXTNAME"] = "ANTENNAS"
 
@@ -392,7 +403,13 @@ class CALFITS(UVCal):
         hdulist.close()
 
     def read_calfits(
-        self, filename, run_check=True, check_extra=True, run_check_acceptability=True
+        self,
+        filename,
+        read_data=True,
+        background_lsts=True,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
     ):
         """
         Read data from a calfits file.
@@ -401,6 +418,12 @@ class CALFITS(UVCal):
         ----------
         filename : str
             The calfits file to read from.
+        read_data : bool
+            Read in the gains or delays, quality arrays and flag arrays.
+            If set to False, only the metadata will be read in. Setting read_data to
+            False results in a metadata only object.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
         run_check : bool
             Option to check for the existence and proper shapes of
             parameters after reading in the file.
@@ -412,7 +435,6 @@ class CALFITS(UVCal):
 
         """
         with fits.open(filename) as fname:
-            data = fname[0].data
             hdr = fname[0].header.copy()
             hdunames = uvutils._fits_indexhdus(fname)
 
@@ -428,9 +450,36 @@ class CALFITS(UVCal):
                 # Remove the padded entries.
                 self.ant_array = self.ant_array[np.where(self.ant_array >= 0)[0]]
 
+            if anthdu.header["TFIELDS"] > 3:
+                self.antenna_positions = antdata["ANTXYZ"]
+
             self.channel_width = hdr.pop("CHWIDTH")
             self.integration_time = hdr.pop("INTTIME")
             self.telescope_name = hdr.pop("TELESCOP")
+
+            x_telescope = hdr.pop("ARRAYX", None)
+            y_telescope = hdr.pop("ARRAYY", None)
+            z_telescope = hdr.pop("ARRAYZ", None)
+            lat = hdr.pop("LAT", None)
+            lon = hdr.pop("LON", None)
+            alt = hdr.pop("ALT", None)
+            if (
+                x_telescope is not None
+                and y_telescope is not None
+                and z_telescope is not None
+            ):
+                self.telescope_location = np.array(
+                    [x_telescope, y_telescope, z_telescope]
+                )
+            elif lat is not None and lon is not None and alt is not None:
+                self.telescope_location_lat_lon_alt_degrees = (lat, lon, alt)
+            if self.telescope_location is None:
+                try:
+                    self.set_telescope_params()
+                except ValueError:
+                    pass
+                    # TODO: In version 2.3 and later this should error.
+
             self.history = str(hdr.get("HISTORY", ""))
 
             if not uvutils._check_history_version(
@@ -453,6 +502,11 @@ class CALFITS(UVCal):
                     self.freq_range = list(map(float, hdr.pop("FRQRANGE").split(",")))
 
             self.cal_style = hdr.pop("CALSTYLE")
+            if self.cal_style == "sky":
+                self._set_sky()
+            elif self.cal_style == "redundant":
+                self._set_redundant()
+
             self.sky_field = hdr.pop("FIELD", None)
             self.sky_catalog = hdr.pop("CATALOG", None)
             self.ref_antenna_name = hdr.pop("REFANT", None)
@@ -474,43 +528,25 @@ class CALFITS(UVCal):
             self.Ntimes = hdr.pop("NAXIS3")
             self.time_array = uvutils._fits_gethduaxis(fname[0], 3)
 
+            if self.telescope_location is not None:
+                proc = self.set_lsts_from_time_array(background=background_lsts)
+
             self.Nspws = hdr.pop("NAXIS5")
             # subtract 1 to be zero-indexed
             self.spw_array = uvutils._fits_gethduaxis(fname[0], 5) - 1
 
-            # get data.
+            self.Nants_data = hdr.pop("NAXIS6")
             if self.cal_type == "gain":
                 self._set_gain()
-                self.gain_array = data[:, :, :, :, :, 0] + 1j * data[:, :, :, :, :, 1]
-                self.flag_array = data[:, :, :, :, :, 2].astype("bool")
-                if hdr.pop("NAXIS1") == 5:
-                    self.input_flag_array = data[:, :, :, :, :, 3].astype("bool")
-                    self.quality_array = data[:, :, :, :, :, 4]
-                else:
-                    self.quality_array = data[:, :, :, :, :, 3]
-
-                self.Nants_data = hdr.pop("NAXIS6")
 
                 # generate frequency array from primary data unit.
                 self.Nfreqs = hdr.pop("NAXIS4")
                 self.freq_array = uvutils._fits_gethduaxis(fname[0], 4)
                 self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
-
             if self.cal_type == "delay":
                 self._set_delay()
-                self.Nants_data = hdr.pop("NAXIS6")
-
-                self.delay_array = data[:, :, :, :, :, 0]
-                self.quality_array = data[:, :, :, :, :, 1]
 
                 sechdu = fname[hdunames["FLAGS"]]
-                flag_data = sechdu.data
-                if sechdu.header["NAXIS1"] == 2:
-                    self.flag_array = flag_data[:, :, :, :, :, 0].astype("bool")
-                    self.input_flag_array = flag_data[:, :, :, :, :, 1].astype("bool")
-                else:
-                    self.flag_array = flag_data[:, :, :, :, :, 0].astype("bool")
-
                 # generate frequency array from flag data unit
                 # (no freq axis in primary).
                 self.Nfreqs = sechdu.header["NAXIS4"]
@@ -547,61 +583,95 @@ class CALFITS(UVCal):
                         "Jones values are different in FLAGS HDU than in primary HDU"
                     )
 
-            self.extra_keywords = uvutils._get_fits_extra_keywords(hdr)
-
-            # get total quality array if present
-            if "TOTQLTY" in hdunames:
-                totqualhdu = fname[hdunames["TOTQLTY"]]
-                self.total_quality_array = totqualhdu.data
-                spw_array = uvutils._fits_gethduaxis(totqualhdu, 4) - 1
-                if not np.allclose(spw_array, self.spw_array):
-                    raise ValueError(
-                        "Spectral window values are different in "
-                        "TOTQLTY HDU than in primary HDU. primary HDU "
-                        "has {pspw}, TOTQLTY has {tspw}".format(
-                            pspw=self.spw_array, tspw=spw_array
-                        )
+            # get data.
+            if read_data:
+                data = fname[0].data
+                if self.cal_type == "gain":
+                    self.gain_array = (
+                        data[:, :, :, :, :, 0] + 1j * data[:, :, :, :, :, 1]
                     )
+                    self.flag_array = data[:, :, :, :, :, 2].astype("bool")
+                    if hdr.pop("NAXIS1") == 5:
+                        self.input_flag_array = data[:, :, :, :, :, 3].astype("bool")
+                        self.quality_array = data[:, :, :, :, :, 4]
+                    else:
+                        self.quality_array = data[:, :, :, :, :, 3]
 
-                if self.cal_type != "delay":
-                    # delay-type files won't have a freq_array
-                    freq_array = uvutils._fits_gethduaxis(totqualhdu, 3)
-                    freq_array.shape = (self.Nspws,) + freq_array.shape
+                if self.cal_type == "delay":
+
+                    self.delay_array = data[:, :, :, :, :, 0]
+                    self.quality_array = data[:, :, :, :, :, 1]
+
+                    flag_data = sechdu.data
+                    if sechdu.header["NAXIS1"] == 2:
+                        self.flag_array = flag_data[:, :, :, :, :, 0].astype("bool")
+                        self.input_flag_array = flag_data[:, :, :, :, :, 1].astype(
+                            "bool"
+                        )
+                    else:
+                        self.flag_array = flag_data[:, :, :, :, :, 0].astype("bool")
+
+                # get total quality array if present
+                if "TOTQLTY" in hdunames:
+                    totqualhdu = fname[hdunames["TOTQLTY"]]
+                    self.total_quality_array = totqualhdu.data
+                    spw_array = uvutils._fits_gethduaxis(totqualhdu, 4) - 1
+                    if not np.allclose(spw_array, self.spw_array):
+                        raise ValueError(
+                            "Spectral window values are different in "
+                            "TOTQLTY HDU than in primary HDU. primary HDU "
+                            "has {pspw}, TOTQLTY has {tspw}".format(
+                                pspw=self.spw_array, tspw=spw_array
+                            )
+                        )
+
+                    if self.cal_type != "delay":
+                        # delay-type files won't have a freq_array
+                        freq_array = uvutils._fits_gethduaxis(totqualhdu, 3)
+                        freq_array.shape = (self.Nspws,) + freq_array.shape
+                        if not np.allclose(
+                            freq_array,
+                            self.freq_array,
+                            rtol=self._freq_array.tols[0],
+                            atol=self._freq_array.tols[0],
+                        ):
+                            raise ValueError(
+                                "Frequency values are different in TOTQLTY HDU than"
+                                " in primary HDU"
+                            )
+
+                    time_array = uvutils._fits_gethduaxis(totqualhdu, 2)
                     if not np.allclose(
-                        freq_array,
-                        self.freq_array,
-                        rtol=self._freq_array.tols[0],
-                        atol=self._freq_array.tols[0],
+                        time_array,
+                        self.time_array,
+                        rtol=self._time_array.tols[0],
+                        atol=self._time_array.tols[0],
                     ):
                         raise ValueError(
-                            "Frequency values are different in TOTQLTY HDU than"
-                            " in primary HDU"
+                            "Time values are different in TOTQLTY HDU than in "
+                            "primary HDU"
                         )
 
-                time_array = uvutils._fits_gethduaxis(totqualhdu, 2)
-                if not np.allclose(
-                    time_array,
-                    self.time_array,
-                    rtol=self._time_array.tols[0],
-                    atol=self._time_array.tols[0],
-                ):
-                    raise ValueError(
-                        "Time values are different in TOTQLTY HDU than in primary HDU"
-                    )
+                    jones_array = uvutils._fits_gethduaxis(totqualhdu, 1)
+                    if not np.allclose(
+                        jones_array,
+                        self.jones_array,
+                        rtol=self._jones_array.tols[0],
+                        atol=self._jones_array.tols[0],
+                    ):
+                        raise ValueError(
+                            "Jones values are different in TOTQLTY HDU than in "
+                            "primary HDU"
+                        )
 
-                jones_array = uvutils._fits_gethduaxis(totqualhdu, 1)
-                if not np.allclose(
-                    jones_array,
-                    self.jones_array,
-                    rtol=self._jones_array.tols[0],
-                    atol=self._jones_array.tols[0],
-                ):
-                    raise ValueError(
-                        "Jones values are different in TOTQLTY HDU than in primary HDU"
-                    )
+                else:
+                    self.total_quality_array = None
 
-            else:
-                self.total_quality_array = None
+            self.extra_keywords = uvutils._get_fits_extra_keywords(hdr)
+
+        # wait for LSTs if set in background
+        if proc is not None:
+            proc.join()
 
         if run_check:
             self.check(

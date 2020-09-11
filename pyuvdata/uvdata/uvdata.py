@@ -767,8 +767,7 @@ class UVData(UVBase):
                 )
         else:
             raise ValueError(
-                "Telescope {telescope_name} is not in "
-                "known_telescopes.".format(telescope_name=self.telescope_name)
+                f"Telescope {self.telescope_name} is not in known_telescopes."
             )
 
     def _calc_single_integration_time(self):
@@ -1138,6 +1137,7 @@ class UVData(UVBase):
                 if isinstance(getattr(type(self), attr, None), property):
                     continue
 
+                # skip data like parameters
                 # parameter names have a leading underscore we want to ignore
                 if attr.lstrip("_") in self._data_params:
                     continue
@@ -6069,7 +6069,8 @@ class UVData(UVBase):
         ----------
         filelist : array_like of str
             The list/array of FHD save files to read from. Must include at
-            least one polarization file, a params file and a flag file.
+            least one polarization file, a params file, a layout file and a flag file.
+            An obs file is also required if `read_data` is False.
         use_model : bool
             Option to read in the model visibilities rather than the dirty
             visibilities (the default is False, meaning the dirty visibilities
