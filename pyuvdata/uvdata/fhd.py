@@ -12,7 +12,7 @@ from .uvdata import UVData
 from .. import utils as uvutils
 from .. import telescopes as uvtel
 
-__all__ = ["get_fhd_history", "FHD"]
+__all__ = ["get_fhd_history", "get_fhd_layout_info", "FHD"]
 
 
 def get_fhd_history(settings_file, return_user=False):
@@ -34,6 +34,7 @@ def get_fhd_history(settings_file, return_user=False):
         string of history extracted from the settings file
     user : str
         Only returned if return_user is True
+
     """
     with open(settings_file, "r") as f:
         settings_lines = f.readlines()
@@ -72,6 +73,270 @@ def get_fhd_history(settings_file, return_user=False):
         return history
 
 
+def _xyz_close(xyz1, xyz2, loc_tols):
+    return np.allclose(xyz1, xyz2, rtol=loc_tols[0], atol=loc_tols[1])
+
+
+def _latlonalt_close(latlonalt1, latlonalt2, radian_tols, loc_tols):
+    latlon_close = np.allclose(
+        np.array(latlonalt1[0:2]),
+        np.array(latlonalt2[0:2]),
+        rtol=radian_tols[0],
+        atol=radian_tols[1],
+    )
+    alt_close = np.isclose(
+        latlonalt1[2], latlonalt2[2], rtol=loc_tols[0], atol=loc_tols[1]
+    )
+    if latlon_close and alt_close:
+        return True
+    else:
+        return False
+
+
+def get_fhd_layout_info(
+    layout_file,
+    telescope_name,
+    latitude,
+    longitude,
+    altitude,
+    radian_tols,
+    loc_tols,
+    obs_tile_names,
+    run_check_acceptability=True,
+):
+    """
+    Get the telescope and antenna positions from an FHD layout file.
+
+    Parameters
+    ----------
+    layout_file : str
+        FHD layout file name
+    telescope_name : str
+        Telescope name
+    latitude : float
+        telescope latitude in radians
+    longitude : float
+        telescope longitude in radians
+    altitude : float
+        telescope altitude in meters
+    loc_tols : float
+        telescope_location tolerance in meters.
+    radian_tols : float
+        lat/lon tolerance in radians.
+    obs_tile_names : array-like of str
+        Tile names from the bl_info structure inside the obs structure.
+        Only used if telescope_name is "mwa".
+    run_check_acceptability : bool
+        Option to check acceptable range of the telescope locations.
+
+    Returns
+    -------
+    telescope_xyz : array of float
+        Telescope location in ECEF, shape (3,)
+    Nants_telescope : int
+        Number of antennas in the telescope
+    antenna_postions : array of float
+        Antenna positions in relative ECEF, shape (Nants_telescope, 3)
+    antenna_names : list of str
+        Antenna names, length Nants_telescope
+    antenna_numbers : array of int
+        Antenna numbers, shape (Nants_telescope,)
+    gst0 : float
+        Greenwich sidereal time at midnight on reference date.
+    earth_omega : float
+        Earth's rotation rate in degrees per day.
+    dut1 : float
+        DUT1 (google it) AIPS 117 calls it UT1UTC.
+    timesys : str
+        Time system (should only ever be UTC).
+    diameters : antenna diameters
+        Antenna diameters in meters.
+    extra_keywords : dict
+        Dictionary of extra keywords to preserve on the object.
+
+    """
+    layout_dict = readsav(layout_file, python_dict=True)
+    layout = layout_dict["layout"]
+
+    layout_fields = [name.lower() for name in layout.dtype.names]
+    # Try to get the telescope location from the layout file &
+    # compare it to the position from the obs structure.
+    arr_center = layout["array_center"][0]
+    layout_fields.remove("array_center")
+
+    xyz_telescope_frame = layout["coordinate_frame"][0].decode("utf8").lower()
+    layout_fields.remove("coordinate_frame")
+
+    if xyz_telescope_frame == "itrf":
+        # compare to lat/lon/alt
+        location_latlonalt = uvutils.XYZ_from_LatLonAlt(latitude, longitude, altitude)
+        latlonalt_arr_center = uvutils.LatLonAlt_from_XYZ(
+            arr_center, check_acceptability=run_check_acceptability
+        )
+
+        # check both lat/lon/alt and xyz because of subtle differences
+        # in tolerances
+        if _xyz_close(location_latlonalt, arr_center, loc_tols) or _latlonalt_close(
+            (latitude, longitude, altitude),
+            latlonalt_arr_center,
+            radian_tols,
+            loc_tols,
+        ):
+            telescope_location = arr_center
+        else:
+            # values do not agree with each other to within the tolerances.
+            # this is a known issue with FHD runs on cotter uvfits
+            # files for the MWA
+            # compare with the known_telescopes values
+            telescope_obj = uvtel.get_telescope(telescope_name)
+            # start warning message
+            message = (
+                "Telescope location derived from obs lat/lon/alt "
+                "values does not match the location in the layout file."
+            )
+
+            if telescope_obj is not False:
+                if _latlonalt_close(
+                    (latitude, longitude, altitude),
+                    telescope_obj.telescope_location_lat_lon_alt,
+                    radian_tols,
+                    loc_tols,
+                ):
+                    # obs lat/lon/alt matches known_telescopes
+                    message += (
+                        " Value from obs lat/lon/alt matches the "
+                        "known_telescopes values, using them."
+                    )
+                    telescope_location = location_latlonalt
+                elif _xyz_close(arr_center, telescope_obj.telescope_location, loc_tols):
+                    # layout xyz matches known_telescopes
+                    message += (
+                        " Value from the layout file matches the "
+                        "known_telescopes values, using them."
+                    )
+                    telescope_location = arr_center
+                else:
+                    # None of the values match each other. Defaulting
+                    # to known_telescopes value.
+                    message += (
+                        " Neither location matches the values "
+                        "in known_telescopes. Defaulting to "
+                        "using the known_telescopes values."
+                    )
+                    telescope_location = telescope_obj.telescope_location
+            else:
+                message += (
+                    " Telescope is not in known_telescopes. "
+                    "Defaulting to using the obs derived values."
+                )
+                telescope_location = location_latlonalt
+            # issue warning
+            warnings.warn(message)
+    else:
+        telescope_location = uvutils.XYZ_from_LatLonAlt(latitude, longitude, altitude)
+
+    antenna_positions = layout["antenna_coords"][0]
+    layout_fields.remove("antenna_coords")
+
+    antenna_names = [
+        ant.decode("utf8").strip() for ant in layout["antenna_names"][0].tolist()
+    ]
+    layout_fields.remove("antenna_names")
+
+    # make these 0-indexed (rather than one indexed)
+    antenna_numbers = layout["antenna_numbers"][0] - 1
+    layout_fields.remove("antenna_numbers")
+
+    Nants_telescope = int(layout["n_antenna"][0])
+    layout_fields.remove("n_antenna")
+
+    if telescope_name.lower() == "mwa":
+        # check that obs.baseline_info.tile_names match the antenna names
+        # this only applies for MWA because the tile_names come from
+        # metafits files
+
+        # tile_names are assumed to be ordered: so their index gives
+        # the antenna number
+        # make an comparison array from antenna_names ordered this way.
+        ant_names = np.zeros((np.max(antenna_numbers) + 1), str).tolist()
+        for index, number in enumerate(antenna_numbers):
+            ant_names[number] = antenna_names[index]
+        if obs_tile_names != ant_names:
+            warnings.warn(
+                "tile_names from obs structure does not match "
+                "antenna_names from layout"
+            )
+
+    gst0 = float(layout["gst0"][0])
+    layout_fields.remove("gst0")
+
+    if layout["ref_date"][0] != "":
+        rdate = layout["ref_date"][0].decode("utf8").lower()
+    else:
+        rdate = None
+    layout_fields.remove("ref_date")
+
+    earth_omega = float(layout["earth_degpd"][0])
+    layout_fields.remove("earth_degpd")
+
+    dut1 = float(layout["dut1"][0])
+    layout_fields.remove("dut1")
+
+    timesys = layout["time_system"][0].decode("utf8").upper().strip()
+    layout_fields.remove("time_system")
+
+    if "diameters" in layout_fields:
+        diameters = np.asarray(layout["diameters"])
+        layout_fields.remove("diameters")
+    else:
+        diameters = None
+
+    extra_keywords = {}
+    # ignore some fields, put everything else in extra_keywords
+    layout_fields_ignore = [
+        "diff_utc",
+        "pol_type",
+        "n_pol_cal_params",
+        "mount_type",
+        "axis_offset",
+        "pola",
+        "pola_orientation",
+        "pola_cal_params",
+        "polb",
+        "polb_orientation",
+        "polb_cal_params",
+        "beam_fwhm",
+    ]
+    for field in layout_fields_ignore:
+        if field in layout_fields:
+            layout_fields.remove(field)
+    for field in layout_fields:
+        keyword = field
+        if len(keyword) > 8:
+            keyword = field.replace("_", "")
+
+        value = layout[field][0]
+        if isinstance(value, bytes):
+            value = value.decode("utf8")
+
+        extra_keywords[keyword.upper()] = value
+
+    return (
+        telescope_location,
+        Nants_telescope,
+        antenna_positions,
+        antenna_names,
+        antenna_numbers,
+        gst0,
+        rdate,
+        earth_omega,
+        dut1,
+        timesys,
+        diameters,
+        extra_keywords,
+    )
+
+
 class FHD(UVData):
     """
     Defines a FHD-specific subclass of UVData for reading FHD save files.
@@ -79,27 +344,6 @@ class FHD(UVData):
     This class should not be interacted with directly, instead use the read_fhd
     method on the UVData class.
     """
-
-    def _latlonalt_close(self, latlonalt1, latlonalt2):
-        radian_tols = self._phase_center_ra.tols
-        loc_tols = self._telescope_location.tols
-        latlon_close = np.allclose(
-            np.array(latlonalt1[0:2]),
-            np.array(latlonalt2[0:2]),
-            rtol=radian_tols[0],
-            atol=radian_tols[1],
-        )
-        alt_close = np.isclose(
-            latlonalt1[2], latlonalt2[2], rtol=loc_tols[0], atol=loc_tols[1]
-        )
-        if latlon_close and alt_close:
-            return True
-        else:
-            return False
-
-    def _xyz_close(self, xyz1, xyz2):
-        loc_tols = self._telescope_location.tols
-        return np.allclose(xyz1, xyz2, rtol=loc_tols[0], atol=loc_tols[1])
 
     def read_fhd(
         self,
@@ -119,8 +363,8 @@ class FHD(UVData):
         ----------
         filelist : array_like of str
             The list/array of FHD save files to read from. Must include at
-            least one polarization file, a params file and a flag file. An obs
-            file is also required if `read_data` is False.
+            least one polarization file, a params file, a layout file and a flag file.
+            An obs file is also required if `read_data` is False.
         use_model : bool
             Option to read in the model visibilities rather than the dirty
             visibilities (the default is False, meaning the dirty visibilities
@@ -343,174 +587,37 @@ class FHD(UVData):
 
         # get the stuff FHD read from the antenna table (in layout file)
         if layout_file is not None:
-            layout_dict = readsav(layout_file, python_dict=True)
-            layout = layout_dict["layout"]
-
-            layout_fields = [name.lower() for name in layout.dtype.names]
-            # Try to get the telescope location from the layout file &
-            # compare it to the position from the obs structure.
-            arr_center = layout["array_center"][0]
-            layout_fields.remove("array_center")
-
-            xyz_telescope_frame = layout["coordinate_frame"][0].decode("utf8").lower()
-            layout_fields.remove("coordinate_frame")
-
-            if xyz_telescope_frame == "itrf":
-                # compare to lat/lon/alt
-                location_latlonalt = uvutils.XYZ_from_LatLonAlt(
-                    latitude, longitude, altitude
-                )
-                latlonalt_arr_center = uvutils.LatLonAlt_from_XYZ(
-                    arr_center, check_acceptability=run_check_acceptability
-                )
-
-                # check both lat/lon/alt and xyz because of subtle differences
-                # in tolerances
-                if self._xyz_close(
-                    location_latlonalt, arr_center
-                ) or self._latlonalt_close(
-                    (latitude, longitude, altitude), latlonalt_arr_center
-                ):
-                    self.telescope_location = arr_center
-                else:
-                    # values do not agree with each other to within the tolerances.
-                    # this is a known issue with FHD runs on cotter uvfits
-                    # files for the MWA
-                    # compare with the known_telescopes values
-                    telescope_obj = uvtel.get_telescope(self.telescope_name)
-                    # start warning message
-                    message = (
-                        "Telescope location derived from obs lat/lon/alt "
-                        "values does not match the location in the layout file."
-                    )
-
-                    if telescope_obj is not False:
-                        if self._latlonalt_close(
-                            (latitude, longitude, altitude),
-                            telescope_obj.telescope_location_lat_lon_alt,
-                        ):
-                            # obs lat/lon/alt matches known_telescopes
-                            message += (
-                                " Value from obs lat/lon/alt matches the "
-                                "known_telescopes values, using them."
-                            )
-                            self.telescope_location = location_latlonalt
-                        elif self._xyz_close(
-                            arr_center, telescope_obj.telescope_location
-                        ):
-                            # layout xyz matches known_telescopes
-                            message += (
-                                " Value from the layout file matches the "
-                                "known_telescopes values, using them."
-                            )
-                            self.telescope_location = arr_center
-                        else:
-                            # None of the values match each other. Defaulting
-                            # to known_telescopes value.
-                            message += (
-                                " Neither location matches the values "
-                                "in known_telescopes. Defaulting to "
-                                "using the known_telescopes values."
-                            )
-                            self.telescope_location = telescope_obj.telescope_location
-                    else:
-                        message += (
-                            " Telescope is not in known_telescopes. "
-                            "Defaulting to using the obs derived values."
-                        )
-                        self.telescope_location = location_latlonalt
-                    # issue warning
-                    warnings.warn(message)
-            else:
-                self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
-
-            self.antenna_positions = layout["antenna_coords"][0]
-            layout_fields.remove("antenna_coords")
-
-            self.antenna_names = [
-                ant.decode("utf8").strip()
-                for ant in layout["antenna_names"][0].tolist()
+            obs_tile_names = [
+                ant.decode("utf8").strip() for ant in bl_info["TILE_NAMES"][0].tolist()
             ]
-            layout_fields.remove("antenna_names")
-
-            # make these 0-indexed (rather than one indexed)
-            self.antenna_numbers = layout["antenna_numbers"][0] - 1
-            layout_fields.remove("antenna_numbers")
-
-            self.Nants_telescope = int(layout["n_antenna"][0])
-            layout_fields.remove("n_antenna")
-
-            if self.telescope_name.lower() == "mwa":
-                # check that obs.baseline_info.tile_names match the antenna names
-                # this only applies for MWA because the tile_names come from
-                # metafits files
-                obs_tile_names = [
-                    ant.decode("utf8").strip()
-                    for ant in bl_info["TILE_NAMES"][0].tolist()
-                ]
-                obs_tile_names = [
-                    "Tile" + "0" * (3 - len(ant)) + ant for ant in obs_tile_names
-                ]
-                # tile_names are assumed to be ordered: so their index gives
-                # the antenna number
-                # make an comparison array from self.antenna_names ordered this way.
-                ant_names = np.zeros((np.max(self.antenna_numbers) + 1), str).tolist()
-                for index, number in enumerate(self.antenna_numbers):
-                    ant_names[number] = self.antenna_names[index]
-                if obs_tile_names != ant_names:
-                    warnings.warn(
-                        "tile_names from obs structure does not match "
-                        "antenna_names from layout"
-                    )
-
-            self.gst0 = float(layout["gst0"][0])
-            layout_fields.remove("gst0")
-
-            if layout["ref_date"][0] != "":
-                self.rdate = layout["ref_date"][0].decode("utf8").lower()
-            layout_fields.remove("ref_date")
-
-            self.earth_omega = float(layout["earth_degpd"][0])
-            layout_fields.remove("earth_degpd")
-
-            self.dut1 = float(layout["dut1"][0])
-            layout_fields.remove("dut1")
-
-            self.timesys = layout["time_system"][0].decode("utf8").upper().strip()
-            layout_fields.remove("time_system")
-
-            if "diameters" in layout_fields:
-                self.timesys = layout["time_system"][0].decode("utf8").upper().strip()
-                layout_fields.remove("diameters")
-
-            # ignore some fields, put everything else in extra_keywords
-            layout_fields_ignore = [
-                "diff_utc",
-                "pol_type",
-                "n_pol_cal_params",
-                "mount_type",
-                "axis_offset",
-                "pola",
-                "pola_orientation",
-                "pola_cal_params",
-                "polb",
-                "polb_orientation",
-                "polb_cal_params",
-                "beam_fwhm",
+            obs_tile_names = [
+                "Tile" + "0" * (3 - len(ant)) + ant for ant in obs_tile_names
             ]
-            for field in layout_fields_ignore:
-                if field in layout_fields:
-                    layout_fields.remove(field)
-            for field in layout_fields:
-                keyword = field
-                if len(keyword) > 8:
-                    keyword = field.replace("_", "")
+            (
+                self.telescope_location,
+                self.Nants_telescope,
+                self.antenna_positions,
+                self.antenna_names,
+                self.antenna_numbers,
+                self.gst0,
+                self.rdate,
+                self.earth_omega,
+                self.dut1,
+                self.timesys,
+                self.diameters,
+                self.extra_keywords,
+            ) = get_fhd_layout_info(
+                layout_file,
+                self.telescope_name,
+                latitude,
+                longitude,
+                altitude,
+                self._phase_center_ra.tols,
+                self._telescope_location.tols,
+                obs_tile_names,
+                run_check_acceptability=True,
+            )
 
-                value = layout[field][0]
-                if isinstance(value, bytes):
-                    value = value.decode("utf8")
-
-                self.extra_keywords[keyword.upper()] = value
         else:
             self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
             self.antenna_names = [

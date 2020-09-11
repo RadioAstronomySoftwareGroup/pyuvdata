@@ -7,6 +7,7 @@
 """
 import pytest
 import os
+import copy
 import numpy as np
 
 from pyuvdata import UVCal
@@ -71,6 +72,9 @@ def uvcal_data():
     ]
 
     extra_parameters = [
+        "_telescope_location",
+        "_antenna_positions",
+        "_lst_array",
         "_gain_array",
         "_delay_array",
         "_sky_field",
@@ -91,6 +95,9 @@ def uvcal_data():
     ]
 
     extra_properties = [
+        "telescope_location",
+        "antenna_positions",
+        "lst_array",
         "gain_array",
         "delay_array",
         "sky_field",
@@ -158,6 +165,20 @@ def test_required_parameter_iter(uvcal_data):
         extra_properties,
         other_properties,
     ) = uvcal_data
+    # at first it's a metadata_only object, so need to modify required_parameters
+    required = []
+    for prop in uv_cal_object.required():
+        required.append(prop)
+    expected_required = copy.copy(required_parameters)
+    expected_required.remove("_quality_array")
+    expected_required.remove("_flag_array")
+    for a in expected_required:
+        assert a in required, (
+            "expected attribute " + a + " not returned in required iterator"
+        )
+
+    uv_cal_object.quality_array = 1
+    uv_cal_object.flag_array = 1
     required = []
     for prop in uv_cal_object.required():
         required.append(prop)
@@ -1609,6 +1630,13 @@ def test_multi_files(gain_data, tmp_path):
     gain_data.gain_object.history = gain_object_full.history
     assert gain_data.gain_object == gain_object_full
 
+    # check metadata only read
+    gain_data.gain_object.read_calfits([f1, f2], read_data=False)
+    gain_object_full_metadata_only = gain_object_full.copy(metadata_only=True)
+
+    gain_data.gain_object.history = gain_object_full_metadata_only.history
+    assert gain_data.gain_object == gain_object_full_metadata_only
+
 
 def test_add_antennas_delay(delay_data):
     """Test adding antennas between two UVCal objects"""
@@ -2054,3 +2082,27 @@ def test_write_read_optional_attrs(tmp_path):
     cal_in2 = UVCal()
     cal_in2.read_calfits(write_file_calfits)
     assert cal_in == cal_in2
+
+
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_copy(gain_data, caltype):
+    """Test the copy method"""
+    if caltype == "gain":
+        uv_object = gain_data.gain_object
+    else:
+        uv_object = gain_data.delay_object
+
+    uv_object_copy = uv_object.copy()
+    assert uv_object_copy == uv_object
+
+    uv_object_copy = uv_object.copy(metadata_only=True)
+    assert uv_object_copy.metadata_only
+
+    for name in uv_object._data_params:
+        setattr(uv_object, name, None)
+    assert uv_object_copy == uv_object
+
+    uv_object_copy = uv_object.copy()
+    assert uv_object_copy == uv_object
+
+    return
