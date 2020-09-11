@@ -146,30 +146,42 @@ def test_flags_galaxy(tmp_path):
     assert fhd_cal == calfits_cal
 
 
-def test_break_read_fhdcal():
+@pytest.mark.parametrize(
+    "cal_file,obs_file,layout_file,settings_file,nfiles",
+    [
+        [cal_testfile, obs_testfile, layout_testfile, settings_testfile, 1],
+        [cal_file_multi, obs_file_multi, layout_file_multi, settings_file_multi, 2],
+    ],
+)
+def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfiles):
     """Try various cases of missing files."""
     fhd_cal = UVCal()
-    pytest.raises(TypeError, fhd_cal.read_fhd_cal, cal_testfile)  # Missing obs
+    pytest.raises(TypeError, fhd_cal.read_fhd_cal, cal_file)  # Missing obs
 
-    with uvtest.check_warnings(
-        UserWarning,
-        [
-            "No settings file",
-            "Telescope location derived from obs lat/lon/alt values does not match the "
-            "location in the layout file.",
-        ],
-    ):
-        fhd_cal.read_fhd_cal(cal_testfile, obs_testfile, layout_file=layout_testfile)
+    message_list = [
+        "No settings file",
+        "Telescope location derived from obs lat/lon/alt values does not match the "
+        "location in the layout file.",
+    ]
+    if nfiles > 1:
+        message_list *= 2
+        message_list.append("UVParameter diffuse_model does not match")
+
+    with uvtest.check_warnings(UserWarning, message_list):
+        fhd_cal.read_fhd_cal(cal_file, obs_file, layout_file=layout_file)
 
     # Check only pyuvdata version history with no settings file
-    assert fhd_cal.history == "\n" + fhd_cal.pyuvdata_version_str
+    expected_history = "\n" + fhd_cal.pyuvdata_version_str
+    if nfiles > 1:
+        expected_history += " Combined data along time axis using pyuvdata."
+    assert fhd_cal.history == expected_history
 
-    with uvtest.check_warnings(
-        UserWarning, "No layout file, antenna_postions will not be defined."
-    ):
-        fhd_cal.read_fhd_cal(
-            cal_testfile, obs_testfile, settings_file=settings_testfile
-        )
+    message_list = ["No layout file, antenna_postions will not be defined."]
+    if nfiles > 1:
+        message_list *= 2
+        message_list.append("UVParameter diffuse_model does not match")
+    with uvtest.check_warnings(UserWarning, message_list):
+        fhd_cal.read_fhd_cal(cal_file, obs_file, settings_file=settings_file)
 
     # Check no antenna_positions
     assert fhd_cal.antenna_positions is None

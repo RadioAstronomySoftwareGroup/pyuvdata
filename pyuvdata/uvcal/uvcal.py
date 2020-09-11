@@ -2203,6 +2203,8 @@ class UVCal(UVBase):
                         "Number of layout_files must match number of cal_files"
                     )
                 layout_file_use = layout_file[0]
+            else:
+                layout_file_use = None
 
             if settings_file is not None:
                 if isinstance(settings_file, (list, tuple)):
@@ -2215,6 +2217,8 @@ class UVCal(UVBase):
                         "Number of settings_files must match number of cal_files"
                     )
                 settings_file_use = settings_file[0]
+            else:
+                settings_file_use = None
 
             self.read_fhd_cal(
                 cal_file[0],
