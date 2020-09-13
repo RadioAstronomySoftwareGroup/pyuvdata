@@ -726,7 +726,7 @@ class UVCal(UVBase):
             )
 
         # If the antenna positions parameter is not set issue a deprecation warning
-        if self.telescope_location is None:
+        if self.antenna_positions is None:
             warnings.warn(
                 "The antenna_positions parameter is not set. It will be a required "
                 "parameter starting in pyuvdata version 2.3",
