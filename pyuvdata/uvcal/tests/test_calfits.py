@@ -15,6 +15,10 @@ import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
 
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:The antenna_positions parameter is not set."
+)
+
 
 @pytest.mark.parametrize(
     "filein",
@@ -267,7 +271,12 @@ def test_extra_keywords_errors(tmp_path, ex_val, error_msg):
     val = ex_val[keyword]
     cal_in.extra_keywords[keyword] = val
     with uvtest.check_warnings(
-        UserWarning, f"{keyword} in extra_keywords is a list, array or dict"
+        [UserWarning, DeprecationWarning],
+        match=[
+            f"{keyword} in extra_keywords is a list, array or dict",
+            "The antenna_positions parameter is not set. It will be a required "
+            "parameter starting in pyuvdata version 2.3",
+        ],
     ):
         cal_in.check()
     with pytest.raises(TypeError, match=error_msg):
@@ -285,7 +294,12 @@ def test_extra_keywords_warnings(tmp_path):
     # check for warnings with extra_keywords keys that are too long
     cal_in.extra_keywords["test_long_key"] = True
     with uvtest.check_warnings(
-        UserWarning, "key test_long_key in extra_keywords is longer than 8 characters"
+        [UserWarning, DeprecationWarning],
+        match=[
+            "key test_long_key in extra_keywords is longer than 8 characters",
+            "The antenna_positions parameter is not set. It will be a required "
+            "parameter starting in pyuvdata version 2.3",
+        ],
     ):
         cal_in.check()
     with uvtest.check_warnings(

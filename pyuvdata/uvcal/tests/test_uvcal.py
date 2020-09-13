@@ -15,6 +15,10 @@ import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:The antenna_positions parameter is not set."
+)
+
 
 @pytest.fixture(scope="function")
 def uvcal_data():
@@ -136,6 +140,60 @@ def uvcal_data():
     return
 
 
+@pytest.fixture(scope="function")
+def gain_data():
+    """Initialize for some basic uvcal tests."""
+    gain_object = UVCal()
+    gainfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
+    gain_object.read_calfits(gainfile)
+
+    gain_object2 = gain_object.copy()
+    delay_object = UVCal()
+    delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
+    delay_object.read_calfits(delayfile)
+
+    class DataHolder(object):
+        def __init__(self, gain_object, gain_object2, delay_object):
+            self.gain_object = gain_object
+            self.gain_object2 = gain_object2
+            self.delay_object = delay_object
+
+    gain_data = DataHolder(gain_object, gain_object2, delay_object)
+    yield gain_data
+
+    del gain_data
+
+
+@pytest.fixture(scope="function")
+def delay_data(tmp_path):
+    """Initialization for some basic uvcal tests."""
+
+    delay_object = UVCal()
+    delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
+
+    # add an input flag array to the file to test for that.
+    write_file = str(tmp_path / "outtest_input_flags.fits")
+    uv_in = UVCal()
+    uv_in.read_calfits(delayfile)
+    uv_in.input_flag_array = np.zeros(
+        uv_in._input_flag_array.expected_shape(uv_in), dtype=bool
+    )
+    uv_in.write_calfits(write_file, clobber=True)
+    delay_object.read_calfits(write_file)
+
+    class DataHolder(object):
+        def __init__(self, delay_object):
+            self.delay_object = delay_object
+            self.delay_object2 = delay_object.copy()
+
+    delay_data = DataHolder(delay_object)
+
+    # yield the data for testing, then del after tests finish
+    yield delay_data
+
+    del delay_data
+
+
 def test_parameter_iter(uvcal_data):
     """Test expected parameters."""
     (
@@ -249,30 +307,6 @@ def test_properties(uvcal_data):
             raise
 
 
-@pytest.fixture(scope="function")
-def gain_data():
-    """Initialize for some basic uvcal tests."""
-    gain_object = UVCal()
-    gainfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
-    gain_object.read_calfits(gainfile)
-
-    gain_object2 = gain_object.copy()
-    delay_object = UVCal()
-    delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
-    delay_object.read_calfits(delayfile)
-
-    class DataHolder(object):
-        def __init__(self, gain_object, gain_object2, delay_object):
-            self.gain_object = gain_object
-            self.gain_object2 = gain_object2
-            self.delay_object = delay_object
-
-    gain_data = DataHolder(gain_object, gain_object2, delay_object)
-    yield gain_data
-
-    del gain_data
-
-
 def test_equality(gain_data):
     """Basic equality test"""
     assert gain_data.gain_object == gain_data.gain_object
@@ -281,6 +315,25 @@ def test_equality(gain_data):
 def test_check(gain_data):
     """Test that parameter checks run properly"""
     assert gain_data.gain_object.check()
+
+
+def test_check_warnings(gain_data):
+    """Test that parameter checks run properly"""
+    gain_data.gain_object.telescope_location = None
+    gain_data.gain_object.lst_array = None
+
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        [
+            "The telescope_location is not set. It will be a required "
+            "parameter starting in pyuvdata version 2.3",
+            "The antenna_positions parameter is not set. It will be a required "
+            "parameter starting in pyuvdata version 2.3",
+            "The lst_array is not set. It will be a required "
+            "parameter starting in pyuvdata version 2.3",
+        ],
+    ):
+        assert gain_data.gain_object.check()
 
 
 def test_nants_data_telescope_larger(gain_data):
@@ -398,7 +451,8 @@ def test_set_redundant(gain_data):
 
 def test_convert_filetype(gain_data):
     # error testing
-    pytest.raises(ValueError, gain_data.gain_object._convert_to_filetype, "uvfits")
+    with pytest.raises(ValueError, match="filetype must be calfits."):
+        gain_data.gain_object._convert_to_filetype("uvfits")
 
 
 def test_convert_to_gain(gain_data):
@@ -500,320 +554,364 @@ def test_convert_to_gain(gain_data):
     pytest.raises(ValueError, gain_data.gain_object.convert_to_gain)
 
 
-def test_select_antennas(gain_data, tmp_path):
-    old_history = gain_data.gain_object.history
-    ants_to_keep = np.array([65, 96, 9, 97, 89, 22, 20, 72])
-    gain_data.gain_object2.select(antenna_nums=ants_to_keep)
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_select_antennas(caltype, gain_data, delay_data, tmp_path):
+    if caltype == "gain":
+        calobj = gain_data.gain_object
+        calobj2 = gain_data.gain_object2
+    else:
+        calobj = delay_data.delay_object
+        calobj2 = calobj.copy()
 
-    assert len(ants_to_keep) == gain_data.gain_object2.Nants_data
+    old_history = calobj.history
+    ants_to_keep = np.array([65, 96, 9, 97, 89, 22, 20, 72])
+    calobj2.select(antenna_nums=ants_to_keep)
+
+    assert len(ants_to_keep) == calobj2.Nants_data
     for ant in ants_to_keep:
-        assert ant in gain_data.gain_object2.ant_array
-    for ant in gain_data.gain_object2.ant_array:
+        assert ant in calobj2.ant_array
+    for ant in calobj2.ant_array:
         assert ant in ants_to_keep
 
     assert uvutils._check_histories(
         old_history + "  Downselected to " "specific antennas using pyuvdata.",
-        gain_data.gain_object2.history,
+        calobj2.history,
     )
 
     # now test using antenna_names to specify antennas to keep
     ants_to_keep = np.array(sorted(ants_to_keep))
     ant_names = []
     for a in ants_to_keep:
-        ind = np.where(gain_data.gain_object.antenna_numbers == a)[0][0]
-        ant_names.append(gain_data.gain_object.antenna_names[ind])
+        ind = np.where(calobj.antenna_numbers == a)[0][0]
+        ant_names.append(calobj.antenna_names[ind])
 
-    gain_data.gain_object3 = gain_data.gain_object.select(
-        antenna_names=ant_names, inplace=False
-    )
+    calobj3 = calobj.select(antenna_names=ant_names, inplace=False)
 
-    assert gain_data.gain_object2 == gain_data.gain_object3
+    assert calobj2 == calobj3
 
     # check for errors associated with antennas not included in data, bad names
     # or providing numbers and names
     pytest.raises(
         ValueError,
-        gain_data.gain_object.select,
-        antenna_nums=np.max(gain_data.gain_object.ant_array) + np.arange(1, 3),
+        calobj.select,
+        antenna_nums=np.max(calobj.ant_array) + np.arange(1, 3),
     )
-    pytest.raises(ValueError, gain_data.gain_object.select, antenna_names="test1")
+    pytest.raises(ValueError, calobj.select, antenna_names="test1")
     pytest.raises(
-        ValueError,
-        gain_data.gain_object.select,
-        antenna_nums=ants_to_keep,
-        antenna_names=ant_names,
+        ValueError, calobj.select, antenna_nums=ants_to_keep, antenna_names=ant_names,
     )
 
     # check that write_calfits works with Nants_data < Nants_telescope
     write_file_calfits = str(tmp_path / "select_test.calfits")
-    gain_data.gain_object2.write_calfits(write_file_calfits, clobber=True)
+    calobj2.write_calfits(write_file_calfits, clobber=True)
 
     # check that reading it back in works too
     new_gain_object = UVCal()
     new_gain_object.read_calfits(write_file_calfits)
-    assert gain_data.gain_object2 == new_gain_object
+    assert calobj2 == new_gain_object
 
     # check that total_quality_array is handled properly when present
-    gain_data.gain_object.total_quality_array = np.zeros(
-        gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
+    calobj.total_quality_array = np.zeros(
+        calobj._total_quality_array.expected_shape(calobj)
     )
-    with uvtest.check_warnings(UserWarning, "Cannot preserve total_quality_array"):
-        gain_data.gain_object.select(antenna_names=ant_names, inplace=True)
-    assert gain_data.gain_object.total_quality_array is None
+    with uvtest.check_warnings(
+        [UserWarning, DeprecationWarning],
+        match=[
+            "Cannot preserve total_quality_array",
+            "The antenna_positions parameter is not set. It will be a required "
+            "parameter starting in pyuvdata version 2.3",
+        ],
+    ):
+        calobj.select(antenna_names=ant_names, inplace=True)
+    assert calobj.total_quality_array is None
 
 
-def test_select_times(gain_data, tmp_path):
-    old_history = gain_data.gain_object.history
-    times_to_keep = gain_data.gain_object.time_array[2:5]
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_select_times(caltype, gain_data, delay_data, tmp_path):
+    if caltype == "gain":
+        calobj = gain_data.gain_object
+        calobj2 = gain_data.gain_object2
+    else:
+        calobj = delay_data.delay_object
+        calobj2 = calobj.copy()
+    old_history = calobj.history
+    times_to_keep = calobj.time_array[2:5]
 
-    gain_data.gain_object2.select(times=times_to_keep)
+    calobj2.select(times=times_to_keep)
 
-    assert len(times_to_keep) == gain_data.gain_object2.Ntimes
+    assert len(times_to_keep) == calobj2.Ntimes
     for t in times_to_keep:
-        assert t in gain_data.gain_object2.time_array
-    for t in np.unique(gain_data.gain_object2.time_array):
+        assert t in calobj2.time_array
+    for t in np.unique(calobj2.time_array):
         assert t in times_to_keep
 
     assert uvutils._check_histories(
         old_history + "  Downselected to " "specific times using pyuvdata.",
-        gain_data.gain_object2.history,
+        calobj2.history,
     )
 
     write_file_calfits = str(tmp_path / "select_test.calfits")
     # test writing calfits with only one time
-    gain_data.gain_object2 = gain_data.gain_object.copy()
-    times_to_keep = gain_data.gain_object.time_array[[1]]
-    gain_data.gain_object2.select(times=times_to_keep)
-    gain_data.gain_object2.write_calfits(write_file_calfits, clobber=True)
+    calobj2 = calobj.copy()
+    times_to_keep = calobj.time_array[[1]]
+    calobj2.select(times=times_to_keep)
+    calobj2.write_calfits(write_file_calfits, clobber=True)
 
     # check for errors associated with times not included in data
     pytest.raises(
         ValueError,
-        gain_data.gain_object.select,
-        times=[
-            np.min(gain_data.gain_object.time_array)
-            - gain_data.gain_object.integration_time
-        ],
+        calobj.select,
+        times=[np.min(calobj.time_array) - calobj.integration_time],
     )
 
     # check for warnings and errors associated with unevenly spaced times
-    gain_data.gain_object2 = gain_data.gain_object.copy()
-    with uvtest.check_warnings(UserWarning, "Selected times are not evenly spaced"):
-        gain_data.gain_object2.select(
-            times=gain_data.gain_object2.time_array[[0, 2, 3]]
-        )
-    pytest.raises(ValueError, gain_data.gain_object2.write_calfits, write_file_calfits)
+    calobj2 = calobj.copy()
+    with uvtest.check_warnings(
+        [UserWarning, DeprecationWarning],
+        match=[
+            "Selected times are not evenly spaced",
+            "The antenna_positions parameter is not set. It will be a required "
+            "parameter starting in pyuvdata version 2.3",
+        ],
+    ):
+        calobj2.select(times=calobj2.time_array[[0, 2, 3]])
+    pytest.raises(ValueError, calobj2.write_calfits, write_file_calfits)
 
 
-def test_select_frequencies(gain_data, tmp_path):
-    old_history = gain_data.gain_object.history
-    freqs_to_keep = gain_data.gain_object.freq_array[0, np.arange(4, 8)]
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_select_frequencies(caltype, gain_data, delay_data, tmp_path):
+    if caltype == "gain":
+        calobj = gain_data.gain_object
+        calobj2 = gain_data.gain_object2
+    else:
+        calobj = delay_data.delay_object
+        calobj2 = calobj.copy()
+
+    old_history = calobj.history
+    freqs_to_keep = calobj.freq_array[0, np.arange(4, 8)]
 
     # add dummy total_quality_array
-    gain_data.gain_object.total_quality_array = np.zeros(
-        gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
+    calobj.total_quality_array = np.zeros(
+        calobj._total_quality_array.expected_shape(calobj)
     )
-    gain_data.gain_object2.total_quality_array = np.zeros(
-        gain_data.gain_object2._total_quality_array.expected_shape(
-            gain_data.gain_object2
-        )
+    calobj2.total_quality_array = np.zeros(
+        calobj2._total_quality_array.expected_shape(calobj2)
     )
 
-    gain_data.gain_object2.select(frequencies=freqs_to_keep)
+    calobj2.select(frequencies=freqs_to_keep)
 
-    assert len(freqs_to_keep) == gain_data.gain_object2.Nfreqs
+    assert len(freqs_to_keep) == calobj2.Nfreqs
     for f in freqs_to_keep:
-        assert f in gain_data.gain_object2.freq_array
-    for f in np.unique(gain_data.gain_object2.freq_array):
+        assert f in calobj2.freq_array
+    for f in np.unique(calobj2.freq_array):
         assert f in freqs_to_keep
 
     assert uvutils._check_histories(
         old_history + "  Downselected to " "specific frequencies using pyuvdata.",
-        gain_data.gain_object2.history,
+        calobj2.history,
     )
 
     write_file_calfits = str(tmp_path / "select_test.calfits")
     # test writing calfits with only one frequency
-    gain_data.gain_object2 = gain_data.gain_object.copy()
-    freqs_to_keep = gain_data.gain_object.freq_array[0, 5]
-    gain_data.gain_object2.select(frequencies=freqs_to_keep)
-    gain_data.gain_object2.write_calfits(write_file_calfits, clobber=True)
+    calobj2 = calobj.copy()
+    freqs_to_keep = calobj.freq_array[0, 5]
+    calobj2.select(frequencies=freqs_to_keep)
+    calobj2.write_calfits(write_file_calfits, clobber=True)
 
     # check for errors associated with frequencies not included in data
     pytest.raises(
         ValueError,
-        gain_data.gain_object.select,
-        frequencies=[
-            np.max(gain_data.gain_object.freq_array)
-            + gain_data.gain_object.channel_width
-        ],
+        calobj.select,
+        frequencies=[np.max(calobj.freq_array) + calobj.channel_width],
     )
 
     # check for warnings and errors associated with unevenly spaced frequencies
-    gain_data.gain_object2 = gain_data.gain_object.copy()
+    calobj2 = calobj.copy()
     with uvtest.check_warnings(
-        UserWarning, "Selected frequencies are not evenly spaced"
+        [UserWarning, DeprecationWarning],
+        match=[
+            "Selected frequencies are not evenly spaced",
+            "The antenna_positions parameter is not set. It will be a required "
+            "parameter starting in pyuvdata version 2.3",
+        ],
     ):
-        gain_data.gain_object2.select(
-            frequencies=gain_data.gain_object2.freq_array[0, [0, 5, 6]]
-        )
-    pytest.raises(ValueError, gain_data.gain_object2.write_calfits, write_file_calfits)
+        calobj2.select(frequencies=calobj2.freq_array[0, [0, 5, 6]])
+    pytest.raises(ValueError, calobj2.write_calfits, write_file_calfits)
 
 
-def test_select_freq_chans(gain_data):
-    old_history = gain_data.gain_object.history
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_select_freq_chans(caltype, gain_data, delay_data):
+    if caltype == "gain":
+        calobj = gain_data.gain_object
+        calobj2 = gain_data.gain_object2
+    else:
+        calobj = delay_data.delay_object
+        calobj2 = calobj.copy()
+
+    old_history = calobj.history
     chans_to_keep = np.arange(4, 8)
 
     # add dummy total_quality_array
-    gain_data.gain_object.total_quality_array = np.zeros(
-        gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
+    calobj.total_quality_array = np.zeros(
+        calobj._total_quality_array.expected_shape(calobj)
     )
-    gain_data.gain_object2.total_quality_array = np.zeros(
-        gain_data.gain_object2._total_quality_array.expected_shape(
-            gain_data.gain_object2
-        )
+    calobj2.total_quality_array = np.zeros(
+        calobj2._total_quality_array.expected_shape(calobj2)
     )
 
-    gain_data.gain_object2.select(freq_chans=chans_to_keep)
+    calobj2.select(freq_chans=chans_to_keep)
 
-    assert len(chans_to_keep) == gain_data.gain_object2.Nfreqs
+    assert len(chans_to_keep) == calobj2.Nfreqs
     for chan in chans_to_keep:
-        assert (
-            gain_data.gain_object.freq_array[0, chan]
-            in gain_data.gain_object2.freq_array
-        )
-    for f in np.unique(gain_data.gain_object2.freq_array):
-        assert f in gain_data.gain_object.freq_array[0, chans_to_keep]
+        assert calobj.freq_array[0, chan] in calobj2.freq_array
+    for f in np.unique(calobj2.freq_array):
+        assert f in calobj.freq_array[0, chans_to_keep]
 
     assert uvutils._check_histories(
         old_history + "  Downselected to " "specific frequencies using pyuvdata.",
-        gain_data.gain_object2.history,
+        calobj2.history,
     )
 
     # Test selecting both channels and frequencies
-    freqs_to_keep = gain_data.gain_object.freq_array[
-        0, np.arange(7, 10)
-    ]  # Overlaps with chans
+    freqs_to_keep = calobj.freq_array[0, np.arange(7, 10)]  # Overlaps with chans
     all_chans_to_keep = np.arange(4, 10)
 
-    gain_data.gain_object2 = gain_data.gain_object.copy()
-    gain_data.gain_object2.select(frequencies=freqs_to_keep, freq_chans=chans_to_keep)
+    calobj2 = calobj.copy()
+    calobj2.select(frequencies=freqs_to_keep, freq_chans=chans_to_keep)
 
-    assert len(all_chans_to_keep) == gain_data.gain_object2.Nfreqs
+    assert len(all_chans_to_keep) == calobj2.Nfreqs
     for chan in all_chans_to_keep:
-        assert (
-            gain_data.gain_object.freq_array[0, chan]
-            in gain_data.gain_object2.freq_array
-        )
-    for f in np.unique(gain_data.gain_object2.freq_array):
-        assert f in gain_data.gain_object.freq_array[0, all_chans_to_keep]
+        assert calobj.freq_array[0, chan] in calobj2.freq_array
+    for f in np.unique(calobj2.freq_array):
+        assert f in calobj.freq_array[0, all_chans_to_keep]
 
 
-def test_select_polarizations(gain_data):
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_select_polarizations(caltype, gain_data, delay_data):
+    if caltype == "gain":
+        calobj = gain_data.gain_object
+        calobj2 = gain_data.gain_object2
+    else:
+        calobj = delay_data.delay_object
+        calobj2 = calobj.copy()
+
     # add more jones terms to allow for better testing of selections
-    while gain_data.gain_object.Njones < 4:
-        new_jones = np.min(gain_data.gain_object.jones_array) - 1
-        gain_data.gain_object.jones_array = np.append(
-            gain_data.gain_object.jones_array, new_jones
+    while calobj.Njones < 4:
+        new_jones = np.min(calobj.jones_array) - 1
+        calobj.jones_array = np.append(calobj.jones_array, new_jones)
+        calobj.Njones += 1
+        calobj.flag_array = np.concatenate(
+            (calobj.flag_array, calobj.flag_array[:, :, :, :, [-1]],), axis=4,
         )
-        gain_data.gain_object.Njones += 1
-        gain_data.gain_object.flag_array = np.concatenate(
-            (
-                gain_data.gain_object.flag_array,
-                gain_data.gain_object.flag_array[:, :, :, :, [-1]],
-            ),
-            axis=4,
-        )
-        gain_data.gain_object.gain_array = np.concatenate(
-            (
-                gain_data.gain_object.gain_array,
-                gain_data.gain_object.gain_array[:, :, :, :, [-1]],
-            ),
-            axis=4,
-        )
-        gain_data.gain_object.quality_array = np.concatenate(
-            (
-                gain_data.gain_object.quality_array,
-                gain_data.gain_object.quality_array[:, :, :, :, [-1]],
-            ),
-            axis=4,
+        if calobj.input_flag_array is not None:
+            calobj.input_flag_array = np.concatenate(
+                (calobj.input_flag_array, calobj.input_flag_array[:, :, :, :, [-1]],),
+                axis=4,
+            )
+        if caltype == "gain":
+            calobj.gain_array = np.concatenate(
+                (calobj.gain_array, calobj.gain_array[:, :, :, :, [-1]],), axis=4,
+            )
+        else:
+            delay_data.delay_object.delay_array = np.concatenate(
+                (
+                    delay_data.delay_object.delay_array,
+                    delay_data.delay_object.delay_array[:, :, :, :, [-1]],
+                ),
+                axis=4,
+            )
+        calobj.quality_array = np.concatenate(
+            (calobj.quality_array, calobj.quality_array[:, :, :, :, [-1]],), axis=4,
         )
     # add dummy total_quality_array
-    gain_data.gain_object.total_quality_array = np.zeros(
-        gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
+    calobj.total_quality_array = np.zeros(
+        calobj._total_quality_array.expected_shape(calobj)
     )
 
-    assert gain_data.gain_object.check()
-    gain_data.gain_object2 = gain_data.gain_object.copy()
+    assert calobj.check()
+    calobj2 = calobj.copy()
 
-    old_history = gain_data.gain_object.history
+    old_history = calobj.history
     jones_to_keep = [-5, -6]
 
-    gain_data.gain_object2.select(jones=jones_to_keep)
+    calobj2.select(jones=jones_to_keep)
 
-    assert len(jones_to_keep) == gain_data.gain_object2.Njones
+    assert len(jones_to_keep) == calobj2.Njones
     for j in jones_to_keep:
-        assert j in gain_data.gain_object2.jones_array
-    for j in np.unique(gain_data.gain_object2.jones_array):
+        assert j in calobj2.jones_array
+    for j in np.unique(calobj2.jones_array):
         assert j in jones_to_keep
 
     assert uvutils._check_histories(
         old_history + "  Downselected to "
         "specific jones polarization terms "
         "using pyuvdata.",
-        gain_data.gain_object2.history,
+        calobj2.history,
     )
 
     # check for errors associated with polarizations not included in data
-    pytest.raises(ValueError, gain_data.gain_object2.select, jones=[-3, -4])
+    pytest.raises(ValueError, calobj2.select, jones=[-3, -4])
 
     # check for warnings and errors associated with unevenly spaced polarizations
     with uvtest.check_warnings(
-        UserWarning, "Selected jones polarization terms are not evenly spaced"
+        [UserWarning, DeprecationWarning],
+        match=[
+            "Selected jones polarization terms are not evenly spaced",
+            "The antenna_positions parameter is not set. It will be a required "
+            "parameter starting in pyuvdata version 2.3",
+        ],
     ):
-        gain_data.gain_object.select(jones=gain_data.gain_object.jones_array[[0, 1, 3]])
+        calobj.select(jones=calobj.jones_array[[0, 1, 3]])
     write_file_calfits = os.path.join(DATA_PATH, "test/select_test.calfits")
-    pytest.raises(ValueError, gain_data.gain_object.write_calfits, write_file_calfits)
+    pytest.raises(ValueError, calobj.write_calfits, write_file_calfits)
 
 
-def test_select(gain_data):
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_select(caltype, gain_data, delay_data):
     # now test selecting along all axes at once
-    old_history = gain_data.gain_object.history
+    if caltype == "gain":
+        calobj = gain_data.gain_object
+        calobj2 = gain_data.gain_object2
+    else:
+        calobj = delay_data.delay_object
+        calobj2 = calobj.copy()
+
+    old_history = calobj.history
 
     ants_to_keep = np.array([10, 89, 43, 9, 80, 96, 64])
-    freqs_to_keep = gain_data.gain_object.freq_array[0, np.arange(2, 5)]
-    times_to_keep = gain_data.gain_object.time_array[[1, 2]]
+    freqs_to_keep = calobj.freq_array[0, np.arange(2, 5)]
+    times_to_keep = calobj.time_array[[1, 2]]
     jones_to_keep = [-5]
 
-    gain_data.gain_object2.select(
+    calobj2.select(
         antenna_nums=ants_to_keep,
         frequencies=freqs_to_keep,
         times=times_to_keep,
         jones=jones_to_keep,
     )
 
-    assert len(ants_to_keep) == gain_data.gain_object2.Nants_data
+    assert len(ants_to_keep) == calobj2.Nants_data
     for ant in ants_to_keep:
-        assert ant in gain_data.gain_object2.ant_array
-    for ant in gain_data.gain_object2.ant_array:
+        assert ant in calobj2.ant_array
+    for ant in calobj2.ant_array:
         assert ant in ants_to_keep
 
-    assert len(times_to_keep) == gain_data.gain_object2.Ntimes
+    assert len(times_to_keep) == calobj2.Ntimes
     for t in times_to_keep:
-        assert t in gain_data.gain_object2.time_array
-    for t in np.unique(gain_data.gain_object2.time_array):
+        assert t in calobj2.time_array
+    for t in np.unique(calobj2.time_array):
         assert t in times_to_keep
 
-    assert len(freqs_to_keep) == gain_data.gain_object2.Nfreqs
+    assert len(freqs_to_keep) == calobj2.Nfreqs
     for f in freqs_to_keep:
-        assert f in gain_data.gain_object2.freq_array
-    for f in np.unique(gain_data.gain_object2.freq_array):
+        assert f in calobj2.freq_array
+    for f in np.unique(calobj2.freq_array):
         assert f in freqs_to_keep
 
-    assert len(jones_to_keep) == gain_data.gain_object2.Njones
+    assert len(jones_to_keep) == calobj2.Njones
     for j in jones_to_keep:
-        assert j in gain_data.gain_object2.jones_array
-    for j in np.unique(gain_data.gain_object2.jones_array):
+        assert j in calobj2.jones_array
+    for j in np.unique(calobj2.jones_array):
         assert j in jones_to_keep
 
     assert uvutils._check_histories(
@@ -821,669 +919,311 @@ def test_select(gain_data):
         "specific antennas, times, "
         "frequencies, jones polarization terms "
         "using pyuvdata.",
-        gain_data.gain_object2.history,
+        calobj2.history,
     )
 
 
-@pytest.fixture(scope="function")
-def delay_data(tmp_path):
-    """Initialization for some basic uvcal tests."""
-
-    delay_object = UVCal()
-    delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
-
-    # add an input flag array to the file to test for that.
-    write_file = str(tmp_path / "outtest_input_flags.fits")
-    uv_in = UVCal()
-    uv_in.read_calfits(delayfile)
-    uv_in.input_flag_array = np.zeros(
-        uv_in._input_flag_array.expected_shape(uv_in), dtype=bool
-    )
-    uv_in.write_calfits(write_file, clobber=True)
-    delay_object.read_calfits(write_file)
-
-    class DataHolder(object):
-        def __init__(self, delay_object):
-            self.delay_object = delay_object
-            self.delay_object2 = delay_object.copy()
-
-    delay_data = DataHolder(delay_object)
-
-    # yield the data for testing, then del after tests finish
-    yield delay_data
-
-    del delay_data
-
-
-def test_select_antennas_delay(delay_data):
-    old_history = delay_data.delay_object.history
-    ants_to_keep = np.array([65, 96, 9, 97, 89, 22, 20, 72])
-    delay_data.delay_object2.select(antenna_nums=ants_to_keep)
-
-    assert len(ants_to_keep) == delay_data.delay_object2.Nants_data
-    for ant in ants_to_keep:
-        assert ant in delay_data.delay_object2.ant_array
-    for ant in delay_data.delay_object2.ant_array:
-        assert ant in ants_to_keep
-
-    assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific antennas using pyuvdata.",
-        delay_data.delay_object2.history,
-    )
-
-    # now test using antenna_names to specify antennas to keep
-    delay_data.delay_object3 = delay_data.delay_object.copy()
-    ants_to_keep = np.array(sorted(ants_to_keep))
-    ant_names = []
-    for a in ants_to_keep:
-        ind = np.where(delay_data.delay_object3.antenna_numbers == a)[0][0]
-        ant_names.append(delay_data.delay_object3.antenna_names[ind])
-
-    delay_data.delay_object3.select(antenna_names=ant_names)
-
-    assert delay_data.delay_object2 == delay_data.delay_object3
-
-    # check for errors associated with antennas not included in data, bad names
-    # or providing numbers and names
-    pytest.raises(
-        ValueError,
-        delay_data.delay_object.select,
-        antenna_nums=np.max(delay_data.delay_object.ant_array) + np.arange(1, 3),
-    )
-    pytest.raises(ValueError, delay_data.delay_object.select, antenna_names="test1")
-    pytest.raises(
-        ValueError,
-        delay_data.delay_object.select,
-        antenna_nums=ants_to_keep,
-        antenna_names=ant_names,
-    )
-
-    # check that total_quality_array is handled properly when present
-    delay_data.delay_object.total_quality_array = np.zeros(
-        delay_data.delay_object._total_quality_array.expected_shape(
-            delay_data.delay_object
-        )
-    )
-    with uvtest.check_warnings(UserWarning, "Cannot preserve total_quality_array"):
-        delay_data.delay_object.select(antenna_names=ant_names, inplace=True)
-    assert delay_data.delay_object.total_quality_array is None
-
-
-def test_select_times_delay(delay_data):
-    old_history = delay_data.delay_object.history
-    times_to_keep = delay_data.delay_object.time_array[2:5]
-
-    delay_data.delay_object2.select(times=times_to_keep)
-
-    assert len(times_to_keep) == delay_data.delay_object2.Ntimes
-    for t in times_to_keep:
-        assert t in delay_data.delay_object2.time_array
-    for t in np.unique(delay_data.delay_object2.time_array):
-        assert t in times_to_keep
-
-    assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific times using pyuvdata.",
-        delay_data.delay_object2.history,
-    )
-
-    # check for errors associated with times not included in data
-    pytest.raises(
-        ValueError,
-        delay_data.delay_object.select,
-        times=[
-            np.min(delay_data.delay_object.time_array)
-            - delay_data.delay_object.integration_time
-        ],
-    )
-
-    # check for warnings and errors associated with unevenly spaced times
-    delay_data.delay_object2 = delay_data.delay_object.copy()
-    with uvtest.check_warnings(UserWarning, "Selected times are not evenly spaced"):
-        delay_data.delay_object2.select(
-            times=delay_data.delay_object2.time_array[[0, 2, 3]]
-        )
-    write_file_calfits = os.path.join(DATA_PATH, "test/select_test.calfits")
-    pytest.raises(
-        ValueError, delay_data.delay_object2.write_calfits, write_file_calfits
-    )
-
-
-def test_select_frequencies_delay(delay_data, tmp_path):
-    old_history = delay_data.delay_object.history
-    freqs_to_keep = delay_data.delay_object.freq_array[0, np.arange(73, 944)]
-
-    # add dummy total_quality_array
-    delay_data.delay_object.total_quality_array = np.zeros(
-        delay_data.delay_object._total_quality_array.expected_shape(
-            delay_data.delay_object
-        )
-    )
-    delay_data.delay_object2.total_quality_array = np.zeros(
-        delay_data.delay_object2._total_quality_array.expected_shape(
-            delay_data.delay_object2
-        )
-    )
-
-    delay_data.delay_object2.select(frequencies=freqs_to_keep)
-
-    assert len(freqs_to_keep) == delay_data.delay_object2.Nfreqs
-    for f in freqs_to_keep:
-        assert f in delay_data.delay_object2.freq_array
-    for f in np.unique(delay_data.delay_object2.freq_array):
-        assert f in freqs_to_keep
-
-    assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific frequencies using pyuvdata.",
-        delay_data.delay_object2.history,
-    )
-
-    # check for errors associated with frequencies not included in data
-    pytest.raises(
-        ValueError,
-        delay_data.delay_object.select,
-        frequencies=[
-            np.max(delay_data.delay_object.freq_array)
-            + delay_data.delay_object.channel_width
-        ],
-    )
-
-    # check for warnings and errors associated with unevenly spaced frequencies
-    delay_data.delay_object2 = delay_data.delay_object.copy()
-    with uvtest.check_warnings(
-        UserWarning, "Selected frequencies are not evenly spaced"
-    ):
-        delay_data.delay_object2.select(
-            frequencies=delay_data.delay_object2.freq_array[0, [0, 5, 6]]
-        )
-
-    write_file_calfits = str(tmp_path / "select_test.calfits")
-    pytest.raises(
-        ValueError, delay_data.delay_object2.write_calfits, write_file_calfits
-    )
-
-
-def test_select_freq_chans_delay(delay_data):
-    old_history = delay_data.delay_object.history
-    chans_to_keep = np.arange(73, 944)
-
-    # add dummy total_quality_array
-    delay_data.delay_object.total_quality_array = np.zeros(
-        delay_data.delay_object._total_quality_array.expected_shape(
-            delay_data.delay_object
-        )
-    )
-    delay_data.delay_object2.total_quality_array = np.zeros(
-        delay_data.delay_object2._total_quality_array.expected_shape(
-            delay_data.delay_object2
-        )
-    )
-
-    delay_data.delay_object2.select(freq_chans=chans_to_keep)
-
-    assert len(chans_to_keep) == delay_data.delay_object2.Nfreqs
-    for chan in chans_to_keep:
-        assert (
-            delay_data.delay_object.freq_array[0, chan]
-            in delay_data.delay_object2.freq_array
-        )
-    for f in np.unique(delay_data.delay_object2.freq_array):
-        assert f in delay_data.delay_object.freq_array[0, chans_to_keep]
-
-    assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific frequencies using pyuvdata.",
-        delay_data.delay_object2.history,
-    )
-
-    # Test selecting both channels and frequencies
-    freqs_to_keep = delay_data.delay_object.freq_array[
-        0, np.arange(930, 1000)
-    ]  # Overlaps with chans
-    all_chans_to_keep = np.arange(73, 1000)
-
-    delay_data.delay_object2 = delay_data.delay_object.copy()
-    delay_data.delay_object2.select(frequencies=freqs_to_keep, freq_chans=chans_to_keep)
-
-    assert len(all_chans_to_keep) == delay_data.delay_object2.Nfreqs
-    for chan in all_chans_to_keep:
-        assert (
-            delay_data.delay_object.freq_array[0, chan]
-            in delay_data.delay_object2.freq_array
-        )
-    for f in np.unique(delay_data.delay_object2.freq_array):
-        assert f in delay_data.delay_object.freq_array[0, all_chans_to_keep]
-
-
-def test_select_polarizations_delay(delay_data, tmp_path):
-    # add more jones terms to allow for better testing of selections
-    while delay_data.delay_object.Njones < 4:
-        new_jones = np.min(delay_data.delay_object.jones_array) - 1
-        delay_data.delay_object.jones_array = np.append(
-            delay_data.delay_object.jones_array, new_jones
-        )
-        delay_data.delay_object.Njones += 1
-        delay_data.delay_object.flag_array = np.concatenate(
-            (
-                delay_data.delay_object.flag_array,
-                delay_data.delay_object.flag_array[:, :, :, :, [-1]],
-            ),
-            axis=4,
-        )
-        delay_data.delay_object.input_flag_array = np.concatenate(
-            (
-                delay_data.delay_object.input_flag_array,
-                delay_data.delay_object.input_flag_array[:, :, :, :, [-1]],
-            ),
-            axis=4,
-        )
-        delay_data.delay_object.delay_array = np.concatenate(
-            (
-                delay_data.delay_object.delay_array,
-                delay_data.delay_object.delay_array[:, :, :, :, [-1]],
-            ),
-            axis=4,
-        )
-        delay_data.delay_object.quality_array = np.concatenate(
-            (
-                delay_data.delay_object.quality_array,
-                delay_data.delay_object.quality_array[:, :, :, :, [-1]],
-            ),
-            axis=4,
-        )
-    # add dummy total_quality_array
-    delay_data.delay_object.total_quality_array = np.zeros(
-        delay_data.delay_object._total_quality_array.expected_shape(
-            delay_data.delay_object
-        )
-    )
-    assert delay_data.delay_object.check()
-    delay_data.delay_object2 = delay_data.delay_object.copy()
-
-    old_history = delay_data.delay_object.history
-    jones_to_keep = [-5, -6]
-
-    delay_data.delay_object2.select(jones=jones_to_keep)
-
-    assert len(jones_to_keep) == delay_data.delay_object2.Njones
-    for j in jones_to_keep:
-        assert j in delay_data.delay_object2.jones_array
-    for j in np.unique(delay_data.delay_object2.jones_array):
-        assert j in jones_to_keep
-
-    assert uvutils._check_histories(
-        old_history + "  Downselected to "
-        "specific jones polarization terms "
-        "using pyuvdata.",
-        delay_data.delay_object2.history,
-    )
-
-    # check for errors associated with polarizations not included in data
-    pytest.raises(ValueError, delay_data.delay_object2.select, jones=[-3, -4])
-
-    # check for warnings and errors associated with unevenly spaced polarizations
-    with uvtest.check_warnings(
-        UserWarning, "Selected jones polarization terms are not evenly spaced"
-    ):
-        delay_data.delay_object.select(
-            jones=delay_data.delay_object.jones_array[[0, 1, 3]]
-        )
-
-    write_file_calfits = str(tmp_path / "select_test.calfits")
-    pytest.raises(ValueError, delay_data.delay_object.write_calfits, write_file_calfits)
-
-
-def test_select_delay(delay_data):
-    # now test selecting along all axes at once
-    old_history = delay_data.delay_object.history
-
-    ants_to_keep = np.array([10, 89, 43, 9, 80, 96, 64])
-    freqs_to_keep = delay_data.delay_object.freq_array[0, np.arange(31, 56)]
-    times_to_keep = delay_data.delay_object.time_array[[1, 2]]
-    jones_to_keep = [-5]
-
-    delay_data.delay_object2.select(
-        antenna_nums=ants_to_keep,
-        frequencies=freqs_to_keep,
-        times=times_to_keep,
-        jones=jones_to_keep,
-    )
-
-    assert len(ants_to_keep) == delay_data.delay_object2.Nants_data
-    for ant in ants_to_keep:
-        assert ant in delay_data.delay_object2.ant_array
-    for ant in delay_data.delay_object2.ant_array:
-        assert ant in ants_to_keep
-
-    assert len(times_to_keep) == delay_data.delay_object2.Ntimes
-    for t in times_to_keep:
-        assert t in delay_data.delay_object2.time_array
-    for t in np.unique(delay_data.delay_object2.time_array):
-        assert t in times_to_keep
-
-    assert len(freqs_to_keep) == delay_data.delay_object2.Nfreqs
-    for f in freqs_to_keep:
-        assert f in delay_data.delay_object2.freq_array
-    for f in np.unique(delay_data.delay_object2.freq_array):
-        assert f in freqs_to_keep
-
-    assert len(jones_to_keep) == delay_data.delay_object2.Njones
-    for j in jones_to_keep:
-        assert j in delay_data.delay_object2.jones_array
-    for j in np.unique(delay_data.delay_object2.jones_array):
-        assert j in jones_to_keep
-
-    assert uvutils._check_histories(
-        old_history + "  Downselected to "
-        "specific antennas, times, "
-        "frequencies, jones polarization terms "
-        "using pyuvdata.",
-        delay_data.delay_object2.history,
-    )
-
-
-def test_add_antennas(gain_data):
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_add_antennas(caltype, gain_data, delay_data):
     """Test adding antennas between two UVCal objects"""
-    gain_object_full = gain_data.gain_object.copy()
+    if caltype == "gain":
+        calobj = gain_data.gain_object
+        calobj2 = gain_data.gain_object2
+    else:
+        calobj = delay_data.delay_object
+        calobj2 = calobj.copy()
+
+    calobj_full = calobj.copy()
     ants1 = np.array([9, 10, 20, 22, 31, 43, 53, 64, 65, 72])
     ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
-    gain_data.gain_object.select(antenna_nums=ants1)
-    gain_data.gain_object2.select(antenna_nums=ants2)
-    gain_data.gain_object += gain_data.gain_object2
+    calobj.select(antenna_nums=ants1)
+    calobj2.select(antenna_nums=ants2)
+    calobj += calobj2
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
-        gain_object_full.history + "  Downselected to specific "
+        calobj_full.history + "  Downselected to specific "
         "antennas using pyuvdata. Combined "
         "data along antenna axis using pyuvdata.",
-        gain_data.gain_object.history,
+        calobj.history,
     )
-    gain_data.gain_object.history = gain_object_full.history
-    assert gain_data.gain_object == gain_object_full
+    calobj.history = calobj_full.history
+    assert calobj == calobj_full
 
     # test for when total_quality_array is present
-    gain_data.gain_object.select(antenna_nums=ants1)
-    gain_data.gain_object.total_quality_array = np.zeros(
-        gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
+    calobj.select(antenna_nums=ants1)
+    calobj.total_quality_array = np.zeros(
+        calobj._total_quality_array.expected_shape(calobj)
     )
-    with uvtest.check_warnings(UserWarning, "Total quality array detected"):
-        gain_data.gain_object.__iadd__(gain_data.gain_object2)
-    assert gain_data.gain_object.total_quality_array is None
+    messages = ["Total quality array detected"] + [
+        "The antenna_positions parameter is not set. It will be a required parameter "
+        "starting in pyuvdata version 2.3"
+    ] * 3
+    with uvtest.check_warnings(
+        [UserWarning] + [DeprecationWarning] * 3, match=messages
+    ):
+        calobj.__iadd__(calobj2)
+    assert calobj.total_quality_array is None
 
 
 def test_add_frequencies(gain_data):
     """Test adding frequencies between two UVCal objects"""
-    gain_object_full = gain_data.gain_object.copy()
-    freqs1 = gain_data.gain_object.freq_array[0, np.arange(0, 5)]
-    freqs2 = gain_data.gain_object2.freq_array[0, np.arange(5, 10)]
-    gain_data.gain_object.select(frequencies=freqs1)
-    gain_data.gain_object2.select(frequencies=freqs2)
-    gain_data.gain_object += gain_data.gain_object2
+    # don't test on delays because there's no freq axis for the delay array
+    calobj = gain_data.gain_object
+    calobj2 = gain_data.gain_object2
+
+    calobj_full = calobj.copy()
+    freqs1 = calobj.freq_array[0, np.arange(0, calobj.Nfreqs // 2)]
+    freqs2 = calobj.freq_array[0, np.arange(calobj.Nfreqs // 2, calobj.Nfreqs)]
+    calobj.select(frequencies=freqs1)
+    calobj2.select(frequencies=freqs2)
+    print(freqs1)
+    print(freqs2)
+    calobj += calobj2
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
-        gain_object_full.history + "  Downselected to specific "
+        calobj_full.history + "  Downselected to specific "
         "frequencies using pyuvdata. Combined "
         "data along frequency axis using pyuvdata.",
-        gain_data.gain_object.history,
+        calobj.history,
     )
-    gain_data.gain_object.history = gain_object_full.history
-    assert gain_data.gain_object == gain_object_full
+    calobj.history = calobj_full.history
+    assert calobj == calobj_full
 
     # test for when total_quality_array is present in first file but not second
-    gain_data.gain_object.select(frequencies=freqs1)
-    tqa = np.ones(
-        gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
-    )
-    tqa2 = np.zeros(
-        gain_data.gain_object2._total_quality_array.expected_shape(
-            gain_data.gain_object2
-        )
-    )
+    calobj.select(frequencies=freqs1)
+    tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
+    tqa2 = np.zeros(calobj2._total_quality_array.expected_shape(calobj2))
     tot_tqa = np.concatenate([tqa, tqa2], axis=1)
-    gain_data.gain_object.total_quality_array = tqa
-    gain_data.gain_object += gain_data.gain_object2
+    calobj.total_quality_array = tqa
+    calobj += calobj2
     assert np.allclose(
-        gain_data.gain_object.total_quality_array,
+        calobj.total_quality_array,
         tot_tqa,
-        rtol=gain_data.gain_object._total_quality_array.tols[0],
-        atol=gain_data.gain_object._total_quality_array.tols[1],
+        rtol=calobj._total_quality_array.tols[0],
+        atol=calobj._total_quality_array.tols[1],
     )
 
     # test for when total_quality_array is present in second file but not first
-    gain_data.gain_object.select(frequencies=freqs1)
-    tqa = np.zeros(
-        gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
-    )
-    tqa2 = np.ones(
-        gain_data.gain_object2._total_quality_array.expected_shape(
-            gain_data.gain_object2
-        )
-    )
+    calobj.select(frequencies=freqs1)
+    tqa = np.zeros(calobj._total_quality_array.expected_shape(calobj))
+    tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
     tot_tqa = np.concatenate([tqa, tqa2], axis=1)
-    gain_data.gain_object.total_quality_array = None
-    gain_data.gain_object2.total_quality_array = tqa2
-    gain_data.gain_object += gain_data.gain_object2
+    calobj.total_quality_array = None
+    calobj2.total_quality_array = tqa2
+    calobj += calobj2
     assert np.allclose(
-        gain_data.gain_object.total_quality_array,
+        calobj.total_quality_array,
         tot_tqa,
-        rtol=gain_data.gain_object._total_quality_array.tols[0],
-        atol=gain_data.gain_object._total_quality_array.tols[1],
+        rtol=calobj._total_quality_array.tols[0],
+        atol=calobj._total_quality_array.tols[1],
     )
 
     # test for when total_quality_array is present in both
-    gain_data.gain_object.select(frequencies=freqs1)
-    tqa = np.ones(
-        gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
-    )
-    tqa2 = np.ones(
-        gain_data.gain_object2._total_quality_array.expected_shape(
-            gain_data.gain_object2
-        )
-    )
+    calobj.select(frequencies=freqs1)
+    tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
+    tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
     tqa *= 2
     tot_tqa = np.concatenate([tqa, tqa2], axis=1)
-    gain_data.gain_object.total_quality_array = tqa
-    gain_data.gain_object2.total_quality_array = tqa2
-    gain_data.gain_object += gain_data.gain_object2
+    calobj.total_quality_array = tqa
+    calobj2.total_quality_array = tqa2
+    calobj += calobj2
     assert np.allclose(
-        gain_data.gain_object.total_quality_array,
+        calobj.total_quality_array,
         tot_tqa,
-        rtol=gain_data.gain_object._total_quality_array.tols[0],
-        atol=gain_data.gain_object._total_quality_array.tols[1],
+        rtol=calobj._total_quality_array.tols[0],
+        atol=calobj._total_quality_array.tols[1],
     )
 
     # Out of order - freqs
-    gain_data.gain_object = gain_object_full.copy()
-    gain_data.gain_object2 = gain_object_full.copy()
-    gain_data.gain_object.select(frequencies=freqs2)
-    gain_data.gain_object2.select(frequencies=freqs1)
-    gain_data.gain_object += gain_data.gain_object2
-    gain_data.gain_object.history = gain_object_full.history
-    assert gain_data.gain_object == gain_object_full
+    calobj = calobj_full.copy()
+    calobj2 = calobj_full.copy()
+    calobj.select(frequencies=freqs2)
+    calobj2.select(frequencies=freqs1)
+    calobj += calobj2
+    calobj.history = calobj_full.history
+    assert calobj == calobj_full
 
 
-def test_add_times(gain_data):
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_add_times(caltype, gain_data, delay_data):
     """Test adding times between two UVCal objects"""
-    gain_object_full = gain_data.gain_object.copy()
-    n_times2 = gain_data.gain_object.Ntimes // 2
-    times1 = gain_data.gain_object.time_array[:n_times2]
-    times2 = gain_data.gain_object.time_array[n_times2:]
-    gain_data.gain_object.select(times=times1)
-    gain_data.gain_object2.select(times=times2)
-    gain_data.gain_object += gain_data.gain_object2
+    if caltype == "gain":
+        calobj = gain_data.gain_object
+        calobj2 = gain_data.gain_object2
+    else:
+        calobj = delay_data.delay_object
+        calobj2 = calobj.copy()
+
+    calobj_full = calobj.copy()
+    n_times2 = calobj.Ntimes // 2
+    times1 = calobj.time_array[:n_times2]
+    times2 = calobj.time_array[n_times2:]
+    calobj.select(times=times1)
+    calobj2.select(times=times2)
+    calobj += calobj2
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
-        gain_object_full.history + "  Downselected to specific "
+        calobj_full.history + "  Downselected to specific "
         "times using pyuvdata. Combined "
         "data along time axis using pyuvdata.",
-        gain_data.gain_object.history,
+        calobj.history,
     )
-    gain_data.gain_object.history = gain_object_full.history
-    assert gain_data.gain_object == gain_object_full
+    calobj.history = calobj_full.history
+    assert calobj == calobj_full
 
     # test for when total_quality_array is present in first file but not second
-    gain_data.gain_object.select(times=times1)
-    tqa = np.ones(
-        gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
-    )
-    tqa2 = np.zeros(
-        gain_data.gain_object2._total_quality_array.expected_shape(
-            gain_data.gain_object2
-        )
-    )
+    calobj.select(times=times1)
+    tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
+    tqa2 = np.zeros(calobj2._total_quality_array.expected_shape(calobj2))
     tot_tqa = np.concatenate([tqa, tqa2], axis=2)
-    gain_data.gain_object.total_quality_array = tqa
-    gain_data.gain_object += gain_data.gain_object2
+    calobj.total_quality_array = tqa
+    calobj += calobj2
     assert np.allclose(
-        gain_data.gain_object.total_quality_array,
+        calobj.total_quality_array,
         tot_tqa,
-        rtol=gain_data.gain_object._total_quality_array.tols[0],
-        atol=gain_data.gain_object._total_quality_array.tols[1],
+        rtol=calobj._total_quality_array.tols[0],
+        atol=calobj._total_quality_array.tols[1],
     )
 
     # test for when total_quality_array is present in second file but not first
-    gain_data.gain_object.select(times=times1)
-    tqa = np.zeros(
-        gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
-    )
-    tqa2 = np.ones(
-        gain_data.gain_object2._total_quality_array.expected_shape(
-            gain_data.gain_object2
-        )
-    )
+    calobj.select(times=times1)
+    tqa = np.zeros(calobj._total_quality_array.expected_shape(calobj))
+    tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
     tot_tqa = np.concatenate([tqa, tqa2], axis=2)
-    gain_data.gain_object.total_quality_array = None
-    gain_data.gain_object2.total_quality_array = tqa2
-    gain_data.gain_object += gain_data.gain_object2
+    calobj.total_quality_array = None
+    calobj2.total_quality_array = tqa2
+    calobj += calobj2
     assert np.allclose(
-        gain_data.gain_object.total_quality_array,
+        calobj.total_quality_array,
         tot_tqa,
-        rtol=gain_data.gain_object._total_quality_array.tols[0],
-        atol=gain_data.gain_object._total_quality_array.tols[1],
+        rtol=calobj._total_quality_array.tols[0],
+        atol=calobj._total_quality_array.tols[1],
     )
 
     # test for when total_quality_array is present in both
-    gain_data.gain_object.select(times=times1)
-    tqa = np.ones(
-        gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
-    )
-    tqa2 = np.ones(
-        gain_data.gain_object2._total_quality_array.expected_shape(
-            gain_data.gain_object2
-        )
-    )
+    calobj.select(times=times1)
+    tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
+    tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
     tqa *= 2
     tot_tqa = np.concatenate([tqa, tqa2], axis=2)
-    gain_data.gain_object.total_quality_array = tqa
-    gain_data.gain_object2.total_quality_array = tqa2
-    gain_data.gain_object += gain_data.gain_object2
+    calobj.total_quality_array = tqa
+    calobj2.total_quality_array = tqa2
+    calobj += calobj2
     assert np.allclose(
-        gain_data.gain_object.total_quality_array,
+        calobj.total_quality_array,
         tot_tqa,
-        rtol=gain_data.gain_object._total_quality_array.tols[0],
-        atol=gain_data.gain_object._total_quality_array.tols[1],
+        rtol=calobj._total_quality_array.tols[0],
+        atol=calobj._total_quality_array.tols[1],
     )
 
 
-def test_add_jones(gain_data):
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_add_jones(caltype, gain_data, delay_data):
     """Test adding Jones axes between two UVCal objects"""
-    gain_object_original = gain_data.gain_object.copy()
+    if caltype == "gain":
+        calobj = gain_data.gain_object
+        calobj2 = gain_data.gain_object2
+    else:
+        calobj = delay_data.delay_object
+        calobj2 = calobj.copy()
+
+    calobj_original = calobj.copy()
     # artificially change the Jones value to permit addition
-    gain_data.gain_object2.jones_array[0] = -6
-    gain_data.gain_object += gain_data.gain_object2
+    calobj2.jones_array[0] = -6
+    calobj += calobj2
 
     # check dimensionality of resulting object
-    assert gain_data.gain_object.gain_array.shape[-1] == 2
-    assert sorted(gain_data.gain_object.jones_array) == [-6, -5]
+    if caltype == "gain":
+        assert calobj.gain_array.shape[-1] == 2
+    else:
+        assert calobj.delay_array.shape[-1] == 2
+    assert sorted(calobj.jones_array) == [-6, -5]
 
     # test for when total_quality_array is present in first file but not second
-    gain_data.gain_object = gain_object_original.copy()
-    tqa = np.ones(
-        gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
-    )
-    tqa2 = np.zeros(
-        gain_data.gain_object2._total_quality_array.expected_shape(
-            gain_data.gain_object2
-        )
-    )
+    calobj = calobj_original.copy()
+    tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
+    tqa2 = np.zeros(calobj2._total_quality_array.expected_shape(calobj2))
     tot_tqa = np.concatenate([tqa, tqa2], axis=3)
-    gain_data.gain_object.total_quality_array = tqa
-    gain_data.gain_object += gain_data.gain_object2
+    calobj.total_quality_array = tqa
+    calobj += calobj2
     assert np.allclose(
-        gain_data.gain_object.total_quality_array,
+        calobj.total_quality_array,
         tot_tqa,
-        rtol=gain_data.gain_object._total_quality_array.tols[0],
-        atol=gain_data.gain_object._total_quality_array.tols[1],
+        rtol=calobj._total_quality_array.tols[0],
+        atol=calobj._total_quality_array.tols[1],
     )
 
     # test for when total_quality_array is present in second file but not first
-    gain_data.gain_object = gain_object_original.copy()
-    tqa = np.zeros(
-        gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
-    )
-    tqa2 = np.ones(
-        gain_data.gain_object2._total_quality_array.expected_shape(
-            gain_data.gain_object2
-        )
-    )
+    calobj = calobj_original.copy()
+    tqa = np.zeros(calobj._total_quality_array.expected_shape(calobj))
+    tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
     tot_tqa = np.concatenate([tqa, tqa2], axis=3)
-    gain_data.gain_object2.total_quality_array = tqa2
-    gain_data.gain_object += gain_data.gain_object2
+    calobj2.total_quality_array = tqa2
+    calobj += calobj2
     assert np.allclose(
-        gain_data.gain_object.total_quality_array,
+        calobj.total_quality_array,
         tot_tqa,
-        rtol=gain_data.gain_object._total_quality_array.tols[0],
-        atol=gain_data.gain_object._total_quality_array.tols[1],
+        rtol=calobj._total_quality_array.tols[0],
+        atol=calobj._total_quality_array.tols[1],
     )
 
     # test for when total_quality_array is present in both
-    gain_data.gain_object = gain_object_original.copy()
-    tqa = np.ones(
-        gain_data.gain_object._total_quality_array.expected_shape(gain_data.gain_object)
-    )
-    tqa2 = np.ones(
-        gain_data.gain_object2._total_quality_array.expected_shape(
-            gain_data.gain_object2
-        )
-    )
+    calobj = calobj_original.copy()
+    tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
+    tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
     tqa *= 2
     tot_tqa = np.concatenate([tqa, tqa2], axis=3)
-    gain_data.gain_object.total_quality_array = tqa
-    gain_data.gain_object2.total_quality_array = tqa2
-    gain_data.gain_object += gain_data.gain_object2
+    calobj.total_quality_array = tqa
+    calobj2.total_quality_array = tqa2
+    calobj += calobj2
     assert np.allclose(
-        gain_data.gain_object.total_quality_array,
+        calobj.total_quality_array,
         tot_tqa,
-        rtol=gain_data.gain_object._total_quality_array.tols[0],
-        atol=gain_data.gain_object._total_quality_array.tols[1],
+        rtol=calobj._total_quality_array.tols[0],
+        atol=calobj._total_quality_array.tols[1],
     )
 
 
-def test_add(gain_data):
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_add(caltype, gain_data, delay_data):
     """Test miscellaneous aspects of add method"""
+    if caltype == "gain":
+        calobj = gain_data.gain_object
+        calobj2 = gain_data.gain_object2
+    else:
+        calobj = delay_data.delay_object
+        calobj2 = calobj.copy()
+
     # test not-in-place addition
-    gain_object = gain_data.gain_object.copy()
+    calobj_original = calobj.copy()
     ants1 = np.array([9, 10, 20, 22, 31, 43, 53, 64, 65, 72])
     ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
-    gain_data.gain_object.select(antenna_nums=ants1)
-    gain_data.gain_object2.select(antenna_nums=ants2)
-    gain_object_add = gain_data.gain_object + gain_data.gain_object2
+    calobj.select(antenna_nums=ants1)
+    calobj2.select(antenna_nums=ants2)
+    calobj_add = calobj + calobj2
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
-        gain_object.history + "  Downselected to specific "
+        calobj_original.history + "  Downselected to specific "
         "antennas using pyuvdata. Combined "
         "data along antenna axis using pyuvdata.",
-        gain_object_add.history,
+        calobj_add.history,
     )
-    gain_object_add.history = gain_object.history
-    assert gain_object_add == gain_object
+    calobj_add.history = calobj_original.history
+    assert calobj_add == calobj_original
 
     # test history concatenation
-    gain_data.gain_object.history = gain_object.history
-    gain_data.gain_object2.history = "Some random history string OMNI_RUN:"
-    gain_data.gain_object += gain_data.gain_object2
+    calobj.history = calobj_original.history
+    if caltype == "gain":
+        calobj2.history = "Some random history string OMNI_RUN:"
+    else:
+        calobj2.history = "Some random history string firstcal.py"
+    calobj += calobj2
+
+    additional_history = "Some random history string"
     assert uvutils._check_histories(
-        gain_object.history + " Combined data along antenna axis "
-        "using pyuvdata. Some random "
-        "history string",
-        gain_data.gain_object.history,
+        calobj_original.history + " Combined data along antenna axis "
+        "using pyuvdata. " + additional_history,
+        calobj.history,
     )
 
 
@@ -1512,17 +1252,34 @@ def test_add_multiple_axes(gain_data):
     assert len(gain_data.gain_object.jones_array) == 2
 
 
-def test_add_errors(gain_data):
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_add_errors(caltype, gain_data, delay_data):
     """Test behavior that will raise errors"""
+    if caltype == "gain":
+        calobj = gain_data.gain_object
+        calobj2 = gain_data.gain_object2
+    else:
+        calobj = delay_data.delay_object
+        calobj2 = calobj.copy()
+
     # test addition of two identical objects
-    pytest.raises(ValueError, gain_data.gain_object.__add__, gain_data.gain_object2)
+    with pytest.raises(
+        ValueError, match="These objects have overlapping data and cannot be combined."
+    ):
+        calobj.__add__(calobj2)
 
     # test addition of UVCal and non-UVCal object (empty list)
-    pytest.raises(ValueError, gain_data.gain_object.__add__, [])
+    with pytest.raises(
+        ValueError, match="Only UVCal ",
+    ):
+        calobj.__add__([])
 
     # test compatibility param mismatch
-    gain_data.gain_object2.telescope_name = "PAPER"
-    pytest.raises(ValueError, gain_data.gain_object.__add__, gain_data.gain_object2)
+    calobj2.telescope_name = "PAPER"
+    with pytest.raises(
+        ValueError, match="Parameter telescope_name does not match",
+    ):
+        calobj.__add__(calobj2)
 
 
 def test_jones_warning(gain_data):
@@ -1530,7 +1287,13 @@ def test_jones_warning(gain_data):
     gain_data.gain_object2.jones_array[0] = -6
     gain_data.gain_object += gain_data.gain_object2
     gain_data.gain_object2.jones_array[0] = -8
-    with uvtest.check_warnings(UserWarning, "Combined Jones elements"):
+    messages = ["Combined Jones elements"] + [
+        "The antenna_positions parameter is not set. It will be a required "
+        "parameter starting in pyuvdata version 2.3"
+    ] * 3
+    with uvtest.check_warnings(
+        [UserWarning] + [DeprecationWarning] * 3, match=messages,
+    ):
         gain_data.gain_object.__iadd__(gain_data.gain_object2)
     assert sorted(gain_data.gain_object.jones_array) == [-8, -6, -5]
 
@@ -1553,8 +1316,12 @@ def test_frequency_warnings(gain_data):
     gain_data.gain_object2.freq_array[0, -1] = (
         gain_data.gain_object2.freq_array[0, -2] + df / 2
     )
+    messages = ["Combined frequencies are not evenly spaced"] + [
+        "The antenna_positions parameter is not set. It will be a required "
+        "parameter starting in pyuvdata version 2.3"
+    ] * 3
     with uvtest.check_warnings(
-        UserWarning, "Combined frequencies are not evenly spaced"
+        [UserWarning] + [DeprecationWarning] * 3, match=messages
     ):
         gain_data.gain_object.__iadd__(gain_data.gain_object2)
 
@@ -1571,7 +1338,13 @@ def test_frequency_warnings(gain_data):
     # artificially space out frequencies
     gain_data.gain_object.freq_array[0, :] *= 10
     gain_data.gain_object2.freq_array[0, :] *= 10
-    with uvtest.check_warnings(UserWarning, "Combined frequencies are not contiguous"):
+    messages = ["Combined frequencies are not contiguous"] + [
+        "The antenna_positions parameter is not set. It will be a required "
+        "parameter starting in pyuvdata version 2.3"
+    ] * 3
+    with uvtest.check_warnings(
+        [UserWarning] + [DeprecationWarning] * 3, match=messages
+    ):
         gain_data.gain_object.__iadd__(gain_data.gain_object2)
 
     freqs1 *= 10
@@ -1593,7 +1366,13 @@ def test_parameter_warnings(gain_data):
     freqs2 = gain_data.gain_object2.freq_array[0, np.arange(5, 10)]
     gain_data.gain_object.select(frequencies=freqs1)
     gain_data.gain_object2.select(frequencies=freqs2)
-    with uvtest.check_warnings(UserWarning, "UVParameter observer does not match"):
+    messages = ["UVParameter observer does not match"] + [
+        "The antenna_positions parameter is not set. It will be a required "
+        "parameter starting in pyuvdata version 2.3"
+    ] * 3
+    with uvtest.check_warnings(
+        [UserWarning] + [DeprecationWarning] * 3, match=messages
+    ):
         gain_data.gain_object.__iadd__(gain_data.gain_object2)
 
     freqs = np.concatenate([freqs1, freqs2])
@@ -1605,409 +1384,45 @@ def test_parameter_warnings(gain_data):
     )
 
 
-def test_multi_files(gain_data, tmp_path):
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_multi_files(caltype, gain_data, delay_data, tmp_path):
     """Test read function when multiple files are included"""
-    gain_object_full = gain_data.gain_object.copy()
-    n_times2 = gain_data.gain_object.Ntimes // 2
+    if caltype == "gain":
+        calobj = gain_data.gain_object
+        calobj2 = gain_data.gain_object2
+    else:
+        calobj = delay_data.delay_object
+        calobj2 = calobj.copy()
+
+    calobj_full = calobj.copy()
+    n_times2 = calobj.Ntimes // 2
     # Break up delay object into two objects, divided in time
-    times1 = gain_data.gain_object.time_array[:n_times2]
-    times2 = gain_data.gain_object.time_array[n_times2:]
-    gain_data.gain_object.select(times=times1)
-    gain_data.gain_object2.select(times=times2)
+    times1 = calobj.time_array[:n_times2]
+    times2 = calobj.time_array[n_times2:]
+    calobj.select(times=times1)
+    calobj2.select(times=times2)
     # Write those objects to files
     f1 = str(tmp_path / "read_multi1.calfits")
     f2 = str(tmp_path / "read_multi2.calfits")
-    gain_data.gain_object.write_calfits(f1, clobber=True)
-    gain_data.gain_object2.write_calfits(f2, clobber=True)
+    calobj.write_calfits(f1, clobber=True)
+    calobj2.write_calfits(f2, clobber=True)
     # Read both files together
-    gain_data.gain_object.read_calfits([f1, f2])
+    calobj.read_calfits([f1, f2])
     assert uvutils._check_histories(
-        gain_object_full.history + "  Downselected to specific times"
+        calobj_full.history + "  Downselected to specific times"
         " using pyuvdata. Combined data "
         "along time axis using pyuvdata.",
-        gain_data.gain_object.history,
+        calobj.history,
     )
-    gain_data.gain_object.history = gain_object_full.history
-    assert gain_data.gain_object == gain_object_full
+    calobj.history = calobj_full.history
+    assert calobj == calobj_full
 
     # check metadata only read
-    gain_data.gain_object.read_calfits([f1, f2], read_data=False)
-    gain_object_full_metadata_only = gain_object_full.copy(metadata_only=True)
+    calobj.read_calfits([f1, f2], read_data=False)
+    calobj_full_metadata_only = calobj_full.copy(metadata_only=True)
 
-    gain_data.gain_object.history = gain_object_full_metadata_only.history
-    assert gain_data.gain_object == gain_object_full_metadata_only
-
-
-def test_add_antennas_delay(delay_data):
-    """Test adding antennas between two UVCal objects"""
-    delay_object_full = delay_data.delay_object.copy()
-    ants1 = np.array([9, 10, 20, 22, 31, 43, 53, 64, 65, 72])
-    ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
-    delay_data.delay_object.select(antenna_nums=ants1)
-    delay_data.delay_object2.select(antenna_nums=ants2)
-    delay_data.delay_object += delay_data.delay_object2
-    # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(
-        delay_object_full.history + "  Downselected to specific "
-        "antennas using pyuvdata. Combined "
-        "data along antenna axis using pyuvdata.",
-        delay_data.delay_object.history,
-    )
-    delay_data.delay_object.history = delay_object_full.history
-    assert delay_data.delay_object == delay_object_full
-
-    # test for when total_quality_array is present
-    delay_data.delay_object.select(antenna_nums=ants1)
-    delay_data.delay_object.total_quality_array = np.zeros(
-        delay_data.delay_object._total_quality_array.expected_shape(
-            delay_data.delay_object
-        )
-    )
-    with uvtest.check_warnings(UserWarning, "Total quality array detected"):
-        delay_data.delay_object.__iadd__(delay_data.delay_object2)
-
-    assert delay_data.delay_object.total_quality_array is None
-
-    # test for when input_flag_array is present in first file but not second
-    delay_data.delay_object.select(antenna_nums=ants1)
-    ifa = np.zeros(
-        delay_data.delay_object._input_flag_array.expected_shape(
-            delay_data.delay_object
-        )
-    ).astype(np.bool)
-    ifa2 = np.ones(
-        delay_data.delay_object2._input_flag_array.expected_shape(
-            delay_data.delay_object2
-        )
-    ).astype(np.bool)
-    tot_ifa = np.concatenate([ifa, ifa2], axis=0)
-    delay_data.delay_object.input_flag_array = ifa
-    delay_data.delay_object2.input_flag_array = None
-    delay_data.delay_object += delay_data.delay_object2
-    assert np.allclose(delay_data.delay_object.input_flag_array, tot_ifa)
-
-    # test for when input_flag_array is present in second file but not first
-    delay_data.delay_object.select(antenna_nums=ants1)
-    ifa = np.ones(
-        delay_data.delay_object._input_flag_array.expected_shape(
-            delay_data.delay_object
-        )
-    ).astype(np.bool)
-    ifa2 = np.zeros(
-        delay_data.delay_object2._input_flag_array.expected_shape(
-            delay_data.delay_object2
-        )
-    ).astype(np.bool)
-    tot_ifa = np.concatenate([ifa, ifa2], axis=0)
-    delay_data.delay_object.input_flag_array = None
-    delay_data.delay_object2.input_flag_array = ifa2
-    delay_data.delay_object += delay_data.delay_object2
-    assert np.allclose(delay_data.delay_object.input_flag_array, tot_ifa)
-
-    # Out of order - antennas
-    delay_data.delay_object = delay_object_full.copy()
-    delay_data.delay_object2 = delay_data.delay_object.copy()
-    delay_data.delay_object.select(antenna_nums=ants2)
-    delay_data.delay_object2.select(antenna_nums=ants1)
-    delay_data.delay_object += delay_data.delay_object2
-    delay_data.delay_object.history = delay_object_full.history
-    assert delay_data.delay_object == delay_object_full
-
-
-def test_add_times_delay(delay_data):
-    """Test adding times between two UVCal objects"""
-    delay_object_full = delay_data.delay_object.copy()
-    n_times2 = delay_data.delay_object.Ntimes // 2
-    times1 = delay_data.delay_object.time_array[:n_times2]
-    times2 = delay_data.delay_object.time_array[n_times2:]
-    delay_data.delay_object.select(times=times1)
-    delay_data.delay_object2.select(times=times2)
-    delay_data.delay_object += delay_data.delay_object2
-    # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(
-        delay_object_full.history + "  Downselected to specific "
-        "times using pyuvdata. Combined "
-        "data along time axis using pyuvdata.",
-        delay_data.delay_object.history,
-    )
-    delay_data.delay_object.history = delay_object_full.history
-    assert delay_data.delay_object == delay_object_full
-
-    # test for when total_quality_array is present in first file but not second
-    delay_data.delay_object.select(times=times1)
-    tqa = np.ones(
-        delay_data.delay_object._total_quality_array.expected_shape(
-            delay_data.delay_object
-        )
-    )
-    tqa2 = np.zeros(
-        delay_data.delay_object2._total_quality_array.expected_shape(
-            delay_data.delay_object2
-        )
-    )
-    tot_tqa = np.concatenate([tqa, tqa2], axis=2)
-    delay_data.delay_object.total_quality_array = tqa
-    delay_data.delay_object += delay_data.delay_object2
-    assert np.allclose(
-        delay_data.delay_object.total_quality_array,
-        tot_tqa,
-        rtol=delay_data.delay_object._total_quality_array.tols[0],
-        atol=delay_data.delay_object._total_quality_array.tols[1],
-    )
-
-    # test for when total_quality_array is present in second file but not first
-    delay_data.delay_object.select(times=times1)
-    tqa = np.zeros(
-        delay_data.delay_object._total_quality_array.expected_shape(
-            delay_data.delay_object
-        )
-    )
-    tqa2 = np.ones(
-        delay_data.delay_object2._total_quality_array.expected_shape(
-            delay_data.delay_object2
-        )
-    )
-    tot_tqa = np.concatenate([tqa, tqa2], axis=2)
-    delay_data.delay_object.total_quality_array = None
-    delay_data.delay_object2.total_quality_array = tqa2
-    delay_data.delay_object += delay_data.delay_object2
-    assert np.allclose(
-        delay_data.delay_object.total_quality_array,
-        tot_tqa,
-        rtol=delay_data.delay_object._total_quality_array.tols[0],
-        atol=delay_data.delay_object._total_quality_array.tols[1],
-    )
-
-    # test for when total_quality_array is present in both
-    delay_data.delay_object.select(times=times1)
-    tqa = np.ones(
-        delay_data.delay_object._total_quality_array.expected_shape(
-            delay_data.delay_object
-        )
-    )
-    tqa2 = np.ones(
-        delay_data.delay_object2._total_quality_array.expected_shape(
-            delay_data.delay_object2
-        )
-    )
-    tqa *= 2
-    tot_tqa = np.concatenate([tqa, tqa2], axis=2)
-    delay_data.delay_object.total_quality_array = tqa
-    delay_data.delay_object2.total_quality_array = tqa2
-    delay_data.delay_object += delay_data.delay_object2
-    assert np.allclose(
-        delay_data.delay_object.total_quality_array,
-        tot_tqa,
-        rtol=delay_data.delay_object._total_quality_array.tols[0],
-        atol=delay_data.delay_object._total_quality_array.tols[1],
-    )
-
-    # test for when input_flag_array is present in first file but not second
-    delay_data.delay_object.select(times=times1)
-    ifa = np.zeros(
-        delay_data.delay_object._input_flag_array.expected_shape(
-            delay_data.delay_object
-        )
-    ).astype(np.bool)
-    ifa2 = np.ones(
-        delay_data.delay_object2._input_flag_array.expected_shape(
-            delay_data.delay_object2
-        )
-    ).astype(np.bool)
-    tot_ifa = np.concatenate([ifa, ifa2], axis=3)
-    delay_data.delay_object.input_flag_array = ifa
-    delay_data.delay_object2.input_flag_array = None
-    delay_data.delay_object += delay_data.delay_object2
-    assert np.allclose(delay_data.delay_object.input_flag_array, tot_ifa)
-
-    # test for when input_flag_array is present in second file but not first
-    delay_data.delay_object.select(times=times1)
-    ifa = np.ones(
-        delay_data.delay_object._input_flag_array.expected_shape(
-            delay_data.delay_object
-        )
-    ).astype(np.bool)
-    ifa2 = np.zeros(
-        delay_data.delay_object2._input_flag_array.expected_shape(
-            delay_data.delay_object2
-        )
-    ).astype(np.bool)
-    tot_ifa = np.concatenate([ifa, ifa2], axis=3)
-    delay_data.delay_object.input_flag_array = None
-    delay_data.delay_object2.input_flag_array = ifa2
-    delay_data.delay_object += delay_data.delay_object2
-    assert np.allclose(delay_data.delay_object.input_flag_array, tot_ifa)
-
-    # Out of order - times
-    delay_data.delay_object = delay_object_full.copy()
-    delay_data.delay_object2 = delay_data.delay_object.copy()
-    delay_data.delay_object.select(times=times2)
-    delay_data.delay_object2.select(times=times1)
-    delay_data.delay_object += delay_data.delay_object2
-    delay_data.delay_object.history = delay_object_full.history
-    assert delay_data.delay_object == delay_object_full
-
-
-def test_add_jones_delay(delay_data):
-    """Test adding Jones axes between two UVCal objects"""
-    delay_object_original = delay_data.delay_object.copy()
-    # artificially change the Jones value to permit addition
-    delay_data.delay_object2.jones_array[0] = -6
-    delay_data.delay_object += delay_data.delay_object2
-
-    # check dimensionality of resulting object
-    assert delay_data.delay_object.delay_array.shape[-1] == 2
-    assert sorted(delay_data.delay_object.jones_array) == [-6, -5]
-
-    # test for when total_quality_array is present in first file but not second
-    delay_data.delay_object = delay_object_original.copy()
-    tqa = np.ones(
-        delay_data.delay_object._total_quality_array.expected_shape(
-            delay_data.delay_object
-        )
-    )
-    tqa2 = np.zeros(
-        delay_data.delay_object2._total_quality_array.expected_shape(
-            delay_data.delay_object2
-        )
-    )
-    tot_tqa = np.concatenate([tqa, tqa2], axis=3)
-    delay_data.delay_object.total_quality_array = tqa
-    delay_data.delay_object += delay_data.delay_object2
-    assert np.allclose(
-        delay_data.delay_object.total_quality_array,
-        tot_tqa,
-        rtol=delay_data.delay_object._total_quality_array.tols[0],
-        atol=delay_data.delay_object._total_quality_array.tols[1],
-    )
-
-    # test for when total_quality_array is present in second file but not first
-    delay_data.delay_object = delay_object_original.copy()
-    tqa = np.zeros(
-        delay_data.delay_object._total_quality_array.expected_shape(
-            delay_data.delay_object
-        )
-    )
-    tqa2 = np.ones(
-        delay_data.delay_object2._total_quality_array.expected_shape(
-            delay_data.delay_object2
-        )
-    )
-    tot_tqa = np.concatenate([tqa, tqa2], axis=3)
-    delay_data.delay_object2.total_quality_array = tqa2
-    delay_data.delay_object += delay_data.delay_object2
-    assert np.allclose(
-        delay_data.delay_object.total_quality_array,
-        tot_tqa,
-        rtol=delay_data.delay_object._total_quality_array.tols[0],
-        atol=delay_data.delay_object._total_quality_array.tols[1],
-    )
-
-    # test for when total_quality_array is present in both
-    delay_data.delay_object = delay_object_original.copy()
-    tqa = np.ones(
-        delay_data.delay_object._total_quality_array.expected_shape(
-            delay_data.delay_object
-        )
-    )
-    tqa2 = np.ones(
-        delay_data.delay_object2._total_quality_array.expected_shape(
-            delay_data.delay_object2
-        )
-    )
-    tqa *= 2
-    tot_tqa = np.concatenate([tqa, tqa2], axis=3)
-    delay_data.delay_object.total_quality_array = tqa
-    delay_data.delay_object2.total_quality_array = tqa2
-    delay_data.delay_object += delay_data.delay_object2
-    assert np.allclose(
-        delay_data.delay_object.total_quality_array,
-        tot_tqa,
-        rtol=delay_data.delay_object._total_quality_array.tols[0],
-        atol=delay_data.delay_object._total_quality_array.tols[1],
-    )
-
-    # test for when input_flag_array is present in first file but not second
-    delay_data.delay_object = delay_object_original.copy()
-    ifa = np.zeros(
-        delay_data.delay_object._input_flag_array.expected_shape(
-            delay_data.delay_object
-        )
-    ).astype(np.bool)
-    ifa2 = np.ones(
-        delay_data.delay_object2._input_flag_array.expected_shape(
-            delay_data.delay_object2
-        )
-    ).astype(np.bool)
-    tot_ifa = np.concatenate([ifa, ifa2], axis=4)
-    delay_data.delay_object.input_flag_array = ifa
-    delay_data.delay_object2.input_flag_array = None
-    delay_data.delay_object += delay_data.delay_object2
-    assert np.allclose(delay_data.delay_object.input_flag_array, tot_ifa)
-
-    # test for when input_flag_array is present in second file but not first
-    delay_data.delay_object = delay_object_original.copy()
-    ifa = np.ones(
-        delay_data.delay_object._input_flag_array.expected_shape(
-            delay_data.delay_object
-        )
-    ).astype(np.bool)
-    ifa2 = np.zeros(
-        delay_data.delay_object2._input_flag_array.expected_shape(
-            delay_data.delay_object2
-        )
-    ).astype(np.bool)
-    tot_ifa = np.concatenate([ifa, ifa2], axis=4)
-    delay_data.delay_object.input_flag_array = None
-    delay_data.delay_object2.input_flag_array = ifa2
-    delay_data.delay_object += delay_data.delay_object2
-    assert np.allclose(delay_data.delay_object.input_flag_array, tot_ifa)
-
-    # Out of order - jones
-    delay_data.delay_object = delay_object_original.copy()
-    delay_data.delay_object2 = delay_object_original.copy()
-    delay_data.delay_object.jones_array[0] = -6
-    delay_data.delay_object += delay_data.delay_object2
-    delay_data.delay_object2 = delay_data.delay_object.copy()
-    delay_data.delay_object.select(jones=-5)
-    delay_data.delay_object.history = delay_object_original.history
-    assert delay_data.delay_object == delay_object_original
-    delay_data.delay_object2.select(jones=-6)
-    delay_data.delay_object2.jones_array[:] = -5
-    delay_data.delay_object2.history = delay_object_original.history
-    assert delay_data.delay_object2 == delay_object_original
-
-
-def test_add_errors_delay(delay_data):
-    """Test behavior that will raise errors"""
-    # test addition of two identical objects
-    pytest.raises(ValueError, delay_data.delay_object.__add__, delay_data.delay_object2)
-
-
-def test_multi_files_delay(delay_data, tmp_path):
-    """Test read function when multiple files are included"""
-    delay_object_full = delay_data.delay_object.copy()
-    n_times2 = delay_data.delay_object.Ntimes // 2
-    # Break up delay object into two objects, divided in time
-    times1 = delay_data.delay_object.time_array[:n_times2]
-    times2 = delay_data.delay_object.time_array[n_times2:]
-    delay_data.delay_object.select(times=times1)
-    delay_data.delay_object2.select(times=times2)
-    # Write those objects to files
-    f1 = str(tmp_path / "read_multi1.calfits")
-    f2 = str(tmp_path / "read_multi2.calfits")
-    delay_data.delay_object.write_calfits(f1, clobber=True)
-    delay_data.delay_object2.write_calfits(f2, clobber=True)
-    # Read both files together
-    delay_data.delay_object.read_calfits([f1, f2])
-    assert uvutils._check_histories(
-        delay_object_full.history + "  Downselected to specific times"
-        " using pyuvdata. Combined data "
-        "along time axis using pyuvdata.",
-        delay_data.delay_object.history,
-    )
-    delay_data.delay_object.history = delay_object_full.history
-    assert delay_data.delay_object == delay_object_full
+    calobj.history = calobj_full_metadata_only.history
+    assert calobj == calobj_full_metadata_only
 
 
 def test_uvcal_get_methods():
@@ -2084,13 +1499,16 @@ def test_write_read_optional_attrs(tmp_path):
     assert cal_in == cal_in2
 
 
-@pytest.mark.parametrize("caltype", ["gain", "delay"])
+@pytest.mark.parametrize("caltype", ["gain", "delay", "unknown"])
 def test_copy(gain_data, caltype):
     """Test the copy method"""
     if caltype == "gain":
         uv_object = gain_data.gain_object
-    else:
+    elif caltype == "delay":
         uv_object = gain_data.delay_object
+    else:
+        uv_object = gain_data.gain_object
+        uv_object.caltype = caltype
 
     uv_object_copy = uv_object.copy()
     assert uv_object_copy == uv_object
