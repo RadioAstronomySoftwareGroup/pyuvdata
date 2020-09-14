@@ -476,9 +476,8 @@ class CALFITS(UVCal):
             if self.telescope_location is None:
                 try:
                     self.set_telescope_params()
-                except ValueError:
-                    pass
-                    # TODO: In version 2.3 and later this should error.
+                except ValueError as ve:
+                    warnings.warn(str(ve))
 
             self.history = str(hdr.get("HISTORY", ""))
 
@@ -530,6 +529,8 @@ class CALFITS(UVCal):
 
             if self.telescope_location is not None:
                 proc = self.set_lsts_from_time_array(background=background_lsts)
+            else:
+                proc = None
 
             self.Nspws = hdr.pop("NAXIS5")
             # subtract 1 to be zero-indexed
