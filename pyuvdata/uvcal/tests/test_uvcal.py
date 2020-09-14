@@ -997,6 +997,40 @@ def test_add_antennas(caltype, gain_data, delay_data):
         calobj.__iadd__(calobj2)
     assert calobj.total_quality_array is None
 
+    if caltype == "delay":
+        # test for when input_flag_array is present in first file but not second
+        calobj.select(antenna_nums=ants1)
+        ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool)
+        ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(
+            np.bool
+        )
+        tot_ifa = np.concatenate([ifa, ifa2], axis=0)
+        calobj.input_flag_array = ifa
+        calobj2.input_flag_array = None
+        calobj += calobj2
+        assert np.allclose(calobj.input_flag_array, tot_ifa)
+
+        # test for when input_flag_array is present in second file but not first
+        calobj.select(antenna_nums=ants1)
+        ifa = np.ones(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool)
+        ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(
+            np.bool
+        )
+        tot_ifa = np.concatenate([ifa, ifa2], axis=0)
+        calobj.input_flag_array = None
+        calobj2.input_flag_array = ifa2
+        calobj += calobj2
+        assert np.allclose(calobj.input_flag_array, tot_ifa)
+
+        # Out of order - antennas
+        calobj = calobj_full.copy()
+        calobj2 = calobj.copy()
+        calobj.select(antenna_nums=ants2)
+        calobj2.select(antenna_nums=ants1)
+        calobj += calobj2
+        calobj.history = calobj_full.history
+        assert calobj == calobj_full
+
 
 def test_add_frequencies(gain_data):
     """Test adding frequencies between two UVCal objects"""
@@ -1532,7 +1566,7 @@ def test_write_read_optional_attrs(tmp_path):
     assert cal_in == cal_in2
 
 
-@pytest.mark.parametrize("caltype", ["gain", "delay", "unknown"])
+@pytest.mark.parametrize("caltype", ["gain", "delay", "unknown", None])
 def test_copy(gain_data, caltype):
     """Test the copy method"""
     if caltype == "gain":
@@ -1541,7 +1575,8 @@ def test_copy(gain_data, caltype):
         uv_object = gain_data.delay_object
     else:
         uv_object = gain_data.gain_object
-        uv_object.caltype = caltype
+        uv_object._set_unknown_cal_type()
+        uv_object.cal_type = caltype
 
     uv_object_copy = uv_object.copy()
     assert uv_object_copy == uv_object
