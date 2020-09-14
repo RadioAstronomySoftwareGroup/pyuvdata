@@ -1802,8 +1802,7 @@ class UVCal(UVBase):
             for s in antenna_names:
                 if s not in cal_object.antenna_names:
                     raise ValueError(
-                        "Antenna name {a} is not present in the antenna_names "
-                        "array".format(a=s)
+                        f"Antenna name {s} is not present in the antenna_names array"
                     )
                 ind = np.where(np.array(cal_object.antenna_names) == s)[0][0]
                 antenna_nums.append(cal_object.antenna_numbers[ind])
@@ -1821,8 +1820,7 @@ class UVCal(UVBase):
                     )
                 else:
                     raise ValueError(
-                        "Antenna number {a} is not present in the "
-                        " array".format(a=ant)
+                        f"Antenna number {ant} is not present in the array"
                     )
 
             ant_inds = sorted(set(ant_inds))

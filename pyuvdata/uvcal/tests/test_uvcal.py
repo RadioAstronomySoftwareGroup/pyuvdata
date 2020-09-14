@@ -336,6 +336,33 @@ def test_check_warnings(gain_data):
         assert gain_data.gain_object.check()
 
 
+def test_unknown_telescopes(gain_data, tmp_path):
+    calobj = gain_data.gain_object
+    calobj.telescope_name = "foo"
+    calobj.telescope_location = None
+    calobj.lst_array = None
+
+    write_file_calfits = str(tmp_path / "test.calfits")
+    deprecation_messages = [
+        "The telescope_location is not set. It will be a required "
+        "parameter starting in pyuvdata version 2.3",
+        "The antenna_positions parameter is not set. It will be a required "
+        "parameter starting in pyuvdata version 2.3",
+        "The lst_array is not set. It will be a required "
+        "parameter starting in pyuvdata version 2.3",
+    ]
+
+    with uvtest.check_warnings(DeprecationWarning, match=deprecation_messages):
+        calobj.write_calfits(write_file_calfits, clobber=True)
+
+    calobj2 = UVCal()
+    with uvtest.check_warnings(
+        [UserWarning] + [DeprecationWarning] * 3,
+        match=["Telescope foo is not in known_telescopes"] + deprecation_messages,
+    ):
+        calobj2.read_calfits(write_file_calfits)
+
+
 def test_nants_data_telescope_larger(gain_data):
     # make sure it's okay for Nants_telescope to be strictly greater than Nants_data
     gain_data.gain_object.Nants_telescope += 1
@@ -591,15 +618,21 @@ def test_select_antennas(caltype, gain_data, delay_data, tmp_path):
 
     # check for errors associated with antennas not included in data, bad names
     # or providing numbers and names
-    pytest.raises(
+    with pytest.raises(
         ValueError,
-        calobj.select,
-        antenna_nums=np.max(calobj.ant_array) + np.arange(1, 3),
-    )
-    pytest.raises(ValueError, calobj.select, antenna_names="test1")
-    pytest.raises(
-        ValueError, calobj.select, antenna_nums=ants_to_keep, antenna_names=ant_names,
-    )
+        match=f"Antenna number {np.max(calobj.ant_array)+1} "
+        "is not present in the array",
+    ):
+        calobj.select(antenna_nums=np.max(calobj.ant_array) + np.arange(1, 3))
+
+    with pytest.raises(
+        ValueError, match="Antenna name test1 is not present in the antenna_names array"
+    ):
+        calobj.select(antenna_names=["test1"])
+    with pytest.raises(
+        ValueError, match="Only one of antenna_nums and antenna_names can be provided."
+    ):
+        calobj.select(antenna_nums=ants_to_keep, antenna_names=ant_names)
 
     # check that write_calfits works with Nants_data < Nants_telescope
     write_file_calfits = str(tmp_path / "select_test.calfits")
