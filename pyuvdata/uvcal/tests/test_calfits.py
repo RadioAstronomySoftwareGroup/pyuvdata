@@ -221,11 +221,13 @@ def test_latlonalt_noxyz(tmp_path):
     cal_in = UVCal()
     cal_out = UVCal()
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
-    write_file = str(tmp_path / "outtest_noxyz.fits")
+    write_file = str(tmp_path / "outtest.fits")
+    write_file2 = str(tmp_path / "outtest_noxyz.fits")
 
     cal_in.read_calfits(testfile)
+    cal_in.write_calfits(write_file)
 
-    with fits.open(testfile) as fname:
+    with fits.open(write_file) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
         hdunames = uvutils._fits_indexhdus(fname)
@@ -238,7 +240,7 @@ def test_latlonalt_noxyz(tmp_path):
         prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
         hdulist = fits.HDUList([prihdu, ant_hdu])
 
-        hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file2, overwrite=True)
 
     cal_out.read_calfits(write_file)
     assert cal_out == cal_in
