@@ -224,9 +224,8 @@ def test_latlonalt_noxyz(tmp_path):
     write_file = str(tmp_path / "outtest_noxyz.fits")
 
     cal_in.read_calfits(testfile)
-    cal_in.write_calfits(write_file)
 
-    with fits.open(write_file) as fname:
+    with fits.open(testfile) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
         hdunames = uvutils._fits_indexhdus(fname)
