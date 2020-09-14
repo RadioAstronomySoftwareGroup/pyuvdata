@@ -263,31 +263,34 @@ class FHDCal(UVCal):
                             # in cal structure section
                             for kw in keywords:
                                 if line.strip().startswith(kw.upper()):
-                                    settings_lines[kw] = line[len(kw) + 2 :].strip()
-                self.ref_antenna_name = settings_lines["ref_antenna_name"]
-                self.Nsources = int(settings_lines["n_sources"])
-                self.sky_catalog = settings_lines["catalog_name"]
+                                    settings_lines[kw] = line.split()[1:]
+                self.ref_antenna_name = settings_lines["ref_antenna_name"][0]
+                self.Nsources = int(settings_lines["n_sources"][0])
+                self.sky_catalog = settings_lines["catalog_name"][0]
                 self.baseline_range = [
-                    float(settings_lines["min_cal_baseline"]),
-                    float(settings_lines["max_cal_baseline"]),
+                    float(settings_lines["min_cal_baseline"][0]),
+                    float(settings_lines["max_cal_baseline"][0]),
                 ]
-                galaxy_model = int(settings_lines["galaxy_model"])
-                diffuse_model = settings_lines["diffuse_model"]
-                auto_scale = settings_lines["auto_scale"].split()
-                n_vis_cal = np.int(settings_lines["n_vis_cal"])
-                time_avg = int(settings_lines["time_avg"])
-                conv_thresh = float(settings_lines["conv_thresh"])
+                galaxy_model = int(settings_lines["galaxy_model"][0])
+                diffuse_model = settings_lines["diffuse_model"][0]
+                auto_scale = settings_lines["auto_scale"]
+                n_vis_cal = np.int(settings_lines["n_vis_cal"][0])
+                time_avg = int(settings_lines["time_avg"][0])
+                conv_thresh = float(settings_lines["conv_thresh"][0])
 
                 if not raw:
-                    polyfit = int(settings_lines["polyfit"])
-                    bandpass = int(settings_lines["bandpass"])
-                    mode_fit = settings_lines["mode_fit"].split()
+                    polyfit = int(settings_lines["polyfit"][0])
+                    bandpass = int(settings_lines["bandpass"][0])
+                    mode_fit = settings_lines["mode_fit"]
+                    # for some reason, it's a float if it's one value,
+                    # and integers otherwise
                     if len(mode_fit) == 1:
                         mode_fit = float(mode_fit[0])
                     else:
-                        mode_fit = np.array(mode_fit, dtype=np.float)
-                    amp_degree = int(settings_lines["amp_degree"])
-                    phase_degree = int(settings_lines["phase_degree"])
+                        mode_fit = np.array(mode_fit, dtype=np.int)
+
+                    amp_degree = int(settings_lines["amp_degree"][0])
+                    phase_degree = int(settings_lines["phase_degree"][0])
 
         else:
             this_dict = readsav(cal_file, python_dict=True)
@@ -362,9 +365,10 @@ class FHDCal(UVCal):
                 "Tile" + "0" * (3 - len(self.ref_antenna_name)) + self.ref_antenna_name
             )
         # In Python 3, we sometimes get Unicode, sometimes bytes
+        # doesn't reliably show up in tests though, so excluding it from coverage
         if isinstance(galaxy_model, bytes):
             galaxy_model = galaxy_model.decode("utf8")
-        if galaxy_model == 0:
+        if galaxy_model == 0:  # pragma: nocover
             galaxy_model = None
         else:
             galaxy_model = "gsm"
