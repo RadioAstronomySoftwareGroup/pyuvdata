@@ -1380,6 +1380,45 @@ class UVCal(UVBase):
                         [this.total_quality_array, zero_pad], axis=1
                     )[:, order, :, :]
 
+                if this.input_flag_array is not None:
+                    zero_pad = np.zeros(
+                        (
+                            this.input_flag_array.shape[0],
+                            this.Nspws,
+                            len(fnew_inds),
+                            this.Ntimes,
+                            this.Njones,
+                        )
+                    )
+                    this.input_flag_array = np.concatenate(
+                        [this.input_flag_array, 1 - zero_pad], axis=2
+                    ).astype(np.bool)[:, :, order, :, :]
+                elif other.input_flag_array is not None:
+                    zero_pad = np.zeros(
+                        (
+                            this.flag_array.shape[0],
+                            this.Nspws,
+                            len(fnew_inds),
+                            this.Ntimes,
+                            this.Njones,
+                        )
+                    )
+                    this.input_flag_array = np.array(
+                        1
+                        - np.zeros(
+                            (
+                                this.flag_array.shape[0],
+                                this.Nspws,
+                                this.flag_array.shape[2],
+                                this.flag_array.shape[3],
+                                this.Njones,
+                            )
+                        )
+                    ).astype(np.bool)
+                    this.input_flag_array = np.concatenate(
+                        [this.input_flag_array, 1 - zero_pad], axis=2
+                    ).astype(np.bool)[:, :, order, :, :]
+
         if len(tnew_inds) > 0:
             # Exploit the fact that quality array has the same dimensions as
             # the main data
