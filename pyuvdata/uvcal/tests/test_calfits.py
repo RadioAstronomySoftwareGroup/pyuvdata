@@ -242,7 +242,7 @@ def test_latlonalt_noxyz(tmp_path):
 
         hdulist.writeto(write_file2, overwrite=True)
 
-    cal_out.read_calfits(write_file)
+    cal_out.read_calfits(write_file2)
     assert cal_out == cal_in
 
 
