@@ -221,7 +221,7 @@ def test_latlonalt_noxyz(tmp_path):
     cal_in = UVCal()
     cal_out = UVCal()
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
-    write_file = str(tmp_path / "outtest_omnical.fits")
+    write_file = str(tmp_path / "outtest_noxyz.fits")
 
     cal_in.read_calfits(testfile)
     cal_in.write_calfits(write_file)
@@ -262,11 +262,11 @@ def test_latlonalt_noxyz(tmp_path):
         ],
     ],
 )
-def test_extra_keywords_boolean(kwd1, kwd2, val1, val2, tmp_path):
+def test_extra_keywords(kwd1, kwd2, val1, val2, tmp_path):
     cal_in = UVCal()
     cal_out = UVCal()
     calfits_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
-    testfile = str(tmp_path / "outtest_omnical.fits")
+    testfile = str(tmp_path / "outtest_extrakws.fits")
     cal_in.read_calfits(calfits_file)
 
     # check handling of boolean keywords
@@ -291,7 +291,7 @@ def test_extra_keywords_boolean(kwd1, kwd2, val1, val2, tmp_path):
 def test_extra_keywords_errors(tmp_path, ex_val, error_msg):
     cal_in = UVCal()
     calfits_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
-    testfile = str(tmp_path / "outtest_omnical.fits")
+    testfile = str(tmp_path / "outtest_extrakwd_err.fits")
     cal_in.read_calfits(calfits_file)
 
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
@@ -316,7 +316,7 @@ def test_extra_keywords_errors(tmp_path, ex_val, error_msg):
 def test_extra_keywords_warnings(tmp_path):
     cal_in = UVCal()
     calfits_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
-    testfile = str(tmp_path / "outtest_omnical.fits")
+    testfile = str(tmp_path / "outtest_extrakwd_warn.fits")
     cal_in.read_calfits(calfits_file)
 
     # check for warnings with extra_keywords keys that are too long
@@ -479,7 +479,7 @@ def test_write_time_precision(tmp_path):
     cal_in = UVCal()
     cal_out = UVCal()
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
-    write_file = str(tmp_path / "outtest_omnical.fits")
+    write_file = str(tmp_path / "outtest_time_prec.fits")
     cal_in.read_calfits(testfile)
     # overwrite time array to break old code
     dt = cal_in.integration_time / (24.0 * 60.0 * 60.0)
@@ -499,8 +499,8 @@ def test_read_noversion_history(tmp_path):
     cal_in = UVCal()
     cal_out = UVCal()
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
-    write_file = str(tmp_path / "outtest_omnical.fits")
-    write_file2 = str(tmp_path / "outtest_omnical2.fits")
+    write_file = str(tmp_path / "outtest_nover.fits")
+    write_file2 = str(tmp_path / "outtest_nover2.fits")
     cal_in.read_calfits(testfile)
 
     cal_in.write_calfits(write_file, clobber=True)
@@ -527,7 +527,7 @@ def test_write_freq_spacing_not_channel_width(tmp_path):
     cal_in = UVCal()
     cal_out = UVCal()
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
-    write_file = str(tmp_path / "outtest_omnical.fits")
+    write_file = str(tmp_path / "outtest_freqspace.fits")
     cal_in.read_calfits(testfile)
 
     # select every other frequency -- then evenly spaced but doesn't match channel width
