@@ -1022,14 +1022,14 @@ def test_add_antennas(caltype, gain_data, delay_data):
         calobj += calobj2
         assert np.allclose(calobj.input_flag_array, tot_ifa)
 
-        # Out of order - antennas
-        calobj = calobj_full.copy()
-        calobj2 = calobj.copy()
-        calobj.select(antenna_nums=ants2)
-        calobj2.select(antenna_nums=ants1)
-        calobj += calobj2
-        calobj.history = calobj_full.history
-        assert calobj == calobj_full
+    # Out of order - antennas
+    calobj = calobj_full.copy()
+    calobj2 = calobj.copy()
+    calobj.select(antenna_nums=ants2)
+    calobj2.select(antenna_nums=ants1)
+    calobj += calobj2
+    calobj.history = calobj_full.history
+    assert calobj == calobj_full
 
 
 def test_add_frequencies(gain_data):
@@ -1043,8 +1043,6 @@ def test_add_frequencies(gain_data):
     freqs2 = calobj.freq_array[0, np.arange(calobj.Nfreqs // 2, calobj.Nfreqs)]
     calobj.select(frequencies=freqs1)
     calobj2.select(frequencies=freqs2)
-    print(freqs1)
-    print(freqs2)
     calobj += calobj2
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
@@ -1100,6 +1098,32 @@ def test_add_frequencies(gain_data):
         rtol=calobj._total_quality_array.tols[0],
         atol=calobj._total_quality_array.tols[1],
     )
+
+    # test for when input_flag_array is present in first file but not second
+    calobj = calobj_full.copy()
+    calobj.input_flag_array = np.zeros(
+        calobj._input_flag_array.expected_shape(calobj), dtype=bool
+    )
+    calobj2 = calobj.copy()
+    calobj.select(frequencies=freqs1)
+    calobj2.select(frequencies=freqs2)
+    ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool)
+    ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(np.bool)
+    tot_ifa = np.concatenate([ifa, ifa2], axis=2)
+    calobj.input_flag_array = ifa
+    calobj2.input_flag_array = None
+    calobj += calobj2
+    assert np.allclose(calobj.input_flag_array, tot_ifa)
+
+    # test for when input_flag_array is present in second file but not first
+    calobj.select(frequencies=freqs1)
+    ifa = np.ones(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool)
+    ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(np.bool)
+    tot_ifa = np.concatenate([ifa, ifa2], axis=2)
+    calobj.input_flag_array = None
+    calobj2.input_flag_array = ifa2
+    calobj += calobj2
+    assert np.allclose(calobj.input_flag_array, tot_ifa)
 
     # Out of order - freqs
     calobj = calobj_full.copy()
@@ -1183,6 +1207,40 @@ def test_add_times(caltype, gain_data, delay_data):
         atol=calobj._total_quality_array.tols[1],
     )
 
+    if caltype == "delay":
+        # test for when input_flag_array is present in first file but not second
+        calobj.select(times=times1)
+        ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool)
+        ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(
+            np.bool
+        )
+        tot_ifa = np.concatenate([ifa, ifa2], axis=3)
+        calobj.input_flag_array = ifa
+        calobj2.input_flag_array = None
+        calobj += calobj2
+        assert np.allclose(calobj.input_flag_array, tot_ifa)
+
+        # test for when input_flag_array is present in second file but not first
+        calobj.select(times=times1)
+        ifa = np.ones(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool)
+        ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(
+            np.bool
+        )
+        tot_ifa = np.concatenate([ifa, ifa2], axis=3)
+        calobj.input_flag_array = None
+        calobj2.input_flag_array = ifa2
+        calobj += calobj2
+        assert np.allclose(calobj.input_flag_array, tot_ifa)
+
+    # Out of order - times
+    calobj = calobj_full.copy()
+    calobj2 = calobj.copy()
+    calobj.select(times=times2)
+    calobj2.select(times=times1)
+    calobj += calobj2
+    calobj.history = calobj_full.history
+    assert calobj == calobj_full
+
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_add_jones(caltype, gain_data, delay_data):
@@ -1249,6 +1307,45 @@ def test_add_jones(caltype, gain_data, delay_data):
         rtol=calobj._total_quality_array.tols[0],
         atol=calobj._total_quality_array.tols[1],
     )
+
+    if caltype == "delay":
+        # test for when input_flag_array is present in first file but not second
+        calobj = calobj_original.copy()
+        ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool)
+        ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(
+            np.bool
+        )
+        tot_ifa = np.concatenate([ifa, ifa2], axis=4)
+        calobj.input_flag_array = ifa
+        calobj2.input_flag_array = None
+        calobj += calobj2
+        assert np.allclose(calobj.input_flag_array, tot_ifa)
+
+        # test for when input_flag_array is present in second file but not first
+        calobj = calobj_original.copy()
+        ifa = np.ones(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool)
+        ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(
+            np.bool
+        )
+        tot_ifa = np.concatenate([ifa, ifa2], axis=4)
+        calobj.input_flag_array = None
+        calobj2.input_flag_array = ifa2
+        calobj += calobj2
+        assert np.allclose(calobj.input_flag_array, tot_ifa)
+
+    # Out of order - jones
+    calobj = calobj_original.copy()
+    calobj2 = calobj_original.copy()
+    calobj.jones_array[0] = -6
+    calobj += calobj2
+    calobj2 = calobj.copy()
+    calobj.select(jones=-5)
+    calobj.history = calobj_original.history
+    assert calobj == calobj_original
+    calobj2.select(jones=-6)
+    calobj2.jones_array[:] = -5
+    calobj2.history = calobj_original.history
+    assert calobj2 == calobj_original
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
