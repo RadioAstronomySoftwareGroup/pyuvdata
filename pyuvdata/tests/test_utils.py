@@ -1330,6 +1330,7 @@ def test_and_collapse_errors():
     pytest.raises(ValueError, uvutils.and_collapse, data)
 
 
+@pytest.mark.filterwarnings("ignore:The antenna_positions parameter is not set.")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvcalibrate_apply_gains_oldfiles():
     # read data
@@ -1408,6 +1409,7 @@ def test_uvcalibrate_apply_gains_oldfiles():
     assert uvdcal.vis_units == "Jy"
 
 
+@pytest.mark.filterwarnings("ignore:The antenna_positions parameter is not set.")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvcalibrate_delay_oldfiles():
     uvd = UVData()
@@ -1418,37 +1420,40 @@ def test_uvcalibrate_delay_oldfiles():
     # downselect to match each other in shape (but not in actual time values!)
     uvc.select(times=uvc.time_array[:3], frequencies=uvd.freq_array[0, :])
     uvc.gain_convention = "multiply"
-    with pytest.warns(DeprecationWarning) as warninfo:
-        uvdcal = uvutils.uvcalibrate(
-            uvd, uvc, prop_flags=False, flag_missing=False, inplace=False
-        )
-    warns = {warn.message.args[0] for warn in warninfo}
-    ant_expected = {
+    ant_expected = [
         "All antenna names with data on UVData are missing "
         "on UVCal. They do all have matching antenna numbers on "
         "UVCal. Currently the data will be calibrated using the "
         "matching antenna number, but that will be deprecated in "
         "version 2.2 and this will become an error."
-    }
+    ]
     missing_times = [2457698.4036761867, 2457698.4038004624]
-    time_expected = {
+    time_expected = [
         f"Time {this_time} exists on UVData but not on UVCal. "
         "This will become an error in version 2.2"
         for this_time in missing_times
-    }
-    assert warns == (ant_expected | time_expected)
+    ]
+    antpos_missing_message = [
+        "The antenna_positions parameter is not set. "
+        "It will be a required parameter starting in pyuvdata version 2.3"
+    ]
+    with uvtest.check_warnings(
+        DeprecationWarning, match=ant_expected + time_expected + antpos_missing_message
+    ):
+        uvdcal = uvutils.uvcalibrate(
+            uvd, uvc, prop_flags=False, flag_missing=False, inplace=False
+        )
 
     uvc.convert_to_gain()
-    with pytest.warns(DeprecationWarning) as warninfo:
+    with uvtest.check_warnings(DeprecationWarning, match=ant_expected + time_expected):
         uvdcal2 = uvutils.uvcalibrate(
             uvd, uvc, prop_flags=False, flag_missing=False, inplace=False
         )
-    warns = {warn.message.args[0] for warn in warninfo}
-    assert warns == (ant_expected | time_expected)
 
     assert uvdcal == uvdcal2
 
 
+@pytest.mark.filterwarnings("ignore:The antenna_positions parameter is not set.")
 def test_uvcalibrate_divide(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
@@ -1477,6 +1482,7 @@ def test_uvcalibrate_divide(uvcalibrate_data):
     assert uvdcal.vis_units == "UNCALIB"
 
 
+@pytest.mark.filterwarnings("ignore:The antenna_positions parameter is not set.")
 def test_uvcalibrate_multiply(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
@@ -1506,6 +1512,7 @@ def test_uvcalibrate_multiply(uvcalibrate_data):
     assert uvdcal.vis_units == "UNCALIB"
 
 
+@pytest.mark.filterwarnings("ignore:The antenna_positions parameter is not set.")
 @pytest.mark.filterwarnings("ignore:Combined frequencies are not contiguous.")
 def test_uvcalibrate_dterm_handling(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
@@ -1526,6 +1533,7 @@ def test_uvcalibrate_dterm_handling(uvcalibrate_data):
         uvutils.uvcalibrate(uvd, uvcDterm, Dterm_cal=True)
 
 
+@pytest.mark.filterwarnings("ignore:The antenna_positions parameter is not set.")
 @pytest.mark.filterwarnings("ignore:Cannot preserve total_quality_array")
 def test_uvcalibrate_flag_propagation(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
@@ -1607,6 +1615,7 @@ def test_uvcalibrate_flag_propagation(uvcalibrate_data):
     assert np.all(uvdcal.get_flags(13, 24, "xx"))  # assert completely flagged
 
 
+@pytest.mark.filterwarnings("ignore:The antenna_positions parameter is not set.")
 @pytest.mark.filterwarnings("ignore:Cannot preserve total_quality_array")
 def test_uvcalibrate_flag_propagation_name_mismatch(uvcalibrate_init_data):
     uvd, uvc = uvcalibrate_init_data
@@ -1710,6 +1719,7 @@ def test_uvcalibrate_flag_propagation_name_mismatch(uvcalibrate_init_data):
     assert np.all(uvdcal.flag_array)  # assert completely flagged
 
 
+@pytest.mark.filterwarnings("ignore:The antenna_positions parameter is not set.")
 def test_uvcalibrate_extra_cal_antennas(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
@@ -1728,6 +1738,7 @@ def test_uvcalibrate_extra_cal_antennas(uvcalibrate_data):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The antenna_positions parameter is not set.")
 def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data):
     uvd, uvc = uvcalibrate_init_data
 
@@ -1762,6 +1773,7 @@ def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data):
     assert np.all(uvdcal.flag_array)  # assert completely flagged
 
 
+@pytest.mark.filterwarnings("ignore:The antenna_positions parameter is not set.")
 def test_uvcalibrate_time_mismatch(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
@@ -1787,6 +1799,7 @@ def test_uvcalibrate_time_mismatch(uvcalibrate_data):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The antenna_positions parameter is not set.")
 def test_uvcalibrate_time_wrong_size(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
@@ -1800,6 +1813,7 @@ def test_uvcalibrate_time_wrong_size(uvcalibrate_data):
         uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
 
+@pytest.mark.filterwarnings("ignore:The antenna_positions parameter is not set.")
 @pytest.mark.parametrize("len_time_range", [0, 1])
 def test_uvcalibrate_time_types(uvcalibrate_data, len_time_range):
     uvd, uvc = uvcalibrate_data
@@ -1857,6 +1871,7 @@ def test_uvcalibrate_time_types(uvcalibrate_data, len_time_range):
     assert uvdcal == uvdcal2
 
 
+@pytest.mark.filterwarnings("ignore:The antenna_positions parameter is not set.")
 @pytest.mark.filterwarnings("ignore:Combined frequencies are not contiguous.")
 def test_uvcalibrate_extra_cal_times(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
@@ -1877,6 +1892,7 @@ def test_uvcalibrate_extra_cal_times(uvcalibrate_data):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The antenna_positions parameter is not set.")
 def test_uvcalibrate_freq_mismatch(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
@@ -1903,6 +1919,7 @@ def test_uvcalibrate_freq_mismatch(uvcalibrate_data):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The antenna_positions parameter is not set.")
 @pytest.mark.filterwarnings("ignore:Combined frequencies are not evenly spaced.")
 def test_uvcalibrate_extra_cal_freqs(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
@@ -1923,6 +1940,7 @@ def test_uvcalibrate_extra_cal_freqs(uvcalibrate_data):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The antenna_positions parameter is not set.")
 def test_uvcalibrate_feedpol_mismatch(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
