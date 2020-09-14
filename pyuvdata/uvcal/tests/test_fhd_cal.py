@@ -94,6 +94,52 @@ def test_read_fhdcal_raw_write_read_calfits(raw, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs lat/lon/alt")
+def test_read_fhdcal_multimode():
+    """
+    Read cal with multiple mode_fit values.
+    """
+    fhd_cal = UVCal()
+    fhd_cal.read_fhd_cal(
+        os.path.join(testdir, testfile_prefix + "multimode_cal.sav"),
+        obs_testfile,
+        layout_file=layout_testfile,
+        settings_file=os.path.join(testdir, testfile_prefix + "multimode_settings.txt"),
+        raw=False,
+    )
+    assert fhd_cal.extra_keywords["MODE_FIT"] == "[90, 150, 230, 320, 400, 524]"
+
+    fhd_cal2 = fhd_cal.copy(metadata_only=True)
+
+    # check metadata only read
+    fhd_cal.read_fhd_cal(
+        os.path.join(testdir, testfile_prefix + "multimode_cal.sav"),
+        obs_testfile,
+        layout_file=layout_testfile,
+        settings_file=os.path.join(testdir, testfile_prefix + "multimode_settings.txt"),
+        raw=False,
+        read_data=False,
+    )
+
+    # this file set has a mismatch in Nsources between the cal file & settings
+    # file for some reason. I think it's just an issue with the files chosen
+    assert fhd_cal.Nsources != fhd_cal2.Nsources
+    fhd_cal.Nsources = fhd_cal2.Nsources
+
+    # there is a loss in precision for float auto scale values in the
+    # settings file vs the cal file
+    assert (
+        fhd_cal.extra_keywords["autoscal".upper()]
+        != fhd_cal2.extra_keywords["autoscal".upper()]
+    )
+    fhd_cal.extra_keywords["autoscal".upper()] = fhd_cal2.extra_keywords[
+        "autoscal".upper()
+    ]
+    assert fhd_cal == fhd_cal2
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope location derived from obs lat/lon/alt")
 @pytest.mark.parametrize(
     "extra_history",
     [
@@ -144,6 +190,26 @@ def test_flags_galaxy(tmp_path):
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
+
+
+def test_unknown_telescope():
+    fhd_cal = UVCal()
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Telescope location derived from obs lat/lon/alt values does not match "
+            "the location in the layout file. ",
+            "Telescope foo is not in known_telescopes.",
+        ],
+    ):
+        fhd_cal.read_fhd_cal(
+            cal_testfile,
+            os.path.join(testdir, testfile_prefix + "telescopefoo_obs.sav"),
+            layout_file=layout_testfile,
+            settings_file=settings_testfile,
+        )
+    assert fhd_cal.telescope_name == "foo"
 
 
 @pytest.mark.parametrize(
