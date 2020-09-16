@@ -26,7 +26,7 @@ pyuvdata_version_str = "  Read/written with pyuvdata version: " + __version__ + 
 
 
 @pytest.fixture(scope="session")
-def uvdata_obj_master():
+def uvdata_obj_main():
     uvdata_object = UVData()
     uvdata_object.read(test_d_file)
 
@@ -39,8 +39,8 @@ def uvdata_obj_master():
 
 
 @pytest.fixture(scope="function")
-def uvdata_obj(uvdata_obj_master):
-    uvdata_object = uvdata_obj_master.copy()
+def uvdata_obj(uvdata_obj_main):
+    uvdata_object = uvdata_obj_main.copy()
 
     yield uvdata_object
 

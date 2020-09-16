@@ -1,8 +1,8 @@
 # pyuvdata
 
-[![CircleCI](https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata.svg?style=svg&branch=master)](https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata?branch=master)
-[![](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/workflows/Run%20Tests/badge.svg?branch=master)](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/actions)
-[![codecov](https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/badge.svg?branch=master)](https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata)
+[![CircleCI](https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata.svg?style=svg&branch=main)](https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata?branch=main)
+[![](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/workflows/Run%20Tests/badge.svg?branch=main)](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/actions)
+[![codecov](https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/badge.svg?branch=main)](https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata)
 [![DOI](http://joss.theoj.org/papers/10.21105/joss.00140/status.svg)](https://doi.org/10.21105/joss.00140)
 
 pyuvdata defines a pythonic interface to interferometric data sets.
@@ -107,7 +107,7 @@ and the `minor` number to release smaller incremental updates (intended to be
 released approximately monthly and which usually do not include breaking API
 changes). We do our best to provide a significant period (usually 2 major
 generations) of deprecation warnings for all breaking changes to the API.
-We track all changes in our [changelog](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/master/CHANGELOG.md).
+We track all changes in our [changelog](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/main/CHANGELOG.md).
 
 # History
 pyuvdata was originally developed in the low frequency 21cm community to support

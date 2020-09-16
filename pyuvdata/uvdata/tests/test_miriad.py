@@ -368,8 +368,8 @@ def test_wronglatlon():
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_miriad_location_handling(paper_miriad_master, tmp_path):
-    uv_in = paper_miriad_master
+def test_miriad_location_handling(paper_miriad_main, tmp_path):
+    uv_in = paper_miriad_main
     uv_out = UVData()
 
     testfile = os.path.join(tmp_path, "outtest_miriad.uv")

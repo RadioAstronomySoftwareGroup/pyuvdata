@@ -25,7 +25,7 @@ paper_uvfits = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAAM.uvfits")
 
 
 @pytest.fixture(scope="session")
-def uvfits_nospw_master():
+def uvfits_nospw_main():
     uv_in = UVData()
     # This file has a crazy epoch (2291.34057617) which breaks the uvw_antpos check
     # Since it's a PAPER file, I think this is a bug in the file, not in the check.
@@ -35,8 +35,8 @@ def uvfits_nospw_master():
 
 
 @pytest.fixture(scope="function")
-def uvfits_nospw(uvfits_nospw_master):
-    return uvfits_nospw_master.copy()
+def uvfits_nospw(uvfits_nospw_main):
+    return uvfits_nospw_main.copy()
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
