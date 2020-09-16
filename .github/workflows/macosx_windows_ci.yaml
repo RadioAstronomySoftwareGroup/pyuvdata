@@ -17,7 +17,7 @@ jobs:
         os: [macos-latest, windows-latest]
         python-version: [3.6, 3.7, 3.8]
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@main
         with:
           fetch-depth: 1
 

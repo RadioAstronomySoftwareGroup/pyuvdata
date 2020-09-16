@@ -10,7 +10,7 @@ jobs:
       ENV_NAME: pyuvdata_publish
       PYTHON: 3.7
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@main
       with:
         fetch-depth: 0
 
