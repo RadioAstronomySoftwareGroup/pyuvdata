@@ -14,7 +14,7 @@ def branch_scheme(version):  # pragma: nocover
     if version.exact or version.node is None:
         return version.format_choice("", "+d{time:{time_format}}", time_format="%Y%m%d")
     else:
-        if version.branch == "master":
+        if version.branch == "main":
             return version.format_choice("+{node}", "+{node}.dirty")
         else:
             return version.format_choice("+{node}.{branch}", "+{node}.{branch}.dirty")

@@ -16,7 +16,7 @@ filename = os.path.join(DATA_PATH, "mwa_full_EE_test.h5")
 
 
 @pytest.fixture(scope="module")
-def mwa_beam_1ppd_master():
+def mwa_beam_1ppd_main():
     beam = UVBeam()
     beam.read_mwa_beam(filename, pixels_per_deg=1)
 
@@ -24,8 +24,8 @@ def mwa_beam_1ppd_master():
 
 
 @pytest.fixture(scope="function")
-def mwa_beam_1ppd(mwa_beam_1ppd_master):
-    return mwa_beam_1ppd_master.copy()
+def mwa_beam_1ppd(mwa_beam_1ppd_main):
+    return mwa_beam_1ppd_main.copy()
 
 
 def test_read_write_mwa(mwa_beam_1ppd, tmp_path):

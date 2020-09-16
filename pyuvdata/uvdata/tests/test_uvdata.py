@@ -186,7 +186,7 @@ def uvdata_props():
 
 
 @pytest.fixture(scope="session")
-def hera_uvh5_master():
+def hera_uvh5_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
@@ -201,9 +201,9 @@ def hera_uvh5_master():
 
 
 @pytest.fixture(scope="function")
-def hera_uvh5(hera_uvh5_master):
+def hera_uvh5(hera_uvh5_main):
     # read in test file for the resampling in time functions
-    uv_object = hera_uvh5_master.copy()
+    uv_object = hera_uvh5_main.copy()
 
     yield uv_object
 
@@ -214,7 +214,7 @@ def hera_uvh5(hera_uvh5_master):
 
 
 @pytest.fixture(scope="session")
-def paper_uvh5_master():
+def paper_uvh5_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
     uvh5_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
@@ -229,9 +229,9 @@ def paper_uvh5_master():
 
 
 @pytest.fixture(scope="function")
-def paper_uvh5(paper_uvh5_master):
+def paper_uvh5(paper_uvh5_main):
     # read in test file for the resampling in time functions
-    uv_object = paper_uvh5_master.copy()
+    uv_object = paper_uvh5_main.copy()
 
     yield uv_object
 
@@ -242,7 +242,7 @@ def paper_uvh5(paper_uvh5_master):
 
 
 @pytest.fixture(scope="session")
-def bda_test_file_master():
+def bda_test_file_main():
     # read in test file for BDA-like data
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "simulated_bda_file.uvh5")
@@ -257,9 +257,9 @@ def bda_test_file_master():
 
 
 @pytest.fixture(scope="function")
-def bda_test_file(bda_test_file_master):
+def bda_test_file(bda_test_file_main):
     # read in test file for BDA-like data
-    uv_object = bda_test_file_master.copy()
+    uv_object = bda_test_file_main.copy()
 
     yield uv_object
 
@@ -311,8 +311,8 @@ def uvdata_baseline():
 
 
 @pytest.fixture(scope="session")
-def set_uvws_master(hera_uvh5_master):
-    uv1 = hera_uvh5_master.copy()
+def set_uvws_main(hera_uvh5_main):
+    uv1 = hera_uvh5_main.copy()
     # uvws in the file are wrong. reset them.
     uv1.set_uvws_from_antenna_positions()
 
@@ -324,9 +324,9 @@ def set_uvws_master(hera_uvh5_master):
 
 
 @pytest.fixture
-def uv1_2_set_uvws(set_uvws_master):
-    uv1 = set_uvws_master.copy()
-    uv2 = set_uvws_master.copy()
+def uv1_2_set_uvws(set_uvws_main):
+    uv1 = set_uvws_main.copy()
+    uv2 = set_uvws_main.copy()
 
     yield uv1, uv2
 

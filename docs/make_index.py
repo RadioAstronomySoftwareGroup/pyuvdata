@@ -15,7 +15,7 @@ def write_index_rst(readme_file=None, write_file=None):
     t = Time.now()
     t.out_subfmt = "date"
     out = (
-        ".. pyuvdata documentation master file, created by\n"
+        ".. pyuvdata documentation top-level file, created by\n"
         "   make_index.py on {date}\n\n"
     ).format(date=t.iso)
 
@@ -30,12 +30,12 @@ def write_index_rst(readme_file=None, write_file=None):
     # convert relative links in readme to explicit links
     readme_text = readme_text.replace(
         "<docs/",
-        "<https://github.com/RadioAstronomySoftwareGroup/pyuvdata/tree/master/docs/",
+        "<https://github.com/RadioAstronomySoftwareGroup/pyuvdata/tree/main/docs/",
     )
 
     readme_text = readme_text.replace(
         "<.github/",
-        "<https://github.com/RadioAstronomySoftwareGroup/pyuvdata/tree/master/.github/",
+        "<https://github.com/RadioAstronomySoftwareGroup/pyuvdata/tree/main/.github/",
     )
 
     out += readme_text

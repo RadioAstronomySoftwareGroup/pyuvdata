@@ -22,15 +22,15 @@ cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
 
 
 @pytest.fixture(scope="module")
-def cst_power_1freq(cst_efield_1freq_master):
-    beam_in = cst_efield_1freq_master.copy()
+def cst_power_1freq(cst_efield_1freq_main):
+    beam_in = cst_efield_1freq_main.copy()
     beam_in.efield_to_power()
     return beam_in.copy()
 
 
 @pytest.fixture(scope="module")
-def cst_power_1freq_cut_healpix(cst_efield_1freq_cut_healpix_master):
-    beam_in = cst_efield_1freq_cut_healpix_master.copy()
+def cst_power_1freq_cut_healpix(cst_efield_1freq_cut_healpix_main):
+    beam_in = cst_efield_1freq_cut_healpix_main.copy()
     beam_in.efield_to_power()
     return beam_in.copy()
 
