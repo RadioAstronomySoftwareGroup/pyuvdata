@@ -188,7 +188,7 @@ def _parse_antpos_file(antenna_positions_file):
 
     """
     columns = ["name", "number", "x", "y", "z"]
-    formats = ["U10", "i8", "f16", "f16", "f16"]
+    formats = ["U10", "i8", np.longdouble, np.longdouble, np.longdouble]
 
     dt = np.format_parser(formats, columns, [])
     ant_array = np.genfromtxt(
