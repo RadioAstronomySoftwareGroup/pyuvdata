@@ -11,7 +11,7 @@ import h5py
 
 import numpy as np
 from astropy.time import Time
-from astropy.coordinates import Angle
+from astropy.coordinates import Angle, EarthLocation
 from astropy.utils import iers
 
 from pyuvdata import UVData, UVCal
@@ -687,7 +687,11 @@ def test_antnums_to_baselines(uvdata_baseline):
 def test_known_telescopes():
     """Test known_telescopes method returns expected results."""
     uv_object = UVData()
-    known_telescopes = ["PAPER", "HERA", "MWA", "SMA"]
+    astropy_sites = EarthLocation.get_site_names()
+    while "" in astropy_sites:
+        astropy_sites.remove("")
+
+    known_telescopes = astropy_sites + ["PAPER", "HERA", "SMA"]
     # calling np.sort().tolist() because [].sort() acts inplace and returns None
     # Before test had None == None
     assert (

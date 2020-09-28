@@ -6,6 +6,7 @@
 
 """
 import os
+from astropy.coordinates import EarthLocation
 
 import numpy as np
 import pytest
@@ -16,15 +17,31 @@ from pyuvdata import UVData
 
 required_parameters = ["_telescope_name", "_telescope_location"]
 required_properties = ["telescope_name", "telescope_location"]
-extra_parameters = ["_antenna_diameters"]
-extra_properties = ["antenna_diameters"]
+extra_parameters = [
+    "_antenna_diameters",
+    "_Nants_telescope",
+    "_antenna_names",
+    "_antenna_numbers",
+    "_antenna_positions",
+]
+extra_properties = [
+    "antenna_diameters",
+    "Nants_telescope",
+    "antenna_names",
+    "antenna_numbers",
+    "antenna_positions",
+]
 other_attributes = [
     "citation",
     "telescope_location_lat_lon_alt",
     "telescope_location_lat_lon_alt_degrees",
     "pyuvdata_version_str",
 ]
-expected_known_telescopes = ["PAPER", "HERA", "MWA", "SMA"]
+astropy_sites = EarthLocation.get_site_names()
+while "" in astropy_sites:
+    astropy_sites.remove("")
+
+expected_known_telescopes = astropy_sites + ["PAPER", "HERA", "SMA"]
 
 
 # Tests for Telescope object

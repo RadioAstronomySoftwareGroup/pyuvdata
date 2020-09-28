@@ -15,10 +15,6 @@ import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 
-pytestmark = pytest.mark.filterwarnings(
-    "ignore:The antenna_positions parameter is not set."
-)
-
 
 @pytest.fixture(scope="function")
 def uvcal_data():
@@ -321,6 +317,7 @@ def test_check_warnings(gain_data):
     """Test that parameter checks run properly"""
     gain_data.gain_object.telescope_location = None
     gain_data.gain_object.lst_array = None
+    gain_data.gain_object.antenna_positions = None
 
     with uvtest.check_warnings(
         DeprecationWarning,
@@ -341,6 +338,7 @@ def test_unknown_telescopes(gain_data, tmp_path):
     calobj.telescope_name = "foo"
     calobj.telescope_location = None
     calobj.lst_array = None
+    calobj.antenna_positions = None
 
     write_file_calfits = str(tmp_path / "test.calfits")
     deprecation_messages = [
@@ -373,6 +371,9 @@ def test_nants_data_telescope_larger(gain_data):
     gain_data.gain_object.antenna_numbers = np.concatenate(
         (gain_data.gain_object.antenna_numbers, [20])
     )
+    gain_data.gain_object.antenna_positions = np.concatenate(
+        (gain_data.gain_object.antenna_positions, np.zeros((1, 3), dtype=float))
+    )
     assert gain_data.gain_object.check()
 
 
@@ -381,6 +382,9 @@ def test_ant_array_not_in_antnums(gain_data):
     # remove antennas from antenna_names & antenna_numbers by hand
     gain_data.gain_object.antenna_names = gain_data.gain_object.antenna_names[1:]
     gain_data.gain_object.antenna_numbers = gain_data.gain_object.antenna_numbers[1:]
+    gain_data.gain_object.antenna_positions = gain_data.gain_object.antenna_positions[
+        1:, :
+    ]
     gain_data.gain_object.Nants_telescope = gain_data.gain_object.antenna_numbers.size
     with pytest.raises(ValueError) as cm:
         gain_data.gain_object.check()
@@ -648,12 +652,7 @@ def test_select_antennas(caltype, gain_data, delay_data, tmp_path):
         calobj._total_quality_array.expected_shape(calobj)
     )
     with uvtest.check_warnings(
-        [UserWarning, DeprecationWarning],
-        match=[
-            "Cannot preserve total_quality_array",
-            "The antenna_positions parameter is not set. It will be a required "
-            "parameter starting in pyuvdata version 2.3",
-        ],
+        UserWarning, match="Cannot preserve total_quality_array",
     ):
         calobj.select(antenna_names=ant_names, inplace=True)
     assert calobj.total_quality_array is None
@@ -700,12 +699,7 @@ def test_select_times(caltype, gain_data, delay_data, tmp_path):
     # check for warnings and errors associated with unevenly spaced times
     calobj2 = calobj.copy()
     with uvtest.check_warnings(
-        [UserWarning, DeprecationWarning],
-        match=[
-            "Selected times are not evenly spaced",
-            "The antenna_positions parameter is not set. It will be a required "
-            "parameter starting in pyuvdata version 2.3",
-        ],
+        UserWarning, match="Selected times are not evenly spaced",
     ):
         calobj2.select(times=calobj2.time_array[[0, 2, 3]])
     pytest.raises(ValueError, calobj2.write_calfits, write_file_calfits)
@@ -761,12 +755,7 @@ def test_select_frequencies(caltype, gain_data, delay_data, tmp_path):
     # check for warnings and errors associated with unevenly spaced frequencies
     calobj2 = calobj.copy()
     with uvtest.check_warnings(
-        [UserWarning, DeprecationWarning],
-        match=[
-            "Selected frequencies are not evenly spaced",
-            "The antenna_positions parameter is not set. It will be a required "
-            "parameter starting in pyuvdata version 2.3",
-        ],
+        UserWarning, match="Selected frequencies are not evenly spaced",
     ):
         calobj2.select(frequencies=calobj2.freq_array[0, [0, 5, 6]])
     pytest.raises(ValueError, calobj2.write_calfits, write_file_calfits)
@@ -887,12 +876,7 @@ def test_select_polarizations(caltype, gain_data, delay_data):
 
     # check for warnings and errors associated with unevenly spaced polarizations
     with uvtest.check_warnings(
-        [UserWarning, DeprecationWarning],
-        match=[
-            "Selected jones polarization terms are not evenly spaced",
-            "The antenna_positions parameter is not set. It will be a required "
-            "parameter starting in pyuvdata version 2.3",
-        ],
+        UserWarning, match="Selected jones polarization terms are not evenly spaced",
     ):
         calobj.select(jones=calobj.jones_array[[0, 1, 3]])
     write_file_calfits = os.path.join(DATA_PATH, "test/select_test.calfits")
@@ -987,13 +971,7 @@ def test_add_antennas(caltype, gain_data, delay_data):
     calobj.total_quality_array = np.zeros(
         calobj._total_quality_array.expected_shape(calobj)
     )
-    messages = ["Total quality array detected"] + [
-        "The antenna_positions parameter is not set. It will be a required parameter "
-        "starting in pyuvdata version 2.3"
-    ] * 3
-    with uvtest.check_warnings(
-        [UserWarning] + [DeprecationWarning] * 3, match=messages
-    ):
+    with uvtest.check_warnings(UserWarning, match="Total quality array detected"):
         calobj.__iadd__(calobj2)
     assert calobj.total_quality_array is None
 
@@ -1451,12 +1429,8 @@ def test_jones_warning(gain_data):
     gain_data.gain_object2.jones_array[0] = -6
     gain_data.gain_object += gain_data.gain_object2
     gain_data.gain_object2.jones_array[0] = -8
-    messages = ["Combined Jones elements"] + [
-        "The antenna_positions parameter is not set. It will be a required "
-        "parameter starting in pyuvdata version 2.3"
-    ] * 3
     with uvtest.check_warnings(
-        [UserWarning] + [DeprecationWarning] * 3, match=messages,
+        UserWarning, match="Combined Jones elements",
     ):
         gain_data.gain_object.__iadd__(gain_data.gain_object2)
     assert sorted(gain_data.gain_object.jones_array) == [-8, -6, -5]
@@ -1480,12 +1454,8 @@ def test_frequency_warnings(gain_data):
     gain_data.gain_object2.freq_array[0, -1] = (
         gain_data.gain_object2.freq_array[0, -2] + df / 2
     )
-    messages = ["Combined frequencies are not evenly spaced"] + [
-        "The antenna_positions parameter is not set. It will be a required "
-        "parameter starting in pyuvdata version 2.3"
-    ] * 3
     with uvtest.check_warnings(
-        [UserWarning] + [DeprecationWarning] * 3, match=messages
+        UserWarning, match="Combined frequencies are not evenly spaced"
     ):
         gain_data.gain_object.__iadd__(gain_data.gain_object2)
 
@@ -1502,12 +1472,8 @@ def test_frequency_warnings(gain_data):
     # artificially space out frequencies
     gain_data.gain_object.freq_array[0, :] *= 10
     gain_data.gain_object2.freq_array[0, :] *= 10
-    messages = ["Combined frequencies are not contiguous"] + [
-        "The antenna_positions parameter is not set. It will be a required "
-        "parameter starting in pyuvdata version 2.3"
-    ] * 3
     with uvtest.check_warnings(
-        [UserWarning] + [DeprecationWarning] * 3, match=messages
+        UserWarning, match="Combined frequencies are not contiguous"
     ):
         gain_data.gain_object.__iadd__(gain_data.gain_object2)
 
@@ -1530,12 +1496,8 @@ def test_parameter_warnings(gain_data):
     freqs2 = gain_data.gain_object2.freq_array[0, np.arange(5, 10)]
     gain_data.gain_object.select(frequencies=freqs1)
     gain_data.gain_object2.select(frequencies=freqs2)
-    messages = ["UVParameter observer does not match"] + [
-        "The antenna_positions parameter is not set. It will be a required "
-        "parameter starting in pyuvdata version 2.3"
-    ] * 3
     with uvtest.check_warnings(
-        [UserWarning] + [DeprecationWarning] * 3, match=messages
+        UserWarning, match="UVParameter observer does not match"
     ):
         gain_data.gain_object.__iadd__(gain_data.gain_object2)
 

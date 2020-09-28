@@ -630,7 +630,8 @@ class UVCal(UVBase):
         Set telescope related parameters.
 
         If the telescope_name is in the known_telescopes, set the telescope
-        location to the value for the known telescope.
+        location to the value for the known telescope. Also set the antenna positions
+        if they are not set on the object and are available for the telescope.
 
         Parameters
         ----------
@@ -647,6 +648,37 @@ class UVCal(UVBase):
         if telescope_obj is not False:
             self.telescope_location = telescope_obj.telescope_location
 
+            if (
+                self.antenna_positions is None
+                and telescope_obj.antenna_positions is not None
+            ):
+                ant_inds = []
+                telescope_ant_inds = []
+                for index, antname in enumerate(self.antenna_names):
+                    if antname in telescope_obj.antenna_names:
+                        ant_inds.append(index)
+                        telescope_ant_inds.append(
+                            np.where(telescope_obj.antenna_names == antname)[0][0]
+                        )
+                    elif self.antenna_numbers[index] in telescope_obj.antenna_numbers:
+                        this_ant_ind = np.where(
+                            telescope_obj.antenna_numbers == self.antenna_numbers[index]
+                        )[0][0]
+                        # make sure we don't already have this antenna associated with
+                        # another antenna
+                        if this_ant_ind not in telescope_ant_inds:
+                            ant_inds.append(index)
+                            telescope_ant_inds.append(this_ant_ind)
+                if len(ant_inds) != self.Nants_telescope:
+                    warnings.warn(
+                        "Not all antennas have positions in the telescope object. "
+                        "Not setting antenna_positions."
+                    )
+                else:
+                    telescope_ant_inds = np.array(telescope_ant_inds)
+                    self.antenna_positions = telescope_obj.antenna_positions[
+                        telescope_ant_inds, :
+                    ]
         else:
             raise ValueError(
                 f"Telescope {self.telescope_name} is not in known_telescopes."
