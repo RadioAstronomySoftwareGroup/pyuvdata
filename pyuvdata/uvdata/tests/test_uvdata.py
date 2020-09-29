@@ -2313,6 +2313,15 @@ def test_sum_vis(casa_uvfits):
     uv_summed.diff_vis(uv_half, inplace=True)
     assert np.array_equal(uv_summed.data_array, uv_half.data_array)
 
+    # check object_name merge
+    uv_zenith = uv_full.copy()
+    uv_zenith.object_name = "zenith"
+    UV_merged = uv_zenith.sum_vis(uv_full)
+    assert uv_merged.object_name == "zenith-J1008+0730"
+
+    #check extra_keywords handling
+    
+
     # check error messages
     with pytest.raises(ValueError) as cm:
         uv_full.sum_vis("foo")
