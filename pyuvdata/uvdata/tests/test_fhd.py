@@ -110,9 +110,8 @@ def test_read_fhd_select():
             'Warning: select on read keyword set, but file_type is "fhd" which '
             "does not support select on read. Entire file will be read and then "
             "select will be performed",
-            "Telescope location derived from obs lat/lon/alt values does not "
-            "match the location in the layout file. Neither location matches the values"
-            " in known_telescopes. Defaulting to using the known_telescopes values.",
+            "Telescope location derived from obs lat/lon/alt values does not match the "
+            "location in the layout file. Using the value from known_telescopes.",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
@@ -124,9 +123,8 @@ def test_read_fhd_select():
     with uvtest.check_warnings(
         UserWarning,
         [
-            "Telescope location derived from obs lat/lon/alt values does not "
-            "match the location in the layout file. Neither location matches the values"
-            " in known_telescopes. Defaulting to using the known_telescopes values.",
+            "Telescope location derived from obs lat/lon/alt values does not match the "
+            "location in the layout file. Using the value from known_telescopes.",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
@@ -307,9 +305,8 @@ def test_read_fhd_write_read_uvfits_no_settings(tmp_path):
     uvfits_uv = UVData()
     messages = [
         "No settings file included in file list",
-        "Telescope location derived from obs lat/lon/alt values does "
-        "not match the location in the layout file. Neither location matches the values"
-        " in known_telescopes. Defaulting to using the known_telescopes values.",
+        "Telescope location derived from obs lat/lon/alt values does not match the "
+        "location in the layout file. Using the value from known_telescopes.",
         "The uvw_array does not match the expected values given the antenna positions.",
     ]
     with uvtest.check_warnings(UserWarning, messages):

@@ -42,7 +42,9 @@ def uvcalibrate_data(uvcalibrate_init_data):
     uvdata, uvcal = uvcalibrate_init_data
 
     # fix the antenna names in the uvcal object to match the uvdata object
-    uvcal.antenna_names = [name.replace("ant", "HH") for name in uvcal.antenna_names]
+    uvcal.antenna_names = np.array(
+        [name.replace("ant", "HH") for name in uvcal.antenna_names]
+    )
 
     yield uvdata, uvcal
 
