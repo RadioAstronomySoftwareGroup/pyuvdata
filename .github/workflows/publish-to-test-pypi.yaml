@@ -47,6 +47,7 @@ jobs:
         python -m pep517.build --source --out-dir dist/ .
 
     - name: Publish to Test PyPI
+      if: startsWith(github.event.ref, 'refs/tags')
       uses: pypa/gh-action-pypi-publish@master
       with:
         password: ${{ secrets.test_pypi_password }}
