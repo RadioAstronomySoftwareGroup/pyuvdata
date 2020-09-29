@@ -196,34 +196,8 @@ def get_fhd_layout_info(
             )
 
             if telescope_obj is not False:
-                if _latlonalt_close(
-                    (latitude, longitude, altitude),
-                    telescope_obj.telescope_location_lat_lon_alt,
-                    radian_tols,
-                    loc_tols,
-                ):
-                    # obs lat/lon/alt matches known_telescopes
-                    message += (
-                        " Value from obs lat/lon/alt matches the "
-                        "known_telescopes values, using them."
-                    )
-                    telescope_location = location_latlonalt
-                elif _xyz_close(arr_center, telescope_obj.telescope_location, loc_tols):
-                    # layout xyz matches known_telescopes
-                    message += (
-                        " Value from the layout file matches the "
-                        "known_telescopes values, using them."
-                    )
-                    telescope_location = arr_center
-                else:
-                    # None of the values match each other. Defaulting
-                    # to known_telescopes value.
-                    message += (
-                        " Neither location matches the values "
-                        "in known_telescopes. Defaulting to "
-                        "using the known_telescopes values."
-                    )
-                    telescope_location = telescope_obj.telescope_location
+                message += " Using the value from known_telescopes."
+                telescope_location = telescope_obj.telescope_location
             else:
                 message += (
                     " Telescope is not in known_telescopes. "

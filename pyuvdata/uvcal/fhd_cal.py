@@ -366,9 +366,9 @@ class FHDCal(UVCal):
             )
         # In Python 3, we sometimes get Unicode, sometimes bytes
         # doesn't reliably show up in tests though, so excluding it from coverage
-        if isinstance(galaxy_model, bytes):
+        if isinstance(galaxy_model, bytes):  # pragma: nocover
             galaxy_model = galaxy_model.decode("utf8")
-        if galaxy_model == 0:  # pragma: nocover
+        if galaxy_model == 0:
             galaxy_model = None
         else:
             galaxy_model = "gsm"

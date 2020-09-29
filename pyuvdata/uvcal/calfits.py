@@ -473,7 +473,7 @@ class CALFITS(UVCal):
                 )
             elif lat is not None and lon is not None and alt is not None:
                 self.telescope_location_lat_lon_alt_degrees = (lat, lon, alt)
-            if self.telescope_location is None:
+            if self.telescope_location is None or self.antenna_positions is None:
                 try:
                     self.set_telescope_params()
                 except ValueError as ve:

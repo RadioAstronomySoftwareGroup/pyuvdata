@@ -625,7 +625,7 @@ class UVCal(UVBase):
 
         return metadata_only
 
-    def set_telescope_params(self):
+    def set_telescope_params(self, overwrite=False):
         """
         Set telescope related parameters.
 
@@ -646,35 +646,52 @@ class UVCal(UVBase):
         """
         telescope_obj = uvtel.get_telescope(self.telescope_name)
         if telescope_obj is not False:
-            self.telescope_location = telescope_obj.telescope_location
+            if self.telescope_location is None or overwrite is True:
+                warnings.warn(
+                    "telescope_location is not set. Using known values "
+                    f"for {telescope_obj.telescope_name}."
+                )
+                self.telescope_location = telescope_obj.telescope_location
 
-            if (
-                self.antenna_positions is None
-                and telescope_obj.antenna_positions is not None
+            if telescope_obj.antenna_positions is not None and (
+                self.antenna_positions is None or overwrite is True
             ):
                 ant_inds = []
                 telescope_ant_inds = []
+                # first try to match using names only
                 for index, antname in enumerate(self.antenna_names):
                     if antname in telescope_obj.antenna_names:
                         ant_inds.append(index)
                         telescope_ant_inds.append(
                             np.where(telescope_obj.antenna_names == antname)[0][0]
                         )
-                    elif self.antenna_numbers[index] in telescope_obj.antenna_numbers:
-                        this_ant_ind = np.where(
-                            telescope_obj.antenna_numbers == self.antenna_numbers[index]
-                        )[0][0]
-                        # make sure we don't already have this antenna associated with
-                        # another antenna
-                        if this_ant_ind not in telescope_ant_inds:
-                            ant_inds.append(index)
-                            telescope_ant_inds.append(this_ant_ind)
+                # next try using numbers
+                if len(ant_inds) != self.Nants_telescope:
+                    for index, antnum in enumerate(self.antenna_numbers):
+                        # only update if not already found
+                        if (
+                            index not in ant_inds
+                            and antnum in telescope_obj.antenna_numbers
+                        ):
+                            this_ant_ind = np.where(
+                                telescope_obj.antenna_numbers == antnum
+                            )[0][0]
+                            # make sure we don't already have this antenna associated
+                            # with another antenna
+                            if this_ant_ind not in telescope_ant_inds:
+                                ant_inds.append(index)
+                                telescope_ant_inds.append(this_ant_ind)
+                print(telescope_ant_inds)
                 if len(ant_inds) != self.Nants_telescope:
                     warnings.warn(
                         "Not all antennas have positions in the telescope object. "
                         "Not setting antenna_positions."
                     )
                 else:
+                    warnings.warn(
+                        "antenna_positions is not set. Using known values "
+                        f"for {telescope_obj.telescope_name}."
+                    )
                     telescope_ant_inds = np.array(telescope_ant_inds)
                     self.antenna_positions = telescope_obj.antenna_positions[
                         telescope_ant_inds, :
