@@ -681,7 +681,6 @@ class UVCal(UVBase):
                             if this_ant_ind not in telescope_ant_inds:
                                 ant_inds.append(index)
                                 telescope_ant_inds.append(this_ant_ind)
-                print(telescope_ant_inds)
                 if len(ant_inds) != self.Nants_telescope:
                     warnings.warn(
                         "Not all antennas have positions in the telescope object. "
