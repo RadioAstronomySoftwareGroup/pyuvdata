@@ -3814,7 +3814,7 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        override_params=None
+        override_params=None,
     ):
         """
         Sum visibilities between two UVData objects.
@@ -3889,7 +3889,8 @@ class UVData(UVBase):
                     param = "_" + param
                 if param not in compatibility_params:
                     msg = (
-                        "Provided parameter " + param[1:] + " is not a recognizable UVParameter."
+                        "Provided parameter " + param[1:] + " is not a recognizable "
+                        "UVParameter."
                     )
                     raise ValueError(msg)
                 remove_params.append(param)
@@ -3903,17 +3904,25 @@ class UVData(UVBase):
             params_match = getattr(this, param) == getattr(other, param)
             if not params_match:
                 msg = (
-                    "UVParameter " + param[1:] + " does not match. Cannot combine objects."
+                    "UVParameter " + param[1:] + " does not match. Cannot "
+                    "combine objects."
                 )
                 raise ValueError(msg)
 
         # Merge extra keywords and object_name
-        for intersection in set(this.extra_keywords.keys()) & set(other.extra_keywords.keys()):
+        for intersection in set(this.extra_keywords.keys()) & set(
+            other.extra_keywords.keys()
+        ):
             if this.extra_keywords[intersection] != other.extra_keywords[intersection]:
-                print("Keyword " + intersection + " in _extra_keywords is different in the two objects. Taking the first object's entry.")
+                print(
+                    "Keyword " + intersection + " in _extra_keywords is different "
+                    "in the two objects. Taking the first object's entry."
+                )
 
         # Merge extra_keywords lists, taking values from the first object
-        this.extra_keywords = dict(list(other.extra_keywords.items()) + list(this.extra_keywords.items()))
+        this.extra_keywords = dict(
+            list(other.extra_keywords.items()) + list(this.extra_keywords.items())
+        )
 
         # Merge object_name if different.
         if this.object_name != other.object_name:
