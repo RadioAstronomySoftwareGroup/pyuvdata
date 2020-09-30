@@ -3914,7 +3914,7 @@ class UVData(UVBase):
             other.extra_keywords.keys()
         ):
             if this.extra_keywords[intersection] != other.extra_keywords[intersection]:
-                print(
+                warnings.warn(
                     "Keyword " + intersection + " in _extra_keywords is different "
                     "in the two objects. Taking the first object's entry."
                 )
