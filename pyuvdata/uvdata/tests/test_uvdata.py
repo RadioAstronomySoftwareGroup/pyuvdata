@@ -2336,10 +2336,10 @@ def test_sum_vis(casa_uvfits):
         3554841.17192104,
     ]
     uv_overrides_2 = uv_overrides.sum_vis(
-        uv_full, inplace=True, override_params=["instrument", "telescope_location"]
+        uv_full, override_params=["instrument", "telescope_location"]
     )
     assert uv_overrides_2.instrument == "test_telescope"
-    uv_overrides_2.telescope_location = [
+    assert uv_overrides_2.telescope_location == [
         -1601183.15377712,
         -5042003.74810822,
         3554841.17192104,
