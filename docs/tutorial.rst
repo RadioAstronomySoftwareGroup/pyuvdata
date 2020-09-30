@@ -979,6 +979,10 @@ and ``diff_vis`` methods.
   # in place option
   >>> uv1.sum_vis(uv2, inplace=True)
 
+  # override a particular parameter
+  >>> uv1.instrument = "test instrument"
+  >>> uv1.sum_vis(uv2, override_params=["instrument"])
+
 .. _large_files:
 
 UVData: Working with large files
