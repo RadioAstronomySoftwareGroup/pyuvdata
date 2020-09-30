@@ -2316,13 +2316,28 @@ def test_sum_vis(casa_uvfits):
     # check object_name merge
     uv_zenith = uv_full.copy()
     uv_zenith.object_name = "zenith"
-    UV_merged = uv_zenith.sum_vis(uv_full)
+    uv_merged = uv_zenith.sum_vis(uv_full)
     assert uv_merged.object_name == "zenith-J1008+0730"
 
-    #check extra_keywords handling
-    
+    # check extra_keywords handling
+    uv_keys = uv_full.copy()
+    uv_keys.extra_keywords['test_key'] = "test_value"
+    uv_keys.extra_keywords['DATA_COL'] = "altered_value"
+    uv_merged_keys = uv_keys.sum_vis(uv_full)
+    assert uv_merged_keys.extra_keywords['test_key'] == "test_value"
+    assert uv_merged_keys.extra_keywords['DATA_COL'] == "altered_value"
+
+    # check override_params
+    uv_overrides = uv_full.copy()
+    uv_overrides.instrument = "test_telescope"
+    uv_overrides.telescope_location = [-1601183.15377712, -5042003.74810822,  3554841.17192104]
+    uv_overrides_2 = uv_overrides.sum_vis(uv_full, override_params=["instrument", "telescope_location"])
 
     # check error messages
+    with pytest.raises(ValueError) as cm:
+        uv_overrides = uv_overrides.sum_vis(uv_full, override_params=["fake"])
+    assert str(cm.value).startswith("Provided parameter fake is not a recognizable")
+
     with pytest.raises(ValueError) as cm:
         uv_full.sum_vis("foo")
     assert str(cm.value).startswith("Only UVData (or subclass) objects can be")
