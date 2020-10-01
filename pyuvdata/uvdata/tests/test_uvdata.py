@@ -2322,10 +2322,23 @@ def test_sum_vis(casa_uvfits):
     # check extra_keywords handling
     uv_keys = uv_full.copy()
     uv_keys.extra_keywords["test_key"] = "test_value"
-    uv_keys.extra_keywords["DATA_COL"] = "altered_value"
-    uv_merged_keys = uv_keys.sum_vis(uv_full)
+    uv_keys.extra_keywords["SPECSYS"] = "altered_value"
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Keyword SPECSYS in _extra_keywords is different in the two objects. "
+            "Taking the first object's entry.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+    ):
+        uv_merged_keys = uv_keys.sum_vis(uv_full)
     assert uv_merged_keys.extra_keywords["test_key"] == "test_value"
-    assert uv_merged_keys.extra_keywords["DATA_COL"] == "altered_value"
+    assert uv_merged_keys.extra_keywords["SPECSYS"] == "altered_value"
 
     # check override_params
     uv_overrides = uv_full.copy()
@@ -2338,6 +2351,7 @@ def test_sum_vis(casa_uvfits):
     uv_overrides_2 = uv_overrides.sum_vis(
         uv_full, override_params=["instrument", "telescope_location"]
     )
+
     assert uv_overrides_2.instrument == "test_telescope"
     assert uv_overrides_2.telescope_location == [
         -1601183.15377712,
