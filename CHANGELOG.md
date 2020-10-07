@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.1.2] - 2020-10-07
+
 ### Added
 - Added support for multiple spectral windows for UVH5, UVFITS, MIR, and MIRIAD files.
 - Added the `flex_spw` attribute to the `UVData` class, which can be set to True by using the new `_set_flex_spw` method.
