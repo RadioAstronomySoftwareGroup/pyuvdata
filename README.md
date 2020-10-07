@@ -211,7 +211,7 @@ you will need the following packages:
 
 One way to ensure you have all the needed packages is to use the included `environment.yaml` file to create a new environment that will
 contain all the optional dependencies along with dependencies required for
-testing and development (```conda env create -f environment.yml```). Alternatively, you can specify `test`, `doc`, or `dev` when installing pyuvdata (as in `pip install pyuvdata[dev]`) to install the packages needed for testing (including coverage and
+testing and development (```conda env create -f environment.yaml```). Alternatively, you can specify `test`, `doc`, or `dev` when installing pyuvdata (as in `pip install pyuvdata[dev]`) to install the packages needed for testing (including coverage and
 linting) and documentation development; `dev` includes everything in `test` and `doc`.
 
 To use pre-commit to prevent committing code that does not follow our style, you'll need to run `pre-commit install` in the top level `pyuvdata` directory.
