@@ -3819,6 +3819,12 @@ class UVData(UVBase):
         """
         Sum visibilities between two UVData objects.
 
+        By default requires that all UVParameters are the same on the two objects
+        except for `history`, `data_array`, `object_name`, and `extra_keywords`.
+        The `object_name` values are concatenated if they are different. If keys
+        in `extra_keywords` have different values the values from the first
+        object are taken.
+
         Parameters
         ----------
         other : UVData object
@@ -3841,7 +3847,9 @@ class UVData(UVBase):
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
         override_params : array_like of strings
-            List of object UVParameters to omit from compatibility check.
+            List of object UVParameters to omit from compatibility check. Overridden
+            parameters will not be compared between the objects, and the values
+            for these parameters will be taken from the first object.
 
         Returns
         -------
@@ -3958,9 +3966,16 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        override_params=None,
     ):
         """
         Difference visibilities between two UVData objects.
+
+        By default requires that all UVParameters are the same on the two objects
+        except for `history`, `data_array`, `object_name`, and `extra_keywords`.
+        The `object_name` values are concatenated if they are different. If keys
+        in `extra_keywords` have different values the values from the first
+        object are taken.
 
         Parameters
         ----------
@@ -3980,6 +3995,10 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        override_params : array_like of strings
+            List of object UVParameters to omit from compatibility check. Overridden
+            parameters will not be compared between the objects, and the values
+            for these parameters will be taken from the first object.
 
         Returns
         -------
@@ -4002,6 +4021,7 @@ class UVData(UVBase):
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
+                override_params=override_params,
             )
         else:
             return self.sum_vis(
@@ -4012,6 +4032,7 @@ class UVData(UVBase):
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
+                override_params=override_params,
             )
 
     def parse_ants(self, ant_str, print_toggle=False):
