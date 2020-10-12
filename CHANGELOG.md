@@ -6,7 +6,6 @@ All notable changes to this project will be documented in this file.
 ## [2.1.2] - 2020-10-07
 
 ### Added
-- Added handling for `object_name` and `extra_keywords` to `sum_vis` method and added an option to override other parameters.
 - Added support for multiple spectral windows for UVH5, UVFITS, MIR, and MIRIAD files.
 - Added the `flex_spw` attribute to the `UVData` class, which can be set to True by using the new `_set_flex_spw` method.
 - Added the optional `flex_spw_id_array` attribute, of type=int and shape=(`Nfreqs`,), which indexes individual channels along the frequency axis to `spw_array`.
