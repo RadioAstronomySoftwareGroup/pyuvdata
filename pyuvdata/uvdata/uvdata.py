@@ -5823,7 +5823,7 @@ class UVData(UVBase):
                         ],
                         dtype=np.int,
                     )
-                    conj_inds = np.array(conj_group_inds[np.array(conj_orientation)])
+                    conj_inds = conj_group_inds[np.array(conj_orientation)]
                     # check that the integration times are all the same
                     int_times = np.concatenate(
                         (
