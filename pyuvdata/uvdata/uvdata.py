@@ -3473,7 +3473,7 @@ class UVData(UVBase):
 
     def fast_concat(
         self,
-        other,
+        others,
         axis,
         inplace=False,
         phase_center_radec=None,
@@ -3496,8 +3496,8 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        other : UVData object
-            Another UVData object which will be added to self.
+        others : list of UVData objects
+            List of UVData objects which will be added to self.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
             along the specified axis without the normal checking that all other
@@ -3558,17 +3558,18 @@ class UVData(UVBase):
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
-        if not issubclass(other.__class__, this.__class__):
-            if not issubclass(this.__class__, other.__class__):
-                raise ValueError(
-                    "Only UVData (or subclass) objects can be "
-                    "added to a UVData (or subclass) object"
-                )
-        other.check(
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            strict_uvw_antpos_check=strict_uvw_antpos_check,
-        )
+        for other in others:
+            if not issubclass(other.__class__, this.__class__):
+                if not issubclass(this.__class__, other.__class__):
+                    raise ValueError(
+                        "Only UVData (or subclass) objects can be "
+                        "added to a UVData (or subclass) object"
+                    )
+            other.check(
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
+            )
 
         if phase_center_radec is not None and unphase_to_drift:
             raise ValueError(
@@ -3582,11 +3583,12 @@ class UVData(UVBase):
                     phase_frame=orig_phase_frame, use_ant_pos=use_ant_pos
                 )
 
-            if other.phase_type != "drift":
-                warnings.warn("Unphasing other UVData object to drift")
-                other.unphase_to_drift(
-                    phase_frame=orig_phase_frame, use_ant_pos=use_ant_pos
-                )
+            for other in others:
+                if other.phase_type != "drift":
+                    warnings.warn("Unphasing other UVData object to drift")
+                    other.unphase_to_drift(
+                        phase_frame=orig_phase_frame, use_ant_pos=use_ant_pos
+                    )
 
         if phase_center_radec is not None:
             if np.array(phase_center_radec).size != 2:
@@ -3622,29 +3624,30 @@ class UVData(UVBase):
             # If other object is not phased or is not phased close to
             # phase_center_radec, (re)phase it.
             # Close is defined using the phase_center_ra/dec tolerances.
-            if other.phase_type == "drift" or (
-                not np.isclose(
-                    other.phase_center_ra,
-                    phase_center_radec[0],
-                    rtol=other._phase_center_ra.tols[0],
-                    atol=other._phase_center_ra.tols[1],
-                )
-                or not np.isclose(
-                    other.phase_center_dec,
-                    phase_center_radec[1],
-                    rtol=other._phase_center_dec.tols[0],
-                    atol=other._phase_center_dec.tols[1],
-                )
-            ):
-                warnings.warn("Phasing other UVData object to phase_center_radec")
-                other.phase(
-                    phase_center_radec[0],
-                    phase_center_radec[1],
-                    phase_frame=phase_frame,
-                    orig_phase_frame=orig_phase_frame,
-                    use_ant_pos=use_ant_pos,
-                    allow_rephase=True,
-                )
+            for other in others:
+                if other.phase_type == "drift" or (
+                    not np.isclose(
+                        other.phase_center_ra,
+                        phase_center_radec[0],
+                        rtol=other._phase_center_ra.tols[0],
+                        atol=other._phase_center_ra.tols[1],
+                    )
+                    or not np.isclose(
+                        other.phase_center_dec,
+                        phase_center_radec[1],
+                        rtol=other._phase_center_dec.tols[0],
+                        atol=other._phase_center_dec.tols[1],
+                    )
+                ):
+                    warnings.warn("Phasing other UVData object to phase_center_radec")
+                    other.phase(
+                        phase_center_radec[0],
+                        phase_center_radec[1],
+                        phase_frame=phase_frame,
+                        orig_phase_frame=orig_phase_frame,
+                        use_ant_pos=use_ant_pos,
+                        allow_rephase=True,
+                    )
 
         allowed_axes = ["blt", "freq", "polarization"]
         if axis not in allowed_axes:
@@ -3698,20 +3701,22 @@ class UVData(UVBase):
         history_update_string += " axis using pyuvdata."
         this.history += history_update_string
 
-        this.history = uvutils._combine_histories(this.history, other.history)
+        for other in others:
+            this.history = uvutils._combine_histories(this.history, other.history)
 
         # Actually check compatibility parameters
-        for a in compatibility_params:
-            params_match = getattr(this, a) == getattr(other, a)
-            if not params_match:
-                msg = (
-                    "UVParameter " + a[1:] + " does not match. Cannot combine objects."
-                )
-                raise ValueError(msg)
+        for other in others:
+            for a in compatibility_params:
+                params_match = getattr(this, a) == getattr(other, a)
+                if not params_match:
+                    msg = (
+                        "UVParameter " + a[1:] + " does not match. Cannot combine objects."
+                    )
+                    raise ValueError(msg)
 
         if axis == "freq":
             this.freq_array = np.concatenate(
-                [this.freq_array, other.freq_array], axis=1
+                [this.freq_array] + [other.freq_array for other in others], axis=1
             )
             this.Nfreqs = this.Nfreqs + other.Nfreqs
 
@@ -3736,19 +3741,19 @@ class UVData(UVBase):
                 )
             if not self.metadata_only:
                 this.data_array = np.concatenate(
-                    [this.data_array, other.data_array], axis=2
+                    [this.data_array] + [other.data_array for other in others], axis=2
                 )
                 this.nsample_array = np.concatenate(
-                    [this.nsample_array, other.nsample_array], axis=2
+                    [this.nsample_array] + [other.nsample_array for other in others], axis=2
                 )
                 this.flag_array = np.concatenate(
-                    [this.flag_array, other.flag_array], axis=2
+                    [this.flag_array] + [other.flag_array for other in others], axis=2
                 )
         elif axis == "polarization":
             this.polarization_array = np.concatenate(
-                [this.polarization_array, other.polarization_array]
+                [this.polarization_array] + [other.polarization_array for other in others]
             )
-            this.Npols = this.Npols + other.Npols
+            this.Npols = sum([this.Npols] + [other.Npols for other in others])
 
             pol_separation = np.diff(this.polarization_array)
             if np.min(pol_separation) < np.max(pol_separation):
@@ -3759,39 +3764,39 @@ class UVData(UVBase):
 
             if not self.metadata_only:
                 this.data_array = np.concatenate(
-                    [this.data_array, other.data_array], axis=3
+                    [this.data_array] + [other.data_array for other in others], axis=3
                 )
                 this.nsample_array = np.concatenate(
-                    [this.nsample_array, other.nsample_array], axis=3
+                    [this.nsample_array] + [other.nsample_array for other in others], axis=3
                 )
                 this.flag_array = np.concatenate(
-                    [this.flag_array, other.flag_array], axis=3
+                    [this.flag_array] + [other.flag_array for other in others], axis=3
                 )
         elif axis == "blt":
-            this.Nblts = this.Nblts + other.Nblts
-            this.ant_1_array = np.concatenate([this.ant_1_array, other.ant_1_array])
-            this.ant_2_array = np.concatenate([this.ant_2_array, other.ant_2_array])
+            this.Nblts = sum([this.Nblts] + [other.Nblts for other in others])
+            this.ant_1_array = np.concatenate([this.ant_1_array] + [other.ant_1_array for other in others])
+            this.ant_2_array = np.concatenate([this.ant_2_array] + [other.ant_2_array for other in others])
             this.Nants_data = this._calc_nants_data()
-            this.uvw_array = np.concatenate([this.uvw_array, other.uvw_array], axis=0)
-            this.time_array = np.concatenate([this.time_array, other.time_array])
+            this.uvw_array = np.concatenate([this.uvw_array] + [other.uvw_array for other in others], axis=0)
+            this.time_array = np.concatenate([this.time_array] + [other.time_array for other in others])
             this.Ntimes = len(np.unique(this.time_array))
-            this.lst_array = np.concatenate([this.lst_array, other.lst_array])
+            this.lst_array = np.concatenate([this.lst_array] + [other.lst_array for other in others])
             this.baseline_array = np.concatenate(
-                [this.baseline_array, other.baseline_array]
+                [this.baseline_array] + [other.baseline_array for other in others]
             )
             this.Nbls = len(np.unique(this.baseline_array))
             this.integration_time = np.concatenate(
-                [this.integration_time, other.integration_time]
+                [this.integration_time] + [other.integration_time for other in others]
             )
             if not self.metadata_only:
                 this.data_array = np.concatenate(
-                    [this.data_array, other.data_array], axis=0
+                    [this.data_array] + [other.data_array for other in others], axis=0
                 )
                 this.nsample_array = np.concatenate(
-                    [this.nsample_array, other.nsample_array], axis=0
+                    [this.nsample_array] + [other.nsample_array for other in others], axis=0
                 )
                 this.flag_array = np.concatenate(
-                    [this.flag_array, other.flag_array], axis=0
+                    [this.flag_array] + [other.flag_array for other in others], axis=0
                 )
 
         # Check final object is self-consistent
@@ -7275,6 +7280,7 @@ class UVData(UVBase):
                 # set the phase center to be the phase center of the first file
                 phase_center_radec = [self.phase_center_ra, self.phase_center_dec]
 
+            uv_list = []
             if len(filename) > file_num + 1:
                 for f in filename[file_num + 1 :]:
                     uv2 = UVData()
@@ -7309,6 +7315,7 @@ class UVData(UVBase):
                             run_check_acceptability=run_check_acceptability,
                             strict_uvw_antpos_check=strict_uvw_antpos_check,
                         )
+                        uv_list.append(uv2)
                     except KeyError as err:
                         file_warnings = (
                             file_warnings
@@ -7336,34 +7343,6 @@ class UVData(UVBase):
                             continue
                         else:
                             raise
-                    if axis is not None:
-                        self.fast_concat(
-                            uv2,
-                            axis,
-                            phase_center_radec=phase_center_radec,
-                            unphase_to_drift=unphase_to_drift,
-                            phase_frame=phase_frame,
-                            orig_phase_frame=orig_phase_frame,
-                            use_ant_pos=phase_use_ant_pos,
-                            run_check=run_check,
-                            check_extra=check_extra,
-                            run_check_acceptability=run_check_acceptability,
-                            inplace=True,
-                        )
-                    else:
-                        self.__iadd__(
-                            uv2,
-                            phase_center_radec=phase_center_radec,
-                            unphase_to_drift=unphase_to_drift,
-                            phase_frame=phase_frame,
-                            orig_phase_frame=orig_phase_frame,
-                            use_ant_pos=phase_use_ant_pos,
-                            run_check=run_check,
-                            check_extra=check_extra,
-                            run_check_acceptability=run_check_acceptability,
-                        )
-
-                del uv2
             if unread is True:
                 warnings.warn(
                     "########################################################\n"
@@ -7372,6 +7351,44 @@ class UVData(UVBase):
                 )
             elif len(file_warnings) > 0:
                 warnings.warn(file_warnings)
+
+            # Concatenate once at end
+            if axis is not None:
+                # Rewrote fast_concat to operate on lists
+                self.fast_concat(
+                    uv_list,
+                    axis,
+                    phase_center_radec=phase_center_radec,
+                    unphase_to_drift=unphase_to_drift,
+                    phase_frame=phase_frame,
+                    orig_phase_frame=orig_phase_frame,
+                    use_ant_pos=phase_use_ant_pos,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                    inplace=True,
+                )
+            else:
+                # Too much work to rewrite __add__ to operate on lists
+                # of files, so instead doing a binary tree merge
+                uv_list = [self] + uv_list
+                while len(uv_list) > 1:
+                    for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2]):
+                        uv1.__iadd__(
+                            uv2,
+                            phase_center_radec=phase_center_radec,
+                            unphase_to_drift=unphase_to_drift,
+                            phase_frame=phase_frame,
+                            orig_phase_frame=orig_phase_frame,
+                            use_ant_pos=phase_use_ant_pos,
+                            run_check=run_check,
+                            check_extra=check_extra,
+                            run_check_acceptability=run_check_acceptability,
+                        )
+                        uv_list = uv_list[0::2]
+                # Because self was at the beginning of the list,
+                # everything is merged into it at the end of this loop
+
         else:
             if file_type in ["fhd", "ms", "mwa_corr_fits"]:
                 if (
