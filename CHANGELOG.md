@@ -9,6 +9,8 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Modified `UVData.read` to do faster concatenation of files, changed the interface to `UVData.fast_concat` to allow lists of `UVData` objects to be passed in.
 
+### Fixed
+- Fixed an indexing error bug in `compress_by_redundancy` when using `method='average'`.
 
 ## [2.1.2] - 2020-10-07
 
