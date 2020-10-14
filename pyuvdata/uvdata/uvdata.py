@@ -3710,7 +3710,8 @@ class UVData(UVBase):
                 params_match = getattr(this, a) == getattr(other, a)
                 if not params_match:
                     msg = (
-                        "UVParameter " + a[1:] + " does not match. Cannot combine objects."
+                        "UVParameter " + a[1:] + \
+                        " does not match. Cannot combine objects."
                     )
                     raise ValueError(msg)
 
@@ -3741,17 +3742,21 @@ class UVData(UVBase):
                 )
             if not self.metadata_only:
                 this.data_array = np.concatenate(
-                    [this.data_array] + [other.data_array for other in others], axis=2
+                    [this.data_array] + [other.data_array for other in others],
+                    axis=2,
                 )
                 this.nsample_array = np.concatenate(
-                    [this.nsample_array] + [other.nsample_array for other in others], axis=2
+                    [this.nsample_array] + [other.nsample_array for other in others],
+                    axis=2,
                 )
                 this.flag_array = np.concatenate(
-                    [this.flag_array] + [other.flag_array for other in others], axis=2
+                    [this.flag_array] + [other.flag_array for other in others],
+                    axis=2,
                 )
         elif axis == "polarization":
             this.polarization_array = np.concatenate(
-                [this.polarization_array] + [other.polarization_array for other in others]
+                [this.polarization_array] + \
+                [other.polarization_array for other in others]
             )
             this.Npols = sum([this.Npols] + [other.Npols for other in others])
 
@@ -3764,23 +3769,36 @@ class UVData(UVBase):
 
             if not self.metadata_only:
                 this.data_array = np.concatenate(
-                    [this.data_array] + [other.data_array for other in others], axis=3
+                    [this.data_array] + [other.data_array for other in others],
+                    axis=3,
                 )
                 this.nsample_array = np.concatenate(
-                    [this.nsample_array] + [other.nsample_array for other in others], axis=3
+                    [this.nsample_array] + [other.nsample_array for other in others],
+                    axis=3,
                 )
                 this.flag_array = np.concatenate(
-                    [this.flag_array] + [other.flag_array for other in others], axis=3
+                    [this.flag_array] + [other.flag_array for other in others],
+                    axis=3,
                 )
         elif axis == "blt":
             this.Nblts = sum([this.Nblts] + [other.Nblts for other in others])
-            this.ant_1_array = np.concatenate([this.ant_1_array] + [other.ant_1_array for other in others])
-            this.ant_2_array = np.concatenate([this.ant_2_array] + [other.ant_2_array for other in others])
+            this.ant_1_array = np.concatenate(
+                [this.ant_1_array] + [other.ant_1_array for other in others]
+            )
+            this.ant_2_array = np.concatenate(
+                [this.ant_2_array] + [other.ant_2_array for other in others]
+            )
             this.Nants_data = this._calc_nants_data()
-            this.uvw_array = np.concatenate([this.uvw_array] + [other.uvw_array for other in others], axis=0)
-            this.time_array = np.concatenate([this.time_array] + [other.time_array for other in others])
+            this.uvw_array = np.concatenate(
+                [this.uvw_array] + [other.uvw_array for other in others], axis=0
+            )
+            this.time_array = np.concatenate(
+                [this.time_array] + [other.time_array for other in others]
+            )
             this.Ntimes = len(np.unique(this.time_array))
-            this.lst_array = np.concatenate([this.lst_array] + [other.lst_array for other in others])
+            this.lst_array = np.concatenate(
+                [this.lst_array] + [other.lst_array for other in others]
+            )
             this.baseline_array = np.concatenate(
                 [this.baseline_array] + [other.baseline_array for other in others]
             )
@@ -3790,13 +3808,16 @@ class UVData(UVBase):
             )
             if not self.metadata_only:
                 this.data_array = np.concatenate(
-                    [this.data_array] + [other.data_array for other in others], axis=0
+                    [this.data_array] + [other.data_array for other in others],
+                    axis=0,
                 )
                 this.nsample_array = np.concatenate(
-                    [this.nsample_array] + [other.nsample_array for other in others], axis=0
+                    [this.nsample_array] + [other.nsample_array for other in others],
+                    axis=0,
                 )
                 this.flag_array = np.concatenate(
-                    [this.flag_array] + [other.flag_array for other in others], axis=0
+                    [this.flag_array] + [other.flag_array for other in others],
+                    axis=0,
                 )
 
         # Check final object is self-consistent
