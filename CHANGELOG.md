@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Modified `UVData.read` to do faster concatenation of files, changed the interface to `UVData.fast_concat` to operate on lists of `UVData` objects.
 - Added handling for `object_name` and `extra_keywords` to `sum_vis` and `diff_vis` methods and added the `override_params` option to override other parameters.
 
 ## [2.1.2] - 2020-10-07
