@@ -7390,63 +7390,21 @@ class UVData(UVBase):
             else:
                 # Too much work to rewrite __add__ to operate on lists
                 # of files, so instead doing a binary tree merge
-                # XXX here's a version that changes nothing. Works.
-                # for uv in uv_list:
-                #    self.__iadd__(
-                #        uv,
-                #        phase_center_radec=phase_center_radec,
-                #        unphase_to_drift=unphase_to_drift,
-                #        phase_frame=phase_frame,
-                #        orig_phase_frame=orig_phase_frame,
-                #        use_ant_pos=phase_use_ant_pos,
-                #        run_check=run_check,
-                #        check_extra=check_extra,
-                #        run_check_acceptability=run_check_acceptability,
-                #    )
-                # XXX here's a version that tries merging to the 2nd file
-                # first, then merge down to self. Errors out.
-                uv1 = uv_list[0]
-                for uv2 in uv_list[1:]:
-                    uv1.__iadd__(
-                        uv2,
-                        phase_center_radec=phase_center_radec,
-                        unphase_to_drift=unphase_to_drift,
-                        phase_frame=phase_frame,
-                        orig_phase_frame=orig_phase_frame,
-                        use_ant_pos=phase_use_ant_pos,
-                        run_check=run_check,
-                        check_extra=check_extra,
-                        run_check_acceptability=run_check_acceptability,
-                    )
-                self.__iadd__(
-                    uv1,
-                    phase_center_radec=phase_center_radec,
-                    unphase_to_drift=unphase_to_drift,
-                    phase_frame=phase_frame,
-                    orig_phase_frame=orig_phase_frame,
-                    use_ant_pos=phase_use_ant_pos,
-                    run_check=run_check,
-                    check_extra=check_extra,
-                    run_check_acceptability=run_check_acceptability,
-                )
-                # XXX here's a version that does a binary merge.
-                # This "runs", but doesn't checkout in
-                # test_uvdata.py::test_overlapping_data_add
-                # uv_list = [self] + uv_list
-                # while len(uv_list) > 1:
-                #     for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2]):
-                #         uv1.__iadd__(
-                #             uv2,
-                #             phase_center_radec=phase_center_radec,
-                #             unphase_to_drift=unphase_to_drift,
-                #             phase_frame=phase_frame,
-                #             orig_phase_frame=orig_phase_frame,
-                #             use_ant_pos=phase_use_ant_pos,
-                #             run_check=run_check,
-                #             check_extra=check_extra,
-                #             run_check_acceptability=run_check_acceptability,
-                #         )
-                #         uv_list = uv_list[0::2]
+                uv_list = [self] + uv_list
+                while len(uv_list) > 1:
+                    for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2]):
+                        uv1.__iadd__(
+                            uv2,
+                            phase_center_radec=phase_center_radec,
+                            unphase_to_drift=unphase_to_drift,
+                            phase_frame=phase_frame,
+                            orig_phase_frame=orig_phase_frame,
+                            use_ant_pos=phase_use_ant_pos,
+                            run_check=run_check,
+                            check_extra=check_extra,
+                            run_check_acceptability=run_check_acceptability,
+                        )
+                    uv_list = uv_list[0::2]
                 # Because self was at the beginning of the list,
                 # everything is merged into it at the end of this loop
 
