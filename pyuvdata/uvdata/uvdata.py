@@ -3496,8 +3496,8 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        others : list of UVData objects
-            List of UVData objects which will be added to self.
+        others : UVData object or list of UVData objects
+            UVData object or list of UVData objects which will be added to self.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
             along the specified axis without the normal checking that all other
@@ -3552,6 +3552,9 @@ class UVData(UVBase):
             this = self
         else:
             this = self.copy()
+        if issubclass(others.__class__, this.__class__):
+            # if this is a UVData object already, stick it in a list
+            others = [others]
         # Check that both objects are UVData and valid
         this.check(
             check_extra=check_extra,
@@ -3710,8 +3713,9 @@ class UVData(UVBase):
                 params_match = getattr(this, a) == getattr(other, a)
                 if not params_match:
                     msg = (
-                        "UVParameter " + a[1:] + \
-                        " does not match. Cannot combine objects."
+                        "UVParameter "
+                        + a[1:]
+                        + " does not match. Cannot combine objects."
                     )
                     raise ValueError(msg)
 
@@ -3742,21 +3746,19 @@ class UVData(UVBase):
                 )
             if not self.metadata_only:
                 this.data_array = np.concatenate(
-                    [this.data_array] + [other.data_array for other in others],
-                    axis=2,
+                    [this.data_array] + [other.data_array for other in others], axis=2,
                 )
                 this.nsample_array = np.concatenate(
                     [this.nsample_array] + [other.nsample_array for other in others],
                     axis=2,
                 )
                 this.flag_array = np.concatenate(
-                    [this.flag_array] + [other.flag_array for other in others],
-                    axis=2,
+                    [this.flag_array] + [other.flag_array for other in others], axis=2,
                 )
         elif axis == "polarization":
             this.polarization_array = np.concatenate(
-                [this.polarization_array] + \
-                [other.polarization_array for other in others]
+                [this.polarization_array]
+                + [other.polarization_array for other in others]
             )
             this.Npols = sum([this.Npols] + [other.Npols for other in others])
 
@@ -3769,16 +3771,14 @@ class UVData(UVBase):
 
             if not self.metadata_only:
                 this.data_array = np.concatenate(
-                    [this.data_array] + [other.data_array for other in others],
-                    axis=3,
+                    [this.data_array] + [other.data_array for other in others], axis=3,
                 )
                 this.nsample_array = np.concatenate(
                     [this.nsample_array] + [other.nsample_array for other in others],
                     axis=3,
                 )
                 this.flag_array = np.concatenate(
-                    [this.flag_array] + [other.flag_array for other in others],
-                    axis=3,
+                    [this.flag_array] + [other.flag_array for other in others], axis=3,
                 )
         elif axis == "blt":
             this.Nblts = sum([this.Nblts] + [other.Nblts for other in others])
@@ -3808,16 +3808,14 @@ class UVData(UVBase):
             )
             if not self.metadata_only:
                 this.data_array = np.concatenate(
-                    [this.data_array] + [other.data_array for other in others],
-                    axis=0,
+                    [this.data_array] + [other.data_array for other in others], axis=0,
                 )
                 this.nsample_array = np.concatenate(
                     [this.nsample_array] + [other.nsample_array for other in others],
                     axis=0,
                 )
                 this.flag_array = np.concatenate(
-                    [this.flag_array] + [other.flag_array for other in others],
-                    axis=0,
+                    [this.flag_array] + [other.flag_array for other in others], axis=0,
                 )
 
         # Check final object is self-consistent
@@ -7392,21 +7390,63 @@ class UVData(UVBase):
             else:
                 # Too much work to rewrite __add__ to operate on lists
                 # of files, so instead doing a binary tree merge
-                uv_list = [self] + uv_list
-                while len(uv_list) > 1:
-                    for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2]):
-                        uv1.__iadd__(
-                            uv2,
-                            phase_center_radec=phase_center_radec,
-                            unphase_to_drift=unphase_to_drift,
-                            phase_frame=phase_frame,
-                            orig_phase_frame=orig_phase_frame,
-                            use_ant_pos=phase_use_ant_pos,
-                            run_check=run_check,
-                            check_extra=check_extra,
-                            run_check_acceptability=run_check_acceptability,
-                        )
-                        uv_list = uv_list[0::2]
+                # XXX here's a version that changes nothing. Works.
+                # for uv in uv_list:
+                #    self.__iadd__(
+                #        uv,
+                #        phase_center_radec=phase_center_radec,
+                #        unphase_to_drift=unphase_to_drift,
+                #        phase_frame=phase_frame,
+                #        orig_phase_frame=orig_phase_frame,
+                #        use_ant_pos=phase_use_ant_pos,
+                #        run_check=run_check,
+                #        check_extra=check_extra,
+                #        run_check_acceptability=run_check_acceptability,
+                #    )
+                # XXX here's a version that tries merging to the 2nd file
+                # first, then merge down to self. Errors out.
+                uv1 = uv_list[0]
+                for uv2 in uv_list[1:]:
+                    uv1.__iadd__(
+                        uv2,
+                        phase_center_radec=phase_center_radec,
+                        unphase_to_drift=unphase_to_drift,
+                        phase_frame=phase_frame,
+                        orig_phase_frame=orig_phase_frame,
+                        use_ant_pos=phase_use_ant_pos,
+                        run_check=run_check,
+                        check_extra=check_extra,
+                        run_check_acceptability=run_check_acceptability,
+                    )
+                self.__iadd__(
+                    uv1,
+                    phase_center_radec=phase_center_radec,
+                    unphase_to_drift=unphase_to_drift,
+                    phase_frame=phase_frame,
+                    orig_phase_frame=orig_phase_frame,
+                    use_ant_pos=phase_use_ant_pos,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                )
+                # XXX here's a version that does a binary merge.
+                # This "runs", but doesn't checkout in
+                # test_uvdata.py::test_overlapping_data_add
+                # uv_list = [self] + uv_list
+                # while len(uv_list) > 1:
+                #     for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2]):
+                #         uv1.__iadd__(
+                #             uv2,
+                #             phase_center_radec=phase_center_radec,
+                #             unphase_to_drift=unphase_to_drift,
+                #             phase_frame=phase_frame,
+                #             orig_phase_frame=orig_phase_frame,
+                #             use_ant_pos=phase_use_ant_pos,
+                #             run_check=run_check,
+                #             check_extra=check_extra,
+                #             run_check_acceptability=run_check_acceptability,
+                #         )
+                #         uv_list = uv_list[0::2]
                 # Because self was at the beginning of the list,
                 # everything is merged into it at the end of this loop
 
