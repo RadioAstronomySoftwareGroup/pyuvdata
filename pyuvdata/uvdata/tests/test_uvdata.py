@@ -5528,6 +5528,21 @@ def test_overlapping_data_add(casa_uvfits, tmp_path):
     uvfull.history = uv.history  # make histories match
     assert uv == uvfull
 
+    # combine in a different order and check for equality
+    uvfull = uv1.copy()
+    uvfull += uv2
+    uvfull2 = uv3.copy()
+    uvfull2 += uv4
+    uvfull += uvfull2
+    extra_history2 = (
+        "Downselected to specific baseline-times, polarizations using pyuvdata. "
+        "Combined data along polarization axis using pyuvdata. Combined data along "
+        "baseline-time axis using pyuvdata."
+    )
+    assert uvutils._check_histories(uvfull.history, uv.history + extra_history2)
+    uvfull.history = uv.history  # make histories match
+    assert uv == uvfull
+
     # check combination not-in-place
     uvfull = uv1 + uv2
     uvfull += uv3
@@ -5554,7 +5569,9 @@ def test_overlapping_data_add(casa_uvfits, tmp_path):
 
     uvfull = UVData()
     uvfull.read(np.array([uv1_out, uv2_out, uv3_out, uv4_out]))
-    assert uvutils._check_histories(uvfull.history, uv.history + extra_history)
+    uvfull.reorder_blts()
+    uv.reorder_blts()
+    assert uvutils._check_histories(uvfull.history, uv.history + extra_history2)
     uvfull.history = uv.history  # make histories match
     assert uvfull == uv
 
