@@ -5028,17 +5028,39 @@ def test_redundancy_contract_expand(method, reconjugate, flagging_level):
     # Fails at lower precision because some baselines fall into multiple
     # redundant groups
     tol = 0.02
-    # Assign identical data to each redundant group:
-    red_gps, centers, lengths = uv0.get_redundancies(
-        tol=tol, use_antpos=True, conjugate_bls=True
+
+    if reconjugate:
+        # the test file has groups that are either all not conjugated or all conjugated.
+        # need to conjugate some so we have mixed groups to properly test the average
+        # method.
+        (
+            orig_red_gps,
+            orig_centers,
+            orig_lengths,
+            orig_conjugates,
+        ) = uv0.get_redundancies(tol, include_conjugates=True)
+        blt_inds_to_conj = []
+        for gp_ind, gp in enumerate(orig_red_gps):
+            if len(gp) > 1:
+                blt_inds_to_conj.extend(
+                    list(np.nonzero(uv0.baseline_array == gp[0])[0])
+                )
+        uv0.conjugate_bls(convention=np.array(blt_inds_to_conj))
+
+    # Assign identical data to each redundant group, set up flagging.
+    # This must be done after reconjugation because reconjugation can alter the index
+    # baseline
+    red_gps, centers, lengths, conjugates = uv0.get_redundancies(
+        tol, include_conjugates=True
     )
+    index_bls = []
     for gp_ind, gp in enumerate(red_gps):
         for bl in gp:
             inds = np.where(bl == uv0.baseline_array)
             uv0.data_array[inds] *= 0
             uv0.data_array[inds] += complex(gp_ind)
+        index_bls.append(gp[0])
 
-    index_bls = [gp[0] for gp in red_gps]
     if flagging_level == "none":
         assert np.all(~uv0.flag_array)
     elif flagging_level == "some":
@@ -5051,28 +5073,25 @@ def test_redundancy_contract_expand(method, reconjugate, flagging_level):
         uv0.check()
         assert np.all(uv0.flag_array)
 
+    uv3 = uv0.copy()
     if reconjugate:
-        uv0.conjugate_bls()
+        # undo the conjugations to make uv3 have different conjugations than uv0 to test
+        # that we still get the same answer
+        uv3.conjugate_bls(convention=np.array(blt_inds_to_conj))
 
     uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
 
     if method == "average":
         gp_bl_use = []
         nbls_group = []
-        for gp in red_gps:
+        for gp_ind, gp in enumerate(red_gps):
             bls_init = [bl for bl in gp if bl in uv0.baseline_array]
             nbls_group.append(len(bls_init))
             bl_use = [bl for bl in gp if bl in uv2.baseline_array]
-            if len(bl_use) == 0:
-                # not all possible baselines were present in uv0
-                gp_bl_use.append(None)
-            else:
-                assert len(bl_use) == 1
-                gp_bl_use.append(bl_use[0])
+            assert len(bl_use) == 1
+            gp_bl_use.append(bl_use[0])
 
         for gp_ind, bl in enumerate(gp_bl_use):
-            if bl is None:
-                continue
             if flagging_level == "none" or flagging_level == "all":
                 assert np.all(uv2.get_nsamples(bl) == nbls_group[gp_ind])
             else:
@@ -5090,10 +5109,85 @@ def test_redundancy_contract_expand(method, reconjugate, flagging_level):
         else:
             assert np.all(~uv2.flag_array)
 
-    # Compare in-place to separated compression.
-    uv3 = uv0.copy()
+    # Compare in-place to separated compression without the conjugation.
     uv3.compress_by_redundancy(method=method, tol=tol)
-    assert uv2 == uv3
+    if reconjugate:
+        assert len(orig_red_gps) == len(red_gps)
+        match_ind_list = []
+        for gp_ind, gp in enumerate(red_gps):
+            for bl in gp:
+                match_ind = [
+                    ind for ind, orig_gp in enumerate(orig_red_gps) if bl in orig_gp
+                ]
+                if len(match_ind) > 0:
+                    break
+            assert len(match_ind) == 1
+            match_ind_list.append(match_ind[0])
+
+        # the reconjugation of select baselines causes the set of baselines on the
+        # two objects to differ. Need to match up baselines again
+        unique_bls_2 = np.unique(uv2.baseline_array)
+        unique_bls_3 = np.unique(uv3.baseline_array)
+        unmatched_bls = list(
+            set(unique_bls_2) - set(unique_bls_2).intersection(unique_bls_3)
+        )
+
+        # first find the ones that will be fixed by simple conjugation
+        ant1, ant2 = uv2.baseline_to_antnums(unmatched_bls)
+        conj_bls = uv2.antnums_to_baseline(ant2, ant1)
+        bls_to_conj = list(set(unique_bls_3).intersection(conj_bls))
+        if len(bls_to_conj) > 0:
+            blts_to_conj = []
+            for bl in bls_to_conj:
+                blts_to_conj.extend(list(np.nonzero(uv3.baseline_array == bl)[0]))
+            uv3.conjugate_bls(convention=blts_to_conj)
+
+        # now check for ones that are still not matching
+        unique_bls_3 = np.unique(uv3.baseline_array)
+        unmatched_bls = list(
+            set(unique_bls_2) - set(unique_bls_2).intersection(unique_bls_3)
+        )
+        for bl in unmatched_bls:
+            assert bl in uv0.baseline_array
+            for gp_ind, gp in enumerate(red_gps):
+                if bl in gp:
+                    bl_match = [
+                        bl3
+                        for bl3 in orig_red_gps[match_ind_list[gp_ind]]
+                        if bl3 in unique_bls_3
+                    ]
+                    assert len(bl_match) == 1
+                    blts = np.nonzero(uv3.baseline_array == bl_match[0])[0]
+                    uv3.baseline_array[blts] = bl
+                    # use the uvw values from the original for this baseline
+                    orig_blts = np.nonzero(uv0.baseline_array == bl)[0]
+                    uv3.uvw_array[blts, :] = uv0.uvw_array[orig_blts, :]
+                    if method == "select":
+                        # use the data values from the original for this baseline
+                        # TODO: Spw axis to be collapsed in future release
+                        uv2_blts = np.nonzero(uv2.baseline_array == bl)[0]
+                        assert np.allclose(
+                            uv2.data_array[uv2_blts, :, :, :],
+                            uv0.data_array[orig_blts, :, :, :],
+                        )
+                        uv3.data_array[blts, :, :, :] = uv2.data_array[
+                            uv2_blts, :, :, :
+                        ]
+                        if flagging_level == "some":
+                            uv3.flag_array[:] = True
+
+        uv3.ant_1_array, uv3.ant_2_array = uv3.baseline_to_antnums(uv3.baseline_array)
+        uv3.Nants_data = uv3._calc_nants_data()
+        unique_bls_3 = np.unique(uv3.baseline_array)
+        unmatched_bls = list(
+            set(unique_bls_2) - set(unique_bls_2).intersection(unique_bls_3)
+        )
+        assert set(unique_bls_2) == set(unique_bls_3)
+
+    uv4 = uv2.copy()
+    uv4.reorder_blts()
+    uv3.reorder_blts()
+    assert uv4 == uv3
 
     # check inflating gets back to the original
     with uvtest.check_warnings(
