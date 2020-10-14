@@ -5816,7 +5816,11 @@ class UVData(UVBase):
                     )
                     regular_inds = group_inds[np.array(regular_orientation)]
                     conj_orientation = np.array(
-                        [time_ind for time_ind in gp if time_ind >= len(group_times)],
+                        [
+                            time_ind - len(group_times)
+                            for time_ind in gp
+                            if time_ind >= len(group_times)
+                        ],
                         dtype=np.int,
                     )
                     conj_inds = np.array(conj_group_inds[np.array(conj_orientation)])
