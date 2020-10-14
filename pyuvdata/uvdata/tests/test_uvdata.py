@@ -3176,9 +3176,11 @@ def test_fast_concat(casa_uvfits):
     # Add frequencies
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
-    uv1.select(freq_chans=np.arange(0, 32))
-    uv2.select(freq_chans=np.arange(32, 64))
-    uv1.fast_concat(uv2, "freq", inplace=True)
+    uv3 = uv_full.copy()
+    uv1.select(freq_chans=np.arange(0, 20))
+    uv2.select(freq_chans=np.arange(20, 40))
+    uv3.select(freq_chans=np.arange(40, 64))
+    uv1.fast_concat([uv2, uv3], "freq", inplace=True)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         uv_full.history + "  Downselected to "
@@ -3194,21 +3196,20 @@ def test_fast_concat(casa_uvfits):
     # Add frequencies - out of order
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
-    uv1.select(freq_chans=np.arange(0, 32))
-    uv2.select(freq_chans=np.arange(32, 64))
+    uv3 = uv_full.copy()
+    uv1.select(freq_chans=np.arange(0, 20))
+    uv2.select(freq_chans=np.arange(20, 40))
+    uv3.select(freq_chans=np.arange(40, 64))
     with uvtest.check_warnings(
         UserWarning,
         [
             "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "Combined frequencies are not evenly spaced",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-        ],
+            "positions."
+        ]
+        * 4
+        + ["Combined frequencies are not evenly spaced"],
     ):
-        uv2.fast_concat(uv1, "freq", inplace=True)
+        uv2.fast_concat([uv1, uv3], "freq", inplace=True)
 
     assert uv2.Nfreqs == uv_full.Nfreqs
     assert uv2._freq_array != uv_full._freq_array
@@ -3227,9 +3228,11 @@ def test_fast_concat(casa_uvfits):
     # Add polarizations
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
-    uv1.select(polarizations=uv1.polarization_array[0:2])
-    uv2.select(polarizations=uv2.polarization_array[2:4])
-    uv1.fast_concat(uv2, "polarization", inplace=True)
+    uv3 = uv_full.copy()
+    uv1.select(polarizations=uv1.polarization_array[0:1])
+    uv2.select(polarizations=uv2.polarization_array[1:3])
+    uv3.select(polarizations=uv3.polarization_array[3:4])
+    uv1.fast_concat([uv2, uv3], "polarization", inplace=True)
     assert uvutils._check_histories(
         uv_full.history + "  Downselected to "
         "specific polarizations using pyuvdata. "
@@ -3243,21 +3246,20 @@ def test_fast_concat(casa_uvfits):
     # Add polarizations - out of order
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
-    uv1.select(polarizations=uv1.polarization_array[0:2])
-    uv2.select(polarizations=uv2.polarization_array[2:4])
+    uv3 = uv_full.copy()
+    uv1.select(polarizations=uv1.polarization_array[0:1])
+    uv2.select(polarizations=uv2.polarization_array[1:3])
+    uv3.select(polarizations=uv3.polarization_array[3:4])
     with uvtest.check_warnings(
         UserWarning,
         [
             "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "Combined polarizations are not evenly spaced",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-        ],
+            "positions."
+        ]
+        * 4
+        + ["Combined polarizations are not evenly spaced"],
     ):
-        uv2.fast_concat(uv1, "polarization", inplace=True)
+        uv2.fast_concat([uv1, uv3], "polarization", inplace=True)
 
     assert uv2._polarization_array != uv_full._polarization_array
     assert uv2._data_array != uv_full._data_array
@@ -3270,10 +3272,12 @@ def test_fast_concat(casa_uvfits):
     # Add times
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
+    uv3 = uv_full.copy()
     times = np.unique(uv_full.time_array)
-    uv1.select(times=times[0 : len(times) // 2])
-    uv2.select(times=times[len(times) // 2 :])
-    uv1.fast_concat(uv2, "blt", inplace=True)
+    uv1.select(times=times[0 : len(times) // 3])
+    uv2.select(times=times[len(times) // 3 : (len(times) // 3) * 2])
+    uv3.select(times=times[(len(times) // 3) * 2 :])
+    uv1.fast_concat([uv2, uv3], "blt", inplace=True)
     assert uvutils._check_histories(
         uv_full.history + "  Downselected to "
         "specific times using pyuvdata. "

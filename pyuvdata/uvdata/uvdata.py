@@ -3723,7 +3723,7 @@ class UVData(UVBase):
             this.freq_array = np.concatenate(
                 [this.freq_array] + [other.freq_array for other in others], axis=1
             )
-            this.Nfreqs = this.Nfreqs + other.Nfreqs
+            this.Nfreqs = sum([this.Nfreqs] + [other.Nfreqs for other in others])
 
             freq_separation = np.diff(this.freq_array[0, :])
             if not np.isclose(
