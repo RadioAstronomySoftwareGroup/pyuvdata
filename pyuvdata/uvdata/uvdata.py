@@ -2960,7 +2960,7 @@ class UVData(UVBase):
         ValueError
             If other is not a UVData object, self and other are not compatible
             or if data in self and other overlap. One way they can not be
-            compatible if if they have different phasing, in that case set
+            compatible is if they have different phasing, in that case set
             `unphase_to_drift` or `phase_center_radec` to (un)phase them so they
             are compatible.
             If `phase_center_radec` is not None and is not length 2.
@@ -2991,7 +2991,7 @@ class UVData(UVBase):
 
         if phase_center_radec is not None and unphase_to_drift:
             raise ValueError(
-                "phase_center_radec cannot be set if " "unphase_to_drift is True."
+                "phase_center_radec cannot be set if unphase_to_drift is True."
             )
 
         if unphase_to_drift:
@@ -3158,7 +3158,7 @@ class UVData(UVBase):
                 )
             else:
                 raise ValueError(
-                    "These objects have overlapping data and" " cannot be combined."
+                    "These objects have overlapping data and cannot be combined."
                 )
 
         # find the blt indices in "other" but not in "this"
@@ -3454,7 +3454,12 @@ class UVData(UVBase):
         ------
         ValueError
             If other is not a UVData object, self and other are not compatible
-            or if data in self and other overlap.
+            or if data in self and other overlap. One way they can not be
+            compatible is if they have different phasing, in that case set
+            `unphase_to_drift` or `phase_center_radec` to (un)phase them so they
+            are compatible.
+            If `phase_center_radec` is not None and is not length 2.
+
         """
         self.__add__(
             other,
@@ -3576,7 +3581,7 @@ class UVData(UVBase):
 
         if phase_center_radec is not None and unphase_to_drift:
             raise ValueError(
-                "phase_center_radec cannot be set if " "unphase_to_drift is True."
+                "phase_center_radec cannot be set if unphase_to_drift is True."
             )
 
         if unphase_to_drift:
