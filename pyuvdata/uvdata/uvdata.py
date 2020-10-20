@@ -5,9 +5,11 @@
 """Primary container for radio interferometer datasets."""
 import os
 import copy
-import numpy as np
+from collections.abc import Iterable
 import warnings
 import threading
+
+import numpy as np
 from astropy import constants as const
 import astropy.units as units
 from astropy.time import Time
@@ -18,8 +20,6 @@ from ..uvbase import UVBase
 from .. import parameter as uvp
 from .. import telescopes as uvtel
 from .. import utils as uvutils
-
-from collections.abc import Iterable
 
 __all__ = ["UVData"]
 
@@ -3478,7 +3478,7 @@ class UVData(UVBase):
 
     def fast_concat(
         self,
-        others,
+        other,
         axis,
         inplace=False,
         phase_center_radec=None,
@@ -3501,7 +3501,7 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        others : UVData object or list of UVData objects
+        other : UVData object or list of UVData objects
             UVData object or list of UVData objects which will be added to self.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
@@ -3552,28 +3552,29 @@ class UVData(UVBase):
         ValueError
             If other is not a UVData object, axis is not an allowed value or if
             self and other are not compatible.
+
         """
         if inplace:
             this = self
         else:
             this = self.copy()
-        if issubclass(others.__class__, this.__class__):
+        if not isinstance(other, (list, tuple, np.ndarray)):
             # if this is a UVData object already, stick it in a list
-            others = [others]
+            other = [other]
         # Check that both objects are UVData and valid
         this.check(
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
-        for other in others:
-            if not issubclass(other.__class__, this.__class__):
-                if not issubclass(this.__class__, other.__class__):
+        for obj in other:
+            if not issubclass(obj.__class__, this.__class__):
+                if not issubclass(this.__class__, obj.__class__):
                     raise ValueError(
                         "Only UVData (or subclass) objects can be "
                         "added to a UVData (or subclass) object"
                     )
-            other.check(
+            obj.check(
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
@@ -3591,10 +3592,10 @@ class UVData(UVBase):
                     phase_frame=orig_phase_frame, use_ant_pos=use_ant_pos
                 )
 
-            for other in others:
-                if other.phase_type != "drift":
+            for obj in other:
+                if obj.phase_type != "drift":
                     warnings.warn("Unphasing other UVData object to drift")
-                    other.unphase_to_drift(
+                    obj.unphase_to_drift(
                         phase_frame=orig_phase_frame, use_ant_pos=use_ant_pos
                     )
 
@@ -3632,23 +3633,23 @@ class UVData(UVBase):
             # If other object is not phased or is not phased close to
             # phase_center_radec, (re)phase it.
             # Close is defined using the phase_center_ra/dec tolerances.
-            for other in others:
-                if other.phase_type == "drift" or (
+            for obj in other:
+                if obj.phase_type == "drift" or (
                     not np.isclose(
-                        other.phase_center_ra,
+                        obj.phase_center_ra,
                         phase_center_radec[0],
-                        rtol=other._phase_center_ra.tols[0],
-                        atol=other._phase_center_ra.tols[1],
+                        rtol=obj._phase_center_ra.tols[0],
+                        atol=obj._phase_center_ra.tols[1],
                     )
                     or not np.isclose(
-                        other.phase_center_dec,
+                        obj.phase_center_dec,
                         phase_center_radec[1],
-                        rtol=other._phase_center_dec.tols[0],
-                        atol=other._phase_center_dec.tols[1],
+                        rtol=obj._phase_center_dec.tols[0],
+                        atol=obj._phase_center_dec.tols[1],
                     )
                 ):
                     warnings.warn("Phasing other UVData object to phase_center_radec")
-                    other.phase(
+                    obj.phase(
                         phase_center_radec[0],
                         phase_center_radec[1],
                         phase_frame=phase_frame,
@@ -3709,13 +3710,13 @@ class UVData(UVBase):
         history_update_string += " axis using pyuvdata."
         this.history += history_update_string
 
-        for other in others:
-            this.history = uvutils._combine_histories(this.history, other.history)
+        for obj in other:
+            this.history = uvutils._combine_histories(this.history, obj.history)
 
         # Actually check compatibility parameters
-        for other in others:
+        for obj in other:
             for a in compatibility_params:
-                params_match = getattr(this, a) == getattr(other, a)
+                params_match = getattr(this, a) == getattr(obj, a)
                 if not params_match:
                     msg = (
                         "UVParameter "
@@ -3726,9 +3727,9 @@ class UVData(UVBase):
 
         if axis == "freq":
             this.freq_array = np.concatenate(
-                [this.freq_array] + [other.freq_array for other in others], axis=1
+                [this.freq_array] + [obj.freq_array for obj in other], axis=1
             )
-            this.Nfreqs = sum([this.Nfreqs] + [other.Nfreqs for other in others])
+            this.Nfreqs = sum([this.Nfreqs] + [obj.Nfreqs for obj in other])
 
             freq_separation = np.diff(this.freq_array[0, :])
             if not np.isclose(
@@ -3751,21 +3752,19 @@ class UVData(UVBase):
                 )
             if not self.metadata_only:
                 this.data_array = np.concatenate(
-                    [this.data_array] + [other.data_array for other in others], axis=2,
+                    [this.data_array] + [obj.data_array for obj in other], axis=2,
                 )
                 this.nsample_array = np.concatenate(
-                    [this.nsample_array] + [other.nsample_array for other in others],
-                    axis=2,
+                    [this.nsample_array] + [obj.nsample_array for obj in other], axis=2,
                 )
                 this.flag_array = np.concatenate(
-                    [this.flag_array] + [other.flag_array for other in others], axis=2,
+                    [this.flag_array] + [obj.flag_array for obj in other], axis=2,
                 )
         elif axis == "polarization":
             this.polarization_array = np.concatenate(
-                [this.polarization_array]
-                + [other.polarization_array for other in others]
+                [this.polarization_array] + [obj.polarization_array for obj in other]
             )
-            this.Npols = sum([this.Npols] + [other.Npols for other in others])
+            this.Npols = sum([this.Npols] + [obj.Npols for obj in other])
 
             pol_separation = np.diff(this.polarization_array)
             if np.min(pol_separation) < np.max(pol_separation):
@@ -3776,51 +3775,49 @@ class UVData(UVBase):
 
             if not self.metadata_only:
                 this.data_array = np.concatenate(
-                    [this.data_array] + [other.data_array for other in others], axis=3,
+                    [this.data_array] + [obj.data_array for obj in other], axis=3,
                 )
                 this.nsample_array = np.concatenate(
-                    [this.nsample_array] + [other.nsample_array for other in others],
-                    axis=3,
+                    [this.nsample_array] + [obj.nsample_array for obj in other], axis=3,
                 )
                 this.flag_array = np.concatenate(
-                    [this.flag_array] + [other.flag_array for other in others], axis=3,
+                    [this.flag_array] + [obj.flag_array for obj in other], axis=3,
                 )
         elif axis == "blt":
-            this.Nblts = sum([this.Nblts] + [other.Nblts for other in others])
+            this.Nblts = sum([this.Nblts] + [obj.Nblts for obj in other])
             this.ant_1_array = np.concatenate(
-                [this.ant_1_array] + [other.ant_1_array for other in others]
+                [this.ant_1_array] + [obj.ant_1_array for obj in other]
             )
             this.ant_2_array = np.concatenate(
-                [this.ant_2_array] + [other.ant_2_array for other in others]
+                [this.ant_2_array] + [obj.ant_2_array for obj in other]
             )
             this.Nants_data = this._calc_nants_data()
             this.uvw_array = np.concatenate(
-                [this.uvw_array] + [other.uvw_array for other in others], axis=0
+                [this.uvw_array] + [obj.uvw_array for obj in other], axis=0
             )
             this.time_array = np.concatenate(
-                [this.time_array] + [other.time_array for other in others]
+                [this.time_array] + [obj.time_array for obj in other]
             )
             this.Ntimes = len(np.unique(this.time_array))
             this.lst_array = np.concatenate(
-                [this.lst_array] + [other.lst_array for other in others]
+                [this.lst_array] + [obj.lst_array for obj in other]
             )
             this.baseline_array = np.concatenate(
-                [this.baseline_array] + [other.baseline_array for other in others]
+                [this.baseline_array] + [obj.baseline_array for obj in other]
             )
             this.Nbls = len(np.unique(this.baseline_array))
             this.integration_time = np.concatenate(
-                [this.integration_time] + [other.integration_time for other in others]
+                [this.integration_time] + [obj.integration_time for obj in other]
             )
             if not self.metadata_only:
                 this.data_array = np.concatenate(
-                    [this.data_array] + [other.data_array for other in others], axis=0,
+                    [this.data_array] + [obj.data_array for obj in other], axis=0,
                 )
                 this.nsample_array = np.concatenate(
-                    [this.nsample_array] + [other.nsample_array for other in others],
-                    axis=0,
+                    [this.nsample_array] + [obj.nsample_array for obj in other], axis=0,
                 )
                 this.flag_array = np.concatenate(
-                    [this.flag_array] + [other.flag_array for other in others], axis=0,
+                    [this.flag_array] + [obj.flag_array for obj in other], axis=0,
                 )
 
         # Check final object is self-consistent

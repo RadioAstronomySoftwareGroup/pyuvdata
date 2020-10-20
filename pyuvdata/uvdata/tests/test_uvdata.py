@@ -3527,10 +3527,14 @@ def test_fast_concat_errors(casa_uvfits):
     uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(32, 64))
-    pytest.raises(ValueError, uv1.fast_concat, uv2, "foo", inplace=True)
+    with pytest.raises(ValueError, match="If axis is specifed it must be one of"):
+        uv1.fast_concat(uv2, "foo", inplace=True)
 
     cal = UVCal()
-    pytest.raises(ValueError, uv1.fast_concat, cal, "freq", inplace=True)
+    with pytest.raises(
+        ValueError, match="Only UVData \\(or subclass\\) objects can be added"
+    ):
+        uv1.fast_concat(cal, "freq", inplace=True)
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
