@@ -22,8 +22,8 @@ jobs:
     - name: Setup paths
       shell: bash
       run: |
-        echo "::add-path::$HOME/miniconda/bin"
-        echo "::add-path::$HOME/miniconda/envs/test/bin"
+        echo "$HOME/miniconda/bin" >> $GITHUB_PATH
+        echo "$HOME/miniconda/envs/test/bin" >> $GITHUB_PATH
 
     - name: Setup Environment
       run: ./ci/install_conda.sh
@@ -35,7 +35,7 @@ jobs:
         wget https://gist.github.com/plaplant/0902f09e59166bac742bbd554f3cd2f9/raw/make_dev_version.sh
         source activate $ENV_NAME
         version=$(bash make_dev_version.sh)
-        echo "::set-env name=SETUPTOOLS_SCM_PRETEND_VERSION::$version"
+        echo "SETUPTOOLS_SCM_PRETEND_VERSION=$version" >> $GITHUB_ENV
 
     - name: Check environment variable
       run: echo $SETUPTOOLS_SCM_PRETEND_VERSION
