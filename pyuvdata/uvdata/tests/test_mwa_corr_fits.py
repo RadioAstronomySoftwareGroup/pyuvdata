@@ -26,7 +26,7 @@ testfiles = [
     "1131733552_mini_cotter.uvfits",
     "1131733552_metafits_ppds.fits",
 ]
-filelist = [testdir + i for i in testfiles]
+filelist = [os.path.join(testdir, filei) for filei in testfiles]
 
 
 @pytest.fixture(scope="module")

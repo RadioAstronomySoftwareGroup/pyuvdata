@@ -203,8 +203,18 @@ def get_fhd_layout_info(
     else:
         telescope_location = uvutils.XYZ_from_LatLonAlt(latitude, longitude, altitude)
 
-    antenna_positions = layout["antenna_coords"][0]
-    layout_fields.remove("antenna_coords")
+        # The FHD positions derive directly from uvfits, so they are in the rotated
+        # ECEF frame and must be converted to ECEF
+        rot_ecef_positions = layout["antenna_coords"][0]
+        layout_fields.remove("antenna_coords")
+        # use the longitude from the layout file because that's how the antenna
+        # positions were calculated
+        latitude, longitude, altitude = uvutils.LatLonAlt_from_XYZ(
+            arr_center, check_acceptability=run_check_acceptability,
+        )
+        antenna_positions = uvutils.ECEF_from_rotECEF(
+            rot_ecef_positions, longitude
+        )
 
     antenna_names = [
         ant.decode("utf8").strip() for ant in layout["antenna_names"][0].tolist()
