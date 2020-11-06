@@ -1339,6 +1339,10 @@ class UVBeam(UVBase):
             high_slice = input_data_array[:, :, :, :, :, -1 * extend_length :]
 
             data_use = np.concatenate((high_slice, input_data_array, low_slice), axis=5)
+        else:
+            phi_use = phi_vals
+            theta_use = theta_vals
+            data_use = input_data_array
 
         if self.basis_vector_array is not None:
             if np.any(self.basis_vector_array[0, 1, :] > 0) or np.any(
