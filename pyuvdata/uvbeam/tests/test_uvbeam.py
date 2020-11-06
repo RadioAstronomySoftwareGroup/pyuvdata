@@ -644,13 +644,19 @@ def test_freq_interp_real_and_complex(cst_power_2freq):
     assert np.all(np.isclose(np.abs(pb_int - pb_int2), 0))
 
 
-def test_power_spatial_interpolation(cst_power_2freq_cut):
-    power_beam = cst_power_2freq_cut
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
+def test_spatial_interpolation_samepoints(
+    beam_type, cst_power_2freq_cut, cst_efield_2freq_cut
+):
+    """
+    check that interpolating to existing points gives the same answer
+    """
+    if beam_type == "power":
+        uvbeam = cst_power_2freq_cut
+    else:
+        uvbeam = cst_efield_2freq_cut
 
-    # check that interpolating to existing points gives the same answer
-    za_orig_vals, az_orig_vals = np.meshgrid(
-        power_beam.axis2_array, power_beam.axis1_array
-    )
+    za_orig_vals, az_orig_vals = np.meshgrid(uvbeam.axis2_array, uvbeam.axis1_array)
     az_orig_vals = az_orig_vals.ravel(order="C")
     za_orig_vals = za_orig_vals.ravel(order="C")
     freq_orig_vals = np.array([123e6, 150e6])
@@ -658,63 +664,49 @@ def test_power_spatial_interpolation(cst_power_2freq_cut):
     # test error if no interpolation function is set
     pytest.raises(
         ValueError,
-        power_beam.interp,
+        uvbeam.interp,
         az_array=az_orig_vals,
         za_array=za_orig_vals,
         freq_array=freq_orig_vals,
     )
 
-    power_beam.interpolation_function = "az_za_simple"
-    interp_data_array, interp_basis_vector = power_beam.interp(
+    uvbeam.interpolation_function = "az_za_simple"
+    interp_data_array, interp_basis_vector = uvbeam.interp(
         az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals
     )
 
-    data_array_compare = power_beam.data_array
-    interp_data_array = interp_data_array.reshape(data_array_compare.shape, order="F")
-
-    assert np.allclose(data_array_compare, interp_data_array)
+    interp_data_array = interp_data_array.reshape(uvbeam.data_array.shape, order="F")
+    assert np.allclose(uvbeam.data_array, interp_data_array)
+    if beam_type == "efield":
+        interp_basis_vector = interp_basis_vector.reshape(
+            uvbeam.basis_vector_array.shape, order="F"
+        )
+        assert np.allclose(uvbeam.basis_vector_array, interp_basis_vector)
 
     # test that new object from interpolation is identical
-    new_power_beam = power_beam.interp(
-        az_array=power_beam.axis1_array,
-        za_array=power_beam.axis2_array,
+    new_beam = uvbeam.interp(
+        az_array=uvbeam.axis1_array,
+        za_array=uvbeam.axis2_array,
         az_za_grid=True,
         freq_array=freq_orig_vals,
         new_object=True,
     )
-    assert new_power_beam.freq_interp_kind == "nearest"
-    assert new_power_beam.history == (
-        power_beam.history + " Interpolated in "
+    assert new_beam.freq_interp_kind == "nearest"
+    assert new_beam.history == (
+        uvbeam.history + " Interpolated in "
         "frequency and to a new azimuth/zenith "
         "angle grid using pyuvdata with "
         "interpolation_function = az_za_simple "
         "and freq_interp_kind = nearest."
     )
     # make histories & freq_interp_kind equal
-    new_power_beam.history = power_beam.history
-    new_power_beam.freq_interp_kind = "linear"
-    assert new_power_beam == power_beam
-
-    # test that interp to every other point returns an object that matches a select
-    axis1_inds = np.arange(0, power_beam.Naxes1, 2)
-    axis2_inds = np.arange(0, power_beam.Naxes2, 2)
-
-    select_beam = power_beam.select(
-        axis1_inds=axis1_inds, axis2_inds=axis2_inds, inplace=False
-    )
-    interp_beam = power_beam.interp(
-        az_array=power_beam.axis1_array[axis1_inds],
-        za_array=power_beam.axis2_array[axis2_inds],
-        az_za_grid=True,
-        new_object=True,
-    )
-    assert select_beam.history != interp_beam.history
-    interp_beam.history = select_beam.history
-    assert select_beam == interp_beam
+    new_beam.history = uvbeam.history
+    new_beam.freq_interp_kind = "linear"
+    assert new_beam == uvbeam
 
     # test error if new_object set without az_za_grid
     with pytest.raises(ValueError) as cm:
-        power_beam.interp(
+        uvbeam.interp(
             az_array=az_orig_vals,
             za_array=za_orig_vals,
             freq_array=freq_orig_vals,
@@ -722,17 +714,50 @@ def test_power_spatial_interpolation(cst_power_2freq_cut):
         )
     assert str(cm.value).startswith("A new object can only be returned")
 
-    # test only a single polarization
-    interp_data_array, interp_basis_vector = power_beam.interp(
-        az_array=az_orig_vals,
-        za_array=za_orig_vals,
-        freq_array=freq_orig_vals,
-        polarizations=["xx"],
-    )
+    if beam_type == "power":
+        # test only a single polarization
+        interp_data_array, interp_basis_vector = uvbeam.interp(
+            az_array=az_orig_vals,
+            za_array=za_orig_vals,
+            freq_array=freq_orig_vals,
+            polarizations=["xx"],
+        )
 
-    data_array_compare = power_beam.data_array[:, :, :1]
-    interp_data_array = interp_data_array.reshape(data_array_compare.shape, order="F")
-    assert np.allclose(data_array_compare, interp_data_array)
+        data_array_compare = uvbeam.data_array[:, :, :1]
+        interp_data_array = interp_data_array.reshape(
+            data_array_compare.shape, order="F"
+        )
+        assert np.allclose(data_array_compare, interp_data_array)
+
+
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
+def test_spatial_interpolation_everyother(
+    beam_type, cst_power_2freq_cut, cst_efield_2freq_cut
+):
+    """
+    test that interp to every other point returns an object that matches a select
+    """
+    if beam_type == "power":
+        uvbeam = cst_power_2freq_cut
+    else:
+        uvbeam = cst_efield_2freq_cut
+    uvbeam.interpolation_function = "az_za_simple"
+
+    axis1_inds = np.arange(0, uvbeam.Naxes1, 2)
+    axis2_inds = np.arange(0, uvbeam.Naxes2, 2)
+
+    select_beam = uvbeam.select(
+        axis1_inds=axis1_inds, axis2_inds=axis2_inds, inplace=False
+    )
+    interp_beam = uvbeam.interp(
+        az_array=uvbeam.axis1_array[axis1_inds],
+        za_array=uvbeam.axis2_array[axis2_inds],
+        az_za_grid=True,
+        new_object=True,
+    )
+    assert select_beam.history != interp_beam.history
+    interp_beam.history = select_beam.history
+    assert select_beam == interp_beam
 
     # test no errors using different points
     az_interp_vals = np.array(
@@ -744,168 +769,48 @@ def test_power_spatial_interpolation(cst_power_2freq_cut):
     )
     freq_interp_vals = np.arange(125e6, 145e6, 5e6)
 
-    # Test requesting separate polarizations on different calls while reusing splines.
-    interp_data_array, interp_basis_vector = power_beam.interp(
-        az_array=az_interp_vals[:2],
-        za_array=za_interp_vals[:2],
-        freq_array=freq_interp_vals,
-        polarizations=["xx"],
-        reuse_spline=True,
-    )
-
-    interp_data_array, interp_basis_vector = power_beam.interp(
-        az_array=az_interp_vals[:2],
-        za_array=za_interp_vals[:2],
-        freq_array=freq_interp_vals,
-        polarizations=["yy"],
-        reuse_spline=True,
-    )
-
-    # test reusing the spline fit.
-    orig_data_array, interp_basis_vector = power_beam.interp(
-        az_array=az_interp_vals,
-        za_array=za_interp_vals,
-        freq_array=freq_interp_vals,
-        reuse_spline=True,
-    )
-
-    reused_data_array, interp_basis_vector = power_beam.interp(
-        az_array=az_interp_vals,
-        za_array=za_interp_vals,
-        freq_array=freq_interp_vals,
-        reuse_spline=True,
-    )
-
-    assert np.all(reused_data_array == orig_data_array)
-    del power_beam.saved_interp_functions
-
-    # test errors if frequency interp values outside range
-    pytest.raises(
-        ValueError,
-        power_beam.interp,
-        az_array=az_interp_vals,
-        za_array=za_interp_vals,
-        freq_array=np.array([100]),
-    )
-
-    # test errors if positions outside range
-    pytest.raises(
-        ValueError,
-        power_beam.interp,
-        az_array=az_interp_vals,
-        za_array=za_interp_vals + np.pi / 2,
-    )
-
-    # test no errors only frequency interpolation
-    interp_data_array, interp_basis_vector = power_beam.interp(
-        freq_array=freq_interp_vals
-    )
-
-    # assert polarization value error
-    pytest.raises(
-        ValueError,
-        power_beam.interp,
-        az_array=az_interp_vals,
-        za_array=za_interp_vals,
-        polarizations=["pI"],
-    )
-
-
-def test_efield_spatial_interpolation(cst_efield_2freq_cut):
-    efield_beam = cst_efield_2freq_cut
-
-    za_orig_vals, az_orig_vals = np.meshgrid(
-        efield_beam.axis2_array, efield_beam.axis1_array
-    )
-    az_orig_vals = az_orig_vals.ravel(order="C")
-    za_orig_vals = za_orig_vals.ravel(order="C")
-    freq_orig_vals = np.array([123e6, 150e6])
-    efield_beam.interpolation_function = "az_za_simple"
-    interp_data_array, interp_basis_vector = efield_beam.interp(
-        az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals
-    )
-
-    interp_data_array = interp_data_array.reshape(
-        efield_beam.data_array.shape, order="F"
-    )
-    interp_basis_vector = interp_basis_vector.reshape(
-        efield_beam.basis_vector_array.shape, order="F"
-    )
-
-    assert np.allclose(efield_beam.data_array, interp_data_array)
-    assert np.allclose(efield_beam.basis_vector_array, interp_basis_vector)
-
-    # test that new object from interpolation is identical
-    new_efield_beam = efield_beam.interp(
-        az_array=efield_beam.axis1_array,
-        za_array=efield_beam.axis2_array,
-        az_za_grid=True,
-        freq_array=freq_orig_vals,
-        new_object=True,
-    )
-    assert new_efield_beam.freq_interp_kind == "nearest"
-    assert new_efield_beam.history == (
-        efield_beam.history + " Interpolated in "
-        "frequency and to a new azimuth/zenith "
-        "angle grid using pyuvdata with "
-        "interpolation_function = az_za_simple "
-        "and freq_interp_kind = nearest."
-    )
-    # make histories & freq_interp_kind equal
-    new_efield_beam.history = efield_beam.history
-    new_efield_beam.freq_interp_kind = "linear"
-    assert new_efield_beam == efield_beam
-
-    # test that interp to every other point returns an object that matches a select
-    axis1_inds = np.arange(0, efield_beam.Naxes1, 2)
-    axis2_inds = np.arange(0, efield_beam.Naxes2, 2)
-    select_beam = efield_beam.select(
-        axis1_inds=axis1_inds, axis2_inds=axis2_inds, inplace=False
-    )
-    interp_beam = efield_beam.interp(
-        az_array=efield_beam.axis1_array[axis1_inds],
-        za_array=efield_beam.axis2_array[axis2_inds],
-        az_za_grid=True,
-        new_object=True,
-    )
-    assert select_beam.history != interp_beam.history
-    interp_beam.history = select_beam.history
-    assert select_beam == interp_beam
-
-    # test no errors using different points
-    az_interp_vals = np.array(
-        np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
-        + np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
-    )
-    za_interp_vals = np.array(
-        (np.zeros((18)) + np.pi / 18).tolist() + (np.zeros((18)) + np.pi / 36).tolist()
-    )
-    freq_interp_vals = np.arange(125e6, 145e6, 10e6)
-
-    interp_data_array, interp_basis_vector = efield_beam.interp(
+    interp_data_array, interp_basis_vector = uvbeam.interp(
         az_array=az_interp_vals, za_array=za_interp_vals, freq_array=freq_interp_vals
     )
 
-    # test reusing the spline fit
-    orig_data_array, interp_basis_vector = efield_beam.interp(
+    if beam_type == "power":
+        # Test requesting separate polarizations on different calls
+        # while reusing splines.
+        interp_data_array, interp_basis_vector = uvbeam.interp(
+            az_array=az_interp_vals[:2],
+            za_array=za_interp_vals[:2],
+            freq_array=freq_interp_vals,
+            polarizations=["xx"],
+            reuse_spline=True,
+        )
+
+        interp_data_array, interp_basis_vector = uvbeam.interp(
+            az_array=az_interp_vals[:2],
+            za_array=za_interp_vals[:2],
+            freq_array=freq_interp_vals,
+            polarizations=["yy"],
+            reuse_spline=True,
+        )
+
+    # test reusing the spline fit.
+    orig_data_array, interp_basis_vector = uvbeam.interp(
         az_array=az_interp_vals,
         za_array=za_interp_vals,
         freq_array=freq_interp_vals,
         reuse_spline=True,
     )
 
-    reused_data_array, interp_basis_vector = efield_beam.interp(
+    reused_data_array, interp_basis_vector = uvbeam.interp(
         az_array=az_interp_vals,
         za_array=za_interp_vals,
         freq_array=freq_interp_vals,
         reuse_spline=True,
     )
-
     assert np.all(reused_data_array == orig_data_array)
 
     # test passing spline options
     spline_opts = {"kx": 4, "ky": 4}
-    quartic_data_array, interp_basis_vector = efield_beam.interp(
+    quartic_data_array, interp_basis_vector = uvbeam.interp(
         az_array=az_interp_vals,
         za_array=za_interp_vals,
         freq_array=freq_interp_vals,
@@ -916,24 +821,109 @@ def test_efield_spatial_interpolation(cst_efield_2freq_cut):
     assert np.allclose(quartic_data_array, orig_data_array, atol=1e-10)
     assert not np.all(quartic_data_array == orig_data_array)
 
-    select_data_array_orig, interp_basis_vector = efield_beam.interp(
+    select_data_array_orig, interp_basis_vector = uvbeam.interp(
         az_array=az_interp_vals[0:1],
         za_array=za_interp_vals[0:1],
         freq_array=np.array([127e6]),
     )
 
-    select_data_array_reused, interp_basis_vector = efield_beam.interp(
+    select_data_array_reused, interp_basis_vector = uvbeam.interp(
         az_array=az_interp_vals[0:1],
         za_array=za_interp_vals[0:1],
         freq_array=np.array([127e6]),
         reuse_spline=True,
     )
     assert np.allclose(select_data_array_orig, select_data_array_reused)
-    del efield_beam.saved_interp_functions
+    del uvbeam.saved_interp_functions
 
 
-def test_interp_longitude_branch_cut(cst_efield_2freq, cst_power_2freq):
-    beam = cst_power_2freq
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
+def test_spatial_interp_cutsky(beam_type, cst_power_2freq_cut, cst_efield_2freq_cut):
+    """
+    Test that when the beam doesn't cover the full sky it still works.
+    """
+    if beam_type == "power":
+        uvbeam = cst_power_2freq_cut
+    else:
+        uvbeam = cst_efield_2freq_cut
+    uvbeam.interpolation_function = "az_za_simple"
+
+    # limit phi range
+    axis1_inds = np.arange(0, np.ceil(uvbeam.Naxes1 / 2), dtype=int)
+    axis2_inds = np.arange(0, uvbeam.Naxes2)
+
+    uvbeam.select(axis1_inds=axis1_inds, axis2_inds=axis2_inds)
+
+    # now do every other point test.
+    axis1_inds = np.arange(0, uvbeam.Naxes1, 2)
+    axis2_inds = np.arange(0, uvbeam.Naxes2, 2)
+
+    select_beam = uvbeam.select(
+        axis1_inds=axis1_inds, axis2_inds=axis2_inds, inplace=False
+    )
+    interp_beam = uvbeam.interp(
+        az_array=uvbeam.axis1_array[axis1_inds],
+        za_array=uvbeam.axis2_array[axis2_inds],
+        az_za_grid=True,
+        new_object=True,
+    )
+    assert select_beam.history != interp_beam.history
+    interp_beam.history = select_beam.history
+    assert select_beam == interp_beam
+
+
+def test_spatial_interpolation_errors(cst_power_2freq_cut):
+    """
+    test that interp to every other point returns an object that matches a select
+    """
+    uvbeam = cst_power_2freq_cut
+    uvbeam.interpolation_function = "az_za_simple"
+
+    az_interp_vals = np.array(
+        np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
+        + np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
+    )
+    za_interp_vals = np.array(
+        (np.zeros((18)) + np.pi / 18).tolist() + (np.zeros((18)) + np.pi / 36).tolist()
+    )
+    freq_interp_vals = np.arange(125e6, 145e6, 5e6)
+
+    # test errors if frequency interp values outside range
+    pytest.raises(
+        ValueError,
+        uvbeam.interp,
+        az_array=az_interp_vals,
+        za_array=za_interp_vals,
+        freq_array=np.array([100]),
+    )
+
+    # test errors if positions outside range
+    pytest.raises(
+        ValueError,
+        uvbeam.interp,
+        az_array=az_interp_vals,
+        za_array=za_interp_vals + np.pi / 2,
+    )
+
+    # test no errors only frequency interpolation
+    interp_data_array, interp_basis_vector = uvbeam.interp(freq_array=freq_interp_vals)
+
+    # assert polarization value error
+    pytest.raises(
+        ValueError,
+        uvbeam.interp,
+        az_array=az_interp_vals,
+        za_array=za_interp_vals,
+        polarizations=["pI"],
+    )
+
+
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
+def test_interp_longitude_branch_cut(beam_type, cst_efield_2freq, cst_power_2freq):
+    if beam_type == "power":
+        beam = cst_power_2freq
+    else:
+        beam = cst_efield_2freq
 
     beam.interpolation_function = "az_za_simple"
     interp_data_array, interp_basis_vector = beam.interp(
@@ -943,37 +933,13 @@ def test_interp_longitude_branch_cut(cst_efield_2freq, cst_power_2freq):
         za_array=np.repeat(beam.axis2_array[np.newaxis, :], 4, axis=0).flatten(),
     )
 
-    interp_data_array = interp_data_array.reshape(
-        beam.Naxes_vec, beam.Nspws, beam.Npols, beam.Nfreqs, 4, beam.Naxes2
-    )
-
-    assert np.allclose(
-        interp_data_array[:, :, :, :, 0, :],
-        interp_data_array[:, :, :, :, 1, :],
-        rtol=beam._data_array.tols[0],
-        atol=beam._data_array.tols[1],
-    )
-
-    assert np.allclose(
-        interp_data_array[:, :, :, :, 2, :],
-        interp_data_array[:, :, :, :, 3, :],
-        rtol=beam._data_array.tols[0],
-        atol=beam._data_array.tols[1],
-    )
-
-    # repeat with efield
-    beam = cst_efield_2freq
-
-    beam.interpolation_function = "az_za_simple"
-    interp_data_array, interp_basis_vector = beam.interp(
-        az_array=np.deg2rad(
-            np.repeat(np.array([[-1], [359], [0], [360]]), 181, axis=1).flatten()
-        ),
-        za_array=np.repeat(beam.axis2_array[np.newaxis, :], 4, axis=0).flatten(),
-    )
+    if beam_type == "power":
+        npol_feed = beam.Npols
+    else:
+        npol_feed = beam.Nfeeds
 
     interp_data_array = interp_data_array.reshape(
-        beam.Naxes_vec, beam.Nspws, beam.Nfeeds, beam.Nfreqs, 4, beam.Naxes2
+        beam.Naxes_vec, beam.Nspws, npol_feed, beam.Nfreqs, 4, beam.Naxes2
     )
 
     assert np.allclose(
