@@ -153,6 +153,9 @@ class UVFlag(UVBase):
         axes: time, frequency, polarization.
     history : str, optional
         History string to attach to object.
+    extra_keywords : dict, optional
+        A dictionary of metadata values not explicitly specified by another
+        parameter.
     label: str, optional
         String used for labeling the object (e.g. 'FM').
     run_check : bool
@@ -391,6 +394,20 @@ class UVFlag(UVBase):
             description="String of history, units English",
             form="str",
             expected_type=str,
+        )
+
+        desc = (
+            "Any user supplied extra keywords, type=dict. Keys should be "
+            "8 character or less strings if writing to uvfits or miriad files. "
+            'Use the special key "comment" for long multi-line string comments.'
+        )
+        self._extra_keywords = uvp.UVParameter(
+            "extra_keywords",
+            required=False,
+            description=desc,
+            value={},
+            spoof_val={},
+            expected_type=dict,
         )
 
         # ---antenna information ---
