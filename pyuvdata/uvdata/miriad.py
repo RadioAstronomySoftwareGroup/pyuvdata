@@ -169,11 +169,11 @@ class Miriad(UVData):
             # Channel widths are described per spw, just need to expand it out to be
             # for each frequency channel.
             self.channel_width = (
-                np.array(
-                    [
-                        [np.abs(chan_width)] * nchan
+                np.concatenate(
+                    tuple(
+                        np.abs(chan_width) + np.zeros(nchan)
                         for (chan_width, nchan) in zip(uv["sdf"] * 1e9, uv["nschan"])
-                    ]
+                    )
                 )
                 .flatten()
                 .astype(np.float64)
@@ -181,13 +181,13 @@ class Miriad(UVData):
             # Now setup frequency array
             # TODO: Spw axis to be collapsed in future release
             self.freq_array = np.reshape(
-                np.array(
-                    [
+                np.concatenate(
+                    tuple(
                         chan_width * np.arange(nchan) + sfreq
                         for (chan_width, nchan, sfreq) in zip(
                             uv["sdf"] * 1e9, uv["nschan"], uv["sfreq"] * 1e9
                         )
-                    ]
+                    )
                 )
                 .flatten()
                 .astype(np.float64),
@@ -195,14 +195,12 @@ class Miriad(UVData):
             )
             # TODO: Fix this to capture unsorted spectra
             self.flex_spw_id_array = (
-                np.array(
-                    [
-                        [idx] * nchan
+                np.concatenate(
+                    tuple(
+                        idx + np.zeros(nchan)
                         for (idx, nchan) in zip(range(self.Nspws), uv["nschan"])
-                    ]
+                    )
                 )
-                .flatten()
-                .astype(np.int64)
             )
         else:
             self.freq_array = np.reshape(
@@ -1688,8 +1686,9 @@ class Miriad(UVData):
 
         # NB: restfreq should go in here at some point
         #####################################################
-        uv.add_var("source", "a")
-        uv["source"] = self.object_name
+        if not self.multi_object:
+            uv.add_var("source", "a")
+            uv["source"] = self.object_name
         uv.add_var("telescop", "a")
         uv["telescop"] = self.telescope_name
         uv.add_var("latitud", "d")
@@ -1864,6 +1863,14 @@ class Miriad(UVData):
         uv.add_var("dec", "d")
         uv.add_var("inttime", "d")
 
+        app_record = False
+        if (self.phase_center_app_dec is not None) and (
+            self.phase_center_app_ra is not None
+        ):
+            app_record = True
+            uv.add_var("obsra", "d")
+            uv.add_var("obsdec", "d")
+
         # write data
         c_ns = const.c.to("m/ns").value
         for viscnt, blt in enumerate(self.data_array):
@@ -1875,8 +1882,17 @@ class Miriad(UVData):
             uv["lst"] = miriad_lsts[viscnt].astype(np.double)
             uv["inttime"] = self.integration_time[viscnt].astype(np.double)
             if self.phase_type == "phased":
-                uv["ra"] = self.phase_center_ra
-                uv["dec"] = self.phase_center_dec
+                if self.multi_object:
+                    object_name = self.object_name[self.object_id_array[viscnt]]
+                    uv["source"] = object_name
+                    uv["ra"] = self.object_dict[object_name]["object_lon"]
+                    uv["dec"] = self.object_dict[object_name]["object_lat"]
+                else:
+                    uv["ra"] = self.phase_center_ra
+                    uv["dec"] = self.phase_center_dec
+                if app_record:
+                    uv["obsra"] = self.phase_center_app_ra[viscnt]
+                    uv["obsdec"] = self.phase_center_app_dec[viscnt]
             elif self.phase_type == "drift":
                 uv["ra"] = miriad_lsts[viscnt].astype(np.double)
                 uv["dec"] = self.telescope_location_lat_lon_alt[0].astype(np.double)
