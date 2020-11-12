@@ -1791,7 +1791,6 @@ def test_uvh5_read_header_special_cases(casa_uvfits, tmp_path):
     testfile = str(tmp_path / "outtest_uvfits.uvh5")
     uv_in.telescope_name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
-
     # change some of the metadata to trip certain if/else clauses
     with h5py.File(testfile, "r+") as h5f:
         del h5f["Header/history"]
@@ -1808,6 +1807,8 @@ def test_uvh5_read_header_special_cases(casa_uvfits, tmp_path):
     uv_in.phase_center_dec = None
     uv_in.phase_center_epoch = None
     uv_in.vis_units = "UNCALIB"
+    uv_in.phase_center_app_ra = None
+    uv_in.phase_center_app_dec = None
     assert uv_in == uv_out
 
     # clean up
@@ -2907,7 +2908,6 @@ def test_uvh5_partial_write_ints_irregular_multi4(uv_uvh5, future_shapes, tmp_pa
     return
 
 
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_antenna_names_not_list(casa_uvfits, tmp_path):
     """
     Test if antenna_names is cast to an array, dimensions are preserved in
