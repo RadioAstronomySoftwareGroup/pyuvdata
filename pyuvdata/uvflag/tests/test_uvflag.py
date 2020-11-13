@@ -158,8 +158,12 @@ def test_init_bad_mode(uvdata_obj):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_init_uvdata(uvdata_obj):
+    # for uvf initialization below
+    testdict = {"keyword1": 1, "keyword2": 2}
     uv = uvdata_obj
-    uvf = UVFlag(uv, history="I made a UVFlag object", label="test")
+    uvf = UVFlag(
+        uv, history="I made a UVFlag object", label="test", extra_keywords=testdict
+    )
     assert uvf.metric_array.shape == uv.flag_array.shape
     assert np.all(uvf.metric_array == 0)
     assert uvf.weights_array.shape == uv.flag_array.shape
@@ -175,6 +179,10 @@ def test_init_uvdata(uvdata_obj):
     assert np.all(uvf.ant_2_array == uv.ant_2_array)
     assert "I made a UVFlag object" in uvf.history
     assert 'Flag object with type "baseline"' in uvf.history
+    assert "keyword1" in uvf.extra_keywords
+    assert uvf.testdict["keyword1"] == 1
+    assert "keyword2" in uvf.extra_keywords
+    assert uvf.testdict["keyword2"] == 2
     assert pyuvdata_version_str in uvf.history
     assert uvf.label == "test"
 
