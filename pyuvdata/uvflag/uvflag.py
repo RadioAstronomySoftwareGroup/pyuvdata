@@ -397,17 +397,16 @@ class UVFlag(UVBase):
         )
 
         desc = (
-            "Any user supplied extra keywords, type=dict. Keys should be "
-            "8 character or less strings if writing to uvfits or miriad files. "
+            "Any user supplied extra keywords, type=dict."
             'Use the special key "comment" for long multi-line string comments.'
         )
         self._extra_keywords = uvp.UVParameter(
             "extra_keywords",
-            required=False,
             description=desc,
             value={},
             spoof_val={},
             expected_type=dict,
+            required=False,
         )
 
         # ---antenna information ---
