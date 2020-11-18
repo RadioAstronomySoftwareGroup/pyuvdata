@@ -549,10 +549,22 @@ class UVFITS(UVData):
             if "FRAME" in ant_hdu.header.keys():
                 xyz_telescope_frame = ant_hdu.header["FRAME"]
             else:
-                warnings.warn(
-                    "Required Antenna frame keyword not set, " "setting to ????"
-                )
-                xyz_telescope_frame = "????"
+                if "COMMENT" in self.extra_keywords:
+                    if uvutils._check_history_version(
+                        self.extra_keywords["COMMENT"],
+                        "Created by Cotter MWA preprocessor",
+                    ):
+                        # this is a Cotter file, which should have the frame set to ITRF
+                        warnings.warn(
+                            "Required Antenna frame keyword not set, but this appears "
+                            "to be a Cotter file, setting to ITRF."
+                        )
+                        xyz_telescope_frame = "ITRF"
+                else:
+                    warnings.warn(
+                        "Required Antenna frame keyword not set, setting to ????"
+                    )
+                    xyz_telescope_frame = "????"
 
             # get telescope location and antenna positions.
             # VLA incorrectly sets ARRAYX/ARRAYY/ARRAYZ to 0, and puts array center
@@ -1097,7 +1109,7 @@ class UVFITS(UVData):
         ant_hdu.header["EXTNAME"] = "AIPS AN"
         ant_hdu.header["EXTVER"] = 1
 
-        # write XYZ coordinates if not already defined
+        # write XYZ coordinates
         ant_hdu.header["ARRAYX"] = self.telescope_location[0]
         ant_hdu.header["ARRAYY"] = self.telescope_location[1]
         ant_hdu.header["ARRAYZ"] = self.telescope_location[2]
@@ -1108,7 +1120,7 @@ class UVFITS(UVData):
         ant_hdu.header["RDATE"] = self.rdate
         ant_hdu.header["UT1UTC"] = self.dut1
 
-        ant_hdu.header["TIMSYS"] = self.timesys
+        ant_hdu.header["TIMESYS"] = self.timesys
         if self.timesys != "UTC":
             raise ValueError(
                 "This file has a time system {tsys}. "
