@@ -950,3 +950,28 @@ def test_read_ms_write_uvfits_casa_history(tmp_path):
     ms_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read(testfile)
     assert ms_uv == uvfits_uv
+
+
+def test_cotter_telescope_frame(tmp_path):
+    file1 = os.path.join(DATA_PATH, "1061316296.uvfits")
+    write_file = os.path.join(tmp_path, "emulate_cotter.uvfits")
+    uvd1 = UVData()
+
+    with fits.open(file1, memmap=True) as hdu_list:
+        hdunames = uvutils._fits_indexhdus(hdu_list)
+        vis_hdu = hdu_list[0]
+        ant_hdu = hdu_list[hdunames["AIPS AN"]]
+        ant_hdu.header.pop("FRAME")
+
+        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+        hdulist.writeto(write_file, overwrite=True)
+        hdulist.close()
+
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Required Antenna frame keyword not set, but this appears to be a Cotter "
+            "file, setting to ITRF.",
+        ],
+    ):
+        uvd1.read_uvfits(write_file, read_data=False)

@@ -162,7 +162,7 @@ def test_fhd_antenna_pos(fhd_data):
     mwa_corr_file_list = [os.path.join(mwa_corr_dir, fname) for fname in mwa_corr_files]
 
     mwa_corr_obj = UVData()
-    mwa_corr_obj.read_mwa_corr_fits(
+    mwa_corr_obj.read(
         mwa_corr_file_list,
         correct_cable_len=True,
         phase_to_pointing_center=True,
@@ -172,6 +172,16 @@ def test_fhd_antenna_pos(fhd_data):
     assert fhd_data._antenna_names == mwa_corr_obj._antenna_names
     assert fhd_data._antenna_numbers == mwa_corr_obj._antenna_numbers
     assert fhd_data._antenna_positions == mwa_corr_obj._antenna_positions
+
+    cotter_file = os.path.join(DATA_PATH, "1061316296.uvfits")
+    cotter_obj = UVData()
+    cotter_obj.read(cotter_file)
+
+    assert fhd_data._antenna_names == cotter_obj._antenna_names
+    assert fhd_data._antenna_numbers == cotter_obj._antenna_numbers
+    assert fhd_data._antenna_positions == cotter_obj._antenna_positions
+
+    assert mwa_corr_obj._antenna_positions == cotter_obj._antenna_positions
 
 
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
