@@ -275,14 +275,14 @@ class UVParameter(object):
         """
         if self.form == "str":
             return self.form
-        elif isinstance(self.form, np.int):
+        elif isinstance(self.form, (int, np.integer)):
             # Fixed shape, just return the form
             return (self.form,)
         else:
             # Given by other attributes, look up values
             eshape = ()
             for p in self.form:
-                if isinstance(p, np.int):
+                if isinstance(p, (int, np.integer)):
                     eshape = eshape + (p,)
                 else:
                     val = getattr(uvbase, p)
