@@ -8,6 +8,7 @@
 from astropy.time import Time
 import pytest
 import numpy as np
+from astropy import units
 
 from pyuvdata.uvbase import UVBase
 from pyuvdata.uvbase import _warning
@@ -204,6 +205,17 @@ def test_check_array_type():
     test_obj = UVTest()
     test_obj.floatarr = test_obj.floatarr + 1j * test_obj.floatarr
     pytest.raises(ValueError, test_obj.check)
+
+
+def test_check_quantity_type():
+    """Test check function with wrong array type."""
+    test_obj = UVTest()
+    test_obj.floatarr = (test_obj.floatarr + 1j * test_obj.floatarr) * units.m
+    with pytest.raises(ValueError) as cm:
+        test_obj.check()
+    assert str(cm.value).startswith(
+        "UVParameter _floatarr is not the appropriate type. "
+    )
 
 
 def test_check_array_shape():
