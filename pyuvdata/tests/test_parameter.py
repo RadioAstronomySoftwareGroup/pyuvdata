@@ -256,3 +256,37 @@ def test_location_acceptable_none():
     param1 = uvp.LocationParameter(name="p2", value=1, acceptable_range=None)
 
     assert param1.check_acceptability()
+
+
+def test_non_builtin_expected_type():
+    with pytest.raises(ValueError) as cm:
+        uvp.UVParameter(
+            "_test", expected_type="integer",
+        )
+    assert str(cm.value).startswith("Input expected_type is a string with value")
+
+
+def test_strict_expected_type():
+    param1 = uvp.UVParameter("_test", expected_type=np.float128, strict_type_check=True)
+    assert param1.expected_type == np.float128
+
+
+@pytest.mark.parametrize(
+    "in_type,out_type",
+    [
+        (np.float128, (float, np.floating)),
+        (int, (int, np.integer)),
+        (np.complex64, (complex, np.complexfloating)),
+        (np.uint, (np.unsignedinteger)),
+        # str type tests the pass through fallback
+        (str, str),
+        # check builtin attributes too
+        ("str", str),
+        ("int", (int, np.integer)),
+        ("float", (float, np.floating)),
+        ("complex", (complex, np.complexfloating)),
+    ],
+)
+def test_generic_type_conversion(in_type, out_type):
+    param1 = uvp.UVParameter("_test", expected_type=in_type)
+    assert param1.expected_type == out_type

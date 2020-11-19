@@ -11,12 +11,56 @@ UVBase. This module also includes specialized sublasses for particular types
 of metadata.
 
 """
+import builtins
 import numpy as np
 import astropy.units as units
 
 from . import utils
 
 __all__ = ["UVParameter", "AngleParameter", "LocationParameter"]
+
+
+def _get_generic_type(expected_type, strict_type_check=False):
+    """Return tuple of more generic types.
+
+    Allows for more flexible type checking in the case when a Parameter's value
+    changes precison or to/from a numpy dtype but still is the desired generic type.
+    If a generic type cannot be found, the expected_type is returned
+
+    Parameters
+    ----------
+    expected_type : Type or string
+        The expected type of a Parameter object or a string of the name of a type.
+    strict_type_check : bool
+        If True the input expected_type is return exactly
+    if strict_type_check:
+        return expected_type exactly
+
+    Returns
+    -------
+    Tuple of types based on input expected_type
+    """
+    if isinstance(expected_type, str):
+        try:
+            expected_type = getattr(builtins, expected_type)
+        except AttributeError as err:
+            raise ValueError(
+                f"Input expected_type is a string with value: '{expected_type}'. "
+                "When the expected_type is a string, it must be a Python builtin type."
+            ) from err
+    if strict_type_check:
+        return expected_type
+
+    for types in [
+        (float, np.floating),
+        (np.unsignedinteger),  # unexpected by unsigned integer could be possible
+        (int, np.integer),
+        (complex, np.complexfloating),
+    ]:
+        if issubclass(expected_type, types):
+            return types
+
+    return expected_type
 
 
 class UVParameter(object):
@@ -60,6 +104,10 @@ class UVParameter(object):
         Tolerances for testing the equality of UVParameters. Either a
         single absolute value or a tuple of relative and absolute values to
         be used by np.isclose()
+    strict_type_check : bool
+        When True, the input expected_type is used exactly, otherwise a more generic
+        type is found to allow changes in precions
+        or to/from numpy dtypes to not break checks.
 
     """
 
@@ -75,6 +123,7 @@ class UVParameter(object):
         acceptable_vals=None,
         acceptable_range=None,
         tols=(1e-05, 1e-08),
+        strict_type_check=False,
     ):
         """Init UVParameter object."""
         self.name = name
@@ -88,7 +137,9 @@ class UVParameter(object):
         if self.form == "str":
             self.expected_type = str
         else:
-            self.expected_type = expected_type
+            self.expected_type = _get_generic_type(
+                expected_type, strict_type_check=strict_type_check,
+            )
         self.acceptable_vals = acceptable_vals
         self.acceptable_range = acceptable_range
         if np.size(tols) == 1:
