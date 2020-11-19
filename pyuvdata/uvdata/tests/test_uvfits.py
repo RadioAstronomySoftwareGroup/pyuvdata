@@ -360,8 +360,8 @@ def test_readwriteread_missing_info(tmp_path, casa_uvfits):
         ant_hdu = hdu_list[hdunames["AIPS AN"]]
         ant_hdr = ant_hdu.header.copy()
 
-        time_sys = ant_hdr.pop("TIMSYS")
-        ant_hdr["TIMESYS"] = time_sys
+        time_sys = ant_hdr.pop("TIMESYS")
+        ant_hdr["TIMSYS"] = time_sys
         ant_hdr["FRAME"] = "????"
 
         ant_hdu.header = ant_hdr
