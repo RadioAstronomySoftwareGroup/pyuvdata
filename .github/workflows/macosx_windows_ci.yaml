@@ -31,9 +31,9 @@ jobs:
         id: env_name
 
       - name: Setup Miniconda
-        uses: goanpeca/setup-miniconda@v1.6.0
+        uses: conda-incubator/setup-miniconda@v2.0.0
         with:
-          auto-update-conda: "true"
+          auto-update-conda: true
           miniconda-version: "latest"
           python-version: ${{ matrix.python-version }}
           environment-file: ci/${{ steps.env_name.outputs.ENV_NAME }}.yml
