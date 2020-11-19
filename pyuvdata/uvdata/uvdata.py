@@ -749,7 +749,10 @@ class UVData(UVBase):
                         # does will cause an error
                         assert telescope_shape == () and self_shape != "str"
                         array_val = (
-                            np.zeros(self_shape, dtype=telescope_param.expected_type)
+                            np.zeros(
+                                self_shape,
+                                dtype=np.asarray(telescope_param.value).dtype,
+                            )
                             + telescope_param.value
                         )
                         params_set.append(self_param.name)
