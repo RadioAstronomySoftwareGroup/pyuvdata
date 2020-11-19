@@ -12,6 +12,7 @@ import warnings
 
 from astropy.time import Time
 import numpy as np
+from astropy.units import Quantity
 
 from . import parameter as uvp
 from . import __version__
@@ -356,8 +357,12 @@ class UVBase(object):
                                         " be: " + str(param.expected_type)
                                     )
                         else:
-                            # Array
-                            if not isinstance(param.value.item(0), param.expected_type):
+                            # Array or quantity
+                            if isinstance(param.value, Quantity):
+                                check_val = param.value.item(0).value
+                            else:
+                                check_val = param.value.item(0)
+                            if not isinstance(check_val, param.expected_type):
                                 raise ValueError(
                                     "UVParameter " + p + " is not the appropriate"
                                     " type. Is: "
