@@ -2767,7 +2767,7 @@ class UVData(UVBase):
         TypeError
             If time is not an astropy.time.Time object or Julian Date as a float
         """
-        if isinstance(time, (float, np.float32)):
+        if isinstance(time, (float, np.floating)):
             time = Time(time, format="jd")
 
         if not isinstance(time, Time):
@@ -5093,7 +5093,7 @@ class UVData(UVBase):
                 )
                 return
         else:
-            if not isinstance(n_times_to_avg, (int, np.int)):
+            if not isinstance(n_times_to_avg, (int, np.integer)):
                 raise ValueError("n_times_to_avg must be an integer.")
         # If we're going to do actual work, reorder the baselines to ensure time is
         # monotonically increasing.
