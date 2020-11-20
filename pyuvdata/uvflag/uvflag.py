@@ -398,15 +398,16 @@ class UVFlag(UVBase):
 
         desc = (
             "Any user supplied extra keywords, type=dict."
-            'Use the special key "comment" for long multi-line string comments.'
+            "Use the special key 'comment' for long multi-line string comments."
+            "Default is an empty dictionary."
         )
         self._extra_keywords = uvp.UVParameter(
             "extra_keywords",
+            required=False,
             description=desc,
             value={},
             spoof_val={},
             expected_type=dict,
-            required=False,
         )
 
         # ---antenna information ---
