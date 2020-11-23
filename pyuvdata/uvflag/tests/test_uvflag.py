@@ -185,6 +185,11 @@ def test_add_extra_keywords(uvdata_obj):
     uvf.extra_keywords = {"keyword1": 1, "keyword2": 2}
     assert "keyword1" in uvf.extra_keywords
     assert "keyword2" in uvf.extra_keywords
+    uvf.extra_keywords["keyword3"] = 3
+    assert "keyword3" in uvf.extra_keywords
+    assert uvf.extra_keywords.get("keyword1") == 1
+    assert uvf.extra_keywords.get("keyword2") == 2
+    assert uvf.extra_keywords.get("keyword3") == 3
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
