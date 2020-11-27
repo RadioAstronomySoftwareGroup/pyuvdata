@@ -2596,7 +2596,10 @@ class UVFlag(UVBase):
                 if "extra_keywords" in header:
                     self.extra_keywords = {}
                     for key in header["extra_keywords"].keys():
-                        if header["extra_keywords"][key].dtype.type in (np.string_, np.object_):
+                        if header["extra_keywords"][key].dtype.type in (
+                            np.string_,
+                            np.object_,
+                        ):
                             self.extra_keywords[key] = bytes(
                                 header["extra_keywords"][key][()]
                             ).decode("utf8")
