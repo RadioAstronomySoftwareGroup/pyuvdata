@@ -2592,6 +2592,17 @@ class UVFlag(UVBase):
                 ):
                     self.history += self.pyuvdata_version_str
 
+                # get extra_keywords
+                if "extra_keywords" in header:
+                    self.extra_keywords = {}
+                    for key in header["extra_keywords"].keys():
+                        if header["extra_keywords"][key].dtype.type in (np.string_, np.object_):
+                            self.extra_keywords[key] = bytes(
+                                header["extra_keywords"][key][()]
+                            ).decode("utf8")
+                        else:
+                            self.extra_keywords[key] = header["extra_keywords"][key][()]
+
                 if "label" in header.keys():
                     self.label = header["label"][()].decode("utf8")
 
@@ -2729,6 +2740,15 @@ class UVFlag(UVBase):
                 self.history, self.pyuvdata_version_str
             ):
                 self.history += self.pyuvdata_version_str
+
+            # write out extra keywords if it exists and has elements
+            if self.extra_keywords:
+                extra_keywords = header.create_group("extra_keywords")
+                for k in self.extra_keywords.keys():
+                    if isinstance(self.extra_keywords[k], str):
+                        extra_keywords[k] = np.string_(self.extra_keywords[k])
+                    else:
+                        extra_keywords[k] = self.extra_keywords[k]
 
             header["history"] = np.string_(self.history)
 
