@@ -746,8 +746,8 @@ class UVFlag(UVBase):
         """Remove unused attributes.
 
         Useful when changing type or mode or to save memory.
-        Will set all non-required attributes to None, except x_orientation and
-        weights_square_array.
+        Will set all non-required attributes to None, except x_orientation,
+        extra_keywords and weights_square_array.
 
         """
         for p in self:
@@ -757,6 +757,7 @@ class UVFlag(UVBase):
                 and attr.value is not None
                 and attr.name != "x_orientation"
                 and attr.name != "weights_square_array"
+                and attr.name != "extra_keywords"
             ):
                 attr.value = None
                 setattr(self, p, attr)
@@ -2593,7 +2594,7 @@ class UVFlag(UVBase):
                     self.history += self.pyuvdata_version_str
 
                 # get extra_keywords
-                if "extra_keywords" in header:
+                if "extra_keywords" in header.keys():
                     self.extra_keywords = {}
                     for key in header["extra_keywords"].keys():
                         if header["extra_keywords"][key].dtype.type in (
@@ -2683,7 +2684,6 @@ class UVFlag(UVBase):
                         self.weights_square_array = dgrp["weights_square_array"][()]
                 elif self.mode == "flag":
                     self.flag_array = dgrp["flag_array"][()]
-
             self.clear_unused_attributes()
 
             if run_check:
@@ -2746,7 +2746,9 @@ class UVFlag(UVBase):
 
             # write out extra keywords if it exists and has elements
             if self.extra_keywords:
-                extra_keywords = header.create_group("extra_keywords")
+                extra_keywords = header.create_group(
+                    "extra_keywords"
+                )  # create spot in header
                 for k in self.extra_keywords.keys():
                     if isinstance(self.extra_keywords[k], str):
                         extra_keywords[k] = np.string_(self.extra_keywords[k])
