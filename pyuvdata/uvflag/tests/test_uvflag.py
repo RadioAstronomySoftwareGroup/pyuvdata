@@ -607,6 +607,16 @@ def test_read_write_nocompress_flag(uvdata_obj, test_outfile):
     assert uvf.__eq__(uvf2, check_history=True)
 
 
+def test_read_write_extra_keywords(uvdata_obj, test_outfile):
+    uv = uvdata_obj
+    uvf = UVFlag(uv, label="test")
+    uvf.extra_keywords = {"keyword1": 1}
+    uvf.write(test_outfile, clobber=True, data_compression=None)
+    uvf2 = UVFlag(test_outfile)
+    print("UVF2:" + str(uvf2.extra_keywords))
+    assert uvf2.extra_keywords["keyword1"] is not None
+
+
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_init_list(uvdata_obj):
     uv = uvdata_obj
