@@ -105,6 +105,21 @@ def test_LatLonAlt_from_XYZ():
     pytest.raises(ValueError, uvutils.LatLonAlt_from_XYZ, ref_xyz[0:1])
 
 
+def test_lla_xyz_lla_roundtrip():
+    """Test roundtripping an array will yield the same values."""
+    np.random.seed(0)
+    lats = -30.721 + np.random.normal(0, 0.0005, size=30)
+    lons = 21.428 + np.random.normal(0, 0.0005, size=30)
+    alts = np.random.uniform(1051, 1054, size=30)
+    lats *= np.pi / 180.0
+    lons *= np.pi / 180.0
+    xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
+    lats_new, lons_new, alts_new = uvutils.LatLonAlt_from_XYZ(xyz)
+    assert np.allclose(lats_new, lats)
+    assert np.allclose(lons_new, lons)
+    assert np.allclose(alts_new, alts)
+
+
 @pytest.fixture(scope="module")
 def enu_ecef_info():
     """Some setup info for ENU/ECEF calculations."""
