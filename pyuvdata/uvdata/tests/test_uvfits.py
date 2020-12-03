@@ -9,7 +9,13 @@ import os
 
 import pytest
 import numpy as np
-import astropy
+
+try:
+    import erfa
+except ModuleNotFoundError:
+    # TODO: This is for backwards compatibility with astropy < 4.2.
+    # When we require 4.2 or greater it should be removed.
+    from astropy import _erfa as erfa
 from astropy.io import fits
 
 from pyuvdata import UVData
@@ -424,12 +430,7 @@ def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
 
     with pytest.raises(ValueError) as cm:
         with uvtest.check_warnings(
-            [
-                UserWarning,
-                astropy._erfa.core.ErfaWarning,
-                astropy._erfa.core.ErfaWarning,
-                UserWarning,
-            ],
+            [UserWarning, erfa.core.ErfaWarning, erfa.core.ErfaWarning, UserWarning],
             [
                 "Telescope EVLA is not",
                 'ERFA function "utcut1" yielded 1 of "dubious year (Note 3)"',
