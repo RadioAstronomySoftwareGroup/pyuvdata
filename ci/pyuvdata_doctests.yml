@@ -4,14 +4,15 @@ channels:
   - defaults
 dependencies:
   - astropy
-  - h5py
   - astropy-healpix
+  - cython
+  - h5py
   - numpy
+  - pip
   - python-casacore
   - pyyaml
   - scipy
-  - cython
   - setuptools_scm
-  - pip
+  - six
   - pip:
       - pytest-xdist
