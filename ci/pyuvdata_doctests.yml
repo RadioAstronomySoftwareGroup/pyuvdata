@@ -10,6 +10,8 @@ dependencies:
   - python-casacore
   - pyyaml
   - scipy
-  - pytest
   - cython
   - setuptools_scm
+  - pip
+  - pip:
+      - pytest-xdist
