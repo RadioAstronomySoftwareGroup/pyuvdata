@@ -6,7 +6,6 @@ dependencies:
   - aipy
   - astropy
   - astropy-healpix
-  - basemap
   - cached-property
   - h5py
   - matplotlib
