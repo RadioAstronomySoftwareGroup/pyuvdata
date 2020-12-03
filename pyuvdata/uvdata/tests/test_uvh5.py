@@ -2710,6 +2710,7 @@ def test_read_slicing(casa_uvfits):
     assert data.shape == tuple(shape)
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_metadata(casa_uvfits, tmp_path):
     """Test misc properties of reading of metadata"""
     # test bytes metadata

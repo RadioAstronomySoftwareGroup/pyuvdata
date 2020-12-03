@@ -2421,6 +2421,7 @@ class UVData(UVBase):
         )
         obs_times = Time(unique_times, format="jd")
         itrs_telescope_locations = telescope_location.get_itrs(obstime=obs_times)
+        itrs_telescope_locations = SkyCoord(itrs_telescope_locations)
         # just calling transform_to(coord.GCRS) will delete the obstime information
         # need to re-add obstimes for a GCRS transformation
         if phase_frame == "gcrs":
@@ -2617,6 +2618,7 @@ class UVData(UVBase):
         obs_times = Time(unique_times, format="jd")
 
         itrs_telescope_locations = telescope_location.get_itrs(obstime=obs_times)
+        itrs_telescope_locations = SkyCoord(itrs_telescope_locations)
         # just calling transform_to(coord.GCRS) will delete the obstime information
         # need to re-add obstimes for a GCRS transformation
         if phase_frame == "gcrs":
