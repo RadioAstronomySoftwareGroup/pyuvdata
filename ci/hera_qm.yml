@@ -18,7 +18,6 @@ dependencies:
   - pytest-cov
   - pyyaml
   - pip:
-    - git+https://github.com/HERA-Team/linsolve.git
     - git+https://github.com/HERA-Team/omnical.git
     - git+https://github.com/HERA-Team/uvtools.git
     - git+https://github.com/HERA-Team/hera_cal.git
