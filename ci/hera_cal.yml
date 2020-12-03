@@ -12,6 +12,7 @@ dependencies:
   - matplotlib
   - numpy
   - pandas
+  - pip
   - pytest
   - pytest-cov
   - pyyaml
