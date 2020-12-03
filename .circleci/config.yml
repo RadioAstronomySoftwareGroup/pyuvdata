@@ -150,4 +150,4 @@ workflows:
           env_name: "pyuvdata_min_deps_tests"
       - doctest:
           python_version: "3.6"
-          env_name: "pyuvdata_tests"
+          env_name: "pyuvdata_doctests"

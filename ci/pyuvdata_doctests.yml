@@ -1,0 +1,15 @@
+name: pyuvdata_tests
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - astropy
+  - h5py
+  - astropy-healpix
+  - numpy
+  - python-casacore
+  - pyyaml
+  - scipy
+  - pytest
+  - cython
+  - setuptools_scm
