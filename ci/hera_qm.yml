@@ -5,19 +5,18 @@ channels:
 dependencies:
   - aipy
   - astropy
-  - pyephem
-  - h5py
   - astropy-healpix
+  - h5py
   - matplotlib
   - numpy
-  - scikit-learn
-  - scipy
-  - setuptools_scm
-  - basemap
   - pip
+  - pyephem
   - pytest
   - pytest-cov
   - pyyaml
+  - scikit-learn
+  - scipy
+  - setuptools_scm
   - pip:
     - git+https://github.com/HERA-Team/omnical.git
     - git+https://github.com/HERA-Team/uvtools.git
