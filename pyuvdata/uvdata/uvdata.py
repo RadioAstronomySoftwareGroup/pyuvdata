@@ -5888,6 +5888,7 @@ class UVData(UVBase):
                 self.select(bls=bl_ants, keep_all_metadata=keep_all_metadata)
                 self.time_array = temp_time_array
                 self.Ntimes = temp_ntimes
+                self.set_lsts_from_time_array()
                 if not self.metadata_only:
                     self.data_array = temp_data_array
                     self.nsample_array = temp_nsample_array
@@ -5896,6 +5897,7 @@ class UVData(UVBase):
             else:
                 new_obj.time_array = temp_time_array
                 new_obj.Ntimes = temp_ntimes
+                self.set_lsts_from_time_array()
                 if not self.metadata_only:
                     new_obj.data_array = temp_data_array
                     new_obj.nsample_array = temp_nsample_array

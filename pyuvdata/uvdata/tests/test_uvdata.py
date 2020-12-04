@@ -5473,6 +5473,41 @@ def test_compress_redundancy_metadata_only(method):
     assert uv0 == uv2
 
 
+@pytest.mark.parametrize("metadata_only", (True, False))
+def test_compress_redundancy_times(metadata_only):
+    uv0 = UVData()
+    uv0.read_uvfits(
+        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
+    )
+    tol = 0.05
+
+    # Assign identical data to each redundant group
+    # modify times slightly to test lsts:
+    red_gps, centers, lengths = uv0.get_redundancies(
+        tol=tol, use_antpos=True, conjugate_bls=True
+    )
+    for i, gp in enumerate(red_gps):
+        for bl_ind, bl in enumerate(gp):
+            inds = np.where(bl == uv0.baseline_array)
+            uv0.data_array[inds] *= 0
+            uv0.data_array[inds] += complex(i)
+            uv0.time_array[inds] += (bl_ind - ((len(gp) - 1) / 2.0)) * 0.001
+
+    uv2 = uv0.copy(metadata_only=metadata_only)
+    uv2.compress_by_redundancy(method="average", tol=tol)
+
+    uv0.compress_by_redundancy(method="average", tol=tol)
+    if metadata_only:
+        uv0.data_array = None
+        uv0.flag_array = None
+        uv0.nsample_array = None
+    assert uv0 == uv2
+
+    uv3 = uv2.copy()
+    uv3.set_lsts_from_time_array()
+    assert uv3._lst_array == uv2._lst_array
+
+
 def test_compress_redundancy_wrong_method():
     uv0 = UVData()
     uv0.read_uvfits(
