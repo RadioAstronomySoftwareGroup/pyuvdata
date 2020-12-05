@@ -5897,7 +5897,7 @@ class UVData(UVBase):
             else:
                 new_obj.time_array = temp_time_array
                 new_obj.Ntimes = temp_ntimes
-                self.set_lsts_from_time_array()
+                new_obj.set_lsts_from_time_array()
                 if not self.metadata_only:
                     new_obj.data_array = temp_data_array
                     new_obj.nsample_array = temp_nsample_array
