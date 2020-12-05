@@ -5463,8 +5463,10 @@ def test_compress_redundancy_metadata_only_lst_update(method):
             inds = np.where(bl == uv0.baseline_array)
             uv0.data_array[inds] *= 0
             uv0.data_array[inds] += complex(i)
-            uv0.time_array[inds] += (bl_ind - ((len(gp) - 1) / 2.0)) * 0.001
+            if bl_ind > 0:
+                uv0.time_array[inds] += uv0._time_array.tols[1] * 0.9
 
+    uv0.set_lsts_from_time_array()
     uv2 = uv0.copy(metadata_only=True)
     uv2.compress_by_redundancy(method=method, tol=tol, inplace=True)
 
