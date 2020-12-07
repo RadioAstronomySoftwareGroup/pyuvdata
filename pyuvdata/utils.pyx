@@ -109,25 +109,19 @@ cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
 
   return baseline
 
-# this function is going to be useful in xyz -> lla for large N_pts
-# reduces need to calculate gps_n, assign to memory, read memory to calcuate alt
-@cython.cdivision(True)
-@cython.nonecheck(False)
-cdef inline numpy.float64_t gps_n_calc(numpy.float64_t lat):
-    return _gps_a / sqrt(1.0 - _e2 * sin(lat) ** 2)
-
-
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
 cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _lla_from_xyz(
     numpy.float64_t[:, ::1] xyz,
 ):
-    cdef Py_ssize_t i
+    cdef Py_ssize_t ind
     cdef int n_pts = xyz.shape[1]
     cdef numpy.float64_t gps_p, gps_theta
+
     cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] lla = np.empty((3, n_pts), dtype=np.float64)
     cdef numpy.float64_t[:, ::1] _lla = lla
+
     # see wikipedia geodetic_datum and Datum transformations of
     # GPS positions PDF in docs/references folder
     for ind in range(n_pts):
@@ -141,7 +135,7 @@ cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _lla_from_xyz(
 
         _lla[1, ind] = atan2(xyz[1, ind], xyz[0, ind])
 
-        _lla[2, ind] = (gps_p / cos(lla[0, ind])) -  gps_n_calc(_lla[0, ind])
+        _lla[2, ind] = (gps_p / cos(lla[0, ind])) - _gps_a / sqrt(1.0 - _e2 * sin(lla[0, ind]) ** 2)
 
     return lla
 
