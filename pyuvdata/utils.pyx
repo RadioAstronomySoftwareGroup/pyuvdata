@@ -117,40 +117,41 @@ cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
 
   return baseline
 
+# this function is going to be useful in xyz -> lla for large N_pts
+# reduces need to calculate gps_n, assign to memory, read memory to calcuate alt
+@cython.cdivision(True)
+@cython.nonecheck(False)
+cdef inline double gps_n_calc(double lat):
+    return _gps_a / sqrt(1.0 - _e2 * sin(lat) ** 2)
+
+
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef _latlonalt_from_xyz(numpy.float64_t[:, ::1] xyz):
-  cdef int n = xyz.shape[0]
-  cdef int i
+cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _lla_from_xyz(
+    numpy.float64_t[:, ::1] xyz,
+):
+    cdef Py_ssize_t i
+    cdef int n_pts = xyz.shape[1]
+    cdef numpy.float64_t gps_p, gps_theta
+    cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] lla = np.empty((3, n_pts), dtype=np.float64)
+    cdef numpy.float64_t[:, ::1] _lla = lla
+    # see wikipedia geodetic_datum and Datum transformations of
+    # GPS positions PDF in docs/references folder
+    for ind in range(n_pts):
+        gps_p = sqrt(xyz[0, ind] ** 2 + xyz[1, ind] ** 2)
+        gps_theta = atan2(xyz[2, ind] * _gps_a, gps_p * _gps_b)
 
-  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=1] latitude = np.empty(n, dtype=np.float64)
-  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=1] longitude = np.empty(n, dtype=np.float64)
-  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=1] altitude = np.empty(n, dtype=np.float64)
-  # create some memoryviews
-  cdef numpy.float64_t[::1] _lat = latitude
-  cdef numpy.float64_t[::1] _lon = longitude
-  cdef numpy.float64_t[::1] _alt = altitude
+        _lla[0, ind] = atan2(
+            xyz[2, ind] + _ep2 * _gps_b * sin(gps_theta) ** 3,
+            gps_p - _e2 * _gps_a * cos(gps_theta) ** 3,
+        )
 
-  # see wikipedia geodetic_datum and Datum transformations of
-  # GPS positions PDF in docs/references folder
-  cdef numpy.float64_t gps_p, gps_theta, gps_n
-  for i in range(n):
-    gps_p = sqrt(xyz[i, 0] ** 2 + xyz[i, 1] ** 2)
-    gps_theta = atan2(xyz[i, 2] * _gps_a, gps_p * _gps_b)
+        _lla[1, ind] = atan2(xyz[1, ind], xyz[0, ind])
 
-    _lat[i] = atan2(
-      xyz[i, 2] + _ep2 * _gps_b * sin(gps_theta) ** 3,
-      gps_p - _e2 * _gps_a * cos(gps_theta) ** 3,
-    )
+        _lla[2, ind] = (gps_p / cos(lla[0, ind])) -  gps_n_calc(_lla[0, ind])
 
-    _lon[i] = atan2(xyz[i, 1], xyz[i, 0])
-
-    gps_n = _gps_a / sqrt(1.0 - _e2 * sin(_lat[i]) ** 2)
-    _alt[i] = (gps_p / cos(_lat[i])) - gps_n
-
-  return latitude, longitude, altitude
-
+    return lla
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
