@@ -52,44 +52,39 @@ cpdef tuple baseline_to_antnums(numpy.ndarray[ndim=1, dtype=numpy.int64_t] basel
       _a1[i] = (_bl[i] - (_a2[i] + 1)) // 256 - 1
   return ant1, ant2
 
-
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef numpy.ndarray[dtype=numpy.int64_t] _antnum_to_bl_2048(
-numpy.ndarray[ndim=1, dtype=numpy.int64_t] ant1,
-numpy.ndarray[ndim=1, dtype=numpy.int64_t] ant2,
+numpy.int64_t[::1] ant1,
+numpy.int64_t[::1] ant2,
 ):
-  cdef unsigned long n = ant1.size
-  cdef unsigned int i
+  cdef unsigned long n = ant1.shape[0]
+  cdef Py_ssize_t i
   cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] baselines = np.empty(n, dtype=np.int64)
   # make views as c-contiguous arrays of a known dtype
   # effectivly turns the numpy array into a c-array
   cdef numpy.int64_t[::1] _bl = baselines
-  cdef numpy.int64_t[::1] _a1 = ant1
-  cdef numpy.int64_t[::1] _a2 = ant2
 
   for i in range(n):
-    _bl[i] = 2048 * (_a1[i] + 1) + (_a2[i] + 1) + 2 ** 16
+    _bl[i] = 2048 * (ant1[i] + 1) + (ant2[i] + 1) + 2 ** 16
 
   return baselines
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef numpy.ndarray[dtype=numpy.int64_t] _antnum_to_bl_256(
-numpy.ndarray[ndim=1, dtype=numpy.int64_t] ant1,
-numpy.ndarray[ndim=1, dtype=numpy.int64_t] ant2,
+numpy.int64_t[::1] ant1,
+numpy.int64_t[::1] ant2,
 ):
-  cdef unsigned long n = ant1.size
-  cdef unsigned int i
+  cdef unsigned long n = ant1.shape[0]
+  cdef Py_ssize_t i
   cdef numpy.ndarray[dtype=numpy.int64_t, ndim=1] baselines = np.empty(n, dtype=np.int64)
   # make views as c-contiguous arrays of a known dtype
   # effectivly turns the numpy array into a c-array
   cdef numpy.int64_t[::1] _bl = baselines
-  cdef numpy.int64_t[::1] _a1 = ant1
-  cdef numpy.int64_t[::1] _a2 = ant2
 
   for i in range(n):
-    _bl[i] = 256 * (_a1[i] + 1) + (_a2[i] + 1)
+    _bl[i] = 256 * (ant1[i] + 1) + (ant2[i] + 1)
   return baselines
 
 cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
