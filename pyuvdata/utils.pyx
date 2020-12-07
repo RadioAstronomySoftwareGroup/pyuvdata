@@ -36,7 +36,7 @@ cpdef tuple baseline_to_antnums(numpy.ndarray[ndim=1, dtype=numpy.int64_t] basel
   cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] ant1 = np.empty(n, dtype=np.int64)
   cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] ant2 = np.empty(n, dtype=np.int64)
   cdef long _min = baseline.min()
-  cdef int i
+  cdef Py_ssize_t i
   # make views as c-contiguous arrays of a known dtype
   # effectivly turns the numpy array into a c-array
   cdef numpy.int64_t[::1] _a1 = ant1
@@ -113,7 +113,7 @@ cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
 # reduces need to calculate gps_n, assign to memory, read memory to calcuate alt
 @cython.cdivision(True)
 @cython.nonecheck(False)
-cdef inline double gps_n_calc(double lat):
+cdef inline numpy.float64_t gps_n_calc(numpy.float64_t lat):
     return _gps_a / sqrt(1.0 - _e2 * sin(lat) ** 2)
 
 
