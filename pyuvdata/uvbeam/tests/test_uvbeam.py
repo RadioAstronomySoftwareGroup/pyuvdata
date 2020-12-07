@@ -312,7 +312,8 @@ def test_deprecation_warnings_set_antenna_type(cst_efield_2freq):
 
 def test_errors():
     beam_obj = UVBeam()
-    pytest.raises(ValueError, beam_obj._convert_to_filetype, "foo")
+    with pytest.raises(ValueError, match="filetype must be beamfits"):
+        beam_obj._convert_to_filetype("foo")
 
 
 def test_peak_normalize(cst_efield_2freq, cst_power_2freq):
@@ -339,13 +340,20 @@ def test_peak_normalize(cst_efield_2freq, cst_power_2freq):
     assert power_beam.data_normalization == "peak"
 
     power_beam.data_normalization = "solid_angle"
-    pytest.raises(NotImplementedError, power_beam.peak_normalize)
+    with pytest.raises(
+        NotImplementedError,
+        match="Conversion from solid_angle to peak "
+        "normalization is not yet implemented",
+    ):
+        power_beam.peak_normalize()
 
 
 def test_stokes_matrix():
     beam = UVBeam()
-    pytest.raises(ValueError, beam._stokes_matrix, -2)
-    pytest.raises(ValueError, beam._stokes_matrix, 5)
+    with pytest.raises(ValueError, match="n must be positive integer."):
+        beam._stokes_matrix(-2)
+    with pytest.raises(ValueError, match="n should lie between 0 and 3."):
+        beam._stokes_matrix(5)
 
 
 def test_efield_to_pstokes(cst_efield_2freq_cut, cst_efield_2freq_cut_healpix):
@@ -419,7 +427,12 @@ def test_efield_to_power(cst_efield_2freq_cut, cst_power_2freq_cut, tmp_path):
     if healpix_installed:
         # check that this raises an error if trying to convert to HEALPix:
         efield_beam2.interpolation_function = "az_za_simple"
-        pytest.raises(NotImplementedError, efield_beam2.to_healpix, inplace=False)
+        with pytest.raises(
+            NotImplementedError,
+            match="interpolation for input basis vectors that are not aligned to the "
+            "native theta/phi coordinate system is not yet supported",
+        ):
+            efield_beam2.to_healpix(inplace=False)
 
     # now try a different rotation to non-orthogonal basis vectors
     new_basis_vecs = np.zeros_like(efield_beam.basis_vector_array)
@@ -507,11 +520,16 @@ def test_efield_to_power(cst_efield_2freq_cut, cst_power_2freq_cut, tmp_path):
     assert np.allclose(new_power_beam.data_array, np.abs(efield_beam.data_array) ** 2)
 
     # test raises error if beam is already a power beam
-    pytest.raises(ValueError, power_beam.efield_to_power)
+    with pytest.raises(ValueError, match="beam_type must be efield"):
+        power_beam.efield_to_power()
 
     # test raises error if input efield beam has Naxes_vec=3
     efield_beam.Naxes_vec = 3
-    pytest.raises(ValueError, efield_beam.efield_to_power)
+    with pytest.raises(
+        ValueError,
+        match="Conversion to power with 3-vector efields " "is not currently supported",
+    ):
+        efield_beam.efield_to_power()
 
 
 def test_freq_interpolation(cst_power_2freq):
@@ -603,19 +621,23 @@ def test_freq_interpolation(cst_power_2freq):
 
     # test errors if one frequency
     power_beam_singlef = power_beam.select(freq_chans=[0], inplace=False)
-    pytest.raises(ValueError, power_beam_singlef.interp, freq_array=np.array([150e6]))
+    with pytest.raises(
+        ValueError, match="Only one frequency in UVBeam so cannot interpolate."
+    ):
+        power_beam_singlef.interp(freq_array=np.array([150e6]))
 
     # assert freq_interp_kind ValueError
     power_beam.interpolation_function = "az_za_simple"
     power_beam.freq_interp_kind = None
-    pytest.raises(
-        ValueError,
-        power_beam.interp,
-        az_array=power_beam.axis1_array,
-        za_array=power_beam.axis2_array,
-        freq_array=freq_orig_vals,
-        polarizations=["xx"],
-    )
+    with pytest.raises(
+        ValueError, match="freq_interp_kind must be set on object first"
+    ):
+        power_beam.interp(
+            az_array=power_beam.axis1_array,
+            za_array=power_beam.axis2_array,
+            freq_array=freq_orig_vals,
+            polarizations=["xx"],
+        )
 
 
 def test_freq_interp_real_and_complex(cst_power_2freq):
@@ -662,13 +684,12 @@ def test_spatial_interpolation_samepoints(
     freq_orig_vals = np.array([123e6, 150e6])
 
     # test error if no interpolation function is set
-    pytest.raises(
-        ValueError,
-        uvbeam.interp,
-        az_array=az_orig_vals,
-        za_array=za_orig_vals,
-        freq_array=freq_orig_vals,
-    )
+    with pytest.raises(
+        ValueError, match="interpolation_function must be set on object first"
+    ):
+        uvbeam.interp(
+            az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals,
+        )
 
     uvbeam.interpolation_function = "az_za_simple"
     interp_data_array, interp_basis_vector = uvbeam.interp(
@@ -705,14 +726,13 @@ def test_spatial_interpolation_samepoints(
     assert new_beam == uvbeam
 
     # test error if new_object set without az_za_grid
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="A new object can only be returned"):
         uvbeam.interp(
             az_array=az_orig_vals,
             za_array=za_orig_vals,
             freq_array=freq_orig_vals,
             new_object=True,
         )
-    assert str(cm.value).startswith("A new object can only be returned")
 
     if beam_type == "power":
         # test only a single polarization
@@ -889,33 +909,38 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
     freq_interp_vals = np.arange(125e6, 145e6, 5e6)
 
     # test errors if frequency interp values outside range
-    pytest.raises(
+    with pytest.raises(
         ValueError,
-        uvbeam.interp,
-        az_array=az_interp_vals,
-        za_array=za_interp_vals,
-        freq_array=np.array([100]),
-    )
+        match="at least one interpolation frequency is outside of "
+        "the UVBeam freq_array range.",
+    ):
+        uvbeam.interp(
+            az_array=az_interp_vals,
+            za_array=za_interp_vals,
+            freq_array=np.array([100]),
+        )
 
     # test errors if positions outside range
-    pytest.raises(
+    with pytest.raises(
         ValueError,
-        uvbeam.interp,
-        az_array=az_interp_vals,
-        za_array=za_interp_vals + np.pi / 2,
-    )
+        match="at least one interpolation location "
+        "is outside of the UVBeam pixel coverage.",
+    ):
+        uvbeam.interp(
+            az_array=az_interp_vals, za_array=za_interp_vals + np.pi / 2,
+        )
 
     # test no errors only frequency interpolation
     interp_data_array, interp_basis_vector = uvbeam.interp(freq_array=freq_interp_vals)
 
     # assert polarization value error
-    pytest.raises(
+    with pytest.raises(
         ValueError,
-        uvbeam.interp,
-        az_array=az_interp_vals,
-        za_array=za_interp_vals,
-        polarizations=["pI"],
-    )
+        match="Requested polarization 1 not found in self.polarization_array",
+    ):
+        uvbeam.interp(
+            az_array=az_interp_vals, za_array=za_interp_vals, polarizations=["pI"],
+        )
 
 
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
@@ -1079,12 +1104,14 @@ def test_healpix_interpolation(cst_efield_2freq):
 
     # basis_vector exception
     efield_beam.basis_vector_array[0, 1, :] = 10.0
-    pytest.raises(
+    with pytest.raises(
         NotImplementedError,
-        efield_beam.interp,
-        az_array=az_orig_vals,
-        za_array=za_orig_vals,
-    )
+        match="interpolation for input basis vectors that are not aligned to the "
+        "native theta/phi coordinate system is not yet supported",
+    ):
+        efield_beam.interp(
+            az_array=az_orig_vals, za_array=za_orig_vals,
+        )
 
     # now convert to power beam
     power_beam = efield_beam.efield_to_power(inplace=False)
@@ -1194,8 +1221,10 @@ def test_to_healpix(
     assert power_beam_healpix.Npixels <= n_max_pix
 
     # Test error if not az_za
+    power_beam.interpolation_function = "az_za_simple"
     power_beam.pixel_coordinate_system = "sin_zenith"
-    pytest.raises(ValueError, power_beam.to_healpix)
+    with pytest.raises(ValueError, match='pixel_coordinate_system must be "az_za"'):
+        power_beam.to_healpix()
 
     # Now check Efield interpolation
     efield_beam = cst_efield_2freq_cut
@@ -1293,7 +1322,8 @@ def test_select_axis(cst_power_1freq, tmp_path):
     power_beam2.write_beamfits(write_file_beamfits, clobber=True)
 
     # check for errors associated with indices not included in data
-    pytest.raises(ValueError, power_beam2.select, axis1_inds=[power_beam.Naxes1 - 1])
+    with pytest.raises(ValueError, match="axis1_inds must be > 0 and < Naxes1"):
+        power_beam2.select(axis1_inds=[power_beam.Naxes1 - 1])
 
     # check for warnings and errors associated with unevenly spaced image pixels
     power_beam2 = power_beam.copy()
@@ -1301,7 +1331,12 @@ def test_select_axis(cst_power_1freq, tmp_path):
         UserWarning, "Selected values along first image axis are not evenly spaced"
     ):
         power_beam2.select(axis1_inds=[0, 5, 6])
-    pytest.raises(ValueError, power_beam2.write_beamfits, write_file_beamfits)
+    with pytest.raises(
+        ValueError,
+        match="The pixels are not evenly spaced along first axis. "
+        "The beam fits format does not support unevenly spaced pixels.",
+    ):
+        power_beam2.write_beamfits(write_file_beamfits)
 
     # Test selecting on axis2
     inds2_to_keep = np.arange(5, 14)
@@ -1329,7 +1364,8 @@ def test_select_axis(cst_power_1freq, tmp_path):
     power_beam2.write_beamfits(write_file_beamfits, clobber=True)
 
     # check for errors associated with indices not included in data
-    pytest.raises(ValueError, power_beam2.select, axis2_inds=[power_beam.Naxes2 - 1])
+    with pytest.raises(ValueError, match="axis2_inds must be > 0 and < Naxes2"):
+        power_beam2.select(axis2_inds=[power_beam.Naxes2 - 1])
 
     # check for warnings and errors associated with unevenly spaced image pixels
     power_beam2 = power_beam.copy()
@@ -1337,7 +1373,12 @@ def test_select_axis(cst_power_1freq, tmp_path):
         UserWarning, "Selected values along second image axis are not evenly spaced"
     ):
         power_beam2.select(axis2_inds=[0, 5, 6])
-    pytest.raises(ValueError, power_beam2.write_beamfits, write_file_beamfits)
+    with pytest.raises(
+        ValueError,
+        match="The pixels are not evenly spaced along second axis. "
+        "The beam fits format does not support unevenly spaced pixels.",
+    ):
+        power_beam2.write_beamfits(write_file_beamfits)
 
 
 def test_select_frequencies(cst_power_1freq, tmp_path):
@@ -1388,10 +1429,13 @@ def test_select_frequencies(cst_power_1freq, tmp_path):
     power_beam2 = power_beam.select(frequencies=freqs_to_keep, inplace=False)
     power_beam2.write_beamfits(write_file_beamfits, clobber=True)
 
+    freq_select = np.max(power_beam.freq_array) + 10
     # check for errors associated with frequencies not included in data
-    pytest.raises(
-        ValueError, power_beam.select, frequencies=[np.max(power_beam.freq_array) + 10]
-    )
+    with pytest.raises(
+        ValueError,
+        match="Frequency {f} is not present in the freq_array".format(f=freq_select),
+    ):
+        power_beam.select(frequencies=[freq_select])
 
     # check for warnings and errors associated with unevenly spaced frequencies
     power_beam2 = power_beam.copy()
@@ -1399,7 +1443,8 @@ def test_select_frequencies(cst_power_1freq, tmp_path):
         UserWarning, "Selected frequencies are not evenly spaced"
     ):
         power_beam2.select(frequencies=power_beam2.freq_array[0, [0, 5, 6]])
-    pytest.raises(ValueError, power_beam2.write_beamfits, write_file_beamfits)
+    with pytest.raises(ValueError, match="The frequencies are not evenly spaced "):
+        power_beam2.write_beamfits(write_file_beamfits)
 
     # Test selecting on freq_chans
     chans_to_keep = np.arange(2, 7)
@@ -1468,21 +1513,33 @@ def test_select_feeds(cst_efield_1freq):
     )
 
     # check for errors associated with feeds not included in data
-    pytest.raises(ValueError, efield_beam.select, feeds=["N"])
+    with pytest.raises(
+        ValueError, match="Feed {f} is not present in the feed_array".format(f="N")
+    ):
+        efield_beam.select(feeds=["N"])
 
     # check for error with selecting polarizations on efield beams
-    pytest.raises(ValueError, efield_beam.select, polarizations=[-5, -6])
+    with pytest.raises(
+        ValueError, match="polarizations cannot be used with efield beams"
+    ):
+        efield_beam.select(polarizations=[-5, -6])
 
     # Test check basis vectors
     efield_beam.basis_vector_array[0, 1, :, :] = 1.0
-    pytest.raises(ValueError, efield_beam.check)
+    with pytest.raises(
+        ValueError, match="basis vectors must have lengths of 1 or less."
+    ):
+        efield_beam.check()
 
     efield_beam.basis_vector_array[0, 0, :, :] = np.sqrt(0.5)
     efield_beam.basis_vector_array[0, 1, :, :] = np.sqrt(0.5)
     assert efield_beam.check()
 
     efield_beam.basis_vector_array = None
-    pytest.raises(ValueError, efield_beam.check)
+    with pytest.raises(
+        ValueError, match="Required UVParameter _basis_vector_array has not been set."
+    ):
+        efield_beam.check()
 
 
 def test_select_polarizations(cst_power_1freq):
@@ -1527,7 +1584,11 @@ def test_select_polarizations(cst_power_1freq):
     )
 
     # check for errors associated with polarizations not included in data
-    pytest.raises(ValueError, power_beam.select, polarizations=[-3, -4])
+    with pytest.raises(
+        ValueError,
+        match="polarization {p} is not present in the polarization_array".format(p=-3),
+    ):
+        power_beam.select(polarizations=[-3, -4])
 
     # check for warnings and errors associated with unevenly spaced polarizations
     with uvtest.check_warnings(
@@ -1535,10 +1596,14 @@ def test_select_polarizations(cst_power_1freq):
     ):
         power_beam.select(polarizations=power_beam.polarization_array[[0, 1, 3]])
     write_file_beamfits = os.path.join(DATA_PATH, "test/select_beam.fits")
-    pytest.raises(ValueError, power_beam.write_beamfits, write_file_beamfits)
+    with pytest.raises(
+        ValueError, match="The polarization values are not evenly spaced "
+    ):
+        power_beam.write_beamfits(write_file_beamfits)
 
     # check for error with selecting on feeds on power beams
-    pytest.raises(ValueError, power_beam.select, feeds=["x"])
+    with pytest.raises(ValueError, match="feeds cannot be used with power beams"):
+        power_beam.select(feeds=["x"])
 
 
 def test_select(cst_power_1freq, cst_efield_1freq):
@@ -1969,7 +2034,8 @@ def test_add(cst_power_1freq, cst_efield_1freq):
 
     # Wrong class
     beam1 = power_beam.copy()
-    pytest.raises(ValueError, beam1.__iadd__, np.zeros(5))
+    with pytest.raises(ValueError, match="Only UVBeam "):
+        beam1.__iadd__(np.zeros(5))
 
     params_to_change = {
         "beam_type": "efield",
@@ -1986,14 +2052,34 @@ def test_add(cst_power_1freq, cst_efield_1freq):
     }
 
     beam1 = power_beam.select(freq_chans=0, inplace=False)
+    beam2 = power_beam.select(freq_chans=1, inplace=False)
     for param, value in params_to_change.items():
-        beam2 = power_beam.select(freq_chans=1, inplace=False)
-        setattr(beam2, param, value)
-        pytest.raises(ValueError, beam1.__iadd__, beam2)
+        beam1_copy = beam1.copy()
+        if param == "beam_type":
+            beam2_copy = efield_beam.select(freq_chans=1, inplace=False)
+        elif param == "Naxes_vec":
+            beam2_copy = beam2.copy()
+            beam2_copy.Naxes_vec = value
+            beam2_copy.data_array = np.concatenate(
+                (beam2_copy.data_array, beam2_copy.data_array, beam2_copy.data_array)
+            )
+        else:
+            beam2_copy = beam2.copy()
+            setattr(beam2_copy, param, value)
+        with pytest.raises(
+            ValueError,
+            match=f"UVParameter {param} does not match. Cannot combine objects.",
+        ):
+            beam1_copy.__iadd__(beam2_copy)
+    del beam1_copy
+    del beam2_copy
 
     # Overlapping data
     beam2 = power_beam.copy()
-    pytest.raises(ValueError, beam1.__iadd__, beam2)
+    with pytest.raises(
+        ValueError, match="These objects have overlapping data and cannot be combined."
+    ):
+        beam1.__iadd__(beam2)
 
 
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
@@ -2045,9 +2131,12 @@ def test_select_healpix_pixels(
     beam_healpix2.write_beamfits(write_file_beamfits, clobber=True)
 
     # check for errors associated with pixels not included in data
-    pytest.raises(
-        ValueError, beam_healpix.select, pixels=[12 * beam_healpix.nside ** 2 + 10],
-    )
+    pixel_select = 12 * beam_healpix.nside ** 2 + 10
+    with pytest.raises(
+        ValueError,
+        match="Pixel {p} is not present in the pixel_array".format(p=pixel_select),
+    ):
+        beam_healpix.select(pixels=[pixel_select])
 
     # test writing beamfits with non-contiguous pixels
     pixels_to_keep = np.arange(2, 150, 4)
@@ -2058,11 +2147,17 @@ def test_select_healpix_pixels(
     # -----------------
     # check for errors selecting axis1_inds on healpix beams
     inds1_to_keep = np.arange(14, 63)
-    pytest.raises(ValueError, beam_healpix.select, axis1_inds=inds1_to_keep)
+    with pytest.raises(
+        ValueError, match="axis1_inds cannot be used with healpix coordinate system"
+    ):
+        beam_healpix.select(axis1_inds=inds1_to_keep)
 
     # check for errors selecting axis2_inds on healpix beams
     inds2_to_keep = np.arange(5, 14)
-    pytest.raises(ValueError, beam_healpix.select, axis2_inds=inds2_to_keep)
+    with pytest.raises(
+        ValueError, match="axis2_inds cannot be used with healpix coordinate system"
+    ):
+        beam_healpix.select(axis2_inds=inds2_to_keep)
 
     # ------------------------
     # test selecting along all axes at once for healpix beams
@@ -2230,7 +2325,10 @@ def test_add_healpix(
     # Test error: adding overlapping data with healpix
     beam1 = beam_healpix.copy()
     beam2 = beam_healpix.copy()
-    pytest.raises(ValueError, beam1.__iadd__, beam2)
+    with pytest.raises(
+        ValueError, match="These objects have overlapping data and cannot be combined."
+    ):
+        beam1.__iadd__(beam2)
 
 
 def test_beam_area_healpix(cst_power_1freq_cut_healpix, cst_efield_1freq_cut_healpix):
@@ -2238,12 +2336,17 @@ def test_beam_area_healpix(cst_power_1freq_cut_healpix, cst_efield_1freq_cut_hea
 
     # Test beam area methods
     # Check that non-peak normalizations error
-    pytest.raises(ValueError, power_beam_healpix.get_beam_area)
-    pytest.raises(ValueError, power_beam_healpix.get_beam_sq_area)
+    with pytest.raises(ValueError, match="beam must be peak normalized"):
+        power_beam_healpix.get_beam_area()
+    with pytest.raises(ValueError, match="beam must be peak normalized"):
+        power_beam_healpix.get_beam_sq_area()
+
     healpix_norm = power_beam_healpix.copy()
     healpix_norm.data_normalization = "solid_angle"
-    pytest.raises(ValueError, healpix_norm.get_beam_area)
-    pytest.raises(ValueError, healpix_norm.get_beam_sq_area)
+    with pytest.raises(ValueError, match="beam must be peak normalized"):
+        healpix_norm.get_beam_area()
+    with pytest.raises(ValueError, match="beam must be peak normalized"):
+        healpix_norm.get_beam_sq_area()
 
     # change it back to 'physical'
     healpix_norm.data_normalization = "physical"
@@ -2287,13 +2390,25 @@ def test_beam_area_healpix(cst_power_1freq_cut_healpix, cst_efield_1freq_cut_hea
     healpix_norm.polarization_array = [1, 2]
 
     # Check error if desired pol is allowed but isn't in the polarization_array
-    pytest.raises(ValueError, healpix_norm.get_beam_area, pol="xx")
-    pytest.raises(ValueError, healpix_norm.get_beam_sq_area, pol="xx")
+    with pytest.raises(
+        ValueError, match="Do not have the right polarization information"
+    ):
+        healpix_norm.get_beam_area(pol="xx")
+    with pytest.raises(
+        ValueError, match="Do not have the right polarization information"
+    ):
+        healpix_norm.get_beam_sq_area(pol="xx")
 
     # Check polarization error
     healpix_norm.polarization_array = [9, 18, 27, -4]
-    pytest.raises(ValueError, healpix_norm.get_beam_area, pol="xx")
-    pytest.raises(ValueError, healpix_norm.get_beam_sq_area, pol="xx")
+    with pytest.raises(
+        ValueError, match="Do not have the right polarization information"
+    ):
+        healpix_norm.get_beam_area(pol="xx")
+    with pytest.raises(
+        ValueError, match="Do not have the right polarization information"
+    ):
+        healpix_norm.get_beam_sq_area(pol="xx")
 
     efield_beam = cst_efield_1freq_cut_healpix
     healpix_norm_fullpol = efield_beam.efield_to_power(inplace=False)
@@ -2315,12 +2430,16 @@ def test_beam_area_healpix(cst_power_1freq_cut_healpix, cst_efield_1freq_cut_hea
         keep_basis_vector=True, calc_cross_pols=False, inplace=False
     )
     healpix_vec_norm.peak_normalize()
-    pytest.raises(ValueError, healpix_vec_norm.get_beam_area)
-    pytest.raises(ValueError, healpix_vec_norm.get_beam_sq_area)
+    with pytest.raises(ValueError, match="Expect scalar for power beam, found vector"):
+        healpix_vec_norm.get_beam_area()
+    with pytest.raises(ValueError, match="Expect scalar for power beam, found vector"):
+        healpix_vec_norm.get_beam_sq_area()
 
     # Check only power beams accepted
-    pytest.raises(ValueError, efield_beam.get_beam_area)
-    pytest.raises(ValueError, efield_beam.get_beam_sq_area)
+    with pytest.raises(ValueError, match="beam_type must be power"):
+        efield_beam.get_beam_area()
+    with pytest.raises(ValueError, match="beam_type must be power"):
+        efield_beam.get_beam_sq_area()
 
     # check pseudo-Stokes parameters
     efield_beam = cst_efield_1freq_cut_healpix
@@ -2344,24 +2463,34 @@ def test_beam_area_healpix(cst_power_1freq_cut_healpix, cst_efield_1freq_cut_hea
 
     # check efield beam type is accepted for pseudo-stokes and power for
     # linear polarizations
-    pytest.raises(ValueError, healpix_vec_norm.get_beam_sq_area, "pI")
-    pytest.raises(ValueError, efield_beam.get_beam_sq_area, "xx")
+    with pytest.raises(ValueError, match="Expect scalar for power beam, found vector"):
+        healpix_vec_norm.get_beam_sq_area("pI")
+    with pytest.raises(
+        ValueError, match="Do not have the right polarization information"
+    ):
+        efield_beam.get_beam_sq_area("xx")
 
 
 def test_get_beam_function_errors(cst_power_1freq_cut):
     power_beam = cst_power_1freq_cut.copy()
 
-    pytest.raises(AssertionError, power_beam._get_beam, "xx")
+    with pytest.raises(AssertionError, match="pixel_coordinate_system must be healpix"):
+        power_beam._get_beam("xx")
 
     # Check only healpix accepted (HEALPix checks are in test_healpix)
     # change data_normalization to peak for rest of checks
     power_beam.peak_normalize()
-    pytest.raises(ValueError, power_beam.get_beam_area)
-    pytest.raises(ValueError, power_beam.get_beam_sq_area)
+    with pytest.raises(ValueError, match="Currently only healpix format supported"):
+        power_beam.get_beam_area()
+    with pytest.raises(ValueError, match="Currently only healpix format supported"):
+        power_beam.get_beam_sq_area()
 
 
 def test_get_beam_functions(cst_power_1freq_cut_healpix):
     healpix_power_beam = cst_power_1freq_cut_healpix
     healpix_power_beam.peak_normalize()
     healpix_power_beam._get_beam("xx")
-    pytest.raises(ValueError, healpix_power_beam._get_beam, 4)
+    with pytest.raises(
+        ValueError, match="Do not have the right polarization information"
+    ):
+        healpix_power_beam._get_beam(4)
