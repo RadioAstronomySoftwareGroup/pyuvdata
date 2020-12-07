@@ -232,30 +232,40 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _ECEF_FROM_ENU(
     numpy.float64_t[::1] _lon,
     numpy.float64_t[::1] _alt,
 ):
-  cdef int i
-  cdef int nblts = enu.shape[0]
-  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] xyz = np.empty((nblts, 3), dtype=np.float64)
-  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=1] xyz_center = _xyz_from_latlonalt(_lat, _lon, _alt)
+    cdef Py_ssize_t i
+    cdef int nblts = enu.shape[1]
+    cdef numpy.float64_t sin_lat, cos_lat, sin_lon, cos_lon
 
-  # make a memoryview for the numpy array in c
-  cdef numpy.float64_t[:, ::1] _xyz = xyz
-  with nogil:
+    # allocate memory then make memory view for faster access
+    cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _xyz = np.zeros((3, nblts), dtype=np.float64)
+    cdef numpy.float64_t[:, ::1] xyz = _xyz
+
+    # we want a memoryview of the xyz of the center
+    # this looks a little silly but we don't have to define 2 different things
+    cdef numpy.float64_t[:] xyz_center = _xyz_from_latlonalt(_lat, _lon, _alt)[:, 0]
+
+    sin_lat = sin(_lat[0])
+    cos_lat = cos(_lat[0])
+
+    sin_lon = sin(_lon[0])
+    cos_lon = cos(_lon[0])
+
     for i in range(nblts):
-      _xyz[i, 0] = (
-        - sin(_lat[0]) * cos(_lon[0]) * enu[i, 1]
-        - sin(_lon[0]) * enu[i, 0]
-        + cos(_lat[0]) * cos(_lon[0]) * enu[i, 2]
-        + xyz_center[0]
-      )
-      _xyz[i, 1] = (
-        - sin(_lat[0]) * sin(_lon[0]) * enu[i, 1]
-        + cos(_lon[0]) * enu[i, 0]
-        + cos(_lat[0]) * sin(_lon[0]) * enu[i, 2]
-        + xyz_center[1]
-      )
-      _xyz[i, 2] = cos(_lat[0]) * enu[i, 1] + sin(_lat[0]) * enu[i, 2] + xyz_center[2]
+        xyz[0, i] = (
+            - sin_lat * cos_lon * enu[1, i]
+            - sin_lon * enu[0, i]
+            + cos_lat * cos_lon * enu[2, i]
+            + xyz_center[0]
+        )
+        xyz[1, i] = (
+            - sin_lat * sin_lon * enu[1, i]
+            + cos_lon * enu[0, i]
+            + cos_lat * sin_lon * enu[2, i]
+            + xyz_center[1]
+        )
+        xyz[2, i] = cos_lat * enu[1, i] + sin_lat * enu[2, i] + xyz_center[2]
 
-  return xyz
+    return _xyz
 
 # inital_uvw is a memoryviewed array as an input
 @cython.boundscheck(False)
