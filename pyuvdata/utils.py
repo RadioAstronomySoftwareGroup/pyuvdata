@@ -885,18 +885,17 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
         numpy array, shape (Npts, 3), with local ENU coordinates
 
     """
-    xyz = np.array(xyz)
+    xyz = np.asarray(xyz)
     if xyz.ndim > 1 and xyz.shape[1] != 3:
         raise ValueError("The expected shape of ECEF xyz array is (Npts, 3).")
 
-    xyz_in = xyz
-
-    if xyz_in.ndim == 1:
-        xyz_in = xyz_in[np.newaxis, :]
+    if xyz.ndim == 1:
+        xyz = xyz[np.newaxis, :]
+    xyz = np.ascontiguousarray(xyz.T, dtype=np.float64)
 
     # check that these are sensible ECEF values -- their magnitudes need to be
     # on the order of Earth's radius
-    ecef_magnitudes = np.linalg.norm(xyz_in, axis=1)
+    ecef_magnitudes = np.linalg.norm(xyz, axis=0)
     sensible_radius_range = (6.35e6, 6.39e6)
     if np.any(ecef_magnitudes <= sensible_radius_range[0]) or np.any(
         ecef_magnitudes >= sensible_radius_range[1]
@@ -905,12 +904,16 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
             "ECEF vector magnitudes must be on the order of the radius of the earth"
         )
 
+    # the cython utility expects (3, Npts) for faster manipulation
+    # transpose after we get the array back to match the expected shape
     enu = _utils._ENU_from_ECEF(
-        np.ascontiguousarray(xyz_in, dtype=np.float64),
+        xyz,
         np.ascontiguousarray(latitude, dtype=np.float64),
         np.ascontiguousarray(longitude, dtype=np.float64),
         np.ascontiguousarray(altitude, dtype=np.float64),
     )
+
+    enu = enu.T
     if len(xyz.shape) == 1:
         enu = np.squeeze(enu)
 
@@ -950,7 +953,7 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
     enu = np.ascontiguousarray(enu.T, dtype=np.float64)
 
     # the cython utility expects (3, Npts) for faster manipulation
-    # transposer after we get the array back to match the expected shape
+    # transpose after we get the array back to match the expected shape
     xyz = _utils._ECEF_FROM_ENU(
         enu,
         np.ascontiguousarray(latitude, dtype=np.float64),
