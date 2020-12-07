@@ -271,59 +271,76 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _ECEF_FROM_ENU(
 # inital_uvw is a memoryviewed array as an input
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef numpy.ndarray[dtype=numpy.float64_t] _phase_uvw(
+cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _phase_uvw(
     numpy.float64_t ra,
     numpy.float64_t dec,
     numpy.float64_t[:, ::1] initial_uvw
 ):
   cdef int i
-  cdef int nuvw = initial_uvw.shape[0]
-  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] uvw = np.empty((nuvw, 3), dtype=np.float64)
+  cdef int nuvw = initial_uvw.shape[1]
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] uvw = np.empty((3, nuvw), dtype=np.float64)
 
   # make a memoryview for the numpy array in c
   cdef numpy.float64_t[:, ::1] _uvw = uvw
 
+  cdef numpy.float64_t sin_ra, cos_ra, sin_dec, cos_dec
+
+  sin_ra = sin(ra)
+  cos_ra = cos(ra)
+  sin_dec = sin(dec)
+  cos_dec = cos(dec)
+
   for i in range(nuvw):
-    _uvw[i, 0] = - sin(ra) * initial_uvw[i, 0] + cos(ra) * initial_uvw[i, 1]
-    _uvw[i, 1] = (
-      - sin(dec) * cos(ra) * initial_uvw[i, 0]
-      - sin(dec) * sin(ra) * initial_uvw[i, 1]
-      + cos(dec) * initial_uvw[i, 2]
+    _uvw[0, i] = - sin_ra * initial_uvw[0, i] + cos_ra * initial_uvw[1, i]
+
+    _uvw[1, i] = (
+      - sin_dec * cos_ra * initial_uvw[0, i]
+      - sin_dec * sin_ra * initial_uvw[1, i]
+      + cos_dec * initial_uvw[2, i]
     )
-    _uvw[i, 2] = (
-      cos(dec) * cos(ra) * initial_uvw[i, 0]
-      + cos(dec) * sin(ra) * initial_uvw[i, 1]
-      + sin(dec) * initial_uvw[i, 2]
+
+    _uvw[2, i] = (
+      cos_dec * cos_ra * initial_uvw[0, i]
+      + cos_dec * sin_ra * initial_uvw[1, i]
+      + sin_dec * initial_uvw[2, i]
     )
   return uvw
 
 # uvw is a memoryviewed array as an input
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef numpy.ndarray[dtype=numpy.float64_t] _unphase_uvw(
+cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _unphase_uvw(
     numpy.float64_t ra,
     numpy.float64_t dec,
     numpy.float64_t[:, ::1] uvw
 ):
   cdef int i
-  cdef int nuvw = uvw.shape[0]
-  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] unphased_uvw = np.empty((nuvw, 3), dtype=np.float64)
+  cdef int nuvw = uvw.shape[1]
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] unphased_uvw = np.empty((3, nuvw), dtype=np.float64)
 
   # make a memoryview for the numpy array in c
   cdef numpy.float64_t[:, ::1] _u_uvw = unphased_uvw
+
+  cdef numpy.float64_t sin_ra, cos_ra, sin_dec, cos_dec
+
+  sin_ra = sin(ra)
+  cos_ra = cos(ra)
+  sin_dec = sin(dec)
+  cos_dec = cos(dec)
+
   for i in range(nuvw):
-    _u_uvw[i, 0] = (
-      - sin(ra) * uvw[i, 0]
-      - sin(dec) * cos(ra) * uvw[i, 1]
-      + cos(dec) * cos(ra) * uvw[i, 2]
+    _u_uvw[0, i] = (
+      - sin_ra * uvw[0, i]
+      - sin_dec * cos_ra * uvw[1, i]
+      + cos_dec * cos_ra * uvw[2, i]
     )
 
-    _u_uvw[i, 1] = (
-      cos(ra) * uvw[i, 0]
-      - sin(dec) * sin(ra) * uvw[i, 1]
-      + cos(dec) * sin(ra) * uvw[i, 2]
+    _u_uvw[1, i] = (
+      cos_ra * uvw[0, i]
+      - sin_dec * sin_ra * uvw[1, i]
+      + cos_dec * sin_ra * uvw[2, i]
     )
 
-    _u_uvw[i, 2] = cos(dec) * uvw[i, 1] + sin(dec) * uvw[i, 2]
+    _u_uvw[2, i] = cos_dec * uvw[1, i] + sin_dec * uvw[2, i]
 
   return unphased_uvw
