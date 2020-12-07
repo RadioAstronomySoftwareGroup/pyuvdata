@@ -939,22 +939,26 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
         numpy array, shape (Npts, 3), with ECEF x,y,z coordinates.
 
     """
-    enu = np.array(enu)
+    enu = np.asarray(enu)
     if enu.ndim > 1 and enu.shape[1] != 3:
         raise ValueError("The expected shape of the ENU array is (Npts, 3).")
+    squeeze = False
 
-    enu_use = enu
+    if enu.ndim == 1:
+        squeeze = True
+        enu = enu[np.newaxis, :]
+    enu = np.ascontiguousarray(enu.T, dtype=np.float64)
 
-    if enu_use.ndim == 1:
-        enu_use = enu_use[np.newaxis, :]
+    # the cython utility expects (3, Npts) for faster manipulation
+    # transposer after we get the array back to match the expected shape
     xyz = _utils._ECEF_FROM_ENU(
-        np.ascontiguousarray(enu_use, dtype=np.float64),
+        enu,
         np.ascontiguousarray(latitude, dtype=np.float64),
         np.ascontiguousarray(longitude, dtype=np.float64),
         np.ascontiguousarray(altitude, dtype=np.float64),
     )
-
-    if len(enu.shape) == 1:
+    xyz = xyz.T
+    if squeeze:
         xyz = np.squeeze(xyz)
 
     return xyz
