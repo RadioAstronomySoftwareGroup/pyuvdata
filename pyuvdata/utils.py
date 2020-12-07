@@ -1000,8 +1000,8 @@ def phase_uvw(ra, dec, initial_uvw):
     return _utils._phase_uvw(
         np.float64(ra),
         np.float64(dec),
-        np.ascontiguousarray(initial_uvw, dtype=np.float64),
-    )
+        np.ascontiguousarray(initial_uvw.T, dtype=np.float64),
+    ).T
 
 
 def unphase_uvw(ra, dec, uvw):
@@ -1032,8 +1032,8 @@ def unphase_uvw(ra, dec, uvw):
         uvw = uvw[np.newaxis, :]
 
     return _utils._unphase_uvw(
-        np.float64(ra), np.float64(dec), np.ascontiguousarray(uvw, dtype=np.float64),
-    )
+        np.float64(ra), np.float64(dec), np.ascontiguousarray(uvw.T, dtype=np.float64),
+    ).T
 
 
 def get_lst_for_time(jd_array, latitude, longitude, altitude):
