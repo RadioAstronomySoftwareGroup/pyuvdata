@@ -737,32 +737,28 @@ def LatLonAlt_from_XYZ(xyz, check_acceptability=True):
 
     """
     # convert to a numpy array
-    xyz = np.array(xyz)
+    xyz = np.asarray(xyz)
     if xyz.ndim > 1 and xyz.shape[1] != 3:
         raise ValueError("The expected shape of ECEF xyz array is (Npts, 3).")
 
-    else:
-        xyz_use = xyz
+    squeeze = xyz.ndim == 1
 
-    if xyz_use.ndim == 1:
-        xyz_use = xyz_use[np.newaxis, :]
+    if squeeze:
+        xyz = xyz[np.newaxis, :]
+
+    xyz = np.ascontiguousarray(xyz.T, dtype=np.float64)
 
     # checking for acceptable values
     if check_acceptability:
-        if np.any(np.linalg.norm(xyz_use, axis=1) < 6.35e6) or np.any(
-            np.linalg.norm(xyz_use, axis=1) > 6.39e6
-        ):
+        norms = np.linalg.norm(xyz, axis=1)
+        if not all(np.logical_and(norms >= 6.35e6, norms <= 6.39e6)):
             raise ValueError("xyz values should be ECEF x, y, z coordinates in meters")
+    # this helper function returns one 2D array because it is less overhead for cython
+    lla = _utils._lla_from_xyz(xyz)
 
-    latitude, longitude, altitude = _utils._latlonalt_from_xyz(
-        np.ascontiguousarray(xyz_use, dtype=np.float64)
-    )
-
-    if xyz.ndim == 1:
-        longitude = longitude[0]
-        latitude = latitude[0]
-        altitude = altitude[0]
-    return latitude, longitude, altitude
+    if squeeze:
+        return lla[0, 0], lla[1, 0], lla[2, 0]
+    return lla[0], lla[1], lla[2]
 
 
 def XYZ_from_LatLonAlt(latitude, longitude, altitude):
