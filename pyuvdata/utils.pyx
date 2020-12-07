@@ -43,14 +43,13 @@ cpdef tuple baseline_to_antnums(numpy.ndarray[ndim=1, dtype=numpy.int64_t] basel
   cdef numpy.int64_t[::1] _a2 = ant2
   cdef numpy.int64_t[::1] _bl = baseline
 
-  with nogil:
-    for i in range(n):
-      if _min > 2 ** 16:
-        _a2[i] = (_bl[i] - 2 ** 16) % 2048 - 1
-        _a1[i] = (_bl[i] - 2 ** 16 - (_a2[i] + 1)) // 2048 - 1
-      else:
-        _a2[i] = (_bl[i]) % 256 - 1
-        _a1[i] = (_bl[i] - (_a2[i] + 1)) // 256 - 1
+  for i in range(n):
+    if _min > 2 ** 16:
+      _a2[i] = (_bl[i] - 2 ** 16) % 2048 - 1
+      _a1[i] = (_bl[i] - 2 ** 16 - (_a2[i] + 1)) // 2048 - 1
+    else:
+      _a2[i] = (_bl[i]) % 256 - 1
+      _a1[i] = (_bl[i] - (_a2[i] + 1)) // 256 - 1
   return ant1, ant2
 
 
@@ -69,9 +68,8 @@ numpy.ndarray[ndim=1, dtype=numpy.int64_t] ant2,
   cdef numpy.int64_t[::1] _a1 = ant1
   cdef numpy.int64_t[::1] _a2 = ant2
 
-  with nogil:
-    for i in range(n):
-      _bl[i] = 2048 * (_a1[i] + 1) + (_a2[i] + 1) + 2 ** 16
+  for i in range(n):
+    _bl[i] = 2048 * (_a1[i] + 1) + (_a2[i] + 1) + 2 ** 16
 
   return baselines
 
@@ -90,9 +88,8 @@ numpy.ndarray[ndim=1, dtype=numpy.int64_t] ant2,
   cdef numpy.int64_t[::1] _a1 = ant1
   cdef numpy.int64_t[::1] _a2 = ant2
 
-  with nogil:
-    for i in range(n):
-      _bl[i] = 256 * (_a1[i] + 1) + (_a2[i] + 1)
+  for i in range(n):
+    _bl[i] = 256 * (_a1[i] + 1) + (_a2[i] + 1)
   return baselines
 
 cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
@@ -290,19 +287,19 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _phase_uvw(
 
   # make a memoryview for the numpy array in c
   cdef numpy.float64_t[:, ::1] _uvw = uvw
-  with nogil:
-    for i in range(nuvw):
-      _uvw[i, 0] = - sin(ra) * initial_uvw[i, 0] + cos(ra) * initial_uvw[i, 1]
-      _uvw[i, 1] = (
-        - sin(dec) * cos(ra) * initial_uvw[i, 0]
-        - sin(dec) * sin(ra) * initial_uvw[i, 1]
-        + cos(dec) * initial_uvw[i, 2]
-      )
-      _uvw[i, 2] = (
-        cos(dec) * cos(ra) * initial_uvw[i, 0]
-        + cos(dec) * sin(ra) * initial_uvw[i, 1]
-        + sin(dec) * initial_uvw[i, 2]
-      )
+
+  for i in range(nuvw):
+    _uvw[i, 0] = - sin(ra) * initial_uvw[i, 0] + cos(ra) * initial_uvw[i, 1]
+    _uvw[i, 1] = (
+      - sin(dec) * cos(ra) * initial_uvw[i, 0]
+      - sin(dec) * sin(ra) * initial_uvw[i, 1]
+      + cos(dec) * initial_uvw[i, 2]
+    )
+    _uvw[i, 2] = (
+      cos(dec) * cos(ra) * initial_uvw[i, 0]
+      + cos(dec) * sin(ra) * initial_uvw[i, 1]
+      + sin(dec) * initial_uvw[i, 2]
+    )
   return uvw
 
 # uvw is a memoryviewed array as an input
@@ -319,20 +316,19 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _unphase_uvw(
 
   # make a memoryview for the numpy array in c
   cdef numpy.float64_t[:, ::1] _u_uvw = unphased_uvw
-  with nogil:
-    for i in range(nuvw):
-      _u_uvw[i, 0] = (
-        - sin(ra) * uvw[i, 0]
-        - sin(dec) * cos(ra) * uvw[i, 1]
-        + cos(dec) * cos(ra) * uvw[i, 2]
-      )
+  for i in range(nuvw):
+    _u_uvw[i, 0] = (
+      - sin(ra) * uvw[i, 0]
+      - sin(dec) * cos(ra) * uvw[i, 1]
+      + cos(dec) * cos(ra) * uvw[i, 2]
+    )
 
-      _u_uvw[i, 1] = (
-        cos(ra) * uvw[i, 0]
-        - sin(dec) * sin(ra) * uvw[i, 1]
-        + cos(dec) * sin(ra) * uvw[i, 2]
-      )
+    _u_uvw[i, 1] = (
+      cos(ra) * uvw[i, 0]
+      - sin(dec) * sin(ra) * uvw[i, 1]
+      + cos(dec) * sin(ra) * uvw[i, 2]
+    )
 
-      _u_uvw[i, 2] = cos(dec) * uvw[i, 1] + sin(dec) * uvw[i, 2]
+    _u_uvw[i, 2] = cos(dec) * uvw[i, 1] + sin(dec) * uvw[i, 2]
 
   return unphased_uvw
