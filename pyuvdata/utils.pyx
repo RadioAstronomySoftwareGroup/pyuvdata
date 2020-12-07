@@ -26,6 +26,8 @@ cdef numpy.float64_t _gps_a = gps_a
 cdef numpy.float64_t _gps_b = gps_b
 cdef numpy.float64_t _e2 = e_squared
 cdef numpy.float64_t _ep2 = e_prime_squared
+# this one is useful in the xyz from lla calculation
+cdef numpy.float64_t b_div_a2 = (_gps_b / _gps_a)**2
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -153,31 +155,32 @@ cpdef _latlonalt_from_xyz(numpy.float64_t[:, ::1] xyz):
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cpdef numpy.ndarray[dtype=numpy.float64_t] _xyz_from_latlonalt(
+cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _xyz_from_latlonalt(
     numpy.float64_t[::1] _lat,
     numpy.float64_t[::1] _lon,
     numpy.float64_t[::1] _alt,
 ):
-  cdef int n_pts = len(_lat)
-  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] xyz = np.empty((n_pts, 3))
-  cdef numpy.float64_t _gps_a = gps_a
-  cdef numpy.float64_t _gps_b = gps_b
-  cdef numpy.float64_t _e2 = e_squared
-
-  # create a memoryview
+  cdef Py_ssize_t i
+  cdef int n_pts = _lat.shape[0]
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] xyz = np.empty((3, n_pts), dtype=np.float64)
   cdef numpy.float64_t[:, ::1] _xyz = xyz
 
-  cdef numpy.float64_t gps_n
-  with nogil:
-    for i in range(n_pts):
-      gps_n = _gps_a / sqrt(1.0 - _e2 * sin(_lat[i]) ** 2)
+  cdef numpy.float64_t  sin_lat, cos_lat, sin_lon, cos_lon, gps_n
 
-      _xyz[i, 0] = (gps_n + _alt[i]) * cos(_lat[i]) * cos(_lon[i])
-      _xyz[i, 1] = (gps_n + _alt[i]) * cos(_lat[i]) * sin(_lon[i])
+  for ind in range(n_pts):
+      sin_lat = sin(_lat[ind])
+      sin_lon = sin(_lon[ind])
 
-      _xyz[i, 2] = (_gps_b ** 2 / _gps_a ** 2 * gps_n + _alt[i]) * sin(_lat[i])
+      cos_lat = cos(_lat[ind])
+      cos_lon = cos(_lon[ind])
 
-  return xyz.squeeze()
+      gps_n = _gps_a / sqrt(1.0 - _e2 * sin_lat ** 2)
+
+      _xyz[0, ind] = (gps_n + _alt[ind]) * cos_lat * cos_lon
+      _xyz[1, ind] = (gps_n + _alt[ind]) * cos_lat * sin_lon
+
+      _xyz[2, ind] = (b_div_a2 * gps_n + _alt[ind]) * sin_lat
+  return xyz
 
 # this function takes memoryviews as inputs
 # that is why _lat, _lon, and _alt are indexed below to get the 0th entry

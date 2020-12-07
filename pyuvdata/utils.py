@@ -787,7 +787,9 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude):
     latitude = np.ascontiguousarray(latitude, dtype=np.float64)
     longitude = np.ascontiguousarray(longitude, dtype=np.float64)
     altitude = np.ascontiguousarray(altitude, dtype=np.float64)
+
     n_pts = latitude.size
+
     if longitude.size != n_pts:
         raise ValueError(
             "latitude, longitude and altitude must all have the same length"
@@ -797,7 +799,12 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude):
             "latitude, longitude and altitude must all have the same length"
         )
 
-    return _utils._xyz_from_latlonalt(latitude, longitude, altitude)
+    xyz = _utils._xyz_from_latlonalt(latitude, longitude, altitude)
+    xyz = xyz.T
+    if n_pts == 1:
+        return xyz[0]
+
+    return xyz
 
 
 def rotECEF_from_ECEF(xyz, longitude):
