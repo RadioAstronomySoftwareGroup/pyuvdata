@@ -750,7 +750,7 @@ def LatLonAlt_from_XYZ(xyz, check_acceptability=True):
 
     # checking for acceptable values
     if check_acceptability:
-        norms = np.linalg.norm(xyz, axis=1)
+        norms = np.linalg.norm(xyz, axis=0)
         if not all(np.logical_and(norms >= 6.35e6, norms <= 6.39e6)):
             raise ValueError("xyz values should be ECEF x, y, z coordinates in meters")
     # this helper function returns one 2D array because it is less overhead for cython
