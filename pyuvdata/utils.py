@@ -889,7 +889,9 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
     if xyz.ndim > 1 and xyz.shape[1] != 3:
         raise ValueError("The expected shape of ECEF xyz array is (Npts, 3).")
 
+    squeeze = False
     if xyz.ndim == 1:
+        squeeze = True
         xyz = xyz[np.newaxis, :]
     xyz = np.ascontiguousarray(xyz.T, dtype=np.float64)
 
@@ -914,7 +916,7 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
     )
 
     enu = enu.T
-    if len(xyz.shape) == 1:
+    if squeeze:
         enu = np.squeeze(enu)
 
     return enu
