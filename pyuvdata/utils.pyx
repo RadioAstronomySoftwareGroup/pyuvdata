@@ -187,40 +187,49 @@ cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _xyz_from_latlonalt(
 # that is why _lat, _lon, and _alt are indexed below to get the 0th entry
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef numpy.ndarray[dtype=numpy.float64_t] _ENU_from_ECEF(
+cpdef numpy.ndarray[numpy.float64_t, ndim=2] _ENU_from_ECEF(
     numpy.float64_t[:, ::1] xyz,
     numpy.float64_t[::1] _lat,
     numpy.float64_t[::1] _lon,
     numpy.float64_t[::1] _alt,
 ):
-  cdef int i
-  cdef int nblts = xyz.shape[0]
-  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] enu = np.empty((nblts, 3), dtype=np.float64)
+    cdef Py_ssize_t i
+    cdef int nblts = xyz.shape[1]
+    cdef numpy.float64_t xyz_use[3]
 
-  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=1] xyz_center = _xyz_from_latlonalt(_lat, _lon, _alt)
-  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=1] xyz_use = np.empty(3, dtype=np.float64)
-  # make a memoryview for the numpy array in c
-  cdef numpy.float64_t[:, ::1] _enu = enu
+    cdef numpy.float64_t sin_lat, cos_lat, sin_lon, cos_lon
 
-  with nogil:
+    # we want a memoryview of the xyz of the center
+    # this looks a little silly but we don't have to define 2 different things
+    cdef numpy.float64_t[:] xyz_center = _xyz_from_latlonalt(_lat, _lon, _alt)[:, 0]
+
+    cdef numpy.ndarray[numpy.float64_t, ndim=2] _enu = np.empty((3, nblts), dtype=np.float64)
+    cdef numpy.float64_t[:, ::1] enu = _enu
+
+    sin_lat = sin(_lat[0])
+    cos_lat = cos(_lat[0])
+
+    sin_lon = sin(_lon[0])
+    cos_lon = cos(_lon[0])
+
     for i in range(nblts):
-      xyz_use[0] = xyz[i, 0] - xyz_center[0]
-      xyz_use[1] = xyz[i, 1] - xyz_center[1]
-      xyz_use[2] = xyz[i, 2] - xyz_center[2]
+        xyz_use[0] = xyz[0, i] - xyz_center[0]
+        xyz_use[1] = xyz[1, i] - xyz_center[1]
+        xyz_use[2] = xyz[2, i] - xyz_center[2]
 
-      _enu[i, 0] = -sin(_lon[0]) * xyz_use[0] + cos(_lon[0]) * xyz_use[1]
-      _enu[i, 1] = (
-        - sin(_lat[0]) * cos(_lon[0]) * xyz_use[0]
-        - sin(_lat[0]) * sin(_lon[0]) * xyz_use[1]
-        + cos(_lat[0]) * xyz_use[2]
-      )
-      _enu[i, 2] = (
-        cos(_lat[0]) * cos(_lon[0]) * xyz_use[0]
-        + cos(_lat[0]) * sin(_lon[0]) * xyz_use[1]
-        + sin(_lat[0]) * xyz_use[2]
-      )
+        enu[0, i] = -sin_lon * xyz_use[0] + cos_lon * xyz_use[1]
+        enu[1, i] = (
+          - sin_lat * cos_lon * xyz_use[0]
+          - sin_lat * sin_lon * xyz_use[1]
+          + cos_lat * xyz_use[2]
+        )
+        enu[2, i] = (
+          cos_lat * cos_lon * xyz_use[0]
+          + cos_lat * sin_lon * xyz_use[1]
+          + sin_lat * xyz_use[2]
+        )
 
-  return enu
+    return _enu
 
 # this function takes memoryviews as inputs
 # that is why _lat, _lon, and _alt are indexed below to get the 0th entry
