@@ -13,6 +13,5 @@ dependencies:
   - pyyaml
   - scipy
   - setuptools_scm
-  - six
   - pip:
       - pytest-xdist

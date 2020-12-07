@@ -190,7 +190,7 @@ Note that this will attempt to automatically install any missing dependencies.
 If you use anaconda or another package manager you might prefer to first install
 the dependencies as described in [Dependencies](#dependencies).
 
-To install without dependencies, run `pip install --no-deps`
+To install without dependencies, run `pip install --no-deps .`
 
 To compile the binary extension modules such that you can successfully run
 `import pyuvdata` from the top-level directory of your Git checkout, run:
