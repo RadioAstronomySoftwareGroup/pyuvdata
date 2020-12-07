@@ -7,6 +7,7 @@ dependencies:
   - astropy-healpix
   - h5py
   - numpy>=1.18
+  - pre-commit
   - pypandoc
   - python-casacore
   - pyyaml
@@ -20,4 +21,3 @@ dependencies:
   - pip:
       - pytest-cases>=1.12.1
       - pytest-xdist
-      - pre-commit
