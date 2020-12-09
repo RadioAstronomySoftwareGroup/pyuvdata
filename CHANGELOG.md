@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - Modified `UVData.read` to do faster concatenation of files, changed the interface to `UVData.fast_concat` to allow lists of `UVData` objects to be passed in.
 
 ### Fixed
+- Fixed a bug where the `lst_array` was not updated in `compress_by_redundancy` when using `method='average'`.
 - Fixed an undefined parameter bug when interpolating beams that do not cover the sky.
 - Fixed an indexing error bug in `compress_by_redundancy` when using `method='average'`.
 
