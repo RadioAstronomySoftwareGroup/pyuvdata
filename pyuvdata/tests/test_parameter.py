@@ -267,14 +267,14 @@ def test_non_builtin_expected_type():
 
 
 def test_strict_expected_type():
-    param1 = uvp.UVParameter("_test", expected_type=np.float128, strict_type_check=True)
-    assert param1.expected_type == np.float128
+    param1 = uvp.UVParameter("_test", expected_type=np.float64, strict_type_check=True)
+    assert param1.expected_type == np.float64
 
 
 @pytest.mark.parametrize(
     "in_type,out_type",
     [
-        (np.float128, (float, np.floating)),
+        (np.float64, (float, np.floating)),
         (int, (int, np.integer)),
         (np.complex64, (complex, np.complexfloating)),
         (np.uint, (np.unsignedinteger)),
