@@ -130,7 +130,7 @@ workflows:
   build_and_test:
     jobs:
       - linter:
-          python_version: "3.6"
+          python_version: "3.8"
           env_name: "pyuvdata_linting"
       - pyuvdata:
           name: pyuvdata_3.6
@@ -146,8 +146,8 @@ workflows:
           env_name: "pyuvdata_tests"
       - pyuvdata:
           name: pyuvdata_min_deps
-          python_version: "3.6"
+          python_version: "3.8"
           env_name: "pyuvdata_min_deps_tests"
       - doctest:
-          python_version: "3.6"
-          env_name: "pyuvdata_doctests"
+          python_version: "3.8"
+          env_name: "pyuvdata_tests"
