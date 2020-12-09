@@ -16,5 +16,5 @@ dependencies:
   - setuptools_scm
   - pip
   - pip:
-      - pytest-cases>=1.12.1
+      - pytest-cases>=2.7.2
       - pytest-xdist
