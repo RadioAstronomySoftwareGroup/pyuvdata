@@ -748,11 +748,12 @@ class UVData(UVBase):
                         # object definition, but nothing that a normal user
                         # does will cause an error
                         assert telescope_shape == () and self_shape != "str"
+                        # this parameter is as of this comment most likely a float
+                        # since only diameters and antenna positions will probably
+                        # trigger this else statement
+                        # assign float64 as the type of the array
                         array_val = (
-                            np.zeros(
-                                self_shape,
-                                dtype=np.asarray(telescope_param.value).dtype,
-                            )
+                            np.zeros(self_shape, dtype=np.float64,)
                             + telescope_param.value
                         )
                         params_set.append(self_param.name)
