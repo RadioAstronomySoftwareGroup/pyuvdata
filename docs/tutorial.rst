@@ -638,8 +638,8 @@ c) Select a few antenna pairs to keep
 
   # note that order of the values in the pair does not matter
   # print all the antenna pairs after the select
-  >>> print(list(set(zip(UV.ant_1_array, UV.ant_2_array))))
-  [(0, 6), (0, 21), (0, 2)]
+  >>> print(sorted(set(zip(UV.ant_1_array, UV.ant_2_array))))
+  [(0, 2), (0, 6), (0, 21)]
 
 d) Select antenna pairs using baseline numbers
 **********************************************
