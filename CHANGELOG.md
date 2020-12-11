@@ -4,16 +4,24 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added support for `telescope_location`, `antenna_positions` and `lst_array` in UVCal objects and file types.
+- Added support for a `metadata_only` mode in UVCal, including options to only read the metadata when reading in calibration files.
+- Added a `copy` method for UVCal objects.
+- Added `antenna_positions`, `antenna_names` and `antenna_numbers` as optional metadata to our known telescopes list and added HERA antenna position information.
 - Added handling for `extra_keywords` in UVFlag objects, including read/write to/from files.
 - Added handling for `object_name` and `extra_keywords` to `sum_vis` and `diff_vis` methods and added the `override_params` option to override other parameters.
 
 ### Changed
+- Changed to use Astropy sites for telescope locations when avaliable. This results in a small change for our known position for the MWA.
 - Modified `UVData.read` to do faster concatenation of files, changed the interface to `UVData.fast_concat` to allow lists of `UVData` objects to be passed in.
 
 ### Fixed
 - Fixed a bug where the `lst_array` was not updated in `compress_by_redundancy` when using `method='average'`.
 - Fixed an undefined parameter bug when interpolating beams that do not cover the sky.
 - Fixed an indexing error bug in `compress_by_redundancy` when using `method='average'`.
+
+### Deprecated
+- UVCal objects now require `telescope_location`, `antenna_positions` and `lst_array` parameters. Not setting them will cause an error starting in pyuvdata 2.3.
 
 ## [2.1.2] - 2020-10-07
 

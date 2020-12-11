@@ -131,28 +131,22 @@ def get_fhd_layout_info(
 
     Returns
     -------
-    telescope_xyz : array of float
-        Telescope location in ECEF, shape (3,)
-    Nants_telescope : int
-        Number of antennas in the telescope
-    antenna_postions : array of float
-        Antenna positions in relative ECEF, shape (Nants_telescope, 3)
-    antenna_names : list of str
-        Antenna names, length Nants_telescope
-    antenna_numbers : array of int
-        Antenna numbers, shape (Nants_telescope,)
-    gst0 : float
-        Greenwich sidereal time at midnight on reference date.
-    earth_omega : float
-        Earth's rotation rate in degrees per day.
-    dut1 : float
-        DUT1 (google it) AIPS 117 calls it UT1UTC.
-    timesys : str
-        Time system (should only ever be UTC).
-    diameters : antenna diameters
-        Antenna diameters in meters.
-    extra_keywords : dict
-        Dictionary of extra keywords to preserve on the object.
+    dict
+        A dictionary of parameters from the layout file to assign to the object. The
+        keys are:
+
+        * telescope_xyz : Telescope location in ECEF, shape (3,) (float)
+        * Nants_telescope : Number of antennas in the telescope (int)
+        * antenna_postions : Antenna positions in relative ECEF,
+            shape (Nants_telescope, 3) (float)
+        * antenna_names : Antenna names, length Nants_telescope (list of str)
+        * antenna_numbers : Antenna numbers, shape (Nants_telescope,) (array of int)
+        * gst0 : Greenwich sidereal time at midnight on reference date. (float)
+        * earth_omega : Earth's rotation rate in degrees per day. (float)
+        * dut1 : DUT1 (google it) AIPS 117 calls it UT1UTC. (float)
+        * timesys : Time system (should only ever be UTC). (str)
+        * diameters : Antenna diameters in meters. shape (Nants_telescope,) (float)
+        * extra_keywords : Dictionary of extra keywords to preserve on the object.
 
     """
     layout_dict = readsav(layout_file, python_dict=True)
@@ -295,20 +289,22 @@ def get_fhd_layout_info(
 
         extra_keywords[keyword.upper()] = value
 
-    return (
-        telescope_location,
-        Nants_telescope,
-        antenna_positions,
-        antenna_names,
-        antenna_numbers,
-        gst0,
-        rdate,
-        earth_omega,
-        dut1,
-        timesys,
-        diameters,
-        extra_keywords,
-    )
+    layout_param_dict = {
+        "telescope_location": telescope_location,
+        "Nants_telescope": Nants_telescope,
+        "antenna_positions": antenna_positions,
+        "antenna_names": antenna_names,
+        "antenna_numbers": antenna_numbers,
+        "gst0": gst0,
+        "rdate": rdate,
+        "earth_omega": earth_omega,
+        "dut1": dut1,
+        "timesys": timesys,
+        "diameters": diameters,
+        "extra_keywords": extra_keywords,
+    }
+
+    return layout_param_dict
 
 
 class FHD(UVData):
@@ -567,20 +563,8 @@ class FHD(UVData):
             obs_tile_names = [
                 "Tile" + "0" * (3 - len(ant)) + ant for ant in obs_tile_names
             ]
-            (
-                self.telescope_location,
-                self.Nants_telescope,
-                self.antenna_positions,
-                self.antenna_names,
-                self.antenna_numbers,
-                self.gst0,
-                self.rdate,
-                self.earth_omega,
-                self.dut1,
-                self.timesys,
-                self.diameters,
-                self.extra_keywords,
-            ) = get_fhd_layout_info(
+
+            layout_param_dict = get_fhd_layout_info(
                 layout_file,
                 self.telescope_name,
                 latitude,
@@ -591,6 +575,9 @@ class FHD(UVData):
                 obs_tile_names,
                 run_check_acceptability=True,
             )
+
+            for key, value in layout_param_dict.items():
+                setattr(self, key, value)
 
         else:
             self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)

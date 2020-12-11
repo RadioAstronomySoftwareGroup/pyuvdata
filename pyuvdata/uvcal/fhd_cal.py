@@ -82,7 +82,7 @@ class FHDCal(UVCal):
         self.spw_array = np.array([0])
 
         self.Nfreqs = int(obs_data["N_FREQ"][0])
-        self.freq_array = np.zeros((1, len(bl_info["FREQ"][0])), dtype=np.float_)
+        self.freq_array = np.zeros((1, len(bl_info["FREQ"][0])), dtype=np.float64)
         self.freq_array[0, :] = bl_info["FREQ"][0]
         self.channel_width = float(obs_data["FREQ_RES"][0])
 
@@ -101,7 +101,7 @@ class FHDCal(UVCal):
         # (e.g. 1.999426... rather than 2)
         time_res = obs_data["TIME_RES"][0]
         # time_res is constrained to be a scalar currently
-        self.integration_time = np.float(time_res)
+        self.integration_time = np.float64(time_res)
 
         # array of used frequencies (1: used, 0: flagged)
         freq_use = bl_info["freq_use"][0]
@@ -126,20 +126,8 @@ class FHDCal(UVCal):
             obs_tile_names = [
                 "Tile" + "0" * (3 - len(ant)) + ant for ant in obs_tile_names
             ]
-            (
-                self.telescope_location,
-                self.Nants_telescope,
-                self.antenna_positions,
-                self.antenna_names,
-                self.antenna_numbers,
-                gst0,
-                rdate,
-                earth_omega,
-                dut1,
-                timesys,
-                diameters,
-                self.extra_keywords,
-            ) = get_fhd_layout_info(
+
+            layout_param_dict = get_fhd_layout_info(
                 layout_file,
                 self.telescope_name,
                 latitude,
@@ -150,6 +138,18 @@ class FHDCal(UVCal):
                 obs_tile_names,
                 run_check_acceptability=True,
             )
+
+            layout_params_to_ignore = [
+                "gst0",
+                "rdate",
+                "earth_omega",
+                "dut1",
+                "timesys",
+                "diameters",
+            ]
+            for key, value in layout_param_dict.items():
+                if key not in layout_params_to_ignore:
+                    setattr(self, key, value)
 
         else:
             warnings.warn("No layout file, antenna_postions will not be defined.")
@@ -344,7 +344,7 @@ class FHDCal(UVCal):
             # FHD doesn't really have a chi^2 measure. What is has is a convergence
             # measure. The solution converged well if this is less than the convergence
             # threshold ('conv_thresh' in extra_keywords).
-            self.quality_array = np.zeros_like(self.gain_array, dtype=np.float)
+            self.quality_array = np.zeros_like(self.gain_array, dtype=np.float64)
             convergence = cal_data["convergence"][0]
             for jones_i, arr in enumerate(convergence):
                 self.quality_array[:, 0, :, 0, jones_i] = arr
