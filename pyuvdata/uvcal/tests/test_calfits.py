@@ -15,6 +15,11 @@ import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
 
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:telescope_location is not set. Using known values",
+    "ignore:antenna_positions is not set. Using known values",
+)
+
 
 @pytest.mark.parametrize(
     "filein",
