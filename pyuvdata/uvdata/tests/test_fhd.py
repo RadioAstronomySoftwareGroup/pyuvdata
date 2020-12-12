@@ -107,9 +107,8 @@ def test_read_fhd_select():
             'Warning: select on read keyword set, but file_type is "fhd" which '
             "does not support select on read. Entire file will be read and then "
             "select will be performed",
-            "Telescope location derived from obs lat/lon/alt values does not "
-            "match the location in the layout file. Value from obs lat/lon/alt "
-            "matches the known_telescopes values, using them.",
+            "Telescope location derived from obs lat/lon/alt values does not match the "
+            "location in the layout file. Using the value from known_telescopes.",
         ],
     ):
         fhd_uv2.read(testfiles, freq_chans=np.arange(2))
@@ -117,9 +116,8 @@ def test_read_fhd_select():
     with uvtest.check_warnings(
         UserWarning,
         [
-            "Telescope location derived from obs lat/lon/alt values does not "
-            "match the location in the layout file. Value from obs lat/lon/alt "
-            "matches the known_telescopes values, using them.",
+            "Telescope location derived from obs lat/lon/alt values does not match the "
+            "location in the layout file. Using the value from known_telescopes.",
         ],
     ):
         fhd_uv.read(testfiles)
@@ -326,9 +324,8 @@ def test_read_fhd_write_read_uvfits_no_settings(tmp_path):
     uvfits_uv = UVData()
     messages = [
         "No settings file included in file list",
-        "Telescope location derived from obs lat/lon/alt values does "
-        "not match the location in the layout file. Value from obs "
-        "lat/lon/alt matches the known_telescopes values, using them.",
+        "Telescope location derived from obs lat/lon/alt values does not match the "
+        "location in the layout file. Using the value from known_telescopes.",
     ]
     with uvtest.check_warnings(UserWarning, messages):
         fhd_uv.read(testfiles[:-2])
