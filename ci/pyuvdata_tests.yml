@@ -10,6 +10,7 @@ dependencies:
   - python-casacore
   - pyyaml
   - scipy
+  - six  # added for now because sometimes an old python-casacore build is used that omits this dependency
   - coverage
   - pytest-cov
   - cython
