@@ -22,6 +22,12 @@ ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
 ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
 
 
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:telescope_location is not set. Using known values for HERA.",
+    "ignore:antenna_positions is not set. Using known values for HERA.",
+)
+
+
 @pytest.fixture
 def uvcalibrate_init_data():
     uvdata = UVData()
