@@ -24,6 +24,11 @@ test_f_file = test_d_file.rstrip(".uvh5") + ".testuvflag.h5"
 
 pyuvdata_version_str = "  Read/written with pyuvdata version: " + __version__ + "."
 
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:telescope_location is not set. Using known values for HERA.",
+    "ignore:antenna_positions is not set. Using known values for HERA.",
+)
+
 
 @pytest.fixture(scope="session")
 def uvdata_obj_main():
