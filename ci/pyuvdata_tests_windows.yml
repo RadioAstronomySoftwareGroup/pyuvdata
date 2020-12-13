@@ -10,6 +10,7 @@ dependencies:
   - pyyaml
   - scipy
   - coverage
+  - pytest<6.2.0
   - pytest-cov
   - cython
   - setuptools_scm
