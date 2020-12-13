@@ -180,7 +180,7 @@ def test_read_mwa_write_uvfits_meta_mod(tmp_path):
 
 @pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:Combined frequencies are not contiguous")
+@pytest.mark.filterwarnings("ignore:Combined frequencies are separated by more than")
 def test_read_mwa_multi():
     """Test reading in two sets of files."""
     set1 = filelist[0:2]
@@ -195,7 +195,7 @@ def test_read_mwa_multi():
         "some coarse channel files were not submitted",
         "telescope_location is not set",
         "some coarse channel files were not submitted",
-        "Combined frequencies are not contiguous",
+        "Combined frequencies are separated by more than their channel width",
     ]
     with uvtest.check_warnings(UserWarning, messages):
         mwa_uv2.read([set1, set2], file_type="mwa_corr_fits")
@@ -205,6 +205,7 @@ def test_read_mwa_multi():
 
 @pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:Combined frequencies are separated by more than")
 def test_read_mwa_multi_concat(tmp_path):
     """Test reading in two sets of files with fast concatenation."""
     # modify file so that time arrays are matching
@@ -223,6 +224,7 @@ def test_read_mwa_multi_concat(tmp_path):
         "some coarse channel files were not submitted",
         "telescope_location is not set",
         "some coarse channel files were not submitted",
+        "Combined frequencies are separated by more than their channel width",
     ]
     with uvtest.check_warnings(UserWarning, messages):
         mwa_uv2.read([set1, set2], axis="freq", file_type="mwa_corr_fits")
