@@ -15,6 +15,7 @@ import numpy as np
 from astropy.units import Quantity
 
 from . import parameter as uvp
+from .utils import _get_iterable
 from . import __version__
 
 __all__ = ["UVBase"]
@@ -359,7 +360,29 @@ class UVBase(object):
                         else:
                             # Array or quantity
                             if isinstance(param.value, Quantity):
-                                check_val = param.value.item(0).value
+                                # user put expected type as a type of quantity object
+                                # not a more generic type of number.
+                                if any(
+                                    issubclass(param_type, Quantity)
+                                    for param_type in _get_iterable(param.expected_type)
+                                ):
+                                    # Verify the param is an instance
+                                    # of the specific Quantity type
+                                    if not isinstance(param.value, param.expected_type):
+                                        raise ValueError(
+                                            f"UVParameter {p} is a Quantity object "
+                                            "but not the appropriate type. "
+                                            f"Is {type(param.value)} but "
+                                            f"expected {param.expected_type}."
+                                        )
+                                    else:
+                                        # matches expected type
+                                        continue
+                                else:
+                                    # Expected type is not a Quantity subclass
+                                    # Assuming it is a data type like float, int, etc
+                                    # continuing with check below
+                                    check_val = param.value.item(0).value
                             else:
                                 check_val = param.value.item(0)
                             if not isinstance(check_val, param.expected_type):

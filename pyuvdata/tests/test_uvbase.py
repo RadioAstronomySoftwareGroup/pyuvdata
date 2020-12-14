@@ -9,6 +9,7 @@ from astropy.time import Time
 import pytest
 import numpy as np
 from astropy import units
+from astropy.coordinates import Distance
 
 from pyuvdata.uvbase import UVBase
 from pyuvdata.uvbase import _warning
@@ -114,6 +115,22 @@ class UVTest(UVBase):
             required=False,
         )
 
+        self._quantity_array = uvp.UVParameter(
+            "quantity_array",
+            description="A quantity object.",
+            expected_type=units.Quantity,
+            value=self._floatarr2.value * units.m,
+            form=self._floatarr2.value.size,
+        )
+
+        self._quantity_with_precision = uvp.UVParameter(
+            "quantity_with_precision",
+            description="A quantity, but want a specific precision.",
+            expected_type=float,
+            value=self._floatarr2.value * units.s,
+            form=self._floatarr2.value.size,
+        )
+
         super(UVTest, self).__init__()
 
 
@@ -216,6 +233,18 @@ def test_check_quantity_type():
     assert str(cm.value).startswith(
         "UVParameter _floatarr is not the appropriate type. "
     )
+
+
+def test_wrong_quantity_type():
+    """Test check when given the wrong kind of Quantity."""
+    test_obj = UVTest()
+    test_obj._quantity_array.expected_type = Distance
+    with pytest.raises(
+        ValueError,
+        match="UVParameter _quantity_array is a Quantity "
+        "object but not the appropriate type.",
+    ):
+        test_obj.check()
 
 
 def test_check_array_shape():
