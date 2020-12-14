@@ -377,7 +377,7 @@ class UVBase(object):
                                         )
                                     else:
                                         # matches expected type
-                                        continue
+                                        continue  # pragma: no cover
                                 else:
                                     # Expected type is not a Quantity subclass
                                     # Assuming it is a data type like float, int, etc
