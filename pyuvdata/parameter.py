@@ -53,7 +53,7 @@ def _get_generic_type(expected_type, strict_type_check=False):
 
     for types in [
         (float, np.floating),
-        (np.unsignedinteger),  # unexpected by unsigned integer could be possible
+        (np.unsignedinteger),  # unexpected but just in case
         (int, np.integer),
         (complex, np.complexfloating),
     ]:
