@@ -360,7 +360,7 @@ class UVBase(object):
                         else:
                             # Array or quantity
                             if isinstance(param.value, Quantity):
-                                # user put expected type as a type of quantity object
+                                # check if user put expected type as a type of quantity
                                 # not a more generic type of number.
                                 if any(
                                     issubclass(param_type, Quantity)
