@@ -332,67 +332,61 @@ class UVBase(object):
                             f"Parameter shape is {this_shape}, expected shape is "
                             f"{eshape}."
                         )
-                    if eshape == ():
-                        # Single element
-                        if not isinstance(param.value, param.expected_type):
-                            raise ValueError(
-                                "UVParameter " + p + " is not the appropriate"
-                                " type. Is: "
-                                + str(type(param.value))
-                                + ". Should be: "
-                                + str(param.expected_type)
+                    # Quantity objects complicate things slightly
+                    # Do a separate check with warnings until a quantity based
+                    # parameter value is created
+                    if isinstance(param.value, Quantity):
+                        # check if user put expected type as a type of quantity
+                        # not a more generic type of number.
+                        if any(
+                            issubclass(param_type, Quantity)
+                            for param_type in _get_iterable(param.expected_type)
+                        ):
+                            # Verify the param is an instance
+                            # of the specific Quantity type
+                            if not isinstance(param.value, param.expected_type):
+                                raise ValueError(
+                                    f"UVParameter {p} is a Quantity object "
+                                    "but not the appropriate type. "
+                                    f"Is {type(param.value)} but "
+                                    f"expected {param.expected_type}."
+                                )
+                            else:
+                                # matches expected type
+                                continue  # pragma: no cover
+                        else:
+                            # Expected type is not a Quantity subclass
+                            # Assuming it is a data type like float, int, etc
+                            # continuing with check below
+                            warnings.warn(
+                                f"Parameter {p} is a Quantity object, "
+                                "but the expected type is a precision identifier: "
+                                f"{param.expected_type}. "
+                                "Testing the precision of the value, but this "
+                                "check will fail in a future version."
                             )
+                            check_vals = [param.value.item(0).value]
+
+                    elif eshape == ():
+                        # Single element
+                        check_vals = [param.value]
                     else:
                         if isinstance(param.value, (list, tuple)):
                             # List & tuples needs to be handled differently than array
                             # list values may be different types, so they all
                             # need to be checked
-                            param_value_list = list(param.value)
-                            for item in param_value_list:
-                                if not isinstance(item, param.expected_type):
-                                    raise ValueError(
-                                        "UVParameter " + p + " is not the"
-                                        " appropriate type. Is: "
-                                        + str(type(item))
-                                        + ". Should"
-                                        " be: " + str(param.expected_type)
-                                    )
+                            check_vals = list(param.value)
                         else:
-                            # Array or quantity
-                            if isinstance(param.value, Quantity):
-                                # check if user put expected type as a type of quantity
-                                # not a more generic type of number.
-                                if any(
-                                    issubclass(param_type, Quantity)
-                                    for param_type in _get_iterable(param.expected_type)
-                                ):
-                                    # Verify the param is an instance
-                                    # of the specific Quantity type
-                                    if not isinstance(param.value, param.expected_type):
-                                        raise ValueError(
-                                            f"UVParameter {p} is a Quantity object "
-                                            "but not the appropriate type. "
-                                            f"Is {type(param.value)} but "
-                                            f"expected {param.expected_type}."
-                                        )
-                                    else:
-                                        # matches expected type
-                                        continue  # pragma: no cover
-                                else:
-                                    # Expected type is not a Quantity subclass
-                                    # Assuming it is a data type like float, int, etc
-                                    # continuing with check below
-                                    check_val = param.value.item(0).value
-                            else:
-                                check_val = param.value.item(0)
-                            if not isinstance(check_val, param.expected_type):
-                                raise ValueError(
-                                    "UVParameter " + p + " is not the appropriate"
-                                    " type. Is: "
-                                    + str(param.value.dtype)
-                                    + ". Should be: "
-                                    + str(param.expected_type)
-                                )
+                            # numpy array
+                            check_vals = [param.value.item(0)]
+
+                    for val in check_vals:
+                        if not isinstance(val, param.expected_type):
+                            raise ValueError(
+                                f"UVParameter {p} is not the appropriate"
+                                f" type. Is:  {type(val)}. "
+                                f"Should be: {param.expected_type}"
+                            )
 
                 if run_check_acceptability:
                     accept, message = param.check_acceptability()
