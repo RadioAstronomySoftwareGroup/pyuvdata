@@ -5,15 +5,16 @@
 """Tests for uvbase object.
 
 """
-from astropy.time import Time
 import pytest
 import numpy as np
 from astropy import units
+from astropy.time import Time
 from astropy.coordinates import Distance
 
 from pyuvdata.uvbase import UVBase
 from pyuvdata.uvbase import _warning
 from pyuvdata import parameter as uvp
+from pyuvdata import tests as uvtest
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
 ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
@@ -123,12 +124,20 @@ class UVTest(UVBase):
             form=self._floatarr2.value.size,
         )
 
-        self._quantity_with_precision = uvp.UVParameter(
-            "quantity_with_precision",
-            description="A quantity, but want a specific precision.",
-            expected_type=float,
-            value=self._floatarr2.value * units.s,
-            form=self._floatarr2.value.size,
+        # self._quantity_with_precision = uvp.UVParameter(
+        #     "quantity_with_precision",
+        #     description="A quantity, but want a specific precision.",
+        #     expected_type=float,
+        #     value=self._floatarr2.value * units.s,
+        #     form=self._floatarr2.value.size,
+        # )
+
+        self._quantity_scalar = uvp.UVParameter(
+            "quantity_scalar",
+            description="A quantity but also a single element.",
+            expected_type=units.Quantity,
+            value=2 * units.m,
+            form=(),
         )
 
         super(UVTest, self).__init__()
@@ -228,11 +237,17 @@ def test_check_quantity_type():
     """Test check function with wrong array type."""
     test_obj = UVTest()
     test_obj.floatarr = (test_obj.floatarr + 1j * test_obj.floatarr) * units.m
-    with pytest.raises(ValueError) as cm:
-        test_obj.check()
-    assert str(cm.value).startswith(
-        "UVParameter _floatarr is not the appropriate type. "
-    )
+    with uvtest.check_warnings(
+        UserWarning,
+        "Parameter _floatarr is a Quantity object, but the expected type "
+        "is a precision identifier: (<class 'float'>, <class 'numpy.floating'>). "
+        "Testing the precision of the value, "
+        "but this check will fail in a future version.",
+    ):
+        with pytest.raises(
+            ValueError, match="UVParameter _floatarr is not the appropriate type. "
+        ):
+            test_obj.check()
 
 
 def test_wrong_quantity_type():
@@ -243,6 +258,20 @@ def test_wrong_quantity_type():
         ValueError,
         match="UVParameter _quantity_array is a Quantity "
         "object but not the appropriate type.",
+    ):
+        test_obj.check()
+
+
+def test_quantity_scalar_type():
+    """Test check when a scalar quantity has odd expected_type."""
+    test_obj = UVTest()
+    test_obj._quantity_scalar.expected_type = (float, np.floating)
+    with uvtest.check_warnings(
+        UserWarning,
+        "Parameter _quantity_scalar is a Quantity object, but the expected type "
+        "is a precision identifier: (<class 'float'>, <class 'numpy.floating'>). "
+        "Testing the precision of the value, but this "
+        "check will fail in a future version.",
     ):
         test_obj.check()
 
