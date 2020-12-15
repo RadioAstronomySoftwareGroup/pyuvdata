@@ -160,7 +160,7 @@ class UVParameter(object):
                 )
                 return False
             if isinstance(self.value, np.ndarray) and not isinstance(
-                self.value[0], str
+                self.value.item(0), str
             ):
                 if self.value.shape != other.value.shape:
                     print(f"{self.name} parameter value is array, shapes are different")
