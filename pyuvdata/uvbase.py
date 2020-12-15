@@ -85,7 +85,7 @@ class UVBase(object):
 
         # String to add to history of any files written with this version of pyuvdata
         self.pyuvdata_version_str = (
-            "  Read/written with pyuvdata version: " + __version__ + "."
+            f"  Read/written with pyuvdata version: {__version__ }."
         )
 
     def prop_fget(self, param_name):
@@ -231,8 +231,9 @@ class UVBase(object):
                 other_required.append(p)
             if set(self_required) != set(other_required):
                 print(
-                    "Sets of required parameters do not match. Left is {lset},"
-                    " right is {rset}".format(lset=self_required, rset=other_required)
+                    "Sets of required parameters do not match. "
+                    f"Left is {self_required},"
+                    f" right is {other_required}."
                 )
                 return False
 
@@ -245,8 +246,9 @@ class UVBase(object):
                     other_extra.append(p)
                 if set(self_extra) != set(other_extra):
                     print(
-                        "Sets of extra parameters do not match. Left is {lset},"
-                        " right is {rset}".format(lset=self_extra, rset=other_extra)
+                        "Sets of extra parameters do not match. "
+                        f"Left is {self_extra},"
+                        f" right is {other_extra}."
                     )
                     return False
 
@@ -260,8 +262,8 @@ class UVBase(object):
                 other_param = getattr(other, p)
                 if self_param != other_param:
                     print(
-                        "parameter {} does not match. Left is {},"
-                        " right is {}".format(p, self_param.value, other_param.value)
+                        f"parameter {p} does not match. Left is {self_param.value},"
+                        f" right is {other_param.value}."
                     )
                     p_equal = False
             return p_equal
@@ -306,7 +308,7 @@ class UVBase(object):
                 if ignore_requirements:
                     continue
                 if param.required is True:
-                    raise ValueError("Required UVParameter " + p + " has not been set.")
+                    raise ValueError(f"Required UVParameter {p} has not been set.")
             else:
                 # Check parameter shape
                 eshape = param.expected_shape(self)
@@ -315,7 +317,7 @@ class UVBase(object):
                     # Check that it's a string
                     if not isinstance(param.value, str):
                         raise ValueError(
-                            "UVParameter " + p + " expected to be " "string, but is not"
+                            f"UVParameter {p} expected to be string, but is not."
                         )
                 else:
                     # Check the shape of the parameter value. Note that np.shape
@@ -385,14 +387,14 @@ class UVBase(object):
                             raise ValueError(
                                 f"UVParameter {p} is not the appropriate"
                                 f" type. Is:  {type(val)}. "
-                                f"Should be: {param.expected_type}"
+                                f"Should be: {param.expected_type}."
                             )
 
                 if run_check_acceptability:
                     accept, message = param.check_acceptability()
                     if not accept:
                         raise ValueError(
-                            "UVParameter " + p + " has unacceptable values. " + message
+                            f"UVParameter {p} has unacceptable values. {message}"
                         )
 
         return True
