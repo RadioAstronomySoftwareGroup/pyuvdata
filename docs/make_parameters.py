@@ -49,6 +49,7 @@ def write_dataparams_rst(write_file=None):
         out += "     {desc}\n".format(desc=obj.description)
         out += "\n"
     t = Time.now()
+    t.format = "iso"
     t.out_subfmt = "date"
     out += "last updated: {date}".format(date=t.iso)
     if write_file is None:
