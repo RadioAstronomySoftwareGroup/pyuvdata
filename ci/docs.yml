@@ -1,0 +1,18 @@
+name: docs
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - astropy
+  - cython
+  - h5py
+  - astropy-healpix
+  - numpy
+  - python-casacore
+  - pyyaml
+  - scipy
+  - setuptools_scm
+  - six  # added for now because sometimes an old python-casacore build is used that omits this dependency
+  - pypandoc
+  - sphinx
+  - pip

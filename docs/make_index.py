@@ -13,6 +13,7 @@ from astropy.time import Time
 
 def write_index_rst(readme_file=None, write_file=None):
     t = Time.now()
+    t.format = "iso"
     t.out_subfmt = "date"
     out = (
         ".. pyuvdata documentation top-level file, created by\n"
