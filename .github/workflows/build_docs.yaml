@@ -11,11 +11,9 @@ jobs:
        shell: bash -l {0}
     env:
       ENV_NAME: docs
-      PYTHON: ${{ matrix.python-version }}
+      PYTHON: 3.7
     strategy:
       fail-fast: false
-      matrix:
-        python-version: [3.7, 3.8, 3.9]
 
     steps:
       - uses: actions/checkout@master
