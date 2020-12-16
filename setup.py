@@ -118,9 +118,9 @@ test_reqs = (
     + healpix_reqs
     + cst_reqs
     + [
-        "pytest",
+        "pytest>=6.2",
         "pytest-xdist",
-        "pytest-cases>=1.12.1",
+        "pytest-cases>=3",
         "pytest-cov",
         "cython",
         "coverage",

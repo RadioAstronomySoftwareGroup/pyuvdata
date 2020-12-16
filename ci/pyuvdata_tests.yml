@@ -12,11 +12,11 @@ dependencies:
   - scipy
   - six  # added for now because sometimes an old python-casacore build is used that omits this dependency
   - coverage
-  - pytest<6.2.0
+  - pytest>=6.2.0
   - pytest-cov
   - cython
   - setuptools_scm
   - pip
   - pip:
-      - pytest-cases>=2.7.2
+      - pytest-cases>=3
       - pytest-xdist
