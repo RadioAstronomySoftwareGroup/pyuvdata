@@ -9,7 +9,7 @@ jobs:
       ENV_NAME: docs
       PYTHON: ${{ matrix.python-version }}
     strategy:
-      max-parallel: 4
+      fail-fast: false
       matrix:
         python-version: [3.6, 3.7, 3.8]
 
@@ -23,7 +23,7 @@ jobs:
         with:
           auto-update-conda: true
           miniconda-version: "latest"
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ strategy.matrix.python-version }}
           environment-file: ci/${{ env.ENV_NAME }}.yml
           activate-environment: ${{ env.ENV_NAME }}
 
