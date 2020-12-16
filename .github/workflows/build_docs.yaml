@@ -25,7 +25,7 @@ jobs:
         with:
           auto-update-conda: true
           miniconda-version: "latest"
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ env.PYTHON }}
           environment-file: ci/${{ env.ENV_NAME }}.yml
           activate-environment: ${{ env.ENV_NAME }}
 
