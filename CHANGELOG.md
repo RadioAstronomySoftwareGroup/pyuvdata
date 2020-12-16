@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.1.3] - 2020-12-15
+
 ### Added
 - Added support for `telescope_location`, `antenna_positions` and `lst_array` in UVCal objects and file types.
 - Added support for a `metadata_only` mode in UVCal, including options to only read the metadata when reading in calibration files.
