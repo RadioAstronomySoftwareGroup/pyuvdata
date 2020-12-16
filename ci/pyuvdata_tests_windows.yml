@@ -10,11 +10,11 @@ dependencies:
   - pyyaml
   - scipy
   - coverage
-  - pytest<6.2.0
+  - pytest>=6.2.0
   - pytest-cov
   - cython
   - setuptools_scm
   - pip
   - pip:
-      - pytest-cases>=1.12.1
+      - pytest-cases>=3
       - pytest-xdist
