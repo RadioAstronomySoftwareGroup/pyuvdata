@@ -46,7 +46,6 @@ jobs:
 
       - name: Build docs
         run: |
-          source activate $ENV_NAME
           cd docs
           make html
 
