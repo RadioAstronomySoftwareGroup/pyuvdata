@@ -48,9 +48,3 @@ jobs:
         run: |
           cd docs
           make html
-
-      - name: Upload docs
-        uses: actions/upload-artifact@v1
-        with:
-          name: docs
-          path: docs/build/html
