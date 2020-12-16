@@ -5,6 +5,10 @@ jobs:
   build:
     name: Build Docs
     runs-on: ubuntu-latest
+    defaults:
+     run:
+       # Adding -l {0} helps ensure conda can be found properly.
+       shell: bash -l {0}
     env:
       ENV_NAME: docs
       PYTHON: ${{ matrix.python-version }}
