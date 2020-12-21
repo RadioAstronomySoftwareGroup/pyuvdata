@@ -197,6 +197,16 @@ def test_add_extra_keywords(uvdata_obj):
     assert uvf.extra_keywords.get("keyword3") == 3
 
 
+def test_read_extra_keywords(uvdata_obj):
+    uv = uvdata_obj
+    uv.extra_keywords = {"keyword1": 1, "keyword2": 2}
+    assert "keyword1" in uv.extra_keywords
+    assert "keyword2" in uv.extra_keywords
+    uvf = UVFlag(uv, history="I made a UVFlag object", label="test")
+    assert "keyword1" in uvf.extra_keywords
+    assert "keyword2" in uvf.extra_keywords
+
+
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_init_uvdata_x_orientation(uvdata_obj):
     uv = uvdata_obj
