@@ -2606,6 +2606,8 @@ class UVFlag(UVBase):
                             ).decode("utf8")
                         else:
                             self.extra_keywords[key] = header["extra_keywords"][key][()]
+                else:
+                    self.extra_keywords = {}
 
                 if "label" in header.keys():
                     self.label = header["label"][()].decode("utf8")
@@ -2950,6 +2952,9 @@ class UVFlag(UVBase):
 
         if self.mode == "metric":
             self.weights_array = np.ones(self.metric_array.shape)
+
+        if indata.extra_keywords is not None:
+            self.extra_keywords = indata.extra_keywords
 
         if history not in self.history:
             self.history += history
