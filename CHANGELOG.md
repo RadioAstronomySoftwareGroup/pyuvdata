@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Added support for `extra_keywords` in UVFlag construction from UVData objects (and paths)
+
 ## [2.1.3] - 2020-12-15
 
 ### Added
