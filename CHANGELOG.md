@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added `use_future_array_shapes` method to allow users to convert to using the future
+array shapes now, with support throughout UVData methods and related utility functions.
+Also added `use_current_array_shapes` to revert to the standard shapes.
 - Better re-initialization of UVParameters on UVBase objects when using pickle. Improves compatibility of UVBase objects with MPI.
 - Added option to apply a Van Vleck correction to mwa_corr_fits files.
 
