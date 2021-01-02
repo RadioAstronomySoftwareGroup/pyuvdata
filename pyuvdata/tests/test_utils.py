@@ -807,7 +807,7 @@ def test_redundancy_finder():
             if bl in conjugates:
                 bl_gps_unconj[gi][bi] = uvutils.baseline_index_flip(bl, len(antnums))
     bl_gps_unconj = [sorted(bgp) for bgp in bl_gps_unconj]
-    bl_gps_ants = [sorted(bgp.tolist()) for bgp in baseline_groups_ants]
+    bl_gps_ants = [sorted(bgp) for bgp in baseline_groups_ants]
     assert np.all(sorted(bl_gps_ants) == sorted(bl_gps_unconj))
     for gi, gp in enumerate(baseline_groups):
         for bl in gp:
