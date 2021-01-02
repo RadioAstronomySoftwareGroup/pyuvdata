@@ -1146,7 +1146,7 @@ def find_clusters(location_ids, location_vectors, tol):
     adj = _adj_list(location_vectors, tol)  # adj = list of sets
 
     loc_gps = _find_cliques(adj)
-    loc_gps = [location_ids[gp] for gp in loc_gps]
+    loc_gps = [np.sort(location_ids[gp]).tolist() for gp in loc_gps]
     return loc_gps
 
 

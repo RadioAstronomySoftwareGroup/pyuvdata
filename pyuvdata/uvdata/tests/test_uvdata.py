@@ -5563,13 +5563,13 @@ def test_quick_redundant_vs_redundant_test_array():
     pad = len(max(groups, key=len))
     groups = np.array([i + [-1] * (pad - len(i)) for i in groups])
     groups = np.unique(groups, axis=0)
-    groups = [[bl for bl in grp if bl != -1] for grp in groups]
-    groups.sort(key=len)
+    groups = [sorted(bl for bl in grp if bl != -1) for grp in groups]
+    groups.sort()
 
     redundant_groups, centers, lengths, conj_inds = uv.get_redundancies(
         tol=tol, include_conjugates=True
     )
-    redundant_groups.sort(key=len)
+    redundant_groups.sort()
     assert groups == redundant_groups
 
 
@@ -5606,13 +5606,13 @@ def test_redundancy_finder_when_nblts_not_nbls_times_ntimes(casa_uvfits):
     pad = len(max(groups, key=len))
     groups = np.array([i + [-1] * (pad - len(i)) for i in groups])
     groups = np.unique(groups, axis=0)
-    groups = [[bl for bl in grp if bl != -1] for grp in groups]
-    groups.sort(key=len)
+    groups = [sorted(bl for bl in grp if bl != -1) for grp in groups]
+    groups.sort()
 
     redundant_groups, centers, lengths, conj_inds = uv.get_redundancies(
         tol=tol, include_conjugates=True
     )
-    redundant_groups.sort(key=len)
+    redundant_groups.sort()
     assert groups == redundant_groups
 
 
