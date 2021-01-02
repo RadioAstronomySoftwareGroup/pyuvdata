@@ -9,7 +9,7 @@ import warnings
 from collections.abc import Iterable
 
 import numpy as np
-from scipy.spatial.distance import cdist, pdist, squareform
+from scipy.spatial.distance import cdist
 from astropy.time import Time
 from astropy.coordinates import Angle
 from astropy.utils import iers
@@ -1081,22 +1081,9 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
     return lst_array
 
 
-def _adj_list(vecs, tol, use_old=False):
+def _adj_list(vecs, tol):
     """Identify neighbors of each vec in vecs, to distance tol."""
-    # For each baseline, list all others that are within the tolerance distance.
-
     n_items = len(vecs)
-
-    if use_old:
-        # Memory limited. Just here for testing.
-        adj = {}
-
-        adj_mat = pdist(vecs) < tol
-        for bi, col in enumerate(squareform(adj_mat)):
-            col[bi] = True
-            adj[bi] = frozenset(np.arange(n_items)[col])
-
-        return adj
 
     max_items = 2 ** 10  # Max array size used is max_items**2. Avoid using > 1 GiB
     n_splits = max(n_items // max_items, 1)
@@ -1110,43 +1097,21 @@ def _adj_list(vecs, tol, use_old=False):
     return [frozenset(g) for g in adj]
 
 
-def _find_cliques(adj, use_old=False, check_result=False):
+def _find_cliques(adj, check_result=False):
     n_items = len(adj)
 
-    if not use_old:
-        loc_gps = []
-        visited = np.zeros(n_items, dtype=bool)
-        for k in range(n_items):
-            if visited[k]:
-                continue
-            a0 = adj[k]
-            visited[k] = True
-            if all(adj[it].__hash__() == a0.__hash__() for it in a0):
-                group = list(a0)
-                group.sort()
-                visited[list(a0)] = True
-                loc_gps.append(group)
-
-    if use_old:
-        # Significantly slower
-        loc_gps_orig = []
-        for k in range(n_items):
-            a0 = adj[k]
-            group = {k}
-            for a in a0:
-                if a0.issubset(adj[a]):
-                    group.add(a)
-            group = list(group)
+    loc_gps = []
+    visited = np.zeros(n_items, dtype=bool)
+    for k in range(n_items):
+        if visited[k]:
+            continue
+        a0 = adj[k]
+        visited[k] = True
+        if all(adj[it].__hash__() == a0.__hash__() for it in a0):
+            group = list(a0)
             group.sort()
-            loc_gps_orig.append(group)
-
-        # Remove duplicate groups
-        pad = len(max(loc_gps_orig, key=len))
-        loc_gps_orig = np.array([i + [-1] * (pad - len(i)) for i in loc_gps_orig])
-        loc_gps_orig = np.unique(loc_gps_orig, axis=0).tolist()
-        loc_gps_orig = [[bl for bl in gp if bl != -1] for gp in loc_gps_orig]
-
-        loc_gps = loc_gps_orig
+            visited[list(a0)] = True
+            loc_gps.append(group)
 
     if check_result:
         for gp in loc_gps:
@@ -1155,7 +1120,7 @@ def _find_cliques(adj, use_old=False, check_result=False):
     return loc_gps
 
 
-def find_clusters(location_ids, location_vectors, tol, use_old=False):
+def find_clusters(location_ids, location_vectors, tol):
     """
     Find clusters of vectors (e.g. redundant baselines, times).
 
@@ -1178,9 +1143,9 @@ def find_clusters(location_ids, location_vectors, tol, use_old=False):
     if location_vectors.ndim == 1:
         location_vectors = location_vectors[:, np.newaxis]
 
-    adj = _adj_list(location_vectors, tol, use_old=use_old)  # adj = list of sets
+    adj = _adj_list(location_vectors, tol)  # adj = list of sets
 
-    loc_gps = _find_cliques(adj, use_old=use_old)
+    loc_gps = _find_cliques(adj)
     loc_gps = [location_ids[gp] for gp in loc_gps]
     return loc_gps
 
