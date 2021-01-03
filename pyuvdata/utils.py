@@ -1097,7 +1097,7 @@ def _adj_list(vecs, tol):
     return [frozenset(g) for g in adj]
 
 
-def _find_cliques(adj, check_result=False):
+def _find_cliques(adj, check_result=False, strict=False):
     n_items = len(adj)
 
     loc_gps = []
@@ -1117,10 +1117,14 @@ def _find_cliques(adj, check_result=False):
         for gp in loc_gps:
             assert all(adj[x] == adj[gp[0]] for x in gp)
 
+    # Require all adjacency lists to be isolated maximal cliques:
+    if strict:
+        assert all(sorted(st) in loc_gps for st in adj)
+
     return loc_gps
 
 
-def find_clusters(location_ids, location_vectors, tol):
+def find_clusters(location_ids, location_vectors, tol, strict=False):
     """
     Find clusters of vectors (e.g. redundant baselines, times).
 
@@ -1145,7 +1149,7 @@ def find_clusters(location_ids, location_vectors, tol):
 
     adj = _adj_list(location_vectors, tol)  # adj = list of sets
 
-    loc_gps = _find_cliques(adj)
+    loc_gps = _find_cliques(adj, strict=strict)
     loc_gps = [np.sort(location_ids[gp]).tolist() for gp in loc_gps]
     return loc_gps
 
@@ -1203,7 +1207,13 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
         )
         return bl_gps, vec_bin_centers, lens, baseline_ind_conj
 
-    bl_gps = find_clusters(baselines, baseline_vecs, tol)
+    try:
+        bl_gps = find_clusters(baselines, baseline_vecs, tol, strict=True)
+    except AssertionError:
+        raise ValueError(
+            "Some baselines are falling into multiple"
+            " redundant groups. Lower the tolerance to resolve ambiguity."
+        )
 
     n_unique = len(bl_gps)
     vec_bin_centers = np.zeros((n_unique, 3))
@@ -1212,12 +1222,6 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
         vec_bin_centers[gi] = np.mean(baseline_vecs[inds, :], axis=0)
 
     lens = np.sqrt(np.sum(vec_bin_centers ** 2, axis=1))
-    if np.sum([len(bg) for bg in bl_gps]) > Nbls:
-        raise ValueError(
-            "Some baselines are falling into multiple"
-            " redundant groups. Lower the tolerance to resolve ambiguity."
-        )
-
     return bl_gps, vec_bin_centers, lens
 
 
