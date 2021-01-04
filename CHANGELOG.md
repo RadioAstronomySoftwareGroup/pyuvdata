@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Added support for `extra_keywords` in UVFlag construction from UVData objects (and paths)
 
+### Changed
+- Speed improvement in redundant group finder.
+
+### Fixed
+- Fixed bug causing MemoryError when finding redundant baselines for over 100 antennas.
+
 ## [2.1.3] - 2020-12-15
 
 ### Added
