@@ -1084,13 +1084,26 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
 def _adj_list(vecs, tol):
     """Identify neighbors of each vec in vecs, to distance tol."""
     n_items = len(vecs)
-
     max_items = 2 ** 10  # Max array size used is max_items**2. Avoid using > 1 GiB
     n_splits = max(n_items // max_items, 1)
-    blocks = np.array_split(np.arange(n_items), n_splits)
+
+    # We may sort blocks so that some pairs of blocks may be skipped.
+    # Reorder vectors by x.
+
+    order = np.argsort(vecs[:, 0])
+    blocks = np.array_split(order, n_splits)
     adj = [{k} for k in range(n_items)]  # Adjacency lists
     for b1 in blocks:
         for b2 in blocks:
+            v1, v2 = vecs[b1], vecs[b2]
+            # Check for no overlap, with tolerance.
+            xmin1 = v1[0, 0] - tol
+            xmax1 = v1[-1, 0] + tol
+            xmin2 = v2[0, 0] - tol
+            xmax2 = v2[-1, 0] + tol
+            if max(xmin1, xmin2) > min(xmax1, xmax2):
+                continue
+
             adj_mat = cdist(vecs[b1], vecs[b2]) < tol
             for bi, col in enumerate(adj_mat):
                 adj[b1[bi]] = adj[b1[bi]].union(b2[col])
