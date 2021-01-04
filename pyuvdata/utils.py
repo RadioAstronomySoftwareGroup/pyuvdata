@@ -1081,17 +1081,19 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude):
     return lst_array
 
 
-def _adj_list(vecs, tol):
+def _adj_list(vecs, tol, n_blocks=None):
     """Identify neighbors of each vec in vecs, to distance tol."""
     n_items = len(vecs)
     max_items = 2 ** 10  # Max array size used is max_items**2. Avoid using > 1 GiB
-    n_splits = max(n_items // max_items, 1)
+
+    if n_blocks is None:
+        n_blocks = max(n_items // max_items, 1)
 
     # We may sort blocks so that some pairs of blocks may be skipped.
     # Reorder vectors by x.
 
     order = np.argsort(vecs[:, 0])
-    blocks = np.array_split(order, n_splits)
+    blocks = np.array_split(order, n_blocks)
     adj = [{k} for k in range(n_items)]  # Adjacency lists
     for b1 in blocks:
         for b2 in blocks:
@@ -1110,7 +1112,7 @@ def _adj_list(vecs, tol):
     return [frozenset(g) for g in adj]
 
 
-def _find_cliques(adj, check_result=False, strict=False):
+def _find_cliques(adj, strict=False):
     n_items = len(adj)
 
     loc_gps = []
@@ -1126,13 +1128,10 @@ def _find_cliques(adj, check_result=False, strict=False):
             visited[list(a0)] = True
             loc_gps.append(group)
 
-    if check_result:
-        for gp in loc_gps:
-            assert all(adj[x] == adj[gp[0]] for x in gp)
-
     # Require all adjacency lists to be isolated maximal cliques:
     if strict:
-        assert all(sorted(st) in loc_gps for st in adj)
+        if not all(sorted(st) in loc_gps for st in adj):
+            raise ValueError("Non-isolated cliques found in graph.")
 
     return loc_gps
 
@@ -1222,7 +1221,7 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
 
     try:
         bl_gps = find_clusters(baselines, baseline_vecs, tol, strict=True)
-    except AssertionError:
+    except ValueError:
         raise ValueError(
             "Some baselines are falling into multiple"
             " redundant groups. Lower the tolerance to resolve ambiguity."
