@@ -908,6 +908,79 @@ def test_redundancy_finder_fully_redundant_array():
     assert baseline_groups[0].sort() == np.unique(uvd.baseline_array).sort()
 
 
+@pytest.mark.parametrize("n_blocks", [1, 10])
+def test_adjacency_lists(n_blocks):
+    """Test the adjacency list method in utils."""
+    # n_blocks: in _adj_list, loop over chunks of vectors when computing distances.
+
+    # Make a grid.
+    Nx = 5
+    Lmax = 50
+
+    xbase = np.linspace(0, Lmax, Nx)
+    x, y, z = map(np.ndarray.flatten, np.meshgrid(xbase, xbase, xbase))
+
+    # Make more vectors by shifting by Lmax/Nx/3 in x, y, and z:
+    dx = (Lmax / Nx) / 3  # One third of cell size.
+    x = np.append(x, x + dx)
+    y = np.append(y, y + dx)
+    z = np.append(z, z + dx)
+
+    # Construct vectors
+    vecs = np.vstack((x, y, z)).T
+    Npts = x.size
+
+    # Reorder randomly.
+    np.random.shuffle(vecs)
+
+    # Tolerance = half of cell diagonal.
+    tol = Lmax / Nx * np.sqrt(2) / 2
+
+    adj = uvutils._adj_list(vecs, tol, n_blocks=n_blocks)
+
+    # Confirm that each adjacency set contains all of the vectors that
+    # are within the tolerance distance.
+    for vi in range(Npts):
+        for vj in range(Npts):
+            dist = np.linalg.norm(vecs[vi] - vecs[vj])
+            if dist < tol:
+                assert vj in adj[vi]
+                assert vi in adj[vj]
+            else:
+                assert vj not in adj[vi]
+                assert vi not in adj[vj]
+
+    # The way the grid is set up, every clique should have two elements.
+    assert all(len(vi) == 2 for vi in adj)
+
+
+def test_strict_cliques():
+    # Adjacency lists comprising only isolated cliques.
+    adj_isol = [
+        {0, 1, 2},
+        {1, 0, 2},
+        {2, 0, 1},
+        {3},
+        {4},
+        {5, 6, 7, 8},
+        {5, 6, 7, 8},
+        {5, 6, 7, 8},
+        {5, 6, 7, 8},
+    ]
+    adj_isol = [frozenset(st) for st in adj_isol]
+    exp_cliques = [[0, 1, 2], [3], [4], [5, 6, 7, 8]]
+
+    res = uvutils._find_cliques(adj_isol, strict=True)
+    assert res == exp_cliques
+
+    # Error if two cliques are not isolated
+    adj_link = adj_isol
+    adj_link[-1] = frozenset({5, 6, 7, 8, 1})
+
+    with pytest.raises(ValueError, match="Non-isolated cliques found in graph."):
+        uvutils._find_cliques(adj_link, strict=True),
+
+
 def test_str_to_bytes():
     test_str = "HERA"
 
