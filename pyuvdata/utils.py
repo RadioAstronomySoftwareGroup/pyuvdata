@@ -1221,11 +1221,11 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
 
     try:
         bl_gps = find_clusters(baselines, baseline_vecs, tol, strict=True)
-    except ValueError:
+    except ValueError as exc:
         raise ValueError(
             "Some baselines are falling into multiple"
             " redundant groups. Lower the tolerance to resolve ambiguity."
-        )
+        ) from exc
 
     n_unique = len(bl_gps)
     vec_bin_centers = np.zeros((n_unique, 3))
