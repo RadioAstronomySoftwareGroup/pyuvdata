@@ -41,7 +41,8 @@ astropy_sites = EarthLocation.get_site_names()
 while "" in astropy_sites:
     astropy_sites.remove("")
 
-expected_known_telescopes = astropy_sites + ["PAPER", "HERA", "SMA"]
+# Using set here is a quick way to drop duplicate entries
+expected_known_telescopes = list(set(astropy_sites + ["PAPER", "HERA", "SMA"]))
 
 
 # Tests for Telescope object

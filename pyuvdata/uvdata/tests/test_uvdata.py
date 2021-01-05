@@ -691,7 +691,8 @@ def test_known_telescopes():
     while "" in astropy_sites:
         astropy_sites.remove("")
 
-    known_telescopes = astropy_sites + ["PAPER", "HERA", "SMA"]
+    # Using set to drop duplicate entries
+    known_telescopes = list(set(astropy_sites + ["PAPER", "HERA", "SMA"]))
     # calling np.sort().tolist() because [].sort() acts inplace and returns None
     # Before test had None == None
     assert (
