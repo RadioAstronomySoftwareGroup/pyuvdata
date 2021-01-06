@@ -4,7 +4,7 @@ channels:
   - defaults
 dependencies:
   - python>3.6
-  - astropy>=3.2.3
+  - astropy>=4.2
   - astropy-healpix
   - h5py
   - novas
