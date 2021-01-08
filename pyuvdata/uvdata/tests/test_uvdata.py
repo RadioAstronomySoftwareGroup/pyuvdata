@@ -209,11 +209,6 @@ def hera_uvh5_main():
     testfile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
     uv_object.read(testfile)
 
-    # During some investigating, I learned that the uvw_array here appears to be
-    # flipped. For the sake of not having to fold in this correction into a dozen
-    # or so tests, correcting it here.
-    uv_object.uvw_array *= -1.0
-
     yield uv_object
 
     # cleanup
@@ -9256,8 +9251,6 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
 
     uvTrue = hera_uvh5.copy()
 
-    # Added here because the files seem to have the values flipped
-    uvTrue.uvw_array *= -1.0
     uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
 
     # Create a test file and remove header info to 'corrupt' it
@@ -9284,12 +9277,7 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     # Test when the corrupted file is at the beggining, skip_bad_files=True
     fileList = [testfile, uvh5_file]
     with uvtest.check_warnings(
-        UserWarning,
-        match=[
-            "Failed to read",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-        ],
+        UserWarning, match=["Failed to read"],
     ):
         uv.read(fileList, skip_bad_files=True)
     assert uv == uvTrue
@@ -9297,12 +9285,7 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     # Test when the corrupted file is at the end of a list
     fileList = [uvh5_file, testfile]
     with uvtest.check_warnings(
-        UserWarning,
-        match=[
-            "Failed to read",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-        ],
+        UserWarning, match=["Failed to read"],
     ):
         uv.read(fileList, skip_bad_files=True)
     # Check that the uncorrupted file was still read in
