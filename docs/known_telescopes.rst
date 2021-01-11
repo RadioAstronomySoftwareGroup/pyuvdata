@@ -3,7 +3,9 @@ Known Telescopes
 
 Known Telescope Data
 --------------------
-pyuvdata has the following known telescopes:
+pyuvdata uses `Astropy sites <https://docs.astropy.org/en/stable/api/astropy.coordinates.EarthLocation.html#astropy.coordinates.EarthLocation.get_site_names>`_
+for telescope location information, in addition to the following telescope information
+that is tracked within pyuvdata:
 
 .. exec::
     import json
