@@ -5739,7 +5739,6 @@ class UVData(UVBase):
             new_obj = self.copy(metadata_only=True)
             new_obj.select(bls=bl_ants, keep_all_metadata=keep_all_metadata)
 
-            temp_time_array = np.zeros_like(new_obj.time_array)
             if not self.metadata_only:
                 # initalize the data like arrays
                 # TODO: Spw axis to be collapsed in future release
@@ -5795,6 +5794,12 @@ class UVData(UVBase):
                 obj_times = new_obj.time_array[obj_inds]
 
                 for gp in time_gps:
+                    # Note that this average time is just used for identifying the
+                    # index to use for the blt axis on the averaged data set.
+                    # We do not update the actual time on that data set because it can
+                    # result in confusing behavior -- small numerical rounding errors
+                    # can result in many more unique times in the final data set than
+                    # in the initial data set.
                     avg_time = np.average(np.array(group_times + conj_group_times)[gp])
 
                     obj_time_ind = np.where(
@@ -5803,7 +5808,6 @@ class UVData(UVBase):
 
                     if obj_time_ind.size == 1:
                         this_obj_ind = obj_inds[obj_time_ind[0]]
-                        temp_time_array[this_obj_ind] = avg_time
                     else:
                         warnings.warn(
                             "Index baseline in the redundant group does not "
@@ -5886,22 +5890,14 @@ class UVData(UVBase):
                         temp_nsample_array[this_obj_ind, :, :, :] = avg_nsample
                         temp_flag_array[this_obj_ind, :, :, :] = avg_flag
 
-            temp_ntimes = np.unique(temp_time_array).size
-
             if inplace:
                 self.select(bls=bl_ants, keep_all_metadata=keep_all_metadata)
-                self.time_array = temp_time_array
-                self.Ntimes = temp_ntimes
-                self.set_lsts_from_time_array()
                 if not self.metadata_only:
                     self.data_array = temp_data_array
                     self.nsample_array = temp_nsample_array
                     self.flag_array = temp_flag_array
                 return
             else:
-                new_obj.time_array = temp_time_array
-                new_obj.Ntimes = temp_ntimes
-                new_obj.set_lsts_from_time_array()
                 if not self.metadata_only:
                     new_obj.data_array = temp_data_array
                     new_obj.nsample_array = temp_nsample_array
