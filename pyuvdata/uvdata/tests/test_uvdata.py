@@ -288,6 +288,34 @@ def uvdata_data(casa_uvfits):
     return
 
 
+@pytest.fixture(scope="session")
+def pyuvsim_redundant_main():
+    # read in test file for the compress/inflate redundancy functions
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
+    uv_object.read(testfile)
+
+    yield uv_object
+
+    # cleanup
+    del uv_object
+
+    return
+
+
+@pytest.fixture(scope="function")
+def pyuvsim_redundant(pyuvsim_redundant_main):
+    # read in test file for the compress/inflate redundancy functions
+    uv_object = pyuvsim_redundant_main.copy()
+
+    yield uv_object
+
+    # cleanup
+    del uv_object
+
+    return
+
+
 @pytest.fixture(scope="function")
 def uvdata_baseline():
     uv_object = UVData()
@@ -4981,11 +5009,8 @@ def test_set_uvws_from_antenna_pos():
     assert np.isclose(max_diff, 0.0, atol=2)
 
 
-def test_get_antenna_redundancies():
-    uv0 = UVData()
-    uv0.read_uvfits(
-        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
-    )
+def test_get_antenna_redundancies(pyuvsim_redundant):
+    uv0 = pyuvsim_redundant
 
     old_bl_array = np.copy(uv0.baseline_array)
     red_gps, centers, lengths = uv0.get_redundancies(
@@ -5021,14 +5046,13 @@ def test_get_antenna_redundancies():
 @pytest.mark.parametrize("method", ("select", "average"))
 @pytest.mark.parametrize("reconjugate", (True, False))
 @pytest.mark.parametrize("flagging_level", ("none", "some", "all"))
-def test_redundancy_contract_expand(method, reconjugate, flagging_level):
+def test_redundancy_contract_expand(
+    method, reconjugate, flagging_level, pyuvsim_redundant
+):
     # Test that a UVData object can be reduced to one baseline from each redundant group
     # and restored to its original form.
 
-    uv0 = UVData()
-    uv0.read_uvfits(
-        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
-    )
+    uv0 = pyuvsim_redundant
 
     # Fails at lower precision because some baselines fall into multiple
     # redundant groups
@@ -5246,14 +5270,13 @@ def test_redundancy_contract_expand(method, reconjugate, flagging_level):
 
 @pytest.mark.parametrize("method", ("select", "average"))
 @pytest.mark.parametrize("flagging_level", ("none", "some", "all"))
-def test_redundancy_contract_expand_variable_data(method, flagging_level):
+def test_redundancy_contract_expand_variable_data(
+    method, flagging_level, pyuvsim_redundant
+):
     # Test that a UVData object can be reduced to one baseline from each redundant group
     # and restored to its original form.
 
-    uv0 = UVData()
-    uv0.read_uvfits(
-        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
-    )
+    uv0 = pyuvsim_redundant
 
     # Fails at lower precision because some baselines fall into multiple
     # redundant groups
@@ -5405,11 +5428,23 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method, casa_uvf
     assert uv3 == uv1
 
 
-def test_compress_redundancy_variable_inttime():
-    uv0 = UVData()
-    uv0.read_uvfits(
-        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
-    )
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_compress_redundancy_hera():
+    # this test failed when we were averaging the times for redundant blts
+
+    uv_obj = UVData()
+    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5")
+    uv_obj.read(testfile)
+
+    orig_Ntimes = uv_obj.Ntimes
+    uv_obj.compress_by_redundancy(method="average")
+
+    assert orig_Ntimes == uv_obj.Ntimes
+
+
+def test_compress_redundancy_variable_inttime(pyuvsim_redundant):
+    uv0 = pyuvsim_redundant
+
     tol = 0.05
     ntimes_in = uv0.Ntimes
 
@@ -5451,15 +5486,12 @@ def test_compress_redundancy_variable_inttime():
 
 
 @pytest.mark.parametrize("method", ("select", "average"))
-def test_compress_redundancy_metadata_only_lst_update(method):
-    uv0 = UVData()
-    uv0.read_uvfits(
-        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
-    )
+def test_compress_redundancy_metadata_only(method, pyuvsim_redundant):
+    uv0 = pyuvsim_redundant
+
     tol = 0.05
 
     # Assign identical data to each redundant group
-    # modify times slightly to test lsts:
     red_gps, centers, lengths = uv0.get_redundancies(
         tol=tol, use_antpos=True, conjugate_bls=True
     )
@@ -5468,10 +5500,7 @@ def test_compress_redundancy_metadata_only_lst_update(method):
             inds = np.where(bl == uv0.baseline_array)
             uv0.data_array[inds] *= 0
             uv0.data_array[inds] += complex(i)
-            if bl_ind > 0:
-                uv0.time_array[inds] += uv0._time_array.tols[1] * 0.9
 
-    uv0.set_lsts_from_time_array()
     uv2 = uv0.copy(metadata_only=True)
     uv2.compress_by_redundancy(method=method, tol=tol, inplace=True)
 
@@ -5481,31 +5510,23 @@ def test_compress_redundancy_metadata_only_lst_update(method):
     uv0.nsample_array = None
     assert uv0 == uv2
 
-    uv3 = uv2.copy()
-    uv3.set_lsts_from_time_array()
-    assert uv3._lst_array == uv2._lst_array
 
+def test_compress_redundancy_wrong_method(pyuvsim_redundant):
+    uv0 = pyuvsim_redundant
 
-def test_compress_redundancy_wrong_method():
-    uv0 = UVData()
-    uv0.read_uvfits(
-        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
-    )
     tol = 0.05
     with pytest.raises(ValueError, match="method must be one of"):
         uv0.compress_by_redundancy(method="foo", tol=tol, inplace=True)
 
 
 @pytest.mark.parametrize("method", ("select", "average"))
-def test_redundancy_missing_groups(method, tmp_path):
+def test_redundancy_missing_groups(method, pyuvsim_redundant, tmp_path):
     # Check that if I try to inflate a compressed UVData that is missing
     # redundant groups, it will raise the right warnings and fill only what
     # data are available.
 
-    uv0 = UVData()
-    uv0.read_uvfits(
-        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
-    )
+    uv0 = pyuvsim_redundant
+
     tol = 0.02
     num_select = 19
 
@@ -5530,12 +5551,10 @@ def test_redundancy_missing_groups(method, tmp_path):
     assert np.unique(uv2.baseline_array).size == num_select
 
 
-def test_quick_redundant_vs_redundant_test_array():
+def test_quick_redundant_vs_redundant_test_array(pyuvsim_redundant):
     """Verify the quick redundancy calc returns the same groups as a known array."""
-    uv = UVData()
-    uv.read_uvfits(
-        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
-    )
+    uv = pyuvsim_redundant
+
     uv.select(times=uv.time_array[0])
     uv.unphase_to_drift()
     uv.conjugate_bls(convention="u>0", use_enu=True)
