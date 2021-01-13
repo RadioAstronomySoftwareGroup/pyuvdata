@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - Speed improvement in redundant group finder.
 
 ### Fixed
+- Fixed a bug in `compress_by_redundancy` with `method='average'` that resulted in more unique times on the compressed object than on the original object.
 - Fixed bug causing MemoryError when finding redundant baselines for over 100 antennas.
 
 ## [2.1.3] - 2020-12-15
