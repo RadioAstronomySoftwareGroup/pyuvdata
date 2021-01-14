@@ -66,7 +66,7 @@ class MWACorrFITS(UVData):
         num_fine_chan,
         edge_width=80e3,
         start_flag=2.0,
-        end_flag=2.0,
+        end_flag=0.0,
         flag_dc_offset=True,
     ):
         """
@@ -158,10 +158,11 @@ class MWACorrFITS(UVData):
         remove_coarse_band=True,
         correct_cable_len=False,
         phase_to_pointing_center=False,
+        propagate_coarse_flags=True,
         flag_init=True,
         edge_width=80e3,
-        start_flag=2.0,
-        end_flag=2.0,
+        start_flag="quacktime",
+        end_flag=0.0,
         flag_dc_offset=True,
         background_lsts=True,
         read_data=True,
@@ -205,6 +206,9 @@ class MWACorrFITS(UVData):
             Option to apply a cable delay correction.
         phase_to_pointing_center : bool
             Option to phase to the observation pointing center.
+        propagate_coarse_flags : bool
+            Option to propagate flags for missing coarse channel integrations
+            across frequency.
         flag_init: bool
             Set to True in order to do routine flagging of coarse channel edges,
             start or end integrations, or the center fine channel of each coarse
@@ -213,10 +217,13 @@ class MWACorrFITS(UVData):
             Only used if flag_init is True. The width to flag on the edge of
             each coarse channel, in hz. Errors if not equal to integer multiple
             of channel_width. Set to 0 for no edge flagging.
-        start_flag: float
+        start_flag: float or str
             Only used if flag_init is True. The number of seconds to flag at the
-            beginning of the observation. Set to 0 for no flagging. Errors if
-            not equal to an integer multiple of the integration time.
+            beginning of the observation. Set to 0 for no flagging. Default is
+            'quacktime', which uses information in the metafits file to determine
+            the length of time that should be flagged. Errors if input is not a
+            float or 'quacktime'. Errors if float input is not equal to an
+            integer multiple of the integration time.
         end_flag: floats
             Only used if flag_init is True. The number of seconds to flag at the
             end of the observation. Set to 0 for no flagging. Errors if not
@@ -285,6 +292,10 @@ class MWACorrFITS(UVData):
             raise ValueError(
                 "nsample_array_dtype must be one of: np.float64, np.float32, np.float16"
             )
+        # do start_flag check
+        if not isinstance(start_flag, (int, float)):
+            if start_flag != "quacktime":
+                raise ValueError("start_flag must be int or float or 'quacktime'")
 
         # iterate through files and organize
         # create a list of included coarse channels
@@ -405,6 +416,16 @@ class MWACorrFITS(UVData):
             ra_rad = np.pi * ra_deg / 180
             dec_rad = np.pi * dec_deg / 180
 
+            # set start_flag with quacktime
+            if flag_init and start_flag == "quacktime":
+                # ppds file does not contain this key
+                try:
+                    start_flag = meta_hdr["QUACKTIM"]
+                except KeyError:
+                    raise ValueError(
+                        "To use start_flag='quacktime', a .metafits file must \
+                            be submitted"
+                    )
             # get parameters from header
             # this assumes no averaging by this code so will need to be updated
             self.channel_width = float(meta_hdr.pop("FINECHAN") * 1000)
@@ -606,11 +627,11 @@ class MWACorrFITS(UVData):
                 dtype=data_array_dtype,
             )
             self.nsample_array = np.zeros(
-                (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols),
+                (self.Ntimes, self.Nbls, self.Nfreqs, self.Npols),
                 dtype=nsample_array_dtype,
             )
             self.flag_array = np.full(
-                (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols), True
+                (self.Ntimes, self.Nbls, len(included_coarse_chans), self.Npols), True
             )
 
             # read data files
@@ -637,10 +658,10 @@ class MWACorrFITS(UVData):
                             time_ind, freq_ind : freq_ind + num_fine_chans, :
                         ] = (hdu_list[i].data[:, 0::2] + 1j * hdu_list[i].data[:, 1::2])
                         self.nsample_array[
-                            time_ind, freq_ind : freq_ind + num_fine_chans, :
+                            time_ind, :, freq_ind : freq_ind + num_fine_chans, :
                         ] = 1.0
                         self.flag_array[
-                            time_ind, freq_ind : freq_ind + num_fine_chans, :
+                            time_ind, :, file_nums_to_index[file_num], :
                         ] = False
 
             # build mapper from antenna numbers and polarizations to pfb inputs
@@ -664,26 +685,27 @@ class MWACorrFITS(UVData):
             map_inds, conj = _corr_fits.generate_map(
                 corr_ants_to_pfb_inputs, pfb_inputs_to_outputs, map_inds, conj,
             )
+
+            # propagate coarse flags
+            if propagate_coarse_flags:
+                self.flag_array = np.any(self.flag_array, axis=2)
+                self.flag_array = self.flag_array[:, :, np.newaxis, :]
+                self.flag_array = np.repeat(self.flag_array, self.Nfreqs, axis=2)
+            else:
+                self.flag_array = np.repeat(self.flag_array, num_fine_chans, axis=2)
+
             # reorder data
             self.data_array = np.take(self.data_array, map_inds, axis=2)
-            self.nsample_array = np.take(self.nsample_array, map_inds, axis=2)
-            self.flag_array = np.take(self.flag_array, map_inds, axis=2)
 
             # conjugate data
             self.data_array[:, :, conj] = np.conj(self.data_array[:, :, conj])
+
             # reshape data
             self.data_array = self.data_array.reshape(
                 (self.Ntimes, self.Nfreqs, self.Nbls, self.Npols)
             )
-            self.nsample_array = self.nsample_array.reshape(
-                (self.Ntimes, self.Nfreqs, self.Nbls, self.Npols)
-            )
-            self.flag_array = self.flag_array.reshape(
-                (self.Ntimes, self.Nfreqs, self.Nbls, self.Npols)
-            )
+
             self.data_array = np.swapaxes(self.data_array, 1, 2)
-            self.nsample_array = np.swapaxes(self.nsample_array, 1, 2)
-            self.flag_array = np.swapaxes(self.flag_array, 1, 2)
 
             # generage baseline flags for flagged ants
             bad_ant_inds = np.nonzero(

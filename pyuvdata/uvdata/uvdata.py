@@ -6412,10 +6412,11 @@ class UVData(UVBase):
         remove_dig_gains=True,
         remove_coarse_band=True,
         correct_cable_len=False,
+        propagate_coarse_flags=True,
         flag_init=True,
         edge_width=80e3,
-        start_flag=2.0,
-        end_flag=2.0,
+        start_flag="quacktime",
+        end_flag=0.0,
         flag_dc_offset=True,
         phase_to_pointing_center=False,
         read_data=True,
@@ -6457,6 +6458,9 @@ class UVData(UVBase):
             Option to divide out coarse band shape.
         correct_cable_len : bool
             Option to apply a cable delay correction.
+        propagate_coarse_flags : bool
+            Option to propagate flags for missing coarse channel integrations
+            across frequency.
         flag_init: bool
             Set to True in order to do routine flagging of coarse channel edges,
             start or end integrations, or the center fine channel of each coarse
@@ -6465,10 +6469,13 @@ class UVData(UVBase):
             Only used if flag_init is True. Set to the width to flag on the edge
             of each coarse channel, in hz. Errors if not equal to integer
             multiple of channel_width. Set to 0 for no edge flagging.
-        start_flag: float
-            Only used if flag_init is True. Set to the number of seconds to flag
-            at the beginning of the observation. Set to 0 for no flagging.
-            Errors if not an integer multiple of the integration time.
+        start_flag: float or str
+            Only used if flag_init is True. The number of seconds to flag at the
+            beginning of the observation. Set to 0 for no flagging. Default is
+            'quacktime', which uses information in the metafits file to determine
+            the length of time that should be flagged. Errors if input is not a
+            float or 'quacktime'. Errors if float input is not equal to an
+            integer multiple of the integration time.
         end_flag: floats
             Only used if flag_init is True. Set to the number of seconds to flag
             at the end of the observation. Set to 0 for no flagging. Errors if
@@ -6537,6 +6544,7 @@ class UVData(UVBase):
             remove_dig_gains=remove_dig_gains,
             remove_coarse_band=remove_coarse_band,
             correct_cable_len=correct_cable_len,
+            propagate_coarse_flags=propagate_coarse_flags,
             flag_init=flag_init,
             edge_width=edge_width,
             start_flag=start_flag,
@@ -6921,10 +6929,11 @@ class UVData(UVBase):
         remove_dig_gains=True,
         remove_coarse_band=True,
         correct_cable_len=False,
+        propagate_coarse_flags=True,
         flag_init=True,
         edge_width=80e3,
-        start_flag=2.0,
-        end_flag=2.0,
+        start_flag="quacktime",
+        end_flag=0.0,
         flag_dc_offset=True,
         phase_to_pointing_center=False,
         skip_bad_files=False,
@@ -7090,6 +7099,9 @@ class UVData(UVBase):
         correct_cable_len : bool
             Flag to apply cable length correction. Only used if file_type is
             'mwa_corr_fits'.
+        propogate_coarse_flags : bool
+            Option to propogate flags for missing coarse channel integrations
+            across frequency. Only used if file_type is 'mwa_corr_fits'.
         flag_init: bool
             Only used if file_type is 'mwa_corr_fits'. Set to True in order to
             do routine flagging of coarse channel edges, start or end
@@ -7100,11 +7112,13 @@ class UVData(UVBase):
             to the width to flag on the edge of each coarse channel, in hz.
             Errors if not equal to integer multiple of channel_width. Set to 0
             for no edge flagging.
-        start_flag: float
-            Only used if file_type is 'mwa_corr_fits' and flag_init is True. Set
-            to the number of seconds to flag at the beginning of the observation.
-            Set to 0 for no flagging. Errors if not an integer multiple of the
-            integration time.
+        start_flag: float or str
+            Only used if flag_init is True. The number of seconds to flag at the
+            beginning of the observation. Set to 0 for no flagging. Default is
+            'quacktime', which uses information in the metafits file to determine
+            the length of time that should be flagged. Errors if input is not a
+            float or 'quacktime'. Errors if float input is not equal to an
+            integer multiple of the integration time.
         end_flag: floats
             Only used if file_type is 'mwa_corr_fits' and flag_init is True. Set
             to the number of seconds to flag at the end of the observation. Set
@@ -7568,6 +7582,7 @@ class UVData(UVBase):
                     remove_dig_gains=remove_dig_gains,
                     remove_coarse_band=remove_coarse_band,
                     correct_cable_len=correct_cable_len,
+                    propagate_coarse_flags=propagate_coarse_flags,
                     flag_init=flag_init,
                     edge_width=edge_width,
                     start_flag=start_flag,
