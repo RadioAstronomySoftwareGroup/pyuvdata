@@ -161,7 +161,7 @@ class MWACorrFITS(UVData):
         propagate_coarse_flags=True,
         flag_init=True,
         edge_width=80e3,
-        start_flag="quacktime",
+        start_flag="goodtime",
         end_flag=0.0,
         flag_dc_offset=True,
         background_lsts=True,
@@ -220,9 +220,9 @@ class MWACorrFITS(UVData):
         start_flag: float or str
             Only used if flag_init is True. The number of seconds to flag at the
             beginning of the observation. Set to 0 for no flagging. Default is
-            'quacktime', which uses information in the metafits file to determine
+            'goodtime', which uses information in the metafits file to determine
             the length of time that should be flagged. Errors if input is not a
-            float or 'quacktime'. Errors if float input is not equal to an
+            float or 'goodtime'. Errors if float input is not equal to an
             integer multiple of the integration time.
         end_flag: floats
             Only used if flag_init is True. The number of seconds to flag at the
@@ -294,8 +294,8 @@ class MWACorrFITS(UVData):
             )
         # do start_flag check
         if not isinstance(start_flag, (int, float)):
-            if start_flag != "quacktime":
-                raise ValueError("start_flag must be int or float or 'quacktime'")
+            if start_flag != "goodtime":
+                raise ValueError("start_flag must be int or float or 'goodtime'")
 
         # iterate through files and organize
         # create a list of included coarse channels
@@ -416,16 +416,20 @@ class MWACorrFITS(UVData):
             ra_rad = np.pi * ra_deg / 180
             dec_rad = np.pi * dec_deg / 180
 
-            # set start_flag with quacktime
-            if flag_init and start_flag == "quacktime":
+            # set start_flag with goodtime
+            if flag_init and start_flag == "goodtime":
                 # ppds file does not contain this key
                 try:
-                    start_flag = meta_hdr["QUACKTIM"]
+                    if meta_hdr["GOODTIME"] > start_time:
+                        start_flag = meta_hdr["GOODTIME"] - start_time
+                    else:
+                        start_flag = 0.0
                 except KeyError:
                     raise ValueError(
-                        "To use start_flag='quacktime', a .metafits file must \
+                        "To use start_flag='goodtime', a .metafits file must \
                             be submitted"
                     )
+
             # get parameters from header
             # this assumes no averaging by this code so will need to be updated
             self.channel_width = float(meta_hdr.pop("FINECHAN") * 1000)
