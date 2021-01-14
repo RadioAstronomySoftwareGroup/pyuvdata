@@ -735,19 +735,54 @@ def test_propagate_coarse_flags():
 
 @pytest.mark.filterwarnings("ignore:telescope_location is not set.")
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-def test_start_flag():
+def test_start_flag(tmp_path):
     """Test the default value of start_flag."""
     uv1 = UVData()
     uv1.read_mwa_corr_fits(
         filelist[0:2],
         flag_init=True,
-        start_flag="quacktime",
+        start_flag="goodtime",
         end_flag=0,
         edge_width=0,
         flag_dc_offset=False,
     )
-    assert np.all(uv1.flag_array)
+    good_ants = np.arange(128)
+    good_ants = np.delete(good_ants, [59, 114])
+    uv1.select(antenna_nums=good_ants)
+    # start_time is after goodtime, so data for good antennas should be unflagged
+    assert np.all(~uv1.flag_array)
+    mod_mini = str(tmp_path / "starttime_gpubox01_00.fits")
+    with fits.open(filelist[1]) as mini:
+        mini[1].header["time"] = 1447698334
+        mini.writeto(mod_mini)
     uv2 = UVData()
+    uv2.read_mwa_corr_fits(
+        [filelist[0], mod_mini],
+        flag_init=True,
+        start_flag="goodtime",
+        end_flag=0,
+        edge_width=0,
+        flag_dc_offset=False,
+    )
+    # start_time is before goodtime, so all data should be flagged
+    assert np.all(uv2.flag_array)
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location is not set.")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_start_flag_goodtime_ppds():
+    """Test that error is thrown using 'goodtime' with only ppds file."""
+    uv = UVData()
     with pytest.raises(ValueError) as cm:
-        uv2.read([filelist[1], filelist[7]], flag_init=True, start_flag="quacktime")
-    assert str(cm.value).startswith("To use start_flag='quacktime',")
+        uv.read([filelist[1], filelist[7]], flag_init=True, start_flag="goodtime")
+    assert str(cm.value).startswith("To use start_flag='goodtime',")
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location is not set.")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_start_flag_bad_string():
+    """Test that error is thrown if start_flag is given string other than 'goodtime'"""
+    uv = UVData()
+    with pytest.raises(ValueError) as cm:
+        uv.read(filelist[0:2], flag_init=True, start_flag="badstring")
+    assert str(cm.value).startswith("start_flag must be int or float or 'goodtime'")

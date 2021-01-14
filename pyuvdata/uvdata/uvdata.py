@@ -6415,7 +6415,7 @@ class UVData(UVBase):
         propagate_coarse_flags=True,
         flag_init=True,
         edge_width=80e3,
-        start_flag="quacktime",
+        start_flag="goodtime",
         end_flag=0.0,
         flag_dc_offset=True,
         phase_to_pointing_center=False,
@@ -6472,9 +6472,9 @@ class UVData(UVBase):
         start_flag: float or str
             Only used if flag_init is True. The number of seconds to flag at the
             beginning of the observation. Set to 0 for no flagging. Default is
-            'quacktime', which uses information in the metafits file to determine
+            'goodtime', which uses information in the metafits file to determine
             the length of time that should be flagged. Errors if input is not a
-            float or 'quacktime'. Errors if float input is not equal to an
+            float or 'goodtime'. Errors if float input is not equal to an
             integer multiple of the integration time.
         end_flag: floats
             Only used if flag_init is True. Set to the number of seconds to flag
@@ -6932,7 +6932,7 @@ class UVData(UVBase):
         propagate_coarse_flags=True,
         flag_init=True,
         edge_width=80e3,
-        start_flag="quacktime",
+        start_flag="goodtime",
         end_flag=0.0,
         flag_dc_offset=True,
         phase_to_pointing_center=False,
@@ -7115,9 +7115,9 @@ class UVData(UVBase):
         start_flag: float or str
             Only used if flag_init is True. The number of seconds to flag at the
             beginning of the observation. Set to 0 for no flagging. Default is
-            'quacktime', which uses information in the metafits file to determine
+            'goodtime', which uses information in the metafits file to determine
             the length of time that should be flagged. Errors if input is not a
-            float or 'quacktime'. Errors if float input is not equal to an
+            float or 'goodtime'. Errors if float input is not equal to an
             integer multiple of the integration time.
         end_flag: floats
             Only used if file_type is 'mwa_corr_fits' and flag_init is True. Set
