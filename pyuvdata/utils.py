@@ -1152,6 +1152,7 @@ def find_clusters(location_ids, location_vectors, tol, strict=False):
         Require that all adjacency lists be isolated maximal cliques.
         This ensures that vectors do not fall into multiple clusters.
         Default: False
+
     Returns
     -------
     list of list of location_ids
