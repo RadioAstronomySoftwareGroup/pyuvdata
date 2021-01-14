@@ -293,7 +293,9 @@ def test_ppds(tmp_path):
     """Test handling of ppds files"""
     # turnaround test with just ppds file given
     mwa_uv = UVData()
-    mwa_uv.read_mwa_corr_fits([filelist[1], filelist[7]], phase_to_pointing_center=True)
+    mwa_uv.read_mwa_corr_fits(
+        [filelist[1], filelist[7]], phase_to_pointing_center=True, flag_init=False
+    )
     testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv = UVData()
@@ -410,7 +412,7 @@ def test_flag_nsample_basic():
     Test that the flag(without flag_int) and nsample arrays correctly reflect data.
     """
     uv = UVData()
-    uv.read_mwa_corr_fits(filelist[0:3], flag_init=False)
+    uv.read_mwa_corr_fits(filelist[0:3], flag_init=False, propagate_coarse_flags=False)
     # check that only bad antennas are flagged for all times, freqs, pols
     bad_ants = [59, 114]
     good_ants = list(range(128))
@@ -419,27 +421,26 @@ def test_flag_nsample_basic():
     bad = uv.select(antenna_nums=bad_ants, inplace=False)
     good = uv.select(antenna_nums=good_ants, inplace=False)
     assert np.all(bad.flag_array)
-    # TODO: Spw axis to be collapsed in future release
     good.flag_array = good.flag_array.reshape(
-        (good.Ntimes, good.Nbls, 1, good.Nfreqs, good.Npols)
+        (good.Ntimes, good.Nbls, good.Nfreqs, good.Npols)
     )
+    print(good.flag_array.shape)
     # good ants should be flagged except for the first time and second freq,
     # and for the second time and first freq
-    assert np.all(good.flag_array[1:-1, :, :, :, :])
-    assert np.all(good.flag_array[0, :, :, 1, :] == 0)
-    assert np.all(good.flag_array[-1, :, :, 0, :] == 0)
-    assert np.all(good.flag_array[0, :, :, 0, :])
-    assert np.all(good.flag_array[-1, :, :, 1, :])
+    assert np.all(good.flag_array[1:-1, :, :, :])
+    assert np.all(good.flag_array[0, :, 1, :] == 0)
+    assert np.all(good.flag_array[-1, :, 0, :] == 0)
+    assert np.all(good.flag_array[0, :, 0, :])
+    assert np.all(good.flag_array[-1, :, 1, :])
     # check that nsample array is filled properly
-    # TODO: Spw axis to be collapsed in future release
     uv.nsample_array = uv.nsample_array.reshape(
-        (uv.Ntimes, uv.Nbls, 1, uv.Nfreqs, uv.Npols)
+        (uv.Ntimes, uv.Nbls, uv.Nfreqs, uv.Npols)
     )
-    assert np.all(uv.nsample_array[1:-1, :, :, :, :] == 0.0)
-    assert np.all(uv.nsample_array[0, :, :, 1, :] == 1.0)
-    assert np.all(uv.nsample_array[-1, :, :, 0, :] == 1.0)
-    assert np.all(uv.nsample_array[0, :, :, 0, :] == 0.0)
-    assert np.all(uv.nsample_array[-1, :, :, 1, :] == 0.0)
+    assert np.all(uv.nsample_array[1:-1, :, :, :] == 0.0)
+    assert np.all(uv.nsample_array[0, :, 1, :] == 1.0)
+    assert np.all(uv.nsample_array[-1, :, 0, :] == 1.0)
+    assert np.all(uv.nsample_array[0, :, 0, :] == 0.0)
+    assert np.all(uv.nsample_array[-1, :, 1, :] == 0.0)
 
 
 @pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
@@ -452,7 +453,13 @@ def test_flag_init(flag_file_init):
     Test that routine MWA flagging works as intended.
     """
     uv = UVData()
-    uv.read(flag_file_init, flag_init=True, start_flag=0, end_flag=0)
+    uv.read(
+        flag_file_init,
+        flag_init=True,
+        start_flag=0,
+        end_flag=0,
+        propagate_coarse_flags=False,
+    )
 
     freq_inds = [0, 1, 4, 6, 7, 8, 9, 12, 14, 15]
     freq_inds_complement = [ind for ind in range(16) if ind not in freq_inds]
@@ -479,18 +486,18 @@ def test_flag_start_flag(flag_file_init):
         end_flag=1.0,
         edge_width=0,
         flag_dc_offset=False,
+        propagate_coarse_flags=False,
     )
 
-    # TODO: Spw axis to be collapsed in future release
-    reshape = [uv.Ntimes, uv.Nbls, 1, uv.Nfreqs, uv.Npols]
+    reshape = [uv.Ntimes, uv.Nbls, uv.Nfreqs, uv.Npols]
     time_inds = [0, 1, -1, -2]
     assert np.all(
-        uv.flag_array.reshape(reshape)[time_inds, :, :, :, :]
+        uv.flag_array.reshape(reshape)[time_inds, :, :, :]
     ), "Not all of start and end times are flagged."
     # Check that it didn't just flag everything
     # Should have unflagged data for time inds [2, -3]
     assert not np.any(
-        np.all(uv.flag_array.reshape(reshape)[[2, -3], :, :, :, :], axis=(1, 2, 3, 4))
+        np.all(uv.flag_array.reshape(reshape)[[2, -3], :, :, :], axis=(1, 2, 3))
     ), "All the data is flagged for some intermediate times!"
 
 
@@ -710,3 +717,37 @@ def test_mismatch_flags():
     with pytest.raises(ValueError) as cm:
         uv.read(files)
     assert str(cm.value).startswith("flag file coarse bands do not match")
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
+@pytest.mark.filterwarnings(
+    "ignore:coarse channels are not contiguous for this observation"
+)
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_propagate_coarse_flags():
+    """
+    Test that the flag(without flag_int) and nsample arrays correctly reflect data.
+    """
+    uv = UVData()
+    uv.read_mwa_corr_fits(filelist[0:3], flag_init=False, propagate_coarse_flags=True)
+    assert np.all(uv.flag_array)
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location is not set.")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_start_flag():
+    """Test the default value of start_flag."""
+    uv1 = UVData()
+    uv1.read_mwa_corr_fits(
+        filelist[0:2],
+        flag_init=True,
+        start_flag="quacktime",
+        end_flag=0,
+        edge_width=0,
+        flag_dc_offset=False,
+    )
+    assert np.all(uv1.flag_array)
+    uv2 = UVData()
+    with pytest.raises(ValueError) as cm:
+        uv2.read([filelist[1], filelist[7]], flag_init=True, start_flag="quacktime")
+    assert str(cm.value).startswith("To use start_flag='quacktime',")
