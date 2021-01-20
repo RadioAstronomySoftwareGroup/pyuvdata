@@ -150,6 +150,58 @@ class MWACorrFITS(UVData):
                 self.flag_array[-num_end_flag:, :, :, :, :] = True
             self.flag_array = np.reshape(self.flag_array, shape)
 
+    def _read_fits_file(
+        self, filename, time_array, file_nums_to_index, num_fine_chans, int_time,
+    ):
+        """
+        Read the fits file and populate into memory.
+
+        This is an internal function and should not regularly be called except
+        by read_mwa_corr_fits function.
+
+        Parameters
+        ----------
+        filename : str
+            The mwa gpubox fits file to read
+        time_array : array of floats
+            The time_array object constructed during read_mwa_corr_fits call
+        file_nums_to_index : dict
+            Mappings of file name to index in coarse channel
+        num_fine_chans : int
+            Number of fine channels in a coarse channel
+        int_time : float
+            The integration time of each observation.
+
+        """
+        # get the file number from the file name
+        file_num = int(filename.split("_")[-2][-2:])
+        # map file number to frequency index
+        freq_ind = file_nums_to_index[file_num] * num_fine_chans
+        with fits.open(filename, memmap=True, mode="denywrite") as hdu_list:
+            for hdu in hdu_list:
+                # entry 0 is a header, so we skip it.
+                if hdu.data is None:
+                    continue
+                time = (
+                    hdu.header["TIME"]
+                    + hdu.header["MILLITIM"] / 1000.0
+                    + int_time / 2.0
+                )
+                time_ind = np.where(time_array == time)[0][0]
+                # dump data into matrix
+                # and take data from real to complex numbers
+                indices = np.index_exp[
+                    time_ind, freq_ind : freq_ind + num_fine_chans, :
+                ]
+                self.data_array[indices] = hdu.data[:, 0::2] + 1j * hdu.data[:, 1::2]
+                self.nsample_array[
+                    time_ind, :, freq_ind : freq_ind + num_fine_chans, :
+                ] = 1.0
+                self.flag_array[
+                    time_ind, :, file_nums_to_index[file_num], :
+                ] = False
+        return
+
     def read_mwa_corr_fits(
         self,
         filelist,
@@ -639,35 +691,10 @@ class MWACorrFITS(UVData):
             )
 
             # read data files
-            for file in file_dict["data"]:
-                # get the file number from the file name
-                file_num = int(file.split("_")[-2][-2:])
-                # map file number to frequency index
-                freq_ind = file_nums_to_index[file_num] * num_fine_chans
-                with fits.open(
-                    file, memmap=False, do_not_scale_image_data=False
-                ) as hdu_list:
-                    # count number of times
-                    end_list = len(hdu_list)
-                    for i in range(1, end_list):
-                        time = (
-                            hdu_list[i].header["TIME"]
-                            + hdu_list[i].header["MILLITIM"] / 1000.0
-                            + int_time / 2.0
-                        )
-                        time_ind = np.where(time_array == time)[0][0]
-                        # dump data into matrix
-                        # and take data from real to complex numbers
-                        self.data_array[
-                            time_ind, freq_ind : freq_ind + num_fine_chans, :
-                        ] = (hdu_list[i].data[:, 0::2] + 1j * hdu_list[i].data[:, 1::2])
-                        self.nsample_array[
-                            time_ind, :, freq_ind : freq_ind + num_fine_chans, :
-                        ] = 1.0
-                        self.flag_array[
-                            time_ind, :, file_nums_to_index[file_num], :
-                        ] = False
-
+            for filename in file_dict["data"]:
+                self._read_fits_file(
+                    filename, time_array, file_nums_to_index, num_fine_chans, int_time
+                )
             # build mapper from antenna numbers and polarizations to pfb inputs
             corr_ants_to_pfb_inputs = {}
             for i in range(len(antenna_numbers)):
