@@ -768,15 +768,15 @@ class MWACorrFITS(UVData):
                 # by a factor of 64 here. For a more detailed explanation, see PR #908.
                 dig_gains = dig_gains[:, coarse_inds] / 64
                 dig_gains = np.repeat(dig_gains, num_fine_chans, axis=1)
-                dig_gains1 = dig_gains[self.ant_1_array, :]
-                dig_gains2 = dig_gains[self.ant_2_array, :]
-                dig_gains1 = dig_gains1[:, :, np.newaxis]
-                dig_gains2 = dig_gains2[:, :, np.newaxis]
-                if self.data_array.dtype != np.complex128:
-                    self.data_array = self.data_array.astype(np.complex128)
-                self.data_array = self.data_array / (dig_gains1 * dig_gains2)
+
+                self.data_array /= (
+                    dig_gains[self.ant_1_array, :, np.newaxis]
+                    * dig_gains[self.ant_2_array, :, np.newaxis]
+                )
+
                 if self.data_array.dtype != data_array_dtype:
                     self.data_array = self.data_array.astype(data_array_dtype)
+
             # divide out coarse band shape
             if remove_coarse_band:
                 # get coarse band shape
@@ -789,10 +789,9 @@ class MWACorrFITS(UVData):
                 cb_array = np.average(cb_array, axis=1)
                 cb_array = cb_array[0:num_fine_chans]
                 cb_array = np.tile(cb_array, len(included_coarse_chans))
-                cb_array = cb_array[:, np.newaxis]
-                if self.data_array.dtype != np.complex128:
-                    self.data_array = self.data_array.astype(np.complex128)
-                self.data_array = self.data_array / cb_array
+
+                self.data_array /= cb_array[:, np.newaxis]
+
                 if self.data_array.dtype != data_array_dtype:
                     self.data_array = self.data_array.astype(data_array_dtype)
 
