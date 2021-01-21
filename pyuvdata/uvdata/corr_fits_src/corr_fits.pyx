@@ -37,14 +37,17 @@ cpdef dict input_output_mapping():
 
   return pfb_inputs_to_outputs
 
-cpdef tuple generate_map(
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef void generate_map(
   dict ants_to_pf,
-  dict in_to_out,
-  numpy.ndarray[ndim=1, dtype=numpy.int32_t] map_inds,
-  numpy.ndarray[ndim=1, dtype=numpy.npy_bool] conj
+  numpy.int32_t[:] map_inds,
+  numpy.npy_bool[:] conj,
 ):
   cdef int ant1, ant2, p1, p2, pol_ind, bls_ind, out_ant1, out_ant2
   cdef int out_p1, out_p2, ind1_1, ind1_2, ind2_1, ind2_2, data_index
+
+  cdef dict in_to_out = input_output_mapping()
 
   for ant1 in range(128):
     for ant2 in range(ant1, 128):
@@ -56,15 +59,13 @@ cpdef tuple generate_map(
           pol_ind = int(2 * p1 + p2)
           bls_ind = int(128 * ant1 - ant1 * (ant1 + 1) / 2 + ant2)
           # find the pfb input indices for this combination
-          (ind1_1, ind1_2) = (
-            ants_to_pf[(ant1, p1)],
-            ants_to_pf[(ant2, p2)],
-          )
+          ind1_1 = ants_to_pf[(ant1, p1)]
+          ind1_2 = ants_to_pf[(ant2, p2)]
+
           # find the pfb output indices
-          (ind2_1, ind2_2) = (
-            in_to_out[(ind1_1)],
-            in_to_out[(ind1_2)],
-          )
+          ind2_1 = in_to_out[ind1_1]
+          ind2_2 = in_to_out[ind1_2]
+
           out_ant1 = int(ind2_1 / 2)
           out_ant2 = int(ind2_2 / 2)
           out_p1 = ind2_1 % 2
@@ -95,30 +96,35 @@ cpdef tuple generate_map(
             )
             map_inds[bls_ind * 4 + pol_ind] = data_index
 
-  return map_inds, conj
+  return
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
 cpdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] get_cable_len_diffs(
   int Nblts,
-  numpy.ndarray[dtype=numpy.int_t, ndim=1] ant1_array,
-  numpy.ndarray[dtype=numpy.int_t, ndim=1] ant2_array,
+  numpy.int_t[:] ant1_array,
+  numpy.int_t[:] ant2_array,
   numpy.ndarray cable_lens,
 ):
-  cdef int i
-  cdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] cable_array = np.zeros(len(cable_lens), dtype=np.float_)
-  cdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] cable_diffs = np.zeros(Nblts, dtype=np.float_)
-
+  cdef Py_ssize_t i
+  cdef int n_cables = cable_lens.shape[0]
+  cdef numpy.float64_t[::1] cable_array = np.zeros(n_cables, dtype=np.float_)
+  cdef numpy.float64_t[::1] cable_diffs = np.zeros(Nblts, dtype=np.float_)
   # "the velocity factor of electic fields in RG-6 like coax"
   # from MWA_Tools/CONV2UVFITS/convutils.h
   cdef float v_factor = 1.204
 
   # check if the cable length already has the velocity factor applied
-  for i in range(len(cable_lens)):
-    if cable_lens[i][0:3] == "EL_":
+  # this loop is very python-y but there is no real gain to trying to make it C-esque
+  for i in range(n_cables):
+
+    if cable_lens[i][:3] == "EL_":
       cable_array[i] = float(cable_lens[i][3:])
     else:
       cable_array[i] = float(cable_lens[i]) * v_factor
 
   # build array of differences
-  cable_diffs = cable_array[ant2_array] - cable_array[ant1_array]
+  for i in range(Nblts):
+    cable_diffs[i] = cable_array[ant2_array[i]] - cable_array[ant1_array[i]]
 
-  return cable_diffs
+  return np.asarray(cable_diffs)
