@@ -159,6 +159,9 @@ class MWACorrFITS(UVData):
         This is an internal function and should not regularly be called except
         by read_mwa_corr_fits function.
 
+        It is designed to close the fits files, headers, and all associated pointers.
+        Without this read in a function, reading files has a large memory footprint.
+
         Parameters
         ----------
         filename : str
@@ -197,9 +200,7 @@ class MWACorrFITS(UVData):
                 self.nsample_array[
                     time_ind, :, freq_ind : freq_ind + num_fine_chans, :
                 ] = 1.0
-                self.flag_array[
-                    time_ind, :, file_nums_to_index[file_num], :
-                ] = False
+                self.flag_array[time_ind, :, file_nums_to_index[file_num], :] = False
         return
 
     def read_mwa_corr_fits(
@@ -708,14 +709,11 @@ class MWACorrFITS(UVData):
             # these are the indices for the data corresponding to the initial
             # antenna/pol pair
             # generate a mapping index array
-            map_inds = np.zeros((self.Nbls * self.Npols), dtype=np.int32)
+            map_inds = np.zeros((self.Nbls * self.Npols), dtype=np.int32, order="C",)
             # generate a conjugation array
-            conj = np.full((self.Nbls * self.Npols), False, dtype=np.bool_)
-            pfb_inputs_to_outputs = input_output_mapping()
+            conj = np.full((self.Nbls * self.Npols), False, dtype=np.bool_, order="C",)
 
-            map_inds, conj = _corr_fits.generate_map(
-                corr_ants_to_pfb_inputs, pfb_inputs_to_outputs, map_inds, conj,
-            )
+            _corr_fits.generate_map(corr_ants_to_pfb_inputs, map_inds, conj)
 
             # propagate coarse flags
             if propagate_coarse_flags:
