@@ -108,8 +108,8 @@ cpdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] get_cable_len_diffs(
 ):
   cdef Py_ssize_t i
   cdef int n_cables = cable_lens.shape[0]
-  cdef numpy.float64_t[::1] cable_array = np.zeros(n_cables, dtype=np.float_)
-  cdef numpy.float64_t[::1] cable_diffs = np.zeros(Nblts, dtype=np.float_)
+  cdef numpy.float64_t[::1] cable_array = np.zeros(n_cables, dtype=np.float64)
+  cdef numpy.float64_t[::1] cable_diffs = np.zeros(Nblts, dtype=np.float64)
   # "the velocity factor of electic fields in RG-6 like coax"
   # from MWA_Tools/CONV2UVFITS/convutils.h
   cdef float v_factor = 1.204
