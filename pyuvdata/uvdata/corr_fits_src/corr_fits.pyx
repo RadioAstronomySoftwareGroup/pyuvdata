@@ -41,8 +41,8 @@ cpdef dict input_output_mapping():
 @cython.wraparound(False)
 cpdef void generate_map(
   dict ants_to_pf,
-  numpy.int32_t[:] map_inds,
-  numpy.npy_bool[:] conj,
+  numpy.int32_t[::1] map_inds,
+  numpy.npy_bool[::1] conj,
 ):
   """Compute the map between pfb inputs and antenna numbersself.
 
@@ -114,11 +114,14 @@ cpdef void generate_map(
 @cython.wraparound(False)
 cpdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] get_cable_len_diffs(
   int Nblts,
-  numpy.int_t[:] ant1_array,
-  numpy.int_t[:] ant2_array,
+  numpy.int_t[::1] ant1_array,
+  numpy.int_t[::1] ant2_array,
   numpy.ndarray cable_lens,
 ):
   """Computer the difference in cable lengths for each baseline.
+
+  The inputs are one dimensional and will be both C and F contiguous but
+  we want to declare the memory layout in a consistent way with the rest of the code.
 
   Parameters
   ----------
