@@ -708,6 +708,10 @@ class MWACorrFITS(UVData):
             # map the pfb input indices to the pfb output indices
             # these are the indices for the data corresponding to the initial
             # antenna/pol pair
+
+            # These two 1D arrays will be both C and F contiguous
+            # but we are explicitly declaring C to be consistent with the rest
+            # of the python which interacts with the C/Cython code.
             # generate a mapping index array
             map_inds = np.zeros((self.Nbls * self.Npols), dtype=np.int32, order="C",)
             # generate a conjugation array
