@@ -44,6 +44,18 @@ cpdef void generate_map(
   numpy.int32_t[:] map_inds,
   numpy.npy_bool[:] conj,
 ):
+  """Compute the map between pfb inputs and antenna numbersself.
+
+  This function operates on input `map_inds` and `conj` arrays inplace.
+
+  Parameters
+  ----------
+  map_inds : 1D numpy array of type int32
+    The array into which mapping indices will be populated.
+  conj : 1D numpy array of type np.bool_
+    The array into which indices of baselines to conjugate will be populated.
+
+  """
   cdef int ant1, ant2, p1, p2, pol_ind, bls_ind, out_ant1, out_ant2
   cdef int out_p1, out_p2, ind1_1, ind1_2, ind2_1, ind2_2, data_index
 
@@ -106,6 +118,25 @@ cpdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] get_cable_len_diffs(
   numpy.int_t[:] ant2_array,
   numpy.ndarray cable_lens,
 ):
+  """Computer the difference in cable lengths for each baseline.
+
+  Parameters
+  ----------
+  Nblts : int
+    The number of baseline times
+  ant1_array : numpy array of type int_t
+    Array of antenna 1 numbers for each baseline.
+  ant2_array : numpy array of type int_t
+    Array of antenna 2 numbers for each baseline.
+  cable_lens : numpy array
+    Array of strings of the length of the cable for each antenna.
+
+  Returns
+  -------
+  cable_diffs : numpy array of type float64
+    Array of lenght Nblts with the difference of cable lengths for each baseline.
+
+  """
   cdef Py_ssize_t i
   cdef int n_cables = cable_lens.shape[0]
   cdef numpy.float64_t[::1] cable_array = np.zeros(n_cables, dtype=np.float64)
@@ -117,7 +148,6 @@ cpdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] get_cable_len_diffs(
   # check if the cable length already has the velocity factor applied
   # this loop is very python-y but there is no real gain to trying to make it C-esque
   for i in range(n_cables):
-
     if cable_lens[i][:3] == "EL_":
       cable_array[i] = float(cable_lens[i][3:])
     else:
