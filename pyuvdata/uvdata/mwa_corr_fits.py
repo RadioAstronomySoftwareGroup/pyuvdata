@@ -776,9 +776,6 @@ class MWACorrFITS(UVData):
                     * dig_gains[self.ant_2_array, :, np.newaxis]
                 )
 
-                if self.data_array.dtype != data_array_dtype:
-                    self.data_array = self.data_array.astype(data_array_dtype)
-
             # divide out coarse band shape
             if remove_coarse_band:
                 # get coarse band shape
@@ -793,9 +790,6 @@ class MWACorrFITS(UVData):
                 cb_array = np.tile(cb_array, len(included_coarse_chans))
 
                 self.data_array /= cb_array[:, np.newaxis]
-
-                if self.data_array.dtype != data_array_dtype:
-                    self.data_array = self.data_array.astype(data_array_dtype)
 
             # cable delay corrections
             if correct_cable_len:
