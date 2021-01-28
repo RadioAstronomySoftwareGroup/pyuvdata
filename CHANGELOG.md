@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 - Added support for `extra_keywords` in UVFlag construction from UVData objects (and paths)
 
 ### Changed
+- Improved memory usage in reading MWA correlator fits files.
 - Speed improvement in redundant group finder.
 
 ### Fixed
