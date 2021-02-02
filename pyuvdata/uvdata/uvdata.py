@@ -116,7 +116,7 @@ class UVData(UVBase):
             "flag_array",
             description=desc,
             form=("Nblts", 1, "Nfreqs", "Npols"),
-            expected_type=np.bool_,
+            expected_type=bool,
         )
 
         self._Nspws = uvp.UVParameter(
@@ -301,7 +301,7 @@ class UVData(UVBase):
             "varying widths."
         )
         self._flex_spw = uvp.UVParameter(
-            "flex_spw", description=desc, expected_type=np.bool_, value=False,
+            "flex_spw", description=desc, expected_type=bool, value=False,
         )
 
         desc = (
