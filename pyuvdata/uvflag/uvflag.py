@@ -268,7 +268,7 @@ class UVFlag(UVBase):
             "metric_array",
             description=desc,
             form=("Nblts", "Nspws", "Nfreqs", "Npols"),
-            expected_type=np.float,
+            expected_type=float,
             required=False,
         )
 
@@ -280,7 +280,7 @@ class UVFlag(UVBase):
             "flag_array",
             description=desc,
             form=("Nblts", "Nspws", "Nfreqs", "Npols"),
-            expected_type=np.bool_,
+            expected_type=bool,
             required=False,
         )
 
@@ -289,7 +289,7 @@ class UVFlag(UVBase):
             "weights_array",
             description=desc,
             form=("Nblts", "Nspws", "Nfreqs", "Npols"),
-            expected_type=np.float,
+            expected_type=float,
         )
 
         desc = (
@@ -300,7 +300,7 @@ class UVFlag(UVBase):
             "weights_square_array",
             description=desc,
             form=("Nblts", "Nspws", "Nfreqs", "Npols"),
-            expected_type=np.float,
+            expected_type=float,
             required=False,
         )
 
@@ -311,7 +311,7 @@ class UVFlag(UVBase):
             "time_array",
             description=desc,
             form=("Nblts",),
-            expected_type=np.float,
+            expected_type=float,
             tols=1e-3 / (60.0 * 60.0 * 24.0),
         )  # 1 ms in days
 
@@ -320,7 +320,7 @@ class UVFlag(UVBase):
             "lst_array",
             description=desc,
             form=("Nblts",),
-            expected_type=np.float,
+            expected_type=float,
             tols=radian_tol,
         )
 
@@ -367,7 +367,7 @@ class UVFlag(UVBase):
             "freq_array",
             description=desc,
             form=("Nspws", "Nfreqs"),
-            expected_type=np.float,
+            expected_type=float,
             tols=1e-3,
         )  # mHz
 
@@ -1201,8 +1201,8 @@ class UVFlag(UVBase):
                 arr = np.zeros_like(uv.flag_array)
                 sarr = self.flag_array
             elif self.mode == "metric":
-                arr = np.zeros_like(uv.flag_array, dtype=float)
-                warr = np.zeros_like(uv.flag_array, dtype=np.float)
+                arr = np.zeros_like(uv.flag_array, dtype=np.float64)
+                warr = np.zeros_like(uv.flag_array, dtype=np.float64)
                 sarr = self.metric_array
             for i, t in enumerate(np.unique(self.time_array)):
                 ti = np.where(uv.time_array == t)
@@ -1476,7 +1476,7 @@ class UVFlag(UVBase):
         if self.mode == "metric":
             return
         elif self.mode == "flag":
-            self.metric_array = self.flag_array.astype(np.float)
+            self.metric_array = self.flag_array.astype(np.float64)
             self._set_mode_metric()
 
             if convert_wgts:
@@ -2944,7 +2944,7 @@ class UVFlag(UVBase):
                     self.flag_array = np.zeros_like(indata.flag_array)
                 elif self.mode == "metric":
                     self.metric_array = np.zeros_like(indata.flag_array).astype(
-                        np.float
+                        np.float64
                     )
 
         if indata.x_orientation is not None:
@@ -3103,7 +3103,7 @@ class UVFlag(UVBase):
                     self.flag_array = np.zeros_like(indata.flag_array)
                 elif self.mode == "metric":
                     self.metric_array = np.zeros_like(indata.flag_array).astype(
-                        np.float
+                        np.float64
                     )
         if self.mode == "metric":
             self.weights_array = np.ones(self.metric_array.shape)
