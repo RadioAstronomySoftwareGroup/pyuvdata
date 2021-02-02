@@ -250,7 +250,7 @@ class UVCal(UVBase):
             "flag_array",
             description=desc,
             form=("Nants_data", "Nspws", "Nfreqs", "Ntimes", "Njones"),
-            expected_type=np.bool_,
+            expected_type=bool,
         )
 
         desc = (
@@ -409,7 +409,7 @@ class UVCal(UVBase):
             description=desc,
             required=False,
             form=("Nants_data", "Nspws", "Nfreqs", "Ntimes", "Njones"),
-            expected_type=np.bool_,
+            expected_type=bool,
         )
 
         desc = "Origin (on github for e.g) of calibration software. Url and branch."
