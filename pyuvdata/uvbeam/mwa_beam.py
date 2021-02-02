@@ -234,7 +234,7 @@ class MWABeam(UVBeam):
                     dipole, freq = name[1:].split("_")
                     pol_names.add(pol)
                     dipole_names.add(dipole)
-                    freq = np.int(freq)
+                    freq = np.int64(freq)
                     freqs_hz.add(freq)
 
                     if pol not in max_length:
@@ -645,7 +645,7 @@ class MWABeam(UVBeam):
         self.Nspws = 1
         self.spw_array = np.array([0])
         self.Nfreqs = freqs_use.size
-        self.freq_array = freqs_use.astype(np.float)
+        self.freq_array = freqs_use.astype(np.float64)
         self.freq_array = self.freq_array[np.newaxis, :]
         self.bandpass_array = np.ones((self.Nspws, self.Nfreqs))
 

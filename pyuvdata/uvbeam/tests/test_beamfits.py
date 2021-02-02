@@ -658,7 +658,7 @@ def test_extra_keywords_int(tmp_path, hera_beam_casa):
     testfile = str(tmp_path / "outtest_beam.fits")
 
     # check handling of int-like keywords
-    beam_in.extra_keywords["int1"] = np.int(5)
+    beam_in.extra_keywords["int1"] = np.int64(5)
     beam_in.extra_keywords["int2"] = 7
     beam_in.write_beamfits(testfile, clobber=True)
     beam_out.read_beamfits(testfile, run_check=False)
