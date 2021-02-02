@@ -6945,6 +6945,7 @@ class UVData(UVBase):
         isb=None,
         corrchunk=None,
         pseudo_cont=False,
+        exclude_antennas=False,
     ):
         """
         Read a generic file into a UVData object.
@@ -7022,6 +7023,12 @@ class UVData(UVBase):
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
             if it is a ValueError will be raised.
+        exclude_antennas : bool, optional
+            Must be used with either `bls`, `antenna_nums`, or `antenna_names`.
+            If false, baselines or antennas specified by these key words will be
+            included, and all others excluded. If true, baselines or antennas
+            specified by these keywords will be excluded, and all others will be
+            included.
         frequencies : array_like of float, optional
             The frequencies to include when reading data into the object, each
             value passed here should exist in the freq_array.
