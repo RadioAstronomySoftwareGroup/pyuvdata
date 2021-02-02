@@ -54,7 +54,7 @@ def _get_generic_type(expected_type, strict_type_check=False):
     for types in [
         (float, np.floating),
         (np.unsignedinteger),  # unexpected but just in case
-        (int, np.int_),
+        (int, np.integer),
         (complex, np.complexfloating),
     ]:
         if issubclass(expected_type, types):
