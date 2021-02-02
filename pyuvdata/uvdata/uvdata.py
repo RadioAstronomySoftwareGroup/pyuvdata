@@ -4112,6 +4112,7 @@ class UVData(UVBase):
         antenna_nums,
         antenna_names,
         ant_str,
+        exclude_antennas,
         bls,
         frequencies,
         freq_chans,
@@ -4155,6 +4156,12 @@ class UVData(UVBase):
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
             if it is a ValueError will be raised.
+        exclude_antennas : bool, optional
+            Must be used with either `bls`, `antenna_nums`, or `antenna_names`.
+            If false, baselines or antennas specified by these key words will be
+            included, and all others excluded. If true, baselines or antennas
+            specified by these keywords will be excluded, and all others will be
+            included.
         frequencies : array_like of float, optional
             The frequencies to keep in the object, each value passed here should
             exist in the freq_array.
@@ -4250,19 +4257,32 @@ class UVData(UVBase):
             n_selects += 1
             inds1 = np.zeros(0, dtype=np.int)
             inds2 = np.zeros(0, dtype=np.int)
-            for ant in antenna_nums:
-                if ant in self.ant_1_array or ant in self.ant_2_array:
-                    wh1 = np.where(self.ant_1_array == ant)[0]
-                    wh2 = np.where(self.ant_2_array == ant)[0]
-                    if len(wh1) > 0:
-                        inds1 = np.append(inds1, list(wh1))
-                    if len(wh2) > 0:
-                        inds2 = np.append(inds2, list(wh2))
+            for ant in self.antenna_numbers:
+                if exclude_antennas:
+                    if ant not in antenna_nums and (
+                        ant in self.ant_1_array or ant in self.ant_2_array
+                    ):
+                        wh1 = np.where(self.ant_1_array == ant)[0]
+                        wh2 = np.where(self.ant_2_array == ant)[0]
+                        if len(wh1) > 0:
+                            inds1 = np.append(inds1, list(wh1))
+                        if len(wh2) > 0:
+                            inds2 = np.append(inds2, list(wh2))
                 else:
-                    raise ValueError(
-                        "Antenna number {a} is not present in the "
-                        "ant_1_array or ant_2_array".format(a=ant)
-                    )
+                    if ant in antenna_nums and (
+                        ant in self.ant_1_array or ant in self.ant_2_array
+                    ):
+                        wh1 = np.where(self.ant_1_array == ant)[0]
+                        wh2 = np.where(self.ant_2_array == ant)[0]
+                        if len(wh1) > 0:
+                            inds1 = np.append(inds1, list(wh1))
+                        if len(wh2) > 0:
+                            inds2 = np.append(inds2, list(wh2))
+                    else:
+                        raise ValueError(
+                            "Antenna number {a} is not present in the "
+                            "ant_1_array or ant_2_array".format(a=ant)
+                        )
 
             ant_blt_inds = np.array(list(set(inds1).intersection(inds2)), dtype=np.int)
         else:
@@ -6187,6 +6207,7 @@ class UVData(UVBase):
         axis=None,
         antenna_nums=None,
         ant_str=None,
+        exclude_antennas=False,
         bls=None,
         polarizations=None,
         time_range=None,
@@ -6235,6 +6256,12 @@ class UVData(UVBase):
             pyuvdata object.
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `bls` or `polarizations` parameters, if it is a ValueError will be raised.
+        exclude_antennas : bool, optional
+            Must be used with either `bls`, `antenna_nums`, or `antenna_names`.
+            If false, baselines or antennas specified by these key words will be
+            included, and all others excluded. If true, baselines or antennas
+            specified by these keywords will be excluded, and all others will be
+            included.
         polarizations : array_like of int or str, optional
             List of polarization integers or strings to read-in. e.g. ['xx', 'yy', ...]
         time_range : list of float, optional
@@ -6304,6 +6331,7 @@ class UVData(UVBase):
             phase_type=phase_type,
             antenna_nums=antenna_nums,
             ant_str=ant_str,
+            exclude_antennas=exclude_antennas,
             bls=bls,
             polarizations=polarizations,
             time_range=time_range,
@@ -6566,6 +6594,7 @@ class UVData(UVBase):
         antenna_nums=None,
         antenna_names=None,
         ant_str=None,
+        exclude_antennas=False,
         bls=None,
         frequencies=None,
         freq_chans=None,
@@ -6625,6 +6654,12 @@ class UVData(UVBase):
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
             if it is a ValueError will be raised. Ignored if read_data is False.
+        exclude_antennas : bool, optional
+            Must be used with either `bls`, `antenna_nums`, or `antenna_names`.
+            If false, baselines or antennas specified by these key words will be
+            included, and all others excluded. If true, baselines or antennas
+            specified by these keywords will be excluded, and all others will be
+            included.
         frequencies : array_like of float, optional
             The frequencies to include when reading data into the object, each
             value passed here should exist in the freq_array. Ignored if
@@ -6701,6 +6736,7 @@ class UVData(UVBase):
             antenna_nums=antenna_nums,
             antenna_names=antenna_names,
             ant_str=ant_str,
+            exclude_antennas=exclude_antennas,
             bls=bls,
             frequencies=frequencies,
             freq_chans=freq_chans,
@@ -6726,6 +6762,7 @@ class UVData(UVBase):
         antenna_nums=None,
         antenna_names=None,
         ant_str=None,
+        exclude_antennas=False,
         bls=None,
         frequencies=None,
         freq_chans=None,
@@ -6787,6 +6824,12 @@ class UVData(UVBase):
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
             if it is a ValueError will be raised. Ignored if read_data is False.
+        exclude_antennas : bool, optional
+            Must be used with either `bls`, `antenna_nums`, or `antenna_names`.
+            If false, baselines or antennas specified by these key words will be
+            included, and all others excluded. If true, baselines or antennas
+            specified by these keywords will be excluded, and all others will be
+            included.
         frequencies : array_like of float, optional
             The frequencies to include when reading data into the object, each
             value passed here should exist in the freq_array. Ignored if
@@ -6871,6 +6914,7 @@ class UVData(UVBase):
             antenna_nums=antenna_nums,
             antenna_names=antenna_names,
             ant_str=ant_str,
+            exclude_antennas=exclude_antennas,
             bls=bls,
             frequencies=frequencies,
             freq_chans=freq_chans,
@@ -7263,6 +7307,17 @@ class UVData(UVBase):
                 "Only one of antenna_nums and antenna_names can " "be provided."
             )
 
+        if (
+            exclude_antennas is True
+            and antenna_nums is None
+            and antenna_names is None
+            and bls is None
+        ):
+            raise ValueError(
+                "exclude_antennas can only be used if one of `antenna_names`,"
+                " `antenna_nums`, or `bls` is provided."
+            )
+
         if multi:
 
             file_num = 0
@@ -7277,6 +7332,7 @@ class UVData(UVBase):
                         antenna_nums=antenna_nums,
                         antenna_names=antenna_names,
                         ant_str=ant_str,
+                        exclude_antennas=exclude_antennas,
                         bls=bls,
                         frequencies=frequencies,
                         freq_chans=freq_chans,
@@ -7343,6 +7399,7 @@ class UVData(UVBase):
                             antenna_nums=antenna_nums,
                             antenna_names=antenna_names,
                             ant_str=ant_str,
+                            exclude_antennas=exclude_antennas,
                             bls=bls,
                             frequencies=frequencies,
                             freq_chans=freq_chans,
@@ -7466,6 +7523,7 @@ class UVData(UVBase):
                     select_antenna_nums = antenna_nums
                     select_antenna_names = antenna_names
                     select_ant_str = ant_str
+                    select_exclude_antennas = exclude_antennas
                     select_bls = bls
                     select_frequencies = frequencies
                     select_freq_chans = freq_chans
@@ -7518,6 +7576,7 @@ class UVData(UVBase):
 
                     # these aren't supported by partial read, so do it in select
                     select_antenna_names = antenna_names
+                    select_exclude_antennas = exclude_antennas
                     select_frequencies = frequencies
                     select_freq_chans = freq_chans
                     select_times = times
@@ -7532,6 +7591,7 @@ class UVData(UVBase):
                     antenna_nums=antenna_nums,
                     antenna_names=antenna_names,
                     ant_str=ant_str,
+                    exclude_antennas=exclude_antennas,
                     bls=bls,
                     frequencies=frequencies,
                     freq_chans=freq_chans,
@@ -7564,6 +7624,7 @@ class UVData(UVBase):
                     filename,
                     antenna_nums=antenna_nums,
                     ant_str=ant_str,
+                    exclude_antennas=exclude_antennas,
                     bls=bls,
                     polarizations=polarizations,
                     time_range=time_range,
@@ -7632,6 +7693,7 @@ class UVData(UVBase):
                     antenna_nums=antenna_nums,
                     antenna_names=antenna_names,
                     ant_str=ant_str,
+                    exclude_antennas=exclude_antennas,
                     bls=bls,
                     frequencies=frequencies,
                     freq_chans=freq_chans,
@@ -7656,6 +7718,7 @@ class UVData(UVBase):
                     antenna_nums=select_antenna_nums,
                     antenna_names=select_antenna_names,
                     ant_str=select_ant_str,
+                    exclude_antennas=select_exclude_antennas,
                     bls=select_bls,
                     frequencies=select_frequencies,
                     freq_chans=select_freq_chans,
