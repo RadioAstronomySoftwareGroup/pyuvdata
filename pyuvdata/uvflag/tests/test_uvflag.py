@@ -578,7 +578,11 @@ def test_read_missing_nants_data(test_outfile):
     with h5py.File(test_outfile, "a") as h5:
         del h5["Header/Nants_data"]
 
-    with uvtest.check_warnings(UserWarning, "Nants_data not available in file,"):
+    # PLP: Temporarily change from uvtest.check_warnings -> pytest.warns.
+    # numpy v1.20 causes h5py to issue warnings. Must keep as is for now to
+    # avoid test failures, can change back later.
+    # with uvtest.check_warnings(UserWarning, "Nants_data not available in file,"):
+    with pytest.warns(UserWarning, match="Nants_data not available in file,"):
         uvf2 = UVFlag(test_outfile)
 
     # make sure this was set to None
@@ -1934,9 +1938,11 @@ def test_missing_nants_telescope(tmp_path):
 
     with h5py.File(testfile, "r+") as f:
         del f["/Header/Nants_telescope"]
-    with uvtest.check_warnings(
-        UserWarning, match="Nants_telescope not available in file"
-    ):
+    # PLP: Temporarily change from uvtest.check_warnings -> pytest.warns.
+    # numpy v1.20 causes h5py to issue warnings. Must keep as is for now to
+    # avoid test failures, can change back later.
+    # with uvtest.check_warnings(
+    with pytest.warns(UserWarning, match="Nants_telescope not available in file"):
         uvf = UVFlag(testfile)
     uvf2 = UVFlag(test_f_file)
     uvf2.Nants_telescope = 2047
@@ -2113,7 +2119,7 @@ def test_flags2waterfall_errors(uvdata_obj):
 
 
 def test_and_rows_cols():
-    d = np.zeros((10, 20), np.bool)
+    d = np.zeros((10, 20), np.bool_)
     d[1, :] = True
     d[:, 2] = True
     d[5, 10:20] = True
