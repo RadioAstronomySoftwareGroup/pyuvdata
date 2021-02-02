@@ -275,14 +275,14 @@ def test_strict_expected_type():
     "in_type,out_type",
     [
         (np.float64, (float, np.floating)),
-        (int, (int, np.int_)),
+        (int, (int, np.integer)),
         (np.complex64, (complex, np.complexfloating)),
         (np.uint, (np.unsignedinteger)),
         # str type tests the pass through fallback
         (str, str),
         # check builtin attributes too
         ("str", str),
-        ("int", (int, np.int_)),
+        ("int", (int, np.integer)),
         ("float", (float, np.floating)),
         ("complex", (complex, np.complexfloating)),
     ],
