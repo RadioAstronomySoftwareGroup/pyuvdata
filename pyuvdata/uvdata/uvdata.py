@@ -77,7 +77,7 @@ class UVData(UVBase):
             "data_array",
             description=desc,
             form=("Nblts", 1, "Nfreqs", "Npols"),
-            expected_type=np.complex,
+            expected_type=complex,
         )
 
         desc = 'Visibility units, options are: "uncalib", "Jy" or "K str"'
@@ -108,7 +108,7 @@ class UVData(UVBase):
             "nsample_array",
             description=desc,
             form=("Nblts", 1, "Nfreqs", "Npols"),
-            expected_type=(np.floating),
+            expected_type=float,
         )
 
         desc = "Boolean flag, True is flagged, same shape as data_array."
@@ -132,7 +132,7 @@ class UVData(UVBase):
             "spw_array",
             description="Array of spectral window numbers, shape (Nspws)",
             form=("Nspws",),
-            expected_type=int,
+            expected_type=np.integer,
         )
 
         desc = (
@@ -173,13 +173,13 @@ class UVData(UVBase):
 
         desc = "Array of first antenna indices, shape (Nblts), " "type = int, 0 indexed"
         self._ant_1_array = uvp.UVParameter(
-            "ant_1_array", description=desc, expected_type=int, form=("Nblts",)
+            "ant_1_array", description=desc, expected_type=np.integer, form=("Nblts",)
         )
         desc = (
             "Array of second antenna indices, shape (Nblts), " "type = int, 0 indexed"
         )
         self._ant_2_array = uvp.UVParameter(
-            "ant_2_array", description=desc, expected_type=int, form=("Nblts",)
+            "ant_2_array", description=desc, expected_type=np.integer, form=("Nblts",)
         )
 
         desc = (
@@ -187,7 +187,10 @@ class UVData(UVBase):
             "type = int; baseline = 2048 * (ant1+1) + (ant2+1) + 2^16"
         )
         self._baseline_array = uvp.UVParameter(
-            "baseline_array", description=desc, expected_type=int, form=("Nblts",)
+            "baseline_array",
+            description=desc,
+            expected_type=np.integer,
+            form=("Nblts",),
         )
 
         # this dimensionality of freq_array does not allow for different spws
@@ -218,7 +221,7 @@ class UVData(UVBase):
         self._polarization_array = uvp.UVParameter(
             "polarization_array",
             description=desc,
-            expected_type=int,
+            expected_type=np.integer,
             acceptable_vals=list(np.arange(-8, 0)) + list(np.arange(1, 5)),
             form=("Npols",),
         )
@@ -250,7 +253,7 @@ class UVData(UVBase):
             "(Nfreqs), type = float."
         )
         self._channel_width = uvp.UVParameter(
-            "channel_width", description=desc, expected_type=np.floating, tols=1e-3,
+            "channel_width", description=desc, expected_type=float, tols=1e-3,
         )  # 1 mHz
 
         # --- observation information ---
@@ -313,7 +316,7 @@ class UVData(UVBase):
             "flex_spw_id_array",
             description=desc,
             form=("Nfreqs",),
-            expected_type=np.int,
+            expected_type=np.integer,
             required=False,
         )
 
@@ -336,10 +339,7 @@ class UVData(UVBase):
             "applied to the data (eg 2000.)"
         )
         self._phase_center_epoch = uvp.UVParameter(
-            "phase_center_epoch",
-            required=False,
-            description=desc,
-            expected_type=np.floating,
+            "phase_center_epoch", required=False, description=desc, expected_type=float,
         )
 
         desc = (
@@ -351,7 +351,7 @@ class UVData(UVBase):
             "phase_center_ra",
             required=False,
             description=desc,
-            expected_type=np.floating,
+            expected_type=float,
             tols=radian_tol,
         )
 
@@ -364,7 +364,7 @@ class UVData(UVBase):
             "phase_center_dec",
             required=False,
             description=desc,
-            expected_type=np.floating,
+            expected_type=float,
             tols=radian_tol,
         )
 
@@ -436,7 +436,7 @@ class UVData(UVBase):
             "antenna_positions",
             description=desc,
             form=("Nants_telescope", 3),
-            expected_type=np.floating,
+            expected_type=float,
             tols=1e-3,  # 1 mm
         )
 
@@ -494,7 +494,7 @@ class UVData(UVBase):
             required=False,
             description=desc,
             form=("Nants_telescope",),
-            expected_type=np.floating,
+            expected_type=float,
             tols=1e-3,  # 1 mm
         )
 
@@ -506,7 +506,7 @@ class UVData(UVBase):
             required=False,
             description="Greenwich sidereal time at " "midnight on reference date",
             spoof_val=0.0,
-            expected_type=np.floating,
+            expected_type=float,
         )
         self._rdate = uvp.UVParameter(
             "rdate",
@@ -520,14 +520,14 @@ class UVData(UVBase):
             required=False,
             description="Earth's rotation rate " "in degrees per day",
             spoof_val=360.985,
-            expected_type=np.floating,
+            expected_type=float,
         )
         self._dut1 = uvp.UVParameter(
             "dut1",
             required=False,
             description="DUT1 (google it) AIPS 117 " "calls it UT1UTC",
             spoof_val=0.0,
-            expected_type=np.floating,
+            expected_type=float,
         )
         self._timesys = uvp.UVParameter(
             "timesys",
@@ -552,7 +552,7 @@ class UVData(UVBase):
             required=False,
             description=desc,
             form=("Nants_telescope", "Nfreqs"),
-            expected_type=np.floating,
+            expected_type=float,
             spoof_val=1.0,
         )
 
@@ -1912,7 +1912,7 @@ class UVData(UVBase):
             if (
                 np.max(convention) >= self.Nblts
                 or np.min(convention) < 0
-                or convention.dtype not in [int, np.int, np.int32, np.int64]
+                or convention.dtype not in [int, np.int_, np.int32, np.int64]
             ):
                 raise ValueError(
                     "If convention is an index array, it must "
@@ -2050,7 +2050,7 @@ class UVData(UVBase):
             order = np.array(order)
             if (
                 order.size != self.Npols
-                or order.dtype not in [int, np.int, np.int32, np.int64]
+                or order.dtype not in [int, np.int_, np.int32, np.int64]
                 or np.min(order) < 0
                 or np.max(order) >= self.Npols
             ):
@@ -2148,7 +2148,7 @@ class UVData(UVBase):
             order = np.array(order)
             if order.size != self.Nblts or order.dtype not in [
                 int,
-                np.int,
+                np.int_,
                 np.int32,
                 np.int64,
             ]:

@@ -2698,7 +2698,7 @@ def test_read_slicing(casa_uvfits):
     # dataset shape checking
     # check various kinds of indexing give the right answer
     indices = [slice(0, 10), 0, [0, 1, 2], [0]]
-    dset = np.empty((100, 1, 1024, 2), dtype=np.float)
+    dset = np.empty((100, 1, 1024, 2), dtype=np.float64)
     shape = uvh5._get_dset_shape(dset, indices)
     assert tuple(shape) == (10, 1, 3, 1)
 

@@ -301,7 +301,9 @@ def test_readwriteread_antenna_diameters(tmp_path, casa_uvfits):
     write_file = str(tmp_path / "outtest_casa.uvfits")
 
     # check that if antenna_diameters is set, it's read back out properly
-    uv_in.antenna_diameters = np.zeros((uv_in.Nants_telescope,), dtype=np.float) + 14.0
+    uv_in.antenna_diameters = (
+        np.zeros((uv_in.Nants_telescope,), dtype=np.float64) + 14.0
+    )
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file)
     assert uv_in == uv_out
@@ -531,7 +533,7 @@ def test_extra_keywords_errors(
     "kwd_names,kwd_values",
     (
         [["bool", "bool2"], [True, False]],
-        [["int1", "int2"], [np.int(5), 7]],
+        [["int1", "int2"], [np.int64(5), 7]],
         [["float1", "float2"], [np.int64(5.3), 6.9]],
         [["complex1", "complex2"], [np.complex64(5.3 + 1.2j), 6.9 + 4.6j]],
         [

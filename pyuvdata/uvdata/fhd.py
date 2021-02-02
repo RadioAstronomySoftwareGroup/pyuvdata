@@ -616,8 +616,8 @@ class FHD(UVData):
             )
 
         self._set_phased()
-        self.phase_center_ra_degrees = np.float(obs["OBSRA"][0])
-        self.phase_center_dec_degrees = np.float(obs["OBSDEC"][0])
+        self.phase_center_ra_degrees = float(obs["OBSRA"][0])
+        self.phase_center_dec_degrees = float(obs["OBSDEC"][0])
 
         self.phase_center_epoch = astrometry["EQUINOX"][0]
 
@@ -637,7 +637,7 @@ class FHD(UVData):
             )
 
         # TODO: Spw axis to be collapsed in future release
-        self.freq_array = np.zeros((1, len(bl_info["FREQ"][0])), dtype=np.float_)
+        self.freq_array = np.zeros((1, len(bl_info["FREQ"][0])), dtype=np.float64)
         self.freq_array[0, :] = bl_info["FREQ"][0]
 
         self.channel_width = float(obs["FREQ_RES"][0])
@@ -682,7 +682,7 @@ class FHD(UVData):
             )
             # TODO: Spw axis to be collapsed in future release
             self.nsample_array = np.zeros(
-                (self.Nblts, 1, self.Nfreqs, self.Npols), dtype=np.float_
+                (self.Nblts, 1, self.Nfreqs, self.Npols), dtype=np.float64
             )
             # TODO: Spw axis to be collapsed in future release
             self.flag_array = np.zeros(
