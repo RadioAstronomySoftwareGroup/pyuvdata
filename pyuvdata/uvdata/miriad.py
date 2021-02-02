@@ -46,6 +46,7 @@ class Miriad(UVData):
         filepath,
         antenna_nums=None,
         ant_str=None,
+        exclude_antennas=False,
         bls=None,
         polarizations=None,
         time_range=None,
