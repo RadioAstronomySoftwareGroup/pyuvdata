@@ -34,7 +34,7 @@ class UVTest(UVBase):
         )
 
         self._float1 = uvp.UVParameter(
-            "float1", description="float value", expected_type=np.float, value=18.2
+            "float1", description="float value", expected_type=float, value=18.2
         )
 
         self._string1 = uvp.UVParameter(
@@ -49,7 +49,7 @@ class UVTest(UVBase):
             "floatarr",
             description="float array",
             form=("int1", "int2"),
-            expected_type=np.float,
+            expected_type=float,
             value=np.random.rand(self._int1.value, self._int2.value),
         )
 
@@ -57,7 +57,7 @@ class UVTest(UVBase):
             "floatarr2",
             description="float array",
             form=4,
-            expected_type=np.float,
+            expected_type=float,
             value=np.random.rand(4),
         )
 
@@ -78,7 +78,7 @@ class UVTest(UVBase):
         )
 
         self._angle = uvp.AngleParameter(
-            "angle", description="angle", expected_type=np.float, value=np.pi / 4.0
+            "angle", description="angle", expected_type=float, value=np.pi / 4.0
         )
 
         self._location = uvp.LocationParameter(
@@ -222,7 +222,7 @@ def test_string_form_check():
 def test_single_value_check():
     """Test check function with wrong type."""
     test_obj = UVTest()
-    test_obj.int1 = np.float(test_obj.int1)
+    test_obj.int1 = np.float64(test_obj.int1)
     pytest.raises(ValueError, test_obj.check)
 
 
@@ -279,7 +279,7 @@ def test_quantity_scalar_type():
 def test_check_array_shape():
     """Test check function with wrong array dimensions."""
     test_obj = UVTest()
-    test_obj.floatarr = np.array([4, 5, 6], dtype=np.float)
+    test_obj.floatarr = np.array([4, 5, 6], dtype=np.float64)
     pytest.raises(ValueError, test_obj.check)
 
 
