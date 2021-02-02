@@ -74,7 +74,7 @@ def initialize_with_zeros(uvd, filename):
     uvd.initialize_uvh5_file(filename, clobber=True)
     data_shape = (uvd.Nblts, 1, uvd.Nfreqs, uvd.Npols)
     data = np.zeros(data_shape, dtype=np.complex64)
-    flags = np.zeros(data_shape, dtype=np.bool)
+    flags = np.zeros(data_shape, dtype=np.bool_)
     nsamples = np.zeros(data_shape, dtype=np.float32)
     with h5py.File(filename, "r+") as h5f:
         dgrp = h5f["/Data"]
@@ -99,7 +99,7 @@ def initialize_with_zeros_ints(uvd, filename):
     )
     data_shape = (uvd.Nblts, 1, uvd.Nfreqs, uvd.Npols)
     data = np.zeros(data_shape, dtype=np.complex64)
-    flags = np.zeros(data_shape, dtype=np.bool)
+    flags = np.zeros(data_shape, dtype=np.bool_)
     nsamples = np.zeros(data_shape, dtype=np.float32)
     with h5py.File(filename, "r+") as h5f:
         dgrp = h5f["/Data"]
@@ -935,7 +935,7 @@ def test_uvh5_partial_write_irregular_blt(uv_partial_write, tmp_path):
 
     # make a mostly empty object in memory to match what we'll write to disk
     partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
-    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool_)
     partial_uvh5.nsample_array = np.zeros_like(
         full_uvh5.nsample_array, dtype=np.float32
     )
@@ -985,7 +985,7 @@ def test_uvh5_partial_write_irregular_freq(uv_partial_write, tmp_path):
 
     # make a mostly empty object in memory to match what we'll write to disk
     partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
-    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool_)
     partial_uvh5.nsample_array = np.zeros_like(
         full_uvh5.nsample_array, dtype=np.float32
     )
@@ -1035,7 +1035,7 @@ def test_uvh5_partial_write_irregular_pol(uv_partial_write, tmp_path):
 
     # make a mostly empty object in memory to match what we'll write to disk
     partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
-    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool_)
     partial_uvh5.nsample_array = np.zeros_like(
         full_uvh5.nsample_array, dtype=np.float32
     )
@@ -1090,7 +1090,7 @@ def test_uvh5_partial_write_irregular_multi1(uv_partial_write, tmp_path):
 
     # make a mostly empty object in memory to match what we'll write to disk
     partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
-    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool_)
     partial_uvh5.nsample_array = np.zeros_like(
         full_uvh5.nsample_array, dtype=np.float32
     )
@@ -1100,7 +1100,7 @@ def test_uvh5_partial_write_irregular_multi1(uv_partial_write, tmp_path):
     freq_inds = [0, 2, 3, 4]
     data_shape = (len(blt_inds), 1, len(freq_inds), full_uvh5.Npols)
     data = np.zeros(data_shape, dtype=np.complex64)
-    flags = np.zeros(data_shape, dtype=np.bool)
+    flags = np.zeros(data_shape, dtype=np.bool_)
     nsamples = np.zeros(data_shape, dtype=np.float32)
     for iblt, blt_idx in enumerate(blt_inds):
         for ifreq, freq_idx in enumerate(freq_inds):
@@ -1162,7 +1162,7 @@ def test_uvh5_partial_write_irregular_multi2(uv_partial_write, tmp_path):
 
     # make a mostly empty object in memory to match what we'll write to disk
     partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
-    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool_)
     partial_uvh5.nsample_array = np.zeros_like(
         full_uvh5.nsample_array, dtype=np.float32
     )
@@ -1172,7 +1172,7 @@ def test_uvh5_partial_write_irregular_multi2(uv_partial_write, tmp_path):
     pol_inds = [0, 1, 3]
     data_shape = (full_uvh5.Nblts, 1, len(freq_inds), len(pol_inds))
     data = np.zeros(data_shape, dtype=np.complex64)
-    flags = np.zeros(data_shape, dtype=np.bool)
+    flags = np.zeros(data_shape, dtype=np.bool_)
     nsamples = np.zeros(data_shape, dtype=np.float32)
     for ifreq, freq_idx in enumerate(freq_inds):
         for ipol, pol_idx in enumerate(pol_inds):
@@ -1238,7 +1238,7 @@ def test_uvh5_partial_write_irregular_multi3(uv_partial_write, tmp_path):
 
     # make a mostly empty object in memory to match what we'll write to disk
     partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
-    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool_)
     partial_uvh5.nsample_array = np.zeros_like(
         full_uvh5.nsample_array, dtype=np.float32
     )
@@ -1248,7 +1248,7 @@ def test_uvh5_partial_write_irregular_multi3(uv_partial_write, tmp_path):
     pol_inds = [0, 1, 3]
     data_shape = (len(blt_inds), 1, full_uvh5.Nfreqs, len(pol_inds))
     data = np.zeros(data_shape, dtype=np.complex64)
-    flags = np.zeros(data_shape, dtype=np.bool)
+    flags = np.zeros(data_shape, dtype=np.bool_)
     nsamples = np.zeros(data_shape, dtype=np.float32)
     for iblt, blt_idx in enumerate(blt_inds):
         for ipol, pol_idx in enumerate(pol_inds):
@@ -1305,7 +1305,7 @@ def test_uvh5_partial_write_irregular_multi4(uv_partial_write, tmp_path):
 
     # make a mostly empty object in memory to match what we'll write to disk
     partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
-    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool_)
     partial_uvh5.nsample_array = np.zeros_like(
         full_uvh5.nsample_array, dtype=np.float32
     )
@@ -1316,7 +1316,7 @@ def test_uvh5_partial_write_irregular_multi4(uv_partial_write, tmp_path):
     pol_inds = [0, 1, 3]
     data_shape = (len(blt_inds), 1, len(freq_inds), len(pol_inds))
     data = np.zeros(data_shape, dtype=np.complex64)
-    flags = np.zeros(data_shape, dtype=np.bool)
+    flags = np.zeros(data_shape, dtype=np.bool_)
     nsamples = np.zeros(data_shape, dtype=np.float32)
     for iblt, blt_idx in enumerate(blt_inds):
         for ifreq, freq_idx in enumerate(freq_inds):
@@ -2198,7 +2198,7 @@ def test_uvh5_partial_write_ints_irregular_blt(uv_uvh5, tmp_path):
 
     # make a mostly empty object in memory to match what we'll write to disk
     partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
-    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool_)
     partial_uvh5.nsample_array = np.zeros_like(
         full_uvh5.nsample_array, dtype=np.float32
     )
@@ -2248,7 +2248,7 @@ def test_uvh5_partial_write_ints_irregular_freq(uv_uvh5, tmp_path):
 
     # make a mostly empty object in memory to match what we'll write to disk
     partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
-    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool_)
     partial_uvh5.nsample_array = np.zeros_like(
         full_uvh5.nsample_array, dtype=np.float32
     )
@@ -2298,7 +2298,7 @@ def test_uvh5_partial_write_ints_irregular_pol(uv_uvh5, tmp_path):
 
     # make a mostly empty object in memory to match what we'll write to disk
     partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
-    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool_)
     partial_uvh5.nsample_array = np.zeros_like(
         full_uvh5.nsample_array, dtype=np.float32
     )
@@ -2353,7 +2353,7 @@ def test_uvh5_partial_write_ints_irregular_multi1(uv_uvh5, tmp_path):
 
     # make a mostly empty object in memory to match what we'll write to disk
     partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
-    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool_)
     partial_uvh5.nsample_array = np.zeros_like(
         full_uvh5.nsample_array, dtype=np.float32
     )
@@ -2363,7 +2363,7 @@ def test_uvh5_partial_write_ints_irregular_multi1(uv_uvh5, tmp_path):
     freq_inds = [0, 2, 3, 4]
     data_shape = (len(blt_inds), 1, len(freq_inds), full_uvh5.Npols)
     data = np.zeros(data_shape, dtype=np.complex64)
-    flags = np.zeros(data_shape, dtype=np.bool)
+    flags = np.zeros(data_shape, dtype=np.bool_)
     nsamples = np.zeros(data_shape, dtype=np.float32)
     for iblt, blt_idx in enumerate(blt_inds):
         for ifreq, freq_idx in enumerate(freq_inds):
@@ -2425,7 +2425,7 @@ def test_uvh5_partial_write_ints_irregular_multi2(uv_uvh5, tmp_path):
 
     # make a mostly empty object in memory to match what we'll write to disk
     partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
-    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool_)
     partial_uvh5.nsample_array = np.zeros_like(
         full_uvh5.nsample_array, dtype=np.float32
     )
@@ -2435,7 +2435,7 @@ def test_uvh5_partial_write_ints_irregular_multi2(uv_uvh5, tmp_path):
     pol_inds = [0, 1, 3]
     data_shape = (full_uvh5.Nblts, 1, len(freq_inds), len(pol_inds))
     data = np.zeros(data_shape, dtype=np.complex64)
-    flags = np.zeros(data_shape, dtype=np.bool)
+    flags = np.zeros(data_shape, dtype=np.bool_)
     nsamples = np.zeros(data_shape, dtype=np.float32)
     for ifreq, freq_idx in enumerate(freq_inds):
         for ipol, pol_idx in enumerate(pol_inds):
@@ -2500,7 +2500,7 @@ def test_uvh5_partial_write_ints_irregular_multi3(uv_uvh5, tmp_path):
 
     # make a mostly empty object in memory to match what we'll write to disk
     partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
-    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool_)
     partial_uvh5.nsample_array = np.zeros_like(
         full_uvh5.nsample_array, dtype=np.float32
     )
@@ -2510,7 +2510,7 @@ def test_uvh5_partial_write_ints_irregular_multi3(uv_uvh5, tmp_path):
     pol_inds = [0, 1, 3]
     data_shape = (len(blt_inds), 1, full_uvh5.Nfreqs, len(pol_inds))
     data = np.zeros(data_shape, dtype=np.complex64)
-    flags = np.zeros(data_shape, dtype=np.bool)
+    flags = np.zeros(data_shape, dtype=np.bool_)
     nsamples = np.zeros(data_shape, dtype=np.float32)
     for iblt, blt_idx in enumerate(blt_inds):
         for ipol, pol_idx in enumerate(pol_inds):
@@ -2569,7 +2569,7 @@ def test_uvh5_partial_write_ints_irregular_multi4(uv_uvh5, tmp_path):
 
     # make a mostly empty object in memory to match what we'll write to disk
     partial_uvh5.data_array = np.zeros_like(full_uvh5.data_array, dtype=np.complex64)
-    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool)
+    partial_uvh5.flag_array = np.zeros_like(full_uvh5.flag_array, dtype=np.bool_)
     partial_uvh5.nsample_array = np.zeros_like(
         full_uvh5.nsample_array, dtype=np.float32
     )
@@ -2580,7 +2580,7 @@ def test_uvh5_partial_write_ints_irregular_multi4(uv_uvh5, tmp_path):
     pol_inds = [0, 1, 3]
     data_shape = (len(blt_inds), 1, len(freq_inds), len(pol_inds))
     data = np.zeros(data_shape, dtype=np.complex64)
-    flags = np.zeros(data_shape, dtype=np.bool)
+    flags = np.zeros(data_shape, dtype=np.bool_)
     nsamples = np.zeros(data_shape, dtype=np.float32)
     for iblt, blt_idx in enumerate(blt_inds):
         for ifreq, freq_idx in enumerate(freq_inds):

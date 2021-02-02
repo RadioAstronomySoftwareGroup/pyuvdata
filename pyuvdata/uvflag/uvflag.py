@@ -36,7 +36,7 @@ def and_rows_cols(waterfall):
         that were fully flagged are flagged.
 
     """
-    wf = np.zeros_like(waterfall, dtype=np.bool)
+    wf = np.zeros_like(waterfall, dtype=np.bool_)
     Ntimes, Nfreqs = waterfall.shape
     wf[:, (np.sum(waterfall, axis=0) / Ntimes) == 1] = True
     wf[(np.sum(waterfall, axis=1) / Nfreqs) == 1] = True
@@ -280,7 +280,7 @@ class UVFlag(UVBase):
             "flag_array",
             description=desc,
             form=("Nblts", "Nspws", "Nfreqs", "Npols"),
-            expected_type=np.bool,
+            expected_type=np.bool_,
             required=False,
         )
 
@@ -2892,7 +2892,7 @@ class UVFlag(UVBase):
                             len(self.freq_array),
                             len(self.polarization_array),
                         ),
-                        np.bool,
+                        np.bool_,
                     )
                 elif self.mode == "metric":
                     self.metric_array = np.zeros(
@@ -3056,7 +3056,7 @@ class UVFlag(UVBase):
                             len(self.freq_array),
                             len(self.polarization_array),
                         ),
-                        np.bool,
+                        np.bool_,
                     )
                 elif self.mode == "metric":
                     self.metric_array = np.zeros(

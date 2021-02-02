@@ -4004,7 +4004,7 @@ def test_get_flags(casa_uvfits):
     # Check conjugation
     d = uv.get_flags(ant2, ant1, pol)
     assert np.all(dcheck == d)
-    assert d.dtype == np.bool
+    assert d.dtype == np.bool_
 
     # Antpair only
     dcheck = np.squeeze(uv.flag_array[bltind, :, :, :])

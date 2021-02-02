@@ -287,7 +287,7 @@ class FHDCal(UVCal):
                     if len(mode_fit) == 1:
                         mode_fit = float(mode_fit[0])
                     else:
-                        mode_fit = np.array(mode_fit, dtype=np.int)
+                        mode_fit = np.array(mode_fit, dtype=np.int64)
 
                     amp_degree = int(settings_lines["amp_degree"][0])
                     phase_degree = int(settings_lines["phase_degree"][0])
@@ -352,7 +352,7 @@ class FHDCal(UVCal):
             # Currently this can't include the times because the flag array
             # dimensions has to match the gain array dimensions.
             # This is somewhat artificial...
-            self.flag_array = np.zeros_like(self.gain_array, dtype=np.bool)
+            self.flag_array = np.zeros_like(self.gain_array, dtype=np.bool_)
             flagged_ants = np.where(ant_use == 0)[0]
             for ant in flagged_ants:
                 self.flag_array[ant, :] = 1
