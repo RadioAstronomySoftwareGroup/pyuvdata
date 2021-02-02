@@ -136,7 +136,7 @@ class UVBeam(UVBase):
         self._axis1_array = uvp.UVParameter(
             "axis1_array",
             description=desc,
-            expected_type=np.float,
+            expected_type=np.floating,
             required=False,
             form=("Naxes1",),
         )
@@ -156,7 +156,7 @@ class UVBeam(UVBase):
         self._axis2_array = uvp.UVParameter(
             "axis2_array",
             description=desc,
-            expected_type=np.float,
+            expected_type=np.floating,
             required=False,
             form=("Naxes2",),
         )
@@ -224,7 +224,7 @@ class UVBeam(UVBase):
             "basis_vector_array",
             description=desc,
             required=False,
-            expected_type=np.float,
+            expected_type=np.floating,
             form=("Naxes_vec", "Ncomponents_vec", "Naxes2", "Naxes1"),
             acceptable_range=(0, 1),
             tols=1e-3,
@@ -282,7 +282,7 @@ class UVBeam(UVBase):
             "freq_array",
             description=desc,
             form=("Nspws", "Nfreqs"),
-            expected_type=np.float,
+            expected_type=np.floating,
             tols=1e-3,
         )  # mHz
 
@@ -329,7 +329,7 @@ class UVBeam(UVBase):
         self._data_array = uvp.UVParameter(
             "data_array",
             description=desc,
-            expected_type=np.complex,
+            expected_type=complex,
             form=("Naxes_vec", "Nspws", "Nfeeds", "Nfreqs", "Naxes2", "Naxes1"),
             tols=1e-3,
         )
@@ -343,7 +343,7 @@ class UVBeam(UVBase):
         self._bandpass_array = uvp.UVParameter(
             "bandpass_array",
             description=desc,
-            expected_type=np.float,
+            expected_type=np.floating,
             form=("Nspws", "Nfreqs"),
             tols=1e-3,
         )
@@ -433,7 +433,7 @@ class UVBeam(UVBase):
             required=False,
             description=desc,
             form=(2, "Nelements"),
-            expected_type=np.float,
+            expected_type=np.floating,
         )
 
         desc = (
@@ -445,7 +445,7 @@ class UVBeam(UVBase):
             required=False,
             description=desc,
             form=("Nelements",),
-            expected_type=np.float,
+            expected_type=np.floating,
         )
 
         desc = (
@@ -457,7 +457,7 @@ class UVBeam(UVBase):
             required=False,
             description=desc,
             form=("Nelements",),
-            expected_type=np.float,
+            expected_type=np.floating,
         )
 
         desc = (
@@ -470,7 +470,7 @@ class UVBeam(UVBase):
             required=False,
             description=desc,
             form=("Nelements", "Nelements", "Nfeed", "Nfeed", "Nspws", "Nfreqs"),
-            expected_type=np.complex,
+            expected_type=complex,
         )
 
         # -------- extra, non-required parameters ----------
@@ -539,7 +539,7 @@ class UVBeam(UVBase):
             "reference_impedance",
             required=False,
             description=desc,
-            expected_type=np.float,
+            expected_type=np.floating,
             tols=1e-3,
         )
 
@@ -549,7 +549,7 @@ class UVBeam(UVBase):
             required=False,
             description=desc,
             form=("Nspws", "Nfreqs"),
-            expected_type=np.float,
+            expected_type=np.floating,
             tols=1e-3,
         )
 
@@ -559,7 +559,7 @@ class UVBeam(UVBase):
             required=False,
             description=desc,
             form=("Nspws", "Nfreqs"),
-            expected_type=np.float,
+            expected_type=np.floating,
             tols=1e-3,
         )
 
@@ -569,7 +569,7 @@ class UVBeam(UVBase):
             required=False,
             description=desc,
             form=("Nspws", "Nfreqs"),
-            expected_type=np.float,
+            expected_type=np.floating,
             tols=1e-3,
         )
 
@@ -583,7 +583,7 @@ class UVBeam(UVBase):
             required=False,
             description=desc,
             form=(4, "Nspws", "Nfreqs"),
-            expected_type=np.float,
+            expected_type=np.floating,
             tols=1e-3,
         )
 
@@ -678,7 +678,7 @@ class UVBeam(UVBase):
         self._feed_array.required = True
         self._Npols.required = False
         self._polarization_array.required = False
-        self._data_array.expected_type = np.complex
+        self._data_array.expected_type = complex
         # call set_cs_params to fix data_array form
         self._set_cs_params()
 
@@ -708,10 +708,10 @@ class UVBeam(UVBase):
         self._polarization_array.required = True
 
         # If cross pols are included, the power beam is complex. Otherwise it's real
-        self._data_array.expected_type = np.float
+        self._data_array.expected_type = np.floating
         for pol in self.polarization_array:
             if pol in [3, 4, -3, -4, -7, -8]:
-                self._data_array.expected_type = np.complex
+                self._data_array.expected_type = complex
 
         # call set_cs_params to fix data_array form
         self._set_cs_params()
@@ -915,7 +915,7 @@ class UVBeam(UVBase):
         # adjust requirements, fix data_array form
         beam_object._set_power()
         power_data = np.zeros(
-            beam_object._data_array.expected_shape(beam_object), dtype=np.complex
+            beam_object._data_array.expected_shape(beam_object), dtype=np.complex128
         )
 
         if keep_basis_vector:
@@ -1102,7 +1102,7 @@ class UVBeam(UVBase):
 
         pol_strings = ["pI", "pQ", "pU", "pV"]
         power_data = np.zeros(
-            (1, 1, len(pol_strings), _sh[-2], _sh[-1]), dtype=np.complex
+            (1, 1, len(pol_strings), _sh[-2], _sh[-1]), dtype=np.complex128
         )
         beam_object.polarization_array = np.array(
             [
@@ -1112,7 +1112,7 @@ class UVBeam(UVBase):
         )
 
         for fq_i in range(Nfreqs):
-            jones = np.zeros((_sh[-1], 2, 2), dtype=np.complex)
+            jones = np.zeros((_sh[-1], 2, 2), dtype=np.complex128)
             pol_strings = ["pI", "pQ", "pU", "pV"]
             jones[:, 0, 0] = efield_data[0, 0, 0, fq_i, :]
             jones[:, 0, 1] = efield_data[0, 0, 1, fq_i, :]
@@ -1311,9 +1311,9 @@ class UVBeam(UVBase):
         assert input_data_array.shape[3] == input_nfreqs
 
         if np.iscomplexobj(input_data_array):
-            data_type = np.complex
+            data_type = np.complex128
         else:
-            data_type = np.float
+            data_type = np.float64
 
         if np.isclose(phi_length, 2 * np.pi, atol=axis1_diff):
             # phi wraps around, extend array in each direction to improve interpolation
@@ -1576,9 +1576,9 @@ class UVBeam(UVBase):
             pol_inds = np.arange(Npol_feeds)
 
         if np.iscomplexobj(input_data_array):
-            data_type = np.complex
+            data_type = np.complex128
         else:
-            data_type = np.float
+            data_type = np.float64
         interp_data = np.zeros(
             (self.Naxes_vec, self.Nspws, Npol_feeds, input_nfreqs, len(az_array)),
             dtype=data_type,
