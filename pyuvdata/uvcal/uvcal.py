@@ -152,7 +152,7 @@ class UVCal(UVBase):
             "antenna_positions",
             description=desc,
             form=("Nants_telescope", 3),
-            expected_type=np.float,
+            expected_type=float,
             tols=1e-3,  # 1 mm
             required=False,
         )
@@ -172,13 +172,13 @@ class UVCal(UVBase):
             "freq_array",
             description=desc,
             form=("Nspws", "Nfreqs"),
-            expected_type=np.float,
+            expected_type=float,
             tols=1e-3,
         )  # mHz
 
         desc = "Channel width of of a frequency bin. Units Hz."
         self._channel_width = uvp.UVParameter(
-            "channel_width", description=desc, expected_type=np.float, tols=1e-3
+            "channel_width", description=desc, expected_type=float, tols=1e-3
         )
 
         desc = (
@@ -203,7 +203,7 @@ class UVCal(UVBase):
             "time_array",
             description=desc,
             form=("Ntimes",),
-            expected_type=np.float,
+            expected_type=float,
             tols=1e-3 / (60.0 * 60.0 * 24.0),
         )
 
@@ -215,14 +215,14 @@ class UVCal(UVBase):
             "lst_array",
             description=desc,
             form=("Ntimes",),
-            expected_type=np.float,
+            expected_type=float,
             tols=radian_tol,
             required=False,
         )
 
         desc = "Integration time of a time bin, units seconds."
         self._integration_time = uvp.UVParameter(
-            "integration_time", description=desc, expected_type=np.float, tols=1e-3
+            "integration_time", description=desc, expected_type=float, tols=1e-3
         )  # 1ms
 
         desc = (
@@ -264,7 +264,7 @@ class UVCal(UVBase):
             "quality_array",
             description=desc,
             form=("Nants_data", "Nspws", "Nfreqs", "Ntimes", "Njones"),
-            expected_type=np.float,
+            expected_type=float,
         )
 
         desc = (
@@ -300,7 +300,7 @@ class UVCal(UVBase):
             description=desc,
             required=False,
             form=("Nants_data", "Nspws", "Nfreqs", "Ntimes", "Njones"),
-            expected_type=np.complex,
+            expected_type=complex,
         )
 
         desc = (
@@ -312,7 +312,7 @@ class UVCal(UVBase):
             description=desc,
             required=False,
             form=("Nants_data", "Nspws", 1, "Ntimes", "Njones"),
-            expected_type=np.float,
+            expected_type=float,
         )
 
         desc = (
@@ -366,7 +366,7 @@ class UVCal(UVBase):
 
         desc = "Number of sources used."
         self._Nsources = uvp.UVParameter(
-            "Nsources", required=False, expected_type=np.int, description=desc
+            "Nsources", required=False, expected_type=int, description=desc
         )
 
         desc = "Range of baselines used for calibration."
@@ -374,7 +374,7 @@ class UVCal(UVBase):
             "baseline_range",
             form=2,
             required=False,
-            expected_type=np.float,
+            expected_type=float,
             description=desc,
         )
 
@@ -449,7 +449,7 @@ class UVCal(UVBase):
             "total_quality_array",
             description=desc,
             form=("Nspws", "Nfreqs", "Ntimes", "Njones"),
-            expected_type=np.float,
+            expected_type=float,
             required=False,
         )
 
@@ -871,7 +871,7 @@ class UVCal(UVBase):
             if antnum not in self.ant_array:
                 return False
         if jpol is not None:
-            if isinstance(jpol, (str, np.str)):
+            if isinstance(jpol, (str, np.str_)):
                 jpol = uvutils.jstr2num(jpol, x_orientation=self.x_orientation)
             if jpol not in self.jones_array:
                 return False
@@ -911,7 +911,7 @@ class UVCal(UVBase):
         int
             Antenna polarization index in data arrays
         """
-        if isinstance(jpol, (str, np.str)):
+        if isinstance(jpol, (str, np.str_)):
             jpol = uvutils.jstr2num(jpol, x_orientation=self.x_orientation)
 
         if not self._has_key(jpol=jpol):

@@ -251,7 +251,7 @@ def test_latlonalt_noxyz(tmp_path):
     "kwd1,kwd2,val1,val2",
     [
         ["keyword1", "keyword2", True, False],
-        ["keyword1", "keyword2", np.int(5), 7],
+        ["keyword1", "keyword2", np.int64(5), 7],
         ["keyword1", "keyword2", np.int64(5.3), 6.9],
         ["keyword1", "keyword2", np.complex64(5.3 + 1.2j), 6.9 + 4.6j],
         [

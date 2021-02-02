@@ -274,7 +274,7 @@ class FHDCal(UVCal):
                 galaxy_model = int(settings_lines["galaxy_model"][0])
                 diffuse_model = settings_lines["diffuse_model"][0]
                 auto_scale = settings_lines["auto_scale"]
-                n_vis_cal = np.int(settings_lines["n_vis_cal"][0])
+                n_vis_cal = np.int64(settings_lines["n_vis_cal"][0])
                 time_avg = int(settings_lines["time_avg"][0])
                 conv_thresh = float(settings_lines["conv_thresh"][0])
 
@@ -326,14 +326,14 @@ class FHDCal(UVCal):
             # Now read data like arrays
             fit_gain_array_in = cal_data["gain"][0]
             fit_gain_array = np.zeros(
-                self._gain_array.expected_shape(self), dtype=np.complex_
+                self._gain_array.expected_shape(self), dtype=np.complex128
             )
             for jones_i, arr in enumerate(fit_gain_array_in):
                 fit_gain_array[:, 0, :, 0, jones_i] = arr
             if raw:
                 res_gain_array_in = cal_data["gain_residual"][0]
                 res_gain_array = np.zeros(
-                    self._gain_array.expected_shape(self), dtype=np.complex_
+                    self._gain_array.expected_shape(self), dtype=np.complex128
                 )
                 for jones_i, arr in enumerate(res_gain_array_in):
                     res_gain_array[:, 0, :, 0, jones_i] = arr
