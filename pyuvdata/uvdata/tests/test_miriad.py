@@ -724,7 +724,7 @@ def test_miriad_extra_keywords_errors(
     "kwd_names,kwd_values",
     (
         [["bool", "bool2"], [True, False]],
-        [["int1", "int2"], [np.int(5), 7]],
+        [["int1", "int2"], [np.int64(5), 7]],
         [["float1", "float2"], [np.int64(5.3), 6.9]],
         [["str", "longstr"], ["hello", "this is a very long string " * 1000]],
     ),
@@ -833,7 +833,9 @@ def test_read_write_read_miriad(uv_in_paper):
 def test_miriad_antenna_diameters(uv_in_paper):
     # check that if antenna_diameters is set, it's read back out properly
     uv_in, uv_out, write_file = uv_in_paper
-    uv_in.antenna_diameters = np.zeros((uv_in.Nants_telescope,), dtype=np.float) + 14.0
+    uv_in.antenna_diameters = (
+        np.zeros((uv_in.Nants_telescope,), dtype=np.float32) + 14.0
+    )
     uv_in.write_miriad(write_file, clobber=True)
     uv_out.read(write_file)
     assert uv_in == uv_out

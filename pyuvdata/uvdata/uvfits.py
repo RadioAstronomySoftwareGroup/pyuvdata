@@ -452,15 +452,15 @@ class UVFITS(UVData):
                 )
 
                 # the axis number for phase center depends on if the spw exists
-                self.phase_center_ra_degrees = np.float64(vis_hdr.pop("CRVAL6"))
-                self.phase_center_dec_degrees = np.float64(vis_hdr.pop("CRVAL7"))
+                self.phase_center_ra_degrees = float(vis_hdr.pop("CRVAL6"))
+                self.phase_center_dec_degrees = float(vis_hdr.pop("CRVAL7"))
             else:
                 self.Nspws = 1
                 self.spw_array = np.array([np.int64(0)])
 
                 # the axis number for phase center depends on if the spw exists
-                self.phase_center_ra_degrees = np.float64(vis_hdr.pop("CRVAL5"))
-                self.phase_center_dec_degrees = np.float64(vis_hdr.pop("CRVAL6"))
+                self.phase_center_ra_degrees = float(vis_hdr.pop("CRVAL5"))
+                self.phase_center_dec_degrees = float(vis_hdr.pop("CRVAL6"))
 
             # get shapes
             self.Npols = vis_hdr.pop("NAXIS3")

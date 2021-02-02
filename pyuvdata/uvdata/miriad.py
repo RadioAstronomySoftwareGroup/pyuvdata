@@ -170,7 +170,9 @@ class Miriad(UVData):
         # select on ant_str if provided
         if ant_str is not None:
             # type check
-            assert isinstance(ant_str, (str, np.str)), "ant_str must be fed as a string"
+            assert isinstance(
+                ant_str, (str, np.str_)
+            ), "ant_str must be fed as a string"
             assert (
                 antenna_nums is None and bls is None
             ), "ant_str must be None if antenna_nums or bls is not None"
@@ -273,7 +275,7 @@ class Miriad(UVData):
             assert isinstance(time_range, (list, np.ndarray)), err_msg
             assert len(time_range) == 2, err_msg
             assert np.array(
-                [isinstance(t, (float, np.float, np.float64)) for t in time_range]
+                [isinstance(t, (float, np.float_, np.float64)) for t in time_range]
             ).all(), err_msg
 
             # UVData.time_array marks center of integration, while Miriad
@@ -356,7 +358,7 @@ class Miriad(UVData):
             try:
                 cnt = uv["cnt"]
             except (KeyError):
-                cnt = np.ones(d.shape, dtype=np.float)
+                cnt = np.ones(d.shape, dtype=np.float64)
             ra = uv["ra"]
             dec = uv["dec"]
             # NOTE: Using our lst calculator, which uses astropy,
@@ -560,7 +562,7 @@ class Miriad(UVData):
         proc = None
         if self.telescope_location is not None:
             proc = self.set_lsts_from_time_array(background=background_lsts)
-        self.nsample_array = np.ones(self.data_array.shape, dtype=np.float)
+        self.nsample_array = np.ones(self.data_array.shape, dtype=np.float64)
 
         # Temporary arrays to hold polarization axis, which will be collapsed
         ra_pol_list = np.zeros((self.Nblts, self.Npols))
@@ -1084,7 +1086,7 @@ class Miriad(UVData):
 
             # NOTE only writing spw 0, not supporting multiple spws for write
             for polcnt, pol in enumerate(self.polarization_array):
-                uv["pol"] = pol.astype(np.int)
+                uv["pol"] = pol.astype(np.int32)
                 uv["cnt"] = self.nsample_array[viscnt, 0, :, polcnt].astype(np.double)
 
                 data = self.data_array[viscnt, 0, :, polcnt]
@@ -1319,7 +1321,7 @@ class Miriad(UVData):
                     ]
                 )
                 .flatten()
-                .astype(np.float)
+                .astype(np.float64)
             )
             # Now setup frequency array
             # TODO: Spw axis to be collapsed in future release
@@ -1333,7 +1335,7 @@ class Miriad(UVData):
                     ]
                 )
                 .flatten()
-                .astype(np.float),
+                .astype(np.float64),
                 (1, -1),
             )
             # TODO: Fix this to capture unsorted spectra
@@ -1345,13 +1347,13 @@ class Miriad(UVData):
                     ]
                 )
                 .flatten()
-                .astype(np.int)
+                .astype(np.int32)
             )
         else:
             self.freq_array = np.reshape(
                 np.arange(self.Nfreqs) * self.channel_width + uv["sfreq"] * 1e9, (1, -1)
             )
-            self.channel_width = np.float(self.channel_width)
+            self.channel_width = float(self.channel_width)
 
         self.spw_array = np.arange(self.Nspws)
 
@@ -1752,5 +1754,5 @@ class Miriad(UVData):
                 pass
         if self.antenna_diameters is not None:
             self.antenna_diameters = self.antenna_diameters * np.ones(
-                self.Nants_telescope, dtype=np.float
+                self.Nants_telescope, dtype=np.float64
             )

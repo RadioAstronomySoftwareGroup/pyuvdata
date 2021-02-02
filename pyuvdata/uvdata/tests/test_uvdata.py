@@ -1235,7 +1235,7 @@ def test_select_antennas(casa_uvfits):
     # test removing metadata associated with antennas that are no longer present
     # also add (different) antenna_diameters to test downselection
     uv_object.antenna_diameters = 1.0 * np.ones(
-        (uv_object.Nants_telescope,), dtype=np.float
+        (uv_object.Nants_telescope,), dtype=np.float64
     )
     for i in range(uv_object.Nants_telescope):
         uv_object.antenna_diameters += i
@@ -2296,7 +2296,7 @@ def test_reorder_blts(casa_uvfits):
     assert str(cm.value).startswith("If order is an index array, it must")
 
     with pytest.raises(ValueError) as cm:
-        uv3.reorder_blts(order=np.arange(5, dtype=np.float))
+        uv3.reorder_blts(order=np.arange(5, dtype=np.float64))
     assert str(cm.value).startswith("If order is an index array, it must")
 
     with pytest.raises(ValueError) as cm:
@@ -7546,7 +7546,7 @@ def test_resample_in_time_warning():
 def test_frequency_average(uvdata_data):
     """Test averaging in frequency."""
     eq_coeffs = np.tile(
-        np.arange(uvdata_data.uv_object.Nfreqs, dtype=np.float),
+        np.arange(uvdata_data.uv_object.Nfreqs, dtype=np.float64),
         (uvdata_data.uv_object.Nants_telescope, 1),
     )
     uvdata_data.uv_object.eq_coeffs = eq_coeffs
@@ -7911,7 +7911,7 @@ def test_frequency_average_propagate_flags(uvdata_data):
 def test_frequency_average_nsample_precision(uvdata_data):
     """Test averaging in frequency with a half-precision nsample_array."""
     eq_coeffs = np.tile(
-        np.arange(uvdata_data.uv_object.Nfreqs, dtype=np.float),
+        np.arange(uvdata_data.uv_object.Nfreqs, dtype=np.float64),
         (uvdata_data.uv_object.Nants_telescope, 1),
     )
     uvdata_data.uv_object.eq_coeffs = eq_coeffs
@@ -7974,7 +7974,7 @@ def test_remove_eq_coeffs_divide(uvdata_data):
     # give eq_coeffs to the object
     eq_coeffs = np.empty(
         (uvdata_data.uv_object.Nants_telescope, uvdata_data.uv_object.Nfreqs),
-        dtype=np.float,
+        dtype=np.float64,
     )
     for i, ant in enumerate(uvdata_data.uv_object.antenna_numbers):
         eq_coeffs[i, :] = ant + 1
@@ -8001,7 +8001,7 @@ def test_remove_eq_coeffs_multiply(uvdata_data):
     # give eq_coeffs to the object
     eq_coeffs = np.empty(
         (uvdata_data.uv_object.Nants_telescope, uvdata_data.uv_object.Nfreqs),
-        dtype=np.float,
+        dtype=np.float64,
     )
     for i, ant in enumerate(uvdata_data.uv_object.antenna_numbers):
         eq_coeffs[i, :] = ant + 1
