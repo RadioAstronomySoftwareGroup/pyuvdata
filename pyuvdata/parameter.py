@@ -446,7 +446,7 @@ class LocationParameter(UVParameter):
             spoof_val=spoof_val,
             form=3,
             description=description,
-            expected_type=np.float,
+            expected_type=np.floating,
             acceptable_range=acceptable_range,
             tols=tols,
         )
