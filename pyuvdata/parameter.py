@@ -54,7 +54,7 @@ def _get_generic_type(expected_type, strict_type_check=False):
     for types in [
         (float, np.floating),
         (np.unsignedinteger),  # unexpected but just in case
-        (int, np.integer),
+        (int, np.int_),
         (complex, np.complexfloating),
     ]:
         if issubclass(expected_type, types):
@@ -326,14 +326,14 @@ class UVParameter(object):
         """
         if self.form == "str":
             return self.form
-        elif isinstance(self.form, (int, np.integer)):
+        elif isinstance(self.form, (int, np.int_)):
             # Fixed shape, just return the form
             return (self.form,)
         else:
             # Given by other attributes, look up values
             eshape = ()
             for p in self.form:
-                if isinstance(p, (int, np.integer)):
+                if isinstance(p, (int, np.int_)):
                     eshape = eshape + (p,)
                 else:
                     val = getattr(uvbase, p)
