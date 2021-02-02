@@ -1277,7 +1277,7 @@ def test_mean_weights_and_weights_square():
     w[0, :] = 0
     w[:, 0] = 0
     out, wo = uvutils.mean_collapse(data, weights=w, axis=0, return_weights=True)
-    ans = np.arange(data.shape[1]).astype(np.float) + 1
+    ans = np.arange(data.shape[1]).astype(np.float64) + 1
     ans[0] = np.inf
     assert np.array_equal(out, ans)
     ans = (data.shape[0] - 1) * np.ones(data.shape[1])
@@ -1300,7 +1300,7 @@ def test_mean_infs():
     data[:, 0] = np.inf
     data[0, :] = np.inf
     out, wo = uvutils.mean_collapse(data, axis=0, return_weights=True)
-    ans = np.arange(data.shape[1]).astype(np.float)
+    ans = np.arange(data.shape[1]).astype(np.float64)
     ans[0] = np.inf
     assert np.array_equal(out, ans)
     ans = (data.shape[0] - 1) * np.ones(data.shape[1])
@@ -1360,12 +1360,12 @@ def test_or_collapse_weights():
     # Fake data
     data = np.zeros((50, 25), np.bool_)
     data[0, 8] = True
-    w = np.ones_like(data, np.float)
+    w = np.ones_like(data, np.float64)
     o, wo = uvutils.or_collapse(data, axis=0, weights=w, return_weights=True)
     ans = np.zeros(25, np.bool_)
     ans[8] = True
     assert np.array_equal(o, ans)
-    assert np.array_equal(wo, np.ones_like(o, dtype=np.float))
+    assert np.array_equal(wo, np.ones_like(o, dtype=np.float64))
     w[0, 8] = 0.3
     with uvtest.check_warnings(UserWarning, "Currently weights are"):
         o = uvutils.or_collapse(data, axis=0, weights=w)
@@ -1396,11 +1396,11 @@ def test_and_collapse_weights():
     # Fake data
     data = np.zeros((50, 25), np.bool_)
     data[0, :] = True
-    w = np.ones_like(data, np.float)
+    w = np.ones_like(data, np.float64)
     o, wo = uvutils.and_collapse(data, axis=0, weights=w, return_weights=True)
     ans = np.zeros(25, np.bool_)
     assert np.array_equal(o, ans)
-    assert np.array_equal(wo, np.ones_like(o, dtype=np.float))
+    assert np.array_equal(wo, np.ones_like(o, dtype=np.float64))
     w[0, 8] = 0.3
     with uvtest.check_warnings(UserWarning, "Currently weights are"):
         o = uvutils.and_collapse(data, axis=0, weights=w)

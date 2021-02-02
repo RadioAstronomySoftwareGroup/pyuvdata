@@ -1456,7 +1456,7 @@ def or_collapse(
     if (weights is not None) and not np.all(weights == weights.reshape(-1)[0]):
         warnings.warn("Currently weights are not handled when OR-ing boolean arrays.")
     if return_weights:
-        return out, np.ones_like(out, dtype=np.float)
+        return out, np.ones_like(out, dtype=np.float64)
     else:
         return out
 
@@ -1488,7 +1488,7 @@ def and_collapse(
     if (weights is not None) and not np.all(weights == weights.reshape(-1)[0]):
         warnings.warn("Currently weights are not handled when AND-ing boolean arrays.")
     if return_weights:
-        return out, np.ones_like(out, dtype=np.float)
+        return out, np.ones_like(out, dtype=np.float64)
     else:
         return out
 
