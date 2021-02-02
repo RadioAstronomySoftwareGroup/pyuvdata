@@ -200,7 +200,7 @@ cpdef hread_init(int item_hdl) except +raise_miriad_error:
   else:
     raise RuntimeError("unknown item type.")
 
-cpdef hwrite(int item_hdl, int offset, val, str type) except +raise_miriad_error:
+cpdef int hwrite(int item_hdl, int offset, val, str type) except *:
   cdef int iostat
   cdef int int_1
   cdef long lg
@@ -222,8 +222,7 @@ cpdef hwrite(int item_hdl, int offset, val, str type) except +raise_miriad_error
     offset = H_BYTE_SIZE * int_1
 
   elif type[0] == "i":
-    if not isinstance(val, (np.int, np.int_, np.intc)):
-      print(type(val))
+    if not isinstance(val, (int, np.int_, np.intc)):
       raise ValueError("expected an int")
     int_1 = <int>val
     hwritei_c(item_hdl, &int_1, offset, H_INT_SIZE, &iostat)
@@ -231,7 +230,7 @@ cpdef hwrite(int item_hdl, int offset, val, str type) except +raise_miriad_error
     offset = H_INT_SIZE
 
   elif type[0] == "j":
-    if not isinstance(val, (np.int, np.int_, np.intc)):
+    if not isinstance(val, (int, np.int_, np.intc)):
       raise ValueError("expected an int")
     sh = <short>val
     hwritej_c(item_hdl, &sh, offset, H_INT2_SIZE, &iostat)
@@ -239,7 +238,7 @@ cpdef hwrite(int item_hdl, int offset, val, str type) except +raise_miriad_error
     offset = H_INT2_SIZE
 
   elif type[0] == "l":
-    if not isinstance(val, (np.int, np.intc, np.int_)):
+    if not isinstance(val, (int, np.intc, np.int_)):
       raise ValueError("expected a  long")
     lg = <long>val
     hwritel_c(item_hdl, &lg, offset, H_INT8_SIZE, &iostat)
@@ -247,7 +246,7 @@ cpdef hwrite(int item_hdl, int offset, val, str type) except +raise_miriad_error
     offset = H_INT8_SIZE
 
   elif type[0] == "r":
-    if not isinstance(val, (np.float, np.float32)):
+    if not isinstance(val, (float, np.float32)):
       raise ValueError("expected a float")
     fl = <float>val
     hwriter_c(item_hdl, &fl, offset, H_REAL_SIZE, &iostat)
@@ -255,7 +254,7 @@ cpdef hwrite(int item_hdl, int offset, val, str type) except +raise_miriad_error
     offset = H_REAL_SIZE
 
   elif type[0] == "d":
-    if not isinstance(val, (np.float, np.float32, np.float_)):
+    if not isinstance(val, (float, np.float32, np.float64, np.float_)):
       raise ValueError("expected a double")
     db = <double>val
     hwrited_c(item_hdl, &db, offset, H_DBLE_SIZE, &iostat)
