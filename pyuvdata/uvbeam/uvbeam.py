@@ -136,7 +136,7 @@ class UVBeam(UVBase):
         self._axis1_array = uvp.UVParameter(
             "axis1_array",
             description=desc,
-            expected_type=np.floating,
+            expected_type=float,
             required=False,
             form=("Naxes1",),
         )
@@ -156,7 +156,7 @@ class UVBeam(UVBase):
         self._axis2_array = uvp.UVParameter(
             "axis2_array",
             description=desc,
-            expected_type=np.floating,
+            expected_type=float,
             required=False,
             form=("Naxes2",),
         )
@@ -224,7 +224,7 @@ class UVBeam(UVBase):
             "basis_vector_array",
             description=desc,
             required=False,
-            expected_type=np.floating,
+            expected_type=float,
             form=("Naxes_vec", "Ncomponents_vec", "Naxes2", "Naxes1"),
             acceptable_range=(0, 1),
             tols=1e-3,
@@ -282,7 +282,7 @@ class UVBeam(UVBase):
             "freq_array",
             description=desc,
             form=("Nspws", "Nfreqs"),
-            expected_type=np.floating,
+            expected_type=float,
             tols=1e-3,
         )  # mHz
 
@@ -343,7 +343,7 @@ class UVBeam(UVBase):
         self._bandpass_array = uvp.UVParameter(
             "bandpass_array",
             description=desc,
-            expected_type=np.floating,
+            expected_type=float,
             form=("Nspws", "Nfreqs"),
             tols=1e-3,
         )
@@ -433,7 +433,7 @@ class UVBeam(UVBase):
             required=False,
             description=desc,
             form=(2, "Nelements"),
-            expected_type=np.floating,
+            expected_type=float,
         )
 
         desc = (
@@ -445,7 +445,7 @@ class UVBeam(UVBase):
             required=False,
             description=desc,
             form=("Nelements",),
-            expected_type=np.floating,
+            expected_type=float,
         )
 
         desc = (
@@ -457,7 +457,7 @@ class UVBeam(UVBase):
             required=False,
             description=desc,
             form=("Nelements",),
-            expected_type=np.floating,
+            expected_type=float,
         )
 
         desc = (
@@ -539,7 +539,7 @@ class UVBeam(UVBase):
             "reference_impedance",
             required=False,
             description=desc,
-            expected_type=np.floating,
+            expected_type=float,
             tols=1e-3,
         )
 
@@ -549,7 +549,7 @@ class UVBeam(UVBase):
             required=False,
             description=desc,
             form=("Nspws", "Nfreqs"),
-            expected_type=np.floating,
+            expected_type=float,
             tols=1e-3,
         )
 
@@ -559,7 +559,7 @@ class UVBeam(UVBase):
             required=False,
             description=desc,
             form=("Nspws", "Nfreqs"),
-            expected_type=np.floating,
+            expected_type=float,
             tols=1e-3,
         )
 
@@ -569,7 +569,7 @@ class UVBeam(UVBase):
             required=False,
             description=desc,
             form=("Nspws", "Nfreqs"),
-            expected_type=np.floating,
+            expected_type=float,
             tols=1e-3,
         )
 
@@ -583,7 +583,7 @@ class UVBeam(UVBase):
             required=False,
             description=desc,
             form=(4, "Nspws", "Nfreqs"),
-            expected_type=np.floating,
+            expected_type=float,
             tols=1e-3,
         )
 
@@ -708,7 +708,7 @@ class UVBeam(UVBase):
         self._polarization_array.required = True
 
         # If cross pols are included, the power beam is complex. Otherwise it's real
-        self._data_array.expected_type = np.floating
+        self._data_array.expected_type = float
         for pol in self.polarization_array:
             if pol in [3, 4, -3, -4, -7, -8]:
                 self._data_array.expected_type = complex
@@ -2030,7 +2030,7 @@ class UVBeam(UVBase):
         ), "pixel_coordinate_system must be healpix"
         # assert beam_type is power
         assert self.beam_type == "power", "beam_type must be power"
-        if isinstance(pol, (str, np.str)):
+        if isinstance(pol, (str, np.str_)):
             pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
         pol_array = self.polarization_array
         if pol in pol_array:
@@ -2063,7 +2063,7 @@ class UVBeam(UVBase):
             Integral of the beam across the sky, units: steradians.
 
         """
-        if isinstance(pol, (str, np.str)):
+        if isinstance(pol, (str, np.str_)):
             pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
         if self.beam_type != "power":
             raise ValueError("beam_type must be power")
@@ -2105,7 +2105,7 @@ class UVBeam(UVBase):
             Integral of the beam^2 across the sky, units: steradians.
 
         """
-        if isinstance(pol, (str, np.str)):
+        if isinstance(pol, (str, np.str_)):
             pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
         if self.beam_type != "power":
             raise ValueError("beam_type must be power")

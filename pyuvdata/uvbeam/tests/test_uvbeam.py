@@ -661,7 +661,7 @@ def test_freq_interp_real_and_complex(cst_power_2freq):
     pb_int = pbeam.interp(freq_array=freqs)[0]
 
     # interpolate cubic on complex data and compare to ensure they are the same
-    pbeam.data_array = pbeam.data_array.astype(np.complex)
+    pbeam.data_array = pbeam.data_array.astype(np.complex128)
     pb_int2 = pbeam.interp(freq_array=freqs)[0]
     assert np.all(np.isclose(np.abs(pb_int - pb_int2), 0))
 
@@ -1154,7 +1154,7 @@ def test_healpix_interpolation(cst_efield_2freq):
     assert np.allclose(interp_data_array[:, :, 1:2], interp_data_array2[:, :, :1])
 
     # change complex data_array to real data_array and test again
-    assert power_beam.data_array.dtype == np.complex
+    assert power_beam.data_array.dtype == np.complex128
     power_beam.data_array = np.abs(power_beam.data_array)
     interp_data_array, interp_basis_vector = power_beam.interp(
         az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals

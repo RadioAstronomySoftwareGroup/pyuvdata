@@ -249,7 +249,7 @@ class CSTBeam(UVBeam):
             )
         else:
             self.data_array = np.zeros(
-                self._data_array.expected_shape(self), dtype=np.complex
+                self._data_array.expected_shape(self), dtype=np.complex128
             )
 
         if frequency is not None:
