@@ -154,9 +154,9 @@ class Mir(UVData):
             assert len(spw_nchan) == 1
 
             #  Get the data in the right units and dtype
-            spw_fsky = np.float(spw_fsky * 1e9)  # GHz -> Hz
-            spw_fres = np.float(spw_fres * 1e6)  # MHz -> Hz
-            spw_nchan = np.int(spw_nchan)
+            spw_fsky = np.float64(spw_fsky * 1e9)  # GHz -> Hz
+            spw_fres = np.float64(spw_fres * 1e6)  # MHz -> Hz
+            spw_nchan = np.int64(spw_nchan)
 
             # Tally up the number of channels
             Nfreqs += spw_nchan

@@ -108,7 +108,7 @@ class UVData(UVBase):
             "nsample_array",
             description=desc,
             form=("Nblts", 1, "Nfreqs", "Npols"),
-            expected_type=(np.float),
+            expected_type=(np.floating),
         )
 
         desc = "Boolean flag, True is flagged, same shape as data_array."
@@ -146,7 +146,7 @@ class UVData(UVBase):
             "uvw_array",
             description=desc,
             form=("Nblts", 3),
-            expected_type=np.float,
+            expected_type=np.floating,
             acceptable_range=(0, 1e8),
             tols=1e-3,
         )
@@ -158,7 +158,7 @@ class UVData(UVBase):
             "time_array",
             description=desc,
             form=("Nblts",),
-            expected_type=np.float,
+            expected_type=np.floating,
             tols=1e-3 / (60.0 * 60.0 * 24.0),
         )  # 1 ms in days
 
@@ -167,7 +167,7 @@ class UVData(UVBase):
             "lst_array",
             description=desc,
             form=("Nblts",),
-            expected_type=np.float,
+            expected_type=np.floating,
             tols=radian_tol,
         )
 
@@ -201,7 +201,7 @@ class UVData(UVBase):
             "freq_array",
             description=desc,
             form=(1, "Nfreqs"),
-            expected_type=np.float,
+            expected_type=np.floating,
             tols=1e-3,
         )  # mHz
 
@@ -240,7 +240,7 @@ class UVData(UVBase):
             "integration_time",
             description=desc,
             form=("Nblts",),
-            expected_type=np.float,
+            expected_type=np.floating,
             tols=1e-3,
         )  # 1 ms
 
@@ -250,7 +250,7 @@ class UVData(UVBase):
             "(Nfreqs), type = float."
         )
         self._channel_width = uvp.UVParameter(
-            "channel_width", description=desc, expected_type=np.float, tols=1e-3,
+            "channel_width", description=desc, expected_type=np.floating, tols=1e-3,
         )  # 1 mHz
 
         # --- observation information ---
@@ -339,7 +339,7 @@ class UVData(UVBase):
             "phase_center_epoch",
             required=False,
             description=desc,
-            expected_type=np.float,
+            expected_type=np.floating,
         )
 
         desc = (
@@ -351,7 +351,7 @@ class UVData(UVBase):
             "phase_center_ra",
             required=False,
             description=desc,
-            expected_type=np.float,
+            expected_type=np.floating,
             tols=radian_tol,
         )
 
@@ -364,7 +364,7 @@ class UVData(UVBase):
             "phase_center_dec",
             required=False,
             description=desc,
-            expected_type=np.float,
+            expected_type=np.floating,
             tols=radian_tol,
         )
 
@@ -436,7 +436,7 @@ class UVData(UVBase):
             "antenna_positions",
             description=desc,
             form=("Nants_telescope", 3),
-            expected_type=np.float,
+            expected_type=np.floating,
             tols=1e-3,  # 1 mm
         )
 
@@ -494,7 +494,7 @@ class UVData(UVBase):
             required=False,
             description=desc,
             form=("Nants_telescope",),
-            expected_type=np.float,
+            expected_type=np.floating,
             tols=1e-3,  # 1 mm
         )
 
@@ -506,7 +506,7 @@ class UVData(UVBase):
             required=False,
             description="Greenwich sidereal time at " "midnight on reference date",
             spoof_val=0.0,
-            expected_type=np.float,
+            expected_type=np.floating,
         )
         self._rdate = uvp.UVParameter(
             "rdate",
@@ -520,14 +520,14 @@ class UVData(UVBase):
             required=False,
             description="Earth's rotation rate " "in degrees per day",
             spoof_val=360.985,
-            expected_type=np.float,
+            expected_type=np.floating,
         )
         self._dut1 = uvp.UVParameter(
             "dut1",
             required=False,
             description="DUT1 (google it) AIPS 117 " "calls it UT1UTC",
             spoof_val=0.0,
-            expected_type=np.float,
+            expected_type=np.floating,
         )
         self._timesys = uvp.UVParameter(
             "timesys",
@@ -552,7 +552,7 @@ class UVData(UVBase):
             required=False,
             description=desc,
             form=("Nants_telescope", "Nfreqs"),
-            expected_type=np.float,
+            expected_type=np.floating,
             spoof_val=1.0,
         )
 

@@ -750,7 +750,7 @@ class MirParser(object):
         """
         # Gather the needed metadata
         inhid_arr = sp_data["inhid"]
-        nch_arr = sp_data["nch"].astype(np.int)
+        nch_arr = sp_data["nch"].astype(np.int64)
         dataoff_arr = sp_data["dataoff"] // 2
 
         unique_inhid = np.unique(inhid_arr)
