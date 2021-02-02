@@ -447,14 +447,16 @@ class UVFITS(UVData):
             # check if we have an spw dimension
             if vis_hdr["NAXIS"] == 7:
                 self.Nspws = vis_hdr.pop("NAXIS5")
-                self.spw_array = uvutils._fits_gethduaxis(vis_hdu, 5).astype(np.int) - 1
+                self.spw_array = (
+                    uvutils._fits_gethduaxis(vis_hdu, 5).astype(np.int64) - 1
+                )
 
                 # the axis number for phase center depends on if the spw exists
                 self.phase_center_ra_degrees = np.float64(vis_hdr.pop("CRVAL6"))
                 self.phase_center_dec_degrees = np.float64(vis_hdr.pop("CRVAL7"))
             else:
                 self.Nspws = 1
-                self.spw_array = np.array([np.int(0)])
+                self.spw_array = np.array([np.int64(0)])
 
                 # the axis number for phase center depends on if the spw exists
                 self.phase_center_ra_degrees = np.float64(vis_hdr.pop("CRVAL5"))
