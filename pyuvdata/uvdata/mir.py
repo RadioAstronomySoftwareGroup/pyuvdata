@@ -133,9 +133,9 @@ class Mir(UVData):
         Nfreqs = 0  # Set to zero to starts for flex_spw
 
         # Initialize some arrays that we'll be appending to
-        flex_spw_id_array = np.array([], dtype=np.int)
-        channel_width = np.array([], dtype=np.float)
-        freq_array = np.array([], dtype=np.float)
+        flex_spw_id_array = np.array([], dtype=np.int64)
+        channel_width = np.array([], dtype=np.float64)
+        freq_array = np.array([], dtype=np.float64)
         for idx in range(len(corrchunk)):
             data_mask = np.logical_and(
                 mir_data.sp_data["corrchunk"] == corrchunk[idx],
@@ -163,12 +163,12 @@ class Mir(UVData):
 
             # Populate the channel width array
             channel_width = np.append(
-                channel_width, abs(spw_fres) + np.zeros(spw_nchan, dtype=np.float)
+                channel_width, abs(spw_fres) + np.zeros(spw_nchan, dtype=np.float64)
             )
 
             # Populate the the spw_id_array
             flex_spw_id_array = np.append(
-                flex_spw_id_array, idx + np.zeros(spw_nchan, dtype=np.int)
+                flex_spw_id_array, idx + np.zeros(spw_nchan, dtype=np.int64)
             )
 
             # So the freq array here is a little weird, because the current fsky

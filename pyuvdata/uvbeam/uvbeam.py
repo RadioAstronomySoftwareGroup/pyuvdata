@@ -2727,7 +2727,7 @@ class UVBeam(UVBase):
             history_update_string += "healpix pixels"
             n_selects += 1
 
-            pix_inds = np.zeros(0, dtype=np.int)
+            pix_inds = np.zeros(0, dtype=np.int64)
             for p in pixels:
                 if p in beam_object.pixel_array:
                     pix_inds = np.append(
@@ -2766,7 +2766,7 @@ class UVBeam(UVBase):
                 history_update_string += "frequencies"
             n_selects += 1
 
-            freq_inds = np.zeros(0, dtype=np.int)
+            freq_inds = np.zeros(0, dtype=np.int64)
             # this works because we only allow one SPW. This will have to be
             # reworked when we support more.
             freq_arr_use = beam_object.freq_array[0, :]
@@ -2834,7 +2834,7 @@ class UVBeam(UVBase):
                 history_update_string += "feeds"
             n_selects += 1
 
-            feed_inds = np.zeros(0, dtype=np.int)
+            feed_inds = np.zeros(0, dtype=np.int64)
             for f in feeds:
                 if f in beam_object.feed_array:
                     feed_inds = np.append(
@@ -2867,7 +2867,7 @@ class UVBeam(UVBase):
                 history_update_string += "polarizations"
             n_selects += 1
 
-            pol_inds = np.zeros(0, dtype=np.int)
+            pol_inds = np.zeros(0, dtype=np.int64)
             for p in polarizations:
                 if p in beam_object.polarization_array:
                     pol_inds = np.append(
