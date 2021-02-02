@@ -1986,8 +1986,8 @@ class UVFlag(UVBase):
             n_selects += 1
 
             if self.type == "baseline":
-                inds1 = np.zeros(0, dtype=np.int)
-                inds2 = np.zeros(0, dtype=np.int)
+                inds1 = np.zeros(0, dtype=np.int64)
+                inds2 = np.zeros(0, dtype=np.int64)
                 for ant in antenna_nums:
                     if ant in self.ant_1_array or ant in self.ant_2_array:
                         wh1 = np.where(self.ant_1_array == ant)[0]
@@ -2005,7 +2005,7 @@ class UVFlag(UVBase):
 
             if self.type == "antenna":
                 ant_blt_inds = None
-                ant_inds = np.zeros(0, dtype=np.int)
+                ant_inds = np.zeros(0, dtype=np.int64)
                 for ant in antenna_nums:
                     if ant in self.ant_array:
                         wh = np.nonzero(self.ant_array == ant)[0]
@@ -2057,7 +2057,7 @@ class UVFlag(UVBase):
                 history_update_string += "baselines"
 
             n_selects += 1
-            bls_blt_inds = np.zeros(0, dtype=np.int)
+            bls_blt_inds = np.zeros(0, dtype=np.int64)
             bl_pols = set()
             for bl in bls:
                 if not (bl[0] in self.ant_1_array or bl[0] in self.ant_2_array):
@@ -2122,7 +2122,7 @@ class UVFlag(UVBase):
 
             n_selects += 1
 
-            time_blt_inds = np.zeros(0, dtype=np.int)
+            time_blt_inds = np.zeros(0, dtype=np.int64)
             for jd in times:
                 if jd in self.time_array:
                     time_blt_inds = np.append(
@@ -2187,7 +2187,7 @@ class UVFlag(UVBase):
                 history_update_string += "frequencies"
             n_selects += 1
 
-            freq_inds = np.zeros(0, dtype=np.int)
+            freq_inds = np.zeros(0, dtype=np.int64)
             # this works because we only allow one SPW. This will have to be
             # reworked when we support more.
             if self.type != "waterfall":
@@ -2216,7 +2216,7 @@ class UVFlag(UVBase):
                 history_update_string += "polarizations"
             n_selects += 1
 
-            pol_inds = np.zeros(0, dtype=np.int)
+            pol_inds = np.zeros(0, dtype=np.int64)
             for p in polarizations:
                 if isinstance(p, str):
                     p_num = uvutils.polstr2num(p, x_orientation=self.x_orientation)

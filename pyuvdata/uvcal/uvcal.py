@@ -1899,7 +1899,7 @@ class UVCal(UVBase):
             history_update_string += "antennas"
             n_selects += 1
 
-            ant_inds = np.zeros(0, dtype=np.int)
+            ant_inds = np.zeros(0, dtype=np.int64)
             for ant in antenna_nums:
                 if ant in cal_object.ant_array:
                     ant_inds = np.append(
@@ -1945,7 +1945,7 @@ class UVCal(UVBase):
                 history_update_string += "times"
             n_selects += 1
 
-            time_inds = np.zeros(0, dtype=np.int)
+            time_inds = np.zeros(0, dtype=np.int64)
             for jd in times:
                 if jd in cal_object.time_array:
                     time_inds = np.append(
@@ -2015,7 +2015,7 @@ class UVCal(UVBase):
                 history_update_string += "frequencies"
             n_selects += 1
 
-            freq_inds = np.zeros(0, dtype=np.int)
+            freq_inds = np.zeros(0, dtype=np.int64)
             # this works because we only allow one SPW. This will have to be
             # reworked when we support more.
             freq_arr_use = cal_object.freq_array[0, :]
@@ -2077,7 +2077,7 @@ class UVCal(UVBase):
                 history_update_string += "jones polarization terms"
             n_selects += 1
 
-            jones_inds = np.zeros(0, dtype=np.int)
+            jones_inds = np.zeros(0, dtype=np.int64)
             for j in jones:
                 if j in cal_object.jones_array:
                     jones_inds = np.append(

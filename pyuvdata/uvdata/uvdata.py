@@ -836,7 +836,7 @@ class UVData(UVBase):
         formats cannot, so we just consider it forbidden.
         """
         if self.flex_spw:
-            exp_spw_ids = np.arange(self.Nspws, dtype=np.int)
+            exp_spw_ids = np.arange(self.Nspws, dtype=np.int64)
             # This is an internal consistency check to make sure that the indexes match
             # up as expected -- this shouldn't error unless someone is mucking with
             # settings they shouldn't be.
@@ -3131,7 +3131,7 @@ class UVData(UVBase):
             this_inds = np.ravel_multi_index(
                 (
                     this_blts_ind[:, np.newaxis, np.newaxis, np.newaxis],
-                    np.zeros((1, 1, 1, 1), dtype=np.int),
+                    np.zeros((1, 1, 1, 1), dtype=np.int64),
                     this_freq_ind[np.newaxis, np.newaxis, :, np.newaxis],
                     this_pol_ind[np.newaxis, np.newaxis, np.newaxis, :],
                 ),
@@ -3143,7 +3143,7 @@ class UVData(UVBase):
             other_inds = np.ravel_multi_index(
                 (
                     other_blts_ind[:, np.newaxis, np.newaxis, np.newaxis],
-                    np.zeros((1, 1, 1, 1), dtype=np.int),
+                    np.zeros((1, 1, 1, 1), dtype=np.int64),
                     other_freq_ind[np.newaxis, np.newaxis, :, np.newaxis],
                     other_pol_ind[np.newaxis, np.newaxis, np.newaxis, :],
                 ),
@@ -4248,8 +4248,8 @@ class UVData(UVBase):
             else:
                 history_update_string += "antennas"
             n_selects += 1
-            inds1 = np.zeros(0, dtype=np.int)
-            inds2 = np.zeros(0, dtype=np.int)
+            inds1 = np.zeros(0, dtype=np.int64)
+            inds2 = np.zeros(0, dtype=np.int64)
             for ant in antenna_nums:
                 if ant in self.ant_1_array or ant in self.ant_2_array:
                     wh1 = np.where(self.ant_1_array == ant)[0]
@@ -4264,7 +4264,9 @@ class UVData(UVBase):
                         "ant_1_array or ant_2_array".format(a=ant)
                     )
 
-            ant_blt_inds = np.array(list(set(inds1).intersection(inds2)), dtype=np.int)
+            ant_blt_inds = np.array(
+                list(set(inds1).intersection(inds2)), dtype=np.int64
+            )
         else:
             ant_blt_inds = None
 
@@ -4312,7 +4314,7 @@ class UVData(UVBase):
             else:
                 history_update_string += "antenna pairs"
             n_selects += 1
-            bls_blt_inds = np.zeros(0, dtype=np.int)
+            bls_blt_inds = np.zeros(0, dtype=np.int64)
             bl_pols = set()
             for bl in bls:
                 if not (bl[0] in self.ant_1_array or bl[0] in self.ant_2_array):
@@ -4361,7 +4363,7 @@ class UVData(UVBase):
                 # Use intersection (and) to join antenna_names/nums/ant_pairs_nums
                 # with blt_inds
                 blt_inds = np.array(
-                    list(set(blt_inds).intersection(ant_blt_inds)), dtype=np.int
+                    list(set(blt_inds).intersection(ant_blt_inds)), dtype=np.int64
                 )
             else:
                 blt_inds = ant_blt_inds
@@ -4374,7 +4376,7 @@ class UVData(UVBase):
             if np.array(times).ndim > 1:
                 times = np.array(times).flatten()
 
-            time_blt_inds = np.zeros(0, dtype=np.int)
+            time_blt_inds = np.zeros(0, dtype=np.int64)
             for jd in times:
                 if jd in self.time_array:
                     time_blt_inds = np.append(
@@ -4409,7 +4411,7 @@ class UVData(UVBase):
                 # Use intesection (and) to join
                 # antenna_names/nums/ant_pairs_nums/blt_inds with times
                 blt_inds = np.array(
-                    list(set(blt_inds).intersection(time_blt_inds)), dtype=np.int
+                    list(set(blt_inds).intersection(time_blt_inds)), dtype=np.int64
                 )
             else:
                 blt_inds = time_blt_inds
@@ -4446,7 +4448,7 @@ class UVData(UVBase):
                 history_update_string += "frequencies"
             n_selects += 1
 
-            freq_inds = np.zeros(0, dtype=np.int)
+            freq_inds = np.zeros(0, dtype=np.int64)
             # this works because we only allow one SPW. This will have to be
             # reworked when we support more.
             freq_arr_use = self.freq_array[0, :]
@@ -4487,7 +4489,7 @@ class UVData(UVBase):
                 history_update_string += "polarizations"
             n_selects += 1
 
-            pol_inds = np.zeros(0, dtype=np.int)
+            pol_inds = np.zeros(0, dtype=np.int64)
             for p in polarizations:
                 if isinstance(p, str):
                     p_num = uvutils.polstr2num(p, x_orientation=self.x_orientation)
@@ -4910,7 +4912,7 @@ class UVData(UVBase):
 
         temp_Nblts = np.sum(n_new_samples)
 
-        temp_baseline = np.zeros((temp_Nblts,), dtype=np.int)
+        temp_baseline = np.zeros((temp_Nblts,), dtype=np.int64)
         temp_time = np.zeros((temp_Nblts,))
         temp_int_time = np.zeros((temp_Nblts,))
         if self.metadata_only:
@@ -5214,7 +5216,7 @@ class UVData(UVBase):
                 self.phase_to_time(phase_time)
 
         # make temporary arrays
-        temp_baseline = np.zeros((temp_Nblts,), dtype=np.int)
+        temp_baseline = np.zeros((temp_Nblts,), dtype=np.int64)
         temp_time = np.zeros((temp_Nblts,))
         temp_int_time = np.zeros((temp_Nblts,))
         if self.metadata_only:
@@ -5353,7 +5355,7 @@ class UVData(UVBase):
             inds_to_keep = []
             for bl in bls_not_downsampled:
                 inds_to_keep += np.nonzero(self.baseline_array == bl)[0].tolist()
-            inds_to_keep = np.array(inds_to_keep, dtype=np.int)
+            inds_to_keep = np.array(inds_to_keep, dtype=np.int64)
         else:
             inds_to_keep = np.array([], dtype=bool)
         self._harmonize_resample_arrays(
@@ -5777,8 +5779,8 @@ class UVData(UVBase):
                     conj_group_inds.extend(bl_inds)
                     conj_group_times.extend(self.time_array[bl_inds])
 
-                group_inds = np.array(group_inds, dtype=np.int)
-                conj_group_inds = np.array(conj_group_inds, dtype=np.int)
+                group_inds = np.array(group_inds, dtype=np.int64)
+                conj_group_inds = np.array(conj_group_inds, dtype=np.int64)
                 # now we have to figure out which times are the same to a tolerance
                 # so we can average over them.
                 time_inds = np.arange(len(group_times + conj_group_times))
@@ -5822,7 +5824,7 @@ class UVData(UVBase):
                     # so we use that to split them back up.
                     regular_orientation = np.array(
                         [time_ind for time_ind in gp if time_ind < len(group_times)],
-                        dtype=np.int,
+                        dtype=np.int64,
                     )
                     regular_inds = group_inds[np.array(regular_orientation)]
                     conj_orientation = np.array(
@@ -5831,7 +5833,7 @@ class UVData(UVBase):
                             for time_ind in gp
                             if time_ind >= len(group_times)
                         ],
-                        dtype=np.int,
+                        dtype=np.int64,
                     )
                     conj_inds = conj_group_inds[np.array(conj_orientation)]
                     # check that the integration times are all the same

@@ -378,7 +378,7 @@ class CALFITS(UVCal):
             # Pad the extra rows with -1s. Need to undo on read.
             nants_add = self.Nants_telescope - self.Nants_data
             ant_array_use = np.append(
-                self.ant_array, np.zeros(nants_add, dtype=np.int) - 1
+                self.ant_array, np.zeros(nants_add, dtype=np.int64) - 1
             )
             col3 = fits.Column(name="ANTARR", format="D", array=ant_array_use)
         if self.antenna_positions is not None:
