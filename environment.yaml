@@ -1,9 +1,10 @@
 name: pyuvdata
 channels:
-  - defaults
   - conda-forge
+  - defaults
 dependencies:
-  - astropy
+  - python>3.6
+  - astropy>=3.2.3
   - astropy-healpix
   - h5py
   - numpy>=1.18
@@ -15,9 +16,10 @@ dependencies:
   - setuptools_scm
   - sphinx
   - coverage
+  - pytest>=6.2.0
   - pytest-cov
-  - cython
+  - cython>=0.23
   - pip
   - pip:
-      - pytest-cases>=1.12.1
+      - pytest-cases>=3
       - pytest-xdist

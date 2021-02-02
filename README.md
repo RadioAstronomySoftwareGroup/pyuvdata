@@ -203,7 +203,7 @@ you will need the following packages:
 * pytest-cases >= 3
 * pytest-xdist
 * pytest-cov
-* cython   (This is necessary for coverage reporting of cython extensions)
+* cython >=0.23  (This is necessary for coverage reporting of cython extensions)
 * coverage
 * pre-commit
 * sphinx
