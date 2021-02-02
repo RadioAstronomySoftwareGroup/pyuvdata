@@ -118,6 +118,10 @@ class WarningsChecker(warnings.catch_warnings):
         # Filter annoying Cython warnings that serve no good purpose. see numpy#432
         warnings.filterwarnings("ignore", message="numpy.dtype size changed")
         warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
+        # PLP: Temporarily add this filter as well.
+        # numpy v1.20 causes h5py to issue warnings. Must keep as is for now to
+        # avoid test failures, should change back later.
+        warnings.filterwarnings("ignore", message="Passing None into shape arguments")
 
         # Filter iers warnings if iers.conf.auto_max_age is set to None, as we
         # do in testing if the iers url is down. See conftest.py for more info.
