@@ -254,16 +254,16 @@ class MirParser(object):
         self.in_start_dict = self.scan_int_start(filepath)
         self.antpos_data = self.read_antennas(filepath)
 
-        self.use_in = np.ones(self.in_read.shape, dtype=np.bool)
-        self.use_bl = np.ones(self.bl_read.shape, dtype=np.bool)
-        self.use_sp = np.ones(self.sp_read.shape, dtype=np.bool)
+        self.use_in = np.ones(self.in_read.shape, dtype=np.bool_)
+        self.use_bl = np.ones(self.bl_read.shape, dtype=np.bool_)
+        self.use_sp = np.ones(self.sp_read.shape, dtype=np.bool_)
 
-        self.in_filter = np.ones(self.in_read.shape, dtype=np.bool)
-        self.eng_filter = np.ones(self.eng_read.shape, dtype=np.bool)
-        self.bl_filter = np.ones(self.bl_read.shape, dtype=np.bool)
-        self.sp_filter = np.ones(self.sp_read.shape, dtype=np.bool)
-        self.we_filter = np.ones(self.we_read.shape, dtype=np.bool)
-        self.ac_filter = np.ones(self.ac_read.shape, dtype=np.bool)
+        self.in_filter = np.ones(self.in_read.shape, dtype=np.bool_)
+        self.eng_filter = np.ones(self.eng_read.shape, dtype=np.bool_)
+        self.bl_filter = np.ones(self.bl_read.shape, dtype=np.bool_)
+        self.sp_filter = np.ones(self.sp_read.shape, dtype=np.bool_)
+        self.we_filter = np.ones(self.we_read.shape, dtype=np.bool_)
+        self.ac_filter = np.ones(self.ac_read.shape, dtype=np.bool_)
 
         self.in_data = self.in_read
         self.eng_data = self.eng_read

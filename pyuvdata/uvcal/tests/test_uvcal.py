@@ -935,9 +935,9 @@ def test_add_antennas(caltype, gain_data, delay_data):
     if caltype == "delay":
         # test for when input_flag_array is present in first file but not second
         calobj.select(antenna_nums=ants1)
-        ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool)
+        ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
         ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(
-            np.bool
+            np.bool_
         )
         tot_ifa = np.concatenate([ifa, ifa2], axis=0)
         calobj.input_flag_array = ifa
@@ -947,9 +947,9 @@ def test_add_antennas(caltype, gain_data, delay_data):
 
         # test for when input_flag_array is present in second file but not first
         calobj.select(antenna_nums=ants1)
-        ifa = np.ones(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool)
+        ifa = np.ones(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
         ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(
-            np.bool
+            np.bool_
         )
         tot_ifa = np.concatenate([ifa, ifa2], axis=0)
         calobj.input_flag_array = None
@@ -1042,8 +1042,8 @@ def test_add_frequencies(gain_data):
     calobj2 = calobj.copy()
     calobj.select(frequencies=freqs1)
     calobj2.select(frequencies=freqs2)
-    ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool)
-    ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(np.bool)
+    ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
+    ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(np.bool_)
     tot_ifa = np.concatenate([ifa, ifa2], axis=2)
     calobj.input_flag_array = ifa
     calobj2.input_flag_array = None
@@ -1052,8 +1052,8 @@ def test_add_frequencies(gain_data):
 
     # test for when input_flag_array is present in second file but not first
     calobj.select(frequencies=freqs1)
-    ifa = np.ones(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool)
-    ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(np.bool)
+    ifa = np.ones(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
+    ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(np.bool_)
     tot_ifa = np.concatenate([ifa, ifa2], axis=2)
     calobj.input_flag_array = None
     calobj2.input_flag_array = ifa2
@@ -1145,9 +1145,9 @@ def test_add_times(caltype, gain_data, delay_data):
     if caltype == "delay":
         # test for when input_flag_array is present in first file but not second
         calobj.select(times=times1)
-        ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool)
+        ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
         ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(
-            np.bool
+            np.bool_
         )
         tot_ifa = np.concatenate([ifa, ifa2], axis=3)
         calobj.input_flag_array = ifa
@@ -1157,9 +1157,9 @@ def test_add_times(caltype, gain_data, delay_data):
 
         # test for when input_flag_array is present in second file but not first
         calobj.select(times=times1)
-        ifa = np.ones(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool)
+        ifa = np.ones(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
         ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(
-            np.bool
+            np.bool_
         )
         tot_ifa = np.concatenate([ifa, ifa2], axis=3)
         calobj.input_flag_array = None
@@ -1246,9 +1246,9 @@ def test_add_jones(caltype, gain_data, delay_data):
     if caltype == "delay":
         # test for when input_flag_array is present in first file but not second
         calobj = calobj_original.copy()
-        ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool)
+        ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
         ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(
-            np.bool
+            np.bool_
         )
         tot_ifa = np.concatenate([ifa, ifa2], axis=4)
         calobj.input_flag_array = ifa
@@ -1258,9 +1258,9 @@ def test_add_jones(caltype, gain_data, delay_data):
 
         # test for when input_flag_array is present in second file but not first
         calobj = calobj_original.copy()
-        ifa = np.ones(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool)
+        ifa = np.ones(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
         ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(
-            np.bool
+            np.bool_
         )
         tot_ifa = np.concatenate([ifa, ifa2], axis=4)
         calobj.input_flag_array = None

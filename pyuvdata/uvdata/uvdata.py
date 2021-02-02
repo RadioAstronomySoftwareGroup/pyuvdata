@@ -116,7 +116,7 @@ class UVData(UVBase):
             "flag_array",
             description=desc,
             form=("Nblts", 1, "Nfreqs", "Npols"),
-            expected_type=np.bool,
+            expected_type=np.bool_,
         )
 
         self._Nspws = uvp.UVParameter(
@@ -301,7 +301,7 @@ class UVData(UVBase):
             "varying widths."
         )
         self._flex_spw = uvp.UVParameter(
-            "flex_spw", description=desc, expected_type=np.bool, value=False,
+            "flex_spw", description=desc, expected_type=np.bool_, value=False,
         )
 
         desc = (
@@ -1226,7 +1226,7 @@ class UVData(UVBase):
                     "antpair2ind must be fed an antpair tuple or "
                     "expand it as arguments"
                 )
-        if not isinstance(ordered, (bool, np.bool)):
+        if not isinstance(ordered, (bool, np.bool_)):
             raise ValueError("ordered must be a boolean")
 
         # if getting auto-corr, ordered must be True
@@ -1721,7 +1721,7 @@ class UVData(UVBase):
         ind1, ind2, indp = self._key2inds(key)
         out = self._smart_slicing(
             self.flag_array, ind1, ind2, indp, squeeze=squeeze, force_copy=force_copy
-        ).astype(np.bool)
+        ).astype(np.bool_)
         return out
 
     def get_nsamples(
@@ -3253,7 +3253,7 @@ class UVData(UVBase):
                 )
                 this.flag_array = np.concatenate(
                     [this.flag_array, 1 - zero_pad], axis=0
-                ).astype(np.bool)
+                ).astype(np.bool_)
             this.uvw_array = np.concatenate(
                 [this.uvw_array, other.uvw_array[bnew_inds, :]], axis=0
             )[blt_order, :]
@@ -3292,7 +3292,7 @@ class UVData(UVBase):
                 )
                 this.flag_array = np.concatenate(
                     [this.flag_array, 1 - zero_pad], axis=2
-                ).astype(np.bool)
+                ).astype(np.bool_)
         if len(pnew_inds) > 0:
             this.polarization_array = np.concatenate(
                 [this.polarization_array, other.polarization_array[pnew_inds]]
@@ -3314,7 +3314,7 @@ class UVData(UVBase):
                 )
                 this.flag_array = np.concatenate(
                     [this.flag_array, 1 - zero_pad], axis=3
-                ).astype(np.bool)
+                ).astype(np.bool_)
 
         # Now populate the data
         pol_t2o = np.nonzero(

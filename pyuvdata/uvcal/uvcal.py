@@ -250,7 +250,7 @@ class UVCal(UVBase):
             "flag_array",
             description=desc,
             form=("Nants_data", "Nspws", "Nfreqs", "Ntimes", "Njones"),
-            expected_type=np.bool,
+            expected_type=np.bool_,
         )
 
         desc = (
@@ -409,7 +409,7 @@ class UVCal(UVBase):
             description=desc,
             required=False,
             form=("Nants_data", "Nspws", "Nfreqs", "Ntimes", "Njones"),
-            expected_type=np.bool,
+            expected_type=np.bool_,
         )
 
         desc = "Origin (on github for e.g) of calibration software. Url and branch."
@@ -1324,7 +1324,7 @@ class UVCal(UVBase):
                     )[order, :, :, :, :]
                 this.flag_array = np.concatenate(
                     [this.flag_array, 1 - zero_pad_flags], axis=0
-                ).astype(np.bool)[order, :, :, :, :]
+                ).astype(np.bool_)[order, :, :, :, :]
                 this.quality_array = np.concatenate(
                     [this.quality_array, zero_pad_data], axis=0
                 )[order, :, :, :, :]
@@ -1354,7 +1354,7 @@ class UVCal(UVBase):
                     )
                     this.input_flag_array = np.concatenate(
                         [this.input_flag_array, 1 - zero_pad], axis=0
-                    ).astype(np.bool)[order, :, :, :, :]
+                    ).astype(np.bool_)[order, :, :, :, :]
                 elif other.input_flag_array is not None:
                     zero_pad = np.zeros(
                         (
@@ -1376,10 +1376,10 @@ class UVCal(UVBase):
                                 this.Njones,
                             )
                         )
-                    ).astype(np.bool)
+                    ).astype(np.bool_)
                     this.input_flag_array = np.concatenate(
                         [this.input_flag_array, 1 - zero_pad], axis=0
-                    ).astype(np.bool)[order, :, :, :, :]
+                    ).astype(np.bool_)[order, :, :, :, :]
 
         if len(fnew_inds) > 0:
             # Exploit the fact that quality array has the same dimensions as the
@@ -1405,7 +1405,7 @@ class UVCal(UVBase):
                 ]
                 this.flag_array = np.concatenate(
                     [this.flag_array, 1 - zero_pad], axis=2
-                ).astype(np.bool)[:, :, order, :, :]
+                ).astype(np.bool_)[:, :, order, :, :]
                 this.quality_array = np.concatenate(
                     [this.quality_array, zero_pad], axis=2
                 )[:, :, order, :, :]
@@ -1440,7 +1440,7 @@ class UVCal(UVBase):
                     )
                     this.input_flag_array = np.concatenate(
                         [this.input_flag_array, 1 - zero_pad], axis=2
-                    ).astype(np.bool)[:, :, order, :, :]
+                    ).astype(np.bool_)[:, :, order, :, :]
                 elif other.input_flag_array is not None:
                     zero_pad = np.zeros(
                         (
@@ -1462,10 +1462,10 @@ class UVCal(UVBase):
                                 this.Njones,
                             )
                         )
-                    ).astype(np.bool)
+                    ).astype(np.bool_)
                     this.input_flag_array = np.concatenate(
                         [this.input_flag_array, 1 - zero_pad], axis=2
-                    ).astype(np.bool)[:, :, order, :, :]
+                    ).astype(np.bool_)[:, :, order, :, :]
 
         if len(tnew_inds) > 0:
             # Exploit the fact that quality array has the same dimensions as
@@ -1508,7 +1508,7 @@ class UVCal(UVBase):
                     )[:, :, :, order, :]
                 this.flag_array = np.concatenate(
                     [this.flag_array, 1 - zero_pad_flags], axis=3
-                ).astype(np.bool)[:, :, :, order, :]
+                ).astype(np.bool_)[:, :, :, order, :]
                 this.quality_array = np.concatenate(
                     [this.quality_array, zero_pad_data], axis=3
                 )[:, :, :, order, :]
@@ -1552,7 +1552,7 @@ class UVCal(UVBase):
                     )
                     this.input_flag_array = np.concatenate(
                         [this.input_flag_array, 1 - zero_pad], axis=3
-                    ).astype(np.bool)[:, :, :, order, :]
+                    ).astype(np.bool_)[:, :, :, order, :]
                 elif other.input_flag_array is not None:
                     zero_pad = np.zeros(
                         (
@@ -1574,10 +1574,10 @@ class UVCal(UVBase):
                                 this.Njones,
                             )
                         )
-                    ).astype(np.bool)
+                    ).astype(np.bool_)
                     this.input_flag_array = np.concatenate(
                         [this.input_flag_array, 1 - zero_pad], axis=3
-                    ).astype(np.bool)[:, :, :, order, :]
+                    ).astype(np.bool_)[:, :, :, order, :]
 
         if len(jnew_inds) > 0:
             # Exploit the fact that quality array has the same dimensions as
@@ -1616,7 +1616,7 @@ class UVCal(UVBase):
                     )[:, :, :, :, order]
                 this.flag_array = np.concatenate(
                     [this.flag_array, 1 - zero_pad_flags], axis=4
-                ).astype(np.bool)[:, :, :, :, order]
+                ).astype(np.bool_)[:, :, :, :, order]
                 this.quality_array = np.concatenate(
                     [this.quality_array, zero_pad_data], axis=4
                 )[:, :, :, :, order]
@@ -1661,7 +1661,7 @@ class UVCal(UVBase):
                     )
                     this.input_flag_array = np.concatenate(
                         [this.input_flag_array, 1 - zero_pad], axis=4
-                    ).astype(np.bool)[:, :, :, :, order]
+                    ).astype(np.bool_)[:, :, :, :, order]
                 elif other.input_flag_array is not None:
                     zero_pad = np.zeros(
                         (
@@ -1683,10 +1683,10 @@ class UVCal(UVBase):
                                 this.Njones,
                             )
                         )
-                    ).astype(np.bool)
+                    ).astype(np.bool_)
                     this.input_flag_array = np.concatenate(
                         [this.input_flag_array, 1 - zero_pad], axis=4
-                    ).astype(np.bool)[:, :, :, :, order]
+                    ).astype(np.bool_)[:, :, :, :, order]
 
         # Now populate the data
         if not self.metadata_only:

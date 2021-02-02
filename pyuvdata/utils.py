@@ -1450,7 +1450,7 @@ def or_collapse(
         NOT USED, but kept for symmetry with other collapsing functions.
 
     """
-    if arr.dtype != np.bool:
+    if arr.dtype != np.bool_:
         raise ValueError("Input to or_collapse function must be boolean array")
     out = np.any(arr, axis=axis)
     if (weights is not None) and not np.all(weights == weights.reshape(-1)[0]):
@@ -1482,7 +1482,7 @@ def and_collapse(
         NOT USED, but kept for symmetry with other collapsing functions.
 
     """
-    if arr.dtype != np.bool:
+    if arr.dtype != np.bool_:
         raise ValueError("Input to and_collapse function must be boolean array")
     out = np.all(arr, axis=axis)
     if (weights is not None) and not np.all(weights == weights.reshape(-1)[0]):

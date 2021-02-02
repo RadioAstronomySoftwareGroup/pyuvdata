@@ -1214,7 +1214,7 @@ def test_collapse_quadmean_returned_with_weights_square_without_weights():
 
 def test_collapse_or_no_return_no_weights():
     # Fake data
-    data = np.zeros((50, 25), np.bool)
+    data = np.zeros((50, 25), np.bool_)
     data[0, 8] = True
     o = uvutils.collapse(data, "or", axis=0)
     o1 = uvutils.or_collapse(data, axis=0)
@@ -1223,7 +1223,7 @@ def test_collapse_or_no_return_no_weights():
 
 def test_collapse_and_no_return_no_weights():
     # Fake data
-    data = np.zeros((50, 25), np.bool)
+    data = np.zeros((50, 25), np.bool_)
     data[0, :] = True
     o = uvutils.collapse(data, "and", axis=0)
     o1 = uvutils.and_collapse(data, axis=0)
@@ -1342,14 +1342,14 @@ def test_quadmean():
 
 def test_or_collapse():
     # Fake data
-    data = np.zeros((50, 25), np.bool)
+    data = np.zeros((50, 25), np.bool_)
     data[0, 8] = True
     o = uvutils.or_collapse(data, axis=0)
-    ans = np.zeros(25, np.bool)
+    ans = np.zeros(25, np.bool_)
     ans[8] = True
     assert np.array_equal(o, ans)
     o = uvutils.or_collapse(data, axis=1)
-    ans = np.zeros(50, np.bool)
+    ans = np.zeros(50, np.bool_)
     ans[0] = True
     assert np.array_equal(o, ans)
     o = uvutils.or_collapse(data)
@@ -1358,11 +1358,11 @@ def test_or_collapse():
 
 def test_or_collapse_weights():
     # Fake data
-    data = np.zeros((50, 25), np.bool)
+    data = np.zeros((50, 25), np.bool_)
     data[0, 8] = True
     w = np.ones_like(data, np.float)
     o, wo = uvutils.or_collapse(data, axis=0, weights=w, return_weights=True)
-    ans = np.zeros(25, np.bool)
+    ans = np.zeros(25, np.bool_)
     ans[8] = True
     assert np.array_equal(o, ans)
     assert np.array_equal(wo, np.ones_like(o, dtype=np.float))
@@ -1379,13 +1379,13 @@ def test_or_collapse_errors():
 
 def test_and_collapse():
     # Fake data
-    data = np.zeros((50, 25), np.bool)
+    data = np.zeros((50, 25), np.bool_)
     data[0, :] = True
     o = uvutils.and_collapse(data, axis=0)
-    ans = np.zeros(25, np.bool)
+    ans = np.zeros(25, np.bool_)
     assert np.array_equal(o, ans)
     o = uvutils.and_collapse(data, axis=1)
-    ans = np.zeros(50, np.bool)
+    ans = np.zeros(50, np.bool_)
     ans[0] = True
     assert np.array_equal(o, ans)
     o = uvutils.and_collapse(data)
@@ -1394,11 +1394,11 @@ def test_and_collapse():
 
 def test_and_collapse_weights():
     # Fake data
-    data = np.zeros((50, 25), np.bool)
+    data = np.zeros((50, 25), np.bool_)
     data[0, :] = True
     w = np.ones_like(data, np.float)
     o, wo = uvutils.and_collapse(data, axis=0, weights=w, return_weights=True)
-    ans = np.zeros(25, np.bool)
+    ans = np.zeros(25, np.bool_)
     assert np.array_equal(o, ans)
     assert np.array_equal(wo, np.ones_like(o, dtype=np.float))
     w[0, 8] = 0.3

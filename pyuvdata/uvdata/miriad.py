@@ -552,7 +552,7 @@ class Miriad(UVData):
         self.data_array = np.zeros(
             (self.Nblts, 1, self.Nfreqs, self.Npols), dtype=np.complex64
         )
-        self.flag_array = np.ones(self.data_array.shape, dtype=np.bool)
+        self.flag_array = np.ones(self.data_array.shape, dtype=np.bool_)
         self.uvw_array = np.zeros((self.Nblts, 3))
         # NOTE: Using our lst calculator, which uses astropy,
         # instead of _miriad values which come from pyephem.
