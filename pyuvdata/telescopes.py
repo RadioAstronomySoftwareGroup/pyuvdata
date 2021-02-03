@@ -99,7 +99,7 @@ class Telescope(uvbase.UVBase):
             "antenna_diameters",
             required=False,
             description=desc,
-            expected_type=np.floating,
+            expected_type=float,
             tols=1e-3,  # 1 mm
         )
 
@@ -143,7 +143,7 @@ class Telescope(uvbase.UVBase):
             required=False,
             description=desc,
             form=("Nants_telescope", 3),
-            expected_type=np.floating,
+            expected_type=float,
             tols=1e-3,  # 1 mm
         )
 
