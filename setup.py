@@ -2,41 +2,21 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-import glob
 import os
 import io
 import sys
+import glob
 import platform
 from setuptools import setup, Extension, find_namespace_packages
 
-from Cython.Distutils import build_ext
+import numpy
 from distutils.sysconfig import get_config_var
 from distutils.version import LooseVersion
 from Cython.Build import cythonize
 
-# When setting up, the binary extension modules haven't yet been built, so
-# without a workaround we can't use the pyuvdata code to get the version.
-os.environ["PYUVDATA_IGNORE_EXTMOD_IMPORT_FAIL"] = "1"
-
 # add pyuvdata to our path in order to use the branch_scheme function
 sys.path.append("pyuvdata")
 from branch_scheme import branch_scheme  # noqa
-
-
-# this solution works for `pip install .`` but not `python setup.py install`...
-class CustomBuildExtCommand(build_ext):
-    """build_ext command for use when numpy headers are needed."""
-
-    def run(self):
-
-        # Import numpy here, only when headers are needed
-        import numpy
-
-        # Add numpy headers to include_dirs
-        self.include_dirs.append(numpy.get_include())
-
-        # Call original build_ext command
-        build_ext.run(self)
 
 
 with io.open("README.md", "r", encoding="utf-8") as readme_file:
@@ -86,14 +66,14 @@ miriad_extension = Extension(
         "pyuvdata/uvdata/src/maskio.c",
     ],
     define_macros=global_c_macros,
-    include_dirs=["pyuvdata/uvdata/src/"],
+    include_dirs=["pyuvdata/uvdata/src/", numpy.get_include()],
 )
 
 corr_fits_extension = Extension(
     "pyuvdata._corr_fits",
     sources=["pyuvdata/uvdata/corr_fits_src/corr_fits.pyx"],
     define_macros=global_c_macros,
-    include_dirs=["pyuvdata/uvdata/corr_fits_src/"],
+    include_dirs=["pyuvdata/uvdata/corr_fits_src/", numpy.get_include()],
     extra_compile_args=extra_compile_args,
 )
 
@@ -101,6 +81,7 @@ utils_extension = Extension(
     "pyuvdata._utils",
     sources=["pyuvdata/utils.pyx"],
     define_macros=global_c_macros,
+    include_dirs=[numpy.get_include()],
     extra_compile_args=extra_compile_args,
 )
 
@@ -139,7 +120,6 @@ setup_args = {
     "long_description_content_type": "text/markdown",
     "package_dir": {"pyuvdata": "pyuvdata"},
     "packages": find_namespace_packages(),
-    "cmdclass": {"build_ext": CustomBuildExtCommand},
     "ext_modules": cythonize(extensions, language_level=3),
     "scripts": [fl for fl in glob.glob("scripts/*") if not os.path.isdir(fl)],
     "use_scm_version": {"local_scheme": branch_scheme},
