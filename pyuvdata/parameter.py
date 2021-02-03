@@ -163,8 +163,6 @@ class UVParameter(object):
                 if self.value is not None:
                     print("f{self.name} is None on right, but not left")
                     return False
-                else:
-                    return True
             # check to see if strict types are used
             if self.strict_type:
                 # types must match
