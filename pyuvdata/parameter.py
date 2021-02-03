@@ -171,8 +171,7 @@ class UVParameter(object):
                 if not isinstance(self.value, other.expected_type):
                     print(
                         f"{self.name} parameter has incompatible types. Left is "
-                        f"{self.value.expected_type}, right is "
-                        f"{other.value.expected_type}"
+                        f"{self.expected_type}, right is {other.expected_type}"
                     )
                     return False
             if other.strict_type:
@@ -180,8 +179,7 @@ class UVParameter(object):
                 if not isinstance(other.value, self.expected_type):
                     print(
                         f"{self.name} parameter has incompatible types. Left is "
-                        f"{self.value.expected_type}, right is "
-                        f"{other.value.expected_type}"
+                        f"{self.expected_type}, right is {other.expected_type}"
                     )
                     return False
 
@@ -235,6 +233,12 @@ class UVParameter(object):
                         str_type = True
 
                 if not str_type:
+                    if isinstance(other.value, np.ndarray):
+                        print(
+                            f"{self.name} parameter value is not an array, "
+                            "but other is not"
+                        )
+                        return False
                     try:
                         if not np.allclose(
                             np.array(self.value),

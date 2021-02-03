@@ -290,3 +290,64 @@ def test_strict_expected_type():
 def test_generic_type_conversion(in_type, out_type):
     param1 = uvp.UVParameter("_test", expected_type=in_type)
     assert param1.expected_type == out_type
+
+
+def test_strict_expected_type_equality():
+    # make sure equality passes if one is strict and one is generic
+    param1 = uvp.UVParameter(
+        "_test1",
+        value=np.float64(3.0),
+        expected_type=np.float64,
+        strict_type_check=True,
+    )
+    param2 = uvp.UVParameter(
+        "_test2", value=3.0, expected_type=float, strict_type_check=False
+    )
+    assert param1 == param2
+    assert param2 == param1
+
+    # make sure it fails when both are strict and different
+    param3 = uvp.UVParameter(
+        "_test3", value=3.0, expected_type=float, strict_type_check=True
+    )
+    assert param1 != param3
+    assert param3 != param1
+    assert param2 == param3
+
+    # also try different precision values
+    param4 = uvp.UVParameter(
+        "_test4",
+        value=np.float32(3.0),
+        expected_type=np.float32,
+        strict_type_check=True,
+    )
+    assert param1 != param4
+
+    # make sure it passes when both are strict and equivalent
+    param5 = uvp.UVParameter(
+        "_test5",
+        value=np.float64(3.0),
+        expected_type=np.float64,
+        strict_type_check=True,
+    )
+    assert param1 == param5
+
+    return
+
+
+def test_scalar_array_parameter_mismatch():
+    param1 = uvp.UVParameter("_test1", value=3.0, expected_type=float)
+    param2 = uvp.UVParameter("_test2", value=np.asarray([3.0]), expected_type=float)
+    assert param1 != param2
+    assert param2 != param1
+
+    return
+
+
+def test_value_none_parameter_mismatch():
+    param1 = uvp.UVParameter("_test1", value=3.0, expected_type=float)
+    param2 = uvp.UVParameter("_test2", value=None)
+    assert param1 != param2
+    assert param2 != param1
+
+    return
