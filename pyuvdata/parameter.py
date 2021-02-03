@@ -94,21 +94,20 @@ class UVParameter(object):
     description : str
         Description of the data or metadata in the object.
     expected_type
-        The type that the data or metadata should be.
-        Default is np.int or str if form is 'str'
+        The type that the data or metadata should be. Default is int or str if
+        form is 'str'.
     acceptable_vals : list, optional
         List giving allowed values for elements of value.
     acceptable_range: 2-tuple, optional
         Tuple giving a range of allowed magnitudes for elements of value.
     tols : float or 2-tuple of float
-        Tolerances for testing the equality of UVParameters. Either a
-        single absolute value or a tuple of relative and absolute values to
-        be used by np.isclose()
+        Tolerances for testing the equality of UVParameters. Either a single
+        absolute value or a tuple of relative and absolute values to be used by
+        np.isclose()
     strict_type_check : bool
-        When True, the input expected_type is used exactly, otherwise a more generic
-        type is found to allow changes in precions
-        or to/from numpy dtypes to not break checks.
-
+        When True, the input expected_type is used exactly, otherwise a more
+        generic type is found to allow changes in precicions or to/from numpy
+        dtypes to not break checks.
     """
 
     def __init__(
@@ -136,10 +135,12 @@ class UVParameter(object):
         self.form = form
         if self.form == "str":
             self.expected_type = str
+            self.strict_type = True
         else:
             self.expected_type = _get_generic_type(
                 expected_type, strict_type_check=strict_type_check,
             )
+            self.strict_type = strict_type_check
         self.acceptable_vals = acceptable_vals
         self.acceptable_range = acceptable_range
         if np.size(tols) == 1:
@@ -152,16 +153,44 @@ class UVParameter(object):
     def __eq__(self, other):
         """Equal if classes match and values are identical."""
         if isinstance(other, self.__class__):
-            # only check that value is identical
-            if not isinstance(self.value, other.value.__class__):
-                print(
-                    f"{self.name} parameter value classes are different. Left is "
-                    f"{self.value.__class__}, right is {other.value.__class__}"
-                )
-                return False
+            if self.value is None:
+                if other.value is not None:
+                    print("f{self.name} is None on left, but not right")
+                    return False
+                else:
+                    return True
+            if other.value is None:
+                if self.value is not None:
+                    print("f{self.name} is None on right, but not left")
+                    return False
+                else:
+                    return True
+            # check to see if strict types are used
+            if self.strict_type:
+                # types must match
+                if not isinstance(self.value, other.expected_type):
+                    print(
+                        f"{self.name} parameter has incompatible types. Left is "
+                        f"{self.value.expected_type}, right is "
+                        f"{other.value.expected_type}"
+                    )
+                    return False
+            if other.strict_type:
+                # types must match in the other direction
+                if not isinstance(other.value, self.expected_type):
+                    print(
+                        f"{self.name} parameter has incompatible types. Left is "
+                        f"{self.value.expected_type}, right is "
+                        f"{other.value.expected_type}"
+                    )
+                    return False
+
             if isinstance(self.value, np.ndarray) and not isinstance(
-                self.value.item(0), str
+                self.value.item(0), (str, np.str_)
             ):
+                if not isinstance(other.value, np.ndarray):
+                    print(f"{self.name} parameter value is array, but other is not")
+                    return False
                 if self.value.shape != other.value.shape:
                     print(f"{self.name} parameter value is array, shapes are different")
                     return False
