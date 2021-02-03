@@ -132,7 +132,7 @@ class UVData(UVBase):
             "spw_array",
             description="Array of spectral window numbers, shape (Nspws)",
             form=("Nspws",),
-            expected_type=np.integer,
+            expected_type=int,
         )
 
         desc = (
@@ -146,7 +146,7 @@ class UVData(UVBase):
             "uvw_array",
             description=desc,
             form=("Nblts", 3),
-            expected_type=np.floating,
+            expected_type=float,
             acceptable_range=(0, 1e8),
             tols=1e-3,
         )
@@ -158,7 +158,7 @@ class UVData(UVBase):
             "time_array",
             description=desc,
             form=("Nblts",),
-            expected_type=np.floating,
+            expected_type=float,
             tols=1e-3 / (60.0 * 60.0 * 24.0),
         )  # 1 ms in days
 
@@ -167,19 +167,19 @@ class UVData(UVBase):
             "lst_array",
             description=desc,
             form=("Nblts",),
-            expected_type=np.floating,
+            expected_type=float,
             tols=radian_tol,
         )
 
         desc = "Array of first antenna indices, shape (Nblts), " "type = int, 0 indexed"
         self._ant_1_array = uvp.UVParameter(
-            "ant_1_array", description=desc, expected_type=np.integer, form=("Nblts",)
+            "ant_1_array", description=desc, expected_type=int, form=("Nblts",)
         )
         desc = (
             "Array of second antenna indices, shape (Nblts), " "type = int, 0 indexed"
         )
         self._ant_2_array = uvp.UVParameter(
-            "ant_2_array", description=desc, expected_type=np.integer, form=("Nblts",)
+            "ant_2_array", description=desc, expected_type=int, form=("Nblts",)
         )
 
         desc = (
@@ -187,10 +187,7 @@ class UVData(UVBase):
             "type = int; baseline = 2048 * (ant1+1) + (ant2+1) + 2^16"
         )
         self._baseline_array = uvp.UVParameter(
-            "baseline_array",
-            description=desc,
-            expected_type=np.integer,
-            form=("Nblts",),
+            "baseline_array", description=desc, expected_type=int, form=("Nblts",),
         )
 
         # this dimensionality of freq_array does not allow for different spws
@@ -204,7 +201,7 @@ class UVData(UVBase):
             "freq_array",
             description=desc,
             form=(1, "Nfreqs"),
-            expected_type=np.floating,
+            expected_type=float,
             tols=1e-3,
         )  # mHz
 
@@ -221,7 +218,7 @@ class UVData(UVBase):
         self._polarization_array = uvp.UVParameter(
             "polarization_array",
             description=desc,
-            expected_type=np.integer,
+            expected_type=int,
             acceptable_vals=list(np.arange(-8, 0)) + list(np.arange(1, 5)),
             form=("Npols",),
         )
@@ -243,7 +240,7 @@ class UVData(UVBase):
             "integration_time",
             description=desc,
             form=("Nblts",),
-            expected_type=np.floating,
+            expected_type=float,
             tols=1e-3,
         )  # 1 ms
 
@@ -316,7 +313,7 @@ class UVData(UVBase):
             "flex_spw_id_array",
             description=desc,
             form=("Nfreqs",),
-            expected_type=np.integer,
+            expected_type=int,
             required=False,
         )
 
