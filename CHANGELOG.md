@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.1.4] - 2021-2-04
+
 ### Added
 - Added `propagate_coarse_flags` option to `read_mwa_corr_fits`, as well as new flagging defaults.
 - Added support for `extra_keywords` in UVFlag construction from UVData objects (and paths)
