@@ -39,6 +39,7 @@ def _get_generic_type(expected_type, strict_type_check=False):
     Returns
     -------
     Tuple of types based on input expected_type
+
     """
     if isinstance(expected_type, str):
         try:
@@ -108,6 +109,7 @@ class UVParameter(object):
         When True, the input expected_type is used exactly, otherwise a more
         generic type is found to allow changes in precicions or to/from numpy
         dtypes to not break checks.
+
     """
 
     def __init__(
