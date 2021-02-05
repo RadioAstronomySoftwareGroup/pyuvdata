@@ -4278,7 +4278,7 @@ class UVData(UVBase):
                             inds1 = np.append(inds1, list(wh1))
                         if len(wh2) > 0:
                             inds2 = np.append(inds2, list(wh2))
-                    else:
+                    elif ant in antenna_nums:
                         raise ValueError(
                             "Antenna number {a} is not present in the "
                             "ant_1_array or ant_2_array".format(a=ant)
@@ -4608,6 +4608,7 @@ class UVData(UVBase):
         antenna_nums=None,
         antenna_names=None,
         ant_str=None,
+        exclude_antennas=False,
         bls=None,
         frequencies=None,
         freq_chans=None,
@@ -4663,6 +4664,12 @@ class UVData(UVBase):
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
             if it is a ValueError will be raised.
+        exclude_antennas : bool, optional
+            Must be used with either `bls`, `antenna_nums`, or `antenna_names`.
+            If false, baselines or antennas specified by these key words will be
+            included, and all others excluded. If true, baselines or antennas
+            specified by these keywords will be excluded, and all others will be
+            included.
         frequencies : array_like of float, optional
             The frequencies to keep in the object, each value passed here should
             exist in the freq_array.
@@ -4729,6 +4736,7 @@ class UVData(UVBase):
             antenna_nums,
             antenna_names,
             ant_str,
+            exclude_antennas,
             bls,
             frequencies,
             freq_chans,
