@@ -1470,6 +1470,7 @@ class UVH5(UVData):
         antenna_nums=None,
         antenna_names=None,
         ant_str=None,
+        exclude_antennas=False,
         bls=None,
         frequencies=None,
         freq_chans=None,
@@ -1535,6 +1536,12 @@ class UVH5(UVData):
             pyuvdata object.
             An ant_str cannot be passed in addition to any of the above antenna
             args or the polarizations arg.
+        exclude_antennas : bool, optional
+            Must be used with either `bls`, `antenna_nums`, or `antenna_names`.
+            If false, baselines or antennas specified by these key words will be
+            included, and all others excluded. If true, baselines or antennas
+            specified by these keywords will be excluded, and all others will be
+            included.
         frequencies : array_like of float, optional
             The frequencies to include when writing data to the file.
         freq_chans : array_like of int, optional
@@ -1590,6 +1597,7 @@ class UVH5(UVData):
             antenna_nums,
             antenna_names,
             ant_str,
+            exclude_antennas,
             bls,
             frequencies,
             freq_chans,
