@@ -76,9 +76,9 @@ miriad_extension = Extension(
 
 corr_fits_extension = Extension(
     "pyuvdata._corr_fits",
-    sources=["pyuvdata/uvdata/corr_fits_src/corr_fits.pyx"],
+    sources=["pyuvdata/uvdata/corr_fits.pyx"],
     define_macros=global_c_macros,
-    include_dirs=["pyuvdata/uvdata/corr_fits_src/", numpy.get_include()],
+    include_dirs=[numpy.get_include()],
     extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
 )

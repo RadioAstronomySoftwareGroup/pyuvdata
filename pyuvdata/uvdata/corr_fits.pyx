@@ -4,7 +4,7 @@
 
 # distutils: language = c
 # cython: linetrace=True
-# distutils: define_macros=CYTHON_TRACE_NOGIL=1
+# distutils: define_macros=CYTHON_TRACE_NOGIL=1 NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
 # python imports
 import numpy as np
 # cython imports
@@ -13,6 +13,7 @@ cimport numpy
 
 from cython.parallel import prange, parallel
 from libc.math cimport exp, pi, sqrt
+numpy.import_array()
 
 cpdef dict input_output_mapping():
   """Build a mapping dictionary from pfb input to output numbers."""
@@ -119,7 +120,7 @@ cpdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] get_cable_len_diffs(
   int Nblts,
   numpy.int_t[::1] ant1_array,
   numpy.int_t[::1] ant2_array,
-  numpy.ndarray cable_lens,
+  numpy.unicode[:] cable_lens,
 ):
   """Computer the difference in cable lengths for each baseline.
 
