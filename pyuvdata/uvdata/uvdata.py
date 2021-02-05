@@ -4230,7 +4230,6 @@ class UVData(UVBase):
                 raise ValueError(
                     "Only one of antenna_nums and antenna_names can be provided."
                 )
-
             if not isinstance(antenna_names, (list, tuple, np.ndarray)):
                 antenna_names = (antenna_names,)
             if np.array(antenna_names).ndim > 1:
@@ -4259,15 +4258,20 @@ class UVData(UVBase):
             inds2 = np.zeros(0, dtype=np.int)
             for ant in self.antenna_numbers:
                 if exclude_antennas:
-                    if ant not in antenna_nums and (
-                        ant in self.ant_1_array or ant in self.ant_2_array
-                    ):
-                        wh1 = np.where(self.ant_1_array == ant)[0]
-                        wh2 = np.where(self.ant_2_array == ant)[0]
-                        if len(wh1) > 0:
-                            inds1 = np.append(inds1, list(wh1))
-                        if len(wh2) > 0:
-                            inds2 = np.append(inds2, list(wh2))
+                    if ant in self.ant_1_array or ant in self.ant_2_array:
+                        if ant not in antenna_nums:
+                            wh1 = np.where(self.ant_1_array == ant)[0]
+                            wh2 = np.where(self.ant_2_array == ant)[0]
+                            if len(wh1) > 0:
+                                inds1 = np.append(inds1, list(wh1))
+                            if len(wh2) > 0:
+                                inds2 = np.append(inds2, list(wh2))
+                        else:
+                            warnings.warn(
+                                "Not excluding antenna number {a} because it"
+                                "is not present in the ant_1_array or"
+                                "ant_2_array".format(a=ant)
+                            )
                 else:
                     if ant in antenna_nums and (
                         ant in self.ant_1_array or ant in self.ant_2_array
