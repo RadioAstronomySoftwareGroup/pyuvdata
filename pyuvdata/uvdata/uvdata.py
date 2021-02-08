@@ -4157,9 +4157,9 @@ class UVData(UVBase):
             `antenna_names`, `bls` args or the `polarizations` parameters,
             if it is a ValueError will be raised.
         exclude_antennas : bool, optional
-            Must be used with either `bls`, `antenna_nums`, or `antenna_names`.
-            If false, baselines or antennas specified by these key words will be
-            included, and all others excluded. If true, baselines or antennas
+            Must be used with either `antenna_nums` or `antenna_names`.
+            If false, antennas specified by these key words will be
+            included, and all others excluded. If true, antennas
             specified by these keywords will be excluded, and all others will be
             included.
         frequencies : array_like of float, optional
@@ -4669,9 +4669,9 @@ class UVData(UVBase):
             `antenna_names`, `bls` args or the `polarizations` parameters,
             if it is a ValueError will be raised.
         exclude_antennas : bool, optional
-            Must be used with either `bls`, `antenna_nums`, or `antenna_names`.
-            If false, baselines or antennas specified by these key words will be
-            included, and all others excluded. If true, baselines or antennas
+            Must be used with either `antenna_nums` or `antenna_names`.
+            If false, antennas specified by these key words will be
+            included, and all others excluded. If true, antennas
             specified by these keywords will be excluded, and all others will be
             included.
         frequencies : array_like of float, optional
@@ -6269,9 +6269,9 @@ class UVData(UVBase):
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `bls` or `polarizations` parameters, if it is a ValueError will be raised.
         exclude_antennas : bool, optional
-            Must be used with either `bls`, `antenna_nums`, or `antenna_names`.
-            If false, baselines or antennas specified by these key words will be
-            included, and all others excluded. If true, baselines or antennas
+            Must be used with either `antenna_nums` or `antenna_names`.
+            If false, antennas specified by these key words will be
+            included, and all others excluded. If true, antennas
             specified by these keywords will be excluded, and all others will be
             included.
         polarizations : array_like of int or str, optional
@@ -6667,9 +6667,9 @@ class UVData(UVBase):
             `antenna_names`, `bls` args or the `polarizations` parameters,
             if it is a ValueError will be raised. Ignored if read_data is False.
         exclude_antennas : bool, optional
-            Must be used with either `bls`, `antenna_nums`, or `antenna_names`.
-            If false, baselines or antennas specified by these key words will be
-            included, and all others excluded. If true, baselines or antennas
+            Must be used with either `antenna_nums` or `antenna_names`.
+            If false, antennas specified by these key words will be
+            included, and all others excluded. If true, antennas
             specified by these keywords will be excluded, and all others will be
             included.
         frequencies : array_like of float, optional
@@ -6837,9 +6837,9 @@ class UVData(UVBase):
             `antenna_names`, `bls` args or the `polarizations` parameters,
             if it is a ValueError will be raised. Ignored if read_data is False.
         exclude_antennas : bool, optional
-            Must be used with either `bls`, `antenna_nums`, or `antenna_names`.
-            If false, baselines or antennas specified by these key words will be
-            included, and all others excluded. If true, baselines or antennas
+            Must be used with either `antenna_nums` or `antenna_names`.
+            If false, antennas specified by these key words will be
+            included, and all others excluded. If true, antennas
             specified by these keywords will be excluded, and all others will be
             included.
         frequencies : array_like of float, optional
@@ -7080,9 +7080,9 @@ class UVData(UVBase):
             `antenna_names`, `bls` args or the `polarizations` parameters,
             if it is a ValueError will be raised.
         exclude_antennas : bool, optional
-            Must be used with either `bls`, `antenna_nums`, or `antenna_names`.
-            If false, baselines or antennas specified by these key words will be
-            included, and all others excluded. If true, baselines or antennas
+            Must be used with either `antenna_nums` or `antenna_names`.
+            If false, antennas specified by these key words will be
+            included, and all others excluded. If true, antennas
             specified by these keywords will be excluded, and all others will be
             included.
         frequencies : array_like of float, optional

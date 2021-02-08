@@ -908,9 +908,9 @@ class UVH5(UVData):
             `antenna_names`, `bls` args or the `polarizations` parameters,
             if it is a ValueError will be raised. Ignored if read_data is False.
         exclude_antennas : bool, optional
-            Must be used with either `bls`, `antenna_nums`, or `antenna_names`.
-            If false, baselines or antennas specified by these key words will be
-            included, and all others excluded. If true, baselines or antennas
+            Must be used with either `antenna_nums` or `antenna_names`.
+            If false, antennas specified by these key words will be
+            included, and all others excluded. If true, antennas
             specified by these keywords will be excluded, and all others will be
             included.
         frequencies : array_like of float, optional
@@ -1537,9 +1537,9 @@ class UVH5(UVData):
             An ant_str cannot be passed in addition to any of the above antenna
             args or the polarizations arg.
         exclude_antennas : bool, optional
-            Must be used with either `bls`, `antenna_nums`, or `antenna_names`.
-            If false, baselines or antennas specified by these key words will be
-            included, and all others excluded. If true, baselines or antennas
+            Must be used with either `antenna_nums` or `antenna_names`.
+            If false, antennas specified by these key words will be
+            included, and all others excluded. If true, antennas
             specified by these keywords will be excluded, and all others will be
             included.
         frequencies : array_like of float, optional

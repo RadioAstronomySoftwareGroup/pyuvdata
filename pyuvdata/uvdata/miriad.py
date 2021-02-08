@@ -88,6 +88,12 @@ class Miriad(UVData):
             pyuvdata object.
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `bls` or `polarizations` parameters, if it is a ValueError will be raised.
+        exclude_antennas : bool, optional
+            Must be used with either `antenna_nums` or `antenna_names`.
+            If false, antennas specified by these key words will be
+            included, and all others excluded. If true, antennas
+            specified by these keywords will be excluded, and all others will be
+            included.
         polarizations : array_like of int or str, optional
             List of polarization integers or strings to read-in. e.g. ['xx', 'yy', ...]
         time_range : list of float, optional
