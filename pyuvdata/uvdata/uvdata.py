@@ -7319,15 +7319,10 @@ class UVData(UVBase):
                 "Only one of antenna_nums and antenna_names can " "be provided."
             )
 
-        if (
-            exclude_antennas is True
-            and antenna_nums is None
-            and antenna_names is None
-            and bls is None
-        ):
+        if exclude_antennas is True and antenna_nums is None and antenna_names is None:
             raise ValueError(
-                "exclude_antennas can only be used if one of `antenna_names`,"
-                " `antenna_nums`, or `bls` is provided."
+                "exclude_antennas can only be used if one of `antenna_names` "
+                "or `antenna_nums` is provided."
             )
 
         if multi:
