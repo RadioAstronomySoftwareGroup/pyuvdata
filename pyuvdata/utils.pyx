@@ -119,58 +119,73 @@ cpdef numpy.ndarray[dtype=numpy.int64_t, ndim=2] baseline_to_antnums(
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef numpy.ndarray[dtype=numpy.int64_t] _antnum_to_bl_2048(
+cdef inline void _antnum_to_bl_2048(
 numpy.int64_t[::1] ant1,
 numpy.int64_t[::1] ant2,
+numpy.int64_t[::1] baselines,
+    long nbls,
 ):
-  cdef long n = ant1.shape[0]
   cdef Py_ssize_t i
-  cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] baselines = np.empty(n, dtype=np.int64)
-  # make views as c-contiguous arrays of a known dtype
-  # effectivly turns the numpy array into a c-array
-  cdef numpy.int64_t[::1] _bl = baselines
 
-  for i in range(n):
-    _bl[i] = 2048 * (ant1[i] + 1) + (ant2[i] + 1) + 2 ** 16
-
-  return baselines
+  if nbls >= 50000:
+    for i in prange(nbls, nogil=True):
+      baselines[i] = 2048 * (ant1[i] + 1) + (ant2[i] + 1) + 2 ** 16
+  else:
+    for i in range(nbls):
+      baselines[i] = 2048 * (ant1[i] + 1) + (ant2[i] + 1) + 2 ** 16
+  return
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef numpy.ndarray[dtype=numpy.int64_t] _antnum_to_bl_256(
+cdef inline void _antnum_to_bl_256(
 numpy.int64_t[::1] ant1,
 numpy.int64_t[::1] ant2,
+numpy.int64_t[::1] baselines,
+    long nbls,
 ):
-  cdef long n = ant1.shape[0]
   cdef Py_ssize_t i
-  cdef numpy.ndarray[dtype=numpy.int64_t, ndim=1] baselines = np.empty(n, dtype=np.int64)
   # make views as c-contiguous arrays of a known dtype
   # effectivly turns the numpy array into a c-array
-  cdef numpy.int64_t[::1] _bl = baselines
-
-  for i in range(n):
-    _bl[i] = 256 * (ant1[i] + 1) + (ant2[i] + 1)
-  return baselines
+  if nbls >= 50000:
+    for i in prange(nbls, nogil=True):
+      baselines[i] = 256 * (ant1[i] + 1) + (ant2[i] + 1)
+  else:
+    for i in range(nbls):
+      baselines[i] = 256 * (ant1[i] + 1) + (ant2[i] + 1)
+  return
 
 cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
-  numpy.ndarray[dtype=numpy.int64_t, ndim=1] ant1,
-  numpy.ndarray[dtype=numpy.int64_t, ndim=1] ant2,
+  numpy.int64_t[::1] ant1,
+  numpy.int64_t[::1] ant2,
   bint attempt256=False
 ):
-  if attempt256 and np.max([ant1, ant2]) < 255:
-    baseline = _antnum_to_bl_256(ant1, ant2)
+  cdef int ndim = 1
+  cdef int nbls = ant1.shape[0]
+  cdef numpy.npy_intp * dims = [<numpy.npy_intp>nbls]
+  cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] baseline = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_INT64, 0)
+#   cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] baseline = np.empty(nblts, dtype=np.int64)
+  cdef numpy.int64_t[::1] _bl = baseline
+  cdef bint less255
 
-  elif attempt256 and np.max([ant1, ant2]) >=  255:
-    message = (
-      "antnums_to_baseline: found > 256 antennas, using "
-      "2048 baseline indexing. Beware compatibility "
-      "with CASA etc"
-    )
-    warnings.warn(message)
-    baseline = _antnum_to_bl_2048(ant1, ant2)
+  if attempt256:
+    less255 = max(
+      arraymax(ant1),
+      arraymax(ant2),
+    ) < 255
+    if less255:
+      _antnum_to_bl_256(ant1, ant2, _bl, nbls)
+
+    else:
+      message = (
+        "antnums_to_baseline: found > 256 antennas, using "
+        "2048 baseline indexing. Beware compatibility "
+        "with CASA etc"
+      )
+      warnings.warn(message)
+      _antnum_to_bl_2048(ant1, ant2, _bl, nbls)
 
   else:
-    baseline = _antnum_to_bl_2048(ant1, ant2)
+    _antnum_to_bl_2048(ant1, ant2, _bl, nbls)
 
   return baseline
 
