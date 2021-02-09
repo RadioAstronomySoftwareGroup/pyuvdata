@@ -52,26 +52,70 @@ cdef int_or_float arraymin(int_or_float[::1] array) nogil:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef tuple baseline_to_antnums(numpy.ndarray[ndim=1, dtype=numpy.int64_t] baseline):
-  cdef long n = baseline.size
-  cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] ant1 = np.empty(n, dtype=np.int64)
-  cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] ant2 = np.empty(n, dtype=np.int64)
-  cdef long _min = baseline.min()
-  cdef Py_ssize_t i
-  # make views as c-contiguous arrays of a known dtype
-  # effectivly turns the numpy array into a c-array
-  cdef numpy.int64_t[::1] _a1 = ant1
-  cdef numpy.int64_t[::1] _a2 = ant2
-  cdef numpy.int64_t[::1] _bl = baseline
+cdef int_or_float arraymax(int_or_float[::1] array) nogil:
+    cdef int_or_float maxval = array[0]
+    cdef Py_ssize_t i
+    for i in range(array.shape[0]):
+        if array[i] > maxval:
+            maxval = array[i]
+    return maxval
 
-  for i in range(n):
-    if _min > 2 ** 16:
-      _a2[i] = (_bl[i] - 2 ** 16) % 2048 - 1
-      _a1[i] = (_bl[i] - 2 ** 16 - (_a2[i] + 1)) // 2048 - 1
-    else:
-      _a2[i] = (_bl[i]) % 256 - 1
-      _a1[i] = (_bl[i] - (_a2[i] + 1)) // 256 - 1
-  return ant1, ant2
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef inline void _bl_to_ant_256(
+    numpy.int64_t[::1] _bl,
+    numpy.int64_t[:, ::1] _ants,
+    long nbls,
+):
+  cdef Py_ssize_t i
+
+  if nbls > 10000:
+    for i in prange(nbls, nogil=True):
+      _ants[1, i] = (_bl[i]) % 256 - 1
+      _ants[0, i] = (_bl[i] - (_ants[1, i] + 1)) // 256 - 1
+  else:
+    for i in range(nbls):
+      _ants[1, i] = (_bl[i]) % 256 - 1
+      _ants[0, i] = (_bl[i] - (_ants[1, i] + 1)) // 256 - 1
+  return
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef inline void _bl_to_ant_2048(
+    numpy.int64_t[::1] _bl,
+    numpy.int64_t[:, ::1] _ants,
+    long nbls
+):
+  cdef Py_ssize_t i
+  if nbls > 10000:
+    for i in prange(nbls, nogil=True):
+      _ants[1, i] = (_bl[i] - 2 ** 16) % 2048 - 1
+      _ants[0, i] = (_bl[i] - 2 ** 16 - (_ants[1, i] + 1)) // 2048 - 1
+  else:
+    for i in range(nbls):
+      _ants[1, i] = (_bl[i] - 2 ** 16) % 2048 - 1
+      _ants[0, i] = (_bl[i] - 2 ** 16 - (_ants[1, i] + 1)) // 2048 - 1
+  return
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef numpy.ndarray[dtype=numpy.int64_t, ndim=2] baseline_to_antnums(
+    numpy.int64_t[::1] _bl
+):
+  cdef int _min = arraymin(_bl)
+  cdef bint use2048 = _min > 2 ** 16
+  cdef long nbls = _bl.shape[0]
+  cdef int ndim = 2
+  cdef numpy.npy_intp * dims = [2, <numpy.npy_intp> nbls]
+  cdef numpy.ndarray[ndim=2, dtype=numpy.int64_t] ants = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_INT64, 0)
+  cdef numpy.int64_t[:, ::1] _ants = ants
+
+  if use2048:
+    _bl_to_ant_2048(_bl, _ants, nbls)
+  else:
+    _bl_to_ant_256(_bl, _ants,  nbls)
+  return ants
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
