@@ -196,11 +196,14 @@ cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _lla_from_xyz(
   numpy.float64_t[:, ::1] xyz,
 ):
   cdef Py_ssize_t ind
+  cdef int ndim = 2
   cdef int n_pts = xyz.shape[1]
-  cdef numpy.float64_t gps_p, gps_theta
+  cdef numpy.npy_intp * dims = [3, <numpy.npy_intp>n_pts]
 
-  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] lla = np.empty((3, n_pts), dtype=np.float64)
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] lla = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_FLOAT64, 0)
   cdef numpy.float64_t[:, ::1] _lla = lla
+
+  cdef numpy.float64_t gps_p, gps_theta
 
   # see wikipedia geodetic_datum and Datum transformations of
   # GPS positions PDF in docs/references folder
@@ -228,8 +231,11 @@ cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _xyz_from_latlonalt(
   numpy.float64_t[::1] _alt,
 ):
   cdef Py_ssize_t i
+  cdef int ndim = 2
   cdef int n_pts = _lat.shape[0]
-  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] xyz = np.empty((3, n_pts), dtype=np.float64)
+  cdef numpy.npy_intp * dims = [3, <numpy.npy_intp>n_pts]
+
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] xyz = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_FLOAT64, 0)
   cdef numpy.float64_t[:, ::1] _xyz = xyz
 
   cdef numpy.float64_t  sin_lat, cos_lat, sin_lon, cos_lon, gps_n
@@ -260,16 +266,18 @@ cpdef numpy.ndarray[numpy.float64_t, ndim=2] _ENU_from_ECEF(
   numpy.float64_t[::1] _alt,
 ):
   cdef Py_ssize_t i
+  cdef int ndim = 2
   cdef int nblts = xyz.shape[1]
+  cdef numpy.npy_intp * dims =  [3, <numpy.npy_intp> nblts]
   cdef numpy.float64_t xyz_use[3]
 
   cdef numpy.float64_t sin_lat, cos_lat, sin_lon, cos_lon
 
   # we want a memoryview of the xyz of the center
   # this looks a little silly but we don't have to define 2 different things
-  cdef numpy.float64_t[:] xyz_center = _xyz_from_latlonalt(_lat, _lon, _alt)[:, 0]
+  cdef numpy.float64_t[:] xyz_center = _xyz_from_latlonalt(_lat, _lon, _alt).T[0]
 
-  cdef numpy.ndarray[numpy.float64_t, ndim=2] _enu = np.empty((3, nblts), dtype=np.float64)
+  cdef numpy.ndarray[numpy.float64_t, ndim=2] _enu = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_FLOAT64, 0)
   cdef numpy.float64_t[:, ::1] enu = _enu
 
   sin_lat = sin(_lat[0])
@@ -308,16 +316,18 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _ECEF_from_ENU(
   numpy.float64_t[::1] _alt,
 ):
   cdef Py_ssize_t i
+  cdef int ndim = 2
   cdef int nblts = enu.shape[1]
+  cdef numpy.npy_intp * dims = [3, <numpy.npy_intp>nblts]
   cdef numpy.float64_t sin_lat, cos_lat, sin_lon, cos_lon
 
   # allocate memory then make memory view for faster access
-  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _xyz = np.zeros((3, nblts), dtype=np.float64)
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _xyz = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_FLOAT64, 0)
   cdef numpy.float64_t[:, ::1] xyz = _xyz
 
   # we want a memoryview of the xyz of the center
   # this looks a little silly but we don't have to define 2 different things
-  cdef numpy.float64_t[:] xyz_center = _xyz_from_latlonalt(_lat, _lon, _alt)[:, 0]
+  cdef numpy.float64_t[:] xyz_center = _xyz_from_latlonalt(_lat, _lon, _alt).T[0]
 
   sin_lat = sin(_lat[0])
   cos_lat = cos(_lat[0])
