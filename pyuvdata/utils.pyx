@@ -221,7 +221,7 @@ cpdef numpy.ndarray[numpy.float64_t, ndim=2] _ENU_from_ECEF(
 # that is why _lat, _lon, and _alt are indexed below to get the 0th entry
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef numpy.ndarray[dtype=numpy.float64_t] _ECEF_FROM_ENU(
+cpdef numpy.ndarray[dtype=numpy.float64_t] _ECEF_from_ENU(
   numpy.float64_t[:, ::1] enu,
   numpy.float64_t[::1] _lat,
   numpy.float64_t[::1] _lon,

@@ -956,7 +956,7 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
 
     # the cython utility expects (3, Npts) for faster manipulation
     # transpose after we get the array back to match the expected shape
-    xyz = _utils._ECEF_FROM_ENU(
+    xyz = _utils._ECEF_from_ENU(
         enu,
         np.ascontiguousarray(latitude, dtype=np.float64),
         np.ascontiguousarray(longitude, dtype=np.float64),
