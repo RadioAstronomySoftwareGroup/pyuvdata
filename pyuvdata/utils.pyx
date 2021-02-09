@@ -3,31 +3,52 @@
 # Licensed under the 2-clause BSD License
 
 # distutils: language = c
-# cython: linetrace=True
-# distutils: define_macros=CYTHON_TRACE_NOGIL=1
+
 # python imports
-import numpy as np
+from cython.parallel import prange
 import warnings
 # cython imports
 cimport numpy
 cimport cython
 from libc.math cimport sin, cos, sqrt, atan2
 
+numpy.import_array()
+
 # in order to not have circular dependencies
 # define transformation parameters here
 # parameters for transforming between xyz & lat/lon/alt
-gps_b = 6356752.31424518
-gps_a = 6378137
-e_squared = 6.69437999014e-3
-e_prime_squared = 6.73949674228e-3
-
-# make c-viewed versions of these variables
-cdef numpy.float64_t _gps_a = gps_a
-cdef numpy.float64_t _gps_b = gps_b
-cdef numpy.float64_t _e2 = e_squared
-cdef numpy.float64_t _ep2 = e_prime_squared
+cdef numpy.float64_t _gps_a = 6378137
+cdef numpy.float64_t _gps_b = 6356752.31424518
+cdef numpy.float64_t _e2 = 6.69437999014e-3
+cdef numpy.float64_t _ep2 = 6.73949674228e-3
 # this one is useful in the xyz from lla calculation
 cdef numpy.float64_t b_div_a2 = (_gps_b / _gps_a)**2
+
+# expose up to python
+gps_a = _gps_b
+gps_b = _gps_b
+e_squared = _e2
+e_prime_squared = _ep2
+
+ctypedef fused int_or_float:
+    numpy.int64_t
+    numpy.int32_t
+    numpy.float64_t
+    numpy.float32_t
+
+
+cdef inline int_or_float max(int_or_float a, int_or_float b):
+    return a if a > b else b
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef int_or_float arraymin(int_or_float[::1] array) nogil:
+    cdef int_or_float minval = array[0]
+    cdef Py_ssize_t i
+    for i in range(array.shape[0]):
+        if array[i] < minval:
+            minval = array[i]
+    return minval
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
