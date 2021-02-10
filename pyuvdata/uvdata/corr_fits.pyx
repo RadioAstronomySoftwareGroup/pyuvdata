@@ -4,7 +4,7 @@
 
 # distutils: language = c
 # cython: linetrace=True
-# distutils: define_macros=CYTHON_TRACE_NOGIL=1 NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
+
 # python imports
 import numpy as np
 # cython imports
@@ -117,10 +117,9 @@ cpdef void generate_map(
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] get_cable_len_diffs(
-  int Nblts,
   numpy.int_t[::1] ant1_array,
   numpy.int_t[::1] ant2_array,
-  numpy.unicode[:] cable_lens,
+  numpy.ndarray cable_lens,
 ):
   """Computer the difference in cable lengths for each baseline.
 
@@ -129,8 +128,6 @@ cpdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] get_cable_len_diffs(
 
   Parameters
   ----------
-  Nblts : int
-    The number of baseline times
   ant1_array : numpy array of type int_t
     Array of antenna 1 numbers for each baseline.
   ant2_array : numpy array of type int_t
@@ -145,7 +142,8 @@ cpdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] get_cable_len_diffs(
 
   """
   cdef Py_ssize_t i
-  cdef int n_cables = cable_lens.shape[0]
+  cdef int Nblts = ant1_array.shape[0]
+  cdef int n_cables = numpy.PyArray_DIMS(cable_lens)[0]
   cdef numpy.float64_t[::1] cable_array = np.zeros(n_cables, dtype=np.float64)
   cdef numpy.float64_t[::1] cable_diffs = np.zeros(Nblts, dtype=np.float64)
   # "the velocity factor of electic fields in RG-6 like coax"

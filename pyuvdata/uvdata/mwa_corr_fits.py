@@ -317,7 +317,7 @@ class MWACorrFITS(UVData):
         """
         # from MWA_Tools/CONV2UVFITS/convutils.h
         cable_len_diffs = _corr_fits.get_cable_len_diffs(
-            self.Nblts, self.ant_1_array, self.ant_2_array, cable_lens
+            self.ant_1_array, self.ant_2_array, cable_lens,
         )
         self.data_array *= np.exp(
             -1j
