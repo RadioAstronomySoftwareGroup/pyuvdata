@@ -315,6 +315,13 @@ class MWACorrFITS(UVData):
         A list of strings containing the cable lengths for each antenna.
 
         """
+        # as of version 0.29.X cython does not handle numpy arrays of strings
+        # particularly efficiently. Casting to bytes, then into this demonic
+        # form is a workaround found here: https://stackoverflow.com/a/28777163
+        cable_lens = np.asarray(cable_lens).astype(np.string_)
+        cable_lens = cable_lens.view("uint8").reshape(
+            cable_lens.size, cable_lens.dtype.itemsize
+        )
         # from MWA_Tools/CONV2UVFITS/convutils.h
         cable_len_diffs = _corr_fits.get_cable_len_diffs(
             self.ant_1_array, self.ant_2_array, cable_lens,
@@ -1354,6 +1361,7 @@ class MWACorrFITS(UVData):
 
             # cable delay corrections
             if correct_cable_len:
+
                 self.correct_cable_length(cable_lens)
 
             # add spectral window index
