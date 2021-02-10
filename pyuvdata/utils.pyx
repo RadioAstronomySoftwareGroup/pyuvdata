@@ -3,6 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 # distutils: language = c
+# cython: linetrace=True
 
 # python imports
 from cython.parallel import prange
