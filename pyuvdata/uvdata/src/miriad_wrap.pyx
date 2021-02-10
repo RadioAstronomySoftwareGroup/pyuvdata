@@ -10,7 +10,7 @@ import numpy as np
 cimport cython
 cimport numpy
 cimport libcpp.complex
-from libc.string cimport strcmp
+from libc.string cimport strncmp
 
 DEF PREAMBLE_SIZE = 5
 DEF MAXVAR = 32768
@@ -561,7 +561,7 @@ cdef class UV:
 
   cpdef void _select(self, str name, numpy.float64_t ind1, numpy.float64_t ind2, int include_flag) except +:
     # we used to only call strncmp(name, decimation, 5) so only look at first 5 letters
-    if strcmp(name[:5].encode(), "decimation"[:5]) == 0:
+    if strncmp(name.encode(), "decimation", 5) == 0:
       self.decimate = <long> ind1
       self.decphase = <long> ind2
     else:
