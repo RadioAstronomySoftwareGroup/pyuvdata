@@ -10,13 +10,18 @@ import numpy as np
 # cython imports
 cimport cython
 cimport numpy
+from libc.stdlib cimport strtod
+from libc.string cimport strncmp, strtok, memcpy
 
 from cython.parallel import prange, parallel
 from libc.math cimport exp, pi, sqrt
 numpy.import_array()
 
-cpdef dict input_output_mapping():
-  """Build a mapping dictionary from pfb input to output numbers."""
+ctypedef fused int_like:
+  numpy.int_t
+  int
+
+cdef inline int_like pfb_mapper(int_like index):
   # the polyphase filter bank maps inputs to outputs, which the MWA
   # correlator then records as the antenna indices.
   # the following is taken from mwa_build_lfiles/mwac_utils.c
@@ -24,20 +29,16 @@ cpdef dict input_output_mapping():
   # (from mwa_build_lfiles/antenna_mapping.h):
   # floor(index/4) + index%4 * 16 = input
   # for the first 64 outputs, pfb_mapper[output] = input
+  return index // 4  + index % 4 * 16
+
+cpdef dict input_output_mapping():
+  """Build a mapping dictionary from pfb input to output numbers."""
   cdef int p, i
   cdef dict pfb_inputs_to_outputs = {}
-  # fmt: off
-  pfb_mapper = [0, 16, 32, 48, 1, 17, 33, 49, 2, 18, 34, 50, 3, 19, 35, 51,
-                4, 20, 36, 52, 5, 21, 37, 53, 6, 22, 38, 54, 7, 23, 39, 55,
-                8, 24, 40, 56, 9, 25, 41, 57, 10, 26, 42, 58, 11, 27, 43, 59,
-                12, 28, 44, 60, 13, 29, 45, 61, 14, 30, 46, 62, 15, 31, 47,
-                63]
-
-  # fmt: on
   # build a mapper for all 256 inputs
   for p in range(4):
     for i in range(64):
-      pfb_inputs_to_outputs[pfb_mapper[i] + p * 64] = p * 64 + i
+      pfb_inputs_to_outputs[pfb_mapper(i) + p * 64] = p * 64 + i
 
   return pfb_inputs_to_outputs
 
@@ -116,10 +117,40 @@ cpdef void generate_map(
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+cdef inline void _make_length_array(
+  const int max_length,
+  char[:, ::1] cable_lens,
+  numpy.float64_t[::1] cable_array
+):
+  cdef char * token
+  cdef char clen[max_length]
+  # "the velocity factor of electic fields in RG-6 like coax"
+  # # from MWA_Tools/CONV2UVFITS/convutils.h
+  cdef float v_factor = 1.204
+  cdef int n_cables = cable_lens.shape[0]
+
+  # check if the cable length already has the velocity factor applied
+  for i in range(n_cables):
+    # copy the location in memory to our character array
+    memcpy(clen, &cable_lens[i, 0], max_length)
+    # attempt to split on the character "_"
+    token = strtok(clen, b"_")
+
+    if strncmp(token, b"EL", 2) == 0:
+      # has already had the velocity factor applied
+      # grab the next bit of the string after EL
+      token = strtok(NULL, b"_")
+      cable_array[i] = strtod(token, NULL)
+    else:
+      cable_array[i] = strtod(token, NULL) * v_factor
+  return
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
 cpdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] get_cable_len_diffs(
   numpy.int_t[::1] ant1_array,
   numpy.int_t[::1] ant2_array,
-  numpy.ndarray cable_lens,
+  char[:, ::1] cable_lens,
 ):
   """Computer the difference in cable lengths for each baseline.
 
@@ -134,35 +165,33 @@ cpdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] get_cable_len_diffs(
     Array of antenna 2 numbers for each baseline.
   cable_lens : numpy array
     Array of strings of the length of the cable for each antenna.
+    However it is cast to uint8 and reshaped as (cable_lens.size, cable_lens.dytype.itemsize)
+    see more about this approach here: https://stackoverflow.com/a/28777163
 
   Returns
   -------
   cable_diffs : numpy array of type float64
-    Array of lenght Nblts with the difference of cable lengths for each baseline.
+    Array of length Nblts with the difference of cable lengths for each baseline.
 
   """
   cdef Py_ssize_t i
   cdef int Nblts = ant1_array.shape[0]
-  cdef int n_cables = numpy.PyArray_DIMS(cable_lens)[0]
-  cdef numpy.float64_t[::1] cable_array = np.zeros(n_cables, dtype=np.float64)
-  cdef numpy.float64_t[::1] cable_diffs = np.zeros(Nblts, dtype=np.float64)
-  # "the velocity factor of electic fields in RG-6 like coax"
-  # from MWA_Tools/CONV2UVFITS/convutils.h
-  cdef float v_factor = 1.204
+  cdef int n_cables = cable_lens.shape[0]
+  cdef int max_length = cable_lens.shape[1]
 
-  # check if the cable length already has the velocity factor applied
-  # this loop is very python-y but there is no real gain to trying to make it C-esque
-  for i in range(n_cables):
-    if cable_lens[i][:3] == "EL_":
-      cable_array[i] = float(cable_lens[i][3:])
-    else:
-      cable_array[i] = float(cable_lens[i]) * v_factor
+  cdef numpy.npy_intp * dims_cables = [n_cables]
+  cdef numpy.npy_intp * dims_diffs = [Nblts]
+  cdef numpy.float64_t[::1] cable_array = numpy.PyArray_ZEROS(1, dims_cables, numpy.NPY_FLOAT64, 0)
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=1] cable_diffs = numpy.PyArray_ZEROS(1, dims_diffs, numpy.NPY_FLOAT64, 0)
+  cdef numpy.float64_t[::1] _cable_diffs = cable_diffs
 
-  # build array of differences
+  # fill out array of cable lengths
+  _make_length_array(max_length, cable_lens, cable_array)
+
   for i in range(Nblts):
-    cable_diffs[i] = cable_array[ant2_array[i]] - cable_array[ant1_array[i]]
+    _cable_diffs[i] = cable_array[ant2_array[i]] - cable_array[ant1_array[i]]
 
-  return np.asarray(cable_diffs)
+  return cable_diffs
 
 
 @cython.wraparound(False)
