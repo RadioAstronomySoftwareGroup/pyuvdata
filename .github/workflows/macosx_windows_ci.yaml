@@ -50,7 +50,7 @@ jobs:
 
       - name: Install
         run: |
-          pip install .
+          CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install .
 
       - name: Run Tests
         run: |
