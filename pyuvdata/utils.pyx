@@ -163,7 +163,6 @@ cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
   cdef int nbls = ant1.shape[0]
   cdef numpy.npy_intp * dims = [<numpy.npy_intp>nbls]
   cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] baseline = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_INT64, 0)
-#   cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] baseline = np.empty(nblts, dtype=np.int64)
   cdef numpy.int64_t[::1] _bl = baseline
   cdef bint less255
 
@@ -361,8 +360,10 @@ cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _phase_uvw(
     numpy.float64_t[:, ::1] initial_uvw
 ):
   cdef int i
+  cdef int ndim = 2
   cdef int nuvw = initial_uvw.shape[1]
-  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] uvw = np.empty((3, nuvw), dtype=np.float64)
+  cdef numpy.npy_intp * dims = [3, <numpy.npy_intp>nuvw]
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] uvw = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_FLOAT64, 0)
 
   # make a memoryview for the numpy array in c
   cdef numpy.float64_t[:, ::1] _uvw = uvw
@@ -399,8 +400,10 @@ cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _unphase_uvw(
     numpy.float64_t[:, ::1] uvw
 ):
   cdef int i
+  cdef int ndim = 2
   cdef int nuvw = uvw.shape[1]
-  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] unphased_uvw = np.empty((3, nuvw), dtype=np.float64)
+  cdef numpy.npy_intp * dims = [3, <numpy.npy_intp>nuvw]
+  cdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] unphased_uvw = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_FLOAT64, 0)
 
   # make a memoryview for the numpy array in c
   cdef numpy.float64_t[:, ::1] _u_uvw = unphased_uvw
