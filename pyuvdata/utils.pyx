@@ -6,7 +6,6 @@
 # cython: linetrace=True
 
 # python imports
-from cython.parallel import prange
 import warnings
 # cython imports
 cimport numpy
@@ -70,14 +69,9 @@ cdef inline void _bl_to_ant_256(
 ):
   cdef Py_ssize_t i
 
-  if nbls > 10000:
-    for i in prange(nbls, nogil=True):
-      _ants[1, i] = (_bl[i]) % 256 - 1
-      _ants[0, i] = (_bl[i] - (_ants[1, i] + 1)) // 256 - 1
-  else:
-    for i in range(nbls):
-      _ants[1, i] = (_bl[i]) % 256 - 1
-      _ants[0, i] = (_bl[i] - (_ants[1, i] + 1)) // 256 - 1
+  for i in range(nbls):
+    _ants[1, i] = (_bl[i]) % 256 - 1
+    _ants[0, i] = (_bl[i] - (_ants[1, i] + 1)) // 256 - 1
   return
 
 @cython.boundscheck(False)
@@ -85,17 +79,12 @@ cdef inline void _bl_to_ant_256(
 cdef inline void _bl_to_ant_2048(
     numpy.int64_t[::1] _bl,
     numpy.int64_t[:, ::1] _ants,
-    long nbls
+    int nbls
 ):
   cdef Py_ssize_t i
-  if nbls > 10000:
-    for i in prange(nbls, nogil=True):
-      _ants[1, i] = (_bl[i] - 2 ** 16) % 2048 - 1
-      _ants[0, i] = (_bl[i] - 2 ** 16 - (_ants[1, i] + 1)) // 2048 - 1
-  else:
-    for i in range(nbls):
-      _ants[1, i] = (_bl[i] - 2 ** 16) % 2048 - 1
-      _ants[0, i] = (_bl[i] - 2 ** 16 - (_ants[1, i] + 1)) // 2048 - 1
+  for i in range(nbls):
+    _ants[1, i] = (_bl[i] - 2 ** 16) % 2048 - 1
+    _ants[0, i] = (_bl[i] - 2 ** 16 - (_ants[1, i] + 1)) // 2048 - 1
   return
 
 
@@ -121,38 +110,30 @@ cpdef numpy.ndarray[dtype=numpy.int64_t, ndim=2] baseline_to_antnums(
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef inline void _antnum_to_bl_2048(
-numpy.int64_t[::1] ant1,
-numpy.int64_t[::1] ant2,
-numpy.int64_t[::1] baselines,
-    long nbls,
+  numpy.int64_t[::1] ant1,
+  numpy.int64_t[::1] ant2,
+  numpy.int64_t[::1] baselines,
+  int nbls,
 ):
   cdef Py_ssize_t i
 
-  if nbls >= 50000:
-    for i in prange(nbls, nogil=True):
-      baselines[i] = 2048 * (ant1[i] + 1) + (ant2[i] + 1) + 2 ** 16
-  else:
-    for i in range(nbls):
-      baselines[i] = 2048 * (ant1[i] + 1) + (ant2[i] + 1) + 2 ** 16
+  for i in range(nbls):
+    baselines[i] = 2048 * (ant1[i] + 1) + (ant2[i] + 1) + 2 ** 16
   return
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef inline void _antnum_to_bl_256(
-numpy.int64_t[::1] ant1,
-numpy.int64_t[::1] ant2,
-numpy.int64_t[::1] baselines,
-    long nbls,
+  numpy.int64_t[::1] ant1,
+  numpy.int64_t[::1] ant2,
+  numpy.int64_t[::1] baselines,
+  int nbls,
 ):
   cdef Py_ssize_t i
   # make views as c-contiguous arrays of a known dtype
   # effectivly turns the numpy array into a c-array
-  if nbls >= 50000:
-    for i in prange(nbls, nogil=True):
-      baselines[i] = 256 * (ant1[i] + 1) + (ant2[i] + 1)
-  else:
-    for i in range(nbls):
-      baselines[i] = 256 * (ant1[i] + 1) + (ant2[i] + 1)
+  for i in range(nbls):
+    baselines[i] = 256 * (ant1[i] + 1) + (ant2[i] + 1)
   return
 
 cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
