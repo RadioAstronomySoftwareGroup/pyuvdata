@@ -5,8 +5,6 @@
 # distutils: language = c
 # cython: linetrace=True
 
-# python imports
-import numpy as np
 # cython imports
 cimport cython
 cimport numpy
