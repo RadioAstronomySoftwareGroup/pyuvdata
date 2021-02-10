@@ -1361,7 +1361,6 @@ class MWACorrFITS(UVData):
 
             # cable delay corrections
             if correct_cable_len:
-
                 self.correct_cable_length(cable_lens)
 
             # add spectral window index
