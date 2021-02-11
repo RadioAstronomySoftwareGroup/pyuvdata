@@ -115,13 +115,13 @@ cpdef void generate_map(
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef void _make_length_array(
+cdef inline void _make_length_array(
   const int max_length,
   char[:, ::1] cable_lens,
   numpy.float64_t[::1] cable_array
 ):
   cdef char * token
-  cdef char clen[max_length]
+  cdef char clen[30]
   # "the velocity factor of electic fields in RG-6 like coax"
   # # from MWA_Tools/CONV2UVFITS/convutils.h
   cdef float v_factor = 1.204
