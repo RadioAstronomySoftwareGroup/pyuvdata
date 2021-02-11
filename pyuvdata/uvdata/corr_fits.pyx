@@ -115,7 +115,7 @@ cpdef void generate_map(
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef inline void _make_length_array(
+cdef void _make_length_array(
   const int max_length,
   char[:, ::1] cable_lens,
   numpy.float64_t[::1] cable_array
