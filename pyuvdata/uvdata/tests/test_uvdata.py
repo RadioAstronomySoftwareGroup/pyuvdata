@@ -5330,7 +5330,9 @@ def test_get_antenna_redundancies(pyuvsim_redundant):
 @pytest.mark.parametrize("reconjugate", (True, False))
 @pytest.mark.parametrize("flagging_level", ("none", "some", "all"))
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_redundancy_contract_expand(method, reconjugate, flagging_level, future_shapes):
+def test_redundancy_contract_expand(
+    method, reconjugate, flagging_level, future_shapes, pyuvsim_redundant
+):
     # Test that a UVData object can be reduced to one baseline from each redundant group
     # and restored to its original form.
 
