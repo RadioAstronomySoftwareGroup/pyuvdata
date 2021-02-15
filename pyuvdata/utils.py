@@ -1435,8 +1435,8 @@ def calc_uvw(
             raise ValueError("Must include telescope_lon if use_ant_pos=True.")
 
         ant_dict = {ant_num: idx for idx, ant_num in enumerate(antenna_numbers)}
-        ant_1_index = np.array([ant_dict[idx] for idx in ant_1_array], dtype=np.int)
-        ant_2_index = np.array([ant_dict[idx] for idx in ant_2_array], dtype=np.int)
+        ant_1_index = np.array([ant_dict[idx] for idx in ant_1_array], dtype=int)
+        ant_2_index = np.array([ant_dict[idx] for idx in ant_2_array], dtype=int)
 
         N_ants = antenna_positions.shape[0]
         # Use the app_ra, app_dec, and lst_array arrays to figure out how many unique
@@ -1445,7 +1445,7 @@ def calc_uvw(
         # outselves a bit of work.
         if to_enu:
             # If to_enu, skip all this -- there's only one unique ha + dec combo
-            unique_mask = np.zeros(len(ant_1_index), dtype=np.bool)
+            unique_mask = np.zeros(len(ant_1_index), dtype=np.bool_)
             unique_mask[0] = True
         else:
             unique_mask = np.append(
