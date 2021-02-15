@@ -776,7 +776,7 @@ class UVFITS(UVData):
             nchan_list = []
             start_freq_array = []
             delta_freq_array = []
-            for idx in range(self.Nspws):
+            for idx in self.spw_array:
                 chan_mask = self.flex_spw_id_array == idx
                 nchan_list += [np.sum(chan_mask)]
                 start_freq_array += [freq_array_use[chan_mask][0]]
