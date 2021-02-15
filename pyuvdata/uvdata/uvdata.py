@@ -917,7 +917,7 @@ class UVData(UVBase):
         formats cannot, so we just consider it forbidden.
         """
         if self.flex_spw:
-            exp_spw_ids = np.arange(self.Nspws, dtype=np.int64)
+            exp_spw_ids = np.unique(self.spw_array)
             # This is an internal consistency check to make sure that the indexes match
             # up as expected -- this shouldn't error unless someone is mucking with
             # settings they shouldn't be.
@@ -973,7 +973,7 @@ class UVData(UVBase):
             self._check_flex_spw_contiguous()
             diff_chanwidth = np.diff(self.channel_width)
             freq_dir = []
-            for idx in range(self.Nspws):
+            for idx in self.spw_array:
                 chan_mask = self.flex_spw_id_array == idx
                 freq_dir += [
                     np.sign(np.mean(np.diff(freq_array_use[chan_mask])))
