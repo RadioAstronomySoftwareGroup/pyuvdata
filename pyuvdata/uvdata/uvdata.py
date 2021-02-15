@@ -275,7 +275,7 @@ class UVData(UVBase):
             "contains multiple sources within it."
         )
         self._multi_object = uvp.UVParameter(
-            "multi_object", description=desc, expected_type=np.bool, value=False,
+            "multi_object", description=desc, expected_type=bool, value=False,
         )
 
         desc = (
@@ -284,7 +284,7 @@ class UVData(UVBase):
         )
 
         self._Nobjects = uvp.UVParameter(
-            "Nobjects", description=desc, expected_type=np.int, required=False,
+            "Nobjects", description=desc, expected_type=int, required=False,
         )
 
         desc = (
@@ -416,7 +416,7 @@ class UVData(UVBase):
             "phase_center_app_ra",
             required=False,
             form=("Nblts",),
-            expected_type=np.float,
+            expected_type=float,
             description=desc,
             tols=radian_tol,
         )
@@ -430,7 +430,7 @@ class UVData(UVBase):
             "phase_center_app_dec",
             required=False,
             form=("Nblts",),
-            expected_type=np.float,
+            expected_type=float,
             description=desc,
             tols=radian_tol,
         )
@@ -446,7 +446,7 @@ class UVData(UVBase):
             "phase_center_app_pa",
             required=False,
             form=("Nblts",),
-            expected_type=np.float,
+            expected_type=float,
             description=desc,
             tols=radian_tol,
         )
@@ -473,7 +473,7 @@ class UVData(UVBase):
             "object_id_array",
             description=desc,
             form=("Nblts",),
-            expected_type=np.int,
+            expected_type=int,
             required=False,
         )
 
@@ -747,7 +747,7 @@ class UVData(UVBase):
             self.object_dict = {self.object_name[0]: object_dict}
             # When convering from single-source, all baselines should be phased to
             # a single target
-            self.object_id_array = np.zeros(self.Nblts, dtype=np.int)
+            self.object_id_array = np.zeros(self.Nblts, dtype=int)
             self.Nobjects = 1
         else:
             # Convert object_name into an empty list
@@ -755,7 +755,7 @@ class UVData(UVBase):
             # Make a dummy dict for the objects
             self.object_dict = {}
             # Mark the ID array as having no sources
-            self.object_id_array = np.zeros(self.Nblts, dtype=np.int) - 1
+            self.object_id_array = np.zeros(self.Nblts, dtype=int) - 1
             # Set the total number of sources to zero
             self.Nobjects = 0
 
@@ -999,8 +999,7 @@ class UVData(UVBase):
         # Finally, we need to remap the object_id_array, to reflect the fact that we
         # have mucked the primary indexing in the object_name list
         self.object_id_array = np.array(
-            [[good_map[object_idx] for object_idx in self.object_id_array]],
-            dtype=np.int,
+            [[good_map[object_idx] for object_idx in self.object_id_array]], dtype=int,
         )
 
     def _check_for_unphased_objects(self):
@@ -1359,8 +1358,8 @@ class UVData(UVBase):
             app_ra = self.phase_center_app_ra
             app_dec = self.phase_center_app_dec
         elif self.multi_object:
-            app_ra = np.zeros(self.Nblts, dtype=np.float)
-            app_dec = np.zeros(self.Nblts, dtype=np.float)
+            app_ra = np.zeros(self.Nblts, dtype=float)
+            app_dec = np.zeros(self.Nblts, dtype=float)
             for idx in np.unique(self.object_id_array):
                 if (idx < 0) or (idx > len(self.object_name)):
                     raise IndexError(

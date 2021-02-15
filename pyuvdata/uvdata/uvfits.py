@@ -124,7 +124,7 @@ class UVFITS(UVData):
             self._set_multi_object(preserve_source_info=True)
             source = vis_hdu.data.par("SOURCE")
             self.Nobjects = len(set(source))
-            self.object_id_array = source.astype(np.int)
+            self.object_id_array = source.astype(int)
 
         # get self.baseline_array using our convention
         self.baseline_array = self.antnums_to_baseline(
@@ -753,9 +753,6 @@ class UVFITS(UVData):
                         ref_epoch=self.phase_center_epoch,
                     )
 
-                    print(app_pa)
-                    print(app_ra)
-                    print(app_dec)
                     self.phase_center_app_ra[self.object_id_array == sou_id] = app_ra
                     self.phase_center_app_dec[self.object_id_array == sou_id] = app_dec
                     self.phase_center_app_pa[self.object_id_array == sou_id] = app_pa
@@ -774,7 +771,7 @@ class UVFITS(UVData):
                 # the numbers _could_ be completely out of order/assigned arbitrary int
                 # values
                 self.object_id_array = np.array(
-                    [idx_dict[idx] for idx in self.object_id_array], dtype=np.int
+                    [idx_dict[idx] for idx in self.object_id_array], dtype=int
                 )
 
             # Calculate the apparent coordinate values
@@ -1358,21 +1355,21 @@ class UVFITS(UVData):
             fmt_e = "%iE" % self.Nspws
             fmt_j = "%iJ" % self.Nspws
 
-            int_zeros = np.zeros(self.Nobjects, dtype=np.int)
-            flt_zeros = np.zeros(self.Nobjects, dtype=np.float)
+            int_zeros = np.zeros(self.Nobjects, dtype=int)
+            flt_zeros = np.zeros(self.Nobjects, dtype=np.float64)
             zero_arr = np.zeros((self.Nobjects, self.Nspws))
             sou_ids = np.arange(self.Nobjects) + 1
             name_arr = np.array(self.object_name)
             cal_code = ["    "] * self.Nobjects
             # These are things we need to flip through on a source-by-source basis
-            ra_arr = np.zeros(self.Nobjects, dtype=np.float)
-            app_ra = np.zeros(self.Nobjects, dtype=np.float)
-            dec_arr = np.zeros(self.Nobjects, dtype=np.float)
-            app_dec = np.zeros(self.Nobjects, dtype=np.float)
-            epo_arr = np.zeros(self.Nobjects, dtype=np.float)
-            pm_ra = np.zeros(self.Nobjects, dtype=np.float)
-            pm_dec = np.zeros(self.Nobjects, dtype=np.float)
-            rest_freq = np.zeros((self.Nobjects, self.Nspws), dtype=np.float)
+            ra_arr = np.zeros(self.Nobjects, dtype=np.float64)
+            app_ra = np.zeros(self.Nobjects, dtype=np.float64)
+            dec_arr = np.zeros(self.Nobjects, dtype=np.float64)
+            app_dec = np.zeros(self.Nobjects, dtype=np.float64)
+            epo_arr = np.zeros(self.Nobjects, dtype=np.float64)
+            pm_ra = np.zeros(self.Nobjects, dtype=np.float64)
+            pm_dec = np.zeros(self.Nobjects, dtype=np.float64)
+            rest_freq = np.zeros((self.Nobjects, self.Nspws), dtype=np.float64)
             for idx in range(self.Nobjects):
                 object_dict = self.object_dict[self.object_name[idx]]
                 # This is a stub for something smarter in the future

@@ -1276,7 +1276,7 @@ class Miriad(UVData):
         ra_pol_list = np.zeros((self.Nblts, self.Npols))
         dec_pol_list = np.zeros((self.Nblts, self.Npols))
         uvw_pol_list = np.zeros((self.Nblts, 3, self.Npols))
-        sou_id_pol_list = np.zeros((self.Nblts, self.Npols), dtype=np.int)
+        sou_id_pol_list = np.zeros((self.Nblts, self.Npols), dtype=int)
         epoch_pol_list = np.zeros((self.Nblts, self.Npols))
         app_ra_pol_list = np.zeros((self.Nblts, self.Npols))
         app_dec_pol_list = np.zeros((self.Nblts, self.Npols))
@@ -1465,7 +1465,7 @@ class Miriad(UVData):
             # in FK5 format (well, unless epoch <= 1984, in which case MIRIAD assumes
             # in semi-Orwellian fashion that you _really_ wanted FK4/Bessel-Newcomb).
             self.phase_center_epoch = float(np.median(epoch_list))
-            self.object_id_array = sou_id_list.astype(np.int)
+            self.object_id_array = sou_id_list.astype(int)
             self.Nobjects = Nobjects
             flip_dict = {sou_dict[key]: key for key in sou_dict.keys()}
             self.object_name = [flip_dict[key] for key in range(Nobjects)]

@@ -341,9 +341,9 @@ class Mir(UVData):
         object_id_array = mir_data.in_data["isource"][bl_in_maparr[sb_screen]]
         object_id_dict = {isource[idx]: idx for idx in range(len(isource))}
         object_id_array = np.array(
-            [object_id_dict[key] for key in object_id_array], dtype=np.int
+            [object_id_dict[key] for key in object_id_array], dtype=int
         )
-        self.object_id_array = object_id_array.astype(np.int)
+        self.object_id_array = object_id_array.astype(int)
 
         self.Nobjects = len(self.object_name)
         self.phase_center_ra = 0.0  # This are ignored w/ multi-obj data sets

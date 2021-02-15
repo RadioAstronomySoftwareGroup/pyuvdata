@@ -136,6 +136,9 @@ def test_read_mir_write_uvfits(uv_in_uvfits, future_shapes):
     mir_uv._set_app_coords_helper()
     uvfits_uv._set_app_coords_helper()
 
+    print(mir_uv.object_name)
+    print(uvfits_uv.object_name)
+    print(uvfits_uv.object_name == mir_uv.object_name)
     assert mir_uv == uvfits_uv
 
 
