@@ -706,6 +706,7 @@ class UVData(UVBase):
         self._Nobjects.required = True
         self._object_dict.required = True
         self._object_name.form = ("Nobjects",)
+        self._object_name.strict_type = False
 
         # This should technically be required for any phased data set, but for now,
         # we are only gonna make it mandatory for multi-obj data sets.
@@ -755,7 +756,8 @@ class UVData(UVBase):
             # Make a dummy dict for the objects
             self.object_dict = {}
             # Mark the ID array as having no sources
-            self.object_id_array = np.zeros(self.Nblts, dtype=int) - 1
+            if self.Nblts is not None:
+                self.object_id_array = np.zeros(self.Nblts, dtype=int) - 1
             # Set the total number of sources to zero
             self.Nobjects = 0
 
