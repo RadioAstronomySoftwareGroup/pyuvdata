@@ -323,10 +323,7 @@ class UVData(UVBase):
 
         desc = "Flag indicating that this object is using the future array shapes."
         self._future_array_shapes = uvp.UVParameter(
-            "future_array_shapes",
-            description=desc,
-            expected_type=np.bool_,
-            value=False,
+            "future_array_shapes", description=desc, expected_type=bool, value=False,
         )
 
         # --- phasing information ---

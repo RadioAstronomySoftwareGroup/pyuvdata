@@ -1205,7 +1205,9 @@ class UVFlag(UVBase):
                 sarr = self.flag_array
             elif self.mode == "metric":
                 if issubclass(uv.__class__, UVData) and uv.future_array_shapes:
-                    arr = np.zeros_like(uv.flag_array[:, np.newaxis, :, :], dtype=np.float64)
+                    arr = np.zeros_like(
+                        uv.flag_array[:, np.newaxis, :, :], dtype=np.float64
+                    )
                     warr = np.zeros_like(
                         uv.flag_array[:, np.newaxis, :, :], dtype=np.float64
                     )
