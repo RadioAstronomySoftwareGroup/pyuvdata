@@ -157,7 +157,7 @@ cpdef int hwrite_init(int item_hdl, str type) except +:
 cdef int FIRSTINT(char s[4]):
   return (<int *>s)[0]
 
-cpdef hread_init(int item_hdl) except +*:
+cpdef tuple hread_init(int item_hdl) except +*:
   cdef int offset, iostat, code
   cdef char s[ITEM_HDR_SIZE]
 
@@ -166,34 +166,36 @@ cpdef hread_init(int item_hdl) except +*:
   CHK_IO(iostat)
   code = FIRSTINT(s)
   if (code == FIRSTINT(char_item)):
-      offset = mroundup(ITEM_HDR_SIZE,H_BYTE_SIZE)
+      offset = mroundup(ITEM_HDR_SIZE, H_BYTE_SIZE)
       return "a", offset
 
   elif (code == FIRSTINT(binary_item)):
     return "b", ITEM_HDR_SIZE
 
   elif (code == FIRSTINT(int_item)):
-    offset = mroundup(ITEM_HDR_SIZE,H_INT_SIZE)
+    offset = mroundup(ITEM_HDR_SIZE, H_INT_SIZE)
     return "i", offset
 
   elif (code == FIRSTINT(int2_item)):
-    offset = mroundup(ITEM_HDR_SIZE,H_INT2_SIZE)
+    offset = mroundup(ITEM_HDR_SIZE, H_INT2_SIZE)
     return "j", offset
 
   elif (code == FIRSTINT(int8_item)):
-    offset = mroundup(ITEM_HDR_SIZE,H_INT8_SIZE)
-    return  "l", offset
+    offset = mroundup(ITEM_HDR_SIZE, H_INT8_SIZE)
+    return "l", offset
 
   elif (code == FIRSTINT(real_item)):
-    offset = mroundup(ITEM_HDR_SIZE,H_REAL_SIZE)
+    offset = mroundup(ITEM_HDR_SIZE, H_REAL_SIZE)
     return "r", offset
 
   elif (code == FIRSTINT(dble_item)):
-    offset = mroundup(ITEM_HDR_SIZE,H_DBLE_SIZE)
-    return  "d", offset
+    offset = mroundup(ITEM_HDR_SIZE, H_DBLE_SIZE)
+    return "d", offset
+
   elif (code == FIRSTINT(cmplx_item)):
-    offset = mroundup(ITEM_HDR_SIZE,H_CMPLX_SIZE)
+    offset = mroundup(ITEM_HDR_SIZE, H_CMPLX_SIZE)
     return "c", offset
+
   else:
     raise RuntimeError("unknown item type.")
 
@@ -273,7 +275,7 @@ cpdef int hwrite(int item_hdl, int offset, val, str type) except *:
 
   return offset
 
-cpdef hread(int item_hdl, int offset, str type) except +:
+cpdef tuple hread(int item_hdl, int offset, str type) except +:
   cdef int iostat
   cdef int int_1
   cdef short sh
