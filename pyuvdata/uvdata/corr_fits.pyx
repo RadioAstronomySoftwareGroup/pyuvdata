@@ -204,12 +204,16 @@ cdef numpy.ndarray[ndim=2, dtype=numpy.float64_t] _compute_khat(
   numpy.float64_t[::1] sig1,
   numpy.float64_t[::1] sig2,
 ):
-
-  cdef numpy.ndarray[ndim=2, dtype=numpy.float64_t] khat = np.zeros((x.shape[0], x.shape[1]), dtype=np.float64)
+  cdef int ndim = 2
+  cdef numpy.npy_intp * dims = [x.shape[0], x.shape[1]]
+  cdef numpy.ndarray[ndim=2, dtype=numpy.float64_t] khat = numpy.PyArray_ZEROS(ndim, dims, numpy.NPY_FLOAT64, 0)
 
   cdef numpy.float64_t[:, ::1] _khat = khat
 
-  ind1 = np.arange(0.5, 7.5, 1, dtype=np.float64).reshape(7, 1)
+  ind1 = numpy.PyArray_Reshape(
+    numpy.PyArray_Arange(0.5, 7.5, 1, numpy.NPY_FLOAT64),
+    (7, 1),
+  )
   cdef numpy.float64_t[:, ::1]  j_ind = ind1 / sig1
   cdef numpy.float64_t[:, ::1]  k_ind = ind1 / sig2
 
@@ -242,23 +246,38 @@ cdef numpy.ndarray[ndim=2, dtype=numpy.float64_t] _compute_khat(
   return khat
 
 
-cpdef get_khat(rho, sig1, sig2):
-    rho = np.ascontiguousarray(rho, dtype=np.float64)
-    squeeze = False
-    if rho.ndim == 1:
-      squeeze = True
-      rho = rho.reshape(1, -1)
-    sig1 =  np.ascontiguousarray(sig1, dtype=np.float64)
-    sig2 =  np.ascontiguousarray(sig2, dtype=np.float64)
+cpdef numpy.ndarray[dtype=numpy.float64_t] get_khat(rho, sig1, sig2):
+  """Compute generalized k-hat matrix for van vleck correction.
 
-    khat = np.zeros((rho.shape[0], rho.shape[1]), dtype=np.float64)
-    khat = _compute_khat(
-        rho, sig1, sig2
-    )
+  Generalized for 1 or two dimenional rho inputs.
 
-    if squeeze:
-      khat = khat.squeeze()
-    return khat
+  Parameters
+  ----------
+  rho : numpy array
+    Array of rho inputs.
+  sig1 : array_like
+    Array of sigma inputs corresponding to antenna 1.
+  sig2: array_like
+    Array of sigma inputs corresponding to antenna 2.
+
+  """
+  # NPY_ARRAY_OUT_ARRAY is C-contiguous, writeable, aligned versions of the inputs
+  rho = numpy.PyArray_FROMANY(rho, numpy.NPY_FLOAT64, 0, 2, numpy.NPY_ARRAY_OUT_ARRAY)
+  sig1 = numpy.PyArray_FROMANY(sig1, numpy.NPY_FLOAT64, 1, 1, numpy.NPY_ARRAY_OUT_ARRAY)
+  sig2 = numpy.PyArray_FROMANY(sig2, numpy.NPY_FLOAT64, 1, 1, numpy.NPY_ARRAY_OUT_ARRAY)
+
+  cdef int ndim = numpy.PyArray_NDIM(rho)
+  cdef bint squeeze = False
+  if ndim == 1:
+    squeeze = True
+    rho = numpy.PyArray_Reshape(rho, (1, -1))
+
+  cdef numpy.ndarray[ndim=2, dtype=numpy.float64_t] khat = _compute_khat(rho, sig1, sig2)
+
+  if squeeze:
+    return numpy.PyArray_Squeeze(khat)
+
+  return khat
 
 
 @cython.wraparound(False)
@@ -301,9 +320,13 @@ cdef numpy.ndarray[ndim=2, dtype=numpy.float64_t[:, ::1]] _get_cheby_coeff(
   cdef int i
   cdef int j
   cdef int n = ds1.shape[0]
-  cdef numpy.ndarray[ndim=2, dtype=numpy.float64_t] t = np.zeros((n, 3), dtype=np.float64)
 
-  for i in cython.parallel.prange(n, nogil=True):
+  cdef int ndim = 2
+  cdef numpy.npy_intp * dims = [n, 3]
+  cdef numpy.ndarray[ndim=2, dtype=numpy.float64_t] t = numpy.PyArray_ZEROS(ndim, dims, numpy.NPY_FLOAT64, 0)
+
+
+  for i in prange(n, nogil=True):
     for j in range(3):
       t[i, j] = 1e4 * (
         rho_coeff[(sv_inds_right1[i] - 1), (sv_inds_right2[i] - 1), j] * ds1[i] * ds2[i]
@@ -353,7 +376,7 @@ cpdef void van_vleck_cheby(
   cdef int i
   cdef int j
 
-  for i in cython.parallel.prange(n, nogil=True):
+  for i in prange(n, nogil=True):
     kap[0, i] = (
       kap[0, i] * (t[i, 0] - 3 * t[i, 1] + 5 * t[i, 2])
       + kap[0, i] ** 3 * (4 * t[i, 1] - 20 * t[i, 2])
