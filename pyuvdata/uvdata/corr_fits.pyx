@@ -13,6 +13,10 @@ from libc.string cimport strncmp, strtok, memcpy
 
 from cython.parallel import prange, parallel
 from libc.math cimport exp, pi, sqrt
+
+# This initializes the numpy 1.7 c-api.
+# cython 3.0 will do this by default.
+# We may be able to just remove this then.
 numpy.import_array()
 
 ctypedef fused int_like:
@@ -123,7 +127,7 @@ cdef inline void _make_length_array(
   cdef char * token
   cdef char clen[30]
   # "the velocity factor of electic fields in RG-6 like coax"
-  # # from MWA_Tools/CONV2UVFITS/convutils.h
+  # from MWA_Tools/CONV2UVFITS/convutils.h
   cdef float v_factor = 1.204
   cdef int n_cables = cable_lens.shape[0]
 
