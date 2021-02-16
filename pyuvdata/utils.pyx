@@ -25,7 +25,7 @@ cdef numpy.float64_t _ep2 = 6.73949674228e-3
 cdef numpy.float64_t b_div_a2 = (_gps_b / _gps_a)**2
 
 # expose up to python
-gps_a = _gps_b
+gps_a = _gps_a
 gps_b = _gps_b
 e_squared = _e2
 e_prime_squared = _ep2
