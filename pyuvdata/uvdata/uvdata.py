@@ -959,8 +959,8 @@ class UVData(UVBase):
             freq_spacing = np.diff(self.freq_array)
             freq_array_use = self.freq_array
         else:
-            freq_spacing = np.diff(self.freq_array, axis=1)
-            freq_array_use = self.freq_array[0, :]
+            freq_spacing = np.diff(self.freq_array[0])
+            freq_array_use = self.freq_array[0]
         if self.Nfreqs == 1:
             # Skip all of this if there is only 1 channel
             pass
@@ -970,7 +970,9 @@ class UVData(UVBase):
             self._check_flex_spw_contiguous()
             diff_chanwidth = np.diff(self.channel_width)
             freq_dir = []
-            for idx in self.spw_array:
+            # We want to grab unique spw IDs, in the order that they appear in the data
+            select_mask = np.append((np.diff(self.flex_spw_id_array) != 0), True)
+            for idx in self.flex_spw_id_array[select_mask]:
                 chan_mask = self.flex_spw_id_array == idx
                 freq_dir += [
                     np.sign(np.mean(np.diff(freq_array_use[chan_mask])))
@@ -1024,7 +1026,7 @@ class UVData(UVBase):
                     spacing_error = True
                 else:
                     if not np.isclose(
-                        np.mean(freq_spacing[0]),
+                        np.mean(freq_spacing),
                         np.mean(self.channel_width) * freq_dir,
                         rtol=self._channel_width.tols[0],
                         atol=self._channel_width.tols[1],
@@ -1032,7 +1034,7 @@ class UVData(UVBase):
                         chanwidth_error = True
             else:
                 if not np.isclose(
-                    np.mean(freq_spacing[0]),
+                    np.mean(freq_spacing),
                     self.channel_width * freq_dir,
                     rtol=self._channel_width.tols[0],
                     atol=self._channel_width.tols[1],
