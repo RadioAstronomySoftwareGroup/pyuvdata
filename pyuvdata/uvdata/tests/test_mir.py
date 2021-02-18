@@ -195,8 +195,9 @@ def test_flex_spw_read(tmp_path, future_shapes):
 
     # Move on to testing fast-concat and add methods
     uv_in2 = uv_in.copy()
-    uv_in2.select(freq_chans=np.where(uv_in2.flex_spw_id_array < 0))
     uv_in3 = uv_in.copy()
+
+    uv_in2.select(freq_chans=np.where(uv_in2.flex_spw_id_array < 0))
     uv_in3.select(freq_chans=np.where(uv_in3.flex_spw_id_array > 0))
     uv_in4 = uv_in2.fast_concat(uv_in3, axis="freq")
 
@@ -222,6 +223,57 @@ def test_flex_spw_read(tmp_path, future_shapes):
     # to the read order for MIR files.
     uv_in4.reorder_freqs(spw_order=uv_in.spw_array)
     assert uv_in == uv_in4
+
+    uv_in2 = uv_in.copy()
+    uv_in3 = uv_in.copy()
+
+    # Test what happens when one window is flagged
+    uv_in2.select(freq_chans=np.where(uv_in2.flex_spw_id_array < 0))
+    uv_in3.select(freq_chans=np.where(uv_in3.flex_spw_id_array > -2))
+    if future_shapes:
+        uv_in3.data_array[:, uv_in3.flex_spw_id_array == -1] = 0.0
+        uv_in3.flag_array[:, uv_in3.flex_spw_id_array == -1] = True
+    else:
+        uv_in3.data_array[:, :, uv_in3.flex_spw_id_array == -1] = 0.0
+        uv_in3.flag_array[:, :, uv_in3.flex_spw_id_array == -1] = True
+
+    uv_in4 = uv_in3 + uv_in2
+    assert 0 == uv_in4.history.find(
+        uv_in.history + "  Downselected to specific frequencies using pyuvdata. "
+        "Overwrote invalid data using pyuvdata. Overwrote invalid data using pyuvdata."
+        "frequency axis using pyuvdata."
+    )
+    uv_in4.history = uv_in.history
+
+    uv_in4.reorder_freqs(spw_order=uv_in.spw_array)
+    assert uv_in == uv_in4
+
+    # Test what happens when we go down to one window, split in half
+    uv_in2 = uv_in.copy()
+
+    # Test what happens when one window is flagged
+    uv_in2.select(freq_chans=np.where(uv_in2.flex_spw_id_array == 1))
+    uv_in3 = uv_in2.copy()
+    uv_in4 = uv_in2.copy()
+
+    uv_in3.select(freq_chans=np.arange(uv_in2.Nfreqs / 2, dtype=int))
+    uv_in4.select(freq_chans=np.arange(uv_in2.Nfreqs / 2, uv_in2.Nfreqs, dtype=int))
+
+    uv_in5 = uv_in4 + uv_in3
+    assert 0 == uv_in4.history.find(
+        uv_in.history + "  Downselected to specific frequencies using pyuvdata."
+        "  Downselected to specific frequencies using pyuvdata."
+    )
+    uv_in5.history = uv_in2.history
+
+    assert uv_in2 == uv_in5
+
+    # Test to make sure that flex and non-flex data sets cant be added
+    uv_in3.flex_spw = False
+    with pytest.raises(
+        ValueError, match="To combine these data, flex_spw must be set to the same "
+    ):
+        uv_in5 = uv_in4 + uv_in3
 
 
 def test_multi_nchan_spw_read(tmp_path):
