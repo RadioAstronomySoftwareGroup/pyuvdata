@@ -311,7 +311,7 @@ class UVData(UVBase):
         desc = (
             "Required if flex_spw = True. Maps individual channels along the "
             "frequency axis to individual spectral windows, as listed in the "
-            "spw_array (zero-indexed). Shape (Nfreqs), type = int."
+            "spw_array. Shape (Nfreqs), type = int."
         )
         self._flex_spw_id_array = uvp.UVParameter(
             "flex_spw_id_array",
@@ -2466,6 +2466,206 @@ class UVData(UVBase):
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
+    def reorder_freqs(
+        self,
+        spw_order="number",
+        channel_order=None,
+        select_spw=None,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
+    ):
+        """
+        Arrange frequency axis according to desired order.
+
+        Can be applied across the entire frequency axis, or just a subset.
+
+        Parameters
+        ----------
+        spw_order : str or array_like of int
+            A string describing the desired order of spectral windows along the
+            frequecy axis. Allowed strings include `number` (sort on spectral window
+            number) and `freq` (sort on median frequency). A '-' can be appended
+            to signify descending order instead of the default ascending order,
+            e.g., if you have SPW #1 and 2, and wanted them ordered as [2, 1],
+            you would specify `-number`. Alternatively, one can supply an index array
+            of length Nspws that specifies the new order. Default is to apply no
+            sorting of spectral windows.
+        channel_order : str or array_like of int
+            A string describing the desired order of spectral windows along the
+            frequecy axis. Allowed strings include `freq`, which will sort channels
+            within a spectral window by frequency. A '-' can be optionally appended
+            to signify descending order instead of the default ascending order.
+            Alternatively, one can supply an index array of length Nfreqs that
+            specifies the new order. Default is to apply no sorting of channels
+            within a single spectral window. Note that proving an array_like of ints
+            will cause the values given to `spw_order` and `select_spw` to be ignored.
+        select_spw : int or array_like of int
+            An int or array_like of ints which specifies which spectral windows to
+            apply sorting. Note that setting this argument will cause the value
+            given to `spw_order` to be ignored.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after reordering.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reordering.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        UserWarning
+            Raised if providing arguments to select_spw and freq_screen (the latter
+            overrides the former).
+        ValueError
+            Raised if select_spw contains values not in spw_array, or if freq_screen
+            is not the same length as freq_array.
+
+        """
+        if (spw_order is None) and (channel_order is None):
+            warnings.warn(
+                "Not specifying either spw_order or channel_order causes "
+                "no sorting actions to be applied. Returning object unchanged."
+            )
+            return
+
+        # Check to see if there are arguments we should be ignoring
+        if isinstance(channel_order, (np.ndarray, list, tuple)):
+            if select_spw is not None:
+                warnings.warn(
+                    "The select_spw argument is ignored when providing an "
+                    "array_like of int for channel_order"
+                )
+            if spw_order is not None:
+                warnings.warn(
+                    "The spw_order argument is ignored when providing an "
+                    "array_like of int for channel_order"
+                )
+            if not np.all(np.sort(channel_order) == np.arange(self.Nfreqs)):
+                raise ValueError(
+                    "Index array for channel_order must contain all indicies for "
+                    "the frequency axis, without duplicates."
+                )
+            index_array = channel_order
+        else:
+            index_array = np.arange(self.Nfreqs)
+            # Multipy by 1.0 here to make a cheap copy of the array to manipulate
+            temp_freqs = 1.0 * (
+                self.freq_array if self.future_array_shapes else self.freq_array[0, :]
+            )
+            # Same trick for ints -- add 0 to make a cheap copy
+            temp_spws = 0 + (
+                self.flex_spw_id_array
+                if self.flex_spw
+                else np.zeros(self.Nfreqs) + self.spw_array
+            )
+
+            # Check whether or not we need to sort the channels in individual windows
+            sort_spw = {idx: channel_order is None for idx in self.spw_array}
+            if select_spw is not None:
+                if spw_order is not None:
+                    warnings.warn(
+                        "The spw_order argument is ignored when providing an "
+                        "argument for select_spw"
+                    )
+                if channel_order is None:
+                    warnings.warn(
+                        "Specifying select_spw without providing channel_order causes "
+                        "no sorting actions to be applied. Returning object unchanged."
+                    )
+                    return
+                if isinstance(channel_order, (np.ndarray, list, tuple)):
+                    sort_spw = {idx: idx in select_spw for idx in self.spw_array}
+                else:
+                    sort_spw = {idx: idx == select_spw for idx in self.spw_array}
+            elif spw_order is not None:
+                if isinstance(spw_order, (np.ndarray, list, tuple)):
+                    if not np.all(np.sort(spw_order) == self.spw_array):
+                        raise ValueError(
+                            "Index array for spw_order must contain all indicies for "
+                            "the frequency axis, without duplicates."
+                        )
+                elif spw_order not in ["number", "freq", "-number", "-freq", None]:
+                    raise ValueError(
+                        "spw_order can only be one of 'number', '-number', "
+                        "'freq', '-freq', or None"
+                    )
+                elif self.Nspws > 1:
+                    # Only need to do this step if we actually have multiple spws.
+
+                    # If the string starts with a '-', then we will flip the order at
+                    # the end of the operation
+                    flip_spws = spw_order[0] == "-"
+
+                    if "number" in spw_order:
+                        spw_order = np.argsort(self.spw_array)
+                    elif "freq" in spw_order:
+                        spw_order = np.argsort(
+                            [
+                                np.median(temp_freqs[temp_spws == idx])
+                                for idx in self.spw_array
+                            ]
+                        )
+
+                    if flip_spws:
+                        spw_order = np.flip(spw_order)
+                # Now that we know the spw order, we can apply the first sort
+                index_array = np.concatenate(
+                    [index_array[temp_spws == idx] for idx in spw_order]
+                )
+                temp_freqs = temp_freqs[index_array]
+                temp_spws = temp_spws[index_array]
+            # Spectral windows are assumed sorted at this point
+            for idx in self.spw_array:
+                if sort_spw[idx]:
+                    select_mask = temp_spws == idx
+                    subsort_order = index_array[select_mask]
+                    subsort_order = subsort_order[np.argsort(temp_freqs[select_mask])]
+                    index_array[select_mask] = (
+                        np.flip(subsort_order)
+                        if channel_order[0] == "-"
+                        else subsort_order
+                    )
+
+        if np.all(index_array[1:] > index_array[:-1]):
+            # Nothing to do - the data are already sorted!
+            return
+
+        # Now update all of the arrays.
+        if self.future_array_shapes:
+            self.freq_array = self.freq_array[index_array]
+            if not self.metadata_only:
+                self.data_array = self.data_array[:, :, index_array]
+                self.flag_array = self.flag_array[:, :, index_array]
+                self.nsample_array = self.nsample_array[:, :, index_array]
+        else:
+            self.freq_array = self.freq_array[:, index_array]
+            if not self.metadata_only:
+                self.data_array = self.data_array[:, :, :, index_array]
+                self.flag_array = self.flag_array[:, :, :, index_array]
+                self.nsample_array = self.nsample_array[:, :, :, index_array]
+        if self.flex_spw:
+            self.flex_spw_id_array = self.flex_spw_id_array[index_array]
+            self.channel_width = self.channel_width[index_array]
+        if self.eq_coeffs is not None:
+            self.eq_coeffs = self.eq_coeffs[:, index_array]
+        # check if object is self-consistent
+        if run_check:
+            self.check(
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
+            )
+
     def remove_eq_coeffs(self):
         """
         Remove equalization coefficients from the data.
@@ -3179,6 +3379,13 @@ class UVData(UVBase):
             strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
 
+        # Check to make sure that both objects are consistent w/ use of flex_spw
+        if this.flex_spw != other.flex_spw:
+            raise ValueError(
+                "To combine these data, flex_spw must be set to the same "
+                "value (True or False) for both objects."
+            )
+
         # check that both objects have the same array shapes
         if this.future_array_shapes != other.future_array_shapes:
             raise ValueError(
@@ -3310,14 +3517,45 @@ class UVData(UVBase):
         both_pol, this_pol_ind, other_pol_ind = np.intersect1d(
             this.polarization_array, other.polarization_array, return_indices=True
         )
-        if this.future_array_shapes:
-            both_freq, this_freq_ind, other_freq_ind = np.intersect1d(
-                this.freq_array, other.freq_array, return_indices=True
-            )
+
+        # If we have a flexible spectral window, the handling here becomes a bit funky,
+        # because we are allowed to have channels with the same frequency *if* they
+        # belong to different spectral windows (one real-life example: you might want
+        # to preserve guard bands in the correlator, which can have overlaping RF
+        # frequency channels)
+        if this.flex_spw:
+            this_freq_ind = np.array([], dtype=np.int64)
+            other_freq_ind = np.array([], dtype=np.int64)
+            both_freq = np.array([], dtype=float)
+            both_spw = np.intersect1d(this.spw_array, other.spw_array)
+            for idx in both_spw:
+                this_mask = np.where(this.flex_spw_id_array == idx)[0]
+                other_mask = np.where(other.flex_spw_id_array == idx)[0]
+                if this.future_array_shapes:
+                    both_spw_freq, this_spw_ind, other_spw_ind = np.intersect1d(
+                        this.freq_array[this_mask],
+                        other.freq_array[other_mask],
+                        return_indicies=True,
+                    )
+                else:
+                    both_spw_freq, this_spw_ind, other_spw_ind = np.intersect1d(
+                        this.freq_array[0, this_mask],
+                        other.freq_array[0, other_mask],
+                        return_indicies=True,
+                    )
+                this_freq_ind = np.append(this_freq_ind, this_mask[this_spw_ind])
+                other_freq_ind = np.append(other_freq_ind, other_mask[other_spw_ind])
+                both_freq = np.append(both_freq, both_freq)
         else:
-            both_freq, this_freq_ind, other_freq_ind = np.intersect1d(
-                this.freq_array[0, :], other.freq_array[0, :], return_indices=True
-            )
+            if this.future_array_shapes:
+                both_freq, this_freq_ind, other_freq_ind = np.intersect1d(
+                    this.freq_array, other.freq_array, return_indices=True
+                )
+            else:
+                both_freq, this_freq_ind, other_freq_ind = np.intersect1d(
+                    this.freq_array[0, :], other.freq_array[0, :], return_indices=True
+                )
+
         both_blts, this_blts_ind, other_blts_ind = np.intersect1d(
             this_blts, other_blts, return_indices=True
         )
@@ -3399,12 +3637,29 @@ class UVData(UVBase):
             compatibility_params.extend(extra_params)
 
         # find the freq indices in "other" but not in "this"
-        if this.future_array_shapes:
-            temp = np.nonzero(~np.in1d(other.freq_array, this.freq_array))[0]
+        if self.flex_spw:
+            other_mask = np.ones_like(other.flex_spw_id_array, dtype=bool)
+            for idx in np.intersect1d(this.spw_array, other.spw_array):
+                if this.future_array_shapes:
+                    other_mask[other.flex_spw_id_array == idx] = ~np.isin(
+                        other.freq_array[other.flex_spw_id_array == idx],
+                        this.freq_array[this.flex_spw_id_array == idx],
+                        invert=True,
+                    )
+                else:
+                    other_mask[other.flex_spw_id_array == idx] = ~np.isin(
+                        other.freq_array[0, other.flex_spw_id_array == idx],
+                        this.freq_array[0, this.flex_spw_id_array == idx],
+                        invert=True,
+                    )
+            temp = np.where(other_mask)[0]
         else:
-            temp = np.nonzero(~np.in1d(other.freq_array[0, :], this.freq_array[0, :]))[
-                0
-            ]
+            if this.future_array_shapes:
+                temp = np.nonzero(~np.in1d(other.freq_array, this.freq_array))[0]
+            else:
+                temp = np.nonzero(
+                    ~np.in1d(other.freq_array[0, :], this.freq_array[0, :])
+                )[0]
         if len(temp) > 0:
             fnew_inds = temp
             if n_axes > 0:
@@ -3528,19 +3783,56 @@ class UVData(UVBase):
                 this.freq_array = np.concatenate(
                     [this.freq_array, other.freq_array[fnew_inds]]
                 )
-                this.channel_width = np.concatenate(
-                    [this.channel_width, other.channel_width[fnew_inds]]
-                )
-                f_order = np.argsort(this.freq_array)
             else:
-                if this.flex_spw:
-                    this.channel_width = np.concatenate(
-                        [this.channel_width, other.channel_width[fnew_inds]]
-                    )
                 this.freq_array = np.concatenate(
                     [this.freq_array, other.freq_array[:, fnew_inds]], axis=1
                 )
-                f_order = np.argsort(this.freq_array[0, :])
+
+            if this.flex_spw or this.future_array_shapes:
+                this.channel_width = np.concatenate(
+                    [this.channel_width, other.channel_width[fnew_inds]]
+                )
+
+            if this.flex_spw:
+                this.flex_spw_id_array = np.concatenate(
+                    [this.flex_spw_id_array, other.flex_spw_id_array[fnew_inds]]
+                )
+                this.spw_array = np.unique(
+                    np.concatenate([this.spw_array, other.spw_array])
+                )
+                this.Nspws = len(this.spw_array)
+
+            # If we have a flex/multi-spw data set, need to sort out the order of the
+            # individual windows first.
+            if this.flex_spw:
+                f_order = np.concatenate(
+                    [
+                        np.where(this.flex_spw_id_array == idx)[0]
+                        for idx in sorted(this.spw_array)
+                    ]
+                )
+
+                # With spectral windows sorted, check and see if channels within
+                # windows need sorting. If they are ordered in ascending or descending
+                # fashion, leave them be. If not, sort in ascending order
+                for idx in this.spw_array:
+                    select_mask = this.flex_spw_id_array == idx
+                    check_freqs = (
+                        this.freq_array[select_mask]
+                        if this.future_array_shapes
+                        else this.freq_array[0, select_mask]
+                    )
+                    if (not np.all(check_freqs[1:] > check_freqs[:-1])) and (
+                        not np.all(check_freqs[1:] < check_freqs[:-1])
+                    ):
+                        subsort_order = f_order[select_mask]
+                        f_order[select_mask] = subsort_order[np.argsort(check_freqs)]
+            else:
+                if this.future_array_shapes:
+                    f_order = np.argsort(this.freq_array)
+                else:
+                    f_order = np.argsort(this.freq_array[0, :])
+
             if not self.metadata_only:
                 if this.future_array_shapes:
                     zero_pad = np.zeros(
@@ -3682,6 +3974,11 @@ class UVData(UVBase):
                 this.freq_array = this.freq_array[f_order]
             else:
                 this.freq_array = this.freq_array[:, f_order]
+            if this.flex_spw or this.future_array_shapes:
+                this.channel_width = this.channel_width[f_order]
+            if this.flex_spw:
+                this.flex_spw_id_array = this.flex_spw_id_array[f_order]
+
         if len(pnew_inds) > 0:
             this.polarization_array = this.polarization_array[p_order]
 
@@ -4077,23 +4374,27 @@ class UVData(UVBase):
                     raise ValueError(msg)
 
         if axis == "freq":
+            this.Nfreqs = sum([this.Nfreqs] + [obj.Nfreqs for obj in other])
             if this.future_array_shapes:
                 this.freq_array = np.concatenate(
                     [this.freq_array] + [obj.freq_array for obj in other]
                 )
-                this.channel_width = np.concatenate(
-                    [this.channel_width] + [obj.channel_width for obj in other]
-                )
-                this.Nfreqs = sum([this.Nfreqs] + [obj.Nfreqs for obj in other])
             else:
-                if this.flex_spw:
-                    this.channel_width = np.concatenate(
-                        [this.channel_width] + [obj.channel_width for obj in other]
-                    )
                 this.freq_array = np.concatenate(
                     [this.freq_array] + [obj.freq_array for obj in other], axis=1
                 )
-                this.Nfreqs = sum([this.Nfreqs] + [obj.Nfreqs for obj in other])
+            if this.flex_spw or this.future_array_shapes:
+                this.channel_width = np.concatenate(
+                    [this.channel_width] + [obj.channel_width for obj in other]
+                )
+            if this.flex_spw:
+                this.flex_spw_id_array = np.concatenate(
+                    [this.flex_spw_id_array] + [obj.flex_spw_id_array for obj in other]
+                )
+                this.spw_array = np.unique(
+                    np.concatenate([this.spw_array] + [obj.spw_array for obj in other])
+                )
+                this.Nspws = len(this.spw_array)
 
             spacing_error, chanwidth_error = this._check_freq_spacing(
                 raise_errors=False
