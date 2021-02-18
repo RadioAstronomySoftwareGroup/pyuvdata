@@ -192,7 +192,7 @@ class Mir(UVData):
             freq_array = np.append(
                 freq_array,
                 spw_fsky
-                - (np.sign(spw_fres) * 139648437.5)
+                - (np.sign(spw_fres) * 139648.4375)
                 + (spw_fres * (np.arange(spw_nchan) + 0.5 - (spw_nchan / 2))),
             )
 
