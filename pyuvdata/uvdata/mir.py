@@ -126,6 +126,18 @@ class Mir(UVData):
         corrchunk_sb = [idx for jdx in sorted(isb) for idx in [jdx] * len(corrchunk)]
         corrchunk *= 1 + dsb_spws
 
+        # SMA data typicaly have two sidebads be spectral window, we differentiate
+        # between them by using a minus sign. The 0th spectral window is a
+        # synthetic continuum window, for which out negative flip doesnt work. Thus,
+        # we pick a 'high' number that we expect will always be out of range.
+        corrchunk_names = np.array(
+            [
+                (256 if (idx == 0) else idx) * ((-1) ** (1 + jdx))
+                for idx, jdx in zip(corrchunk, corrchunk_sb)
+            ],
+            dtype=int,
+        )
+
         # Here we'll want to construct a simple dictionary, that'll basically help us
         # to construct the frequency axis, and map the UVData spectral window ID number
         # to our weird mapping system in MIR.
@@ -168,7 +180,8 @@ class Mir(UVData):
 
             # Populate the the spw_id_array
             flex_spw_id_array = np.append(
-                flex_spw_id_array, idx + np.zeros(spw_nchan, dtype=np.int64)
+                flex_spw_id_array,
+                corrchunk_names[idx] + np.zeros(spw_nchan, dtype=np.int64),
             )
 
             # So the freq array here is a little weird, because the current fsky
@@ -260,7 +273,7 @@ class Mir(UVData):
         # TODO: We change between xx yy and rr ll, so we will need to update this.
         self.polarization_array = np.asarray([-5])
 
-        self.spw_array = np.arange(len(corrchunk))
+        self.spw_array = corrchunk_names
 
         self.telescope_name = "SMA"
         time_array_mjd = mir_data.in_read["mjd"][bl_in_maparr]
