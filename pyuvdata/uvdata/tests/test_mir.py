@@ -84,6 +84,23 @@ def test_read_mir_write_uvfits(uv_in_uvfits, future_shapes):
     if future_shapes:
         uvfits_uv.use_future_array_shapes()
 
+    # UVFITS doesn't allow for numbering of spectral windows like MIR does, so
+    # we need an extra bit of handling here
+    assert len(np.unique(mir_uv.spw_array)) == len(np.unique(uvfits_uv.spw_array))
+
+    spw_dict = {idx: jdx for idx, jdx in zip(uvfits_uv.spw_array, mir_uv.spw_array)}
+
+    assert np.all(
+        [
+            idx == spw_dict[jdx]
+            for idx, jdx in zip(mir_uv.flex_spw_id_array, uvfits_uv.flex_spw_id_array,)
+        ]
+    )
+
+    # Now that we've checked, set this things as equivalent
+    uvfits_uv.spw_array = mir_uv.spw_array
+    uvfits_uv.flex_spw_id_array = mir_uv.flex_spw_id_array
+
     # Check the history first via find
     assert 0 == uvfits_uv.history.find(
         mir_uv.history + "  Read/written with pyuvdata version:"
