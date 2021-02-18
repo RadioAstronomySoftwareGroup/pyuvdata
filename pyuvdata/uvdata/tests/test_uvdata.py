@@ -216,6 +216,34 @@ def hera_uvh5(hera_uvh5_main):
 
 
 @pytest.fixture(scope="session")
+def sma_mir_main():
+    # read in test file for the resampling in time functions
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    uv_object.read(testfile)
+
+    yield uv_object
+
+    # cleanup
+    del uv_object
+
+    return
+
+
+@pytest.fixture(scope="function")
+def sma_mir(sma_mir_main):
+    # read in test file for the resampling in time functions
+    uv_object = sma_mir_main.copy()
+
+    yield uv_object
+
+    # cleanup
+    del uv_object
+
+    return
+
+
+@pytest.fixture(scope="session")
 def paper_uvh5_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
@@ -2455,6 +2483,83 @@ def test_reorder_blts(casa_uvfits, future_shapes):
     with pytest.raises(ValueError) as cm:
         uv3.reorder_blts(order="time", minor_order="foo")
     assert str(cm.value).startswith("minor_order can only be one of")
+
+
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_reorder_freqs(sma_mir, future_shapes):
+    if future_shapes:
+        sma_mir.use_future_array_shapes()
+
+    # Create a dummy copy that we can muck with at will
+    sma_mir_copy = sma_mir.copy()
+
+    # Go through all the warnings first
+    with uvtest.check_warnings(
+        UserWarning, "Not specifying either spw_order or channel_order"
+    ):
+        sma_mir_copy.reorder_freqs()
+
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "The spw_order argument is ignored when providing an argument for select_",
+            "Specifying select_spw without providing channel_order causes",
+        ],
+    ):
+        sma_mir_copy.reorder_freqs(select_spw=[1, 3], spw_order="number")
+
+    with pytest.raises(
+        ValueError,
+        match="Index array for spw_order must contain all indicies for the frequency",
+    ):
+        sma_mir_copy.reorder_freqs(spw_order=[1])
+
+    with pytest.raises(
+        ValueError,
+        match="spw_order can only be one of 'number', '-number', 'freq', '-freq'",
+    ):
+        sma_mir_copy.reorder_freqs(spw_order="karto")
+
+    with pytest.raises(
+        ValueError, match="Index array for channel_order must contain all indicies for",
+    ):
+        sma_mir_copy.reorder_freqs(channel_order=[1])
+
+    with pytest.raises(
+        ValueError, match="channel_order can only be one of 'freq' or '-freq'",
+    ):
+        sma_mir_copy.reorder_freqs(channel_order="karto")
+
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "The select_spw argument is ignored when providing an array_like",
+            "The spw_order argument is ignored when providing an array_like",
+        ],
+    ):
+        sma_mir_copy.reorder_freqs(
+            spw_order="number",
+            channel_order=np.arange(sma_mir_copy.Nfreqs),
+            select_spw=[-4, -3, -2, -1, 1, 2, 3, 4],
+        )
+
+    # The above is basically a no-op, so it _should not_ have changed anything
+    assert sma_mir == sma_mir_copy
+
+    # Make sure that arrays and ints work for select_spw
+    sma_mir.reorder_freqs(select_spw=1, channel_order="freq")
+    sma_mir_copy.reorder_freqs(select_spw=[1], channel_order="freq")
+
+    assert sma_mir == sma_mir_copy
+
+    # MIR numbering is presently done in frequency order - take advantage of this to
+    # verify that both sorts produce the same output
+    sma_mir.reorder_freqs(spw_order="number", channel_order="freq")
+    sma_mir_copy.reorder_freqs(select_spw="freq", channel_order="freq")
+
+    assert sma_mir == sma_mir_copy
+    assert sma_mir.spw_array == np.sort(sma_mir.spw_array)
+    assert np.diff(sma_mir.freq_array) < 0
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
