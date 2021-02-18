@@ -2555,11 +2555,42 @@ def test_reorder_freqs(sma_mir, future_shapes):
     # MIR numbering is presently done in frequency order - take advantage of this to
     # verify that both sorts produce the same output
     sma_mir.reorder_freqs(spw_order="number", channel_order="freq")
-    sma_mir_copy.reorder_freqs(select_spw="freq", channel_order="freq")
+    sma_mir_copy.reorder_freqs(spw_order="freq", channel_order="freq")
 
     assert sma_mir == sma_mir_copy
-    assert sma_mir.spw_array == np.sort(sma_mir.spw_array)
-    assert np.diff(sma_mir.freq_array) < 0
+    assert np.all(sma_mir_copy.spw_array == np.sort(sma_mir_copy.spw_array))
+
+    # This is kind of a sneaky test, but basically, there are 8 SPWs in the MIR
+    # data file, with 6 pairs of windows partially overlapping. If all is correct,
+    # then across the freq axis we should only see 6 instances of the freq
+    # incrementing downwards.
+
+    assert np.sum(np.diff(sma_mir.freq_array) < 0) == 6
+
+    # Now do the same as above, but in total reverse
+    sma_mir.reorder_freqs(spw_order="-number", channel_order="-freq")
+    sma_mir_copy.reorder_freqs(spw_order="-freq", channel_order="-freq")
+
+    assert sma_mir == sma_mir_copy
+    assert np.all(sma_mir_copy.spw_array == np.flip(np.sort(sma_mir_copy.spw_array)))
+
+    assert np.sum(np.diff(sma_mir.freq_array) > 0) == 6
+
+    # No test datasets to examine this with, so let's generate some mock data
+    sma_mir_copy.eq_coeffs = np.tile(
+        np.arange(sma_mir_copy.Nfreqs, dtype=float), (sma_mir_copy.Nants_telescope, 1)
+    )
+    sma_mir_copy.reorder_freqs(spw_order="number", channel_order="freq")
+    assert np.all(np.diff(sma_mir_copy.eq_coeffs, axis=1) == -1)
+
+    # Finally, lets make sure that the major freq arrays are flipped when sorting in
+    # opposite directions
+    assert np.all(
+        np.flip(sma_mir.data_array, axis=(2 - future_shapes)) == sma_mir_copy.data_array
+    )
+    assert np.all(
+        np.flip(sma_mir.freq_array, axis=(1 - future_shapes)) == sma_mir_copy.freq_array
+    )
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
