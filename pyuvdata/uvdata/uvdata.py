@@ -2586,7 +2586,7 @@ class UVData(UVBase):
                         "no sorting actions to be applied. Returning object unchanged."
                     )
                     return
-                if isinstance(channel_order, (np.ndarray, list, tuple)):
+                if isinstance(select_spw, (np.ndarray, list, tuple)):
                     sort_spw = {idx: idx in select_spw for idx in self.spw_array}
                 else:
                     sort_spw = {idx: idx == select_spw for idx in self.spw_array}
