@@ -148,7 +148,9 @@ def test_write_mir(uv_in_uvfits, err_type=NotImplementedError):
         mir_uv.write_mir("dummy.mir")
 
 
-def test_flex_spw_read(tmp_path):
+@pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_flex_spw_read(tmp_path, future_shapes):
     """
     Mir test for flexible spws.
 
@@ -158,6 +160,9 @@ def test_flex_spw_read(tmp_path):
     uv_in = UVData()
     uv_in.read_mir(testfile)
     dummyfile = os.path.join(tmp_path, "dummy.mirtest.uvfits")
+
+    if future_shapes:
+        uv_in.use_future_array_shapes()
 
     uv_in2 = uv_in.copy()
     with pytest.raises(NotImplementedError):
@@ -187,6 +192,36 @@ def test_flex_spw_read(tmp_path):
     uv_in2.channel_width *= 0
     with pytest.raises(ValueError, match="Something is wrong, frequency values not"):
         uv_in2.write_uvfits(dummyfile, spoof_nonessential=True)
+
+    # Move on to testing fast-concat and add methods
+    uv_in2 = uv_in.copy()
+    uv_in2.select(freq_chans=np.where(uv_in2.flex_spw_id_array < 0))
+    uv_in3 = uv_in.copy()
+    uv_in3.select(freq_chans=np.where(uv_in3.flex_spw_id_array > 0))
+    uv_in4 = uv_in2.fast_concat(uv_in3, axis="freq")
+
+    # Check the history first via find
+    assert 0 == uv_in4.history.find(
+        uv_in.history + "  Downselected to specific frequencies using pyuvdata. "
+        "Combined data along frequency axis using pyuvdata."
+    )
+
+    uv_in4.history = uv_in.history
+    assert uv_in == uv_in4
+
+    # Flipped order is intentional here, since the operation should work
+    # irrespective of add order, following the sort below
+    uv_in4 = uv_in3 + uv_in2
+    assert 0 == uv_in4.history.find(
+        uv_in.history + "  Downselected to specific frequencies using pyuvdata. "
+        "Combined data along frequency axis using pyuvdata."
+    )
+    uv_in4.history = uv_in.history
+
+    # Need to perform a sort here, since the default ordering on add isn't identical
+    # to the read order for MIR files.
+    uv_in4.reorder_freqs(spw_order=uv_in.spw_array)
+    assert uv_in == uv_in4
 
 
 def test_multi_nchan_spw_read(tmp_path):
