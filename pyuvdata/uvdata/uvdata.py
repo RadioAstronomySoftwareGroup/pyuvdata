@@ -2470,7 +2470,7 @@ class UVData(UVBase):
 
     def reorder_freqs(
         self,
-        spw_order="number",
+        spw_order=None,
         channel_order=None,
         select_spw=None,
         run_check=True,
@@ -2569,11 +2569,11 @@ class UVData(UVBase):
             temp_spws = 0 + (
                 self.flex_spw_id_array
                 if self.flex_spw
-                else np.zeros(self.Nfreqs) + self.spw_array
+                else (np.zeros(self.Nfreqs) + self.spw_array)
             )
 
             # Check whether or not we need to sort the channels in individual windows
-            sort_spw = {idx: channel_order is None for idx in self.spw_array}
+            sort_spw = {idx: channel_order is not None for idx in self.spw_array}
             if select_spw is not None:
                 if spw_order is not None:
                     warnings.warn(
@@ -2610,15 +2610,16 @@ class UVData(UVBase):
                     flip_spws = spw_order[0] == "-"
 
                     if "number" in spw_order:
-                        spw_order = np.argsort(self.spw_array)
+                        spw_order = np.sort(self.spw_array)
                     elif "freq" in spw_order:
-                        spw_order = np.argsort(
-                            [
-                                np.median(temp_freqs[temp_spws == idx])
-                                for idx in self.spw_array
-                            ]
-                        )
-
+                        spw_order = self.spw_array[
+                            np.argsort(
+                                [
+                                    np.median(temp_freqs[temp_spws == idx])
+                                    for idx in self.spw_array
+                                ]
+                            )
+                        ]
                     if flip_spws:
                         spw_order = np.flip(spw_order)
                 # Now that we know the spw order, we can apply the first sort
@@ -2629,6 +2630,10 @@ class UVData(UVBase):
                 temp_spws = temp_spws[index_array]
             # Spectral windows are assumed sorted at this point
             if channel_order is not None:
+                if channel_order not in ["freq", "-freq"]:
+                    raise ValueError(
+                        "channel_order can only be one of 'freq' or '-freq'"
+                    )
                 for idx in self.spw_array:
                     if sort_spw[idx]:
                         select_mask = temp_spws == idx
@@ -3547,17 +3552,17 @@ class UVData(UVBase):
                     both_spw_freq, this_spw_ind, other_spw_ind = np.intersect1d(
                         this.freq_array[this_mask],
                         other.freq_array[other_mask],
-                        return_indicies=True,
+                        return_indices=True,
                     )
                 else:
                     both_spw_freq, this_spw_ind, other_spw_ind = np.intersect1d(
                         this.freq_array[0, this_mask],
                         other.freq_array[0, other_mask],
-                        return_indicies=True,
+                        return_indices=True,
                     )
                 this_freq_ind = np.append(this_freq_ind, this_mask[this_spw_ind])
                 other_freq_ind = np.append(other_freq_ind, other_mask[other_spw_ind])
-                both_freq = np.append(both_freq, both_freq)
+                both_freq = np.append(both_freq, both_spw_freq)
         else:
             if this.future_array_shapes:
                 both_freq, this_freq_ind, other_freq_ind = np.intersect1d(
@@ -3653,13 +3658,13 @@ class UVData(UVBase):
             other_mask = np.ones_like(other.flex_spw_id_array, dtype=bool)
             for idx in np.intersect1d(this.spw_array, other.spw_array):
                 if this.future_array_shapes:
-                    other_mask[other.flex_spw_id_array == idx] = ~np.isin(
+                    other_mask[other.flex_spw_id_array == idx] = np.isin(
                         other.freq_array[other.flex_spw_id_array == idx],
                         this.freq_array[this.flex_spw_id_array == idx],
                         invert=True,
                     )
                 else:
-                    other_mask[other.flex_spw_id_array == idx] = ~np.isin(
+                    other_mask[other.flex_spw_id_array == idx] = np.isin(
                         other.freq_array[0, other.flex_spw_id_array == idx],
                         this.freq_array[0, this.flex_spw_id_array == idx],
                         invert=True,
@@ -5184,6 +5189,10 @@ class UVData(UVBase):
 
             if len(frequencies) > 1:
                 freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
+                if self.flex_spw:
+                    freq_ind_separation = freq_ind_separation[
+                        np.diff(self.flex_spw_id_array[freq_inds]) == 0
+                    ]
                 if np.min(freq_ind_separation) < np.max(freq_ind_separation):
                     warnings.warn(
                         "Selected frequencies are not evenly spaced. This "
