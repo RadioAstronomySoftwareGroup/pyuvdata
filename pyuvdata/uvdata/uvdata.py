@@ -2496,8 +2496,8 @@ class UVData(UVBase):
             the specral window number given in `spw_array`. Default is to apply no
             sorting of spectral windows.
         channel_order : str or array_like of int
-            A string describing the desired order of spectral windows along the
-            frequecy axis. Allowed strings include `freq`, which will sort channels
+            A string describing the desired order of frequency channels within a
+            spectral window. Allowed strings include `freq`, which will sort channels
             within a spectral window by frequency. A '-' can be optionally appended
             to signify descending order instead of the default ascending order.
             Alternatively, one can supply an index array of length Nfreqs that
