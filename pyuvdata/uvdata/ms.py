@@ -17,12 +17,23 @@ from .. import utils as uvutils
 
 __all__ = ["MS"]
 
+no_casa_message = (
+    "casacore is not installed but is required for " "measurement set functionality"
+)
+
+casa_present = True
+try:
+    import casacore.tables as tables
+except ImportError as error:  # pragma: no cover
+    casa_present = False
+    casa_error = error
 
 """
 This dictionary defines the mapping between CASA polarization numbers and
 AIPS polarization numbers
 """
-pol_dict = {
+# convert from casa polarization integers to pyuvdata
+POL_CASA2AIPS_DICT = {
     1: 1,
     2: 2,
     3: 3,
@@ -37,7 +48,9 @@ pol_dict = {
     12: -6,
 }
 
-# convert from casa polarization integers to pyuvdata
+POL_AIPS2CASA_DICT = {
+    aipspol: casapol for casapol, aipspol in POL_CASA2AIPS_DICT.items()
+}
 
 
 class MS(UVData):
@@ -54,6 +67,114 @@ class MS(UVData):
     """
 
     ms_required_extra = ["datacolumn", "antenna_positions"]
+
+    def _write_ms_antenna(self, filepath):
+        """
+        Write out the antenna information into a CASA table.
+
+        filepath: path to MS (without ANTENNA suffix)
+        """
+        if not casa_present:  # pragma: no cover
+            raise ImportError(no_casa_message) from casa_error
+
+        antenna_table = tables.table(filepath + "::ANTENNA", ack=False, readonly=False)
+        antenna_table.addrows(self.Nants_data)
+        antenna_table.putcol("NAME", self.antenna_names)
+        # TODO check that this works out!
+        ant_pos_absolute = self.antenna_positions + self.telescope_location.reshape(
+            1, 3
+        )
+        ant_pos_rot_ecef = uvutils.rotECEF_from_ECEF(
+            ant_pos_absolute, self.telescope_location_latlonalt[1]
+        )
+
+        antenna_table.putcol("POSITION", ant_pos_rot_ecef)
+        if self.antenna_diameters is not None:
+            antenna_table.putcol("DISH_DIAMETER", self.antenna_diameters)
+        antenna_table.done()
+
+    def _write_ms_field(self, filepath):
+        """
+        Write out the field information into a CASA table.
+
+        filepath: path to MS (without FIELD suffix)
+        """
+        if not casa_present:  # pragma: no cover
+            raise ImportError(no_casa_message) from casa_error
+
+        # TODO revisit for multi object!
+        field_table = tables.table(filepath + "::FIELD", ack=False, readonly=False)
+        field_table.addrows()
+        phasedir = np.array([[self.phase_center_ra, self.phase_center_dec]])
+        assert self.phase_center_epoch == 2000.0
+        field_table.putcell("DELAY_DIR", 0, phasedir)
+        field_table.putcell("PHASE_DIR", 0, phasedir)
+        field_table.putcell("REFERENCE_DIR", 0, phasedir)
+
+    def _write_ms_spectralwindow(self, filepath):
+        """
+        Write out the spectral information into a CASA table.
+
+        filepath: path to MS (without SPECTRAL_WINDOW suffix)
+        """
+        if not casa_present:  # pragma: no cover
+            raise ImportError(no_casa_message) from casa_error
+
+        # TODO fix for flexible spws
+        tables.taql(
+            "insert into {}::DATA_DESCRIPTION SET FLAG_ROW=False, "
+            "POLARIZATION_ID=0, SPECTRAL_WINDOW_ID=0".format(filepath)
+        )
+
+        sw_table = tables.table(
+            filepath + "::SPECTRAL_WINDOW", ack=False, readonly=False
+        )
+
+        sw_table.addrows()
+        sw_table.putcell("CHAN_FREQ", 0, self.freq_array[0])
+        # TODO fix for future array shapes
+        chanwidths = np.ones_like(self.freq_array[0]) * self.channel_width
+        sw_table.putcell("CHAN_WIDTH", 0, chanwidths)
+        sw_table.putcell("EFFECTIVE_BW", 0, chanwidths)
+        sw_table.putcell("RESOLUTION", 0, chanwidths)
+        sw_table.putcell("NUM_CHAN", 0, self.Nfreqs)
+
+    def _write_ms_observation(self, filepath):
+        """
+        Write out the observation information into a CASA table.
+
+        filepath: path to MS (without OBSERVATION suffix)
+        """
+        if not casa_present:  # pragma: no cover
+            raise ImportError(no_casa_message) from casa_error
+
+        antenna_table = tables.table(
+            filepath + "::OBSERVATION", ack=False, readonly=False
+        )
+        antenna_table.addrows()
+        antenna_table.putcell("TELESCOPE_NAME", 0, self.telescope_name)
+        # should we test for observer in extra keywords?
+        antenna_table.putcell("OBSERVER", 0, self.telescope_name)
+
+    def _write_ms_polarization(self, filepath):
+        """
+        Write out the polarization information into a CASA table.
+
+        filepath: path to MS (without POLARIZATION suffix)
+        """
+        if not casa_present:  # pragma: no cover
+            raise ImportError(no_casa_message) from casa_error
+
+        pol_table = tables.table(filepath + "::POLARIZATION", ack=False, readonly=False)
+        pol_table.addrows()
+        pol_table.putcell(
+            "CORR_TYPE",
+            0,
+            np.array(
+                [POL_AIPS2CASA_DICT[aipspol] for aipspol in self.polarization_array]
+            ),
+        )
+        pol_table.putcell("NUM_CORR", 0, self.Npols)
 
     def _ms_hist_to_string(self, history_table):
         """
@@ -88,6 +209,7 @@ class MS(UVData):
             )
 
             app_params = history_table.getcol("APP_PARAMS")["array"]
+            # might need to handle the case where cli_command is empty
             cli_command = history_table.getcol("CLI_COMMAND")["array"]
             application = history_table.getcol("APPLICATION")
             message = history_table.getcol("MESSAGE")
@@ -128,9 +250,104 @@ class MS(UVData):
 
         return message_str, history_str
 
-    # ms write functionality to be added later.
-    def write_ms(self):
-        """Write ms: Not yet supported."""
+    def write_ms(
+        self,
+        filepath,
+        clobber=False,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
+    ):
+        """
+        Write a CASA measurement set (MS).
+
+        Parameters
+        ----------
+        filepath : str
+            The MS file path to write to.
+        clobber : bool
+            Option to overwrite the file if it already exists.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            before writing the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
+
+        """
+        if not casa_present:  # pragma: no cover
+            raise ImportError(no_casa_message) from casa_error
+
+        if run_check:
+            self.check(
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
+            )
+
+        if os.path.exists(filepath):
+            if clobber:
+                print("File exists; clobbering")
+            else:
+                raise IOError("File exists; skipping")
+
+        nchan = self.freq_array.shape[1]
+        npol = len(self.polarization_array)
+        nrow = len(self.data_array)
+
+        datacoldesc = tables.makearrcoldesc(
+            "DATA",
+            0.0 + 0.0j,
+            valuetype="complex",
+            shape=[nchan, npol],
+            datamanagertype="TiledColumnStMan",
+            datamanagergroup="TiledData",
+        )
+        weightcoldesc = tables.makearrcoldesc(
+            "WEIGHT_SPECTRUM",
+            0.0,
+            valuetype="float",
+            shape=[nchan, npol],
+            datamanagertype="TiledColumnStMan",
+            datamanagergroup="TiledData",
+        )
+
+        ms_desc = tables.required_ms_desc("MAIN")
+        ms_desc["FLAG"].update(
+            dataManagerType="TiledColumnStMan",
+            shape=[nchan, npol],
+            dataManagerGroup="TiledFlag",
+            cellShape=[nchan, npol],
+            option=4,
+        )
+        ms_desc.update(tables.maketabdesc(datacoldesc))
+        ms_desc.update(tables.maketabdesc(weightcoldesc))
+
+        ms = tables.default_ms(filepath, ms_desc, tables.makedminfo(ms_desc))
+        ms.addrows(nrow)
+
+        ms.putcol("DATA", np.squeeze(self.data_array, axis=1))
+        ms.putcol("WEIGHT_SPECTRUM", np.squeeze(self.nsample_array, axis=1))
+        ms.putcol("ANTENNA1", self.ant_1_array)
+        ms.putcol("ANTENNA2", self.ant_2_array)
+        ms.putcol("INTERVAL", self.integration_time)
+
+        ms.putcol("TIME", time.Time(self.time_array, format="jd").mjd * 3600.0 * 24.0)
+        ms.putcol("UVW", -self.uvw_array)
+        ms.putcol("FLAG", np.squeeze(self.flag_array, axis=1))
+        ms.done()
+
+        self._write_ms_antenna(filepath)
+        self._write_ms_field(filepath)
+        self._write_ms_spectralwindow(filepath)
+        self._write_ms_polarization(filepath)
+        self._write_ms_observation(filepath)
 
     def read_ms(
         self,
@@ -186,13 +403,8 @@ class MS(UVData):
             If the data have multiple data description ID values.
 
         """
-        try:
-            import casacore.tables as tables
-        except ImportError as e:  # pragma: no cover
-            raise ImportError(
-                "casacore is not installed but is required for "
-                "measurement set functionality"
-            ) from e
+        if not casa_present:  # pragma: no cover
+            raise ImportError(no_casa_message) from casa_error
 
         # make sure user requests a valid data_column
         if data_column not in ["DATA", "CORRECTED_DATA", "MODEL"]:
@@ -228,6 +440,8 @@ class MS(UVData):
         freqs = tb_spws.getcol("CHAN_FREQ")
         self.freq_array = freqs
         self.Nfreqs = int(freqs.shape[1])
+        # beware! There are possibly 3 columns here that might be the correct one to use
+        # CHAN_WIDTH, EFFECTIVE_BW, RESOLUTION
         self.channel_width = float(tb_spws.getcol("CHAN_WIDTH")[0, 0])
         self.Nspws = int(freqs.shape[0])
 
@@ -313,8 +527,8 @@ class MS(UVData):
             # list of lists, probably with each list corresponding to SPW.
             pol_list = tb_pol.getcol("CORR_TYPE")[pol_id]
         self.polarization_array = np.zeros(len(pol_list), dtype=np.int32)
-        for polnum in range(len(pol_list)):
-            self.polarization_array[polnum] = int(pol_dict[pol_list[polnum]])
+        for polnum, casapol in enumerate(pol_list):
+            self.polarization_array[polnum] = POL_CASA2AIPS_DICT[casapol]
         tb_pol.close()
 
         # Integration time
