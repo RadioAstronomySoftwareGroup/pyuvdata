@@ -99,7 +99,7 @@ if not is_platform_windows():
 
 astroquery_reqs = ["astroquery"]
 novas_reqs = ["novas", "novas_de405"]
-casa_reqs = ["python-casacore"]
+casa_reqs = ["python-casacore>=2.2.0"]
 healpix_reqs = ["astropy_healpix"]
 cst_reqs = ["pyyaml"]
 test_reqs = (
