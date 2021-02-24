@@ -724,12 +724,16 @@ class UVData(UVBase):
         """
         self._set_future_array_shapes()
         if not self.metadata_only:
+            # remove the length-1 spw axis for all data-like parameters
             for param_name in self._data_params:
                 setattr(self, param_name, (getattr(self, param_name))[:, 0, :, :])
 
+        # remove the length-1 spw axis for the freq_array
         self.freq_array = self.freq_array[0, :]
 
         if not self.flex_spw:
+            # make channel_width be an array of length Nfreqs rather than a single value
+            # (not needed with flexible spws because this is already done in that case)
             self.channel_width = (
                 np.zeros(self.Nfreqs, dtype=np.float64) + self.channel_width
             )
