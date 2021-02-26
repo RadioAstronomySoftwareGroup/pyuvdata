@@ -384,7 +384,7 @@ class MWABeam(UVBeam):
         beam_modes : dict
             A multi-level dict keyed on (in order) pol, freq, mode name (Q1, Q2, M, N).
         phi_arr : float or array of float
-            azimuth angles (radians), north through east.
+            azimuth angles (radians), east through north.
         theta_arr : float or array of float
             zenith angles (radian)
 
@@ -400,9 +400,6 @@ class MWABeam(UVBeam):
             (len(pol_names), 2, freqs_hz.size, phi_arr.size, theta_arr.size),
             dtype=np.complex128,
         )
-
-        phi_arr = np.pi / 2 - phi_arr  # Convert to East through North (FEKO coords)
-        phi_arr[phi_arr < 0] += 2 * np.pi  # 360 wrap
 
         for pol_i, pol in enumerate(pol_names):
             for freq_i, freq in enumerate(freqs_hz):
