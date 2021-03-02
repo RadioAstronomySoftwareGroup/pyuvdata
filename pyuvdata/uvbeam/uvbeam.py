@@ -3404,6 +3404,12 @@ class UVBeam(UVBase):
         """
         Read in the full embedded element MWA beam.
 
+        Note that the azimuth convention in for the UVBeam object is different than the
+        azimuth convention in the mwa_pb repo. In that repo, the azimuth convention is
+        changed from the native FEKO convention (the FEKO convention is the same as the
+        UVBeam convention). The convention in the mwa_pb repo has a different zero point
+        and a different direction (so it is in a left handed coordinate system).
+
         Parameters
         ----------
         h5filepath : str

@@ -197,7 +197,14 @@ class MWABeam(UVBeam):
     read_mwa_beam method on the UVBeam class.
 
     This is based on https://github.com/MWATelescope/mwa_pb/ but we don’t import
-    that module because it’s not python 3 compatible
+    that module because it’s not python 3 compatible.
+
+    Note that the azimuth convention in for the UVBeam object is different than the
+    azimuth convention in the mwa_pb repo. In that repo, the azimuth convention is
+    changed from the native FEKO convention (the FEKO convention is the same as the
+    UVBeam convention). The convention in the mwa_pb repo has a different zero point
+    and a different direction (so it is in a left handed coordinate system).
+
     """
 
     def _read_metadata(self, h5filepath):
