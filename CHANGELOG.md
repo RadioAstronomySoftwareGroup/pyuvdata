@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Added option to apply a Van Vleck correction to mwa_corr_fits files.
 
+### Fixed
+- A bug in reading in the MWA beam that caused the beam to be rotated by 90 degrees.
+
 ## [2.1.4] - 2021-2-04
 
 ### Added
