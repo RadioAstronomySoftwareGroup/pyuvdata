@@ -24,6 +24,7 @@ no_casa_message = (
 casa_present = True
 try:
     import casacore.tables as tables
+    import casacore.tables.tableutil as tableutil
 except ImportError as error:  # pragma: no cover
     casa_present = False
     casa_error = error
@@ -78,19 +79,41 @@ class MS(UVData):
             raise ImportError(no_casa_message) from casa_error
 
         antenna_table = tables.table(filepath + "::ANTENNA", ack=False, readonly=False)
-        antenna_table.addrows(self.Nants_data)
-        antenna_table.putcol("NAME", self.antenna_names)
-        # TODO check that this works out!
+
+        # Note: measurement sets use the antenna number as an index into the antenna
+        # table. This means that if the antenna numbers do not start from 0 and/or are
+        # not contiguous, empty rows need to be inserted into the antenna table
+        # (this is somewhat similar to miriad)
+        nants_table = np.max(self.antenna_numbers) + 1
+        antenna_table.addrows(nants_table)
+
+        ant_names_table = [""] * nants_table
+        for ai, num in enumerate(self.antenna_numbers):
+            ant_names_table[num] = self.antenna_names[ai]
+
+        # There seem to be some variation on whether the antenna names are stored
+        # in the NAME or STATION column (importuvfits puts them in the STATION column
+        # while Cotter and the MS definition doc puts them in the NAME column).
+        # The MS definition doc suggests that antenna names belong in the NAME column
+        # and the telescope name belongs in the STATION column (it gives the example of
+        # GREENBANK for this column.) so we follow that here.
+        antenna_table.putcol("NAME", ant_names_table)
+        antenna_table.putcol("STATION", [self.telescope_name] * nants_table)
+
+        # Antenna positions in measurement sets appear to be in absolute ECEF
         ant_pos_absolute = self.antenna_positions + self.telescope_location.reshape(
             1, 3
         )
-        ant_pos_rot_ecef = uvutils.rotECEF_from_ECEF(
-            ant_pos_absolute, self.telescope_location_latlonalt[1]
-        )
+        ant_pos_table = np.zeros((nants_table, 3), dtype=np.float64)
+        for ai, num in enumerate(self.antenna_numbers):
+            ant_pos_table[num, :] = ant_pos_absolute[ai, :]
 
-        antenna_table.putcol("POSITION", ant_pos_rot_ecef)
+        antenna_table.putcol("POSITION", ant_pos_table)
         if self.antenna_diameters is not None:
-            antenna_table.putcol("DISH_DIAMETER", self.antenna_diameters)
+            ant_diam_table = np.zeros((nants_table), dtype=self.antenna_diameters.dtype)
+            for ai, num in enumerate(self.antenna_numbers):
+                ant_diam_table[num] = self.antenna_diameters[ai]
+            antenna_table.putcol("DISH_DIAMETER", ant_diam_table)
         antenna_table.done()
 
     def _write_ms_field(self, filepath):
@@ -110,6 +133,7 @@ class MS(UVData):
         field_table.putcell("DELAY_DIR", 0, phasedir)
         field_table.putcell("PHASE_DIR", 0, phasedir)
         field_table.putcell("REFERENCE_DIR", 0, phasedir)
+        field_table.putcell("NAME", 0, self.object_name)
 
     def _write_ms_spectralwindow(self, filepath):
         """
@@ -148,13 +172,25 @@ class MS(UVData):
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
 
-        antenna_table = tables.table(
+        observation_table = tables.table(
             filepath + "::OBSERVATION", ack=False, readonly=False
         )
-        antenna_table.addrows()
-        antenna_table.putcell("TELESCOPE_NAME", 0, self.telescope_name)
+        observation_table.addrows()
+        observation_table.putcell("TELESCOPE_NAME", 0, self.telescope_name)
+
+        # It appears that measurement sets do not have a concept of a telescope location
+        # We add it here as a non-standard column in order to round trip it properly
+        name_col_desc = tableutil.makearrcoldesc(
+            "TELESCOPE_LOCATION",
+            self.telescope_location[0],
+            shape=[3],
+            valuetype="double",
+        )
+        observation_table.addcols(name_col_desc)
+        observation_table.putcell("TELESCOPE_LOCATION", 0, self.telescope_location)
+
         # should we test for observer in extra keywords?
-        antenna_table.putcell("OBSERVER", 0, self.telescope_name)
+        observation_table.putcell("OBSERVER", 0, self.telescope_name)
 
     def _write_ms_polarization(self, filepath):
         """
@@ -209,7 +245,7 @@ class MS(UVData):
             )
 
             app_params = history_table.getcol("APP_PARAMS")["array"]
-            # might need to handle the case where cli_command is empty
+            # TODO: might need to handle the case where cli_command is empty
             cli_command = history_table.getcol("CLI_COMMAND")["array"]
             application = history_table.getcol("APPLICATION")
             message = history_table.getcol("MESSAGE")
@@ -332,15 +368,21 @@ class MS(UVData):
         ms = tables.default_ms(filepath, ms_desc, tables.makedminfo(ms_desc))
         ms.addrows(nrow)
 
-        ms.putcol("DATA", np.squeeze(self.data_array, axis=1))
+        # TODO: remove squeeze for future array shapes
+        # FITS uvw direction convention is opposite ours and Miriad's.
+        # CASA's convention is unclear: the docs contradict themselves,
+        # but empirically it appears to match uvfits
+        # So conjugate the visibilities and flip the uvws:
+        ms.putcol("DATA", np.squeeze(np.conj(self.data_array), axis=1))
         ms.putcol("WEIGHT_SPECTRUM", np.squeeze(self.nsample_array, axis=1))
+        ms.putcol("FLAG", np.squeeze(self.flag_array, axis=1))
+
         ms.putcol("ANTENNA1", self.ant_1_array)
         ms.putcol("ANTENNA2", self.ant_2_array)
         ms.putcol("INTERVAL", self.integration_time)
 
         ms.putcol("TIME", time.Time(self.time_array, format="jd").mjd * 3600.0 * 24.0)
         ms.putcol("UVW", -self.uvw_array)
-        ms.putcol("FLAG", np.squeeze(self.flag_array, axis=1))
         ms.done()
 
         self._write_ms_antenna(filepath)
@@ -549,58 +591,72 @@ class MS(UVData):
         tb_obs = tables.table(filepath + "/OBSERVATION", ack=False)
         self.telescope_name = tb_obs.getcol("TELESCOPE_NAME")[0]
         self.instrument = tb_obs.getcol("TELESCOPE_NAME")[0]
-        tb_obs.close()
-        # Use Telescopes.py dictionary to set array position
         full_antenna_positions = tb_ant.getcol("POSITION")
+        n_ants_table = full_antenna_positions.shape[0]
         xyz_telescope_frame = tb_ant.getcolkeyword("POSITION", "MEASINFO")["Ref"]
-        ant_flags = np.empty(len(full_antenna_positions), dtype=bool)
-        ant_flags[:] = False
-        for antnum in range(len(ant_flags)):
-            ant_flags[antnum] = np.all(full_antenna_positions[antnum, :] == 0)
-        if xyz_telescope_frame == "ITRF":
-            self.telescope_location = np.array(
-                np.mean(full_antenna_positions[np.invert(ant_flags), :], axis=0)
-            )
-        if self.telescope_location is None:
-            try:
+
+        # Note: measurement sets use the antenna number as an index into the antenna
+        # table. This means that if the antenna numbers do not start from 0 and/or are
+        # not contiguous, empty rows are inserted into the antenna table
+        # these 'dummy' rows have positions of zero and need to be removed.
+        # (this is somewhat similar to miriad)
+        ant_good_position = np.nonzero(np.linalg.norm(full_antenna_positions, axis=1))[
+            0
+        ]
+        full_antenna_positions = full_antenna_positions[ant_good_position, :]
+        self.antenna_numbers = np.arange(n_ants_table)[ant_good_position]
+
+        # check to see if a TELESCOPE_LOCATION column is present in the observation
+        # table. This is non-standard, but inserted by pyuvdata
+        if "TELESCOPE_LOCATION" in tb_obs.colnames():
+            self.telescope_location = np.squeeze(tb_obs.getcol("TELESCOPE_LOCATION"))
+        else:
+            if self.telescope_name in self.known_telescopes():
+                # Try to get it from the known telescopes
                 self.set_telescope_params()
-            except ValueError:
+            elif xyz_telescope_frame == "ITRF":
+                # Set it to be the mean of the antenna positions (this is not ideal!)
+                self.telescope_location = np.array(
+                    np.mean(full_antenna_positions, axis=0)
+                )
+            else:
                 warnings.warn(
                     "Telescope frame is not ITRF and telescope is not "
                     "in known_telescopes, so telescope_location is not set."
                 )
+        tb_obs.close()
 
         # antenna names
-        ant_names = tb_ant.getcol("STATION")
+        ant_names = tb_ant.getcol("NAME")
+        station_names = tb_ant.getcol("STATION")
         ant_diams = tb_ant.getcol("DISH_DIAMETER")
 
         self.antenna_diameters = ant_diams[ant_diams > 0]
 
-        self.Nants_telescope = len(ant_flags[np.invert(ant_flags)])
-        test_name = ant_names[0]
-        names_same = True
-        for antnum in range(len(ant_names)):
-            if not (ant_names[antnum] == test_name):
-                names_same = False
-        if not (names_same):
-            # cotter measurement sets store antenna names in the NAMES column.
+        station_names
+        station_names_same = False
+        for name in station_names[1:]:
+            if name == station_names[0]:
+                station_names_same = True
+        # importuvfits measurement sets store antenna names in the STATION column.
+        # cotter measurement sets store antenna names in the NAME column, which is
+        # inline with the MS definition doc. In that case all the station names are
+        # the same.
+        if station_names_same:
             self.antenna_names = ant_names
         else:
-            # importuvfits measurement sets store antenna names in the STATION column.
-            self.antenna_names = tb_ant.getcol("NAME")
-        self.antenna_numbers = np.arange(len(self.antenna_names)).astype(int)
-        ant_names = []
-        for ant_num in range(len(self.antenna_names)):
-            if not (ant_flags[ant_num]):
-                ant_names.append(self.antenna_names[ant_num])
+            self.antenna_names = station_names
+
+        ant_names = np.asarray(self.antenna_names)[ant_good_position].tolist()
         self.antenna_names = ant_names
-        self.antenna_numbers = self.antenna_numbers[np.invert(ant_flags)]
+
+        self.Nants_telescope = len(self.antenna_names)
 
         relative_positions = np.zeros_like(full_antenna_positions)
         relative_positions = full_antenna_positions - self.telescope_location.reshape(
             1, 3
         )
-        self.antenna_positions = relative_positions[np.invert(ant_flags), :]
+        self.antenna_positions = relative_positions
 
         tb_ant.close()
         tb_field = tables.table(filepath + "/FIELD", ack=False)

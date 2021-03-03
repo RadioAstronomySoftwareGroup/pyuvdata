@@ -41,7 +41,11 @@ def test_cotter_ms():
 
     with uvtest.check_warnings(
         UserWarning,
-        ["Warning: select on read keyword set", "ITRF coordinate frame detected,"],
+        match=[
+            "Warning: select on read keyword set",
+            "telescope_location is not set. Using known values for MWA.",
+            "ITRF coordinate frame detected, although within cotter this is",
+        ],
     ):
         uvobj2.read(testfile, freq_chans=np.arange(2))
     uvobj.select(freq_chans=np.arange(2))
@@ -50,12 +54,34 @@ def test_cotter_ms():
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_read_nrao(nrao_uv):
-    """Test reading in a CASA tutorial ms file."""
+def test_read_nrao_loopback(tmp_path, nrao_uv):
+    """Test reading in a CASA tutorial ms file and looping it through write_ms."""
     uvobj = nrao_uv
     expected_extra_keywords = ["DATA_COL"]
 
     assert sorted(expected_extra_keywords) == sorted(uvobj.extra_keywords.keys())
+
+    testfile = os.path.join(tmp_path, "ms_testfile.ms")
+
+    uvobj.write_ms(testfile)
+    uvobj2 = UVData()
+    uvobj2.read_ms(testfile)
+
+    # make a copy to test that everything but history works:
+    uvobj3 = uvobj2.copy()
+    uvobj3.history = uvobj.history
+
+    assert uvobj == uvobj3
+
+    print("original history")
+    print(uvobj.history)
+    print("new history")
+    print(uvobj2.history)
+    print("")
+
+    assert uvobj._history == uvobj2._history
+
+    assert uvobj == uvobj2
 
 
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")

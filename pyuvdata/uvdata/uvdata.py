@@ -9802,7 +9802,7 @@ class UVData(UVBase):
         ----------
         filetype : str
             Specifies what file type object to convert to. Options are: 'uvfits',
-            'fhd', 'miriad', 'uvh5', 'mir'
+            'fhd', 'miriad', 'uvh5', 'mir', 'ms'
 
         Raises
         ------
@@ -9829,8 +9829,12 @@ class UVData(UVBase):
             from . import mir
 
             other_obj = mir.Mir()
+        elif filetype == "ms":
+            from . import ms
+
+            other_obj = ms.MS()
         else:
-            raise ValueError("filetype must be uvfits, mir, miriad, fhd, or uvh5")
+            raise ValueError("filetype must be uvfits, mir, miriad, ms, fhd, or uvh5")
         for p in self:
             param = getattr(self, p)
             setattr(other_obj, p, param)
@@ -12194,6 +12198,49 @@ class UVData(UVBase):
         mir_obj = self._convert_to_filetype("mir")
         mir_obj.write_mir(filepath,)
         del mir_obj
+
+    def write_ms(
+        self,
+        filename,
+        clobber=False,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
+    ):
+        """
+        Write a CASA measurement set (MS).
+
+        Parameters
+        ----------
+        filename : str
+            The measurement set file path to write to (a measurement set is really
+            a folder with many files).
+        clobber : bool
+            Option to overwrite the file if it already exists.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            before writing the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
+
+        """
+        ms_obj = self._convert_to_filetype("ms")
+        ms_obj.write_ms(
+            filename,
+            clobber=clobber,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
+        )
+        del ms_obj
 
     def write_uvfits(
         self,
