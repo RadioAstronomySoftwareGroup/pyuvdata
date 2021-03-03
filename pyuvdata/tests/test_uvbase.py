@@ -124,14 +124,6 @@ class UVTest(UVBase):
             form=self._floatarr2.value.size,
         )
 
-        # self._quantity_with_precision = uvp.UVParameter(
-        #     "quantity_with_precision",
-        #     description="A quantity, but want a specific precision.",
-        #     expected_type=float,
-        #     value=self._floatarr2.value * units.s,
-        #     form=self._floatarr2.value.size,
-        # )
-
         self._quantity_scalar = uvp.UVParameter(
             "quantity_scalar",
             description="A quantity but also a single element.",
