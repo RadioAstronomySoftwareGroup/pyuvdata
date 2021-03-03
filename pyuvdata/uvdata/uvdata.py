@@ -171,13 +171,11 @@ class UVData(UVBase):
             tols=radian_tol,
         )
 
-        desc = "Array of first antenna indices, shape (Nblts), " "type = int, 0 indexed"
+        desc = "Array of first antenna numbers, shape (Nblts), type = int, 0 indexed"
         self._ant_1_array = uvp.UVParameter(
             "ant_1_array", description=desc, expected_type=int, form=("Nblts",)
         )
-        desc = (
-            "Array of second antenna indices, shape (Nblts), " "type = int, 0 indexed"
-        )
+        desc = "Array of second antenna numbers, shape (Nblts), type = int, 0 indexed"
         self._ant_2_array = uvp.UVParameter(
             "ant_2_array", description=desc, expected_type=int, form=("Nblts",)
         )
