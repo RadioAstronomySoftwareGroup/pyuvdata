@@ -80,6 +80,7 @@ class UVBase(object):
                         self.lat_lon_alt_degrees_prop_fset(p),
                     ),
                 )
+        return
 
     def __init__(self):
         """Create properties from UVParameter attributes."""
