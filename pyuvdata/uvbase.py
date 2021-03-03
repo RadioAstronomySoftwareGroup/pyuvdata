@@ -47,10 +47,8 @@ class UVBase(object):
         UVParameter.name+'_lat_lon_alt_degrees'
     """
 
-    def __init__(self):
-        """Create properties from UVParameter attributes."""
-        warnings.formatwarning = _warning
-
+    def _setup_parameters(self):
+        """Set up parameter objects to be able to be referenced by their names."""
         # set any UVParameter attributes to be properties
         for p in self:
             this_param = getattr(self, p)
@@ -83,10 +81,21 @@ class UVBase(object):
                     ),
                 )
 
+    def __init__(self):
+        """Create properties from UVParameter attributes."""
+        warnings.formatwarning = _warning
+
+        self._setup_parameters()
+
         # String to add to history of any files written with this version of pyuvdata
         self.pyuvdata_version_str = (
             f"  Read/written with pyuvdata version: {__version__ }."
         )
+
+    def __setstate__(self, state):
+        """Set the state of the object from given input state."""
+        self.__dict__ = state
+        self._setup_parameters()
 
     def prop_fget(self, param_name):
         """Getter method for UVParameter properties."""
