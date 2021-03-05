@@ -53,33 +53,34 @@ class UVBase(object):
         for p in self:
             this_param = getattr(self, p)
             attr_name = this_param.name
-            setattr(
-                self.__class__,
-                attr_name,
-                property(self.prop_fget(p), self.prop_fset(p)),
-            )
-            if isinstance(this_param, uvp.AngleParameter):
+            if not hasattr(self, attr_name):
                 setattr(
                     self.__class__,
-                    attr_name + "_degrees",
-                    property(self.degree_prop_fget(p), self.degree_prop_fset(p)),
+                    attr_name,
+                    property(self.prop_fget(p), self.prop_fset(p)),
                 )
-            elif isinstance(this_param, uvp.LocationParameter):
-                setattr(
-                    self.__class__,
-                    attr_name + "_lat_lon_alt",
-                    property(
-                        self.lat_lon_alt_prop_fget(p), self.lat_lon_alt_prop_fset(p)
-                    ),
-                )
-                setattr(
-                    self.__class__,
-                    attr_name + "_lat_lon_alt_degrees",
-                    property(
-                        self.lat_lon_alt_degrees_prop_fget(p),
-                        self.lat_lon_alt_degrees_prop_fset(p),
-                    ),
-                )
+                if isinstance(this_param, uvp.AngleParameter):
+                    setattr(
+                        self.__class__,
+                        attr_name + "_degrees",
+                        property(self.degree_prop_fget(p), self.degree_prop_fset(p)),
+                    )
+                elif isinstance(this_param, uvp.LocationParameter):
+                    setattr(
+                        self.__class__,
+                        attr_name + "_lat_lon_alt",
+                        property(
+                            self.lat_lon_alt_prop_fget(p), self.lat_lon_alt_prop_fset(p)
+                        ),
+                    )
+                    setattr(
+                        self.__class__,
+                        attr_name + "_lat_lon_alt_degrees",
+                        property(
+                            self.lat_lon_alt_degrees_prop_fget(p),
+                            self.lat_lon_alt_degrees_prop_fset(p),
+                        ),
+                    )
         return
 
     def __init__(self):
