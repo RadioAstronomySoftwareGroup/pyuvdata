@@ -371,9 +371,10 @@ class MS(UVData):
         # TODO: remove squeeze for future array shapes
         # FITS uvw direction convention is opposite ours and Miriad's.
         # CASA's convention is unclear: the docs contradict themselves,
-        # but empirically it appears to match uvfits
-        # So conjugate the visibilities and flip the uvws:
-        ms.putcol("DATA", np.squeeze(np.conj(self.data_array), axis=1))
+        # but after a question to the helpdesk we got a clear response that
+        # the convention is antenna2_pos - antenna1_pos, so the convention is the
+        # same as ours & Miriad's
+        ms.putcol("DATA", np.squeeze(self.data_array, axis=1))
         ms.putcol("WEIGHT_SPECTRUM", np.squeeze(self.nsample_array, axis=1))
         ms.putcol("FLAG", np.squeeze(self.flag_array, axis=1))
 
@@ -382,7 +383,7 @@ class MS(UVData):
         ms.putcol("INTERVAL", self.integration_time)
 
         ms.putcol("TIME", time.Time(self.time_array, format="jd").mjd * 3600.0 * 24.0)
-        ms.putcol("UVW", -self.uvw_array)
+        ms.putcol("UVW", self.uvw_array)
         ms.done()
 
         self._write_ms_antenna(filepath)
@@ -516,9 +517,10 @@ class MS(UVData):
         self.Ntimes = int(len(times_unique))
         # FITS uvw direction convention is opposite ours and Miriad's.
         # CASA's convention is unclear: the docs contradict themselves,
-        # but empirically it appears to match uvfits
-        # So conjugate the visibilities and flip the uvws:
-        data_array = np.conj(tb.getcol(data_column))
+        # but after a question to the helpdesk we got a clear response that
+        # the convention is antenna2_pos - antenna1_pos, so the convention is the
+        # same as ours & Miriad's
+        data_array = tb.getcol(data_column)
         self.Nblts = int(data_array.shape[0])
         flag_array = tb.getcol("FLAG")
         # CASA stores data in complex array with dimension NbltsxNfreqsxNpols
@@ -530,9 +532,10 @@ class MS(UVData):
         self.Npols = int(data_array.shape[-1])
         # FITS uvw direction convention is opposite ours and Miriad's.
         # CASA's convention is unclear: the docs contradict themselves,
-        # but empirically it appears to match uvfits
-        # So conjugate the visibilities and flip the uvws:
-        self.uvw_array = -1 * tb.getcol("UVW")
+        # but after a question to the helpdesk we got a clear response that
+        # the convention is antenna2_pos - antenna1_pos, so the convention is the
+        # same as ours & Miriad's
+        self.uvw_array = tb.getcol("UVW")
         self.ant_1_array = tb.getcol("ANTENNA1").astype(np.int32)
         self.ant_2_array = tb.getcol("ANTENNA2").astype(np.int32)
         self.Nants_data = len(
