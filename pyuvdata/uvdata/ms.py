@@ -10,7 +10,7 @@ Requires casacore.
 import numpy as np
 import os
 import warnings
-import astropy.time as time
+from astropy.time import Time
 
 from .uvdata import UVData
 from .. import utils as uvutils
@@ -73,7 +73,10 @@ class MS(UVData):
         """
         Write out the antenna information into a CASA table.
 
-        filepath: path to MS (without ANTENNA suffix)
+        Parameters
+        ----------
+        filepath : str
+            Path to MS (without ANTENNA suffix).
         """
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
@@ -120,7 +123,11 @@ class MS(UVData):
         """
         Write out the field information into a CASA table.
 
-        filepath: path to MS (without FIELD suffix)
+        Parameters
+        ----------
+        filepath : str
+            path to MS (without FIELD suffix)
+
         """
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
@@ -139,7 +146,11 @@ class MS(UVData):
         """
         Write out the spectral information into a CASA table.
 
-        filepath: path to MS (without SPECTRAL_WINDOW suffix)
+        Parameters
+        ----------
+        filepath : str
+            path to MS (without SPECTRAL_WINDOW suffix)
+
         """
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
@@ -167,7 +178,11 @@ class MS(UVData):
         """
         Write out the observation information into a CASA table.
 
-        filepath: path to MS (without OBSERVATION suffix)
+        Parameters
+        ----------
+        filepath : str
+            path to MS (without OBSERVATION suffix)
+
         """
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
@@ -196,7 +211,11 @@ class MS(UVData):
         """
         Write out the polarization information into a CASA table.
 
-        filepath: path to MS (without POLARIZATION suffix)
+        Parameters
+        ----------
+        filepath : str
+            path to MS (without POLARIZATION suffix)
+
         """
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
@@ -231,6 +250,7 @@ class MS(UVData):
         str
             string enconding complete casa history table converted with a new
             line denoting rows and a ';' denoting column breaks.
+
         """
         # string to store just the usual uvdata history
         message_str = ""
@@ -240,6 +260,7 @@ class MS(UVData):
         # Do not touch the history table if it has no information
         if history_table.nrows() > 0:
             history_str = (
+                "Begin measurement set history\n"
                 "APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;"
                 "OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n"
             )
@@ -256,7 +277,7 @@ class MS(UVData):
             times = history_table.getcol("TIME")
             # Now loop through columns and generate history string
             ntimes = len(times)
-            tables = [
+            cols = [
                 app_params,
                 cli_command,
                 application,
@@ -267,12 +288,43 @@ class MS(UVData):
                 priority,
                 times,
             ]
+
+            # if this MS was written by pyuvdata, some history that originated in
+            # pyuvdata is in the MS history table. We separate that out since it doesn't
+            # really belong to the MS history block (and so round tripping works)
+            pyuvdata_line_nos = [
+                line_no
+                for line_no, line in enumerate(application)
+                if "pyuvdata" in line
+            ]
+
             for tbrow in range(ntimes):
+                # first check to see if this row was put in by pyuvdata.
+                # If so, don't mix them in with the MS stuff
+                if tbrow in pyuvdata_line_nos:
+                    continue
+
                 message_str += str(message[tbrow])
-                newline = ";".join([str(table[tbrow]) for table in tables]) + "\n"
+                newline = ";".join([str(col[tbrow]) for col in cols]) + "\n"
                 history_str += newline
                 if tbrow < ntimes - 1:
                     message_str += "\n"
+
+            history_str += "End measurement set history.\n"
+
+            # make a list of lines that are MS specific (i.e. not pyuvdata lines)
+            ms_line_nos = np.arange(ntimes).tolist()
+            for line_no in pyuvdata_line_nos:
+                ms_line_nos.pop(line_no)
+
+            if len(pyuvdata_line_nos) > 0:
+                for line_no in pyuvdata_line_nos:
+                    if line_no < min(ms_line_nos):
+                        # prepend these lines to the history
+                        history_str = message[line_no] + history_str
+                    else:
+                        # append these lines to the history
+                        history_str += message[line_no]
 
         def is_not_ascii(s):
             return any(ord(c) >= 128 for c in s)
@@ -285,6 +337,127 @@ class MS(UVData):
             return output
 
         return message_str, history_str
+
+    def _write_ms_history(self, filepath):
+        """
+        Parse the history into an MS history table.
+
+        If the history string contains output from `_ms_hist_to_string`, parse that back
+        into the MS history table.
+
+        Parameters
+        ----------
+        filepath : str
+            path to MS (without HISTORY suffix)
+        history : str
+            A history string that may or may not contain output from
+            `_ms_hist_to_string`.
+
+        """
+        if not casa_present:  # pragma: no cover
+            raise ImportError(no_casa_message) from casa_error
+
+        app_params = []
+        cli_command = []
+        application = []
+        message = []
+        obj_id = []
+        obs_id = []
+        origin = []
+        priority = []
+        times = []
+        if "APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE" in self.history:
+            # this history contains info from an MS history table. Need to parse it.
+
+            ms_header_line_no = None
+            ms_end_line_no = None
+            pre_ms_history_lines = []
+            post_ms_history_lines = []
+            for line_no, line in enumerate(self.history.splitlines()):
+                if "APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE" in line:
+                    ms_header_line_no = line_no
+                    # we don't need this line anywhere below so continue
+                    continue
+
+                if "End measurement set history" in line:
+                    ms_end_line_no = line_no
+                    # we don't need this line anywhere below so continue
+                    continue
+
+                if ms_header_line_no is not None and ms_end_line_no is None:
+
+                    # this is part of the MS history block. Parse it.
+                    line_parts = line.split(";")
+
+                    app_params.append(line_parts[0])
+                    cli_command.append(line_parts[1])
+                    application.append(line_parts[2])
+                    message.append(line_parts[3])
+                    obj_id.append(int(line_parts[4]))
+                    obs_id.append(int(line_parts[5]))
+                    origin.append(line_parts[6])
+                    priority.append(line_parts[7])
+                    times.append(np.float64(line_parts[8]))
+                elif ms_header_line_no is None:
+                    # this is before the MS block
+                    if "Begin measurement set history" not in line:
+                        pre_ms_history_lines.append(line)
+                else:
+                    # this is after the MS block
+                    post_ms_history_lines.append(line)
+
+            for line_no, line in enumerate(pre_ms_history_lines):
+                app_params.insert(line_no, "")
+                cli_command.insert(line_no, "")
+                application.insert(line_no, "pyuvdata")
+                message.append(line_no, line)
+                obj_id.insert(line_no, 0)
+                obs_id.insert(line_no, -1)
+                origin.insert(line_no, "pyuvdata")
+                priority.insert(line_no, "INFO")
+                times.insert(line_no, Time.now().mjd * 3600.0 * 24.0)
+
+            for line_no, line in enumerate(post_ms_history_lines):
+                app_params.append("")
+                cli_command.append("")
+                application.append("pyuvdata")
+                message.append(line)
+                obj_id.append(0)
+                obs_id.append(-1)
+                origin.append("pyuvdata")
+                priority.append("INFO")
+                times.append(Time.now().mjd * 3600.0 * 24.0)
+
+        else:
+            # no prior MS history detected in the history. Put all of our history in
+            # the message column
+            for line in self.history.splitlines():
+                app_params.append("")
+                cli_command.append("")
+                application.append("pyuvdata")
+                message.append(line)
+                obj_id.append(0)
+                obs_id.append(-1)
+                origin.append("pyuvdata")
+                priority.append("INFO")
+                times.append(Time.now().mjd * 3600.0 * 24.0)
+
+        history_table = tables.table(filepath + "::HISTORY", ack=False, readonly=False)
+
+        nrows = len(message)
+        history_table.addrows(nrows)
+
+        history_table.putcol("APP_PARAMS", np.asarray(app_params)[:, np.newaxis])
+        history_table.putcol("CLI_COMMAND", np.asarray(cli_command)[:, np.newaxis])
+        history_table.putcol("APPLICATION", application)
+        history_table.putcol("MESSAGE", message)
+        history_table.putcol("OBJECT_ID", obj_id)
+        history_table.putcol("OBSERVATION_ID", obs_id)
+        history_table.putcol("ORIGIN", origin)
+        history_table.putcol("PRIORITY", priority)
+        history_table.putcol("TIME", times)
+
+        history_table.done()
 
     def write_ms(
         self,
@@ -382,7 +555,7 @@ class MS(UVData):
         ms.putcol("ANTENNA2", self.ant_2_array)
         ms.putcol("INTERVAL", self.integration_time)
 
-        ms.putcol("TIME", time.Time(self.time_array, format="jd").mjd * 3600.0 * 24.0)
+        ms.putcol("TIME", Time(self.time_array, format="jd").mjd * 3600.0 * 24.0)
         ms.putcol("UVW", self.uvw_array)
         ms.done()
 
@@ -391,6 +564,7 @@ class MS(UVData):
         self._write_ms_spectralwindow(filepath)
         self._write_ms_polarization(filepath)
         self._write_ms_observation(filepath)
+        self._write_ms_history(filepath)
 
     def read_ms(
         self,
@@ -501,7 +675,7 @@ class MS(UVData):
                 "values; only files with one subarray are "
                 "supported."
             )
-        times_unique = time.Time(
+        times_unique = Time(
             np.unique(tb.getcol("TIME") / (3600.0 * 24.0)), format="mjd"
         ).jd
 
@@ -551,9 +725,7 @@ class MS(UVData):
         self.Nbls = len(np.unique(self.baseline_array))
         # Get times. MS from cotter are modified Julian dates in seconds
         # (thanks to Danny Jacobs for figuring out the proper conversion)
-        self.time_array = time.Time(
-            tb.getcol("TIME") / (3600.0 * 24.0), format="mjd"
-        ).jd
+        self.time_array = Time(tb.getcol("TIME") / (3600.0 * 24.0), format="mjd").jd
 
         # Polarization array
         tb_pol = tables.table(filepath + "/POLARIZATION", ack=False)
