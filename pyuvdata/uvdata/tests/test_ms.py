@@ -86,7 +86,7 @@ def test_read_nrao_loopback(tmp_path, nrao_uv):
 
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_read_lwa():
+def test_read_lwa(tmp_path):
     """Test reading in an LWA ms file."""
     uvobj = UVData()
     testfile = os.path.join(DATA_PATH, "lwasv_cor_58342_05_00_14.ms.tar.gz")
@@ -95,8 +95,8 @@ def test_read_lwa():
     import tarfile
 
     with tarfile.open(testfile) as tf:
-        new_filename = os.path.join(DATA_PATH, tf.getnames()[0])
-        tf.extractall(path=DATA_PATH)
+        new_filename = os.path.join(tmp_path, tf.getnames()[0])
+        tf.extractall(path=tmp_path)
 
     uvobj.read(new_filename, file_type="ms")
     assert sorted(expected_extra_keywords) == sorted(uvobj.extra_keywords.keys())
@@ -135,7 +135,7 @@ def test_multi_len_spw():
 
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_extra_pol_setup():
+def test_extra_pol_setup(tmp_path):
     """Test reading in an ms file with extra polarization setups (not used in data)."""
     uvobj = UVData()
     testfile = os.path.join(
@@ -145,8 +145,8 @@ def test_extra_pol_setup():
     import tarfile
 
     with tarfile.open(testfile) as tf:
-        new_filename = os.path.join(DATA_PATH, tf.getnames()[0])
-        tf.extractall(path=DATA_PATH)
+        new_filename = os.path.join(tmp_path, tf.getnames()[0])
+        tf.extractall(path=tmp_path)
 
     uvobj.read(new_filename, file_type="ms")
 
