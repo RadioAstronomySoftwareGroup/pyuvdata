@@ -67,20 +67,6 @@ def test_read_nrao_loopback(tmp_path, nrao_uv):
     uvobj2 = UVData()
     uvobj2.read_ms(testfile)
 
-    # make a copy to test that everything but history works:
-    uvobj3 = uvobj2.copy()
-    uvobj3.history = uvobj.history
-
-    assert uvobj == uvobj3
-
-    print("original history")
-    print(uvobj.history)
-    print("new history")
-    print(uvobj2.history)
-    print("")
-
-    assert uvobj._history == uvobj2._history
-
     assert uvobj == uvobj2
 
 
