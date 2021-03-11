@@ -245,15 +245,12 @@ class MS(UVData):
         Returns
         -------
         str
-            string containing only message column (consistent with other UVDATA
-            history strings)
-        str
             string enconding complete casa history table converted with a new
             line denoting rows and a ';' denoting column breaks.
+        pyuvdata_written :  bool
+            boolean indicating whether or not this MS was written by pyuvdata.
 
         """
-        # string to store just the usual uvdata history
-        message_str = ""
         # string to store all the casa history info
         history_str = ""
 
@@ -304,11 +301,8 @@ class MS(UVData):
                 if tbrow in pyuvdata_line_nos:
                     continue
 
-                message_str += str(message[tbrow])
                 newline = ";".join([str(col[tbrow]) for col in cols]) + "\n"
                 history_str += newline
-                if tbrow < ntimes - 1:
-                    message_str += "\n"
 
             history_str += "End measurement set history.\n"
 
@@ -317,7 +311,9 @@ class MS(UVData):
             for line_no in pyuvdata_line_nos:
                 ms_line_nos.pop(line_no)
 
+            pyuvdata_written = False
             if len(pyuvdata_line_nos) > 0:
+                pyuvdata_written = True
                 for line_no in pyuvdata_line_nos:
                     if line_no < min(ms_line_nos):
                         # prepend these lines to the history
@@ -336,7 +332,7 @@ class MS(UVData):
                     output += c
             return output
 
-        return message_str, history_str
+        return history_str, pyuvdata_written
 
     def _write_ms_history(self, filepath):
         """
@@ -644,6 +640,19 @@ class MS(UVData):
             self.vis_units = "JY"
         # limit length of extra_keywords keys to 8 characters to match uvfits & miriad
         self.extra_keywords["DATA_COL"] = data_column
+
+        # get the history info
+        if tables.tableexists("HISTORY"):
+            self.history, pyuvdata_written = self._ms_hist_to_string(
+                tables.table(filepath + "/HISTORY", ack=False)
+            )
+            if not uvutils._check_history_version(
+                self.history, self.pyuvdata_version_str
+            ):
+                self.history += self.pyuvdata_version_str
+        else:
+            self.history = self.pyuvdata_version_str
+
         # get frequency information from spectral window table
         tb_spws = tables.table(filepath + "/SPECTRAL_WINDOW", ack=False)
         spw_names = tb_spws.getcol("NAME")
@@ -694,7 +703,13 @@ class MS(UVData):
         # but after a question to the helpdesk we got a clear response that
         # the convention is antenna2_pos - antenna1_pos, so the convention is the
         # same as ours & Miriad's
-        data_array = tb.getcol(data_column)
+        # HOWEVER, it appears that CASA's importuvfits task does not make this
+        # convention change. So if the data in the MS came via that task and was not
+        # written by pyuvdata, we do need to flip the uvws & conjugate the data
+        if "importuvfits" in self.history and not pyuvdata_written:
+            data_array = np.conj(tb.getcol(data_column))
+        else:
+            data_array = tb.getcol(data_column)
         self.Nblts = int(data_array.shape[0])
         flag_array = tb.getcol("FLAG")
         # CASA stores data in complex array with dimension NbltsxNfreqsxNpols
@@ -704,12 +719,13 @@ class MS(UVData):
         self.data_array = data_array
         self.flag_array = flag_array
         self.Npols = int(data_array.shape[-1])
-        # FITS uvw direction convention is opposite ours and Miriad's.
-        # CASA's convention is unclear: the docs contradict themselves,
-        # but after a question to the helpdesk we got a clear response that
-        # the convention is antenna2_pos - antenna1_pos, so the convention is the
-        # same as ours & Miriad's
-        self.uvw_array = tb.getcol("UVW")
+
+        # see note above the data_array extraction
+        if "importuvfits" in self.history:
+            self.uvw_array = -1 * tb.getcol("UVW")
+        else:
+            self.uvw_array = tb.getcol("UVW")
+
         self.ant_1_array = tb.getcol("ANTENNA1").astype(np.int32)
         self.ant_2_array = tb.getcol("ANTENNA2").astype(np.int32)
         self.Nants_data = len(
@@ -870,14 +886,8 @@ class MS(UVData):
         # set LST array from times and itrf
         proc = self.set_lsts_from_time_array(background=background_lsts)
 
-        # set the history parameter
-        _, self.history = self._ms_hist_to_string(
-            tables.table(filepath + "/HISTORY", ack=False)
-        )
         # CASA weights column keeps track of number of data points averaged.
 
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-            self.history += self.pyuvdata_version_str
         # 'WEIGHT_SPECTRUM' is optional - some files may not have per-channel values
         if "WEIGHT_SPECTRUM" in tb.colnames():
             self.nsample_array = tb.getcol("WEIGHT_SPECTRUM")
