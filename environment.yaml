@@ -12,7 +12,7 @@ dependencies:
   - pre-commit
   - pyerfa>=2.0
   - pypandoc
-  - python-casacore>=2.2.0
+  - python-casacore>=3.1.0
   - pyyaml
   - scipy
   - setuptools_scm
