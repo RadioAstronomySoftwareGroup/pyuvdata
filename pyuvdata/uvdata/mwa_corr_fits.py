@@ -519,9 +519,10 @@ class MWACorrFITS(UVData):
         # multiplied be the integration time (s)
         nsamples = self.channel_width * self.integration_time[0]
         # cast data to ints
-        self.data_array = np.rint(self.data_array / self.extra_keywords["SCALEFAC"])
+        self.data_array /= self.extra_keywords["SCALEFAC"]
+        np.rint(self.data_array, out=self.data_array)
         # take advantage of circular symmetry! divide by two
-        self.data_array = self.data_array / (nsamples * 2.0)
+        self.data_array /= nsamples * 2.0
         # reshape to (nbls, ntimes, nfreqs, npols)
         self.data_array = np.swapaxes(self.data_array, 0, 1)
         # get indices for autos
@@ -725,9 +726,7 @@ class MWACorrFITS(UVData):
         # reshape to (ntimes, nbls, nfreqs, npols)
         self.data_array = np.swapaxes(self.data_array, 0, 1)
         # rescale the data
-        self.data_array = self.data_array * (
-            self.extra_keywords["SCALEFAC"] * nsamples * 2
-        )
+        self.data_array *= self.extra_keywords["SCALEFAC"] * nsamples * 2
         # return data array to desired precision
         if self.data_array.dtype != data_array_dtype:
             self.data_array = self.data_array.astype(data_array_dtype)
@@ -1312,10 +1311,9 @@ class MWACorrFITS(UVData):
                 # when MWA data is cast to float for the correlator, the division
                 # by 127 introduces small errors that are mitigated when the data
                 # is cast back into integer
-                self.data_array = np.rint(
-                    self.data_array / self.extra_keywords["SCALEFAC"]
-                )
-                self.data_array = self.data_array * self.extra_keywords["SCALEFAC"]
+                self.data_array /= self.extra_keywords["SCALEFAC"]
+                np.rint(self.data_array, out=self.data_array)
+                self.data_array *= self.extra_keywords["SCALEFAC"]
             # combine baseline and time axes
             self.data_array = self.data_array.reshape(
                 (self.Nblts, self.Nfreqs, self.Npols)
