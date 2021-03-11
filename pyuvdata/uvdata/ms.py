@@ -443,6 +443,7 @@ class MS(UVData):
         nrows = len(message)
         history_table.addrows(nrows)
 
+        # the first two lines below break on python-casacore < 3.1.0
         history_table.putcol("APP_PARAMS", np.asarray(app_params)[:, np.newaxis])
         history_table.putcol("CLI_COMMAND", np.asarray(cli_command)[:, np.newaxis])
         history_table.putcol("APPLICATION", application)
