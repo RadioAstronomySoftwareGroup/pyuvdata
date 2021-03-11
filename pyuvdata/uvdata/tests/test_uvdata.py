@@ -829,7 +829,7 @@ def test_converttofiletype(casa_uvfits):
     with pytest.raises(ValueError) as cm:
         uvobj._convert_to_filetype("foo")
     assert str(cm.value).startswith(
-        "filetype must be uvfits, mir, miriad, fhd, or uvh5"
+        "filetype must be uvfits, mir, miriad, ms, fhd, or uvh5"
     )
 
 
