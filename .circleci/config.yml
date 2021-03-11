@@ -39,9 +39,7 @@ jobs:
       env_name:
         type: string
     machine:
-      image: circleci/classic:latest
-    # docker:
-      # - image: continuumio/miniconda:latest
+      image: ubuntu-2004:202101-01
     environment:
       PYTHON: << parameters.python_version >>
       ENV_NAME: << parameters.env_name >>
