@@ -20,9 +20,15 @@ pytest.importorskip("casacore")
 
 @pytest.fixture(scope="session")
 def nrao_uv():
+    # This file is known to be made with CASA's importuvfits task, but apparently the
+    # history table is missing, so we can't infer that from the history. This means that
+    # the uvws are not flipped/data is not conjugated as they should be. Fix that.
+
     uvobj = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
     uvobj.read(testfile)
+    uvobj.uvw_array *= -1
+    uvobj.data_array = np.conj(uvobj.data_array)
 
     yield uvobj
 
@@ -30,6 +36,8 @@ def nrao_uv():
 
 
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:telescope_location is not set")
 def test_cotter_ms():
     """Test reading in an ms made from MWA data with cotter (no dysco compression)"""
     uvobj = UVData()
@@ -45,7 +53,8 @@ def test_cotter_ms():
             "Warning: select on read keyword set",
             "telescope_location is not set. Using known values for MWA.",
             "ITRF coordinate frame detected, although within cotter this is",
-        ],
+        ]
+        + ["The uvw_array does not match the expected values"] * 3,
     ):
         uvobj2.read(testfile, freq_chans=np.arange(2))
     uvobj.select(freq_chans=np.arange(2))
@@ -94,6 +103,7 @@ def test_read_lwa(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:telescope_location is not set")
 def test_no_spw():
     """Test reading in a PAPER ms converted by CASA from a uvfits with no spw axis."""
     uvobj = UVData()
@@ -121,6 +131,7 @@ def test_multi_len_spw():
 
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:telescope_location is not set")
 def test_extra_pol_setup(tmp_path):
     """Test reading in an ms file with extra polarization setups (not used in data)."""
     uvobj = UVData()
@@ -146,8 +157,9 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
     """
     Test that a uvdata object instantiated from an ms file created with CASA's
     importuvfits is equal to a uvdata object instantiated from the original
-    uvfits file (tests equivalence with importuvfits in uvdata).
-    Since the histories are different, this test sets both uvdata
+    uvfits file (tests equivalence with importuvfits in uvdata up to issues around the
+    direction of the uvw array).
+    Since the history is missing from the ms file, this test sets both uvdata
     histories to identical empty strings before comparing them.
     """
     ms_uv = nrao_uv.copy()
@@ -246,13 +258,21 @@ def test_multi_files(casa_uvfits, axis):
     testfile1 = os.path.join(DATA_PATH, "multi_1.ms")
     testfile2 = os.path.join(DATA_PATH, "multi_2.ms")
 
+    # It seems that these two files were made using the CASA importuvfits task, but the
+    # history tables are missing, so we can't infer that from the history. This means
+    # that the uvws are not flipped/data is not conjugated as they should be. Fix that.
+
     filesread = [testfile1, testfile2]
     # test once as list and once as an array
     if axis is None:
         filesread = np.array(filesread)
 
     uv_multi.read(filesread, axis=axis)
-    # Casa scrambles the history parameter. Replace for now.
+    uv_multi.uvw_array *= -1
+    uv_multi.data_array = np.conj(uv_multi.data_array)
+
+    # histories are different because of combining along freq. axis
+    # replace the history
     uv_multi.history = uv_full.history
 
     # the objects won't be equal because uvfits adds some optional parameters
