@@ -6,6 +6,10 @@ jobs:
   build-n-publish:
     name: Build and publish to PyPI and TestPyPI
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        # Adding -l {0} helps ensure conda can be found properly.
+        shell: bash -l {0}
     env:
       ENV_NAME: pyuvdata_publish
       PYTHON: 3.7
@@ -14,26 +18,29 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Get Miniconda Linux
-      run: |
-        wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $HOME/miniconda.sh;
-        bash $HOME/miniconda.sh -b -p $HOME/miniconda
+    - name: Setup Miniconda
+      uses: conda-incubator/setup-miniconda@v2.0.0
+      with:
+        auto-update-conda: true
+        miniconda-version: "latest"
+        python-version: ${{ env.PYTHON }}
+        environment-file: ci/${{ env.ENV_NAME }}.yml
+        activate-environment: ${{ env.ENV_NAME }}
 
-    - name: Setup paths
-      shell: bash
+    - name: Conda Info
       run: |
-        echo "$HOME/miniconda/bin" >> $GITHUB_PATH
-        echo "$HOME/miniconda/envs/test/bin" >> $GITHUB_PATH
-
-    - name: Setup Environment
-      run: ./ci/install_conda.sh
+        conda info -a
+        conda list
+        PYVER=`python -c "import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
+        if [[ $PYVER != $PYTHON ]]; then
+          exit 1;
+        fi
 
     - name: Create environment variable
       if: startsWith(github.ref, 'refs/tags/') != true
       shell: bash
       run: |
         wget https://gist.github.com/plaplant/0902f09e59166bac742bbd554f3cd2f9/raw/make_dev_version.sh
-        source activate $ENV_NAME
         version=$(bash make_dev_version.sh)
         echo "SETUPTOOLS_SCM_PRETEND_VERSION=$version" >> $GITHUB_ENV
 
@@ -43,7 +50,6 @@ jobs:
     - name: Build a binary wheel and a source tarball
       shell: bash
       run: |
-        source activate $ENV_NAME
         python -m pep517.build --source --out-dir dist/ .
 
     - name: Publish to Test PyPI
