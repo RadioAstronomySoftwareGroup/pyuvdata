@@ -119,6 +119,63 @@ class MS(UVData):
             antenna_table.putcol("DISH_DIAMETER", ant_diam_table)
         antenna_table.done()
 
+    def _write_ms_feed(self, filepath):
+        """
+        Write out the feed information into a CASA table.
+
+        Parameters
+        ----------
+        filepath : str
+            path to MS (without FEED suffix)
+
+        """
+        if not casa_present:  # pragma: no cover
+            raise ImportError(no_casa_message) from casa_error
+
+        feed_table = tables.table(filepath + "::FEED", ack=False, readonly=False)
+
+        nfeeds_table = np.max(self.antenna_numbers) + 1
+        feed_table.addrows(nfeeds_table)
+
+        antenna_id_table = np.arange(nfeeds_table, dtype=np.int32)
+        feed_table.putcol("ANTENNA_ID", antenna_id_table)
+
+        beam_id_table = np.ones(nfeeds_table, dtype=np.int32)
+        feed_table.putcol("BEAM_ID", beam_id_table)
+
+        beam_offset_table = np.zeros((nfeeds_table, 2, 2), dtype=np.float64)
+        feed_table.putcol("BEAM_OFFSET", beam_offset_table)
+
+        feed_id_table = np.zeros(nfeeds_table, dtype=np.int32)
+        feed_table.putcol("FEED_ID", feed_id_table)
+
+        interval_table = np.zeros(nfeeds_table, dtype=np.float64)
+        feed_table.putcol("INTERVAL", interval_table)
+
+        # we want "x" or "y", *not* "e" or "n", so as not to confuse CASA
+        pol_str = uvutils.polnum2str(self.polarization_array)
+        feed_pols = {feed for pol in pol_str for feed in uvutils.POL_TO_FEED_DICT[pol]}
+        nfeed_pols = len(feed_pols)
+        num_receptors_table = np.tile(np.int32(nfeed_pols), nfeeds_table)
+        feed_table.putcol("NUM_RECEPTORS", num_receptors_table)
+
+        pol_types = [pol.upper() for pol in sorted(feed_pols)]
+        pol_type_table = np.tile(pol_types, (nfeeds_table, 1))
+        feed_table.putcol("POLARIZATION_TYPE", pol_type_table)
+
+        pol_response_table = np.dstack(
+            [np.eye(2, dtype=np.complex64) for n in range(nfeeds_table)]
+        ).transpose()
+        feed_table.putcol("POL_RESPONSE", pol_response_table)
+
+        position_table = np.zeros((nfeeds_table, 3), dtype=np.float64)
+        feed_table.putcol("POSITION", position_table)
+
+        receptor_angle_table = np.zeros((nfeeds_table, nfeed_pols), dtype=np.float64)
+        feed_table.putcol("RECEPTOR_ANGLE", receptor_angle_table)
+
+        feed_table.done()
+
     def _write_ms_field(self, filepath):
         """
         Write out the field information into a CASA table.
@@ -588,6 +645,7 @@ class MS(UVData):
         ms.done()
 
         self._write_ms_antenna(filepath)
+        self._write_ms_feed(filepath)
         self._write_ms_field(filepath)
         self._write_ms_spectralwindow(filepath)
         self._write_ms_polarization(filepath)
