@@ -171,11 +171,17 @@ class UVData(UVBase):
             tols=radian_tol,
         )
 
-        desc = "Array of first antenna numbers, shape (Nblts), type = int, 0 indexed"
+        desc = (
+            "Array of first antenna numbers (all entries must exist in "
+            "antenna_numbers). Shape (Nblts), type = int, 0 indexed."
+        )
         self._ant_1_array = uvp.UVParameter(
             "ant_1_array", description=desc, expected_type=int, form=("Nblts",)
         )
-        desc = "Array of second antenna numbers, shape (Nblts), type = int, 0 indexed"
+        desc = (
+            "Array of second antenna numbers, (all entries must exist in "
+            "antenna_numbers). Shape (Nblts), type = int, 0 indexed."
+        )
         self._ant_2_array = uvp.UVParameter(
             "ant_2_array", description=desc, expected_type=int, form=("Nblts",)
         )
@@ -399,7 +405,9 @@ class UVData(UVBase):
             "with numbers given by antenna_numbers (which can be matched "
             "to ant_1_array and ant_2_array). There must be one entry "
             "here for each unique entry in ant_1_array and "
-            "ant_2_array, but there may be extras as well."
+            "ant_2_array, but there may be extras as well. "
+            "Note that these are not indices -- they do not need to start "
+            "at zero or be continuous."
         )
         self._antenna_names = uvp.UVParameter(
             "antenna_names",
