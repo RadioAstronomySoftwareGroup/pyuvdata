@@ -459,6 +459,7 @@ class MS(UVData):
     def write_ms(
         self,
         filepath,
+        force_phase=False,
         clobber=False,
         run_check=True,
         check_extra=True,
@@ -472,6 +473,9 @@ class MS(UVData):
         ----------
         filepath : str
             The MS file path to write to.
+        force_phase : bool
+            Option to automatically phase drift scan data to zenith of the first
+            timestamp.
         clobber : bool
             Option to overwrite the file if it already exists.
         run_check : bool
@@ -502,6 +506,33 @@ class MS(UVData):
                 print("File exists; clobbering")
             else:
                 raise IOError("File exists; skipping")
+
+        # TODO: the phasing requirement can probably go away once we have proper
+        # multi-object support.
+        if self.phase_type == "phased":
+            pass
+        elif self.phase_type == "drift":
+            if force_phase:
+                print(
+                    "The data are in drift mode and do not have a "
+                    "defined phase center. Phasing to zenith of the first "
+                    "timestamp."
+                )
+                phase_time = Time(self.time_array[0], format="jd")
+                self.phase_to_time(phase_time)
+            else:
+                raise ValueError(
+                    "The data are in drift mode. "
+                    "Set force_phase to true to phase the data "
+                    "to zenith of the first timestamp before "
+                    "writing a uvfits file."
+                )
+        else:
+            raise ValueError(
+                "The phasing type of the data is unknown. "
+                "Set the phase_type to drift or phased to "
+                "reflect the phasing status of the data"
+            )
 
         nchan = self.freq_array.shape[1]
         npol = len(self.polarization_array)
