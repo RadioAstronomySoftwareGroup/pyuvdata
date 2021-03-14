@@ -12202,6 +12202,7 @@ class UVData(UVBase):
     def write_ms(
         self,
         filename,
+        force_phase=False,
         clobber=False,
         run_check=True,
         check_extra=True,
@@ -12216,6 +12217,9 @@ class UVData(UVBase):
         filename : str
             The measurement set file path to write to (a measurement set is really
             a folder with many files).
+        force_phase : bool
+            Option to automatically phase drift scan data to zenith of the first
+            timestamp.
         clobber : bool
             Option to overwrite the file if it already exists.
         run_check : bool
@@ -12234,6 +12238,7 @@ class UVData(UVBase):
         ms_obj = self._convert_to_filetype("ms")
         ms_obj.write_ms(
             filename,
+            force_phase=force_phase,
             clobber=clobber,
             run_check=run_check,
             check_extra=check_extra,
