@@ -788,6 +788,22 @@ def test_start_flag_bad_string():
     assert str(cm.value).startswith("start_flag must be int or float or 'goodtime'")
 
 
+@pytest.mark.filterwarnings("ignore:telescope_location is not set.")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_start_flag_int_time(tmp_path):
+    """Test goodtime returning a start_flag smaller than integration time."""
+    uv = UVData()
+    new_meta = str(tmp_path / "1131733552_goodtime.metafits")
+    with fits.open(filelist[0]) as meta:
+        meta[0].header["GOODTIME"] = 1447698337.25
+        meta.writeto(new_meta)
+    uv.read(
+        [new_meta, filelist[1]], flag_init=True, start_flag="goodtime",
+    )
+    # goodtime > start_time so all data should be flagged
+    assert np.all(uv.flag_array)
+
+
 def test_input_output_mapping():
     """Test the input_output_mapping function."""
     mapping_dict = {}
