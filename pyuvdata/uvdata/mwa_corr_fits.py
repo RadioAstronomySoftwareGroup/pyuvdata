@@ -1034,6 +1034,9 @@ class MWACorrFITS(UVData):
                 try:
                     if meta_hdr["GOODTIME"] > start_time:
                         start_flag = meta_hdr["GOODTIME"] - start_time
+                        # round start_flag up to nearest multiple of int_time
+                        if start_flag % int_time > 0:
+                            start_flag = (1 + int(start_flag / int_time)) * int_time
                     else:
                         start_flag = 0.0
                 except KeyError:
