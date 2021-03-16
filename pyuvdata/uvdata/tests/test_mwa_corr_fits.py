@@ -800,7 +800,8 @@ def test_start_flag_int_time(tmp_path):
     uv.read(
         [new_meta, filelist[1]], flag_init=True, start_flag="goodtime",
     )
-    # goodtime > start_time so all data should be flagged
+    # first integration time should be flagged
+    # data only has one integration time, so all data should be flagged
     assert np.all(uv.flag_array)
 
 
