@@ -7,10 +7,10 @@ All notable changes to this project will be documented in this file.
 - Added option to apply a Van Vleck correction to mwa_corr_fits files.
 
 ### Fixed
-- A bug in reading in the MWA beam that caused the beam to be rotated by 90 degrees.
 - A bug in mwa_corr_fits that didn't round start_flag to the nearest multiple of
 integration time when using goodtime, resulting in an error when reading data
 taken at 2 seconds.
+- A bug in reading in the MWA beam that caused the beam to be rotated by 90 degrees.
 
 ## [2.1.4] - 2021-2-04
 
