@@ -41,6 +41,13 @@ when there is more than one time integration in the data there are many repetiti
 each baseline. The times for each visibility are given by the ``time_array`` attribute
 which also has the same length (the length of the baseline-time axis on the ``data_array``).
 
+There is also a ``baseline_array`` attribute with baseline numbers defined as
+:math:`baseline = 2048 * (antenna_1+1) + (antenna_2+1) + 2^16`. This gives a unique
+baseline number for each antenna pair and can be a useful way to identify visibilities
+associated with particular baselines. The ``baseline_array`` attribute has the same
+length as the ``ant_1_array`` and ``ant_2_array`` (the length of the baseline-time axis
+on the ``data_array``).
+
 For most users, the convenience methods for quick data access (see :ref:`quick_access`)
 are the easiest way to get data for particular sets of baselines. Those methods take
 the antenna numbers (i.e. numbers listed in ``antenna_numbers``) as inputs.
@@ -52,7 +59,7 @@ Converting between tested data formats
 
 a) miriad -> uvfits
 *******************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -74,7 +81,7 @@ a) miriad -> uvfits
 
 b) uvfits -> miriad
 *******************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -98,7 +105,7 @@ b) uvfits -> miriad
 c) FHD -> uvfits
 ****************
 When reading FHD format, we need to point to several files for each observation.
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -122,7 +129,7 @@ When reading FHD format, we need to point to several files for each observation.
 
 d) FHD -> miriad
 ****************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -145,7 +152,7 @@ d) FHD -> miriad
 
 e) CASA -> uvfits
 *****************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -166,7 +173,7 @@ e) CASA -> uvfits
 
 f) CASA -> miriad
 *****************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -187,7 +194,7 @@ f) CASA -> miriad
 
 g) miriad -> uvh5
 *****************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -203,7 +210,7 @@ g) miriad -> uvh5
 
 h) uvfits -> uvh5
 *****************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -239,7 +246,7 @@ optional to apply a Van Vleck correction to the data. The default for this corre
 to use a Chebyshev polynomial approximation, and there is an option to instead use a
 slower integral implementation.
 
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -273,7 +280,7 @@ flags, and nsamples.
 
 a) Data for single antenna pair / polarization combination.
 ************************************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -295,7 +302,7 @@ a) Data for single antenna pair / polarization combination.
 
 b) Flags and nsamples for above data.
 *************************************
-::
+.. code-block:: python
 
   >>> flags = UV.get_flags(1, 2, 'rr')
   >>> nsamples = UV.get_nsamples(1, 2, 'rr')
@@ -306,7 +313,7 @@ b) Flags and nsamples for above data.
 
 c) Data for single antenna pair, all polarizations.
 ***************************************************
-::
+.. code-block:: python
 
   >>> data = UV.get_data(1, 2)
   >>> print(data.shape)
@@ -319,7 +326,7 @@ c) Data for single antenna pair, all polarizations.
 
 d) Data for single polarization, all baselines.
 ***********************************************
-::
+.. code-block:: python
 
   >>> data = UV.get_data('rr')
   >>> print(data.shape)
@@ -327,7 +334,7 @@ d) Data for single polarization, all baselines.
 
 e) Iterate over all antenna pair / polarizations.
 *************************************************
-::
+.. code-block:: python
 
   >>> for key, data in UV.antpairpol_iter():
   ...  flags = UV.get_flags(key)
@@ -337,7 +344,7 @@ e) Iterate over all antenna pair / polarizations.
 
 f) Convenience functions to ask what antennas, baselines, and pols are in the data.
 ***********************************************************************************
-::
+.. code-block:: python
 
   # Get all unique antennas in data
   >>> print(UV.get_ants())
@@ -357,7 +364,7 @@ f) Convenience functions to ask what antennas, baselines, and pols are in the da
 
 g) Quick access to file attributes of a UV* object (UVData, UVCal, UVBeam)
 **************************************************************************
-::
+.. code-block:: python
 
   ## in bash ##
   # Print data_array.shape to stdout
@@ -372,7 +379,7 @@ g) Quick access to file attributes of a UV* object (UVData, UVCal, UVBeam)
 UVData: Phasing
 ---------------
 Phasing/unphasing data
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -422,12 +429,12 @@ Use the ``frequency_average`` method to average along the frequency axis.
 
 a) Averaging (Downsampling) in time
 ***********************************
-Use either the `n_times_to_avg` keyword to specify an integer factor to average
-by or `min_int_time` to specify a minimum final integration time. Specifying
-`min_int_time` is most appropriate when the integration time varies, e.g. if
+Use either the ``n_times_to_avg`` keyword to specify an integer factor to average
+by or ``min_int_time`` to specify a minimum final integration time. Specifying
+``min_int_time`` is most appropriate when the integration time varies, e.g. if
 the data have had baseline-dependent averaging applied.
 
-::
+.. code-block:: python
 
   >>> import os
   >>> import numpy as np
@@ -463,7 +470,7 @@ the data have had baseline-dependent averaging applied.
 
 b) Upsampling in time
 *********************
-::
+.. code-block:: python
 
   >>> import os
   >>> import numpy as np
@@ -487,7 +494,7 @@ b) Upsampling in time
 
 c) Resampling a BDA dataset in time
 ***********************************
-::
+.. code-block:: python
 
   >>> import os
   >>> import numpy as np
@@ -508,7 +515,7 @@ c) Resampling a BDA dataset in time
 
 d) Averaging in frequency
 *************************
-::
+.. code-block:: python
 
   >>> import os
   >>> import numpy as np
@@ -532,7 +539,7 @@ Making a simple waterfall plot.
 Note: there is now support for reading in only part of a uvfits, uvh5 or miriad file
 (see :ref:`large_files`), so you need not read in the
 entire file to plot one waterfall.
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -577,7 +584,7 @@ for locations on the earth.
 
 a) Getting antenna positions in topocentric frame in units of meters
 ********************************************************************
-::
+.. code-block:: python
 
   # directly from UVData object
   >>> import os
@@ -609,7 +616,7 @@ read in the entire file before doing the select.
 
 a) Select 3 antennas to keep using the antenna number.
 ******************************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -630,7 +637,7 @@ a) Select 3 antennas to keep using the antenna number.
 
 b) Select 3 antennas to keep using the antenna names, also select 5 frequencies to keep.
 ****************************************************************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -661,7 +668,7 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
 
 c) Select a few antenna pairs to keep
 *************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -682,7 +689,7 @@ c) Select a few antenna pairs to keep
 
 d) Select antenna pairs using baseline numbers
 **********************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> import numpy as np
@@ -718,7 +725,7 @@ ________________________________
 - 1: returns all antenna pairs containing antenna number 1 (including the auto correlation)
 - 1,2: returns all antenna pairs containing antennas 1 and/or 2
 
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -746,7 +753,7 @@ ___________________________
 - (1,2)_3: returns antenna pairs (1,3),(2,3)
 - 1_(2,3): returns antenna pairs (1,2),(1,3)
 
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -781,7 +788,7 @@ all antenna pairs kept in the object will retain data for each specified polariz
 - 1l_3,2x_3: returns antenna pairs (1,3), (2,3) and polarizations ll, lr, xx, and xy
 - 1_3l,2_3x: returns antenna pairs (1,3), (2,3) and polarizations ll, rl, xx, and yx
 
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -818,7 +825,7 @@ If a minus sign is present in front of an antenna number, it will not be kept in
 - 1,-1_3: returns all antenna pairs containing antenna 1, except the antenna pair (1,3)
 - 1x_(-3y,10x): returns antenna pair (1,10) and polarization xx
 
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -840,7 +847,7 @@ If a minus sign is present in front of an antenna number, it will not be kept in
 
 e) Select data and return new object (leaving original intact).
 ***************************************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -866,7 +873,7 @@ the baseline-time, frequency, and/or polarization axis.
 
 a) Combine frequencies.
 ***********************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -886,7 +893,7 @@ a) Combine frequencies.
 
 b) Combine times.
 *****************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -911,7 +918,7 @@ c) Combine in place.
 ********************
 The following two commands are equivalent, and act on uv1
 directly without creating a third uvdata object.
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -936,7 +943,7 @@ d) Reading multiple files.
 If the ``read`` method is given a list of files
 (or list of lists for FHD or MWA correlator files), each file will be read in succession
 and combined with the previous file(s).
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -976,7 +983,7 @@ for large UVData objects. Preliminary benchmarking shows that reading in
 time-ordered visibilities from disk using the ``axis`` keyword argument can
 improve throughput by nearly an order of magnitude for 100 HERA data files
 stored in the uvh5 format.
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -999,7 +1006,7 @@ UVData: Summing and differencing visibilities
 ---------------------------------------------
 Simple summing and differencing of visibilities can be done with the ``sum_vis``
 and ``diff_vis`` methods.
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -1041,7 +1048,7 @@ are available.
 Measurement set (ms) files do not support
 reading only the metadata
 (the read_data keyword is ignored for ms files).
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -1075,7 +1082,7 @@ unsupported ones are done after the read.
 Any of the select keywords can be used for any file type, but selects for keywords
 that are not supported by the select on read for a given file type will be
 done after the read, which does not save memory.
-::
+.. code-block:: python
 
   >>> import os
   >>> import numpy as np
@@ -1127,7 +1134,7 @@ selective read operation is used, so that the user can precisely specify which
 parts of the data, flags, and nsample arrays should be written to. The user then
 also provides the data, flags, and nsample arrays of the proper size, and they
 are written to the appropriate parts of the file on disk.
-::
+.. code-block:: python
 
   >>> import os
   >>> import numpy as np
@@ -1172,7 +1179,7 @@ The :meth:`pyuvdata.UVData.conjugate_bls` method will conjugate baselines to con
 conventions (``'ant1<ant2'``, ``'ant2<ant1'``, ``'u<0'``, ``'u>0'``, ``'v<0'``, ``'v>0'``) or it can just
 conjugate a set of specific baseline-time indices.
 
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -1196,7 +1203,7 @@ The :meth:`pyuvdata.UVData.reorder_blts` method will reorder the baseline-time a
 have baseline dependent averaging ``'bda'``. A user can also just specify a desired
 order by passing an array of baseline-time indices.
 
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -1232,7 +1239,7 @@ c) Sorting along the polarization axis
 The :meth:`pyuvdata.UVData.reorder_pols` method will reorder the polarization axis either following
 the ``'AIPS'`` or ``'CASA'`` convention, or by an explicit index ordering set by the user.
 
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -1253,11 +1260,11 @@ UVData: Working with Redundant Baselines
 
 a) Finding Redundant Baselines
 ******************************
-:mod:`utils` contains functions for finding redundant groups of baselines in
+:mod:`~pyuvdata.utils` contains functions for finding redundant groups of baselines in
 an array, either by antenna positions or uvw coordinates. Baselines are
 considered redundant if they are within a specified tolerance distance (default is 1 meter).
 
-The :func:`utils.get_baseline_redundancies` function accepts an array of baseline indices
+The :func:`~pyuvdata.utils.get_baseline_redundancies` function accepts an array of baseline indices
 and an array of baseline vectors (ie, uvw coordinates) as input, and finds
 redundancies among the vectors as given. If the ``with_conjugates`` option is
 selected, it will include baselines that are redundant when reversed in the same group.
@@ -1265,26 +1272,31 @@ In this case, a list of ``conjugates`` is returned as well,
 which contains indices for the baselines that were flipped for the redundant groups.
 In either mode of operation, this will only return baseline indices that are in the list passed in.
 
-The :func:`utils.get_antenna_redundancies` function accepts an array of
+The :func:`~pyuvdata.utils.get_antenna_redundancies` function accepts an array of
 antenna indices and an array of antenna positions as input, defines baseline vectors
 and indices in the convention that ``ant1<ant2``, and runs
-:func:`utils.get_baseline_redundancies` to find redundant baselines. It will then apply the conjugates
+:func:`~pyuvdata.utils.get_baseline_redundancies` to find redundant baselines. It will then apply the conjugates
 list to the groups it finds.
 
-There is a subtle difference between the purposes of the two functions. `utils.get_antenna_redundancies`
-gives you all redundant baselines from the antenna positions, and does not necessarily reflect the baselines
-in a file. This is similar to what is written in the `hera_cal` package.
-Alternatively, `utils.get_baseline_redundancies` may be given the actual
-baseline vectors in a file and it will search for redundancies among those.
+There is a subtle difference between the purposes of the two functions.
+:func:`~pyuvdata.utils.get_antenna_redundancies` gives you all redundant baselines from the
+antenna positions, and does not necessarily reflect the baselines
+in a file (this is similar to what is written in the ``hera_cal`` package used by the
+HERA collaboration).
+Alternatively, :func:`~pyuvdata.utils.get_baseline_redundancies` may be given the actual
+baseline vectors in a file and it will search for redundancies just among those baselines.
 
 The method :meth:`~pyuvdata.UVData.get_redundancies` is provided as a convenience. If
-run with the `use_antpos` option, it will mimic the behavior of `utils.get_antenna_redundancies`.
-Otherwise it will return redundancies in the existing data using `utils.get_baseline_redundancies`.
-If run with `use_antpos` and the `conjugate_bls` option, it will also adjust the data_array and baseline_array
-so that the baselines in the returned groups correspond with the baselines listed on the object (i.e., except for
+run with the ``use_antpos`` option, it will mimic the behavior of
+:func:`~pyuvdata.utils.get_antenna_redundancies`.
+Otherwise it will return redundancies in the existing data using
+:func:`~pyuvdata.utils.get_baseline_redundancies`.
+If run with ``use_antpos`` and the ``conjugate_bls`` option, it will also adjust the
+``data_array`` and ``baseline_array`` so that the baselines in the returned groups
+correspond with the baselines listed on the object (i.e., except for
 antenna pairs with no associated data).
 
-::
+.. code-block:: python
 
   >>> import os
   >>> import numpy as np
@@ -1330,15 +1342,15 @@ redundant to a given tolerance and either average over them or select a single
 baseline from the redundant group. If the data are identical between redundant
 baselines (e.g. if they are from a noiseless simulation) the "select" method
 should be used as it is much faster. If the "average" method is used, the data
-are combined with a weighted average using the `nsample_array` as weights
-and the final `nsample_array` will be a sum of the `nsample_array` of the
+are combined with a weighted average using the ``nsample_array`` as weights
+and the final ``nsample_array`` will be a sum of the ``nsample_array`` of the
 combined baselines (so it can be larger than 1).
 
 This action is (almost) inverted by the :meth:`~pyuvdata.UVData.inflate_by_redundancy`
 method, which finds all possible baselines from the antenna positions and fills
 in the full data array based on redundancy.
 
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVData
@@ -1376,7 +1388,7 @@ Calibration files using UVCal.
 
 a) Reading a cal fits gain calibration file.
 ********************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVCal
@@ -1417,7 +1429,7 @@ a) Reading a cal fits gain calibration file.
 
 b) FHD cal to cal fits
 ***********************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVCal
@@ -1440,7 +1452,7 @@ the data output will have shape (Nfreqs, Ntimes).
 
 a) Data for a single antenna and instrumental polarization
 **********************************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVCal
@@ -1466,7 +1478,7 @@ UVCal: Calibrating UVData
 
 a) Calibration of UVData by UVCal
 *********************************
-::
+.. code-block:: python
 
   # We can calibrate directly using a UVCal object
   >>> import os
@@ -1489,7 +1501,7 @@ to keep in the object while removing others.
 
 a) Select 3 antennas to keep using the antenna number.
 ******************************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVCal
@@ -1511,7 +1523,7 @@ a) Select 3 antennas to keep using the antenna number.
 
 b) Select 3 antennas to keep using the antenna names, also select 5 frequencies to keep.
 ****************************************************************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVCal
@@ -1548,7 +1560,7 @@ the antenna, time, frequency, and/or polarization axis.
 
 a) Add frequencies.
 *******************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVCal
@@ -1568,7 +1580,7 @@ a) Add frequencies.
 
 b) Add times.
 ****************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVCal
@@ -1591,7 +1603,7 @@ c) Adding in place.
 *******************
 The following two commands are equivalent, and act on cal1
 directly without creating a third uvcal object.
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVCal
@@ -1616,7 +1628,7 @@ d) Reading multiple files.
 **************************
 If any of the read methods (read_calfits, read_fhd_cal) are given a list of files,
 each file will be read in succession and added to the previous.
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVCal
@@ -1654,7 +1666,7 @@ UVCal: Changing cal_type from 'delay' to 'gain'
 UVCal includes the method convert_to_gain(), which changes a UVCal object's
 cal_type parameter from 'delay' to 'gain,' and accordingly sets the object's
 gain_array to one consistent with its pre-existing delay_array.
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVCal
@@ -1715,7 +1727,7 @@ settings files can be found in :doc:`cst_settings_yaml`.
 
 a) Reading a CST power beam file
 ********************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVBeam
@@ -1775,7 +1787,7 @@ a) Reading a CST power beam file
 
 b) Reading a CST E-field beam file
 **********************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVBeam
@@ -1791,7 +1803,7 @@ b) Reading a CST E-field beam file
 
 c) Reading in the MWA full embedded element beam
 ************************************************
-::
+.. code-block:: python
 
   # To get all the frequencies available for the MWA full embedded element beam
   # you need to download the output simulation file via
@@ -1823,7 +1835,7 @@ c) Reading in the MWA full embedded element beam
 
 d) Writing a regularly gridded beam FITS file
 **********************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVBeam
@@ -1837,7 +1849,7 @@ d) Writing a regularly gridded beam FITS file
 
 e) Writing a HEALPix beam FITS file
 ***********************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVBeam
@@ -1869,7 +1881,7 @@ beam_type is power) to keep in the object while removing others.
 
 a) Selecting a range of Zenith Angles
 *************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVBeam
@@ -1894,7 +1906,7 @@ UVBeam: Converting to beam types and coordinate systems
 
 a) Convert a regularly gridded az_za power beam to HEALpix (leaving original intact).
 *************************************************************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVBeam
@@ -1922,7 +1934,7 @@ a) Convert a regularly gridded az_za power beam to HEALpix (leaving original int
 
 b) Convert a regularly gridded az_za efield beam to HEALpix (leaving original intact).
 **************************************************************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVBeam
@@ -1951,7 +1963,7 @@ b) Convert a regularly gridded az_za efield beam to HEALpix (leaving original in
 
 c) Convert a regularly gridded efield beam to a power beam (leaving original intact).
 *************************************************************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVBeam
@@ -1974,7 +1986,7 @@ c) Convert a regularly gridded efield beam to a power beam (leaving original int
 
 Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
 *******************************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVBeam
@@ -2008,7 +2020,7 @@ Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
 
 Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared area
 **********************************************************************************
-::
+.. code-block:: python
 
   >>> import os
   >>> from pyuvdata import UVBeam

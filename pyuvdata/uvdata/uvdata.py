@@ -406,8 +406,6 @@ class UVData(UVBase):
             "to ant_1_array and ant_2_array). There must be one entry "
             "here for each unique entry in ant_1_array and "
             "ant_2_array, but there may be extras as well. "
-            "Note that these are not indices -- they do not need to start "
-            "at zero or be continuous."
         )
         self._antenna_names = uvp.UVParameter(
             "antenna_names",
@@ -421,6 +419,8 @@ class UVData(UVBase):
             "shape (Nants_telescope). There must be one "
             "entry here for each unique entry in ant_1_array and "
             "ant_2_array, but there may be extras as well."
+            "Note that these are not indices -- they do not need to start "
+            "at zero or be continuous."
         )
         self._antenna_numbers = uvp.UVParameter(
             "antenna_numbers",
