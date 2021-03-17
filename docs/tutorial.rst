@@ -41,12 +41,13 @@ when there is more than one time integration in the data there are many repetiti
 each baseline. The times for each visibility are given by the ``time_array`` attribute
 which also has the same length (the length of the baseline-time axis on the ``data_array``).
 
-There is also a ``baseline_array`` attribute with baseline numbers defined as
-:math:`baseline = 2048 * (antenna_1+1) + (antenna_2+1) + 2^16`. This gives a unique
-baseline number for each antenna pair and can be a useful way to identify visibilities
-associated with particular baselines. The ``baseline_array`` attribute has the same
-length as the ``ant_1_array`` and ``ant_2_array`` (the length of the baseline-time axis
-on the ``data_array``).
+There is also a ``baseline_array`` attribute with baseline numbers defined from the
+``ant_1_array`` and ``ant_2_array`` as
+:math:`baseline = 2048 * (antenna_1+1) + (antenna_2+1) + 2^{16}`.
+This gives a unique baseline number for each antenna pair and can be a useful way to
+identify visibilities associated with particular baselines. The ``baseline_array``
+attribute has the same length as the ``ant_1_array`` and ``ant_2_array`` (the length of
+the baseline-time axis on the ``data_array``).
 
 For most users, the convenience methods for quick data access (see :ref:`quick_access`)
 are the easiest way to get data for particular sets of baselines. Those methods take
