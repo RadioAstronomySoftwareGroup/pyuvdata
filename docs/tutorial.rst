@@ -11,6 +11,40 @@ output files are written to a temporary directory created by pytest.
 UVData
 ------
 
+UVData objects hold all of the metadata and data required to analyze interferometric
+data sets. Interferometric data is fundamentally tied to baselines, which are composed
+of pairs of antennas. Visibilities, the measured quantity recorded from interferometers,
+are complex numbers per baseline, time, frequency and instrumental polarization. On
+UVData objects, visibilities are held in the ``data_array``. The ``data_array`` has axes
+corresponding to baseline-time, frequency and instrumental polarization, so the baselines
+and times are indexed together. This is because it is not uncommon for interferometers
+not to record every baseline at every time for several reasons (including
+baseline-dependent averaging).
+
+The antennas are described in two ways: with antenna numbers and antenna names. The
+antenna numbers should **not** be confused with indices -- they are not required to start
+at zero or to be contiguous, although it is not uncommon for some telescopes to number
+them like indices. On UVData objects, the names and numbers are held in the
+``antenna_names`` and ``antenna_numbers`` attributes respectively. These are arranged
+in the same order so that an antenna number can be used to identify an antenna name and
+vice versa.
+Note that not all the antennas listed in ``antenna_numbers`` and ``antenna_names`` are
+guaranteed to have visibilities associated with them in the ``data_array``. The antenna
+numbers associated with each visibility is held in the ``ant_1_array`` and ``ant_2_array``
+attributes. These arrays hold the antenna numbers for each visibility (they have the
+same length as the ``data_array`` along the baseline-time axis) and which array they appear
+in (``ant_1_array`` vs ``ant_2_array``) indicates the direction of the baseline. On
+UVData objects, the baseline vector is defined to point from antenna 1 to antenna 2, so
+it is given by the position of antenna 2 minus the position of antenna 1. Since the
+``ant_1_array`` and ``ant_2_array`` attributes have the length of the baseline-time axis,
+there are many repetitions of each baseline (if there is more than one time integration),
+the times are given by the ``time_array`` attribute which also has the same length.
+
+For most users, the convenience methods for quick data access :ref:`quick_access` are the
+easiest way to get data for particular sets of baselines. Those methods take the antenna
+numbers (i.e. numbers listed in ``antenna_numbers``) as inputs.
+
+
 UVData: File conversion
 -----------------------
 Converting between tested data formats
@@ -229,6 +263,7 @@ slower integral implementation.
   >>> write_file = os.path.join('.', 'tutorial.uvfits')
   >>> UV.write_uvfits(write_file, spoof_nonessential=True)
 
+.. _quick_access:
 
 UVData: Quick data access
 -------------------------
