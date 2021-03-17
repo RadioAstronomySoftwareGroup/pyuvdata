@@ -37,12 +37,13 @@ in (``ant_1_array`` vs ``ant_2_array``) indicates the direction of the baseline.
 UVData objects, the baseline vector is defined to point from antenna 1 to antenna 2, so
 it is given by the position of antenna 2 minus the position of antenna 1. Since the
 ``ant_1_array`` and ``ant_2_array`` attributes have the length of the baseline-time axis,
-there are many repetitions of each baseline (if there is more than one time integration),
-the times are given by the ``time_array`` attribute which also has the same length.
+when there is more than one time integration in the data there are many repetitions of
+each baseline. The times for each visibility are given by the ``time_array`` attribute
+which also has the same length (the length of the baseline-time axis on the ``data_array``).
 
-For most users, the convenience methods for quick data access :ref:`quick_access` are the
-easiest way to get data for particular sets of baselines. Those methods take the antenna
-numbers (i.e. numbers listed in ``antenna_numbers``) as inputs.
+For most users, the convenience methods for quick data access (see :ref:`quick_access`)
+are the easiest way to get data for particular sets of baselines. Those methods take
+the antenna numbers (i.e. numbers listed in ``antenna_numbers``) as inputs.
 
 
 UVData: File conversion
