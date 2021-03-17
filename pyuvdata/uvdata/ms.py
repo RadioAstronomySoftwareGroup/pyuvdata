@@ -140,7 +140,7 @@ class MS(UVData):
         antenna_id_table = np.arange(nfeeds_table, dtype=np.int32)
         feed_table.putcol("ANTENNA_ID", antenna_id_table)
 
-        beam_id_table = np.ones(nfeeds_table, dtype=np.int32)
+        beam_id_table = -1 * np.ones(nfeeds_table, dtype=np.int32)
         feed_table.putcol("BEAM_ID", beam_id_table)
 
         beam_offset_table = np.zeros((nfeeds_table, 2, 2), dtype=np.float64)
@@ -174,6 +174,9 @@ class MS(UVData):
         receptor_angle_table = np.zeros((nfeeds_table, nfeed_pols), dtype=np.float64)
         feed_table.putcol("RECEPTOR_ANGLE", receptor_angle_table)
 
+        spectral_window_id_table = -1 * np.ones(nfeeds_table, dtype=np.int32)
+        feed_table.putcol("SPECTRAL_WINDOW_ID", spectral_window_id_table)
+
         feed_table.done()
 
     def _write_ms_field(self, filepath):
@@ -199,6 +202,71 @@ class MS(UVData):
         field_table.putcell("REFERENCE_DIR", 0, phasedir)
         field_table.putcell("NAME", 0, self.object_name)
 
+    def _write_ms_pointing(self, filepath):
+        """
+        Write out the pointing information into a CASA table.
+
+        Parameters
+        ----------
+        filepath : str
+            path to MS (without POINTING suffix)
+
+        """
+        if not casa_present:  # pragma: no cover
+            raise ImportError(no_casa_message) from casa_error
+
+        pointing_table = tables.table(
+            filepath + "::POINTING", ack=False, readonly=False
+        )
+        # TODO: we probably have to fix this for steerable dishes
+        nants = np.max(self.antenna_numbers) + 1
+        antennas = np.arange(nants, dtype=np.int32)
+        times = np.asarray(
+            [
+                Time(t, format="jd", scale="utc").mjd * 3600.0 * 24.0
+                for t in self.time_array
+            ]
+        )
+        intervals = self.integration_time
+        ntimes = len(times)
+
+        antennas_full = np.tile(antennas, ntimes)
+        times_full = np.repeat(times, nants)
+        intervals_full = np.repeat(intervals, nants)
+
+        nrows = len(antennas_full)
+        assert len(times_full) == nrows
+        assert len(intervals_full) == nrows
+
+        pointing_table.addrows(nrows)
+
+        pointing_table.putcol("ANTENNA_ID", antennas_full)
+        pointing_table.putcol("TIME", times_full)
+        pointing_table.putcol("INTERVAL", intervals_full)
+
+        name_col = np.asarray(["ZENITH"] * nrows, dtype=np.bytes_)
+        pointing_table.putcol("NAME", name_col)
+
+        num_poly_col = np.zeros(nrows, dtype=np.int32)
+        pointing_table.putcol("NUM_POLY", num_poly_col)
+
+        time_origin_col = times_full
+        pointing_table.putcol("TIME_ORIGIN", time_origin_col)
+
+        # we always "point" at zenith
+        direction_col = np.zeros((nrows, 2, 1), dtype=np.float64)
+        direction_col[0] = np.pi / 2
+        pointing_table.putcol("DIRECTION", direction_col)
+
+        # just reuse "direction" for "target"
+        pointing_table.putcol("TARGET", direction_col)
+
+        # set tracking info to `False`
+        tracking_col = np.zeros(nrows, dtype=np.bool_)
+        pointing_table.putcol("TRACKING", tracking_col)
+
+        pointing_table.done()
+
     def _write_ms_spectralwindow(self, filepath):
         """
         Write out the spectral information into a CASA table.
@@ -223,7 +291,10 @@ class MS(UVData):
         )
 
         sw_table.addrows()
+        sw_table.putcell("NAME", 0, "WINDOW0")
+        sw_table.putcell("REF_FREQUENCY", 0, self.freq_array[0, 0])
         sw_table.putcell("CHAN_FREQ", 0, self.freq_array[0])
+        sw_table.putcell("MEAS_FREQ_REF", 0, 1)
         # TODO fix for future array shapes
         chanwidths = np.ones_like(self.freq_array[0]) * self.channel_width
         sw_table.putcell("CHAN_WIDTH", 0, chanwidths)
@@ -277,6 +348,14 @@ class MS(UVData):
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
 
+        pol_str = uvutils.polnum2str(self.polarization_array)
+        feed_pols = {feed for pol in pol_str for feed in uvutils.POL_TO_FEED_DICT[pol]}
+        pol_types = [pol.lower() for pol in sorted(feed_pols)]
+        pol_tuples = np.asarray(
+            [(pol_types.index(i), pol_types.index(j)) for i, j in pol_str],
+            dtype=np.int32,
+        )
+
         pol_table = tables.table(filepath + "::POLARIZATION", ack=False, readonly=False)
         pol_table.addrows()
         pol_table.putcell(
@@ -286,6 +365,7 @@ class MS(UVData):
                 [POL_AIPS2CASA_DICT[aipspol] for aipspol in self.polarization_array]
             ),
         )
+        pol_table.putcell("CORR_PRODUCT", 0, pol_tuples)
         pol_table.putcell("NUM_CORR", 0, self.Npols)
 
     def _ms_hist_to_string(self, history_table):
@@ -648,6 +728,7 @@ class MS(UVData):
         self._write_ms_feed(filepath)
         self._write_ms_field(filepath)
         self._write_ms_spectralwindow(filepath)
+        self._write_ms_pointing(filepath)
         self._write_ms_polarization(filepath)
         self._write_ms_observation(filepath)
         self._write_ms_history(filepath)
