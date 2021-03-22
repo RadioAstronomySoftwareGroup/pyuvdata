@@ -1,11 +1,10 @@
 Tutorial
 ========
 
-In the examples below, output files are written to the
-``pyuvdata/pyuvdata/data/tutorial_output`` directory, which you will need to
-create to run the code exactly as written. Alternatively you can change the
-location the output files are saved to by changing the arguments to the
-``os.path.join`` calls.
+In the examples below, output files are written to a temporary directory created during testing.
+By default they will write to the current working directory.
+Alternatively you can change the location the output files are saved to
+by changing the arguments to the ``os.path.join`` calls.
 
 ------
 UVData
@@ -33,7 +32,7 @@ a) miriad -> uvfits
   >>> UV.read_miriad(miriad_file)
 
   # Write out the uvfits file
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.uvfits')
+  >>> write_file = os.path.join('.', 'tutorial.uvfits')
   >>> UV.write_uvfits(write_file, force_phase=True, spoof_nonessential=True)
   The data are in drift mode and do not have a defined phase center. Phasing to zenith of the first timestamp.
 
@@ -55,7 +54,7 @@ b) uvfits -> miriad
   >>> UV.read_uvfits(uvfits_file)
 
   # Write out the miriad file
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.uv')
+  >>> write_file = os.path.join('.', 'tutorial.uv')
   >>> if os.path.exists(write_file):
   ...    shutil.rmtree(write_file)
   >>> UV.write_miriad(write_file)
@@ -82,7 +81,7 @@ When reading FHD format, we need to point to several files for each observation.
   >>> UV.read(fhd_files)
   >>> UV.read(fhd_files, file_type='fhd')
   >>> UV.read_fhd(fhd_files)
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.uvfits')
+  >>> write_file = os.path.join('.', 'tutorial.uvfits')
   >>> UV.write_uvfits(write_file, spoof_nonessential=True)
 
 d) FHD -> miriad
@@ -103,7 +102,7 @@ d) FHD -> miriad
   ...                                       'vis_model_YY.sav', 'settings.txt',
   ...                                       'layout.sav']]
   >>> UV.read(fhd_files)
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output','tutorial.uv')
+  >>> write_file = os.path.join('.','tutorial.uv')
   >>> if os.path.exists(write_file):
   ...    shutil.rmtree(write_file)
   >>> UV.write_miriad(write_file)
@@ -126,7 +125,7 @@ e) CASA -> uvfits
   >>> UV.read_ms(ms_file)
 
   # Write out uvfits file
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.uvfits')
+  >>> write_file = os.path.join('.', 'tutorial.uvfits')
   >>> UV.write_uvfits(write_file, spoof_nonessential=True)
 
 f) CASA -> miriad
@@ -145,7 +144,7 @@ f) CASA -> miriad
   >>> UV.read(ms_file)
 
   # Write out Miriad file
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.uv')
+  >>> write_file = os.path.join('.', 'tutorial.uv')
   >>> if os.path.exists(write_file):
   ...    shutil.rmtree(write_file)
   >>> UV.write_miriad(write_file)
@@ -164,7 +163,7 @@ g) miriad -> uvh5
   >>> UV.read(miriad_file)
 
   # Write out the uvh5 file
-  >>> UV.write_uvh5(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.uvh5'))
+  >>> UV.write_uvh5(os.path.join('.', 'tutorial.uvh5'))
 
 h) uvfits -> uvh5
 *****************
@@ -179,7 +178,7 @@ h) uvfits -> uvh5
   >>> UV.read(uvfits_file)
 
   # Write out the uvh5 file
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.uvh5')
+  >>> write_file = os.path.join('.', 'tutorial.uvh5')
   >>> if os.path.exists(write_file):
   ...    os.remove(write_file)
   >>> UV.write_uvh5(write_file)
@@ -226,7 +225,7 @@ slower integral implementation.
   >>> UV.read_mwa_corr_fits(filelist, correct_cable_len=True, phase_to_pointing_center=True, flag_init=False)
 
   # Write out uvfits file
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.uvfits')
+  >>> write_file = os.path.join('.', 'tutorial.uvfits')
   >>> UV.write_uvfits(write_file, spoof_nonessential=True)
 
 
@@ -911,10 +910,10 @@ and combined with the previous file(s).
   >>> uv1 = uv.select(freq_chans=np.arange(0, 20), inplace=False)
   >>> uv2 = uv.select(freq_chans=np.arange(20, 40), inplace=False)
   >>> uv3 = uv.select(freq_chans=np.arange(40, 64), inplace=False)
-  >>> uv1.write_uvfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial1.uvfits'))
-  >>> uv2.write_uvfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial2.uvfits'))
-  >>> uv3.write_uvfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial3.uvfits'))
-  >>> filenames = [os.path.join(DATA_PATH, 'tutorial_output', f) for f
+  >>> uv1.write_uvfits(os.path.join('.', 'tutorial1.uvfits'))
+  >>> uv2.write_uvfits(os.path.join('.', 'tutorial2.uvfits'))
+  >>> uv3.write_uvfits(os.path.join('.', 'tutorial3.uvfits'))
+  >>> filenames = [os.path.join('.', f) for f
   ...             in ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']]
   >>> uv.read(filenames)
 
@@ -951,10 +950,10 @@ stored in the uvh5 format.
   >>> uv1 = uv.select(freq_chans=np.arange(0, 20), inplace=False)
   >>> uv2 = uv.select(freq_chans=np.arange(20, 40), inplace=False)
   >>> uv3 = uv.select(freq_chans=np.arange(40, 64), inplace=False)
-  >>> uv1.write_uvfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial1.uvfits'))
-  >>> uv2.write_uvfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial2.uvfits'))
-  >>> uv3.write_uvfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial3.uvfits'))
-  >>> filenames = [os.path.join(DATA_PATH, 'tutorial_output', f) for f
+  >>> uv1.write_uvfits(os.path.join('.', 'tutorial1.uvfits'))
+  >>> uv2.write_uvfits(os.path.join('.', 'tutorial2.uvfits'))
+  >>> uv3.write_uvfits(os.path.join('.', 'tutorial3.uvfits'))
+  >>> filenames = [os.path.join('.', f) for f
   ...             in ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']]
   >>> uv.read(filenames, axis='freq')
 
@@ -1100,7 +1099,7 @@ are written to the appropriate parts of the file on disk.
   >>> uv = UVData()
   >>> filename = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
   >>> uv.read(filename, read_data=False)
-  >>> partfile = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial_partial_io.uvh5')
+  >>> partfile = os.path.join('.', 'tutorial_partial_io.uvh5')
   >>> uv.initialize_uvh5_file(partfile, clobber=True)
 
   # read in the lower and upper halves of the band separately, and apply different scalings
@@ -1393,7 +1392,7 @@ b) FHD cal to cal fits
 
   >>> fhd_cal = UVCal()
   >>> fhd_cal.read_fhd_cal(cal_testfile, obs_testfile, settings_file=settings_testfile)
-  >>> fhd_cal.write_calfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial_cal.fits'), clobber=True)
+  >>> fhd_cal.write_calfits(os.path.join('.', 'tutorial_cal.fits'), clobber=True)
 
 
 UVCal: Quick data access
@@ -1592,10 +1591,10 @@ each file will be read in succession and added to the previous.
   >>> cal1 = cal.select(freq_chans=np.arange(0, 2), inplace=False)
   >>> cal2 = cal.select(freq_chans=np.arange(2, 4), inplace=False)
   >>> cal3 = cal.select(freq_chans=np.arange(4, 7), inplace=False)
-  >>> cal1.write_calfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial1.fits'))
-  >>> cal2.write_calfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial2.fits'))
-  >>> cal3.write_calfits(os.path.join(DATA_PATH, 'tutorial_output', 'tutorial3.fits'))
-  >>> filenames = [os.path.join(DATA_PATH, 'tutorial_output', f) for f
+  >>> cal1.write_calfits(os.path.join('.', 'tutorial1.fits'))
+  >>> cal2.write_calfits(os.path.join('.', 'tutorial2.fits'))
+  >>> cal3.write_calfits(os.path.join('.', 'tutorial3.fits'))
+  >>> filenames = [os.path.join('.', f) for f
   ...              in ['tutorial1.fits', 'tutorial2.fits', 'tutorial3.fits']]
   >>> cal.read_calfits(filenames)
 
@@ -1796,7 +1795,7 @@ d) Writing a regularly gridded beam FITS file
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam.read_cst_beam(settings_file, beam_type='power')
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.fits')
+  >>> write_file = os.path.join('.', 'tutorial.fits')
   >>> beam.write_beamfits(write_file, clobber=True)
 
 e) Writing a HEALPix beam FITS file
@@ -1822,7 +1821,7 @@ e) Writing a HEALPix beam FITS file
   >>> beam.select(axis2_inds=za_inds_use)
 
   >>> beam.to_healpix()
-  >>> write_file = os.path.join(DATA_PATH, 'tutorial_output', 'tutorial.fits')
+  >>> write_file = os.path.join('.', 'tutorial.fits')
   >>> beam.write_beamfits(write_file, clobber=True)
 
 UVBeam: Selecting data
