@@ -3157,6 +3157,10 @@ class UVBeam(UVBase):
 
         if not isinstance(filename, (list, tuple)) and filename.endswith("yaml"):
             settings_dict = self._read_cst_beam_yaml(filename)
+            if not isinstance(settings_dict["filenames"], list):
+                raise ValueError("filenames in yaml file must be a list.")
+            if not isinstance(settings_dict["frequencies"], list):
+                raise ValueError("frequencies in yaml file must be a list.")
             yaml_dir = os.path.dirname(filename)
             cst_filename = [
                 os.path.join(yaml_dir, f) for f in settings_dict["filenames"]
@@ -3380,7 +3384,8 @@ class UVBeam(UVBase):
                     run_check_acceptability=run_check_acceptability,
                 )
                 self += beam2
-            del beam2
+            if len(cst_filename) > 1:
+                del beam2
         else:
             if isinstance(frequency, (list, tuple)):
                 raise ValueError("Too many frequencies specified")
