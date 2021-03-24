@@ -1115,6 +1115,14 @@ class UVH5(UVData):
         -------
         None
         """
+        # write out UVH5 version information
+        if self.future_array_shapes:
+            # this is Version 1.0
+            header["version"] = np.string_("1.0")
+        else:
+            # this is Version 0.1
+            header["version"] = np.string_("0.1")
+
         # write out telescope and source information
         header["latitude"] = self.telescope_location_lat_lon_alt_degrees[0]
         header["longitude"] = self.telescope_location_lat_lon_alt_degrees[1]
