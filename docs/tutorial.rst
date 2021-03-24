@@ -1,10 +1,11 @@
 Tutorial
 ========
 
-In the examples below, output files are written to a temporary directory created during testing.
-By default they will write to the current working directory.
+By default, following the tutorial will write any files to the current working directory.
 Alternatively you can change the location the output files are saved to
 by changing the arguments to the ``os.path.join`` calls.
+When running the tutorial during test suite execution,
+output files are written to a temporary directory created by pytest.
 
 ------
 UVData
