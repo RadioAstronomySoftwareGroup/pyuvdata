@@ -94,6 +94,44 @@ def test_read_yaml(cst_efield_2freq):
     assert beam2.extra_keywords == extra_keywords
 
 
+def test_read_yaml_onefile(cst_efield_1freq, tmp_path):
+    pytest.importorskip("yaml")
+    import yaml
+
+    # copy the beam files to the tmp directory so that it can read them
+    # when the yaml is stored there
+    for fname in cst_files:
+        shutil.copy2(src=fname, dst=tmp_path)
+
+    test_yaml_file = os.path.join(tmp_path, "test_cst_settings.yaml")
+    with open(cst_yaml_file, "r") as file:
+        settings_dict = yaml.safe_load(file)
+
+    settings_dict["filenames"] = [settings_dict["filenames"][0]]
+    settings_dict["frequencies"] = [settings_dict["frequencies"][0]]
+
+    with open(test_yaml_file, "w") as outfile:
+        yaml.dump(settings_dict, outfile, default_flow_style=False)
+
+    beam1 = UVBeam()
+    beam2 = UVBeam()
+
+    extra_keywords = {
+        "software": "CST 2016",
+        "sim_type": "E-farfield",
+        "layout": "1 antenna",
+        "port_num": 1,
+    }
+
+    beam1 = cst_efield_1freq
+
+    beam2.read_cst_beam(test_yaml_file, beam_type="efield")
+    assert beam1 == beam2
+
+    assert beam2.reference_impedance == 100
+    assert beam2.extra_keywords == extra_keywords
+
+
 def test_read_yaml_override(cst_efield_2freq):
     pytest.importorskip("yaml")
     beam1 = UVBeam()
@@ -192,7 +230,7 @@ def test_read_yaml_multi_pol(tmp_path):
     # when the yaml is stored there
     for fname in cst_files:
         shutil.copy2(src=fname, dst=tmp_path)
-    test_yaml_file = str(tmp_path / "test_cst_settings.yaml")
+    test_yaml_file = os.path.join(tmp_path, "test_cst_settings.yaml")
 
     with open(cst_yaml_file, "r") as file:
         settings_dict = yaml.safe_load(file)
@@ -251,7 +289,7 @@ def test_read_yaml_errors(tmp_path):
     # test error if required key is not present in yaml file
     import yaml
 
-    test_yaml_file = str(tmp_path / "test_cst_settings.yaml")
+    test_yaml_file = os.path.join(tmp_path, "test_cst_settings.yaml")
     with open(cst_yaml_file, "r") as file:
         settings_dict = yaml.safe_load(file)
 
@@ -267,6 +305,32 @@ def test_read_yaml_errors(tmp_path):
             "telescope_name is a required key in CST settings files but is "
             "not present."
         ),
+    ):
+        beam1.read_cst_beam(test_yaml_file, beam_type="power")
+
+    with open(cst_yaml_file, "r") as file:
+        settings_dict = yaml.safe_load(file)
+    settings_dict["filenames"] = settings_dict["filenames"][0]
+
+    with open(test_yaml_file, "w") as outfile:
+        yaml.dump(settings_dict, outfile, default_flow_style=False)
+
+    beam1 = UVBeam()
+    with pytest.raises(
+        ValueError, match=("filenames in yaml file must be a list."),
+    ):
+        beam1.read_cst_beam(test_yaml_file, beam_type="power")
+
+    with open(cst_yaml_file, "r") as file:
+        settings_dict = yaml.safe_load(file)
+    settings_dict["frequencies"] = settings_dict["frequencies"][0]
+
+    with open(test_yaml_file, "w") as outfile:
+        yaml.dump(settings_dict, outfile, default_flow_style=False)
+
+    beam1 = UVBeam()
+    with pytest.raises(
+        ValueError, match=("frequencies in yaml file must be a list."),
     ):
         beam1.read_cst_beam(test_yaml_file, beam_type="power")
 
@@ -594,7 +658,7 @@ def test_read_efield(cst_efield_2freq):
 
 def test_no_deg_units(tmp_path):
     # need to write a modified file to test headers not in degrees
-    testfile = str(tmp_path / "HERA_NicCST_150MHz_modified.txt")
+    testfile = os.path.join(tmp_path, "HERA_NicCST_150MHz_modified.txt")
     with open(cst_files[0], "r") as file:
         line1 = file.readline()
         line2 = file.readline()
@@ -788,7 +852,7 @@ def test_no_deg_units(tmp_path):
 
 def test_wrong_column_names(tmp_path):
     # need to write modified files to test headers with wrong column names
-    testfile = str(tmp_path / "HERA_NicCST_150MHz_modified.txt")
+    testfile = os.path.join(tmp_path, "HERA_NicCST_150MHz_modified.txt")
     with open(cst_files[0], "r") as file:
         line1 = file.readline()
         line2 = file.readline()
