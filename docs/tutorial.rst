@@ -54,6 +54,39 @@ are the easiest way to get data for particular sets of baselines. Those methods 
 the antenna numbers (i.e. numbers listed in ``antenna_numbers``) as inputs.
 
 
+UVData: parameter shape changes
+-------------------------------
+Initially, UVData objects were designed to support spectral windows as a separate axis,
+although support for more than one spectral window was never implemented
+(so the spectral window axis was always constrained to be length 1). This structure
+would have required that all spectral windows had the same number of channels. In
+version 2.1.2 we introduced flexible spectral windows, which implemented spectral
+windows as sets of frequency channels with some extra parameters to track which
+channels were in each spectral window. This structure allows for spectral windows to
+have arbitrary numbers of frequency channels. This structure made the ``channel_width``
+parameter be an array of length ``Nfreqs`` rather than a scalar, but only when the
+UVData object contained flexible spectral windows. Supporting multiple spectral windows
+in this way removes the need for the spectral window axis on several UVData parameters,
+but the axis was left as a length 1 axis for backwards compatibility.
+
+In version 3.0, we will remove the length 1 axis that was originally intended
+for the spectral windows axis from the ``data_array``, ``flag_array``, ``nsample_array``
+and ``freq_array`` parameters and the ``channel_width`` parameter will always be an
+array of length ``Nfreqs``.
+
+In order to support an orderly conversion of code and packages that use the ``UVData``
+object to these new parameter shapes, we have created the
+:meth:`pyuvdata.UVData.use_future_array_shapes` method which will change the parameters
+listed above to have their future shapes. Users writing new code that uses ``UVData``
+objects are encouraged to call that method immediately after creating a UVData object
+or reading in data from a file to ensure that the code will be compatible with the
+forthcoming changes. Developers and maintainers of existing code that uses ``UVData``
+objects are encouraged to similarly add that method call and convert their code to use
+the new shapes at their earliest convenience to ensure future compatibility. The method
+will be deprecated but not removed in version 3.0 (it will just become a no-op) so
+that code that calls it will continue to function.
+
+
 UVData: File conversion
 -----------------------
 Converting between tested data formats
@@ -285,9 +318,9 @@ a) Data for single antenna pair / polarization combination.
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> UV = UVData()
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> UV.read(filename)
@@ -546,10 +579,10 @@ entire file to plot one waterfall.
 .. code-block:: python
 
   >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
   >>> import numpy as np
   >>> import matplotlib.pyplot as plt # doctest: +SKIP
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
   >>> UV = UVData()
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> UV.read(filename)
@@ -623,9 +656,9 @@ a) Select 3 antennas to keep using the antenna number.
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> UV = UVData()
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> UV.read(filename)
@@ -644,9 +677,9 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> UV = UVData()
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> UV.read(filename)
@@ -854,9 +887,9 @@ e) Select data and return new object (leaving original intact).
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> UV = UVData()
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> UV.read(filename)
@@ -880,9 +913,9 @@ a) Combine frequencies.
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> uv1 = UVData()
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> uv1.read(filename)
@@ -900,9 +933,9 @@ b) Combine times.
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> uv1 = UVData()
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> uv1.read(filename)
@@ -928,7 +961,6 @@ directly without creating a third uvdata object.
   >>> import os
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> uv1 = UVData()
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> uv1.read(filename)
@@ -952,6 +984,7 @@ and combined with the previous file(s).
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> uv = UVData()
@@ -993,6 +1026,7 @@ stored in the uvh5 format.
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> uv = UVData()
@@ -1179,7 +1213,7 @@ are written to the appropriate parts of the file on disk.
 
 UVData: Sorting data along various axes
 ---------------------------------------
-A few methods exist for sorting (and conjugating) data along various axes to
+Methods exist for sorting (and conjugating) data along all the data axes to
 support comparisons between UVData objects and software access patterns.
 
 a) Conjugating baselines
@@ -1192,6 +1226,7 @@ various conventions (``'ant1<ant2'``, ``'ant2<ant1'``, ``'u<0'``, ``'u>0'``, ``'
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> uv = UVData()
@@ -1216,6 +1251,7 @@ just specify a desired order by passing an array of baseline-time indices.
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> uv = UVData()
@@ -1241,6 +1277,54 @@ just specify a desired order by passing an array of baseline-time indices.
   >>> uv.reorder_blts(order='bda', conj_convention='ant1<ant2')
   >>> uv2.reorder_blts(order='bda', conj_convention='ant1<ant2')
   >>> print(uv == uv2)
+  True
+
+c) Sorting along the frequency axis
+***********************************
+
+The :meth:`pyuvdata.UVData.reorder_freqs` method will reorder the frequency axis by
+sorting by spectral windows or channels (or even just the channels within specific
+spectral windows). Spectral windows or channels can be sorted by ascending or descending
+number or in an order specified by passing an array of spectral window or channel numbers.
+
+::
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uv = UVData()
+  >>> testfile = os.path.join(DATA_PATH, "sma_test.mir")
+  >>> uv.read(testfile)
+
+  # Sort by spectral window number and by frequency within the spectral window
+  # Now the spectral windows are in ascending order and the frequencies in each window
+  # are in ascending order.
+  >>> uv.reorder_freqs(spw_order="number", channel_order="freq")
+  >>> print(uv.spw_array)
+  [-4 -3 -2 -1  1  2  3  4]
+
+  >>> print(np.min(np.diff(uv.freq_array[0, np.nonzero(uv.flex_spw_id_array == 1)])) >= 0)
+  True
+
+  # Prepend a ``-`` to the sort string to sort in descending order.
+  # Now the spectral windows are in descending order but the frequencies in each window
+  # are in ascending order.
+  >>> uv.reorder_freqs(spw_order="-number", channel_order="freq")
+  >>> print(uv.spw_array)
+  [ 4  3  2  1 -1 -2 -3 -4]
+
+  >>> print(np.min(np.diff(uv.freq_array[0, np.nonzero(uv.flex_spw_id_array == 1)])) >= 0)
+  True
+
+  # Use the ``select_spw`` keyword to sort only one spectral window.
+  # Now the frequencies in spectral window 1 are in descending order but the frequencies
+  # in spectral window 2 are in ascending order
+  >>> uv.reorder_freqs(select_spw=1, channel_order="-freq")
+  >>> print(np.min(np.diff(uv.freq_array[0, np.nonzero(uv.flex_spw_id_array == 1)])) <= 0)
+  True
+
+  >>> print(np.min(np.diff(uv.freq_array[0, np.nonzero(uv.flex_spw_id_array == 2)])) >= 0)
   True
 
 c) Sorting along the polarization axis
@@ -1364,9 +1448,9 @@ in the full data array based on redundancy.
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> uv0 = UVData()
   >>> uv0.read(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
   >>> tol = 0.02   # In meters
@@ -1402,10 +1486,10 @@ a) Reading a cal fits gain calibration file.
 .. code-block:: python
 
   >>> import os
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.data import DATA_PATH
   >>> import numpy as np
   >>> import matplotlib.pyplot as plt # doctest: +SKIP
+  >>> from pyuvdata import UVCal
+  >>> from pyuvdata.data import DATA_PATH
   >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
   >>> cal.read_calfits(filename)
@@ -1445,7 +1529,6 @@ b) FHD cal to cal fits
   >>> import os
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> import os
   >>> obs_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_obs.sav')
   >>> cal_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_cal.sav')
   >>> settings_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_settings.txt')
@@ -1466,9 +1549,9 @@ a) Data for a single antenna and instrumental polarization
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> UVC = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457555.42443.HH.uvcA.omni.calfits')
   >>> UVC.read_calfits(filename)
@@ -1537,9 +1620,9 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
   >>> cal.read_calfits(filename)
@@ -1573,9 +1656,9 @@ a) Add frequencies.
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> cal1 = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
   >>> cal1.read_calfits(filename)
@@ -1593,9 +1676,9 @@ b) Add times.
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> cal1 = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
   >>> cal1.read_calfits(filename)
@@ -1617,9 +1700,9 @@ directly without creating a third uvcal object.
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> cal1 = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
   >>> cal1.read_calfits(filename)
@@ -1643,9 +1726,9 @@ each file will be read in succession and added to the previous.
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
   >>> cal.read_calfits(filename)
@@ -1745,7 +1828,6 @@ a) Reading a CST power beam file
   >>> import os
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> import matplotlib.pyplot as plt # doctest: +SKIP
   >>> beam = UVBeam()
 
@@ -1831,9 +1913,9 @@ c) Reading in the MWA full embedded element beam
   >>> # (default is 5 pixels per degree).
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> beam = UVBeam()
 
   >>> mwa_beam_file = os.path.join(DATA_PATH, 'mwa_full_EE_test.h5')
@@ -1853,7 +1935,6 @@ d) Writing a regularly gridded beam FITS file
   >>> import os
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam.read_cst_beam(settings_file, beam_type='power')
@@ -1865,9 +1946,9 @@ e) Writing a HEALPix beam FITS file
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam.read_cst_beam(settings_file, beam_type='power')
@@ -1897,9 +1978,9 @@ a) Selecting a range of Zenith Angles
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> import matplotlib.pyplot as plt # doctest: +SKIP
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
@@ -1922,12 +2003,12 @@ a) Convert a regularly gridded az_za power beam to HEALpix (leaving original int
 .. code-block:: python
 
   >>> import os
-  >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
   >>> import numpy as np
   >>> from astropy_healpix import HEALPix
   >>> import matplotlib.pyplot as plt # doctest: +SKIP
   >>> from matplotlib.colors import LogNorm # doctest: +SKIP
+  >>> from pyuvdata import UVBeam
+  >>> from pyuvdata.data import DATA_PATH
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam.read_cst_beam(settings_file, beam_type='power')
@@ -1950,12 +2031,12 @@ b) Convert a regularly gridded az_za efield beam to HEALpix (leaving original in
 .. code-block:: python
 
   >>> import os
-  >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
   >>> import numpy as np
   >>> from astropy_healpix import HEALPix
   >>> import matplotlib.pyplot as plt # doctest: +SKIP
   >>> from matplotlib.colors import LogNorm # doctest: +SKIP
+  >>> from pyuvdata import UVBeam
+  >>> from pyuvdata.data import DATA_PATH
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam.read_cst_beam(settings_file, beam_type='efield')
@@ -1979,10 +2060,10 @@ c) Convert a regularly gridded efield beam to a power beam (leaving original int
 .. code-block:: python
 
   >>> import os
-  >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
   >>> import numpy as np
   >>> import matplotlib.pyplot as plt # doctest: +SKIP
+  >>> from pyuvdata import UVBeam
+  >>> from pyuvdata.data import DATA_PATH
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam.read_cst_beam(settings_file, beam_type='efield')
@@ -2002,13 +2083,13 @@ d) Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
 .. code-block:: python
 
   >>> import os
-  >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
-  >>> from pyuvdata import utils as uvutils
   >>> import numpy as np
   >>> from astropy_healpix import HEALPix
   >>> import matplotlib.pyplot as plt # doctest: +SKIP
   >>> from matplotlib.colors import LogNorm # doctest: +SKIP
+  >>> from pyuvdata import UVBeam
+  >>> from pyuvdata.data import DATA_PATH
+  >>> from pyuvdata import utils as uvutils
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam.read_cst_beam(settings_file, beam_type='efield')
@@ -2045,9 +2126,9 @@ a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared
 .. code-block:: python
 
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> import numpy as np
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam.read_cst_beam(settings_file, beam_type='efield')

@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 - Added `use_future_array_shapes` method to allow users to convert to using the future
 array shapes now, with support throughout UVData methods and related utility functions.
 Also added `use_current_array_shapes` to revert to the standard shapes.
+- Added versioning to UVH5 files. Files with future array shapes are version 1.0,
+files with the current shapes are are version 0.1.
+- Added `UVData.reorder_freqs` method to reorder the data along the frequency axis.
 - Better re-initialization of UVParameters on UVBase objects when using pickle. Improves compatibility of UVBase objects with MPI.
 - Added option to apply a Van Vleck correction to mwa_corr_fits files.
 
