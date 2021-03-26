@@ -456,7 +456,7 @@ class MWACorrFITS(UVData):
         file_num = int(filename.split("_")[-2][-2:])
         # map file number to frequency index
         freq_ind = file_nums_to_index[file_num] * num_fine_chans
-        with fits.open(filename, memmap=True, mode="denywrite") as hdu_list:
+        with fits.open(filename, mode="denywrite") as hdu_list:
             for hdu in hdu_list:
                 # entry 0 is a header, so we skip it.
                 if hdu.data is None:
