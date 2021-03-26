@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file.
 - Added option to apply a Van Vleck correction to mwa_corr_fits files.
 
 ### Fixed
+- A bug in mwa_corr_fits that resulted in an error when using `memap=true`
+while reading files containing the 'BSCALE' keyword.
+- A bug in mwa_corr_fits that didn't properly test against 2015 data, and so didn't
+catch the error when using `memap=true` while reading files containing the 'BSCALE' keyword.
 - A bug in mwa_corr_fits that didn't round start_flag to the nearest multiple of
 integration time when using goodtime, resulting in an error when reading data
 taken at 2 seconds.
