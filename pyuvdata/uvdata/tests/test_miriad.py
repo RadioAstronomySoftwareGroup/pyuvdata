@@ -734,7 +734,7 @@ def test_miriad_extra_keywords_errors(
     (
         [["bool", "bool2"], [True, False]],
         [["int1", "int2"], [np.int64(5), 7]],
-        [["float1", "float2"], [np.int64(5.3), 6.9]],
+        [["float1", "float2"], [np.float64(5.3), 6.9]],
         [["str", "longstr"], ["hello", "this is a very long string " * 1000]],
     ),
 )
@@ -855,6 +855,24 @@ def test_miriad_antenna_diameters(uv_in_paper):
     )
     uv_in.write_miriad(write_file, clobber=True)
     uv_out.read(write_file)
+    assert uv_in == uv_out
+
+    # check warning when antenna diameters vary
+    uv_in.antenna_diameters = (
+        np.zeros((uv_in.Nants_telescope,), dtype=np.float32) + 14.0
+    )
+    uv_in.antenna_diameters[1] = 15.0
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "The uvw_array does not match the expected values",
+            "Antenna diameters are not uniform",
+        ],
+    ):
+        uv_in.write_miriad(write_file, clobber=True)
+    uv_out.read(write_file)
+    assert uv_out.antenna_diameters is None
+    uv_out.antenna_diameters = uv_in.antenna_diameters
     assert uv_in == uv_out
 
 
@@ -1089,7 +1107,22 @@ def test_read_write_read_miriad_partial_ant_str(uv_in_paper, tmp_path):
         ),
         (
             ValueError,
+            {"antenna_nums": 5},
+            "antenna_nums must be a list of antenna number integers",
+        ),
+        (
+            ValueError,
+            {"antenna_nums": ["foo"]},
+            "antenna_nums must be a list of antenna number integers",
+        ),
+        (
+            ValueError,
             {"polarizations": "xx"},
+            "pols must be a list of polarization strings or ints",
+        ),
+        (
+            ValueError,
+            {"polarizations": [5.3]},
             "pols must be a list of polarization strings or ints",
         ),
         (

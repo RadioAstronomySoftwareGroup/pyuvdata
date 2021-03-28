@@ -956,10 +956,7 @@ class Miriad(UVData):
             if not isinstance(polarizations, (list, np.ndarray)):
                 raise ValueError(err_msg)
             if not np.array(
-                map(
-                    lambda p: isinstance(p, (str, np.str_, int, np.integer)),
-                    polarizations,
-                )
+                [isinstance(p, (str, np.str_, int, np.integer)) for p in polarizations]
             ).all():
                 raise ValueError(err_msg)
             # convert to pol integer if string
@@ -1675,7 +1672,7 @@ class Miriad(UVData):
             bool: "a",  # booleans are stored as strings and changed back on read
         }
         for key, value in self.extra_keywords.items():
-            if type(value) in numpy_types.keys():
+            if isinstance(value, tuple(numpy_types.keys())):
                 if numpy_types[type(value)] == int:
                     value = int(value)
                 elif numpy_types[type(value)] == float:
