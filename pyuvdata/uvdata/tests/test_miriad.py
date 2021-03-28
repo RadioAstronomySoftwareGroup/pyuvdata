@@ -1167,21 +1167,6 @@ def test_read_write_read_miriad_partial_errors(
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_read_write_read_miriad_partial_error_special_cases(uv_in_paper, tmp_path):
-    full, uv_out, write_file = uv_in_paper
-
-    # check partial read selections
-    full.write_miriad(write_file, clobber=True)
-    uv_in = UVData()
-
-    with pytest.raises(ValueError) as cm:
-        uv_in.read(write_file, polarizations=[1.0])
-    assert str(cm.value).startswith(
-        "Polarization 1.0 cannot be converted to a polarization number"
-    )
-
-
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_write_read_miriad_partial_with_warnings(uv_in_paper, tmp_path):
     full, uv_out, write_file = uv_in_paper
 
