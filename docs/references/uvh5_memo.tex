@@ -11,6 +11,7 @@
 \usepackage{graphicx}
 \usepackage[titletoc,toc,title]{appendix}							
 \usepackage{amssymb}
+\usepackage{physics}
 
 \usepackage{hyperref} 
 \hypersetup{
@@ -23,7 +24,8 @@
 
 \title{Memo: UVH5 file format}
 \author{Paul La Plante, and the pyuvdata team}
-\date{November 28, 2018}
+\date{November 28, 2018\\
+Revised March 29, 2021}
 
 \begin{document}
 \maketitle
@@ -52,6 +54,14 @@ about the parameters present in a UVData object, please visit
 \url{http://pyuvdata.readthedocs.io/en/latest/uvdata_parameters.html}. An
 example for how to interact with UVData objects in pyuvdata is available at
 \url{http://pyuvdata.readthedocs.io/en/latest/tutorial.html}.
+
+Note that throughout the documentation, we assume a row-major convention (i.e.,
+C-ordering) for the dimension specification of multi-dimensional arrays. For
+example, for a two-dimensional array with shape ($N$, $M$), the $M$-dimension is
+varying fastest, and is contiguous in memory. This convention is the same as
+Python and the underlying C-based HDF5 library. Users of languages with the
+opposite column-major convention (i.e., Fortran-ordering, seen also in MATLAB
+and Julia) must transpose these axes.
 
 \section{Overview}
 \label{sec:overview}
@@ -115,7 +125,9 @@ interoperability between different HDF5 implementations.
 \item \textbf{history}: \textit{string} The history of the data
   file. (\textit{history})
 \item \textbf{phase\_type}: \textit{string} The phase type of the
-  observation. Should be ``phased'' or ``drift''. Any other value is treated as
+  observation. Should be ``phased'' or ``drift''. Note that ``drift'' in this
+  context more accurately means ``unphased'', in that baselines are computing
+  using ENU coordinates, without any $w$-projection. Any other value is treated as
   an unrecognized type. (\textit{phase\_type})
 \item \textbf{Nants\_data}: \textit{int} The number of antennas that data in the
   file corresponds to. May be smaller than the number of antennas in the
@@ -148,17 +160,17 @@ interoperability between different HDF5 implementations.
 \item \textbf{Nblts}: \textit{int} The number of baseline-times (i.e., the
   number of spectra) present in the data. Note that this value need not be equal
   to Nbls $\times$ Ntimes. (\textit{Nblts})
-\item \textbf{Nfreqs}: \textit{int} The number of frequency channels in the
-  data. (\textit{Nfreqs})
+\item \textbf{Nspws}: \textit{int} The number of spectral windows present in the
+  data. (\textit{Nspws})
+\item \textbf{Nfreqs}: \textit{int} The total number of frequency channels in
+  the data across all spectral windows. (\textit{Nfreqs})
 \item \textbf{Npols}: \textit{int} The number of polarization products in the
   data. (\textit{Npols})
 \item \textbf{Ntimes}: \textit{int} The number of time samples present in the
   data. (\textit{Ntimes})
-\item \textbf{Nspws}: \textit{int} The number of spectral windows present in the
-  data. (\textit{Nspws})
 \item \textbf{uvw\_array}: \textit{float} An array of the uvw-coordinates
   corresponding to each observation in the data. This is a two-dimensional array of
-  size (Nblts, 3). (\textit{uvw\_array})
+  size (Nblts, 3). Units are in meters. (\textit{uvw\_array})
 \item \textbf{time\_array}: \textit{float} An array of the Julian Date
   corresponding to the center of an integration. This is a one-dimensional array
   of size Nblts. (\textit{time\_array})
@@ -166,33 +178,53 @@ interoperability between different HDF5 implementations.
   in seconds of an integration. This is a one-dimensional array of size
   Nblts. (\textit{time\_array})
 \item \textbf{freq\_array}: \textit{float} An array of the frequencies stored in
-  the file in Hertz. This is a two-dimensional array of size (Nspws,
-  Nfreqs). (\textit{freq\_array})
+  the file in Hertz. This is a one-dimensional array of size
+  (Nfreqs). (\textit{freq\_array})
 \item \textbf{channel\_width}: \textit{float} The width of frequency channels in
-  the file in Hertz. (\textit{channel\_width})
+  the file in Hertz. This is a one-dimensional array of size
+  (Nfreqs). (\textit{channel\_width})
 \item \textbf{spw\_array}: \textit{int} An array of the spectral windows in the
   file. This is a one-dimensional array of size Nspws. (\textit{spw\_array})
+\item \textbf{flex\_spw\_id\_array}: \textit{int} The mapping of individual
+  channels along the frequency axis to individual spectral windows, as listed in
+  the \textit{spw\_array}. This is a one-dimensional array of size
+  (Nfreqs). (\textit{flex\_spw\_id\_array})
 \item \textbf{polarization\_array}: \textit{int} An array of the polarizations
   contained in the file. This is a one-dimensional array of size Npols. Note
   that the polarizations should be stored as an integer, and use the convention
   defined in AIPS Memo 117. (\textit{polarization\_array})
 \item \textbf{antenna\_positions}: \textit{float} An array of the antenna
-  coordinates relative to the \textit{telescope\_location} (in the ITRF
-  frame). This is a two-dimensional array of size (Nants\_telescope,
+  coordinates relative to the telescope location (in the ITRF frame), which is
+  implicitly defined by the \textit{latitude}, \textit{longitude}, and
+  \textit{altitude} (LLA) parameters. The conversion between LLA and ECEF is
+  given by WGS84. This is a two-dimensional array of size (Nants\_telescope,
   3). (\textit{antenna\_positions})
+\item \textbf{flex\_spw}: \textit{bool} Whether the data are saved using
+  flexible spectral windows. Following the convention above, this should always
+  be \verb+True+. See Sec.~\ref{sec:flex_spw} for a discussion of historical
+  files for which this was not true. (\textit{flex\_spw})
+\item \textbf{version}: \textit{string} The version of the HDF5 file. The latest
+  version (and the one described in this memo) is Version 1.0. Note it should be
+  a string, such as \verb+`1.0'+. See Sec.~\ref{sec:version_history} for the
+  version history of the HDF5 specification. (\textit{version})
 \end{itemize}
 
 \subsection{Optional Parameters}
 \label{sec:opt_params}
 \begin{itemize}
-\item \textbf{dut1}: \textit{float} DUT1 (google it). AIPS 117 calls it
-  ``UT1UTC''. (\textit{dut1})
+\item \textbf{dut1}: \textit{float} DUT1 (google it), in seconds. AIPS 117 calls
+  it \verb+UT1UTC+. (\textit{dut1})
 \item \textbf{earth\_omega}: \textit{float} Earth's rotation rate in degrees per
-  day. (\textit{earth\_omega})
+  day. Note the difference in units, which is inherited from the way this
+  quantity is handled in UVFITS datasets (AIPS 117 calls it \verb+DEGPDY+).
+  (\textit{earth\_omega})
 \item \textbf{gst0}: \textit{float} Greenwich sidereal time at midnight on
-  reference date. (\textit{gst0})
+  reference date, in degrees. AIPS 117 calls it \verb+GSTIA0+ (\textit{gst0})
 \item \textbf{rdate}: \textit{string} Date for which GST0 (or whichever time
-  saved in that field) applies. (\textit{rdate})
+  saved in that field) applies. Note this is different from how UVFITS handles
+  this quantity, which is saved as a float rather than a string. The user is
+  encouraged to ensure it is being handled self-consistently for their desired
+  application. (\textit{rdate})
 \item \textbf{timesys}: \textit{string} Time system. pyuvdata currently only
   supports UTC. (\textit{timesys})
 \item \textbf{x\_orientation}: \textit{string} The orientation of the x-arm of a
@@ -217,11 +249,15 @@ interoperability between different HDF5 implementations.
   ``phased''. (\textit{phase\_center\_epoch})
 \item \textbf{phase\_center\_frame}: \textit{string} The frame the data and
   uvw\_array are phased to. Options are ``gcrs'' and ``icrs'', with default
-  ``icrs''. (\textit{phase\_center\_frame})
+  ``icrs''. These frames are defined as
+  \href{https://docs.astropy.org/en/stable/coordinates/index.html}{coordinate
+    systems in astropy}. (\textit{phase\_center\_frame})
 \item \textbf{lst\_array}: \textit{float} An array corresponding to the local
   sidereal time of the center of each observation in the data in units of
   radians. If it is not specified, it is calculated from the latitude/longitude
-  and the time\_array. (\textit{lst\_array})
+  and the time\_array. Saving it in the file can be useful for files with many
+  values in the \textit{time\_array}, which would expensive to
+  recompute. (\textit{lst\_array})
 \end{itemize}
 
 \subsection{Extra Keywords}
@@ -231,13 +267,14 @@ arbitrary metadata useful to carry around with the data but which are not
 formally supported as a reserved keyword in the \verb+Header+. In a UVH5 file,
 extra keywords are handled by creating a datagroup called \verb+extra_keywords+
 inside the \verb+Header+ datagroup. In a UVData object, extra keywords are
-expected to be scalars, but UVH5 makes no formal restriction on this. Inside of
-the extra\_keywords datagroup, each extra keyword is saved as a key-value pair
-using a dataset, where the name of the extra keyword is the name of the dataset
-and its corresponding value is saved in the dataset. Though the use of HDF5
-attributes can also be used to save additional metadata, it is not recommended,
-due to the lack of support inside of pyuvdata for ensuring the attributes are
-properly saved when writing out.
+expected to be scalars, but UVH5 makes no formal restriction on this. Also, when
+possible, these quantities should be HDF5 datatypes, to support interoperability
+between UVH5 readers. Inside of the extra\_keywords datagroup, each extra
+keyword is saved as a key-value pair using a dataset, where the name of the
+extra keyword is the name of the dataset and its corresponding value is saved in
+the dataset. Though the use of HDF5 attributes can also be used to save
+additional metadata, it is not recommended, due to the lack of support inside of
+pyuvdata for ensuring the attributes are properly saved when writing out.
 
 
 \section{Data}
@@ -246,9 +283,9 @@ In addition to the \verb+Header+ datagroup in the root namespace, there must be
 one called \verb+Data+. This datagroup saves the visibility data, flags, and
 number of samples corresponding to each entry. All three datasets must be
 present in a valid UVH5 file. They are also all expected to be the same shape:
-(Nblts, Nspws, Nfreqs, Npols). Note that due to the intermixing of the baseline
-and time axes, it is \textit{not} required for data to exist for every baseline
-and time in the file. This behavior is similar to UVFITS and MIRIAD file
+(Nblts, Nfreqs, Npols). Note that due to the intermixing of the baseline and
+time axes, it is \textit{not} required for data to exist for every baseline and
+time in the file. This behavior is similar to UVFITS and MIRIAD file
 formats. Also note that there is no explicit ordering required for the
 baseline-time axis. A common ordering is to write the data in ``correlator
 order'', and have all baselines for a single time $t_i$, followed by all
@@ -258,12 +295,12 @@ convention, and is not explicitly required for the UVH5 format.
 \subsection{Visdata Dataset}
 \label{sec:visdata}
 The visibility data is saved as a dataset named \verb+visdata+. It should be a
-4-dimensional, complex-type dataset with shape (Nblts, Nspws, Nfreqs,
-Npols). Most commonly this is saved as an 8-byte complex number (a 4-byte float
-for the real and imaginary parts), though some flexibility is possible. 16-byte
-complex floating point numbers (composed of two 8-byte floats), as well as
-8-byte complex integers (two 4-byte signed integers). In all cases, a compound
-datatype is defined, with an \verb+`r'+ field and an \verb+`i'+ field,
+3-dimensional, complex-type dataset with shape (Nblts, Nfreqs, Npols). Most
+commonly this is saved as an 8-byte complex number (a 4-byte float for the real
+and imaginary parts), though some flexibility is possible. 16-byte complex
+floating point numbers (composed of two 8-byte floats), as well as 8-byte
+complex integers (two 4-byte signed integers), are also common. In all cases, a
+compound datatype is defined, with an \verb+`r'+ field and an \verb+`i'+ field,
 corresponding to the real and imaginary parts, respectively. The real and
 imaginary types must also be the same datatype. For instance, they should both
 be 8-byte floating point numbers, or 32-bit (4-byte) integers. Mixing datatypes
@@ -277,19 +314,35 @@ user. \verb+h5py+ transparently handles the definition of the compound
 datatype. For examples of how to handle complex integer datatypes in
 \verb+h5py+, see Appendix~\ref{appendix:integers}.
 
+\subsubsection{Conjugation Convention}
+A cross-correlation between two antennas is defined by the baseline connecting
+them, and the conjugation of one of the input data streams. Accordingly, the
+\textit{uvw} coordinates and the conjugation of the visibility data are
+interconnected, based on the definition of one's coordinate system. For UVH5
+files, it is assumed that the convention for the Radio Interferometer
+Measurement Equation (RIME) of a visibility $\mathcal{V}$ for antennas $i$ and
+$j$ is as follows:
+\begin{equation}
+\mathcal{V}(u_j - u_i, v_j - v_i) = \int \dd{l} \dd{m} I(l, m) g_i(l, m) e^{-2\pi i (u_i l + v_i m)} g_j^*(l, m) e^{2\pi i (u_j l + v_j m)}.
+\end{equation}
+That is, the baseline vector defined by the $uvw$ coordinates is directed from
+antenna $i$ to antenna $j$ (so the baseline vector can be computed as
+$\vb{r_j} - \vb{r_i}$, where $\vb{r}$ is the position vector of a given
+antennas), and the data corresponding to antenna $j$ is conjugated. Note that if
+a file is generated with the opposite convention, it is usually sufficient to
+multiply $uvw$ coordinates by $-1$ to generate a self-consistent dataset.
 
 \subsection{Flags Dataset}
 \label{sec:flags}
 The flags corresponding to the data are saved as a dataset named
-\verb+flags+. It is a 4-dimensional, boolean-type dataset with shape (Nblts,
-Nspws, Nfreqs, Npols). Values of True correspond to instances of flagged data,
-and False is non-flagged. Note that the boolean type of the data is \textit{not}
-the HDF5-provided \verb+H5T_NATIVE_HBOOL+, and instead is defined to conform to
-the \verb+h5py+ implementation of the numpy boolean type. When creating this
-dataset from \verb+h5py+, one can specify the datatype as \verb+np.bool+. Behind
-the scenes, this defines an HDF5 enum datatype. See
-Appendix~\ref{appendix:boolean} for an example of how to write a compatible
-dataset from C.
+\verb+flags+. It is a 3-dimensional, boolean-type dataset with shape (Nblts,
+Nfreqs, Npols). Values of True correspond to instances of flagged data, and
+False is non-flagged. Note that the boolean type of the data is \textit{not} the
+HDF5-provided \verb+H5T_NATIVE_HBOOL+, and instead is defined to conform to the
+\verb+h5py+ implementation of the numpy boolean type. When creating this dataset
+from \verb+h5py+, one can specify the datatype as \verb+np.bool+. Behind the
+scenes, this defines an HDF5 enum datatype. See Appendix~\ref{appendix:boolean}
+for an example of how to write a compatible dataset from C.
 
 As with the nsamples dataset discussed below, compression is typically applied
 to the flags dataset. The LZF filter (included in all HDF5 libraries) provides a
@@ -299,10 +352,10 @@ single-valued arrays, the dataset occupies virtually no disk space.
 \subsection{Nsamples Dataset}
 \label{sec:nsamples}
 The number of data points averaged into each data entry is saved as a dataset
-named \verb+nsamples+. It is a 4-dimensional, floating-point type dataset with
-shape (Nblts, Nspws, Nfreqs, Npols). Note that it is \textit{not} required to be
-an integer, and should \textit{not} be saved as an integer type. The product of
-the integration\_time array and the data in the nsample array reflects the total
+named \verb+nsamples+. It is a 3-dimensional, floating-point type dataset with
+shape (Nblts, Nfreqs, Npols). Note that it is \textit{not} required to be an
+integer, and should \textit{not} be saved as an integer type. The product of the
+integration\_time array and the data in the nsample array reflects the total
 amount of time that went into a visibility. The best practice is for the
 nsamples dataset to track flagging within an integration time (leading to a
 decrease of the nsamples array value to be less than 1) and LST averaging
@@ -313,6 +366,93 @@ been LST averaged should have values in nsamples that are less than or equal to
 files. What \textit{should} be true is the product of the integration\_time
 array and nsamples array corresponding to the total amount of time included in a
 visibility.
+
+\section{Version History}
+\label{sec:version_history}
+The UVH5 specification has been through several minor version updates, and in
+the interest of maximizing interoperability between different readers and
+writers external to \verb+pyuvdata+, it is useful to define a version
+history. This is not a strict semantic versioning scheme, but instead intended
+to capture some of the important changes that the specification has gone
+through. Note that, as much as possible, \verb+pyuvdata+ intends to be fully
+compatible, and be able to read any valid UVH5 file written. Those interested in
+writing fully compatible readers/writers may look there for further details.
+
+\subsection{\texttt{version} dataset}
+When present, the version information is stored in the Header as a string-based
+dataset with the key \verb+version+. Note that files have not always contained
+this dataset, but as much as possible, new files written should contain this
+dataset to clarify.
+
+\subsection{Version 0.x/0.1}
+Historically, UVH5 files written by \verb+pyuvdata+ and the HERA correlator did
+not include the \verb+version+ dataset as part of the header. Implicitly, these
+files are v0.x. More recently, \verb+pyuvdata+ has begun writing the version
+information to files, and so the \verb+version+ dataset is present in these
+files. Below, we discuss some of the changes that occurred within the Version
+0.1 generation, to make users aware of the different flavors of UVH5 files they
+may encounter ``in the wild.''
+
+\subsubsection{\texttt{integration\_time} dataset}
+Initially, UVH5 files were written with a single value for
+\verb+integration_time+. It has since been modified to its current length of
+\verb+Nblts+ to allow for data with varying integration time between time
+samples or baselines.
+
+\subsubsection{Flexible Spectral Windows}
+\label{sec:flex_spw}
+A significant update to how the frequency axis was handled in UVData objects was
+implemented to allow for a more flexible handling of data from different
+spectral windows. Initially, inspired by the handling of multiple spectral
+windows in UVFITS files, the spectral window (\verb+spw+) axis was treated as a
+separate axis in metadata and data arrays. However, this approach is relatively
+inflexible, because it requires all spectral windows to have the same number of
+frequency channels to efficiently store the data (the alternatives being to use
+ragged-length arrays, which are inefficient for storing or accessing the data,
+or padded arrays which can contain a large amount of wasted storage to ensure
+arrays are regularly spaced).
+
+To overcome these limitations, taking inspiration from how frequency data are
+stored in MIRIAD, the idea of ``flexible spectral windows'' was adopted to save
+the frequency information. Analogously to how baselines and times are collapsed
+to a ``baseline-time axis'', frequencies and spectral windows are collapsed to a
+``frequency-spectral window'' axis. This allows for more versatility in how data
+from different spectral windows are stored inside of a single file, but it
+requires the change of several important components of metadata. We summarize
+these changes here.
+\begin{itemize}
+\item The value for \verb+Nfreqs+ is the total number of frequency channels
+  saved in the data across all spectral windows.
+\item Where required, the number of spectral windows \verb+Nspws+ is required to
+  be 1.
+\item The \verb+channel_width+ dataset was changed from a single number to a 1-d
+  array of length \verb+Nfreqs+.
+\item The \verb+flex_spw_id_array+ dataset was added to identify which spectral
+  window a given channel belongs.
+\item The \verb+flex_spw+ dataset was added to identify whether the file in
+  question supports flexible spectral windows (if \verb+True+) or not (if
+  \verb+False+).
+\end{itemize}
+
+Although both kinds of datasets (with or without flexible spectral windows) are
+supported by the UVH5 specification, it is preferred that they be saved
+\textit{with} flexible spectral windows, even in the case where there is a
+single spectral window. This helps standardize the UVH5 format going forward,
+while being backwards compatible with legacy files.
+
+\subsection{Version 1.0}
+
+\subsubsection{Rank-3 Array Convention}
+Version 1.0 of UVH5 represents a significant change in the way that the data
+arrays (\verb+visdata+, \verb+flags+, and \verb+nsamples+) and metadata arrays
+are stored. The previously vestigial spectral-window axis is removed, meaning
+that data arrays are rank-3 instead of rank-4. Explicitly, these arrays have
+shape (Nblts, Nfreqs, Npols), where Nfreqs includes the number of channels
+across all spectral windows. The description of data and metadata in the body of
+this memo assumes the Version 1.0 specification. Although \verb+pyuvdata+ plans
+to indefinitely support files written with the previous convention (i.e., having
+an explicit spectral window-axis), UVH5 files should be written such that they
+conform to Version 1.0.
 
 \newpage
 
@@ -422,8 +562,8 @@ with h5py.File('test_file.uvh5', 'r') as f:
     dshape = visdata.shape
     data = np.empty(dshape, dtype=np.complex128)
     with visdata.astype(int_dtype):
-        data.real = visdata['r'][:, :, :, :]
-        data.imag = visdata['i'][:, :, :, :]
+        data.real = visdata['r'][:, :, :]
+        data.imag = visdata['i'][:, :, :]
 \end{minted}
 
 
@@ -463,25 +603,22 @@ int main() {
 
   /* define array dimensions */
   int Nblts = 10;
-  int Nspws = 1;
   int Nfreqs = 16;
   int Npols = 4;
-  hsize_t dims[4] = {Nblts, Nspws, Nfreqs, Npols};
+  hsize_t dims[3] = {Nblts, Nfreqs, Npols};
 
   /* initialize data array with FALSE values */
-  bool_t data[Nblts][Nspws][Nfreqs][Npols];
+  bool_t data[Nblts][Nfreqs][Npols];
   for (int i=0; i<Nblts; i++) {
-    for (int j=0; j<Nspws; j++) {
-      for (int k=0; k<Nfreqs; k++) {
-        for (int l=0; l<Npols; l++) {
-          data[i][j][k][l] = FALSE;
-        }
+    for (int j=0; k<Nfreqs; j++) {
+      for (int k=0; l<Npols; k++) {
+        data[i][j][k] = FALSE;
       }
     }
   }
 
   /* make dataspace and write out data */
-  dspace_id = H5Screate_simple(4, dims, dims);
+  dspace_id = H5Screate_simple(3, dims, dims);
   flags_id = H5Dcreate(file_id, "flags", boolenumtype, dspace_id,
                        H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   status = H5Dwrite(flags_id, boolenumtype, H5S_ALL, H5S_ALL,
