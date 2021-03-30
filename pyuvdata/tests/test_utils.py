@@ -3251,6 +3251,15 @@ def test_uvcalibrate_feedpol_mismatch(uvcalibrate_data):
     ):
         uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
+    # check x_orientation warning
+    uvd.x_orientation = 'north'
+    uvc.x_orientation = 'east'
+    with pytest.warns(
+        UserWarning,
+        match="Data and calibration x_orientation do not match!",
+    ):
+        uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False)
+
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])

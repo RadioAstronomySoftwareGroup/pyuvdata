@@ -3879,6 +3879,13 @@ def uvcalibrate(
         if len(uvcal_freqs_to_keep) < uvcal.Nfreqs:
             downselect_cal_freq = True
 
+    # raise warning if x_orientation doesn't match
+    if uvdata.x_orientation != uvcal.x_orientation:
+        warnings.warn(
+            "Data and calibration x_orientation do not match!",
+            UserWarning,
+        )
+
     uvdata_pol_strs = polnum2str(
         uvdata.polarization_array, x_orientation=uvdata.x_orientation
     )
