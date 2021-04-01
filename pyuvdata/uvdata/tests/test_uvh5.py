@@ -72,7 +72,7 @@ def initialize_with_zeros(uvd, filename):
     This function is a helper function used for tests of partial writing.
     """
     uvd.initialize_uvh5_file(filename, clobber=True)
-    data_shape = (uvd.Nblts, 1, uvd.Nfreqs, uvd.Npols)
+    data_shape = (uvd.Nblts, uvd.Nfreqs, uvd.Npols)
     data = np.zeros(data_shape, dtype=np.complex64)
     flags = np.zeros(data_shape, dtype=np.bool_)
     nsamples = np.zeros(data_shape, dtype=np.float32)
@@ -97,10 +97,7 @@ def initialize_with_zeros_ints(uvd, filename):
     uvd.initialize_uvh5_file(
         filename, clobber=True, data_write_dtype=uvh5._hera_corr_dtype
     )
-    if uvd.future_array_shapes:
-        data_shape = (uvd.Nblts, uvd.Nfreqs, uvd.Npols)
-    else:
-        data_shape = (uvd.Nblts, 1, uvd.Nfreqs, uvd.Npols)
+    data_shape = (uvd.Nblts, uvd.Nfreqs, uvd.Npols)
     data = np.zeros(data_shape, dtype=np.complex64)
     flags = np.zeros(data_shape, dtype=np.bool_)
     nsamples = np.zeros(data_shape, dtype=np.float32)
@@ -110,12 +107,8 @@ def initialize_with_zeros_ints(uvd, filename):
         flags_dset = dgrp["flags"]
         nsample_dset = dgrp["nsamples"]
         with data_dset.astype(uvh5._hera_corr_dtype):
-            if uvd.future_array_shapes:
-                data_dset[:, :, :, "r"] = data.real
-                data_dset[:, :, :, "i"] = data.imag
-            else:
-                data_dset[:, :, :, :, "r"] = data.real
-                data_dset[:, :, :, :, "i"] = data.imag
+            data_dset[:, :, :, "r"] = data.real
+            data_dset[:, :, :, "i"] = data.imag
         flags_dset = flags  # noqa
         nsample_dset = nsamples  # noqa
     return
@@ -215,6 +208,8 @@ def test_write_uvh5_errors(casa_uvfits, tmp_path):
     # use clobber=True to write out anyway
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile)
+    # coerce back to current array shapes for comparison
+    uv_in.use_current_array_shapes()
     assert uv_in == uv_out
 
     # clean up
@@ -282,7 +277,7 @@ def test_uvh5_compression_options(casa_uvfits, tmp_path):
     assert uv_in == uv_out
 
     # test with non-auto chunking
-    chunks = (680, 1, 16, 1)
+    chunks = (680, 16, 1)
     uv_in.write_uvh5(
         testfile,
         clobber=True,
@@ -367,6 +362,8 @@ def test_uvh5_read_multiple_files_metadata_only(casa_uvfits, tmp_path):
         uv1.history,
     )
     uv1.history = uv_full.history
+    # coerce back to current array shapes for comparison
+    uv1.use_current_array_shapes()
     assert uv1 == uv_full
 
     # clean up
@@ -377,7 +374,7 @@ def test_uvh5_read_multiple_files_metadata_only(casa_uvfits, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_uvh5_rea_multiple_files_axis(casa_uvfits, tmp_path):
+def test_uvh5_read_multiple_files_axis(casa_uvfits, tmp_path):
     """
     Test reading multiple uvh5 files with setting axis.
     """
@@ -1610,6 +1607,8 @@ def test_uvh5_partial_write_errors(uv_partial_write, tmp_path):
 
     # initialize a file on disk, and pass in a different object so check_header fails
     empty_uvd = UVData()
+    # hacky workaround to make test work as intended
+    empty_uvd.future_array_shapes = True
     with pytest.raises(AssertionError) as cm:
         empty_uvd.write_uvh5_part(partial_testfile, data, flags, nsamples, bls=key)
     assert str(cm.value).startswith(
@@ -1643,6 +1642,8 @@ def test_initialize_uvh5_file(uv_partial_write, future_shapes, tmp_path):
 
     # read it in and make sure that the metadata matches the original
     partial_uvh5.read(partial_testfile, read_data=False)
+    if not future_shapes:
+        partial_uvh5.use_current_array_shapes()
     assert partial_uvh5 == full_uvh5
 
     # clean up
@@ -1690,6 +1691,9 @@ def test_initialize_uvh5_file_compression_opts(uv_partial_write, tmp_path):
     full_uvh5.data_array = None
     full_uvh5.flag_array = None
     full_uvh5.nsample_array = None
+
+    # use future array shapes
+    full_uvh5.use_future_array_shapes()
 
     # add options for compression
     partial_uvh5 = full_uvh5.copy()
