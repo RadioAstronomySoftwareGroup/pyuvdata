@@ -12,6 +12,8 @@
 \usepackage[titletoc,toc,title]{appendix}							
 \usepackage{amssymb}
 \usepackage{physics}
+\usepackage{array}
+\usepackage{makecell}
 
 \usepackage{hyperref} 
 \hypersetup{
@@ -172,14 +174,15 @@ interoperability between different HDF5 implementations.
   corresponding to each observation in the data. This is a two-dimensional array of
   size (Nblts, 3). Units are in meters. (\textit{uvw\_array})
 \item \textbf{time\_array}: \textit{float} An array of the Julian Date
-  corresponding to the center of an integration. This is a one-dimensional array
-  of size Nblts. (\textit{time\_array})
-\item \textbf{integration\_time}: \textit{float} An array of the length of time
-  in seconds of an integration. This is a one-dimensional array of size
+  corresponding to the temporal midpoint of the corresponding baseline's
+  integration. This is a one-dimensional array of size
   Nblts. (\textit{time\_array})
-\item \textbf{freq\_array}: \textit{float} An array of the frequencies stored in
-  the file in Hertz. This is a one-dimensional array of size
-  (Nfreqs). (\textit{freq\_array})
+\item \textbf{integration\_time}: \textit{float} An array of the duration in
+  seconds of an integration. This is a one-dimensional array of size
+  Nblts. (\textit{time\_array})
+\item \textbf{freq\_array}: \textit{float} An array of all the frequencies (for
+  all spectral windows) stored in the file in Hertz. This is a one-dimensional
+  array of size (Nfreqs). (\textit{freq\_array})
 \item \textbf{channel\_width}: \textit{float} The width of frequency channels in
   the file in Hertz. This is a one-dimensional array of size
   (Nfreqs). (\textit{channel\_width})
@@ -194,15 +197,24 @@ interoperability between different HDF5 implementations.
   that the polarizations should be stored as an integer, and use the convention
   defined in AIPS Memo 117. (\textit{polarization\_array})
 \item \textbf{antenna\_positions}: \textit{float} An array of the antenna
-  coordinates relative to the telescope location (in the ITRF frame), which is
-  implicitly defined by the \textit{latitude}, \textit{longitude}, and
-  \textit{altitude} (LLA) parameters. The conversion between LLA and ECEF is
-  given by WGS84. This is a two-dimensional array of size (Nants\_telescope,
+  coordinates relative to the reference position of the radio telescope array,
+  which is implicitly defined by the \textit{latitude}, \textit{longitude}, and
+  \textit{altitude} (LLA) parameters. More explicitly, these are the ECEF
+  coordinates of individual antennas minus the ECEF coordinates of the reference
+  telescope position, such that the telescope position plus the values stored in
+  \textit{antenna\_positions} equals the position of individual elements in
+  ECEF. The conversion between LLA and ECEF is given by WGS84. This is a
+  two-dimensional array of size (Nants\_telescope,
   3). (\textit{antenna\_positions})
-\item \textbf{flex\_spw}: \textit{bool} Whether the data are saved using
-  flexible spectral windows. Following the convention above, this should always
-  be \verb+True+. See Sec.~\ref{sec:flex_spw} for a discussion of historical
-  files for which this was not true. (\textit{flex\_spw})
+\item \textbf{flex\_spw}: \textit{numpy bool}\footnote{Note that this is
+    \textit{not} the same as the \texttt{H5T\_NATIVE\_HBOOL} type; instead, it
+    is an \texttt{H5Tenum} type, with an explicit \texttt{TRUE} and
+    \texttt{FALSE} value. See Appendix~\ref{appendix:boolean} for an example of
+    how to define this in C. Such a definition should follow analogously in
+    other languages.}  Whether the data are saved using flexible spectral
+  windows. Following the convention above, this should always be
+  \verb+True+. See Sec.~\ref{sec:flex_spw} for a discussion of historical files
+  for which this was not true. (\textit{flex\_spw})
 \item \textbf{version}: \textit{string} The version of the HDF5 file. The latest
   version (and the one described in this memo) is Version 1.0. Note it should be
   a string, such as \verb+`1.0'+. See Sec.~\ref{sec:version_history} for the
@@ -321,7 +333,7 @@ them, and the conjugation of one of the input data streams. Accordingly, the
 interconnected, based on the definition of one's coordinate system. For UVH5
 files, it is assumed that the convention for the Radio Interferometer
 Measurement Equation (RIME) of a visibility $\mathcal{V}$ for antennas $i$ and
-$j$ is as follows:
+$j$ is as follows \cite{tms}:
 \begin{equation}
 \mathcal{V}(u_j - u_i, v_j - v_i) = \int \dd{l} \dd{m} I(l, m) g_i(l, m) e^{-2\pi i (u_i l + v_i m)} g_j^*(l, m) e^{2\pi i (u_j l + v_j m)}.
 \end{equation}
@@ -330,7 +342,8 @@ antenna $i$ to antenna $j$ (so the baseline vector can be computed as
 $\vb{r_j} - \vb{r_i}$, where $\vb{r}$ is the position vector of a given
 antennas), and the data corresponding to antenna $j$ is conjugated. Note that if
 a file is generated with the opposite convention, it is usually sufficient to
-multiply $uvw$ coordinates by $-1$ to generate a self-consistent dataset.
+multiply $uvw$ coordinates by $-1$ to generate a self-consistent dataset, as
+well as conjugating the data in the \verb+data_array+.
 
 \subsection{Flags Dataset}
 \label{sec:flags}
@@ -340,14 +353,18 @@ Nfreqs, Npols). Values of True correspond to instances of flagged data, and
 False is non-flagged. Note that the boolean type of the data is \textit{not} the
 HDF5-provided \verb+H5T_NATIVE_HBOOL+, and instead is defined to conform to the
 \verb+h5py+ implementation of the numpy boolean type. When creating this dataset
-from \verb+h5py+, one can specify the datatype as \verb+np.bool+. Behind the
+from \verb+h5py+, one can specify the datatype as \verb+np.bool_+. Behind the
 scenes, this defines an HDF5 enum datatype. See Appendix~\ref{appendix:boolean}
 for an example of how to write a compatible dataset from C.
 
 As with the nsamples dataset discussed below, compression is typically applied
 to the flags dataset. The LZF filter (included in all HDF5 libraries) provides a
-good compromise between speed and compression. In the special cases of
-single-valued arrays, the dataset occupies virtually no disk space.
+good compromise between speed and compression, and is used in most HERA
+datasets. Note that HDF5 supports many other types of filters, such as ZLIB,
+SZIP, and BZIP2.\footnote{For more information, see
+  \href{https://portal.hdfgroup.org/display/HDF5/Using+Compression+in+HDF5}{the
+    documentation on using compression filters in HDF5}.} In the special cases
+of single-valued arrays, the dataset occupies virtually no disk space.
 
 \subsection{Nsamples Dataset}
 \label{sec:nsamples}
@@ -377,6 +394,11 @@ to capture some of the important changes that the specification has gone
 through. Note that, as much as possible, \verb+pyuvdata+ intends to be fully
 compatible, and be able to read any valid UVH5 file written. Those interested in
 writing fully compatible readers/writers may look there for further details.
+
+It is strongly encouraged that independent UVH5 writers conform to the latest
+version (Version 1.0 at time of writing), while readers are encouraged to
+support backwards compatibility as much as possible. If readers cannot support
+all revisions, reading more recent versions should be prioritized.
 
 \subsection{\texttt{version} dataset}
 When present, the version information is stored in the Header as a string-based
@@ -448,16 +470,47 @@ arrays (\verb+visdata+, \verb+flags+, and \verb+nsamples+) and metadata arrays
 are stored. The previously vestigial spectral-window axis is removed, meaning
 that data arrays are rank-3 instead of rank-4. Explicitly, these arrays have
 shape (Nblts, Nfreqs, Npols), where Nfreqs includes the number of channels
-across all spectral windows. The description of data and metadata in the body of
-this memo assumes the Version 1.0 specification. Although \verb+pyuvdata+ plans
-to indefinitely support files written with the previous convention (i.e., having
-an explicit spectral window-axis), UVH5 files should be written such that they
-conform to Version 1.0.
+across all spectral windows. This also affects the \textit{freq\_array} dataset,
+which went from a rank-2 array to rank-1 of size (Nfreqs). The description of
+data and metadata in the body of this memo assumes the Version 1.0
+specification. Although \verb+pyuvdata+ plans to indefinitely support files
+written with the previous convention (i.e., having an explicit spectral
+window-axis), UVH5 files should be written such that they conform to Version
+1.0.
+
+\subsection{Table Summarizing Changes}
+In the interest of summarizing all of the historical changes in a single place,
+we outline below the changes that have occurred in the UVH5 specification. We
+note what they are currently, along with how they were saved
+previously. Multiple issues changed in a single revision are offset using double
+horizontal lines.
+
+\begin{center}
+  \begin{tabular}{ m{8em} | m{10em} | m{10em} | m{4em} }
+    \textbf{Dataset} & \makecell[cl]{\textbf{Current}\\\textbf{Convention}} & \makecell[cl]{\textbf{Previous}\\\textbf{Convention}} & \textbf{Version Changed} \\\hline\hline
+    \texttt{Header/version} & String corresponding to version & Not present & v0.1 \\[1em] \hline\hline
+    \makecell[tl]{\texttt{Header/}\\\texttt{integration\_time}} & Array of float, shape (Nblts) & Single float (assumed to apply to all baseline-times) & v0.1 \\[1.75em] \hline\hline
+    \makecell[cl]{\texttt{Header/}\\\texttt{channel\_width}} & Array of float, shape (Nfreqs) & Single float (assumed to apply to all frequencies) & v0.1 \\[1.75em] \hline
+    \makecell[cl]{\texttt{Header/}\\\texttt{flex\_spw\_id\_array}} & Array of int, shape (Nfreqs) & Not present & v0.1 \\[1em] \hline
+    \texttt{Header/flex\_spw} & Numpy bool, value of \texttt{True} & Not present & v0.1 \\[1em] \hline\hline
+    \makecell[cl]{\texttt{Header/}\\\texttt{freq\_array}} & Array of float, shape (Nfreqs) & Array of float, shape (Nspws, Nfreqs) & v1.0\\[1em] \hline
+    \texttt{Data/visdata} & Array of complex, shape (Nblts, Nfreqs, Npols) & Array of complex, shape (Nblts, Nspws, Nfreqs, Npols) & v1.0\\[1.75em] \hline
+    \texttt{Data/flags} & Array of numpy bool, shape (Nblts, Nfreqs, Npols) & Array of numpy bool, shape (Nblts, Nspws, Nfreqs, Npols) & v1.0\\[1.75em] \hline
+    \texttt{Data/nsamples} & Array of float, shape (Nblts, Nfreqs, Npols) & Array of float, shape (Nblts, Nspws, Nfreqs, Npols) & v1.0\\
+  \end{tabular}
+\end{center}
+
+\begin{thebibliography}{9}
+
+\bibitem{tms} A.~Richard~Thompson, James~M.~Moran, and George~W.~Swenson,~Jr.,
+  ``Interferometry and Synthesis in Radio Astronomy, 3rd Edition'', 2017.
+
+\end{thebibliography}
 
 \newpage
 
 \begin{appendices}
-\section{Writing Strings from h5py}
+\section{Strings in HDF5}
 \label{appendix:strings}
 String datatypes are finicky, and require special handling to ensure that they
 are compatible with the HDF5 bindings in various languages. This is especially
@@ -483,7 +536,31 @@ or can be decoded as UTF-8 to become \verb+<str>+-type (python3).
 Below is an example for how to read and write string scalar and array-type
 datasets using \verb+h5py+ in python2 and python3.
 
-\subsection{python2}
+\subsection{Target String Type}
+The following is the output of \texttt{h5dump} for a string-like dataset in a
+UVH5 file. UVH5 writers are strongly encouraged (though not required) to follow
+the same convention. Although something like UTF-8 is more flexible, restricting
+strings to ASCII allows for greater interoperability with other file formats
+such as MIRIAD and UVFITS.
+
+\begin{verbatim}
+$ h5dump -V
+h5dump: Version 1.12.0
+$ h5dump -d Header/history -A simulated_bda_file.uvh5
+HDF5 "simulated_bda_file.uvh5" {
+DATASET "Header/history" {
+   DATATYPE  H5T_STRING {
+      STRSIZE 1035;
+      STRPAD H5T_STR_NULLPAD;
+      CSET H5T_CSET_ASCII;
+      CTYPE H5T_C_S1;
+   }
+   DATASPACE  SCALAR
+}
+}
+\end{verbatim}
+
+\subsection{Writing strings in python2}
 \begin{minted}{python}
 import numpy as np
 import h5py
@@ -505,15 +582,15 @@ with h5py.File('test_file.uvh5', 'w') as f:
 with h5py.File('test_file.uvh5', 'r') as f:
     header = f['Header']
     # read scalar dataset
-    scalar_string = header['scalar_string'].value.tostring()
+    scalar_string = header['scalar_string'][()].tobytes()
     assert scalar_string == 'Hello world!'
 
     # read array dataset
-    str_array_file = [n.tostring() for n in header['array_string'].value]
+    str_array_file = [n.tobytes() for n in header['array_string'][()]]
     assert np.all(str_array_file == str_array)
 \end{minted}
 
-\subsection{python3}
+\subsection{Writing strings in python3}
 \begin{minted}{python}
 import numpy as np
 import h5py
@@ -531,12 +608,12 @@ with h5py.File('test_file.uvh5', 'w') as f:
 with h5py.File('test_file.uvh5', 'r') as f:
     header = f['Header']
     # read scalar dataset
-    scalar_string = header['scalar_string'].value.tostring().decode('UTF-8')
+    scalar_string = header['scalar_string'][()].tobytes().decode('UTF-8')
     assert scalar_string == 'Hello world!'
 
     # read array dataset
-    str_array_file = [n.tostring().decode('UTF-8')
-                      for n in header['array_string'].value]
+    str_array_file = [n.tobytes().decode('UTF-8')
+                      for n in header['array_string'][()]]
     assert np.all(str_array_file == str_array)
 \end{minted}
 
@@ -572,7 +649,7 @@ with h5py.File('test_file.uvh5', 'r') as f:
 As mentioned in Sec.~\ref{sec:flags}, the flags array in a UVH5 file uses an
 HDF5 enum datatype to encode the numpy boolean type. When creating such a
 datatype using \verb+h5py+, the user simply needs to ensure the datatype is
-\verb+np.bool+. The building of the enum is transparent. When building the enum
+\verb+np.bool_+. The building of the enum is transparent. When building the enum
 from a different language, the precise specification is necessary to ensure
 compatibility. The following code is a template for how to build the appropriate
 datatype using C. The construction in other languages, such as Fortran, should
@@ -610,8 +687,8 @@ int main() {
   /* initialize data array with FALSE values */
   bool_t data[Nblts][Nfreqs][Npols];
   for (int i=0; i<Nblts; i++) {
-    for (int j=0; k<Nfreqs; j++) {
-      for (int k=0; l<Npols; k++) {
+    for (int j=0; j<Nfreqs; j++) {
+      for (int k=0; k<Npols; k++) {
         data[i][j][k] = FALSE;
       }
     }
