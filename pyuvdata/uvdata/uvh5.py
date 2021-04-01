@@ -1120,7 +1120,9 @@ class UVH5(UVData):
             # this is Version 1.0
             header["version"] = np.string_("1.0")
         else:
-            # this is Version 0.1
+            # this is Version 0.1; we won't write this unless the user calls
+            # this function specifically, as UVData.write_uvh5() will convert to
+            # future array shapes
             header["version"] = np.string_("0.1")
 
         # write out telescope and source information
@@ -1289,6 +1291,15 @@ class UVH5(UVData):
         a way that h5py can find it, no action needs to be taken to _read_ a
         data_array encoded with bitshuffle (or an error will be raised).
         """
+        # conform to future array types, so we will write UVH5 v1.0 files
+        if not self.future_array_shapes:
+            warnings.warn(
+                "converting to future array shapes to write file; if current "
+                "array shapes are desired after writing, call "
+                "use_current_array_shapes on the object."
+            )
+            self.use_future_array_shapes()
+
         if run_check:
             self.check(
                 check_extra=check_extra,
