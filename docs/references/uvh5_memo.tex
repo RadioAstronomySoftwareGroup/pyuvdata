@@ -27,7 +27,7 @@
 \title{Memo: UVH5 file format}
 \author{Paul La Plante, and the pyuvdata team}
 \date{November 28, 2018\\
-Revised March 29, 2021}
+Revised April 2, 2021}
 
 \begin{document}
 \maketitle
@@ -179,7 +179,7 @@ interoperability between different HDF5 implementations.
   Nblts. (\textit{time\_array})
 \item \textbf{integration\_time}: \textit{float} An array of the duration in
   seconds of an integration. This is a one-dimensional array of size
-  Nblts. (\textit{time\_array})
+  Nblts. (\textit{integration\_time})
 \item \textbf{freq\_array}: \textit{float} An array of all the frequencies (for
   all spectral windows) stored in the file in Hertz. This is a one-dimensional
   array of size (Nfreqs). (\textit{freq\_array})
@@ -188,10 +188,16 @@ interoperability between different HDF5 implementations.
   (Nfreqs). (\textit{channel\_width})
 \item \textbf{spw\_array}: \textit{int} An array of the spectral windows in the
   file. This is a one-dimensional array of size Nspws. (\textit{spw\_array})
-\item \textbf{flex\_spw\_id\_array}: \textit{int} The mapping of individual
-  channels along the frequency axis to individual spectral windows, as listed in
-  the \textit{spw\_array}. This is a one-dimensional array of size
-  (Nfreqs). (\textit{flex\_spw\_id\_array})
+\item \textbf{flex\_spw}: \textit{python bool}\footnote{Note that this is
+    \textit{not} the same as the \texttt{H5T\_NATIVE\_HBOOL} type; instead, it
+    is an \texttt{H5Tenum} type, with an explicit \texttt{TRUE} and
+    \texttt{FALSE} value. Such a type is created automatically when using
+    \texttt{h5py}, both for Python \texttt{bool} and numpy \texttt{np.bool\_}
+    types. See Appendix~\ref{appendix:boolean} for an example of how to define
+    this in C. Such a definition should follow analogously in other languages.}
+  Whether the data are saved using flexible spectral windows. If more than one
+  spectral window is present in the data, this must be \texttt{True}. See
+  Sec.~\ref{sec:flex_spw} for a discussion of the details. (\textit{flex\_spw})
 \item \textbf{polarization\_array}: \textit{int} An array of the polarizations
   contained in the file. This is a one-dimensional array of size Npols. Note
   that the polarizations should be stored as an integer, and use the convention
@@ -206,15 +212,6 @@ interoperability between different HDF5 implementations.
   ECEF. The conversion between LLA and ECEF is given by WGS84. This is a
   two-dimensional array of size (Nants\_telescope,
   3). (\textit{antenna\_positions})
-\item \textbf{flex\_spw}: \textit{numpy bool}\footnote{Note that this is
-    \textit{not} the same as the \texttt{H5T\_NATIVE\_HBOOL} type; instead, it
-    is an \texttt{H5Tenum} type, with an explicit \texttt{TRUE} and
-    \texttt{FALSE} value. See Appendix~\ref{appendix:boolean} for an example of
-    how to define this in C. Such a definition should follow analogously in
-    other languages.}  Whether the data are saved using flexible spectral
-  windows. Following the convention above, this should always be
-  \verb+True+. See Sec.~\ref{sec:flex_spw} for a discussion of historical files
-  for which this was not true. (\textit{flex\_spw})
 \item \textbf{version}: \textit{string} The version of the HDF5 file. The latest
   version (and the one described in this memo) is Version 1.0. Note it should be
   a string, such as \verb+`1.0'+. See Sec.~\ref{sec:version_history} for the
@@ -224,6 +221,12 @@ interoperability between different HDF5 implementations.
 \subsection{Optional Parameters}
 \label{sec:opt_params}
 \begin{itemize}
+\item \textbf{flex\_spw\_id\_array}: \textit{int} The mapping of individual
+  channels along the frequency axis to individual spectral windows, as listed in
+  the \textit{spw\_array}. This is a one-dimensional array of size
+  (Nfreqs). Note this is \textbf{required} if the file uses flexible
+  spectral windows (see
+  Sec.~\ref{sec:flex_spw}). (\textit{flex\_spw\_id\_array})
 \item \textbf{dut1}: \textit{float} DUT1 (google it), in seconds. AIPS 117 calls
   it \verb+UT1UTC+. (\textit{dut1})
 \item \textbf{earth\_omega}: \textit{float} Earth's rotation rate in degrees per
@@ -241,7 +244,7 @@ interoperability between different HDF5 implementations.
   supports UTC. (\textit{timesys})
 \item \textbf{x\_orientation}: \textit{string} The orientation of the x-arm of a
   dipole antenna. It is assumed to be the same for all antennas in the
-  dataset. For instance, ``E'' or ``East'' may be
+  dataset. For instance, ``East'' or ``North'' may be
   used. (\textit{x\_orientation}).
 \item \textbf{antenna\_diameters}: \textit{float} An array of the diameters of
   the antennas in meters. This is a one-dimensional array of size
@@ -425,7 +428,7 @@ samples or baselines.
 \label{sec:flex_spw}
 A significant update to how the frequency axis was handled in UVData objects was
 implemented to allow for a more flexible handling of data from different
-spectral windows. Initially, inspired by the handling of multiple spectral
+spectral windows. Initially, following the method of handling multiple spectral
 windows in UVFITS files, the spectral window (\verb+spw+) axis was treated as a
 separate axis in metadata and data arrays. However, this approach is relatively
 inflexible, because it requires all spectral windows to have the same number of
@@ -433,6 +436,17 @@ frequency channels to efficiently store the data (the alternatives being to use
 ragged-length arrays, which are inefficient for storing or accessing the data,
 or padded arrays which can contain a large amount of wasted storage to ensure
 arrays are regularly spaced).
+
+\begin{figure}[h!]
+  \begin{center}
+    \includegraphics[width=0.95\textwidth]{uvh5_diagram.pdf}
+    \caption{A summary of the different combinations of the rank of data arrays
+      (reflected by UVH5 version), and flexible spectral windows. The various
+      data and metadata values and ranks are listed in detail in
+      Table~\ref{table:spw}.}
+    \label{fig:spws}
+  \end{center}
+\end{figure}
 
 To overcome these limitations, taking inspiration from how frequency data are
 stored in MIRIAD, the idea of ``flexible spectral windows'' was adopted to save
@@ -449,22 +463,23 @@ these changes here.
   be 1.
 \item The \verb+channel_width+ dataset was changed from a single number to a 1-d
   array of length \verb+Nfreqs+.
-\item The \verb+flex_spw_id_array+ dataset was added to identify which spectral
-  window a given channel belongs.
 \item The \verb+flex_spw+ dataset was added to identify whether the file in
   question supports flexible spectral windows (if \verb+True+) or not (if
   \verb+False+).
+\item The \verb+flex_spw_id_array+ dataset was added to identify which spectral
+  window a given channel belongs. This is required if \texttt{flex\_spw} is
+  \texttt{True}.
 \end{itemize}
 
-Although both kinds of datasets (with or without flexible spectral windows) are
-supported by the UVH5 specification, it is preferred that they be saved
-\textit{with} flexible spectral windows, even in the case where there is a
-single spectral window. This helps standardize the UVH5 format going forward,
-while being backwards compatible with legacy files.
+It is possible to save files self-consistently without using flexible spectral
+windows \textit{if and only if there is a single spectral window}. We outline
+the various (valid) combinations below in Sec.~\ref{sec:version_table}.
+
 
 \subsection{Version 1.0}
 
 \subsubsection{Rank-3 Array Convention}
+\label{sec:rank3_arrays}
 Version 1.0 of UVH5 represents a significant change in the way that the data
 arrays (\verb+visdata+, \verb+flags+, and \verb+nsamples+) and metadata arrays
 are stored. The previously vestigial spectral-window axis is removed, meaning
@@ -479,26 +494,52 @@ window-axis), UVH5 files should be written such that they conform to Version
 1.0.
 
 \subsection{Table Summarizing Changes}
+\label{sec:version_table}
 In the interest of summarizing all of the historical changes in a single place,
 we outline below the changes that have occurred in the UVH5 specification. We
 note what they are currently, along with how they were saved
-previously. Multiple issues changed in a single revision are offset using double
-horizontal lines.
+previously.
 
 \begin{center}
   \begin{tabular}{ m{8em} | m{10em} | m{10em} | m{4em} }
     \textbf{Dataset} & \makecell[cl]{\textbf{Current}\\\textbf{Convention}} & \makecell[cl]{\textbf{Previous}\\\textbf{Convention}} & \textbf{Version Changed} \\\hline\hline
-    \texttt{Header/version} & String corresponding to version & Not present & v0.1 \\[1em] \hline\hline
-    \makecell[tl]{\texttt{Header/}\\\texttt{integration\_time}} & Array of float, shape (Nblts) & Single float (assumed to apply to all baseline-times) & v0.1 \\[1.75em] \hline\hline
-    \makecell[cl]{\texttt{Header/}\\\texttt{channel\_width}} & Array of float, shape (Nfreqs) & Single float (assumed to apply to all frequencies) & v0.1 \\[1.75em] \hline
-    \makecell[cl]{\texttt{Header/}\\\texttt{flex\_spw\_id\_array}} & Array of int, shape (Nfreqs) & Not present & v0.1 \\[1em] \hline
-    \texttt{Header/flex\_spw} & Numpy bool, value of \texttt{True} & Not present & v0.1 \\[1em] \hline\hline
-    \makecell[cl]{\texttt{Header/}\\\texttt{freq\_array}} & Array of float, shape (Nfreqs) & Array of float, shape (Nspws, Nfreqs) & v1.0\\[1em] \hline
-    \texttt{Data/visdata} & Array of complex, shape (Nblts, Nfreqs, Npols) & Array of complex, shape (Nblts, Nspws, Nfreqs, Npols) & v1.0\\[1.75em] \hline
-    \texttt{Data/flags} & Array of numpy bool, shape (Nblts, Nfreqs, Npols) & Array of numpy bool, shape (Nblts, Nspws, Nfreqs, Npols) & v1.0\\[1.75em] \hline
-    \texttt{Data/nsamples} & Array of float, shape (Nblts, Nfreqs, Npols) & Array of float, shape (Nblts, Nspws, Nfreqs, Npols) & v1.0\\
+    \texttt{Header/version} & String corresponding to version & Not present & v0.1 \\[1em] \hline
+    \makecell[tl]{\texttt{Header/}\\\texttt{integration\_time}} & Array of float, shape (Nblts) & Single float (assumed to apply to all baseline-times) & v0.1 \\[1.75em]
   \end{tabular}
 \end{center}
+
+We also summarize the combination of data and metadata properties for the cases
+of: (A) rank-3 data arrays, flexible spectral windows; (B) rank-3 data arrays,
+no flexible spectral windows; (C) rank-4 data arrays, flexible spectral windows;
+(D) rank-4 data arrays, no flexible spectral windows. See Figure~\ref{fig:spws}
+for a visual representation. \textbf{Note that we include the following only as
+  a reference! We encourage UVH5 writers to conform as much as possible to the
+  v1.0 specification (options A or B).}
+
+\begin{table}[t]
+  \scriptsize
+  \begin{center}
+    \begin{tabular}{ m{8em} | m{10em} | m{10em} | m{10em} | m{10em}}
+      \textbf{Dataset} & \textbf{Type A} & \textbf{Type B} & \textbf{Type C} & \textbf{Type D} \\ \hline\hline
+      \texttt{Header/Nspws} & Number of spectral windows & 1 & Number of spectral windows & Number of spectral windows \\ \hline
+      \texttt{Header/Nfreqs} & Number of frequencies across all spectral windows & Number of frequencies & Number of frequencies across all spectral windows & Number of frequencies \textit{per} spectral window \\ \hline
+      \makecell[cl]{\texttt{Header/}\\\texttt{channel\_width}} & Shape (Nfreqs) & Shape (Nfreqs) & Shape (Nfreqs) & Scalar (assumed to apply to all frequencies) \\[1.75em] \hline
+      \makecell[cl]{\texttt{Header/}\\\texttt{flex\_spw\_id\_array}} & Shape (Nfreqs) & Not present & Shape (Nfreqs) & Not present \\[1.75em] \hline
+      \texttt{Header/flex\_spw} & \texttt{True} & \texttt{False} & \texttt{True} & \texttt{False} \textbf{OR} not present \\[1.75em] \hline
+      \makecell[cl]{\texttt{Header/}\\\texttt{freq\_array}} & Shape (Nfreqs) & Shape (Nfreqs) & Shape (Nfreqs) & Shape (Nspws, Nfreqs) \\[1.75em] \hline
+      \texttt{Data/visdata} & Shape (Nblts, Nfreqs, Npols) & Shape (Nblts, Nfreqs, Npols) & Shape (Nblts, 1, Nfreqs, Npols) & Shape (Nblts, Nspws, Nfreqs, Npols) \\[1.75em] \hline
+      \texttt{Data/flags} & Shape (Nblts, Nfreqs, Npols) & Shape (Nblts, Nfreqs, Npols) & Shape (Nblts, 1, Nfreqs, Npols) & Shape (Nblts, Nspws, Nfreqs, Npols) \\[1.75em] \hline
+      \texttt{Data/nsamples} & Shape (Nblts, Nfreqs, Npols) & Shape (Nblts, Nfreqs, Npols) & Shape (Nblts, 1, Nfreqs, Npols) & Shape (Nblts, Nspws, Nfreqs, Npols) \\
+    \end{tabular}
+  \end{center}
+  \caption{A table summarizing the different data and metadata values for
+    different file types. Type A, B, C, and D refer to the combinations of data
+    array rank and flexible spectral windows in Figure~\ref{fig:spws}. Note that
+    UVH5 writers are strongly encouraged to write files compatible with Type A
+    or B (i.e., UVH5 v1.0), whereas readers are encouraged to be as flexible as
+    possible (within reason).}
+  \label{table:spw}
+\end{table}
 
 \begin{thebibliography}{9}
 
@@ -644,10 +685,10 @@ with h5py.File('test_file.uvh5', 'r') as f:
 \end{minted}
 
 
-\section{Defining \texttt{numpy} Boolean Arrays in C}
+\section{Defining Python Boolean Types in C}
 \label{appendix:boolean}
 As mentioned in Sec.~\ref{sec:flags}, the flags array in a UVH5 file uses an
-HDF5 enum datatype to encode the numpy boolean type. When creating such a
+HDF5 enum datatype to encode the \verb+h5py+ boolean type. When creating such a
 datatype using \verb+h5py+, the user simply needs to ensure the datatype is
 \verb+np.bool_+. The building of the enum is transparent. When building the enum
 from a different language, the precise specification is necessary to ensure
