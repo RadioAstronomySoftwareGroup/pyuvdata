@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.1.5] - 2021-4-02
+
 ### Added
 - Added `use_future_array_shapes` method to allow users to convert to using the future
 array shapes now, with support throughout UVData methods and related utility functions.
