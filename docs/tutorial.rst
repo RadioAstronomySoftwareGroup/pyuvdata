@@ -1287,7 +1287,7 @@ sorting by spectral windows or channels (or even just the channels within specif
 spectral windows). Spectral windows or channels can be sorted by ascending or descending
 number or in an order specified by passing an array of spectral window or channel numbers.
 
-::
+.. code-block:: python
 
   >>> import os
   >>> import numpy as np
@@ -1297,9 +1297,9 @@ number or in an order specified by passing an array of spectral window or channe
   >>> testfile = os.path.join(DATA_PATH, "sma_test.mir")
   >>> uv.read(testfile)
 
-  # Sort by spectral window number and by frequency within the spectral window
-  # Now the spectral windows are in ascending order and the frequencies in each window
-  # are in ascending order.
+  >>> # Sort by spectral window number and by frequency within the spectral window
+  >>> # Now the spectral windows are in ascending order and the frequencies in each window
+  >>> # are in ascending order.
   >>> uv.reorder_freqs(spw_order="number", channel_order="freq")
   >>> print(uv.spw_array)
   [-4 -3 -2 -1  1  2  3  4]
@@ -1307,9 +1307,9 @@ number or in an order specified by passing an array of spectral window or channe
   >>> print(np.min(np.diff(uv.freq_array[0, np.nonzero(uv.flex_spw_id_array == 1)])) >= 0)
   True
 
-  # Prepend a ``-`` to the sort string to sort in descending order.
-  # Now the spectral windows are in descending order but the frequencies in each window
-  # are in ascending order.
+  >>> # Prepend a ``-`` to the sort string to sort in descending order.
+  >>> # Now the spectral windows are in descending order but the frequencies in each window
+  >>> # are in ascending order.
   >>> uv.reorder_freqs(spw_order="-number", channel_order="freq")
   >>> print(uv.spw_array)
   [ 4  3  2  1 -1 -2 -3 -4]
@@ -1317,9 +1317,9 @@ number or in an order specified by passing an array of spectral window or channe
   >>> print(np.min(np.diff(uv.freq_array[0, np.nonzero(uv.flex_spw_id_array == 1)])) >= 0)
   True
 
-  # Use the ``select_spw`` keyword to sort only one spectral window.
-  # Now the frequencies in spectral window 1 are in descending order but the frequencies
-  # in spectral window 2 are in ascending order
+  >>> # Use the ``select_spw`` keyword to sort only one spectral window.
+  >>> # Now the frequencies in spectral window 1 are in descending order but the frequencies
+  >>> # in spectral window 2 are in ascending order
   >>> uv.reorder_freqs(select_spw=1, channel_order="-freq")
   >>> print(np.min(np.diff(uv.freq_array[0, np.nonzero(uv.flex_spw_id_array == 1)])) <= 0)
   True
