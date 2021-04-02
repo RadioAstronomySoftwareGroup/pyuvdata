@@ -1813,8 +1813,6 @@ class UVH5(UVData):
                     _write_complex_astype(data_array, visdata_dset, indices)
                 else:
                     if self.future_array_shapes:
-                        print("visdata_dset shape", visdata_dset.shape)
-                        print("data_array shape", data_array.shape)
                         visdata_dset[blt_inds, freq_inds, pol_inds] = data_array
                     else:
                         visdata_dset[blt_inds, :, freq_inds, pol_inds] = data_array
