@@ -2006,7 +2006,7 @@ def test_add(cst_power_1freq, cst_efield_1freq):
         UserWarning,
         "Only one of the UVBeam objects being combined has optional parameter",
     ):
-        beam1.__iadd__(beam2)
+        beam1 += beam2
 
     assert beam1.receiver_temperature_array is None
 
@@ -2018,16 +2018,23 @@ def test_add(cst_power_1freq, cst_efield_1freq):
         polarizations=power_beam.polarization_array[2:4], inplace=False
     )
     beam2.history += " testing the history. Read/written with pyuvdata"
-    beam1 += beam2
+    new_beam = beam1 + beam2
     assert uvutils._check_histories(
-        power_beam.history + "  Downselected to specific polarizations "
-        "using pyuvdata. Combined data along "
-        "polarization axis using pyuvdata. "
-        "testing the history.",
-        beam1.history,
+        power_beam.history + "  Downselected to specific polarizations using pyuvdata. "
+        "Combined data along polarization axis using pyuvdata. Unique part of next "
+        "object history follows.  testing the history.",
+        new_beam.history,
     )
-    beam1.history = power_beam.history
-    assert beam1 == power_beam
+    new_beam.history = power_beam.history
+    assert new_beam == power_beam
+
+    new_beam = beam1.__add__(beam2, verbose_history=True)
+    assert uvutils._check_histories(
+        power_beam.history + "  Downselected to specific polarizations using pyuvdata. "
+        "Combined data along polarization axis using pyuvdata. Next object history "
+        "follows. " + beam2.history,
+        new_beam.history,
+    )
 
     # ------------------------
     # Test failure modes of add function

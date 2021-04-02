@@ -70,20 +70,25 @@ def test_XYZ_from_LatLonAlt():
     assert np.allclose(ref_xyz, out_xyz, rtol=0, atol=1e-3)
 
     # test error checking
-    pytest.raises(
+    with pytest.raises(
         ValueError,
-        uvutils.XYZ_from_LatLonAlt,
-        ref_latlonalt[0],
-        ref_latlonalt[1],
-        np.array([ref_latlonalt[2], ref_latlonalt[2]]),
-    )
-    pytest.raises(
+        match="latitude, longitude and altitude must all have the same length",
+    ):
+        uvutils.XYZ_from_LatLonAlt(
+            ref_latlonalt[0],
+            ref_latlonalt[1],
+            np.array([ref_latlonalt[2], ref_latlonalt[2]]),
+        )
+
+    with pytest.raises(
         ValueError,
-        uvutils.XYZ_from_LatLonAlt,
-        ref_latlonalt[0],
-        np.array([ref_latlonalt[1], ref_latlonalt[1]]),
-        ref_latlonalt[2],
-    )
+        match="latitude, longitude and altitude must all have the same length",
+    ):
+        uvutils.XYZ_from_LatLonAlt(
+            ref_latlonalt[0],
+            np.array([ref_latlonalt[1], ref_latlonalt[1]]),
+            ref_latlonalt[2],
+        )
 
 
 def test_LatLonAlt_from_XYZ():

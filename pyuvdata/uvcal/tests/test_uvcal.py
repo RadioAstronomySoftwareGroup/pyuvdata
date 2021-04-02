@@ -1316,13 +1316,21 @@ def test_add(caltype, gain_data, delay_data):
         calobj2.history = "Some random history string OMNI_RUN:"
     else:
         calobj2.history = "Some random history string firstcal.py"
-    calobj += calobj2
+    new_cal = calobj + calobj2
 
     additional_history = "Some random history string"
     assert uvutils._check_histories(
         calobj_original.history + " Combined data along antenna axis "
-        "using pyuvdata. " + additional_history,
-        calobj.history,
+        "using pyuvdata. Unique part of next object history follows.  "
+        + additional_history,
+        new_cal.history,
+    )
+
+    new_cal = calobj.__add__(calobj2, verbose_history=True)
+    assert uvutils._check_histories(
+        calobj_original.history + " Combined data along antenna axis "
+        "using pyuvdata. Next object history follows.  " + calobj2.history,
+        new_cal.history,
     )
 
 
