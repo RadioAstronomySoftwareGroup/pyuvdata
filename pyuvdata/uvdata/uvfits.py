@@ -162,7 +162,7 @@ class UVFITS(UVData):
                 )
             else:
                 raise ValueError(
-                    "integration time not specified and only " "one time present"
+                    "integration time not specified and only one time present"
                 )
 
         if proc is not None:

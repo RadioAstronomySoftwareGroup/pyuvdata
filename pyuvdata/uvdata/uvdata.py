@@ -451,8 +451,8 @@ class UVData(UVBase):
         # -------- extra, non-required parameters ----------
         desc = (
             "Orientation of the physical dipole corresponding to what is "
-            'labelled as the x polarization. Options are "east" '
-            '(indicating east/west orientation) and "north" (indicating '
+            "labelled as the x polarization. Options are 'east' "
+            "(indicating east/west orientation) and 'north (indicating "
             "north/south orientation)"
         )
         self._x_orientation = uvp.UVParameter(
@@ -3317,6 +3317,7 @@ class UVData(UVBase):
         phase_frame="icrs",
         orig_phase_frame=None,
         use_ant_pos=False,
+        verbose_history=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -3354,6 +3355,14 @@ class UVData(UVBase):
             If True, calculate the phased or unphased uvws directly from the
             antenna positions rather than from the existing uvws.
             Only used if `unphase_to_drift` or `phase_center_radec` are set.
+        verbose_history : bool
+            Option to allow more verbose history. If True and if the histories for the
+            two objects are different, the combined object will keep all the history of
+            both input objects (if many objects are combined in succession this can
+            lead to very long histories). If False and if the histories for the two
+            objects are different, the combined object will have the history of the
+            first object and only the parts of the second object history that are unique
+            (this is done word by word and can result in hard to interpret histories).
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after combining objects.
@@ -4044,9 +4053,22 @@ class UVData(UVBase):
 
         if n_axes > 0:
             history_update_string += " axis using pyuvdata."
-            this.history += history_update_string
 
-        this.history = uvutils._combine_histories(this.history, other.history)
+            histories_match = uvutils._check_histories(this.history, other.history)
+
+            this.history += history_update_string
+            if not histories_match:
+                if verbose_history:
+                    this.history += " Next object history follows. " + other.history
+                else:
+                    extra_history = uvutils._combine_history_addition(
+                        this.history, other.history
+                    )
+                    if extra_history is not None:
+                        this.history += (
+                            " Unique part of next object history follows. "
+                            + extra_history
+                        )
 
         # Check final object is self-consistent
         if run_check:
@@ -4149,6 +4171,7 @@ class UVData(UVBase):
         phase_frame="icrs",
         orig_phase_frame=None,
         use_ant_pos=False,
+        verbose_history=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -4195,6 +4218,14 @@ class UVData(UVBase):
             If True, calculate the phased or unphased uvws directly from the
             antenna positions rather than from the existing uvws.
             Only used if `unphase_to_drift` or `phase_center_radec` are set.
+        verbose_history : bool
+            Option to allow more verbose history. If True and if the histories for the
+            objects are different, the combined object will keep all the history of
+            all input objects (if many objects are combined this can lead to very long
+            histories). If False and if the histories for the objects are different,
+            the combined object will have the history of the first object and only the
+            parts of the other object histories that are unique (this is done word by
+            word and can result in hard to interpret histories).
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after combining objects.
@@ -4381,10 +4412,25 @@ class UVData(UVBase):
             compatibility_params += ["_freq_array", "_polarization_array"]
 
         history_update_string += " axis using pyuvdata."
-        this.history += history_update_string
 
+        histories_match = []
         for obj in other:
-            this.history = uvutils._combine_histories(this.history, obj.history)
+            histories_match.append(uvutils._check_histories(this.history, obj.history))
+
+        this.history += history_update_string
+        for obj_num, obj in enumerate(other):
+            if not histories_match[obj_num]:
+                if verbose_history:
+                    this.history += " Next object history follows. " + obj.history
+                else:
+                    extra_history = uvutils._combine_history_addition(
+                        this.history, obj.history
+                    )
+                    if extra_history is not None:
+                        this.history += (
+                            " Unique part of next object history follows. "
+                            + extra_history
+                        )
 
         # Actually check compatibility parameters
         for obj in other:
@@ -4556,6 +4602,7 @@ class UVData(UVBase):
         other,
         inplace=False,
         difference=False,
+        verbose_history=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -4581,6 +4628,14 @@ class UVData(UVBase):
         inplace : bool
             If True, overwrite self as we go, otherwise create a third object
             as the sum of the two.
+        verbose_history : bool
+            Option to allow more verbose history. If True and if the histories for the
+            two objects are different, the combined object will keep all the history of
+            both input objects (this can lead to long histories). If False and if the
+            histories for the two objects are different, the combined object will have
+            the history of the first object and only the parts of the second object
+            history that are unique (this is done word by word and can result in hard
+            to interpret histories).
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after combining objects.
@@ -4698,8 +4753,21 @@ class UVData(UVBase):
             this.data_array = this.data_array + other.data_array
             history_update_string = " Visibilities summed using pyuvdata."
 
-        this.history = uvutils._combine_histories(this.history, other.history)
+        histories_match = uvutils._check_histories(this.history, other.history)
+
         this.history += history_update_string
+        if not histories_match:
+            if verbose_history:
+                this.history += " Second object history follows. " + other.history
+            else:
+                extra_history = uvutils._combine_history_addition(
+                    this.history, other.history
+                )
+                if extra_history is not None:
+                    this.history += (
+                        " Unique part of second object history follows. "
+                        + extra_history
+                    )
 
         # Check final object is self-consistent
         if run_check:

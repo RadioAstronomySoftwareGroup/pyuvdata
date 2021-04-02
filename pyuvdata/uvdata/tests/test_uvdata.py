@@ -2605,11 +2605,24 @@ def test_sum_vis(casa_uvfits, future_shapes):
 
     uv_half = uv_full.copy()
     uv_half.data_array = uv_full.data_array / 2
-    uv_summed = uv_half.sum_vis(uv_half)
+    uv_half_mod = uv_half.copy()
+    uv_half_mod.history += " testing the history. "
+    uv_summed = uv_half.sum_vis(uv_half_mod)
 
     assert np.array_equal(uv_summed.data_array, uv_full.data_array)
     assert uvutils._check_histories(
-        uv_half.history + " Visibilities summed " "using pyuvdata.", uv_summed.history
+        uv_half.history + " Visibilities summed using pyuvdata. Unique part of second "
+        "object history follows.  testing the history.",
+        uv_summed.history,
+    )
+
+    uv_summed = uv_half.sum_vis(uv_half_mod, verbose_history=True)
+
+    assert np.array_equal(uv_summed.data_array, uv_full.data_array)
+    assert uvutils._check_histories(
+        uv_half.history + " Visibilities summed using pyuvdata. Second object history "
+        "follows. " + uv_half_mod.history,
+        uv_summed.history,
     )
 
     # check diff_vis
@@ -2617,7 +2630,7 @@ def test_sum_vis(casa_uvfits, future_shapes):
 
     assert np.array_equal(uv_diffed.data_array, uv_half.data_array)
     assert uvutils._check_histories(
-        uv_full.history + " Visibilities " "differenced using pyuvdata.",
+        uv_full.history + " Visibilities differenced using pyuvdata.",
         uv_diffed.history,
     )
 
@@ -3034,16 +3047,23 @@ def test_add(casa_uvfits, future_shapes):
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv2.history += " testing the history. AIPS WTSCAL = 1.0"
-    uv1 += uv2
+    uv_new = uv1 + uv2
     assert uvutils._check_histories(
-        uv_full.history + "  Downselected to "
-        "specific polarizations using pyuvdata. "
-        "Combined data along polarization "
-        "axis using pyuvdata. testing the history.",
-        uv1.history,
+        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
+        "Combined data along polarization axis using pyuvdata. Unique part of next "
+        "object history follows.  testing the history.",
+        uv_new.history,
     )
-    uv1.history = uv_full.history
-    assert uv1 == uv_full
+    uv_new.history = uv_full.history
+    assert uv_new == uv_full
+
+    uv_new = uv1.__add__(uv2, verbose_history=True)
+    assert uvutils._check_histories(
+        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
+        "Combined data along polarization axis using pyuvdata. Next object history "
+        "follows.  " + uv2.history,
+        uv_new.history,
+    )
 
     # test add of autocorr-only and crosscorr-only objects
     uv_full = UVData()
@@ -3297,17 +3317,23 @@ def test_add_drift(casa_uvfits):
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv2.history += " testing the history. AIPS WTSCAL = 1.0"
-    uv1 += uv2
+    uv_new = uv1 + uv2
     assert uvutils._check_histories(
-        uv_full.history + "  Downselected to "
-        "specific polarizations using pyuvdata. "
-        "Combined data along polarization "
-        "axis using pyuvdata. testing the history.",
-        uv1.history,
+        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
+        "Combined data along polarization axis using pyuvdata.  Unique part of next "
+        "object history follows.  testing the history.",
+        uv_new.history,
     )
-    uv1.history = uv_full.history
-    assert uv1 == uv_full
+    uv_new.history = uv_full.history
+    assert uv_new == uv_full
 
+    uv_new = uv1.__add__(uv2, verbose_history=True)
+    assert uvutils._check_histories(
+        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
+        "Combined data along polarization axis using pyuvdata. Next object history "
+        "follows." + uv2.history,
+        uv_new.history,
+    )
 
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
 @pytest.mark.parametrize("future_shapes", [True, False])
@@ -4007,16 +4033,23 @@ def test_fast_concat(casa_uvfits, future_shapes):
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv2.history += " testing the history. AIPS WTSCAL = 1.0"
-    uv1.fast_concat(uv2, "polarization", inplace=True)
+    uv_new = uv1.fast_concat(uv2, "polarization")
     assert uvutils._check_histories(
-        uv_full.history + "  Downselected to "
-        "specific polarizations using pyuvdata. "
-        "Combined data along polarization "
-        "axis using pyuvdata. testing the history.",
-        uv1.history,
+        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
+        "Combined data along polarization axis using pyuvdata. Unique part of next "
+        "object history follows. testing the history.",
+        uv_new.history,
     )
-    uv1.history = uv_full.history
-    assert uv1 == uv_full
+    uv_new.history = uv_full.history
+    assert uv_new == uv_full
+
+    uv_new = uv1.fast_concat(uv2, "polarization", verbose_history=True)
+    assert uvutils._check_histories(
+        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
+        "Combined data along polarization axis using pyuvdata. Next object history "
+        "follows." + uv2.history,
+        uv_new.history,
+    )
 
     # test add of autocorr-only and crosscorr-only objects
     uv_full = UVData()

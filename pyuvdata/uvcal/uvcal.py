@@ -1142,6 +1142,7 @@ class UVCal(UVBase):
     def __add__(
         self,
         other,
+        verbose_history=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -1154,6 +1155,14 @@ class UVCal(UVBase):
         ----------
         other : :class: UVCal
             Another UVCal object which will be added to self.
+        verbose_history : bool
+            Option to allow more verbose history. If True and if the histories for the
+            two objects are different, the combined object will keep all the history of
+            both input objects (if many objects are combined in succession this can
+            lead to very long histories). If False and if the histories for the two
+            objects are different, the combined object will have the history of the
+            first object and only the parts of the second object history that are unique
+            (this is done word by word and can result in hard to interpret histories).
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after combining objects.
@@ -1767,9 +1776,22 @@ class UVCal(UVBase):
 
         if n_axes > 0:
             history_update_string += " axis using pyuvdata."
-            this.history += history_update_string
 
-        this.history = uvutils._combine_histories(this.history, other.history)
+            histories_match = uvutils._check_histories(this.history, other.history)
+
+            this.history += history_update_string
+            if not histories_match:
+                if verbose_history:
+                    this.history += " Next object history follows. " + other.history
+                else:
+                    extra_history = uvutils._combine_history_addition(
+                        this.history, other.history
+                    )
+                    if extra_history is not None:
+                        this.history += (
+                            " Unique part of next object history follows. "
+                            + extra_history
+                        )
 
         # Check final object is self-consistent
         if run_check:

@@ -251,8 +251,27 @@ def _check_histories(history1, history2):
         return False
 
 
-def _combine_histories(history1, history2):
-    """Combine histories with minimal repeats."""
+def _combine_history_addition(history1, history2):
+    """
+    Find extra history to add to have minimal repeats.
+
+    Parameters
+    ----------
+    history1 : str
+        First history.
+    history2 : str
+        Second history
+
+    Returns
+    -------
+    str
+        Extra history to add to first history.
+
+    """
+    # first check if they're the same to avoid more complicated processing.
+    if _check_histories(history1, history2):
+        return None
+
     hist2_words = history2.split(" ")
     add_hist = ""
     test_hist1 = " " + history1 + " "
@@ -270,7 +289,9 @@ def _combine_histories(history1, history2):
                 else:
                     keep_going = False
 
-    return history1 + add_hist
+    if add_hist == "":
+        add_hist = None
+    return add_hist
 
 
 def baseline_to_antnums(baseline, Nants_telescope):
