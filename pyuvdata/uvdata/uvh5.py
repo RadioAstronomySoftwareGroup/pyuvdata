@@ -1291,13 +1291,6 @@ class UVH5(UVData):
         a way that h5py can find it, no action needs to be taken to _read_ a
         data_array encoded with bitshuffle (or an error will be raised).
         """
-        # conform to future array types, so we write UVH5 v1.0 files
-        if not self.future_array_shapes:
-            self.use_future_array_shapes()
-            revert_array_shapes = True
-        else:
-            revert_array_shapes = False
-
         if run_check:
             self.check(
                 check_extra=check_extra,
@@ -1355,9 +1348,6 @@ class UVH5(UVData):
                 data=self.nsample_array.astype(np.float32),
                 compression=nsample_compression,
             )
-
-        if revert_array_shapes:
-            self.use_current_array_shapes()
 
         return
 
@@ -1437,12 +1427,6 @@ class UVH5(UVData):
             else:
                 raise IOError("File exists; skipping")
 
-        if not self.future_array_shapes:
-            self.use_future_array_shapes()
-            revert_array_shapes = True
-        else:
-            revert_array_shapes = False
-
         # write header and empty arrays to file
         with h5py.File(filename, "w") as f:
             # write header
@@ -1482,9 +1466,6 @@ class UVH5(UVData):
                 dtype="f4",
                 compression=nsample_compression,
             )
-
-        if revert_array_shapes:
-            self.use_current_array_shapes()
 
         return
 
@@ -1682,12 +1663,6 @@ class UVH5(UVData):
                 "initialize_uvh5_file".format(filename)
             )
 
-        if not self.future_array_shapes:
-            self.use_future_array_shapes()
-            revert_array_shapes = True
-        else:
-            revert_array_shapes = False
-
         if check_header:
             self._check_header(
                 filename, run_check_acceptability=run_check_acceptability
@@ -1776,12 +1751,10 @@ class UVH5(UVData):
             pol_inds = np.s_[:]
 
         # check for proper size of input arrays
-        proper_shape = (Nblts, Nfreqs, Npols)
-        if revert_array_shapes:
-            # input file is using current array shapes; need to squeeze arrays
-            data_array = data_array[:, 0, :, :]
-            flag_array = flag_array[:, 0, :, :]
-            nsample_array = nsample_array[:, 0, :, :]
+        if self.future_array_shapes:
+            proper_shape = (Nblts, Nfreqs, Npols)
+        else:
+            proper_shape = (Nblts, 1, Nfreqs, Npols)
         if data_array.shape != proper_shape:
             raise AssertionError(
                 "data_array has shape {0}; was expecting {1}".format(
@@ -1993,8 +1966,5 @@ class UVH5(UVData):
                     # erase dataset first b/c it has fixed-length string datatype
                     del f["Header"]["history"]
                 f["Header"]["history"] = np.string_(history)
-
-        if revert_array_shapes:
-            self.use_current_array_shapes()
 
         return
