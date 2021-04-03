@@ -2615,6 +2615,16 @@ def test_sum_vis(casa_uvfits, future_shapes):
         "object history follows.  testing the history.",
         uv_summed.history,
     )
+    # add a test for full coverage of _combine_history_addition function
+    assert (
+        uvutils._combine_history_addition(
+            uv_half.history
+            + " Visibilities summed using pyuvdata. Unique part of second "
+            "object history follows.  testing the history.",
+            uv_summed.history,
+        )
+        is None
+    )
 
     uv_summed = uv_half.sum_vis(uv_half_mod, verbose_history=True)
 
@@ -3334,6 +3344,7 @@ def test_add_drift(casa_uvfits):
         "follows." + uv2.history,
         uv_new.history,
     )
+
 
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
 @pytest.mark.parametrize("future_shapes", [True, False])
