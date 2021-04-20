@@ -1370,33 +1370,6 @@ class MWACorrFITS(UVData):
             self.flag_array = self.flag_array[:, np.newaxis, :, :]
             self.nsample_array = self.nsample_array[:, np.newaxis, :, :]
 
-            # because of an annoying discrepancy between file conventions, in order
-            # to be consistent with the uvw vector direction, all the data must
-            # be conjugated
-            self.data_array = np.conj(self.data_array)
-        # wait for LSTs if set in background
-        if proc is not None:
-            proc.join()
-
-        if not self.metadata_only:
-            # reorder polarizations
-            # reorder pols calls check so must come after
-            # lst thread is re-joined.
-            self.reorder_pols()
-        # phasing
-        if phase_to_pointing_center:
-            self.phase(ra_rad, dec_rad)
-
-        if not self.metadata_only:
-            if flag_init:
-                self.flag_init(
-                    num_fine_chans,
-                    edge_width=edge_width,
-                    start_flag=start_flag,
-                    end_flag=end_flag,
-                    flag_dc_offset=flag_dc_offset,
-                )
-
             if use_cotter_flags:
                 # throw an error if matching files not submitted
                 if included_file_nums != included_flag_nums:
