@@ -195,12 +195,10 @@ class Miriad(UVData):
                 (1, -1),
             )
             # TODO: Fix this to capture unsorted spectra
-            self.flex_spw_id_array = (
-                np.concatenate(
-                    tuple(
-                        idx + np.zeros(nchan)
-                        for (idx, nchan) in zip(range(self.Nspws), uv["nschan"])
-                    )
+            self.flex_spw_id_array = np.concatenate(
+                tuple(
+                    idx + np.zeros(nchan, dtype=int)
+                    for (idx, nchan) in zip(range(self.Nspws), uv["nschan"])
                 )
             )
         else:
@@ -1880,6 +1878,8 @@ class Miriad(UVData):
         uv.add_var("pol", "i")
         uv.add_var("lst", "d")
         uv.add_var("cnt", "d")
+        if self.multi_object:
+            uv.add_var("source", "a")
         uv.add_var("ra", "d")
         uv.add_var("dec", "d")
         uv.add_var("inttime", "d")
