@@ -5509,7 +5509,6 @@ class UVData(UVBase):
         compatibility_params = [
             "_vis_units",
             "_object_name",
-            "_channel_width",
             "_telescope_name",
             "_instrument",
             "_telescope_location",
