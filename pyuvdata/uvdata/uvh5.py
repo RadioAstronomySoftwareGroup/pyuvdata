@@ -1270,7 +1270,7 @@ class UVH5(UVData):
             for k in self.object_dict.keys():
                 # Dictionary entries can be written out as strings, in what is
                 # effectively JSON format. The str promotion up front is needed
-                # because otherwise np.string_ trucncates the dictionary
+                # because otherwise np.string_ truncates the dictionary
                 object_dict[k] = np.string_(str(self.object_dict[k]))
 
         # write out extra keywords if it exists and has elements

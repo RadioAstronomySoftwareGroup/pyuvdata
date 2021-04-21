@@ -164,8 +164,6 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
     # extra keywords are also different, set both to empty dicts
     uvfits_uv.extra_keywords = {}
     ms_uv.extra_keywords = {}
-    print(ms_uv.extra_keywords)
-    print(uvfits_uv.extra_keywords)
     assert uvfits_uv == ms_uv
 
 
