@@ -3352,6 +3352,86 @@ class UVData(UVBase):
 
         return
 
+    def _apply_w_proj(self, new_w_vals, old_w_vals, select_mask=None):
+        """
+        Apply corrections based on changes to w-coord.
+
+        Adjusts the data to account for a change along the w-axis of a baseline.
+
+        Parameters
+        ----------
+        new_w_vals: float or ndarray of float
+            New w-coordinates for the baselines, in units of meters. Can either be a
+            solitary float (helpful for unphasing data, where new_w_vals can be set to
+            0.0) or an array of shape (Nselect,) (which is Nblts if select_mask=None).
+        old_w_vals: float or ndarray of float
+            Old w-coordinates for the baselines, in units of meters. Can either be a
+            solitary float (helpful for unphasing data, where new_w_vals can be set to
+            0.0) or an array of shape (Nselect,) (which is Nblts if select_mask=None).
+        select_mask: ndarray of bool
+            Array is of shape (Nblts,), where the sum of all enties marked True is
+            equal to Nselect (mentioned above).
+
+        Raises
+        ------
+        IndexError
+            If the length of new_w_vals or old_w_vals isn't compatible with
+            select_mask, or if select mask isn't the right length.
+        """
+        # If we only have metadata, then we have no work to do. W00t!
+        if (not self.metadata_only) or (self.data_array is None):
+            return
+
+        # Promote everything to float64 ndarrays if they aren't already
+        if not isinstance(new_w_vals, np.ndarray):
+            new_w_vals = np.array([new_w_vals], dtype=np.float64)
+        if not isinstance(new_w_vals[0], np.float64):
+            new_w_vals = new_w_vals.astype(np.float64)
+        if not isinstance(old_w_vals, np.ndarray):
+            old_w_vals = np.array([old_w_vals], dtype=np.float64)
+        if not isinstance(old_w_vals[0], np.float64):
+            old_w_vals = old_w_vals.astype(np.float64)
+
+        # Make sure the lengths of everything make sense
+        new_val_len = len(new_w_vals)
+        old_val_len = len(old_w_vals)
+        select_len = self.Nblts if (select_mask is None) else np.sum(select_mask)
+
+        if (select_mask is not None) and (len(select_mask) != self.Nblts):
+            raise IndexError("select_mask must be of length Nblts!")
+        if new_val_len not in [1, select_len]:
+            raise IndexError(
+                "The length of new_w_vals is wrong (expected 1 or %i, got %i)!"
+                % (select_len, new_val_len)
+            )
+        if old_val_len not in [1, select_len]:
+            raise IndexError(
+                "The length of old_w_vals is wrong (expected 1 or %i, got %i)!"
+                % (select_len, old_val_len)
+            )
+
+        # Calculate the difference in w terms as a function of freq. Note that the
+        # 1/c is there to speed of processing (faster to multiply than divide)
+        delta_w_lambda = (
+            (new_w_vals - old_w_vals).reshape(self.Nblts, 1)
+            * (1.0 / const.c.to("m/s").value)
+            * self.freq_array.reshape(1, self.Nfreqs)
+        )
+        if select_mask is None or np.all(select_mask):
+            # If all the w values are changing, it turns out to be twice as fast
+            # to ditch any sort of selection mask and just do the full multiply.
+            self.data_array *= np.exp(
+                (-1j * 2 * np.pi) * delta_w_lambda[:, None, :, None]
+            )
+        elif np.any(select_mask):
+            # In the case we are _not_ doing all baselines, use a selection mask to
+            # only update the values we need. In the worse case, it slows down the
+            # processing by ~2x, but it can save a lot on time and memory if only
+            # needing to update a select number of baselines.
+            self.data_array[select_mask] *= np.exp(
+                (-1j * 2 * np.pi) * delta_w_lambda[:, None, :, None]
+            )
+
     def unphase_to_drift(
         self, phase_frame=None, use_ant_pos=False, use_old_proj=None,
     ):
@@ -4182,86 +4262,6 @@ class UVData(UVBase):
             orig_phase_frame=orig_phase_frame,
             use_novas=use_novas,
         )
-
-    def _apply_w_proj(self, new_w_vals, old_w_vals, select_mask=None):
-        """
-        Apply corrections based on changes to w-coord.
-
-        Adjusts the data to account for a change along the w-axis of a baseline.
-
-        Parameters
-        ----------
-        new_w_vals: float or ndarray of float
-            New w-coordinates for the baselines, in units of meters. Can either be a
-            solitary float (helpful for unphasing data, where new_w_vals can be set to
-            0.0) or an array of shape (Nselect,) (which is Nblts if select_mask=None).
-        old_w_vals: float or ndarray of float
-            Old w-coordinates for the baselines, in units of meters. Can either be a
-            solitary float (helpful for unphasing data, where new_w_vals can be set to
-            0.0) or an array of shape (Nselect,) (which is Nblts if select_mask=None).
-        select_mask: ndarray of bool
-            Array is of shape (Nblts,), where the sum of all enties marked True is
-            equal to Nselect (mentioned above).
-
-        Raises
-        ------
-        IndexError
-            If the length of new_w_vals or old_w_vals isn't compatible with
-            select_mask, or if select mask isn't the right length.
-        """
-        # If we only have metadata, then we have no work to do. W00t!
-        if (not self.metadata_only) or (self.data_array is None):
-            return
-
-        # Promote everything to float64 ndarrays if they aren't already
-        if not isinstance(new_w_vals, np.ndarray):
-            new_w_vals = np.array([new_w_vals], dtype=np.float64)
-        if not isinstance(new_w_vals[0], np.float64):
-            new_w_vals = new_w_vals.astype(np.float64)
-        if not isinstance(old_w_vals, np.ndarray):
-            old_w_vals = np.array([old_w_vals], dtype=np.float64)
-        if not isinstance(old_w_vals[0], np.float64):
-            old_w_vals = old_w_vals.astype(np.float64)
-
-        # Make sure the lengths of everything make sense
-        new_val_len = len(new_w_vals)
-        old_val_len = len(old_w_vals)
-        select_len = self.Nblts if (select_mask is None) else np.sum(select_mask)
-
-        if (select_mask is not None) and (len(select_mask) != self.Nblts):
-            raise IndexError("select_mask must be of length Nblts!")
-        if new_val_len not in [1, select_len]:
-            raise IndexError(
-                "The length of new_w_vals is wrong (expected 1 or %i, got %i)!"
-                % (select_len, new_val_len)
-            )
-        if old_val_len not in [1, select_len]:
-            raise IndexError(
-                "The length of old_w_vals is wrong (expected 1 or %i, got %i)!"
-                % (select_len, old_val_len)
-            )
-
-        # Calculate the difference in w terms as a function of freq. Note that the
-        # 1/c is there to speed of processing (faster to multiply than divide)
-        delta_w_lambda = (
-            (new_w_vals - old_w_vals).reshape(self.Nblts, 1)
-            * (1.0 / const.c.to("m/s").value)
-            * self.freq_array.reshape(1, self.Nfreqs)
-        )
-        if select_mask is None or np.all(select_mask):
-            # If all the w values are changing, it turns out to be twice as fast
-            # to ditch any sort of selection mask and just do the full multiply.
-            self.data_array *= np.exp(
-                (-1j * 2 * np.pi) * delta_w_lambda[:, None, :, None]
-            )
-        elif np.any(select_mask):
-            # In the case we are _not_ doing all baselines, use a selection mask to
-            # only update the values we need. In the worse case, it slows down the
-            # processing by ~2x, but it can save a lot on time and memory if only
-            # needing to update a select number of baselines.
-            self.data_array[select_mask] *= np.exp(
-                (-1j * 2 * np.pi) * delta_w_lambda[:, None, :, None]
-            )
 
     def set_uvws_from_antenna_positions(
         self,

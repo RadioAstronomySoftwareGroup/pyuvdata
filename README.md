@@ -68,10 +68,6 @@ metadata, details here: [cst settings file](docs/cst_settings_yaml.rst)
 * MirParser: object and python interface for MIR file format (beta version)
 
 ## Known Issues and Planned Improvements
-* UVData: phasing (and the accuracy on the uvw coordinates) is only known to be
-good to 2cm on a 3km baseline (this is limited by the accuracy of the test file,
-see the [phasing memo](docs/references/phasing.pdf) for more details).
-* UVData: Multiple sources are not currently supported
 * UVData: add support for writing CASA measurement sets
 * UVBeam: support phased-array antenna beams (e.g. MWA beams).
 * UVFlag: Adding requires a high level knowledge of individual objects. (see [issue #653](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues/653))

@@ -1080,7 +1080,7 @@ def rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot):
         rotations on a fixed set of vectors.
     rot_matrix : ndarray of floats
         Series of rotation matricies to be applied to the stack of vectors. Must be
-        of shape (3, 3, n_rot).
+        of shape (n_rot, 3, 3).
     n_rot : int
         Number of individual rotation matricies to be applied.
 
@@ -1090,14 +1090,14 @@ def rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot):
         Array of vectors that have been rotated, of shape (n_rot, 3, n_vectors,).
     """
     # Do a quick check to make sure that things look sensible
-    if rot_matrix.shape != (3, 3, n_rot):
+    if rot_matrix.shape != (n_rot, 3, 3):
         raise ValueError(
-            "rot_matrix must be of shape (3, 3, n_rot), where n_rot is %i." % n_rot
+            "rot_matrix must be of shape (n_rot, 3, 3), where n_rot=%i." % n_rot
         )
-    if (xyz_array.shape[0:2] != (n_rot, 3)) and (xyz_array.shape[0:2] != (1, 3)):
+    if (xyz_array.shape[0] not in [1, n_rot]) or (xyz_array.shape[1] != 3):
         raise ValueError("Misshaped xyz_array - expected shape (n_rot, 3, n_vectors).")
 
-    rotated_xyz = np.matmul(np.transpose(rot_matrix, axes=[2, 0, 1]), xyz_array)
+    rotated_xyz = np.matmul(rot_matrix, xyz_array)
 
     return rotated_xyz
 
@@ -1161,6 +1161,10 @@ def rotate_one_axis(xyz_array, rot_amount, rot_axis):
     rot_matrix[temp_jdx, temp_jdx] = rot_matrix[temp_idx, temp_idx]
     rot_matrix[temp_idx, temp_jdx] = np.sin(rot_amount, dtype=np.float64)
     rot_matrix[temp_jdx, temp_idx] = -rot_matrix[temp_idx, temp_jdx]
+
+    # The rot matrix was shape (3, 3, n_rot) to help speed up filling in the elements
+    # of each matrix, but now we want to flip it into its proper shape of (n_rot, 3, 3)
+    rot_matrix = np.transpose(rot_matrix, axes=[2, 0, 1])
 
     if (n_rot == 1) and (xyz_array.shape[0] != 1) and (xyz_array.shape[2] == 1):
         # This is a special case where we allow the rotation axis to "expand" along
@@ -1295,6 +1299,10 @@ def rotate_two_axis(xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
     rot_matrix[temp_idx[2 - lhd_order], temp_idx[1 + lhd_order]] = (
         sin_lo * cos_hi * ((-1.0) ** (lhd_order))
     )
+
+    # The rot matrix was shape (3, 3, n_rot) to help speed up filling in the elements
+    # of each matrix, but now we want to flip it into its proper shape of (n_rot, 3, 3)
+    rot_matrix = np.transpose(rot_matrix, axes=[2, 0, 1])
 
     if (n_rot == 1) and (xyz_array.shape[0] != 1) and (xyz_array.shape[2] == 1):
         # This is a special case where we allow the rotation axis to "expand" along
@@ -2378,7 +2386,16 @@ def calc_app_coords(
 
 def get_lst_for_time(jd_array, latitude, longitude, altitude, use_novas=False):
     """
-    Get the lsts for a set of jd times at an earth location.
+    Get the local apparent sidereal time for a set of jd times at an earth location.
+
+    This function calculates the local apparent sidereal time (LAST), given a UTC time
+    and a position on the Earth, using either the astropy or NOVAS libraries. It
+    is important to note that there is an apporoximate 20 millisecond difference
+    between the two methods, presumably due to small differences in the apparent
+    reference frame. These differences will cancel out when calculating coordinates
+    in the TOPO frame, so long as apparent coordinates are calculated using the
+    same library (i.e., astropy or NOVAS). Failing to do so can introduce errors
+    up to ~1 arcsec in the horizontal coordinate system (i.e., AltAz).
 
     Parameters
     ----------
@@ -2391,13 +2408,13 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude, use_novas=False):
     altitude : float
         Altitude of location to get lst for in meters.
     use_novas: boolean
-        Use NOVAS for the calculation of L(A)ST. Default is false, which instead
+        Use NOVAS for the calculation of LAST. Default is false, which instead
         triggers the use of astropy for the calculations.
 
     Returns
     -------
     ndarray of float
-        LSTs in radians corresponding to the jd_array.
+        LASTs in radians corresponding to the jd_array.
 
     """
     lst_array = np.zeros_like(jd_array)
