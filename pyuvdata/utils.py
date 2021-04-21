@@ -1095,9 +1095,7 @@ def rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot):
             "rot_matrix must be of shape (3, 3, n_rot), where n_rot is %i." % n_rot
         )
     if (xyz_array.shape[0:2] != (n_rot, 3)) and (xyz_array.shape[0:2] != (1, 3)):
-        raise ValueError(
-            "Misshaped xyz_array - expected shape (n_rot, 3, n_vectors)."
-        )
+        raise ValueError("Misshaped xyz_array - expected shape (n_rot, 3, n_vectors).")
 
     rotated_xyz = np.matmul(np.transpose(rot_matrix, axes=[2, 0, 1]), xyz_array)
 
@@ -1171,9 +1169,10 @@ def rotate_one_axis(xyz_array, rot_amount, rot_axis):
         # swap the n_vector and  n_rot axes, and then swap them back once everything
         # else is done.
         return np.transpose(
-            rotate_matmul_wrapper(np.transpose(
-                xyz_array, axes=[2, 1, 0]), rot_matrix, n_rot,
-            ), axes=[2, 1, 0]
+            rotate_matmul_wrapper(
+                np.transpose(xyz_array, axes=[2, 1, 0]), rot_matrix, n_rot,
+            ),
+            axes=[2, 1, 0],
         )
     else:
         return rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot)
@@ -1304,9 +1303,10 @@ def rotate_two_axis(xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
         # swap the n_vector and  n_rot axes, and then swap them back once everything
         # else is done.
         return np.transpose(
-            rotate_matmul_wrapper(np.transpose(
-                xyz_array, axes=[2, 1, 0]), rot_matrix, n_rot,
-            ), axes=[2, 1, 0]
+            rotate_matmul_wrapper(
+                np.transpose(xyz_array, axes=[2, 1, 0]), rot_matrix, n_rot,
+            ),
+            axes=[2, 1, 0],
         )
     else:
         return rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot)
