@@ -704,7 +704,12 @@ class UVFITS(UVData):
                 # We should have as many entries in the AIPS SU header as we have
                 # unique entries in the SOURCES random paramter (checked in the call
                 # to get_parameter_data above)
-                assert len(su_hdu.data) == self.Nobjects
+                if len(su_hdu.data) != self.Nobjects:
+                    raise RuntimeError(
+                        "The UVFITS file has a malformed AIPS SU table - number of "
+                        "sources do not match the number of unique source IDs in the "
+                        "primary data header."
+                    )
 
                 # Set up these arrays so we can assign values to them
                 self.phase_center_app_ra = np.zeros(self.Nblts)
