@@ -8032,7 +8032,7 @@ def test_downsample_in_time_int_time_mismatch_warning(hera_uvh5):
     with uvtest.check_warnings(
         UserWarning,
         match="The time difference between integrations is not the same",
-        nwarnings=10,  # One of these warnings was misID'd as uwv mismatch
+        nwarnings=10,
     ):
         uv_object.downsample_in_time(min_int_time=min_integration_time)
 

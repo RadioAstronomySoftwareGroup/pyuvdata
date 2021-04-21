@@ -1068,13 +1068,16 @@ def rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot):
     This is a simple convenience function which wraps numpy's matmul function for use
     with various vector rotation functions in this module. This code could, in
     principle, be replaced by a cythonized piece of code, although the matmul function
-    is _pretty_ well optimized already.
+    is _pretty_ well optimized already. This function is not meant to be called by
+    users, but is instead used by multiple higher-level utility functions (namely those
+    that perform rotations).
 
     Parameters
     ----------
     xyz_array : ndarray of floats
-        Array of vectors to be rotated. May be of shape (3,), (3, n_vectors), or
-        (n_rot, 3, n_vectors).
+        Array of vectors to be rotated. Shape may be (n_rot, 3, n_vectors) or
+        (1, 3, n_vectors), the latter is useful for when performing multiple
+        rotations on a fixed set of vectors.
     rot_matrix : ndarray of floats
         Series of rotation matricies to be applied to the stack of vectors. Must be
         of shape (3, 3, n_rot).
@@ -1084,43 +1087,19 @@ def rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot):
     Returns
     -------
     rotated_xyz : ndarray of floats
-        Array of vectors that have been rotated, of shape (n_rot, 3, n_vectors).
+        Array of vectors that have been rotated, of shape (n_rot, 3, n_vectors,).
     """
     # Do a quick check to make sure that things look sensible
-    if n_rot != rot_matrix.shape[2]:
+    if rot_matrix.shape != (3, 3, n_rot):
         raise ValueError(
-            "n_rot must be equal to number of rotation matricies in rot_matrix."
+            "rot_matrix must be of shape (3, 3, n_rot), where n_rot is %i." % n_rot
+        )
+    if (xyz_array.shape[0:2] != (n_rot, 3)) and (xyz_array.shape[0:2] != (1, 3)):
+        raise ValueError(
+            "Misshaped xyz_array - expected shape (n_rot, 3, n_vectors)."
         )
 
-    # This is a special case where we allow the rotation axis to "expand" along the
-    # 0th axis of the rot_amount arrays. For xyz_array, if n_vectors = 1 but n_rot !=1,
-    # then it's a lot faster (by about 10x) to "switch it up" and swap the n_vector and
-    # n_rot axes, and then swap them back once everything else is done.
-    if n_rot == 1:
-        try:
-            if xyz_array.shape[2] == 1:
-                rotated_xyz = np.transpose(
-                    np.matmul(
-                        np.transpose(rot_matrix, axes=[2, 0, 1]),
-                        np.transpose(xyz_array, axes=[2, 1, 0]),
-                    ),
-                    axes=[2, 1, 0],
-                )
-                return rotated_xyz
-        except IndexError:
-            # If there is no third element of the xyz_array shape, then we can't use
-            # this particular trick. Move on to the "standard" method
-            pass
-
     rotated_xyz = np.matmul(np.transpose(rot_matrix, axes=[2, 0, 1]), xyz_array)
-
-    # If we got fed a non rank-3 version of xyz_array, then we need to reshape
-    # rotated_xyz so that it outputs in the expected fashion -- we always want
-    # it to have ndim = 3, even if n_rot, n_vectors == 1.
-    if np.ndim(rotated_xyz) == 1:
-        rotated_xyz = rotated_xyz[np.newaxis, :, np.newaxis]
-    elif np.ndim(rotated_xyz) == 2:
-        rotated_xyz = rotated_xyz[:, :, np.newaxis]
 
     return rotated_xyz
 
@@ -1185,7 +1164,19 @@ def rotate_one_axis(xyz_array, rot_amount, rot_axis):
     rot_matrix[temp_idx, temp_jdx] = np.sin(rot_amount, dtype=np.float64)
     rot_matrix[temp_jdx, temp_idx] = -rot_matrix[temp_idx, temp_jdx]
 
-    return rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot)
+    if (n_rot == 1) and (xyz_array.shape[0] != 1) and (xyz_array.shape[2] == 1):
+        # This is a special case where we allow the rotation axis to "expand" along
+        # the 0th axis of the rot_amount arrays. For xyz_array, if n_vectors = 1
+        # but n_rot !=1, then it's a lot faster (by about 10x) to "switch it up" and
+        # swap the n_vector and  n_rot axes, and then swap them back once everything
+        # else is done.
+        return np.transpose(
+            rotate_matmul_wrapper(np.transpose(
+                xyz_array, axes=[2, 1, 0]), rot_matrix, n_rot,
+            ), axes=[2, 1, 0]
+        )
+    else:
+        return rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot)
 
 
 def rotate_two_axis(xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
@@ -1306,7 +1297,19 @@ def rotate_two_axis(xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
         sin_lo * cos_hi * ((-1.0) ** (lhd_order))
     )
 
-    return rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot)
+    if (n_rot == 1) and (xyz_array.shape[0] != 1) and (xyz_array.shape[2] == 1):
+        # This is a special case where we allow the rotation axis to "expand" along
+        # the 0th axis of the rot_amount arrays. For xyz_array, if n_vectors = 1
+        # but n_rot !=1, then it's a lot faster (by about 10x) to "switch it up" and
+        # swap the n_vector and  n_rot axes, and then swap them back once everything
+        # else is done.
+        return np.transpose(
+            rotate_matmul_wrapper(np.transpose(
+                xyz_array, axes=[2, 1, 0]), rot_matrix, n_rot,
+            ), axes=[2, 1, 0]
+        )
+    else:
+        return rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot)
 
 
 def calc_uvw(
@@ -1347,7 +1350,7 @@ def calc_uvw(
     app_ra : ndarray of float
         Apparent RA of the target phase center, required if calculating baseline
         coordinates in uvw-space (vs ENU-space). Shape is (Nblts,).
-    app_ra : ndarray of float
+    app_dec : ndarray of float
         Apparent declination of the target phase center, required if calculating
         baseline coordinates in uvw-space (vs ENU-space). Shape is (Nblts,).
     old_app_ra : ndarray of float
@@ -1362,27 +1365,26 @@ def calc_uvw(
         antenna positions, or converting to/from ENU coordinates. Shape is (Nblts,).
     use_ant_pos : bool
         Switch to determine whether to derive uvw values from the antenna positions
-        (is set to True), or to use the previously calculated uvw coordiantes to derive
+        (if set to True), or to use the previously calculated uvw coordiantes to derive
         new the new baseline vectors (if set to False). Default is True.
     uvw_array : ndarray of float
         Array of previous baseline coordinates (in either uvw or ENU), required if
         not deriving new coordinates from antenna positions.  Shape is (Nblts, 3).
     antenna_positions : ndarray of float
-        List of antenna positions relative to array center, required if not providing
-        uvw_array. Shape is (Nants, 3).
+        List of antenna positions relative to array center in ECEF coordinates,
+        required if not providing `uvw_array`. Shape is (Nants, 3).
     antenna_numbers: ndarray of int
-        List of antenna numbers, that maps antenna numbers to entries in the
-        antenna_positions array.
+        List of antenna numbers, ordered in the same way as `antenna_positions` (e.g.,
+        `antenna_numbers[0]` should given the number of antenna that resides at ECEF
+        position given by `antenna_positions[0]`). Shape is (Nants,), requred if not
+        providing `uvw_array`. Contains all unique entires of the joint set of
+        `ant_1_array` and `ant_2_array`.
     ant_1_array : ndarray of int
-        Indexing map for matching which antennas are associated with the first antenna
-        in the pair for all baselines, used for selecting the relevant (zero-index)
-        entries from antenna_positions, required if not providing uvw_array. Shape is
-        (Nblts,).
+        Antenna number of the first antenna in the baseline pair, for all baselines
+        Required if not providing `uvw_array`, shape is (Nblts,).
     ant_2_array : ndarray of int
-        Indexing map for matching which antennas are associated with the second antenna
-        in the pair for all baselines, used for selecting the relevant (zero-index)
-        entries from antenna_positions, required if not providing uvw_array. Shape is
-        (Nblts,).
+        Antenna number of the second antenna in the baseline pair, for all baselines
+        Required if not providing `uvw_array`, shape is (Nblts,).
     telescope_lat : float
         Latitude of the phase center, units radians, required if deriving baseline
         coordinates from antenna positions, or converting to/from ENU coordinates.
@@ -1543,8 +1545,9 @@ def calc_uvw(
         # for convenience and code legibility -- a slightly different pair of
         # rotations would give you the same result w/o needing to cycle the axes.
 
-        # Up front, we want to trap the corner-case where the phase position hasn't
-        # changed, just the position angle. This is a much easier transform to handle
+        # Up front, we want to trap the corner-case where the sky position you are
+        # phasing up to hasn't changed, just the position angle (i.e., which was is
+        # up on the map). This is a much easier transform to handle.
         if np.all(gha_delta_array == 0.0) and np.all(old_app_dec == app_dec):
             new_coords = rotate_one_axis(
                 uvw_array[:, [2, 0, 1], np.newaxis],
@@ -1754,6 +1757,11 @@ def translate_icrs_to_app(
     typically used for defining the phase center of the array (i.e, calculating
     baseline vectors).
 
+    As of astropy v4.2, the agreement between astropy and NOVAS is consistent
+    down to the level of approximately 1 milliarcsec. This is done through a
+    slight modification to the TETE observing frame, by applying polar motion
+    vectors from IERS to the aforementioned frame.
+
     Parameters
     ----------
     time_array : float or ndarray of float
@@ -1879,17 +1887,18 @@ def translate_icrs_to_app(
     pm_x_array, pm_y_array = polar_motion_data.pm_xy(time_array)
     # Let's just make sure we have the right units here. This should be
     # true unless astropy makes a change we are unaware of.
-    assert pm_x_array.unit == "arcsec"
-    assert pm_y_array.unit == "arcsec"
+    if (pm_x_array.unit != "arcsec") or (pm_y_array.unit != "arcsec"):
+        raise ValueError(
+            "IERS polar motion data is not in the format expected, please "
+            "notify pyuvdata developers by filing an issue on GitHub "
+            "(https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues)"
+        )
 
     # Extract out just the value arrays, convert to rad
     pm_x_array = pm_x_array.value * ((np.pi / 180.0) / 3600.0)
     pm_y_array = pm_y_array.value * ((np.pi / 180.0) / 3600.0)
 
     if not use_novas:
-        # Note that this implementation isn't perfect, but it does appear to agree
-        # to better than 1 arcsec w/ what NOVAS produces. Errors are of similar size
-        # to polar wobble and diurnal abberation terms.
         site_loc = EarthLocation.from_geodetic(
             telescope_lon * (180.0 / np.pi),
             telescope_lat * (180.0 / np.pi),
@@ -2052,9 +2061,6 @@ def translate_app_to_sidereal(
     telescope_alt : float
         Altitude (rel to sea-level) of the phase center of the array, expressed in
         units of meters.
-    use_novas : boolean
-        Use novas in order to calculate the apparent coordinates. Default is false,
-        which instead uses astropy for deriving coordinate positions.
 
     Returns
     -------
@@ -2275,7 +2281,8 @@ def calc_pos_angle(
     # Using the following formula, we can get the pos angle for the offset positions:
     # atan2(sin(ra_d - ra_u), cos(dec_d)*tan(dec_u) - sin(dec_d)*cos(ra_u - ra_d))
     # Remember that the first n_coord elements are for the 'up' position, and the last
-    # n_coord elements are for the 'down' position.
+    # n_coord elements are for the 'down' position. For more details, see
+    # https://en.wikipedia.org/wiki/Position_angle.
     unique_pa = np.arctan2(
         np.sin(ref_ra[n_coord:] - ref_ra[:n_coord]),
         (np.cos(ref_dec[n_coord:]) * np.tan(ref_dec[:n_coord]))
@@ -2351,8 +2358,7 @@ def calc_app_coords(
         unique_app_ra, unique_app_dec = translate_ephem_to_app()
     elif object_type == "unphased":
         # This is the easiest one - this is just supposed to be ENU, so set the
-        # apparent coords to the current lst and telescope_lon. Multiply by one
-        # to get a copy of the array rather than just a pointer
+        # apparent coords to the current lst and telescope_lon.
         unique_app_ra = lst_array.copy()
         unique_app_dec = np.zeros_like(unique_app_ra) + telescope_lat
     else:

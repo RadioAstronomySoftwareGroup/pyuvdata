@@ -816,9 +816,6 @@ class Miriad(UVData):
             # but that may not matter for many purposes.
             return
 
-        # read through the file and get the data
-        # _source = uv["source"]  # check source of initial visibility
-
         history_update_string = "  Downselected to specific "
         n_selects = 0
 
@@ -1036,14 +1033,10 @@ class Miriad(UVData):
                 app_dec = uv["obsdec"]
             if record_pa:
                 app_pa = uv["obspa"]
-            # NOTE: Using our lst calculator, which uses astropy,
-            # instead of _miriad values which come from pyephem.
-            # The differences are of order 5 seconds.
-            # To use the values from the file you'd want: lst = uv['lst']
-            # N.B. (Karto): So the above is true (presumably) for PAPER/HERA, although
-            # not every miriad-supporting facility uses pyephem for LAST generation.
-            # I've changed this to be a switch rather than always having the code
-            # recalculate these values.
+            # LST is pulled from the file here, atlhough as some PAPER/early HERA
+            # data calculated LST from pyephem (which is inconsistent w/ astropy
+            # to the order of ~5 seconds), these values can be recalculated by
+            # setting `calc_lst=True` when calling read_miriad.
             lst = uv["lst"]
             inttime = uv["inttime"]
             try:

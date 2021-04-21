@@ -1344,10 +1344,14 @@ class UVData(UVBase):
 
         This is an internal helper function, which is not designed to be called by
         users, but rather individual read/write functions for the UVData object.
-        Users should use the phase() method for updating/adjusting coordiante values.
+        Users should use the phase() method for updating/adjusting coordinate values.
 
         Parameters
         ----------
+        pa_only : bool, False
+            Skip the calculation of the apparent RA/Dec, and only calculate the
+            position angle between `phase_center_frame` and the apparent coordinate
+            system. Useful for reading in data formats that do not calculate a PA.
         use_novas : bool, False
             Use NOVAS for the calculation of apparent coordiantes (setting this to
             false will instead call astropy).

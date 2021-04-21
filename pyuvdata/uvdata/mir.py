@@ -355,7 +355,9 @@ class Mir(UVData):
         self.phase_center_app_ra = mir_data.in_data["ara"][bl_in_maparr[sb_screen]]
         self.phase_center_app_dec = mir_data.in_data["adec"][bl_in_maparr[sb_screen]]
 
-        # Do a thing
+        # For MIR, uvws are always calculated in the "apparent" position. We can adjust
+        # this by calculating the position angle with our preferred coordinate frame
+        # (ICRS) and applying the rotation below (via `calc_uvw`).
         app_pa = uvutils.calc_pos_angle(
             self.time_array,
             self.phase_center_app_ra,
