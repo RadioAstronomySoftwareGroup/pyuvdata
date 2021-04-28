@@ -10,9 +10,10 @@ import itertools
 import h5py
 
 import numpy as np
+from astropy import units
 from astropy.time import Time
-from astropy.coordinates import Angle, EarthLocation
 from astropy.utils import iers
+from astropy.coordinates import Angle, EarthLocation, SkyCoord
 
 from pyuvdata import UVData, UVCal
 import pyuvdata.utils as uvutils
@@ -9083,7 +9084,27 @@ def test_rephase_to_time():
     uvd = UVData()
 
     uvd.read(uvfits_file)
+    phase_time = np.unique(uvd.time_array)[1]
+    time = Time(phase_time, format="jd")
+    # Generate ra/dec of zenith at time in the phase_frame coordinate
+    # system to use for phasing
+    telescope_location = EarthLocation.from_geocentric(
+        *uvd.telescope_location, unit="m"
+    )
 
-    uvd.phase_to_time(np.unique(uvd.time_array)[0])
+    zenith_coord = SkyCoord(
+        alt=Angle(90 * units.deg),
+        az=Angle(0 * units.deg),
+        obstime=time,
+        frame="altaz",
+        location=telescope_location,
+    )
 
-    assert uvd.phase_center_ra == uvd.lst_array[0]
+    obs_zenith_coord = zenith_coord.transform_to("icrs")
+    zenith_ra = obs_zenith_coord.ra.rad
+    zenith_dec = obs_zenith_coord.dec.rad
+
+    uvd.phase_to_time(phase_time)
+
+    assert uvd.phase_center_ra == zenith_ra
+    assert uvd.phase_center_dec == zenith_dec
