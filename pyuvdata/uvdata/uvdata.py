@@ -4907,6 +4907,8 @@ class UVData(UVBase):
         freq_chans,
         times,
         time_range,
+        lsts,
+        lst_range,
         polarizations,
         blt_inds,
     ):
@@ -4951,12 +4953,24 @@ class UVData(UVBase):
         freq_chans : array_like of int, optional
             The frequency channel numbers to keep in the object.
         times : array_like of float, optional
-            The times to keep in the object, each value passed here should
-            exist in the time_array. Cannot be used with `time_range`.
+            The times to keep in the object, each value passed here should exist
+            in the time_array. Cannot be used with `time_range`, `lsts`, or
+            `lst_array`.
         time_range : array_like of float, optional
-            The time range in Julian Date to keep in the object, must be
-            length 2. Some of the times in the object should fall between the
-            first and last elements. Cannot be used with `times`.
+            The time range in Julian Date to keep in the object, must be length
+            2. Some of the times in the object should fall between the first and
+            last elements. Cannot be used with `times`, `lsts`, or `lst_array`.
+        lsts : array_like of float, optional
+            The local sidereal times (LSTs) to keep in the object, each value
+            passed here should exist in the lst_array. Cannot be used with
+            `times`, `time_range`, or `lst_range`.
+        lst_range : array_like of float, optional
+            The local sidereal time (LST) range in radians to keep in the
+            object, must be of length 2. Some of the LSTs in the object should
+            fall between the first and last elements. If the second value is
+            smaller than the first, the LSTs are treated as having phase-wrapped
+            around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            the larger value, through 0, and end at the smaller value.
         polarizations : array_like of int, optional
             The polarizations numbers to keep in the object, each value passed
             here should exist in the polarization_array.
@@ -5158,10 +5172,20 @@ class UVData(UVBase):
             else:
                 blt_inds = ant_blt_inds
 
-        if times is not None:
-            if time_range is not None:
-                raise ValueError('Only one of "times" and "time_range" can be set')
+        have_times = times is not None
+        have_time_range = time_range is not None
+        have_lsts = lsts is not None
+        have_lst_range = lst_range is not None
+        if (
+            np.count_nonzero([have_times, have_time_range, have_lsts, have_lst_range])
+            > 1
+        ):
+            raise ValueError(
+                "Only one of [times, time_range, lsts, lst_range] may be "
+                "specified per selection operation."
+            )
 
+        if times is not None:
             times = uvutils._get_iterable(times)
             if np.array(times).ndim > 1:
                 times = np.array(times).flatten()
@@ -5169,6 +5193,7 @@ class UVData(UVBase):
             time_blt_inds = np.zeros(0, dtype=np.int64)
             for jd in times:
                 if jd in self.time_array:
+                    # TODO: maybe use a more tolerant check
                     time_blt_inds = np.append(
                         time_blt_inds, np.where(self.time_array == jd)[0]
                     )
@@ -5190,11 +5215,85 @@ class UVData(UVBase):
                     f"{time_range[1]}."
                 )
 
+        if lsts is not None:
+            if np.any(np.asarray(lsts) > 2 * np.pi):
+                warnings.warn(
+                    "The lsts parameter contained a value greater than 2*pi. "
+                    "LST values are assumed to be in radians, not hours."
+                )
+            lsts = uvutils._get_iterable(lsts)
+            if np.array(lsts).ndim > 1:
+                lsts = np.array(lsts).flatten()
+
+            time_blt_inds = np.zeros(0, dtype=np.int64)
+            for lst in lsts:
+                if np.any(np.abs(self.lst_array - lst) < self._lst_array.tols[1]):
+                    time_blt_inds = np.append(
+                        time_blt_inds,
+                        np.where(
+                            np.isclose(
+                                self.lst_array,
+                                lst,
+                                rtol=self._lst_array.tols[0],
+                                atol=self._lst_array.tols[1],
+                            )
+                        )[0],
+                    )
+                else:
+                    raise ValueError(f"LST {lst} is not present in the lst_array")
+
+        if lst_range is not None:
+            if np.size(lst_range) != 2:
+                raise ValueError("lst_range must be length 2.")
+            if np.any(np.asarray(lst_range) > 2 * np.pi):
+                warnings.warn(
+                    "The lst_range contained a value greater than 2*pi. "
+                    "LST values are assumed to be in radians, not hours."
+                )
+            if lst_range[1] < lst_range[0]:
+                # we're wrapping around LST = 2*pi = 0
+                lst_range_1 = [lst_range[0], 2 * np.pi]
+                lst_range_2 = [0, lst_range[1]]
+                time_blt_inds1 = np.nonzero(
+                    (self.lst_array <= lst_range_1[1])
+                    & (self.lst_array >= lst_range_1[0])
+                )[0]
+                time_blt_inds2 = np.nonzero(
+                    (self.lst_array <= lst_range_2[1])
+                    & (self.lst_array >= lst_range_2[0])
+                )[0]
+                time_blt_inds = np.union1d(time_blt_inds1, time_blt_inds2)
+            else:
+                time_blt_inds = np.nonzero(
+                    (self.lst_array <= lst_range[1]) & (self.lst_array >= lst_range[0])
+                )[0]
+            if time_blt_inds.size == 0:
+                raise ValueError(
+                    f"No elements in LST range between {lst_range[0]} and "
+                    f"{lst_range[1]}."
+                )
+
         if times is not None or time_range is not None:
             if n_selects > 0:
                 history_update_string += ", times"
             else:
                 history_update_string += "times"
+            n_selects += 1
+
+            if blt_inds is not None:
+                # Use intesection (and) to join
+                # antenna_names/nums/ant_pairs_nums/blt_inds with times
+                blt_inds = np.array(
+                    list(set(blt_inds).intersection(time_blt_inds)), dtype=np.int64
+                )
+            else:
+                blt_inds = time_blt_inds
+
+        if lsts is not None or lst_range is not None:
+            if n_selects > 0:
+                history_update_string += ", lsts"
+            else:
+                history_update_string += "lsts"
             n_selects += 1
 
             if blt_inds is not None:
@@ -5410,6 +5509,8 @@ class UVData(UVBase):
         freq_chans=None,
         times=None,
         time_range=None,
+        lsts=None,
+        lst_range=None,
         polarizations=None,
         blt_inds=None,
         inplace=True,
@@ -5472,6 +5573,17 @@ class UVData(UVBase):
             The time range in Julian Date to keep in the object, must be
             length 2. Some of the times in the object should fall between the
             first and last elements. Cannot be used with `times`.
+        lsts : array_like of float, optional
+            The local sidereal times (LSTs) to keep in the object, each value
+            passed here should exist in the lst_array. Cannot be used with
+            `times`, `time_range`, or `lst_range`.
+        lst_range : array_like of float, optional
+            The local sidereal time (LST) range in radians to keep in the
+            object, must be of length 2. Some of the LSTs in the object should
+            fall between the first and last elements. If the second value is
+            smaller than the first, the LSTs are treated as having phase-wrapped
+            around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            the larger value, through 0, and end at the smaller value.
         polarizations : array_like of int, optional
             The polarizations numbers to keep in the object, each value passed
             here should exist in the polarization_array.
@@ -5531,6 +5643,8 @@ class UVData(UVBase):
             freq_chans,
             times,
             time_range,
+            lsts,
+            lst_range,
             polarizations,
             blt_inds,
         )
@@ -7517,6 +7631,8 @@ class UVData(UVBase):
         freq_chans=None,
         times=None,
         time_range=None,
+        lsts=None,
+        lst_range=None,
         polarizations=None,
         blt_inds=None,
         keep_all_metadata=True,
@@ -7587,6 +7703,17 @@ class UVData(UVBase):
             the object, must be length 2. Some of the times in the file should
             fall between the first and last elements.
             Cannot be used with `times`.
+        lsts : array_like of float, optional
+            The local sidereal times (LSTs) to keep in the object, each value
+            passed here should exist in the lst_array. Cannot be used with
+            `times`, `time_range`, or `lst_range`.
+        lst_range : array_like of float, optional
+            The local sidereal time (LST) range in radians to keep in the
+            object, must be of length 2. Some of the LSTs in the object should
+            fall between the first and last elements. If the second value is
+            smaller than the first, the LSTs are treated as having phase-wrapped
+            around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            the larger value, through 0, and end at the smaller value.
         polarizations : array_like of int, optional
             The polarizations numbers to include when reading data into the
             object, each value passed here should exist in the polarization_array.
@@ -7652,6 +7779,8 @@ class UVData(UVBase):
             freq_chans=freq_chans,
             times=times,
             time_range=time_range,
+            lsts=lsts,
+            lst_range=lst_range,
             polarizations=polarizations,
             blt_inds=blt_inds,
             keep_all_metadata=keep_all_metadata,
@@ -7677,6 +7806,8 @@ class UVData(UVBase):
         freq_chans=None,
         times=None,
         time_range=None,
+        lsts=None,
+        lst_range=None,
         polarizations=None,
         blt_inds=None,
         keep_all_metadata=True,
@@ -7749,6 +7880,17 @@ class UVData(UVBase):
             the object, must be length 2. Some of the times in the file should
             fall between the first and last elements.
             Cannot be used with `times`.
+        lsts : array_like of float, optional
+            The local sidereal times (LSTs) to keep in the object, each value
+            passed here should exist in the lst_array. Cannot be used with
+            `times`, `time_range`, or `lst_range`.
+        lst_range : array_like of float, optional
+            The local sidereal time (LST) range in radians to keep in the
+            object, must be of length 2. Some of the LSTs in the object should
+            fall between the first and last elements. If the second value is
+            smaller than the first, the LSTs are treated as having phase-wrapped
+            around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            the larger value, through 0, and end at the smaller value.
         polarizations : array_like of int, optional
             The polarizations numbers to include when reading data into the
             object, each value passed here should exist in the polarization_array.
@@ -7822,6 +7964,8 @@ class UVData(UVBase):
             freq_chans=freq_chans,
             times=times,
             time_range=time_range,
+            lsts=lsts,
+            lst_range=lst_range,
             polarizations=polarizations,
             blt_inds=blt_inds,
             data_array_dtype=data_array_dtype,
@@ -7895,6 +8039,8 @@ class UVData(UVBase):
         isb=None,
         corrchunk=None,
         pseudo_cont=False,
+        lsts=None,
+        lst_range=None,
     ):
         """
         Read a generic file into a UVData object.
@@ -8136,6 +8282,17 @@ class UVData(UVBase):
             Correlator chunk code for MIR dataset
         pseudo_cont : boolean
             Read in only pseudo-continuuum values in MIR dataset. Default is false.
+        lsts : array_like of float, optional
+            The local sidereal times (LSTs) to keep in the object, each value
+            passed here should exist in the lst_array. Cannot be used with
+            `times`, `time_range`, or `lst_range`.
+        lst_range : array_like of float, optional
+            The local sidereal time (LST) range in radians to keep in the
+            object, must be of length 2. Some of the LSTs in the object should
+            fall between the first and last elements. If the second value is
+            smaller than the first, the LSTs are treated as having phase-wrapped
+            around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            the larger value, through 0, and end at the smaller value.
 
         Raises
         ------
@@ -8498,6 +8655,8 @@ class UVData(UVBase):
                     freq_chans=freq_chans,
                     times=times,
                     time_range=time_range,
+                    lsts=lsts,
+                    lst_range=lst_range,
                     polarizations=polarizations,
                     blt_inds=blt_inds,
                     read_data=read_data,
@@ -8602,6 +8761,8 @@ class UVData(UVBase):
                     freq_chans=freq_chans,
                     times=times,
                     time_range=time_range,
+                    lsts=lsts,
+                    lst_range=lst_range,
                     polarizations=polarizations,
                     blt_inds=blt_inds,
                     read_data=read_data,

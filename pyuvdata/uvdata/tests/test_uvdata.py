@@ -1621,6 +1621,101 @@ def test_select_time_range(casa_uvfits):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_select_lsts(casa_uvfits, future_shapes):
+    uv_object = casa_uvfits
+
+    if future_shapes:
+        uv_object.use_future_array_shapes()
+
+    old_history = uv_object.history
+    unique_lsts = np.unique(uv_object.lst_array)
+    lsts_to_keep = unique_lsts[[0, 3, 5, 6, 7, 10, 14]]
+
+    Nblts_selected = np.sum([lst in lsts_to_keep for lst in uv_object.lst_array])
+
+    uv_object2 = uv_object.copy()
+    uv_object2.select(lsts=lsts_to_keep)
+
+    assert len(lsts_to_keep) == uv_object2.Ntimes
+    assert Nblts_selected == uv_object2.Nblts
+    for lst in lsts_to_keep:
+        assert lst in uv_object2.lst_array
+    for lst in np.unique(uv_object2.lst_array):
+        assert lst in lsts_to_keep
+
+    assert uvutils._check_histories(
+        old_history + "  Downselected to specific lsts using pyuvdata.",
+        uv_object2.history,
+    )
+    # check that it also works with higher dimension array
+    uv_object2 = uv_object.copy()
+    uv_object2.select(lsts=lsts_to_keep[np.newaxis, :])
+
+    assert len(lsts_to_keep) == uv_object2.Ntimes
+    assert Nblts_selected == uv_object2.Nblts
+    for lst in lsts_to_keep:
+        assert lst in uv_object2.lst_array
+    for lst in np.unique(uv_object2.lst_array):
+        assert lst in lsts_to_keep
+
+    assert uvutils._check_histories(
+        old_history + "  Downselected to specific lsts using pyuvdata.",
+        uv_object2.history,
+    )
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_lsts_out_of_range_error(casa_uvfits):
+    uv_object = casa_uvfits
+    unique_lsts = np.unique(uv_object.lst_array)
+    target_lst = np.min(unique_lsts) - 0.1
+    with pytest.raises(ValueError) as cm:
+        uv_object.select(lsts=[target_lst])
+    assert str(cm.value).startswith(f"LST {target_lst} is not present in the lst_array")
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_lst_range(casa_uvfits):
+    uv_object = casa_uvfits
+    old_history = uv_object.history
+    unique_lsts = np.unique(uv_object.lst_array)
+    mean_lst = np.mean(unique_lsts)
+    lst_range = [np.min(unique_lsts), mean_lst]
+    lsts_to_keep = unique_lsts[
+        np.nonzero((unique_lsts <= lst_range[1]) & (unique_lsts >= lst_range[0]))
+    ]
+
+    Nblts_selected = np.nonzero(
+        (uv_object.lst_array <= lst_range[1]) & (uv_object.lst_array >= lst_range[0])
+    )[0].size
+
+    uv_object2 = uv_object.copy()
+    uv_object2.select(lst_range=lst_range)
+
+    assert lsts_to_keep.size == uv_object2.Ntimes
+    assert Nblts_selected == uv_object2.Nblts
+    for lst in lsts_to_keep:
+        assert lst in uv_object2.lst_array
+    for lst in np.unique(uv_object2.lst_array):
+        assert lst in lsts_to_keep
+
+    assert uvutils._check_histories(
+        old_history + "  Downselected to specific lsts using pyuvdata.",
+        uv_object2.history,
+    )
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_time_range_no_data(casa_uvfits):
     """Check for error associated with times not included in data."""
     uv_object = casa_uvfits
@@ -1646,7 +1741,9 @@ def test_select_time_and_time_range(casa_uvfits):
     times_to_keep = unique_times[[0, 3, 5, 6, 7, 10, 14]]
     with pytest.raises(ValueError) as cm:
         uv_object.select(time_range=time_range, times=times_to_keep)
-    assert str(cm.value).startswith('Only one of "times" and "time_range" can be set')
+    assert str(cm.value).startswith(
+        "Only one of [times, time_range, lsts, lst_range] may be specified"
+    )
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
