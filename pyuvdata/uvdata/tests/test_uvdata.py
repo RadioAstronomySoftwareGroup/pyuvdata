@@ -9076,3 +9076,14 @@ def test_parse_ants_x_orientation_kwarg(hera_uvh5):
     ant_pair2, pols2 = uvd.parse_ants("cross")
     assert np.array_equal(ant_pair, ant_pair2)
     assert np.array_equal(pols, pols2)
+
+
+def test_rephase_to_time():
+    uvfits_file = os.path.join(DATA_PATH, "1061316296.uvfits")
+    uvd = UVData()
+
+    uvd.read(uvfits_file)
+
+    uvd.phase_to_time(np.unique(uvd.time_array)[0])
+
+    assert uvd.phase_center_ra == uvd.lst_array[0]
