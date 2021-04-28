@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- A bug in `UVData.phase_to_time` which prevented users from rephasing phased objects.
 - A bug in `UVBeam.read_cst_beam` when specifying beams with a single file using a yaml.
 
 ## [2.1.5] - 2021-4-02
