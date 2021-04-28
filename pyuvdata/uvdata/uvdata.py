@@ -3197,8 +3197,8 @@ class UVData(UVBase):
         )
 
         obs_zenith_coord = zenith_coord.transform_to(phase_frame)
-        zenith_ra = obs_zenith_coord.ra
-        zenith_dec = obs_zenith_coord.dec
+        zenith_ra = obs_zenith_coord.ra.rad
+        zenith_dec = obs_zenith_coord.dec.rad
 
         self.phase(
             zenith_ra,
