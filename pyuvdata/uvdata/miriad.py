@@ -989,7 +989,7 @@ class Miriad(UVData):
         pol_list = []
         app_ra = None
         app_dec = None
-        app_pa = None
+        frame_pa = None
         epoch = None
         sou_dict = {}
         Nobjects = 0
@@ -1033,7 +1033,7 @@ class Miriad(UVData):
                 app_ra = uv["obsra"]
                 app_dec = uv["obsdec"]
             if record_pa:
-                app_pa = uv["obspa"]
+                frame_pa = uv["obspa"]
             # LST is pulled from the file here, atlhough as some PAPER/early HERA
             # data calculated LST from pyephem (which is inconsistent w/ astropy
             # to the order of ~5 seconds), these values can be recalculated by
@@ -1079,7 +1079,7 @@ class Miriad(UVData):
                         epoch,  # Entry 11
                         app_ra,  # Entry 12
                         app_dec,  # Entry 13
-                        app_pa,  # Entry 14
+                        frame_pa,  # Entry 14
                         lst,  # Entry 15
                     ]
                 )
@@ -1100,7 +1100,7 @@ class Miriad(UVData):
                         epoch,  # Entry 11
                         app_ra,  # Entry 12
                         app_dec,  # Entry 13
-                        app_pa,  # Entry 14
+                        frame_pa,  # Entry 14
                         lst,  # Entry 15
                     ]
                 ]
@@ -1272,7 +1272,7 @@ class Miriad(UVData):
         epoch_pol_list = np.zeros((self.Nblts, self.Npols))
         app_ra_pol_list = np.zeros((self.Nblts, self.Npols))
         app_dec_pol_list = np.zeros((self.Nblts, self.Npols))
-        app_pa_pol_list = np.zeros((self.Nblts, self.Npols))
+        frame_pa_pol_list = np.zeros((self.Nblts, self.Npols))
         lst_pol_list = np.zeros((self.Nblts, self.Npols))
 
         c_ns = const.c.to("m/ns").value
@@ -1304,7 +1304,7 @@ class Miriad(UVData):
                 epoch_pol_list[blt_index, pol_ind] = d[11]
                 app_ra_pol_list[blt_index, pol_ind] = d[12]
                 app_dec_pol_list[blt_index, pol_ind] = d[13]
-                app_pa_pol_list[blt_index, pol_ind] = d[14]
+                frame_pa_pol_list[blt_index, pol_ind] = d[14]
                 lst_pol_list[blt_index, pol_ind] = d[15]
 
         # Collapse pol axis for ra_list, dec_list, and uvw_list
@@ -1314,7 +1314,7 @@ class Miriad(UVData):
         epoch_list = np.zeros(self.Nblts)
         app_ra_list = np.zeros(self.Nblts)
         app_dec_list = np.zeros(self.Nblts)
-        app_pa_list = np.zeros(self.Nblts)
+        frame_pa_list = np.zeros(self.Nblts)
         lst_list = np.zeros(self.Nblts)
 
         for blt_index in range(self.Nblts):
@@ -1332,7 +1332,7 @@ class Miriad(UVData):
                 epoch_list[blt_index] = epoch_pol_list[blt_index, good_pol]
                 app_ra_list[blt_index] = app_ra_pol_list[blt_index, good_pol]
                 app_dec_list[blt_index] = app_dec_pol_list[blt_index, good_pol]
-                app_pa_list[blt_index] = app_pa_pol_list[blt_index, good_pol]
+                frame_pa_list[blt_index] = frame_pa_pol_list[blt_index, good_pol]
                 lst_list[blt_index] = lst_pol_list[blt_index, good_pol]
             else:
                 # Multiple good pols, check for consistency. pyuvdata does not
@@ -1375,10 +1375,12 @@ class Miriad(UVData):
                             blt_index, good_pol[0]
                         ]
                 if record_pa:
-                    if np.any(np.diff(app_pa_pol_list[blt_index, good_pol])):
-                        raise ValueError("app pa vals are different by polarization.")
+                    if np.any(np.diff(frame_pa_pol_list[blt_index, good_pol])):
+                        raise ValueError("frame pa vals are different by polarization.")
                     else:
-                        app_pa_list[blt_index] = app_pa_pol_list[blt_index, good_pol[0]]
+                        frame_pa_list[blt_index] = frame_pa_pol_list[
+                            blt_index, good_pol[0]
+                        ]
                 if np.any(np.diff(lst_pol_list[blt_index, good_pol])):
                     raise ValueError("source values are different by polarization.")
                 else:
@@ -1443,7 +1445,7 @@ class Miriad(UVData):
             self.phase_center_app_ra = app_ra_list
             self.phase_center_app_dec = app_dec_list
             if record_pa:
-                self.phase_center_app_pa = app_pa_list
+                self.phase_center_frame_pa = frame_pa_list
 
         if self.multi_object:
             # This presupposes that the data are already phased
@@ -1882,7 +1884,7 @@ class Miriad(UVData):
         if (
             self.phase_center_app_ra is not None
             and self.phase_center_app_dec is not None
-            and self.phase_center_app_pa is not None
+            and self.phase_center_frame_pa is not None
         ):
             app_record = True
             uv.add_var("obsra", "d")
@@ -1911,7 +1913,7 @@ class Miriad(UVData):
                 if app_record:
                     uv["obsra"] = self.phase_center_app_ra[viscnt]
                     uv["obsdec"] = self.phase_center_app_dec[viscnt]
-                    uv["obspa"] = self.phase_center_app_pa[viscnt]
+                    uv["obspa"] = self.phase_center_frame_pa[viscnt]
             elif self.phase_type == "drift":
                 uv["ra"] = miriad_lsts[viscnt].astype(np.double)
                 uv["dec"] = self.telescope_location_lat_lon_alt[0].astype(np.double)
