@@ -6193,25 +6193,22 @@ class UVData(UVBase):
             else:
                 history_update_string += "antennas"
             n_selects += 1
-            inds1 = np.zeros(0, dtype=np.int64)
-            inds2 = np.zeros(0, dtype=np.int64)
-            for ant in antenna_nums:
-                if ant in self.ant_1_array or ant in self.ant_2_array:
-                    wh1 = np.where(self.ant_1_array == ant)[0]
-                    wh2 = np.where(self.ant_2_array == ant)[0]
-                    if len(wh1) > 0:
-                        inds1 = np.append(inds1, list(wh1))
-                    if len(wh2) > 0:
-                        inds2 = np.append(inds2, list(wh2))
-                else:
-                    raise ValueError(
-                        "Antenna number {a} is not present in the "
-                        "ant_1_array or ant_2_array".format(a=ant)
-                    )
-
-            ant_blt_inds = np.array(
-                list(set(inds1).intersection(inds2)), dtype=np.int64
+            # Check to make sure that we actually have these antenna nums in the data
+            ant_check = np.logical_or(
+                np.isin(antenna_nums, self.ant_1_array),
+                np.isin(antenna_nums, self.ant_2_array),
             )
+            if not np.all(ant_check):
+                raise ValueError(
+                    "Antenna number % i is not present in the ant_1_array or "
+                    "ant_2_array" % antenna_nums[~ant_check][0]
+                )
+            ant_blt_inds = np.where(
+                np.logical_and(
+                    np.isin(self.ant_1_array, antenna_nums),
+                    np.isin(self.ant_2_array, antenna_nums),
+                )
+            )[0]
         else:
             ant_blt_inds = None
 
