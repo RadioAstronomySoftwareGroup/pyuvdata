@@ -40,7 +40,7 @@ class UVFITS(UVData):
     ]
 
     def _get_parameter_data(
-        self, vis_hdu, run_check_acceptability, background_lsts=True, use_novas=False,
+        self, vis_hdu, run_check_acceptability, background_lsts=True,
     ):
         """
         Read just the random parameters portion of the uvfits file ("metadata").
@@ -89,9 +89,7 @@ class UVFITS(UVData):
                     )
 
         else:
-            proc = self.set_lsts_from_time_array(
-                background=background_lsts, use_novas=use_novas,
-            )
+            proc = self.set_lsts_from_time_array(background=background_lsts)
 
         # if antenna arrays are present, use them. otherwise use baseline array
         if "ANTENNA1" in vis_hdu.data.parnames and "ANTENNA2" in vis_hdu.data.parnames:
@@ -345,7 +343,6 @@ class UVFITS(UVData):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        use_novas=False,
     ):
         """
         Read in header, metadata and data from a uvfits file.
@@ -674,10 +671,7 @@ class UVFITS(UVData):
 
             # Now read in the random parameter info
             self._get_parameter_data(
-                vis_hdu,
-                run_check_acceptability,
-                background_lsts=background_lsts,
-                use_novas=use_novas,
+                vis_hdu, run_check_acceptability, background_lsts=background_lsts,
             )
             # If we find the source attribute in the FITS random paramter list,
             # the multi_object attribute will be set to True, and we should also
@@ -731,36 +725,6 @@ class UVFITS(UVData):
                     sou_dec = sou_info["DECEPO"] * (np.pi / 180.0)
                     sou_epoch = sou_info["EPOCH"]
                     sou_frame = "fk5"
-
-                    # Okay, now that we have all the source info, we should calculate
-                    # app coords for the source, since we'll want to use those for our
-                    # baseline calculations
-                    app_ra, app_dec = uvutils.calc_app_coords(
-                        sou_ra,
-                        sou_dec,
-                        sou_frame,
-                        coord_epoch=sou_epoch,
-                        object_type="sidereal",
-                        telescope_lat=self.telescope_location_lat_lon_alt[0],
-                        telescope_lon=self.telescope_location_lat_lon_alt[1],
-                        telescope_alt=self.telescope_location_lat_lon_alt[2],
-                        time_array=self.time_array[self.object_id_array == sou_id],
-                    )
-
-                    app_pa = uvutils.calc_pos_angle(
-                        self.time_array,
-                        app_ra,
-                        app_dec,
-                        self.telescope_location_lat_lon_alt[0],
-                        self.telescope_location_lat_lon_alt[1],
-                        self.telescope_location_lat_lon_alt[2],
-                        self.phase_center_frame,
-                        ref_epoch=self.phase_center_epoch,
-                    )
-
-                    self.phase_center_app_ra[self.object_id_array == sou_id] = app_ra
-                    self.phase_center_app_dec[self.object_id_array == sou_id] = app_dec
-                    self.phase_center_app_pa[self.object_id_array == sou_id] = app_pa
 
                     idx_dict[sou_id] = idx
                     object_dict[sou_name] = {
@@ -1386,7 +1350,7 @@ class UVFITS(UVData):
                     # coordinate frame, although nothing in object_dict forces objects
                     # to share the same frame. So we want to make sure that everything
                     # lines up with the coordinate frame listed in phase_center_frame.
-                    ra_arr[idx], dec_arr[idx] = uvutils.translate_sidereal_to_sidereal(
+                    ra_arr[idx], dec_arr[idx] = uvutils.translate_btw_sidereal_frames(
                         object_dict["object_lon"],
                         object_dict["object_lat"],
                         object_dict["coord_frame"],
