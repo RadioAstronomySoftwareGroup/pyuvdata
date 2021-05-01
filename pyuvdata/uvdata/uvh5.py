@@ -508,8 +508,8 @@ class UVH5(UVData):
             if "phase_center_app_ra" in header and "phase_center_app_dec" in header:
                 self.phase_center_app_ra = header["phase_center_app_ra"][:]
                 self.phase_center_app_dec = header["phase_center_app_dec"][:]
-            if "phase_center_app_pa" in header:
-                self.phase_center_app_pa = header["phase_center_app_pa"][:]
+            if "phase_center_frame_pa" in header:
+                self.phase_center_frame_pa = header["phase_center_frame_pa"][:]
         elif self.phase_type == "drift":
             self._set_drift()
         else:
@@ -641,7 +641,7 @@ class UVH5(UVData):
         if self.phase_type == "phased" and (
             (self.phase_center_app_ra is None)
             or (self.phase_center_app_dec is None)
-            or (self.phase_center_app_pa is None)
+            or (self.phase_center_frame_pa is None)
         ):
             self._set_app_coords_helper()
 
@@ -1227,8 +1227,8 @@ class UVH5(UVData):
             header["phase_center_dec"] = self.phase_center_dec
         if self.phase_center_app_dec is not None:
             header["phase_center_app_dec"] = self.phase_center_app_dec
-        if self.phase_center_app_pa is not None:
-            header["phase_center_app_pa"] = self.phase_center_app_pa
+        if self.phase_center_frame_pa is not None:
+            header["phase_center_frame_pa"] = self.phase_center_frame_pa
         if self.phase_center_epoch is not None:
             header["phase_center_epoch"] = self.phase_center_epoch
         if self.phase_center_frame is not None:
