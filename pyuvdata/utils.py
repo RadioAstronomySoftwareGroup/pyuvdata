@@ -14,9 +14,10 @@ from scipy.spatial.distance import cdist
 from astropy.time import Time
 from astropy.coordinates import Angle
 from astropy.utils import iers
-from astropy.coordinates import SkyCoord, EarthLocation, TETE, FK5, FK4, FK4NoETerms
-import astropy.units as units
+from astropy.coordinates import SkyCoord, Distance, EarthLocation
+from astropy import units
 from . import _utils
+import erfa
 
 
 def _str_to_bytes(s):
@@ -1061,6 +1062,58 @@ def unphase_uvw(ra, dec, uvw):
     ).T
 
 
+def polar2_to_cart3(lon_array, lat_array):
+    """
+    Convert 2D polar coordinates into 3D cartesian coordinates.
+
+    Does more things!
+    """
+    # Check to make sure that we are not playing with mixed types
+    if type(lon_array) is not type(lat_array):
+        raise ValueError(
+            "lon_array and lat_array must either both be floats or ndarrays."
+        )
+    if isinstance(lon_array, np.ndarray):
+        if lon_array.shape != lat_array.shape:
+            raise ValueError("lon_array and lat_array must have the same shape.")
+
+    # Once we know that lon_array and lat_array are of the same shape,
+    # time to create our 3D set of vectors!
+    xyz_array = np.array(
+        [
+            np.cos(lon_array) * np.cos(lat_array),
+            np.sin(lon_array) * np.cos(lat_array),
+            np.sin(lat_array),
+        ]
+    )
+
+    return xyz_array
+
+
+def cart3_to_polar2(xyz_array):
+    """
+    Convert 3D cartesian coordinates into 2D polar coordinates.
+
+    Does more things!
+    """
+    if not isinstance(xyz_array, np.ndarray):
+        raise ValueError("xyz_array must be an ndarray.")
+    if xyz_array.shape[0] != 3:
+        raise ValueError("xyz_array must be length 3 across the zeroth axis.")
+
+    # The longitude coord is relatively easy to calculate, just take the X and Y
+    # components and find the arctac of the pair.
+    lon_array = np.mod(np.arctan2(xyz_array[1], xyz_array[0]), 2.0 * np.pi)
+
+    # If we _knew_ that xyz_array was always of length 1, then this call could be a much
+    # simpler one to arcsin. But to make this generic, we'll use the length of the XY
+    # component along with arctan2.
+    lat_array = np.arctan2(xyz_array[2], np.sqrt((xyz_array[0:2] ** 2.0).sum(axis=0)))
+
+    # Return the two arrays
+    return lon_array, lat_array
+
+
 def rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot):
     """
     Apply a rotation matrix to a series of vectors.
@@ -1075,12 +1128,13 @@ def rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot):
     Parameters
     ----------
     xyz_array : ndarray of floats
-        Array of vectors to be rotated. Shape may be (n_rot, 3, n_vectors) or
-        (1, 3, n_vectors), the latter is useful for when performing multiple
-        rotations on a fixed set of vectors.
+        Array of vectors to be rotated. When nrot > 1, shape may be (n_rot, 3, n_vec)
+        or (1, 3, n_vec), the latter is useful for when performing multiple rotations
+        on a fixed set of vectors. If nrot = 1, shape may be (1, 3, n_vec), (3, n_vec),
+        or (3,).
     rot_matrix : ndarray of floats
         Series of rotation matricies to be applied to the stack of vectors. Must be
-        of shape (n_rot, 3, 3).
+        of shape (n_rot, 3, 3)
     n_rot : int
         Number of individual rotation matricies to be applied.
 
@@ -1094,9 +1148,12 @@ def rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot):
         raise ValueError(
             "rot_matrix must be of shape (n_rot, 3, 3), where n_rot=%i." % n_rot
         )
-    if (xyz_array.shape[0] not in [1, n_rot]) or (xyz_array.shape[1] != 3):
+    if (xyz_array.ndim == 3) and (
+        (xyz_array.shape[0] not in [1, n_rot]) or (xyz_array.shape[-2] != 3)
+    ):
         raise ValueError("Misshaped xyz_array - expected shape (n_rot, 3, n_vectors).")
-
+    if (xyz_array.ndim < 3) and (xyz_array.shape[0] != 3):
+        raise ValueError("Misshaped xyz_array - expected shape (3, n_vectors) or (3,).")
     rotated_xyz = np.matmul(rot_matrix, xyz_array)
 
     return rotated_xyz
@@ -1143,6 +1200,7 @@ def rotate_one_axis(xyz_array, rot_amount, rot_axis):
 
     # Check and see how big of a rotation matrix we need
     n_rot = 1 if (not isinstance(rot_amount, np.ndarray)) else (rot_amount.shape[0])
+    n_vec = xyz_array.shape[-1]
 
     # The promotion of values to float64 is to suppress numerical precision issues,
     # since the matrix math can - in limited circumstances - introduce precision errors
@@ -1166,7 +1224,7 @@ def rotate_one_axis(xyz_array, rot_amount, rot_axis):
     # of each matrix, but now we want to flip it into its proper shape of (n_rot, 3, 3)
     rot_matrix = np.transpose(rot_matrix, axes=[2, 0, 1])
 
-    if (n_rot == 1) and (xyz_array.shape[0] != 1) and (xyz_array.shape[2] == 1):
+    if (n_rot == 1) and (n_vec == 1) and (xyz_array.ndim == 3):
         # This is a special case where we allow the rotation axis to "expand" along
         # the 0th axis of the rot_amount arrays. For xyz_array, if n_vectors = 1
         # but n_rot !=1, then it's a lot faster (by about 10x) to "switch it up" and
@@ -1245,6 +1303,7 @@ def rotate_two_axis(xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
         rot_amount1.shape[0] if isinstance(rot_amount1, np.ndarray) else 1,
         rot_amount2.shape[0] if isinstance(rot_amount2, np.ndarray) else 1,
     )
+    n_vec = xyz_array.shape[-1]
 
     # The promotion of values to float64 is to suppress numerical precision issues,
     # since the matrix math can - in limited circumstances - introduce precision errors
@@ -1304,7 +1363,7 @@ def rotate_two_axis(xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
     # of each matrix, but now we want to flip it into its proper shape of (n_rot, 3, 3)
     rot_matrix = np.transpose(rot_matrix, axes=[2, 0, 1])
 
-    if (n_rot == 1) and (xyz_array.shape[0] != 1) and (xyz_array.shape[2] == 1):
+    if (n_rot == 1) and (n_vec == 1) and (xyz_array.ndim == 3):
         # This is a special case where we allow the rotation axis to "expand" along
         # the 0th axis of the rot_amount arrays. For xyz_array, if n_vectors = 1
         # but n_rot !=1, then it's a lot faster (by about 10x) to "switch it up" and
@@ -1323,7 +1382,7 @@ def rotate_two_axis(xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
 def calc_uvw(
     app_ra=None,
     app_dec=None,
-    app_pa=None,
+    frame_pa=None,
     lst_array=None,
     use_ant_pos=True,
     uvw_array=None,
@@ -1333,7 +1392,7 @@ def calc_uvw(
     ant_2_array=None,
     old_app_ra=None,
     old_app_dec=None,
-    old_app_pa=None,
+    old_frame_pa=None,
     telescope_lat=None,
     telescope_lon=None,
     from_enu=False,
@@ -1357,17 +1416,31 @@ def calc_uvw(
     ----------
     app_ra : ndarray of float
         Apparent RA of the target phase center, required if calculating baseline
-        coordinates in uvw-space (vs ENU-space). Shape is (Nblts,).
+        coordinates in uvw-space (vs ENU-space). Shape is (Nblts,), units are
+        radians.
     app_dec : ndarray of float
         Apparent declination of the target phase center, required if calculating
-        baseline coordinates in uvw-space (vs ENU-space). Shape is (Nblts,).
+        baseline coordinates in uvw-space (vs ENU-space). Shape is (Nblts,),
+        units are radians.
+    frame_pa : ndarray of float
+        Position angle between the great circle of declination in the apparent frame
+        versus that of the reference frame, used for making sure that "North" on
+        the derived maps points towards a particular celestial pole (not just the
+        topocentric one). Required if not deriving baseline coordinates from antenna
+        positions, from_enu=False, and a value for old_frame_pa is given. Shape is
+        (Nblts,), units are radians.
     old_app_ra : ndarray of float
         Apparent RA of the previous phase center, required if not deriving baseline
-        coordinates from antenna positions and from_enu=False. Shape is (Nblts,).
+        coordinates from antenna positions and from_enu=False. Shape is (Nblts,),
+        units are radians.
     old_app_dec : ndarray of float
         Apparent declination of the previous phase center, required if not deriving
         baseline coordinates from antenna positions and from_enu=False. Shape is
-        (Nblts,).
+        (Nblts,), units are radians.
+    old_frame_pa : ndarray of float
+        Frame position angle of the previous phase center, required if not deriving
+        baseline coordinates from antenna positions, from_enu=False, and a value
+        for frame_pa is supplied. Shape is (Nblts,), units are radians.
     lst_array : ndarray of float
         Local apparent sidereal time, required if deriving baseline coordinates from
         antenna positions, or converting to/from ENU coordinates. Shape is (Nblts,).
@@ -1421,9 +1494,9 @@ def calc_uvw(
                 "in ENU coordinates!"
             )
     else:
-        if ((app_ra is None) or (app_dec is None)) and app_pa is None:
+        if ((app_ra is None) or (app_dec is None)) and frame_pa is None:
             raise ValueError(
-                "Must include both app_ra and app_dec, or app_pa to calculate "
+                "Must include both app_ra and app_dec, or frame_pa to calculate "
                 "baselines in uvw coordinates!"
             )
 
@@ -1478,7 +1551,7 @@ def calc_uvw(
         else:
             unique_gha = (lst_array[unique_mask] - app_ra[unique_mask]) - telescope_lon
             unique_dec = app_dec[unique_mask]
-            unique_pa = app_pa[unique_mask]
+            unique_pa = frame_pa[unique_mask]
 
         # Tranpose the ant vectors so that they are in the proper shape
         ant_vectors = np.transpose(antenna_positions)[np.newaxis, :, :]
@@ -1525,12 +1598,12 @@ def calc_uvw(
             if (app_ra is None and old_app_ra is None) and (
                 app_dec is None and old_app_dec is None
             ):
-                if (old_app_pa is None) != (app_pa is None):
+                if (old_frame_pa is None) != (frame_pa is None):
                     raise ValueError(
-                        "Must include old_app_pa values if data are phased and "
-                        "applying new position angle values (app_pa)."
+                        "Must include old_frame_pa values if data are phased and "
+                        "applying new position angle values (frame_pa)."
                     )
-                if (old_app_pa is None) and (app_pa is None):
+                if (old_frame_pa is None) and (frame_pa is None):
                     # Update uvw by changing.... nothing? Returning back a copy of the
                     # array (rather than a ref) so that the two arrays aren't coupled.
                     return deepcopy(uvw_array)
@@ -1559,14 +1632,14 @@ def calc_uvw(
         if np.all(gha_delta_array == 0.0) and np.all(old_app_dec == app_dec):
             new_coords = rotate_one_axis(
                 uvw_array[:, [2, 0, 1], np.newaxis],
-                app_pa - (0.0 if old_app_pa is None else old_app_pa),
+                frame_pa - (0.0 if old_frame_pa is None else old_frame_pa),
                 0,
             )[:, :, 0]
         else:
             new_coords = rotate_two_axis(
                 rotate_two_axis(  # Yo dawg, I heard you like rotation maticies...
                     uvw_array[:, [2, 0, 1], np.newaxis],
-                    0.0 if from_enu else (-old_app_pa),
+                    0.0 if from_enu else (-old_frame_pa),
                     (-telescope_lat) if from_enu else (-old_app_dec),
                     0,
                     1,
@@ -1580,53 +1653,12 @@ def calc_uvw(
             # One final rotation applied here, to compensate for the fact that we want
             # the Dec-axis of our image (Fourier dual to the v-axis) to be aligned with
             # the chosen frame
-            new_coords = rotate_one_axis(new_coords, app_pa, 0)[:, :, 0]
+            new_coords = rotate_one_axis(new_coords, frame_pa, 0)[:, :, 0]
 
     # There's one last task to do, which is to re-align the axes from projected
     # XYZ -> uvw, where X (which points towards the source) falls on the w axis,
     # and Y and Z fall on the u and v axes, respectively.
     return new_coords[:, [1, 2, 0]]
-
-
-def translate_driftscan_to_app(az_val, el_val, telescope_lat, lst_array):
-    """
-    Translate a fixed az-el pointing into apparent RA/Dec coordinates.
-
-    Calculates apparent coordinates for a driftscan observation, helpful (?) for
-    telescopes which do not track.
-
-    Parameters
-    ----------
-    az_val : float
-        Azimuth value of the pointing, in radians.
-    el_val : float
-        Elevation value of the pointing, in radians.
-    telescope_lat : float
-        Latitude of the observatory, in radians.
-    lst_array : ndarray of float
-        LSTs at the time of observations, in units of radians.
-    """
-    coord_vector = np.array(
-        [
-            [
-                np.sin(el_val),  # X points up
-                -np.sin(az_val)
-                * np.cos(el_val),  # Flip Y due to l-hand -> r-hand in az->ha
-                np.cos(az_val) * np.cos(el_val),  # Z is north-south
-            ]
-        ]
-    )
-    # Rotate the vector based on the telescope latitude
-    new_vector = rotate_one_axis(coord_vector, (np.pi / 2.0) - telescope_lat, 1)
-
-    # RA vector is a little more complicated, though not by much. The new vector
-    # gives us the hour angle, and so we just have to add the lst to that
-    app_ra = np.arctan2(new_vector[2], new_vector[1]) + lst_array
-
-    # Dec vector is easy -- it remains fixed for all time
-    app_dec = np.zeros_like(lst_array) + np.arcsin(new_vector[2])
-
-    return app_ra, app_dec
 
 
 def translate_ephem_to_app():
@@ -1642,7 +1674,7 @@ def translate_ephem_to_app():
     return None, None
 
 
-def translate_sidereal_to_sidereal(
+def translate_btw_sidereal_frames(
     lon_coord,
     lat_coord,
     in_coord_frame,
@@ -1652,10 +1684,9 @@ def translate_sidereal_to_sidereal(
     time_array=None,
 ):
     """
-    Translate a given set of coordinates from a specified frame into ICRS.
+    Translate a given set of coordinates from one sidereal coordinate frame to another.
 
-    Uses astropy to convert from a coordinates of a sidereal source into ICRS, which is
-    what is used for calculating apparent right ascension and decliation coordinates.
+    Uses astropy to convert from a coordinates from sidereal frame into another.
     This function will support transforms from several frames, including GCRS,
     FK5 (i.e., J2000), FK4 (i.e., B1950), Galactic, Supergalactic, CIRS, HCRS, and
     a few others (basically anything that doesn't require knowing the observers
@@ -1706,8 +1737,36 @@ def translate_sidereal_to_sidereal(
     if isinstance(lon_coord, np.ndarray) != isinstance(lat_coord, np.ndarray):
         raise ValueError("lon_coord and lat_coord types must agree.")
     if isinstance(lon_coord, np.ndarray):
-        if len(lon_coord) != len(lat_coord):
+        if lon_coord.shape != lat_coord.shape:
             raise ValueError("Length of lon_coord and lat_coord must be the same.")
+
+    # Check to make sure that we have a properly formatted epoch for our in-bound
+    # coordinate frame
+    in_epoch = None
+    if isinstance(in_coord_epoch, str) or isinstance(in_coord_epoch, Time):
+        # If its a string or a Time object, we don't need to do anything more
+        in_epoch = in_coord_epoch
+    elif isinstance(in_coord_epoch, float):
+        if in_coord_frame.lower() in ["fk4", "fk4noeterms"]:
+            in_epoch = Time(in_coord_epoch, format="byear")
+        else:
+            in_epoch = Time(in_coord_epoch, format="jyear")
+    elif in_coord_epoch is not None:
+        print(type(in_coord_epoch))
+        raise ValueError("in_coord_epoch must be of type str, Time, float, or None.")
+
+    # Now do the same for the outbound frame
+    out_epoch = None
+    if isinstance(out_coord_epoch, str) or isinstance(out_coord_epoch, Time):
+        # If its a string or a Time object, we don't need to do anything more
+        out_epoch = out_coord_epoch
+    elif isinstance(out_coord_epoch, float):
+        if out_coord_frame.lower() in ["fk4", "fk4noeterms"]:
+            out_epoch = Time(out_coord_epoch, format="byear")
+        else:
+            out_epoch = Time(out_coord_epoch, format="jyear")
+    elif out_coord_epoch is not None:
+        raise ValueError("out_coord_epoch must be of type str, Time, float, or None.")
 
     # Make sure that time array matched up with what we expect. Thanks to astropy
     # weirdness, time_array has to be the same length as lat/lon coords
@@ -1727,9 +1786,7 @@ def translate_sidereal_to_sidereal(
         (np.repeat(lon_coord, len(time_array)) if rep_crds else lon_coord) * units.rad,
         (np.repeat(lat_coord, len(time_array)) if rep_crds else lat_coord) * units.rad,
         frame=in_coord_frame,
-        equinox=in_coord_epoch
-        if (isinstance(in_coord_epoch, str) or isinstance(in_coord_epoch, Time))
-        else (None if in_coord_epoch is None else "J%f" % in_coord_epoch),
+        equinox=in_epoch,
         obstime=None
         if time_array is None
         else Time(
@@ -1739,7 +1796,13 @@ def translate_sidereal_to_sidereal(
         ),
     )
 
-    new_coord = coord_object.transform_to(out_coord_frame)
+    # Easiest, most general way to transform to the new frame to to create a dummy
+    # SkyCoord with all the attributes needed -- note that we particularly need this
+    # in order to use a non-standard equinox/epoch
+    new_coord = coord_object.transform_to(
+        SkyCoord(0, 0, unit="rad", frame=out_coord_frame, equinox=out_epoch,)
+    )
+
     return new_coord.spherical.lon.rad, new_coord.spherical.lat.rad
 
 
@@ -1747,28 +1810,29 @@ def translate_icrs_to_app(
     time_array,
     ra_coord,
     dec_coord,
-    telescope_lat,
-    telescope_lon,
-    telescope_alt,
+    telescope_loc,
+    coord_epoch=None,
     pm_ra=None,
     pm_dec=None,
     rad_vel=None,
     parallax=None,
-    use_novas=False,
+    astrometry_library="erfa",
 ):
     """
     Translate a set of coordinates in ICRS to topocentric/apparent coordinates.
 
-    This utility uses either astropy or NOVAS to calculate the apparent (i.e.,
-    topocentric) coordinates of a source at a given time and location, given
-    a set of coordinates expressed in the ICRS frame. These coordinates are most
-    typically used for defining the phase center of the array (i.e, calculating
+    This utility uses one of three libraries (astropy, NOVAS, or ERFA) to calculate
+    the apparent (i.e., topocentric) coordinates of a source at a given time and
+    location, given a set of coordinates expressed in the ICRS frame. These coordinates
+    are most typically used for defining the phase center of the array (i.e, calculating
     baseline vectors).
 
-    As of astropy v4.2, the agreement between astropy and NOVAS is consistent
-    down to the level of approximately 1 milliarcsec. This is done through a
-    slight modification to the TETE observing frame, by applying polar motion
-    vectors from IERS to the aforementioned frame.
+    As of astropy v4.2, the agreement between the three libraries is consistent down to
+    the level of better than 1 mas, with the values produced by astropy and pyERFA
+    consistent to bettter than 10 µas (this is not surprising, given that astropy uses
+    pyERFA under the hood for astrometry). ERFA is the default as it outputs
+    coordinates natively in the apparent frame (whereas NOVAS and astropy do not), as
+    well as the fact that of the three libraries, it produces results the fastest.
 
     Parameters
     ----------
@@ -1783,13 +1847,14 @@ def translate_icrs_to_app(
         ICRS Dec of the celestial target, expressed in units of radians. Can either
         be a single float or array of shape (Ntimes,), although this must be consistent
         with other parameters (with the exception of telescope location parameters).
-    telescope_lon : float
-        ITRF longitude of the phase center of the array, expressed in units of radians.
-    telescope_lat : float
-        ITRF latitude of the phase center of the array, expressed in units of radians.
-    telescope_alt : float
-        Altitude (rel to sea-level) of the phase center of the array, expressed in
-        units of meters.
+    telescope_loc : tuple of floats or EarthLocation
+        ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
+        of the array. Can either be provided as an astropy EarthLocation, or a tuple
+        of shape (3,) containung (in order) the latitude, longitude, and altitude,
+        in units of radians, radians, and meters, respectively.
+    coord_epoch : float or str or Time object
+        Epoch of the coordinate data supplied, only used when supplying proper motion
+        values. If supplying a float, it will assumed to be in Julian years.
     pm_ra : float or ndarray of float
         Proper motion in RA of the source, expressed in units of milliarcsec / year.
         Proper motion values are applied relative to the J2000 (i.e., RA/Dec ICRS
@@ -1814,9 +1879,10 @@ def translate_icrs_to_app(
         use_novas=True, and is optional. Can either be a single float or array of
         shape (Ntimes,), although this must be consistent with other parameters
         (namely ra_coord and dec_coord).
-    use_novas : boolean
-        Use novas in order to calculate the apparent coordinates. Default is false,
-        which instead uses astropy for deriving coordinate positions.
+    astrometry_library : str
+        Library used for running the coordinate conversions. Allowed options are
+        'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas library),
+        and 'astropy' (which uses the astropy utilities). Default is erfa.
 
     Returns
     -------
@@ -1825,126 +1891,150 @@ def translate_icrs_to_app(
     app_dec : ndarray of floats
         Apparent declination coordinates, in units of radians, of shape (Ntimes,).
     """
+    # Make sure that the library requested is actually permitted
+    if astrometry_library not in ["erfa", "novas", "astropy"]:
+        raise ValueError(
+            "Requested coordinate transformation library is not supported, please "
+            "select either 'erfa', 'novas', or 'astropy' for astrometry_library."
+        )
     # Check here to make sure that ra_coord and dec_coord are the same length,
     # either 1 or len(time_array)
+    multi_coord = False
     if isinstance(ra_coord, np.ndarray) != isinstance(dec_coord, np.ndarray):
         raise ValueError("ra_coord and dec_coord must be the same type!")
-    if not isinstance(ra_coord, np.ndarray):
-        multi_coord = False
-    elif not isinstance(time_array, np.ndarray):
-        multi_coord = False
-        if (len(ra_coord) != 1) or (len(dec_coord) != 1):
+    if isinstance(ra_coord, np.ndarray):
+        multi_coord = len(ra_coord) != 1
+        if ra_coord.shape != dec_coord.shape:
+            raise ValueError("ra_coord and dec_coord must be the same length.")
+
+    if isinstance(time_array, np.ndarray) and multi_coord:
+        if time_array.shape != ra_coord.shape:
             raise ValueError(
-                "ra_coord and dec_coord must be the same length, either 1 (single "
-                "float) or of the same length as time_array!"
+                "time_array must be of either of length 1 (single "
+                "float) or same length as ra_coord and dec_coord."
             )
+
+    if isinstance(telescope_loc, EarthLocation):
+        site_loc = telescope_loc
     else:
-        multi_coord = len(time_array) != 1
-        if (len(ra_coord) != len(time_array)) and (len(dec_coord) != len(time_array)):
-            raise ValueError(
-                "ra_coord and dec_coord must be the same length, either 1 (single "
-                "float) or of the same length as time_array!"
-            )
+        site_loc = EarthLocation.from_geodetic(
+            telescope_loc[1] * (180.0 / np.pi),
+            telescope_loc[0] * (180.0 / np.pi),
+            height=telescope_loc[2],
+        )
+
+    # Check to make sure that we have a properly formatted epoch for our in-bound
+    # coordinate frame
+    epoch = None
+    if isinstance(coord_epoch, str) or isinstance(coord_epoch, Time):
+        # If its a string or a Time object, we don't need to do anything more
+        epoch = Time(coord_epoch)
+    elif isinstance(coord_epoch, float):
+        epoch = Time(coord_epoch, format="jyear")
+    elif coord_epoch is not None:
+        raise ValueError("in_coord_epoch must be of type str, Time, float, or None.")
+
+    opt_list = [pm_ra, pm_dec, parallax, rad_vel]
+    opt_names = ["pm_ra", "pm_dec", "parallax", "rad_vel"]
+
+    # Check the optional inputs, make sure that they're sensible
+    for item, name in zip(opt_list, opt_names):
+        if item is not None:
+            if isinstance(item, np.ndarray) != isinstance(ra_coord, np.ndarray):
+                raise ValueError(
+                    "%s must be the same type as ra_coord and dec_coord." % name
+                )
+            if isinstance(ra_coord, np.ndarray):
+                if len(item) != len(ra_coord):
+                    raise ValueError(
+                        "%s must be the same length as ra_coord and dec_coord!" % name
+                    )
 
     # Useful for both astropy and novas methods, the latter of which gives easy
     # access to the IERS data that we want.
-    time_obj_array = Time(time_array, format="jd", scale="utc")
+    time_obj_array = Time(
+        time_array if isinstance(time_array, np.ndarray) else [time_array],
+        format="jd",
+        scale="utc",
+        location=site_loc,
+    )
 
-    # Check the optional inputs, make sure that they're sensible
-    if pm_ra is not None:
-        if isinstance(pm_ra, np.ndarray) != isinstance(ra_coord, np.ndarray):
-            raise ValueError("pm_ra must be the same type as ra_coord and dec_coord!")
-        if isinstance(ra_coord, np.ndarray):
-            if len(pm_ra) != len(ra_coord):
-                raise ValueError(
-                    "pm_ra must be the same length as ra_coord and dec_coord!"
-                )
+    # Note if time_array is a single element
+    multi_time = len(time_obj_array) != 1
 
-    if pm_dec is not None:
-        if isinstance(pm_dec, np.ndarray) != isinstance(ra_coord, np.ndarray):
-            raise ValueError("pm_dec must be the same type as ra_coord and dec_coord!")
-        if isinstance(ra_coord, np.ndarray):
-            if len(pm_dec) != len(ra_coord):
-                raise ValueError(
-                    "pm_dec must be the same length as ra_coord and dec_coord!"
-                )
-
-    if parallax is not None:
-        if isinstance(parallax, np.ndarray) != isinstance(ra_coord, np.ndarray):
-            raise ValueError(
-                "parallax must be the same type as ra_coord and dec_coord!"
-            )
-        if isinstance(ra_coord, np.ndarray):
-            if len(parallax) != len(ra_coord):
-                raise ValueError(
-                    "parallax must be the same length as ra_coord and dec_coord!"
-                )
-
-    if rad_vel is not None:
-        if isinstance(rad_vel, np.ndarray) != isinstance(ra_coord, np.ndarray):
-            raise ValueError("rad_vel must be the same type as ra_coord and dec_coord!")
-        if isinstance(ra_coord, np.ndarray):
-            if len(rad_vel) != len(ra_coord):
-                raise ValueError(
-                    "rad_vel must be the same length as ra_coord and dec_coord!"
-                )
-
-    # Get IERS data, which is needed for both rotations
+    # Get IERS data, which is needed for NOVAS and ERFA
     polar_motion_data = iers.earth_orientation_table.get()
 
-    pm_x_array, pm_y_array = polar_motion_data.pm_xy(time_array)
+    pm_x_array, pm_y_array = polar_motion_data.pm_xy(time_obj_array)
+    delta_x_array, delta_y_array = polar_motion_data.dcip_xy(time_obj_array)
     # Let's just make sure we have the right units here. This should be
     # true unless astropy makes a change we are unaware of.
-    if (pm_x_array.unit != "arcsec") or (pm_y_array.unit != "arcsec"):
+    if (pm_x_array.unit != "arcsec" or pm_y_array.unit != "arcsec") or (
+        delta_x_array.unit != "marcsec" or delta_y_array.unit != "marcsec"
+    ):  # pragma: no cover
         raise ValueError(
             "IERS polar motion data is not in the format expected, please "
             "notify pyuvdata developers by filing an issue on GitHub "
             "(https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues)"
         )
+    pm_x_array = pm_x_array.value
+    pm_y_array = pm_y_array.value
+    delta_x_array = delta_x_array.value
+    delta_y_array = delta_y_array.value
 
-    # Extract out just the value arrays, convert to rad
-    pm_x_array = pm_x_array.value * ((np.pi / 180.0) / 3600.0)
-    pm_y_array = pm_y_array.value * ((np.pi / 180.0) / 3600.0)
+    # Set up the source information into a SkyCoord object, since it's a convenient
+    # package to put everything into
+    d_coord = None if parallax is None else Distance(parallax=parallax * units.arcsec)
+    v_coord = None if rad_vel is None else rad_vel * (units.km / units.s)
+    pm_ra_cosdec_coord = None if pm_ra is None else pm_ra * (units.mas / units.yr)
+    pm_dec_coord = None if pm_dec is None else pm_dec * (units.mas / units.yr)
 
-    if not use_novas:
-        site_loc = EarthLocation.from_geodetic(
-            telescope_lon * (180.0 / np.pi),
-            telescope_lat * (180.0 / np.pi),
-            height=telescope_alt,
-        )
+    sou_info_arr = SkyCoord(
+        ra=ra_coord * units.rad,
+        dec=dec_coord * units.rad,
+        distance=d_coord,
+        radial_velocity=v_coord,
+        pm_ra_cosdec=pm_ra_cosdec_coord,
+        pm_dec=pm_dec_coord,
+        frame="icrs",
+        equinox=epoch,
+    )
 
-        # Note that the below is _very_ unhappy being fed pm, parallax,
-        # or rad vel info into the AltAz frame. Something to investigate later.
-        sou_info = SkyCoord(
-            ra=ra_coord * units.rad, dec=dec_coord * units.rad, frame="icrs",
-        )
+    # If the source was instantiated w/ floats, it'll be a 0-dim object, which will
+    # throw errors if we try to treat it as an array. Reshape to a 1D array of len 1
+    # so that all the calls can be uniform
+    if sou_info_arr.ndim == 0:
+        sou_info_arr = sou_info_arr.reshape((1,))
 
-        app_coord_data = sou_info.transform_to(
-            TETE(location=site_loc, obstime=time_obj_array)
-        )
+    # If there is an epoch and a proper motion, apply that motion now
+    if (epoch is not None) and (pm_ra is not None) and (pm_dec is not None):
+        sou_info_arr.apply_space_motion(dt=(time_obj_array - epoch))
+        # A new coord is derived for each time, so if this wasn't already
+        # multiple coordinates, it is now
+        multi_coord = True
 
-        # TETE doesn't seem to have polar wobble applied, which appears to be the only
-        # difference with NOVAS "topocentric". Let's fix that, shall we?
-        pos_vector = np.transpose(
-            np.array(
-                [
-                    np.sin(app_coord_data.ra.rad) * np.cos(app_coord_data.dec.rad),
-                    np.cos(app_coord_data.ra.rad) * np.cos(app_coord_data.dec.rad),
-                    np.sin(app_coord_data.dec.rad),
-                ]
+    if astrometry_library == "astropy":
+        # Astropy doesn't have (oddly enough) a way of getting at the apparent RA/Dec
+        # directly, but we can cheat this by going to AltAz, and then coverting back
+        # to apparent RA/Dec using the telescope lat and LAST.
+        azel_data = sou_info_arr.transform_to(
+            SkyCoord(
+                np.zeros_like(time_obj_array) * units.rad,
+                np.zeros_like(time_obj_array) * units.rad,
+                location=site_loc,
+                obstime=time_obj_array,
+                frame="altaz",
             )
-        )[:, :, np.newaxis]
+        )
 
-        # Technically, this implementation isn't perfect, as you really would
-        # want to do a three rotations to do this "right", but the PM values
-        # are < 1 arcsec, and so usual small-angle approximations hold up well
-        # (where the resultant error is < 1 microarcsec).
-        pos_vector = rotate_two_axis(pos_vector, -pm_y_array, pm_x_array, 1, 0)[:, :, 0]
+        app_ha, app_dec = erfa.ae2hd(
+            azel_data.az.rad, azel_data.alt.rad, site_loc.lat.rad,
+        )
+        app_ra = np.mod(
+            time_obj_array.sidereal_time("apparent").rad - app_ha, 2 * np.pi
+        )
 
-        # Convert the 3D vector back to RA/Dec values
-        app_ra = np.mod(np.arctan2(pos_vector[:, 0], pos_vector[:, 1]), 2.0 * np.pi)
-        app_dec = np.arcsin(pos_vector[:, 2])
-    else:
+    elif astrometry_library == "novas":
         # Import the NOVAS library only if it's needed/available.
         from novas import compat as novas
         from novas.compat import eph_manager
@@ -1955,9 +2045,9 @@ def translate_icrs_to_app(
         # Define the obs location, which is needed to calculate diurnal abb term
         # and polar wobble corrections
         site_loc = novas.make_on_surface(
-            telescope_lat * (180.0 / np.pi),  # latitude in deg
-            telescope_lon * (180.0 / np.pi),  # Longitude in deg
-            telescope_alt,  # Height in meters
+            site_loc.lat.deg,  # latitude in deg
+            site_loc.lon.deg,  # Longitude in deg
+            site_loc.height.value,  # Height in meters
             0.0,  # Temperature, set to 0 for now (no atm refrac)
             0.0,  # Pressure, set to 0 for now (no atm refrac)
         )
@@ -1965,16 +2055,7 @@ def translate_icrs_to_app(
         # NOVAS wants things in terrestial time and UT1
         tt_time_array = time_obj_array.tt.value
         ut1_time_array = time_obj_array.ut1.value
-
-        if not isinstance(time_array, np.ndarray):
-            pm_x_array = np.array([pm_x_array])
-            pm_y_array = np.array([pm_y_array])
-            tt_time_array = np.array([tt_time_array])
-            ut1_time_array = np.array([ut1_time_array])
-
-        # NOVAS wants polar motion values in milliarcsec
-        pm_x_array *= 1000.0 / ((np.pi / 180.0) / 3600.0)
-        pm_y_array *= 1000.0 / ((np.pi / 180.0) / 3600.0)
+        gast_array = time_obj_array.sidereal_time("apparent", "greenwich").rad
 
         if np.any(tt_time_array < jd_start) or np.any(tt_time_array > jd_end):
             raise ValueError(
@@ -1982,63 +2063,82 @@ def translate_icrs_to_app(
                 "Check back later (or possibly earlier)..."
             )
 
-        app_ra = np.zeros_like(tt_time_array)
-        app_dec = np.zeros_like(tt_time_array)
+        app_ra = np.zeros_like(tt_time_array) + np.zeros_like(ra_coord)
+        app_dec = np.zeros_like(tt_time_array) + np.zeros_like(ra_coord)
 
-        for idx in range(len(time_array)):
-            if multi_coord:
+        for idx in range(len(app_ra)):
+            if multi_coord or (idx == 0):
+                sou_info = sou_info_arr[idx]
                 # Create a catalog entry for the source in question
-                sou_info = novas.make_cat_entry(
+                cat_entry = novas.make_cat_entry(
                     "dummy_name",  # Dummy source name
                     "GKK",  # Catalog ID, fixed for now
                     156,  # Star ID number, fixed for now
-                    ra_coord[idx] * (12.0 / np.pi),  # RA in hours
-                    dec_coord[idx] * (180.0 / np.pi),  # Dec in deg
-                    pm_ra[idx] if (pm_ra is not None) else 0.0,  # Proper motion RA
-                    pm_dec[idx] if (pm_dec is not None) else 0.0,  # Proper motion Dec
-                    parallax[idx] if (parallax is not None) else 0.0,  # Parallax
-                    rad_vel[idx] if (rad_vel is not None) else 0.0,  # Radial velocity
-                )
-            elif idx == 0:
-                sou_info = novas.make_cat_entry(
-                    "dummy_name",  # Dummy source name
-                    "GKK",  # Catalog ID, fixed for now
-                    156,  # Star ID number, fixed for now
-                    ra_coord * (12.0 / np.pi),  # RA in hours
-                    dec_coord * (180.0 / np.pi),  # Dec in deg
-                    pm_ra if (pm_ra is not None) else 0.0,  # Proper motion RA
-                    pm_dec if (pm_dec is not None) else 0.0,  # Proper motion Dec
-                    parallax if (parallax is not None) else 0.0,  # Parallax
-                    rad_vel if (rad_vel is not None) else 0.0,  # Radial velocity
+                    sou_info.ra.hour,
+                    sou_info.dec.deg,
+                    0.0 if (pm_ra is None) else sou_info.pm_ra_cosdec.value,
+                    0.0 if (pm_dec is None) else sou_info.pm_dec.value,
+                    0.0 if (parallax is None) else sou_info.distance.kiloparsec ** -1,
+                    0.0 if (rad_vel is None) else sou_info.radial_velocity.value,
                 )
 
             # Update polar wobble parameters for a given timestamp
-            novas.cel_pole(tt_time_array[idx], 2, pm_x_array[idx], pm_y_array[idx])
+            if multi_time or (idx == 0):
+                gast = gast_array[idx]
+                pm_x = pm_x_array[idx] * np.cos(gast) + pm_y_array[idx] * np.sin(gast)
+                pm_y = pm_y_array[idx] * np.cos(gast) - pm_x_array[idx] * np.sin(gast)
+                tt_time = tt_time_array[idx]
+                ut1_time = ut1_time_array[idx]
+                novas.cel_pole(
+                    tt_time, 2, delta_x_array[idx], delta_y_array[idx],
+                )
 
             # Calculate topocentric RA/Dec values
-            [app_ra[idx], app_dec[idx]] = novas.topo_star(
-                tt_time_array[idx],
-                (tt_time_array[idx] - ut1_time_array[idx]) * 86400.0,
-                sou_info,
+            [temp_ra, temp_dec] = novas.topo_star(
+                tt_time,
+                (tt_time - ut1_time) * 86400.0,
+                cat_entry,
                 site_loc,
                 accuracy=0,
             )
+            xyz_array = polar2_to_cart3(
+                temp_ra * (np.pi / 12.0), temp_dec * (np.pi / 180.0)
+            )
+            xyz_array = novas.wobble(tt_time, pm_x, pm_y, xyz_array, 1)
 
-        app_ra *= np.pi / 12.0
-        app_dec *= np.pi / 180.0
+            [app_ra[idx], app_dec[idx]] = cart3_to_polar2(np.array(xyz_array))
+    elif astrometry_library == "erfa":
+        # liberfa wants things in radians
+        pm_x_array *= np.pi / (3600.0 * 180.0)
+        pm_y_array *= np.pi / (3600.0 * 180.0)
+        pm_conv_fac = (np.pi / 180.0) / (1000.0 * 3600.0)
+        [_, _, _, app_dec, app_ra, eqn_org] = erfa.atco13(
+            ra_coord,
+            dec_coord,
+            0.0 if (pm_ra is None) else sou_info.pm_ra_cosdec.value * pm_conv_fac,
+            0.0 if (pm_dec is None) else sou_info.pm_dec.value * pm_conv_fac,
+            0.0 if (parallax is None) else sou_info.distance.parsec ** -1,
+            0.0 if (rad_vel is None) else sou_info.radial_velocity.value,
+            time_obj_array.utc.jd,
+            0.0,
+            time_obj_array.delta_ut1_utc,
+            site_loc.lon.rad,
+            site_loc.lat.rad,
+            site_loc.height.value,
+            pm_x_array,
+            pm_y_array,
+            0,  # ait pressure, used for refraction (ignored)
+            0,  # amb temperature, used for refraction (ignored)
+            0,  # rel humidity, used for refraction (ignored)
+            0,  # wavelength, used for refraction (ignored)
+        )
+        app_ra -= eqn_org
 
     return app_ra, app_dec
 
 
 def translate_app_to_sidereal(
-    time_array,
-    app_ra,
-    app_dec,
-    telescope_lat,
-    telescope_lon,
-    telescope_alt,
-    ref_frame,
-    ref_epoch=None,
+    time_array, app_ra, app_dec, telescope_loc, ref_frame="icrs", ref_epoch=None,
 ):
     """
     Translate a set of coordinates in topocentric/apparent to ICRS coordinates.
@@ -2056,142 +2156,181 @@ def translate_app_to_sidereal(
         float, or an ndarray of shape is (Ntimes,).
     app_ra : float or ndarray of float
         ICRS RA of the celestial target, expressed in units of radians. Can either
-        be a single float or array of shape (Ntimes,), although this must be consistent
-        with other parameters (with the exception of telescope location parameters).
+        be a single float or array of shape (Ncoord,), although this must be consistent
+        with app_dec, and time_array if not provided as a single float.
     app_dec : float or ndarray of float
         ICRS Dec of the celestial target, expressed in units of radians. Can either
-        be a single float or array of shape (Ntimes,), although this must be consistent
-        with other parameters (with the exception of telescope location parameters).
-    telescope_lon : float
-        ITRF longitude of the phase center of the array, expressed in units of radians.
-    telescope_lat : float
-        ITRF latitude of the phase center of the array, expressed in units of radians.
-    telescope_alt : float
-        Altitude (rel to sea-level) of the phase center of the array, expressed in
-        units of meters.
+        be a single float or array of shape (Ncoord,), although this must be consistent
+        with app_ra, and time_array if not provided as a single float.
+    telescope_loc : tuple of floats or EarthLocation
+        ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
+        of the array. Can either be provided as an astropy EarthLocation, or a tuple
+        of shape (3,) containung (in order) the latitude, longitude, and altitude,
+        in units of radians, radians, and meters, respectively.
+    ref_frame : string
+        The requested reference frame for the output coordinates, can be any frame
+        that is presently supported by astropy. Default is ICRS.
+    ref_epoch : float or str or Time object
+        Epoch for ref_frame, nominally only used if converting to either the FK4 or
+        FK5 frames, in units of fractional years. If provided as a float and the
+        ref_frame is an FK4-variant, value will assumed to be given in Besselian
+        years (i.e., 1950 would be 'B1950'), otherwise the year is assumed to be
+        in Julian years.
 
     Returns
     -------
-    icrs_ra : ndarray of floats
-        Apparent right ascension coordinates, in units of radians, of shape (Ntimes,).
-    icrs_dec : ndarray of floats
-        Apparent declination coordinates, in units of radians, of shape (Ntimes,).
+    ref_ra : ndarray of floats
+        Apparent right ascension coordinates, in units of radians, of either shape
+        (Ntimes,) if Ntimes >1, otherwise (Ncoord,).
+    ref_dec : ndarray of floats
+        Apparent declination coordinates, in units of radians, of either shape
+        (Ntimes,) if Ntimes >1, otherwise (Ncoord,).
     """
     # Check here to make sure that ra_coord and dec_coord are the same length,
     # either 1 or len(time_array)
+    multi_coord = False
     if isinstance(app_ra, np.ndarray) != isinstance(app_dec, np.ndarray):
-        raise ValueError("ra_coord and dec_coord must be the same type!")
-    elif not isinstance(time_array, np.ndarray):
-        if (len(app_ra) != 1) or (len(app_dec) != 1):
+        raise ValueError("ra_coord and dec_coord must be the same type.")
+    if isinstance(app_ra, np.ndarray):
+        multi_coord = len(app_ra) != 1
+        if app_ra.shape != app_dec.shape:
+            raise ValueError("app_ra and app_dec must be the same length.")
+
+    if isinstance(time_array, np.ndarray) and multi_coord:
+        if time_array.shape != app_ra.shape:
             raise ValueError(
-                "ra_coord and dec_coord must be the same length, either 1 (single "
-                "float) or of the same length as time_array!"
+                "time_array must be of either of length 1 (single "
+                "float) or same length as app_ra and app_dec."
             )
+
+    if isinstance(telescope_loc, EarthLocation):
+        site_loc = telescope_loc
     else:
-        if (len(app_ra) != len(time_array)) and (len(app_dec) != len(time_array)):
-            raise ValueError(
-                "ra_coord and dec_coord must be the same length, either 1 (single "
-                "float) or of the same length as time_array!"
-            )
+        site_loc = EarthLocation.from_geodetic(
+            telescope_loc[1] * (180.0 / np.pi),
+            telescope_loc[0] * (180.0 / np.pi),
+            height=telescope_loc[2],
+        )
+
+    # Check to make sure that we have a properly formatted epoch for our in-bound
+    # coordinate frame
+    epoch = None
+    if isinstance(ref_epoch, str) or isinstance(ref_epoch, Time):
+        # If its a string or a Time object, we don't need to do anything more
+        epoch = Time(ref_epoch)
+    elif isinstance(ref_epoch, float):
+        if ref_frame.lower() in ["fk4", "fk4noeterms"]:
+            epoch = Time(ref_epoch, format="byear")
+        else:
+            epoch = Time(ref_epoch, format="jyear")
+    elif ref_epoch is not None:
+        raise ValueError("in_coord_epoch must be of type str, Time, float, or None.")
 
     # Useful for both astropy and novas methods, the latter of which gives easy
     # access to the IERS data that we want.
+    time_obj_array = Time(
+        time_array if isinstance(time_array, np.ndarray) else [time_array],
+        format="jd",
+        scale="utc",
+        location=site_loc,
+    )
+
     time_obj_array = Time(time_array, format="jd", scale="utc")
 
-    # Get IERS data, which is needed for both rotations
+    # Get IERS data, which is needed for highest precision
     polar_motion_data = iers.earth_orientation_table.get()
 
-    pm_x_array, pm_y_array = polar_motion_data.pm_xy(time_array)
+    pm_x_array, pm_y_array = polar_motion_data.pm_xy(time_obj_array)
     # Let's just make sure we have the right units here. This should be
     # true unless astropy makes a change we are unaware of.
-    assert pm_x_array.unit == "arcsec"
-    assert pm_y_array.unit == "arcsec"
-
-    # Extract out just the value arrays, convert to rad
-    pm_x_array = pm_x_array.value * ((np.pi / 180.0) / 3600.0)
-    pm_y_array = pm_y_array.value * ((np.pi / 180.0) / 3600.0)
-
-    # TETE doesn't seem to have polar wobble applied, which appears to be the only
-    # difference with NOVAS "topocentric". Let's unfix that, shall we?
-    pos_vector = np.transpose(
-        np.array(
-            [
-                np.sin(app_ra) * np.cos(app_dec),
-                np.cos(app_ra) * np.cos(app_dec),
-                np.sin(app_dec),
-            ]
+    if (pm_x_array.unit != "arcsec") or (
+        pm_y_array.unit != "arcsec"
+    ):  # pragma: no cover
+        raise ValueError(
+            "IERS polar motion data is not in the format expected, please "
+            "notify pyuvdata developers by filing an issue on GitHub "
+            "(https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues)"
         )
-    )[:, :, np.newaxis]
+    pm_x_array = pm_x_array.value * (np.pi / (3600.0 * 180.0))
+    pm_y_array = pm_y_array.value * (np.pi / (3600.0 * 180.0))
 
-    # Technically, this implementation isn't perfect, as you really would
-    # want to do a three rotations to do this "right", but the PM values
-    # are < 1 arcsec, and so the usual small-angle approximations hold up
-    # well (where the resultant error is < 1 microarcsec).
-    pos_vector = rotate_two_axis(pos_vector, pm_y_array, -pm_x_array, 1, 0)[:, :, 0]
-
-    # Convert the 3D vector back to RA/Dec values
-    tete_ra = np.mod(np.arctan2(pos_vector[:, 0], pos_vector[:, 1]), 2.0 * np.pi,)
-    tete_dec = np.arcsin(pos_vector[:, 2])
-
-    site_loc = EarthLocation.from_geodetic(
-        telescope_lon * (180.0 / np.pi),
-        telescope_lat * (180.0 / np.pi),
-        height=telescope_alt,
+    # Observed to ICRS via ERFA
+    icrs_ra, icrs_dec = erfa.atoc13(
+        "r",
+        app_ra,
+        app_dec,
+        time_obj_array.utc.jd,
+        0.0,  # Second half of the UT date, not needed
+        time_obj_array.delta_ut1_utc,
+        site_loc.lon.rad,
+        site_loc.lat.rad,
+        site_loc.height.value,
+        pm_x_array,
+        pm_y_array,
+        0,  # ait pressure, used for refraction (ignored)
+        0,  # amb temperature, used for refraction (ignored)
+        0,  # rel humidity, used for refraction (ignored)
+        0,  # wavelength, used for refraction (ignored)
     )
 
-    # Note that the below is _very_ unhappy being fed pm, parallax,
-    # or rad vel info into the AltAz frame. Something to investigate later.
-    sou_info = SkyCoord(
-        ra=tete_ra * units.rad,
-        dec=tete_dec * units.rad,
-        frame="tete",
-        location=site_loc,
-        obstime=time_obj_array,
-    )
-
-    # The FK4 (Bessel-Newcomb) and FK5 (Julian) coord systems have to be handled
-    # with a little extra care, since they have embedded within them the concept
-    # of an epoch (equinox), which is separate from the time of obs.
-    if ref_frame.lower() == "fk5":
-        sidereal_coord_data = sou_info.transform_to(
-            FK5(
-                equinox=ref_epoch
-                if (isinstance(ref_epoch, str) or isinstance(ref_epoch, Time))
-                else (None if ref_epoch is None else "J%f" % ref_epoch),
-            )
-        )
-    elif ref_frame.lower() == "fk4":
-        sidereal_coord_data = sou_info.transform_to(
-            FK4(
-                equinox=ref_epoch
-                if (isinstance(ref_epoch, str) or isinstance(ref_epoch, Time))
-                else (None if ref_epoch is None else "B%f" % ref_epoch),
-            )
-        )
-    elif ref_frame.lower() == "fk4noeterms":
-        sidereal_coord_data = sou_info.transform_to(
-            FK4NoETerms(
-                equinox=ref_epoch
-                if (isinstance(ref_epoch, str) or isinstance(ref_epoch, Time))
-                else (None if ref_epoch is None else "B%f" % ref_epoch),
-            )
-        )
+    # At this point, data are in the ICRS reference frame -- if further conversion is
+    # needed, it can go through astropy's normal routines
+    if ref_frame == "icrs":
+        ref_ra = icrs_ra
+        ref_dec = icrs_dec
     else:
-        sidereal_coord_data = sou_info.transform_to(ref_frame.lower())
+        sou_info = SkyCoord(
+            ra=icrs_ra * units.rad, dec=icrs_dec * units.rad, frame="icrs",
+        )
+
+        sou_info = sou_info.transform_to(
+            SkyCoord(
+                np.zeros_like(time_obj_array) * units.rad,
+                np.zeros_like(time_obj_array) * units.rad,
+                frame=ref_frame,
+                equinox=epoch,
+                obstime=time_obj_array,
+                location=site_loc,
+            )
+        )
+        ref_ra = sou_info.ra.rad
+        ref_dec = sou_info.dec.rad
 
     # Return back the two RA/Dec arrays
-    return sidereal_coord_data.ra.rad, sidereal_coord_data.dec.rad
+    return ref_ra, ref_dec
 
 
 def calc_pos_angle(
+    app_ra, app_dec, lst_array, telescope_lat,
+):
+    """
+    Calculate the position angle between RA/Dec and the AltAz frame.
+
+    Parameters
+    ----------
+    app_ra : ndarray of floats
+        Array of apparent RA values in units of radians, shape (Ntimes,).
+    app_dec : ndarray of floats
+        Array of apparent dec values in units of radians, shape (Ntimes,).
+    telescope_lat : float
+        Latitude of the observatory, in units of radians.
+    lst_array : float or ndarray of float
+        Array of local apparent sidereal timesto calculate position angle values
+        for, in units of radians. Can either be a single float or an array of shape
+        (Ntimes,).
+    """
+    # This is just a simple wrapped around the pas function in ERFA
+    return erfa.pas(app_ra, app_dec, lst_array, telescope_lat)
+
+
+def calc_frame_pos_angle(
     time_array,
     app_ra,
     app_dec,
-    telescope_lat,
-    telescope_lon,
-    telescope_alt,
+    telescope_loc,
     ref_frame,
     ref_epoch=None,
+    offset_pos=(np.pi / 360.0),
 ):
     """
     Calculate an position angle given apparent position and reference frame.
@@ -2203,19 +2342,21 @@ def calc_pos_angle(
 
     Paramters
     ---------
-    time_array : ndarray of floats
+    time_array : float or ndarray of floats
         Array of julian dates to calculate position angle values for, of shape
         (Ntimes,).
     app_ra : ndarray of floats
         Array of apparent RA values in units of radians, shape (Ntimes,).
     app_dec : ndarray of floats
         Array of apparent dec values in units of radians, shape (Ntimes,).
-    telescope_lat : float
-        Latitude of the observatory, in units of radians.
-    telescope_lon : float
-        Longitude of the observatory, in units of radians.
-    telescope_alt : float
-        Altitude of the observatory, in units of meters.
+    telescope_loc : tuple of floats or EarthLocation
+        ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
+        of the array. Can either be provided as an astropy EarthLocation, or a tuple
+        of shape (3,) containung (in order) the latitude, longitude, and altitude,
+        in units of radians, radians, and meters, respectively.
+    offset_pos : float
+        Distance of the offset position used to calculate the frame PA. Default
+        is 0.5 degrees, which should be sufficent for most applications.
 
     ref_frame : str
         Coordinate frame to calculate position angles for. Can be any of the
@@ -2229,7 +2370,7 @@ def calc_pos_angle(
 
     Returns
     -------
-    app_pa : ndarray of floats
+    frame_pa : ndarray of floats
         Array of position angles, in units of radians.
     """
     # Check to see if the position angles should default to zero
@@ -2277,36 +2418,29 @@ def calc_pos_angle(
     # positions are concat'd together to help reduce overheads
     ref_ra, ref_dec = translate_app_to_sidereal(
         np.tile(unique_time, 2),
-        np.concatenate((up_ra, dn_ra)),
-        np.concatenate((up_dec, dn_dec)),
-        telescope_lat,
-        telescope_lon,
-        telescope_alt,
-        ref_frame,
+        np.concatenate((dn_ra, up_ra)),
+        np.concatenate((dn_dec, up_dec)),
+        telescope_loc,
+        ref_frame=ref_frame,
         ref_epoch=ref_epoch,
     )
 
-    # Using the following formula, we can get the pos angle for the offset positions:
-    # atan2(sin(ra_d - ra_u), cos(dec_d)*tan(dec_u) - sin(dec_d)*cos(ra_u - ra_d))
-    # Remember that the first n_coord elements are for the 'up' position, and the last
-    # n_coord elements are for the 'down' position. For more details, see
-    # https://en.wikipedia.org/wiki/Position_angle.
-    unique_pa = np.arctan2(
-        np.sin(ref_ra[n_coord:] - ref_ra[:n_coord]),
-        (np.cos(ref_dec[n_coord:]) * np.tan(ref_dec[:n_coord]))
-        - (np.sin(ref_dec[n_coord:]) * np.cos(ref_ra[:n_coord] - ref_ra[n_coord:])),
+    # Use the pas function from ERFA to calculate the position angle. The negative sign
+    # is here because we're measuring PA of app -> frame, but we want frame -> app.
+    unique_pa = -erfa.pas(
+        ref_ra[:n_coord], ref_dec[:n_coord], ref_ra[n_coord:], ref_dec[n_coord:]
     )
 
     # Finally, we have to go back through and "fill in" the redundant entries
-    app_pa = np.zeros_like(app_ra)
+    frame_pa = np.zeros_like(app_ra)
     for idx in range(n_coord):
         select_mask = np.logical_and(
             np.logical_and(unique_ra[idx] == app_ra, unique_dec[idx] == app_dec,),
             unique_time[idx] == time_array,
         )
-        app_pa[select_mask] = unique_pa[idx]
+        frame_pa[select_mask] = unique_pa[idx]
 
-    return app_pa
+    return frame_pa
 
 
 def calc_app_coords(
@@ -2317,14 +2451,11 @@ def calc_app_coords(
     object_type=None,
     time_array=None,
     lst_array=None,
+    telescope_loc=None,
     pm_ra=None,
     pm_dec=None,
     rad_vel=None,
     parallax=None,
-    telescope_lat=None,
-    telescope_lon=None,
-    telescope_alt=None,
-    use_novas=False,
 ):
     """
     Calculate apparent coordinates for several different object types.
@@ -2332,43 +2463,61 @@ def calc_app_coords(
     This is a function that does all sorts of interesting things, and I will write a
     lot more about it shortly.
     """
+    if isinstance(telescope_loc, EarthLocation):
+        site_loc = telescope_loc
+    elif isinstance(telescope_loc, tuple) or isinstance(telescope_loc, np.ndarray):
+        if len(telescope_loc) != 3:
+            raise ValueError("telescope_loc must be a tuple of ndarray of length 3.")
+        site_loc = EarthLocation.from_geodetic(
+            telescope_loc[1] * (180.0 / np.pi),
+            telescope_loc[0] * (180.0 / np.pi),
+            height=telescope_loc[2],
+        )
+    else:
+        raise ValueError("telescope_loc must be a tuple, ndarray, or EarthLocation.")
+
     unique_time_array = np.unique(time_array)
     if object_type == "sidereal":
-        icrs_ra, icrs_dec = translate_sidereal_to_sidereal(
-            lon_coord,
-            lat_coord,
-            coord_frame,
-            "icrs",
-            in_coord_epoch=coord_epoch
-            if (isinstance(coord_epoch, str) or isinstance(coord_epoch, Time))
-            else (None if coord_epoch is None else "J%f" % coord_epoch),
-            time_array=unique_time_array,
-        )
+        # If the coordinates are not in the ICRS frame, go ahead and translate them now
+        if coord_frame != "icrs":
+            icrs_ra, icrs_dec = translate_btw_sidereal_frames(
+                lon_coord,
+                lat_coord,
+                coord_frame,
+                "icrs",
+                in_coord_epoch=coord_epoch,
+                time_array=unique_time_array,
+            )
+        else:
+            icrs_ra = lon_coord
+            icrs_dec = lat_coord
         unique_app_ra, unique_app_dec = translate_icrs_to_app(
             unique_time_array,
             icrs_ra,
             icrs_dec,
-            telescope_lat,
-            telescope_lon,
-            telescope_alt,
+            site_loc,
             pm_ra=pm_ra,
             pm_dec=pm_dec,
             rad_vel=rad_vel,
             parallax=parallax,
-            use_novas=use_novas,
         )
 
     elif object_type == "driftscan":
-        unique_app_ra, unique_app_dec = translate_driftscan_to_app(
-            lon_coord, lat_coord, telescope_lat, lst_array
+        # Use the ERFA function ae2hd, which will do all the heavy
+        # lifting for us
+        unique_app_ha, unique_app_dec = erfa.ae2hd(
+            lon_coord, lat_coord, site_loc.lat.rad
         )
+        # The above returns HA/Dec, so we just need to rotate by
+        # the LST to get back app RA and Dec
+        unique_app_ra = np.mod(unique_app_ha + lst_array, 2 * np.pi)
     elif object_type == "ephem":
         unique_app_ra, unique_app_dec = translate_ephem_to_app()
     elif object_type == "unphased":
         # This is the easiest one - this is just supposed to be ENU, so set the
         # apparent coords to the current lst and telescope_lon.
         unique_app_ra = lst_array.copy()
-        unique_app_dec = np.zeros_like(unique_app_ra) + telescope_lat
+        unique_app_dec = np.zeros_like(unique_app_ra) + site_loc.lat.rad
     else:
         raise ValueError("Object type %s is not recognized." % object_type)
 
@@ -2384,7 +2533,9 @@ def calc_app_coords(
     return app_ra, app_dec
 
 
-def get_lst_for_time(jd_array, latitude, longitude, altitude, use_novas=False):
+def get_lst_for_time(
+    jd_array, latitude, longitude, altitude, astrometry_library="erfa"
+):
     """
     Get the local apparent sidereal time for a set of jd times at an earth location.
 
@@ -2407,9 +2558,10 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude, use_novas=False):
         Longitude of location to get lst for in degrees.
     altitude : float
         Altitude of location to get lst for in meters.
-    use_novas: boolean
-        Use NOVAS for the calculation of LAST. Default is false, which instead
-        triggers the use of astropy for the calculations.
+    astrometry_library : str
+        Library used for running the LST calculations. Allowed options are 'erfa'
+        (which uses the pyERFA), 'novas' (which uses the python-novas library),
+        and 'astropy' (which uses the astropy utilities). Default is erfa.
 
     Returns
     -------
@@ -2417,14 +2569,21 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude, use_novas=False):
         LASTs in radians corresponding to the jd_array.
 
     """
-    lst_array = np.zeros_like(jd_array)
+    if isinstance(jd_array, np.ndarray):
+        lst_array = np.zeros_like(jd_array)
+    else:
+        lst_array = np.zeros(1)
+
     jd, reverse_inds = np.unique(jd_array, return_inverse=True)
     times = Time(
         jd,
         format="jd",
         scale="utc",
-        location=(Angle(longitude, unit="deg"), Angle(latitude, unit="deg")),
+        location=(Angle(longitude, unit="deg"), Angle(latitude, unit="deg"), altitude),
     )
+    if times.ndim == 0:
+        times = times.reshape((1,))
+
     if iers.conf.auto_max_age is None:  # pragma: no cover
         delta, status = times.get_delta_ut1_utc(return_status=True)
         if np.any(
@@ -2435,9 +2594,16 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude, use_novas=False):
                 "extrapolated value"
             )
             times.delta_ut1_utc = delta
-    if not use_novas:
+    if astrometry_library == "erfa":
+        # This appears to be what astropy is using under the hood,
+        # so it _should_ be totally consistent.
+        gast_array = erfa.gst06a(times.ut1.jd, 0.0, times.tt.jd, 0.0)
+        lst_array = np.mod(gast_array + (longitude * (np.pi / 180.0)), 2.0 * np.pi)[
+            reverse_inds
+        ]
+    elif astrometry_library == "astropy":
         lst_array = times.sidereal_time("apparent").radian[reverse_inds]
-    else:
+    elif astrometry_library == "novas":
         # Import the NOVAS library only if it's needed/available.
         from novas import compat as novas
         from novas.compat import eph_manager
@@ -2448,24 +2614,26 @@ def get_lst_for_time(jd_array, latitude, longitude, altitude, use_novas=False):
         ut1_time_array = times.ut1.value
         polar_motion_data = iers.earth_orientation_table.get()
 
-        pm_x_array = 1000.0 * np.interp(
+        delta_x_array = np.interp(
             times.mjd,
             polar_motion_data["MJD"].value,
-            polar_motion_data["PM_x"].value,
+            polar_motion_data["dX_2000A_B"].value,
             left=0.0,
             right=0.0,
         )
 
-        pm_y_array = 1000.0 * np.interp(
+        delta_y_array = np.interp(
             times.mjd,
             polar_motion_data["MJD"].value,
-            polar_motion_data["PM_y"].value,
+            polar_motion_data["dY_2000A_B"].value,
             left=0.0,
             right=0.0,
         )
 
         for idx in range(len(times)):
-            novas.cel_pole(tt_time_array[idx], 2, pm_x_array[idx], pm_y_array[idx])
+            novas.cel_pole(
+                tt_time_array[idx], 2, delta_x_array[idx], delta_y_array[idx]
+            )
             # The NOVAS routine will return Greenwich Apparent Sidereal Time (GAST),
             # in units of hours
             lst_array[reverse_inds == idx] = novas.sidereal_time(
