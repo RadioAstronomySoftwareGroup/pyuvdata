@@ -442,8 +442,8 @@ class UVData(UVBase):
             "the phase_center_frame attribute."
             "Shape (Nblts,), type = float."
         )
-        self._phase_center_app_pa = uvp.AngleParameter(
-            "phase_center_app_pa",
+        self._phase_center_frame_pa = uvp.AngleParameter(
+            "phase_center_frame_pa",
             required=False,
             form=("Nblts",),
             expected_type=float,
@@ -461,7 +461,7 @@ class UVData(UVBase):
             required=False,
             description=desc,
             expected_type=str,
-            acceptable_vals=["icrs", "gcrs"],
+            acceptable_vals=["icrs", "gcrs", "fk5"],
         )
 
         desc = (
@@ -712,7 +712,7 @@ class UVData(UVBase):
         # we are only gonna make it mandatory for multi-obj data sets.
         self._phase_center_app_ra.required = True
         self._phase_center_app_dec.required = True
-        self._phase_center_app_pa.required = True
+        self._phase_center_frame_pa.required = True
 
         if preserve_source_info:
             if self.phase_type == "phased":
@@ -1049,7 +1049,7 @@ class UVData(UVBase):
         self._phase_center_dec.required = False
         self._phase_center_app_ra.required = False
         self._phase_center_app_dec.required = False
-        self._phase_center_app_pa.required = False
+        self._phase_center_frame_pa.required = False
 
     def set_drift(self):
         """
@@ -1079,7 +1079,7 @@ class UVData(UVBase):
         self._phase_center_dec.required = True
         self._phase_center_app_ra.required = True
         self._phase_center_app_dec.required = True
-        self._phase_center_app_pa.required = True
+        self._phase_center_frame_pa.required = True
 
     def set_phased(self):
         """
@@ -1109,7 +1109,7 @@ class UVData(UVBase):
         self._phase_center_dec.required = False
         self._phase_center_app_ra.required = False
         self._phase_center_app_dec.required = False
-        self._phase_center_app_pa.required = False
+        self._phase_center_frame_pa.required = False
 
     def set_unknown_phase_type(self):
         """
@@ -1329,16 +1329,16 @@ class UVData(UVBase):
         # seconds, so we need to convert.
         return np.diff(np.sort(list(set(self.time_array))))[0] * 86400
 
-    def _set_lsts_helper(self, use_novas=False):
+    def _set_lsts_helper(self):
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
         unique_times, inverse_inds = np.unique(self.time_array, return_inverse=True)
         unique_lst_array = uvutils.get_lst_for_time(
-            unique_times, latitude, longitude, altitude, use_novas=use_novas,
+            unique_times, latitude, longitude, altitude,
         )
         self.lst_array = unique_lst_array[inverse_inds]
         return
 
-    def _set_app_coords_helper(self, pa_only=False, use_novas=False):
+    def _set_app_coords_helper(self, pa_only=False):
         """
         Set values for the apparent coordinate arrays.
 
@@ -1352,9 +1352,6 @@ class UVData(UVBase):
             Skip the calculation of the apparent RA/Dec, and only calculate the
             position angle between `phase_center_frame` and the apparent coordinate
             system. Useful for reading in data formats that do not calculate a PA.
-        use_novas : bool, False
-            Use NOVAS for the calculation of apparent coordiantes (setting this to
-            false will instead call astropy).
         """
         if self.phase_type != "phased":
             # Uhhh... what do you want me to do? If the dataset isn't phased, there
@@ -1397,11 +1394,8 @@ class UVData(UVBase):
                     parallax=parallax,
                     time_array=self.time_array[select_mask],
                     lst_array=self.lst_array[select_mask],
-                    telescope_lat=self.telescope_location_lat_lon_alt[0],
-                    telescope_lon=self.telescope_location_lat_lon_alt[1],
-                    telescope_alt=self.telescope_location_lat_lon_alt[2],
+                    telescope_loc=self.telescope_location_lat_lon_alt,
                     object_type=object_type,
-                    use_novas=use_novas,
                 )
         else:
             # So this is actually the easier of the two cases -- just use the object
@@ -1413,30 +1407,25 @@ class UVData(UVBase):
                 coord_epoch=self.phase_center_epoch,
                 time_array=self.time_array,
                 lst_array=self.lst_array,
-                telescope_lat=self.telescope_location_lat_lon_alt[0],
-                telescope_lon=self.telescope_location_lat_lon_alt[1],
-                telescope_alt=self.telescope_location_lat_lon_alt[2],
-                use_novas=use_novas,
+                telescope_loc=self.telescope_location_lat_lon_alt,
                 object_type="sidereal",
             )
 
         # Now that we have the apparent coordinates sorted out, we can figure out what
         # it is we want to do with the position angle
-        app_pa = uvutils.calc_pos_angle(
+        frame_pa = uvutils.calc_frame_pos_angle(
             self.time_array,
             app_ra,
             app_dec,
-            self.telescope_location_lat_lon_alt[0],
-            self.telescope_location_lat_lon_alt[1],
-            self.telescope_location_lat_lon_alt[2],
+            self.telescope_location_lat_lon_alt,
             self.phase_center_frame,
             ref_epoch=self.phase_center_epoch,
         )
         self.phase_center_app_ra = app_ra
         self.phase_center_app_dec = app_dec
-        self.phase_center_app_pa = app_pa
+        self.phase_center_frame_pa = frame_pa
 
-    def set_lsts_from_time_array(self, background=False, use_novas=False):
+    def set_lsts_from_time_array(self, background=False):
         """Set the lst_array based from the time_array.
 
         Parameters
@@ -1453,12 +1442,10 @@ class UVData(UVBase):
 
         """
         if not background:
-            self._set_lsts_helper(use_novas=use_novas)
+            self._set_lsts_helper()
             return
         else:
-            proc = threading.Thread(
-                target=self._set_lsts_helper, kwargs={"use_novas": use_novas},
-            )
+            proc = threading.Thread(target=self._set_lsts_helper)
             proc.start()
             return proc
 
@@ -3059,8 +3046,8 @@ class UVData(UVBase):
             self.phase_center_app_ra = self.phase_center_app_ra[index_array]
         if self.phase_center_app_dec is not None:
             self.phase_center_app_dec = self.phase_center_app_dec[index_array]
-        if self.phase_center_app_pa is not None:
-            self.phase_center_app_pa = self.phase_center_app_pa[index_array]
+        if self.phase_center_frame_pa is not None:
+            self.phase_center_frame_pa = self.phase_center_frame_pa[index_array]
         if self.multi_object:
             self.object_id_array = self.object_id_array[index_array]
 
@@ -3506,7 +3493,7 @@ class UVData(UVBase):
                 ant_2_array=self.ant_2_array,
                 old_app_ra=self.phase_center_app_ra,
                 old_app_dec=self.phase_center_app_dec,
-                old_app_pa=self.phase_center_app_pa,
+                old_frame_pa=self.phase_center_frame_pa,
                 telescope_lat=telescope_location[0],
                 telescope_lon=telescope_location[1],
                 to_enu=True,
@@ -3522,7 +3509,7 @@ class UVData(UVBase):
                 self.phase_center_app_dec[:] = (
                     np.zeros(self.Nblts) + self.telescope_location[0]
                 )
-                self.phase_center_app_pa = np.zeros(self.Nblts)
+                self.phase_center_frame_pa = np.zeros(self.Nblts)
             else:
                 self.phase_center_frame = None
                 self.phase_center_ra = None
@@ -3530,7 +3517,7 @@ class UVData(UVBase):
                 self.phase_center_epoch = None
                 self.phase_center_app_ra = None
                 self.phase_center_app_dec = None
-                self.phase_center_app_pa = None
+                self.phase_center_frame_pa = None
                 self._set_drift()
             return
 
@@ -3693,7 +3680,6 @@ class UVData(UVBase):
         orig_phase_frame=None,
         select_mask=None,
         cleanup_old_sources=True,
-        use_novas=False,
         use_old_proj=False,
         fix_old_proj=True,
     ):
@@ -3737,10 +3723,6 @@ class UVData(UVBase):
             Optional mask for selecting which data to operate on along the blt-axis,
             only used if with multi-object data sets (i.e., multi_object=True). Shape
             is (Nblts,).
-        use_novas : bool
-            If True, use the python-novas module for handling calculation of source
-            position coordinates. Default is False, which instead invokes the
-            astropy library.
         use_old_proj : bool
             If True, use the "old" method for calculating baseline uvw-coordinates,
             which involved using astropy to move antenna positions (in ITRF) into
@@ -3802,7 +3784,7 @@ class UVData(UVBase):
                 old_w_vals = 0.0
                 old_app_ra = None
                 old_app_dec = None
-                old_app_pa = None
+                old_frame_pa = None
                 from_enu = True
             elif self.phase_type == "phased":
                 old_w_vals = self.uvw_array[:, 2]
@@ -3840,7 +3822,7 @@ class UVData(UVBase):
                     old_w_vals = self.uvw_array[:, 2].copy()
                     old_app_ra = self.phase_center_app_ra
                     old_app_dec = self.phase_center_app_dec
-                    old_app_pa = self.phase_center_app_pa
+                    old_frame_pa = self.phase_center_frame_pa
                     from_enu = False
                     if self.multi_object:
                         # Check and see if we have any unphased objects, in which case
@@ -3894,22 +3876,17 @@ class UVData(UVBase):
                 pm_dec=pm_dec,
                 rad_vel=rad_vel,
                 parallax=parallax,
-                telescope_lat=telescope_location[0],
-                telescope_lon=telescope_location[1],
-                telescope_alt=telescope_location[2],
-                use_novas=use_novas,
+                telescope_loc=self.telescope_location_lat_lon_alt,
             )
 
             # Now calculate position angles. If this is a single onject data set, the
             # ref frame is always equal to the source coordinate frame. In a multi obj
             # data set, those two components are allowed to be decoupled.
-            new_app_pa = uvutils.calc_pos_angle(
+            new_frame_pa = uvutils.calc_frame_pos_angle(
                 time_array,
                 new_app_ra,
                 new_app_dec,
-                telescope_location[0],
-                telescope_location[1],
-                telescope_location[2],
+                self.telescope_location_lat_lon_alt,
                 self.phase_center_frame if self.multi_object else phase_frame,
                 ref_epoch=self.phase_center_epoch if self.multi_object else epoch,
             )
@@ -3918,7 +3895,7 @@ class UVData(UVBase):
             new_uvw = uvutils.calc_uvw(
                 app_ra=new_app_ra,
                 app_dec=new_app_dec,
-                app_pa=new_app_pa,
+                frame_pa=new_frame_pa,
                 lst_array=lst_array,
                 use_ant_pos=use_ant_pos,
                 uvw_array=uvw_array,
@@ -3928,9 +3905,9 @@ class UVData(UVBase):
                 ant_2_array=ant_2_array,
                 old_app_ra=old_app_ra,
                 old_app_dec=old_app_dec,
-                old_app_pa=old_app_pa,
-                telescope_lat=telescope_location[0],
-                telescope_lon=telescope_location[1],
+                old_frame_pa=old_frame_pa,
+                telescope_lat=self.telescope_location_lat_lon_alt[0],
+                telescope_lon=self.telescope_location_lat_lon_alt[1],
                 from_enu=from_enu,
             )
 
@@ -3947,14 +3924,14 @@ class UVData(UVBase):
                 self.uvw_array[select_mask] = new_uvw
                 self.phase_center_app_ra[select_mask] = new_app_ra
                 self.phase_center_app_dec[select_mask] = new_app_dec
-                self.phase_center_app_pa[select_mask] = new_app_pa
+                self.phase_center_frame_pa[select_mask] = new_frame_pa
                 if self.multi_object:
                     self.object_id_array[select_mask] = object_id
             else:
                 self.uvw_array = new_uvw
                 self.phase_center_app_ra = new_app_ra
                 self.phase_center_app_dec = new_app_dec
-                self.phase_center_app_pa = new_app_pa
+                self.phase_center_frame_pa = new_frame_pa
                 if self.multi_object:
                     self.object_id_array[:] = object_id
 
@@ -4193,7 +4170,6 @@ class UVData(UVBase):
         use_ant_pos=False,
         allow_rephase=True,
         orig_phase_frame=None,
-        use_novas=False,
     ):
         """
         Phase a drift scan dataset to the ra/dec of zenith at a particular time.
@@ -4260,7 +4236,6 @@ class UVData(UVBase):
             use_ant_pos=use_ant_pos,
             allow_rephase=allow_rephase,
             orig_phase_frame=orig_phase_frame,
-            use_novas=use_novas,
         )
 
     def set_uvws_from_antenna_positions(
@@ -4268,7 +4243,6 @@ class UVData(UVBase):
         allow_phasing=False,
         orig_phase_frame=None,
         output_phase_frame="icrs",
-        use_novas=False,
         use_old_proj=False,
     ):
         """
@@ -4309,7 +4283,7 @@ class UVData(UVBase):
             new_uvw = uvutils.calc_uvw(
                 app_ra=self.phase_center_app_ra,
                 app_dec=self.phase_center_app_dec,
-                app_pa=self.phase_center_app_pa,
+                frame_pa=self.phase_center_frame_pa,
                 lst_array=self.lst_array,
                 use_ant_pos=True,
                 antenna_positions=self.antenna_positions,
@@ -4406,7 +4380,6 @@ class UVData(UVBase):
                 phase_center_epoch,
                 phase_frame=output_phase_frame,
                 use_old_proj=use_old_proj,
-                use_novas=use_novas,
             )
 
     def __add__(
@@ -4771,7 +4744,7 @@ class UVData(UVBase):
                 "_lst_array",
                 "_phase_center_app_ra",
                 "_phase_center_app_dec",
-                "_phase_center_app_pa",
+                "_phase_center_frame_pa",
                 "_object_id_array",
             ]
             compatibility_params.extend(extra_params)
@@ -4891,13 +4864,13 @@ class UVData(UVBase):
                     rtol=this._phase_center_app_dec.tols[0],
                     atol=this._phase_center_app_dec.tols[1],
                 )
-            elif (cp == "_phase_center_app_pa") and (this.phase_type == "phased"):
+            elif (cp == "_phase_center_frame_pa") and (this.phase_type == "phased"):
                 # only check that overlapping blt indices match
                 params_match = np.allclose(
-                    this.phase_center_app_pa[this_blts_ind],
-                    other.phase_center_app_pa[other_blts_ind],
-                    rtol=this._phase_center_app_pa.tols[0],
-                    atol=this._phase_center_app_pa.tols[1],
+                    this.phase_center_frame_pa[this_blts_ind],
+                    other.phase_center_frame_pa[other_blts_ind],
+                    rtol=this._phase_center_frame_pa.tols[0],
+                    atol=this._phase_center_frame_pa.tols[1],
                 )
             else:
                 params_match = getattr(this, cp) == getattr(other, cp)
@@ -4951,8 +4924,8 @@ class UVData(UVBase):
                 this.phase_center_app_dec = np.concatenate(
                     [this.phase_center_app_dec, other.phase_center_app_dec[bnew_inds]]
                 )[blt_order]
-                this.phase_center_app_pa = np.concatenate(
-                    [this.phase_center_app_pa, other.phase_center_app_pa[bnew_inds]]
+                this.phase_center_frame_pa = np.concatenate(
+                    [this.phase_center_frame_pa, other.phase_center_frame_pa[bnew_inds]]
                 )[blt_order]
             if this.multi_object:
                 this.object_id_array = np.concatenate(
@@ -5745,9 +5718,9 @@ class UVData(UVBase):
                     [this.phase_center_app_dec]
                     + [obj.phase_center_app_dec for obj in other]
                 )
-                this.phase_center_app_pa = np.concatenate(
-                    [this.phase_center_app_pa]
-                    + [obj.phase_center_app_pa for obj in other]
+                this.phase_center_frame_pa = np.concatenate(
+                    [this.phase_center_frame_pa]
+                    + [obj.phase_center_frame_pa for obj in other]
                 )
             if this.multi_object:
                 this.object_id_array = np.concatenate(
@@ -6654,8 +6627,8 @@ class UVData(UVBase):
                 self.phase_center_app_ra = self.phase_center_app_ra[blt_inds]
             if self.phase_center_app_dec is not None:
                 self.phase_center_app_dec = self.phase_center_app_dec[blt_inds]
-            if self.phase_center_app_pa is not None:
-                self.phase_center_app_pa = self.phase_center_app_pa[blt_inds]
+            if self.phase_center_frame_pa is not None:
+                self.phase_center_frame_pa = self.phase_center_frame_pa[blt_inds]
             if self.multi_object:
                 self.object_id_array = self.object_id_array[blt_inds]
 
@@ -6909,7 +6882,6 @@ class UVData(UVBase):
         temp_data,
         temp_flag,
         temp_nsample,
-        use_novas=False,
     ):
         """
         Make a self-consistent object after up/downsampling.
@@ -6947,10 +6919,10 @@ class UVData(UVBase):
         self.uvw_array = np.zeros((self.Nblts, 3))
 
         # update app source coords to new times
-        self._set_app_coords_helper(use_novas=use_novas)
+        self._set_app_coords_helper()
 
         # set lst array
-        self.set_lsts_from_time_array(use_novas=use_novas)
+        self.set_lsts_from_time_array()
 
         # temporarily store the metadata only to calculate UVWs correctly
         uv_temp = self.copy(metadata_only=True)
@@ -6968,7 +6940,6 @@ class UVData(UVBase):
         minor_order="baseline",
         summing_correlator_mode=False,
         allow_drift=False,
-        use_novas=False,
     ):
         """
         Resample to a shorter integration time.
@@ -7135,7 +7106,6 @@ class UVData(UVBase):
             temp_data,
             temp_flag,
             temp_nsample,
-            use_novas=use_novas,
         )
 
         if input_phase_type == "drift" and not allow_drift:
@@ -7166,7 +7136,6 @@ class UVData(UVBase):
         keep_ragged=True,
         summing_correlator_mode=False,
         allow_drift=False,
-        use_novas=False,
     ):
         """
         Average to a longer integration time.
@@ -7547,7 +7516,6 @@ class UVData(UVBase):
             temp_data,
             temp_flag,
             temp_nsample,
-            use_novas=use_novas,
         )
 
         if input_phase_type == "drift" and not allow_drift:
@@ -7585,7 +7553,6 @@ class UVData(UVBase):
         keep_ragged=True,
         summing_correlator_mode=False,
         allow_drift=False,
-        use_novas=False,
     ):
         """
         Intelligently upsample or downsample a UVData object to the target time.
@@ -7654,7 +7621,6 @@ class UVData(UVBase):
                 keep_ragged=keep_ragged,
                 summing_correlator_mode=summing_correlator_mode,
                 allow_drift=allow_drift,
-                use_novas=use_novas,
             )
         if upsample:
             self.upsample_in_time(
@@ -7663,7 +7629,6 @@ class UVData(UVBase):
                 minor_order=minor_order,
                 summing_correlator_mode=summing_correlator_mode,
                 allow_drift=allow_drift,
-                use_novas=use_novas,
             )
 
         return
@@ -8238,8 +8203,8 @@ class UVData(UVBase):
             self.phase_center_app_ra = self.phase_center_app_ra[blt_map]
         if self.phase_center_app_dec is not None:
             self.phase_center_app_dec = self.phase_center_app_dec[blt_map]
-        if self.phase_center_app_pa is not None:
-            self.phase_center_app_pa = self.phase_center_app_pa[blt_map]
+        if self.phase_center_frame_pa is not None:
+            self.phase_center_frame_pa = self.phase_center_frame_pa[blt_map]
         if self.multi_object:
             self.object_id_array = self.object_id_array[blt_map]
 
@@ -8317,7 +8282,6 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        use_novas=False,
         use_old_proj=False,
         fix_old_proj=False,
     ):
@@ -8457,7 +8421,6 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        use_novas=False,
         use_old_proj=False,
         fix_old_proj=False,
     ):
@@ -8584,7 +8547,6 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        use_novas=False,
         use_old_proj=False,
         fix_old_proj=False,
     ):
@@ -8655,7 +8617,6 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
-            use_novas=use_novas,
         )
         self._convert_from_filetype(ms_obj)
         del ms_obj
@@ -8864,7 +8825,6 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        use_novas=False,
         use_old_proj=False,
         fix_old_proj=False,
     ):
@@ -9015,7 +8975,6 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
-            use_novas=use_novas,
         )
         self._convert_from_filetype(uvfits_obj)
         del uvfits_obj
@@ -9045,7 +9004,6 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        use_novas=False,
         use_old_proj=False,
         fix_old_proj=False,
     ):
@@ -9269,7 +9227,6 @@ class UVData(UVBase):
         pseudo_cont=False,
         lsts=None,
         lst_range=None,
-        use_novas=False,
         use_old_proj=False,
         fix_old_proj=False,
     ):
@@ -9710,7 +9667,6 @@ class UVData(UVBase):
                             check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability,
                             strict_uvw_antpos_check=strict_uvw_antpos_check,
-                            use_novas=use_novas,
                             use_old_proj=use_old_proj,
                             fix_old_proj=fix_old_proj,
                         )
@@ -9896,7 +9852,6 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
-                    use_novas=use_novas,
                     use_old_proj=use_old_proj,
                     fix_old_proj=fix_old_proj,
                 )
@@ -9928,7 +9883,6 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
-                    use_novas=use_novas,
                     use_old_proj=use_old_proj,
                     fix_old_proj=fix_old_proj,
                 )
@@ -9971,7 +9925,6 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
-                    use_novas=use_novas,
                     use_old_proj=use_old_proj,
                     fix_old_proj=fix_old_proj,
                 )
@@ -9986,7 +9939,6 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
-                    use_novas=use_novas,
                     use_old_proj=use_old_proj,
                     fix_old_proj=fix_old_proj,
                 )
@@ -10015,7 +9967,6 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
-                    use_novas=use_novas,
                     use_old_proj=use_old_proj,
                     fix_old_proj=fix_old_proj,
                 )
@@ -10076,7 +10027,6 @@ class UVData(UVBase):
                         orig_phase_frame=orig_phase_frame,
                         use_ant_pos=phase_use_ant_pos,
                         allow_rephase=True,
-                        use_novas=use_novas,
                         use_old_proj=use_old_proj,
                         fix_old_proj=fix_old_proj,
                     )
