@@ -142,7 +142,6 @@ class MS(UVData):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        use_novas=False,
         use_old_phase=False,
         fix_phase=False,
     ):
@@ -413,9 +412,7 @@ class MS(UVData):
         self._set_phased()
 
         # set LST array from times and itrf
-        proc = self.set_lsts_from_time_array(
-            background=background_lsts, use_novas=use_novas,
-        )
+        proc = self.set_lsts_from_time_array(background=background_lsts)
 
         # set the history parameter
         _, self.history = self._ms_hist_to_string(
@@ -443,7 +440,7 @@ class MS(UVData):
         if proc is not None:
             proc.join()
         # Fill in the apparent coordinates here
-        self._set_app_coords_helper(use_novas=use_novas)
+        self._set_app_coords_helper()
 
         # order polarizations
         self.reorder_pols(order=pol_order)
