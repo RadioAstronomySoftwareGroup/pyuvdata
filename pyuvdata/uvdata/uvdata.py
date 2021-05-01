@@ -6507,18 +6507,18 @@ class UVData(UVBase):
                 history_update_string += "frequencies"
             n_selects += 1
 
-            freq_inds = np.zeros(0, dtype=np.int64)
             if self.future_array_shapes:
                 freq_arr_use = self.freq_array
             else:
                 freq_arr_use = self.freq_array[0, :]
-            for f in frequencies:
-                if f in freq_arr_use:
-                    freq_inds = np.append(freq_inds, np.where(freq_arr_use == f)[0])
-                else:
-                    raise ValueError(
-                        "Frequency {f} is not present in the freq_array".format(f=f)
-                    )
+            # Check and see that all requested freqs are available
+            freq_check = np.isin(frequencies, freq_arr_use)
+            if not np.all(freq_check):
+                raise ValueError(
+                    "Frequency %g is not present in the freq_array"
+                    % frequencies[np.where(~freq_check)[0][0]]
+                )
+            freq_inds = np.where(np.isin(freq_arr_use, frequencies))[0]
 
             if len(frequencies) > 1:
                 freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
