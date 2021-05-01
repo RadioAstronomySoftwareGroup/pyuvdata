@@ -323,9 +323,9 @@ class Mir(UVData):
         for idx in range(len(isource)):
             source_mask = mir_data.in_data["isource"] == isource[idx]
             object_name = self.object_name[idx]
-            object_ra = np.mean(mir_data.in_data["rar"][source_mask])
-            object_dec = np.mean(mir_data.in_data["decr"][source_mask])
-            coord_epoch = np.mean(mir_data.in_data["epoch"][source_mask])
+            object_ra = np.mean(mir_data.in_data["rar"][source_mask]).astype(float)
+            object_dec = np.mean(mir_data.in_data["decr"][source_mask]).astype(float)
+            coord_epoch = np.mean(mir_data.in_data["epoch"][source_mask]).astype(float)
             object_dict[object_name] = {
                 "object_type": "sidereal",
                 "object_lon": object_ra,
@@ -358,21 +358,14 @@ class Mir(UVData):
         # For MIR, uvws are always calculated in the "apparent" position. We can adjust
         # this by calculating the position angle with our preferred coordinate frame
         # (ICRS) and applying the rotation below (via `calc_uvw`).
-        app_pa = uvutils.calc_pos_angle(
-            self.time_array,
-            self.phase_center_app_ra,
-            self.phase_center_app_dec,
-            self.telescope_location_lat_lon_alt[0],
-            self.telescope_location_lat_lon_alt[1],
-            self.telescope_location_lat_lon_alt[2],
-            "icrs",
-        )
+        self._set_app_coords_helper(pa_only=True)
 
         self.uvw_array = uvutils.calc_uvw(
-            uvw_array=self.uvw_array, old_app_pa=0.0, app_pa=app_pa, use_ant_pos=False,
+            uvw_array=self.uvw_array,
+            old_frame_pa=0.0,
+            frame_pa=self.phase_center_frame_pa,
+            use_ant_pos=False,
         )
-
-        self.phase_center_app_pa = app_pa
 
         self.antenna_diameters = np.zeros(self.Nants_telescope) + 6.0
         self.blt_order = ("time", "baseline")
