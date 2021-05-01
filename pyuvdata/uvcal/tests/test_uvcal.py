@@ -1681,8 +1681,6 @@ def test_set_antpos_from_telescope_errors(gain_data, modtype, tmp_path):
         gain_data.antenna_names[0] = "HH400"
         gain_data.antenna_numbers[0] = gain_data.antenna_numbers[1]
         gain_data.antenna_numbers[1] = orig_num
-        print(gain_data.antenna_names)
-        print(gain_data.antenna_numbers)
 
     # remove the antenna_positions to test matching them on read
     gain_data2 = gain_data.copy()

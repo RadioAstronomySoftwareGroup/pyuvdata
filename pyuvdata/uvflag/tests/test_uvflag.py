@@ -1060,7 +1060,6 @@ def test_clear_unused_attributes():
     uv._set_type_antenna()
     uv.clear_unused_attributes()
     # clear_unused_attributes now sets these to None
-    print(uv._baseline_array.required)
     assert hasattr(uv, "baseline_array")
     assert uv.baseline_array is None
     assert hasattr(uv, "ant_1_array")

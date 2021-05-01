@@ -422,7 +422,6 @@ def test_flag_nsample_basic():
     good.flag_array = good.flag_array.reshape(
         (good.Ntimes, good.Nbls, good.Nfreqs, good.Npols)
     )
-    print(good.flag_array.shape)
     # good ants should be flagged except for the first time and second freq,
     # and for the second time and first freq
     assert np.all(good.flag_array[1:-1, :, :, :])
