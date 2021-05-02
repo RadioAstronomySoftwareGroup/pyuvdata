@@ -75,6 +75,7 @@ def test_break_read_uvfits():
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:UVFITS file is missing AIPS SU table")
 def test_source_group_params(casa_uvfits, tmp_path):
     # make a file with a single source to test that it works
     uv_in = casa_uvfits
