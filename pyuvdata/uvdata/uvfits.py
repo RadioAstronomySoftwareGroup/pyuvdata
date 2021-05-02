@@ -542,10 +542,32 @@ class UVFITS(UVData):
 
             self.vis_units = vis_hdr.pop("BUNIT", "UNCALIB")
             self.phase_center_epoch = vis_hdr.pop("EPOCH", None)
-            # It's not clear that this should default to None - PHSFRAME does not seem
-            # to be a standard UVFITS keyword, and it _looks_ like CASA/AIPS defaults
-            # to FK5 when this info is missing. Needs further investigation...
-            self.phase_center_frame = vis_hdr.pop("PHSFRAME", "icrs")
+
+            # PHSFRAME is not a standard UVFITS keyword, but was used by older
+            # versions of pyuvdata. To ensure backwards compatibility, we look
+            # for it first to determine the coordinate frame for the data
+            self.phase_center_frame = vis_hdr.pop("PHSFRAME", None)
+            # If we don't find the special keyword PHSFRAME, try for the more
+            # FITS-standard RADESYS
+            if self.phase_center_frame is None:
+                self.phase_center_frame = vis_hdr.pop("RADESYS", None)
+            # If we still don't find anything, try the two 'special' variant names
+            # for the coordinate frame that seem to have been documented
+            if self.phase_center_frame is None:
+                self.phase_center_frame = vis_hdr.pop("RADESYSA", None)
+            if self.phase_center_frame is None:
+                self.phase_center_frame = vis_hdr.pop("RADESYSa", None)
+
+            # If we _still_ can't find anything, take a guess based on the value
+            # listed in the EPOCH. The behavior listed here is based off of the
+            # AIPS task REGRD (http://www.aips.nrao.edu/cgi-bin/ZXHLP2.PL?REGRD)
+            if self.phase_center_frame is None:
+                if self.phase_center_epoch is None:
+                    self.phase_center_frame = "icrs"
+                elif self.phase_center_epoch == 1950.0:
+                    self.phase_center_frame = "fk4"
+                else:
+                    self.phase_center_frame = "fk5"
 
             self.extra_keywords = uvutils._get_fits_extra_keywords(
                 vis_hdr, keywords_to_skip=["DATE-OBS"]
@@ -1147,7 +1169,8 @@ class UVFITS(UVData):
         # hdu.header["SPECSYS "] = "TOPOCENT"
 
         if self.phase_center_frame is not None:
-            hdu.header["PHSFRAME"] = self.phase_center_frame
+            # Previous versions of pyuvdata wrote this header as PHSFRAME
+            hdu.header["RADESYS"] = self.phase_center_frame
 
         if self.x_orientation is not None:
             hdu.header["XORIENT"] = self.x_orientation
