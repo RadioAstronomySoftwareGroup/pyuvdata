@@ -396,17 +396,20 @@ class MS(UVData):
         assert tb_field.getcol("PHASE_DIR").shape[1] == 1, message
 
         self.phase_type = "phased"
-        self.phase_center_frame = "icrs"
         # MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
         epoch_string = tb.getcolkeyword("UVW", "MEASINFO")["Ref"]
         # for measurement sets made with COTTER, this keyword is ITRF
         # instead of the epoch
         if epoch_string == "ITRF":
+            self.phase_center_frame = "icrs"
             self.phase_center_epoch = 2000.0
-        else:
-            self.phase_center_epoch = float(
-                tb.getcolkeyword("UVW", "MEASINFO")["Ref"][1:]
-            )
+        elif epoch_string == "J2000":
+            # In CASA 'J2000' refers to a specific frame -- FK5 w/ an epoch of
+            # J2000. We'll plug that in here directly, noting that CASA has an
+            # explicit list of supported reference frames, located here:
+            # casa.nrao.edu/casadocs/casa-5.0.0/reference-material/coordinate-frames
+            self.phase_center_frame = "fk5"
+            self.phase_center_epoch = 2000.0
         self.phase_center_ra = float(tb_field.getcol("PHASE_DIR")[0][0][0])
         self.phase_center_dec = float(tb_field.getcol("PHASE_DIR")[0][0][1])
         self._set_phased()
