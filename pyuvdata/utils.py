@@ -2443,6 +2443,226 @@ def calc_frame_pos_angle(
     return frame_pa
 
 
+def lookup_jplhorizons(
+    target_name,
+    time_array,
+    telescope_loc=None,
+    high_cadence=False,
+    force_indv_lookup=None,
+):
+    """
+    Lookup solar system object coordinates via the JPL-Horizons service.
+
+    The good folks at JPL make a mean coordinate calculator! Let's use this
+    to help determine what this should look like
+
+    Parameters
+    ----------
+    target_name : str
+    time_array : float or ndarray of float
+    telescope_loc : array_like
+    """
+    try:
+        from astroquery.jplhorizons import Horizons
+    except ImportError as err:  # pragma: no cover
+        raise ImportError(
+            "astroquery is not installed but is required for "
+            "planet ephemeris functionality"
+        ) from err
+    from pyuvdata.data import DATA_PATH
+    from os.path import join as path_join
+    from json import load as json_load
+
+    # Get the telescope location into a format that JPL-Horizons can understand,
+    # which is nominally a dict w/ entries for lon (units of deg), lat (units of
+    # deg), and elevation (units of km).
+    if isinstance(telescope_loc, EarthLocation):
+        site_loc = {
+            "lon": telescope_loc.lon.deg,
+            "lat": telescope_loc.lat.deg,
+            "elevation": telescope_loc.height.to_value(unit=units.km),
+        }
+    elif isinstance(telescope_loc, tuple) or (
+        isinstance(telescope_loc, list) or isinstance(telescope_loc, np.ndarray)
+    ):
+        site_loc = {
+            "lon": telescope_loc[1] * (180.0 / np.pi),
+            "lat": telescope_loc[0] * (180.0 / np.pi),
+            "elevation": telescope_loc[2] * (0.001),  # m -> km
+        }
+    elif telescope_loc is None:
+        # Setting to None will report the geocentric position
+        site_loc = None
+    else:
+        raise ValueError("telescope_loc must be array_like or None.")
+
+    # If force_indv_lookup is True, or unset but only providing a single value, then
+    # just calculate the RA/Dec for the times requested rather than creating a table
+    # to interpolate from.
+    if force_indv_lookup or (
+        (len(np.array(time_array)) == 1) and (force_indv_lookup is None)
+    ):
+        epoch_list = np.unique(time_array)
+        if len(epoch_list) > 50:
+            raise ValueError(
+                "Requesting too many individual ephem points from JPL-Horizons. This "
+                "can be remedied by setting force_indv_lookup=False or limiting the "
+                "number of values in time_array."
+            )
+    else:
+        # When querying for multiple times, its faster (and kinder to the
+        # good folks at JPL) to create a range to query, and then interpolate
+        # between values. The extra buffer of 0.001 or 0.25 days for high and
+        # low cadence is to give enough data points to allow for spline
+        # interpolation of the data.
+        if high_cadence:
+            start_time = np.min(time_array) - 0.001
+            stop_time = np.max(time_array) + 0.001
+            step_time = "3m"
+            n_entries = (stop_time - start_time) / (1440 / 3)
+        else:
+            # The start/stop time here are setup to maximize reusability of the
+            # data, since astroquery appears to cache the results from previous
+            # queries.
+            start_time = (0.25 * np.floor(4.0 * np.min(time_array))) - 0.25
+            stop_time = (0.25 * np.ceil(4.0 * np.max(time_array))) + 0.25
+            step_time = "3h"
+            n_entries = (stop_time - start_time) / (24.0 / 3.0)
+        # We don't want to overtax the JPL service, so limit ourselves to 1000
+        # individual queries at a time. Note that this is likely a conservative
+        # cap for JPL-Horizons, but there should be exceptionally few applications
+        # that actually require more than this.
+        if n_entries > 1000:
+            if (len(np.unique(time_array)) <= 50) and (force_indv_lookup is None):
+                # If we have a _very_ sparse set of epochs, pass that along instead
+                epoch_list = np.unique(time_array)
+            else:
+                # Otherwise, time to raise an error
+                raise ValueError(
+                    "Requesting too many ephem points from JPL-Horizons. This "
+                    "can be remedied by setting high_cadance=False or limiting "
+                    "the number of values in time_array."
+                )
+        else:
+            epoch_list = {
+                "start": Time(start_time, format="jd").isot,
+                "stop": Time(stop_time, format="jd").isot,
+                "step": step_time,
+            }
+    # Check to make sure dates dont exceed are within the 1700-2200 time range,
+    # since not all objects are supported outside of this range
+    if (np.min(time_array) < 2341973.0) or (np.max(time_array) > 2524593.0):
+        raise ValueError(
+            "No current support for JPL ephems outside of 1700 - 2300 AD. "
+            "Check back later (or possibly earlier)..."
+        )
+
+    # JPL-Horizons has a separate catalog with what it calls 'major bodies',
+    # and will throw an error if you use the wrong catalog when calling for
+    # astrometry. We'll use the dict below to capture this behavior.
+    with open(path_join(DATA_PATH, "jpl_major_bodies.json"), "r") as fhandle:
+        major_body_dict = json_load(fhandle)
+
+    # If we find the target in the major body database, then we can extract the
+    # information in a bit simpler fashion
+    if target_name in major_body_dict.keys():
+        ephem_data = Horizons(
+            id=major_body_dict[target_name],
+            location=site_loc,
+            epochs=epoch_list,
+            id_type="majorbody",
+        ).ephemerides(extra_precision=True)
+    else:
+        # If not in the major bodies catalog, try the minor bodies list, and if
+        # still not found, throw an error.
+        try:
+            ephem_data = Horizons(
+                id=target_name,
+                location=site_loc,
+                epochs=epoch_list,
+                id_type="smallbody",
+            ).ephemerides(extra_precision=True)
+        except ValueError as err:
+            raise ValueError(
+                "Target ID is not recognized in either the small or major bodies "
+                "catalogs, please consult the JPL-Horizons database for supported "
+                "objects (https://ssd.jpl.nasa.gov/?horizons)."
+            ) from err
+    # Now that we have the ephem data, extract out the relevant data
+    ephem_times = np.array(ephem_data["datetime_jd"])
+    ephem_ra = np.array(ephem_data["RA"]) * (np.pi / 180.0)
+    ephem_dec = np.array(ephem_data["DEC"]) * (np.pi / 180.0)
+    ephem_dist = np.array(ephem_data["delta"])  # AU
+    ephem_vel = np.array(ephem_data["delta_rate"])  # km/s
+
+    return ephem_times, ephem_ra, ephem_dec, ephem_dist, ephem_vel
+
+
+def interpolate_ephem(
+    time_array, ephem_times, ephem_ra, ephem_dec, ephem_dist=None, ephem_vel=None,
+):
+    """
+    Interpolates ephemerides to give positions for requested times.
+
+    This also does things.
+    """
+    from scipy.interpolate import interp1d
+
+    ra_vals = np.zeros_like(time_array, dtype=float)
+    dec_vals = np.zeros_like(time_array, dtype=float)
+    dist_vals = None if ephem_dist is None else np.zeros_like(time_array, dtype=float)
+    vel_vals = None if ephem_vel is None else np.zeros_like(time_array, dtype=float)
+
+    if len(ephem_ra) == 1:
+        ra_vals += ephem_ra
+        dec_vals += ephem_ra
+        if ephem_dist is not None:
+            dist_vals += ephem_dist
+        if ephem_vel is not None:
+            vel_vals += ephem_vel
+    else:
+        # If we have values that line up perfectly, just use those directly
+        select_mask = np.isin(time_array, ephem_times)
+        if np.any(select_mask):
+            time_select = time_array[select_mask]
+            ra_vals[select_mask] = interp1d(ephem_times, ephem_ra, kind="nearest")(
+                time_select
+            )
+            dec_vals[select_mask] = interp1d(ephem_times, ephem_dec, kind="nearest")(
+                time_select
+            )
+            if ephem_dist is not None:
+                dist_vals[select_mask] = interp1d(
+                    ephem_times, ephem_dist, kind="nearest"
+                )(time_select)
+            if ephem_vel is not None:
+                vel_vals[select_mask] = interp1d(
+                    ephem_times, ephem_vel, kind="nearest"
+                )(time_select)
+
+        # If we have values lining up between grid points, use spline interpolation
+        # to calculate their values
+        select_mask = ~select_mask
+        if np.any(select_mask):
+            time_select = time_array[select_mask]
+            ra_vals[select_mask] = interp1d(ephem_times, ephem_ra, kind="cubic")(
+                time_select
+            )
+            dec_vals[select_mask] = interp1d(ephem_times, ephem_dec, kind="cubic")(
+                time_select
+            )
+            if ephem_dist is not None:
+                dist_vals[select_mask] = interp1d(
+                    ephem_times, ephem_dist, kind="cubic"
+                )(time_select)
+            if ephem_vel is not None:
+                vel_vals[select_mask] = interp1d(ephem_times, ephem_vel, kind="cubic")(
+                    time_select
+                )
+
+    return (ra_vals, dec_vals, dist_vals, vel_vals)
+
+
 def calc_app_coords(
     lon_coord,
     lat_coord,
