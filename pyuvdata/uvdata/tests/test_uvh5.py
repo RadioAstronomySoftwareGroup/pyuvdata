@@ -2909,6 +2909,7 @@ def test_uvh5_partial_write_ints_irregular_multi4(uv_uvh5, future_shapes, tmp_pa
     return
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_antenna_names_not_list(casa_uvfits, tmp_path):
     """
     Test if antenna_names is cast to an array, dimensions are preserved in
