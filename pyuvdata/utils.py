@@ -1815,7 +1815,7 @@ def translate_icrs_to_app(
     pm_ra=None,
     pm_dec=None,
     rad_vel=None,
-    parallax=None,
+    distance=None,
     astrometry_library="erfa",
 ):
     """
@@ -1874,8 +1874,8 @@ def translate_icrs_to_app(
         use_novas=True, and is optional. Can either be a single float or array of
         shape (Ntimes,), although this must be consistent with other parameters
         (namely ra_coord and dec_coord).
-    parallax : float or ndarray of float
-        Parallax of the source, expressed in milliarcseconds. Only used if
+    distance : float or ndarray of float
+        Distance of the source, expressed in milliarcseconds. Only used if
         use_novas=True, and is optional. Can either be a single float or array of
         shape (Ntimes,), although this must be consistent with other parameters
         (namely ra_coord and dec_coord).
@@ -1934,8 +1934,8 @@ def translate_icrs_to_app(
     elif coord_epoch is not None:
         raise ValueError("in_coord_epoch must be of type str, Time, float, or None.")
 
-    opt_list = [pm_ra, pm_dec, parallax, rad_vel]
-    opt_names = ["pm_ra", "pm_dec", "parallax", "rad_vel"]
+    opt_list = [pm_ra, pm_dec, distance, rad_vel]
+    opt_names = ["pm_ra", "pm_dec", "distance", "rad_vel"]
 
     # Check the optional inputs, make sure that they're sensible
     for item, name in zip(opt_list, opt_names):
@@ -1984,7 +1984,7 @@ def translate_icrs_to_app(
 
     # Set up the source information into a SkyCoord object, since it's a convenient
     # package to put everything into
-    d_coord = None if parallax is None else Distance(parallax=parallax * units.arcsec)
+    d_coord = None if distance is None else Distance(distance * units.pc)
     v_coord = None if rad_vel is None else rad_vel * (units.km / units.s)
     pm_ra_cosdec_coord = None if pm_ra is None else pm_ra * (units.mas / units.yr)
     pm_dec_coord = None if pm_dec is None else pm_dec * (units.mas / units.yr)
@@ -2078,7 +2078,7 @@ def translate_icrs_to_app(
                     sou_info.dec.deg,
                     0.0 if (pm_ra is None) else sou_info.pm_ra_cosdec.value,
                     0.0 if (pm_dec is None) else sou_info.pm_dec.value,
-                    0.0 if (parallax is None) else sou_info.distance.kiloparsec ** -1,
+                    0.0 if (distance is None) else sou_info.distance.kiloparsec ** -1,
                     0.0 if (rad_vel is None) else sou_info.radial_velocity.value,
                 )
 
@@ -2117,7 +2117,7 @@ def translate_icrs_to_app(
             dec_coord,
             0.0 if (pm_ra is None) else sou_info.pm_ra_cosdec.value * pm_conv_fac,
             0.0 if (pm_dec is None) else sou_info.pm_dec.value * pm_conv_fac,
-            0.0 if (parallax is None) else sou_info.distance.parsec ** -1,
+            0.0 if (distance is None) else sou_info.distance.parsec ** -1,
             0.0 if (rad_vel is None) else sou_info.radial_velocity.value,
             time_obj_array.utc.jd,
             0.0,
@@ -2300,11 +2300,11 @@ def translate_app_to_sidereal(
     return ref_ra, ref_dec
 
 
-def calc_pos_angle(
+def calc_parallactic_angle(
     app_ra, app_dec, lst_array, telescope_lat,
 ):
     """
-    Calculate the position angle between RA/Dec and the AltAz frame.
+    Calculate the parallactic angle between RA/Dec and the AltAz frame.
 
     Parameters
     ----------
@@ -2674,7 +2674,7 @@ def calc_app_coords(
     pm_ra=None,
     pm_dec=None,
     rad_vel=None,
-    parallax=None,
+    distance=None,
 ):
     """
     Calculate apparent coordinates for several different object types.
@@ -2718,7 +2718,7 @@ def calc_app_coords(
             pm_ra=pm_ra,
             pm_dec=pm_dec,
             rad_vel=rad_vel,
-            parallax=parallax,
+            distance=distance,
         )
 
     elif object_type == "driftscan":
