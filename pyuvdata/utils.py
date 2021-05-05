@@ -2357,7 +2357,6 @@ def calc_frame_pos_angle(
     offset_pos : float
         Distance of the offset position used to calculate the frame PA. Default
         is 0.5 degrees, which should be sufficent for most applications.
-
     ref_frame : str
         Coordinate frame to calculate position angles for. Can be any of the
         several supported frames in astropy (a limited list: fk4, fk5, icrs,
