@@ -771,7 +771,7 @@ class UVData(UVBase):
         coord_epoch=None,
         object_pm_ra=None,
         object_pm_dec=None,
-        object_parallax=None,
+        object_distance=None,
         object_rad_vel=None,
     ):
         """
@@ -809,8 +809,8 @@ class UVData(UVBase):
             Proper motion in RA, in units of mas/year. Not currently used.
         object_pm_dec : float
             Proper motion in Dec, in units of mas/year. Not currently used.
-        object_parallax : float
-            Parallax of the source, in units of pc. Not currently used.
+        object_distance : float
+            Distance of the source, in units of pc. Not currently used.
         object_rad_vel : float
             Radial velocity of the source, in units of km/s. Not currently used.
 
@@ -865,10 +865,10 @@ class UVData(UVBase):
             else:
                 souDiffs += object_pm_dec is not None
 
-            if "object_parallax" in object_dict.keys():
-                souDiffs += object_dict["object_parallax"] != object_parallax
+            if "object_distance" in object_dict.keys():
+                souDiffs += object_dict["object_distance"] != object_distance
             else:
-                souDiffs += object_parallax is not None
+                souDiffs += object_distance is not None
 
             if "object_rad_vel" in object_dict.keys():
                 souDiffs += object_dict["object_rad_vel"] != object_rad_vel
@@ -907,8 +907,8 @@ class UVData(UVBase):
                 object_dict["object_pm_dec"] = object_pm_dec
             if object_rad_vel:
                 object_dict["object_rad_vel"] = object_pm_dec
-            if object_parallax:
-                object_dict["object_parallax"] = object_parallax
+            if object_distance:
+                object_dict["object_distance"] = object_distance
 
         elif object_type == "ephem":
             raise NotImplementedError("Ephemeris objects are not (yet) supported!")
@@ -1384,7 +1384,7 @@ class UVData(UVBase):
                 pm_ra = temp_dict["pm_ra"] if "pm_ra" in temp_keys else None
                 pm_dec = temp_dict["pm_dec"] if "pm_dec" in temp_keys else None
                 rad_vel = temp_dict["rad_vel"] if "rad_vel" in temp_keys else None
-                parallax = temp_dict["parallax"] if "parallax" in temp_keys else None
+                distance = temp_dict["distance"] if "distance" in temp_keys else None
 
                 app_ra[select_mask], app_dec[select_mask] = uvutils.calc_app_coords(
                     lon_val,
@@ -1394,7 +1394,7 @@ class UVData(UVBase):
                     pm_ra=pm_ra,
                     pm_dec=pm_dec,
                     rad_vel=rad_vel,
-                    parallax=parallax,
+                    distance=distance,
                     time_array=self.time_array[select_mask],
                     lst_array=self.lst_array[select_mask],
                     telescope_loc=self.telescope_location_lat_lon_alt,
@@ -3676,7 +3676,7 @@ class UVData(UVBase):
         object_type="sidereal",
         pm_ra=None,
         pm_dec=None,
-        parallax=None,
+        distance=None,
         rad_vel=None,
         use_ant_pos=False,  # Can we change this to default to True?
         allow_rephase=True,
@@ -3757,9 +3757,9 @@ class UVData(UVBase):
                 raise ValueError(
                     "Non-zero values of pm_dec not supported when multi_object!=True."
                 )
-            if parallax not in [0, None]:
+            if distance not in [0, None]:
                 raise ValueError(
-                    "Non-zero values of parallax not supported when multi_object!=True."
+                    "Non-zero values of distance not supported when multi_object!=True."
                 )
             if rad_vel not in [0, None]:
                 raise ValueError(
@@ -3863,7 +3863,7 @@ class UVData(UVBase):
                     coord_epoch=epoch,
                     object_pm_ra=pm_ra,
                     object_pm_dec=pm_dec,
-                    object_parallax=parallax,
+                    object_distance=distance,
                     object_rad_vel=rad_vel,
                 )
             # We got the meta-data, now handle calculating the apparent coordinates
@@ -3878,7 +3878,7 @@ class UVData(UVBase):
                 pm_ra=pm_ra,
                 pm_dec=pm_dec,
                 rad_vel=rad_vel,
-                parallax=parallax,
+                distance=distance,
                 telescope_loc=self.telescope_location_lat_lon_alt,
             )
 
