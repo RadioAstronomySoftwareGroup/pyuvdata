@@ -189,6 +189,7 @@ class UVFITS(UVData):
         check_extra,
         run_check_acceptability,
         strict_uvw_antpos_check,
+        fix_old_proj,
     ):
         """
         Read just the visibility and flag data of the uvfits file.
@@ -313,6 +314,9 @@ class UVFITS(UVData):
         self.flag_array = raw_data_array[:, :, :, :, 2] <= 0
         self.nsample_array = np.abs(raw_data_array[:, :, :, :, 2])
 
+        if fix_old_proj:
+            pass
+
         # check if object has all required UVParameters set
         if run_check:
             self.check(
@@ -343,6 +347,7 @@ class UVFITS(UVData):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        fix_old_proj=False,
     ):
         """
         Read in header, metadata and data from a uvfits file.
@@ -449,11 +454,18 @@ class UVFITS(UVData):
             If incompatible select keywords are set (e.g. `ant_str` with other
             antenna selectors, `times` and `time_range`) or select keywords
             exclude all data or if keywords are set to the wrong type.
-            If the data are multi source.
             If the data have multi spw with different channel widths.
             If the metadata are not internally consistent or missing.
 
         """
+        # We don't want a situation where we fix the metadata but leave the
+        # visibilities unaffected.
+        if (not read_data) and fix_old_proj:
+            raise ValueError(
+                "Fixing the old phasing method requires access to the visibility "
+                "data. Either set read_data=True or fix_old_proj=False."
+            )
+
         with fits.open(filename, memmap=True) as hdu_list:
             vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
             vis_hdr = vis_hdu.header.copy()
@@ -794,6 +806,7 @@ class UVFITS(UVData):
                 check_extra,
                 run_check_acceptability,
                 strict_uvw_antpos_check,
+                fix_old_proj,
             )
 
     def write_uvfits(
