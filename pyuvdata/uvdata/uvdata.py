@@ -3539,7 +3539,7 @@ class UVData(UVBase):
         # If you are a multi-object data set, there's no valid reason to be going
         # back to the old phase method. Time to bail!
         if self.multi_object:
-            raise NotImplementedError(
+            raise ValueError(
                 "Multi-object data sets are not compatible with the old phasing "
                 "method, please set use_old_proj=False."
             )
@@ -8725,7 +8725,6 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        use_old_proj=False,
     ):
         """
         Read in MWA correlator gpu box files.
@@ -8876,7 +8875,6 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
-            use_old_proj=use_old_proj,
         )
         self._convert_from_filetype(corr_obj)
         del corr_obj
