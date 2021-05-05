@@ -709,6 +709,7 @@ class Miriad(UVData):
         strict_uvw_antpos_check=False,
         calc_lst=True,
         multi_object=False,
+        fix_old_proj=False,
     ):
         """
         Read in data from a miriad file.
@@ -1520,6 +1521,17 @@ class Miriad(UVData):
         # close out now that we're done
         uv.close()
 
+        if (self.phase_center_frame is None) and (self.phase_type == "phased"):
+            # If this is the case, we presume that the coordinates were recorded by
+            # a "normal" MIRIAD writer.
+            if self.phase_center_epoch is None:
+                self.phase_center_frame = "fk5"
+                self.phase_center_epoch = 2000.0
+            elif self.phase_center_epoch < 1984.0:
+                self.phase_center_frame = "fk4"
+            else:
+                self.phase_center_frame = "fk5"
+
         if not record_app and (self.phase_type == "phased"):
             # TODO: If we don't have apparent coordinates, figure out whether or not we
             # want to try and generate them (similar to how LSTs are generated)
@@ -1545,6 +1557,17 @@ class Miriad(UVData):
                 order = self.blt_order[0]
                 minor_order = None
             self.reorder_blts(order=order, minor_order=minor_order)
+
+        # If the data set was recorded using the old phasing method, fix that now.
+        if fix_old_proj and (self.phase_type == "phased"):
+            if not self.multi_object:
+                self.fix_phase()
+            else:
+                warnings.warn(
+                    "Cannot fix the phases of multi-object datasets, as they were not "
+                    "supported when the old phasing method was used (and thus, there "
+                    "is no need to correct the data."
+                )
 
         # check if object has all required uv_properties set
         if run_check:

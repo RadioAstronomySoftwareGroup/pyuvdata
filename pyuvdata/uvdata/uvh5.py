@@ -637,14 +637,6 @@ class UVH5(UVData):
             # if lsts are in the background wait for them to return
             proc.join()
 
-        # Finally, backfill the apparent coords if they aren't in the original datafile
-        if self.phase_type == "phased" and (
-            (self.phase_center_app_ra is None)
-            or (self.phase_center_app_dec is None)
-            or (self.phase_center_frame_pa is None)
-        ):
-            self._set_app_coords_helper()
-
         return
 
     def _get_data(
@@ -669,6 +661,7 @@ class UVH5(UVData):
         check_extra,
         run_check_acceptability,
         strict_uvw_antpos_check,
+        fix_old_proj,
     ):
         """
         Read the data-size arrays (data, flags, nsamples) from a file.
@@ -952,6 +945,28 @@ class UVH5(UVData):
             assert self.channel_width.size == self.freq_array.size, arr_shape_msg
             self._set_future_array_shapes()
 
+        # Finally, backfill the apparent coords if they aren't in the original datafile
+        if self.phase_type == "phased" and (
+            (self.phase_center_app_ra is None)
+            or (self.phase_center_app_dec is None)
+            or (self.phase_center_frame_pa is None)
+        ):
+            self._set_app_coords_helper()
+
+            # Default behavior for UVH5 is to fix phasing if the problem is detected,
+            # since the absence of the app coord attributes is the most clear indicator
+            # of the old phasing algorithm being used. Double-check the multi-obj
+            # attribute just to be extra safe.
+            if ((fix_old_proj) or (fix_old_proj is None)) and (not self.multi_object):
+                self.fix_phase()
+            else:
+                warnings.warn(
+                    "This data appears to have been phased-up using the old `phase` "
+                    "method, which is incompatible with the current sent of methods. "
+                    "Please run the `fix_phase` method (or set fix_old_proj=True when "
+                    "loading the dataset) to address this issue."
+                )
+
         # check if object has all required UVParameters set
         if run_check:
             self.check(
@@ -986,6 +1001,7 @@ class UVH5(UVData):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        fix_old_proj=None,
     ):
         """
         Read in data from a UVH5 file.
@@ -1149,6 +1165,7 @@ class UVH5(UVData):
                 check_extra,
                 run_check_acceptability,
                 strict_uvw_antpos_check,
+                fix_old_proj,
             )
 
         # For now, always use current shapes when data is read in, even if the file

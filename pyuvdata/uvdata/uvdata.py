@@ -934,7 +934,7 @@ class UVData(UVBase):
         Remove an entry from the internal object/source catalog.
 
         Removes an object entry from the attributes object_name and object_dict.
-        Only allowed when the UVData object in question is a multi-source data set
+        Only allowed when the UVData object in question is a multi-object data set
         (i.e., multi_object == True).
 
         Parameters
@@ -1044,6 +1044,7 @@ class UVData(UVBase):
         `phase_type` of "drift" and define which metadata are required.
         """
         self.phase_type = "drift"
+        self._phase_center_frame.required = False
         self._phase_center_epoch.required = False
         self._phase_center_ra.required = False
         self._phase_center_dec.required = False
@@ -1074,6 +1075,7 @@ class UVData(UVBase):
         `phase_type` of "phased" and define which metadata are required.
         """
         self.phase_type = "phased"
+        self._phase_center_frame.required = True
         self._phase_center_epoch.required = True
         self._phase_center_ra.required = True
         self._phase_center_dec.required = True
@@ -1104,6 +1106,7 @@ class UVData(UVBase):
         define which metadata are required.
         """
         self.phase_type = "unknown"
+        self._phase_center_frame.required = False
         self._phase_center_epoch.required = False
         self._phase_center_ra.required = False
         self._phase_center_dec.required = False
@@ -3474,7 +3477,7 @@ class UVData(UVBase):
                     "which implies that the data were phased using the 'old' "
                     "method for phasing (which is not compatible with the new "
                     "version of the code). Please run unphase_to_drift with "
-                    "use_old_phase=True to continue."
+                    "use_old_proj=True to continue."
                 )
             old_w_vals = self.uvw_array[:, 2].copy()
             telescope_location = self.telescope_location_lat_lon_alt
@@ -3847,7 +3850,7 @@ class UVData(UVBase):
                     old_w_vals = old_w_vals[select_mask]
 
             # Before moving forward with the heavy calculations, we should make sure
-            # that the target in question is unique if this is a multi-source dataset.
+            # that the target in question is unique if this is a multi-object dataset.
             # If so, add it to the catalog, if not, check that the properties are the
             # same (and if thats not true, then add_object will throw an error).
             if self.multi_object:
@@ -4241,6 +4244,7 @@ class UVData(UVBase):
     def set_uvws_from_antenna_positions(
         self,
         allow_phasing=False,
+        require_phasing=True,
         orig_phase_frame=None,
         output_phase_frame="icrs",
         use_old_proj=False,
@@ -4251,9 +4255,16 @@ class UVData(UVBase):
         Parameters
         ----------
         allow_phasing : bool
-            Option for phased data. If data is phased and allow_phasing is set,
-            data will be unphased, UVWs will be calculated, and then data will
-            be rephased.
+            Option for phased data. If data is phased and allow_phasing=True,
+            UVWs will be calculated and the visibilities will be rephased. Default
+            is False.
+        require_phasing : bool
+            Option for phased data. If data is phased and require_phasing=True, then
+            the method will throw an error unless allow_phasing=True, otherwise if
+            require_phasing=True and allow_phasing=False, the UVWs will be recalculated
+            but the data will NOT be rephased. This feature should only be used in
+            limited circumstances (e.g., when certain metadata like exact time are not
+            trusted), as misuse can significantly corrupt data.
         orig_phase_frame : str
             The astropy frame to phase from. Either 'icrs' or 'gcrs'.
             Defaults to using the 'phase_center_frame' attribute or 'icrs' if
@@ -4279,6 +4290,14 @@ class UVData(UVBase):
         if not use_old_proj and not (
             self.phase_center_app_ra is None or self.phase_center_app_dec is None
         ):
+            if (self.phase_type == "phased") and (
+                not (allow_phasing) and require_phasing
+            ):
+                raise ValueError(
+                    "UVW recalculation requires either unphased data or the ability "
+                    "to rephase data. Use unphase_to_drift or set allow_phasing=True."
+                )
+
             telescope_location = self.telescope_location_lat_lon_alt
             new_uvw = uvutils.calc_uvw(
                 app_ra=self.phase_center_app_ra,
@@ -4301,6 +4320,11 @@ class UVData(UVBase):
                     if self.multi_object:
                         old_w_vals[self._check_for_unphased_objects()] = 0.0
                     self._apply_w_proj(new_uvw[:, 2], old_w_vals)
+                else:
+                    warnings.warn(
+                        "Recalculating uvw_array without adjusting visibility phases "
+                        "-- this can introduce significant errors if used incorrectly."
+                    )
             # If the data are phased, we've already adjusted the phases. Now we just
             # need to update the uvw's and we are home free.
             self.uvw_array = new_uvw
@@ -4380,6 +4404,66 @@ class UVData(UVBase):
                 phase_center_epoch,
                 phase_frame=output_phase_frame,
                 use_old_proj=use_old_proj,
+            )
+
+    def fix_phase(
+        self, use_ant_pos=True,
+    ):
+        """
+        Fix the data to be consistent with the new phasing method.
+
+        This is a simple utility function for updating UVW coordinates calculated using
+        the 'old' phasing algorithm with those calculated by the 'new' algorithm. Note
+        that this step is required for using the new methods with data phased using the
+        `phase` methiod prior to pyuvdata v2.2.
+
+        Parameters
+        ----------
+        use_ant_pos : bool
+            Use the antenna positions for determining UVW coordinates. Default is True.
+        """
+        # If someone is trying to do this with a multi-obj data set, then they have
+        # made a mistake, and we should catch that up front.
+        if self.multi_object:
+            warnings.warn(
+                "fix_phase is unnecessary for multi-obj datasets, returning object "
+                "without running any operations."
+            )
+            return
+
+        # If we are just using the antenna positions, we don't actually need to do
+        # anything, since the new baseline vectors will be unaffected by the prior
+        # phasing method, and the delta_w values already get correctly corrected for.
+        if use_ant_pos:
+            self.set_uvws_from_antenna_positions(
+                allow_phasing=True,
+                orig_phase_frame=self.phase_center_frame,
+                output_phase_frame=self.phase_center_frame,
+                use_old_proj=False,
+            )
+        else:
+            # Record the old values
+            phase_center_ra = self.phase_center_ra
+            phase_center_dec = self.phase_center_dec
+            phase_center_frame = self.phase_center_frame
+            phase_center_epoch = self.phase_center_epoch
+            object_name = self.object_name
+
+            # Bring the UVWs back to ENU/unphased
+            self.unphase_to_drift(
+                phase_frame=self.phase_center_frame,
+                use_ant_pos=False,
+                use_old_proj=True,
+            )
+
+            # And rephase the data using the new algorithm
+            self.phase(
+                phase_center_ra,
+                phase_center_dec,
+                phase_frame=phase_center_frame,
+                epoch=phase_center_epoch,
+                object_name=object_name,
+                use_ant_pos=False,
             )
 
     def __add__(
@@ -8279,8 +8363,6 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        use_old_proj=False,
-        fix_old_proj=False,
     ):
         """
         Read in data from a list of FHD files.
@@ -8418,7 +8500,6 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        use_old_proj=False,
         fix_old_proj=False,
     ):
         """
@@ -8529,6 +8610,7 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
+            fix_old_proj=fix_old_proj,
         )
         self._convert_from_filetype(miriad_obj)
         del miriad_obj
@@ -8544,8 +8626,6 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        use_old_proj=False,
-        fix_old_proj=False,
     ):
         """
         Read in data from a measurement set.
@@ -8645,6 +8725,7 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        use_old_proj=False,
     ):
         """
         Read in MWA correlator gpu box files.
@@ -8795,6 +8876,7 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
+            use_old_proj=use_old_proj,
         )
         self._convert_from_filetype(corr_obj)
         del corr_obj
@@ -8822,8 +8904,7 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        use_old_proj=False,
-        fix_old_proj=False,
+        fix_old_proj=None,
     ):
         """
         Read in header, metadata and data from a single uvfits file.
@@ -8972,6 +9053,7 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
+            fix_old_proj=fix_old_proj,
         )
         self._convert_from_filetype(uvfits_obj)
         del uvfits_obj
@@ -9001,8 +9083,7 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        use_old_proj=False,
-        fix_old_proj=False,
+        fix_old_proj=None,
     ):
         """
         Read a UVH5 file.
@@ -9161,6 +9242,7 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
+            fix_old_proj=fix_old_proj,
         )
         self._convert_from_filetype(uvh5_obj)
         del uvh5_obj
@@ -9224,8 +9306,7 @@ class UVData(UVBase):
         pseudo_cont=False,
         lsts=None,
         lst_range=None,
-        use_old_proj=False,
-        fix_old_proj=False,
+        fix_old_proj=None,
     ):
         """
         Read a generic file into a UVData object.
@@ -9598,6 +9679,12 @@ class UVData(UVBase):
                         check_extra=check_extra,
                         run_check_acceptability=run_check_acceptability,
                         strict_uvw_antpos_check=strict_uvw_antpos_check,
+                        isource=None,
+                        irec=irec,
+                        isb=isb,
+                        corrchunk=corrchunk,
+                        pseudo_cont=pseudo_cont,
+                        fix_old_proj=fix_old_proj,
                     )
                     unread = False
                 except KeyError as err:
@@ -9664,7 +9751,11 @@ class UVData(UVBase):
                             check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability,
                             strict_uvw_antpos_check=strict_uvw_antpos_check,
-                            use_old_proj=use_old_proj,
+                            isource=None,
+                            irec=irec,
+                            isb=isb,
+                            corrchunk=corrchunk,
+                            pseudo_cont=pseudo_cont,
                             fix_old_proj=fix_old_proj,
                         )
                         uv_list.append(uv2)
@@ -9849,7 +9940,6 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
-                    use_old_proj=use_old_proj,
                     fix_old_proj=fix_old_proj,
                 )
 
@@ -9880,7 +9970,6 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
-                    use_old_proj=use_old_proj,
                     fix_old_proj=fix_old_proj,
                 )
 
@@ -9922,8 +10011,6 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
-                    use_old_proj=use_old_proj,
-                    fix_old_proj=fix_old_proj,
                 )
 
             elif file_type == "ms":
@@ -9936,8 +10023,6 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
-                    use_old_proj=use_old_proj,
-                    fix_old_proj=fix_old_proj,
                 )
 
             elif file_type == "uvh5":
@@ -9964,7 +10049,6 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
-                    use_old_proj=use_old_proj,
                     fix_old_proj=fix_old_proj,
                 )
                 select = False
@@ -9992,7 +10076,7 @@ class UVData(UVBase):
                 if self.phase_type != "drift":
                     warnings.warn("Unphasing this UVData object to drift")
                     self.unphase_to_drift(
-                        phase_frame=orig_phase_frame, use_ant_pos=phase_use_ant_pos
+                        phase_frame=orig_phase_frame, use_ant_pos=phase_use_ant_pos,
                     )
 
             if phase_center_radec is not None:
@@ -10024,8 +10108,6 @@ class UVData(UVBase):
                         orig_phase_frame=orig_phase_frame,
                         use_ant_pos=phase_use_ant_pos,
                         allow_rephase=True,
-                        use_old_proj=use_old_proj,
-                        fix_old_proj=fix_old_proj,
                     )
 
     def write_miriad(
