@@ -1801,8 +1801,8 @@ def translate_icrs_to_app(
     coord_epoch=None,
     pm_ra=None,
     pm_dec=None,
-    rad_vel=None,
-    distance=None,
+    vrad=None,
+    dist=None,
     astrometry_library="erfa",
 ):
     """
@@ -1856,12 +1856,12 @@ def translate_icrs_to_app(
         Only used if use_novas=True, and is optional. Can either be a single float
         or array of shape (Ntimes,), although this must be consistent with other
         parameters (namely ra_coord and dec_coord).
-    rad_vel : float or ndarray of float
+    vrad : float or ndarray of float
         Radial velocity of the source, expressed in units of km / sec. Only used if
         use_novas=True, and is optional. Can either be a single float or array of
         shape (Ntimes,), although this must be consistent with other parameters
         (namely ra_coord and dec_coord).
-    distance : float or ndarray of float
+    dist : float or ndarray of float
         Distance of the source, expressed in milliarcseconds. Only used if
         use_novas=True, and is optional. Can either be a single float or array of
         shape (Ntimes,), although this must be consistent with other parameters
@@ -1921,8 +1921,8 @@ def translate_icrs_to_app(
     elif coord_epoch is not None:
         raise ValueError("in_coord_epoch must be of type str, Time, float, or None.")
 
-    opt_list = [pm_ra, pm_dec, distance, rad_vel]
-    opt_names = ["pm_ra", "pm_dec", "distance", "rad_vel"]
+    opt_list = [pm_ra, pm_dec, dist, vrad]
+    opt_names = ["pm_ra", "pm_dec", "dist", "vrad"]
 
     # Check the optional inputs, make sure that they're sensible
     for item, name in zip(opt_list, opt_names):
@@ -1971,8 +1971,8 @@ def translate_icrs_to_app(
 
     # Set up the source information into a SkyCoord object, since it's a convenient
     # package to put everything into
-    d_coord = None if distance is None else Distance(distance * units.pc)
-    v_coord = None if rad_vel is None else rad_vel * (units.km / units.s)
+    d_coord = None if dist is None else Distance(dist * units.pc)
+    v_coord = None if vrad is None else vrad * (units.km / units.s)
     pm_ra_cosdec_coord = None if pm_ra is None else pm_ra * (units.mas / units.yr)
     pm_dec_coord = None if pm_dec is None else pm_dec * (units.mas / units.yr)
 
@@ -2065,8 +2065,8 @@ def translate_icrs_to_app(
                     sou_info.dec.deg,
                     0.0 if (pm_ra is None) else sou_info.pm_ra_cosdec.value,
                     0.0 if (pm_dec is None) else sou_info.pm_dec.value,
-                    0.0 if (distance is None) else sou_info.distance.kiloparsec ** -1,
-                    0.0 if (rad_vel is None) else sou_info.radial_velocity.value,
+                    0.0 if (dist is None) else sou_info.distance.kiloparsec ** -1,
+                    0.0 if (vrad is None) else sou_info.radial_velocity.value,
                 )
 
             # Update polar wobble parameters for a given timestamp
@@ -2104,8 +2104,8 @@ def translate_icrs_to_app(
             dec_coord,
             0.0 if (pm_ra is None) else sou_info.pm_ra_cosdec.value * pm_conv_fac,
             0.0 if (pm_dec is None) else sou_info.pm_dec.value * pm_conv_fac,
-            0.0 if (distance is None) else sou_info.distance.parsec ** -1,
-            0.0 if (rad_vel is None) else sou_info.radial_velocity.value,
+            0.0 if (dist is None) else sou_info.distance.parsec ** -1,
+            0.0 if (vrad is None) else sou_info.radial_velocity.value,
             time_obj_array.utc.jd,
             0.0,
             time_obj_array.delta_ut1_utc,
@@ -2661,8 +2661,8 @@ def calc_app_coords(
     telescope_loc=None,
     pm_ra=None,
     pm_dec=None,
-    rad_vel=None,
-    distance=None,
+    vrad=None,
+    dist=None,
 ):
     """
     Calculate apparent coordinates for several different object types.
@@ -2705,8 +2705,8 @@ def calc_app_coords(
             site_loc,
             pm_ra=pm_ra,
             pm_dec=pm_dec,
-            rad_vel=rad_vel,
-            distance=distance,
+            vrad=vrad,
+            dist=dist,
         )
 
     elif object_type == "driftscan":
@@ -2741,8 +2741,8 @@ def calc_app_coords(
             site_loc,
             pm_ra=pm_ra,
             pm_dec=pm_dec,
-            rad_vel=rad_vel,
-            distance=distance,
+            vrad=vrad,
+            dist=dist,
         )
 
     elif object_type == "unphased":
