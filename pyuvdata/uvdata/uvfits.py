@@ -745,7 +745,6 @@ class UVFITS(UVData):
                 self.phase_center_app_pa = np.zeros(self.Nblts)
 
                 object_dict = {}
-                idx_dict = {}
                 self.object_name = []
 
                 # Alright, we are off to the races!
@@ -760,22 +759,16 @@ class UVFITS(UVData):
                     sou_epoch = sou_info["EPOCH"]
                     sou_frame = "fk5"
 
-                    idx_dict[sou_id] = idx
                     object_dict[sou_name] = {
+                        "object_id": sou_id,
                         "object_type": "sidereal",
                         "object_lon": sou_ra,
                         "object_lat": sou_dec,
                         "coord_frame": sou_frame,
                         "coord_epoch": sou_epoch,
+                        "object_src": "file",
                     }
                 self.object_dict = object_dict
-                # Now that we've read in the sources, we need to remap object_id_array
-                # so that it's zero indexed. UVFITS is 1-indexed, although technically,
-                # the numbers _could_ be completely out of order/assigned arbitrary int
-                # values
-                self.object_id_array = np.array(
-                    [idx_dict[idx] for idx in self.object_id_array], dtype=int
-                )
 
             # Calculate the apparent coordinate values
             self._set_app_coords_helper()
@@ -1048,13 +1041,19 @@ class UVFITS(UVData):
             "WW      ": uvw_array_sec[:, 2],
             "DATE    ": time_array,
             "BASELINE": baselines_use,
-            "SOURCE  ": (self.object_id_array + 1) if self.multi_object else None,
+            "SOURCE  ": None,
             "FREQSEL ": np.ones_like(self.time_array, dtype=np.float32),
             "ANTENNA1": self.ant_1_array + 1,
             "ANTENNA2": self.ant_2_array + 1,
             "SUBARRAY": np.ones_like(self.ant_1_array),
             "INTTIM  ": int_time_array,
         }
+
+        if self.multi_object:
+            id_offset = np.any(
+                [temp_dict["object_id"] == 0 for temp_dict in self.object_dict.values()]
+            )
+            group_parameter_dict["SOURCE  "] = self.object_id_array + id_offset
 
         pscal_dict = {
             "UU      ": 1.0,
@@ -1363,7 +1362,7 @@ class UVFITS(UVData):
             int_zeros = np.zeros(self.Nobjects, dtype=int)
             flt_zeros = np.zeros(self.Nobjects, dtype=np.float64)
             zero_arr = np.zeros((self.Nobjects, self.Nspws))
-            sou_ids = np.arange(self.Nobjects) + 1
+            sou_ids = np.zeros(self.Nobjects)
             name_arr = np.array(self.object_name)
             cal_code = ["    "] * self.Nobjects
             # These are things we need to flip through on a source-by-source basis
@@ -1375,9 +1374,10 @@ class UVFITS(UVData):
             pm_ra = np.zeros(self.Nobjects, dtype=np.float64)
             pm_dec = np.zeros(self.Nobjects, dtype=np.float64)
             rest_freq = np.zeros((self.Nobjects, self.Nspws), dtype=np.float64)
-            for idx in range(self.Nobjects):
-                object_dict = self.object_dict[self.object_name[idx]]
+            for idx, name in enumerate(self.object_name):
+                object_dict = self.object_dict[name]
                 # This is a stub for something smarter in the future
+                sou_ids[idx] = self.object_dict[name]["object_id"] + id_offset
                 rest_freq[idx][:] = np.mean(self.freq_array)
                 pm_ra[idx] = 0.0
                 pm_dec[idx] = 0.0
@@ -1391,12 +1391,8 @@ class UVFITS(UVData):
                         object_dict["object_lat"],
                         object_dict["coord_frame"],
                         "fk5",
-                        in_coord_epoch=object_dict["coord_epoch"]
-                        if "coord_epoch" in (object_dict.keys())
-                        else None,
-                        out_coord_epoch=object_dict["coord_epoch"]
-                        if "coord_epoch" in (object_dict.keys())
-                        else 2000.0,
+                        in_coord_epoch=object_dict.get("coord_epoch"),
+                        out_coord_epoch=object_dict.get("coord_epoch"),
                         time_array=np.mean(self.time_array),
                     )
 
@@ -1406,12 +1402,16 @@ class UVFITS(UVData):
                         else 2000.0
                     )
 
-                    app_ra[idx] = np.mean(
-                        self.phase_center_app_ra[self.object_id_array == idx]
+                    app_ra[idx] = np.median(
+                        self.phase_center_app_ra[
+                            self.object_id_array == self.object_dict[name]["object_id"]
+                        ]
                     )
 
-                    app_dec[idx] = np.mean(
-                        self.phase_center_app_dec[self.object_id_array == idx]
+                    app_dec[idx] = np.median(
+                        self.phase_center_app_dec[
+                            self.object_id_array == self.object_dict[name]["object_id"]
+                        ]
                     )
                 ra_arr *= 180.0 / np.pi
                 dec_arr *= 180.0 / np.pi

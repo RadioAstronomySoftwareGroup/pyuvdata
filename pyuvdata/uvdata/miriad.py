@@ -1469,6 +1469,7 @@ class Miriad(UVData):
             for idx in range(Nobjects):
                 select_mask = sou_id_list == idx
                 object_dict[self.object_name[idx]] = {
+                    "object_id": idx,
                     "object_type": "sidereal",
                     "object_lon": np.median(ra_list[select_mask]),
                     "object_lat": np.median(dec_list[select_mask]),
