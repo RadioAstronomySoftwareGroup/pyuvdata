@@ -1661,19 +1661,6 @@ def calc_uvw(
     return new_coords[:, [1, 2, 0]]
 
 
-def translate_ephem_to_app():
-    """
-    Translate a TLE ephem (e.g., for a planet) into apparent of RA and Dec.
-
-    This is a thing that does not yet exist.
-    """
-    # TODO: Karto needs to introduce some optional dependency pieces here.
-    # Don't let him slack off!
-    raise NotImplementedError("Support for solar-system objects not available (yet).")
-
-    return None, None
-
-
 def translate_btw_sidereal_frames(
     lon_coord,
     lat_coord,
@@ -2667,6 +2654,7 @@ def calc_app_coords(
     lat_coord,
     coord_frame,
     coord_epoch=None,
+    coord_times=None,
     object_type=None,
     time_array=None,
     lst_array=None,
@@ -2731,7 +2719,32 @@ def calc_app_coords(
         # the LST to get back app RA and Dec
         unique_app_ra = np.mod(unique_app_ha + lst_array, 2 * np.pi)
     elif object_type == "ephem":
-        unique_app_ra, unique_app_dec = translate_ephem_to_app()
+        interp_ra, interp_dec = interpolate_ephem(
+            unique_time_array, coord_times, lon_coord, lat_coord,
+        )
+        if coord_frame != "icrs":
+            icrs_ra, icrs_dec = translate_btw_sidereal_frames(
+                interp_ra,
+                interp_dec,
+                coord_frame,
+                "icrs",
+                in_coord_epoch=coord_epoch,
+                time_array=unique_time_array,
+            )
+        else:
+            icrs_ra = lon_coord
+            icrs_dec = lat_coord
+        unique_app_ra, unique_app_dec = translate_icrs_to_app(
+            unique_time_array,
+            icrs_ra,
+            icrs_dec,
+            site_loc,
+            pm_ra=pm_ra,
+            pm_dec=pm_dec,
+            rad_vel=rad_vel,
+            distance=distance,
+        )
+
     elif object_type == "unphased":
         # This is the easiest one - this is just supposed to be ENU, so set the
         # apparent coords to the current lst and telescope_lon.
