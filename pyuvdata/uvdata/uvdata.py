@@ -774,8 +774,8 @@ class UVData(UVBase):
         coord_times=None,
         object_pm_ra=None,
         object_pm_dec=None,
-        object_distance=None,
-        object_rad_vel=None,
+        object_dist=None,
+        object_vrad=None,
         object_src="user",
     ):
         """
@@ -817,11 +817,11 @@ class UVData(UVBase):
             Proper motion in RA, in units of mas/year. Only used for sidereal objects.
         object_pm_dec : float
             Proper motion in Dec, in units of mas/year. Only used for sidereal objects.
-        object_distance : float or ndarray of float
+        object_dist : float or ndarray of float
             Distance of the source, in units of pc. Only used for sidereal and ephem
             objects. Expected to be a float for sidereal and driftscan objects, and an
             ndarray of floats of shape (Npts,) for ephem objects.
-        object_rad_vel : float or ndarray of float
+        object_vrad : float or ndarray of float
             Radial velocity of the source, in units of km/s. Only used for sidereal and
             ephem objects. Expected to be a float for sidereal and driftscan objects,
             and an ndarray of floats of shape (Npts,) for ephem objects.
@@ -867,8 +867,8 @@ class UVData(UVBase):
                 coord_times=coord_times,
                 object_pm_ra=object_pm_ra,
                 object_pm_dec=object_pm_dec,
-                object_distance=object_distance,
-                object_rad_vel=object_rad_vel,
+                object_dist=object_dist,
+                object_vrad=object_vrad,
             )
 
             # If the source does have the same name, check to see if all the
@@ -901,10 +901,10 @@ class UVData(UVBase):
                 object_dict["object_pm_ra"] = object_pm_ra
             if object_pm_dec:
                 object_dict["object_pm_dec"] = object_pm_dec
-            if object_rad_vel:
-                object_dict["object_rad_vel"] = object_pm_dec
-            if object_distance:
-                object_dict["object_distance"] = object_distance
+            if object_vrad:
+                object_dict["object_vrad"] = object_pm_dec
+            if object_dist:
+                object_dict["object_dist"] = object_dist
 
         elif object_type == "ephem":
             if object_lon is None:
@@ -928,10 +928,10 @@ class UVData(UVBase):
 
             if coord_epoch:
                 object_dict["coord_epoch"] = coord_epoch
-            if object_rad_vel:
-                object_dict["object_rad_vel"] = object_pm_dec
-            if object_distance:
-                object_dict["object_distance"] = object_distance
+            if object_vrad:
+                object_dict["object_vrad"] = object_pm_dec
+            if object_dist:
+                object_dict["object_dist"] = object_dist
 
         elif object_type == "driftscan":
             object_dict = {
@@ -1040,8 +1040,8 @@ class UVData(UVBase):
         coord_times=None,
         object_pm_ra=None,
         object_pm_dec=None,
-        object_distance=None,
-        object_rad_vel=None,
+        object_dist=None,
+        object_vrad=None,
         ignore_name=False,
     ):
         """
@@ -1049,41 +1049,65 @@ class UVData(UVBase):
 
         Do all the things!
         """
+        radian_tols = (0, 10 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0))
+        default_tols = (1e-5, 1e-8)
         obj_diffs = 0
         object_id = None
         attr_dict = {
-            "object_type": object_type,
-            "object_lon": object_lon,
-            "object_lat": object_lat,
-            "coord_frame": coord_frame,
-            "coord_epoch": coord_epoch,
-            "coord_times": coord_times,
-            "object_pm_ra": object_pm_ra,
-            "object_pm_dec": object_pm_dec,
-            "object_distance": object_distance,
-            "object_rad_vel": object_rad_vel,
+            "object_type": (object_type, None),
+            "object_lon": (object_lon, radian_tols),
+            "object_lat": (object_lat, radian_tols),
+            "coord_frame": (coord_frame, None),
+            "coord_epoch": (coord_epoch, None),
+            "coord_times": (coord_times, default_tols),
+            "object_pm_ra": (object_pm_ra, default_tols),
+            "object_pm_dec": (object_pm_dec, default_tols),
+            "object_dist": (object_dist, default_tols),
+            "object_vrad": (object_vrad, default_tols),
         }
 
         if not self.multi_object:
             # If not a multi-object data set, then there is only one source we have
             # to compare against.
             obj_diffs += (object_name != self.object_name) and (not ignore_name)
-            obj_diffs += object_lon != self.phase_center_ra
-            obj_diffs += object_lat != self.phase_center_dec
+            if object_lon != self.phase_center_ra:
+                none_check = (object_lon is None) or (self.phase_center_ra is None)
+                obj_diffs += (
+                    1 if none_check else np.allclose(object_lon, self.phase_center_ra)
+                )
+            if object_lat != self.phase_center_dec:
+                none_check = (object_lat is None) or (self.phase_center_dec is None)
+                obj_diffs += (
+                    1 if none_check else np.allclose(object_lat, self.phase_center_dec)
+                )
             obj_diffs += coord_frame != self.phase_center_frame
             obj_diffs += coord_epoch != self.phase_center_epoch
             obj_diffs += (object_pm_ra is None) or (object_pm_ra == 0.0)
             obj_diffs += (object_pm_dec is None) or (object_pm_dec == 0.0)
-            obj_diffs += (object_distance is None) or (object_distance == 0.0)
-            obj_diffs += (object_rad_vel is None) or (object_rad_vel == 0.0)
+            obj_diffs += (object_dist is None) or (object_dist == 0.0)
+            obj_diffs += (object_vrad is None) or (object_vrad == 0.0)
         elif ignore_name:
             for name in self.object_name:
                 object_dict = self.object_dict[name]
                 for key in attr_dict.keys():
                     if key in object_dict.keys():
-                        obj_diffs += object_dict[key] != attr_dict[key]
+                        if attr_dict[key][1] is None:
+                            obj_diffs += object_dict[key] != attr_dict[key][0]
+                        else:
+                            # Numpy will throw a Value error if you have two arrays
+                            # of different shape, which we can catch to flag that
+                            # the two arrays are actually not within tolerance.
+                            try:
+                                np.allclose(
+                                    object_dict[key],
+                                    attr_dict[key][0],
+                                    attr_dict[key][1][0],
+                                    attr_dict[key][1][1],
+                                )
+                            except ValueError:
+                                obj_diffs += 1
                     else:
-                        obj_diffs += attr_dict[key] is not None
+                        obj_diffs += attr_dict[key][0] is not None
                 if obj_diffs == 0:
                     object_id = object_dict["object_id"]
                     break
@@ -1093,9 +1117,23 @@ class UVData(UVBase):
             object_dict = self.object_dict[object_name]
             for key in attr_dict.keys():
                 if key in object_dict.keys():
-                    obj_diffs += object_dict[key] != attr_dict[key]
+                    if attr_dict[key][1] is None:
+                        obj_diffs += object_dict[key] != attr_dict[key][0]
+                    else:
+                        # Numpy will throw a Value error if you have two arrays
+                        # of different shape, which we can catch to flag that
+                        # the two arrays are actually not within tolerance.
+                        try:
+                            np.allclose(
+                                object_dict[key],
+                                attr_dict[key][0],
+                                attr_dict[key][1][0],
+                                attr_dict[key][1][1],
+                            )
+                        except ValueError:
+                            obj_diffs += 1
                 else:
-                    obj_diffs += attr_dict[key] is not None
+                    obj_diffs += attr_dict[key][0] is not None
             if obj_diffs == 0:
                 object_id = object_dict["object_id"]
 
@@ -1132,6 +1170,141 @@ class UVData(UVBase):
         )
 
         return blt_mask
+
+    def rename_object(self, old_name, new_name):
+        """
+        Rename an object within a multi-object data set.
+
+        This does some stuff.
+        """
+        if not isinstance(new_name, str):
+            raise TypeError("Value provided to new_name must be a string.")
+        if old_name not in self.object_name:
+            raise ValueError(
+                "No object with the name %s found in the dataset." % old_name
+            )
+
+        self.object_dict[new_name] = self.object_dict[old_name]
+        self.object_name.append(new_name)
+        self._remove_object(old_name)
+
+    def merge_object(self, objname1, objname2, force_merge=False):
+        """
+        Merge two differently named objects into one within a multi-obj data set.
+
+        This also does things.
+        """
+        if not self.multi_object:
+            raise ValueError("Cannot use merge_object on a non-multi-object data set.")
+        if objname1 not in self.object_name:
+            raise ValueError("No object by the name %s in object_name." % objname1)
+        if objname2 not in self.object_name:
+            raise ValueError("No object by the name %s in object_name." % objname2)
+        temp_dict = self.object_name[objname2]
+        # First, let's check and see if the dict entries are identical
+        object_id = self._check_object(
+            objname1,
+            temp_dict["object_type"],
+            object_lon=temp_dict.get("object_lon"),
+            object_lat=temp_dict.get("object_lat"),
+            coord_frame=temp_dict.get("coord_frame"),
+            coord_epoch=temp_dict.get("object_lon"),
+            coord_times=None,
+            object_pm_ra=None,
+            object_pm_dec=None,
+            object_dist=None,
+            object_vrad=None,
+        )
+        if object_id is None:
+            if force_merge:
+                warnings.warn(
+                    "Forcing %s and %s together, even though their attributes "
+                    "differ" % (objname1, objname2)
+                )
+            else:
+                raise ValueError(
+                    "Attributes of %s and %s in object_dict differ, which means "
+                    "that they are likely not referring to the same position in "
+                    "the sky. You can ignore this error and force merge_object to "
+                    "complete by setting force_merge=True, but this should be done "
+                    "with substantial caution."
+                )
+            object_id = self.object_dict[objname1]["object_id"]
+
+        old_object_id = self.object_dict[objname2]["object_id"]
+        self.object_id_array[self.object_id_array == old_object_id] = object_id
+        self._remove_object(objname2)
+
+    def split_object(self, object_name, new_name, select_mask, downselect=False):
+        """
+        Rename the object name (but preserve other properties) of a subset of data.
+
+        This also does some stuff.
+        """
+        # Check to make sure that everything lines up with
+        if not self.multi_object:
+            raise ValueError("Cannot use merge_object on a non-multi-object data set.")
+        if object_name not in self.object_name:
+            raise ValueError("No object by the name %s in object_name." % object_name)
+        if new_name in self.object_name:
+            raise ValueError(
+                "The name %s is already found in object_name, choose another name "
+                "for new_name." % new_name
+            )
+        if not isinstance(select_mask, np.ndarray):
+            raise TypeError("select_mask must be an ndarray of bool values.")
+        if not select_mask.dtype == bool:
+            raise TypeError("select_mask must contain bool values.")
+        if not select_mask.shape != (self.Nblts,):
+            raise ValueError("select_mask must be of shape (Nblts,).")
+
+        # Now that we know nthat all the inputs are sensible, lets make sure that
+        # the select_mask choice is sensible
+        object_id = self.object_dict[object_name]["object_id"]
+        good_mask = select_mask.copy()
+
+        # If we have selected any entries that don't correspond to the object_id
+        # in question, either downselect or raise an error.
+        if np.any(object_id != self.object_id_array[good_mask]):
+            if downselect:
+                good_mask = np.logical_and(good_mask, object_id == self.object_id_array)
+            else:
+                raise ValueError(
+                    "Data selected with select_mask includes that which has not been "
+                    "phased to %s. You can fix this by either revising select_mask or "
+                    "setting downselect=True." % object_name
+                )
+
+        # Now check for no(-ish) ops
+        if not np.any(good_mask):
+            # You didn't actually select anything we could change
+            warnings.warn(
+                "No relevant data selected - %s not added to the data set" % new_name
+            )
+        elif not np.any(object_id != self.object_id_array[~good_mask]):
+            # No matching object IDs found outside the range, so this is really a
+            # replace more than a split.
+            warnings.warn(
+                "All data for %s selected - using rename_object instead of a "
+                "split_object." % new_name
+            )
+            self.rename_object(object_name, new_name)
+        else:
+            temp_dict = self.object_dict[object_name]
+            object_id = self._add_object(
+                new_name,
+                temp_dict["object_type"],
+                object_lon=temp_dict.get("object_lon"),
+                object_lat=temp_dict.get("object_lat"),
+                coord_frame=temp_dict.get("coord_frame"),
+                coord_epoch=temp_dict.get("coord_epoch"),
+                coord_times=temp_dict.get("coord_times"),
+                object_pm_ra=temp_dict.get("object_pm_ra"),
+                object_pm_dec=temp_dict.get("object_pm_dec"),
+                object_dist=temp_dict.get("object_dist"),
+                object_vrad=temp_dict.get("object_vrad"),
+            )
+            self.object_id_array[good_mask] = object_id
 
     def _set_drift(self):
         """
@@ -1466,17 +1639,16 @@ class UVData(UVBase):
             app_dec = np.zeros(self.Nblts, dtype=float)
             for name in self.object_name:
                 temp_dict = self.object_dict[name]
-                temp_keys = temp_dict.keys()
                 select_mask = self.object_id_array == temp_dict["object_id"]
                 object_type = temp_dict["object_type"]
-                lat_val = temp_dict["object_lat"] if "object_lat" in temp_keys else None
-                lon_val = temp_dict["object_lon"] if "object_lon" in temp_keys else None
-                epoch = temp_dict["coord_epoch"] if "coord_epoch" in temp_keys else None
-                frame = temp_dict["coord_frame"] if "coord_frame" in temp_keys else None
-                pm_ra = temp_dict["pm_ra"] if "pm_ra" in temp_keys else None
-                pm_dec = temp_dict["pm_dec"] if "pm_dec" in temp_keys else None
-                rad_vel = temp_dict["rad_vel"] if "rad_vel" in temp_keys else None
-                distance = temp_dict["distance"] if "distance" in temp_keys else None
+                lon_val = temp_dict.get("object_lon")
+                lat_val = temp_dict.get("object_lat")
+                epoch = temp_dict.get("coord_epoch")
+                frame = temp_dict.get("coord_frame")
+                pm_ra = temp_dict.get("object_pm_ra")
+                pm_dec = temp_dict.get("object_pm_dec")
+                vrad = temp_dict.get("vrad")
+                dist = temp_dict.get("object_dist")
 
                 app_ra[select_mask], app_dec[select_mask] = uvutils.calc_app_coords(
                     lon_val,
@@ -1485,8 +1657,8 @@ class UVData(UVBase):
                     coord_epoch=epoch,
                     pm_ra=pm_ra,
                     pm_dec=pm_dec,
-                    rad_vel=rad_vel,
-                    distance=distance,
+                    vrad=vrad,
+                    dist=dist,
                     time_array=self.time_array[select_mask],
                     lst_array=self.lst_array[select_mask],
                     telescope_loc=self.telescope_location_lat_lon_alt,
@@ -3768,8 +3940,8 @@ class UVData(UVBase):
         object_type=None,
         pm_ra=None,
         pm_dec=None,
-        distance=None,
-        rad_vel=None,
+        dist=None,
+        vrad=None,
         object_name=None,
         lookup_name=False,
         use_ant_pos=False,  # Can we change this to default to True?
@@ -3846,9 +4018,9 @@ class UVData(UVBase):
                     "Remove the select_mask argument to continue."
                 )
 
-            check_objects = [pm_ra, pm_dec, distance, rad_vel]
-            check_names = ["pm_ra", "pm_dec", "distance", "rad_vel"]
-            for name, value in zip(check_names, check_objects):
+            check_params = [pm_ra, pm_dec, dist, vrad]
+            check_names = ["pm_ra", "pm_dec", "dist", "vrad"]
+            for name, value in zip(check_names, check_params):
                 if value not in [0, None]:
                     raise ValueError(
                         "Non-zero values of %s not supported when multi_object=False."
@@ -3966,8 +4138,8 @@ class UVData(UVBase):
                         coord_times,
                         object_lon,
                         object_lat,
-                        object_distance,
-                        object_rad_vel,
+                        object_dist,
+                        object_vrad,
                     ] = uvutils.lookup_jplhorizons(
                         object_name,
                         time_array,
@@ -3999,8 +4171,8 @@ class UVData(UVBase):
                         coord_times=ephem_times,
                         object_pm_ra=pm_ra,
                         object_pm_dec=pm_dec,
-                        object_distance=distance,
-                        object_rad_vel=rad_vel,
+                        object_dist=dist,
+                        object_vrad=vrad,
                     )
                 # If object_id is None, it means that the object properties dont match
                 if object_id is None:
@@ -4034,8 +4206,8 @@ class UVData(UVBase):
                     coord_times = ephem_times
                     object_pm_ra = pm_ra
                     object_pm_dec = pm_dec
-                    object_distance = distance
-                    object_rad_vel = rad_vel
+                    object_dist = dist
+                    object_vrad = vrad
                 else:
                     temp_dict = self.object_dict[object_name]
                     object_id = temp_dict["object_id"]
@@ -4049,8 +4221,8 @@ class UVData(UVBase):
                     coord_times = temp_dict.get("coord_times")
                     object_pm_ra = temp_dict.get("object_pm_ra")
                     object_pm_dec = temp_dict.get("object_pm_dec")
-                    object_distance = temp_dict.get("object_distance")
-                    object_rad_vel = temp_dict.get("object_rad_vel")
+                    object_dist = temp_dict.get("object_dist")
+                    object_vrad = temp_dict.get("object_vrad")
             else:
                 # Either this is not a multi-object data set, or the name of the
                 # source is unique!
@@ -4062,8 +4234,8 @@ class UVData(UVBase):
                 coord_times = ephem_times
                 object_pm_ra = pm_ra
                 object_pm_dec = pm_dec
-                object_distance = distance
-                object_rad_vel = rad_vel
+                object_dist = dist
+                object_vrad = vrad
 
             # One last check - if we have an ephem object, lets make sure that the
             # time range of the ephemeris encapsulates the entire range of time_array
@@ -4080,8 +4252,8 @@ class UVData(UVBase):
                         coord_times,
                         object_lon,
                         object_lat,
-                        object_distance,
-                        object_rad_vel,
+                        object_dist,
+                        object_vrad,
                     ] = uvutils.lookup_jplhorizons(
                         object_name,
                         np.concatenate((time_array, coord_times)),
@@ -4109,8 +4281,8 @@ class UVData(UVBase):
                 lst_array=lst_array,
                 pm_ra=object_pm_ra,
                 pm_dec=object_pm_dec,
-                rad_vel=object_rad_vel,
-                distance=object_distance,
+                vrad=object_vrad,
+                dist=object_dist,
                 telescope_loc=self.telescope_location_lat_lon_alt,
             )
 
@@ -4161,8 +4333,8 @@ class UVData(UVBase):
                     coord_epoch=coord_epoch,
                     object_pm_ra=object_pm_ra,
                     object_pm_dec=object_pm_dec,
-                    object_distance=object_distance,
-                    object_rad_vel=object_rad_vel,
+                    object_dist=object_dist,
+                    object_vrad=object_vrad,
                     object_src=object_src,
                 )
 
