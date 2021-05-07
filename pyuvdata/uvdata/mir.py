@@ -320,18 +320,20 @@ class Mir(UVData):
             for idx in isource
         ]
         object_dict = {}
-        for idx in range(len(isource)):
-            source_mask = mir_data.in_data["isource"] == isource[idx]
+        for idx, sou_id in enumerate(isource):
+            source_mask = mir_data.in_data["isource"] == sou_id
             object_name = self.object_name[idx]
             object_ra = np.mean(mir_data.in_data["rar"][source_mask]).astype(float)
             object_dec = np.mean(mir_data.in_data["decr"][source_mask]).astype(float)
             coord_epoch = np.mean(mir_data.in_data["epoch"][source_mask]).astype(float)
             object_dict[object_name] = {
+                "object_id": sou_id,
                 "object_type": "sidereal",
                 "object_lon": object_ra,
                 "object_lat": object_dec,
-                "coord_frame": "fk5",  # default for SMA datasets (verify)
+                "coord_frame": "fk5",
                 "coord_epoch": coord_epoch,
+                "object_src": "file",
             }
 
         self.object_dict = object_dict
@@ -339,10 +341,6 @@ class Mir(UVData):
         # Regenerate the sou_id_array thats native to MIR into a zero-indexed per-blt
         # entry for UVData, then grab ra/dec/position data.
         object_id_array = mir_data.in_data["isource"][bl_in_maparr[sb_screen]]
-        object_id_dict = {isource[idx]: idx for idx in range(len(isource))}
-        object_id_array = np.array(
-            [object_id_dict[key] for key in object_id_array], dtype=int
-        )
         self.object_id_array = object_id_array.astype(int)
 
         self.Nobjects = len(self.object_name)

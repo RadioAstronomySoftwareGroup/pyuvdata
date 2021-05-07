@@ -466,8 +466,9 @@ class UVData(UVBase):
 
         desc = (
             "Required if multi_object = True. Maps individual entries along the Nblt "
-            "axis to a specific object in object_name (zero-indexed). Shape (Nblts), "
-            "type = int."
+            "axis to a specific object in object_name, with the ID values of "
+            "individual objects stored along with other metadata in the `object_dict` "
+            " parameter. Shape (Nblts), type = int."
         )
         self._object_id_array = uvp.UVParameter(
             "object_id_array",
@@ -726,6 +727,7 @@ class UVData(UVBase):
                     "object_lat": self.phase_center_dec,
                     "coord_frame": self.phase_center_frame,
                     "coord_epoch": self.phase_center_epoch,
+                    "object_id": 0,  # This is the first object, hence the ID number
                 }
                 if object_dict["coord_frame"] is None:
                     object_dict["coord_frame"] = "icrs"
@@ -769,10 +771,12 @@ class UVData(UVBase):
         object_lat=None,
         coord_frame=None,
         coord_epoch=None,
+        coord_times=None,
         object_pm_ra=None,
         object_pm_dec=None,
         object_distance=None,
         object_rad_vel=None,
+        object_src="user",
     ):
         """
         Add an entry to the internal object/source catalog.
@@ -791,28 +795,50 @@ class UVData(UVBase):
                 ephem - Describes "moving" objects, e.g., solar system bodies
                 driftscan - Fixed az/el position (assumes zenith if no args supplied)
                 unphased - Multi-obj equivalent of phase_type == "drift"
-        object_lon : float
+        object_lon : float or ndarray
             Value of the longitudinal coordinate (e.g., RA, Az, l) of the object.
-            No default, not used for unphased objects.
-        object_lat : float
+            No default, not used for unphased objects. Expected to be a float for
+            sidereal and driftscan objects, and an ndarray of floats of shape (Npts,)
+            for ephem objects.
+        object_lat : float or ndarray
             Value of the latitudinal coordinate (e.g., Dec, El, b) of the object.
-            No default, not used for unphased objects.
+            No default, not used for unphased objects. Expected to be a float for
+            sidereal and driftscan objects, and an ndarray of floats of shape (Npts,)
+            for ephem objects.
         coord_frame : str
             Coordinate frame that object_lon and object_lat are given in. Only used
-            for sidereal targets. Can be any of the several supported frames in
-            astropy (a limited list: fk4, fk5, icrs, gcrs, cirs, galactic).
-        coord_epoch : str or flt
+            for sidereal and ephem targets. Can be any of the several supported frames
+            in astropy (a limited list: fk4, fk5, icrs, gcrs, cirs, galactic).
+        coord_epoch : str or float
             Epoch of the coordinates, only used when coord_frame = fk4 or fk5. Given
             in unites of fractional years, either as a float or as a string with the
             epoch abbreviation (e.g, Julian epoch 2000.0 would be J2000.0).
         object_pm_ra : float
-            Proper motion in RA, in units of mas/year. Not currently used.
+            Proper motion in RA, in units of mas/year. Only used for sidereal objects.
         object_pm_dec : float
-            Proper motion in Dec, in units of mas/year. Not currently used.
-        object_distance : float
-            Distance of the source, in units of pc. Not currently used.
-        object_rad_vel : float
-            Radial velocity of the source, in units of km/s. Not currently used.
+            Proper motion in Dec, in units of mas/year. Only used for sidereal objects.
+        object_distance : float or ndarray of float
+            Distance of the source, in units of pc. Only used for sidereal and ephem
+            objects. Expected to be a float for sidereal and driftscan objects, and an
+            ndarray of floats of shape (Npts,) for ephem objects.
+        object_rad_vel : float or ndarray of float
+            Radial velocity of the source, in units of km/s. Only used for sidereal and
+            ephem objects. Expected to be a float for sidereal and driftscan objects,
+            and an ndarray of floats of shape (Npts,) for ephem objects.
+        object_coord_time : ndarray of float
+            Time (in Julian day) for each set of coordinates in an ephemeris. Only used
+            for ephem objects, shape (Npts,).
+        object_src : str
+            Optional string describing the source of the information provided. Used
+            primarily in UVData to denote when an ephemeris has been supplied by the
+            JPL-Horizons system, or user-supplied. Default is 'user'.
+
+        Returns
+        -------
+        object_id : int
+            The unique ID number for the object added to the internal catalog. This
+            value is used in the `object_id_array` attribute to denote which source a
+            given baseline-time corresponds to.
 
         Raises
         ------
@@ -831,66 +857,36 @@ class UVData(UVBase):
 
         # Object names serve as dict keys, so we need to make sure that they're unique
         if object_name in self.object_name:
-            souDiffs = 0
-            object_dict = self.object_dict[object_name]
-            souDiffs += object_type != object_type
-
-            if "object_lon" in object_dict.keys():
-                souDiffs += object_dict["object_lon"] != object_lon
-            else:
-                souDiffs += object_lon is not None
-
-            if "object_lat" in object_dict.keys():
-                souDiffs += object_dict["object_lat"] != object_lat
-            else:
-                souDiffs += object_lat is not None
-
-            if "coord_frame" in object_dict.keys():
-                souDiffs += object_dict["coord_frame"] != coord_frame
-            else:
-                souDiffs += coord_frame is not None
-
-            if "coord_epoch" in object_dict.keys():
-                souDiffs += object_dict["coord_epoch"] != coord_epoch
-            else:
-                souDiffs += coord_epoch is not None
-
-            if "object_pm_ra" in object_dict.keys():
-                souDiffs += object_dict["object_pm_ra"] != object_pm_ra
-            else:
-                souDiffs += object_pm_ra is not None
-
-            if "object_pm_dec" in object_dict.keys():
-                souDiffs += object_dict["object_pm_dec"] != object_pm_dec
-            else:
-                souDiffs += object_pm_dec is not None
-
-            if "object_distance" in object_dict.keys():
-                souDiffs += object_dict["object_distance"] != object_distance
-            else:
-                souDiffs += object_distance is not None
-
-            if "object_rad_vel" in object_dict.keys():
-                souDiffs += object_dict["object_rad_vel"] != object_rad_vel
-            else:
-                souDiffs += object_rad_vel is not None
+            object_id = self._check_object(
+                object_name,
+                object_type,
+                object_lon=object_lon,
+                object_lat=object_lat,
+                coord_frame=coord_frame,
+                coord_epoch=coord_epoch,
+                coord_times=coord_times,
+                object_pm_ra=object_pm_ra,
+                object_pm_dec=object_pm_dec,
+                object_distance=object_distance,
+                object_rad_vel=object_rad_vel,
+            )
 
             # If the source does have the same name, check to see if all the
             # atributes match. If so, no problem, go about your business
-            if souDiffs == 0:
+            if object_id is not None:
                 # Everything matches, return back the object ID of the matching entry
-                return self.object_name.index(object_name)
+                return object_id
             else:
-                raise IndexError("Cannot add different source with an identical name!")
+                raise IndexError("Cannot add different source with an non-unique name.")
 
         # If source is unique, begin creating a dictionary for it
         if object_type == "sidereal":
             if object_lon is None:
-                raise TypeError("object_lon cannot be None for sidereal object!")
+                raise TypeError("object_lon cannot be None for sidereal object.")
             elif object_lat is None:
-                raise TypeError("object_lat cannot be None for sidereal object!")
+                raise TypeError("object_lat cannot be None for sidereal object.")
             elif coord_frame is None:
-                raise TypeError("coord_frame cannot be None for sidereal object!")
+                raise TypeError("coord_frame cannot be None for sidereal object.")
 
             object_dict = {
                 "object_type": "sidereal",
@@ -911,7 +907,31 @@ class UVData(UVBase):
                 object_dict["object_distance"] = object_distance
 
         elif object_type == "ephem":
-            raise NotImplementedError("Ephemeris objects are not (yet) supported!")
+            if object_lon is None:
+                raise TypeError("object_lon cannot be None for ephem object.")
+            elif object_lat is None:
+                raise TypeError("object_lat cannot be None for ephem object.")
+            elif coord_frame is None:
+                raise TypeError("coord_frame cannot be None for ephem object.")
+            if (object_pm_ra is not None) or (object_pm_dec is not None):
+                raise TypeError(
+                    "Non-zero proper motion values (object_pm_ra, object_pm_dec) "
+                    "for ephem object are not supported."
+                )
+            object_dict = {
+                "object_type": "ephem",
+                "object_lon": object_lon,
+                "object_lat": object_lat,
+                "coord_frame": coord_frame,
+                "coord_times": coord_times,
+            }
+
+            if coord_epoch:
+                object_dict["coord_epoch"] = coord_epoch
+            if object_rad_vel:
+                object_dict["object_rad_vel"] = object_pm_dec
+            if object_distance:
+                object_dict["object_distance"] = object_distance
 
         elif object_type == "driftscan":
             object_dict = {
@@ -923,10 +943,22 @@ class UVData(UVBase):
         elif object_type == "unphased":
             object_dict = {"object_type": "unphased"}
 
-        self.object_name.append(object_name)
-        self.object_dict[object_name] = object_dict
         self.Nobjects += 1
-        object_id = self.Nobjects - 1
+        self.object_name.append(object_name)
+
+        # We want to create a unique ID for each source, for use in indexing arrays.
+        # The logic below ensures that we pick the lowest positive integer that is
+        # not currently being used by another source
+        used_object_ids = []
+        for name in self.object_dict.keys():
+            used_object_ids.append(self.object_dict[name]["object_id"])
+
+        object_id = np.arange(self.Nobjects)[
+            ~np.isin(np.arange(self.Nobjects), used_object_ids)
+        ][0]
+        object_dict["object_id"] = object_id
+        self.object_dict[object_name] = object_dict
+
         return object_id
 
     def _remove_object(self, defunct_name):
@@ -975,16 +1007,15 @@ class UVData(UVBase):
         if not self.mutli_object:
             raise TypeError("Cannot remove an object if multi_object != True.")
 
-        unique_object_ids = self.object_id_array
+        unique_object_ids = np.unique(self.object_id_array)
         defunct_list = []
-        good_map = {}
         Nobjects = 0
-        for idx in range(len(self.object_name)):
-            if idx in unique_object_ids:
-                good_map[idx] = Nobjects
+        for object_name in self.object_name:
+            object_id = self.object_dict[object_name]["object_id"]
+            if object_id in unique_object_ids:
                 Nobjects += 1
             else:
-                defunct_list.append(self.object_name[idx])
+                defunct_list.append(object_name)
 
         # Check the number of "good" sources we have -- if we haven't dropped any,
         # then we are free to bail, otherwise update the Nobjects attribute
@@ -998,13 +1029,79 @@ class UVData(UVBase):
             self.object_name.remove(defunct_object)
             del self.object_dict[defunct_object]
 
-        # Finally, we need to remap the object_id_array, to reflect the fact that we
-        # have mucked the primary indexing in the object_name list
-        self.object_id_array = np.array(
-            [[good_map[object_idx] for object_idx in self.object_id_array]], dtype=int,
-        )
+    def _check_object(
+        self,
+        object_name,
+        object_type,
+        object_lon=None,
+        object_lat=None,
+        coord_frame=None,
+        coord_epoch=None,
+        coord_times=None,
+        object_pm_ra=None,
+        object_pm_dec=None,
+        object_distance=None,
+        object_rad_vel=None,
+        ignore_name=False,
+    ):
+        """
+        Do things.
 
-    def _check_for_unphased_objects(self):
+        Do all the things!
+        """
+        obj_diffs = 0
+        object_id = None
+        attr_dict = {
+            "object_type": object_type,
+            "object_lon": object_lon,
+            "object_lat": object_lat,
+            "coord_frame": coord_frame,
+            "coord_epoch": coord_epoch,
+            "coord_times": coord_times,
+            "object_pm_ra": object_pm_ra,
+            "object_pm_dec": object_pm_dec,
+            "object_distance": object_distance,
+            "object_rad_vel": object_rad_vel,
+        }
+
+        if not self.multi_object:
+            # If not a multi-object data set, then there is only one source we have
+            # to compare against.
+            obj_diffs += (object_name != self.object_name) and (not ignore_name)
+            obj_diffs += object_lon != self.phase_center_ra
+            obj_diffs += object_lat != self.phase_center_dec
+            obj_diffs += coord_frame != self.phase_center_frame
+            obj_diffs += coord_epoch != self.phase_center_epoch
+            obj_diffs += (object_pm_ra is None) or (object_pm_ra == 0.0)
+            obj_diffs += (object_pm_dec is None) or (object_pm_dec == 0.0)
+            obj_diffs += (object_distance is None) or (object_distance == 0.0)
+            obj_diffs += (object_rad_vel is None) or (object_rad_vel == 0.0)
+        elif ignore_name:
+            for name in self.object_name:
+                object_dict = self.object_dict[name]
+                for key in attr_dict.keys():
+                    if key in object_dict.keys():
+                        obj_diffs += object_dict[key] != attr_dict[key]
+                    else:
+                        obj_diffs += attr_dict[key] is not None
+                if obj_diffs == 0:
+                    object_id = object_dict["object_id"]
+                    break
+                else:
+                    obj_diffs = 0
+        elif object_name in self.object_name:
+            object_dict = self.object_dict[object_name]
+            for key in attr_dict.keys():
+                if key in object_dict.keys():
+                    obj_diffs += object_dict[key] != attr_dict[key]
+                else:
+                    obj_diffs += attr_dict[key] is not None
+            if obj_diffs == 0:
+                object_id = object_dict["object_id"]
+
+        return object_id
+
+    def _check_for_unphased(self):
         """
         Check which Nblts are unphased in a multi-object dataset.
 
@@ -1019,13 +1116,14 @@ class UVData(UVBase):
         """
         # Gotta be a multi-object data set for this operation to even make sense
         if not self.multi_object:
-            raise TypeError("Cannot remove an object if multi_object != True.")
+            raise ValueError("Cannot remove an object if multi_object != True.")
 
         # Check and see if we have any unphased objects, in which case
         # their w-values should be zeroed out.
         nophase_dict = {
-            idx: self.object_dict[self.object_name[idx]]["object_type"] == "unphased"
-            for idx in range(self.Nobjects)
+            self.object_dict[name]["object_id"]: self.object_dict[name]["object_type"]
+            == "unphased"
+            for name in self.object_name
         }
 
         # Dictionaries make for quick hash access, so us it to construct a bool array
@@ -1366,16 +1464,10 @@ class UVData(UVBase):
         elif self.multi_object:
             app_ra = np.zeros(self.Nblts, dtype=float)
             app_dec = np.zeros(self.Nblts, dtype=float)
-            for idx in np.unique(self.object_id_array):
-                if (idx < 0) or (idx > len(self.object_name)):
-                    raise IndexError(
-                        "object_id_array contains index values that do not match what"
-                        "is in object_name/object_dict!"
-                    )
-                temp_dict = self.object_dict[self.object_name[idx]]
+            for name in self.object_name:
+                temp_dict = self.object_dict[name]
                 temp_keys = temp_dict.keys()
-                select_mask = self.object_id_array == idx
-
+                select_mask = self.object_id_array == temp_dict["object_id"]
                 object_type = temp_dict["object_type"]
                 lat_val = temp_dict["object_lat"] if "object_lat" in temp_keys else None
                 lon_val = temp_dict["object_lon"] if "object_lon" in temp_keys else None
@@ -3484,7 +3576,7 @@ class UVData(UVBase):
             if self.multi_object:
                 # Check and see if we have any unphased objects, in which case
                 # their w-values should be zeroed out.
-                old_w_vals[self._check_for_unphased_objects] = 0.0
+                old_w_vals[self._check_for_unphased()] = 0.0
 
             new_uvw = uvutils.calc_uvw(
                 lst_array=self.lst_array,
@@ -3672,12 +3764,14 @@ class UVData(UVBase):
         dec,
         epoch="J2000",
         phase_frame="icrs",
-        object_name=None,
-        object_type="sidereal",
+        ephem_times=None,
+        object_type=None,
         pm_ra=None,
         pm_dec=None,
         distance=None,
         rad_vel=None,
+        object_name=None,
+        lookup_name=False,
         use_ant_pos=False,  # Can we change this to default to True?
         allow_rephase=True,
         orig_phase_frame=None,
@@ -3740,6 +3834,8 @@ class UVData(UVBase):
         ValueError
             If the phase_type is 'phased' and allow_rephase is False
         """
+        object_id = None
+        object_src = "user"
         # Non multi-object datasets don't (yet) have a way of recording the 'extra'
         # source properties, or selection mask, so make sure that these aren't using
         # any of those if looking at a single object.
@@ -3749,26 +3845,38 @@ class UVData(UVBase):
                     "Cannot apply a selection mask if multi_object=False. "
                     "Remove the select_mask argument to continue."
                 )
-            if pm_ra not in [0, None]:
+
+            check_objects = [pm_ra, pm_dec, distance, rad_vel]
+            check_names = ["pm_ra", "pm_dec", "distance", "rad_vel"]
+            for name, value in zip(check_names, check_objects):
+                if value not in [0, None]:
+                    raise ValueError(
+                        "Non-zero values of %s not supported when multi_object=False."
+                        % name
+                    )
+
+            if (object_type != "sidereal") and (object_type is not None):
                 raise ValueError(
-                    "Non-zero values of pm_ra not supported when multi_object!=True."
+                    "Only sidereal sources are supported when multi_object=False"
                 )
-            if pm_dec not in [0, None]:
+            if lookup_name:
                 raise ValueError(
-                    "Non-zero values of pm_dec not supported when multi_object!=True."
+                    "Object name lookup is not supported when multi_object=False"
                 )
-            if distance not in [0, None]:
+        else:
+            if object_name is None:
                 raise ValueError(
-                    "Non-zero values of distance not supported when multi_object!=True."
+                    "Must supply a unique name for object_name when phasing a "
+                    "multi-object data set."
                 )
-            if rad_vel not in [0, None]:
-                raise ValueError(
-                    "Non-zero values of rad_vel not supported when multi_object!=True."
-                )
-            if object_type != "sidereal":
-                raise ValueError(
-                    "Only sidereal sources are supported when multi_object!=True"
-                )
+
+        # If you are a multi-object data set, there's no valid reason to be going
+        # back to the old phase method. Time to bail!
+        if self.multi_object and use_old_proj:
+            raise NotImplementedError(
+                "Multi-object data sets are not compatible with the old phasing "
+                "method, please set use_old_proj=False."
+            )
 
         # Right up front, we're gonna split off the piece of the code that
         # does the phasing using the "new" method, since its a lot more flexible
@@ -3776,7 +3884,6 @@ class UVData(UVBase):
         # can be deprecated
         if not use_old_proj:
             # Grab all the meta-data we need for the rotations
-            telescope_location = self.telescope_location_lat_lon_alt
             time_array = self.time_array
             lst_array = self.lst_array
             uvw_array = self.uvw_array
@@ -3830,7 +3937,7 @@ class UVData(UVBase):
                     if self.multi_object:
                         # Check and see if we have any unphased objects, in which case
                         # their w-values should be zeroed out.
-                        old_w_vals[self._check_for_unphased_objects] = 0.0
+                        old_w_vals[self._check_for_unphased()] = 0.0
             else:
                 raise ValueError(
                     "The phasing type of the data is unknown. "
@@ -3849,36 +3956,161 @@ class UVData(UVBase):
                 if isinstance(old_w_vals, np.ndarray):
                     old_w_vals = old_w_vals[select_mask]
 
-            # Before moving forward with the heavy calculations, we should make sure
-            # that the target in question is unique if this is a multi-object dataset.
-            # If so, add it to the catalog, if not, check that the properties are the
-            # same (and if thats not true, then add_object will throw an error).
-            if self.multi_object:
-                object_id = self._add_object(
-                    object_name,
-                    object_type,
-                    object_lon=ra,
-                    object_lat=dec,
-                    coord_frame=phase_frame,
-                    coord_epoch=epoch,
-                    object_pm_ra=pm_ra,
-                    object_pm_dec=pm_dec,
-                    object_distance=distance,
-                    object_rad_vel=rad_vel,
-                )
-            # We got the meta-data, now handle calculating the apparent coordinates
+            # Before moving forward with the heavy calculations, we need to do some
+            # basic housekeeping to make sure that we've got the coordinate data that
+            # we need in order to proceed. In particular, we should make sure that the
+            # target in question is unique if this is a multi-object dataset.
+            if lookup_name and (object_name not in tuple(self.object_name)):
+                if (object_type is None) or (object_type == "ephem"):
+                    [
+                        coord_times,
+                        object_lon,
+                        object_lat,
+                        object_distance,
+                        object_rad_vel,
+                    ] = uvutils.lookup_jplhorizons(
+                        object_name,
+                        time_array,
+                        telescope_loc=self.telescope_location_lat_lon_alt,
+                    )
+                    object_type = "ephem"
+                    object_pm_ra = object_pm_dec = None
+                    object_src = "jplh"
+                else:
+                    raise ValueError(
+                        "Unable to find %s in among the existing sources "
+                        "recorded in object_name. Please supply source "
+                        "information (e.g., RA and Dec coordinates) and "
+                        "set lookup_name=False." % object_name
+                    )
+            elif (object_name in tuple(self.object_name)) and self.multi_object:
+                # If the name of the source matches, then verify that all of its
+                # properties are the same as what is stored in object_dict.
+                if lookup_name:
+                    object_id = self.object_dict[object_name]["object_id"]
+                else:
+                    object_id = self._check_object(
+                        object_name,
+                        object_type,
+                        object_lon=ra,
+                        object_lat=dec,
+                        coord_frame=phase_frame,
+                        coord_epoch=epoch,
+                        coord_times=ephem_times,
+                        object_pm_ra=pm_ra,
+                        object_pm_dec=pm_dec,
+                        object_distance=distance,
+                        object_rad_vel=rad_vel,
+                    )
+                # If object_id is None, it means that the object properties dont match
+                if object_id is None:
+                    # Last chance here -- if we have selected all of the data phased
+                    # to the object position, then we are still okay.
+                    if select_mask is None:
+                        # We have selected all data, so we're good
+                        pass
+                    elif np.all(
+                        np.not_equal(
+                            self.object_id_array[~select_mask],
+                            self.object_dict[object_name]["object_id"],
+                        )
+                    ):
+                        # We have selected a subset of the data that contains
+                        # everything that was phased to the object
+                        pass
+                    else:
+                        raise ValueError(
+                            "The object name %s is not unique, but arguments to phase "
+                            "do not match that stored in object_dict. Try using a "
+                            "different name, using select_mask to select all data "
+                            "phased to this object, or using the existing object "
+                            "information by setting lookup_name=True." % object_name
+                        )
+                    object_type = "sidereal" if object_type is None else object_type
+                    object_lon = ra
+                    object_lat = dec
+                    coord_frame = phase_frame
+                    coord_epoch = epoch
+                    coord_times = ephem_times
+                    object_pm_ra = pm_ra
+                    object_pm_dec = pm_dec
+                    object_distance = distance
+                    object_rad_vel = rad_vel
+                else:
+                    temp_dict = self.object_dict[object_name]
+                    object_id = temp_dict["object_id"]
+                    object_type = temp_dict["object_type"]
+                    object_src = temp_dict["object_src"]
+                    # Get here will return None if no key found, which we want
+                    object_lon = temp_dict.get("object_lon")
+                    object_lat = temp_dict.get("object_lat")
+                    coord_frame = temp_dict.get("coord_frame")
+                    coord_epoch = temp_dict.get("coord_epoch")
+                    coord_times = temp_dict.get("coord_times")
+                    object_pm_ra = temp_dict.get("object_pm_ra")
+                    object_pm_dec = temp_dict.get("object_pm_dec")
+                    object_distance = temp_dict.get("object_distance")
+                    object_rad_vel = temp_dict.get("object_rad_vel")
+            else:
+                # Either this is not a multi-object data set, or the name of the
+                # source is unique!
+                object_type = "sidereal" if object_type is None else object_type
+                object_lon = ra
+                object_lat = dec
+                coord_frame = phase_frame
+                coord_epoch = epoch
+                coord_times = ephem_times
+                object_pm_ra = pm_ra
+                object_pm_dec = pm_dec
+                object_distance = distance
+                object_rad_vel = rad_vel
+
+            # One last check - if we have an ephem object, lets make sure that the
+            # time range of the ephemeris encapsulates the entire range of time_array
+            check_ephem = False
+            if object_type == "ephem":
+                check_ephem = np.min(time_array) < np.min(coord_times)
+                check_ephem = check_ephem or (np.max(time_array) > np.max(coord_times))
+                # If the ephem was supplied by JPL-Horizons, then we can easily expand
+                # it to cover the requested range.
+                if check_ephem and (object_src == "jplh"):
+                    # Concat the two time ranges to make sure that we cover both the
+                    # requested time range _and_ the original time range.
+                    [
+                        coord_times,
+                        object_lon,
+                        object_lat,
+                        object_distance,
+                        object_rad_vel,
+                    ] = uvutils.lookup_jplhorizons(
+                        object_name,
+                        np.concatenate((time_array, coord_times)),
+                        telescope_loc=self.telescope_location_lat_lon_alt,
+                    )
+                else:
+                    # The ephem was user-supplied during the call to the phase method,
+                    # raise an error to ask for more ephem data.
+                    raise ValueError(
+                        "Ephemeris data does not cover the entirety of the time range "
+                        "attempted to be phased. Please supply additional ephem data "
+                        "(and if used, set lookup_name=False)."
+                    )
+
+            # We got the meta-data, now handle calculating the apparent coordinates.
+            # First, check if we need to look up the object in question
             new_app_ra, new_app_dec = uvutils.calc_app_coords(
-                ra,
-                dec,
-                coord_frame=phase_frame,
-                coord_epoch=epoch,
+                object_lon,
+                object_lat,
+                coord_frame=coord_frame,
+                coord_epoch=coord_epoch,
+                coord_times=coord_times,
                 object_type=object_type,
                 time_array=time_array,
                 lst_array=lst_array,
-                pm_ra=pm_ra,
-                pm_dec=pm_dec,
-                rad_vel=rad_vel,
-                distance=distance,
+                pm_ra=object_pm_ra,
+                pm_dec=object_pm_dec,
+                rad_vel=object_rad_vel,
+                distance=object_distance,
                 telescope_loc=self.telescope_location_lat_lon_alt,
             )
 
@@ -3913,6 +4145,26 @@ class UVData(UVBase):
                 telescope_lon=self.telescope_location_lat_lon_alt[1],
                 from_enu=from_enu,
             )
+
+            # With all operations complete, we now start manipulating the UVData object
+            if self.multi_object and (object_id is None):
+                if object_name in self.object_name:
+                    # If we are overwriting an old entry,
+                    # delete the defunct metadata now
+                    self._remove_object(object_name)
+                object_id = self._add_object(
+                    object_name,
+                    object_type,
+                    object_lon=object_lon,
+                    object_lat=object_lat,
+                    coord_frame=coord_frame,
+                    coord_epoch=coord_epoch,
+                    object_pm_ra=object_pm_ra,
+                    object_pm_dec=object_pm_dec,
+                    object_distance=object_distance,
+                    object_rad_vel=object_rad_vel,
+                    object_src=object_src,
+                )
 
             # Now its time to update the raw data. This will return empty if
             # metadata_only is set to True. Note that object_type is only allowed
@@ -3968,14 +4220,6 @@ class UVData(UVBase):
 
             # All done w/ the new phase method
             return
-
-        # If you are a multi-object data set, there's no valid reason to be going
-        # back to the old phase method. Time to bail!
-        if self.multi_object:
-            raise NotImplementedError(
-                "Multi-object data sets are not compatible with the old phasing "
-                "method, please set use_old_proj=False."
-            )
 
         warnings.warn(
             "The original `phase` method will be deprecated in a future release. "
@@ -4318,7 +4562,7 @@ class UVData(UVBase):
                 if allow_phasing:
                     old_w_vals = self.uvw_array[:, 2].copy()
                     if self.multi_object:
-                        old_w_vals[self._check_for_unphased_objects()] = 0.0
+                        old_w_vals[self._check_for_unphased()] = 0.0
                     self._apply_w_proj(new_uvw[:, 2], old_w_vals)
                 else:
                     warnings.warn(
