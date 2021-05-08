@@ -1306,6 +1306,208 @@ class UVData(UVBase):
             )
             self.object_id_array[good_mask] = object_id
 
+    def print_objects(self, object_name=None, hms_format=None):
+        """
+        Print out the details of objects in a multi-obj data set.
+
+        Does all the things.
+        """
+        r2d = 180.0 / np.pi
+        r2m = 60.0 * 180.0 / np.pi
+        r2s = 3600.0 * 180.0 / np.pi
+        ra_frames = ["icrs", "gcrs", "fk5", "fk4", "topo"]
+
+        if not self.multi_object:
+            raise ValueError("Cannot use print_objects on a non-multi-object data set.")
+        if object_name is None:
+            dict_list = [self.object_dict[name] for name in self.object_name]
+        elif object_name in self.object_name:
+            dict_list = [self.object_dict[object_name]]
+        else:
+            raise ValueError("No object by the name %s in object_name." % object_name)
+
+        # We want to check and actually see which fields we need to
+        # print
+        any_lon = any_lat = any_frame = any_epoch = any_times = False
+        any_pm_ra = any_pm_dec = any_dist = any_vrad = False
+
+        object_id_list = []
+        for indv_dict in dict_list:
+            object_id_list.append(indv_dict["object_id"])
+            any_lon = any_lon or indv_dict.get("object_lon") is not None
+            any_lat = any_lat or indv_dict.get("object_lat") is not None
+            any_frame = any_frame or indv_dict.get("coord_frame") is not None
+            any_epoch = any_epoch or indv_dict.get("coord_epoch") is not None
+            any_times = any_times or indv_dict.get("coord_times") is not None
+            any_pm_ra = any_pm_ra or indv_dict.get("object_pm_ra") is not None
+            any_pm_dec = any_pm_dec or indv_dict.get("object_pm_dec") is not None
+            any_dist = any_dist or indv_dict.get("object_dist") is not None
+            any_vrad = any_vrad or indv_dict.get("object_vrad") is not None
+
+            if any_lon and (hms_format is None):
+                coord_frame = indv_dict.get("coord_frame")
+                object_type = indv_dict["object_type"]
+                if object_type == "driftscan":
+                    hms_format = False
+                elif coord_frame not in ra_frames:
+                    hms_format = False
+
+        if hms_format is None:
+            hms_format = True
+
+        col_list = []
+        col_list.append(
+            {"hdr": ("ID", "#"), "fmt": "% 4i", "field": " %4s ", "name": "object_id"}
+        )
+        col_list.append(
+            {
+                "hdr": ("Object", "Name"),
+                "fmt": "%12s",
+                "field": " %12s ",
+                "name": "object_name",
+            }
+        )
+        col_list.append(
+            {"hdr": ("Type", ""), "fmt": "%9s", "field": " %9s ", "name": "object_type"}
+        )
+
+        if any_lon:
+            col_list.append(
+                {
+                    "hdr": ("Az/Lon/RA", "hours" if hms_format else "deg"),
+                    "fmt": "% 3i:%02i:%05.2f",
+                    "field": " %12s ",
+                    "name": "object_lon",
+                }
+            )
+        if any_lat:
+            col_list.append(
+                {
+                    "hdr": ("El/Lat/Dec", "deg"),
+                    "fmt": "%1s%2i:%02i:%05.2f",
+                    "field": " %12s ",
+                    "name": "object_lat",
+                }
+            )
+        if any_frame:
+            col_list.append(
+                {
+                    "hdr": ("Frame", ""),
+                    "fmt": "%5s",
+                    "field": " %5s ",
+                    "name": "coord_frame",
+                }
+            )
+        if any_epoch:
+            col_list.append(
+                {
+                    "hdr": ("Epoch", ""),
+                    "fmt": "%7s",
+                    "field": " %7s ",
+                    "name": "coord_epoch",
+                }
+            )
+        if any_times:
+            col_list.append(
+                {
+                    "hdr": ("Ephem Range", "Start-MJD       End-MJD"),
+                    "fmt": "% 8.2f % 8.2f",
+                    "field": " %17s ",
+                    "name": "coord_times",
+                }
+            )
+        if any_pm_ra:
+            col_list.append(
+                {
+                    "hdr": ("PM-Ra", "mas/yr"),
+                    "fmt": "%6g",
+                    "field": " %6s ",
+                    "name": "object_pm_ra",
+                }
+            )
+        if any_pm_dec:
+            col_list.append(
+                {
+                    "hdr": ("PM-Dec", "mas/yr"),
+                    "fmt": "%6g",
+                    "field": " %6s ",
+                    "name": "object_pm_dec",
+                }
+            )
+        if any_dist:
+            col_list.append(
+                {
+                    "hdr": ("Dist", "pc"),
+                    "fmt": "%.1e",
+                    "field": " %6s ",
+                    "name": "object_dist",
+                }
+            )
+        if any_vrad:
+            col_list.append(
+                {
+                    "hdr": ("V_rad", "km/s"),
+                    "fmt": "%6g",
+                    "field": " %6s ",
+                    "name": "object_vrad",
+                }
+            )
+
+        top_str = ""
+        bot_str = ""
+        for col in col_list:
+            top_str += col["field"] % col["hdr"][0]
+            bot_str += col["field"] % col["hdr"][1]
+
+        print(top_str)
+        print(bot_str)
+        print("-" * len(top_str))
+        # We want to print in the order of object_id
+        for idx in np.argsort(object_id_list):
+            tbl_str = ""
+            for col in col_list:
+                # If we have a "special" field that needs extra handling,
+                # take care of that up front
+                if col["name"] == "object_name":
+                    temp_val = self.object_name[idx]
+                else:
+                    temp_val = dict_list[idx][col["name"]]
+                if temp_val is None:
+                    temp_str = ""
+                elif col["name"] == "object_lon":
+                    temp_val /= 15.0 if hms_format else 1.0
+                    coord_tuple = (
+                        np.mod(temp_val * r2d, 360.0),
+                        np.mod(temp_val * r2m, 60.0),
+                        np.mod(temp_val * r2s, 60.0),
+                    )
+                    temp_str = col["fmt"] % coord_tuple
+                elif col["name"] == "object_lat":
+                    coord_tuple = (
+                        "-" if temp_val < 0.0 else "+",
+                        np.mod(np.abs(temp_val) * r2d, 360.0),
+                        np.mod(np.abs(temp_val) * r2m, 60.0),
+                        np.mod(np.abs(temp_val) * r2s, 60.0),
+                    )
+                    temp_str = col["fmt"] % coord_tuple
+                elif col["name"] == "coord_epoch":
+                    if isinstance(temp_val, str):
+                        temp_val = temp_val[0].upper() + ("%6.1f" % float(temp_val[1:]))
+                    else:
+                        temp_val = "%6.1f" % temp_val
+                    temp_str = col["fmt"] % temp_val
+                elif col["name"] == "coord_times":
+                    time_tuple = (
+                        np.min(temp_val) - 2400000.5,
+                        np.max(temp_val) - 2400000.5,
+                    )
+                    temp_str = col["fmt"] % time_tuple
+                else:
+                    temp_str = col["fmt"] % temp_val
+                tbl_str += col["field"] % temp_str
+            print(tbl_str)
+        print("")
+
     def _set_drift(self):
         """
         Set phase_type to 'drift' and adjust required parameters.
