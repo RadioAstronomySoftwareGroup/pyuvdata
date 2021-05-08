@@ -4170,7 +4170,7 @@ class UVData(UVBase):
             string "J2000" (which is the default).
             Note that the epoch is only used to evaluate the ra & dec values,
             if the epoch is not J2000, the ra & dec values are interpreted
-            as FK5 ra/dec values and translated to J2000, the data are then
+            as FK5 ra/dec values and transformed to J2000, the data are then
             phased to the J2000 ra/dec values.
         phase_frame : str
             The astropy frame to phase to. Either 'icrs' or 'gcrs'.

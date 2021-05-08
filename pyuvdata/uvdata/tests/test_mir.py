@@ -109,7 +109,7 @@ def test_read_mir_write_uvfits(uv_in_uvfits, future_shapes):
 
     # We have to do a bit of special handling for he object_dict, because _very_ small
     # errors (like last bit in the mantissa) creep in when passing through the util
-    # function translate_sidereal_to_sidereal (for multi-obj datasets). Verify the
+    # function transform_sidereal_coords (for multi-obj datasets). Verify the
     # two match up in terms of their coordinates
     for object_name in mir_uv.object_name:
         assert np.isclose(
