@@ -852,8 +852,6 @@ def test_multi_unphase_on_read(casa_uvfits, tmp_path):
             "antenna positions.",
             "Unphasing this UVData object to drift",
             "Unphasing other UVData object to drift",
-            "The uvw_array does not match the expected values given the "
-            "antenna positions.",
         ],
     ):
         uv1.read(np.array([testfile1, testfile2]), unphase_to_drift=True)
@@ -917,15 +915,11 @@ def test_multi_phase_on_read(casa_uvfits, tmp_path):
             "Phasing this UVData object to phase_center_radec",
             "The uvw_array does not match the expected values given the "
             "antenna positions.",
-            "The uvw_array does not match the expected values given the "
-            "antenna positions.",
             "Phasing this UVData object to phase_center_radec",
-            "The uvw_array does not match the expected values given the "
-            "antenna positions.",
         ],
     ):
         uv1.read(
-            np.array([testfile1, testfile2]), phase_center_radec=phase_center_radec
+            np.array([testfile1, testfile2]), phase_center_radec=phase_center_radec,
         )
 
     # Check history is correct, before replacing and doing a full object check

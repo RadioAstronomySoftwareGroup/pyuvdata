@@ -3889,7 +3889,7 @@ class UVData(UVBase):
             )
 
     def unphase_to_drift(
-        self, phase_frame=None, use_ant_pos=False, use_old_proj=None,
+        self, phase_frame=None, use_ant_pos=True, use_old_proj=False,
     ):
         """
         Convert from a phased dataset to a drift dataset.
@@ -3905,11 +3905,10 @@ class UVData(UVBase):
             if that attribute is None.
         use_ant_pos : bool
             If True, calculate the uvws directly from the antenna positions
-            rather than from the existing uvws.
+            rather than from the existing uvws. Default is True.
         use_old_proj : bool
-            If True, uses the 'old' way of calculating baseline projections. Default is
-            False, unless the attributes phase_center_app_ra or phase_center_app_dec are
-            None, in which case use_old_proj is forced to be True.
+            If True, uses the 'old' way of calculating baseline projections.
+            Default isv False.
 
         Raises
         ------
@@ -3929,14 +3928,13 @@ class UVData(UVBase):
                 "reflect the phasing status of the data"
             )
 
-        if not use_old_proj and (
-            (self.phase_center_app_ra is not None)
-            and (self.phase_center_app_dec is not None)
-        ):
+        if not use_old_proj:
             # Check to make sure that these attributes are actually filled. Otherwise,
             # you probably want to use the old phase method.
-            if (self.phase_center_app_ra is None) or (
-                self.phase_center_app_dec is None
+            if (
+                (not use_ant_pos)
+                and (self.phase_center_app_ra is None)
+                or (self.phase_center_app_dec is None)
             ):
                 raise AttributeError(
                     "Object missing phase_center_ra_app or phase_center_dec_app, "
@@ -4146,7 +4144,7 @@ class UVData(UVBase):
         vrad=None,
         object_name=None,
         lookup_name=False,
-        use_ant_pos=False,  # Can we change this to default to True?
+        use_ant_pos=True,  # Can we change this to default to True?
         allow_rephase=True,
         orig_phase_frame=None,
         select_mask=None,
@@ -4290,7 +4288,9 @@ class UVData(UVBase):
                         # this is actually neccessary if calculating the coordinates
                         # from antenna positions, so you do you, puvudataset.
                         self.unphase_to_drift(
-                            phase_frame=orig_phase_frame, use_old_proj=True,
+                            phase_frame=orig_phase_frame,
+                            use_old_proj=True,
+                            use_ant_pos=use_ant_pos,
                         )
                     else:
                         raise AttributeError(
@@ -4788,7 +4788,8 @@ class UVData(UVBase):
         self,
         time,
         phase_frame="icrs",
-        use_ant_pos=False,
+        use_ant_pos=True,
+        use_old_proj=False,
         allow_rephase=True,
         orig_phase_frame=None,
     ):
@@ -4855,6 +4856,7 @@ class UVData(UVBase):
             epoch="J2000",
             phase_frame=phase_frame,
             use_ant_pos=use_ant_pos,
+            use_old_proj=use_old_proj,
             allow_rephase=allow_rephase,
             orig_phase_frame=orig_phase_frame,
         )
@@ -5092,7 +5094,7 @@ class UVData(UVBase):
         unphase_to_drift=False,
         phase_frame="icrs",
         orig_phase_frame=None,
-        use_ant_pos=False,
+        use_ant_pos=True,
         verbose_history=False,
         run_check=True,
         check_extra=True,
@@ -5906,7 +5908,7 @@ class UVData(UVBase):
         unphase_to_drift=False,
         phase_frame="icrs",
         orig_phase_frame=None,
-        use_ant_pos=False,
+        use_ant_pos=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -5988,7 +5990,7 @@ class UVData(UVBase):
         unphase_to_drift=False,
         phase_frame="icrs",
         orig_phase_frame=None,
-        use_ant_pos=False,
+        use_ant_pos=True,
         verbose_history=False,
         run_check=True,
         check_extra=True,
@@ -9873,7 +9875,7 @@ class UVData(UVBase):
         unphase_to_drift=False,
         phase_frame="icrs",
         orig_phase_frame=None,
-        phase_use_ant_pos=False,
+        phase_use_ant_pos=True,
         antenna_nums=None,
         antenna_names=None,
         ant_str=None,
