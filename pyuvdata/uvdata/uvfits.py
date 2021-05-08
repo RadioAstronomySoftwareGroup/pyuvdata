@@ -1386,7 +1386,7 @@ class UVFITS(UVData):
                     # coordinate frame, although nothing in object_dict forces objects
                     # to share the same frame. So we want to make sure that everything
                     # lines up with the coordinate frame listed in phase_center_frame.
-                    ra_arr[idx], dec_arr[idx] = uvutils.translate_btw_sidereal_frames(
+                    ra_arr[idx], dec_arr[idx] = uvutils.transform_sidereal_coords(
                         object_dict["object_lon"],
                         object_dict["object_lat"],
                         object_dict["coord_frame"],

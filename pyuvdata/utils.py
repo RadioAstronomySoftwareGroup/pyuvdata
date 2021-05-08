@@ -1661,7 +1661,7 @@ def calc_uvw(
     return new_coords[:, [1, 2, 0]]
 
 
-def translate_btw_sidereal_frames(
+def transform_sidereal_coords(
     lon_coord,
     lat_coord,
     in_coord_frame,
@@ -1671,7 +1671,7 @@ def translate_btw_sidereal_frames(
     time_array=None,
 ):
     """
-    Translate a given set of coordinates from one sidereal coordinate frame to another.
+    Transform a given set of coordinates from one sidereal coordinate frame to another.
 
     Uses astropy to convert from a coordinates from sidereal frame into another.
     This function will support transforms from several frames, including GCRS,
@@ -1793,7 +1793,7 @@ def translate_btw_sidereal_frames(
     return new_coord.spherical.lon.rad, new_coord.spherical.lat.rad
 
 
-def translate_icrs_to_app(
+def transform_icrs_to_app(
     time_array,
     ra_coord,
     dec_coord,
@@ -1806,7 +1806,7 @@ def translate_icrs_to_app(
     astrometry_library="erfa",
 ):
     """
-    Translate a set of coordinates in ICRS to topocentric/apparent coordinates.
+    Transform a set of coordinates in ICRS to topocentric/apparent coordinates.
 
     This utility uses one of three libraries (astropy, NOVAS, or ERFA) to calculate
     the apparent (i.e., topocentric) coordinates of a source at a given time and
@@ -2124,11 +2124,11 @@ def translate_icrs_to_app(
     return app_ra, app_dec
 
 
-def translate_app_to_sidereal(
+def transform_app_to_sidereal(
     time_array, app_ra, app_dec, telescope_loc, ref_frame="icrs", ref_epoch=None,
 ):
     """
-    Translate a set of coordinates in topocentric/apparent to ICRS coordinates.
+    Transform a set of coordinates in topocentric/apparent to ICRS coordinates.
 
     This utility uses either astropy to calculate the ICRS  coordinates of a given
     set of apparent source coordinates. These coordinates are most typically used
@@ -2402,7 +2402,7 @@ def calc_frame_pos_angle(
 
     # Run the set of offset coordinates through the "reverse" transform. The two offset
     # positions are concat'd together to help reduce overheads
-    ref_ra, ref_dec = translate_app_to_sidereal(
+    ref_ra, ref_dec = transform_app_to_sidereal(
         np.tile(unique_time, 2),
         np.concatenate((dn_ra, up_ra)),
         np.concatenate((dn_dec, up_dec)),
@@ -2685,9 +2685,9 @@ def calc_app_coords(
 
     unique_time_array = np.unique(time_array)
     if object_type == "sidereal":
-        # If the coordinates are not in the ICRS frame, go ahead and translate them now
+        # If the coordinates are not in the ICRS frame, go ahead and transform them now
         if coord_frame != "icrs":
-            icrs_ra, icrs_dec = translate_btw_sidereal_frames(
+            icrs_ra, icrs_dec = transform_sidereal_coords(
                 lon_coord,
                 lat_coord,
                 coord_frame,
@@ -2698,7 +2698,7 @@ def calc_app_coords(
         else:
             icrs_ra = lon_coord
             icrs_dec = lat_coord
-        unique_app_ra, unique_app_dec = translate_icrs_to_app(
+        unique_app_ra, unique_app_dec = transform_icrs_to_app(
             unique_time_array,
             icrs_ra,
             icrs_dec,
@@ -2723,7 +2723,7 @@ def calc_app_coords(
             unique_time_array, coord_times, lon_coord, lat_coord,
         )
         if coord_frame != "icrs":
-            icrs_ra, icrs_dec = translate_btw_sidereal_frames(
+            icrs_ra, icrs_dec = transform_sidereal_coords(
                 interp_ra,
                 interp_dec,
                 coord_frame,
@@ -2734,7 +2734,7 @@ def calc_app_coords(
         else:
             icrs_ra = lon_coord
             icrs_dec = lat_coord
-        unique_app_ra, unique_app_dec = translate_icrs_to_app(
+        unique_app_ra, unique_app_dec = transform_icrs_to_app(
             unique_time_array,
             icrs_ra,
             icrs_dec,
