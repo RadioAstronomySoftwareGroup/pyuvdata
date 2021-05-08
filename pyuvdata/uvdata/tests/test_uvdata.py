@@ -1059,7 +1059,7 @@ def test_phase_unphase_hera_bad_frame(uv1_2_set_uvws):
 # method, so we'll just filter out those warnings now.
 @pytest.mark.filterwarnings("ignore:The original `phase` method will be deprecated in")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_phasing(future_shapes):
+def test_old_phasing(future_shapes):
     """Use MWA files phased to 2 different places to test phasing."""
     file1 = os.path.join(DATA_PATH, "1133866760.uvfits")
     file2 = os.path.join(DATA_PATH, "1133866760_rephase.uvfits")
@@ -1073,14 +1073,18 @@ def test_phasing(future_shapes):
         uvd2.use_future_array_shapes()
 
     uvd1_drift = uvd1.copy()
-    uvd1_drift.unphase_to_drift(phase_frame="gcrs", use_old_proj=True)
+    uvd1_drift.unphase_to_drift(
+        phase_frame="gcrs", use_old_proj=True, use_ant_pos=False
+    )
     uvd1_drift_antpos = uvd1.copy()
     uvd1_drift_antpos.unphase_to_drift(
         phase_frame="gcrs", use_ant_pos=True, use_old_proj=True,
     )
 
     uvd2_drift = uvd2.copy()
-    uvd2_drift.unphase_to_drift(phase_frame="gcrs", use_old_proj=True)
+    uvd2_drift.unphase_to_drift(
+        phase_frame="gcrs", use_old_proj=True, use_ant_pos=False
+    )
     uvd2_drift_antpos = uvd2.copy()
     uvd2_drift_antpos.unphase_to_drift(
         phase_frame="gcrs", use_ant_pos=True, use_old_proj=True,
@@ -1099,6 +1103,7 @@ def test_phasing(future_shapes):
         uvd1.phase_center_epoch,
         orig_phase_frame="gcrs",
         phase_frame="gcrs",
+        use_ant_pos=False,
         use_old_proj=True,
     )
     uvd2_rephase_antpos = uvd2.copy()
@@ -1125,6 +1130,7 @@ def test_phasing(future_shapes):
         uvd1.phase_center_dec,
         uvd1.phase_center_epoch,
         phase_frame="gcrs",
+        use_ant_pos=False,
         use_old_proj=True,
     )
     uvd1_drift_antpos.phase(
@@ -1148,6 +1154,7 @@ def test_phasing(future_shapes):
         uvd2.phase_center_dec,
         uvd2.phase_center_epoch,
         phase_frame="gcrs",
+        use_ant_pos=False,
         use_old_proj=True,
     )
     uvd2_drift_antpos.phase(
@@ -3411,16 +3418,7 @@ def test_add(casa_uvfits, future_shapes):
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(33, 64))
     with uvtest.check_warnings(
-        UserWarning,
-        [
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "Combined frequencies are not evenly spaced",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-        ],
+        UserWarning, ["Combined frequencies are not evenly spaced"],
     ):
         uv1.__add__(uv2)
 
@@ -3465,15 +3463,7 @@ def test_add(casa_uvfits, future_shapes):
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[3])
     with uvtest.check_warnings(
-        UserWarning,
-        [
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-        ],
+        UserWarning, ["Combined polarizations are not evenly spaced"],
     ):
         uv1.__iadd__(uv2)
 
@@ -3717,15 +3707,7 @@ def test_add_drift(casa_uvfits):
     uv2.select(freq_chans=[3])
     with uvtest.check_warnings(
         UserWarning,
-        [
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "Combined frequencies are separated by more than their channel width",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-        ],
+        ["Combined frequencies are separated by more than their channel width"],
     ):
         uv1.__iadd__(uv2)
 
