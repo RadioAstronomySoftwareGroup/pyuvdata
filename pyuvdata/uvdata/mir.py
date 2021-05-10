@@ -315,35 +315,32 @@ class Mir(UVData):
 
         sou_list = mir_data.codes_data[mir_data.codes_data["v_name"] == b"source"]
 
-        self.object_name = [
+        object_name_list = [
             sou_list[sou_list["icode"] == idx]["code"][0].decode("utf-8")
             for idx in isource
         ]
-        object_dict = {}
+
         for idx, sou_id in enumerate(isource):
             source_mask = mir_data.in_data["isource"] == sou_id
-            object_name = self.object_name[idx]
             object_ra = np.mean(mir_data.in_data["rar"][source_mask]).astype(float)
             object_dec = np.mean(mir_data.in_data["decr"][source_mask]).astype(float)
             coord_epoch = np.mean(mir_data.in_data["epoch"][source_mask]).astype(float)
-            object_dict[object_name] = {
-                "object_id": sou_id,
-                "object_type": "sidereal",
-                "object_lon": object_ra,
-                "object_lat": object_dec,
-                "coord_frame": "fk5",
-                "coord_epoch": coord_epoch,
-                "object_src": "file",
-            }
-
-        self.object_dict = object_dict
+            self._add_object(
+                object_name_list[idx],
+                object_type="sidereal",
+                object_lon=object_ra,
+                object_lat=object_dec,
+                coord_epoch=coord_epoch,
+                coord_frame="fk5",
+                object_src="file",
+                object_id=sou_id,
+            )
 
         # Regenerate the sou_id_array thats native to MIR into a zero-indexed per-blt
         # entry for UVData, then grab ra/dec/position data.
         object_id_array = mir_data.in_data["isource"][bl_in_maparr[sb_screen]]
         self.object_id_array = object_id_array.astype(int)
 
-        self.Nobjects = len(self.object_name)
         self.phase_center_ra = 0.0  # This are ignored w/ multi-obj data sets
         self.phase_center_dec = 0.0  # This are ignored w/ multi-obj data sets
         self.phase_center_epoch = 2000.0  # This are ignored w/ multi-obj data sets
