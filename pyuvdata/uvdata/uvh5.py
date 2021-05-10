@@ -483,7 +483,7 @@ class UVH5(UVData):
         if "multi_object" in header:
             if bool(header["multi_object"][()]):
                 self._set_phased()
-                self._set_multi_object(preserve_source_info=False)
+                self._set_multi_object(preserve_object_info=False)
         if "Nobjects" in header:
             self.Nobjects = int(header["Nobjects"][()])
 

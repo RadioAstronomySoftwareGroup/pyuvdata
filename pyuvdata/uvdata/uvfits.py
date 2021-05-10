@@ -119,7 +119,7 @@ class UVFITS(UVData):
         if "SOURCE" in vis_hdu.data.parnames:
             # Preserve the source info just in case the AIPS SU table is missing, and
             # we need to revert things back.
-            self._set_multi_object(preserve_source_info=True)
+            self._set_multi_object(preserve_object_info=True)
             source = vis_hdu.data.par("SOURCE")
             self.Nobjects = len(set(source))
             self.object_id_array = source.astype(int)

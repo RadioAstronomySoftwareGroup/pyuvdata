@@ -81,7 +81,6 @@ def test_source_group_params(casa_uvfits, tmp_path):
     uv_in = casa_uvfits
     # Writing a source table to UVFITS makes pyuvdata think that the data are multi-obj,
     # so we'll force that in the original file as well
-    # uv_in._set_multi_object(preserve_source_info=True)
     write_file = str(tmp_path / "outtest_casa.uvfits")
     write_file2 = str(tmp_path / "outtest_casa2.uvfits")
     uv_in.write_uvfits(write_file)
