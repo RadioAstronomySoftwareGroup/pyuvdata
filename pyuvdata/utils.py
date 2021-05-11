@@ -2241,10 +2241,15 @@ def transform_app_to_sidereal(
     pm_x_array = pm_x_array.value * (np.pi / (3600.0 * 180.0))
     pm_y_array = pm_y_array.value * (np.pi / (3600.0 * 180.0))
 
+    bpn_matrix = erfa.pnm06a(time_obj_array.tt.jd, 0.0)
+    cip_x, cip_y = erfa.bpn2xy(bpn_matrix)
+    cio_s = erfa.s06(time_obj_array.tt.jd, 0.0, cip_x, cip_y)
+    eqn_org = erfa.eors(bpn_matrix, cio_s)
+
     # Observed to ICRS via ERFA
     icrs_ra, icrs_dec = erfa.atoc13(
         "r",
-        app_ra,
+        app_ra + eqn_org,
         app_dec,
         time_obj_array.utc.jd,
         0.0,  # Second half of the UT date, not needed
