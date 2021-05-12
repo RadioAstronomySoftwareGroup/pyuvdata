@@ -1889,26 +1889,24 @@ def transform_icrs_to_app(
         Proper motion in RA of the source, expressed in units of milliarcsec / year.
         Proper motion values are applied relative to the J2000 (i.e., RA/Dec ICRS
         values should be set to their expected values when the epoch is 2000.0).
-        Only used if use_novas=True, and is optional. Can either be a single float
-        or array of shape (Ntimes,), although this must be consistent with other
-        parameters (namely ra_coord and dec_coord).
+        Can either be a single float or array of shape (Ntimes,), although this must
+        be consistent with other parameters (namely ra_coord and dec_coord). Not
+        required.
     pm_dec : float or ndarray of float
         Proper motion in Dec of the source, expressed in units of milliarcsec / year.
         Proper motion values are applied relative to the J2000 (i.e., RA/Dec ICRS
         values should be set to their expected values when the epoch is 2000.0).
-        Only used if use_novas=True, and is optional. Can either be a single float
-        or array of shape (Ntimes,), although this must be consistent with other
-        parameters (namely ra_coord and dec_coord).
+        Can either be a single float or array of shape (Ntimes,), although this must
+        be consistent with other parameters (namely ra_coord and dec_coord). Not
+        required.
     vrad : float or ndarray of float
-        Radial velocity of the source, expressed in units of km / sec. Only used if
-        use_novas=True, and is optional. Can either be a single float or array of
-        shape (Ntimes,), although this must be consistent with other parameters
-        (namely ra_coord and dec_coord).
+        Radial velocity of the source, expressed in units of km / sec. Can either be
+        a single float or array of shape (Ntimes,), although this must be consistent
+        with other parameters (namely ra_coord and dec_coord). Not required.
     dist : float or ndarray of float
-        Distance of the source, expressed in milliarcseconds. Only used if
-        use_novas=True, and is optional. Can either be a single float or array of
-        shape (Ntimes,), although this must be consistent with other parameters
-        (namely ra_coord and dec_coord).
+        Distance of the source, expressed in milliarcseconds. Can either be a single
+        float or array of shape (Ntimes,), although this must be consistent with other
+        parameters (namely ra_coord and dec_coord). Not required.
     astrometry_library : str
         Library used for running the coordinate conversions. Allowed options are
         'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas library),
@@ -2642,10 +2640,10 @@ def interpolate_ephem(
 def calc_app_coords(
     lon_coord,
     lat_coord,
-    coord_frame,
+    coord_frame="icrs",
     coord_epoch=None,
     coord_times=None,
-    object_type=None,
+    object_type="sidereal",
     time_array=None,
     lst_array=None,
     telescope_loc=None,
@@ -2657,8 +2655,82 @@ def calc_app_coords(
     """
     Calculate apparent coordinates for several different object types.
 
-    This is a function that does all sorts of interesting things, and I will write a
-    lot more about it shortly.
+    This function calculates apparent positions at the current epoch.
+
+    Parameters
+    ----------
+    lon_coord : float or ndarray of float
+        Longitudinal (e.g., RA) coordinates, units of radians. Must match the same
+        shape as lat_coord.
+    lat_coord : float or ndarray of float
+        Latitudinal (e.g., Dec) coordinates, units of radians. Must match the same
+        shape as lon_coord.
+    coord_frame : string
+        The requested reference frame for the output coordinates, can be any frame
+        that is presently supported by astropy.
+    coord_epoch : float or str or Time object
+        Epoch for ref_frame, nominally only used if converting to either the FK4 or
+        FK5 frames, in units of fractional years. If provided as a float and the
+        coord_frame is an FK4-variant, value will assumed to be given in Besselian
+        years (i.e., 1950 would be 'B1950'), otherwise the year is assumed to be
+        in Julian years.
+    coord_times : float or ndarray of float
+        Only used when `object_type="ephem"`, the JD UTC time for each value of
+        `lon_coord` and `lat_coord`. These values are used to interpolate `lon_coord`
+        and `lat_coord` values to those times listed in `time_array`.
+    object_type : str
+        Type of object coordiantes provided. Permitted values are:
+            - "sidereal":   a single pair of coordinates in a specified frame.
+            - "ephem":      a list of coordinates that change with time, as specified
+                            by `coord_times`. Only coord_frame='icrs' permitted.
+                            Used for objects which move in the sky with time (e.g.,
+                            planetary objects).
+            - "driftscan":  a single pair of coordinates in the horizontal coordinate
+                            frame (i.e., coord_frame is forced to 'altaz').
+            - "unphased":   alias for "driftscan" with (Az, Alt) = (0 deg, 90 deg)
+    time_array : float or ndarray of float or Time object
+        Times for which the apparent coordiantes were calculated, in UTC JD. If more
+        than a single element, must the the same shape as lon_coord and lat_coord if
+        both of those are arrays (instead of single floats).
+    telescope_loc : tuple of floats or EarthLocation
+        ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
+        of the array. Can either be provided as an astropy EarthLocation, or a tuple
+        of shape (3,) containung (in order) the latitude, longitude, and altitude,
+        in units of radians, radians, and meters, respectively.
+    coord_frame : string
+        The requested reference frame for the output coordinates, can be any frame
+        that is presently supported by astropy. Default is ICRS.
+    coord_epoch : float or str or Time object
+        Epoch for ref_frame, nominally only used if converting to either the FK4 or
+        FK5 frames, in units of fractional years. If provided as a float and the
+        ref_frame is an FK4-variant, value will assumed to be given in Besselian
+        years (i.e., 1950 would be 'B1950'), otherwise the year is assumed to be
+        in Julian years.
+    pm_ra : float or ndarray of float
+        Proper motion in RA of the source, expressed in units of milliarcsec / year.
+        Can either be a single float or array of shape (Ntimes,), although this must
+        be consistent with other parameters (namely ra_coord and dec_coord). Not
+        required, motion is calculated relative to the value of `coord_epoch`.
+    pm_dec : float or ndarray of float
+        Proper motion in Dec of the source, expressed in units of milliarcsec / year.
+        Can either be a single float or array of shape (Ntimes,), although this must
+        be consistent with other parameters (namely ra_coord and dec_coord). Not
+        required, motion is calculated relative to the value of `coord_epoch`.
+    vrad : float or ndarray of float
+        Radial velocity of the source, expressed in units of km / sec. Can either be
+        a single float or array of shape (Ntimes,), although this must be consistent
+        with other parameters (namely ra_coord and dec_coord). Not required.
+    dist : float or ndarray of float
+        Distance of the source, expressed in milliarcseconds. Can either be a single
+        float or array of shape (Ntimes,), although this must be consistent with other
+        parameters (namely ra_coord and dec_coord). Not required.
+
+    Returns
+    -------
+    app_ra : ndarray of floats
+        Apparent right ascension coordinates, in units of radians.
+    app_dec : ndarray of floats
+        Apparent declination coordinates, in units of radians.
     """
     if isinstance(telescope_loc, EarthLocation):
         site_loc = telescope_loc
