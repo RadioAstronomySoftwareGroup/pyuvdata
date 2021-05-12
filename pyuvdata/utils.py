@@ -1066,7 +1066,26 @@ def polar2_to_cart3(lon_array, lat_array):
     """
     Convert 2D polar coordinates into 3D cartesian coordinates.
 
-    Does more things!
+    This is a simple routine for converting a set of spherical angular coordinates
+    into a 3D cartesian vectors, where the x-direction is set by the position (0, 0).
+
+    Parameters
+    ----------
+    lon_array : float or ndarray
+        Longitude coordinates, which increases in the counter-clockwise direction.
+        Units of radians. Can either be a float or ndarray -- if the latter, must have
+        the same shape as lat_array.
+    lat_array : float or ndarray
+        Latitude coordinates, where 0 falls on the equator of the sphere.  Units of
+        radians. Can either be a float or ndarray -- if the latter, must have the same
+        shape as lat_array.
+
+    Returns
+    -------
+    xyz_array : ndarray of float
+        Cartesian coordinates of the given longitude and latitude on a unit sphere.
+        Shape is (3, coord_shape), where coord_shape is the shape of lon_array and
+        lat_array if they were provided as type ndarray, otherwise (3,).
     """
     # Check to make sure that we are not playing with mixed types
     if type(lon_array) is not type(lat_array):
@@ -1084,7 +1103,8 @@ def polar2_to_cart3(lon_array, lat_array):
             np.cos(lon_array) * np.cos(lat_array),
             np.sin(lon_array) * np.cos(lat_array),
             np.sin(lat_array),
-        ]
+        ],
+        dtype=float,
     )
 
     return xyz_array
@@ -1094,6 +1114,27 @@ def cart3_to_polar2(xyz_array):
     """
     Convert 3D cartesian coordinates into 2D polar coordinates.
 
+    This is a simple routine for converting a set of 3D cartesian vectors into
+    spherical coordinates, where the position (0, 0) lies along the x-direction.
+
+    Parameters
+    ----------
+    xyz_array : ndarray of float
+        Cartesian coordinates, need not be of unit vector length. Shape is
+        (3, coord_shape).
+
+    Returns
+    -------
+    lon_array : ndarray of float
+        Longitude coordinates, which increases in the counter-clockwise direction.
+        Units of radians, shape is (coord_shape,).
+    lat_array : ndarray of float
+        Latitude coordinates, where 0 falls on the equator of the sphere.  Units of
+        radians, shape is (coord_shape,).
+
+
+    Returns
+    -------
     Does more things!
     """
     if not isinstance(xyz_array, np.ndarray):
@@ -1103,12 +1144,14 @@ def cart3_to_polar2(xyz_array):
 
     # The longitude coord is relatively easy to calculate, just take the X and Y
     # components and find the arctac of the pair.
-    lon_array = np.mod(np.arctan2(xyz_array[1], xyz_array[0]), 2.0 * np.pi)
+    lon_array = np.mod(np.arctan2(xyz_array[1], xyz_array[0]), 2.0 * np.pi, dtype=float)
 
     # If we _knew_ that xyz_array was always of length 1, then this call could be a much
     # simpler one to arcsin. But to make this generic, we'll use the length of the XY
     # component along with arctan2.
-    lat_array = np.arctan2(xyz_array[2], np.sqrt((xyz_array[0:2] ** 2.0).sum(axis=0)))
+    lat_array = np.arctan2(
+        xyz_array[2], np.sqrt((xyz_array[0:2] ** 2.0).sum(axis=0)), dtype=float
+    )
 
     # Return the two arrays
     return lon_array, lat_array
@@ -1939,12 +1982,15 @@ def transform_icrs_to_app(
 
     # Useful for both astropy and novas methods, the latter of which gives easy
     # access to the IERS data that we want.
-    time_obj_array = Time(
-        time_array if isinstance(time_array, np.ndarray) else [time_array],
-        format="jd",
-        scale="utc",
-        location=site_loc,
-    )
+    if isinstance(time_array, Time):
+        time_obj_array = time_array
+    else:
+        time_obj_array = Time(
+            time_array if isinstance(time_array, np.ndarray) else [time_array],
+            format="jd",
+            scale="utc",
+            location=site_loc,
+        )
 
     # Note if time_array is a single element
     multi_time = len(time_obj_array) != 1
@@ -1954,20 +2000,11 @@ def transform_icrs_to_app(
 
     pm_x_array, pm_y_array = polar_motion_data.pm_xy(time_obj_array)
     delta_x_array, delta_y_array = polar_motion_data.dcip_xy(time_obj_array)
-    # Let's just make sure we have the right units here. This should be
-    # true unless astropy makes a change we are unaware of.
-    if (pm_x_array.unit != "arcsec" or pm_y_array.unit != "arcsec") or (
-        delta_x_array.unit != "marcsec" or delta_y_array.unit != "marcsec"
-    ):  # pragma: no cover
-        raise ValueError(
-            "IERS polar motion data is not in the format expected, please "
-            "notify pyuvdata developers by filing an issue on GitHub "
-            "(https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues)"
-        )
-    pm_x_array = pm_x_array.value
-    pm_y_array = pm_y_array.value
-    delta_x_array = delta_x_array.value
-    delta_y_array = delta_y_array.value
+
+    pm_x_array = pm_x_array.to_value("arcsec")
+    pm_y_array = pm_y_array.to_value("arcsec")
+    delta_x_array = delta_x_array.to_value("marcsec")
+    delta_y_array = delta_y_array.to_value("marcsec")
     # Catch the case where we don't have CIP delta values yet (they don't typically have
     # predictive values like the polar motion does)
     delta_x_array[np.isnan(delta_x_array)] = 0.0
@@ -2128,9 +2165,7 @@ def transform_icrs_to_app(
     return app_ra, app_dec
 
 
-def transform_app_to_sidereal(
-    time_array, app_ra, app_dec, telescope_loc, ref_frame="icrs", ref_epoch=None,
-):
+def transform_app_to_icrs(time_array, app_ra, app_dec, telescope_loc):
     """
     Transform a set of coordinates in topocentric/apparent to ICRS coordinates.
 
@@ -2158,23 +2193,14 @@ def transform_app_to_sidereal(
         of the array. Can either be provided as an astropy EarthLocation, or a tuple
         of shape (3,) containung (in order) the latitude, longitude, and altitude,
         in units of radians, radians, and meters, respectively.
-    ref_frame : string
-        The requested reference frame for the output coordinates, can be any frame
-        that is presently supported by astropy. Default is ICRS.
-    ref_epoch : float or str or Time object
-        Epoch for ref_frame, nominally only used if converting to either the FK4 or
-        FK5 frames, in units of fractional years. If provided as a float and the
-        ref_frame is an FK4-variant, value will assumed to be given in Besselian
-        years (i.e., 1950 would be 'B1950'), otherwise the year is assumed to be
-        in Julian years.
 
     Returns
     -------
-    ref_ra : ndarray of floats
-        Apparent right ascension coordinates, in units of radians, of either shape
+    icrs_ra : ndarray of floats
+        ICRS right ascension coordinates, in units of radians, of either shape
         (Ntimes,) if Ntimes >1, otherwise (Ncoord,).
-    ref_dec : ndarray of floats
-        Apparent declination coordinates, in units of radians, of either shape
+    icrs_dec : ndarray of floats
+        ICRS declination coordinates, in units of radians, of either shape
         (Ntimes,) if Ntimes >1, otherwise (Ncoord,).
     """
     # Check here to make sure that ra_coord and dec_coord are the same length,
@@ -2187,12 +2213,13 @@ def transform_app_to_sidereal(
         if app_ra.shape != app_dec.shape:
             raise ValueError("app_ra and app_dec must be the same length.")
 
-    if isinstance(time_array, np.ndarray) and multi_coord:
-        if time_array.shape != app_ra.shape:
-            raise ValueError(
-                "time_array must be of either of length 1 (single "
-                "float) or same length as app_ra and app_dec."
-            )
+    if multi_coord:
+        if isinstance(time_array, np.ndarray) or isinstance(time_array, Time):
+            if time_array.shape != app_ra.shape:
+                raise ValueError(
+                    "time_array must be of either of length 1 (single "
+                    "float) or same length as app_ra and app_dec."
+                )
 
     if isinstance(telescope_loc, EarthLocation):
         site_loc = telescope_loc
@@ -2203,47 +2230,24 @@ def transform_app_to_sidereal(
             height=telescope_loc[2],
         )
 
-    # Check to make sure that we have a properly formatted epoch for our in-bound
-    # coordinate frame
-    epoch = None
-    if isinstance(ref_epoch, str) or isinstance(ref_epoch, Time):
-        # If its a string or a Time object, we don't need to do anything more
-        epoch = Time(ref_epoch)
-    elif isinstance(ref_epoch, float):
-        if ref_frame.lower() in ["fk4", "fk4noeterms"]:
-            epoch = Time(ref_epoch, format="byear")
-        else:
-            epoch = Time(ref_epoch, format="jyear")
-    elif ref_epoch is not None:
-        raise ValueError("in_coord_epoch must be of type str, Time, float, or None.")
-
     # Useful for both astropy and novas methods, the latter of which gives easy
     # access to the IERS data that we want.
-    time_obj_array = Time(
-        time_array if isinstance(time_array, np.ndarray) else [time_array],
-        format="jd",
-        scale="utc",
-        location=site_loc,
-    )
-
-    time_obj_array = Time(time_array, format="jd", scale="utc")
+    if isinstance(time_array, Time):
+        time_obj_array = time_array
+    else:
+        time_obj_array = Time(
+            time_array if isinstance(time_array, np.ndarray) else [time_array],
+            format="jd",
+            scale="utc",
+            location=site_loc,
+        )
 
     # Get IERS data, which is needed for highest precision
     polar_motion_data = iers.earth_orientation_table.get()
 
     pm_x_array, pm_y_array = polar_motion_data.pm_xy(time_obj_array)
-    # Let's just make sure we have the right units here. This should be
-    # true unless astropy makes a change we are unaware of.
-    if (pm_x_array.unit != "arcsec") or (
-        pm_y_array.unit != "arcsec"
-    ):  # pragma: no cover
-        raise ValueError(
-            "IERS polar motion data is not in the format expected, please "
-            "notify pyuvdata developers by filing an issue on GitHub "
-            "(https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues)"
-        )
-    pm_x_array = pm_x_array.value * (np.pi / (3600.0 * 180.0))
-    pm_y_array = pm_y_array.value * (np.pi / (3600.0 * 180.0))
+    pm_x_array = pm_x_array.to_value("rad")
+    pm_y_array = pm_y_array.to_value("rad")
 
     bpn_matrix = erfa.pnm06a(time_obj_array.tt.jd, 0.0)
     cip_x, cip_y = erfa.bpn2xy(bpn_matrix)
@@ -2269,31 +2273,8 @@ def transform_app_to_sidereal(
         0,  # wavelength, used for refraction (ignored)
     )
 
-    # At this point, data are in the ICRS reference frame -- if further conversion is
-    # needed, it can go through astropy's normal routines
-    if ref_frame == "icrs":
-        ref_ra = icrs_ra
-        ref_dec = icrs_dec
-    else:
-        sou_info = SkyCoord(
-            ra=icrs_ra * units.rad, dec=icrs_dec * units.rad, frame="icrs",
-        )
-
-        sou_info = sou_info.transform_to(
-            SkyCoord(
-                np.zeros_like(time_obj_array) * units.rad,
-                np.zeros_like(time_obj_array) * units.rad,
-                frame=ref_frame,
-                equinox=epoch,
-                obstime=time_obj_array,
-                location=site_loc,
-            )
-        )
-        ref_ra = sou_info.ra.rad
-        ref_dec = sou_info.dec.rad
-
     # Return back the two RA/Dec arrays
-    return ref_ra, ref_dec
+    return icrs_ra, icrs_dec
 
 
 def calc_parallactic_angle(
@@ -2411,13 +2392,13 @@ def calc_frame_pos_angle(
 
     # Run the set of offset coordinates through the "reverse" transform. The two offset
     # positions are concat'd together to help reduce overheads
-    ref_ra, ref_dec = transform_app_to_sidereal(
+    ref_ra, ref_dec = calc_sidereal_coords(
         np.tile(unique_time, 2),
         np.concatenate((dn_ra, up_ra)),
         np.concatenate((dn_dec, up_dec)),
         telescope_loc,
-        ref_frame=ref_frame,
-        ref_epoch=ref_epoch,
+        ref_frame,
+        coord_epoch=ref_epoch,
     )
 
     # Use the pas function from ERFA to calculate the position angle. The negative sign
@@ -2772,6 +2753,83 @@ def calc_app_coords(
         app_dec[select_mask] = unique_app_dec[idx]
 
     return app_ra, app_dec
+
+
+def calc_sidereal_coords(
+    time_array, app_ra, app_dec, telescope_loc, coord_frame, coord_epoch=None,
+):
+    """
+    Calculate sidereal coordinates given apparent coordiantes.
+
+    This function calculates coordinates in the requested frame (at a given epoch)
+    from a set of apparent coordinates.
+
+    Parameters
+    ----------
+    time_array : float or ndarray of float or Time object
+        Times for which the apparent coordiantes were calculated, in UTC JD. Must
+        match the shape of app_ra and app_dec.
+    app_ra : float or ndarray of float
+        Array of apparent right ascension coordinates, units of radians. Must match
+        the shape of time_array and app_dec.
+    app_ra : float or ndarray of float
+        Array of apparent right declination coordinates, units of radians. Must match
+        the shape of time_array and app_dec.
+    telescope_loc : tuple of floats or EarthLocation
+        ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
+        of the array. Can either be provided as an astropy EarthLocation, or a tuple
+        of shape (3,) containung (in order) the latitude, longitude, and altitude,
+        in units of radians, radians, and meters, respectively.
+    coord_frame : string
+        The requested reference frame for the output coordinates, can be any frame
+        that is presently supported by astropy. Default is ICRS.
+    coord_epoch : float or str or Time object
+        Epoch for ref_frame, nominally only used if converting to either the FK4 or
+        FK5 frames, in units of fractional years. If provided as a float and the
+        ref_frame is an FK4-variant, value will assumed to be given in Besselian
+        years (i.e., 1950 would be 'B1950'), otherwise the year is assumed to be
+        in Julian years.
+
+    Returns
+    -------
+    ref_ra : ndarray of floats
+        Right ascension coordinates in the requested frame, in units of radians.
+        Either shape (Ntimes,) if Ntimes >1, otherwise (Ncoord,).
+    ref_dec : ndarray of floats
+        Declination coordinates in the requested frame, in units of radians.
+        Either shape (Ntimes,) if Ntimes >1, otherwise (Ncoord,).
+    """
+    # Check to make sure that we have a properly formatted epoch for our in-bound
+    # coordinate frame
+    epoch = None
+    if isinstance(coord_epoch, str) or isinstance(coord_epoch, Time):
+        # If its a string or a Time object, we don't need to do anything more
+        epoch = Time(coord_epoch)
+    elif isinstance(coord_epoch, float):
+        if coord_frame.lower() in ["fk4", "fk4noeterms"]:
+            epoch = Time(coord_epoch, format="byear")
+        else:
+            epoch = Time(coord_epoch, format="jyear")
+    elif coord_epoch is not None:
+        raise ValueError("in_coord_epoch must be of type str, Time, float, or None.")
+
+    icrs_ra, icrs_dec = transform_app_to_icrs(
+        time_array, app_ra, app_dec, telescope_loc
+    )
+
+    if coord_frame == "icrs":
+        ref_ra, ref_dec = (icrs_ra, icrs_dec)
+    else:
+        ref_ra, ref_dec = transform_sidereal_coords(
+            icrs_ra,
+            icrs_dec,
+            "icrs",
+            coord_frame,
+            out_coord_epoch=epoch,
+            time_array=time_array,
+        )
+
+    return ref_ra, ref_dec
 
 
 def get_lst_for_time(
