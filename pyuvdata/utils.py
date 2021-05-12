@@ -4508,3 +4508,41 @@ def parse_ants(uv, ant_str, print_toggle=False, x_orientation=None):
         )
 
     return ant_pairs_nums, polarizations
+
+
+def _combine_filenames(filename1, filename2):
+    """Combine the filename attribute from multiple UVData objects.
+
+    The 4 cases are:
+    1. `filename1` has been set, `filename2` has not
+    2. `filename1` has not been set, `filename2` has
+    3. `filename1` and `filename2` both have been set
+    4. `filename1` and `filename2` both have not been set
+    In case (1), we do not want to update the attribute, because it is
+    already set correctly. In case (2), we want to replace `filename1`
+    with the value from `filename2. In case (3), we want to take the union of
+    the sets of the filenames. In case (4), we want the filename attribute
+    to still be `None`.
+
+    Parameters
+    ----------
+    filename1 : list of str or None
+        The list of filenames for the first UVData object. If it is not set, it
+        should be `None`.
+    filename2 : list of str or None
+        The list of filenames for the second UVData object. If it is not set, it
+        should be `None`.
+
+    Returns
+    -------
+    add_filename : list of str or None
+        The combined list, with potentially duplicate entries removed.
+    """
+    add_filename = filename1
+    if filename1 is not None:
+        if filename2 is not None:
+            add_filename = list(set(filename1).union(set(filename2)))
+    elif filename2 is not None:
+        add_filename = filename2
+
+    return add_filename

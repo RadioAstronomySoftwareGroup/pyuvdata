@@ -1186,6 +1186,10 @@ class UVH5(UVData):
                 fix_use_ant_pos,
             )
 
+        # update filename attribute
+        self.filename = [filename]
+        self._filename.form = (1,)
+
         # For now, always use current shapes when data is read in, even if the file
         # has the future shapes.
         if self.future_array_shapes:
