@@ -683,6 +683,11 @@ class UVData(UVBase):
             spoof_val="divide",
         )
 
+        desc = "List containing the unique names of input files"
+        self._filename = uvp.UVParameter(
+            "filename", required=False, description=desc, expected_type=str,
+        )
+
         super(UVData, self).__init__()
 
     def _set_flex_spw(self):
@@ -6440,6 +6445,11 @@ class UVData(UVBase):
         this.Nfreqs = this.freq_array.size
         this.Npols = this.polarization_array.shape[0]
         this.Nants_data = this._calc_nants_data()
+
+        # Update filename parameter
+        this.filename = uvutils._combine_filenames(this.filename, other.filename)
+        if this.filename is not None:
+            this._filename.form = (len(this.filename),)
 
         # Check specific requirements
         if this.Nfreqs > 1:
