@@ -445,15 +445,6 @@ class MS(UVData):
         # Fill in the apparent coordinates here
         self._set_app_coords_helper()
 
-        # At this point, we want to de-rotate the baseline coordinates, since they
-        # calculated with respect to the catalog frame meridian
-        self.uvw_array = uvutils.calc_uvw(
-            uvw_array=self.uvw_array,
-            old_frame_pa=self.phase_center_frame_pa,
-            frame_pa=0.0,
-            use_ant_pos=False,
-        )
-
         # order polarizations
         self.reorder_pols(order=pol_order)
         if run_check:
