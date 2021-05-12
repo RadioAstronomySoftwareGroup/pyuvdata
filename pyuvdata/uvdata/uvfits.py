@@ -348,6 +348,7 @@ class UVFITS(UVData):
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
         fix_old_proj=False,
+        apply_frame_pa_rot=True,
     ):
         """
         Read in header, metadata and data from a uvfits file.
@@ -773,6 +774,16 @@ class UVFITS(UVData):
             # Calculate the apparent coordinate values
             self._set_app_coords_helper()
 
+            # At this point, we want to de-rotate the baseline coordinates, since they
+            # calculated with respect to the catalog frame meridian
+            if apply_frame_pa_rot:
+                self.uvw_array = uvutils.calc_uvw(
+                    uvw_array=self.uvw_array,
+                    old_frame_pa=self.phase_center_frame_pa,
+                    frame_pa=0.0,
+                    use_ant_pos=False,
+                )
+
             if not read_data:
                 # don't read in the data. This means the object is a metadata
                 # only object but that may not matter for many purposes.
@@ -1017,9 +1028,19 @@ class UVFITS(UVData):
             [data_array.real, data_array.imag, weights_array], axis=6
         )
 
+        # UVFITS expects that the baselines have been rotated such that the
+        # v-direction points in the direction as the local meridian of the
+        # coordinate frame for the source
+        uvw_array = uvutils.calc_uvw(
+            uvw_array=self.uvw_array,
+            old_frame_pa=0.0,
+            frame_pa=self.phase_center_frame_pa,
+            use_ant_pos=False,
+        )
+
         # FITS uvw direction convention is opposite ours and Miriad's.
         # So conjugate the visibilities and flip the uvws:
-        uvw_array_sec = -1 * self.uvw_array / const.c.to("m/s").value
+        uvw_array_sec = -1 * uvw_array / const.c.to("m/s").value
         # jd_midnight = np.floor(self.time_array[0] - 0.5) + 0.5
         tzero = np.float32(self.time_array[0])
 

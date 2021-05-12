@@ -355,13 +355,6 @@ class Mir(UVData):
         # (ICRS) and applying the rotation below (via `calc_uvw`).
         self._set_app_coords_helper(pa_only=True)
 
-        self.uvw_array = uvutils.calc_uvw(
-            uvw_array=self.uvw_array,
-            old_frame_pa=0.0,
-            frame_pa=self.phase_center_frame_pa,
-            use_ant_pos=False,
-        )
-
         self.antenna_diameters = np.zeros(self.Nants_telescope) + 6.0
         self.blt_order = ("time", "baseline")
 

@@ -652,6 +652,15 @@ class FHD(UVData):
         self.uvw_array[:, 1] = (-1) * params["VV"][0] * const.c.to("m/s").value
         self.uvw_array[:, 2] = (-1) * params["WW"][0] * const.c.to("m/s").value
 
+        # At this point, we want to de-rotate the baseline coordinates, since they
+        # calculated with respect to the catalog frame meridian
+        self.uvw_array = uvutils.calc_uvw(
+            uvw_array=self.uvw_array,
+            old_frame_pa=self.phase_center_frame_pa,
+            frame_pa=0.0,
+            use_ant_pos=False,
+        )
+
         lin_pol_order = ["xx", "yy", "xy", "yx"]
         linear_pol_dict = dict(zip(lin_pol_order, np.arange(5, 9) * -1))
         pol_list = []

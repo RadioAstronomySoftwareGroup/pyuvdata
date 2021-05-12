@@ -1551,7 +1551,7 @@ def calc_uvw(
         else:
             unique_gha = (lst_array[unique_mask] - app_ra[unique_mask]) - telescope_lon
             unique_dec = app_dec[unique_mask]
-            unique_pa = frame_pa[unique_mask]
+            unique_pa = 0.0 if frame_pa is None else frame_pa[unique_mask]
 
         # Tranpose the ant vectors so that they are in the proper shape
         ant_vectors = np.transpose(antenna_positions)[np.newaxis, :, :]
@@ -1968,6 +1968,10 @@ def transform_icrs_to_app(
     pm_y_array = pm_y_array.value
     delta_x_array = delta_x_array.value
     delta_y_array = delta_y_array.value
+    # Catch the case where we don't have CIP delta values yet (they don't typically have
+    # predictive values like the polar motion does)
+    delta_x_array[np.isnan(delta_x_array)] = 0.0
+    delta_y_array[np.isnan(delta_y_array)] = 0.0
 
     # Set up the source information into a SkyCoord object, since it's a convenient
     # package to put everything into
@@ -2866,6 +2870,11 @@ def get_lst_for_time(
             left=0.0,
             right=0.0,
         )
+
+        # Catch the case where we don't have CIP delta values yet (they don't typically
+        # have predictive values like the polar motion does)
+        delta_x_array[np.isnan(delta_x_array)] = 0.0
+        delta_y_array[np.isnan(delta_y_array)] = 0.0
 
         for idx in range(len(times)):
             novas.cel_pole(
