@@ -978,46 +978,6 @@ def test_unphase_drift_data_error(uv1_2_set_uvws):
     "phase_func,phase_kwargs,err_msg",
     [
         (
-            "unphase_to_drift",
-            {},
-            "The phasing type of the data is unknown. Set the phase_type",
-        ),
-        (
-            "phase",
-            {"ra": 0, "dec": 0, "epoch": "J2000", "allow_rephase": False},
-            "The phasing type of the data is unknown. Set the phase_type",
-        ),
-        (
-            "phase_to_time",
-            {"time": 0, "allow_rephase": False},
-            "The phasing type of the data is unknown. Set the phase_type",
-        ),
-    ],
-)
-def test_unknown_phase_unphase_hera_errors(
-    uv1_2_set_uvws, phase_func, phase_kwargs, err_msg
-):
-    uv_phase, uv_raw = uv1_2_set_uvws
-
-    # Set phase type to unkown on some tests, ignore on others.
-    uv_phase._set_unknown_phase_type()
-    # if this is phase_to_time, use this index set in the dictionary and
-    # assign the value of the time_array associated with that index
-    # this is a little hacky, but we cannot acces uv_phase.time_array in the
-    # parametrize
-    if phase_func == "phase_to_time":
-        phase_kwargs["time"] = uv_phase.time_array[phase_kwargs["time"]]
-
-    with pytest.raises(ValueError) as cm:
-        getattr(uv_phase, phase_func)(**phase_kwargs)
-    assert str(cm.value).startswith(err_msg)
-
-
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize(
-    "phase_func,phase_kwargs,err_msg",
-    [
-        (
             "phase",
             {"ra": 0, "dec": 0, "epoch": "J2000", "allow_rephase": False},
             "The data is already phased;",
@@ -1172,19 +1132,6 @@ def test_old_phasing(future_shapes):
     # details.
     assert np.allclose(uvd2.uvw_array, uvd2_drift.uvw_array, atol=1e-4)
     assert np.allclose(uvd2.uvw_array, uvd2_drift_antpos.uvw_array, atol=2e-2)
-
-
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_set_phase_unknown(casa_uvfits):
-    uv_object = casa_uvfits
-
-    uv_object._set_unknown_phase_type()
-    assert uv_object.phase_type == "unknown"
-    assert not uv_object._phase_center_epoch.required
-    assert not uv_object._phase_center_ra.required
-    assert not uv_object._phase_center_dec.required
-    assert uv_object.check()
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -9439,18 +9386,6 @@ def test_deprecation_warnings_set_phased():
     assert uv._phase_center_epoch.required is False
     assert uv._phase_center_ra.required is False
     assert uv._phase_center_dec.required is False
-
-    # now call set_unknown_phase_type
-    with uvtest.check_warnings(
-        DeprecationWarning, match="`set_unknown_phase_type` is deprecated"
-    ):
-        uv.set_unknown_phase_type()
-    assert uv.phase_type == "unknown"
-    assert uv._phase_center_epoch.required is False
-    assert uv._phase_center_ra.required is False
-    assert uv._phase_center_dec.required is False
-
-    return
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")

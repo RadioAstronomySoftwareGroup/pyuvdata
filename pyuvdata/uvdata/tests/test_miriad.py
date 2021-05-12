@@ -254,15 +254,6 @@ def test_read_miriad_phasing_errors(err_type, read_kwargs, err_msg):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_read_miriad_write_uvfits_phasing_error(uv_in_uvfits):
-    miriad_uv, uvfits_uv, testfile = uv_in_uvfits
-
-    miriad_uv._set_unknown_phase_type()
-    with pytest.raises(ValueError, match="The phasing type of the data is unknown"):
-        miriad_uv.write_uvfits(testfile, spoof_nonessential=True)
-
-
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_wronglatlon():
     """
     Check for appropriate warnings with incorrect lat/lon values or missing telescope
@@ -861,15 +852,6 @@ def test_miriad_antenna_diameters(uv_in_paper):
     assert uv_out.antenna_diameters is None
     uv_out.antenna_diameters = uv_in.antenna_diameters
     assert uv_in == uv_out
-
-
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_miriad_write_miriad_unkonwn_phase_error(uv_in_paper):
-    uv_in, uv_out, write_file = uv_in_paper
-    # check that trying to write a file with unknown phasing raises an error
-    uv_in._set_unknown_phase_type()
-    with pytest.raises(ValueError, match="The phasing type of the data is unknown"):
-        uv_in.write_miriad(write_file, clobber=True)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")

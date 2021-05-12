@@ -845,7 +845,6 @@ class UVFITS(UVData):
         ValueError
             The `phase_type` of the object is "drift" and the `force_phase`
             keyword is not set.
-            The `phase_type` of the object is "unknown".
             If the frequencies are not evenly spaced or are separated by more
             than their channel width.
             The polarization values are not evenly spaced.

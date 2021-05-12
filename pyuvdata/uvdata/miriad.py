@@ -1515,9 +1515,9 @@ class Miriad(UVData):
                 warnings.warn(
                     "drift RA, Dec is off from lst, latitude by more than {}, "
                     "so it appears that it is not a zenith drift scan. "
-                    'Setting phase_type to "unknown"'.format(acceptable_offset)
+                    'Setting phase_type to "drift" for now'.format(acceptable_offset)
                 )
-                self._set_unknown_phase_type()
+                self._set_drift()
 
         # close out now that we're done
         uv.close()
@@ -1620,7 +1620,6 @@ class Miriad(UVData):
         ValueError
             If the frequencies are not evenly spaced or are separated by more
             than their channel width.
-            The `phase_type` of the object is "unknown".
         TypeError
             If any entry in extra_keywords is not a single string or number.
 

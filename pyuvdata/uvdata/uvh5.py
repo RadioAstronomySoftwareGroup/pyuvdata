@@ -510,10 +510,15 @@ class UVH5(UVData):
                 self.phase_center_app_dec = header["phase_center_app_dec"][:]
             if "phase_center_frame_pa" in header:
                 self.phase_center_frame_pa = header["phase_center_frame_pa"][:]
-        elif self.phase_type == "drift":
-            self._set_drift()
         else:
-            self._set_unknown_phase_type()
+            if self.phase_type != "drift":
+                warnings.warn(
+                    "Unknown phase types are no longer supported, marking this "
+                    'object as phase_type="drift" by default. If this was a phased '
+                    "object, you can set the phase type correctly by running the "
+                    "_set_phased() method."
+                )
+            self._set_drift()
 
         # Here is where we collect the other optional source/phasing info
         if "object_dict" in header:

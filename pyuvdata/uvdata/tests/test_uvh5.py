@@ -1802,7 +1802,7 @@ def test_uvh5_read_header_special_cases(casa_uvfits, tmp_path):
 
     # make input and output values match now
     uv_in.history = uv_out.history
-    uv_in._set_unknown_phase_type()
+    uv_in._set_drift()
     uv_in.phase_center_ra = None
     uv_in.phase_center_dec = None
     uv_in.phase_center_epoch = None
