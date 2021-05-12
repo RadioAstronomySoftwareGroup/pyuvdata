@@ -4047,6 +4047,7 @@ class UVData(UVBase):
                 ant_2_array=self.ant_2_array,
                 old_app_ra=self.phase_center_app_ra,
                 old_app_dec=self.phase_center_app_dec,
+                old_frame_pa=self.phase_center_frame_pa,
                 telescope_lat=telescope_location[0],
                 telescope_lon=telescope_location[1],
                 to_enu=True,
@@ -4545,6 +4546,7 @@ class UVData(UVBase):
                 old_w_vals = 0.0
                 old_app_ra = None
                 old_app_dec = None
+                old_frame_pa = None
                 from_enu = True
             elif self.phase_type == "phased":
                 old_w_vals = self.uvw_array[:, 2]
@@ -4584,6 +4586,7 @@ class UVData(UVBase):
                     old_w_vals = self.uvw_array[:, 2].copy()
                     old_app_ra = self.phase_center_app_ra
                     old_app_dec = self.phase_center_app_dec
+                    old_frame_pa = self.phase_center_frame_pa
                     from_enu = False
                     if self.multi_object:
                         # Check and see if we have any unphased objects, in which case
@@ -4661,6 +4664,7 @@ class UVData(UVBase):
             new_uvw = uvutils.calc_uvw(
                 app_ra=new_app_ra,
                 app_dec=new_app_dec,
+                frame_pa=new_frame_pa,
                 lst_array=lst_array,
                 use_ant_pos=use_ant_pos,
                 uvw_array=uvw_array,
@@ -4670,6 +4674,7 @@ class UVData(UVBase):
                 ant_2_array=ant_2_array,
                 old_app_ra=old_app_ra,
                 old_app_dec=old_app_dec,
+                old_frame_pa=old_frame_pa,
                 telescope_lat=self.telescope_location_lat_lon_alt[0],
                 telescope_lon=self.telescope_location_lat_lon_alt[1],
                 from_enu=from_enu,
@@ -5065,6 +5070,7 @@ class UVData(UVBase):
             new_uvw = uvutils.calc_uvw(
                 app_ra=self.phase_center_app_ra,
                 app_dec=self.phase_center_app_dec,
+                frame_pa=self.phase_center_frame_pa,
                 lst_array=self.lst_array,
                 use_ant_pos=True,
                 antenna_positions=self.antenna_positions,
@@ -9763,7 +9769,6 @@ class UVData(UVBase):
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
         fix_old_proj=None,
-        apply_frame_pa_rot=True,
     ):
         """
         Read in header, metadata and data from a single uvfits file.
@@ -9913,7 +9918,6 @@ class UVData(UVBase):
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
             fix_old_proj=fix_old_proj,
-            apply_frame_pa_rot=apply_frame_pa_rot,
         )
         self._convert_from_filetype(uvfits_obj)
         del uvfits_obj
@@ -10167,7 +10171,6 @@ class UVData(UVBase):
         lsts=None,
         lst_range=None,
         fix_old_proj=None,
-        apply_frame_pa_rot=True,
     ):
         """
         Read a generic file into a UVData object.
@@ -10546,7 +10549,6 @@ class UVData(UVBase):
                         corrchunk=corrchunk,
                         pseudo_cont=pseudo_cont,
                         fix_old_proj=fix_old_proj,
-                        apply_frame_pa_rot=apply_frame_pa_rot,
                     )
                     unread = False
                 except KeyError as err:
@@ -10619,7 +10621,6 @@ class UVData(UVBase):
                             corrchunk=corrchunk,
                             pseudo_cont=pseudo_cont,
                             fix_old_proj=fix_old_proj,
-                            apply_frame_pa_rot=apply_frame_pa_rot,
                         )
                         uv_list.append(uv2)
                     except KeyError as err:
@@ -10804,7 +10805,6 @@ class UVData(UVBase):
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
                     fix_old_proj=fix_old_proj,
-                    apply_frame_pa_rot=apply_frame_pa_rot,
                 )
 
             elif file_type == "mir":

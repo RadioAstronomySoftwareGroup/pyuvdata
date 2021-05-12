@@ -1057,7 +1057,6 @@ def test_phase_unphase_hera_bad_frame(uv1_2_set_uvws):
 
 # We're using the old phase method here since these values were all derived using that
 # method, so we'll just filter out those warnings now.
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:The original `phase` method will be deprecated in")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_old_phasing(future_shapes):
@@ -1066,8 +1065,8 @@ def test_old_phasing(future_shapes):
     file2 = os.path.join(DATA_PATH, "1133866760_rephase.uvfits")
     uvd1 = UVData()
     uvd2 = UVData()
-    uvd1.read_uvfits(file1, apply_frame_pa_rot=False)
-    uvd2.read_uvfits(file2, apply_frame_pa_rot=False)
+    uvd1.read_uvfits(file1)
+    uvd2.read_uvfits(file2)
 
     if future_shapes:
         uvd1.use_future_array_shapes()
