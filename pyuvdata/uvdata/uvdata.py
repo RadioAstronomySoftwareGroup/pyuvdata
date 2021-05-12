@@ -361,16 +361,16 @@ class UVData(UVBase):
 
         # --- phasing information ---
         desc = (
-            'String indicating phasing type. Allowed values are "drift", '
-            '"phased" and "unknown"'
+            'String indicating phasing type. Allowed values are "drift" and '
+            '"phased".'
         )
         self._phase_type = uvp.UVParameter(
             "phase_type",
             form="str",
             expected_type=str,
             description=desc,
-            value="unknown",
-            acceptable_vals=["drift", "phased", "unknown"],
+            value=None,
+            acceptable_vals=["drift", "phased"],
         )
 
         desc = (
@@ -1572,12 +1572,6 @@ class UVData(UVBase):
                 # Unphased dictionary are simple -- they just require two elements
                 object_dict = {"object_type": "unphased"}
 
-            elif self.phase_type == "unknown":
-                raise ValueError(
-                    "Cannot preserve object properties of the existing data set if "
-                    "the phasing type is unknown! Either specify phasing type, or "
-                    "set /preserve_object_info=False."
-                )
             # Create our object dictionary
             self.object_dict = {self.object_name[0]: object_dict}
             # When convering from single-source, all baselines should be phased to
@@ -1656,37 +1650,6 @@ class UVData(UVBase):
             DeprecationWarning,
         )
         self._set_phased()
-
-    def _set_unknown_phase_type(self):
-        """
-        Set phase_type to 'unknown' and adjust required parameters.
-
-        This method should not be called directly by users; instead it is called
-        by file-reading methods to indicate the `phase_type` is "unknown" and
-        define which metadata are required.
-        """
-        self.phase_type = "unknown"
-        self._phase_center_frame.required = False
-        self._phase_center_epoch.required = False
-        self._phase_center_ra.required = False
-        self._phase_center_dec.required = False
-        self._phase_center_app_ra.required = False
-        self._phase_center_app_dec.required = False
-        self._phase_center_frame_pa.required = False
-
-    def set_unknown_phase_type(self):
-        """
-        Set phase_type to 'unknown' and adjust required parameters.
-
-        This method is deprecated, and will be removed in pyuvdata v2.2. Use
-        `_set_unknown_phase_type` instead.
-        """
-        warnings.warn(
-            "`set_unknown_phase_type` is deprecated, and will be removed in "
-            "pyuvdata version 2.2. Use `_set_unknown_phase_type` instead.",
-            DeprecationWarning,
-        )
-        self._set_unknown_phase_type()
 
     @property
     def _data_params(self):
@@ -2211,7 +2174,7 @@ class UVData(UVBase):
         elif self.phase_type == "drift":
             self._set_drift()
         else:
-            self._set_unknown_phase_type()
+            raise ValueError('Phase type must be either "phased" or "drift"')
 
         super(UVData, self).check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
@@ -11016,7 +10979,6 @@ class UVData(UVBase):
         ValueError
             If the frequencies are not evenly spaced or are separated by more
             than their channel width.
-            The `phase_type` of the object is "unknown".
         TypeError
             If any entry in extra_keywords is not a single string or number.
 
@@ -11100,7 +11062,6 @@ class UVData(UVBase):
         ValueError
             The `phase_type` of the object is "drift" and the `force_phase`
             keyword is not set.
-            The `phase_type` of the object is "unknown".
             If the frequencies are not evenly spaced or are separated by more
             than their channel width.
             The polarization values are not evenly spaced.
