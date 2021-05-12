@@ -4707,7 +4707,8 @@ class UVData(UVBase):
             return
 
         warnings.warn(
-            "The original `phase` method will be deprecated in a future release. "
+            "The original `phase` method is deprecated, and will be removed in "
+            "pyuvdata v3.0 (although `fix_phase` will remain for longer). "
             "Note that the old and new phase methods are NOT compatible with one "
             "another, so if you have phased using the old method, you should call "
             "the phase method with fix_old_proj=True, or otherwise can use the "
