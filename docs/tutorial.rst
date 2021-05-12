@@ -544,7 +544,10 @@ c) Resampling a BDA dataset in time
   Range of integration times:  2.0 - 16.0
 
   >>> # Resample all baselines to an 8s integration time
-  >>> uv_object.resample_in_time(8)
+  >>> uv_object.resample_in_time(8, allow_drift=True)
+  Data are in drift mode and allow_drift is True, so resampling will be done without phasing.
+  Data are in drift mode and allow_drift is True, so resampling will be done without phasing.
+
   >>> print("Range of integration times after resampling: ", np.amin(uv_object.integration_time),
   ...       "-", np.amax(uv_object.integration_time))
   Range of integration times after resampling:  8.0 - 8.0
