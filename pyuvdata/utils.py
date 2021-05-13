@@ -1535,7 +1535,7 @@ def calc_uvw(
             )
         if telescope_lat is None:
             raise ValueError(
-                "Must include telescope_lon to calculate baselines"
+                "Must include telescope_lat to calculate baselines"
                 "in ENU coordinates!"
             )
     else:
@@ -1621,6 +1621,8 @@ def calc_uvw(
             - ant_rot_vectors[unique_map + ant_1_index]
         )
     else:
+        if uvw_array is None:
+            raise ValueError("Must include uvw_array if use_ant_pos=False.")
         if from_enu:
             if to_enu:
                 # Well this was pointless... returning your uvws unharmed
@@ -1643,15 +1645,11 @@ def calc_uvw(
             if (app_ra is None and old_app_ra is None) and (
                 app_dec is None and old_app_dec is None
             ):
-                if (old_frame_pa is None) != (frame_pa is None):
+                if old_frame_pa is None:
                     raise ValueError(
                         "Must include old_frame_pa values if data are phased and "
                         "applying new position angle values (frame_pa)."
                     )
-                if (old_frame_pa is None) and (frame_pa is None):
-                    # Update uvw by changing.... nothing? Returning back a copy of the
-                    # array (rather than a ref) so that the two arrays aren't coupled.
-                    return deepcopy(uvw_array)
             elif (old_app_ra is None) or (old_app_dec is None):
                 raise ValueError(
                     "Must include old_app_ra and old_app_dec values when data are "
@@ -2214,6 +2212,10 @@ def transform_app_to_icrs(time_array, app_ra, app_dec, telescope_loc):
             raise ValueError("app_ra and app_dec must be the same length.")
 
     if multi_coord:
+        print(time_array)
+        print(type(time_array))
+        print(time_array.shape)
+        print(app_ra.shape)
         if isinstance(time_array, np.ndarray) or isinstance(time_array, Time):
             if time_array.shape != app_ra.shape:
                 raise ValueError(
