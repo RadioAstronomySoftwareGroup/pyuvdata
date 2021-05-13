@@ -1782,8 +1782,9 @@ class Miriad(UVData):
             )
 
         if self.phase_type == "phased":
-            uv.add_var("epoch", "r")
-            uv["epoch"] = self.phase_center_epoch
+            if self.phase_center_epoch is not None:
+                uv.add_var("epoch", "r")
+                uv["epoch"] = self.phase_center_epoch
             if self.phase_center_frame is not None:
                 uv.add_var("phsframe", "a")
                 uv["phsframe"] = self.phase_center_frame

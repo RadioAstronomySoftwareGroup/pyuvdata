@@ -1599,7 +1599,6 @@ class UVData(UVBase):
         """
         self.phase_type = "drift"
         self._phase_center_frame.required = False
-        self._phase_center_epoch.required = False
         self._phase_center_ra.required = False
         self._phase_center_dec.required = False
         self._phase_center_app_ra.required = False
@@ -1630,7 +1629,6 @@ class UVData(UVBase):
         """
         self.phase_type = "phased"
         self._phase_center_frame.required = True
-        self._phase_center_epoch.required = True
         self._phase_center_ra.required = True
         self._phase_center_dec.required = True
         self._phase_center_app_ra.required = True

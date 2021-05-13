@@ -503,7 +503,8 @@ class UVH5(UVData):
         if self.phase_type == "phased":
             self.phase_center_ra = float(header["phase_center_ra"][()])
             self.phase_center_dec = float(header["phase_center_dec"][()])
-            self.phase_center_epoch = float(header["phase_center_epoch"][()])
+            if "phase_center_epoch" in header:
+                self.phase_center_epoch = float(header["phase_center_epoch"][()])
             self._set_phased()
             if "phase_center_app_ra" in header and "phase_center_app_dec" in header:
                 self.phase_center_app_ra = header["phase_center_app_ra"][:]

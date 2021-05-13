@@ -1173,7 +1173,8 @@ class UVFITS(UVData):
         hdu.header["LON     "] = self.telescope_location_lat_lon_alt_degrees[1]
         hdu.header["ALT     "] = self.telescope_location_lat_lon_alt[2]
         hdu.header["INSTRUME"] = self.instrument
-        hdu.header["EPOCH   "] = float(self.phase_center_epoch)
+        if self.phase_center_epoch is not None:
+            hdu.header["EPOCH   "] = float(self.phase_center_epoch)
         # TODO: This is a keyword that should at some point get added for velocity
         # reference stuff, although for right now pyuvdata doesn't do any sort of
         # handling of this, so stub this out for now.
