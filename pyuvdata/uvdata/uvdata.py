@@ -290,7 +290,21 @@ class UVData(UVBase):
         desc = (
             "Only relevant if multi_object = True. Dictionary containing information "
             "individual objects, including coordinate information. Keys are matched "
-            "items in the object_name list attribute."
+            "items in the object_name list attribute. At a minimum, the each "
+            'dictionary must contain the key "object_type", which can be either '
+            '"sidereal" (fixed position in RA/Dec), "ephem" (position in RA/Dec which'
+            'moves with time), "driftscan" (fixed postion in Az/El, NOT the same as '
+            '`phase_type`="drift") and "unphased" (baseline coordinates in ENU, but '
+            'data are not phased, similat to `phase_type`="drift"). Other typical '
+            'keyworks include "object_lon" (longitude coord, e.g. RA), "object_lat" '
+            '(latitude coord, e.g. Dec.), "coord_frame" (coordinate frame, e.g. '
+            'icrs), "coord_epoch" (epoch and equinox of the coordinate frame), '
+            '"coord_times" (times for the coordinates, only used for "ephem" '
+            'objects), "object_pm_ra" (proper motion in RA), "object_pm_dec" (proper '
+            'motion in Dec), "object_dist" (physical distance), "object_vel" ('
+            'rest frame velocity), "object_src" (describes where object data came '
+            'from), and "object_id" (matched to the parameter `object_id_array`. '
+            "See the documentation of the `_add_object` method for more details."
         )
         self._object_dict = uvp.UVParameter(
             "object_dict", description=desc, expected_type=dict, required=False,
@@ -362,7 +376,8 @@ class UVData(UVBase):
         # --- phasing information ---
         desc = (
             'String indicating phasing type. Allowed values are "drift" and '
-            '"phased".'
+            '"phased" (n.b., "drift" is not the same as `object_type="driftscan"`, '
+            "the latter of which _is_ phased to a fixed az-el position)."
         )
         self._phase_type = uvp.UVParameter(
             "phase_type",
