@@ -8,7 +8,6 @@
 import pytest
 import numpy as np
 from astropy import units
-from astropy.time import Time
 from astropy.coordinates import Distance
 
 from pyuvdata.uvbase import UVBase
@@ -83,13 +82,6 @@ class UVTest(UVBase):
 
         self._location = uvp.LocationParameter(
             "location", description="location", value=np.array(ref_xyz)
-        )
-
-        self._time = uvp.UVParameter(
-            "time",
-            description="astropy Time object",
-            value=Time("2015-03-01 00:00:00", scale="utc"),
-            expected_type=Time,
         )
 
         self._optional_int1 = uvp.UVParameter(
