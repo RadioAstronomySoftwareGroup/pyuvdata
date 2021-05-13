@@ -597,6 +597,7 @@ def test_roundtrip_blt_order(casa_uvfits, tmp_path):
         {"freq_chans": [0]},
         {"polarizations": [-1, -2]},
         {"time_inds": np.array([0, 1])},
+        {"lst_inds": np.array([0, 1])},
         {
             "antenna_nums": np.array([0, 19, 11, 24, 3, 23, 1, 20, 21]),
             "freq_chans": np.arange(12, 22),
@@ -623,6 +624,11 @@ def test_select_read(casa_uvfits, tmp_path, select_kwargs):
         time_inds = select_kwargs.pop("time_inds")
         unique_times = np.unique(uvfits_uv2.time_array)
         select_kwargs["time_range"] = unique_times[time_inds]
+
+    if "lst_inds" in select_kwargs.keys():
+        lst_inds = select_kwargs.pop("lst_inds")
+        unique_lsts = np.unique(uvfits_uv2.lst_array)
+        select_kwargs["lst_range"] = unique_lsts[lst_inds]
 
     uvfits_uv.read(casa_tutorial_uvfits, **select_kwargs)
     uvfits_uv2.select(**select_kwargs)
