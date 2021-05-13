@@ -2212,10 +2212,6 @@ def transform_app_to_icrs(time_array, app_ra, app_dec, telescope_loc):
             raise ValueError("app_ra and app_dec must be the same length.")
 
     if multi_coord:
-        print(time_array)
-        print(type(time_array))
-        print(time_array.shape)
-        print(app_ra.shape)
         if isinstance(time_array, np.ndarray) or isinstance(time_array, Time):
             if time_array.shape != app_ra.shape:
                 raise ValueError(
