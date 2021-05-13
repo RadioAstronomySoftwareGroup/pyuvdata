@@ -539,6 +539,37 @@ def test_uvh5_partial_read_times(casa_uvfits, future_shapes, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_uvh5_partial_read_lsts(casa_uvfits, future_shapes, tmp_path):
+    """
+    Test reading in only certain lsts from disk.
+    """
+    uv_in = casa_uvfits
+    if future_shapes:
+        uv_in.use_future_array_shapes()
+
+    uvh5_uv = UVData()
+    uvh5_uv2 = UVData()
+    testfile = str(tmp_path / "outtest.uvh5")
+    # change telescope name to avoid errors
+    uv_in.telescope_name = "PAPER"
+    uv_in.write_uvh5(testfile, clobber=True)
+    uvh5_uv.read(testfile)
+
+    # select on read using lst_range
+    unique_lsts = np.unique(uvh5_uv.lst_array)
+    uvh5_uv.read(testfile, lst_range=[unique_lsts[0], unique_lsts[2]])
+    uvh5_uv2.read(testfile)
+    uvh5_uv2.select(lst_range=[unique_lsts[0], unique_lsts[2]])
+    assert uvh5_uv == uvh5_uv2
+
+    # clean up
+    os.remove(testfile)
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Selected polarization values are not evenly spaced")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_uvh5_partial_read_multi1(casa_uvfits, future_shapes, tmp_path):
