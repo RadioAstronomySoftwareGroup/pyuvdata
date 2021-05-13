@@ -10,12 +10,7 @@ import os
 import pytest
 import numpy as np
 
-try:
-    import erfa
-except ModuleNotFoundError:
-    # TODO: This is for backwards compatibility with astropy < 4.2.
-    # When we require 4.2 or greater it should be removed.
-    from astropy import _erfa as erfa
+import erfa
 from astropy.io import fits
 
 from pyuvdata import UVData

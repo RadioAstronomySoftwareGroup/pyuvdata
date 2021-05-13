@@ -10,7 +10,6 @@ Subclassed by UVData and Telescope.
 import copy
 import warnings
 
-from astropy.time import Time
 import numpy as np
 from astropy.units import Quantity
 
@@ -333,16 +332,13 @@ class UVBase(object):
                     # Check the shape of the parameter value. Note that np.shape
                     # returns an empty tuple for single numbers.
                     # eshape should do the same.
-                    if isinstance(param.value, Time):
-                        this_shape = np.shape(param.value.value)
-                    else:
-                        this_shape = np.shape(param.value)
-
-                    if not this_shape == eshape:
+                    if not np.shape(param.value) == eshape:
                         raise ValueError(
-                            f"UVParameter {param.name} is not expected shape. "
-                            f"Parameter shape is {this_shape}, expected shape is "
-                            f"{eshape}."
+                            "UVParameter {param} is not expected shape. "
+                            "Parameter shape is {pshape}, expected shape is "
+                            "{eshape}.".format(
+                                param=p, pshape=np.shape(param.value), eshape=eshape
+                            )
                         )
                     # Quantity objects complicate things slightly
                     # Do a separate check with warnings until a quantity based
