@@ -107,7 +107,7 @@ def uvf_from_waterfall(uvdata_obj):
 try:
     pytest_cases = pytest.importorskip("pytest_cases", minversion="1.12.1")
 
-    cases_decorator = pytest_cases.parametrize_plus(
+    cases_decorator = pytest_cases.parametrize(
         "input_uvf",
         [
             pytest_cases.fixture_ref(uvf_from_data),
@@ -116,7 +116,7 @@ try:
         ],
     )
 
-    cases_decorator_no_waterfall = pytest_cases.parametrize_plus(
+    cases_decorator_no_waterfall = pytest_cases.parametrize(
         "input_uvf",
         [
             pytest_cases.fixture_ref(uvf_from_data),
