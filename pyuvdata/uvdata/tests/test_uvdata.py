@@ -1670,6 +1670,58 @@ def test_select_lsts(casa_uvfits, future_shapes):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_select_lsts_multi_day(casa_uvfits, future_shapes):
+    uv_object = casa_uvfits
+    # check that times come from a single JD
+    assert len(np.unique(np.asarray(uv_object.time_array, dtype=np.int_))) == 1
+    # artificially make a "double object" with times on 2 different days
+    # the addition of 0.9973 days is cleverly chosen so LSTs will roughly line up
+    uv_object2 = uv_object.copy()
+    uv_object2.time_array += 0.9973
+    assert len(np.unique(np.asarray(uv_object2.time_array, dtype=np.int_))) == 1
+    uv_object2.set_lsts_from_time_array()
+    uv_object += uv_object2
+    # check we have times from 2 days
+    assert len(np.unique(np.asarray(uv_object.time_array, dtype=np.int_))) == 2
+
+    if future_shapes:
+        uv_object.use_future_array_shapes()
+
+    old_history = uv_object.history
+    unique_lsts = np.unique(uv_object.lst_array)
+    mean_lst = np.mean(unique_lsts)
+    lst_range = [np.min(unique_lsts), mean_lst]
+    lsts_to_keep = unique_lsts[
+        np.nonzero((unique_lsts <= lst_range[1]) & (unique_lsts >= lst_range[0]))
+    ]
+
+    Nblts_selected = np.nonzero(
+        (uv_object.lst_array <= lst_range[1]) & (uv_object.lst_array >= lst_range[0])
+    )[0].size
+
+    uv_object2 = uv_object.copy()
+    uv_object2.select(lst_range=lst_range)
+
+    assert lsts_to_keep.size == uv_object2.Ntimes
+    assert Nblts_selected == uv_object2.Nblts
+    for lst in lsts_to_keep:
+        assert lst in uv_object2.lst_array
+    for lst in np.unique(uv_object2.lst_array):
+        assert lst in lsts_to_keep
+    unique_jds = np.unique(np.asarray(uv_object2.time_array, dtype=np.int_))
+    assert len(unique_jds) == 2
+
+    assert uvutils._check_histories(
+        old_history + "  Downselected to specific lsts using pyuvdata.",
+        uv_object2.history,
+    )
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_lsts_out_of_range_error(casa_uvfits):
     uv_object = casa_uvfits
     unique_lsts = np.unique(uv_object.lst_array)
