@@ -5972,7 +5972,7 @@ def test_set_uvws_from_antenna_pos():
             [UserWarning, DeprecationWarning],
             [
                 "Data will be unphased",
-                "The original `phase` method will be deprecated in a future release.",
+                "The original `phase` method is deprecated, and will be removed",
             ],
         ):
             uv_object.set_uvws_from_antenna_positions(
@@ -5985,7 +5985,7 @@ def test_set_uvws_from_antenna_pos():
             [UserWarning, DeprecationWarning],
             [
                 "Data will be unphased",
-                "The original `phase` method will be deprecated in a future release.",
+                "The original `phase` method is deprecated, and will be removed",
             ],
         ):
             uv_object.set_uvws_from_antenna_positions(
@@ -5998,7 +5998,10 @@ def test_set_uvws_from_antenna_pos():
 
     with uvtest.check_warnings(
         [UserWarning, DeprecationWarning],
-        ["Data will be unphased", "The original `phase` method will be deprecated in"],
+        [
+            "Data will be unphased",
+            "The original `phase` method is deprecated, and will be removed",
+        ],
     ):
         uv_object.set_uvws_from_antenna_positions(
             allow_phasing=True,
@@ -9375,7 +9378,6 @@ def test_deprecation_warnings_set_phased():
     with uvtest.check_warnings(DeprecationWarning, match="`set_phased` is deprecated"):
         uv.set_phased()
     assert uv.phase_type == "phased"
-    assert uv._phase_center_epoch.required is True
     assert uv._phase_center_ra.required is True
     assert uv._phase_center_dec.required is True
 
@@ -9383,7 +9385,6 @@ def test_deprecation_warnings_set_phased():
     with uvtest.check_warnings(DeprecationWarning, match="`set_drift` is deprecated"):
         uv.set_drift()
     assert uv.phase_type == "drift"
-    assert uv._phase_center_epoch.required is False
     assert uv._phase_center_ra.required is False
     assert uv._phase_center_dec.required is False
 
