@@ -598,6 +598,321 @@ def test_rot_funcs():
     )
 
 
+def test_calc_uvw_inputs():
+    # Thes various input fails for calc_uvw routine
+
+    app_ra = np.zeros(3)
+    app_dec = np.zeros(3)
+    frame_pa = np.zeros(3)
+    lst_array = np.zeros(3)
+    uvw_array = np.array([[1, -1, 0], [0, -1, 1], [-1, 0, 1]], dtype=float)
+    antenna_positions = np.array([[0, 0, 1], [0, 1, 0], [1, 0, 0]], dtype=float)
+    antenna_numbers = [1, 2, 3]
+    ant_1_array = np.array([1, 1, 2])
+    ant_2_array = np.array([2, 3, 3])
+    telescope_lat = 0.0
+    telescope_lon = 0.0
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.calc_uvw(lst_array=None, use_ant_pos=False, to_enu=True)
+    assert str(cm.value).startswith(
+        "Must include lst_array to calculate baselines in ENU coordinates!"
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.calc_uvw(lst_array=None, use_ant_pos=True, to_enu=True)
+    assert str(cm.value).startswith("Must include telescope_lat to calculate baselines")
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.calc_uvw()
+    assert str(cm.value).startswith(
+        "Must include both app_ra and app_dec, or frame_pa to calculate "
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.calc_uvw(app_ra=app_ra, app_dec=app_dec, use_ant_pos=True)
+    assert str(cm.value).startswith(
+        "Must include antenna_positions if use_ant_pos=True."
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.calc_uvw(
+            app_ra=app_ra,
+            app_dec=app_dec,
+            use_ant_pos=True,
+            antenna_positions=antenna_positions,
+        )
+    assert str(cm.value).startswith(
+        "Must include ant_1_array, ant_2_array, and antenna_numbers "
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.calc_uvw(
+            app_ra=app_ra,
+            app_dec=app_dec,
+            use_ant_pos=True,
+            antenna_positions=antenna_positions,
+            ant_1_array=ant_1_array,
+            ant_2_array=ant_2_array,
+            antenna_numbers=antenna_numbers,
+        )
+    assert str(cm.value).startswith(
+        "Must include lst_array if use_ant_pos=True and not calculating"
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.calc_uvw(
+            app_ra=app_ra,
+            app_dec=app_dec,
+            use_ant_pos=True,
+            antenna_positions=antenna_positions,
+            ant_1_array=ant_1_array,
+            ant_2_array=ant_2_array,
+            antenna_numbers=antenna_numbers,
+            lst_array=lst_array,
+        )
+    assert str(cm.value).startswith("Must include telescope_lon if use_ant_pos=True.")
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.calc_uvw(
+            app_ra=app_ra,
+            app_dec=app_dec,
+            use_ant_pos=False,
+            telescope_lon=telescope_lon,
+            from_enu=True,
+        )
+    assert str(cm.value).startswith("Must include uvw_array if use_ant_pos=False.")
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.calc_uvw(
+            app_ra=app_ra,
+            app_dec=app_dec,
+            use_ant_pos=False,
+            uvw_array=uvw_array,
+            telescope_lon=telescope_lon,
+            from_enu=True,
+        )
+    assert str(cm.value).startswith(
+        "Must include telescope_lat and telescope_lat if moving between "
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.calc_uvw(
+            app_ra=app_ra,
+            app_dec=app_dec,
+            use_ant_pos=False,
+            uvw_array=uvw_array,
+            telescope_lon=telescope_lon,
+            telescope_lat=telescope_lat,
+            from_enu=True,
+        )
+    assert str(cm.value).startswith(
+        'Must include lst_array if moving between ENU (i.e., "unphased") '
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.calc_uvw(
+            frame_pa=frame_pa,
+            use_ant_pos=False,
+            uvw_array=uvw_array,
+            telescope_lon=telescope_lon,
+            telescope_lat=telescope_lat,
+            lst_array=lst_array,
+        )
+    assert str(cm.value).startswith(
+        "Must include old_frame_pa values if data are phased and "
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.calc_uvw(
+            app_ra=app_ra,
+            app_dec=app_dec,
+            frame_pa=frame_pa,
+            use_ant_pos=False,
+            uvw_array=uvw_array,
+            telescope_lon=telescope_lon,
+            telescope_lat=telescope_lat,
+            lst_array=lst_array,
+        )
+    assert str(cm.value).startswith(
+        "Must include old_app_ra and old_app_dec values when data are "
+    )
+
+
+def test_calc_uvw():
+    app_ra = np.zeros(3)
+    app_dec = np.zeros(3) + 1.0
+    frame_pa = np.zeros(3) + 1e-3
+    lst_array = np.zeros(3) + np.pi
+    uvw_array = np.array([[1, -1, 0], [0, -1, 1], [-1, 0, 1]], dtype=float)
+    antenna_positions = np.array([[0, 0, 1], [0, 1, 0], [1, 0, 0]], dtype=float)
+    antenna_numbers = [1, 2, 3]
+    ant_1_array = np.array([1, 1, 2])
+    ant_2_array = np.array([2, 3, 3])
+    old_app_ra = np.zeros(3) + np.pi
+    old_app_dec = np.zeros(3)
+    old_frame_pa = np.zeros(3)
+    telescope_lat = 1.0
+    telescope_lon = 0.0
+
+    # This should be a no-op, check for equality
+    uvw_check = uvutils.calc_uvw(
+        lst_array=lst_array,
+        use_ant_pos=False,
+        uvw_array=uvw_array,
+        telescope_lat=telescope_lat,
+        telescope_lon=telescope_lon,
+        to_enu=True,
+        from_enu=True,
+    )
+    assert np.all(np.equal(uvw_array, uvw_check))
+
+    # Check ant make sure when tracking, we can arrive at the same place
+    uvw_ant_check = uvutils.calc_uvw(
+        app_ra=old_app_ra,
+        app_dec=old_app_dec,
+        frame_pa=old_frame_pa,
+        lst_array=lst_array,
+        use_ant_pos=True,
+        antenna_positions=antenna_positions,
+        antenna_numbers=antenna_numbers,
+        ant_1_array=ant_1_array,
+        ant_2_array=ant_2_array,
+        telescope_lat=telescope_lat,
+        telescope_lon=telescope_lon,
+    )
+
+    uvw_base_check = uvutils.calc_uvw(
+        app_ra=old_app_ra,
+        app_dec=old_app_dec,
+        frame_pa=old_frame_pa,
+        lst_array=lst_array,
+        use_ant_pos=False,
+        uvw_array=uvw_array,
+        old_app_ra=old_app_ra,
+        old_app_dec=old_app_dec,
+        old_frame_pa=old_frame_pa,
+    )
+
+    assert np.allclose(uvw_ant_check, uvw_array)
+    assert np.allclose(uvw_base_check, uvw_array)
+
+    # Now change position
+    uvw_ant_check = uvutils.calc_uvw(
+        app_ra=app_ra,
+        app_dec=app_dec,
+        frame_pa=frame_pa,
+        old_frame_pa=frame_pa,
+        lst_array=lst_array,
+        use_ant_pos=True,
+        antenna_positions=antenna_positions,
+        antenna_numbers=antenna_numbers,
+        ant_1_array=ant_1_array,
+        ant_2_array=ant_2_array,
+        telescope_lat=telescope_lat,
+        telescope_lon=telescope_lon,
+    )
+
+    uvw_base_check = uvutils.calc_uvw(
+        app_ra=app_ra,
+        app_dec=app_dec,
+        frame_pa=frame_pa,
+        lst_array=lst_array,
+        use_ant_pos=False,
+        uvw_array=uvw_array,
+        old_app_ra=old_app_ra,
+        old_app_dec=old_app_dec,
+        old_frame_pa=old_frame_pa,
+    )
+
+    assert np.allclose(uvw_ant_check, uvw_base_check)
+
+    # Same task for calculating ENU coords
+    uvw_ant_check = uvutils.calc_uvw(
+        lst_array=lst_array,
+        use_ant_pos=True,
+        antenna_positions=antenna_positions,
+        antenna_numbers=antenna_numbers,
+        ant_1_array=ant_1_array,
+        ant_2_array=ant_2_array,
+        telescope_lat=telescope_lat,
+        telescope_lon=telescope_lon,
+        to_enu=True,
+    )
+
+    uvw_base_check = uvutils.calc_uvw(
+        lst_array=lst_array,
+        use_ant_pos=False,
+        uvw_array=uvw_array,
+        old_app_ra=old_app_ra,
+        old_app_dec=old_app_dec,
+        old_frame_pa=old_frame_pa,
+        telescope_lat=telescope_lat,
+        telescope_lon=telescope_lon,
+        to_enu=True,
+    )
+
+    assert np.allclose(uvw_ant_check, uvw_base_check)
+
+    temp_uvw = uvutils.calc_uvw(
+        lst_array=lst_array,
+        use_ant_pos=False,
+        uvw_array=uvw_array,
+        old_app_ra=old_app_ra,
+        old_app_dec=old_app_dec,
+        old_frame_pa=old_frame_pa,
+        telescope_lat=telescope_lat,
+        telescope_lon=telescope_lon,
+        to_enu=True,
+    )
+
+    uvw_base_enu_check = uvutils.calc_uvw(
+        app_ra=old_app_ra,
+        app_dec=old_app_dec,
+        frame_pa=old_frame_pa,
+        lst_array=lst_array,
+        use_ant_pos=False,
+        uvw_array=temp_uvw,
+        telescope_lat=telescope_lat,
+        telescope_lon=telescope_lon,
+        from_enu=True,
+    )
+
+    assert np.allclose(uvw_array, uvw_base_enu_check)
+
+    uvw_base_check = uvutils.calc_uvw(
+        app_ra=app_ra,
+        app_dec=app_dec,
+        frame_pa=frame_pa,
+        lst_array=lst_array,
+        use_ant_pos=False,
+        uvw_array=uvw_array,
+        old_app_ra=old_app_ra,
+        old_app_dec=old_app_dec,
+        old_frame_pa=old_frame_pa,
+    )
+
+    temp_uvw = uvutils.calc_uvw(
+        app_ra=app_ra,
+        app_dec=app_dec,
+        lst_array=lst_array,
+        use_ant_pos=False,
+        uvw_array=uvw_array,
+        old_app_ra=old_app_ra,
+        old_app_dec=old_app_dec,
+        old_frame_pa=old_frame_pa,
+    )
+
+    uvw_base_late_pa_check = uvutils.calc_uvw(
+        frame_pa=frame_pa,
+        use_ant_pos=False,
+        uvw_array=temp_uvw,
+        old_frame_pa=old_frame_pa,
+    )
+
+    assert np.allclose(uvw_base_check, uvw_base_late_pa_check)
+
+
 def test_phasing_funcs():
     # these tests are based on a notebook where I tested against the mwa_tools
     # phasing code
