@@ -1992,6 +1992,47 @@ class UVData(UVBase):
         inds1, inds2, indp = self._key2inds(key)
         return self.time_array[np.append(inds1, inds2)]
 
+    def get_lsts(self, key1, key2=None, key3=None):
+        """
+        Get the LSTs for a given antpair or baseline number.
+
+        Meant to be used in conjunction with get_data function.
+
+        Parameters
+        ----------
+        key1, key2, key3 : int or tuple of ints
+            Identifier of which data to get, can be passed as 1, 2, or 3 arguments
+            or as a single tuple of length 1, 2, or 3. These are collectively
+            called the key.
+
+            If key is length 1:
+                if (key < 5) or (type(key) is str):
+                    interpreted as a polarization number/name, get all times.
+                else:
+                    interpreted as a baseline number, get all times for that baseline.
+
+            if key is length 2: interpreted as an antenna pair, get all times
+                for that baseline.
+
+            if key is length 3: interpreted as antenna pair and pol (ant1, ant2, pol),
+                get all times for that baseline.
+
+        Returns
+        -------
+        ndarray
+            LSTs from the lst_array for the given antpair or baseline.
+        """
+        key = []
+        for val in [key1, key2, key3]:
+            if isinstance(val, str):
+                key.append(val)
+            elif val is not None:
+                key += list(uvutils._get_iterable(val))
+        if len(key) > 3:
+            raise ValueError("no more than 3 key values can be passed")
+        inds1, inds2, indp = self._key2inds(key)
+        return self.lst_array[np.append(inds1, inds2)]
+
     def get_ENU_antpos(self, center=False, pick_data_ants=False):
         """
         Get antenna positions in ENU (topocentric) coordinates in units of meters.
