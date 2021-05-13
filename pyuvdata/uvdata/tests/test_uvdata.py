@@ -1683,6 +1683,42 @@ def test_select_lsts_out_of_range_error(casa_uvfits):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_lsts_too_big(casa_uvfits):
+    uv_object = casa_uvfits
+    # replace one LST with bogus value larger than 2*pi; otherwise we'll get an
+    # error that the value isn't actually in the LST array
+    lst0 = uv_object.lst_array[0]
+    uv_object.lst_array = np.where(
+        uv_object.lst_array == lst0, 7.0, uv_object.lst_array
+    )
+    unique_lsts = np.unique(uv_object.lst_array)
+    lsts_to_keep = unique_lsts[[0, 3, 5, 6, 7, 10, 14]]
+    assert 7.0 in lsts_to_keep
+
+    Nblts_selected = np.sum([lst in lsts_to_keep for lst in uv_object.lst_array])
+
+    uv_object2 = uv_object.copy()
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "The lsts parameter contained a value greater than 2*pi",
+            "The uvw_array does not match the expected values",
+        ],
+    ):
+        uv_object2.select(lsts=lsts_to_keep)
+
+    assert len(lsts_to_keep) == uv_object2.Ntimes
+    assert Nblts_selected == uv_object2.Nblts
+    for lst in lsts_to_keep:
+        assert lst in uv_object2.lst_array
+    for lst in np.unique(uv_object2.lst_array):
+        assert lst in lsts_to_keep
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_lst_range(casa_uvfits):
     uv_object = casa_uvfits
     old_history = uv_object.history
@@ -1695,6 +1731,85 @@ def test_select_lst_range(casa_uvfits):
 
     Nblts_selected = np.nonzero(
         (uv_object.lst_array <= lst_range[1]) & (uv_object.lst_array >= lst_range[0])
+    )[0].size
+
+    uv_object2 = uv_object.copy()
+    uv_object2.select(lst_range=lst_range)
+
+    assert lsts_to_keep.size == uv_object2.Ntimes
+    assert Nblts_selected == uv_object2.Nblts
+    for lst in lsts_to_keep:
+        assert lst in uv_object2.lst_array
+    for lst in np.unique(uv_object2.lst_array):
+        assert lst in lsts_to_keep
+
+    assert uvutils._check_histories(
+        old_history + "  Downselected to specific lsts using pyuvdata.",
+        uv_object2.history,
+    )
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_lst_range_too_big(casa_uvfits):
+    uv_object = casa_uvfits
+    old_history = uv_object.history
+    unique_lsts = np.unique(uv_object.lst_array)
+    mean_lst = np.mean(unique_lsts)
+    lst_range = [mean_lst, np.max(unique_lsts)]
+    lsts_to_keep = unique_lsts[
+        np.nonzero((unique_lsts <= lst_range[1]) & (unique_lsts >= lst_range[0]))
+    ]
+
+    Nblts_selected = np.nonzero(
+        (uv_object.lst_array <= lst_range[1]) & (uv_object.lst_array >= lst_range[0])
+    )[0].size
+
+    # make max value larger than 2*pi
+    lst_range[1] = 7.0
+    uv_object2 = uv_object.copy()
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "The lst_range contained a value greater than 2*pi",
+            "The uvw_array does not match the expected values",
+        ],
+    ):
+        uv_object2.select(lst_range=lst_range)
+
+    assert lsts_to_keep.size == uv_object2.Ntimes
+    assert Nblts_selected == uv_object2.Nblts
+    for lst in lsts_to_keep:
+        assert lst in uv_object2.lst_array
+    for lst in np.unique(uv_object2.lst_array):
+        assert lst in lsts_to_keep
+
+    assert uvutils._check_histories(
+        old_history + "  Downselected to specific lsts using pyuvdata.",
+        uv_object2.history,
+    )
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_lst_range_wrap_around(casa_uvfits):
+    uv_object = casa_uvfits
+    old_history = uv_object.history
+    unique_lsts = np.unique(uv_object.lst_array)
+    mean_lst = np.mean(unique_lsts)
+    min_lst = np.min(unique_lsts)
+    max_lst = np.max(unique_lsts)
+    lst_range = [max_lst + 0.1, mean_lst]
+    lsts_to_keep = unique_lsts[
+        np.nonzero((unique_lsts <= mean_lst) & (unique_lsts >= min_lst))
+    ]
+
+    Nblts_selected = np.nonzero(
+        (uv_object.lst_array <= mean_lst) & (uv_object.lst_array >= min_lst)
     )[0].size
 
     uv_object2 = uv_object.copy()
@@ -1733,6 +1848,19 @@ def test_select_time_range_no_data(casa_uvfits):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_lst_range_no_data(casa_uvfits):
+    """Check for error associated with LSTS not included in data."""
+    uv_object = casa_uvfits
+    unique_lsts = np.unique(uv_object.lst_array)
+    with pytest.raises(ValueError) as cm:
+        uv_object.select(
+            lst_range=[np.min(unique_lsts) - 0.2, np.min(unique_lsts) - 0.1]
+        )
+    assert str(cm.value).startswith("No elements in LST range")
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_time_and_time_range(casa_uvfits):
     """Check for error setting times and time_range."""
     uv_object = casa_uvfits
@@ -1758,6 +1886,21 @@ def test_select_time_range_one_elem(casa_uvfits):
     with pytest.raises(ValueError) as cm:
         uv_object.select(time_range=time_range[0])
     assert str(cm.value).startswith("time_range must be length 2")
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_lst_range_one_elem(casa_uvfits):
+    """Check for error if time_range not length 2."""
+    uv_object = casa_uvfits
+    unique_lsts = np.unique(uv_object.lst_array)
+    mean_lst = np.mean(unique_lsts)
+    lst_range = [np.min(unique_lsts), mean_lst]
+    with pytest.raises(ValueError) as cm:
+        uv_object.select(lst_range=lst_range[0])
+    assert str(cm.value).startswith("lst_range must be length 2")
+
+    return
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -2129,6 +2272,112 @@ def test_select(casa_uvfits, future_shapes):
 
     # test that a ValueError is raised if the selection eliminates all blts
     pytest.raises(ValueError, uv_object.select, times=unique_times[0], antenna_nums=1)
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_select_with_lst(casa_uvfits, future_shapes):
+    # now test selecting along all axes at once, but with LST instead of times
+    uv_object = casa_uvfits
+
+    if future_shapes:
+        uv_object.use_future_array_shapes()
+
+    old_history = uv_object.history
+    # fmt: off
+    blt_inds = np.array([1057, 461, 1090, 354, 528, 654, 882, 775, 369, 906, 748,
+                         875, 296, 773, 554, 395, 1003, 476, 762, 976, 1285, 874,
+                         717, 383, 1281, 924, 264, 1163, 297, 857, 1258, 1000, 180,
+                         1303, 1139, 393, 42, 135, 789, 713, 527, 1218, 576, 100,
+                         1311, 4, 653, 724, 591, 889, 36, 1033, 113, 479, 322,
+                         118, 898, 1263, 477, 96, 935, 238, 195, 531, 124, 198,
+                         992, 1131, 305, 154, 961, 6, 1175, 76, 663, 82, 637,
+                         288, 1152, 845, 1290, 379, 1225, 1240, 733, 1172, 937, 1325,
+                         817, 416, 261, 1316, 957, 723, 215, 237, 270, 1309, 208,
+                         17, 1028, 895, 574, 166, 784, 834, 732, 1022, 1068, 1207,
+                         356, 474, 313, 137, 172, 181, 925, 201, 190, 1277, 1044,
+                         1242, 702, 567, 557, 1032, 1352, 504, 545, 422, 179, 780,
+                         280, 890, 774, 884])
+    # fmt: on
+    ants_to_keep = np.array([11, 6, 20, 26, 2, 27, 7, 14])
+
+    ant_pairs_to_keep = [(2, 11), (20, 26), (6, 7), (3, 27), (14, 6)]
+    sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
+
+    if future_shapes:
+        freqs_to_keep = uv_object.freq_array[np.arange(31, 39)]
+    else:
+        freqs_to_keep = uv_object.freq_array[0, np.arange(31, 39)]
+
+    unique_lsts = np.unique(uv_object.lst_array)
+    lsts_to_keep = unique_lsts[[0, 2, 6, 8, 10, 13, 14]]
+
+    pols_to_keep = [-1, -3]
+
+    # Independently count blts that should be selected
+    blts_blt_select = [i in blt_inds for i in np.arange(uv_object.Nblts)]
+    blts_ant_select = [
+        (a1 in ants_to_keep) & (a2 in ants_to_keep)
+        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array)
+    ]
+    blts_pair_select = [
+        sort_bl((a1, a2)) in sorted_pairs_to_keep
+        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array)
+    ]
+    blts_lst_select = [lst in lsts_to_keep for lst in uv_object.lst_array]
+    Nblts_select = np.sum(
+        [
+            bi & (ai & pi) & li
+            for (bi, ai, pi, li) in zip(
+                blts_blt_select, blts_ant_select, blts_pair_select, blts_lst_select
+            )
+        ]
+    )
+
+    uv_object2 = uv_object.copy()
+    uv_object2.select(
+        blt_inds=blt_inds,
+        antenna_nums=ants_to_keep,
+        bls=ant_pairs_to_keep,
+        frequencies=freqs_to_keep,
+        lsts=lsts_to_keep,
+        polarizations=pols_to_keep,
+    )
+
+    assert Nblts_select == uv_object2.Nblts
+    for ant in np.unique(
+        uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()
+    ):
+        assert ant in ants_to_keep
+
+    assert len(freqs_to_keep) == uv_object2.Nfreqs
+    for f in freqs_to_keep:
+        assert f in uv_object2.freq_array
+    for f in np.unique(uv_object2.freq_array):
+        assert f in freqs_to_keep
+
+    for lst in np.unique(uv_object2.lst_array):
+        assert lst in lsts_to_keep
+
+    assert len(pols_to_keep) == uv_object2.Npols
+    for p in pols_to_keep:
+        assert p in uv_object2.polarization_array
+    for p in np.unique(uv_object2.polarization_array):
+        assert p in pols_to_keep
+
+    assert uvutils._check_histories(
+        old_history + "  Downselected to "
+        "specific baseline-times, antennas, "
+        "baselines, lsts, frequencies, "
+        "polarizations using pyuvdata.",
+        uv_object2.history,
+    )
+
+    # test that a ValueError is raised if the selection eliminates all blts
+    pytest.raises(ValueError, uv_object.select, lsts=unique_lsts[0], antenna_nums=1)
+
+    return
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
