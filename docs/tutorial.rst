@@ -644,8 +644,9 @@ a) Getting antenna positions in topocentric frame in units of meters
 UVData: Selecting data
 ----------------------
 The select method lets you select specific antennas (by number or name),
-antenna pairs, frequencies (in Hz or by channel number), times (or time_range)
-or polarizations to keep in the object while removing others.
+antenna pairs, frequencies (in Hz or by channel number), times (or time range),
+local sidereal time (LST) (or LST range), or polarizations to keep in the object
+while removing others.
 
 Note: The same select interface is now supported on the read for uvfits, uvh5
 and miriad files (see :ref:`large_files`), so you need not
@@ -755,6 +756,37 @@ e) Select antenna pairs and polarizations using ant_str argument
 Basic options are 'auto', 'cross', or 'all'. 'auto' returns just the
 autocorrelations (all pols), while 'cross' returns just the cross-correlations
 (all pols).  The ant_str can also contain:
+
+f) Select based on local sidereal time (LST)
+********************************************
+
+Instead of specifying a series of times or a time range to select, you can
+specify the desired LST or LST range. Note that the LST is expected to be in
+radians (**not** hours), consistent with how the LSTs are stored on the
+object. When specifying an LST range, if the first number is larger than the
+second, the range is assumed to wrap around LST = 0 = 2*pi.
+
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> UV = UVData()
+  >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+  >>> UV.read(filename)
+
+  >>> # LSTs can be found in the lst_array
+  >>> lsts = np.unique(UV.lst_array)
+  >>> print(len(lsts))
+  15
+
+  >>> # select LSTs that are on the object
+  >>> UV.select(lsts=lsts[0:len(lsts) // 2])
+
+  >>> # print length of unique LSTs after select
+  >>> print(len(np.unique(UV.lst_array)))
+  7
 
 1. Individual antenna number(s):
 ________________________________
