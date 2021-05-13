@@ -4868,6 +4868,43 @@ def test_get_times(casa_uvfits):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_get_lsts(casa_uvfits):
+    # Test function for easy access to LSTs, to work in conjunction with get_data
+    uv = casa_uvfits
+    # Get an antpair/pol combo (pol shouldn't actually effect result)
+    ant1 = uv.ant_1_array[0]
+    ant2 = uv.ant_2_array[0]
+    pol = uv.polarization_array[0]
+    bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
+    dcheck = uv.lst_array[bltind]
+    d = uv.get_lsts(ant1, ant2, pol)
+    assert np.all(dcheck == d)
+
+    d = uv.get_lsts(ant1, ant2, uvutils.polnum2str(pol))
+    assert np.all(dcheck == d)
+
+    d = uv.get_lsts((ant1, ant2, pol))
+    assert np.all(dcheck == d)
+
+    with pytest.raises(ValueError) as cm:
+        uv.get_lsts((ant1, ant2, pol), (ant1, ant2, pol))
+    assert str(cm.value).startswith("no more than 3 key values can be passed")
+
+    # Check conjugation
+    d = uv.get_lsts(ant2, ant1, pol)
+    assert np.all(dcheck == d)
+
+    # Antpair only
+    d = uv.get_lsts(ant1, ant2)
+    assert np.all(dcheck == d)
+
+    # Pol number only
+    d = uv.get_lsts(pol)
+    assert np.all(d == uv.lst_array)
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_antpairpol_iter(casa_uvfits):
     # Test generator
     uv = casa_uvfits
