@@ -1139,6 +1139,8 @@ def cart3_to_polar2(xyz_array):
     """
     if not isinstance(xyz_array, np.ndarray):
         raise ValueError("xyz_array must be an ndarray.")
+    if xyz_array.ndim == 0:
+        raise ValueError("xyz_array must have ndim > 0")
     if xyz_array.shape[0] != 3:
         raise ValueError("xyz_array must be length 3 across the zeroth axis.")
 

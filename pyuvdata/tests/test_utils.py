@@ -447,6 +447,157 @@ def test_mwa_ecef_conversion():
     assert np.allclose(rot_xyz.T, xyz)
 
 
+def test_rot_func_inputs():
+    # Use this to make sure that appropriate erros get thrown when using the
+    # various rotation functions
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.polar2_to_cart3(0.0, np.array([0.0]))
+    assert str(cm.value).startswith(
+        "lon_array and lat_array must either both be floats or ndarrays."
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.polar2_to_cart3(np.array([0.0, 1.0]), np.array([0.0]))
+    assert str(cm.value).startswith("lon_array and lat_array must have the same shape.")
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.cart3_to_polar2(0.0)
+    assert str(cm.value).startswith("xyz_array must be an ndarray.")
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.cart3_to_polar2(np.array(0.0))
+    assert str(cm.value).startswith("xyz_array must have ndim > 0")
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.cart3_to_polar2(np.array([0.0]))
+    assert str(cm.value).startswith(
+        "xyz_array must be length 3 across the zeroth axis."
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.rotate_matmul_wrapper(np.zeros((1, 3, 1)), np.zeros((1, 3, 3)), 2)
+    assert str(cm.value).startswith("rot_matrix must be of shape (n_rot, 3, 3)")
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.rotate_matmul_wrapper(np.zeros((1, 2, 1)), np.zeros((1, 3, 3)), 1)
+    assert str(cm.value).startswith(
+        "Misshaped xyz_array - expected shape (n_rot, 3, n_vectors)."
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.rotate_matmul_wrapper(np.zeros((2, 1)), np.zeros((1, 3, 3)), 1)
+    assert str(cm.value).startswith(
+        "Misshaped xyz_array - expected shape (3, n_vectors) or (3,)."
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.rotate_matmul_wrapper(np.zeros((2)), np.zeros((1, 3, 3)), 1)
+    assert str(cm.value).startswith(
+        "Misshaped xyz_array - expected shape (3, n_vectors) or (3,)."
+    )
+
+
+def test_rot_funcs():
+    # These tests are used to verify the basic functionality of the primary
+    # functions used to perform rotations
+
+    # Basic round trip with vectors
+    assert uvutils.cart3_to_polar2(uvutils.polar2_to_cart3(0.0, 0.0)) == (0.0, 0.0)
+
+    # Set up a few vectors of different lengths
+    x_vecs = np.array([[1, 0, 0], [2, 0, 0]], dtype=float).T
+    y_vecs = np.array([[0, 1, 0], [0, 2, 0]], dtype=float).T
+    z_vecs = np.array([[0, 0, 1], [0, 0, 2]], dtype=float).T
+    test_vecs = np.array([[1, 1, 1], [2, 2, 2]], dtype=float).T
+
+    # Test no-ops w/ 0 deg rotations
+    assert np.all(uvutils.rotate_one_axis(x_vecs, 0.0, 0) == x_vecs)
+    assert np.all(
+        uvutils.rotate_one_axis(x_vecs[:, 0], 0.0, 1)
+        == x_vecs[np.newaxis, :, 0, np.newaxis],
+    )
+    assert np.all(
+        uvutils.rotate_one_axis(x_vecs[:, :, np.newaxis], 0.0, 2,)
+        == x_vecs[:, :, np.newaxis],
+    )
+
+    # Test no-ops w/ None
+    assert np.all(uvutils.rotate_one_axis(test_vecs, None, 1) == test_vecs)
+    assert np.all(
+        uvutils.rotate_one_axis(test_vecs[:, 0], None, 2)
+        == test_vecs[np.newaxis, :, 0, np.newaxis]
+    )
+    assert np.all(
+        uvutils.rotate_one_axis(test_vecs[:, :, np.newaxis], None, 0,)
+        == test_vecs[:, :, np.newaxis]
+    )
+
+    # Test some basic equivalencies to make sure rotations are working correctly
+    assert np.allclose(x_vecs, uvutils.rotate_one_axis(x_vecs, 1.0, 0))
+    assert np.allclose(y_vecs, uvutils.rotate_one_axis(y_vecs, 2.0, 1))
+    assert np.allclose(z_vecs, uvutils.rotate_one_axis(z_vecs, 3.0, 2))
+
+    assert np.allclose(x_vecs, uvutils.rotate_one_axis(y_vecs, -np.pi / 2.0, 2))
+    assert np.allclose(y_vecs, uvutils.rotate_one_axis(x_vecs, np.pi / 2.0, 2))
+    assert np.allclose(x_vecs, uvutils.rotate_one_axis(z_vecs, np.pi / 2.0, 1))
+    assert np.allclose(z_vecs, uvutils.rotate_one_axis(x_vecs, -np.pi / 2.0, 1))
+    assert np.allclose(y_vecs, uvutils.rotate_one_axis(z_vecs, -np.pi / 2.0, 0))
+    assert np.allclose(z_vecs, uvutils.rotate_one_axis(y_vecs, np.pi / 2.0, 0))
+
+    assert np.all(
+        np.equal(
+            uvutils.rotate_one_axis(test_vecs, 1.0, 2),
+            uvutils.rotate_one_axis(test_vecs, 1.0, np.array([2])),
+        )
+    )
+
+    # Testing a special case, where the xyz_array vectors are reshaped if there
+    # is only a single rotation matrix used (helps speed things up significantly)
+    mod_vec = x_vecs.T.reshape((2, 3, 1))
+    assert np.all(uvutils.rotate_one_axis(mod_vec, 1.0, 0) == mod_vec)
+
+    # That's all the single rotation stuff, now on to the two axis rotations
+    assert np.allclose(x_vecs, uvutils.rotate_two_axis(x_vecs, 2 * np.pi, 1.0, 1, 0))
+    assert np.allclose(y_vecs, uvutils.rotate_two_axis(y_vecs, 2 * np.pi, 2.0, 2, 1))
+    assert np.allclose(z_vecs, uvutils.rotate_two_axis(z_vecs, 2 * np.pi, 3.0, 0, 2))
+
+    # If performing two rots on the same axis, that should be identical to using
+    # a single rot (with the rot angle equal to the sum of the two rot angles)
+    assert np.all(
+        np.equal(
+            uvutils.rotate_one_axis(test_vecs, 2.0, 0),
+            uvutils.rotate_two_axis(test_vecs, 1.0, 1.0, 0, 0),
+        )
+    )
+
+    assert np.all(
+        np.equal(
+            uvutils.rotate_one_axis(test_vecs, 2.0, 0),
+            uvutils.rotate_two_axis(test_vecs, 2.0, 0.0, 0, 1),
+        )
+    )
+
+    assert np.all(
+        np.equal(
+            uvutils.rotate_one_axis(test_vecs, 2.0, 0),
+            uvutils.rotate_two_axis(test_vecs, None, 2.0, 1, 0),
+        )
+    )
+
+    assert np.all(
+        np.equal(
+            uvutils.rotate_one_axis(test_vecs, 0.0, 0),
+            uvutils.rotate_two_axis(test_vecs, None, 0.0, 1, 2),
+        )
+    )
+
+    mod_vec = test_vecs.T.reshape((2, 3, 1))
+    assert np.allclose(
+        uvutils.rotate_two_axis(mod_vec, np.pi, np.pi / 2.0, 0, 1), -mod_vec
+    )
+
+
 def test_phasing_funcs():
     # these tests are based on a notebook where I tested against the mwa_tools
     # phasing code
