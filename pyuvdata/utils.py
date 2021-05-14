@@ -1838,10 +1838,10 @@ def transform_sidereal_coords(
 
 def transform_icrs_to_app(
     time_array,
-    ra_coord,
-    dec_coord,
+    ra,
+    dec,
     telescope_loc,
-    coord_epoch=None,
+    coord_epoch=2000.0,
     pm_ra=None,
     pm_dec=None,
     vrad=None,
@@ -1884,14 +1884,15 @@ def transform_icrs_to_app(
         in units of radians, radians, and meters, respectively.
     coord_epoch : float or str or Time object
         Epoch of the coordinate data supplied, only used when supplying proper motion
-        values. If supplying a float, it will assumed to be in Julian years.
+        values. If supplying a float, it will assumed to be in Julian years. Default
+        is J2000.0.
     pm_ra : float or ndarray of float
         Proper motion in RA of the source, expressed in units of milliarcsec / year.
         Proper motion values are applied relative to the J2000 (i.e., RA/Dec ICRS
         values should be set to their expected values when the epoch is 2000.0).
         Can either be a single float or array of shape (Ntimes,), although this must
-        be consistent with other parameters (namely ra_coord and dec_coord). Not
-        required.
+        be consistent with other parameters (namely ra_coord and dec_coord). Note that
+        units are in dRA/dt, not cos(Dec)*dRA/dt. Not required.
     pm_dec : float or ndarray of float
         Proper motion in Dec of the source, expressed in units of milliarcsec / year.
         Proper motion values are applied relative to the J2000 (i.e., RA/Dec ICRS
@@ -1928,15 +1929,15 @@ def transform_icrs_to_app(
     # Check here to make sure that ra_coord and dec_coord are the same length,
     # either 1 or len(time_array)
     multi_coord = False
-    if isinstance(ra_coord, np.ndarray) != isinstance(dec_coord, np.ndarray):
+    if isinstance(ra, np.ndarray) != isinstance(dec, np.ndarray):
         raise ValueError("ra_coord and dec_coord must be the same type!")
-    if isinstance(ra_coord, np.ndarray):
-        multi_coord = len(ra_coord) != 1
-        if ra_coord.shape != dec_coord.shape:
+    if isinstance(ra, np.ndarray):
+        multi_coord = len(ra) != 1
+        if ra.shape != dec.shape:
             raise ValueError("ra_coord and dec_coord must be the same length.")
 
     if isinstance(time_array, np.ndarray) and multi_coord:
-        if time_array.shape != ra_coord.shape:
+        if time_array.shape != ra.shape:
             raise ValueError(
                 "time_array must be of either of length 1 (single "
                 "float) or same length as ra_coord and dec_coord."
@@ -1968,14 +1969,14 @@ def transform_icrs_to_app(
     # Check the optional inputs, make sure that they're sensible
     for item, name in zip(opt_list, opt_names):
         if item is not None:
-            if isinstance(item, np.ndarray) != isinstance(ra_coord, np.ndarray):
+            if isinstance(item, np.ndarray) != isinstance(ra, np.ndarray):
                 raise ValueError(
                     "%s must be the same type as ra_coord and dec_coord." % name
                 )
-            if isinstance(ra_coord, np.ndarray):
-                if len(item) != len(ra_coord):
+            if isinstance(ra, np.ndarray):
+                if ra.shape != item.shape:
                     raise ValueError(
-                        "%s must be the same length as ra_coord and dec_coord!" % name
+                        "%s must be the same shape as ra_coord and dec_coord!" % name
                     )
 
     # Useful for both astropy and novas methods, the latter of which gives easy
@@ -2008,42 +2009,61 @@ def transform_icrs_to_app(
     delta_x_array[np.isnan(delta_x_array)] = 0.0
     delta_y_array[np.isnan(delta_y_array)] = 0.0
 
-    # Set up the source information into a SkyCoord object, since it's a convenient
-    # package to put everything into
-    d_coord = None if dist is None else Distance(dist * units.pc)
-    v_coord = None if vrad is None else vrad * (units.km / units.s)
-    pm_ra_cosdec_coord = None if pm_ra is None else pm_ra * (units.mas / units.yr)
+    ra_coord = ra * units.rad
+    dec_coord = dec * units.rad
+    pm_ra_coord = None if pm_ra is None else pm_ra * (units.mas / units.yr)
     pm_dec_coord = None if pm_dec is None else pm_dec * (units.mas / units.yr)
-
-    sou_info_arr = SkyCoord(
-        ra=ra_coord * units.rad,
-        dec=dec_coord * units.rad,
-        distance=d_coord,
-        radial_velocity=v_coord,
-        pm_ra_cosdec=pm_ra_cosdec_coord,
-        pm_dec=pm_dec_coord,
-        frame="icrs",
-        equinox=epoch,
-    )
+    d_coord = None if (dist is None or dist == 0.0) else Distance(dist * units.pc)
+    v_coord = None if vrad is None else vrad * (units.km / units.s)
 
     # If the source was instantiated w/ floats, it'll be a 0-dim object, which will
     # throw errors if we try to treat it as an array. Reshape to a 1D array of len 1
     # so that all the calls can be uniform
-    if sou_info_arr.ndim == 0:
-        sou_info_arr = sou_info_arr.reshape((1,))
+    if ra_coord.ndim == 0:
+        ra_coord.shape += (1,)
+        dec_coord.shape += (1,)
+        if pm_ra_coord is not None:
+            pm_ra
+        if d_coord is not None:
+            d_coord.shape += (1,)
+        if v_coord is not None:
+            v_coord.shape += (1,)
 
     # If there is an epoch and a proper motion, apply that motion now
-    if (epoch is not None) and (pm_ra is not None) and (pm_dec is not None):
-        sou_info_arr.apply_space_motion(dt=(time_obj_array - epoch))
-        # A new coord is derived for each time, so if this wasn't already
-        # multiple coordinates, it is now
-        multi_coord = True
 
     if astrometry_library == "astropy":
         # Astropy doesn't have (oddly enough) a way of getting at the apparent RA/Dec
         # directly, but we can cheat this by going to AltAz, and then coverting back
         # to apparent RA/Dec using the telescope lat and LAST.
-        azel_data = sou_info_arr.transform_to(
+        if (epoch is not None) and (pm_ra is not None) and (pm_dec is not None):
+            # astropy is a bit weird in how it handles proper motion, so rather than
+            # fight with it to do it all in one step, we separate it into two: first
+            # apply proper motion to ICRS, then transform to topocentric.
+            sky_coord = SkyCoord(
+                ra=ra_coord,
+                dec=dec_coord,
+                pm_ra_cosdec=pm_ra_coord * np.cos(dec_coord),
+                pm_dec=pm_dec_coord,
+                frame="icrs",
+            )
+
+            sky_coord = sky_coord.apply_space_motion(dt=(time_obj_array - epoch))
+            ra_coord = sky_coord.ra
+            dec_coord = sky_coord.dec
+            if d_coord is not None:
+                d_coord = d_coord.repeat(len(ra_coord))
+            if v_coord is not None:
+                v_coord = v_coord.repeat(len(ra_coord))
+
+        sky_coord = SkyCoord(
+            ra=ra_coord,
+            dec=dec_coord,
+            distance=d_coord,
+            radial_velocity=v_coord,
+            frame="icrs",
+        )
+
+        azel_data = sky_coord.transform_to(
             SkyCoord(
                 np.zeros_like(time_obj_array) * units.rad,
                 np.zeros_like(time_obj_array) * units.rad,
@@ -2079,8 +2099,8 @@ def transform_icrs_to_app(
         )
 
         # NOVAS wants things in terrestial time and UT1
-        tt_time_array = time_obj_array.tt.value
-        ut1_time_array = time_obj_array.ut1.value
+        tt_time_array = time_obj_array.tt.jd
+        ut1_time_array = time_obj_array.ut1.jd
         gast_array = time_obj_array.sidereal_time("apparent", "greenwich").rad
 
         if np.any(tt_time_array < jd_start) or np.any(tt_time_array > jd_end):
@@ -2089,23 +2109,29 @@ def transform_icrs_to_app(
                 "Check back later (or possibly earlier)..."
             )
 
-        app_ra = np.zeros_like(tt_time_array) + np.zeros_like(ra_coord)
-        app_dec = np.zeros_like(tt_time_array) + np.zeros_like(ra_coord)
+        app_ra = np.zeros(tt_time_array.shape) + np.zeros(ra_coord.shape)
+        app_dec = np.zeros(tt_time_array.shape) + np.zeros(ra_coord.shape)
 
         for idx in range(len(app_ra)):
             if multi_coord or (idx == 0):
-                sou_info = sou_info_arr[idx]
                 # Create a catalog entry for the source in question
                 cat_entry = novas.make_cat_entry(
                     "dummy_name",  # Dummy source name
                     "GKK",  # Catalog ID, fixed for now
                     156,  # Star ID number, fixed for now
-                    sou_info.ra.hour,
-                    sou_info.dec.deg,
-                    0.0 if (pm_ra is None) else sou_info.pm_ra_cosdec.value,
-                    0.0 if (pm_dec is None) else sou_info.pm_dec.value,
-                    0.0 if (dist is None) else sou_info.distance.kiloparsec ** -1,
-                    0.0 if (vrad is None) else sou_info.radial_velocity.value,
+                    ra_coord[idx].to_value("hourangle"),
+                    dec_coord[idx].to_value("deg"),
+                    0.0
+                    if pm_ra is None
+                    else (
+                        pm_ra_coord.to_value("mas/yr")
+                        * np.cos(dec_coord[idx].to_value("rad"))
+                    ),
+                    0.0 if pm_dec is None else pm_dec_coord.to_value("mas/yr"),
+                    0.0
+                    if (dist is None or np.any(dist == 0.0))
+                    else (d_coord.kiloparsec ** -1.0),
+                    0.0 if (vrad is None) else v_coord.to_value("km/s"),
                 )
 
             # Update polar wobble parameters for a given timestamp
@@ -2137,14 +2163,13 @@ def transform_icrs_to_app(
         # liberfa wants things in radians
         pm_x_array *= np.pi / (3600.0 * 180.0)
         pm_y_array *= np.pi / (3600.0 * 180.0)
-        pm_conv_fac = (np.pi / 180.0) / (1000.0 * 3600.0)
         [_, _, _, app_dec, app_ra, eqn_org] = erfa.atco13(
-            ra_coord,
-            dec_coord,
-            0.0 if (pm_ra is None) else sou_info.pm_ra_cosdec.value * pm_conv_fac,
-            0.0 if (pm_dec is None) else sou_info.pm_dec.value * pm_conv_fac,
-            0.0 if (dist is None) else sou_info.distance.parsec ** -1,
-            0.0 if (vrad is None) else sou_info.radial_velocity.value,
+            ra_coord.to_value("rad"),
+            dec_coord.to_value("rad"),
+            0.0 if (pm_ra is None) else pm_ra_coord.to_value("rad/yr"),
+            0.0 if (pm_dec is None) else pm_dec_coord.to_value("rad/yr"),
+            0.0 if (dist is None or np.any(dist == 0.0)) else (d_coord.pc ** -1.0),
+            0.0 if (vrad is None) else v_coord.to_value("km/s"),
             time_obj_array.utc.jd,
             0.0,
             time_obj_array.delta_ut1_utc,
@@ -2158,7 +2183,8 @@ def transform_icrs_to_app(
             0,  # rel humidity, used for refraction (ignored)
             0,  # wavelength, used for refraction (ignored)
         )
-        app_ra -= eqn_org
+
+        app_ra = np.mod(app_ra - eqn_org, 2 * np.pi)
 
     return app_ra, app_dec
 
