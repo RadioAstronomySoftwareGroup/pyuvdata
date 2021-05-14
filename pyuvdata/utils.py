@@ -2470,6 +2470,46 @@ def lookup_jplhorizons(
     order to provide positional data for an object which is moving, such as planetary
     bodies and other solar system objects. Use of this function requires the
     installation of the `astroquery` module.
+
+
+    Parameters
+    ----------
+    target_name : str
+        Name of the target to gather an ephemeris for. Must match the name
+        in the JPL-Horizons database.
+    time_array : array-like of float
+        Times in UTC Julian days to gather an ephemeris for.
+    telescope_loc : array-like of float
+        ITRF latitude, longitude, and altitude (rel to sea-level) of the observer. Must
+        be an array-like of shape (3,) containing the latitude, longitude, and
+        altitude, in that order, with units of radians, radians, and meters,
+        respectively.
+    high_cadence : bool
+        If set to True, will calculate ephemeris points every 3 minutes in time, as
+        opposed to the default of every 3 hours.
+    force_indv_lookup : bool
+        If set to True, will calculate coordinate values for each value found within
+        `time_array`. If False, a regularized time grid is sampled that encloses the
+        values contained within `time_array`. Default is False, unless `time_array` is
+        of length 1, in which the default is set to True.
+
+
+    Returns
+    -------
+    ephem_times : ndarray of float
+        Times for which the ephemeris values were calculated, in UTC Julian days.
+    ephem_ra : ndarray of float
+        ICRS Right ascension of the target at the values within `ephem_times`, in
+        units of radians.
+    ephem_dec : ndarray of float
+        ICRS Declination of the target at the values within `ephem_times`, in units
+        of radians.
+    ephem_dist : ndarray of float
+        Distance of the target relative to the observer, at the values within
+        `ephem_times`, in units of parsecs.
+    ephem_vel : ndarray of float
+        Velocity of the targets relative to the observer, at the values within
+        `ephem_times`, in units of km/sec.
     """
     try:
         from astroquery.jplhorizons import Horizons
