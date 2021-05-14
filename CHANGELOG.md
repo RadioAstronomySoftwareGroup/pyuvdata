@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Added option to select based on LST or an LST range in UVData objects.
+- Added `get_lsts` method on UVData objects for retrieving LST corresponding to data.
+
 ### Fixed
 - A bug in `UVBeam.read_cst_beam` when specifying beams with a single file using a yaml.
 
