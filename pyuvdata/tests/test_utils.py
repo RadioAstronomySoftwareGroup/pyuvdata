@@ -740,6 +740,8 @@ def test_calc_uvw_inputs():
 
 
 def test_calc_uvw():
+    # Test out some basic functionality of the calc_uvw functions, make sure
+    # that everything line up as expected.
     app_ra = np.zeros(3)
     app_dec = np.zeros(3) + 1.0
     frame_pa = np.zeros(3) + 1e-3
@@ -911,6 +913,69 @@ def test_calc_uvw():
     )
 
     assert np.allclose(uvw_base_check, uvw_base_late_pa_check)
+
+
+@pytest.mark.filterwarnings('ignore:ERFA function "pmsafe" yielded 4 of')
+def test_coord_cross_check():
+    # Do some basic cross-checking between the different astrometry libraries
+    # to see if they all line up correctly.
+    time_array = 2456789.0 + np.array([0.0, 1.25, 10.5, 100.75])
+    icrs_ra = 2.468
+    icrs_dec = 1.234
+    telescope_loc = (0.123, -0.456, 4321.0)
+    pm_ra = 12.3
+    pm_dec = 45.6
+    vrad = 31.4
+    dist = 73.31
+    astrometry_list = ["novas", "erfa", "astropy"]
+    coord_results = [None, None, None, None]
+
+    # These values were indepedently calculated using erfa v1.7.2, which at the
+    # time of coding agreed to < 1 mas with astropy v4.2.1 and novas 3.1.1.5. We
+    # use those values here as a sort of history check to make sure that something
+    # hasn't changed in the underlying astrometry libraries without being caught
+    coord_results[3] = (
+        np.array(
+            [
+                2.4736400623737507,
+                2.4736352750862760,
+                2.4736085367439893,
+                2.4734781687162820,
+            ]
+        ),
+        np.array(
+            [
+                1.2329576409345270,
+                1.2329556410623417,
+                1.2329541289890513,
+                1.2328577308430242,
+            ]
+        ),
+    )
+
+    for idx, name in enumerate(astrometry_list):
+        coord_results[idx] = uvutils.transform_icrs_to_app(
+            time_array,
+            icrs_ra,
+            icrs_dec,
+            telescope_loc,
+            coord_epoch=2000.0,
+            pm_ra=pm_ra,
+            pm_dec=pm_dec,
+            vrad=vrad,
+            dist=dist,
+            astrometry_library=name,
+        )
+
+    for idx in range(len(coord_results) - 1):
+        for jdx in range(idx + 1, len(coord_results)):
+            alpha_coord = SkyCoord(
+                coord_results[idx][0], coord_results[idx][1], unit="rad"
+            )
+            beta_coord = SkyCoord(
+                coord_results[jdx][0], coord_results[jdx][1], unit="rad"
+            )
+            assert np.all(alpha_coord.separation(beta_coord).marcsec < 1.0)
 
 
 def test_phasing_funcs():
