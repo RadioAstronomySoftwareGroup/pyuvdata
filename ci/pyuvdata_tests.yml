@@ -3,9 +3,11 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - astropy
+  - astropy >= 4.2.1
   - h5py
   - astropy-healpix
+  - novas
+  - novas_de405
   - numpy
   - python-casacore
   - pyyaml

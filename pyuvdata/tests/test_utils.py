@@ -917,6 +917,8 @@ def test_calc_uvw():
 
 @pytest.mark.filterwarnings('ignore:ERFA function "pmsafe" yielded 4 of')
 def test_coord_cross_check():
+    pytest.importorskip("novas")
+    pytest.importorskip("novas_de405")
     # Do some basic cross-checking between the different astrometry libraries
     # to see if they all line up correctly.
     time_array = 2456789.0 + np.array([0.0, 1.25, 10.5, 100.75])
