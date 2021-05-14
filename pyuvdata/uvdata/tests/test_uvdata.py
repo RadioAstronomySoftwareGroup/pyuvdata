@@ -1005,9 +1005,12 @@ def test_phase_rephase_hera_errors(uv1_2_set_uvws, phase_func, phase_kwargs, err
     assert str(cm.value).startswith(err_msg)
 
 
-@pytest.mark.filterwarnings("ignore:The original `phase` method will be deprecated in")
+@pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_phase_unphase_hera_bad_frame(uv1_2_set_uvws):
+    # TODO: Need to figure out why this test throws the following warning:
+    # DeprecationWarning: Passing None into shape arguments as an alias for
+    # () is deprecated.
     uv_phase, uv_raw = uv1_2_set_uvws
     # check errors when trying to phase to an unsupported frame
     with pytest.raises(ValueError) as cm:
@@ -1017,7 +1020,7 @@ def test_phase_unphase_hera_bad_frame(uv1_2_set_uvws):
 
 # We're using the old phase method here since these values were all derived using that
 # method, so we'll just filter out those warnings now.
-@pytest.mark.filterwarnings("ignore:The original `phase` method will be deprecated in")
+@pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_old_phasing(future_shapes):
     """Use MWA files phased to 2 different places to test phasing."""
