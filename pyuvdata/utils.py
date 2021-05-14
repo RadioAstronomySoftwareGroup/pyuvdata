@@ -3002,8 +3002,19 @@ def get_lst_for_time(
         lst_array = times.sidereal_time("apparent").radian[reverse_inds]
     elif astrometry_library == "novas":
         # Import the NOVAS library only if it's needed/available.
-        from novas import compat as novas
-        from novas.compat import eph_manager
+        try:
+            from novas import compat as novas
+            from novas.compat import eph_manager
+            import novas_de405
+        except ImportError as e:  # pragma: no cover
+            raise ImportError(
+                "novas and/or novas_de405 are not installed but is required for "
+                "NOVAS functionality"
+            ) from e
+
+        # We import this module just to make sure that it exists, and the check below
+        # forces flake8 not to freak out that we tried loading it in the first place
+        assert novas_de405 is not None
 
         jd_start, jd_end, number = eph_manager.ephem_open()
 
