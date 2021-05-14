@@ -1841,7 +1841,7 @@ def transform_icrs_to_app(
     ra,
     dec,
     telescope_loc,
-    coord_epoch=2000.0,
+    epoch=2000.0,
     pm_ra=None,
     pm_dec=None,
     vrad=None,
@@ -1866,45 +1866,45 @@ def transform_icrs_to_app(
 
     Parameters
     ----------
-    time_array : float or ndarray of float
+    time_array : float or array-like of float
         Julian dates to calculate coordinate positions for. Can either be a single
-        float, or an ndarray of shape is (Ntimes,).
-    ra_coord : float or ndarray of float
+        float, or an array-like of shape is (Ntimes,).
+    ra : float or array-like of float
         ICRS RA of the celestial target, expressed in units of radians. Can either
         be a single float or array of shape (Ntimes,), although this must be consistent
         with other parameters (with the exception of telescope location parameters).
-    dec_coord : float or ndarray of float
+    dec : float or array-like of float
         ICRS Dec of the celestial target, expressed in units of radians. Can either
         be a single float or array of shape (Ntimes,), although this must be consistent
         with other parameters (with the exception of telescope location parameters).
-    telescope_loc : tuple of floats or EarthLocation
+    telescope_loc : array-like of floats or EarthLocation
         ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
         of the array. Can either be provided as an astropy EarthLocation, or a tuple
         of shape (3,) containung (in order) the latitude, longitude, and altitude,
         in units of radians, radians, and meters, respectively.
-    coord_epoch : float or str or Time object
+    epoch : int or float or str or Time object
         Epoch of the coordinate data supplied, only used when supplying proper motion
-        values. If supplying a float, it will assumed to be in Julian years. Default
+        values. If supplying a number, it will assumed to be in Julian years. Default
         is J2000.0.
-    pm_ra : float or ndarray of float
+    pm_ra : float or array-like of float
         Proper motion in RA of the source, expressed in units of milliarcsec / year.
         Proper motion values are applied relative to the J2000 (i.e., RA/Dec ICRS
         values should be set to their expected values when the epoch is 2000.0).
         Can either be a single float or array of shape (Ntimes,), although this must
         be consistent with other parameters (namely ra_coord and dec_coord). Note that
         units are in dRA/dt, not cos(Dec)*dRA/dt. Not required.
-    pm_dec : float or ndarray of float
+    pm_dec : float or array-like of float
         Proper motion in Dec of the source, expressed in units of milliarcsec / year.
         Proper motion values are applied relative to the J2000 (i.e., RA/Dec ICRS
         values should be set to their expected values when the epoch is 2000.0).
         Can either be a single float or array of shape (Ntimes,), although this must
         be consistent with other parameters (namely ra_coord and dec_coord). Not
         required.
-    vrad : float or ndarray of float
+    vrad : float or array-like of float
         Radial velocity of the source, expressed in units of km / sec. Can either be
         a single float or array of shape (Ntimes,), although this must be consistent
         with other parameters (namely ra_coord and dec_coord). Not required.
-    dist : float or ndarray of float
+    dist : float or array-like of float
         Distance of the source, expressed in milliarcseconds. Can either be a single
         float or array of shape (Ntimes,), although this must be consistent with other
         parameters (namely ra_coord and dec_coord). Not required.
@@ -1926,22 +1926,28 @@ def transform_icrs_to_app(
             "Requested coordinate transformation library is not supported, please "
             "select either 'erfa', 'novas', or 'astropy' for astrometry_library."
         )
+
+    ra_coord = ra * units.rad
+    dec_coord = dec * units.rad
+
     # Check here to make sure that ra_coord and dec_coord are the same length,
     # either 1 or len(time_array)
-    multi_coord = False
-    if isinstance(ra, np.ndarray) != isinstance(dec, np.ndarray):
-        raise ValueError("ra_coord and dec_coord must be the same type!")
-    if isinstance(ra, np.ndarray):
-        multi_coord = len(ra) != 1
-        if ra.shape != dec.shape:
-            raise ValueError("ra_coord and dec_coord must be the same length.")
+    multi_coord = ra_coord.size != 1
+    if ra_coord.shape != dec_coord.shape:
+        raise ValueError("ra and dec must be the same shape.")
 
-    if isinstance(time_array, np.ndarray) and multi_coord:
-        if time_array.shape != ra.shape:
-            raise ValueError(
-                "time_array must be of either of length 1 (single "
-                "float) or same length as ra_coord and dec_coord."
-            )
+    pm_ra_coord = None if pm_ra is None else pm_ra * (units.mas / units.yr)
+    pm_dec_coord = None if pm_dec is None else pm_dec * (units.mas / units.yr)
+    d_coord = None if (dist is None or dist == 0.0) else Distance(dist * units.pc)
+    v_coord = None if vrad is None else vrad * (units.km / units.s)
+
+    opt_list = [pm_ra_coord, pm_dec_coord, d_coord, v_coord]
+    opt_names = ["pm_ra", "pm_dec", "dist", "vrad"]
+    # Check the optional inputs, make sure that they're sensible
+    for item, name in zip(opt_list, opt_names):
+        if item is not None:
+            if ra_coord.shape != item.shape:
+                raise ValueError("%s must be the same shape as ra and dec." % name)
 
     if isinstance(telescope_loc, EarthLocation):
         site_loc = telescope_loc
@@ -1952,47 +1958,35 @@ def transform_icrs_to_app(
             height=telescope_loc[2],
         )
 
-    # Check to make sure that we have a properly formatted epoch for our in-bound
-    # coordinate frame
-    epoch = None
-    if isinstance(coord_epoch, str) or isinstance(coord_epoch, Time):
-        # If its a string or a Time object, we don't need to do anything more
-        epoch = Time(coord_epoch)
-    elif isinstance(coord_epoch, float):
-        epoch = Time(coord_epoch, format="jyear")
-    elif coord_epoch is not None:
-        raise ValueError("in_coord_epoch must be of type str, Time, float, or None.")
-
-    opt_list = [pm_ra, pm_dec, dist, vrad]
-    opt_names = ["pm_ra", "pm_dec", "dist", "vrad"]
-
-    # Check the optional inputs, make sure that they're sensible
-    for item, name in zip(opt_list, opt_names):
-        if item is not None:
-            if isinstance(item, np.ndarray) != isinstance(ra, np.ndarray):
-                raise ValueError(
-                    "%s must be the same type as ra_coord and dec_coord." % name
-                )
-            if isinstance(ra, np.ndarray):
-                if ra.shape != item.shape:
-                    raise ValueError(
-                        "%s must be the same shape as ra_coord and dec_coord!" % name
-                    )
-
     # Useful for both astropy and novas methods, the latter of which gives easy
     # access to the IERS data that we want.
     if isinstance(time_array, Time):
         time_obj_array = time_array
     else:
-        time_obj_array = Time(
-            time_array if isinstance(time_array, np.ndarray) else [time_array],
-            format="jd",
-            scale="utc",
-            location=site_loc,
-        )
+        time_obj_array = Time(time_array, format="jd", scale="utc", location=site_loc,)
+
+    if time_obj_array.size != 1:
+        if (time_obj_array.shape != ra_coord.shape) and multi_coord:
+            raise ValueError(
+                "time_array must be of either of length 1 (single "
+                "float) or same length as ra and dec."
+            )
+    elif time_obj_array.ndim == 0:
+        # Make the array at least 1-dimensional so we don't run into indexing
+        # issues later.
+        time_obj_array.shape += (1,)
+
+    # Check to make sure that we have a properly formatted epoch for our in-bound
+    # coordinate frame
+    coord_epoch = None
+    if isinstance(epoch, str) or isinstance(epoch, Time):
+        # If its a string or a Time object, we don't need to do anything more
+        coord_epoch = Time(epoch)
+    elif epoch is not None:
+        coord_epoch = Time(epoch, format="jyear")
 
     # Note if time_array is a single element
-    multi_time = len(time_obj_array) != 1
+    multi_time = time_obj_array.size != 1
 
     # Get IERS data, which is needed for NOVAS and ERFA
     polar_motion_data = iers.earth_orientation_table.get()
@@ -2008,13 +2002,6 @@ def transform_icrs_to_app(
     # predictive values like the polar motion does)
     delta_x_array[np.isnan(delta_x_array)] = 0.0
     delta_y_array[np.isnan(delta_y_array)] = 0.0
-
-    ra_coord = ra * units.rad
-    dec_coord = dec * units.rad
-    pm_ra_coord = None if pm_ra is None else pm_ra * (units.mas / units.yr)
-    pm_dec_coord = None if pm_dec is None else pm_dec * (units.mas / units.yr)
-    d_coord = None if (dist is None or dist == 0.0) else Distance(dist * units.pc)
-    v_coord = None if vrad is None else vrad * (units.km / units.s)
 
     # If the source was instantiated w/ floats, it'll be a 0-dim object, which will
     # throw errors if we try to treat it as an array. Reshape to a 1D array of len 1
@@ -2047,13 +2034,13 @@ def transform_icrs_to_app(
                 frame="icrs",
             )
 
-            sky_coord = sky_coord.apply_space_motion(dt=(time_obj_array - epoch))
+            sky_coord = sky_coord.apply_space_motion(dt=(time_obj_array - coord_epoch))
             ra_coord = sky_coord.ra
             dec_coord = sky_coord.dec
             if d_coord is not None:
-                d_coord = d_coord.repeat(len(ra_coord))
+                d_coord = d_coord.repeat(ra_coord.size)
             if v_coord is not None:
-                v_coord = v_coord.repeat(len(ra_coord))
+                v_coord = v_coord.repeat(ra_coord.size)
 
         sky_coord = SkyCoord(
             ra=ra_coord,
@@ -2093,7 +2080,7 @@ def transform_icrs_to_app(
         site_loc = novas.make_on_surface(
             site_loc.lat.deg,  # latitude in deg
             site_loc.lon.deg,  # Longitude in deg
-            site_loc.height.value,  # Height in meters
+            site_loc.height.to_value("m"),  # Height in meters
             0.0,  # Temperature, set to 0 for now (no atm refrac)
             0.0,  # Pressure, set to 0 for now (no atm refrac)
         )
@@ -2175,7 +2162,7 @@ def transform_icrs_to_app(
             time_obj_array.delta_ut1_utc,
             site_loc.lon.rad,
             site_loc.lat.rad,
-            site_loc.height.value,
+            site_loc.height.to_value("m"),
             pm_x_array,
             pm_y_array,
             0,  # ait pressure, used for refraction (ignored)
@@ -2189,7 +2176,9 @@ def transform_icrs_to_app(
     return app_ra, app_dec
 
 
-def transform_app_to_icrs(time_array, app_ra, app_dec, telescope_loc):
+def transform_app_to_icrs(
+    time_array, app_ra, app_dec, telescope_loc, astrometry_library="erfa",
+):
     """
     Transform a set of coordinates in topocentric/apparent to ICRS coordinates.
 
@@ -2227,23 +2216,21 @@ def transform_app_to_icrs(time_array, app_ra, app_dec, telescope_loc):
         ICRS declination coordinates, in units of radians, of either shape
         (Ntimes,) if Ntimes >1, otherwise (Ncoord,).
     """
+    # Make sure that the library requested is actually permitted
+    if astrometry_library not in ["erfa", "astropy"]:
+        raise ValueError(
+            "Requested coordinate transformation library is not supported, please "
+            "select either 'erfa' or 'astropy' for astrometry_library."
+        )
+
+    ra_coord = app_ra * units.rad
+    dec_coord = app_dec * units.rad
+
     # Check here to make sure that ra_coord and dec_coord are the same length,
     # either 1 or len(time_array)
-    multi_coord = False
-    if isinstance(app_ra, np.ndarray) != isinstance(app_dec, np.ndarray):
-        raise ValueError("ra_coord and dec_coord must be the same type.")
-    if isinstance(app_ra, np.ndarray):
-        multi_coord = len(app_ra) != 1
-        if app_ra.shape != app_dec.shape:
-            raise ValueError("app_ra and app_dec must be the same length.")
-
-    if multi_coord:
-        if isinstance(time_array, np.ndarray) or isinstance(time_array, Time):
-            if time_array.shape != app_ra.shape:
-                raise ValueError(
-                    "time_array must be of either of length 1 (single "
-                    "float) or same length as app_ra and app_dec."
-                )
+    multi_coord = ra_coord.size != 1
+    if ra_coord.shape != dec_coord.shape:
+        raise ValueError("app_ra and app_dec must be the same shape.")
 
     if isinstance(telescope_loc, EarthLocation):
         site_loc = telescope_loc
@@ -2254,48 +2241,74 @@ def transform_app_to_icrs(time_array, app_ra, app_dec, telescope_loc):
             height=telescope_loc[2],
         )
 
-    # Useful for both astropy and novas methods, the latter of which gives easy
-    # access to the IERS data that we want.
     if isinstance(time_array, Time):
         time_obj_array = time_array
     else:
-        time_obj_array = Time(
-            time_array if isinstance(time_array, np.ndarray) else [time_array],
-            format="jd",
-            scale="utc",
-            location=site_loc,
+        time_obj_array = Time(time_array, format="jd", scale="utc", location=site_loc,)
+
+    if time_obj_array.size != 1:
+        if (time_obj_array.shape != ra_coord.shape) and multi_coord:
+            raise ValueError(
+                "time_array must be of either of length 1 (single "
+                "float) or same length as ra and dec."
+            )
+    elif time_obj_array.ndim == 0:
+        # Make the array at least 1-dimensional so we don't run into indexing
+        # issues later.
+        time_obj_array.shape += (1,)
+
+    if astrometry_library == "astropy":
+        az_coord, el_coord = erfa.hd2ae(
+            np.mod(
+                time_obj_array.sidereal_time("apparent").rad - ra_coord.to_value("rad"),
+                2 * np.pi,
+            ),
+            dec_coord.to_value("rad"),
+            site_loc.lat.rad,
         )
 
-    # Get IERS data, which is needed for highest precision
-    polar_motion_data = iers.earth_orientation_table.get()
+        sky_coord = SkyCoord(
+            az_coord * units.rad,
+            el_coord * units.rad,
+            frame="altaz",
+            location=site_loc,
+            obstime=time_obj_array,
+        )
 
-    pm_x_array, pm_y_array = polar_motion_data.pm_xy(time_obj_array)
-    pm_x_array = pm_x_array.to_value("rad")
-    pm_y_array = pm_y_array.to_value("rad")
+        coord_data = sky_coord.transform_to("icrs")
+        icrs_ra = coord_data.ra.rad
+        icrs_dec = coord_data.dec.rad
+    elif astrometry_library == "erfa":
+        # Get IERS data, which is needed for highest precision
+        polar_motion_data = iers.earth_orientation_table.get()
 
-    bpn_matrix = erfa.pnm06a(time_obj_array.tt.jd, 0.0)
-    cip_x, cip_y = erfa.bpn2xy(bpn_matrix)
-    cio_s = erfa.s06(time_obj_array.tt.jd, 0.0, cip_x, cip_y)
-    eqn_org = erfa.eors(bpn_matrix, cio_s)
+        pm_x_array, pm_y_array = polar_motion_data.pm_xy(time_obj_array)
+        pm_x_array = pm_x_array.to_value("rad")
+        pm_y_array = pm_y_array.to_value("rad")
 
-    # Observed to ICRS via ERFA
-    icrs_ra, icrs_dec = erfa.atoc13(
-        "r",
-        app_ra + eqn_org,
-        app_dec,
-        time_obj_array.utc.jd,
-        0.0,  # Second half of the UT date, not needed
-        time_obj_array.delta_ut1_utc,
-        site_loc.lon.rad,
-        site_loc.lat.rad,
-        site_loc.height.value,
-        pm_x_array,
-        pm_y_array,
-        0,  # ait pressure, used for refraction (ignored)
-        0,  # amb temperature, used for refraction (ignored)
-        0,  # rel humidity, used for refraction (ignored)
-        0,  # wavelength, used for refraction (ignored)
-    )
+        bpn_matrix = erfa.pnm06a(time_obj_array.tt.jd, 0.0)
+        cip_x, cip_y = erfa.bpn2xy(bpn_matrix)
+        cio_s = erfa.s06(time_obj_array.tt.jd, 0.0, cip_x, cip_y)
+        eqn_org = erfa.eors(bpn_matrix, cio_s)
+
+        # Observed to ICRS via ERFA
+        icrs_ra, icrs_dec = erfa.atoc13(
+            "r",
+            ra_coord.to_value("rad") + eqn_org,
+            dec_coord.to_value("rad"),
+            time_obj_array.utc.jd,
+            0.0,  # Second half of the UT date, not needed
+            time_obj_array.delta_ut1_utc,
+            site_loc.lon.rad,
+            site_loc.lat.rad,
+            site_loc.height.value,
+            pm_x_array,
+            pm_y_array,
+            0,  # ait pressure, used for refraction (ignored)
+            0,  # amb temperature, used for refraction (ignored)
+            0,  # rel humidity, used for refraction (ignored)
+            0,  # wavelength, used for refraction (ignored)
+        )
 
     # Return back the two RA/Dec arrays
     return icrs_ra, icrs_dec
@@ -2351,10 +2364,10 @@ def calc_frame_pos_angle(
     app_dec : ndarray of floats
         Array of apparent dec values in units of radians, shape (Ntimes,).
     telescope_loc : tuple of floats or EarthLocation
-        ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
-        of the array. Can either be provided as an astropy EarthLocation, or a tuple
-        of shape (3,) containung (in order) the latitude, longitude, and altitude,
-        in units of radians, radians, and meters, respectively.
+        ITRF latitude, longitude, and altitude (rel to sea-level) of the observer.
+        Can either be provided as an astropy EarthLocation, or an array-like of shape
+        (3,) containing the latitude, longitude, and altitude, in that order, with units
+        of radians, radians, and meters, respectively.
     offset_pos : float
         Distance of the offset position used to calculate the frame PA. Default
         is 0.5 degrees, which should be sufficent for most applications.
@@ -2453,14 +2466,10 @@ def lookup_jplhorizons(
     """
     Lookup solar system object coordinates via the JPL-Horizons service.
 
-    The good folks at JPL make a mean coordinate calculator! Let's use this
-    to help determine what this should look like
-
-    Parameters
-    ----------
-    target_name : str
-    time_array : float or ndarray of float
-    telescope_loc : array_like
+    This utility is useful for generating ephemerides, which can then be interpolated in
+    order to provide positional data for an object which is moving, such as planetary
+    bodies and other solar system objects. Use of this function requires the
+    installation of the `astroquery` module.
     """
     try:
         from astroquery.jplhorizons import Horizons
@@ -2482,19 +2491,15 @@ def lookup_jplhorizons(
             "lat": telescope_loc.lat.deg,
             "elevation": telescope_loc.height.to_value(unit=units.km),
         }
-    elif isinstance(telescope_loc, tuple) or (
-        isinstance(telescope_loc, list) or isinstance(telescope_loc, np.ndarray)
-    ):
+    elif telescope_loc is None:
+        # Setting to None will report the geocentric position
+        site_loc = None
+    else:
         site_loc = {
             "lon": telescope_loc[1] * (180.0 / np.pi),
             "lat": telescope_loc[0] * (180.0 / np.pi),
             "elevation": telescope_loc[2] * (0.001),  # m -> km
         }
-    elif telescope_loc is None:
-        # Setting to None will report the geocentric position
-        site_loc = None
-    else:
-        raise ValueError("telescope_loc must be array_like or None.")
 
     # If force_indv_lookup is True, or unset but only providing a single value, then
     # just calculate the RA/Dec for the times requested rather than creating a table
@@ -2519,7 +2524,7 @@ def lookup_jplhorizons(
             start_time = np.min(time_array) - 0.001
             stop_time = np.max(time_array) + 0.001
             step_time = "3m"
-            n_entries = (stop_time - start_time) / (1440 / 3)
+            n_entries = (stop_time - start_time) * (1440.0 / 3.0)
         else:
             # The start/stop time here are setup to maximize reusability of the
             # data, since astroquery appears to cache the results from previous
@@ -2527,7 +2532,7 @@ def lookup_jplhorizons(
             start_time = (0.25 * np.floor(4.0 * np.min(time_array))) - 0.25
             stop_time = (0.25 * np.ceil(4.0 * np.max(time_array))) + 0.25
             step_time = "3h"
-            n_entries = (stop_time - start_time) / (24.0 / 3.0)
+            n_entries = (stop_time - start_time) * (24.0 / 3.0)
         # We don't want to overtax the JPL service, so limit ourselves to 1000
         # individual queries at a time. Note that this is likely a conservative
         # cap for JPL-Horizons, but there should be exceptionally few applications
@@ -2539,7 +2544,7 @@ def lookup_jplhorizons(
             else:
                 # Otherwise, time to raise an error
                 raise ValueError(
-                    "Requesting too many ephem points from JPL-Horizons. This "
+                    "Too many ephem points requested from JPL-Horizons. This "
                     "can be remedied by setting high_cadance=False or limiting "
                     "the number of values in time_array."
                 )
@@ -2604,16 +2609,76 @@ def interpolate_ephem(
     """
     Interpolates ephemerides to give positions for requested times.
 
-    This also does things.
+    This is a simple tool for calculated interpolated RA and Dec positions, as well
+    as distances and velocities, for a given ephemeris. Under the hood, the method
+    uses as cubic spline interpolation to calculate values at the requested times,
+    provided that there are enough values to interpolate over to do so (requires
+    >= 4 points), otherwise a linear interpolation is used.
+
+    Parameters
+    ----------
+    time_array : array-like of floats
+        Times to interpolate positions for, in UTC Julian days.
+    ephem_times : array-like of floats
+        Times in UTC Julian days which describe that match to the recorded postions
+        of the target. Must be array-like, of shape (Npts,), where Npts is the number
+        of ephemeris points.
+    ephem_ra : array-like of floats
+        Right ascencion of the target, at the times given in `ephem_times`. Units are
+        in radians, must have the same shape as `ephem_times`.
+    ephem_dec : array-like of floats
+        Declination of the target, at the times given in `ephem_times`. Units are
+        in radians, must have the same shape as `ephem_times`.
+    ephem_dist : array-like of floats
+        Distance of the target from the observer, at the times given in `ephem_times`.
+        Optional argument, in units of parsecs. Must have the same shape as
+        `ephem_times`.
+    ephem_vel : array-like of floats
+        Velocities of the target, at the times given in `ephem_times`. Optional
+        argument, in units of km/sec. Must have the same shape as `ephem_times`.
+
+    Returns
+    -------
+    ra_vals : ndarray of float
+        Interpolated RA values, returned as an ndarray of floats with
+        units of radians, and the same shape as `time_array`.
+    dec_vals : ndarray of float
+        Interpolated declination values, returned as an ndarray of floats with
+        units of radians, and the same shape as `time_array`.
+    dist_vals : None or ndarray of float
+        If `ephem_dist` was provided, an ndarray of floats (with same shape as
+        `time_array`) with the interpolated target distances, in units of parsecs.
+        If `ephem_dist` was not provided, this returns as None.
+    vel_vals : None or ndarray of float
+        If `ephem_vals` was provided, an ndarray of floats (with same shape as
+        `time_array`) with the interpolated target velocities, in units of km/sec.
+        If `ephem_vals` was not provided, this returns as None.
+
     """
+    # We're importing this here since it's only used for this one function
     from scipy.interpolate import interp1d
+
+    ephem_shape = np.array(ephem_times).shape
+
+    # Make sure that things look reasonable
+    if np.array(ephem_ra).shape != ephem_shape:
+        raise ValueError("ephem_ra must have the same shape as ephem_times.")
+
+    if np.array(ephem_dec).shape != ephem_shape:
+        raise ValueError("ephem_dec must have the same shape as ephem_times.")
+
+    if (np.array(ephem_dist).shape != ephem_shape) and (ephem_dist is not None):
+        raise ValueError("ephem_dist must have the same shape as ephem_times.")
+
+    if (np.array(ephem_vel).shape != ephem_shape) and (ephem_vel is not None):
+        raise ValueError("ephem_vel must have the same shape as ephem_times.")
 
     ra_vals = np.zeros_like(time_array, dtype=float)
     dec_vals = np.zeros_like(time_array, dtype=float)
     dist_vals = None if ephem_dist is None else np.zeros_like(time_array, dtype=float)
     vel_vals = None if ephem_vel is None else np.zeros_like(time_array, dtype=float)
 
-    if len(ephem_ra) == 1:
+    if len(ephem_times) == 1:
         ra_vals += ephem_ra
         dec_vals += ephem_ra
         if ephem_dist is not None:
@@ -2621,6 +2686,11 @@ def interpolate_ephem(
         if ephem_vel is not None:
             vel_vals += ephem_vel
     else:
+        if len(ephem_times) > 3:
+            interp_kind = "cubic"
+        else:
+            interp_kind = "linear"
+
         # If we have values that line up perfectly, just use those directly
         select_mask = np.isin(time_array, ephem_times)
         if np.any(select_mask):
@@ -2645,20 +2715,20 @@ def interpolate_ephem(
         select_mask = ~select_mask
         if np.any(select_mask):
             time_select = time_array[select_mask]
-            ra_vals[select_mask] = interp1d(ephem_times, ephem_ra, kind="cubic")(
+            ra_vals[select_mask] = interp1d(ephem_times, ephem_ra, kind=interp_kind)(
                 time_select
             )
-            dec_vals[select_mask] = interp1d(ephem_times, ephem_dec, kind="cubic")(
+            dec_vals[select_mask] = interp1d(ephem_times, ephem_dec, kind=interp_kind)(
                 time_select
             )
             if ephem_dist is not None:
                 dist_vals[select_mask] = interp1d(
-                    ephem_times, ephem_dist, kind="cubic"
+                    ephem_times, ephem_dist, kind=interp_kind
                 )(time_select)
             if ephem_vel is not None:
-                vel_vals[select_mask] = interp1d(ephem_times, ephem_vel, kind="cubic")(
-                    time_select
-                )
+                vel_vals[select_mask] = interp1d(
+                    ephem_times, ephem_vel, kind=interp_kind
+                )(time_select)
 
     return (ra_vals, dec_vals, dist_vals, vel_vals)
 
@@ -2718,7 +2788,7 @@ def calc_app_coords(
         Times for which the apparent coordiantes were calculated, in UTC JD. If more
         than a single element, must the the same shape as lon_coord and lat_coord if
         both of those are arrays (instead of single floats).
-    telescope_loc : tuple of floats or EarthLocation
+    telescope_loc : array-like of floats or EarthLocation
         ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
         of the array. Can either be provided as an astropy EarthLocation, or a tuple
         of shape (3,) containung (in order) the latitude, longitude, and altitude,
@@ -2760,16 +2830,12 @@ def calc_app_coords(
     """
     if isinstance(telescope_loc, EarthLocation):
         site_loc = telescope_loc
-    elif isinstance(telescope_loc, tuple) or isinstance(telescope_loc, np.ndarray):
-        if len(telescope_loc) != 3:
-            raise ValueError("telescope_loc must be a tuple of ndarray of length 3.")
+    else:
         site_loc = EarthLocation.from_geodetic(
             telescope_loc[1] * (180.0 / np.pi),
             telescope_loc[0] * (180.0 / np.pi),
             height=telescope_loc[2],
         )
-    else:
-        raise ValueError("telescope_loc must be a tuple, ndarray, or EarthLocation.")
 
     unique_time_array = np.unique(time_array)
     if object_type == "sidereal":
@@ -2903,13 +2969,11 @@ def calc_sidereal_coords(
     if isinstance(coord_epoch, str) or isinstance(coord_epoch, Time):
         # If its a string or a Time object, we don't need to do anything more
         epoch = Time(coord_epoch)
-    elif isinstance(coord_epoch, float):
+    else:
         if coord_frame.lower() in ["fk4", "fk4noeterms"]:
             epoch = Time(coord_epoch, format="byear")
         else:
             epoch = Time(coord_epoch, format="jyear")
-    elif coord_epoch is not None:
-        raise ValueError("in_coord_epoch must be of type str, Time, float, or None.")
 
     icrs_ra, icrs_dec = transform_app_to_icrs(
         time_array, app_ra, app_dec, telescope_loc

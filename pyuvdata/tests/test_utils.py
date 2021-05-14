@@ -10,7 +10,7 @@ import pytest
 import numpy as np
 from astropy import units
 from astropy.time import Time
-from astropy.coordinates import SkyCoord, Angle
+from astropy.coordinates import SkyCoord, Angle, EarthLocation
 
 from pyuvdata import UVData, UVFlag, UVCal
 import pyuvdata.utils as uvutils
@@ -916,6 +916,206 @@ def test_calc_uvw():
 
 
 @pytest.mark.filterwarnings('ignore:ERFA function "pmsafe" yielded 4 of')
+@pytest.mark.filterwarnings('ignore:ERFA function "dtdtf" yielded 1 of')
+def test_coord_inputs():
+    """
+    Verify that the various coordinate handling programs throw appropriate errors
+    when called with arguments that not consistent w/ what is expected.
+    """
+    # Start w/ the transform_icrs_to_app block
+    with pytest.raises(ValueError) as cm:
+        uvutils.transform_icrs_to_app(
+            (0, 1, 2, 3),
+            [0.0],
+            [0.0, 1.0],
+            EarthLocation.from_geodetic(0, 1, height=2),
+            dist=1.0,
+            epoch=2000,
+            astrometry_library="random",
+        )
+    assert str(cm.value).startswith(
+        "Requested coordinate transformation library is not supported"
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.transform_icrs_to_app(
+            (0, 1, 2, 3),
+            [0.0],
+            [0.0, 1.0],
+            EarthLocation.from_geodetic(0, 1, height=2),
+            dist=1.0,
+            epoch=2000,
+            astrometry_library="novas",
+        )
+    assert str(cm.value).startswith("ra and dec must be the same shape.")
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.transform_icrs_to_app(
+            (0, 1, 2, 3),
+            [0.0, 1.0],
+            [0.0, 1.0],
+            EarthLocation.from_geodetic(0, 1, height=2),
+            dist=1.0,
+            epoch=2000,
+            astrometry_library="novas",
+        )
+    assert str(cm.value).startswith("dist must be the same shape as ra and dec.")
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.transform_icrs_to_app(
+            (0, 1, 2, 3),
+            [0.0, 1.0],
+            [0.0, 1.0],
+            EarthLocation.from_geodetic(0, 1, height=2),
+            dist=[1.0, 2.0],
+            epoch=2000,
+            astrometry_library="novas",
+        )
+    assert str(cm.value).startswith("time_array must be of either of length 1 (single ")
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.transform_icrs_to_app(
+            (0, 1),
+            [0.0, 1.0],
+            [0.0, 1.0],
+            (0, 1, 2),
+            dist=[1.0, 2.0],
+            epoch=2000,
+            astrometry_library="novas",
+        )
+    assert str(cm.value).startswith(
+        "No current support for JPL ephems outside of 1700 - 2300 AD."
+    )
+
+    # Alright, move on to app_to_icrs
+    with pytest.raises(ValueError) as cm:
+        uvutils.transform_app_to_icrs(
+            (0, 1, 2, 3),
+            [0.0],
+            [0.0, 1.0],
+            EarthLocation.from_geodetic(0, 1, height=2),
+            astrometry_library="random",
+        )
+    assert str(cm.value).startswith(
+        "Requested coordinate transformation library is not supported"
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.transform_app_to_icrs(
+            (0, 1, 2, 3),
+            [0.0],
+            [0.0, 1.0],
+            EarthLocation.from_geodetic(0, 1, height=2),
+            astrometry_library="erfa",
+        )
+    assert str(cm.value).startswith("app_ra and app_dec must be the same shape.")
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.transform_app_to_icrs(
+            (0, 1, 2, 3),
+            [0.0, 1.0],
+            [0.0, 1.0],
+            EarthLocation.from_geodetic(0, 1, height=2),
+            astrometry_library="erfa",
+        )
+    assert str(cm.value).startswith("time_array must be of either of length 1 (single ")
+
+    # Move on to the JPL-Horizons checks
+    with pytest.raises(ValueError) as cm:
+        uvutils.lookup_jplhorizons(
+            "whoami",
+            np.arange(100),
+            telescope_loc=(0, 1, 2),
+            high_cadence=True,
+            force_indv_lookup=True,
+        )
+    assert str(cm.value).startswith(
+        "Requesting too many individual ephem points from JPL-Horizons. This "
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.lookup_jplhorizons(
+            "whoami",
+            np.arange(100),
+            telescope_loc=(0, 1, 2),
+            high_cadence=True,
+            force_indv_lookup=False,
+        )
+    assert str(cm.value).startswith(
+        "Too many ephem points requested from JPL-Horizons. This "
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.lookup_jplhorizons(
+            "whoami",
+            np.arange(100),
+            telescope_loc=(0, 1, 2),
+            high_cadence=False,
+            force_indv_lookup=False,
+        )
+    assert str(cm.value).startswith(
+        "No current support for JPL ephems outside of 1700 - 2300 AD"
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.lookup_jplhorizons(
+            "whoami",
+            np.arange(100) + 2456789.0,
+            telescope_loc=(0, 1, 2),
+            high_cadence=False,
+            force_indv_lookup=False,
+        )
+    assert str(cm.value).startswith(
+        "Target ID is not recognized in either the small or major bodies "
+    )
+
+    # Now moving on to the interpolation scheme
+    with pytest.raises(ValueError) as cm:
+        uvutils.interpolate_ephem(
+            0.0, [0.0, 1.0], [0.0], [0.0], ephem_dist=[0.0], ephem_vel=[0.0],
+        )
+    assert str(cm.value).startswith("ephem_ra must have the same shape as ephem_times.")
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.interpolate_ephem(
+            0.0, [0.0, 1.0], [0.0, 1.0], [0.0], ephem_dist=[0.0], ephem_vel=[0.0],
+        )
+    assert str(cm.value).startswith(
+        "ephem_dec must have the same shape as ephem_times."
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.interpolate_ephem(
+            0.0, [0.0, 1.0], [0.0, 1.0], [0.0, 1.0], ephem_dist=[0.0], ephem_vel=[0.0],
+        )
+    assert str(cm.value).startswith(
+        "ephem_dist must have the same shape as ephem_times."
+    )
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.interpolate_ephem(
+            0.0,
+            [0.0, 1.0],
+            [0.0, 1.0],
+            [0.0, 1.0],
+            ephem_dist=[0.0, 1.0],
+            ephem_vel=[0.0],
+        )
+    assert str(cm.value).startswith(
+        "ephem_vel must have the same shape as ephem_times."
+    )
+
+    # Now on to app_coords
+    with pytest.raises(ValueError) as cm:
+        uvutils.calc_app_coords(
+            0.0, 0.0, telescope_loc=(0, 1, 2), object_type="whoknows"
+        )
+    assert str(cm.value).startswith("Object type whoknows is not recognized.")
+
+
+@pytest.mark.filterwarnings('ignore:ERFA function "pmsafe" yielded 4 of')
+@pytest.mark.filterwarnings('ignore:ERFA function "utcut1" yielded 2 of')
+@pytest.mark.filterwarnings('ignore:ERFA function "d2dtf" yielded 1 of')
 def test_coord_cross_check():
     pytest.importorskip("novas")
     pytest.importorskip("novas_de405")
@@ -961,7 +1161,7 @@ def test_coord_cross_check():
             icrs_ra,
             icrs_dec,
             telescope_loc,
-            coord_epoch=2000.0,
+            epoch=2000.0,
             pm_ra=pm_ra,
             pm_dec=pm_dec,
             vrad=vrad,
@@ -978,6 +1178,74 @@ def test_coord_cross_check():
                 coord_results[jdx][0], coord_results[jdx][1], unit="rad"
             )
             assert np.all(alpha_coord.separation(beta_coord).marcsec < 1.0)
+
+    app_ra = 2.468
+    app_dec = 1.234
+    astrometry_list = ["erfa", "astropy"]
+    coord_results = [None, None, None]
+
+    # These values were indepedently calculated using erfa v1.7.2, which at the
+    # time of coding agreed to < 1 mas with astropy v4.2.1. We again are using
+    # those values here as a sort of history check to make sure that something
+    # hasn't changed in the underlying astrometry libraries without being caught
+    coord_results[2] = (
+        np.array(
+            [
+                2.4623360300722170,
+                2.4623407989706756,
+                2.4623676572008280,
+                2.4624965192217900,
+            ]
+        ),
+        np.array(
+            [
+                1.2350407132378372,
+                1.2350427272595987,
+                1.2350443204758008,
+                1.2351412288987034,
+            ]
+        ),
+    )
+
+    for idx, name in enumerate(astrometry_list):
+        coord_results[idx] = uvutils.transform_app_to_icrs(
+            time_array, app_ra, app_dec, telescope_loc, astrometry_library=name,
+        )
+
+    for idx in range(len(coord_results) - 1):
+        for jdx in range(idx + 1, len(coord_results)):
+            alpha_coord = SkyCoord(
+                coord_results[idx][0], coord_results[idx][1], unit="rad"
+            )
+            beta_coord = SkyCoord(
+                coord_results[jdx][0], coord_results[jdx][1], unit="rad"
+            )
+            assert np.all(alpha_coord.separation(beta_coord).marcsec < 1.0)
+
+    astrometry_list = ["erfa", "astropy", "novas"]
+    lst_results = [None, None, None, None]
+    # These values were indepedently calculated using erfa v1.7.2, which at the
+    # time of coding agreed to < 50 µs with astropy v4.2.1 and novas 3.1.1.5. We
+    # use those values here as a sort of history check to make sure that something
+    # hasn't changed in the underlying astrometry libraries without being caught
+    lst_results[3] = np.array(
+        [0.8506741803481069, 2.442973468758589, 4.1728965710160555, 1.0130589895999587]
+    )
+
+    for idx, name in enumerate(astrometry_list):
+        lst_results[idx] = uvutils.get_lst_for_time(
+            time_array,
+            telescope_loc[0],
+            telescope_loc[1],
+            telescope_loc[2],
+            astrometry_library=name,
+        )
+
+    for idx in range(len(lst_results) - 1):
+        for jdx in range(idx + 1, len(lst_results)):
+            alpha_time = lst_results[idx] * units.rad
+            beta_time = lst_results[jdx] * units.rad
+            assert np.all(np.abs(alpha_time - beta_time).to_value("mas") < 1.0)
 
 
 def test_phasing_funcs():
