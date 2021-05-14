@@ -5233,10 +5233,24 @@ class UVData(UVBase):
 
             time_blt_inds = np.zeros(0, dtype=np.int64)
             for jd in times:
-                if jd in self.time_array:
-                    # TODO: maybe use a more tolerant check
+                if np.any(
+                    np.isclose(
+                        self.time_array,
+                        jd,
+                        rtol=self._time_array.tols[0],
+                        atol=self._time_array.tols[1],
+                    )
+                ):
                     time_blt_inds = np.append(
-                        time_blt_inds, np.where(self.time_array == jd)[0]
+                        time_blt_inds,
+                        np.where(
+                            np.isclose(
+                                self.time_array,
+                                jd,
+                                rtol=self._time_array.tols[0],
+                                atol=self._time_array.tols[1],
+                            )
+                        )[0],
                     )
                 else:
                     raise ValueError(
@@ -5268,7 +5282,14 @@ class UVData(UVBase):
 
             time_blt_inds = np.zeros(0, dtype=np.int64)
             for lst in lsts:
-                if np.any(np.abs(self.lst_array - lst) < self._lst_array.tols[1]):
+                if np.any(
+                    np.isclose(
+                        self.lst_array,
+                        lst,
+                        rtol=self._lst_array.tols[0],
+                        atol=self._lst_array.tols[1],
+                    )
+                ):
                     time_blt_inds = np.append(
                         time_blt_inds,
                         np.where(
