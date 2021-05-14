@@ -97,12 +97,14 @@ extensions = [corr_fits_extension, utils_extension]
 if not is_platform_windows():
     extensions.append(miriad_extension)
 
+astroquery_reqs = ["astroquery"]
 novas_reqs = ["novas", "novas_de405"]
 casa_reqs = ["python-casacore"]
 healpix_reqs = ["astropy_healpix"]
 cst_reqs = ["pyyaml"]
 test_reqs = (
     casa_reqs
+    + astroquery_reqs
     + healpix_reqs
     + novas_reqs
     + cst_reqs
@@ -140,11 +142,12 @@ setup_args = {
         "setuptools_scm",
     ],
     "extras_require": {
+        "astroquery": astroquery_reqs,
         "casa": casa_reqs,
         "novas": novas_reqs,
         "healpix": healpix_reqs,
         "cst": cst_reqs,
-        "all": casa_reqs + healpix_reqs + cst_reqs + novas_reqs,
+        "all": casa_reqs + healpix_reqs + cst_reqs + novas_reqs + astroquery_reqs,
         "test": test_reqs,
         "doc": doc_reqs,
         "dev": test_reqs + doc_reqs,

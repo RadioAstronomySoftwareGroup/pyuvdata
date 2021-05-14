@@ -922,6 +922,8 @@ def test_coord_inputs():
     Verify that the various coordinate handling programs throw appropriate errors
     when called with arguments that not consistent w/ what is expected.
     """
+    pytest.importorskip("astroquery")
+
     # Start w/ the transform_icrs_to_app block
     with pytest.raises(ValueError) as cm:
         uvutils.transform_icrs_to_app(
@@ -1116,7 +1118,17 @@ def test_coord_inputs():
 @pytest.mark.filterwarnings('ignore:ERFA function "pmsafe" yielded 4 of')
 @pytest.mark.filterwarnings('ignore:ERFA function "utcut1" yielded 2 of')
 @pytest.mark.filterwarnings('ignore:ERFA function "d2dtf" yielded 1 of')
-def test_coord_cross_check():
+def test_astrometry_libraries():
+    """
+    This test goes through and tests coordinate and sidereal time calculations using
+    the three different libraries that are available to pyuvdata, namely: astropy,
+    pyERFA, and python-novas. Between these three, we expect agreement within 100 µas in
+    most instances, although for pyuvdata we tolerate differences of up to 1 mas since
+    we don't expect to need astrometry better than this. This test calculates value from
+    all three, compares that to values calculated in the past, and makes sure that all
+    values appear consistent to this 1 mas limit.
+    """
+
     pytest.importorskip("novas")
     pytest.importorskip("novas_de405")
     # Do some basic cross-checking between the different astrometry libraries

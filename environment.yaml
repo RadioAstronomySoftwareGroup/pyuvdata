@@ -6,9 +6,8 @@ dependencies:
   - python>3.6
   - astropy>=4.2.1
   - astropy-healpix
+  - astroquery
   - h5py
-  - novas
-  - novas_de405
   - numpy>=1.18
   - pre-commit
   - pypandoc
@@ -25,3 +24,5 @@ dependencies:
   - pip:
       - pytest-cases>=3
       - pytest-xdist
+      - novas
+      - novas_de405
