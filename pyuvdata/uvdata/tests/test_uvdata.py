@@ -259,34 +259,6 @@ def sma_mir(sma_mir_main):
 
 
 @pytest.fixture(scope="session")
-def carma_miriad_main():
-    # read in test file for the resampling in time functions
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "carma_miriad")
-    uv_object.read(testfile, run_check=False, check_extra=False)
-    uv_object.extra_keywords = None
-    yield uv_object
-
-    # cleanup
-    del uv_object
-
-    return
-
-
-@pytest.fixture(scope="function")
-def carma_miriad(carma_miriad_main):
-    # read in test file for the resampling in time functions
-    uv_object = carma_miriad_main.copy()
-
-    yield uv_object
-
-    # cleanup
-    del uv_object
-
-    return
-
-
-@pytest.fixture(scope="session")
 def paper_uvh5_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
@@ -9471,7 +9443,11 @@ def test_rephase_to_time():
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
-def test_print_object(sma_mir, carma_miriad, hera_uvh5):
+def test_print_object(sma_mir, hera_uvh5):
+    """
+    A series of basic checks to see tht the formatting of the table from print_objects
+    is consistent.
+    """
     check_str = (
         "   ID        Object       Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"
         "    #          Name                    hours           deg                 \n"
@@ -9585,6 +9561,19 @@ def test_print_object(sma_mir, carma_miriad, hera_uvh5):
         ValueError, match="Cannot use print_objects on a non-multi-object data set."
     ):
         hera_uvh5.print_objects()
+
+
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
+def test_print_object_multi():
+    """
+    Test the print_objects function when there are multiple objects stored in the
+    internal catalog.
+    """
+    pytest.importorskip("pyuvdata._miriad")
+    carma_miriad = UVData()
+    testfile = os.path.join(DATA_PATH, "carma_miriad")
+    carma_miriad.read(testfile, run_check=False, check_extra=False)
+    carma_miriad.extra_keywords = None
 
     _ = carma_miriad._add_object("NOISE", object_type="unphased", force_update=True)
     check_str = (
