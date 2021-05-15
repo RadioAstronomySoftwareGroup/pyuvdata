@@ -769,7 +769,8 @@ def test_calc_uvw():
     )
     assert np.all(np.equal(uvw_array, uvw_check))
 
-    # Check ant make sure when tracking, we can arrive at the same place
+    # Check ant make sure that when we plug in the original values, we recover the
+    # exact same values that we calculated above.
     uvw_ant_check = uvutils.calc_uvw(
         app_ra=old_app_ra,
         app_dec=old_app_dec,
@@ -799,7 +800,8 @@ def test_calc_uvw():
     assert np.allclose(uvw_ant_check, uvw_array)
     assert np.allclose(uvw_base_check, uvw_array)
 
-    # Now change position
+    # Now change position, and make sure that whether we used ant positions of rotated
+    # uvw vectors, we derived the same uvw-coordinates at the end
     uvw_ant_check = uvutils.calc_uvw(
         app_ra=app_ra,
         app_dec=app_dec,
@@ -829,7 +831,7 @@ def test_calc_uvw():
 
     assert np.allclose(uvw_ant_check, uvw_base_check)
 
-    # Same task for calculating ENU coords
+    # Same task for calculating ENU coords.
     uvw_ant_check = uvutils.calc_uvw(
         lst_array=lst_array,
         use_ant_pos=True,
@@ -856,6 +858,8 @@ def test_calc_uvw():
 
     assert np.allclose(uvw_ant_check, uvw_base_check)
 
+    # Now attempt to round trip from projected to ENU back to projected -- that should
+    # give us the original set of uvw-coordinates.
     temp_uvw = uvutils.calc_uvw(
         lst_array=lst_array,
         use_ant_pos=False,
@@ -882,6 +886,9 @@ def test_calc_uvw():
 
     assert np.allclose(uvw_array, uvw_base_enu_check)
 
+    # Finally, check and see what happens if you do the PA rotation as part of the
+    # first uvw calcuation, and make sure it agrees with what you get if you decide
+    # to apply the PA rotation after-the-fact.
     uvw_base_check = uvutils.calc_uvw(
         app_ra=app_ra,
         app_dec=app_dec,
@@ -915,8 +922,11 @@ def test_calc_uvw():
     assert np.allclose(uvw_base_check, uvw_base_late_pa_check)
 
 
-@pytest.mark.filterwarnings('ignore:ERFA function "pmsafe" yielded 4 of')
-@pytest.mark.filterwarnings('ignore:ERFA function "dtdtf" yielded 1 of')
+@pytest.mark.filterwarnings('ignore:ERFA function "pmsafe" yielded')
+@pytest.mark.filterwarnings('ignore:ERFA function "dtdtf" yielded')
+@pytest.mark.filterwarnings('ignore:ERFA function "utcut1" yielded')
+@pytest.mark.filterwarnings('ignore:ERFA function "utctai" yielded')
+@pytest.mark.filterwarnings('ignore:ERFA function "d2dtf" yielded')
 def test_coord_inputs():
     """
     Verify that the various coordinate handling programs throw appropriate errors
@@ -977,7 +987,7 @@ def test_coord_inputs():
 
     with pytest.raises(ValueError) as cm:
         uvutils.transform_icrs_to_app(
-            (0, 1),
+            0.0,
             [0.0, 1.0],
             [0.0, 1.0],
             (0, 1, 2),
@@ -1022,6 +1032,30 @@ def test_coord_inputs():
         )
     assert str(cm.value).startswith("time_array must be of either of length 1 (single ")
 
+    # Next on to sidereal to sidereal
+    with pytest.raises(ValueError) as cm:
+        uvutils.transform_sidereal_coords(
+            [0.0],
+            [0.0, 1.0],
+            "fk5",
+            "icrs",
+            in_coord_epoch="J2000.0",
+            time_array=[0.0, 1.0, 2.0],
+        )
+    assert str(cm.value).startswith("lon and lat must be the same shape.")
+
+    with pytest.raises(ValueError) as cm:
+        uvutils.transform_sidereal_coords(
+            [0.0, 1.0],
+            [0.0, 1.0],
+            "fk4",
+            "fk4",
+            in_coord_epoch=1950.0,
+            out_coord_epoch=1984.0,
+            time_array=[0.0, 1.0, 2.0],
+        )
+    assert str(cm.value).startswith("Shape of time_array must be either that of ")
+
     # Move on to the JPL-Horizons checks
     with pytest.raises(ValueError) as cm:
         uvutils.lookup_jplhorizons(
@@ -1051,7 +1085,7 @@ def test_coord_inputs():
         uvutils.lookup_jplhorizons(
             "whoami",
             np.arange(100),
-            telescope_loc=(0, 1, 2),
+            telescope_loc=EarthLocation.from_geodetic(0, 1, 2),
             high_cadence=False,
             force_indv_lookup=False,
         )
@@ -1062,10 +1096,9 @@ def test_coord_inputs():
     with pytest.raises(ValueError) as cm:
         uvutils.lookup_jplhorizons(
             "whoami",
-            np.arange(100) + 2456789.0,
-            telescope_loc=(0, 1, 2),
+            np.array([0.0, 1000.0]) + 2456789.0,
+            telescope_loc=None,
             high_cadence=False,
-            force_indv_lookup=False,
         )
     assert str(cm.value).startswith(
         "Target ID is not recognized in either the small or major bodies "
@@ -1113,6 +1146,412 @@ def test_coord_inputs():
             0.0, 0.0, telescope_loc=(0, 1, 2), object_type="whoknows"
         )
     assert str(cm.value).startswith("Object type whoknows is not recognized.")
+
+
+def test_transform_sidereal_coords():
+    """
+    Perform some basic tests to verify that we can transform between sidereal frames.
+    """
+    time_array = Time([2456789.0, 2456789.0], format="jd", scale="utc")
+    icrs_ra = 5.31 * np.ones(2)
+    icrs_dec = -0.88 * np.ones(2)
+    icrs_coord = SkyCoord(icrs_ra, icrs_dec, unit="rad")
+
+    # Check and make sure that we can deal with non-singleton times or coords with
+    # singleton coords and times, respectively. Use GCRS, since unlike ICRS it is
+    # actually sensitive to the obstime
+    gcrs_ra, gcrs_dec = uvutils.transform_sidereal_coords(
+        icrs_ra,
+        icrs_dec,
+        "icrs",
+        "fk5",
+        in_coord_epoch=2000.0,
+        out_coord_epoch=2000.0,
+        time_array=time_array[0],
+    )
+
+    check_ra, check_dec = uvutils.transform_sidereal_coords(
+        icrs_ra[0],
+        icrs_dec[0],
+        "icrs",
+        "fk5",
+        in_coord_epoch=2000.0,
+        out_coord_epoch=2000.0,
+        time_array=time_array,
+    )
+    assert np.all(np.equal(gcrs_ra, check_ra))
+    assert np.all(np.equal(gcrs_dec, check_dec))
+
+    # Now do a triangle between ICRS -> FK5 -> FK4 -> ICRS. If all is working well,
+    # then we should recover the same position we started with.
+    fk5_ra, fk5_dec = uvutils.transform_sidereal_coords(
+        icrs_ra,
+        icrs_dec,
+        "icrs",
+        "fk5",
+        in_coord_epoch=2000.0,
+        out_coord_epoch=2000.0,
+        time_array=time_array[0],
+    )
+
+    fk4_ra, fk4_dec = uvutils.transform_sidereal_coords(
+        fk5_ra,
+        fk5_dec,
+        "fk5",
+        "fk4",
+        in_coord_epoch="J2000.0",
+        out_coord_epoch="B1950.0",
+    )
+
+    check_ra, check_dec = uvutils.transform_sidereal_coords(
+        fk4_ra,
+        fk4_dec,
+        "fk4",
+        "icrs",
+        in_coord_epoch="B1950.0",
+        out_coord_epoch="J2000.0",
+    )
+
+    check_coord = SkyCoord(check_ra, check_dec, unit="rad")
+    assert np.all(check_coord.separation(icrs_coord).uarcsec < 0.1)
+
+
+def test_roundtrip_icrs():
+    """
+    Performs a roundtrip test to verify that one can transform between
+    ICRS <-> topocentric to the precision limit, without running into
+    issues.
+    """
+    # The values below were pretty much randomly chosed
+    time_array = Time(2456789.0, format="jd", scale="utc")
+    icrs_ra = 1.56
+    icrs_dec = -1.23
+    icrs_coord = SkyCoord(icrs_ra, icrs_dec, unit="rad", frame="icrs")
+
+    # Telescope position is based on SMA position
+    telescope_loc = EarthLocation.from_geodetic(
+        -155.477522997222, 19.824205263889, height=4083.948144,
+    )
+    in_lib_list = ["erfa", "erfa", "astropy", "astropy"]
+    out_lib_list = ["erfa", "astropy", "erfa", "astropy"]
+
+    # Go through each pair of potential round trips and make sure that things agree
+    # to better than 1 µas.
+    for in_lib, out_lib in zip(in_lib_list, out_lib_list):
+        app_ra, app_dec = uvutils.transform_icrs_to_app(
+            time_array,
+            icrs_ra,
+            icrs_dec,
+            telescope_loc,
+            epoch="J2000.0",
+            astrometry_library=in_lib,
+        )
+
+        check_ra, check_dec = uvutils.transform_app_to_icrs(
+            time_array, app_ra, app_dec, telescope_loc, astrometry_library=out_lib,
+        )
+        check_coord = SkyCoord(check_ra, check_dec, unit="rad", frame="icrs")
+        # Verify that everything agrees to better than µas-level accuracy
+        assert np.all(icrs_coord.separation(check_coord).uarcsec < 1.0)
+
+
+def test_calc_parallactic_angle():
+    """
+    A relatively straightforward test to verify that we recover the parallactic
+    angles we expect given some known inputs
+    """
+    expected_vals = np.array([1.0754290375762232, 0.0, -0.6518070715011698])
+    meas_vals = uvutils.calc_parallactic_angle(
+        [0.0, 1.0, 2.0], [-1.0, 0.0, 1.0], [2.0, 1.0, 0], 1.0,
+    )
+    # Make sure things agree to better than ~0.1 uas (as it definitely should)
+    assert np.allclose(expected_vals, meas_vals, 0.0, 1e-12)
+
+
+def test_calc_frame_pos_angle():
+    """
+    Verify that we recover frame position angles correctly
+    """
+    # First test -- plug in "topo" for the frame, which should always produce a
+    frame_pa = uvutils.calc_frame_pos_angle(
+        np.array([2456789.0] * 100),
+        np.arange(100) * (np.pi / 50),
+        np.zeros(100),
+        (0, 0, 0),
+        "topo",
+    )
+    assert len(frame_pa) == 100
+    assert np.all(frame_pa == 0.0)
+    # PA of zero degrees (they're always aligned)
+    # Next test -- plug in J2000 and see that we actually get back a frame PA
+    # of basically 0 degrees.
+    j2000_jd = Time(2000.0, format="jyear").utc.jd
+    frame_pa = uvutils.calc_frame_pos_angle(
+        np.array([j2000_jd] * 100),
+        np.arange(100) * (np.pi / 50),
+        np.zeros(100),
+        (0, 0, 0),
+        "fk5",
+        ref_epoch=2000.0,
+    )
+    # At J2000, the only frame PA terms come from aberation, which basically max out
+    # at ~< 1e-4 rad. Check to make sure that lines up with what we measure.
+    assert np.all(np.abs(frame_pa) < 1e-4)
+
+    # JD 2458849.5 is Jan-01-2020, so 20 years of parallax ought to have accumulated
+    # (with about 1 arcmin/yr of precession). Make sure these values are sensible
+    frame_pa = uvutils.calc_frame_pos_angle(
+        np.array([2458849.5] * 100),
+        np.arange(100) * (np.pi / 50),
+        np.zeros(100),
+        (0, 0, 0),
+        "fk5",
+        ref_epoch=2000.0,
+    )
+    assert np.all(np.abs(frame_pa) < 20 * (50.3 / 3600) * (np.pi / 180.0))
+    # Check the PA at a couple of chosen points, which just so happen to be very close
+    # in magnitude (as they're basically in the same plane as the motion of the Earth)
+    assert np.isclose(frame_pa[25], 0.001909957544309159)
+    assert np.isclose(frame_pa[-25], -0.0019098101664715339)
+
+
+def test_jphl_lookup():
+    """
+    A very simple lookup query to verify that the astroquery tools for accessing
+    JPL-Horizons are working. This test is very limited, on account of not wanting to
+    slam JPL w/ coordinate requests.
+    """
+    pytest.importorskip("astroquery")
+
+    [
+        ephem_times,
+        ephem_ra,
+        ephem_dec,
+        ephem_dist,
+        ephem_vel,
+    ] = uvutils.lookup_jplhorizons("Sun", 2456789.0)
+
+    assert np.all(np.equal(ephem_times, 2456789.0))
+    assert np.allclose(ephem_ra, 0.8393066751804976)
+    assert np.allclose(ephem_dec, 0.3120687480116649)
+    assert np.allclose(ephem_dist, 1.00996185750717)
+    assert np.allclose(ephem_vel, 0.386914)
+
+
+def test_ephem_interp():
+    """
+    These tests do some simple checks to verify that the interpolator appears to be
+    producing sensible answers.
+    """
+    # First test the case where there is only one ephem point, and thus everything
+    # takes on that value
+    time_array = np.arange(100) * 0.01
+    ephem_times = np.array([0])
+    ephem_ra = np.array([1.0])
+    ephem_dec = np.array([2.0])
+    ephem_dist = np.array([3.0])
+    ephem_vel = np.array([4.0])
+
+    ra_vals0, dec_vals0, dist_vals0, vel_vals0 = uvutils.interpolate_ephem(
+        time_array,
+        ephem_times,
+        ephem_ra,
+        ephem_dec,
+        ephem_dist=ephem_dist,
+        ephem_vel=ephem_vel,
+    )
+
+    assert np.all(ra_vals0 == 1.0)
+    assert np.all(dec_vals0 == 2.0)
+    assert np.all(dist_vals0 == 3.0)
+    assert np.all(vel_vals0 == 4.0)
+
+    # Next test the case where the ephem only has a couple of points, in which case the
+    # code will default to using a simple, linear interpolation scheme.
+    ephem_times = np.array([0, 1])
+    ephem_ra = np.array([0, 1]) + 1.0
+    ephem_dec = np.array([0, 1]) + 2.0
+    ephem_dist = np.array([0, 1]) + 3.0
+    ephem_vel = np.array([0, 1]) + 4.0
+
+    ra_vals1, dec_vals1, dist_vals1, vel_vals1 = uvutils.interpolate_ephem(
+        time_array,
+        ephem_times,
+        ephem_ra,
+        ephem_dec,
+        ephem_dist=ephem_dist,
+        ephem_vel=ephem_vel,
+    )
+
+    # When there are lots more data points, the interpolator will default to using a
+    # cubic spline, which _should_ be very close (to numerical precision limits) to what
+    # we get with the method above.
+    ephem_times = np.arange(11) * 0.1
+    ephem_ra = (np.arange(11) * 0.1) + 1.0
+    ephem_dec = (np.arange(11) * 0.1) + 2.0
+    ephem_dist = (np.arange(11) * 0.1) + 3.0
+    ephem_vel = (np.arange(11) * 0.1) + 4.0
+
+    ra_vals2, dec_vals2, dist_vals2, vel_vals2 = uvutils.interpolate_ephem(
+        time_array,
+        ephem_times,
+        ephem_ra,
+        ephem_dec,
+        ephem_dist=ephem_dist,
+        ephem_vel=ephem_vel,
+    )
+
+    # Make sure that everything is consistent to floating point precision
+    assert np.allclose(ra_vals1, ra_vals2, 1e-15, 0.0)
+    assert np.allclose(dec_vals1, dec_vals2, 1e-15, 0.0)
+    assert np.allclose(dist_vals1, dist_vals2, 1e-15, 0.0)
+    assert np.allclose(vel_vals1, vel_vals2, 1e-15, 0.0)
+    assert np.allclose(time_array + 1.0, ra_vals2, 1e-15, 0.0)
+    assert np.allclose(time_array + 2.0, dec_vals2, 1e-15, 0.0)
+    assert np.allclose(time_array + 3.0, dist_vals2, 1e-15, 0.0)
+    assert np.allclose(time_array + 4.0, vel_vals2, 1e-15, 0.0)
+
+
+def test_calc_app_and_calc_sidereal():
+    """
+    This test combines testing of calc_app_coords and calc_sidereal_coords, to
+    verify that objects of different types that _should_ produce the same
+    coordinates actually do.
+    """
+    # First let's set up some basic info. Telescope location taken from SMA
+    telescope_loc = EarthLocation.from_geodetic(
+        -155.477522997222, 19.824205263889, height=4083.948144,
+    )
+
+    # Dummy JD date that's easy to remember
+    time_array = Time(2456789.0, format="jd", scale="utc")
+
+    # Get the LAST
+    lst_array = uvutils.get_lst_for_time(
+        time_array.jd,
+        telescope_loc.lat.deg,
+        telescope_loc.lon.deg,
+        telescope_loc.height.to_value("m"),
+    )
+
+    # Set up for zenith as being the phase center
+    app_ra = lst_array
+    app_dec = np.array([telescope_loc.lat.rad])
+    app_coord = SkyCoord(app_ra, app_dec, unit="rad")
+
+    # We are going to calculate FK5 and ICRS here, because the two have slightly
+    # different paths through the code, and we want to make sure that both work well
+    fk5_ra, fk5_dec = uvutils.calc_sidereal_coords(
+        time_array, app_ra, app_dec, telescope_loc, "fk5", coord_epoch="J2000.0",
+    )
+
+    icrs_ra, icrs_dec = uvutils.calc_sidereal_coords(
+        time_array, app_ra, app_dec, telescope_loc, "icrs",
+    )
+
+    # First step is to check and make sure we can do sidereal coords. This is the most
+    # basic thing to check, so this really _should work.
+    check_ra, check_dec = uvutils.calc_app_coords(
+        fk5_ra,
+        fk5_dec,
+        object_type="sidereal",
+        telescope_loc=telescope_loc,
+        time_array=time_array,
+        coord_frame="fk5",
+        coord_epoch=2000.0,
+    )
+    check_coord = SkyCoord(check_ra, check_dec, unit="rad")
+    assert np.all(app_coord.separation(check_coord).uarcsec < 1.0)
+
+    # Next, see what happens when we pass an ephem. Note that this is just a single
+    # point ephem, so its not testing any of the fancy interpolation, but we have other
+    # tests for poking at that. The two tests here are to check bot the ICRS and FK5
+    # paths through the ephem.
+    ephem_times = np.array([time_array.jd])
+    check_ra, check_dec = uvutils.calc_app_coords(
+        icrs_ra,
+        icrs_dec,
+        coord_times=ephem_times,
+        object_type="ephem",
+        telescope_loc=telescope_loc,
+        time_array=time_array,
+        coord_frame="icrs",
+    )
+    check_coord = SkyCoord(check_ra, check_dec, unit="rad")
+    assert np.all(app_coord.separation(check_coord).uarcsec < 1.0)
+
+    check_ra, check_dec = uvutils.calc_app_coords(
+        fk5_ra,
+        fk5_dec,
+        coord_times=ephem_times,
+        object_type="ephem",
+        telescope_loc=telescope_loc,
+        time_array=time_array,
+        coord_frame="fk5",
+        coord_epoch=2000.0,
+    )
+    check_coord = SkyCoord(check_ra, check_dec, unit="rad")
+    assert np.all(app_coord.separation(check_coord).uarcsec < 1.0)
+
+    # Now on to the driftscan, which takes in arguments in terms of az and el (and
+    # the values we've given below should also be for zenith)
+    check_ra, check_dec = uvutils.calc_app_coords(
+        0.0,
+        np.pi / 2.0,
+        object_type="driftscan",
+        telescope_loc=telescope_loc,
+        time_array=time_array,
+    )
+    check_coord = SkyCoord(check_ra, check_dec, unit="rad")
+    assert np.all(app_coord.separation(check_coord).uarcsec < 1.0)
+
+    # Finally, check unphased, which is forced to point toward zenith (unlike driftscan,
+    # which is allowed to point at any az/el position)
+    check_ra, check_dec = uvutils.calc_app_coords(
+        None,
+        None,
+        object_type="unphased",
+        telescope_loc=telescope_loc,
+        time_array=time_array,
+        lst_array=lst_array,
+    )
+    check_coord = SkyCoord(check_ra, check_dec, unit="rad")
+    assert np.all(app_coord.separation(check_coord).uarcsec < 1.0)
+
+    # Do a round-trip with the two top-level functions and make sure they agree to
+    # better than 1 µas, first in FK5
+    app_ra, app_dec = uvutils.calc_app_coords(
+        0.0,
+        0.0,
+        object_type="sidereal",
+        telescope_loc=telescope_loc,
+        time_array=time_array,
+        coord_frame="fk5",
+        coord_epoch="J2000.0",
+    )
+
+    check_ra, check_dec = uvutils.calc_sidereal_coords(
+        time_array, app_ra, app_dec, telescope_loc, "fk5", coord_epoch=2000.0,
+    )
+    check_coord = SkyCoord(check_ra, check_dec, unit="rad")
+    assert np.all(SkyCoord(0, 0, unit="rad").separation(check_coord).uarcsec < 1.0)
+
+    # Finally, check and make sure that FK4 performs similarly
+    app_ra, app_dec = uvutils.calc_app_coords(
+        0.0,
+        0.0,
+        object_type="sidereal",
+        telescope_loc=telescope_loc,
+        time_array=time_array,
+        coord_frame="fk4",
+        coord_epoch=1950.0,
+    )
+
+    check_ra, check_dec = uvutils.calc_sidereal_coords(
+        time_array, app_ra, app_dec, telescope_loc, "fk4", coord_epoch=1950.0,
+    )
+    check_coord = SkyCoord(check_ra, check_dec, unit="rad")
+    assert np.all(SkyCoord(0, 0, unit="rad").separation(check_coord).uarcsec < 1.0)
 
 
 @pytest.mark.filterwarnings('ignore:ERFA function "pmsafe" yielded 4 of')

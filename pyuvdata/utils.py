@@ -1705,8 +1705,8 @@ def calc_uvw(
 
 
 def transform_sidereal_coords(
-    lon_coord,
-    lat_coord,
+    lon,
+    lat,
     in_coord_frame,
     out_coord_frame,
     in_coord_epoch=None,
@@ -1763,74 +1763,81 @@ def transform_sidereal_coords(
         Latidudinal coordinates, in units of radians. Output will be an ndarray
         if any inputs were, with shape (Ncoords,) or (Ntimes,), depending on inputs.
     """
-    # Make sure that the inputs are sensible
-    if isinstance(lon_coord, np.ndarray) != isinstance(lat_coord, np.ndarray):
-        raise ValueError("lon_coord and lat_coord types must agree.")
-    if isinstance(lon_coord, np.ndarray):
-        if lon_coord.shape != lat_coord.shape:
-            raise ValueError("Length of lon_coord and lat_coord must be the same.")
+    lon_coord = lon * units.rad
+    lat_coord = lat * units.rad
+
+    # Check here to make sure that lat_coord and lon_coord are the same length,
+    # either 1 or len(time_array)
+    if lat_coord.shape != lon_coord.shape:
+        raise ValueError("lon and lat must be the same shape.")
+
+    if lon_coord.ndim == 0:
+        lon_coord.shape += (1,)
+        lat_coord.shape += (1,)
 
     # Check to make sure that we have a properly formatted epoch for our in-bound
     # coordinate frame
     in_epoch = None
     if isinstance(in_coord_epoch, str) or isinstance(in_coord_epoch, Time):
         # If its a string or a Time object, we don't need to do anything more
-        in_epoch = in_coord_epoch
-    elif isinstance(in_coord_epoch, float):
+        in_epoch = Time(in_coord_epoch)
+    elif in_coord_epoch is not None:
         if in_coord_frame.lower() in ["fk4", "fk4noeterms"]:
             in_epoch = Time(in_coord_epoch, format="byear")
         else:
             in_epoch = Time(in_coord_epoch, format="jyear")
-    elif in_coord_epoch is not None:
-        print(type(in_coord_epoch))
-        raise ValueError("in_coord_epoch must be of type str, Time, float, or None.")
 
     # Now do the same for the outbound frame
     out_epoch = None
     if isinstance(out_coord_epoch, str) or isinstance(out_coord_epoch, Time):
         # If its a string or a Time object, we don't need to do anything more
-        out_epoch = out_coord_epoch
-    elif isinstance(out_coord_epoch, float):
+        out_epoch = Time(out_coord_epoch)
+    elif out_coord_epoch is not None:
         if out_coord_frame.lower() in ["fk4", "fk4noeterms"]:
             out_epoch = Time(out_coord_epoch, format="byear")
         else:
             out_epoch = Time(out_coord_epoch, format="jyear")
-    elif out_coord_epoch is not None:
-        raise ValueError("out_coord_epoch must be of type str, Time, float, or None.")
 
     # Make sure that time array matched up with what we expect. Thanks to astropy
     # weirdness, time_array has to be the same length as lat/lon coords
     rep_time = False
     rep_crds = False
-    if time_array is not None:
-        if type(time_array) != type(lon_coord):
-            rep_time = isinstance(lon_coord, np.ndarray)
-            rep_crds = isinstance(time_array, np.ndarray)
-        elif isinstance(time_array, np.ndarray):
-            if len(time_array) != len(lon_coord):
+    if time_array is None:
+        time_obj_array = None
+    else:
+        if isinstance(time_array, Time):
+            time_obj_array = time_array
+        else:
+            time_obj_array = Time(time_array, format="jd", scale="utc")
+        if (time_obj_array.size != 1) and (lon_coord.size != 1):
+            if time_obj_array.shape != lon_coord.shape:
                 raise ValueError(
-                    "Length of time_array must be either that of "
-                    " lat_coord/lon_coord or 1!"
+                    "Shape of time_array must be either that of "
+                    " lat_coord/lon_coord if len(time_array) > 1."
                 )
+        else:
+            rep_crds = (time_obj_array.size != 1) and (lon_coord.size == 1)
+            rep_time = (time_obj_array.size == 1) and (lon_coord.size != 1)
+    if rep_crds:
+        lon_coord = np.repeat(lon_coord, len(time_array))
+        lat_coord = np.repeat(lat_coord, len(time_array))
+    if rep_time:
+        time_obj_array = Time(
+            np.repeat(time_obj_array.jd, len(lon_coord)), format="jd", scale="utc",
+        )
     coord_object = SkyCoord(
-        (np.repeat(lon_coord, len(time_array)) if rep_crds else lon_coord) * units.rad,
-        (np.repeat(lat_coord, len(time_array)) if rep_crds else lat_coord) * units.rad,
+        lon_coord,
+        lat_coord,
         frame=in_coord_frame,
         equinox=in_epoch,
-        obstime=None
-        if time_array is None
-        else Time(
-            np.repeat(time_array, len(lon_coord)) if rep_time else time_array,
-            scale="utc",
-            format="jd",
-        ),
+        obstime=time_obj_array,
     )
 
     # Easiest, most general way to transform to the new frame to to create a dummy
     # SkyCoord with all the attributes needed -- note that we particularly need this
     # in order to use a non-standard equinox/epoch
     new_coord = coord_object.transform_to(
-        SkyCoord(0, 0, unit="rad", frame=out_coord_frame, equinox=out_epoch,)
+        SkyCoord(0, 0, unit="rad", frame=out_coord_frame, equinox=out_epoch)
     )
 
     return new_coord.spherical.lon.rad, new_coord.spherical.lat.rad
@@ -1963,7 +1970,7 @@ def transform_icrs_to_app(
     if isinstance(time_array, Time):
         time_obj_array = time_array
     else:
-        time_obj_array = Time(time_array, format="jd", scale="utc", location=site_loc,)
+        time_obj_array = Time(time_array, format="jd", scale="utc")
 
     if time_obj_array.size != 1:
         if (time_obj_array.shape != ra_coord.shape) and multi_coord:
@@ -1974,7 +1981,7 @@ def transform_icrs_to_app(
     elif time_obj_array.ndim == 0:
         # Make the array at least 1-dimensional so we don't run into indexing
         # issues later.
-        time_obj_array.shape += (1,)
+        time_obj_array = Time([time_obj_array])
 
     # Check to make sure that we have a properly formatted epoch for our in-bound
     # coordinate frame
@@ -2064,7 +2071,9 @@ def transform_icrs_to_app(
             azel_data.az.rad, azel_data.alt.rad, site_loc.lat.rad,
         )
         app_ra = np.mod(
-            time_obj_array.sidereal_time("apparent").rad - app_ha, 2 * np.pi
+            time_obj_array.sidereal_time("apparent", longitude=site_loc.lon).rad
+            - app_ha,
+            2 * np.pi,
         )
 
     elif astrometry_library == "novas":
@@ -2145,7 +2154,7 @@ def transform_icrs_to_app(
             )
             xyz_array = novas.wobble(tt_time, pm_x, pm_y, xyz_array, 1)
 
-            [app_ra[idx], app_dec[idx]] = cart3_to_polar2(np.array(xyz_array))
+            app_ra[idx], app_dec[idx] = cart3_to_polar2(np.array(xyz_array))
     elif astrometry_library == "erfa":
         # liberfa wants things in radians
         pm_x_array *= np.pi / (3600.0 * 180.0)
@@ -2244,7 +2253,7 @@ def transform_app_to_icrs(
     if isinstance(time_array, Time):
         time_obj_array = time_array
     else:
-        time_obj_array = Time(time_array, format="jd", scale="utc", location=site_loc,)
+        time_obj_array = Time(time_array, format="jd", scale="utc")
 
     if time_obj_array.size != 1:
         if (time_obj_array.shape != ra_coord.shape) and multi_coord:
@@ -2255,12 +2264,13 @@ def transform_app_to_icrs(
     elif time_obj_array.ndim == 0:
         # Make the array at least 1-dimensional so we don't run into indexing
         # issues later.
-        time_obj_array.shape += (1,)
+        time_obj_array = Time([time_obj_array])
 
     if astrometry_library == "astropy":
         az_coord, el_coord = erfa.hd2ae(
             np.mod(
-                time_obj_array.sidereal_time("apparent").rad - ra_coord.to_value("rad"),
+                time_obj_array.sidereal_time("apparent", longitude=site_loc.lon).rad
+                - ra_coord.to_value("rad"),
                 2 * np.pi,
             ),
             dec_coord.to_value("rad"),
@@ -2545,7 +2555,7 @@ def lookup_jplhorizons(
     # just calculate the RA/Dec for the times requested rather than creating a table
     # to interpolate from.
     if force_indv_lookup or (
-        (len(np.array(time_array)) == 1) and (force_indv_lookup is None)
+        (np.array(time_array).size == 1) and (force_indv_lookup is None)
     ):
         epoch_list = np.unique(time_array)
         if len(epoch_list) > 50:
@@ -2720,7 +2730,7 @@ def interpolate_ephem(
 
     if len(ephem_times) == 1:
         ra_vals += ephem_ra
-        dec_vals += ephem_ra
+        dec_vals += ephem_dec
         if ephem_dist is not None:
             dist_vals += ephem_dist
         if ephem_vel is not None:
@@ -2877,7 +2887,24 @@ def calc_app_coords(
             height=telescope_loc[2],
         )
 
-    unique_time_array = np.unique(time_array)
+    # Time objects and unique don't seem to play well together, so we break apart
+    # their handling here
+    if isinstance(time_array, Time):
+        unique_time_array, unique_mask = np.unique(time_array.utc.jd, return_index=True)
+    else:
+        unique_time_array, unique_mask = np.unique(time_array, return_index=True)
+
+    if object_type in ["driftscan", "unphased"]:
+        if lst_array is None:
+            unique_lst = get_lst_for_time(
+                unique_time_array,
+                site_loc.lat.deg,
+                site_loc.lon.deg,
+                site_loc.height.to_value("m"),
+            )
+        else:
+            unique_lst = lst_array[unique_mask]
+
     if object_type == "sidereal":
         # If the coordinates are not in the ICRS frame, go ahead and transform them now
         if coord_frame != "icrs":
@@ -2911,9 +2938,10 @@ def calc_app_coords(
         )
         # The above returns HA/Dec, so we just need to rotate by
         # the LST to get back app RA and Dec
-        unique_app_ra = np.mod(unique_app_ha + lst_array, 2 * np.pi)
+        unique_app_ra = np.mod(unique_app_ha + unique_lst, 2 * np.pi)
+        unique_app_dec = unique_app_dec + np.zeros_like(unique_app_ra)
     elif object_type == "ephem":
-        interp_ra, interp_dec = interpolate_ephem(
+        interp_ra, interp_dec, _, _ = interpolate_ephem(
             unique_time_array, coord_times, lon_coord, lat_coord,
         )
         if coord_frame != "icrs":
@@ -2938,19 +2966,22 @@ def calc_app_coords(
             vrad=vrad,
             dist=dist,
         )
-
     elif object_type == "unphased":
         # This is the easiest one - this is just supposed to be ENU, so set the
         # apparent coords to the current lst and telescope_lon.
-        unique_app_ra = lst_array.copy()
+        unique_app_ra = unique_lst.copy()
         unique_app_dec = np.zeros_like(unique_app_ra) + site_loc.lat.rad
     else:
         raise ValueError("Object type %s is not recognized." % object_type)
 
     # Now that we've calculated all the unique values, time to backfill through the
     # "redundant" entries in the Nblt axis.
-    app_ra = np.zeros_like(time_array)
-    app_dec = np.zeros_like(time_array)
+    app_ra = np.zeros(np.array(time_array).shape)
+    app_dec = np.zeros(np.array(time_array).shape)
+
+    # Need this promotion in order to match entries
+    if isinstance(time_array, Time):
+        unique_time_array = Time(unique_time_array, format="jd", scale="utc")
     for idx, unique_time in enumerate(unique_time_array):
         select_mask = time_array == unique_time
         app_ra[select_mask] = unique_app_ra[idx]
@@ -3009,7 +3040,7 @@ def calc_sidereal_coords(
     if isinstance(coord_epoch, str) or isinstance(coord_epoch, Time):
         # If its a string or a Time object, we don't need to do anything more
         epoch = Time(coord_epoch)
-    else:
+    elif coord_epoch is not None:
         if coord_frame.lower() in ["fk4", "fk4noeterms"]:
             epoch = Time(coord_epoch, format="byear")
         else:
@@ -3042,12 +3073,12 @@ def get_lst_for_time(
 
     This function calculates the local apparent sidereal time (LAST), given a UTC time
     and a position on the Earth, using either the astropy or NOVAS libraries. It
-    is important to note that there is an apporoximate 20 millisecond difference
+    is important to note that there is an apporoximate 20 microsecond difference
     between the two methods, presumably due to small differences in the apparent
     reference frame. These differences will cancel out when calculating coordinates
     in the TOPO frame, so long as apparent coordinates are calculated using the
     same library (i.e., astropy or NOVAS). Failing to do so can introduce errors
-    up to ~1 arcsec in the horizontal coordinate system (i.e., AltAz).
+    up to ~1 mas in the horizontal coordinate system (i.e., AltAz).
 
     Parameters
     ----------
@@ -3082,8 +3113,6 @@ def get_lst_for_time(
         scale="utc",
         location=(Angle(longitude, unit="deg"), Angle(latitude, unit="deg"), altitude),
     )
-    if times.ndim == 0:
-        times = times.reshape((1,))
 
     if iers.conf.auto_max_age is None:  # pragma: no cover
         delta, status = times.get_delta_ut1_utc(return_status=True)
