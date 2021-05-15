@@ -259,6 +259,34 @@ def sma_mir(sma_mir_main):
 
 
 @pytest.fixture(scope="session")
+def carma_miriad_main():
+    # read in test file for the resampling in time functions
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, "carma_miriad")
+    uv_object.read(testfile, run_check=False, check_extra=False)
+    uv_object.extra_keywords = None
+    yield uv_object
+
+    # cleanup
+    del uv_object
+
+    return
+
+
+@pytest.fixture(scope="function")
+def carma_miriad(carma_miriad_main):
+    # read in test file for the resampling in time functions
+    uv_object = carma_miriad_main.copy()
+
+    yield uv_object
+
+    # cleanup
+    del uv_object
+
+    return
+
+
+@pytest.fixture(scope="session")
 def paper_uvh5_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
@@ -791,7 +819,7 @@ def test_known_telescopes():
         astropy_sites.remove("")
 
     # Using set to drop duplicate entries
-    known_telescopes = list(set(astropy_sites + ["PAPER", "HERA", "SMA"]))
+    known_telescopes = list(set(astropy_sites + ["PAPER", "HERA", "SMA", "SZA"]))
     # calling np.sort().tolist() because [].sort() acts inplace and returns None
     # Before test had None == None
     assert (
@@ -3705,21 +3733,19 @@ def test_add_drift(casa_uvfits):
 
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_flex_spw_add_concat(tmp_path, future_shapes):
+def test_flex_spw_add_concat(sma_mir, tmp_path, future_shapes):
     """
     Test add & fast concat with flexible spws using Mir file.
 
     Read in Mir files using flexible spectral windows, all of the same nchan
     """
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    uv_in = UVData()
-    uv_in.read_mir(testfile)
+    uv_in = sma_mir
+    uv_in2 = uv_in.copy()
     dummyfile = os.path.join(tmp_path, "dummy.mirtest.uvfits")
 
     if future_shapes:
         uv_in.use_future_array_shapes()
 
-    uv_in2 = uv_in.copy()
     with pytest.raises(NotImplementedError):
         uv_in2.frequency_average(2)
 
@@ -9442,3 +9468,134 @@ def test_rephase_to_time():
 
     assert uvd.phase_center_ra == zenith_ra
     assert uvd.phase_center_dec == zenith_dec
+
+
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
+def test_print_object(sma_mir, carma_miriad, hera_uvh5):
+    check_str = (
+        "   ID        Object       Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"
+        "    #          Name                    hours           deg                 \n"
+        "---------------------------------------------------------------------------\n"
+        "    1          3c84   sidereal    3:19:48.16  +41:30:42.11    fk5  J2000.0 \n"
+    )
+
+    table_str = sma_mir.print_objects(print_table=False, return_str=True)
+    assert table_str == check_str
+
+    # Make sure we can specify the object name and get the same result
+    table_str = sma_mir.print_objects(
+        print_table=False, return_str=True, object_name="3c84",
+    )
+    assert table_str == check_str
+
+    # Make sure that things still work when we force the HMS format
+    table_str = sma_mir.print_objects(
+        print_table=False, return_str=True, hms_format=True
+    )
+    assert table_str == check_str
+
+    check_str = (
+        "   ID        Object       Type      Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"
+        "    #          Name                       deg           deg                 \n"
+        "----------------------------------------------------------------------------\n"
+        "    1          3c84   sidereal    49:57:02.40  +41:30:42.11    fk5  J2000.0 \n"
+    )
+
+    # And likewise when forcing the degree format
+    table_str = sma_mir.print_objects(
+        print_table=False, return_str=True, hms_format=False
+    )
+    assert table_str == check_str
+
+    # Now check and see what happens if we add the full suite of object parameters
+    _ = sma_mir._add_object(
+        "3c84",
+        object_type="sidereal",
+        object_lat=sma_mir.object_dict["3c84"]["object_lat"],
+        object_lon=sma_mir.object_dict["3c84"]["object_lon"],
+        object_dist=0.0,
+        object_vrad=0.0,
+        object_pm_ra=0.0,
+        object_pm_dec=0.0,
+        coord_frame="fk5",
+        coord_epoch=2000.0,
+        force_update=True,
+    )
+    check_str = (
+        "   ID        Object       Type     Az/Lon/RA"
+        "    El/Lat/Dec  Frame    Epoch   PM-Ra  PM-Dec     Dist   V_rad \n"
+        "    #          Name                    hours"
+        "           deg                  mas/yr  mas/yr       pc    km/s \n"
+        "--------------------------------------------"
+        "----------------------------------------------------------------\n"
+        "    1          3c84   sidereal    3:19:48.16"
+        "  +41:30:42.11    fk5  J2000.0       0       0  0.0e+00       0 \n"
+    )
+    table_str = sma_mir.print_objects(print_table=False, return_str=True)
+    assert table_str == check_str
+
+    # Now check and see that printing ephems works well
+    _ = sma_mir._add_object(
+        "3c84",
+        object_type="ephem",
+        object_lat=0.0,
+        object_lon=0.0,
+        coord_frame="icrs",
+        coord_times=2456789.0,
+        force_update=True,
+    )
+    check_str = (
+        "   ID        Object       Type     Az/Lon/RA"
+        "    El/Lat/Dec  Frame       Ephem Range    \n"
+        "    #          Name                    hours"
+        "           deg         Start-MJD    End-MJD \n"
+        "---------------------------------------------"
+        "-------------------------------------------\n"
+        "    1          3c84      ephem    0:00:00.00"
+        "  + 0:00:00.00   icrs   56788.50   56788.50 \n"
+    )
+    table_str = sma_mir.print_objects(print_table=False, return_str=True)
+    assert table_str == check_str
+
+    # Check and see that if we force this to be a driftscan, we get the output
+    # we expect
+    _ = sma_mir._add_object("3c84", object_type="driftscan", force_update=True)
+    check_str = (
+        "   ID        Object       Type      Az/Lon/RA    El/Lat/Dec  Frame \n"
+        "    #          Name                       deg           deg        \n"
+        "-------------------------------------------------------------------\n"
+        "    1          3c84  driftscan     0:00:00.00  +90:00:00.00  altaz \n"
+    )
+    table_str = sma_mir.print_objects(print_table=False, return_str=True)
+    assert table_str == check_str
+
+    _ = sma_mir._add_object("3c84", object_type="unphased", force_update=True)
+    check_str = (
+        "   ID        Object       Type      Az/Lon/RA    El/Lat/Dec  Frame \n"
+        "    #          Name                       deg           deg        \n"
+        "-------------------------------------------------------------------\n"
+        "    1          3c84   unphased     0:00:00.00  +90:00:00.00  altaz \n"
+    )
+    table_str = sma_mir.print_objects(print_table=False, return_str=True)
+    assert table_str == check_str
+
+    with pytest.raises(ValueError, match="No object by the name test in object_name."):
+        sma_mir.print_objects(object_name="test")
+    with pytest.raises(
+        ValueError, match="Cannot use print_objects on a non-multi-object data set."
+    ):
+        hera_uvh5.print_objects()
+
+    _ = carma_miriad._add_object("NOISE", object_type="unphased", force_update=True)
+    check_str = (
+        "   ID        Object       Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"
+        "    #          Name                    hours           deg                 \n"
+        "---------------------------------------------------------------------------\n"
+        "    0         NOISE   unphased    0:00:00.00  +90:00:00.00  altaz          \n"
+        "    1         3C273   sidereal   12:29:06.70  + 2:03:08.60    fk5  J2000.0 \n"
+        "    2      1159+292   sidereal   11:59:31.83  +29:14:43.83    fk5  J2000.0 \n"
+    )
+    table_str = carma_miriad.print_objects(
+        print_table=False, return_str=True, hms_format=True
+    )
+    assert table_str == check_str

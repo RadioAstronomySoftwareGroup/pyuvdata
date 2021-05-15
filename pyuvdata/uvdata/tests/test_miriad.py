@@ -117,9 +117,7 @@ def test_read_nrao_write_miriad_read_miriad(casa_uvfits, tmp_path):
     assert uvfits_uv == miriad_uv
 
 
-@pytest.mark.filterwarnings("ignore:Telescope SZA is not in known_telescopes.")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope location is set at sealevel")
 def test_read_write_read_carma(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
@@ -129,15 +127,8 @@ def test_read_write_read_carma(tmp_path):
     with uvtest.check_warnings(
         UserWarning,
         [
-            "Altitude is not present in Miriad file, and "
-            "telescope SZA is not in known_telescopes. ",
-            "Altitude is not present",
-            "Telescope location is set at sealevel at the file lat/lon "
-            "coordinates. Antenna positions are present, but the mean antenna "
-            "position does not give a telescope_location on the surface of the "
-            "earth. Antenna positions do not appear to be on the surface of the "
-            "earth and will be treated as relative.",
-            "Telescope SZA is not in known_telescopes.",
+            "Altitude is not present in Miriad file, "
+            "using known location values for SZA.",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
             "antaz in extra_keywords is a list, array or dict",

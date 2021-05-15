@@ -51,6 +51,13 @@ KNOWN_TELESCOPES = {
         "altitude": 4083.948144,
         "citation": "Ho, P. T. P., Moran, J. M., & Lo, K. Y. 2004, ApJL, 616, L1",
     },
+    "SZA": {
+        "center_xyz": None,
+        "latitude": Angle("37d16m49.3698s").radian,
+        "longitude": Angle("-118d08m29.9126s").radian,
+        "altitude": 2400.0,
+        "citation": "Unknown",
+    },
 }
 
 

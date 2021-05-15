@@ -262,6 +262,11 @@ class Miriad(UVData):
 
         latitude = uv["latitud"]  # in units of radians
         longitude = uv["longitu"]
+
+        # Catch a weird case where where sometimes long is wrapped like RA (0 -> 2pi
+        # instead of -pi -> pi)
+        if longitude > np.pi:
+            longitude -= 2 * np.pi
         try:
             altitude = uv["altitude"]
             self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)

@@ -931,6 +931,15 @@ class UVData(UVBase):
                 "object_pm_ra and object_pm_dec."
             )
 
+        # If left unset, unphased and driftscan defaulted to Az, El = (0, 90)
+        if (object_type == "unphased") or (object_type == "driftscan"):
+            if object_lon is None:
+                object_lon = 0.0
+            if object_lat is None:
+                object_lat = np.pi / 2
+            if coord_frame is None:
+                coord_frame = "altaz"
+
         # Let's check some case-specific things and make sure all the entires are value
         if (object_lon is None) and (object_type in ["sidereal", "ephem"]):
             raise ValueError("object_lon cannot be None for sidereal object.")
@@ -945,15 +954,6 @@ class UVData(UVBase):
                 "coord_frame must be either None or 'altaz' when the object type "
                 "is either driftscan or unphased."
             )
-
-        # If left unset, unphased and driftscan defaulted to Az, El = (0, 90)
-        if (object_type == "unphased") or (object_type == "driftscan"):
-            if object_lon is None:
-                object_lon = 0.0
-            if object_lat is None:
-                object_lat = np.pi / 2
-            if coord_frame is None:
-                coord_frame = "altaz"
 
         if (object_type == "unphased") and (object_lon != 0.0):
             raise ValueError(
@@ -974,11 +974,7 @@ class UVData(UVBase):
                 "for object types other than sidereal are not supported."
             )
 
-        if coord_epoch is None:
-            coord_epoch = 2000.0
-        if isinstance(coord_epoch, str):
-            coord_epoch = Time(coord_epoch)
-        if isinstance(coord_epoch, Time):
+        if isinstance(coord_epoch, Time) or isinstance(coord_epoch, str):
             if coord_frame.lower() in ["fk4", "fk4noeterms"]:
                 coord_epoch = Time(coord_epoch).byear
             else:
@@ -1041,7 +1037,7 @@ class UVData(UVBase):
             "coord_times": coord_times,
             "object_pm_ra": object_pm_ra,
             "object_pm_dec": object_pm_dec,
-            "object_vrad": object_pm_dec,
+            "object_vrad": object_vrad,
             "object_dist": object_dist,
             "object_src": object_src,
         }
@@ -1287,7 +1283,9 @@ class UVData(UVBase):
             )
             self.object_id_array[good_mask] = object_id
 
-    def print_objects(self, object_name=None, hms_format=None):
+    def print_objects(
+        self, object_name=None, hms_format=None, return_str=False, print_table=True
+    ):
         """
         Print out the details of objects in a multi-obj data set.
 
@@ -1328,9 +1326,7 @@ class UVData(UVBase):
             if any_lon and (hms_format is None):
                 coord_frame = indv_dict.get("coord_frame")
                 object_type = indv_dict["object_type"]
-                if object_type == "driftscan":
-                    hms_format = False
-                elif coord_frame not in ra_frames:
+                if (coord_frame not in ra_frames) or (object_type == "driftscan"):
                     hms_format = False
 
         if hms_format is None:
@@ -1357,7 +1353,7 @@ class UVData(UVBase):
                 {
                     "hdr": ("Az/Lon/RA", "hours" if hms_format else "deg"),
                     "fmt": "% 3i:%02i:%05.2f",
-                    "field": " %12s ",
+                    "field": (" %12s " if hms_format else " %13s "),
                     "name": "object_lon",
                 }
             )
@@ -1391,9 +1387,9 @@ class UVData(UVBase):
         if any_times:
             col_list.append(
                 {
-                    "hdr": ("Ephem Range", "Start-MJD       End-MJD"),
-                    "fmt": "% 8.2f % 8.2f",
-                    "field": " %17s ",
+                    "hdr": ("   Ephem Range   ", "Start-MJD    End-MJD"),
+                    "fmt": " %8.2f  % 8.2f",
+                    "field": " %19s ",
                     "name": "coord_times",
                 }
             )
@@ -1420,7 +1416,7 @@ class UVData(UVBase):
                 {
                     "hdr": ("Dist", "pc"),
                     "fmt": "%.1e",
-                    "field": " %6s ",
+                    "field": " %7s ",
                     "name": "object_dist",
                 }
             )
@@ -1440,9 +1436,11 @@ class UVData(UVBase):
             top_str += col["field"] % col["hdr"][0]
             bot_str += col["field"] % col["hdr"][1]
 
-        print(top_str)
-        print(bot_str)
-        print("-" * len(top_str))
+        info_str = ""
+
+        info_str += top_str + "\n"
+        info_str += bot_str + "\n"
+        info_str += ("-" * len(bot_str)) + "\n"
         # We want to print in the order of object_id
         for idx in np.argsort(object_id_list):
             tbl_str = ""
@@ -1456,6 +1454,7 @@ class UVData(UVBase):
                 if temp_val is None:
                     temp_str = ""
                 elif col["name"] == "object_lon":
+                    temp_val = np.median(temp_val)
                     temp_val /= 15.0 if hms_format else 1.0
                     coord_tuple = (
                         np.mod(temp_val * r2d, 360.0),
@@ -1464,6 +1463,7 @@ class UVData(UVBase):
                     )
                     temp_str = col["fmt"] % coord_tuple
                 elif col["name"] == "object_lat":
+                    temp_val = np.median(temp_val)
                     coord_tuple = (
                         "-" if temp_val < 0.0 else "+",
                         np.mod(np.abs(temp_val) * r2d, 360.0),
@@ -1472,10 +1472,8 @@ class UVData(UVBase):
                     )
                     temp_str = col["fmt"] % coord_tuple
                 elif col["name"] == "coord_epoch":
-                    if isinstance(temp_val, str):
-                        temp_val = temp_val[0].upper() + ("%6.1f" % float(temp_val[1:]))
-                    else:
-                        temp_val = "%6.1f" % temp_val
+                    use_byrs = dict_list[idx]["coord_frame"] in ["fk4", "fk4noeterms"]
+                    temp_val = ("B%6.1f" if use_byrs else "J%6.1f") % temp_val
                     temp_str = col["fmt"] % temp_val
                 elif col["name"] == "coord_times":
                     time_tuple = (
@@ -1486,8 +1484,12 @@ class UVData(UVBase):
                 else:
                     temp_str = col["fmt"] % temp_val
                 tbl_str += col["field"] % temp_str
-            print(tbl_str)
-        print("")
+            info_str += tbl_str + "\n"
+
+        if print_table:
+            print(info_str)  # pragma: nocover
+        if return_str:
+            return info_str
 
     def _update_object_id(self, object_name, new_object_id=None, reserved_ids=None):
         """
