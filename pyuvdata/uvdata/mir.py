@@ -78,7 +78,7 @@ class Mir(UVData):
 
         # Grab the list of sources we want to select on
         isource_dict = {key: key in isource for key in isource_full_list}
-        if len(isource_dict) == 0:
+        if not np.any([isource_dict[key] for key in isource_full_list]):
             raise IndexError("No valid sources selected!")
 
         # Select out the receiver that we want to deal with, since we can only
@@ -281,7 +281,9 @@ class Mir(UVData):
         self.instrument = "SWARM"
 
         # We can just skip an appropriate number of records
-        self.integration_time = mir_data.sp_data["integ"][:: len(corrchunk)]
+        self.integration_time = mir_data.sp_data["integ"][:: len(corrchunk)].astype(
+            float
+        )
 
         # TODO: Using MIR V3 convention, will need to be V2 compatible eventually.
         self.lst_array = (

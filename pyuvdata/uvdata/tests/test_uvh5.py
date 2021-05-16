@@ -25,18 +25,18 @@ pytestmark = [
 ]
 
 
-@pytest.fixture(scope="function")
-def uv_uvh5():
+@pytest.fixture(scope="session")
+def uv_uvh5_main():
     # read in a uvh5 test file
     uv_uvh5 = UVData()
     uvh5_filename = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
     uv_uvh5.read_uvh5(uvh5_filename)
-    yield uv_uvh5
+    return uv_uvh5
 
-    # clean up when done
-    del uv_uvh5
 
-    return
+@pytest.fixture(scope="function")
+def uv_uvh5(uv_uvh5_main):
+    yield uv_uvh5_main.copy()
 
 
 @pytest.fixture(scope="function")

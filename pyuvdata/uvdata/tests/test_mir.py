@@ -201,14 +201,47 @@ def test_read_mir_no_records():
     """
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     uv_in = UVData()
-    with pytest.raises(IndexError, match="No valid records matching those selections!"):
+    with pytest.raises(IndexError, match="No valid sources selected!"):
         uv_in.read_mir(testfile, isource=-1)
+
+    with pytest.raises(IndexError, match="No valid records matching those selections!"):
+        uv_in.read_mir(testfile, irec=-1)
 
     with pytest.raises(IndexError, match="No valid sidebands selected!"):
         uv_in.read_mir(testfile, isb=[])
 
     with pytest.raises(IndexError, match="isb values contain invalid entries"):
         uv_in.read_mir(testfile, isb=[-156])
+
+
+def test_read_mir_sideband_select():
+    """
+    Mir sideband read check
+
+    Make sure that we can read the individual sidebands out of MIR correctly, and then
+    stitch them back together as though they were read together from the start.
+    """
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    mir_dsb = UVData()
+    mir_dsb.read(testfile)
+    # Re-order here so that we can more easily compare the two
+    mir_dsb.reorder_freqs(channel_order="freq", spw_order="freq")
+    # Drop the history
+    mir_dsb.history = ""
+
+    mir_lsb = UVData()
+    mir_lsb.read(testfile, isb=[0])
+
+    mir_usb = UVData()
+    mir_usb.read(testfile, isb=[1])
+
+    mir_recomb = mir_lsb + mir_usb
+    # Re-order here so that we can more easily compare the two
+    mir_recomb.reorder_freqs(spw_order="freq", channel_order="freq")
+    # Drop the history
+    mir_recomb.history = ""
+
+    assert mir_dsb == mir_recomb
 
 
 def test_mir_auto_read(

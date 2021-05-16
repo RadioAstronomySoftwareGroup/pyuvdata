@@ -151,9 +151,12 @@ def test_read_write_read_carma(tmp_path):
             "ambpsys in extra_keywords is a list, array or dict",
             "bfmask in extra_keywords is a list, array or dict",
             "wcorr in extra_keywords is a list, array or dict",
+            "Cannot fix the phases of multi-object datasets, as they were not "
+            "supported when the old phasing method was used, and thus, there "
+            "is no need to correct the data.",
         ],
     ):
-        uv_in.read(carma_file)
+        uv_in.read(carma_file, fix_old_proj=True)
 
     # Extra keywords cannnot handle lists, dicts, or arrays, so drop them from the
     # dataset, so that the writer doesn't run into issues.
@@ -167,9 +170,21 @@ def test_read_write_read_carma(tmp_path):
             uv_in.extra_keywords.pop(item)
 
     uv_in.write_miriad(testfile, clobber=True)
-
     uv_out.read(testfile)
 
+    assert uv_in == uv_out
+
+    # We should get the same result if we feed in these parameters, since the original
+    # file had the LST calculated on read, and its def a phased dataset
+    uv_out.read(testfile, calc_lst=False, phase_type="phased")
+
+    assert uv_in == uv_out
+
+    uv_in.write_miriad(testfile, clobber=True, calc_lst=True)
+    uv_out.read(testfile, calc_lst=False)
+
+    # Finally, make sure that if we calc LSTs on write, but not read, that we still
+    # get the same answer.
     assert uv_in == uv_out
 
 
@@ -1089,6 +1104,11 @@ def test_read_write_read_miriad_partial_ant_str(uv_in_paper, tmp_path):
             ValueError,
             {"polarizations": ["yy"]},
             "No data is present, probably as a result of select on read",
+        ),
+        (
+            ValueError,
+            {"polarizations": [-9]},
+            "No polarizations in data matched input",
         ),
         (
             ValueError,
