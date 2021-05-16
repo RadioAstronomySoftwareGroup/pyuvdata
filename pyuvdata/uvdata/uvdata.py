@@ -9345,6 +9345,7 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        calc_lst=True,
         fix_old_proj=False,
     ):
         """
@@ -9416,6 +9417,10 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        calc_lst : bool
+            Recalculate the LST values that are present within the file, useful in
+            cases where the "online" calculate values have precision or value errors.
+            Default is True.
 
         Raises
         ------
@@ -9455,6 +9460,7 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
+            calc_lst=calc_lst,
             fix_old_proj=fix_old_proj,
         )
         self._convert_from_filetype(miriad_obj)
@@ -10149,6 +10155,7 @@ class UVData(UVBase):
         pseudo_cont=False,
         lsts=None,
         lst_range=None,
+        calc_lst=True,
         fix_old_proj=None,
     ):
         """
@@ -10398,6 +10405,10 @@ class UVData(UVBase):
             smaller than the first, the LSTs are treated as having phase-wrapped
             around LST = 2*pi = 0, and the LSTs kept on the object will run from
             the larger value, through 0, and end at the smaller value.
+        calc_lst : bool
+            Recalculate the LST values that are present within the file, useful in
+            cases where the "online" calculate values have precision or value errors.
+            Default is True.
 
         Raises
         ------
@@ -10527,6 +10538,7 @@ class UVData(UVBase):
                         isb=isb,
                         corrchunk=corrchunk,
                         pseudo_cont=pseudo_cont,
+                        calc_lst=calc_lst,
                         fix_old_proj=fix_old_proj,
                     )
                     unread = False
@@ -10599,6 +10611,7 @@ class UVData(UVBase):
                             isb=isb,
                             corrchunk=corrchunk,
                             pseudo_cont=pseudo_cont,
+                            calc_lst=calc_lst,
                             fix_old_proj=fix_old_proj,
                         )
                         uv_list.append(uv2)
@@ -10813,6 +10826,7 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
+                    calc_lst=calc_lst,
                     fix_old_proj=fix_old_proj,
                 )
 
@@ -10962,6 +10976,7 @@ class UVData(UVBase):
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
         no_antnums=False,
+        calc_lst=False,
     ):
         """
         Write the data to a miriad file.
@@ -10989,6 +11004,13 @@ class UVData(UVBase):
         no_antnums : bool
             Option to not write the antnums variable to the file.
             Should only be used for testing purposes.
+        calc_lst : bool
+            Recalculate the LST values upon writing the file. This is done to perform
+            higher-precision accounting for the difference in MIRAD timestamps vs
+            pyuvdata (the former marks the beginning of an integration, the latter
+            marks the midpoint). Default is False, which instead uses a simple formula
+            for correcting the LSTs, expected to be accurate to approximately 0.1 µsec
+            precision.
 
         Raises
         ------
@@ -11008,6 +11030,7 @@ class UVData(UVBase):
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
             no_antnums=no_antnums,
+            calc_lst=calc_lst,
         )
         del miriad_obj
 

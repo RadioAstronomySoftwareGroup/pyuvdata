@@ -713,7 +713,6 @@ class Miriad(UVData):
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
         calc_lst=True,
-        multi_object=False,
         fix_old_proj=False,
     ):
         """
@@ -785,10 +784,6 @@ class Miriad(UVData):
             Recalculate the LST values that are present within the file, useful in
             cases where the "online" calculate values have precision or value errors.
             Default is True.
-        multi_object : bool
-            Forces the UVData object to be marked as multi-object type (where the
-            attribute multi_object is set to True). This produces some minor changes
-            in the way that the data (in particular, source info) are handled.
 
         Raises
         ------
@@ -980,7 +975,7 @@ class Miriad(UVData):
                     pol_list.append(p)
             # check not empty
             if len(pol_list) == 0:
-                raise ValueError(f"No polarizations in data matched {polarizations}")
+                raise ValueError("No polarizations in data matched input")
             if n_selects > 0:
                 history_update_string += ", polarizations"
             else:
@@ -1349,48 +1344,30 @@ class Miriad(UVData):
                     self.uvw_array[blt_index, :] = uvw_pol_list[
                         blt_index, :, good_pol[0]
                     ]
-                if np.any(np.diff(ra_pol_list[blt_index, good_pol])):
-                    raise ValueError("ra values are different by polarization.")
-                else:
-                    ra_list[blt_index] = ra_pol_list[blt_index, good_pol[0]]
-                if np.any(np.diff(dec_pol_list[blt_index, good_pol])):
-                    raise ValueError("dec values are different by polarization.")
-                else:
-                    dec_list[blt_index] = dec_pol_list[blt_index, good_pol[0]]
-                # Check source IDs
-                if np.any(np.diff(sou_id_pol_list[blt_index, good_pol])):
-                    raise ValueError("source values are different by polarization.")
-                else:
-                    sou_id_list[blt_index] = sou_id_pol_list[blt_index, good_pol[0]]
-                # Check epochs if needed
+
+                check_list = [ra_pol_list, dec_pol_list, sou_id_pol_list, lst_pol_list]
+                assign_list = [ra_list, dec_list, sou_id_list, lst_list]
+                check_names = ["ra", "dec", "source id", "lst"]
                 if record_epoch:
-                    if np.any(np.diff(epoch_pol_list[blt_index, good_pol])):
-                        raise ValueError("epochs vals are different by polarization.")
-                    else:
-                        epoch_list[blt_index] = epoch_pol_list[blt_index, good_pol[0]]
-                # Check apparent coordinates
+                    check_list.append(epoch_pol_list)
+                    assign_list.append(epoch_list)
+                    check_names.append("epoch")
                 if record_app:
-                    if np.any(np.diff(app_ra_pol_list[blt_index, good_pol])):
-                        raise ValueError("app ra vals are different by polarization.")
-                    else:
-                        app_ra_list[blt_index] = app_ra_pol_list[blt_index, good_pol[0]]
-                    if np.any(np.diff(app_dec_pol_list[blt_index, good_pol])):
-                        raise ValueError("app dec vals are different by polarization.")
-                    else:
-                        app_dec_list[blt_index] = app_dec_pol_list[
-                            blt_index, good_pol[0]
-                        ]
+                    check_list.extend([app_ra_pol_list, app_dec_pol_list])
+                    assign_list.extend([app_ra_list, app_dec_list])
+                    check_names.extend(["obsra", "obsdec"])
                 if record_pa:
-                    if np.any(np.diff(frame_pa_pol_list[blt_index, good_pol])):
-                        raise ValueError("frame pa vals are different by polarization.")
-                    else:
-                        frame_pa_list[blt_index] = frame_pa_pol_list[
-                            blt_index, good_pol[0]
-                        ]
-                if np.any(np.diff(lst_pol_list[blt_index, good_pol])):
-                    raise ValueError("source values are different by polarization.")
-                else:
-                    lst_list[blt_index] = lst_pol_list[blt_index, good_pol[0]]
+                    check_list.append(frame_pa_pol_list)
+                    assign_list.append(frame_pa_list)
+                    check_names.append("obspa")
+
+                for item, name in zip(check_list, check_names):
+                    if np.any(np.diff(item[blt_index, good_pol])):
+                        raise ValueError(
+                            "%s values are different by polarization." % name
+                        )
+                for item, target in zip(check_list, assign_list):
+                    target[blt_index] = item[blt_index, good_pol[0]]
 
         # get unflagged blts
         # If we have a 1-baseline, single integration data set, set single_ra and
@@ -1427,7 +1404,7 @@ class Miriad(UVData):
             # file is tracking, and if not, assume that the  file is drift scanning,
             # checking if there's only one unflagged time
             if not single_time:
-                if single_ra or ((Nobjects > 1) or multi_object):
+                if single_ra or (Nobjects > 1):
                     self._set_phased()
                     if Nobjects > 1:
                         self._set_multi_object()
@@ -1446,7 +1423,14 @@ class Miriad(UVData):
             proc.join()
 
         if (self.telescope_location is None) or not calc_lst:
-            self.lst_array = lst_list
+            # The float below is the number of sidereal days per solar day, and the
+            # formula below adjusts for the fact that in MIRIAD, the lst is for the
+            # start of the integration, as opposed to pyuvdata, which evaluates these
+            # values at the midpoint of the integration.
+            self.lst_array = lst_list + (
+                np.pi * 1.002737909350795 * self.integration_time / (24.0 * 3600.0)
+            )
+
         if record_app and (self.phase_type == "phased"):
             self.phase_center_app_ra = app_ra_list
             self.phase_center_app_dec = app_dec_list
@@ -1464,7 +1448,8 @@ class Miriad(UVData):
             # MIRIAD, AIPS, and (I think) CASA tasks assume the coordinates are given
             # in FK5 format (well, unless epoch <= 1984, in which case MIRIAD assumes
             # in semi-Orwellian fashion that you _really_ wanted FK4/Bessel-Newcomb).
-            self.phase_center_epoch = float(np.median(epoch_list))
+            self.phase_center_epoch = 2000.0
+            self.phase_center_frame = "icrs"
             self.object_id_array = sou_id_list.astype(int)
             self.Nobjects = Nobjects
             flip_dict = {sou_dict[key]: key for key in sou_dict.keys()}
@@ -1473,12 +1458,13 @@ class Miriad(UVData):
             object_dict = {}
             for idx in range(Nobjects):
                 select_mask = sou_id_list == idx
+                epoch_val = np.median(epoch_list[select_mask])
                 object_dict[self.object_name[idx]] = {
                     "object_id": idx,
                     "object_type": "sidereal",
                     "object_lon": np.median(ra_list[select_mask]),
                     "object_lat": np.median(dec_list[select_mask]),
-                    "coord_frame": "fk5",
+                    "coord_frame": "fk4" if (epoch_val < 1984.0) else "fk5",
                     "coord_epoch": np.median(epoch_list[select_mask]),
                 }
             self.object_dict = object_dict
@@ -1491,8 +1477,11 @@ class Miriad(UVData):
             self.phase_center_ra = float(ra_list[0])
             self.phase_center_dec = float(dec_list[0])
             self.phase_center_epoch = uv["epoch"]
-            if "phsframe" in uv.vartable.keys():
+            if "phsframe" not in uv.vartable.keys():
+                self.phase_center_frame = "fk4" if (uv["epoch"] < 1984.0) else "fk5"
+            else:
                 self.phase_center_frame = uv["phsframe"].replace("\x00", "")
+
         else:
             # check that the RA values are not constant (if more than one time present)
             if single_ra and not single_time:
@@ -1527,28 +1516,12 @@ class Miriad(UVData):
         # close out now that we're done
         uv.close()
 
-        if (self.phase_center_frame is None) and (self.phase_type == "phased"):
-            # If this is the case, we presume that the coordinates were recorded by
-            # a "normal" MIRIAD writer.
-            if self.phase_center_epoch is None:
-                self.phase_center_frame = "fk5"
-                self.phase_center_epoch = 2000.0
-            elif self.phase_center_epoch < 1984.0:
-                self.phase_center_frame = "fk4"
-            else:
-                self.phase_center_frame = "fk5"
-
-        if not record_app and (self.phase_type == "phased"):
-            # TODO: If we don't have apparent coordinates, figure out whether or not we
-            # want to try and generate them (similar to how LSTs are generated)
-            self._set_app_coords_helper()
-        elif not record_pa and (self.phase_type == "phased"):
-            # If only the apparent coords are recorded, then we can just calculate the
-            # position angles. Under "normal" circumstances, the phsframe is not set,
-            # and the coordinates will be treated as having been in the topocentric
-            # frame. Otherwise, we can calculated them on the fly (likely from an
-            # intermediate version of the code? unclear now you get this state).
-            self._set_app_coords_helper(pa_only=True)
+        if not (record_app and record_pa) and (self.phase_type == "phased"):
+            # At this point, if we are missing information about the sky position of the
+            # source, we want to fill it in now. If we have the apparent coords, but are
+            # only missing the frame position angles (common given that obspa is not a
+            # standard keyword), then we can _just_ fill those in.
+            self._set_app_coords_helper(pa_only=record_app)
         try:
             self.set_telescope_params()
         except ValueError as ve:
@@ -1571,7 +1544,7 @@ class Miriad(UVData):
             else:
                 warnings.warn(
                     "Cannot fix the phases of multi-object datasets, as they were not "
-                    "supported when the old phasing method was used (and thus, there "
+                    "supported when the old phasing method was used, and thus, there "
                     "is no need to correct the data."
                 )
 
@@ -1592,6 +1565,7 @@ class Miriad(UVData):
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
         no_antnums=False,
+        calc_lst=False,
     ):
         """
         Write the data to a miriad file.
@@ -1619,6 +1593,13 @@ class Miriad(UVData):
         no_antnums : bool
             Option to not write the antnums variable to the file.
             Should only be used for testing purposes.
+        calc_lst : bool
+            Recalculate the LST values upon writing the file. This is done to perform
+            higher-precision accounting for the difference in MIRAD timestamps vs
+            pyuvdata (the former marks the beginning of an integration, the latter
+            marks the midpoint). Default is False, which instead uses a simple formula
+            for correcting the LSTs, expected to be accurate to approximately 0.1 µsec
+            precision.
 
         Raises
         ------
@@ -1634,10 +1615,16 @@ class Miriad(UVData):
         # change time_array and lst_array to mark beginning of integration,
         # per Miriad format
         miriad_time_array = self.time_array - self.integration_time / (24 * 3600.0) / 2
-        if self.telescope_location is not None:
+        if (self.telescope_location is not None) and calc_lst:
             latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
             miriad_lsts = uvutils.get_lst_for_time(
                 miriad_time_array, latitude, longitude, altitude
+            )
+        else:
+            # The long float below is the number of sidereal days per day. The below
+            # equation should be accurate to _much_ better than 1 µsec.
+            miriad_lsts = self.lst_array - (
+                np.pi * 1.002737909350795 * self.integration_time / (24.0 * 3600.0)
             )
 
         # Miriad requires j>i which we call ant1<ant2
@@ -1918,7 +1905,7 @@ class Miriad(UVData):
             app_record = True
             uv.add_var("obsra", "d")
             uv.add_var("obsdec", "d")
-            uv.add_var("obspa", "d")  # Do we want to add this new keyword?
+            uv.add_var("obspa", "d")  # Non-standard MIRIAD keyword
 
         # write data
         c_ns = const.c.to("m/ns").value
@@ -1946,14 +1933,7 @@ class Miriad(UVData):
             elif self.phase_type == "drift":
                 uv["ra"] = miriad_lsts[viscnt].astype(np.double)
                 uv["dec"] = self.telescope_location_lat_lon_alt[0].astype(np.double)
-            else:
-                raise ValueError(
-                    "The phasing type of the data is unknown. "
-                    'Set the phase_type to "drift" or "phased" to '
-                    "reflect the phasing status of the data"
-                )
 
-            # NOTE only writing spw 0, not supporting multiple spws for write
             for polcnt, pol in enumerate(self.polarization_array):
                 uv["pol"] = pol.astype(np.int64)
                 if self.future_array_shapes:
