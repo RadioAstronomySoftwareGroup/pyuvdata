@@ -469,14 +469,6 @@ class UVFITS(UVData):
             If the metadata are not internally consistent or missing.
 
         """
-        # We don't want a situation where we fix the metadata but leave the
-        # visibilities unaffected.
-        if (not read_data) and fix_old_proj:
-            raise ValueError(
-                "Fixing the old phasing method requires access to the visibility "
-                "data. Either set read_data=True or fix_old_proj=False."
-            )
-
         with fits.open(filename, memmap=True) as hdu_list:
             vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
             vis_hdr = vis_hdu.header.copy()
@@ -587,10 +579,9 @@ class UVFITS(UVData):
             if self.phase_center_frame is None:
                 if self.phase_center_epoch is None:
                     self.phase_center_frame = "icrs"
-                elif self.phase_center_epoch == 1950.0:
-                    self.phase_center_frame = "fk4"
                 else:
-                    self.phase_center_frame = "fk5"
+                    frame = "fk4" if (self.phase_center_epoch == 1950.0) else "fk5"
+                    self.phase_center_frame = frame
 
             self.extra_keywords = uvutils._get_fits_extra_keywords(
                 vis_hdr, keywords_to_skip=["DATE-OBS"]
@@ -748,7 +739,7 @@ class UVFITS(UVData):
                         "The UVFITS file has a malformed AIPS SU table - number of "
                         "sources do not match the number of unique source IDs in the "
                         "primary data header."
-                    )
+                    )  # pragma: no cover
 
                 # Set up these arrays so we can assign values to them
                 self.phase_center_app_ra = np.zeros(self.Nblts)
@@ -893,12 +884,7 @@ class UVFITS(UVData):
                     "to zenith of the first timestamp before "
                     "writing a uvfits file."
                 )
-        else:
-            raise ValueError(
-                "The phasing type of the data is unknown. "
-                "Set the phase_type to drift or phased to "
-                "reflect the phasing status of the data"
-            )
+
         if self.flex_spw:
             # If we have a 'flexible' spectral window, we will need to evaluate the
             # frequency axis slightly differently.
