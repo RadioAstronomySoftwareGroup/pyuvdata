@@ -3578,3 +3578,24 @@ def test_parse_ants_error():
         ),
     ):
         uvutils.parse_ants(test_obj, ant_str="")
+
+
+@pytest.mark.parametrize(
+    "filename1,filename2,answer",
+    [
+        (["foo.uvh5"], ["bar.uvh5"], ["foo.uvh5", "bar.uvh5"]),
+        (["foo.uvh5", "bar.uvh5"], ["foo.uvh5"], ["foo.uvh5", "bar.uvh5"]),
+        (["foo.uvh5"], None, ["foo.uvh5"]),
+        (None, ["bar.uvh5"], ["bar.uvh5"]),
+        (None, None, None),
+    ],
+)
+def test_combine_filenames(filename1, filename2, answer):
+    combined_filenames = uvutils._combine_filenames(filename1, filename2)
+    if answer is None:
+        assert combined_filenames is answer
+    else:
+        # use sets to test equality so that order doesn't matter
+        assert set(combined_filenames) == set(answer)
+
+    return

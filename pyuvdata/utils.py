@@ -4535,14 +4535,14 @@ def _combine_filenames(filename1, filename2):
 
     Returns
     -------
-    add_filename : list of str or None
+    combined_filenames : list of str or None
         The combined list, with potentially duplicate entries removed.
     """
-    add_filename = filename1
+    combined_filenames = filename1
     if filename1 is not None:
         if filename2 is not None:
-            add_filename = list(set(filename1).union(set(filename2)))
+            combined_filenames = list(set(filename1).union(set(filename2)))
     elif filename2 is not None:
-        add_filename = filename2
+        combined_filenames = filename2
 
-    return add_filename
+    return combined_filenames
