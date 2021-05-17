@@ -1018,6 +1018,108 @@ def test_phase_unphase_hera_bad_frame(uv1_2_set_uvws):
     assert str(cm.value).startswith("phase_frame can only be set to icrs or gcrs.")
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_phasing(future_shapes):
+    """Use MWA files phased to 2 different places to test phasing."""
+    file1 = os.path.join(DATA_PATH, "1133866760.uvfits")
+    file2 = os.path.join(DATA_PATH, "1133866760_rephase.uvfits")
+    uvd1 = UVData()
+    uvd2 = UVData()
+    uvd1.read_uvfits(file1, fix_old_proj=True)
+    uvd2.read_uvfits(file2, fix_old_proj=True)
+
+    if future_shapes:
+        uvd1.use_future_array_shapes()
+        uvd2.use_future_array_shapes()
+
+    uvd1_drift = uvd1.copy()
+    uvd1_drift.unphase_to_drift(phase_frame="fk5", use_ant_pos=False)
+    uvd1_drift_antpos = uvd1.copy()
+    uvd1_drift_antpos.unphase_to_drift(phase_frame="fk5", use_ant_pos=True)
+
+    uvd2_drift = uvd2.copy()
+    uvd2_drift.unphase_to_drift(phase_frame="fk5", use_ant_pos=False)
+    uvd2_drift_antpos = uvd2.copy()
+    uvd2_drift_antpos.unphase_to_drift(phase_frame="fk5", use_ant_pos=True)
+
+    # the tolerances here are empirical -- based on what was seen in the
+    # external phasing test. See the phasing memo in docs/references for
+    # details.
+    assert np.allclose(uvd1_drift.uvw_array, uvd2_drift.uvw_array, atol=1e-12)
+    assert np.all(np.equal(uvd1_drift_antpos.uvw_array, uvd2_drift_antpos.uvw_array))
+
+    uvd2_rephase = uvd2.copy()
+    uvd2_rephase.phase(
+        uvd1.phase_center_ra,
+        uvd1.phase_center_dec,
+        uvd1.phase_center_epoch,
+        orig_phase_frame="fk5",
+        phase_frame="fk5",
+        use_ant_pos=False,
+    )
+    uvd2_rephase_antpos = uvd2.copy()
+    uvd2_rephase_antpos.phase(
+        uvd1.phase_center_ra,
+        uvd1.phase_center_dec,
+        uvd1.phase_center_epoch,
+        orig_phase_frame="fk5",
+        phase_frame="fk5",
+        use_ant_pos=True,
+    )
+
+    # the tolerances here are empirical -- based on what was seen in the
+    # external phasing test. See the phasing memo in docs/references for
+    # details.
+    assert np.allclose(uvd1.uvw_array, uvd2_rephase.uvw_array, atol=1e-12)
+    assert np.all(np.equal(uvd1.uvw_array, uvd2_rephase_antpos.uvw_array))
+
+    # rephase the drift objects to the original pointing and verify that they
+    # match
+    uvd1_drift.phase(
+        uvd1.phase_center_ra,
+        uvd1.phase_center_dec,
+        uvd1.phase_center_epoch,
+        phase_frame="fk5",
+        use_ant_pos=False,
+    )
+    uvd1_drift_antpos.phase(
+        uvd1.phase_center_ra,
+        uvd1.phase_center_dec,
+        uvd1.phase_center_epoch,
+        phase_frame="fk5",
+        use_ant_pos=True,
+    )
+
+    # the tolerances here are empirical -- caused by one unphase/phase cycle.
+    # the antpos-based phasing differences are based on what was seen in the
+    # external phasing test. See the phasing memo in docs/references for
+    # details.
+    assert np.allclose(uvd1.uvw_array, uvd1_drift.uvw_array, atol=1e-12)
+    assert np.all(np.equal(uvd1.uvw_array, uvd1_drift_antpos.uvw_array))
+
+    uvd2_drift.phase(
+        uvd2.phase_center_ra,
+        uvd2.phase_center_dec,
+        uvd2.phase_center_epoch,
+        phase_frame="fk5",
+        use_ant_pos=False,
+    )
+    uvd2_drift_antpos.phase(
+        uvd2.phase_center_ra,
+        uvd2.phase_center_dec,
+        uvd2.phase_center_epoch,
+        phase_frame="fk5",
+        use_ant_pos=True,
+    )
+
+    # the tolerances here are empirical -- caused by one unphase/phase cycle.
+    # the antpos-based phasing differences are based on what was seen in the
+    # external phasing test. See the phasing memo in docs/references for
+    # details.
+    assert np.allclose(uvd2.uvw_array, uvd2_drift.uvw_array, atol=1e-12)
+    assert np.all(np.equal(uvd2.uvw_array, uvd2_drift_antpos.uvw_array))
+
+
 # We're using the old phase method here since these values were all derived using that
 # method, so we'll just filter out those warnings now.
 @pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")

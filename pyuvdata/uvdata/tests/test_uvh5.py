@@ -2998,3 +2998,64 @@ def test_read_metadata(casa_uvfits, tmp_path):
 
     # clean up when done
     os.remove(testfile)
+
+
+def test_fix_phase(tmp_path):
+    """Test that the fix phase method works"""
+    uv_in = UVData()
+    uv_out = UVData()
+    filepath = os.path.join(DATA_PATH, "1133866760.uvfits")
+    writepath = os.path.join(tmp_path, "phasetest.uvh5")
+
+    uv_in.read(filepath, fix_old_proj=True)
+
+    # Make some copies of the data
+    uv_in_bad_ant = uv_in.copy()
+    uv_in_bad_base = uv_in.copy()
+
+    # These values could be anything -- we're just picking something that we know should
+    # be visible from the telescope at the time of obs (ignoring horizon limits).
+    phase_ra = uv_in.lst_array[0]
+    phase_dec = uv_in.telescope_location_lat_lon_alt[0] * 0.5
+
+    # Do the improved phasing on the data set.
+    uv_in.phase(phase_ra, phase_dec)
+
+    # First test the case where we are using the old phase method with the uvws
+    # calculated from the antenna positions
+    uv_in_bad_ant.phase(phase_ra, phase_dec, use_old_proj=True, use_ant_pos=True)
+    uv_in_bad_ant.write_uvh5(
+        writepath, clobber=True, run_check=False, check_extra=False
+    )
+    uv_out.read(writepath, fix_old_proj=True, fix_use_ant_pos=True)
+    assert uv_in == uv_out
+
+    # Now test and see what happens if we use the baseline-vector based version of the
+    # phasing method. This first unphase_to_drift is here because there's not a clean
+    # way to go from good phasing -> bad phasing using uvws alone, so we'll start from
+    # the undrift state and implement the bad phasing from there -- just like what would
+    # have been done under the old method.
+    uv_in_bad_base.unphase_to_drift()
+    uv_in_bad_base.phase(phase_ra, phase_dec, use_old_proj=True, use_ant_pos=False)
+    uv_in_bad_base.write_uvh5(
+        writepath, clobber=True, run_check=False, check_extra=False
+    )
+    uv_out.read(writepath, fix_old_proj=True, fix_use_ant_pos=False)
+    # We have to handle this case a little carefully, because since the old
+    # unphase_to_drift was _mostly_ accurate, although it does seem to intoduce errors
+    # on the order of a part in 1e5, which translates to about a tenth of a degree phase
+    # error in the test data set used here. Check that first, make sure it's good
+    assert np.allclose(uv_in.data_array, uv_out.data_array, rtol=3e-4)
+
+    # Once we know the data are okay, copy over data array and check for equality btw
+    # the other attributes of the two objects.
+    uv_out.data_array = uv_in.data_array
+    assert uv_in == uv_out
+
+    # Finally, make sure we throw an error if old data is detected _but_ we don't
+    # attempt to fix it.
+    with uvtest.check_warnings(
+        UserWarning,
+        "This data appears to have been phased-up using the old `phase` method,",
+    ):
+        uv_out.read(writepath, fix_old_proj=False)
