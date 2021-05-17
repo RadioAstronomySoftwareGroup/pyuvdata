@@ -714,6 +714,7 @@ class Miriad(UVData):
         strict_uvw_antpos_check=False,
         calc_lst=True,
         fix_old_proj=False,
+        fix_use_ant_pos=True,
     ):
         """
         Read in data from a miriad file.
@@ -784,6 +785,14 @@ class Miriad(UVData):
             Recalculate the LST values that are present within the file, useful in
             cases where the "online" calculate values have precision or value errors.
             Default is True.
+        fix_old_proj : bool
+            Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
+            method was used prior to writing the data, which had errors of the order of
+            one part in 1e4 - 1e5. See the phasing memo for more details.
+        fix_use_ant_pos : bool
+            If setting `fix_old_proj` to True, use the antenna positions to derived the
+            correct uvw-coordinates rather than using the baseline vectors. Default is
+            True.
 
         Raises
         ------
@@ -1540,7 +1549,7 @@ class Miriad(UVData):
         # If the data set was recorded using the old phasing method, fix that now.
         if fix_old_proj and (self.phase_type == "phased"):
             if not self.multi_object:
-                self.fix_phase()
+                self.fix_phase(use_ant_pos=fix_use_ant_pos)
             else:
                 warnings.warn(
                     "Cannot fix the phases of multi-object datasets, as they were not "

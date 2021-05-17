@@ -6011,7 +6011,7 @@ def test_set_uvws_from_antenna_pos():
             use_old_proj=True,
         )
 
-    with uvtest.check_warnings(None):
+    with uvtest.check_warnings(UserWarning, "Data will be unphased"):
         uv_object.set_uvws_from_antenna_positions(
             allow_phasing=True, orig_phase_frame="gcrs", output_phase_frame="gcrs",
         )
@@ -8334,7 +8334,7 @@ def test_resample_in_time(bda_test_file, future_shapes):
     # 16s integration time
     init_data_136_137 = uv_object.get_data((136, 137))
 
-    uv_object.resample_in_time(8)
+    uv_object.resample_in_time(8, allow_drift=True)
     # Should have all the target integration time
     assert np.all(np.isclose(uv_object.integration_time, 8))
 
@@ -8382,7 +8382,7 @@ def test_resample_in_time_downsample_only(bda_test_file):
     init_data_136_137 = uv_object.get_data((136, 137))
 
     # resample again, with only_downsample set
-    uv_object.resample_in_time(8, only_downsample=True)
+    uv_object.resample_in_time(8, only_downsample=True, allow_drift=True)
     # Should have all less than or equal to the target integration time
     assert np.all(
         np.logical_or(
@@ -8435,7 +8435,7 @@ def test_resample_in_time_only_upsample(bda_test_file):
     init_data_136_137 = uv_object.get_data((136, 137))
 
     # again, with only_upsample set
-    uv_object.resample_in_time(8, only_upsample=True)
+    uv_object.resample_in_time(8, only_upsample=True, allow_drift=True)
     # Should have all greater than or equal to the target integration time
     assert np.all(
         np.logical_or(
