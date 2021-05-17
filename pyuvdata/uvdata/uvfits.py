@@ -190,6 +190,7 @@ class UVFITS(UVData):
         run_check_acceptability,
         strict_uvw_antpos_check,
         fix_old_proj,
+        fix_use_ant_pos,
     ):
         """
         Read just the visibility and flag data of the uvfits file.
@@ -315,7 +316,7 @@ class UVFITS(UVData):
         self.nsample_array = np.abs(raw_data_array[:, :, :, :, 2])
 
         if fix_old_proj:
-            pass
+            self.fix_phase(use_ant_pos=fix_use_ant_pos)
 
         # check if object has all required UVParameters set
         if run_check:
@@ -348,6 +349,7 @@ class UVFITS(UVData):
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
         fix_old_proj=False,
+        fix_use_ant_pos=True,
     ):
         """
         Read in header, metadata and data from a uvfits file.
@@ -444,6 +446,15 @@ class UVFITS(UVData):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        fix_old_proj : bool
+            Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
+            method was used prior to writing the data, which had errors of the order of
+            one part in 1e4 - 1e5. See the phasing memo for more details. Default is
+            False.
+        fix_use_ant_pos : bool
+            If setting `fix_old_proj` to True, use the antenna positions to derived the
+            correct uvw-coordinates rather than using the baseline vectors. Default is
+            True.
 
 
         Raises
@@ -800,6 +811,7 @@ class UVFITS(UVData):
                 run_check_acceptability,
                 strict_uvw_antpos_check,
                 fix_old_proj,
+                fix_use_ant_pos,
             )
 
     def write_uvfits(

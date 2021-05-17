@@ -668,6 +668,7 @@ class UVH5(UVData):
         run_check_acceptability,
         strict_uvw_antpos_check,
         fix_old_proj,
+        fix_use_ant_pos,
     ):
         """
         Read the data-size arrays (data, flags, nsamples) from a file.
@@ -964,7 +965,7 @@ class UVH5(UVData):
             # of the old phasing algorithm being used. Double-check the multi-obj
             # attribute just to be extra safe.
             if ((fix_old_proj) or (fix_old_proj is None)) and (not self.multi_object):
-                self.fix_phase()
+                self.fix_phase(use_ant_pos=fix_use_ant_pos)
             else:
                 warnings.warn(
                     "This data appears to have been phased-up using the old `phase` "
@@ -1008,6 +1009,7 @@ class UVH5(UVData):
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
         fix_old_proj=None,
+        fix_use_ant_pos=True,
     ):
         """
         Read in data from a UVH5 file.
@@ -1113,6 +1115,17 @@ class UVH5(UVData):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        fix_old_proj : bool
+            Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
+            method was used prior to writing the data, which had errors of the order of
+            one part in 1e4 - 1e5. See the phasing memo for more details. Default is
+            to apply the correction if the attributes `phase_center_app_ra` and
+            `phase_center_app_dec` are missing (as they were introduced alongside the
+            new phasing method).
+        fix_use_ant_pos : bool
+            If setting `fix_old_proj` to True, use the antenna positions to derived the
+            correct uvw-coordinates rather than using the baseline vectors. Default is
+            True.
 
         Returns
         -------
@@ -1172,6 +1185,7 @@ class UVH5(UVData):
                 run_check_acceptability,
                 strict_uvw_antpos_check,
                 fix_old_proj,
+                fix_use_ant_pos,
             )
 
         # For now, always use current shapes when data is read in, even if the file
