@@ -1143,6 +1143,11 @@ class UVH5(UVData):
         if not os.path.exists(filename):
             raise IOError(filename + " not found")
 
+        # update filename attribute
+        basename = os.path.basename(filename)
+        self.filename = [basename]
+        self._filename.form = (1,)
+
         # open hdf5 file for reading
         with h5py.File(filename, "r") as f:
             # extract header information
@@ -1185,10 +1190,6 @@ class UVH5(UVData):
                 fix_old_proj,
                 fix_use_ant_pos,
             )
-
-        # update filename attribute
-        self.filename = [filename]
-        self._filename.form = (1,)
 
         # For now, always use current shapes when data is read in, even if the file
         # has the future shapes.
