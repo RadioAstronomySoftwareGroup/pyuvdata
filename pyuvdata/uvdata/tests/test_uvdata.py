@@ -1146,6 +1146,66 @@ def test_phasing(future_shapes):
     assert np.all(np.equal(uvd2.uvw_array, uvd2_drift_antpos.uvw_array))
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_phasing_multi_obj_errors(sma_mir, hera_uvh5, future_shapes):
+    """
+    Test expected phasing errors related to multi-obj data sets
+    """
+    if future_shapes:
+        sma_mir.use_future_array_shapes()
+        hera_uvh5.use_future_array_shapes()
+    # First try doing things that are only allowed for multi-obj data sets, using a
+    # non-multi-obj dataset
+    with pytest.raises(ValueError, match="Cannot apply a selection mask"):
+        hera_uvh5.phase(0, 0, select_mask=[True])
+    with pytest.raises(ValueError, match="Non-zero values of pm_ra not supported"):
+        hera_uvh5.phase(0, 0, pm_ra=1)
+    with pytest.raises(ValueError, match="Non-zero values of pm_dec not supported"):
+        hera_uvh5.phase(0, 0, pm_dec=1)
+    with pytest.raises(ValueError, match="Non-zero values of dist not supported"):
+        hera_uvh5.phase(0, 0, dist=1)
+    with pytest.raises(ValueError, match="Non-zero values of vrad not supported"):
+        hera_uvh5.phase(0, 0, vrad=1)
+    with pytest.raises(ValueError, match="Only sidereal sources are supported"):
+        hera_uvh5.phase(0, 0, object_type="ehpem")
+    with pytest.raises(ValueError, match="Object name lookup is not supported"):
+        hera_uvh5.phase(0, 0, object_name="cool_object", lookup_name=True)
+
+    # Now do a few things that aren't allowed w/ a multi-obj data set
+    with pytest.raises(ValueError, match="Must supply a unique name for object_name"):
+        sma_mir.phase(0, 0)
+    with pytest.raises(NotImplementedError, match="Multi-object data sets are not"):
+        sma_mir.phase(0, 0, object_name="test", use_old_proj=True)
+    with pytest.raises(IndexError, match="Selection mask must be of"):
+        sma_mir.phase(0, 0, object_name="test", select_mask=[True, True])
+
+    # Finally, make sure that the fix_old_proj switch works correctly
+    hera_copy = hera_uvh5.copy()
+    hera_uvh5.phase(0, 0, use_old_proj=True, use_ant_pos=False)
+    with pytest.raises(AttributeError, match="Data missing phase_center_ra_app"):
+        hera_uvh5.phase(0, 0, fix_old_proj=False, use_ant_pos=False)
+    hera_uvh5.phase(0, 0, use_ant_pos=False)
+    hera_copy.phase(0, 0)
+
+    # The fix introduces small errors on the order of 0.1 deg, when not using antenna
+    # positions, hence the special handling here
+    assert np.allclose(hera_copy.data_array, hera_uvh5.data_array, rtol=3e-4)
+
+    # Once data are verified, make sure that everything else looks okay
+    hera_uvh5.data_array = hera_copy.data_array
+    assert hera_uvh5 == hera_copy
+
+
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_phasing_multi_obj(hera_uvh5, future_shapes):
+    """
+    Execute a few phasing tests w/ multi-obj datasets so that we can verify suitable
+    performance
+    """
+    # This is just a placeholder
+    assert True
+
+
 # We're using the old phase method here since these values were all derived using that
 # method, so we'll just filter out those warnings now.
 @pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
@@ -1263,6 +1323,30 @@ def test_old_phasing(future_shapes):
     # details.
     assert np.allclose(uvd2.uvw_array, uvd2_drift.uvw_array, atol=1e-4)
     assert np.allclose(uvd2.uvw_array, uvd2_drift_antpos.uvw_array, atol=2e-2)
+
+    # Check to make sure that the old errors work
+    with pytest.raises(ValueError, match="The data is already phased;"):
+        uvd1_drift.phase(0, 0, use_old_proj=True, allow_rephase=False)
+
+    uvd1_drift.phase_type = "unk"
+    with pytest.raises(ValueError, match="The phasing type of the data is unknown"):
+        uvd1_drift.phase(0, 0, use_old_proj=True)
+
+    uvd1_drift = uvd1.copy()
+    # Move the time ~1 µsec off from J2000
+    epoch_val = Time(Time(2000, format="jyear").mjd - 1e-11, format="mjd")
+    # Unlike in the new phasing system, this should produce different results (since one
+    # is FK5, and the other is ICRS)
+    uvd1_drift.phase(0, 0, epoch=epoch_val, use_old_proj=True)
+    uvd1.phase(0, 0, epoch="J2000", use_old_proj=True)
+    assert uvd1_drift != uvd1
+    uvd1_drift = uvd1.copy()
+    uvd1_drift.phase_center_frame = None
+
+    # Make sure the old default works for reverting to ICRS if no coord frame is found
+    uvd1.unphase_to_drift(use_old_proj=True)
+    uvd1_drift.unphase_to_drift(use_old_proj=True)
+    assert uvd1 == uvd1_drift
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -6089,7 +6173,7 @@ def test_select_with_ant_str_errors(casa_uvfits, kwargs, message):
         uv.select(**kwargs)
 
 
-def test_set_uvws_from_antenna_pos():
+def test_set_uvws_from_antenna_pos(sma_mir):
     # Test set_uvws_from_antenna_positions function with phased data
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "1133866760.uvfits")
@@ -6099,6 +6183,10 @@ def test_set_uvws_from_antenna_pos():
     with pytest.raises(ValueError) as cm:
         uv_object.set_uvws_from_antenna_positions(use_old_proj=True)
     assert str(cm.value).startswith("UVW calculation requires unphased data.")
+
+    with pytest.raises(ValueError) as cm:
+        uv_object.set_uvws_from_antenna_positions(use_old_proj=False)
+    assert str(cm.value).startswith("UVW recalculation requires either unphased")
 
     with pytest.raises(ValueError) as cm:
         with uvtest.check_warnings(
@@ -6142,14 +6230,36 @@ def test_set_uvws_from_antenna_pos():
             output_phase_frame="gcrs",
             use_old_proj=True,
         )
+    max_diff = np.amax(np.absolute(np.subtract(orig_uvw_array, uv_object.uvw_array)))
+    assert np.isclose(max_diff, 0.0, atol=2)
 
-    with uvtest.check_warnings(UserWarning, "Data will be unphased"):
+    data_copy = uv_object.data_array.copy()
+    # Now test the new method -- gotta set the apparent coords first, since they get
+    # nuked with the old method for phase. Doing this w/o touching the visibilities
+    # to verify we can leave them untouched
+    uv_object._set_app_coords_helper()
+    with uvtest.check_warnings(UserWarning, "Recalculating uvw_array without"):
         uv_object.set_uvws_from_antenna_positions(
-            allow_phasing=True, orig_phase_frame="gcrs", output_phase_frame="gcrs",
+            allow_phasing=False, require_phasing=False
         )
 
     max_diff = np.amax(np.absolute(np.subtract(orig_uvw_array, uv_object.uvw_array)))
     assert np.isclose(max_diff, 0.0, atol=2)
+    # And make sure it left the visibilities untouched
+    assert np.all(data_copy == uv_object.data_array)
+
+    uv_object._set_multi_object(preserve_object_info=True)
+    with pytest.raises(NotImplementedError, match="Multi-object data sets are not"):
+        uv_object.set_uvws_from_antenna_positions(use_old_proj=True)
+
+    # Now do this operation w/ SMA data, whose uvws are known good
+    orig_uvw_array = sma_mir.uvw_array
+    with uvtest.check_warnings(UserWarning, "Recalculating uvw_array without"):
+        sma_mir.set_uvws_from_antenna_positions(
+            allow_phasing=False, require_phasing=False
+        )
+    max_diff = np.amax(np.absolute(np.subtract(orig_uvw_array, sma_mir.uvw_array)))
+    assert np.isclose(max_diff, 0.0, atol=1e-5)
 
 
 def test_get_antenna_redundancies(pyuvsim_redundant):
@@ -10184,3 +10294,202 @@ def test_apply_w(hera_uvh5, future_shapes):
     # And now with a selection mask applied
     hera_uvh5._apply_w_proj([0.0, 1.0], [0.0, 1.0], [0, 1])
     assert hera_uvh5 == hera_copy
+
+
+def test_phase_object_dict_helper(hera_uvh5, sma_mir):
+    """
+    Test the `_phase_object_dict_helper` method.
+
+    Test the helper function that the `phase` method uses for looking up astronomical
+    source information.
+    """
+    pytest.importorskip("astroquery")
+    # Create a dummy dict to compare our results to
+    check_dict = {
+        "object_name": "z1",
+        "object_type": "sidereal",
+        "object_lon": 0.0,
+        "object_lat": 1.0,
+        "coord_frame": "fk5",
+        "coord_epoch": 2000.0,
+        "coord_times": None,
+        "object_pm_ra": 0.0,
+        "object_pm_dec": 0.0,
+        "object_dist": 0.0,
+        "object_vrad": 0.0,
+        "object_src": "user",
+        "object_id": None,
+    }
+
+    # Try creating an object for a "normal" source w/ a non multi-obj dataset
+    object_dict = hera_uvh5._phase_object_dict_helper(
+        0.0, 1.0, "J2000", "fk5", None, "sidereal", 0, 0, 0, 0, "z1", False, None, None,
+    )
+    assert object_dict == check_dict
+
+    # Now do the same w/ a multi-obj dataset
+    object_dict = sma_mir._phase_object_dict_helper(
+        0.0, 1.0, "J2000", "fk5", None, "sidereal", 0, 0, 0, 0, "z1", False, None, None,
+    )
+    assert object_dict == check_dict
+
+    # Attempt to lookup with a bad source name
+    with pytest.raises(
+        ValueError, match="Unable to find z1 in among the existing sources recorded"
+    ):
+        object_dict = sma_mir._phase_object_dict_helper(
+            0.0, 1.0, None, "fk5", None, "sidereal", 0, 0, 0, 0, "z1", True, None, None,
+        )
+
+    # Try supplying an ephem where coord_times do not cover time_array
+    with pytest.raises(
+        ValueError, match="Ephemeris data does not cover the entirety of the time range"
+    ):
+        object_dict = sma_mir._phase_object_dict_helper(
+            0, 0, "B1950", "fk4", 0, "ephem", 0, 0, 0, 0, "z1", False, None, 1,
+        )
+
+    # Try doing a lookup of an object that doesn't exist in JPL-Horizons
+    with pytest.raises(
+        ValueError, match="Target ID is not recognized in either the small or major"
+    ):
+        object_dict = sma_mir._phase_object_dict_helper(
+            0, 0, None, "fk5", 2456789, "ephem", 0, 0, 0, 0, "z1", True, None, 2456789,
+        )
+
+    # Now try looking up an object that actually exists
+    object_dict = sma_mir._phase_object_dict_helper(
+        0, 1, None, "fk5", None, "sidereal", 0, 0, 0, 0, "3c84", True, None, 0,
+    )
+    assert object_dict.pop("object_name") == "3c84"
+    assert object_dict == sma_mir.object_dict["3c84"]
+
+    # Try looking up a name, where the properties are different but where we've selected
+    # all of the data (via None for the select mask)
+    object_dict = sma_mir._phase_object_dict_helper(
+        0, 1, None, "fk5", None, "sidereal", 0, 0, 0, 0, "3c84", False, None, 0,
+    )
+    assert object_dict["object_name"] == "3c84"
+    object_dict["object_name"] = "z1"
+    object_dict["object_id"] = None
+    assert object_dict == check_dict
+
+    # Now do the same with a select mask that does select all the data
+    sel_mask = np.ones(sma_mir.Nblts, dtype=bool)
+    object_dict = sma_mir._phase_object_dict_helper(
+        0, 1, None, "fk5", None, "sidereal", 0, 0, 0, 0, "3c84", False, sel_mask, 0,
+    )
+    assert object_dict["object_name"] == "3c84"
+    object_dict["object_name"] = "z1"
+    object_dict["object_id"] = None
+    assert object_dict == check_dict
+
+    # Now verify that doing this where all the data _are not_ selected throws an error
+    sel_mask[:] = False
+    with pytest.raises(ValueError, match="The object name 3c84 is not unique,"):
+        object_dict = sma_mir._phase_object_dict_helper(
+            0, 1, None, "fk5", None, "sidereal", 0, 0, 0, 0, "3c84", False, sel_mask, 0,
+        )
+
+    # Finally, check that we get a good result if feeding the same values, even if not
+    # actually performing a lookup
+    object_dict = sma_mir._phase_object_dict_helper(
+        sma_mir.object_dict["3c84"].get("object_lon"),
+        sma_mir.object_dict["3c84"].get("object_lat"),
+        sma_mir.object_dict["3c84"].get("coord_epoch"),
+        sma_mir.object_dict["3c84"].get("coord_frame"),
+        sma_mir.object_dict["3c84"].get("coord_times"),
+        sma_mir.object_dict["3c84"].get("object_type"),
+        sma_mir.object_dict["3c84"].get("object_pm_ra"),
+        sma_mir.object_dict["3c84"].get("object_pm_dec"),
+        sma_mir.object_dict["3c84"].get("object_dist"),
+        sma_mir.object_dict["3c84"].get("object_vrad"),
+        "3c84",
+        False,
+        sel_mask,
+        sma_mir.time_array,
+    )
+    assert object_dict.pop("object_name") == "3c84"
+    assert object_dict == sma_mir.object_dict["3c84"]
+
+    # Now see what happens if we attempt to lookup something that JPL actually knows
+    obs_time = np.array(2456789.0)
+    object_dict = sma_mir._phase_object_dict_helper(
+        0, 0, None, None, None, None, 0, 0, 0, 0, "Mars", True, None, obs_time,
+    )
+
+    object_id = sma_mir._add_object(
+        object_dict["object_name"],
+        object_dict["object_type"],
+        object_lon=object_dict["object_lon"],
+        object_lat=object_dict["object_lat"],
+        coord_frame=object_dict["coord_frame"],
+        coord_epoch=object_dict["coord_epoch"],
+        coord_times=object_dict["coord_times"],
+        object_pm_ra=object_dict["object_pm_ra"],
+        object_pm_dec=object_dict["object_pm_dec"],
+        object_dist=object_dict["object_dist"],
+        object_vrad=object_dict["object_vrad"],
+        object_src=object_dict["object_src"],
+        force_update=True,
+    )
+
+    # By default, the object ID here should be zero (lowest available ID)
+    assert object_id == 0
+
+    # Tick the obs_time up by a day, see if the software will fetch additional
+    # coordinates and expand the existing ephem
+    obs_time += 1
+    object_dict = sma_mir._phase_object_dict_helper(
+        0, 0, None, None, None, None, 0, 0, 0, 0, "Mars", True, None, obs_time,
+    )
+
+    # Previously, everything else will have had a single point, but the new ephem (which
+    # covers 36 hours at 3 hour intervals) should have a lucky total of 13 points.
+    keycheck = ["object_lon", "object_lat", "object_vrad", "object_dist", "coord_times"]
+    for key in keycheck:
+        assert len(object_dict[key]) == 13
+
+
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_fix_phase(hera_uvh5, sma_mir, future_shapes):
+    """
+    Test the phase fixing method
+    """
+    # Check the one error condition that fix_phase raises
+    with pytest.raises(ValueError, match="Cannot run fix_phase on a multi-obj"):
+        sma_mir.fix_phase(use_ant_pos=False)
+
+    # Make some copies of the data
+    uv_in = hera_uvh5.copy()
+    uv_in_bad = hera_uvh5.copy()
+
+    # These values could be anything -- we're just picking something that we know should
+    # be visible from the telescope at the time of obs (ignoring horizon limits).
+    phase_ra = uv_in.lst_array[-1]
+    phase_dec = uv_in.telescope_location_lat_lon_alt[0] * 0.333
+
+    # Do the improved phasing on the dat set.
+    uv_in.phase(phase_ra, phase_dec)
+
+    # First test the case where we are using the old phase method with the uvws
+    # calculated from the antenna positions. Using fix phase here should be "perfect",
+    # since the uvws are completely recalculated from scratch.
+    uv_in_bad.phase(phase_ra, phase_dec, use_old_proj=True, use_ant_pos=True)
+    uv_in_bad.fix_phase(use_ant_pos=True)
+    assert uv_in == uv_in_bad
+
+    uv_in_bad = hera_uvh5.copy()
+    uv_in_bad.phase(phase_ra, phase_dec, use_old_proj=True, use_ant_pos=False)
+    uv_in_bad.fix_phase(use_ant_pos=False)
+
+    # We have to handle this case a little carefully, because since the old
+    # unphase_to_drift was _mostly_ accurate, although it does seem to intoduce errors
+    # on the order of a part in 1e5, which translates to about a tenth of a degree phase
+    # error in the test data set used here. Check that first, make sure it's good
+    assert np.allclose(uv_in.data_array, uv_in_bad.data_array, rtol=3e-4)
+
+    # Once we know the data are okay, copy over data array and check for equality btw
+    # the other attributes of the two objects.
+    uv_in_bad.data_array = uv_in.data_array
+    assert uv_in == uv_in_bad

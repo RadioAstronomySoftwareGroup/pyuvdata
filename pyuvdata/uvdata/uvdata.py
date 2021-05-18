@@ -4260,8 +4260,11 @@ class UVData(UVBase):
         """
         object_id = None
         object_src = "user"
+        object_name_list = self.object_name if self.multi_object else [self.object_name]
 
-        if lookup_name and (object_name not in tuple(self.object_name)):
+        # We only want to use the JPL-Horizons service if using a non-multi-obj instance
+        # of a UVData object.
+        if lookup_name and (object_name not in object_name_list) and self.multi_object:
             if (object_type is None) or (object_type == "ephem"):
                 [
                     coord_times,
@@ -4276,6 +4279,8 @@ class UVData(UVBase):
                 )
                 object_type = "ephem"
                 object_pm_ra = object_pm_dec = None
+                coord_epoch = 2000.0
+                coord_frame = "icrs"
                 object_src = "jplh"
             else:
                 raise ValueError(
@@ -4284,11 +4289,12 @@ class UVData(UVBase):
                     "information (e.g., RA and Dec coordinates) and "
                     "set lookup_name=False." % object_name
                 )
-        elif (object_name in tuple(self.object_name)) and self.multi_object:
+        elif (object_name in object_name_list) and self.multi_object:
             # If the name of the source matches, then verify that all of its
             # properties are the same as what is stored in object_dict.
             if lookup_name:
                 object_id = self.object_dict[object_name]["object_id"]
+                obj_diffs = 0
             else:
                 object_id, obj_diffs = self._lookup_object(
                     object_name,
@@ -4367,10 +4373,9 @@ class UVData(UVBase):
             object_vrad = vrad
 
         if coord_epoch is None:
-            coord_epoch = 2000.0
-        if isinstance(coord_epoch, str):
+            coord_epoch = 1950.0 if (coord_frame in ["fk4", "fk4noeterms"]) else 2000.0
+        if isinstance(coord_epoch, str) or isinstance(coord_epoch, Time):
             coord_epoch = Time(coord_epoch)
-        if isinstance(coord_epoch, Time):
             if coord_frame.lower() in ["fk4", "fk4noeterms"]:
                 coord_epoch = Time(coord_epoch).byear
             else:
@@ -4403,10 +4408,10 @@ class UVData(UVBase):
                     object_vrad,
                 ] = uvutils.lookup_jplhorizons(
                     object_name,
-                    np.concatenate((time_array, coord_times)),
+                    np.concatenate((np.reshape(time_array, -1), coord_times)),
                     telescope_loc=self.telescope_location_lat_lon_alt,
                 )
-            else:
+            elif check_ephem:
                 # The ephem was user-supplied during the call to the phase method,
                 # raise an error to ask for more ephem data.
                 raise ValueError(
@@ -4435,6 +4440,9 @@ class UVData(UVBase):
         for key in object_dict.keys():
             if isinstance(object_dict[key], np.ndarray):
                 object_dict[key] = object_dict[key].astype(float)
+            elif (key == "object_id") and (object_dict[key] is not None):
+                # If this is the object_id, make it an int
+                object_dict[key] == int(object_dict[key])
             elif not ((object_dict[key] is None) or isinstance(object_dict[key], str)):
                 object_dict[key] = float(object_dict[key])
 
@@ -4454,7 +4462,7 @@ class UVData(UVBase):
         vrad=None,
         object_name=None,
         lookup_name=False,
-        use_ant_pos=True,  # Can we change this to default to True?
+        use_ant_pos=True,
         allow_rephase=True,
         orig_phase_frame=None,
         select_mask=None,
@@ -4615,7 +4623,7 @@ class UVData(UVBase):
             # their w-values should be zeroed out.
 
             if select_mask is not None:
-                if not len(select_mask) != self.Nblts:
+                if len(select_mask) != self.Nblts:
                     raise IndexError("Selection mask must be of length Nblts.")
                 time_array = time_array[select_mask]
                 lst_array = lst_array[select_mask]
@@ -4757,7 +4765,6 @@ class UVData(UVBase):
 
             # All done w/ the new phase method
             return
-
         warnings.warn(
             "The original `phase` method is deprecated, and will be removed in "
             "pyuvdata v3.0 (although `fix_phase` will remain for longer). "
@@ -5055,10 +5062,11 @@ class UVData(UVBase):
         orig_phase_frame : str
             The astropy frame to phase from. Either 'icrs' or 'gcrs'.
             Defaults to using the 'phase_center_frame' attribute or 'icrs' if
-            that attribute is None. Only used if allow_phasing is True.
+            that attribute is None. Only used if allow_phasing is True and use_old_proj
+            is True.
         output_phase_frame : str
             The astropy frame to phase to. Either 'icrs' or 'gcrs'. Only used if
-            allow_phasing is True.
+            allow_phasing is True, and use_old_proj is True.
         use_old_proj : bool
             If set to True, uses the 'old' method of calculating baseline vectors.
             Default is False, which will instead use the 'new' method.
@@ -5208,15 +5216,16 @@ class UVData(UVBase):
         use_ant_pos : bool
             Use the antenna positions for determining UVW coordinates. Default is True.
         """
+        # If we are missing apparent coordinates, we should calculate those now
+        if (self.phase_center_app_ra is None) or (self.phase_center_app_dec is None):
+            self._set_app_coords_helper()
+
         # If we are just using the antenna positions, we don't actually need to do
         # anything, since the new baseline vectors will be unaffected by the prior
         # phasing method, and the delta_w values already get correctly corrected for.
         if use_ant_pos:
             self.set_uvws_from_antenna_positions(
-                allow_phasing=True,
-                orig_phase_frame=self.phase_center_frame,
-                output_phase_frame=self.phase_center_frame,
-                use_old_proj=False,
+                allow_phasing=True, use_old_proj=False,
             )
         elif self.multi_object:
             raise ValueError(
@@ -5237,6 +5246,12 @@ class UVData(UVBase):
                 use_ant_pos=False,
                 use_old_proj=True,
             )
+
+            # Check for any autos, since their uvws get potentially corrupted
+            # by the above operation
+            auto_mask = self.ant_1_array == self.ant_2_array
+            if any(auto_mask):
+                self.uvw_array[auto_mask, :] = 0.0
 
             # And rephase the data using the new algorithm
             self.phase(
