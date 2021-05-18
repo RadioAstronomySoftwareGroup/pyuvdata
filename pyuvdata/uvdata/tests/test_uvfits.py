@@ -142,6 +142,12 @@ def test_source_group_params(casa_uvfits, tmp_path):
 
     uv_out = UVData()
     uv_out.read(write_file2)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_casa2.uvfits"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
 
@@ -342,6 +348,12 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes):
     uv_out.read(write_file)
     if future_shapes:
         uv_out.use_future_array_shapes()
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_casa.uvfits"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     return
@@ -357,6 +369,12 @@ def test_readwriteread_no_lst(tmp_path, casa_uvfits):
     # test that it works with write_lst = False
     uv_in.write_uvfits(write_file, write_lst=False)
     uv_out.read(write_file)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_casa.uvfits"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     return
@@ -373,6 +391,12 @@ def test_readwriteread_x_orientation(tmp_path, casa_uvfits):
     uv_in.x_orientation = "east"
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_casa.uvfits"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     return
@@ -391,6 +415,12 @@ def test_readwriteread_antenna_diameters(tmp_path, casa_uvfits):
     )
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_casa.uvfits"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     return
@@ -420,6 +450,12 @@ def test_readwriteread_large_antnums(tmp_path, casa_uvfits):
     ):
         uv_in.write_uvfits(write_file)
     uv_out.read(write_file)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_casa.uvfits"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     return
@@ -641,6 +677,11 @@ def test_extra_keywords(casa_uvfits, tmp_path, kwd_names, kwd_values):
     uv_in.write_uvfits(testfile)
     uv_out.read(testfile)
 
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_casa.uvfits"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
 
@@ -655,6 +696,12 @@ def test_roundtrip_blt_order(casa_uvfits, tmp_path):
 
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_casa.uvfits"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     # test with bda as well (single entry in tuple)
@@ -715,6 +762,12 @@ def test_select_read(casa_uvfits, tmp_path, select_kwargs):
     testfile = str(tmp_path / "outtest_casa.uvfits")
     uvfits_uv.write_uvfits(testfile)
     uvfits_uv2.read(testfile)
+
+    # make sure filenames are what we expect
+    assert uvfits_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uvfits_uv2.filename == ["outtest_casa.uvfits"]
+    uvfits_uv.filename = uvfits_uv2.filename
+
     assert uvfits_uv == uvfits_uv2
 
 
@@ -793,6 +846,12 @@ def test_select_read_nospw_pol(casa_uvfits, tmp_path):
     uvfits_uv.read(write_file, polarizations=pols_to_keep)
     uvfits_uv2 = casa_uvfits
     uvfits_uv2.select(polarizations=pols_to_keep)
+
+    # make sure filenames are what we expect
+    assert uvfits_uv.filename == ["outtest_casa.uvfits"]
+    assert uvfits_uv2.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    uvfits_uv.filename = uvfits_uv2.filename
+
     assert uvfits_uv == uvfits_uv2
 
 
@@ -811,6 +870,11 @@ def test_read_uvfits_write_miriad(casa_uvfits, tmp_path):
     uvfits_uv.write_miriad(testfile, clobber=True)
     miriad_uv.read_miriad(testfile)
 
+    # make sure filenames are what we expect
+    assert miriad_uv.filename == ["outtest_miriad"]
+    assert uvfits_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    miriad_uv.filename = uvfits_uv.filename
+
     assert miriad_uv == uvfits_uv
 
     # check that setting the phase_type keyword also works
@@ -826,6 +890,11 @@ def test_read_uvfits_write_miriad(casa_uvfits, tmp_path):
     uvfits_uv.select(times=uvfits_uv.time_array[0])
     uvfits_uv.write_miriad(testfile, clobber=True)
     miriad_uv.read_miriad(testfile)
+
+    # make sure filenames are what we expect
+    assert miriad_uv.filename == ["outtest_miriad"]
+    assert uvfits_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    miriad_uv.filename = uvfits_uv.filename
 
     assert miriad_uv == uvfits_uv
 
@@ -857,9 +926,32 @@ def test_multi_files(casa_uvfits, tmp_path):
     )
 
     uv1.history = uv_full.history
+
+    # make sure filenames are what we expect
+    assert set(uv1.filename) == {"uv1.uvfits", "uv2.uvfits"}
+    assert uv_full.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    uv1.filename = uv_full.filename
+    uv1._filename.form == (1,)
+
     assert uv1 == uv_full
 
-    # again, setting axis
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_multi_files_axis(casa_uvfits, tmp_path):
+    """
+    Reading multiple files at once using "axis" keyword.
+    """
+    uv_full = casa_uvfits
+    testfile1 = str(tmp_path / "uv1.uvfits")
+    testfile2 = str(tmp_path / "uv2.uvfits")
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
+    uv1.select(freq_chans=np.arange(0, 32))
+    uv2.select(freq_chans=np.arange(32, 64))
+    uv1.write_uvfits(testfile1)
+    uv2.write_uvfits(testfile2)
+
     uv1.read([testfile1, testfile2], axis="freq")
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
@@ -871,7 +963,31 @@ def test_multi_files(casa_uvfits, tmp_path):
     )
 
     uv1.history = uv_full.history
+
+    # make sure filenames are what we expect
+    assert set(uv1.filename) == {"uv1.uvfits", "uv2.uvfits"}
+    assert uv_full.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    uv1.filename = uv_full.filename
+    uv1._filename.form == (1,)
+
     assert uv1 == uv_full
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_multi_files_metadata_only(casa_uvfits, tmp_path):
+    """
+    Reading multiple files at once with metadata only.
+    """
+    uv_full = casa_uvfits
+    testfile1 = str(tmp_path / "uv1.uvfits")
+    testfile2 = str(tmp_path / "uv2.uvfits")
+    uv1 = uv_full.copy()
+    uv2 = uv_full.copy()
+    uv1.select(freq_chans=np.arange(0, 32))
+    uv2.select(freq_chans=np.arange(32, 64))
+    uv1.write_uvfits(testfile1)
+    uv2.write_uvfits(testfile2)
 
     # check with metadata_only
     uv_full = uv_full.copy(metadata_only=True)
@@ -888,6 +1004,13 @@ def test_multi_files(casa_uvfits, tmp_path):
     )
 
     uv1.history = uv_full.history
+
+    # make sure filenames are what we expect
+    assert set(uv1.filename) == {"uv1.uvfits", "uv2.uvfits"}
+    assert uv_full.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    uv1.filename = uv_full.filename
+    uv1._filename.form == (1,)
+
     assert uv1 == uv_full
 
 
@@ -936,6 +1059,13 @@ def test_multi_unphase_on_read(casa_uvfits, tmp_path):
     uv_full.unphase_to_drift()
 
     uv1.history = uv_full.history
+
+    # make sure filenames are what we expect
+    assert set(uv1.filename) == {"uv1.uvfits", "uv2.uvfits"}
+    assert uv_full.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    uv1.filename = uv_full.filename
+    uv1._filename.form = (1,)
+
     assert uv1 == uv_full
 
     # check unphasing when reading only one file
@@ -1001,6 +1131,13 @@ def test_multi_phase_on_read(casa_uvfits, tmp_path):
 
     uv_full.phase(*phase_center_radec)
     uv1.history = uv_full.history
+
+    # make sure filenames are what we expect
+    assert set(uv1.filename) == {"uv1.uvfits", "uv2.uvfits"}
+    assert uv_full.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    uv1.filename = uv_full.filename
+    uv1._filename.form = (1,)
+
     assert uv1 == uv_full
 
     # check phasing when reading only one file
@@ -1036,6 +1173,12 @@ def test_read_ms_write_uvfits_casa_history(tmp_path):
     ms_uv.read_ms(ms_file)
     ms_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read(testfile)
+
+    # make sure filenames are what we expect
+    assert ms_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.ms"]
+    assert uvfits_uv.filename == ["outtest.uvfits"]
+    ms_uv.filename = uvfits_uv.filename
+
     assert ms_uv == uvfits_uv
 
 
