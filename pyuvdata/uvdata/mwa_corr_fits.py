@@ -3,6 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading MWA correlator FITS files."""
+import os
 import warnings
 import itertools
 import numpy as np
@@ -902,20 +903,25 @@ class MWACorrFITS(UVData):
         # iterate through files and organize
         # create a list of included coarse channels
         # find the first and last times that have data
-        for file in filelist:
-            if file.lower().endswith(".metafits"):
+        for filename in filelist:
+            # update filename attribute
+            basename = os.path.basename(filename)
+            self.filename = uvutils._combine_filenames(self.filename, [basename])
+            self._filename.form = (len(self.filename),)
+
+            if filename.lower().endswith(".metafits"):
                 # force only one metafits file
                 if metafits_file is not None:
                     raise ValueError("multiple metafits files in filelist")
-                metafits_file = file
-            elif file.lower().endswith(".fits"):
+                metafits_file = filename
+            elif filename.lower().endswith(".fits"):
                 # check if ppds file
                 try:
-                    fits.getheader(file, extname="ppds")
-                    ppds_file = file
+                    fits.getheader(filename, extname="ppds")
+                    ppds_file = filename
                 except Exception:
                     # check obsid
-                    head0 = fits.getheader(file, 0)
+                    head0 = fits.getheader(filename, 0)
                     if obs_id is None:
                         obs_id = head0["OBSID"]
                     else:
@@ -925,8 +931,8 @@ class MWACorrFITS(UVData):
                                 "in same list"
                             )
                     # check headers for first and last times containing data
-                    headstart = fits.getheader(file, 1)
-                    headfin = fits.getheader(file, -1)
+                    headstart = fits.getheader(filename, 1)
+                    headfin = fits.getheader(filename, -1)
                     first_time = headstart["TIME"] + headstart["MILLITIM"] / 1000.0
                     last_time = headfin["TIME"] + headfin["MILLITIM"] / 1000.0
                     if start_time == 0.0:
@@ -951,14 +957,14 @@ class MWACorrFITS(UVData):
 
                     # get the file number from the file name;
                     # this will later be mapped to a coarse channel
-                    file_num = int(file.split("_")[-2][-2:])
+                    file_num = int(filename.split("_")[-2][-2:])
                     if file_num not in included_file_nums:
                         included_file_nums.append(file_num)
                     # organize files
                     if "data" not in file_dict.keys():
-                        file_dict["data"] = [file]
+                        file_dict["data"] = [filename]
                     else:
-                        file_dict["data"].append(file)
+                        file_dict["data"].append(filename)
 
                     # save bscale keyword
                     if "SCALEFAC" not in self.extra_keywords.keys():
@@ -969,18 +975,18 @@ class MWACorrFITS(UVData):
                             self.extra_keywords["SCALEFAC"] = 0.25
 
             # look for flag files
-            elif file.lower().endswith(".mwaf"):
+            elif filename.lower().endswith(".mwaf"):
                 if use_cotter_flags is None:
                     use_cotter_flags = True
-                flag_num = int(file.split("_")[-1][0:2])
+                flag_num = int(filename.split("_")[-1][0:2])
                 included_flag_nums.append(flag_num)
                 if use_cotter_flags is False and cotter_warning is False:
                     warnings.warn("mwaf files submitted with use_cotter_flags=False")
                     cotter_warning = True
                 elif "flags" not in file_dict.keys():
-                    file_dict["flags"] = [file]
+                    file_dict["flags"] = [filename]
                 else:
-                    file_dict["flags"].append(file)
+                    file_dict["flags"].append(filename)
             else:
                 raise ValueError("only fits, metafits, and mwaf files supported")
 
@@ -1380,11 +1386,11 @@ class MWACorrFITS(UVData):
                     "coarse channel, start time, and end time flagging will default \
                         to the more aggressive of flag_init and AOFlagger"
                 )
-                for file in file_dict["flags"]:
-                    flag_num = int(file.split("_")[-1][0:2])
+                for filename in file_dict["flags"]:
+                    flag_num = int(filename.split("_")[-1][0:2])
                     # map file number to frequency index
                     freq_ind = file_nums_to_index[flag_num] * num_fine_chans
-                    with fits.open(file) as aoflags:
+                    with fits.open(filename) as aoflags:
                         flags = aoflags[1].data.field("FLAGS")
                     # some flag files are longer than data; crop the ends
                     flags = flags[: self.Nblts, :]
