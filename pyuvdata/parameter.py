@@ -157,13 +157,13 @@ class UVParameter(object):
         if isinstance(other, self.__class__):
             if self.value is None:
                 if other.value is not None:
-                    print("f{self.name} is None on left, but not right")
+                    print(f"{self.name} is None on left, but not right")
                     return False
                 else:
                     return True
             if other.value is None:
                 if self.value is not None:
-                    print("f{self.name} is None on right, but not left")
+                    print(f"{self.name} is None on right, but not left")
                     return False
             # check to see if strict types are used
             if self.strict_type:
