@@ -102,6 +102,12 @@ def test_read_write_read_atca(tmp_path, future_shapes):
     if future_shapes:
         uv_out.use_future_array_shapes()
 
+    # make sure filename is what we expect
+    assert uv_in.filename[0] == "atca_miriad"
+    assert uv_out.filename[0] == "outtest_atca_miriad.uv"
+    assert len(uv_in.filename) == len(uv_out.filename)
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
 
@@ -114,6 +120,13 @@ def test_read_nrao_write_miriad_read_miriad(casa_uvfits, tmp_path):
     writefile = os.path.join(tmp_path, "outtest_miriad.uv")
     uvfits_uv.write_miriad(writefile, clobber=True)
     miriad_uv.read(writefile)
+
+    # make sure filename is what we expect
+    assert uvfits_uv.filename[0] == "day2_TDEM0003_10s_norx_1src_1spw.uvfits"
+    assert miriad_uv.filename[0] == "outtest_miriad.uv"
+    assert len(uvfits_uv.filename) == len(miriad_uv.filename)
+    uvfits_uv.filename = miriad_uv.filename
+
     assert uvfits_uv == miriad_uv
 
 
@@ -158,6 +171,11 @@ def test_read_write_read_carma(tmp_path):
     uv_in.write_miriad(testfile, clobber=True)
     uv_out.read(testfile)
 
+    # make sure filename is what we expect
+    assert uv_in.filename == ["carma_miriad"]
+    assert uv_out.filename == ["outtest_carma_miriad.uv"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     # We should get the same result if we feed in these parameters, since the original
@@ -187,6 +205,12 @@ def test_read_miriad_write_uvfits(uv_in_uvfits):
 
     miriad_uv.write_uvfits(testfile, spoof_nonessential=True, force_phase=True)
     uvfits_uv.read_uvfits(testfile)
+
+    # make sure filename is what we expect
+    assert miriad_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    assert uvfits_uv.filename == ["outtest_miriad.uvfits"]
+    miriad_uv.filename = uvfits_uv.filename
+
     assert miriad_uv == uvfits_uv
 
 
@@ -590,6 +614,12 @@ def test_singletimeselect_drift(uv_in_paper, tmp_path):
     uv_in.select(times=uv_in.time_array[0])
     uv_in.write_miriad(testfile, clobber=True)
     uv_out.read(testfile)
+
+    # make sure filename is what we expect
+    assert uv_in.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    assert uv_out.filename == ["outtest_miriad.uv"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     # check that setting the phase_type works
@@ -606,6 +636,12 @@ def test_singletimeselect_drift(uv_in_paper, tmp_path):
 
     uv_in_copy.write_miriad(testfile, clobber=True)
     uv_out.read(testfile)
+
+    # make sure filename is what we expect
+    assert uv_in_copy.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    assert uv_out.filename == ["outtest_miriad.uv"]
+    uv_in_copy.filename = uv_out.filename
+
     assert uv_in_copy == uv_out
 
     # check that setting the phase_type works
@@ -717,6 +753,11 @@ def test_miriad_extra_keywords(uv_in_paper, tmp_path, kwd_names, kwd_values):
     uv_in.write_miriad(testfile, clobber=True)
     uv_out.read(testfile)
 
+    # make sure filename is what we expect
+    assert uv_in.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    assert uv_out.filename == ["outtest_miriad.uv"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
 
@@ -729,6 +770,11 @@ def test_roundtrip_optional_params(uv_in_paper, tmp_path):
 
     uv_in.write_miriad(testfile, clobber=True)
     uv_out.read(testfile)
+
+    # make sure filename is what we expect
+    assert uv_in.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    assert uv_out.filename == ["outtest_miriad.uv"]
+    uv_in.filename = uv_out.filename
 
     assert uv_in == uv_out
 
@@ -786,6 +832,11 @@ def test_read_write_read_miriad(uv_in_paper):
     uv_in, uv_out, write_file = uv_in_paper
     uv_out.read(write_file)
 
+    # make sure filename is what we expect
+    assert uv_in.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    assert uv_out.filename == ["outtest_miriad.uv"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     # check that we can read & write phased data
@@ -818,6 +869,12 @@ def test_miriad_antenna_diameters(uv_in_paper):
     )
     uv_in.write_miriad(write_file, clobber=True)
     uv_out.read(write_file)
+
+    # make sure that filenames make sense
+    assert uv_in.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    assert uv_out.filename == ["outtest_miriad.uv"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     # check that antenna diameters get written if not exactly float
@@ -858,6 +915,12 @@ def test_miriad_write_read_diameters(tmp_path):
     uv_in.read(testfile_diameters)
     uv_in.write_miriad(write_file, clobber=True)
     uv_out.read(write_file)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["zen.2457698.40355.xx.HH.uvcA"]
+    assert uv_out.filename == ["outtest_miriad.uv"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
 
@@ -902,6 +965,12 @@ def test_miriad_integration_time_precision(uv_in_paper):
     uv_in.write_miriad(write_file, clobber=True)
     new_uv = UVData()
     new_uv.read(write_file)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    assert new_uv.filename == ["outtest_miriad.uv"]
+    uv_in.filename = new_uv.filename
+
     assert uv_in == new_uv
 
 
@@ -933,6 +1002,12 @@ def test_read_write_read_miriad_partial_bls(uv_in_paper, select_kwargs, tmp_path
         bls = [bls]
     assert np.all([bl[:2] in antpairs or bl[:2][::-1] in antpairs for bl in bls])
     exp_uv = full.select(inplace=False, **select_kwargs)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["outtest_miriad.uv"]
+    assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    uv_in.filename = exp_uv.filename
+
     assert uv_in == exp_uv
 
 
@@ -950,6 +1025,12 @@ def test_read_write_read_miriad_partial_antenna_nums(uv_in_paper, tmp_path):
     exp_uv = full.select(antenna_nums=[0], inplace=False)
     assert np.max(exp_uv.ant_1_array) == 0
     assert np.max(exp_uv.ant_2_array) == 0
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["outtest_miriad.uv"]
+    assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    uv_in.filename = exp_uv.filename
+
     assert uv_in == exp_uv
 
 
@@ -981,6 +1062,12 @@ def test_read_write_read_miriad_partial_times(uv_in_paper, select_kwargs, tmp_pa
     # time range with selecting on exact times
     select_kwargs.pop("time_range", None)
     exp_uv = full.select(times=full_times, inplace=False, **select_kwargs)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["outtest_miriad.uv"]
+    assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    uv_in.filename = exp_uv.filename
+
     assert uv_in == exp_uv
 
 
@@ -997,6 +1084,12 @@ def test_read_write_read_miriad_partial_pols(uv_in_paper, pols, tmp_path):
     uv_in.read(write_file, polarizations=pols)
     assert full.polarization_array == uv_in.polarization_array
     exp_uv = full.select(polarizations=pols, inplace=False)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["outtest_miriad.uv"]
+    assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    uv_in.filename = exp_uv.filename
+
     assert uv_in == exp_uv
 
 
@@ -1011,14 +1104,32 @@ def test_read_write_read_miriad_partial_ant_str(uv_in_paper, tmp_path):
     uv_in.read(write_file, ant_str="auto")
     assert np.array([blp[0] == blp[1] for blp in uv_in.get_antpairs()]).all()
     exp_uv = full.select(ant_str="auto", inplace=False)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["outtest_miriad.uv"]
+    assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    uv_in.filename = exp_uv.filename
+
     assert uv_in == exp_uv
 
     uv_in.read(write_file, ant_str="cross")
     assert np.array([blp[0] != blp[1] for blp in uv_in.get_antpairs()]).all()
     exp_uv = full.select(ant_str="cross", inplace=False)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["outtest_miriad.uv"]
+    assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    uv_in.filename = exp_uv.filename
+
     assert uv_in == exp_uv
 
     uv_in.read(write_file, ant_str="all")
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["outtest_miriad.uv"]
+    assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    uv_in.filename = exp_uv.filename
+
     assert uv_in == full
 
 
@@ -1159,6 +1270,12 @@ def test_read_write_read_miriad_partial_with_warnings(uv_in_paper, tmp_path):
         uv_in.read(write_file, times=times_to_keep)
 
     exp_uv = full.select(times=times_to_keep, inplace=False)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["outtest_miriad.uv"]
+    assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    uv_in.filename = exp_uv.filename
+
     assert uv_in == exp_uv
 
     uv_in = UVData()
@@ -1177,6 +1294,12 @@ def test_read_write_read_miriad_partial_with_warnings(uv_in_paper, tmp_path):
     ):
         uv_in.read(write_file, blt_inds=blts_select, antenna_nums=ants_keep)
     exp_uv = full.select(blt_inds=blts_select, antenna_nums=ants_keep, inplace=False)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["outtest_miriad.uv"]
+    assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    uv_in.filename = exp_uv.filename
+
     assert uv_in != exp_uv
 
 
@@ -1218,6 +1341,13 @@ def test_read_write_read_miriad_partial_metadata_only(uv_in_paper, tmp_path):
 
     assert uv_in.history != uv_in2.history
     uv_in2.history = uv_in.history
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    assert set(uv_in2.filename) == {"outtest_miriad.uv", "outtest_miriad2.uv"}
+    uv_in2.filename = uv_in.filename
+    uv_in2._filename.form = (1,)
+
     assert uv_in == uv_in2
 
 
@@ -1237,6 +1367,11 @@ def test_read_ms_write_miriad_casa_history(tmp_path):
 
     ms_uv.write_miriad(testfile, clobber=True)
     miriad_uv.read(testfile)
+
+    # make sure filenames are what we expect
+    assert miriad_uv.filename == ["outtest_miriad"]
+    assert ms_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.ms"]
+    miriad_uv.filename = ms_uv.filename
 
     assert miriad_uv == ms_uv
 
@@ -1259,6 +1394,11 @@ def test_rwr_miriad_antpos_issues(uv_in_paper, tmp_path):
     ):
         uv_out.read(write_file, run_check=False)
 
+    # make sure filenames are what we expect
+    assert uv_in_copy.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    assert uv_out.filename == ["outtest_miriad.uv"]
+    uv_in_copy.filename = uv_out.filename
+
     assert uv_in_copy == uv_out
 
     uv_in_copy = uv_in.copy()
@@ -1275,6 +1415,11 @@ def test_rwr_miriad_antpos_issues(uv_in_paper, tmp_path):
         ],
     ):
         uv_out.read(write_file)
+
+    # make sure filenames are what we expect
+    assert uv_in_copy.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    assert uv_out.filename == ["outtest_miriad.uv"]
+    uv_in_copy.filename = uv_out.filename
 
     assert uv_in_copy == uv_out
 
@@ -1294,6 +1439,11 @@ def test_rwr_miriad_antpos_issues(uv_in_paper, tmp_path):
         UserWarning, "Antenna positions are not present in the file.", nwarnings=2
     ):
         uv_out.read(write_file, run_check=False)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    assert uv_out.filename == ["outtest_miriad.uv"]
+    uv_in.filename = uv_out.filename
 
     assert uv_in == uv_out
 
@@ -1330,6 +1480,13 @@ def test_multi_files(casa_uvfits, tmp_path):
         uv1.history,
     )
     uv1.history = uv_full.history
+
+    # make sure filenames are what we expect
+    assert set(uv1.filename) == {"uv1", "uv2"}
+    assert uv_full.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    uv1.filename = uv_full.filename
+    uv1._filename.form = (1,)
+
     assert uv1 == uv_full
 
     # again, setting axis
@@ -1345,6 +1502,13 @@ def test_multi_files(casa_uvfits, tmp_path):
         uv1.history,
     )
     uv1.history = uv_full.history
+
+    # make sure filenames are what we expect
+    assert set(uv1.filename) == {"uv1", "uv2"}
+    assert uv_full.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    uv1.filename = uv_full.filename
+    uv1._filename.form = (1,)
+
     assert uv1 == uv_full
 
 
