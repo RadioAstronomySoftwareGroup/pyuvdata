@@ -138,6 +138,10 @@ def test_read_mir_write_uvfits(uv_in_uvfits, future_shapes):
 
     assert mir_uv == uvfits_uv
 
+    # Since mir is multi-obj by default, this should effectively be a no-op
+    mir_uv._set_multi_object()
+    assert mir_uv == uvfits_uv
+
 
 @pytest.mark.filterwarnings("ignore:LST values stored ")
 def test_read_mir_write_uvh5(uv_in_uvh5):

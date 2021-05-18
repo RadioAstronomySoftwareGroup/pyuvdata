@@ -9472,6 +9472,18 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     return
 
 
+def test_unknown_phase():
+    """
+    Test to see that unknown phase types now throw an error
+    """
+    uv = UVData()
+    uv.phase_type = "unknown"
+    with pytest.raises(
+        ValueError, match='Phase type must be either "phased" or "drift"'
+    ):
+        uv.check()
+
+
 def test_deprecation_warnings_set_phased():
     """
     Test the deprecation warnings in set_phased et al.
@@ -9690,3 +9702,420 @@ def test_print_object_multi():
         print_table=False, return_str=True, hms_format=True
     )
     assert table_str == check_str
+
+
+def test_catalog_operations(sma_mir, hera_uvh5):
+    """
+    Test some basic functions with operations on the internal catalog (object_dict)
+    """
+    # First thing first, let's check that the lookup operation works as expected.
+    # The function returns a tuple containing the object_id matching the name (None if
+    # there are no matches), and the nummber of differences detected between the info
+    # supplied and the info in object_dict
+
+    # Missing everything but the name
+    assert hera_uvh5._lookup_object("zenith") == (0, 4)
+
+    # Defaults for driftscan match those for unphased, but the object_type is obviously
+    # different
+    assert hera_uvh5._lookup_object("zenith", object_type="driftscan") == (0, 1)
+
+    # Perfect match!
+    assert hera_uvh5._lookup_object("zenith", object_type="unphased") == (0, 0)
+
+    # Nothing by that name here
+    assert hera_uvh5._lookup_object("unphased", object_type="unphased") == (None, 0)
+
+    # Can we make a match if we ignore the name (the answer should be yes)
+    assert hera_uvh5._lookup_object(
+        "unphased", object_type="unphased", ignore_name=True
+    ) == (0, 0)
+
+    # Pass "bad" values for a single argument and verify that things don't match
+    assert hera_uvh5._lookup_object(
+        "zenith", object_type="unphased", object_lat=1.0
+    ) == (0, 1)
+    assert hera_uvh5._lookup_object(
+        "zenith", object_type="unphased", object_lon=1.0
+    ) == (0, 1)
+    assert hera_uvh5._lookup_object(
+        "zenith", object_type="unphased", coord_frame=1.0
+    ) == (0, 1)
+    assert hera_uvh5._lookup_object(
+        "zenith", object_type="unphased", coord_epoch=1.0
+    ) == (0, 1)
+    assert hera_uvh5._lookup_object(
+        "zenith", object_type="unphased", object_pm_ra=1.0
+    ) == (0, 1)
+    assert hera_uvh5._lookup_object(
+        "zenith", object_type="unphased", object_pm_dec=1.0
+    ) == (0, 1)
+    assert hera_uvh5._lookup_object(
+        "zenith", object_type="unphased", object_dist=1.0
+    ) == (0, 1)
+    assert hera_uvh5._lookup_object(
+        "zenith", object_type="unphased", object_vrad=1.0
+    ) == (0, 1)
+
+    # Now try lookup using a dictionary of properties
+    assert sma_mir._lookup_object("3c84") == (1, 5)
+    object_dict = sma_mir.object_dict["3c84"]
+    assert sma_mir._lookup_object("3c84", object_dict=object_dict) == (1, 0)
+
+    # Make sure that if we set ignore_name, we still get a match
+    assert sma_mir._lookup_object(
+        "3c84", object_dict=object_dict, ignore_name=True
+    ) == (1, 0)
+
+    # Match w/ a mis-capitalization
+    assert sma_mir._lookup_object(
+        "3C84", object_dict=object_dict, ignore_name=True
+    ) == (1, 0)
+
+    with pytest.raises(
+        ValueError, match="Cannot add a source if multi_object != True.",
+    ):
+        hera_uvh5._add_object("unphased", object_type="unphased")
+
+    # Check and see what happens with driftscan objects
+    with pytest.raises(
+        ValueError, match="object_name must be a string.",
+    ):
+        sma_mir._add_object(-1, object_type="drift")
+
+    with pytest.raises(
+        ValueError, match="The name unphased is reserved.",
+    ):
+        sma_mir._add_object("unphased", object_type="drift")
+
+    with pytest.raises(
+        ValueError, match="Only sidereal, ephem, driftscan or unphased may be used ",
+    ):
+        sma_mir._add_object("zenith", object_type="drift")
+
+    with pytest.raises(ValueError, match="Non-zero proper motion values"):
+        sma_mir._add_object(
+            "zenith", object_type="driftscan", object_pm_ra=0.0, object_pm_dec=0.0
+        )
+
+    # Now move on to unphased objects
+    with pytest.raises(
+        ValueError, match="Objects that are unphased must have object_lon",
+    ):
+        sma_mir._add_object("unphased", object_type="unphased", object_lon=1.0)
+    with pytest.raises(
+        ValueError, match="Objects that are unphased must have object_lat",
+    ):
+        sma_mir._add_object("unphased", object_type="unphased", object_lat=1.0)
+    with pytest.raises(
+        ValueError, match="coord_frame must be either None or 'altaz' when the",
+    ):
+        sma_mir._add_object("unphased", object_type="unphased", coord_frame="icrs")
+
+    # Now ephem objects
+    with pytest.raises(
+        ValueError, match="coord_times cannot be None for ephem object.",
+    ):
+        sma_mir._add_object("test", object_type="ephem", coord_frame="icrs")
+
+    with pytest.raises(
+        ValueError, match="Object properties -- lon, lat, pm_ra, pm_dec, dist, vrad",
+    ):
+        sma_mir._add_object(
+            "test",
+            object_type="ephem",
+            object_lon=0.0,
+            object_lat=0.0,
+            coord_times=[0.0, 1.0],
+            coord_frame="icrs",
+        )
+
+    # Now try sidereal objects
+    with pytest.raises(
+        ValueError, match="Must supply values for either both or neither of object_pm",
+    ):
+        sma_mir._add_object("test", object_type="sidereal", object_pm_ra=0.0)
+
+    with pytest.raises(
+        ValueError, match="Must supply values for either both or neither of object_pm",
+    ):
+        sma_mir._add_object("test", object_type="sidereal", object_pm_dec=0.0)
+
+    with pytest.raises(
+        ValueError, match="coord_times cannot be used for non-ephem objects.",
+    ):
+        sma_mir._add_object("test", object_type="sidereal", coord_times=0.0)
+
+    with pytest.raises(
+        ValueError, match="object_lon cannot be None for sidereal object."
+    ):
+        sma_mir._add_object("test", object_type="sidereal")
+
+    with pytest.raises(
+        ValueError, match="object_lat cannot be None for sidereal object."
+    ):
+        sma_mir._add_object("test", object_type="sidereal", object_lon=0.0)
+
+    with pytest.raises(
+        ValueError, match="coord_frame cannot be None for sidereal object."
+    ):
+        sma_mir._add_object(
+            "test", object_type="sidereal", object_lon=0.0, object_lat=0.0
+        )
+
+    # Finally, test out what happens when we have a name collision
+    with pytest.raises(
+        IndexError, match="Cannot add different source with an non-unique name."
+    ):
+        sma_mir._add_object(
+            "3c84",
+            object_type="sidereal",
+            object_lon=0.8718035968995141,
+            object_lat=0.7245157752262148,
+            coord_frame="fk4",
+            coord_epoch="B1950.0",
+        )
+
+    return_id = sma_mir._add_object(
+        "3c84",
+        object_type="sidereal",
+        object_lon=0.8718035968995141,
+        object_lat=0.7245157752262148,
+        coord_frame="fk5",
+        coord_epoch="j2000",
+    )
+
+    assert return_id == 1
+
+    with pytest.raises(
+        ValueError, match="Provided object_id belongs to another source"
+    ):
+        sma_mir._add_object(
+            "unphased", object_type="unphased", object_id=return_id,
+        )
+
+    # Move on to remove operations
+    with pytest.raises(
+        ValueError, match="Cannot remove an object if multi_object != True."
+    ):
+        hera_uvh5._remove_object("zenith")
+
+    with pytest.raises(
+        ValueError, match="Cannot remove an object if multi_object != True."
+    ):
+        hera_uvh5._clear_unused_objects()
+
+    with pytest.raises(
+        IndexError, match="No source by that name contained in the catalog."
+    ):
+        sma_mir._remove_object("zenith")
+
+    check_dict = sma_mir.object_dict.copy()
+
+    # Check and see that clearing out the unused objects doesn't actually change the
+    # object_dict (because all objects are being "used").
+    sma_mir._clear_unused_objects()
+    assert sma_mir.object_dict == check_dict
+
+    check_id = sma_mir._add_object(
+        "Mars",
+        object_type="ephem",
+        object_lon=[0.0, 1.0],
+        object_lat=[0, 1],
+        object_dist=(0, 1),
+        object_vrad=np.array([0, 1], dtype=np.float32),
+        coord_times=np.array([0.0, 1.0]),
+        coord_frame="icrs",
+    )
+
+    # Make sure the object ID returns as expected, and that the catalog actually changed
+    assert check_id == 0
+    assert sma_mir.object_dict != check_dict
+    assert sma_mir._lookup_object(
+        "Mars", object_lon=[0, 1, 2], object_lat=[0, 1, 2]
+    ) == (0, 7)
+    # Finally, clear out the unused entries and check for equivalency w/ the old catalog
+    sma_mir._clear_unused_objects()
+    assert sma_mir.object_dict == check_dict
+
+    # Try now renaming an object
+    with pytest.raises(
+        ValueError, match="Cannot rename an object if multi_object != True."
+    ):
+        hera_uvh5.rename_object(-1, -2)
+
+    with pytest.raises(
+        ValueError, match="No object with the name -1 found in the dataset."
+    ):
+        sma_mir.rename_object(-1, -2)
+
+    with pytest.raises(TypeError, match="Value provided to new_name must be a string."):
+        sma_mir.rename_object("3c84", -2)
+
+    with pytest.raises(ValueError, match="The name unphased is reserved."):
+        sma_mir.rename_object("3c84", "unphased")
+
+    # Check and see what happens if we attempt to rename the source
+    sma_mir.rename_object("3c84", "3C84")
+    assert sma_mir.object_dict["3C84"] == check_dict["3c84"]
+    assert sma_mir.object_name == ["3C84"]
+
+    sma_mir.rename_object("3C84", "3c84")
+    assert sma_mir.object_dict == check_dict
+    assert sma_mir.object_name == ["3c84"]
+
+    # Check to make sure that setting the same name doesn't harm anything
+    sma_mir.rename_object("3c84", "3c84")
+    assert sma_mir.object_dict == check_dict
+    assert sma_mir.object_name == ["3c84"]
+
+    # Finally add a source in, see that we get an error if trying to rename the object
+    # to the new name
+    sma_mir._add_object("zenith", object_type="unphased")
+    with pytest.raises(ValueError, match="Must include a unique name for new_name"):
+        sma_mir.rename_object("3c84", "zenith")
+
+    # Last but not least, test _update_object_id
+    with pytest.raises(
+        ValueError, match="Cannot use _update_object_id on a non-multi-object data",
+    ):
+        hera_uvh5._update_object_id("test")
+
+    with pytest.raises(
+        ValueError, match="Cannot run _update_object_id: no object with name test.",
+    ):
+        sma_mir._update_object_id("test")
+
+    with pytest.raises(
+        ValueError, match="Object ID supplied already taken by another source.",
+    ):
+        sma_mir._update_object_id("3c84", new_object_id=0, reserved_ids=[0, 1])
+
+    # This should effectively be a no-op, since the object ID of the source isn't being
+    # taken up by anything else
+    sma_copy = sma_mir.copy()
+    sma_mir._update_object_id("3c84")
+    assert sma_copy == sma_mir
+
+    # If all goes well, this operation should assign the lowest possible integer to the
+    # object ID of 3c84 -- in this case, 4.
+    sma_mir._update_object_id("3c84", reserved_ids=[0, 1, 2, 3])
+    assert sma_mir.object_dict["3c84"]["object_id"] == 4
+
+
+def test_split_merge_catalog(hera_uvh5):
+
+    with pytest.raises(
+        ValueError, match="Cannot use split_object on a non-multi-object data set."
+    ):
+        hera_uvh5.split_object("3c84", "zenith", 1.5)
+
+    with pytest.raises(
+        ValueError, match="Cannot use merge_object on a non-multi-object data set."
+    ):
+        hera_uvh5.merge_object("3c84", "zenith")
+
+    # Set the HERA file as multi-object so that we can play around with it a bit
+    hera_uvh5._set_multi_object(preserve_object_info=True)
+    hera_copy = hera_uvh5.copy()
+
+    # First test out a bunch of error conditions that should render no-ops
+    with pytest.raises(ValueError, match="No object by the name dummy in object_name."):
+        hera_uvh5.split_object("dummy", "zenith", 1.5)
+
+    with pytest.raises(
+        ValueError, match="No object by the name dummy1 in object_name."
+    ):
+        hera_uvh5.merge_object("dummy1", "zenith")
+
+    with pytest.raises(
+        ValueError, match="No object by the name dummy2 in object_name."
+    ):
+        hera_uvh5.merge_object("zenith", "dummy2")
+
+    with pytest.raises(
+        ValueError, match="The name zenith is already found in object_name,"
+    ):
+        hera_uvh5.split_object("zenith", "zenith", 1.5)
+
+    with pytest.raises(
+        IndexError, match="select_mask must an array-like, either of ints with shape"
+    ):
+        hera_uvh5.split_object("zenith", "zenith2", 1.5)
+
+    assert hera_uvh5 == hera_copy
+
+    # Alright, now let's actually try to split the sources -- let's say every other
+    # integration?
+    select_mask = np.isin(hera_uvh5.time_array, np.unique(hera_uvh5.time_array)[::2])
+
+    hera_uvh5.split_object("zenith", "zenith2", select_mask)
+
+    # Make sure the dicts make sense
+    temp_dict = hera_uvh5.object_dict["zenith"].copy()
+    temp_dict2 = hera_uvh5.object_dict["zenith2"].copy()
+    assert temp_dict["object_id"] != temp_dict2["object_id"]
+    temp_dict["object_id"] = temp_dict2["object_id"]
+    assert temp_dict == temp_dict2
+
+    # Check that the object IDs also line up w/ what we expect
+    obj_id_check = hera_uvh5.object_dict["zenith"]["object_id"]
+    assert np.all(hera_uvh5.object_id_array[~select_mask] == obj_id_check)
+    obj_id_check = hera_uvh5.object_dict["zenith2"]["object_id"]
+    assert np.all(hera_uvh5.object_id_array[select_mask] == obj_id_check)
+
+    # Finally, verify the object names
+    assert sorted(hera_uvh5.object_name) == sorted(["zenith", "zenith2"])
+    assert hera_uvh5.Nobjects == 2
+
+    # Now let's play around with selection masks some more, and include data that
+    # isn't phased up to the target in question
+    hera_split_copy = hera_uvh5.copy()
+    with pytest.raises(
+        ValueError, match="Data selected with select_mask includes that which has not",
+    ):
+        hera_uvh5.split_object("zenith2", "zenith3", ~select_mask)
+
+    # Now let's select no data at all
+    with uvtest.check_warnings(UserWarning, "No relevant data selected"):
+        hera_uvh5.split_object("zenith2", "zenith3", ~select_mask, downselect=True)
+
+    # Make sure that the object hasn't changed (all of the above should be no-ops)
+    assert hera_split_copy == hera_uvh5
+
+    # Now effectively rename zenith2 as zenith3 by selecting all data
+    with uvtest.check_warnings(UserWarning, "All data for zenith2 selected"):
+        hera_uvh5.split_object("zenith2", "zenith3", select_mask)
+
+    obj_id_check = hera_uvh5.object_dict["zenith"]["object_id"]
+    assert np.all(hera_uvh5.object_id_array[~select_mask] == obj_id_check)
+    obj_id_check = hera_uvh5.object_dict["zenith3"]["object_id"]
+    assert np.all(hera_uvh5.object_id_array[select_mask] == obj_id_check)
+
+    assert sorted(hera_uvh5.object_name) == sorted(["zenith", "zenith3"])
+
+    # Make sure the dicts make sense
+    temp_dict = hera_uvh5.object_dict["zenith"].copy()
+    temp_dict2 = hera_uvh5.object_dict["zenith3"].copy()
+    assert temp_dict["object_id"] != temp_dict2["object_id"]
+    temp_dict["object_id"] = temp_dict2["object_id"]
+    assert temp_dict == temp_dict2
+
+    # Finally, make sure we can put humpty dumpty back together again
+    # Changing a single attribute so that we can test some warnings
+    hera_uvh5.object_dict["zenith3"]["coord_epoch"] = 2000.0
+    hera_split_copy = hera_uvh5.copy()
+    with pytest.raises(
+        ValueError, match="Attributes of zenith and zenith3 in object_dict differ",
+    ):
+        hera_uvh5.merge_object("zenith", "zenith3")
+    assert hera_split_copy == hera_uvh5
+
+    # Finally, force the two objects back to being one, despite the fact that we've
+    # contaminated the dict of one (which will be overwritten by the other)
+    with uvtest.check_warnings(UserWarning, "Forcing zenith and zenith3 together"):
+        hera_uvh5.merge_object("zenith", "zenith3", force_merge=True)
+
+    # We merged everything back together, so we _should_  get back the same
+    # thing that we started with.
+    assert hera_uvh5 == hera_copy
