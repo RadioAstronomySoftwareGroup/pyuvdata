@@ -36,7 +36,7 @@ for s in testfile_suffix:
     testfiles.append(testdir + testfile_prefix + s)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def fhd_data():
     fhd_uv = UVData()
     fhd_uv.read(testfiles)
@@ -44,7 +44,7 @@ def fhd_data():
     return fhd_uv
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def fhd_model():
     fhd_uv = UVData()
     fhd_uv.read(testfiles, use_model=True)
@@ -68,6 +68,15 @@ def test_read_fhd_write_read_uvfits(fhd_data, tmp_path):
         outfile, spoof_nonessential=True,
     )
     uvfits_uv.read_uvfits(outfile)
+
+    # make sure filename attributes have the right length before removing
+    assert len(fhd_uv.filename) == 9
+    assert len(uvfits_uv.filename) == 1
+    fhd_uv.filename = None
+    fhd_uv._filename.form = ()
+    uvfits_uv.filename = None
+    uvfits_uv._filename.form = ()
+
     assert fhd_uv == uvfits_uv
 
 
@@ -201,6 +210,15 @@ def test_read_fhd_write_read_uvfits_variant_flag(tmp_path):
         outfile, spoof_nonessential=True,
     )
     uvfits_uv.read_uvfits(outfile)
+
+    # make sure filenames are what we expect
+    assert len(fhd_uv.filename) == len(files_use)
+    assert len(uvfits_uv.filename) == 1
+    fhd_uv.filename = None
+    fhd_uv._filename.form = ()
+    uvfits_uv.filename = None
+    uvfits_uv._filename.form = ()
+
     assert fhd_uv == uvfits_uv
 
 
@@ -223,6 +241,15 @@ def test_read_fhd_write_read_uvfits_fix_layout(tmp_path):
         outfile, spoof_nonessential=True,
     )
     uvfits_uv.read_uvfits(outfile)
+
+    # make sure filenames are what we expect
+    assert len(fhd_uv.filename) == len(files_use)
+    assert len(uvfits_uv.filename) == 1
+    fhd_uv.filename = None
+    fhd_uv._filename.form = ()
+    uvfits_uv.filename = None
+    uvfits_uv._filename.form = ()
+
     assert fhd_uv == uvfits_uv
 
 
@@ -256,6 +283,15 @@ def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc(tmp_path):
         outfile, spoof_nonessential=True,
     )
     uvfits_uv.read_uvfits(outfile)
+
+    # make sure filenames are what we expect
+    assert len(fhd_uv.filename) == len(files_use)
+    assert len(uvfits_uv.filename) == 1
+    fhd_uv.filename = None
+    fhd_uv._filename.form = ()
+    uvfits_uv.filename = None
+    uvfits_uv._filename.form = ()
+
     assert fhd_uv == uvfits_uv
 
 
@@ -288,6 +324,15 @@ def test_read_fhd_write_read_uvfits_bad_obs_loc(tmp_path):
         outfile, spoof_nonessential=True,
     )
     uvfits_uv.read_uvfits(outfile)
+
+    # make sure filenames are what we expect
+    assert len(fhd_uv.filename) == len(files_use)
+    assert len(uvfits_uv.filename) == 1
+    fhd_uv.filename = None
+    fhd_uv._filename.form = ()
+    uvfits_uv.filename = None
+    uvfits_uv._filename.form = ()
+
     assert fhd_uv == uvfits_uv
 
 
@@ -311,6 +356,15 @@ def test_read_fhd_write_read_uvfits_altered_layout(tmp_path):
         outfile, spoof_nonessential=True,
     )
     uvfits_uv.read_uvfits(outfile)
+
+    # make sure filenames are what we expect
+    assert len(fhd_uv.filename) == len(files_use)
+    assert len(uvfits_uv.filename) == 1
+    fhd_uv.filename = None
+    fhd_uv._filename.form = ()
+    uvfits_uv.filename = None
+    uvfits_uv._filename.form = ()
+
     assert fhd_uv == uvfits_uv
 
 
@@ -339,6 +393,15 @@ def test_read_fhd_write_read_uvfits_no_settings(tmp_path):
         outfile, spoof_nonessential=True,
     )
     uvfits_uv.read_uvfits(outfile)
+
+    # make sure filenames are what we expect
+    assert len(fhd_uv.filename) == len(testfiles[:-2])
+    assert len(uvfits_uv.filename) == 1
+    fhd_uv.filename = None
+    fhd_uv._filename.form = ()
+    uvfits_uv.filename = None
+    uvfits_uv._filename.form = ()
+
     assert fhd_uv == uvfits_uv
 
 
@@ -440,6 +503,15 @@ def test_read_fhd_model(tmp_path, fhd_model):
         outfile, spoof_nonessential=True,
     )
     uvfits_uv.read_uvfits(outfile)
+
+    # make sure filenames are what we expect
+    assert len(fhd_uv.filename) == len(testfiles)
+    assert len(uvfits_uv.filename) == 1
+    fhd_uv.filename = None
+    fhd_uv._filename.form = ()
+    uvfits_uv.filename = None
+    uvfits_uv._filename.form = ()
+
     assert fhd_uv == uvfits_uv
 
 
@@ -460,6 +532,11 @@ def test_multi_files(fhd_model):
     )
 
     fhd_uv1.history = fhd_uv2.history
+
+    assert set(fhd_uv1.filename + ["1061316296_obs.sav"]) == set(fhd_uv2.filename)
+    fhd_uv1.filename = fhd_uv2.filename
+    fhd_uv1._filename.form = len(fhd_uv1.filename)
+
     assert fhd_uv1 == fhd_uv2
 
 
@@ -480,6 +557,11 @@ def test_multi_files_axis(fhd_model):
     )
 
     fhd_uv1.history = fhd_uv2.history
+
+    assert set(fhd_uv1.filename + ["1061316296_obs.sav"]) == set(fhd_uv2.filename)
+    fhd_uv1.filename = fhd_uv2.filename
+    fhd_uv1._filename.form = len(fhd_uv1.filename)
+
     assert fhd_uv1 == fhd_uv2
 
 
