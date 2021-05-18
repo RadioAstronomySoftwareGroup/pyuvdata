@@ -87,6 +87,16 @@ def test_read_mwa_write_uvfits(tmp_path):
     testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read_uvfits(testfile)
+
+    # make sure filenames are what we expect
+    assert set(mwa_uv.filename) == {
+        "1131733552.metafits",
+        "1131733552_20151116182537_mini_gpubox01_00.fits",
+    }
+    assert uvfits_uv.filename == ["outtest_MWAcorr.uvfits"]
+    mwa_uv.filename = uvfits_uv.filename
+    mwa_uv._filename.form = (1,)
+
     assert mwa_uv == uvfits_uv
 
 
@@ -175,6 +185,16 @@ def test_read_mwa_write_uvfits_meta_mod(tmp_path):
     testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read_uvfits(testfile)
+
+    # make sure filenames are what we expect
+    assert set(mwa_uv.filename) == {
+        "1131733552_20151116182537_mini_gpubox01_00.fits",
+        "1131733552_mod.metafits",
+    }
+    assert uvfits_uv.filename == ["outtest_MWAcorr.uvfits"]
+    mwa_uv.filename = uvfits_uv.filename
+    mwa_uv._filename.form = (1,)
+
     assert mwa_uv == uvfits_uv
 
 
@@ -293,6 +313,16 @@ def test_ppds(tmp_path):
     mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv = UVData()
     uvfits_uv.read_uvfits(testfile)
+
+    # make sure filenames are what we expect
+    assert set(mwa_uv.filename) == {
+        "1131733552_20151116182537_mini_gpubox01_00.fits",
+        "1131733552_metafits_ppds.fits",
+    }
+    assert uvfits_uv.filename == ["outtest_MWAcorr.uvfits"]
+    mwa_uv.filename = uvfits_uv.filename
+    mwa_uv._filename.form = (1,)
+
     assert mwa_uv == uvfits_uv
 
     del mwa_uv
