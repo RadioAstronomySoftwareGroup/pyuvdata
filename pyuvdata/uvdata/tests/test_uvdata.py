@@ -130,6 +130,7 @@ def uvdata_props():
         "_eq_coeffs",
         "_eq_coeffs_convention",
         "_flex_spw_id_array",
+        "_filename",
     ]
 
     extra_properties = [
@@ -156,6 +157,7 @@ def uvdata_props():
         "eq_coeffs",
         "eq_coeffs_convention",
         "flex_spw_id_array",
+        "filename",
     ]
 
     other_properties = [
@@ -6822,6 +6824,11 @@ def test_redundancy_missing_groups(method, pyuvsim_redundant, tmp_path):
     uv1 = UVData()
     uv1.read_uvfits(fname)
 
+    # check that filenames are what we expect
+    assert uv0.filename == ["fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits"]
+    assert uv1.filename == ["temp_hera19_missingreds.uvfits"]
+    uv0.filename = uv1.filename
+
     assert uv0 == uv1  # Check that writing compressed files causes no issues.
 
     with uvtest.check_warnings(
@@ -6996,6 +7003,18 @@ def test_overlapping_data_add(casa_uvfits, tmp_path, future_shapes):
     uv.reorder_blts()
     assert uvutils._check_histories(uvfull.history, uv.history + extra_history2)
     uvfull.history = uv.history  # make histories match
+
+    # make sure filenames are what we expect
+    assert set(uvfull.filename) == {
+        "uv1.uvfits",
+        "uv2.uvfits",
+        "uv3.uvfits",
+        "uv4.uvfits",
+    }
+    assert uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    uvfull.filename = uv.filename
+    uvfull._filename.form = (1,)
+
     assert uvfull == uv
 
 
