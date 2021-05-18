@@ -965,12 +965,38 @@ def test_phase_to_time_error(uv1_2_set_uvws):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_unphase_drift_data_error(uv1_2_set_uvws):
-    uv_phase, uv_raw = uv1_2_set_uvws
-    # check error if not passing a Time object to phase_to_time
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_unphase_drift_data_error(uv1_2_set_uvws, sma_mir, future_shapes):
+    uv_phase, uv_drift = uv1_2_set_uvws
+    # check error unphasing an unphased object
+
+    if future_shapes:
+        uv_phase.use_future_array_shapes()
+        uv_drift.use_future_array_shapes()
+        sma_mir.use_future_array_shapes()
+
     with pytest.raises(ValueError) as cm:
-        uv_phase.unphase_to_drift()
+        uv_drift.unphase_to_drift()
     assert str(cm.value).startswith("The data is already drift scanning;")
+
+    # Test to make sure we get the right errors when usng the old proj method
+    uv_phase.phase(0.0, 0.0, use_old_proj=True)
+    with pytest.raises(AttributeError) as cm:
+        uv_phase.unphase_to_drift()
+    assert str(cm.value).startswith("Object missing phase_center_ra_app or")
+
+    # Now make sure the old proj method works with unphasing
+    uv_phase.unphase_to_drift(use_old_proj=True)
+    assert uv_drift == uv_phase
+
+    with pytest.raises(ValueError) as cm:
+        sma_mir.unphase_to_drift(use_old_proj=True)
+    assert str(cm.value).startswith("Multi-object data sets are not compatible")
+
+    # Check to make sure that wa can unphase w/o an error getting thrown. The new
+    # unphase method does not throw an error when being called twice
+    sma_mir.unphase_to_drift()
+    sma_mir.unphase_to_drift()
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -2843,11 +2869,15 @@ def test_reorder_pols(casa_uvfits, future_shapes):
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_reorder_blts(casa_uvfits, future_shapes):
+@pytest.mark.parametrize("multi_object", [True, False])
+def test_reorder_blts(casa_uvfits, future_shapes, multi_object):
     uv1 = casa_uvfits
 
     if future_shapes:
         uv1.use_future_array_shapes()
+
+    if multi_object:
+        uv1._set_multi_object(preserve_object_info=True)
 
     # test default reordering in detail
     uv2 = uv1.copy()
@@ -10039,7 +10069,7 @@ def test_split_merge_catalog(hera_uvh5):
         hera_uvh5.split_object("zenith", "zenith", 1.5)
 
     with pytest.raises(
-        IndexError, match="select_mask must an array-like, either of ints with shape"
+        IndexError, match="select_mask must be an array-like, either of ints with shape"
     ):
         hera_uvh5.split_object("zenith", "zenith2", 1.5)
 
@@ -10118,4 +10148,39 @@ def test_split_merge_catalog(hera_uvh5):
 
     # We merged everything back together, so we _should_  get back the same
     # thing that we started with.
+    assert hera_uvh5 == hera_copy
+
+
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_apply_w(hera_uvh5, future_shapes):
+    """
+    Test to make sure that the _apply_w method throws  expected errors
+    """
+    if future_shapes:
+        hera_uvh5.use_future_array_shapes()
+
+    hera_copy = hera_uvh5.copy()
+
+    with pytest.raises(
+        IndexError, match="select_mask must be an array-like, either of ints",
+    ):
+        hera_uvh5._apply_w_proj(0.0, 0.0, 1.5)
+
+    with pytest.raises(
+        IndexError, match="The length of new_w_vals is wrong",
+    ):
+        hera_uvh5._apply_w_proj([0.0, 0.0], 0.0, [0])
+
+    with pytest.raises(
+        IndexError, match="The length of old_w_vals is wrong",
+    ):
+        hera_uvh5._apply_w_proj(0.0, [0.0, 0.0], [0])
+
+    # Test to make sure that the following gives us back the same results, first without
+    # a selection mask
+    hera_uvh5._apply_w_proj(0.0, 0.0)
+    assert hera_uvh5 == hera_copy
+
+    # And now with a selection mask applied
+    hera_uvh5._apply_w_proj([0.0, 1.0], [0.0, 1.0], [0, 1])
     assert hera_uvh5 == hera_copy

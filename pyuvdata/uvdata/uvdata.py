@@ -1246,8 +1246,8 @@ class UVData(UVBase):
             inv_mask[select_mask] = False
         except IndexError:
             raise IndexError(
-                "select_mask must an array-like, either of ints with shape (Nblts), or "
-                "of ints within the range [0, Nblts)."
+                "select_mask must be an array-like, either of ints with shape (Nblts), "
+                "or  of ints within the range (-Nblts, Nblts)."
             )
         # Now that we know nthat all the inputs are sensible, lets make sure that
         # the select_mask choice is sensible
@@ -3942,23 +3942,30 @@ class UVData(UVBase):
         if self.metadata_only or (self.data_array is None):
             return
 
+        if select_mask is None:
+            select_len = self.Nblts
+        else:
+            try:
+                inv_mask = np.ones(self.Nblts, dtype=bool)
+                inv_mask[select_mask] = False
+                select_mask = ~inv_mask
+                select_len = np.sum(select_mask)
+            except IndexError:
+                raise IndexError(
+                    "select_mask must be an array-like, either of ints with shape "
+                    "(Nblts), or of ints within the range (-Nblts, Nblts)."
+                )
+
         # Promote everything to float64 ndarrays if they aren't already
-        if not isinstance(new_w_vals, np.ndarray):
-            new_w_vals = np.array([new_w_vals], dtype=np.float64)
-        if not isinstance(new_w_vals[0], np.float64):
-            new_w_vals = new_w_vals.astype(np.float64)
-        if not isinstance(old_w_vals, np.ndarray):
-            old_w_vals = np.array([old_w_vals], dtype=np.float64)
-        if not isinstance(old_w_vals[0], np.float64):
-            old_w_vals = old_w_vals.astype(np.float64)
+        old_w_vals = np.array(old_w_vals, dtype=np.float64)
+        old_w_vals.shape += (1,) if (old_w_vals.ndim == 0) else ()
+        new_w_vals = np.array(new_w_vals, dtype=np.float64)
+        new_w_vals.shape += (1,) if (new_w_vals.ndim == 0) else ()
 
         # Make sure the lengths of everything make sense
         new_val_len = len(new_w_vals)
         old_val_len = len(old_w_vals)
-        select_len = self.Nblts if (select_mask is None) else np.sum(select_mask)
 
-        if (select_mask is not None) and (len(select_mask) != self.Nblts):
-            raise IndexError("select_mask must be of length Nblts!")
         if new_val_len not in [1, select_len]:
             raise IndexError(
                 "The length of new_w_vals is wrong (expected 1 or %i, got %i)!"
@@ -3973,7 +3980,7 @@ class UVData(UVBase):
         # Calculate the difference in w terms as a function of freq. Note that the
         # 1/c is there to speed of processing (faster to multiply than divide)
         delta_w_lambda = (
-            (new_w_vals - old_w_vals).reshape(self.Nblts, 1)
+            (new_w_vals - old_w_vals).reshape(-1, 1)
             * (1.0 / const.c.to("m/s").value)
             * self.freq_array.reshape(1, self.Nfreqs)
         )
@@ -4031,15 +4038,9 @@ class UVData(UVBase):
         """
         if self.phase_type == "phased":
             pass
-        elif self.phase_type == "drift":
-            raise ValueError(
-                "The data is already drift scanning; can only unphase phased data."
-            )
         else:
             raise ValueError(
-                "The phasing type of the data is unknown. "
-                "Set the phase_type to drift or phased to "
-                "reflect the phasing status of the data"
+                "The data is already drift scanning; can only unphase phased data."
             )
 
         if not use_old_proj:
@@ -4057,12 +4058,12 @@ class UVData(UVBase):
                     "version of the code). Please run unphase_to_drift with "
                     "use_old_proj=True to continue."
                 )
-            old_w_vals = self.uvw_array[:, 2].copy()
+
             telescope_location = self.telescope_location_lat_lon_alt
 
             # Check and see if we have any unphased objects, in which case
             # their w-values should be zeroed out.
-            old_w_vals[self._check_for_unphased()] = 0.0
+            select_mask = ~self._check_for_unphased()
 
             new_uvw = uvutils.calc_uvw(
                 lst_array=self.lst_array,
@@ -4080,7 +4081,7 @@ class UVData(UVBase):
                 to_enu=True,
             )
 
-            self._apply_w_proj(0.0, old_w_vals)
+            self._apply_w_proj(0.0, self.uvw_array[select_mask, 2], select_mask)
             self.uvw_array = new_uvw
 
             # remove/update phase center
@@ -4342,15 +4343,15 @@ class UVData(UVBase):
                 object_type = temp_dict["object_type"]
                 object_src = temp_dict["object_src"]
                 # Get here will return None if no key found, which we want
-                object_lon = temp_dict("object_lon")
-                object_lat = temp_dict("object_lat")
-                coord_frame = temp_dict("coord_frame")
-                coord_epoch = temp_dict("coord_epoch")
-                coord_times = temp_dict("coord_times")
-                object_pm_ra = temp_dict("object_pm_ra")
-                object_pm_dec = temp_dict("object_pm_dec")
-                object_dist = temp_dict("object_dist")
-                object_vrad = temp_dict("object_vrad")
+                object_lon = temp_dict.get("object_lon")
+                object_lat = temp_dict.get("object_lat")
+                coord_frame = temp_dict.get("coord_frame")
+                coord_epoch = temp_dict.get("coord_epoch")
+                coord_times = temp_dict.get("coord_times")
+                object_pm_ra = temp_dict.get("object_pm_ra")
+                object_pm_dec = temp_dict.get("object_pm_dec")
+                object_dist = temp_dict.get("object_dist")
+                object_vrad = temp_dict.get("object_vrad")
         else:
             # Either this is not a multi-object data set, or the name of the
             # source is unique!
