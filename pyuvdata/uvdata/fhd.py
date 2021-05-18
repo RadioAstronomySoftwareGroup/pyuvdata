@@ -87,10 +87,7 @@ def _latlonalt_close(latlonalt1, latlonalt2, radian_tols, loc_tols):
     alt_close = np.isclose(
         latlonalt1[2], latlonalt2[2], rtol=loc_tols[0], atol=loc_tols[1]
     )
-    if latlon_close and alt_close:
-        return True
-    else:
-        return False
+    return latlon_close and alt_close
 
 
 def get_fhd_layout_info(
