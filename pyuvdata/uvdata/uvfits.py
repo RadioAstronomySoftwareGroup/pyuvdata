@@ -3,6 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing uvfits files."""
+import os
 import warnings
 
 import numpy as np
@@ -468,6 +469,11 @@ class UVFITS(UVData):
             If the metadata are not internally consistent or missing.
 
         """
+        # update filename attribute
+        basename = os.path.basename(filename)
+        self.filename = [basename]
+        self._filename.form = (1,)
+
         with fits.open(filename, memmap=True) as hdu_list:
             vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
             vis_hdr = vis_hdu.header.copy()
