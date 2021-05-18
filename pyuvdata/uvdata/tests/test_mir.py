@@ -123,10 +123,15 @@ def test_read_mir_write_uvfits(uv_in_uvfits, future_shapes):
     mir_uv._set_app_coords_helper()
     uvfits_uv._set_app_coords_helper()
 
+    # make sure filenames are what we expect
+    assert mir_uv.filename == ["sma_test.mir"]
+    assert uvfits_uv.filename == ["outtest_mir.uvfits"]
+    mir_uv.filename = uvfits_uv.filename
     assert mir_uv == uvfits_uv
 
     # Since mir is mutli-phase-ctr by default, this should effectively be a no-op
     mir_uv._set_multi_phase_center()
+
     assert mir_uv == uvfits_uv
 
 
@@ -151,6 +156,11 @@ def test_read_mir_write_uvh5(uv_in_uvh5):
     # test fails because of updated history, so this is our workaround for now.
     mir_uv.history = uvh5_uv.history
 
+    # make sure filenames are what we expect
+    assert mir_uv.filename == ["sma_test.mir"]
+    assert uvh5_uv.filename == ["outtest_mir.uvh5"]
+    mir_uv.filename = uvh5_uv.filename
+
     assert mir_uv == uvh5_uv
 
 
@@ -159,7 +169,7 @@ def test_write_mir(uv_in_uvfits, err_type=NotImplementedError):
     Mir writer test
 
     Check and make sure that attempts to use the writer return a
-    'not implemented; error.
+    'not implemented' error.
     """
     mir_uv, uvfits_uv, testfile = uv_in_uvfits
 
