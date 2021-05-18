@@ -165,6 +165,12 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
     # extra keywords are also different, set both to empty dicts
     uvfits_uv.extra_keywords = {}
     ms_uv.extra_keywords = {}
+
+    # also update filenames
+    assert uvfits_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert ms_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.ms"]
+    uvfits_uv.filename = ms_uv.filename
+
     assert uvfits_uv == ms_uv
 
 
@@ -181,6 +187,11 @@ def test_read_ms_write_uvfits(nrao_uv, tmp_path):
     testfile = os.path.join(tmp_path, "outtest.uvfits")
     ms_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read(testfile)
+
+    # make sure filenames are what we expect
+    assert uvfits_uv.filename == ["outtest.uvfits"]
+    assert ms_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.ms"]
+    uvfits_uv.filename = ms_uv.filename
 
     assert uvfits_uv == ms_uv
     del ms_uv
@@ -201,6 +212,11 @@ def test_read_ms_write_miriad(nrao_uv, tmp_path):
     testfile = os.path.join(tmp_path, "outtest_miriad")
     ms_uv.write_miriad(testfile, clobber=True)
     miriad_uv.read(testfile)
+
+    # make sure filenames are what we expect
+    assert miriad_uv.filename == ["outtest_miriad"]
+    assert ms_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.ms"]
+    miriad_uv.filename = ms_uv.filename
 
     assert miriad_uv == ms_uv
 
@@ -247,6 +263,12 @@ def test_multi_files(casa_uvfits, axis):
     # extra keywords are also different, set both to empty dicts
     uv_full.extra_keywords = {}
     uv_multi.extra_keywords = {}
+
+    # make sure filenames are what we expect
+    assert set(uv_multi.filename) == {"multi_1.ms", "multi_2.ms"}
+    assert uv_full.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    uv_multi.filename = uv_full.filename
+    uv_multi._filename.form = (1,)
 
     assert uv_multi == uv_full
     del uv_full
