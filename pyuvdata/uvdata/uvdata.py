@@ -46,7 +46,7 @@ class UVData(UVBase):
 
         # standard angle tolerance: 10 mas in radians.
         # Should perhaps be decreased to 1 mas in the future
-        radian_tol = 10 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
+        radian_tol = 1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
 
         self._Ntimes = uvp.UVParameter(
             "Ntimes", description="Number of times", expected_type=int
@@ -457,13 +457,15 @@ class UVData(UVBase):
             "the phase_center_frame attribute."
             "Shape (Nblts,), type = float."
         )
+        # The tolerance here is set by the fact that is is calculated using an arctan,
+        # the limiting precision of which happens around values of 1.
         self._phase_center_frame_pa = uvp.AngleParameter(
             "phase_center_frame_pa",
             required=False,
             form=("Nblts",),
             expected_type=float,
             description=desc,
-            tols=radian_tol,
+            tols=2e-8,
         )
 
         desc = (
