@@ -3,6 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing Mir files."""
+import os
 import numpy as np
 from itertools import compress
 from astropy.time import Time
@@ -366,6 +367,13 @@ class Mir(UVData):
 
         self.antenna_diameters = np.zeros(self.Nants_telescope) + 6.0
         self.blt_order = ("time", "baseline")
+
+        # set filename attribute
+        basename = filepath
+        while basename.endswith("/"):
+            basename = basename[:-1]
+        self.filename = [os.path.basename(basename)]
+        self._filename.form = (1,)
 
         # TODO: Spw axis to be collapsed in future release
         if dsb_spws:
