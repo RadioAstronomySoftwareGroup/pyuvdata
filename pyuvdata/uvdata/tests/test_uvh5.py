@@ -139,6 +139,12 @@ def test_read_miriad_write_uvh5_read_uvh5(paper_miriad, future_shapes, tmp_path)
     uv_out.read(testfile)
     if future_shapes:
         uv_out.use_future_array_shapes()
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    assert uv_out.filename == ["outtest_miriad.uvh5"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     # also test round-tripping phased data
@@ -166,6 +172,12 @@ def test_read_uvfits_write_uvh5_read_uvh5(casa_uvfits, tmp_path):
     testfile = str(tmp_path / "outtest_uvfits.uvh5")
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_uvfits.uvh5"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     # also test writing double-precision data_array
@@ -212,6 +224,12 @@ def test_write_uvh5_errors(casa_uvfits, tmp_path):
     # use clobber=True to write out anyway
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_uvfits.uvh5"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     # clean up
@@ -240,6 +258,12 @@ def test_uvh5_optional_parameters(casa_uvfits, tmp_path):
     # write out and read back in
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_uvfits.uvh5"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     # test with blt_order = bda as well (single entry in tuple)
@@ -276,6 +300,12 @@ def test_uvh5_compression_options(casa_uvfits, tmp_path):
         nsample_compression=None,
     )
     uv_out.read(testfile)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_uvfits_compression.uvh5"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     # test with non-auto chunking
@@ -329,6 +359,13 @@ def test_uvh5_read_multiple_files(casa_uvfits, tmp_path):
         uv1.history,
     )
     uv1.history = uv_in.history
+
+    # make sure filenames are what we expect
+    assert set(uv1.filename) == {"uv1.uvh5", "uv2.uvh5"}
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    uv1.filename = uv_in.filename
+    uv1._filename.form = (1,)
+
     assert uv1 == uv_in
 
     # clean up
@@ -366,6 +403,13 @@ def test_uvh5_read_multiple_files_metadata_only(casa_uvfits, tmp_path):
         uv1.history,
     )
     uv1.history = uv_full.history
+
+    # make sure filenames are what we expect
+    assert set(uv1.filename) == {"uv1.uvh5", "uv2.uvh5"}
+    assert uv_full.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    uv1.filename = uv_full.filename
+    uv1._filename.form = (1,)
+
     assert uv1 == uv_full
 
     # clean up
@@ -399,6 +443,13 @@ def test_uvh5_read_multiple_files_axis(casa_uvfits, tmp_path):
         uv1.history,
     )
     uv1.history = uv_in.history
+
+    # make sure filenames are what we expect
+    assert set(uv1.filename) == {"uv1.uvh5", "uv2.uvh5"}
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    uv1.filename = uv_in.filename
+    uv1._filename.form = (1,)
+
     assert uv1 == uv_in
 
     # clean up
@@ -834,6 +885,12 @@ def test_uvh5_partial_write_antpairs(uv_partial_write, future_shapes, tmp_path):
     partial_uvh5.read(partial_testfile)
     if future_shapes:
         partial_uvh5.use_future_array_shapes()
+
+    # make sure filename is what we expect
+    assert full_uvh5.filename == ["outtest.uvh5"]
+    assert partial_uvh5.filename == ["outtest_partial.uvh5"]
+    full_uvh5.filename = partial_uvh5.filename
+
     assert full_uvh5 == partial_uvh5
 
     # test add_to_history
@@ -904,6 +961,12 @@ def test_uvh5_partial_write_frequencies(uv_partial_write, future_shapes, tmp_pat
     partial_uvh5.read(partial_testfile)
     if future_shapes:
         partial_uvh5.use_future_array_shapes()
+
+    # make sure filenames match what we expect
+    assert full_uvh5.filename == ["outtest.uvh5"]
+    assert partial_uvh5.filename == ["outtest_partial.uvh5"]
+    full_uvh5.filename = partial_uvh5.filename
+
     assert full_uvh5 == partial_uvh5
 
     # clean up
@@ -953,6 +1016,12 @@ def test_uvh5_partial_write_blts(uv_partial_write, future_shapes, tmp_path):
     partial_uvh5.read(partial_testfile)
     if future_shapes:
         partial_uvh5.use_future_array_shapes()
+
+    # make sure filenames are what we expect
+    assert full_uvh5.filename == ["outtest.uvh5"]
+    assert partial_uvh5.filename == ["outtest_partial.uvh5"]
+    full_uvh5.filename = partial_uvh5.filename
+
     assert full_uvh5 == partial_uvh5
 
     # clean up
@@ -1020,6 +1089,12 @@ def test_uvh5_partial_write_pols(uv_partial_write, future_shapes, tmp_path):
     partial_uvh5.read(partial_testfile)
     if future_shapes:
         partial_uvh5.use_future_array_shapes()
+
+    # make sure filenames are what we expect
+    assert full_uvh5.filename == ["outtest.uvh5"]
+    assert partial_uvh5.filename == ["outtest_partial.uvh5"]
+    full_uvh5.filename = partial_uvh5.filename
+
     assert full_uvh5 == partial_uvh5
 
     # clean up
@@ -1070,6 +1145,12 @@ def test_uvh5_partial_write_irregular_blt(uv_partial_write, tmp_path):
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
     partial_uvh5_file.read(partial_testfile)
+
+    # make sure filenames are what we expect
+    assert partial_uvh5_file.filename == ["outtest_partial.uvh5"]
+    assert partial_uvh5.filename == ["outtest.uvh5"]
+    partial_uvh5_file.filename = partial_uvh5.filename
+
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -1120,6 +1201,12 @@ def test_uvh5_partial_write_irregular_freq(uv_partial_write, tmp_path):
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
     partial_uvh5_file.read(partial_testfile)
+
+    # make sure filenames are what we expect
+    assert partial_uvh5_file.filename == ["outtest_partial.uvh5"]
+    assert partial_uvh5.filename == ["outtest.uvh5"]
+    partial_uvh5_file.filename = partial_uvh5.filename
+
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -1174,6 +1261,12 @@ def test_uvh5_partial_write_irregular_pol(uv_partial_write, tmp_path):
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
     partial_uvh5_file.read(partial_testfile)
+
+    # make sure filenames are what we expect
+    assert partial_uvh5_file.filename == ["outtest_partial.uvh5"]
+    assert partial_uvh5.filename == ["outtest.uvh5"]
+    partial_uvh5_file.filename = partial_uvh5.filename
+
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -1269,6 +1362,12 @@ def test_uvh5_partial_write_irregular_multi1(uv_partial_write, future_shapes, tm
     partial_uvh5_file.read(partial_testfile)
     if future_shapes:
         partial_uvh5_file.use_future_array_shapes()
+
+    # make sure filenames are what we expect
+    assert partial_uvh5_file.filename == ["outtest_partial.uvh5"]
+    assert partial_uvh5.filename == ["outtest.uvh5"]
+    partial_uvh5_file.filename = partial_uvh5.filename
+
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -1368,6 +1467,12 @@ def test_uvh5_partial_write_irregular_multi2(uv_partial_write, future_shapes, tm
     partial_uvh5_file.read(partial_testfile)
     if future_shapes:
         partial_uvh5_file.use_future_array_shapes()
+
+    # make sure filenames are what we expect
+    assert partial_uvh5_file.filename == ["outtest_partial.uvh5"]
+    assert partial_uvh5.filename == ["outtest.uvh5"]
+    partial_uvh5_file.filename = partial_uvh5.filename
+
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -1461,6 +1566,12 @@ def test_uvh5_partial_write_irregular_multi3(uv_partial_write, future_shapes, tm
     partial_uvh5_file.read(partial_testfile)
     if future_shapes:
         partial_uvh5_file.use_future_array_shapes()
+
+    # make sure filenames are what we expect
+    assert partial_uvh5_file.filename == ["outtest_partial.uvh5"]
+    assert partial_uvh5.filename == ["outtest.uvh5"]
+    partial_uvh5_file.filename = partial_uvh5.filename
+
     assert partial_uvh5_file == partial_uvh5
 
     return
@@ -1575,6 +1686,12 @@ def test_uvh5_partial_write_irregular_multi4(uv_partial_write, future_shapes, tm
     partial_uvh5_file.read(partial_testfile)
     if future_shapes:
         partial_uvh5_file.use_future_array_shapes()
+
+    # make sure filenames are what we expect
+    assert partial_uvh5_file.filename == ["outtest_partial.uvh5"]
+    assert partial_uvh5.filename == ["outtest.uvh5"]
+    partial_uvh5_file.filename = partial_uvh5.filename
+
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -1673,6 +1790,12 @@ def test_initialize_uvh5_file(uv_partial_write, future_shapes, tmp_path):
 
     # read it in and make sure that the metadata matches the original
     partial_uvh5.read(partial_testfile, read_data=False)
+
+    # make sure filenames are what we expect
+    assert partial_uvh5.filename == ["outtest_partial.uvh5"]
+    assert full_uvh5.filename == ["outtest.uvh5"]
+    partial_uvh5.filename = full_uvh5.filename
+
     assert partial_uvh5 == full_uvh5
 
     # clean up
@@ -1732,6 +1855,12 @@ def test_initialize_uvh5_file_compression_opts(uv_partial_write, tmp_path):
         nsample_compression=None,
     )
     partial_uvh5.read(partial_testfile, read_data=False)
+
+    # make sure filenames are what we expect
+    assert partial_uvh5.filename == ["outtest_partial.uvh5"]
+    assert full_uvh5.filename == ["outtest.uvh5"]
+    partial_uvh5.filename = full_uvh5.filename
+
     assert partial_uvh5 == full_uvh5
 
     # clean up
@@ -1755,6 +1884,12 @@ def test_uvh5_lst_array(casa_uvfits, tmp_path):
     with h5py.File(testfile, "r+") as h5f:
         del h5f["/Header/lst_array"]
     uv_out.read_uvh5(testfile)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_uvfits.uvh5"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     # now change what's in the file and make sure a warning is raised
@@ -1817,6 +1952,12 @@ def test_uvh5_read_header_special_cases(casa_uvfits, tmp_path):
     uv_in.phase_center_app_ra = None
     uv_in.phase_center_app_dec = None
     uv_in.phase_center_frame_pa = None
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_uvfits.uvh5"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     # clean up
@@ -1835,15 +1976,24 @@ def test_uvh5_read_ints(uv_uvh5, tmp_path):
     uv_in.write_uvh5(testfile, clobber=True)
 
     # read it back in to make sure data is the same
-    # This file has weird telescope or antenna location information
-    # (not on the surface of the earth)
-    # which breaks the phasing when trying to check if the uvws match the antpos.
     uv_out.read(testfile)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["zen.2458432.34569.uvh5"]
+    assert uv_out.filename == ["outtest.uvh5"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     # now read in as np.complex128
     uvh5_filename = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
     uv_in.read_uvh5(uvh5_filename, data_array_dtype=np.complex128)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["zen.2458432.34569.uvh5"]
+    assert uv_out.filename == ["outtest.uvh5"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
     assert uv_in.data_array.dtype == np.dtype(np.complex128)
 
@@ -1889,6 +2039,12 @@ def test_uvh5_write_ints(uv_uvh5, future_shapes, tmp_path):
     uv_out.read(testfile)
     if future_shapes:
         uv_out.use_future_array_shapes()
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["zen.2458432.34569.uvh5"]
+    assert uv_out.filename == ["outtest.uvh5"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     # also check that the datatype on disk is the right type
@@ -2110,6 +2266,12 @@ def test_uvh5_partial_write_ints_antpairs(uv_uvh5, tmp_path):
 
     # now read in the full file and make sure that it matches the original
     partial_uvh5.read(partial_testfile)
+
+    # make sure filenames are what we expect
+    assert full_uvh5.filename == ["zen.2458432.34569.uvh5"]
+    assert partial_uvh5.filename == ["outtest_partial.uvh5"]
+    full_uvh5.filename = partial_uvh5.filename
+
     assert full_uvh5 == partial_uvh5
 
     # clean up
@@ -2156,6 +2318,12 @@ def test_uvh5_partial_write_ints_frequencies(uv_uvh5, tmp_path):
 
     # read in the full file and make sure it matches
     partial_uvh5.read(partial_testfile)
+
+    # make sure filenames are what we expect
+    assert full_uvh5.filename == ["zen.2458432.34569.uvh5"]
+    assert partial_uvh5.filename == ["outtest_partial.uvh5"]
+    full_uvh5.filename = partial_uvh5.filename
+
     assert full_uvh5 == partial_uvh5
 
     # clean up
@@ -2202,6 +2370,12 @@ def test_uvh5_partial_write_ints_blts(uv_uvh5, tmp_path):
 
     # read in the full file and make sure it matches
     partial_uvh5.read(partial_testfile)
+
+    # make sure filenames are what we expect
+    assert full_uvh5.filename == ["zen.2458432.34569.uvh5"]
+    assert partial_uvh5.filename == ["outtest_partial.uvh5"]
+    full_uvh5.filename = partial_uvh5.filename
+
     assert full_uvh5 == partial_uvh5
 
     # clean up
@@ -2256,6 +2430,12 @@ def test_uvh5_partial_write_ints_pols(uv_uvh5, tmp_path):
 
     # read in the full file and make sure it matches
     partial_uvh5.read(partial_testfile)
+
+    # make sure filenames are what we expect
+    assert full_uvh5.filename == ["zen.2458432.34569.uvh5"]
+    assert partial_uvh5.filename == ["outtest_partial.uvh5"]
+    full_uvh5.filename = partial_uvh5.filename
+
     assert full_uvh5 == partial_uvh5
 
     # clean up
@@ -2412,6 +2592,12 @@ def test_uvh5_partial_write_ints_irregular_blt(uv_uvh5, tmp_path):
     partial_uvh5_file = UVData()
     # read in the full file and make sure it matches
     partial_uvh5_file.read(partial_testfile)
+
+    # make sure filenames are what we expect
+    assert partial_uvh5_file.filename == ["outtest_partial.uvh5"]
+    assert partial_uvh5.filename == ["zen.2458432.34569.uvh5"]
+    partial_uvh5_file.filename = partial_uvh5.filename
+
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2459,6 +2645,12 @@ def test_uvh5_partial_write_ints_irregular_freq(uv_uvh5, tmp_path):
     partial_uvh5_file = UVData()
     # read in the full file and make sure it matches
     partial_uvh5_file.read(partial_testfile)
+
+    # make sure filenames are what we expect
+    assert partial_uvh5_file.filename == ["outtest_partial.uvh5"]
+    assert partial_uvh5.filename == ["zen.2458432.34569.uvh5"]
+    partial_uvh5_file.filename = partial_uvh5.filename
+
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2510,6 +2702,12 @@ def test_uvh5_partial_write_ints_irregular_pol(uv_uvh5, tmp_path):
     partial_uvh5_file = UVData()
     # read in the full file and make sure it matches
     partial_uvh5_file.read(partial_testfile)
+
+    # make sure filenames are what we expect
+    assert partial_uvh5_file.filename == ["outtest_partial.uvh5"]
+    assert partial_uvh5.filename == ["zen.2458432.34569.uvh5"]
+    partial_uvh5_file.filename = partial_uvh5.filename
+
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2604,6 +2802,12 @@ def test_uvh5_partial_write_ints_irregular_multi1(uv_uvh5, future_shapes, tmp_pa
     partial_uvh5_file.read(partial_testfile)
     if future_shapes:
         partial_uvh5_file.use_future_array_shapes()
+
+    # make sure filenames are what we expect
+    assert partial_uvh5_file.filename == ["outtest_partial.uvh5"]
+    assert partial_uvh5.filename == ["zen.2458432.34569.uvh5"]
+    partial_uvh5_file.filename = partial_uvh5.filename
+
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2702,6 +2906,12 @@ def test_uvh5_partial_write_ints_irregular_multi2(uv_uvh5, future_shapes, tmp_pa
     partial_uvh5_file.read(partial_testfile)
     if future_shapes:
         partial_uvh5_file.use_future_array_shapes()
+
+    # make sure filenames are what we expect
+    assert partial_uvh5_file.filename == ["outtest_partial.uvh5"]
+    assert partial_uvh5.filename == ["zen.2458432.34569.uvh5"]
+    partial_uvh5_file.filename = partial_uvh5.filename
+
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2793,6 +3003,12 @@ def test_uvh5_partial_write_ints_irregular_multi3(uv_uvh5, future_shapes, tmp_pa
     partial_uvh5_file.read(partial_testfile)
     if future_shapes:
         partial_uvh5_file.use_future_array_shapes()
+
+    # make sure filenames are what we expect
+    assert partial_uvh5_file.filename == ["outtest_partial.uvh5"]
+    assert partial_uvh5.filename == ["zen.2458432.34569.uvh5"]
+    partial_uvh5_file.filename = partial_uvh5.filename
+
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2908,6 +3124,12 @@ def test_uvh5_partial_write_ints_irregular_multi4(uv_uvh5, future_shapes, tmp_pa
     partial_uvh5_file.read(partial_testfile)
     if future_shapes:
         partial_uvh5_file.use_future_array_shapes()
+
+    # make sure filenames are what we expect
+    assert partial_uvh5_file.filename == ["outtest_partial.uvh5"]
+    assert partial_uvh5.filename == ["zen.2458432.34569.uvh5"]
+    partial_uvh5_file.filename = partial_uvh5.filename
+
     assert partial_uvh5_file == partial_uvh5
 
     # clean up
@@ -2935,6 +3157,12 @@ def test_antenna_names_not_list(casa_uvfits, tmp_path):
     # recast as list since antenna names should be a list and will be cast as
     # list on read
     uv_in.antenna_names = uv_in.antenna_names.tolist()
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_uvfits_ant_names.uvh5"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     # clean up
@@ -2953,6 +3181,11 @@ def test_eq_coeffs_roundtrip(casa_uvfits, tmp_path):
     uv_in.eq_coeffs_convention = "divide"
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_eq_coeffs.uvh5"]
+    uv_in.filename = uv_out.filename
 
     assert uv_in == uv_out
 
