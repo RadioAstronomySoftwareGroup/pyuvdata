@@ -3584,7 +3584,16 @@ def test_add(casa_uvfits, future_shapes):
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(33, 64))
     with uvtest.check_warnings(
-        UserWarning, ["Combined frequencies are not evenly spaced"],
+        UserWarning,
+        [
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Combined frequencies are not evenly spaced",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
     ):
         uv1.__add__(uv2)
 
@@ -3629,7 +3638,16 @@ def test_add(casa_uvfits, future_shapes):
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[3])
     with uvtest.check_warnings(
-        UserWarning, ["Combined polarizations are not evenly spaced"],
+        UserWarning,
+        [
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "Combined polarizations are not evenly spaced",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
     ):
         uv1.__iadd__(uv2)
 
@@ -3854,16 +3872,7 @@ def test_add_drift(casa_uvfits):
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(33, 64))
     with uvtest.check_warnings(
-        UserWarning,
-        [
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "Combined frequencies are not evenly spaced",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-        ],
+        UserWarning, "Combined frequencies are not evenly spaced"
     ):
         uv1.__add__(uv2)
 
@@ -3882,15 +3891,7 @@ def test_add_drift(casa_uvfits):
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[3])
     with uvtest.check_warnings(
-        UserWarning,
-        [
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-        ],
+        UserWarning, "Combined polarizations are not evenly spaced",
     ):
         uv1.__iadd__(uv2)
 
