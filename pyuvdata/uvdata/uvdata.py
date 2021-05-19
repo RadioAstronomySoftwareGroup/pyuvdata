@@ -1192,7 +1192,21 @@ class UVData(UVBase):
         """
         Rename an object within a multi-object data set.
 
-        This does some stuff.
+        Parameters
+        ----------
+        old_name : str
+            Object name for the data to be renamed.
+        new_name : str
+            New name for the object.
+
+        Raises
+        ------
+        ValueError
+            If attempting to run the method on a non multi-object data set, if the name
+            `object_name` is not in the data set, or if `new_name` is already taken, or
+            if attemping to name a source "unphased" (which is reserved).
+        TypeError
+            If `new_name` is not actually a string.
         """
         if not self.multi_object:
             raise ValueError("Cannot rename an object if multi_object != True.")
@@ -1227,7 +1241,39 @@ class UVData(UVBase):
         """
         Rename the object name (but preserve other properties) of a subset of data.
 
-        This also does some stuff.
+        Allows you to rename a subset of the data phased to a particular object, marked
+        by a different name than the original. Useful when you want to phase to one
+        target, but want to differentiate different groups of data (e.g., marking every
+        other integration to make jackknifing easier).
+
+        Parameters
+        ----------
+        object_name : str
+            Object name for the data to be renamed.
+        new_name : str
+            New name for the object.
+        select_mask : array_like
+            Selection mask for which data should be identified as belonging to the
+            object labeled by `new_name`. Any array-like able to be used as an index
+            is suitable -- the most typical is an array of bool with length `Nblts`,
+            or an array of ints within the range (-Nblts, Nblts).
+        downselect : bool
+            If selecting data that is not marked as belonging to `object_name`,
+            normally an error is thrown. By setting this to True, `select_mask` will
+            be modified to exclude data not marked as belonging to `object_name`.
+
+        Raises
+        ------
+        ValueError
+            If attempting to run the method on a non multi-object data set, if the name
+            `object_name` is not in the data set, or if `new_name` is already taken.
+            Also raised if `select_mask` contains data that doesn't belong to the
+            aforementioned object, unless setting `downselect` to True.
+        IndexError
+            If select_mask is not a valid indexing array.
+        UserWarning
+            If all data for `object_name` was selected (in which case `rename_object` is
+            called instead), or if no valid data was selected.
         """
         # Check to make sure that everything lines up with
         if not self.multi_object:
@@ -1239,6 +1285,14 @@ class UVData(UVBase):
                 "The name %s is already found in object_name, choose another name "
                 "for new_name." % new_name
             )
+        if (new_name == "unphased") and (
+            self.object_dict[object_name]["object_type"] != "unphased"
+        ):
+            raise ValueError(
+                "The name unphased is reserved. Please choose another value for "
+                "new_name."
+            )
+
         try:
             inv_mask = np.ones(self.Nblts, dtype=bool)
             inv_mask[select_mask] = False
@@ -1301,7 +1355,31 @@ class UVData(UVBase):
         """
         Merge two differently named objects into one within a multi-obj data set.
 
-        This also does things.
+        Recombines two different objects into a single catalog entry -- useful if
+        having previously used `split_object` or when multiple objects with different
+        names share the same source parameters.
+
+        Parameters
+        ----------
+        objname1 : str
+            String containing the name of the first object. Note that this name will
+            be preserved in the UVData object.
+        objname2 : str
+            String containing the name of the second object, which will be merged into
+            the first object. Note that once the merge is complete, all information
+            about this object is removed.
+        force_merge : bool
+            Normally, the method will throw an error if the object properties differ
+            for `objname1` and `objname2`. This can be overriden by setting this to
+            True. Default is False.Angle
+
+        Raises
+        ------
+        ValueError
+            If objname1 or objname2 are not found in the UVData object, of if their
+            properties differ (and `force_merge` is not set to True).
+        UserWarning
+            If forcing the merge of two objects with different properties.
         """
         if not self.multi_object:
             raise ValueError("Cannot use merge_object on a non-multi-object data set.")
@@ -1349,7 +1427,36 @@ class UVData(UVBase):
         """
         Print out the details of objects in a multi-obj data set.
 
-        Does all the things.
+        Prints out an ASCII table that contains the details of the `object_dict`
+        attribute, which acts as the internal source catalog for UVData objects
+
+        Parameters
+        ----------
+        object_name : str
+            Optional parameter which, if provided, will cause the method to only return
+            information on the object with the matching name. Default is to print out
+            information on all objects.
+        hms_format : bool
+            Optional parameter, which if selected, can be used to force coordinates to
+            be printed out in Hours-Min-Sec (if set to True) or Deg-Min-Sec (if set to
+            False) format. Default is to print out in HMS if all the objects have
+            coordinate frames of icrs, gcrs, fk5, fk4, and top; otherwise, DMS format
+            is used.
+        return_str: bool
+            If set to True, the method returns an ASCII string which contains all the
+            table infrmation. Default is False.
+        print_table : bool
+            If set to True, prints the table to the terminal window. Default is True.
+
+        Returns
+        -------
+        table_str : bool
+            If print_table=True, an ASCII string containing the entire table text
+
+        Raises
+        ------
+        ValueError
+            If object_name is not found within the UVData object.
         """
         r2d = 180.0 / np.pi
         r2m = 60.0 * 180.0 / np.pi
