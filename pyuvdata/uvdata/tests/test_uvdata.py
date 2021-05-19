@@ -10456,6 +10456,10 @@ def test_fix_phase(hera_uvh5, sma_mir, future_shapes):
     """
     Test the phase fixing method
     """
+    if future_shapes:
+        hera_uvh5.use_future_array_shapes()
+        sma_mir.use_future_array_shapes()
+
     # Check the one error condition that fix_phase raises
     with pytest.raises(ValueError, match="Cannot run fix_phase on a multi-obj"):
         sma_mir.fix_phase(use_ant_pos=False)
@@ -10493,3 +10497,148 @@ def test_fix_phase(hera_uvh5, sma_mir, future_shapes):
     # the other attributes of the two objects.
     uv_in_bad.data_array = uv_in.data_array
     assert uv_in == uv_in_bad
+
+
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_multi_phase_multi_file(hera_uvh5, future_shapes):
+    """
+    Test what happends when we attempt to add together two multi-pha
+    """
+    if future_shapes:
+        hera_uvh5.use_future_array_shapes()
+    # Get some meta info up from
+    unique_times = np.unique(hera_uvh5.time_array)
+    half_mask = np.arange(hera_uvh5.Nblts) < (hera_uvh5.Nblts * 0.5)
+    mid_pt = int(len(unique_times) * 0.5)
+
+    # We'll split the data in half here
+    uv1 = hera_uvh5.select(times=unique_times[:mid_pt], inplace=False)
+    uv2 = hera_uvh5.select(times=unique_times[mid_pt:], inplace=False)
+    uvfull = hera_uvh5.copy()
+
+    # Phase both targets to the same position with different names
+    uv1.phase(3.6, -0.5, object_name="target1")
+    uv2.phase(3.6, -0.5, object_name="target2")
+    uvfull.phase(3.6, -0.5, object_name="target1")
+
+    # Catch the obvious error
+    with pytest.raises(
+        ValueError,
+        match="UVParameter object_name does not match. Cannot combine objects. This",
+    ):
+        _ = uv1 + uv2
+
+    # Now ignore the obvious error!
+    uv3 = uv1.__add__(uv2, ignore_name=True, inplace=False)
+    # The reorders here are neccessary after the add to make sure that the baseline
+    # ordering is consistent between the objects
+    uv3.reorder_blts()
+    uvfull.reorder_blts()
+
+    # Make sure that after the add, everything agrees
+    assert uvfull.history in uv3.history
+    uvfull.history = uv3.history
+    assert uvfull == uv3
+
+    # Okay, now try allowing one UVData object to become a multi-obj data set
+    uv3 = uv1.__add__(uv2, make_multi_obj=True, inplace=False)
+    uvfull._set_multi_object(preserve_object_info=True)
+    uvfull.split_object("target1", "target2", ~half_mask)
+    uv3.reorder_blts()
+
+    assert uvfull.history in uv3.history
+    uvfull.history = uv3.history
+    assert uvfull == uv3
+
+    # See what happens when we make one UVData object multi-obj but not the other
+    uv1._set_multi_object(preserve_object_info=True)
+    with pytest.raises(
+        ValueError,
+        match="To combine these data, please run the add operation with the UVData ",
+    ):
+        _ = uv2 + uv1
+
+    uv3 = uv1 + uv2
+    uv3.reorder_blts()
+    assert uvfull.history in uv3.history
+    uvfull.history = uv3.history
+    assert uvfull == uv3
+
+    # Now make the out one a multi-obj, and rename the object
+    uv2._set_multi_object(preserve_object_info=True)
+
+    uv3 = uv1 + uv2
+    uv3.reorder_blts()
+    # Note that we have to update the object IDs here because of the way the auto
+    # assignment works on add
+    uv3._update_object_id("target2", 3)
+    uv3._update_object_id("target1", 0)
+    uv3._update_object_id("target2", 1)
+
+    assert uvfull.history in uv3.history
+    uvfull.history = uv3.history
+    assert uvfull == uv3
+
+    # Finally, test a fast_concat, renaming the object name back to 'target1'
+    uv2.rename_object("target2", "target1")
+    uv3 = uv1.fast_concat(uv2, axis="blt")
+    uv3.reorder_blts()
+    uvfull.merge_object("target1", "target2")
+
+    # Finally, do a select on the full dataset, and make sure it agrees with the
+    # previously downselected data
+    uv2 = uvfull.select(times=unique_times[:mid_pt], inplace=False)
+    uv1.reorder_blts()
+    uv2.reorder_blts()
+    assert uv1.history in uv2.history
+    uv1.history = uv2.history
+    assert uv1 == uv2
+
+    # Start fresh, this time check and see what happens if we have the same name
+    # for two diferent positions
+    uv1 = hera_uvh5.select(times=unique_times[:mid_pt], inplace=False)
+    uv2 = hera_uvh5.select(times=unique_times[mid_pt:], inplace=False)
+
+    uv1.phase(3.6, -0.5, object_name="target1")
+    uv2.phase(-0.5, 3.6, object_name="target1")
+
+    with pytest.raises(ValueError, match="UVParameter phase_center_ra does not match"):
+        _ = uv1 + uv2
+
+    # Now make sure this works with a multi-obj data set, since names must be unique
+    uv1._set_multi_object(preserve_object_info=True)
+    with pytest.raises(ValueError, match="There exists a target named target1 in"):
+        _ = uv1 + uv2
+
+    uv2._set_multi_object(preserve_object_info=True)
+    uv1._set_multi_object(preserve_object_info=True)
+    with pytest.raises(ValueError, match="There exists a target named target1 in"):
+        _ = uv1 + uv2
+
+    # Give it a new name, and then rephase half of the "full" object
+    uv2.phase(-0.5, 3.6, object_name="target2")
+    uv3 = uv1 + uv2
+    uv3.reorder_blts()
+    uvfull.phase(-0.5, 3.6, object_name="target2", select_mask=~half_mask)
+    assert uvfull.history in uv3.history
+    uvfull.history = uv3.history
+    assert uvfull == uv3
+
+    # We are testing a corner-case here -- what happens when the object ID assigned
+    # does not agree with what was done with another object. All that should be off
+    # is the object_id_array and the object_dict, both of which can be updated by
+    # using the _update_object_id method.
+    uv2._update_object_id("target2", 0)
+    uv3 = uv1 + uv2
+    uv3.reorder_blts()
+    assert uvfull.history in uv3.history
+    uvfull.history = uv3.history
+
+    assert np.all(uv3.object_id_array != uvfull.object_id_array)
+    assert uv3.object_dict != uvfull.object_dict
+    assert sorted(uv3.object_name) == sorted(uvfull.object_name)
+
+    uv3._update_object_id("target2", 3)
+    uv3._update_object_id("target1", 0)
+    uv3._update_object_id("target2", 1)
+    assert uv3 == uvfull
