@@ -719,6 +719,12 @@ class UVFITS(UVData):
                     "table. Bypassing for now, but note that this file _may_ not "
                     "work correctly in UVFITS-based programs (e.g., AIPS, CASA)."
                 )
+                self.phase_center_ra = self.object_dict[self.object_name[0]][
+                    "object_lon"
+                ]
+                self.phase_center_dec = self.object_dict[self.object_name[0]][
+                    "object_lat"
+                ]
                 self.multi_object = False
                 self._object_id_array.required = False
                 self._Nobjects.required = False

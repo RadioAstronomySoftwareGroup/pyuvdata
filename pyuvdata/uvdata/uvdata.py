@@ -1149,8 +1149,6 @@ class UVData(UVBase):
         # then we are free to bail, otherwise update the Nobjects attribute
         if Nobjects == self.Nobjects:
             return
-        else:
-            self.Nobjects = Nobjects
 
         # Time to kill the entries that are no longer in the source stack
         for defunct_name in defunct_list:
@@ -1319,7 +1317,7 @@ class UVData(UVBase):
             object_lon=temp_dict.get("object_lon"),
             object_lat=temp_dict.get("object_lat"),
             coord_frame=temp_dict.get("coord_frame"),
-            coord_epoch=temp_dict.get("object_lon"),
+            coord_epoch=temp_dict.get("coord_epoch"),
             coord_times=None,
             object_pm_ra=None,
             object_pm_dec=None,
@@ -1644,6 +1642,9 @@ class UVData(UVBase):
                 coord_epoch=self.phase_center_epoch,
             )
             self.object_id_array = np.zeros(self.Nblts, dtype=int) + object_id
+
+        self.phase_center_ra = 0.0
+        self.phase_center_dec = 0.0
 
     def _set_drift(self):
         """
@@ -4704,7 +4705,7 @@ class UVData(UVBase):
             )
 
             # With all operations complete, we now start manipulating the UVData object
-            if self.multi_object and (object_dict["object_id"] is None):
+            if self.multi_object:
                 object_id = self._add_object(
                     object_dict["object_name"],
                     object_dict["object_type"],
@@ -4718,6 +4719,7 @@ class UVData(UVBase):
                     object_dist=object_dict["object_dist"],
                     object_vrad=object_dict["object_vrad"],
                     object_src=object_dict["object_src"],
+                    object_id=object_dict["object_id"],
                     force_update=True,
                 )
 
@@ -4762,7 +4764,8 @@ class UVData(UVBase):
                 self.phase_center_ra = 0.0
                 self.phase_center_dec = 0.0
                 self.phase_center_epoch = 2000.0
-
+                if cleanup_old_sources:
+                    self._clear_unused_objects()
             # All done w/ the new phase method
             return
         warnings.warn(
@@ -4778,27 +4781,22 @@ class UVData(UVBase):
         if self.phase_type == "drift":
             pass
         elif self.phase_type == "phased":
-            if allow_rephase:
-                if not np.isclose(
-                    self.phase_center_ra,
-                    ra,
-                    rtol=self._phase_center_ra.tols[0],
-                    atol=self._phase_center_ra.tols[1],
-                ) or not np.isclose(
-                    self.phase_center_dec,
-                    dec,
-                    rtol=self._phase_center_dec.tols[0],
-                    atol=self._phase_center_dec.tols[1],
-                ):
-                    self.unphase_to_drift(
-                        phase_frame=orig_phase_frame,
-                        use_ant_pos=use_ant_pos,
-                        use_old_proj=True,
-                    )
-            else:
-                raise ValueError(
-                    "The data is already phased; set allow_rephase"
-                    " to True to unphase and rephase."
+            # To get to this point, allow_rephase has to be true
+            if not np.isclose(
+                self.phase_center_ra,
+                ra,
+                rtol=self._phase_center_ra.tols[0],
+                atol=self._phase_center_ra.tols[1],
+            ) or not np.isclose(
+                self.phase_center_dec,
+                dec,
+                rtol=self._phase_center_dec.tols[0],
+                atol=self._phase_center_dec.tols[1],
+            ):
+                self.unphase_to_drift(
+                    phase_frame=orig_phase_frame,
+                    use_ant_pos=use_ant_pos,
+                    use_old_proj=True,
                 )
         else:
             raise ValueError(
@@ -5331,6 +5329,17 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        make_multi_obj : bool
+            Option to make the output a multi-object dataset, capable of holding data
+            on multiple phased targets. Setting this to true will allow for two UVData
+            objects to be combined, even if the phase target properties do not agree
+            (so long as `object_name` is unique for each UVData object). Default is
+            False.
+        ignore_name : bool
+            Option to ignore the `object_name` attribute when combining two UVData
+            objects. Doing so effectively adopts the `object_name` of the first UVData
+            object in the sum. Default is False.
+
 
         Raises
         ------
@@ -5475,6 +5484,7 @@ class UVData(UVBase):
         if not this.future_array_shapes and not this.flex_spw:
             compatibility_params.append("_channel_width")
 
+        multi_obj_check = False
         if this.multi_object == other.multi_object:
             # If the names are different and we are making a multi-obj data set, then
             # we can skip the step of checking the ra and dec, otherwise we need to
@@ -5488,8 +5498,12 @@ class UVData(UVBase):
             # one of the parameters we check for compatibility.
             if not (ignore_name or multi_obj_check):
                 compatibility_params.append("_object_name")
-        elif not (other.multi_object or make_multi_obj):
-            raise ValueError("")
+        elif not (this.multi_object or make_multi_obj):
+            raise ValueError(
+                "To combine these data, please run the add operation with the UVData "
+                "object with multi_object set to True as the first object in the add "
+                "operation."
+            )
 
         # Build up history string
         history_update_string = " Combined data along "
@@ -5778,6 +5792,12 @@ class UVData(UVBase):
                 msg = (
                     "UVParameter " + cp[1:] + " does not match. Cannot combine objects."
                 )
+                if cp[1:] == "object_name":
+                    msg += (
+                        " This can potentially be remedied by setting "
+                        "ignore_name=True, or by allowing the creation of a multi-obj "
+                        "dataset (by setting make_multi_obj=True)."
+                    )
                 raise ValueError(msg)
 
         # At this point, we are assuming that the two data sets _mostly_ compatible.
@@ -5788,25 +5808,29 @@ class UVData(UVBase):
                 other_names = other.object_name
                 other_cat = other.object_dict
             else:
-                other_names = list(other.object_name)
+                other_names = [other.object_name]
                 other_cat = {
-                    "object_type": "sidereal",
-                    "object_lon": other.phase_center_ra,
-                    "object_lat": other.phase_center_dec,
-                    "coord_frame": other.phase_center_frame,
-                    "coord_epoch": other.phase_center_epoch,
+                    other_names[0]: {
+                        "object_type": "sidereal",
+                        "object_lon": other.phase_center_ra,
+                        "object_lat": other.phase_center_dec,
+                        "coord_frame": other.phase_center_frame,
+                        "coord_epoch": other.phase_center_epoch,
+                    },
                 }
 
             for name in other_names:
-                if name in list(this.object_name):
-                    if this._lookup_object(name, object_dict=other_cat[name]) is None:
-                        # We have a name conflict, raise an error now
-                        raise ValueError(
-                            "There exists a target named %s in both objects in the "
-                            " sum, but their properties are different. Use the "
-                            "rename_object method in order to rename it in one object."
-                            % name
-                        )
+                object_id, obj_diffs = this._lookup_object(
+                    name, object_dict=other_cat[name]
+                )
+                if (object_id is not None) and (obj_diffs != 0):
+                    # We have a name conflict, raise an error now
+                    raise ValueError(
+                        "There exists a target named %s in both objects in the "
+                        " sum, but their properties are different. Use the "
+                        "rename_object method in order to rename it in one object."
+                        % name
+                    )
 
         # Begin manipulating the objects.
         if make_multi_obj and (not this.multi_object):
@@ -5824,7 +5848,7 @@ class UVData(UVBase):
                     this._update_object_id(name, reserved_ids=reserved_ids)
             # Next loop, we want to update the IDs of sources that are in both
             for name in this.object_name:
-                if name not in other.object_name:
+                if name in other.object_name:
                     this._update_object_id(
                         name, new_object_id=other.object_dict[name]["object_id"],
                     )
@@ -6192,6 +6216,8 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        make_multi_obj=False,
+        ignore_name=False,
     ):
         """
         In place add.
@@ -6233,6 +6259,17 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        make_multi_obj : bool
+            Option to make the output a multi-object dataset, capable of holding data
+            on multiple phased targets. Setting this to true will allow for two UVData
+            objects to be combined, even if the phase target properties do not agree
+            (so long as `object_name` is unique for each UVData object). Default is
+            False.
+        ignore_name : bool
+            Option to ignore the `object_name` attribute when combining two UVData
+            objects. Doing so effectively adopts the `object_name` of the first UVData
+            object in the sum. Default is False.
+
 
         Raises
         ------
@@ -6257,6 +6294,8 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
+            make_multi_obj=make_multi_obj,
+            ignore_name=ignore_name,
         )
         return self
 
