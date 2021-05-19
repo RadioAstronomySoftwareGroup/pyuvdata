@@ -10095,6 +10095,9 @@ def test_catalog_operations(sma_mir, hera_uvh5):
     with pytest.raises(ValueError, match="The name unphased is reserved."):
         sma_mir.rename_object("3c84", "unphased")
 
+    with pytest.raises(ValueError, match="The name unphased is reserved."):
+        sma_mir.split_object("3c84", "unphased", [True])
+
     # Check and see what happens if we attempt to rename the source
     sma_mir.rename_object("3c84", "3C84")
     assert sma_mir.object_dict["3C84"] == check_dict["3c84"]
