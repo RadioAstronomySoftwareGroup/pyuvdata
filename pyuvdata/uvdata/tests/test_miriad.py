@@ -73,7 +73,7 @@ def uv_in_uvfits(paper_miriad, tmp_path):
 def test_read_write_read_atca(tmp_path, future_shapes):
     uv_in = UVData()
     uv_out = UVData()
-    atca_file = os.path.join(DATA_PATH, "atca_miriad")
+    atca_file = os.path.join(DATA_PATH, "atca_miriad/")
     testfile = os.path.join(tmp_path, "outtest_atca_miriad.uv")
     with uvtest.check_warnings(
         UserWarning,
