@@ -4541,7 +4541,7 @@ def _combine_filenames(filename1, filename2):
     combined_filenames = filename1
     if filename1 is not None:
         if filename2 is not None:
-            combined_filenames = list(set(filename1).union(set(filename2)))
+            combined_filenames = sorted(set(filename1).union(set(filename2)))
     elif filename2 is not None:
         combined_filenames = filename2
 
