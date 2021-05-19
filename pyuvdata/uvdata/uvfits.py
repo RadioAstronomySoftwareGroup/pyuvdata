@@ -852,13 +852,14 @@ class UVFITS(UVData):
         if self.Npols > 1:
             pol_spacing = np.diff(self.polarization_array)
             if np.min(pol_spacing) < np.max(pol_spacing):
-                raise ValueError(
-                    "The polarization values are not evenly spaced (probably "
-                    "because of a select operation). The uvfits format "
-                    "does not support unevenly spaced polarizations."
-                )
-            pol_spacing = pol_spacing[0]
+                # figure out "correct" spacing
+                pol_indexing = np.argsort(np.abs(self.polarization_array))
+            else:
+                pol_indexing = np.arange(len(self.polarization_array))
+            polarization_array = self.polarization_array[pol_indexing]
+            pol_spacing = np.diff(polarization_array)[0]
         else:
+            polarization_array = self.polarization_array
             pol_spacing = 1
 
         for p in self.extra():
@@ -902,6 +903,8 @@ class UVFITS(UVData):
         weights_array = np.reshape(
             self.nsample_array * np.where(self.flag_array, -1, 1), uvfits_data_shape,
         )
+        data_array = data_array[:, :, :, :, :, pol_indexing, :]
+        weights_array = weights_array[:, :, :, :, :, pol_indexing, :]
 
         uvfits_array_data = np.concatenate(
             [data_array.real, data_array.imag, weights_array], axis=6
@@ -1027,7 +1030,7 @@ class UVFITS(UVData):
         # However, this confusing because it is NOT a true Stokes axis,
         #   it is really the polarization axis.
         hdu.header["CTYPE3  "] = "STOKES  "
-        hdu.header["CRVAL3  "] = float(self.polarization_array[0])
+        hdu.header["CRVAL3  "] = float(polarization_array[0])
         hdu.header["CRPIX3  "] = 1.0
         hdu.header["CDELT3  "] = float(pol_spacing)
 
