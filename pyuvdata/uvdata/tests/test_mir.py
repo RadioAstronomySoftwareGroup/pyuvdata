@@ -20,6 +20,19 @@ from ...uvdata.mir import mir_parser
 
 
 @pytest.fixture
+def mir_data_object():
+    testfile = os.path.join(DATA_PATH, "sma_test.mir/")
+    mir_data = mir_parser.MirParser(
+        testfile, load_vis=True, load_raw=True, load_auto=True,
+    )
+
+    yield mir_data
+
+    # cleanup
+    del mir_data
+
+
+@pytest.fixture
 def uv_in_uvfits(tmp_path):
     uv_in = UVData()
     testfile = os.path.join(DATA_PATH, "sma_test.mir")

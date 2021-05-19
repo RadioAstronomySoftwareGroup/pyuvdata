@@ -33,7 +33,7 @@ def nrao_uv():
 def test_cotter_ms():
     """Test reading in an ms made from MWA data with cotter (no dysco compression)"""
     uvobj = UVData()
-    testfile = os.path.join(DATA_PATH, "1102865728_small.ms")
+    testfile = os.path.join(DATA_PATH, "1102865728_small.ms/")
     uvobj.read(testfile)
 
     # check that a select on read works
