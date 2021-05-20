@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added `filename` attribute for UVData objects.
 - Added support for multiple sources/phase centers in a single UVData object, which can
 be enabled using the `_set_multi_phase_center` method. Using this method will set the
 new attribute `multi_phase_center` to `True` (otherwise set to `False`.).
