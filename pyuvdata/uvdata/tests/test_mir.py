@@ -21,7 +21,7 @@ from ...uvdata.mir import mir_parser
 
 @pytest.fixture
 def mir_data_object():
-    testfile = os.path.join(DATA_PATH, "sma_test.mir/")
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
     mir_data = mir_parser.MirParser(
         testfile, load_vis=True, load_raw=True, load_auto=True,
     )
@@ -35,7 +35,7 @@ def mir_data_object():
 @pytest.fixture
 def uv_in_uvfits(tmp_path):
     uv_in = UVData()
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    testfile = os.path.join(DATA_PATH, "sma_test.mir/")
     write_file = os.path.join(tmp_path, "outtest_mir.uvfits")
 
     # Currently only one source is supported.
