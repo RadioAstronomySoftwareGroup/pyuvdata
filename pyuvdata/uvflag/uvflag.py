@@ -887,12 +887,12 @@ class UVFlag(UVBase):
         """
         Get antpair and polarization from parsing an aipy-style ant string.
 
-        Used to support the the select function.
-        This function is only useable when the UVFlag type is 'baseline'.
-        Generates two lists of antenna pair tuples and polarization indices based
-        on parsing of the string ant_str.  If no valid polarizations (pseudo-Stokes
-        params, or combinations of [lr] or [xy]) or antenna numbers are found in
-        ant_str, ant_pairs_nums and polarizations are returned as None.
+        Used to support the select function. This function is only useable when
+        the UVFlag type is 'baseline'. Generates two lists of antenna pair tuples
+        and polarization indices based on parsing of the string ant_str. If no
+        valid polarizations (pseudo-Stokes params, or combinations of [lr] or
+        [xy]) or antenna numbers are found in ant_str, ant_pairs_nums and
+        polarizations are returned as None.
 
         Parameters
         ----------
