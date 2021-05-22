@@ -401,7 +401,11 @@ class MS(UVData):
         # for measurement sets made with COTTER, this keyword is ITRF
         # instead of the epoch
         if epoch_string == "ITRF":
-            self.phase_center_frame = "icrs"
+            warnings.warn(
+                "ITRF coordinate frame detected, although within cotter this is "
+                "synonymous with J2000. Assuming J2000 coordinate frame."
+            )
+            self.phase_center_frame = "fk5"
             self.phase_center_epoch = 2000.0
         elif epoch_string == "J2000":
             # In CASA 'J2000' refers to a specific frame -- FK5 w/ an epoch of
