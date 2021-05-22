@@ -451,51 +451,38 @@ def test_rot_func_inputs():
     # Use this to make sure that appropriate erros get thrown when using the
     # various rotation functions
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="lon_array and lat_array must either both be floats or ",
+    ):
         uvutils.polar2_to_cart3(0.0, np.array([0.0]))
-    assert str(cm.value).startswith(
-        "lon_array and lat_array must either both be floats or ndarrays."
-    )
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="lon_array and lat_array must have the same shape."
+    ):
         uvutils.polar2_to_cart3(np.array([0.0, 1.0]), np.array([0.0]))
-    assert str(cm.value).startswith("lon_array and lat_array must have the same shape.")
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="xyz_array must be an ndarray."):
         uvutils.cart3_to_polar2(0.0)
-    assert str(cm.value).startswith("xyz_array must be an ndarray.")
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="xyz_array must have ndim > 0"):
         uvutils.cart3_to_polar2(np.array(0.0))
-    assert str(cm.value).startswith("xyz_array must have ndim > 0")
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="xyz_array must be length 3 across the zeroth axis."
+    ):
         uvutils.cart3_to_polar2(np.array([0.0]))
-    assert str(cm.value).startswith(
-        "xyz_array must be length 3 across the zeroth axis."
-    )
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=r"rot_matrix must be of shape \(n_rot, 3, 3"):
         uvutils.rotate_matmul_wrapper(np.zeros((1, 3, 1)), np.zeros((1, 3, 3)), 2)
-    assert str(cm.value).startswith("rot_matrix must be of shape (n_rot, 3, 3)")
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=r"Misshaped xyz_array - expected shape \(n_r"):
         uvutils.rotate_matmul_wrapper(np.zeros((1, 2, 1)), np.zeros((1, 3, 3)), 1)
-    assert str(cm.value).startswith(
-        "Misshaped xyz_array - expected shape (n_rot, 3, n_vectors)."
-    )
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=r"Misshaped xyz_array - expected shape \(3, "):
         uvutils.rotate_matmul_wrapper(np.zeros((2, 1)), np.zeros((1, 3, 3)), 1)
-    assert str(cm.value).startswith(
-        "Misshaped xyz_array - expected shape (3, n_vectors) or (3,)."
-    )
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=r"Misshaped xyz_array - expected shape \(3, "):
         uvutils.rotate_matmul_wrapper(np.zeros((2)), np.zeros((1, 3, 3)), 1)
-    assert str(cm.value).startswith(
-        "Misshaped xyz_array - expected shape (3, n_vectors) or (3,)."
-    )
 
 
 def test_rot_funcs():
@@ -1272,7 +1259,8 @@ def test_calc_frame_pos_angle():
     """
     Verify that we recover frame position angles correctly
     """
-    # First test -- plug in "topo" for the frame, which should always produce a
+    # First test -- plug in "topo" for the frame, which should always produce an
+    # array of all zeros (the topo frame is what the apparent coords are in)
     frame_pa = uvutils.calc_frame_pos_angle(
         np.array([2456789.0] * 100),
         np.arange(100) * (np.pi / 50),
