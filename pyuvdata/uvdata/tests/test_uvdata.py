@@ -1034,9 +1034,6 @@ def test_phase_rephase_hera_errors(uv1_2_set_uvws, phase_func, phase_kwargs, err
 @pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_phase_unphase_hera_bad_frame(uv1_2_set_uvws):
-    # TODO: Need to figure out why this test throws the following warning:
-    # DeprecationWarning: Passing None into shape arguments as an alias for
-    # () is deprecated.
     uv_phase, uv_raw = uv1_2_set_uvws
     # check errors when trying to phase to an unsupported frame
     with pytest.raises(ValueError) as cm:
