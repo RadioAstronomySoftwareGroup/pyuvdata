@@ -43,7 +43,10 @@ def test_cotter_ms():
     # apparent coordinate plane). We should decide whether this is how pyuvdata coords
     # should be oriented, or if they should be rotated so that "north" is towards the
     # apparent celestial pole
-    with uvtest.check_warnings(UserWarning, ["Warning: select on read keyword set"]):
+    with uvtest.check_warnings(
+        UserWarning,
+        ["Warning: select on read keyword set", "ITRF coordinate frame detected,"],
+    ):
         uvobj2.read(testfile, freq_chans=np.arange(2))
     uvobj.select(freq_chans=np.arange(2))
     assert uvobj == uvobj2
@@ -177,7 +180,7 @@ def test_read_ms_write_uvfits(nrao_uv, tmp_path):
     """
     ms_uv = nrao_uv
     uvfits_uv = UVData()
-    testfile = str(tmp_path / "outtest.uvfits")
+    testfile = os.path.join(tmp_path, "outtest.uvfits")
     ms_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read(testfile)
 
@@ -197,7 +200,7 @@ def test_read_ms_write_miriad(nrao_uv, tmp_path):
     pytest.importorskip("pyuvdata._miriad")
     ms_uv = nrao_uv
     miriad_uv = UVData()
-    testfile = str(tmp_path / "outtest_miriad")
+    testfile = os.path.join(tmp_path, "outtest_miriad")
     ms_uv.write_miriad(testfile, clobber=True)
     miriad_uv.read(testfile)
 
