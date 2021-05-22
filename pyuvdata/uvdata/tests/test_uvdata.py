@@ -964,6 +964,7 @@ def test_phase_to_time_error(uv1_2_set_uvws):
     assert str(cm.value).startswith("time must be an astropy.time.Time object")
 
 
+@pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_unphase_drift_data_error(uv1_2_set_uvws, sma_mir, future_shapes):
@@ -999,6 +1000,7 @@ def test_unphase_drift_data_error(uv1_2_set_uvws, sma_mir, future_shapes):
     sma_mir.unphase_to_drift()
 
 
+@pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "phase_func,phase_kwargs,err_msg",
@@ -1143,6 +1145,7 @@ def test_phasing(future_shapes):
     assert np.all(np.equal(uvd2.uvw_array, uvd2_drift_antpos.uvw_array))
 
 
+@pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_phasing_multi_obj_errors(sma_mir, hera_uvh5, future_shapes):
     """
@@ -6171,6 +6174,7 @@ def test_select_with_ant_str_errors(casa_uvfits, kwargs, message):
         uv.select(**kwargs)
 
 
+@pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
 def test_set_uvws_from_antenna_pos(sma_mir):
     # Test set_uvws_from_antenna_positions function with phased data
     uv_object = UVData()
@@ -8551,6 +8555,7 @@ def test_upsample_downsample_in_time_metadata_only(hera_uvh5):
     assert uv_object == uv_object2
 
 
+@pytest.mark.filterwarnings("ignore:Unknown phase types are no longer supported,")
 @pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
 @pytest.mark.parametrize("future_shapes", [True, False])
@@ -10452,6 +10457,7 @@ def test_phase_object_dict_helper(hera_uvh5, sma_mir):
         assert len(object_dict[key]) == 13
 
 
+@pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_fix_phase(hera_uvh5, sma_mir, future_shapes):
     """
