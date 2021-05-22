@@ -1025,7 +1025,6 @@ class Miriad(UVData):
             # the data array correctly so that the vestigial spw-axis is preserved. At
             # some point, the below will need to be fixed -- I'm keeping this here so
             # that I can skip reading through the MIRIAD programmers guide yet again.
-            # TODO: Need to integrate this w/ future array shapes
             if len(d.shape) == 1:
                 d.shape = (1,) + d.shape
 
