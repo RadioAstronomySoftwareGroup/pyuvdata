@@ -10503,7 +10503,8 @@ def test_fix_phase(hera_uvh5, sma_mir, future_shapes):
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_multi_phase_multi_file(hera_uvh5, future_shapes):
     """
-    Test what happends when we attempt to add together two multi-pha
+    Test what happends when we attempt to add together two different UVData objects
+    that contain multiple phased centers (i.e., sources) within them.
     """
     if future_shapes:
         hera_uvh5.use_future_array_shapes()
