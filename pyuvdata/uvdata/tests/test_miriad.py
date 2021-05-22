@@ -117,6 +117,7 @@ def test_read_nrao_write_miriad_read_miriad(casa_uvfits, tmp_path):
     assert uvfits_uv == miriad_uv
 
 
+@pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_write_read_carma(tmp_path):
     uv_in = UVData()
@@ -188,6 +189,7 @@ def test_read_write_read_carma(tmp_path):
     assert uv_in == uv_out
 
 
+@pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_miriad_write_uvfits(uv_in_uvfits):
     """
@@ -1449,6 +1451,7 @@ def test_file_with_bad_extra_words():
         uv.read_miriad(fname, run_check=False)
 
 
+@pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
 def test_fix_phase(tmp_path):
     uv_in = UVData()
     uv_out = UVData()

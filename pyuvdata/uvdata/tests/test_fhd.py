@@ -204,6 +204,7 @@ def test_read_fhd_write_read_uvfits_variant_flag(tmp_path):
     assert fhd_uv == uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:Telescope location derived from obs lat/lon/alt")
 def test_read_fhd_write_read_uvfits_fix_layout(tmp_path):
     """
     FHD to uvfits loopback test with fixed array center layout file.

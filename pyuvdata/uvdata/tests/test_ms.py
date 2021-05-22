@@ -29,6 +29,7 @@ def nrao_uv():
     del uvobj
 
 
+@pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
 def test_cotter_ms():
     """Test reading in an ms made from MWA data with cotter (no dysco compression)"""
     uvobj = UVData()
@@ -62,6 +63,7 @@ def test_read_nrao(nrao_uv):
     assert sorted(expected_extra_keywords) == sorted(uvobj.extra_keywords.keys())
 
 
+@pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_lwa():
     """Test reading in an LWA ms file."""
@@ -110,6 +112,7 @@ def test_multi_len_spw():
     assert str(cm.value).startswith("Sorry.  Files with more than one spectral")
 
 
+@pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_extra_pol_setup():
     """Test reading in an ms file with extra polarization setups (not used in data)."""

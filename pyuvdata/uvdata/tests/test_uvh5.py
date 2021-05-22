@@ -1798,7 +1798,14 @@ def test_uvh5_read_header_special_cases(casa_uvfits, tmp_path):
         del h5f["Header/phase_type"]
         h5f["Header/history"] = np.string_("blank history")
         h5f["Header/phase_type"] = np.string_("blah")
-    uv_out.read_uvh5(testfile)
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Unknown phase types are no longer",
+            "The uvw_array does not match the expected values",
+        ],
+    ):
+        uv_out.read_uvh5(testfile)
 
     # make input and output values match now
     uv_in.history = uv_out.history
@@ -3000,6 +3007,7 @@ def test_read_metadata(casa_uvfits, tmp_path):
     os.remove(testfile)
 
 
+@pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
 def test_fix_phase(tmp_path):
     """Test that the fix phase method works"""
     uv_in = UVData()
