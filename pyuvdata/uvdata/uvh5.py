@@ -473,8 +473,8 @@ class UVH5(UVData):
             ).decode("utf8")
 
         # We've added a few new keywords that did not exist before, so check to see if
-        # it is in the header, and if not, mark the data set as being "regular" (e.g.,
-        # not a flexible spectral window setup, single source only).
+        # any of them are in the header, and if not, mark the data set as being
+        # "regular" (e.g., not a flexible spectral window setup, single source only).
         if "flex_spw" in header:
             if bool(header["flex_spw"][()]):
                 self._set_flex_spw()
