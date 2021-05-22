@@ -1131,11 +1131,6 @@ def cart3_to_polar2(xyz_array):
     lat_array : ndarray of float
         Latitude coordinates, where 0 falls on the equator of the sphere.  Units of
         radians, shape is (coord_shape,).
-
-
-    Returns
-    -------
-    Does more things!
     """
     if not isinstance(xyz_array, np.ndarray):
         raise ValueError("xyz_array must be an ndarray.")
@@ -1491,7 +1486,7 @@ def calc_uvw(
         antenna positions, or converting to/from ENU coordinates. Shape is (Nblts,).
     use_ant_pos : bool
         Switch to determine whether to derive uvw values from the antenna positions
-        (if set to True), or to use the previously calculated uvw coordiantes to derive
+        (if set to True), or to use the previously calculated uvw coordinates to derive
         new the new baseline vectors (if set to False). Default is True.
     uvw_array : ndarray of float
         Array of previous baseline coordinates (in either uvw or ENU), required if
@@ -1670,7 +1665,7 @@ def calc_uvw(
         # rotations would give you the same result w/o needing to cycle the axes.
 
         # Up front, we want to trap the corner-case where the sky position you are
-        # phasing up to hasn't changed, just the position angle (i.e., which was is
+        # phasing up to hasn't changed, just the position angle (i.e., which way is
         # up on the map). This is a much easier transform to handle.
         if np.all(gha_delta_array == 0.0) and np.all(old_app_dec == app_dec):
             new_coords = rotate_one_axis(
@@ -1833,7 +1828,7 @@ def transform_sidereal_coords(
         obstime=time_obj_array,
     )
 
-    # Easiest, most general way to transform to the new frame to to create a dummy
+    # Easiest, most general way to transform to the new frame is to create a dummy
     # SkyCoord with all the attributes needed -- note that we particularly need this
     # in order to use a non-standard equinox/epoch
     new_coord = coord_object.transform_to(
@@ -1875,7 +1870,7 @@ def transform_icrs_to_app(
     ----------
     time_array : float or array-like of float
         Julian dates to calculate coordinate positions for. Can either be a single
-        float, or an array-like of shape is (Ntimes,).
+        float, or an array-like of shape (Ntimes,).
     ra : float or array-like of float
         ICRS RA of the celestial target, expressed in units of radians. Can either
         be a single float or array of shape (Ntimes,), although this must be consistent
@@ -2191,25 +2186,25 @@ def transform_app_to_icrs(
     """
     Transform a set of coordinates in topocentric/apparent to ICRS coordinates.
 
-    This utility uses either astropy to calculate the ICRS  coordinates of a given
-    set of apparent source coordinates. These coordinates are most typically used
-    for defining the celestial/catalog position of a source. Note that at present,
-    this is only implemented in astropy, although it could hypothetically be extended
-    to NOVAS at some point.
+    This utility uses either astropy or erfa to calculate the ICRS  coordinates of
+    a given set of apparent source coordinates. These coordinates are most typically
+    used for defining the celestial/catalog position of a source. Note that at present,
+    this is only implemented in astropy and pyERFA, although it could hypothetically
+    be extended to NOVAS at some point.
 
     Parameters
     ----------
     time_array : float or ndarray of float
         Julian dates to calculate coordinate positions for. Can either be a single
-        float, or an ndarray of shape is (Ntimes,).
+        float, or an ndarray of shape (Ntimes,).
     app_ra : float or ndarray of float
         ICRS RA of the celestial target, expressed in units of radians. Can either
-        be a single float or array of shape (Ncoord,), although this must be consistent
-        with app_dec, and time_array if not provided as a single float.
+        be a single float or array of shape (Ncoord,). Note that if time_array is
+        not a singleton value, then Ncoord must be equal to Ntimes.
     app_dec : float or ndarray of float
         ICRS Dec of the celestial target, expressed in units of radians. Can either
-        be a single float or array of shape (Ncoord,), although this must be consistent
-        with app_ra, and time_array if not provided as a single float.
+        be a single float or array of shape (Ncoord,). Note that if time_array is
+        not a singleton value, then Ncoord must be equal to Ntimes.
     telescope_loc : tuple of floats or EarthLocation
         ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
         of the array. Can either be provided as an astropy EarthLocation, or a tuple
@@ -2604,7 +2599,7 @@ def lookup_jplhorizons(
                 "stop": Time(stop_time, format="jd").isot,
                 "step": step_time,
             }
-    # Check to make sure dates dont exceed are within the 1700-2200 time range,
+    # Check to make sure dates are within the 1700-2200 time range,
     # since not all objects are supported outside of this range
     if (np.min(time_array) < 2341973.0) or (np.max(time_array) > 2524593.0):
         raise ValueError(
@@ -2825,7 +2820,7 @@ def calc_app_coords(
         `lon_coord` and `lat_coord`. These values are used to interpolate `lon_coord`
         and `lat_coord` values to those times listed in `time_array`.
     object_type : str
-        Type of object coordiantes provided. Permitted values are:
+        Type of object coordinates provided. Permitted values are:
             - "sidereal":   a single pair of coordinates in a specified frame.
             - "ephem":      a list of coordinates that change with time, as specified
                             by `coord_times`. Only coord_frame='icrs' permitted.
@@ -2835,8 +2830,8 @@ def calc_app_coords(
                             frame (i.e., coord_frame is forced to 'altaz').
             - "unphased":   alias for "driftscan" with (Az, Alt) = (0 deg, 90 deg)
     time_array : float or ndarray of float or Time object
-        Times for which the apparent coordiantes were calculated, in UTC JD. If more
-        than a single element, must the the same shape as lon_coord and lat_coord if
+        Times for which the apparent coordinates were calculated, in UTC JD. If more
+        than a single element, must be the same shape as lon_coord and lat_coord if
         both of those are arrays (instead of single floats).
     telescope_loc : array-like of floats or EarthLocation
         ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
@@ -2994,7 +2989,7 @@ def calc_sidereal_coords(
     time_array, app_ra, app_dec, telescope_loc, coord_frame, coord_epoch=None,
 ):
     """
-    Calculate sidereal coordinates given apparent coordiantes.
+    Calculate sidereal coordinates given apparent coordinates.
 
     This function calculates coordinates in the requested frame (at a given epoch)
     from a set of apparent coordinates.
@@ -3002,7 +2997,7 @@ def calc_sidereal_coords(
     Parameters
     ----------
     time_array : float or ndarray of float or Time object
-        Times for which the apparent coordiantes were calculated, in UTC JD. Must
+        Times for which the apparent coordinates were calculated, in UTC JD. Must
         match the shape of app_ra and app_dec.
     app_ra : float or ndarray of float
         Array of apparent right ascension coordinates, units of radians. Must match
@@ -3138,7 +3133,7 @@ def get_lst_for_time(
         try:
             from novas import compat as novas
             from novas.compat import eph_manager
-            import novas_de405
+            import novas_de405  # noqa
         except ImportError as e:  # pragma: no cover
             raise ImportError(
                 "novas and/or novas_de405 are not installed but is required for "
@@ -3147,7 +3142,6 @@ def get_lst_for_time(
 
         # We import this module just to make sure that it exists, and the check below
         # forces flake8 not to freak out that we tried loading it in the first place
-        assert novas_de405 is not None
 
         jd_start, jd_end, number = eph_manager.ephem_open()
 
@@ -4260,11 +4254,11 @@ def parse_ants(uv, ant_str, print_toggle=False, x_orientation=None):
     """
     Get antpair and polarization from parsing an aipy-style ant string.
 
-    Used to support the the select function.
-    Generates two lists of antenna pair tuples and polarization indices based
-    on parsing of the string ant_str.  If no valid polarizations (pseudo-Stokes
-    params, or combinations of [lr] or [xy]) or antenna numbers are found in
-    ant_str, ant_pairs_nums and polarizations are returned as None.
+    Used to support the select function. Generates two lists of antenna pair
+    tuples and polarization indices based on parsing of the string ant_str.
+    If no valid polarizations (pseudo-Stokes params, or combinations of [lr]
+    or [xy]) or antenna numbers are found in ant_str, ant_pairs_nums and
+    polarizations are returned as None.
 
     Parameters
     ----------

@@ -202,7 +202,7 @@ class Mir(UVData):
                 channel_width, abs(spw_fres) + np.zeros(spw_nchan, dtype=np.float64)
             )
 
-            # Populate the the spw_id_array
+            # Populate the spw_id_array
             flex_spw_id_array = np.append(
                 flex_spw_id_array,
                 corrchunk_names[idx] + np.zeros(spw_nchan, dtype=np.int64),
