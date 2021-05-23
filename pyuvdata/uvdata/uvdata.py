@@ -301,7 +301,7 @@ class UVData(UVBase):
             'icrs), "cat_epoch" (epoch and equinox of the coordinate frame), '
             '"cat_times" (times for the coordinates, only used for "ephem" '
             'types), "cat_pm_ra" (proper motion in RA), "cat_pm_dec" (proper '
-            'motion in Dec), "cat_dist" (physical distance), "object_vel" ('
+            'motion in Dec), "cat_dist" (physical distance), "cat_vrad" ('
             'rest frame velocity), "info_source" (describes where catalog info came '
             'from), and "cat_id" (matched to the parameter `phase_center_id_array`. '
             "See the documentation of the `phase` method for more details."
@@ -473,7 +473,7 @@ class UVData(UVBase):
 
         desc = (
             'Only relevant if phase_type = "phased". Specifies the frame the'
-            ' data and uvw_array are phased to. Options are "gcrs" and "icrs",'
+            ' data and uvw_array are phased to. Options are "icrs", "gcrs", and "fk5";'
             ' default is "icrs"'
         )
         self._phase_center_frame = uvp.UVParameter(
@@ -717,15 +717,85 @@ class UVData(UVBase):
         ignore_name=False,
     ):
         """
-        Do things.
+        Check the catalog to see if an existing entry matches provided data.
 
-        Do all the things!
+        This is a helper function for verifying if an entry already exists within
+        the catalog, contained within the attribute `phase_center_catalog`.
+
+        Parameters
+        ----------
+        cat_name : str
+            Name of the phase center, which should match a key in
+            `phase_center_catalog`.
+        phase_dict : dict
+            Instead of providing individual parameters, one may provide a dict which
+            matches that format used within `phase_center_catalog` for checking for
+            existing entries. If used, all other parameters (save for `ignore_name` and
+            `cat_name`) are disregarded.
+        cat_type : str
+            Type of phase center of the entry. Must be one of:
+                "sidereal" (fixed RA/Dec),
+                "ephem" (RA/Dec that moves with time),
+                "driftscan" (fixed az/el position),
+                "unphased" (no w-projection, equivalent to `phase_type` == "drift").
+        cat_lon : float or ndarray
+            Value of the longitudinal coordinate (e.g., RA, Az, l) of the phase center.
+            No default, not used when `cat_type="unphased"`. Expected to be a float for
+            sidereal and driftscan phase centers, and an ndarray of floats of shape
+            (Npts,) for ephem phase centers.
+        cat_lat : float or ndarray
+            Value of the latitudinal coordinate (e.g., Dec, El, b) of the phase center.
+            No default, not used when `cat_type="unphased"`. Expected to be a float for
+            sidereal and driftscan phase centers, and an ndarray of floats of shape
+            (Npts,) for ephem phase centers.
+        cat_frame : str
+            Coordinate frame that cat_lon and cat_lat are given in. Only used for
+            sidereal and ephem phase centers. Can be any of the several supported frames
+            in astropy (a limited list: fk4, fk5, icrs, gcrs, cirs, galactic).
+        cat_epoch : str or float
+            Epoch of the coordinates, only used when cat_frame = fk4 or fk5. Given
+            in unites of fractional years, either as a float or as a string with the
+            epoch abbreviation (e.g, Julian epoch 2000.0 would be J2000.0).
+        cat_times : ndarray of floats
+            Only used when `cat_type="ephem"`. Describes the time for which the values
+            of `cat_lon` and `cat_lat` are caclulated, in units of JD. Shape is (Npts,).
+        cat_pm_ra : float
+            Proper motion in RA, in units of mas/year. Only used for sidereal phase
+            centers.
+        cat_pm_dec : float
+            Proper motion in Dec, in units of mas/year. Only used for sidereal phase
+            centers.
+        cat_dist : float or ndarray of float
+            Distance of the source, in units of pc. Only used for sidereal and ephem
+            phase centers. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        cat_vrad : float or ndarray of float
+            Radial velocity of the source, in units of km/s. Only used for sidereal and
+            ephem phase centers. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        ignore_name : bool
+            Nominally, `_look_in_catalog` will only look at entries where `cat_name`
+            matches the name of an entry in the catalog. However, by setting this to
+            True, the method will search all entries in the catalog and see if any
+            match all of the provided data (excluding `cat_name`).
+
+        Returns
+        -------
+        cat_id : int or None
+            The unique ID number for the phase center added to the internal catalog.
+            This value is used in the `phase_center_id_array` attribute to denote which
+            source a given baseline-time corresponds to. If no catalog entry matches,
+            then None is returned.
+        cat_diffs : int
+            The number of differences between the information provided and the catalog
+            entry contained within `phase_center_catalog`. If everything matches, then
+            `cat_diffs=0`.
         """
         # 1 marcsec tols
         radian_tols = (0, 1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0))
         default_tols = (1e-5, 1e-8)
         cat_id = None
-        obj_diffs = 0
+        cat_diffs = 0
 
         # Emulate the defaults that are set if None is detected for
         # unphased and driftscan types.
@@ -789,36 +859,36 @@ class UVData(UVBase):
             name_list = [self.object_name]
 
         for name in name_list:
-            obj_diffs = 0
+            cat_diffs = 0
             if (cat_name != name) and (not ignore_name):
                 continue
             for key in tol_dict.keys():
                 if phase_dict.get(key) is not None:
                     if check_dict[name].get(key) is None:
-                        obj_diffs += 1
+                        cat_diffs += 1
                     elif tol_dict[key] is None:
                         # If no tolerance specified, expect attributes to be identical
-                        obj_diffs += phase_dict.get(key) != check_dict[name].get(key)
+                        cat_diffs += phase_dict.get(key) != check_dict[name].get(key)
                     else:
                         # Numpy will throw a Value error if you have two arrays
                         # of different shape, which we can catch to flag that
                         # the two arrays are actually not within tolerance.
                         try:
-                            obj_diffs += not np.allclose(
+                            cat_diffs += not np.allclose(
                                 phase_dict[key],
                                 check_dict[name][key],
                                 tol_dict[key][0],
                                 tol_dict[key][1],
                             )
                         except ValueError:
-                            obj_diffs += 1
+                            cat_diffs += 1
                 else:
-                    obj_diffs += check_dict[name][key] is not None
-            if (obj_diffs == 0) or (cat_name == name):
+                    cat_diffs += check_dict[name][key] is not None
+            if (cat_diffs == 0) or (cat_name == name):
                 cat_id = check_dict[name]["cat_id"]
                 break
 
-        return cat_id, obj_diffs
+        return cat_id, cat_diffs
 
     def _add_phase_center(
         self,
@@ -840,7 +910,7 @@ class UVData(UVBase):
         """
         Add an entry to the internal object/source catalog.
 
-        This is a helper function for adding adding a source to the internal
+        This is a helper function for adding a source to the internal
         catalog, contained within the attribute `phase_center_catalog`.
 
         Parameters
@@ -855,15 +925,15 @@ class UVData(UVBase):
                 "driftscan" (fixed az/el position),
                 "unphased" (no w-projection, equivalent to `phase_type` == "drift").
         cat_lon : float or ndarray
-            Value of the longitudinal coordinate (e.g., RA, Az, l) of the object.
+            Value of the longitudinal coordinate (e.g., RA, Az, l) of the phase center.
             No default, not used when `cat_type="unphased"`. Expected to be a float for
-            sidereal and driftscan objects, and an ndarray of floats of shape (Npts,)
-            for ephem phase centers.
+            sidereal and driftscan phase centers, and an ndarray of floats of shape
+            (Npts,) for ephem phase centers.
         cat_lat : float or ndarray
-            Value of the latitudinal coordinate (e.g., Dec, El, b) of the object.
+            Value of the latitudinal coordinate (e.g., Dec, El, b) of the phase center.
             No default, not used when `cat_type="unphased"`. Expected to be a float for
-            sidereal and driftscan objects, and an ndarray of floats of shape (Npts,)
-            for ephem phase centers.
+            sidereal and driftscan phase centers, and an ndarray of floats of shape
+            (Npts,) for ephem phase centers.
         cat_frame : str
             Coordinate frame that cat_lon and cat_lat are given in. Only used
             for sidereal and ephem targets. Can be any of the several supported frames
@@ -872,6 +942,9 @@ class UVData(UVBase):
             Epoch of the coordinates, only used when cat_frame = fk4 or fk5. Given
             in unites of fractional years, either as a float or as a string with the
             epoch abbreviation (e.g, Julian epoch 2000.0 would be J2000.0).
+        cat_times : ndarray of floats
+            Only used when `cat_type="ephem"`. Describes the time for which the values
+            of `cat_lon` and `cat_lat` are caclulated, in units of JD. Shape is (Npts,).
         cat_pm_ra : float
             Proper motion in RA, in units of mas/year. Only used for sidereal phase
             centers.
@@ -886,9 +959,6 @@ class UVData(UVBase):
             Radial velocity of the source, in units of km/s. Only used for sidereal and
             ephem phase centers. Expected to be a float for sidereal and driftscan phase
             centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
-        object_coord_time : ndarray of float
-            Time (in Julian day) for each set of coordinates in an ephemeris. Only used
-            for ephem phase centers, shape (Npts,).
         info_source : str
             Optional string describing the source of the information provided. Used
             primarily in UVData to denote when an ephemeris has been supplied by the
@@ -902,7 +972,7 @@ class UVData(UVBase):
             parameters `cat_id` and `cat_name`. Note that doing this will _not_ update
             other atributes of the `UVData` object. Default is False.
         cat_id : int
-            An integer signifying the ID number of for the object, used in the
+            An integer signifying the ID number for the phase center, used in the
             `phase_center_id_array` attribute. The default is for the method to assign
             this value automatically.
 
@@ -1032,7 +1102,7 @@ class UVData(UVBase):
 
         # Names serve as dict keys, so we need to make sure that they're unique
         if not force_update:
-            temp_id, obj_diffs = self._look_in_catalog(
+            temp_id, cat_diffs = self._look_in_catalog(
                 cat_name,
                 cat_type=cat_type,
                 cat_lon=cat_lon,
@@ -1049,7 +1119,7 @@ class UVData(UVBase):
             # If the source does have the same name, check to see if all the
             # atributes match. If so, no problem, go about your business
             if temp_id is not None:
-                if obj_diffs == 0:
+                if cat_diffs == 0:
                     # Everything matches, return the catalog ID of the matching entry
                     return temp_id
                 else:
@@ -1134,7 +1204,7 @@ class UVData(UVBase):
         Goes through the `phase_center_catalog` attribute in of a UVData object and
         clears out entries that are no longer being used, and appropriately updates
         `phase_center_id_array` accordingly. This function is not typically called
-        by users, but instead is used by other functions.
+        by users, but instead is used by other methods.
 
         Raises
         ------
@@ -1252,10 +1322,10 @@ class UVData(UVBase):
         """
         Rename the phase center (but preserve other properties) of a subset of data.
 
-        Allows you to rename a subset of the data phased to a particular object, marked
-        by a different name than the original. Useful when you want to phase to one
-        target, but want to differentiate different groups of data (e.g., marking every
-        other integration to make jackknifing easier).
+        Allows you to rename a subset of the data phased to a particular phase center,
+        marked by a different name than the original. Useful when you want to phase to
+        one position, but want to differentiate different groups of data (e.g., marking
+        every other integration to make jackknifing easier).
 
         Parameters
         ----------
@@ -1377,11 +1447,11 @@ class UVData(UVBase):
         Parameters
         ----------
         catname1 : str
-            String containing the name of the first object. Note that this name will
-            be preserved in the UVData object.
+            String containing the name of the first phase center. Note that this name
+            will be preserved in the UVData object.
         catname2 : str
-            String containing the name of the second object, which will be merged into
-            the first phase center. Note that once the merge is complete, all
+            String containing the name of the second phase center, which will be merged
+            into the first phase center. Note that once the merge is complete, all
             information about this phase center is removed.
         force_merge : bool
             Normally, the method will throw an error if the phase center properties
@@ -1406,7 +1476,7 @@ class UVData(UVBase):
             raise ValueError("No entry by the name %s in the catalog." % catname2)
         temp_dict = self.phase_center_catalog[catname2]
         # First, let's check and see if the dict entries are identical
-        cat_id, obj_diffs = self._look_in_catalog(
+        cat_id, cat_diffs = self._look_in_catalog(
             catname1,
             cat_type=temp_dict["cat_type"],
             cat_lon=temp_dict.get("cat_lon"),
@@ -1419,7 +1489,7 @@ class UVData(UVBase):
             cat_dist=None,
             cat_vrad=None,
         )
-        if obj_diffs != 0:
+        if cat_diffs != 0:
             if force_merge:
                 warnings.warn(
                     "Forcing %s and %s together, even though their attributes "
@@ -1469,7 +1539,7 @@ class UVData(UVBase):
         Returns
         -------
         table_str : bool
-            If print_table=True, an ASCII string containing the entire table text
+            If return_str=True, an ASCII string containing the entire table text
 
         Raises
         ------
@@ -1683,9 +1753,27 @@ class UVData(UVBase):
 
     def _update_phase_center_id(self, cat_name, new_cat_id=None, reserved_ids=None):
         """
-        Do a thing.
+        Update a phase center with a new catalog ID number.
 
-        So that we can do ALL the things.
+        Parameters
+        ----------
+        cat_name : str
+            Name of the phase center, which corresponds to a key in the attribute
+            `phase_center_catalog`.
+        new_cat_id : int
+            Optional argument. If supplied, then the method will attempt to use the
+            provided value as the new catalog ID, provided that an existing catalog
+            entry is not already using the same value. If not supplied, then the
+            method will automatically assign a value.
+        reserved_ids : array-like in int
+            Optional argument. An array-like of ints that denotes which ID numbers
+            are already reserved. Useful for when combining two separate catalogs.
+
+        Raises
+        ------
+        ValueError
+            If not using the method on a multi-phase-ctr data set, if there's no entry
+            that matches `cat_name`, or of the value `new_cat_id` is already taken.
         """
         if not self.multi_phase_center:
             raise ValueError(
@@ -1722,7 +1810,7 @@ class UVData(UVBase):
         ] = new_cat_id
         self.phase_center_catalog[cat_name]["cat_id"] = new_cat_id
 
-    def _set_multi_phase_center(self, preserve_object_info=False):
+    def _set_multi_phase_center(self, preserve_phase_center_info=False):
         """
         Set multi_phase_center to True, and adjust required paramteres.
 
@@ -1732,7 +1820,7 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        preserve_object_info : bool
+        preserve_phase_center_info : bool
             Preserve the source information located in `object_name`, and for phased
             data sets, also `phase_center_ra`, `phase_center_dec`, `phase_center_epoch`
             and `phase_center_frame`. Default is True.
@@ -1763,7 +1851,7 @@ class UVData(UVBase):
         cat_name = self.object_name
         self.object_name = "multi"
 
-        if preserve_object_info:
+        if preserve_phase_center_info:
             cat_id = self._add_phase_center(
                 cat_name,
                 cat_type="sidereal" if (self.phase_type == "phased") else "unphased",
@@ -4161,7 +4249,7 @@ class UVData(UVBase):
             rather than from the existing uvws. Default is True.
         use_old_proj : bool
             If True, uses the 'old' way of calculating baseline projections.
-            Default isv False.
+            Default is False.
 
         Raises
         ------
@@ -4431,9 +4519,9 @@ class UVData(UVBase):
             # properties are the same as what is stored in phase_center_catalog.
             if lookup_name:
                 cat_id = self.phase_center_catalog[cat_name]["cat_id"]
-                obj_diffs = 0
+                cat_diffs = 0
             else:
-                cat_id, obj_diffs = self._look_in_catalog(
+                cat_id, cat_diffs = self._look_in_catalog(
                     cat_name,
                     cat_type=cat_type,
                     cat_lon=ra,
@@ -4446,8 +4534,8 @@ class UVData(UVBase):
                     cat_dist=dist,
                     cat_vrad=vrad,
                 )
-            # If obj_diffs > 0, it means that the catalog entries dont match
-            if obj_diffs != 0:
+            # If cat_diffs > 0, it means that the catalog entries dont match
+            if cat_diffs != 0:
                 # Last chance here -- if we have selected all of the data phased
                 # to this phase center, then we are still okay.
                 if select_mask is None:
@@ -4467,8 +4555,8 @@ class UVData(UVBase):
                         "The entry name %s is not unique, but arguments to phase "
                         "do not match that stored in phase_center_catalog. Try using a "
                         "different name, using select_mask to select all data "
-                        "phased to this object, or using the existing phase center "
-                        "information by setting lookup_name=True." % cat_name
+                        "phased to this phase center, or using the existing phase "
+                        "center information by setting lookup_name=True." % cat_name
                     )
                 cat_type = "sidereal" if cat_type is None else cat_type
                 cat_lon = ra
@@ -4518,7 +4606,7 @@ class UVData(UVBase):
             else:
                 cat_epoch = Time(cat_epoch).jyear
 
-        # One last check - if we have an ephem object, lets make sure that the
+        # One last check - if we have an ephem phase center, lets make sure that the
         # time range of the ephemeris encapsulates the entire range of time_array
         check_ephem = False
         if cat_type == "ephem":
@@ -4808,9 +4896,9 @@ class UVData(UVBase):
                 telescope_loc=self.telescope_location_lat_lon_alt,
             )
 
-            # Now calculate position angles. If this is a single onject data set, the
-            # ref frame is always equal to the source coordinate frame. In a multi phase
-            # center data set, those two components are allowed to be decoupled.
+            # Now calculate position angles. If this is a single phase center data set,
+            # the ref frame is always equal to the source coordinate frame. In a multi
+            # phase center data set, those two components are allowed to be decoupled.
             new_frame_pa = uvutils.calc_frame_pos_angle(
                 time_array,
                 new_app_ra,
@@ -5189,10 +5277,10 @@ class UVData(UVBase):
         require_phasing : bool
             Option for phased data. If data is phased and require_phasing=True, then
             the method will throw an error unless allow_phasing=True, otherwise if
-            require_phasing=True and allow_phasing=False, the UVWs will be recalculated
-            but the data will NOT be rephased. This feature should only be used in
-            limited circumstances (e.g., when certain metadata like exact time are not
-            trusted), as misuse can significantly corrupt data.
+            `require_phasing=False` and `allow_phasing=False`, the UVWs will be
+            recalculated but the data will NOT be rephased. This feature should only be
+            used in limited circumstances (e.g., when certain metadata like exact time
+            are not trusted), as misuse can significantly corrupt data.
         orig_phase_frame : str
             The astropy frame to phase from. Either 'icrs' or 'gcrs'.
             Defaults to using the 'phase_center_frame' attribute or 'icrs' if
@@ -5958,10 +6046,10 @@ class UVData(UVBase):
                 }
 
             for name in other_names:
-                cat_id, obj_diffs = this._look_in_catalog(
+                cat_id, cat_diffs = this._look_in_catalog(
                     name, phase_dict=other_cat[name]
                 )
-                if (cat_id is not None) and (obj_diffs != 0):
+                if (cat_id is not None) and (cat_diffs != 0):
                     # We have a name conflict, raise an error now
                     raise ValueError(
                         "There exists a target named %s in both objects in the "
@@ -5972,7 +6060,7 @@ class UVData(UVBase):
 
         # Begin manipulating the objects.
         if make_multi_obj and (not this.multi_phase_center):
-            this._set_multi_phase_center(preserve_object_info=True)
+            this._set_multi_phase_center(preserve_phase_center_info=True)
         if other.multi_phase_center:
             # This to get adding stuff to the catalog
             reserved_ids = [
@@ -9666,7 +9754,7 @@ class UVData(UVBase):
             one part in 1e4 - 1e5. See the phasing memo for more details. Default is
             False.
         fix_use_ant_pos : bool
-            If setting `fix_old_proj` to True, use the antenna positions to derived the
+            If setting `fix_old_proj` to True, use the antenna positions to derive the
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
 
@@ -10113,7 +10201,7 @@ class UVData(UVBase):
             one part in 1e4 - 1e5. See the phasing memo for more details. Default is
             False.
         fix_use_ant_pos : bool
-            If setting `fix_old_proj` to True, use the antenna positions to derived the
+            If setting `fix_old_proj` to True, use the antenna positions to derive the
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
 
@@ -10315,7 +10403,7 @@ class UVData(UVBase):
             `phase_center_app_dec` are missing (as they were introduced alongside the
             new phasing method).
         fix_use_ant_pos : bool
-            If setting `fix_old_proj` to True, use the antenna positions to derived the
+            If setting `fix_old_proj` to True, use the antenna positions to derive the
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
 
@@ -10682,7 +10770,7 @@ class UVData(UVBase):
         calc_lst : bool
             Recalculate the LST values that are present within the file, useful in
             cases where the "online" calculate values have precision or value errors.
-            Default is True.
+            Default is True. Only applies to MIRIAD files.
         fix_old_proj : bool
             Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
             method was used prior to writing the data, which had errors of the order of
@@ -10691,7 +10779,7 @@ class UVData(UVBase):
             and `phase_center_app_dec` attributes (as these were introduced at the same
             time as the new `phase` method), in which case the default is True.
         fix_use_ant_pos : bool
-            If setting `fix_old_proj` to True, use the antenna positions to derived the
+            If setting `fix_old_proj` to True, use the antenna positions to derive the
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
 

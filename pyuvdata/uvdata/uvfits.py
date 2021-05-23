@@ -119,7 +119,7 @@ class UVFITS(UVData):
         if "SOURCE" in vis_hdu.data.parnames:
             # Preserve the source info just in case the AIPS SU table is missing, and
             # we need to revert things back.
-            self._set_multi_phase_center(preserve_object_info=True)
+            self._set_multi_phase_center(preserve_phase_center_info=True)
             source = vis_hdu.data.par("SOURCE")
             self.phase_center_id_array = source.astype(int)
 
@@ -451,7 +451,7 @@ class UVFITS(UVData):
             one part in 1e4 - 1e5. See the phasing memo for more details. Default is
             False.
         fix_use_ant_pos : bool
-            If setting `fix_old_proj` to True, use the antenna positions to derived the
+            If setting `fix_old_proj` to True, use the antenna positions to derive the
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
 
