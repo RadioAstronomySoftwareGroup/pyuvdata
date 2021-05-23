@@ -107,20 +107,20 @@ def test_read_mir_write_uvfits(uv_in_uvfits, future_shapes):
     )
     mir_uv.history = uvfits_uv.history
 
-    # We have to do a bit of special handling for he object_dict, because _very_ small
-    # errors (like last bit in the mantissa) creep in when passing through the util
-    # function transform_sidereal_coords (for multi-obj datasets). Verify the
-    # two match up in terms of their coordinates
-    for object_name in mir_uv.object_name:
+    # We have to do a bit of special handling for the phase_center_catalog, because
+    # _very_ small errors (like last bit in the mantissa) creep in when passing through
+    # the util function transform_sidereal_coords (for mutli-phase-ctr datasets). Verify
+    # the two match up in terms of their coordinates
+    for cat_name in mir_uv.phase_center_catalog.keys():
         assert np.isclose(
-            mir_uv.object_dict[object_name]["object_lat"],
-            uvfits_uv.object_dict[object_name]["object_lat"],
+            mir_uv.phase_center_catalog[cat_name]["cat_lat"],
+            uvfits_uv.phase_center_catalog[cat_name]["cat_lat"],
         )
         assert np.isclose(
-            mir_uv.object_dict[object_name]["object_lon"],
-            uvfits_uv.object_dict[object_name]["object_lon"],
+            mir_uv.phase_center_catalog[cat_name]["cat_lon"],
+            uvfits_uv.phase_center_catalog[cat_name]["cat_lon"],
         )
-    uvfits_uv.object_dict = mir_uv.object_dict
+    uvfits_uv.phase_center_catalog = mir_uv.phase_center_catalog
 
     # There's a minor difference between what SMA calculates online for app coords
     # and what pyuvdata calculates, to the tune of ~1 arcsec. Check those values here,
@@ -138,8 +138,8 @@ def test_read_mir_write_uvfits(uv_in_uvfits, future_shapes):
 
     assert mir_uv == uvfits_uv
 
-    # Since mir is multi-obj by default, this should effectively be a no-op
-    mir_uv._set_multi_object()
+    # Since mir is mutli-phase-ctr by default, this should effectively be a no-op
+    mir_uv._set_multi_phase_center()
     assert mir_uv == uvfits_uv
 
 

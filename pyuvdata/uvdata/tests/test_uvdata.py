@@ -65,7 +65,7 @@ def uvdata_props():
         "_phase_type",
         "_flex_spw",
         "_future_array_shapes",
-        "_multi_object",
+        "_multi_phase_center",
     ]
 
     required_properties = [
@@ -103,7 +103,7 @@ def uvdata_props():
         "phase_type",
         "flex_spw",
         "future_array_shapes",
-        "multi_object",
+        "multi_phase_center",
     ]
 
     extra_parameters = [
@@ -124,9 +124,9 @@ def uvdata_props():
         "_phase_center_frame_pa",
         "_phase_center_epoch",
         "_phase_center_frame",
-        "_Nobjects",
-        "_object_dict",
-        "_object_id_array",
+        "_Nphase",
+        "_phase_center_catalog",
+        "_phase_center_id_array",
         "_eq_coeffs",
         "_eq_coeffs_convention",
         "_flex_spw_id_array",
@@ -150,9 +150,9 @@ def uvdata_props():
         "phase_center_frame_pa",
         "phase_center_epoch",
         "phase_center_frame",
-        "Nobjects",
-        "object_dict",
-        "object_id_array",
+        "Nphase",
+        "phase_center_catalog",
+        "phase_center_id_array",
         "eq_coeffs",
         "eq_coeffs_convention",
         "flex_spw_id_array",
@@ -992,7 +992,7 @@ def test_unphase_drift_data_error(uv1_2_set_uvws, sma_mir, future_shapes):
 
     with pytest.raises(ValueError) as cm:
         sma_mir.unphase_to_drift(use_old_proj=True)
-    assert str(cm.value).startswith("Multi-object data sets are not compatible")
+    assert str(cm.value).startswith("Multi phase center data sets are not compatible")
 
     # Check to make sure that wa can unphase w/o an error getting thrown. The new
     # unphase method does not throw an error when being called twice
@@ -1149,13 +1149,13 @@ def test_phasing(future_shapes):
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_phasing_multi_obj_errors(sma_mir, hera_uvh5, future_shapes):
     """
-    Test expected phasing errors related to multi-obj data sets
+    Test expected phasing errors related to mutli-phase-ctr data sets
     """
     if future_shapes:
         sma_mir.use_future_array_shapes()
         hera_uvh5.use_future_array_shapes()
-    # First try doing things that are only allowed for multi-obj data sets, using a
-    # non-multi-obj dataset
+    # First try doing things that are only allowed for mutli-phase-ctr data sets, using
+    # a non-mutli-phase-ctr dataset
     with pytest.raises(ValueError, match="Cannot apply a selection mask"):
         hera_uvh5.phase(0, 0, select_mask=[True])
     with pytest.raises(ValueError, match="Non-zero values of pm_ra not supported"):
@@ -1167,17 +1167,19 @@ def test_phasing_multi_obj_errors(sma_mir, hera_uvh5, future_shapes):
     with pytest.raises(ValueError, match="Non-zero values of vrad not supported"):
         hera_uvh5.phase(0, 0, vrad=1)
     with pytest.raises(ValueError, match="Only sidereal sources are supported"):
-        hera_uvh5.phase(0, 0, object_type="ehpem")
+        hera_uvh5.phase(0, 0, cat_type="ehpem")
     with pytest.raises(ValueError, match="Object name lookup is not supported"):
-        hera_uvh5.phase(0, 0, object_name="cool_object", lookup_name=True)
+        hera_uvh5.phase(0, 0, cat_name="cool_object", lookup_name=True)
 
-    # Now do a few things that aren't allowed w/ a multi-obj data set
-    with pytest.raises(ValueError, match="Must supply a unique name for object_name"):
+    # Now do a few things that aren't allowed w/ a mutli-phase-ctr data set
+    with pytest.raises(ValueError, match="Must supply a unique name for cat_name"):
         sma_mir.phase(0, 0)
-    with pytest.raises(NotImplementedError, match="Multi-object data sets are not"):
-        sma_mir.phase(0, 0, object_name="test", use_old_proj=True)
+    with pytest.raises(
+        NotImplementedError, match="Multi phase center data sets are not"
+    ):
+        sma_mir.phase(0, 0, cat_name="test", use_old_proj=True)
     with pytest.raises(IndexError, match="Selection mask must be of"):
-        sma_mir.phase(0, 0, object_name="test", select_mask=[True, True])
+        sma_mir.phase(0, 0, cat_name="test", select_mask=[True, True])
 
     # Finally, make sure that the fix_old_proj switch works correctly
     hera_copy = hera_uvh5.copy()
@@ -1199,8 +1201,8 @@ def test_phasing_multi_obj_errors(sma_mir, hera_uvh5, future_shapes):
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_phasing_multi_obj(hera_uvh5, future_shapes):
     """
-    Execute a few phasing tests w/ multi-obj datasets so that we can verify suitable
-    performance
+    Execute a few phasing tests w/ mutli-phase-ctr datasets so that we can verify
+    suitable performance
     """
     # This is just a placeholder
     assert True
@@ -2953,15 +2955,15 @@ def test_reorder_pols(casa_uvfits, future_shapes):
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-@pytest.mark.parametrize("multi_object", [True, False])
-def test_reorder_blts(casa_uvfits, future_shapes, multi_object):
+@pytest.mark.parametrize("multi_phase_center", [True, False])
+def test_reorder_blts(casa_uvfits, future_shapes, multi_phase_center):
     uv1 = casa_uvfits
 
     if future_shapes:
         uv1.use_future_array_shapes()
 
-    if multi_object:
-        uv1._set_multi_object(preserve_object_info=True)
+    if multi_phase_center:
+        uv1._set_multi_phase_center(preserve_object_info=True)
 
     # test default reordering in detail
     uv2 = uv1.copy()
@@ -6250,8 +6252,10 @@ def test_set_uvws_from_antenna_pos(sma_mir):
     # And make sure it left the visibilities untouched
     assert np.all(data_copy == uv_object.data_array)
 
-    uv_object._set_multi_object(preserve_object_info=True)
-    with pytest.raises(NotImplementedError, match="Multi-object data sets are not"):
+    uv_object._set_multi_phase_center(preserve_object_info=True)
+    with pytest.raises(
+        NotImplementedError, match="Multi phase center data sets are not"
+    ):
         uv_object.set_uvws_from_antenna_positions(use_old_proj=True)
 
     # Now do this operation w/ SMA data, whose uvws are known good
@@ -9702,60 +9706,60 @@ def test_rephase_to_time():
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
 def test_print_object(sma_mir, hera_uvh5):
     """
-    A series of basic checks to see tht the formatting of the table from print_objects
-    is consistent.
+    A series of basic checks to see tht the formatting of the table from
+    print_phase_center_info is consistent.
     """
     check_str = (
-        "   ID        Object       Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"
+        "   ID     Cat Entry       Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"
         "    #          Name                    hours           deg                 \n"
         "---------------------------------------------------------------------------\n"
         "    1          3c84   sidereal    3:19:48.16  +41:30:42.11    fk5  J2000.0 \n"
     )
 
-    table_str = sma_mir.print_objects(print_table=False, return_str=True)
+    table_str = sma_mir.print_phase_center_info(print_table=False, return_str=True)
     assert table_str == check_str
 
     # Make sure we can specify the object name and get the same result
-    table_str = sma_mir.print_objects(
-        print_table=False, return_str=True, object_name="3c84",
+    table_str = sma_mir.print_phase_center_info(
+        print_table=False, return_str=True, cat_name="3c84",
     )
     assert table_str == check_str
 
     # Make sure that things still work when we force the HMS format
-    table_str = sma_mir.print_objects(
+    table_str = sma_mir.print_phase_center_info(
         print_table=False, return_str=True, hms_format=True
     )
     assert table_str == check_str
 
     check_str = (
-        "   ID        Object       Type      Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"
+        "   ID     Cat Entry       Type      Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"
         "    #          Name                       deg           deg                 \n"
         "----------------------------------------------------------------------------\n"
         "    1          3c84   sidereal    49:57:02.40  +41:30:42.11    fk5  J2000.0 \n"
     )
 
     # And likewise when forcing the degree format
-    table_str = sma_mir.print_objects(
+    table_str = sma_mir.print_phase_center_info(
         print_table=False, return_str=True, hms_format=False
     )
     assert table_str == check_str
 
-    # Now check and see what happens if we add the full suite of object parameters
-    _ = sma_mir._add_object(
+    # Now check and see what happens if we add the full suite of phase center parameters
+    _ = sma_mir._add_phase_center(
         "3c84",
-        object_type="sidereal",
-        object_lat=sma_mir.object_dict["3c84"]["object_lat"],
-        object_lon=sma_mir.object_dict["3c84"]["object_lon"],
-        object_dist=0.0,
-        object_vrad=0.0,
-        object_pm_ra=0.0,
-        object_pm_dec=0.0,
-        coord_frame="fk5",
-        coord_epoch=2000.0,
+        cat_type="sidereal",
+        cat_lat=sma_mir.phase_center_catalog["3c84"]["cat_lat"],
+        cat_lon=sma_mir.phase_center_catalog["3c84"]["cat_lon"],
+        cat_dist=0.0,
+        cat_vrad=0.0,
+        cat_pm_ra=0.0,
+        cat_pm_dec=0.0,
+        cat_frame="fk5",
+        cat_epoch=2000.0,
         force_update=True,
     )
     check_str = (
-        "   ID        Object       Type     Az/Lon/RA"
+        "   ID     Cat Entry       Type     Az/Lon/RA"
         "    El/Lat/Dec  Frame    Epoch   PM-Ra  PM-Dec     Dist   V_rad \n"
         "    #          Name                    hours"
         "           deg                  mas/yr  mas/yr       pc    km/s \n"
@@ -9764,21 +9768,21 @@ def test_print_object(sma_mir, hera_uvh5):
         "    1          3c84   sidereal    3:19:48.16"
         "  +41:30:42.11    fk5  J2000.0       0       0  0.0e+00       0 \n"
     )
-    table_str = sma_mir.print_objects(print_table=False, return_str=True)
+    table_str = sma_mir.print_phase_center_info(print_table=False, return_str=True)
     assert table_str == check_str
 
     # Now check and see that printing ephems works well
-    _ = sma_mir._add_object(
+    _ = sma_mir._add_phase_center(
         "3c84",
-        object_type="ephem",
-        object_lat=0.0,
-        object_lon=0.0,
-        coord_frame="icrs",
-        coord_times=2456789.0,
+        cat_type="ephem",
+        cat_lat=0.0,
+        cat_lon=0.0,
+        cat_frame="icrs",
+        cat_times=2456789.0,
         force_update=True,
     )
     check_str = (
-        "   ID        Object       Type     Az/Lon/RA"
+        "   ID     Cat Entry       Type     Az/Lon/RA"
         "    El/Lat/Dec  Frame       Ephem Range    \n"
         "    #          Name                    hours"
         "           deg         Start-MJD    End-MJD \n"
@@ -9787,44 +9791,44 @@ def test_print_object(sma_mir, hera_uvh5):
         "    1          3c84      ephem    0:00:00.00"
         "  + 0:00:00.00   icrs   56788.50   56788.50 \n"
     )
-    table_str = sma_mir.print_objects(print_table=False, return_str=True)
+    table_str = sma_mir.print_phase_center_info(print_table=False, return_str=True)
     assert table_str == check_str
 
     # Check and see that if we force this to be a driftscan, we get the output
     # we expect
-    _ = sma_mir._add_object("3c84", object_type="driftscan", force_update=True)
+    _ = sma_mir._add_phase_center("3c84", cat_type="driftscan", force_update=True)
     check_str = (
-        "   ID        Object       Type      Az/Lon/RA    El/Lat/Dec  Frame \n"
+        "   ID     Cat Entry       Type      Az/Lon/RA    El/Lat/Dec  Frame \n"
         "    #          Name                       deg           deg        \n"
         "-------------------------------------------------------------------\n"
         "    1          3c84  driftscan     0:00:00.00  +90:00:00.00  altaz \n"
     )
-    table_str = sma_mir.print_objects(print_table=False, return_str=True)
+    table_str = sma_mir.print_phase_center_info(print_table=False, return_str=True)
     assert table_str == check_str
 
-    _ = sma_mir._add_object("3c84", object_type="unphased", force_update=True)
+    _ = sma_mir._add_phase_center("3c84", cat_type="unphased", force_update=True)
     check_str = (
-        "   ID        Object       Type      Az/Lon/RA    El/Lat/Dec  Frame \n"
+        "   ID     Cat Entry       Type      Az/Lon/RA    El/Lat/Dec  Frame \n"
         "    #          Name                       deg           deg        \n"
         "-------------------------------------------------------------------\n"
         "    1          3c84   unphased     0:00:00.00  +90:00:00.00  altaz \n"
     )
-    table_str = sma_mir.print_objects(print_table=False, return_str=True)
+    table_str = sma_mir.print_phase_center_info(print_table=False, return_str=True)
     assert table_str == check_str
 
-    with pytest.raises(ValueError, match="No object by the name test in object_name."):
-        sma_mir.print_objects(object_name="test")
+    with pytest.raises(ValueError, match="No entry by the name test in the catalog."):
+        sma_mir.print_phase_center_info(cat_name="test")
     with pytest.raises(
-        ValueError, match="Cannot use print_objects on a non-multi-object data set."
+        ValueError, match="Cannot use print_phase_center_info on a non-multi",
     ):
-        hera_uvh5.print_objects()
+        hera_uvh5.print_phase_center_info()
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
 def test_print_object_multi():
     """
-    Test the print_objects function when there are multiple objects stored in the
-    internal catalog.
+    Test the print_phase_center_info function when there are multiple objects stored in
+    the internal catalog.
     """
     pytest.importorskip("pyuvdata._miriad")
     carma_miriad = UVData()
@@ -9832,16 +9836,16 @@ def test_print_object_multi():
     carma_miriad.read(testfile, run_check=False, check_extra=False)
     carma_miriad.extra_keywords = None
 
-    _ = carma_miriad._add_object("NOISE", object_type="unphased", force_update=True)
+    _ = carma_miriad._add_phase_center("NOISE", cat_type="unphased", force_update=True)
     check_str = (
-        "   ID        Object       Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"
+        "   ID     Cat Entry       Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"
         "    #          Name                    hours           deg                 \n"
         "---------------------------------------------------------------------------\n"
         "    0         NOISE   unphased    0:00:00.00  +90:00:00.00  altaz          \n"
         "    1         3C273   sidereal   12:29:06.70  + 2:03:08.60    fk5  J2000.0 \n"
         "    2      1159+292   sidereal   11:59:31.83  +29:14:43.83    fk5  J2000.0 \n"
     )
-    table_str = carma_miriad.print_objects(
+    table_str = carma_miriad.print_phase_center_info(
         print_table=False, return_str=True, hms_format=True
     )
     assert table_str == check_str
@@ -9849,345 +9853,347 @@ def test_print_object_multi():
 
 def test_catalog_operations(sma_mir, hera_uvh5):
     """
-    Test some basic functions with operations on the internal catalog (object_dict)
+    Test some basic functions with operations on the phase_center_catalog attribute
     """
     # First thing first, let's check that the lookup operation works as expected.
-    # The function returns a tuple containing the object_id matching the name (None if
+    # The function returns a tuple containing the cat_id matching the name (None if
     # there are no matches), and the nummber of differences detected between the info
-    # supplied and the info in object_dict
+    # supplied and the info in phase_center_catalog
 
     # Missing everything but the name
-    assert hera_uvh5._lookup_object("zenith") == (0, 4)
+    assert hera_uvh5._look_in_catalog("zenith") == (0, 4)
 
-    # Defaults for driftscan match those for unphased, but the object_type is obviously
+    # Defaults for driftscan match those for unphased, but the cat_type is obviously
     # different
-    assert hera_uvh5._lookup_object("zenith", object_type="driftscan") == (0, 1)
+    assert hera_uvh5._look_in_catalog("zenith", cat_type="driftscan") == (0, 1)
 
     # Perfect match!
-    assert hera_uvh5._lookup_object("zenith", object_type="unphased") == (0, 0)
+    assert hera_uvh5._look_in_catalog("zenith", cat_type="unphased") == (0, 0)
 
     # Nothing by that name here
-    assert hera_uvh5._lookup_object("unphased", object_type="unphased") == (None, 0)
+    assert hera_uvh5._look_in_catalog("unphased", cat_type="unphased") == (None, 0)
 
     # Can we make a match if we ignore the name (the answer should be yes)
-    assert hera_uvh5._lookup_object(
-        "unphased", object_type="unphased", ignore_name=True
+    assert hera_uvh5._look_in_catalog(
+        "unphased", cat_type="unphased", ignore_name=True
     ) == (0, 0)
 
     # Pass "bad" values for a single argument and verify that things don't match
-    assert hera_uvh5._lookup_object(
-        "zenith", object_type="unphased", object_lat=1.0
+    assert hera_uvh5._look_in_catalog("zenith", cat_type="unphased", cat_lat=1.0) == (
+        0,
+        1,
+    )
+    assert hera_uvh5._look_in_catalog("zenith", cat_type="unphased", cat_lon=1.0) == (
+        0,
+        1,
+    )
+    assert hera_uvh5._look_in_catalog("zenith", cat_type="unphased", cat_frame=1.0) == (
+        0,
+        1,
+    )
+    assert hera_uvh5._look_in_catalog("zenith", cat_type="unphased", cat_epoch=1.0) == (
+        0,
+        1,
+    )
+    assert hera_uvh5._look_in_catalog("zenith", cat_type="unphased", cat_pm_ra=1.0) == (
+        0,
+        1,
+    )
+    assert hera_uvh5._look_in_catalog(
+        "zenith", cat_type="unphased", cat_pm_dec=1.0
     ) == (0, 1)
-    assert hera_uvh5._lookup_object(
-        "zenith", object_type="unphased", object_lon=1.0
-    ) == (0, 1)
-    assert hera_uvh5._lookup_object(
-        "zenith", object_type="unphased", coord_frame=1.0
-    ) == (0, 1)
-    assert hera_uvh5._lookup_object(
-        "zenith", object_type="unphased", coord_epoch=1.0
-    ) == (0, 1)
-    assert hera_uvh5._lookup_object(
-        "zenith", object_type="unphased", object_pm_ra=1.0
-    ) == (0, 1)
-    assert hera_uvh5._lookup_object(
-        "zenith", object_type="unphased", object_pm_dec=1.0
-    ) == (0, 1)
-    assert hera_uvh5._lookup_object(
-        "zenith", object_type="unphased", object_dist=1.0
-    ) == (0, 1)
-    assert hera_uvh5._lookup_object(
-        "zenith", object_type="unphased", object_vrad=1.0
-    ) == (0, 1)
+    assert hera_uvh5._look_in_catalog("zenith", cat_type="unphased", cat_dist=1.0) == (
+        0,
+        1,
+    )
+    assert hera_uvh5._look_in_catalog("zenith", cat_type="unphased", cat_vrad=1.0) == (
+        0,
+        1,
+    )
 
     # Now try lookup using a dictionary of properties
-    assert sma_mir._lookup_object("3c84") == (1, 5)
-    object_dict = sma_mir.object_dict["3c84"]
-    assert sma_mir._lookup_object("3c84", object_dict=object_dict) == (1, 0)
+    assert sma_mir._look_in_catalog("3c84") == (1, 5)
+    phase_dict = sma_mir.phase_center_catalog["3c84"]
+    assert sma_mir._look_in_catalog("3c84", phase_dict=phase_dict) == (1, 0)
 
     # Make sure that if we set ignore_name, we still get a match
-    assert sma_mir._lookup_object(
-        "3c84", object_dict=object_dict, ignore_name=True
+    assert sma_mir._look_in_catalog(
+        "3c84", phase_dict=phase_dict, ignore_name=True
     ) == (1, 0)
 
     # Match w/ a mis-capitalization
-    assert sma_mir._lookup_object(
-        "3C84", object_dict=object_dict, ignore_name=True
+    assert sma_mir._look_in_catalog(
+        "3C84", phase_dict=phase_dict, ignore_name=True
     ) == (1, 0)
 
     with pytest.raises(
-        ValueError, match="Cannot add a source if multi_object != True.",
+        ValueError, match="Cannot add a source if multi_phase_center != True.",
     ):
-        hera_uvh5._add_object("unphased", object_type="unphased")
+        hera_uvh5._add_phase_center("unphased", cat_type="unphased")
 
     # Check and see what happens with driftscan objects
     with pytest.raises(
-        ValueError, match="object_name must be a string.",
+        ValueError, match="cat_name must be a string.",
     ):
-        sma_mir._add_object(-1, object_type="drift")
+        sma_mir._add_phase_center(-1, cat_type="drift")
 
     with pytest.raises(
         ValueError, match="The name unphased is reserved.",
     ):
-        sma_mir._add_object("unphased", object_type="drift")
+        sma_mir._add_phase_center("unphased", cat_type="drift")
 
     with pytest.raises(
         ValueError, match="Only sidereal, ephem, driftscan or unphased may be used ",
     ):
-        sma_mir._add_object("zenith", object_type="drift")
+        sma_mir._add_phase_center("zenith", cat_type="drift")
 
     with pytest.raises(ValueError, match="Non-zero proper motion values"):
-        sma_mir._add_object(
-            "zenith", object_type="driftscan", object_pm_ra=0.0, object_pm_dec=0.0
+        sma_mir._add_phase_center(
+            "zenith", cat_type="driftscan", cat_pm_ra=0.0, cat_pm_dec=0.0
         )
 
     # Now move on to unphased objects
     with pytest.raises(
-        ValueError, match="Objects that are unphased must have object_lon",
+        ValueError, match="Catalog entries that are unphased must have cat_lon",
     ):
-        sma_mir._add_object("unphased", object_type="unphased", object_lon=1.0)
+        sma_mir._add_phase_center("unphased", cat_type="unphased", cat_lon=1.0)
     with pytest.raises(
-        ValueError, match="Objects that are unphased must have object_lat",
+        ValueError, match="Catalog entries that are unphased must have cat_lat",
     ):
-        sma_mir._add_object("unphased", object_type="unphased", object_lat=1.0)
+        sma_mir._add_phase_center("unphased", cat_type="unphased", cat_lat=1.0)
     with pytest.raises(
-        ValueError, match="coord_frame must be either None or 'altaz' when the",
+        ValueError, match="cat_frame must be either None or 'altaz' when the",
     ):
-        sma_mir._add_object("unphased", object_type="unphased", coord_frame="icrs")
+        sma_mir._add_phase_center("unphased", cat_type="unphased", cat_frame="icrs")
 
-    # Now ephem objects
+    # Now ephem phase centers
     with pytest.raises(
-        ValueError, match="coord_times cannot be None for ephem object.",
+        ValueError, match="cat_times cannot be None for ephem object.",
     ):
-        sma_mir._add_object("test", object_type="ephem", coord_frame="icrs")
+        sma_mir._add_phase_center("test", cat_type="ephem", cat_frame="icrs")
 
     with pytest.raises(
         ValueError, match="Object properties -- lon, lat, pm_ra, pm_dec, dist, vrad",
     ):
-        sma_mir._add_object(
+        sma_mir._add_phase_center(
             "test",
-            object_type="ephem",
-            object_lon=0.0,
-            object_lat=0.0,
-            coord_times=[0.0, 1.0],
-            coord_frame="icrs",
+            cat_type="ephem",
+            cat_lon=0.0,
+            cat_lat=0.0,
+            cat_times=[0.0, 1.0],
+            cat_frame="icrs",
         )
 
-    # Now try sidereal objects
+    # Now try sidereal phase centers
     with pytest.raises(
-        ValueError, match="Must supply values for either both or neither of object_pm",
+        ValueError, match="Must supply values for either both or neither of cat_pm",
     ):
-        sma_mir._add_object("test", object_type="sidereal", object_pm_ra=0.0)
+        sma_mir._add_phase_center("test", cat_type="sidereal", cat_pm_ra=0.0)
 
     with pytest.raises(
-        ValueError, match="Must supply values for either both or neither of object_pm",
+        ValueError, match="Must supply values for either both or neither of cat_pm",
     ):
-        sma_mir._add_object("test", object_type="sidereal", object_pm_dec=0.0)
+        sma_mir._add_phase_center("test", cat_type="sidereal", cat_pm_dec=0.0)
 
     with pytest.raises(
-        ValueError, match="coord_times cannot be used for non-ephem objects.",
+        ValueError, match="cat_times cannot be used for non-ephem phase centers.",
     ):
-        sma_mir._add_object("test", object_type="sidereal", coord_times=0.0)
+        sma_mir._add_phase_center("test", cat_type="sidereal", cat_times=0.0)
 
     with pytest.raises(
-        ValueError, match="object_lon cannot be None for sidereal object."
+        ValueError, match="cat_lon cannot be None for sidereal phase centers."
     ):
-        sma_mir._add_object("test", object_type="sidereal")
+        sma_mir._add_phase_center("test", cat_type="sidereal")
 
     with pytest.raises(
-        ValueError, match="object_lat cannot be None for sidereal object."
+        ValueError, match="cat_lat cannot be None for sidereal phase centers."
     ):
-        sma_mir._add_object("test", object_type="sidereal", object_lon=0.0)
+        sma_mir._add_phase_center("test", cat_type="sidereal", cat_lon=0.0)
 
     with pytest.raises(
-        ValueError, match="coord_frame cannot be None for sidereal object."
+        ValueError, match="cat_frame cannot be None for sidereal phase centers."
     ):
-        sma_mir._add_object(
-            "test", object_type="sidereal", object_lon=0.0, object_lat=0.0
-        )
+        sma_mir._add_phase_center("test", cat_type="sidereal", cat_lon=0.0, cat_lat=0.0)
 
     # Finally, test out what happens when we have a name collision
     with pytest.raises(
         IndexError, match="Cannot add different source with an non-unique name."
     ):
-        sma_mir._add_object(
+        sma_mir._add_phase_center(
             "3c84",
-            object_type="sidereal",
-            object_lon=0.8718035968995141,
-            object_lat=0.7245157752262148,
-            coord_frame="fk4",
-            coord_epoch="B1950.0",
+            cat_type="sidereal",
+            cat_lon=0.8718035968995141,
+            cat_lat=0.7245157752262148,
+            cat_frame="fk4",
+            cat_epoch="B1950.0",
         )
 
-    return_id = sma_mir._add_object(
+    return_id = sma_mir._add_phase_center(
         "3c84",
-        object_type="sidereal",
-        object_lon=0.8718035968995141,
-        object_lat=0.7245157752262148,
-        coord_frame="fk5",
-        coord_epoch="j2000",
+        cat_type="sidereal",
+        cat_lon=0.8718035968995141,
+        cat_lat=0.7245157752262148,
+        cat_frame="fk5",
+        cat_epoch="j2000",
     )
 
     assert return_id == 1
 
-    with pytest.raises(
-        ValueError, match="Provided object_id belongs to another source"
-    ):
-        sma_mir._add_object(
-            "unphased", object_type="unphased", object_id=return_id,
+    with pytest.raises(ValueError, match="Provided cat_id belongs to another source"):
+        sma_mir._add_phase_center(
+            "unphased", cat_type="unphased", cat_id=return_id,
         )
 
     # Move on to remove operations
     with pytest.raises(
-        ValueError, match="Cannot remove an object if multi_object != True."
+        ValueError, match="Cannot remove a phase center if multi_phase_center != True."
     ):
-        hera_uvh5._remove_object("zenith")
+        hera_uvh5._remove_phase_center("zenith")
 
     with pytest.raises(
-        ValueError, match="Cannot remove an object if multi_object != True."
+        ValueError, match="Cannot remove a phase center if multi_phase_center != True."
     ):
-        hera_uvh5._clear_unused_objects()
+        hera_uvh5._clear_unused_phase_centers()
 
     with pytest.raises(
         IndexError, match="No source by that name contained in the catalog."
     ):
-        sma_mir._remove_object("zenith")
+        sma_mir._remove_phase_center("zenith")
 
-    check_dict = sma_mir.object_dict.copy()
+    check_dict = sma_mir.phase_center_catalog.copy()
 
     # Check and see that clearing out the unused objects doesn't actually change the
-    # object_dict (because all objects are being "used").
-    sma_mir._clear_unused_objects()
-    assert sma_mir.object_dict == check_dict
+    # phase_center_catalog (because all objects are being "used").
+    sma_mir._clear_unused_phase_centers()
+    assert sma_mir.phase_center_catalog == check_dict
 
-    check_id = sma_mir._add_object(
+    check_id = sma_mir._add_phase_center(
         "Mars",
-        object_type="ephem",
-        object_lon=[0.0, 1.0],
-        object_lat=[0, 1],
-        object_dist=(0, 1),
-        object_vrad=np.array([0, 1], dtype=np.float32),
-        coord_times=np.array([0.0, 1.0]),
-        coord_frame="icrs",
+        cat_type="ephem",
+        cat_lon=[0.0, 1.0],
+        cat_lat=[0, 1],
+        cat_dist=(0, 1),
+        cat_vrad=np.array([0, 1], dtype=np.float32),
+        cat_times=np.array([0.0, 1.0]),
+        cat_frame="icrs",
     )
 
-    # Make sure the object ID returns as expected, and that the catalog actually changed
+    # Make sure the catalog ID returns as expected, and that the catalog changed
     assert check_id == 0
-    assert sma_mir.object_dict != check_dict
-    assert sma_mir._lookup_object(
-        "Mars", object_lon=[0, 1, 2], object_lat=[0, 1, 2]
-    ) == (0, 7)
+    assert sma_mir.phase_center_catalog != check_dict
+    assert sma_mir._look_in_catalog("Mars", cat_lon=[0, 1, 2], cat_lat=[0, 1, 2]) == (
+        0,
+        7,
+    )
     # Finally, clear out the unused entries and check for equivalency w/ the old catalog
-    sma_mir._clear_unused_objects()
-    assert sma_mir.object_dict == check_dict
+    sma_mir._clear_unused_phase_centers()
+    assert sma_mir.phase_center_catalog == check_dict
 
     # Try now renaming an object
     with pytest.raises(
-        ValueError, match="Cannot rename an object if multi_object != True."
+        ValueError, match="Cannot rename a phase center if multi_phase_center != True."
     ):
-        hera_uvh5.rename_object(-1, -2)
+        hera_uvh5.rename_phase_center(-1, -2)
 
-    with pytest.raises(
-        ValueError, match="No object with the name -1 found in the dataset."
-    ):
-        sma_mir.rename_object(-1, -2)
+    with pytest.raises(ValueError, match="No entry by the name -1 in the catalog."):
+        sma_mir.rename_phase_center(-1, -2)
 
     with pytest.raises(TypeError, match="Value provided to new_name must be a string."):
-        sma_mir.rename_object("3c84", -2)
+        sma_mir.rename_phase_center("3c84", -2)
 
     with pytest.raises(ValueError, match="The name unphased is reserved."):
-        sma_mir.rename_object("3c84", "unphased")
+        sma_mir.rename_phase_center("3c84", "unphased")
 
     with pytest.raises(ValueError, match="The name unphased is reserved."):
-        sma_mir.split_object("3c84", "unphased", [True])
+        sma_mir.split_phase_center("3c84", "unphased", [True])
 
     # Check and see what happens if we attempt to rename the source
-    sma_mir.rename_object("3c84", "3C84")
-    assert sma_mir.object_dict["3C84"] == check_dict["3c84"]
-    assert sma_mir.object_name == ["3C84"]
+    sma_mir.rename_phase_center("3c84", "3C84")
+    assert sma_mir.phase_center_catalog["3C84"] == check_dict["3c84"]
+    assert list(sma_mir.phase_center_catalog.keys()) == ["3C84"]
 
-    sma_mir.rename_object("3C84", "3c84")
-    assert sma_mir.object_dict == check_dict
-    assert sma_mir.object_name == ["3c84"]
+    sma_mir.rename_phase_center("3C84", "3c84")
+    assert sma_mir.phase_center_catalog == check_dict
+    assert list(sma_mir.phase_center_catalog.keys()) == ["3c84"]
 
     # Check to make sure that setting the same name doesn't harm anything
-    sma_mir.rename_object("3c84", "3c84")
-    assert sma_mir.object_dict == check_dict
-    assert sma_mir.object_name == ["3c84"]
+    sma_mir.rename_phase_center("3c84", "3c84")
+    assert sma_mir.phase_center_catalog == check_dict
+    assert list(sma_mir.phase_center_catalog.keys()) == ["3c84"]
 
     # Finally add a source in, see that we get an error if trying to rename the object
     # to the new name
-    sma_mir._add_object("zenith", object_type="unphased")
+    sma_mir._add_phase_center("zenith", cat_type="unphased")
     with pytest.raises(ValueError, match="Must include a unique name for new_name"):
-        sma_mir.rename_object("3c84", "zenith")
+        sma_mir.rename_phase_center("3c84", "zenith")
 
-    # Last but not least, test _update_object_id
+    # Last but not least, test _update_phase_center_id
     with pytest.raises(
-        ValueError, match="Cannot use _update_object_id on a non-multi-object data",
+        ValueError,
+        match="Cannot use _update_phase_center_id on a non-multi phase center data",
     ):
-        hera_uvh5._update_object_id("test")
-
-    with pytest.raises(
-        ValueError, match="Cannot run _update_object_id: no object with name test.",
-    ):
-        sma_mir._update_object_id("test")
+        hera_uvh5._update_phase_center_id("test")
 
     with pytest.raises(
-        ValueError, match="Object ID supplied already taken by another source.",
+        ValueError,
+        match="Cannot run _update_phase_center_id: no entry with name test.",
     ):
-        sma_mir._update_object_id("3c84", new_object_id=0, reserved_ids=[0, 1])
+        sma_mir._update_phase_center_id("test")
 
-    # This should effectively be a no-op, since the object ID of the source isn't being
+    with pytest.raises(
+        ValueError, match="Catalog ID supplied already taken by another source.",
+    ):
+        sma_mir._update_phase_center_id("3c84", new_cat_id=0, reserved_ids=[0, 1])
+
+    # This should effectively be a no-op, since the catalog ID of the source isn't being
     # taken up by anything else
     sma_copy = sma_mir.copy()
-    sma_mir._update_object_id("3c84")
+    sma_mir._update_phase_center_id("3c84")
     assert sma_copy == sma_mir
 
     # If all goes well, this operation should assign the lowest possible integer to the
-    # object ID of 3c84 -- in this case, 4.
-    sma_mir._update_object_id("3c84", reserved_ids=[0, 1, 2, 3])
-    assert sma_mir.object_dict["3c84"]["object_id"] == 4
+    # catalog ID of 3c84 -- in this case, 4.
+    sma_mir._update_phase_center_id("3c84", reserved_ids=[0, 1, 2, 3])
+    assert sma_mir.phase_center_catalog["3c84"]["cat_id"] == 4
 
 
 def test_split_merge_catalog(hera_uvh5):
 
     with pytest.raises(
-        ValueError, match="Cannot use split_object on a non-multi-object data set."
+        ValueError,
+        match="Cannot use split_phase_center on a non-multi phase center data set.",
     ):
-        hera_uvh5.split_object("3c84", "zenith", 1.5)
+        hera_uvh5.split_phase_center("3c84", "zenith", 1.5)
 
     with pytest.raises(
-        ValueError, match="Cannot use merge_object on a non-multi-object data set."
+        ValueError,
+        match="Cannot use merge_phase_centers on a non-multi phase center data set.",
     ):
-        hera_uvh5.merge_object("3c84", "zenith")
+        hera_uvh5.merge_phase_centers("3c84", "zenith")
 
-    # Set the HERA file as multi-object so that we can play around with it a bit
-    hera_uvh5._set_multi_object(preserve_object_info=True)
+    # Set the HERA file as multi phase center so that we can play around with it a bit
+    hera_uvh5._set_multi_phase_center(preserve_object_info=True)
     hera_copy = hera_uvh5.copy()
 
     # First test out a bunch of error conditions that should render no-ops
-    with pytest.raises(ValueError, match="No object by the name dummy in object_name."):
-        hera_uvh5.split_object("dummy", "zenith", 1.5)
+    with pytest.raises(ValueError, match="No entry by the name dummy in the catalog"):
+        hera_uvh5.split_phase_center("dummy", "zenith", 1.5)
+
+    with pytest.raises(ValueError, match="No entry by the name dummy1 in the catalog"):
+        hera_uvh5.merge_phase_centers("dummy1", "zenith")
+
+    with pytest.raises(ValueError, match="No entry by the name dummy2 in the catalog"):
+        hera_uvh5.merge_phase_centers("zenith", "dummy2")
 
     with pytest.raises(
-        ValueError, match="No object by the name dummy1 in object_name."
+        ValueError, match="The name zenith is already found in the catalog"
     ):
-        hera_uvh5.merge_object("dummy1", "zenith")
-
-    with pytest.raises(
-        ValueError, match="No object by the name dummy2 in object_name."
-    ):
-        hera_uvh5.merge_object("zenith", "dummy2")
-
-    with pytest.raises(
-        ValueError, match="The name zenith is already found in object_name,"
-    ):
-        hera_uvh5.split_object("zenith", "zenith", 1.5)
+        hera_uvh5.split_phase_center("zenith", "zenith", 1.5)
 
     with pytest.raises(
         IndexError, match="select_mask must be an array-like, either of ints with shape"
     ):
-        hera_uvh5.split_object("zenith", "zenith2", 1.5)
+        hera_uvh5.split_phase_center("zenith", "zenith2", 1.5)
 
     assert hera_uvh5 == hera_copy
 
@@ -10195,24 +10201,25 @@ def test_split_merge_catalog(hera_uvh5):
     # integration?
     select_mask = np.isin(hera_uvh5.time_array, np.unique(hera_uvh5.time_array)[::2])
 
-    hera_uvh5.split_object("zenith", "zenith2", select_mask)
+    hera_uvh5.split_phase_center("zenith", "zenith2", select_mask)
 
     # Make sure the dicts make sense
-    temp_dict = hera_uvh5.object_dict["zenith"].copy()
-    temp_dict2 = hera_uvh5.object_dict["zenith2"].copy()
-    assert temp_dict["object_id"] != temp_dict2["object_id"]
-    temp_dict["object_id"] = temp_dict2["object_id"]
+    temp_dict = hera_uvh5.phase_center_catalog["zenith"].copy()
+    temp_dict2 = hera_uvh5.phase_center_catalog["zenith2"].copy()
+    assert temp_dict["cat_id"] != temp_dict2["cat_id"]
+    temp_dict["cat_id"] = temp_dict2["cat_id"]
     assert temp_dict == temp_dict2
 
-    # Check that the object IDs also line up w/ what we expect
-    obj_id_check = hera_uvh5.object_dict["zenith"]["object_id"]
-    assert np.all(hera_uvh5.object_id_array[~select_mask] == obj_id_check)
-    obj_id_check = hera_uvh5.object_dict["zenith2"]["object_id"]
-    assert np.all(hera_uvh5.object_id_array[select_mask] == obj_id_check)
+    # Check that the catalog IDs also line up w/ what we expect
+    obj_id_check = hera_uvh5.phase_center_catalog["zenith"]["cat_id"]
+    assert np.all(hera_uvh5.phase_center_id_array[~select_mask] == obj_id_check)
+    obj_id_check = hera_uvh5.phase_center_catalog["zenith2"]["cat_id"]
+    assert np.all(hera_uvh5.phase_center_id_array[select_mask] == obj_id_check)
 
-    # Finally, verify the object names
-    assert sorted(hera_uvh5.object_name) == sorted(["zenith", "zenith2"])
-    assert hera_uvh5.Nobjects == 2
+    # Finally, verify the phase center names
+    sorted_names = sorted(hera_uvh5.phase_center_catalog.keys())
+    assert sorted_names == sorted(["zenith", "zenith2"])
+    assert hera_uvh5.Nphase == 2
 
     # Now let's play around with selection masks some more, and include data that
     # isn't phased up to the target in question
@@ -10220,47 +10227,51 @@ def test_split_merge_catalog(hera_uvh5):
     with pytest.raises(
         ValueError, match="Data selected with select_mask includes that which has not",
     ):
-        hera_uvh5.split_object("zenith2", "zenith3", ~select_mask)
+        hera_uvh5.split_phase_center("zenith2", "zenith3", ~select_mask)
 
     # Now let's select no data at all
     with uvtest.check_warnings(UserWarning, "No relevant data selected"):
-        hera_uvh5.split_object("zenith2", "zenith3", ~select_mask, downselect=True)
+        hera_uvh5.split_phase_center(
+            "zenith2", "zenith3", ~select_mask, downselect=True
+        )
 
     # Make sure that the object hasn't changed (all of the above should be no-ops)
     assert hera_split_copy == hera_uvh5
 
     # Now effectively rename zenith2 as zenith3 by selecting all data
     with uvtest.check_warnings(UserWarning, "All data for zenith2 selected"):
-        hera_uvh5.split_object("zenith2", "zenith3", select_mask)
+        hera_uvh5.split_phase_center("zenith2", "zenith3", select_mask)
 
-    obj_id_check = hera_uvh5.object_dict["zenith"]["object_id"]
-    assert np.all(hera_uvh5.object_id_array[~select_mask] == obj_id_check)
-    obj_id_check = hera_uvh5.object_dict["zenith3"]["object_id"]
-    assert np.all(hera_uvh5.object_id_array[select_mask] == obj_id_check)
+    obj_id_check = hera_uvh5.phase_center_catalog["zenith"]["cat_id"]
+    assert np.all(hera_uvh5.phase_center_id_array[~select_mask] == obj_id_check)
+    obj_id_check = hera_uvh5.phase_center_catalog["zenith3"]["cat_id"]
+    assert np.all(hera_uvh5.phase_center_id_array[select_mask] == obj_id_check)
 
-    assert sorted(hera_uvh5.object_name) == sorted(["zenith", "zenith3"])
+    sorted_names = sorted(hera_uvh5.phase_center_catalog.keys())
+    assert sorted_names == sorted(["zenith", "zenith3"])
 
     # Make sure the dicts make sense
-    temp_dict = hera_uvh5.object_dict["zenith"].copy()
-    temp_dict2 = hera_uvh5.object_dict["zenith3"].copy()
-    assert temp_dict["object_id"] != temp_dict2["object_id"]
-    temp_dict["object_id"] = temp_dict2["object_id"]
+    temp_dict = hera_uvh5.phase_center_catalog["zenith"].copy()
+    temp_dict2 = hera_uvh5.phase_center_catalog["zenith3"].copy()
+    assert temp_dict["cat_id"] != temp_dict2["cat_id"]
+    temp_dict["cat_id"] = temp_dict2["cat_id"]
     assert temp_dict == temp_dict2
 
     # Finally, make sure we can put humpty dumpty back together again
     # Changing a single attribute so that we can test some warnings
-    hera_uvh5.object_dict["zenith3"]["coord_epoch"] = 2000.0
+    hera_uvh5.phase_center_catalog["zenith3"]["cat_epoch"] = 2000.0
     hera_split_copy = hera_uvh5.copy()
     with pytest.raises(
-        ValueError, match="Attributes of zenith and zenith3 in object_dict differ",
+        ValueError,
+        match="Attributes of zenith and zenith3 in phase_center_catalog differ",
     ):
-        hera_uvh5.merge_object("zenith", "zenith3")
+        hera_uvh5.merge_phase_centers("zenith", "zenith3")
     assert hera_split_copy == hera_uvh5
 
     # Finally, force the two objects back to being one, despite the fact that we've
     # contaminated the dict of one (which will be overwritten by the other)
     with uvtest.check_warnings(UserWarning, "Forcing zenith and zenith3 together"):
-        hera_uvh5.merge_object("zenith", "zenith3", force_merge=True)
+        hera_uvh5.merge_phase_centers("zenith", "zenith3", force_merge=True)
 
     # We merged everything back together, so we _should_  get back the same
     # thing that we started with.
@@ -10302,9 +10313,9 @@ def test_apply_w(hera_uvh5, future_shapes):
     assert hera_uvh5 == hera_copy
 
 
-def test_phase_object_dict_helper(hera_uvh5, sma_mir):
+def test_phase_dict_helper(hera_uvh5, sma_mir):
     """
-    Test the `_phase_object_dict_helper` method.
+    Test the `_phase_dict_helper` method.
 
     Test the helper function that the `phase` method uses for looking up astronomical
     source information.
@@ -10312,149 +10323,149 @@ def test_phase_object_dict_helper(hera_uvh5, sma_mir):
     pytest.importorskip("astroquery")
     # Create a dummy dict to compare our results to
     check_dict = {
-        "object_name": "z1",
-        "object_type": "sidereal",
-        "object_lon": 0.0,
-        "object_lat": 1.0,
-        "coord_frame": "fk5",
-        "coord_epoch": 2000.0,
-        "coord_times": None,
-        "object_pm_ra": 0.0,
-        "object_pm_dec": 0.0,
-        "object_dist": 0.0,
-        "object_vrad": 0.0,
-        "object_src": "user",
-        "object_id": None,
+        "cat_name": "z1",
+        "cat_type": "sidereal",
+        "cat_lon": 0.0,
+        "cat_lat": 1.0,
+        "cat_frame": "fk5",
+        "cat_epoch": 2000.0,
+        "cat_times": None,
+        "cat_pm_ra": 0.0,
+        "cat_pm_dec": 0.0,
+        "cat_dist": 0.0,
+        "cat_vrad": 0.0,
+        "info_source": "user",
+        "cat_id": None,
     }
 
-    # Try creating an object for a "normal" source w/ a non multi-obj dataset
-    object_dict = hera_uvh5._phase_object_dict_helper(
+    # Try creating an phase center for a normal source w/ a non mutli-phase-ctr dataset
+    phase_dict = hera_uvh5._phase_dict_helper(
         0.0, 1.0, "J2000", "fk5", None, "sidereal", 0, 0, 0, 0, "z1", False, None, None,
     )
-    assert object_dict == check_dict
+    assert phase_dict == check_dict
 
-    # Now do the same w/ a multi-obj dataset
-    object_dict = sma_mir._phase_object_dict_helper(
+    # Now do the same w/ a mutli-phase-ctr dataset
+    phase_dict = sma_mir._phase_dict_helper(
         0.0, 1.0, "J2000", "fk5", None, "sidereal", 0, 0, 0, 0, "z1", False, None, None,
     )
-    assert object_dict == check_dict
+    assert phase_dict == check_dict
 
     # Attempt to lookup with a bad source name
     with pytest.raises(
         ValueError, match="Unable to find z1 in among the existing sources recorded"
     ):
-        object_dict = sma_mir._phase_object_dict_helper(
+        phase_dict = sma_mir._phase_dict_helper(
             0.0, 1.0, None, "fk5", None, "sidereal", 0, 0, 0, 0, "z1", True, None, None,
         )
 
-    # Try supplying an ephem where coord_times do not cover time_array
+    # Try supplying an ephem where cat_times do not cover time_array
     with pytest.raises(
         ValueError, match="Ephemeris data does not cover the entirety of the time range"
     ):
-        object_dict = sma_mir._phase_object_dict_helper(
+        phase_dict = sma_mir._phase_dict_helper(
             0, 0, "B1950", "fk4", 0, "ephem", 0, 0, 0, 0, "z1", False, None, 1,
         )
 
-    # Try doing a lookup of an object that doesn't exist in JPL-Horizons
+    # Try doing a lookup of a phase center that doesn't exist in JPL-Horizons
     with pytest.raises(
         ValueError, match="Target ID is not recognized in either the small or major"
     ):
-        object_dict = sma_mir._phase_object_dict_helper(
+        phase_dict = sma_mir._phase_dict_helper(
             0, 0, None, "fk5", 2456789, "ephem", 0, 0, 0, 0, "z1", True, None, 2456789,
         )
 
-    # Now try looking up an object that actually exists
-    object_dict = sma_mir._phase_object_dict_helper(
+    # Now try looking up a phase center that actually exists
+    phase_dict = sma_mir._phase_dict_helper(
         0, 1, None, "fk5", None, "sidereal", 0, 0, 0, 0, "3c84", True, None, 0,
     )
-    assert object_dict.pop("object_name") == "3c84"
-    assert object_dict == sma_mir.object_dict["3c84"]
+    assert phase_dict.pop("cat_name") == "3c84"
+    assert phase_dict == sma_mir.phase_center_catalog["3c84"]
 
     # Try looking up a name, where the properties are different but where we've selected
     # all of the data (via None for the select mask)
-    object_dict = sma_mir._phase_object_dict_helper(
+    phase_dict = sma_mir._phase_dict_helper(
         0, 1, None, "fk5", None, "sidereal", 0, 0, 0, 0, "3c84", False, None, 0,
     )
-    assert object_dict["object_name"] == "3c84"
-    object_dict["object_name"] = "z1"
-    object_dict["object_id"] = None
-    assert object_dict == check_dict
+    assert phase_dict["cat_name"] == "3c84"
+    phase_dict["cat_name"] = "z1"
+    phase_dict["cat_id"] = None
+    assert phase_dict == check_dict
 
     # Now do the same with a select mask that does select all the data
     sel_mask = np.ones(sma_mir.Nblts, dtype=bool)
-    object_dict = sma_mir._phase_object_dict_helper(
+    phase_dict = sma_mir._phase_dict_helper(
         0, 1, None, "fk5", None, "sidereal", 0, 0, 0, 0, "3c84", False, sel_mask, 0,
     )
-    assert object_dict["object_name"] == "3c84"
-    object_dict["object_name"] = "z1"
-    object_dict["object_id"] = None
-    assert object_dict == check_dict
+    assert phase_dict["cat_name"] == "3c84"
+    phase_dict["cat_name"] = "z1"
+    phase_dict["cat_id"] = None
+    assert phase_dict == check_dict
 
     # Now verify that doing this where all the data _are not_ selected throws an error
     sel_mask[:] = False
-    with pytest.raises(ValueError, match="The object name 3c84 is not unique,"):
-        object_dict = sma_mir._phase_object_dict_helper(
+    with pytest.raises(ValueError, match="The entry name 3c84 is not unique,"):
+        phase_dict = sma_mir._phase_dict_helper(
             0, 1, None, "fk5", None, "sidereal", 0, 0, 0, 0, "3c84", False, sel_mask, 0,
         )
 
     # Finally, check that we get a good result if feeding the same values, even if not
     # actually performing a lookup
-    object_dict = sma_mir._phase_object_dict_helper(
-        sma_mir.object_dict["3c84"].get("object_lon"),
-        sma_mir.object_dict["3c84"].get("object_lat"),
-        sma_mir.object_dict["3c84"].get("coord_epoch"),
-        sma_mir.object_dict["3c84"].get("coord_frame"),
-        sma_mir.object_dict["3c84"].get("coord_times"),
-        sma_mir.object_dict["3c84"].get("object_type"),
-        sma_mir.object_dict["3c84"].get("object_pm_ra"),
-        sma_mir.object_dict["3c84"].get("object_pm_dec"),
-        sma_mir.object_dict["3c84"].get("object_dist"),
-        sma_mir.object_dict["3c84"].get("object_vrad"),
+    phase_dict = sma_mir._phase_dict_helper(
+        sma_mir.phase_center_catalog["3c84"].get("cat_lon"),
+        sma_mir.phase_center_catalog["3c84"].get("cat_lat"),
+        sma_mir.phase_center_catalog["3c84"].get("cat_epoch"),
+        sma_mir.phase_center_catalog["3c84"].get("cat_frame"),
+        sma_mir.phase_center_catalog["3c84"].get("cat_times"),
+        sma_mir.phase_center_catalog["3c84"].get("cat_type"),
+        sma_mir.phase_center_catalog["3c84"].get("cat_pm_ra"),
+        sma_mir.phase_center_catalog["3c84"].get("cat_pm_dec"),
+        sma_mir.phase_center_catalog["3c84"].get("cat_dist"),
+        sma_mir.phase_center_catalog["3c84"].get("cat_vrad"),
         "3c84",
         False,
         sel_mask,
         sma_mir.time_array,
     )
-    assert object_dict.pop("object_name") == "3c84"
-    assert object_dict == sma_mir.object_dict["3c84"]
+    assert phase_dict.pop("cat_name") == "3c84"
+    assert phase_dict == sma_mir.phase_center_catalog["3c84"]
 
     # Now see what happens if we attempt to lookup something that JPL actually knows
     obs_time = np.array(2456789.0)
-    object_dict = sma_mir._phase_object_dict_helper(
+    phase_dict = sma_mir._phase_dict_helper(
         0, 0, None, None, None, None, 0, 0, 0, 0, "Mars", True, None, obs_time,
     )
 
-    object_id = sma_mir._add_object(
-        object_dict["object_name"],
-        object_dict["object_type"],
-        object_lon=object_dict["object_lon"],
-        object_lat=object_dict["object_lat"],
-        coord_frame=object_dict["coord_frame"],
-        coord_epoch=object_dict["coord_epoch"],
-        coord_times=object_dict["coord_times"],
-        object_pm_ra=object_dict["object_pm_ra"],
-        object_pm_dec=object_dict["object_pm_dec"],
-        object_dist=object_dict["object_dist"],
-        object_vrad=object_dict["object_vrad"],
-        object_src=object_dict["object_src"],
+    cat_id = sma_mir._add_phase_center(
+        phase_dict["cat_name"],
+        phase_dict["cat_type"],
+        cat_lon=phase_dict["cat_lon"],
+        cat_lat=phase_dict["cat_lat"],
+        cat_frame=phase_dict["cat_frame"],
+        cat_epoch=phase_dict["cat_epoch"],
+        cat_times=phase_dict["cat_times"],
+        cat_pm_ra=phase_dict["cat_pm_ra"],
+        cat_pm_dec=phase_dict["cat_pm_dec"],
+        cat_dist=phase_dict["cat_dist"],
+        cat_vrad=phase_dict["cat_vrad"],
+        info_source=phase_dict["info_source"],
         force_update=True,
     )
 
-    # By default, the object ID here should be zero (lowest available ID)
-    assert object_id == 0
+    # By default, the catalog ID here should be zero (lowest available ID)
+    assert cat_id == 0
 
     # Tick the obs_time up by a day, see if the software will fetch additional
     # coordinates and expand the existing ephem
     obs_time += 1
-    object_dict = sma_mir._phase_object_dict_helper(
+    phase_dict = sma_mir._phase_dict_helper(
         0, 0, None, None, None, None, 0, 0, 0, 0, "Mars", True, None, obs_time,
     )
 
     # Previously, everything else will have had a single point, but the new ephem (which
     # covers 36 hours at 3 hour intervals) should have a lucky total of 13 points.
-    keycheck = ["object_lon", "object_lat", "object_vrad", "object_dist", "coord_times"]
+    keycheck = ["cat_lon", "cat_lat", "cat_vrad", "cat_dist", "cat_times"]
     for key in keycheck:
-        assert len(object_dict[key]) == 13
+        assert len(phase_dict[key]) == 13
 
 
 @pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
@@ -10468,7 +10479,7 @@ def test_fix_phase(hera_uvh5, sma_mir, future_shapes):
         sma_mir.use_future_array_shapes()
 
     # Check the one error condition that fix_phase raises
-    with pytest.raises(ValueError, match="Cannot run fix_phase on a multi-obj"):
+    with pytest.raises(ValueError, match="Cannot run fix_phase on a mutli-phase-ctr"):
         sma_mir.fix_phase(use_ant_pos=False)
 
     # Make some copies of the data
@@ -10525,9 +10536,9 @@ def test_multi_phase_multi_file(hera_uvh5, future_shapes):
     uvfull = hera_uvh5.copy()
 
     # Phase both targets to the same position with different names
-    uv1.phase(3.6, -0.5, object_name="target1")
-    uv2.phase(3.6, -0.5, object_name="target2")
-    uvfull.phase(3.6, -0.5, object_name="target1")
+    uv1.phase(3.6, -0.5, cat_name="target1")
+    uv2.phase(3.6, -0.5, cat_name="target2")
+    uvfull.phase(3.6, -0.5, cat_name="target1")
 
     # Catch the obvious error
     with pytest.raises(
@@ -10548,18 +10559,18 @@ def test_multi_phase_multi_file(hera_uvh5, future_shapes):
     uvfull.history = uv3.history
     assert uvfull == uv3
 
-    # Okay, now try allowing one UVData object to become a multi-obj data set
+    # Okay, now try allowing one UVData object to become a mutli-phase-ctr data set
     uv3 = uv1.__add__(uv2, make_multi_obj=True, inplace=False)
-    uvfull._set_multi_object(preserve_object_info=True)
-    uvfull.split_object("target1", "target2", ~half_mask)
+    uvfull._set_multi_phase_center(preserve_object_info=True)
+    uvfull.split_phase_center("target1", "target2", ~half_mask)
     uv3.reorder_blts()
 
     assert uvfull.history in uv3.history
     uvfull.history = uv3.history
     assert uvfull == uv3
 
-    # See what happens when we make one UVData object multi-obj but not the other
-    uv1._set_multi_object(preserve_object_info=True)
+    # See what happens when we make one UVData object mutli-phase-ctr but not the other
+    uv1._set_multi_phase_center(preserve_object_info=True)
     with pytest.raises(
         ValueError,
         match="To combine these data, please run the add operation with the UVData ",
@@ -10572,26 +10583,26 @@ def test_multi_phase_multi_file(hera_uvh5, future_shapes):
     uvfull.history = uv3.history
     assert uvfull == uv3
 
-    # Now make the out one a multi-obj, and rename the object
-    uv2._set_multi_object(preserve_object_info=True)
+    # Now make the out one a mutli-phase-ctr, and rename the object
+    uv2._set_multi_phase_center(preserve_object_info=True)
 
     uv3 = uv1 + uv2
     uv3.reorder_blts()
-    # Note that we have to update the object IDs here because of the way the auto
+    # Note that we have to update the catalog IDs here because of the way the auto
     # assignment works on add
-    uv3._update_object_id("target2", 3)
-    uv3._update_object_id("target1", 0)
-    uv3._update_object_id("target2", 1)
+    uv3._update_phase_center_id("target2", 3)
+    uv3._update_phase_center_id("target1", 0)
+    uv3._update_phase_center_id("target2", 1)
 
     assert uvfull.history in uv3.history
     uvfull.history = uv3.history
     assert uvfull == uv3
 
-    # Finally, test a fast_concat, renaming the object name back to 'target1'
-    uv2.rename_object("target2", "target1")
+    # Finally, test a fast_concat, renaming the phase center back to 'target1'
+    uv2.rename_phase_center("target2", "target1")
     uv3 = uv1.fast_concat(uv2, axis="blt")
     uv3.reorder_blts()
-    uvfull.merge_object("target1", "target2")
+    uvfull.merge_phase_centers("target1", "target2")
 
     # Finally, do a select on the full dataset, and make sure it agrees with the
     # previously downselected data
@@ -10607,46 +10618,49 @@ def test_multi_phase_multi_file(hera_uvh5, future_shapes):
     uv1 = hera_uvh5.select(times=unique_times[:mid_pt], inplace=False)
     uv2 = hera_uvh5.select(times=unique_times[mid_pt:], inplace=False)
 
-    uv1.phase(3.6, -0.5, object_name="target1")
-    uv2.phase(-0.5, 3.6, object_name="target1")
+    uv1.phase(3.6, -0.5, cat_name="target1")
+    uv2.phase(-0.5, 3.6, cat_name="target1")
 
     with pytest.raises(ValueError, match="UVParameter phase_center_ra does not match"):
         _ = uv1 + uv2
 
-    # Now make sure this works with a multi-obj data set, since names must be unique
-    uv1._set_multi_object(preserve_object_info=True)
+    # Make sure this works with a mutli-phase-ctr data set, since names must be unique
+    uv1._set_multi_phase_center(preserve_object_info=True)
     with pytest.raises(ValueError, match="There exists a target named target1 in"):
         _ = uv1 + uv2
 
-    uv2._set_multi_object(preserve_object_info=True)
-    uv1._set_multi_object(preserve_object_info=True)
+    uv2._set_multi_phase_center(preserve_object_info=True)
+    uv1._set_multi_phase_center(preserve_object_info=True)
     with pytest.raises(ValueError, match="There exists a target named target1 in"):
         _ = uv1 + uv2
 
     # Give it a new name, and then rephase half of the "full" object
-    uv2.phase(-0.5, 3.6, object_name="target2")
+    uv2.phase(-0.5, 3.6, cat_name="target2")
     uv3 = uv1 + uv2
     uv3.reorder_blts()
-    uvfull.phase(-0.5, 3.6, object_name="target2", select_mask=~half_mask)
+    uvfull.phase(-0.5, 3.6, cat_name="target2", select_mask=~half_mask)
     assert uvfull.history in uv3.history
     uvfull.history = uv3.history
     assert uvfull == uv3
 
-    # We are testing a corner-case here -- what happens when the object ID assigned
+    # We are testing a corner-case here -- what happens when the catalog ID assigned
     # does not agree with what was done with another object. All that should be off
-    # is the object_id_array and the object_dict, both of which can be updated by
-    # using the _update_object_id method.
-    uv2._update_object_id("target2", 0)
+    # is the phase_center_id_array and the phase_center_catalog, both of which can be
+    # updated by using the _update_phase_center_id method.
+    uv2._update_phase_center_id("target2", 0)
     uv3 = uv1 + uv2
     uv3.reorder_blts()
     assert uvfull.history in uv3.history
     uvfull.history = uv3.history
 
-    assert np.all(uv3.object_id_array != uvfull.object_id_array)
-    assert uv3.object_dict != uvfull.object_dict
-    assert sorted(uv3.object_name) == sorted(uvfull.object_name)
+    assert np.all(uv3.phase_center_id_array != uvfull.phase_center_id_array)
+    assert uv3.phase_center_catalog != uvfull.phase_center_catalog
 
-    uv3._update_object_id("target2", 3)
-    uv3._update_object_id("target1", 0)
-    uv3._update_object_id("target2", 1)
+    uv1_names = sorted(uv3.phase_center_catalog.keys())
+    uv3_names = sorted(uv3.phase_center_catalog.keys())
+    assert uv1_names == uv3_names
+
+    uv3._update_phase_center_id("target2", 3)
+    uv3._update_phase_center_id("target1", 0)
+    uv3._update_phase_center_id("target2", 1)
     assert uv3 == uvfull

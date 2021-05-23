@@ -480,24 +480,20 @@ class UVH5(UVData):
                 self._set_flex_spw()
         if "flex_spw_id_array" in header:
             self.flex_spw_id_array = header["flex_spw_id_array"][:]
-        if "multi_object" in header:
-            if bool(header["multi_object"][()]):
+        if "multi_phase_center" in header:
+            if bool(header["multi_phase_center"][()]):
                 self._set_phased()
-                self._set_multi_object(preserve_object_info=False)
-        if "Nobjects" in header:
-            self.Nobjects = int(header["Nobjects"][()])
+                self._set_multi_phase_center(preserve_object_info=False)
+        if "Nphase" in header:
+            self.Nphase = int(header["Nphase"][()])
 
         self.phase_type = bytes(header["phase_type"][()]).decode("utf8")
-        # Here is where we start handing object information.  If we have a multi-object
-        # dataset, this information is going to be handled a bit differently, since
-        # all of these entries are expected to be required arrays.
-        if self.multi_object:
-            self.object_name = [
-                bytes(name).decode("utf8") for name in header["object_name"][:]
-            ]
-            self.object_id_array = header["object_id_array"][:]
-        else:
-            self.object_name = bytes(header["object_name"][()]).decode("utf8")
+        self.object_name = bytes(header["object_name"][()]).decode("utf8")
+        # Here is where we start handing phase center information.  If we have a multi
+        # phase center dataset, this information is going to be handled a bit
+        # differently, since all of these entries are expected to be required arrays.
+        if self.multi_phase_center:
+            self.phase_center_id_array = header["phase_center_id_array"][:]
 
         # check for phasing information
         if self.phase_type == "phased":
@@ -522,11 +518,11 @@ class UVH5(UVData):
             self._set_drift()
 
         # Here is where we collect the other optional source/phasing info
-        if "object_dict" in header:
-            self.object_dict = {}
-            for key in header["object_dict"].keys():
-                self.object_dict[key] = literal_eval(
-                    bytes(header["object_dict"][key][()]).decode("utf8")
+        if "phase_center_catalog" in header:
+            self.phase_center_catalog = {}
+            for key in header["phase_center_catalog"].keys():
+                self.phase_center_catalog[key] = literal_eval(
+                    bytes(header["phase_center_catalog"][key][()]).decode("utf8")
                 )
         if "phase_center_frame" in header:
             self.phase_center_frame = bytes(header["phase_center_frame"][()]).decode(
@@ -962,9 +958,11 @@ class UVH5(UVData):
 
             # Default behavior for UVH5 is to fix phasing if the problem is detected,
             # since the absence of the app coord attributes is the most clear indicator
-            # of the old phasing algorithm being used. Double-check the multi-obj
+            # of the old phasing algorithm being used. Double-check the mutli-phase-ctr
             # attribute just to be extra safe.
-            if ((fix_old_proj) or (fix_old_proj is None)) and (not self.multi_object):
+            if (not self.multi_phase_center) and (
+                ((fix_old_proj) or (fix_old_proj is None))
+            ):
                 self.fix_phase(use_ant_pos=fix_use_ant_pos)
             else:
                 warnings.warn(
@@ -1250,7 +1248,7 @@ class UVH5(UVData):
         header["ant_2_array"] = self.ant_2_array
         header["antenna_positions"] = self.antenna_positions
         header["flex_spw"] = self.flex_spw
-        header["multi_object"] = self.multi_object
+        header["multi_phase_center"] = self.multi_phase_center
         # handle antenna_names; works for lists or arrays
         header["antenna_names"] = np.asarray(self.antenna_names, dtype="bytes")
 
@@ -1296,19 +1294,19 @@ class UVH5(UVData):
             header["eq_coeffs_convention"] = np.string_(self.eq_coeffs_convention)
         if self.flex_spw_id_array is not None:
             header["flex_spw_id_array"] = self.flex_spw_id_array
-        if self.object_id_array is not None:
-            header["object_id_array"] = self.object_id_array
-        if self.Nobjects is not None:
-            header["Nobjects"] = self.Nobjects
+        if self.phase_center_id_array is not None:
+            header["phase_center_id_array"] = self.phase_center_id_array
+        if self.Nphase is not None:
+            header["Nphase"] = self.Nphase
 
-        # Write out object dictionary, if available
-        if self.object_dict:
-            object_dict = header.create_group("object_dict")
-            for k in self.object_dict.keys():
+        # Write out the catalog, if available
+        if self.phase_center_catalog:
+            phase_dict = header.create_group("phase_center_catalog")
+            for k in self.phase_center_catalog.keys():
                 # Dictionary entries can be written out as strings, in what is
                 # effectively JSON format. The str promotion up front is needed
                 # because otherwise np.string_ truncates the dictionary
-                object_dict[k] = np.string_(str(self.object_dict[k]))
+                phase_dict[k] = np.string_(str(self.phase_center_catalog[k]))
 
         # write out extra keywords if it exists and has elements
         if self.extra_keywords:

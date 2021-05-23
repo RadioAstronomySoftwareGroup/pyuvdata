@@ -2469,10 +2469,10 @@ def lookup_jplhorizons(
     force_indv_lookup=None,
 ):
     """
-    Lookup solar system object coordinates via the JPL-Horizons service.
+    Lookup solar system body coordinates via the JPL-Horizons service.
 
     This utility is useful for generating ephemerides, which can then be interpolated in
-    order to provide positional data for an object which is moving, such as planetary
+    order to provide positional data for a target which is moving, such as planetary
     bodies and other solar system objects. Use of this function requires the
     installation of the `astroquery` module.
 
@@ -2600,7 +2600,7 @@ def lookup_jplhorizons(
                 "step": step_time,
             }
     # Check to make sure dates are within the 1700-2200 time range,
-    # since not all objects are supported outside of this range
+    # since not all targets are supported outside of this range
     if (np.min(time_array) < 2341973.0) or (np.max(time_array) > 2524593.0):
         raise ValueError(
             "No current support for JPL ephems outside of 1700 - 2300 AD. "
@@ -2636,7 +2636,7 @@ def lookup_jplhorizons(
             raise ValueError(
                 "Target ID is not recognized in either the small or major bodies "
                 "catalogs, please consult the JPL-Horizons database for supported "
-                "objects (https://ssd.jpl.nasa.gov/?horizons)."
+                "targets (https://ssd.jpl.nasa.gov/?horizons)."
             ) from err
     # Now that we have the ephem data, extract out the relevant data
     ephem_times = np.array(ephem_data["datetime_jd"])
@@ -2784,7 +2784,7 @@ def calc_app_coords(
     coord_frame="icrs",
     coord_epoch=None,
     coord_times=None,
-    object_type="sidereal",
+    coord_type="sidereal",
     time_array=None,
     lst_array=None,
     telescope_loc=None,
@@ -2794,7 +2794,7 @@ def calc_app_coords(
     dist=None,
 ):
     """
-    Calculate apparent coordinates for several different object types.
+    Calculate apparent coordinates for several different coordinate types.
 
     This function calculates apparent positions at the current epoch.
 
@@ -2816,19 +2816,16 @@ def calc_app_coords(
         years (i.e., 1950 would be 'B1950'), otherwise the year is assumed to be
         in Julian years.
     coord_times : float or ndarray of float
-        Only used when `object_type="ephem"`, the JD UTC time for each value of
+        Only used when `coord_type="ephem"`, the JD UTC time for each value of
         `lon_coord` and `lat_coord`. These values are used to interpolate `lon_coord`
         and `lat_coord` values to those times listed in `time_array`.
-    object_type : str
-        Type of object coordinates provided. Permitted values are:
-            - "sidereal":   a single pair of coordinates in a specified frame.
-            - "ephem":      a list of coordinates that change with time, as specified
-                            by `coord_times`. Only coord_frame='icrs' permitted.
-                            Used for objects which move in the sky with time (e.g.,
-                            planetary objects).
-            - "driftscan":  a single pair of coordinates in the horizontal coordinate
-                            frame (i.e., coord_frame is forced to 'altaz').
-            - "unphased":   alias for "driftscan" with (Az, Alt) = (0 deg, 90 deg)
+    coord_type : str
+        coord_type : str
+            Type of source to calculate coordinates for. Must be one of:
+                "sidereal" (fixed RA/Dec),
+                "ephem" (RA/Dec that moves with time),
+                "driftscan" (fixed az/el position),
+                "unphased" (alias for "driftscan" with (Az, Alt) = (0 deg, 90 deg)).
     time_array : float or ndarray of float or Time object
         Times for which the apparent coordinates were calculated, in UTC JD. If more
         than a single element, must be the same shape as lon_coord and lat_coord if
@@ -2889,7 +2886,7 @@ def calc_app_coords(
     else:
         unique_time_array, unique_mask = np.unique(time_array, return_index=True)
 
-    if object_type in ["driftscan", "unphased"]:
+    if coord_type in ["driftscan", "unphased"]:
         if lst_array is None:
             unique_lst = get_lst_for_time(
                 unique_time_array,
@@ -2900,7 +2897,7 @@ def calc_app_coords(
         else:
             unique_lst = lst_array[unique_mask]
 
-    if object_type == "sidereal":
+    if coord_type == "sidereal":
         # If the coordinates are not in the ICRS frame, go ahead and transform them now
         if coord_frame != "icrs":
             icrs_ra, icrs_dec = transform_sidereal_coords(
@@ -2925,7 +2922,7 @@ def calc_app_coords(
             dist=dist,
         )
 
-    elif object_type == "driftscan":
+    elif coord_type == "driftscan":
         # Use the ERFA function ae2hd, which will do all the heavy
         # lifting for us
         unique_app_ha, unique_app_dec = erfa.ae2hd(
@@ -2935,7 +2932,7 @@ def calc_app_coords(
         # the LST to get back app RA and Dec
         unique_app_ra = np.mod(unique_app_ha + unique_lst, 2 * np.pi)
         unique_app_dec = unique_app_dec + np.zeros_like(unique_app_ra)
-    elif object_type == "ephem":
+    elif coord_type == "ephem":
         interp_ra, interp_dec, _, _ = interpolate_ephem(
             unique_time_array, coord_times, lon_coord, lat_coord,
         )
@@ -2961,13 +2958,13 @@ def calc_app_coords(
             vrad=vrad,
             dist=dist,
         )
-    elif object_type == "unphased":
+    elif coord_type == "unphased":
         # This is the easiest one - this is just supposed to be ENU, so set the
         # apparent coords to the current lst and telescope_lon.
         unique_app_ra = unique_lst.copy()
         unique_app_dec = np.zeros_like(unique_app_ra) + site_loc.lat.rad
     else:
-        raise ValueError("Object type %s is not recognized." % object_type)
+        raise ValueError("Object type %s is not recognized." % coord_type)
 
     # Now that we've calculated all the unique values, time to backfill through the
     # "redundant" entries in the Nblt axis.
