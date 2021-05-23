@@ -1834,6 +1834,14 @@ class UVData(UVBase):
         if self.multi_phase_center:
             return
 
+        # All multi phase center objects have phase_type="phased", even if they are
+        # unphased.
+        if self.phase_type == "phased":
+            cat_type = "sidereal"
+        else:
+            self._set_phased()
+            cat_type = "unphased"
+
         self.multi_phase_center = True
 
         # Mark once-option arrays as now required
@@ -1854,7 +1862,7 @@ class UVData(UVBase):
         if preserve_phase_center_info:
             cat_id = self._add_phase_center(
                 cat_name,
-                cat_type="sidereal" if (self.phase_type == "phased") else "unphased",
+                cat_type=cat_type,
                 cat_lon=self.phase_center_ra,
                 cat_lat=self.phase_center_dec,
                 cat_frame=self.phase_center_frame,
@@ -1864,6 +1872,10 @@ class UVData(UVBase):
 
         self.phase_center_ra = 0.0
         self.phase_center_dec = 0.0
+        if self.phase_center_frame is None:
+            self.phase_center_frame = "icrs"
+        if self.phase_center_epoch is None:
+            self.phase_center_epoch = 2000.0
 
     def _set_drift(self):
         """
@@ -5499,7 +5511,7 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        make_multi_obj=False,
+        make_multi_phase=False,
         ignore_name=False,
     ):
         """
@@ -5553,7 +5565,7 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
-        make_multi_obj : bool
+        make_multi_phase : bool
             Option to make the output a multi phase center dataset, capable of holding
             data on multiple phase centers. Setting this to true will allow for two
             UVData objects to be combined, even if the phase center properties do not
@@ -5715,7 +5727,7 @@ class UVData(UVBase):
             # If the names are different and we are making a mutli-phase-ctr data set,
             # then we can skip the step of checking the ra and dec, otherwise we need to
             # check it
-            multi_obj_check = make_multi_obj or this.multi_phase_center
+            multi_obj_check = make_multi_phase or this.multi_phase_center
             if not ((this.object_name != other.object_name) and multi_obj_check):
                 compatibility_params.append("_phase_center_ra")
                 compatibility_params.append("_phase_center_dec")
@@ -5724,7 +5736,7 @@ class UVData(UVBase):
             # one of the parameters we check for compatibility.
             if not (ignore_name or multi_obj_check):
                 compatibility_params.append("_object_name")
-        elif not (this.multi_phase_center or make_multi_obj):
+        elif not (this.multi_phase_center or make_multi_phase):
             raise ValueError(
                 "To combine these data, please run the add operation with the UVData "
                 "object with multi_phase_center set to True as the first object in the "
@@ -6022,14 +6034,14 @@ class UVData(UVBase):
                     msg += (
                         " This can potentially be remedied by setting "
                         "ignore_name=True, or by allowing the creation of a "
-                        "mutli-phase-ctr dataset (by setting make_multi_obj=True)."
+                        "mutli-phase-ctr dataset (by setting make_multi_phase=True)."
                     )
                 raise ValueError(msg)
 
         # At this point, we are assuming that the two data sets _mostly_ compatible.
         # Last thing we need to check is if these are mutli-phase-ctr data sets, whether
         # or not they are compatible.
-        if this.multi_phase_center or make_multi_obj:
+        if this.multi_phase_center or make_multi_phase:
             if other.multi_phase_center:
                 other_names = list(other.phase_center_catalog.keys())
                 other_cat = other.phase_center_catalog
@@ -6059,7 +6071,7 @@ class UVData(UVBase):
                     )
 
         # Begin manipulating the objects.
-        if make_multi_obj and (not this.multi_phase_center):
+        if make_multi_phase and (not this.multi_phase_center):
             this._set_multi_phase_center(preserve_phase_center_info=True)
         if other.multi_phase_center:
             # This to get adding stuff to the catalog
@@ -6446,7 +6458,7 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        make_multi_obj=False,
+        make_multi_phase=False,
         ignore_name=False,
     ):
         """
@@ -6489,7 +6501,7 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
-        make_multi_obj : bool
+        make_multi_phase : bool
             Option to make the output a multi phase center dataset, capable of holding
             data on multiple phase centers. Setting this to true will allow for two
             UVData objects to be combined, even if the phase center properties do not
@@ -6526,7 +6538,7 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
-            make_multi_obj=make_multi_obj,
+            make_multi_phase=make_multi_phase,
             ignore_name=ignore_name,
         )
         return self
@@ -6546,6 +6558,7 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        ignore_name=False,
     ):
         """
         Concatenate two UVData objects along specified axis with almost no checking.
@@ -6607,9 +6620,12 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
+        ignore_name : bool
+            Option to ignore the name of the phase center (`cat_name` in
+            `phase_center_catalog` when `multi_phase_center=True`, otherwise
+            `object_name`) when combining two UVData objects. Doing so effectively
+            adopts the name found in the first UVData object in the sum. Default is
+            False.
 
         Raises
         ------
@@ -6739,7 +6755,6 @@ class UVData(UVBase):
 
         compatibility_params = [
             "_vis_units",
-            "_object_name",
             "_telescope_name",
             "_instrument",
             "_telescope_location",
@@ -6758,7 +6773,7 @@ class UVData(UVBase):
         if not this.future_array_shapes and not this.flex_spw:
             compatibility_params.append("_channel_width")
 
-        if not this.multi_phase_center:
+        if not (this.multi_phase_center or ignore_name):
             compatibility_params += ["_object_name"]
 
         history_update_string = " Combined data along "
@@ -10519,6 +10534,8 @@ class UVData(UVBase):
         calc_lst=True,
         fix_old_proj=None,
         fix_use_ant_pos=True,
+        make_multi_phase=False,
+        ignore_name=False,
     ):
         """
         Read a generic file into a UVData object.
@@ -10782,6 +10799,16 @@ class UVData(UVBase):
             If setting `fix_old_proj` to True, use the antenna positions to derive the
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
+        make_multi_phase : bool
+            Option to make the output a multi phase center dataset, capable of holding
+            data on multiple phase centers. By default, this is only done if reading
+            in a file with multiple sources.
+        ignore_name : bool
+            Only relevant when reading in multiple files, which are concatenated into a
+            single UVData object. Option to ignore the name of the phase center when
+            combining multiple files, which would otherwise result in an error being
+            raised because of attributes not matching. Doing so effectively adopts the
+            name found in the first file read in. Default is False.
 
         Raises
         ------
@@ -10914,6 +10941,7 @@ class UVData(UVBase):
                         calc_lst=calc_lst,
                         fix_old_proj=fix_old_proj,
                         fix_use_ant_pos=fix_use_ant_pos,
+                        make_multi_phase=make_multi_phase,
                     )
                     unread = False
                 except KeyError as err:
@@ -10988,6 +11016,7 @@ class UVData(UVBase):
                             calc_lst=calc_lst,
                             fix_old_proj=fix_old_proj,
                             fix_use_ant_pos=fix_use_ant_pos,
+                            make_multi_phase=make_multi_phase,
                         )
                         uv_list.append(uv2)
                     except KeyError as err:
@@ -11041,6 +11070,7 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     inplace=True,
+                    ignore_name=ignore_name,
                 )
             else:
                 # Too much work to rewrite __add__ to operate on lists
@@ -11058,6 +11088,7 @@ class UVData(UVBase):
                             run_check=run_check,
                             check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability,
+                            ignore_name=ignore_name,
                         )
                     uv_list = uv_list[0::2]
                 # Because self was at the beginning of the list,
@@ -11306,6 +11337,15 @@ class UVData(UVBase):
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
                 )
+
+            if make_multi_phase:
+                self._set_multi_phase_center(preserve_phase_center_info=True)
+                # If no app coords found (like for a drift data set), then
+                # go ahead and calculate those now
+                if (self.phase_center_app_ra is None) or (
+                    self.phase_center_app_dec is None
+                ):
+                    self._set_app_coords_helper()
 
             if unphase_to_drift:
                 if self.phase_type != "drift":

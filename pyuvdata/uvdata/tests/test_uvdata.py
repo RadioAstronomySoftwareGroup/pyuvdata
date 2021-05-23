@@ -10560,7 +10560,7 @@ def test_multi_phase_multi_file(hera_uvh5, future_shapes):
     assert uvfull == uv3
 
     # Okay, now try allowing one UVData object to become a mutli-phase-ctr data set
-    uv3 = uv1.__add__(uv2, make_multi_obj=True, inplace=False)
+    uv3 = uv1.__add__(uv2, make_multi_phase=True, inplace=False)
     uvfull._set_multi_phase_center(preserve_phase_center_info=True)
     uvfull.split_phase_center("target1", "target2", ~half_mask)
     uv3.reorder_blts()
@@ -10664,3 +10664,23 @@ def test_multi_phase_multi_file(hera_uvh5, future_shapes):
     uv3._update_phase_center_id("target1", 0)
     uv3._update_phase_center_id("target2", 1)
     assert uv3 == uvfull
+
+
+def test_multi_phase_on_read(hera_uvh5):
+    """"
+    Verify that we can create a multi-phase-ctr object on read that matches what
+    one would expect when running some of the various helper functions for converting
+    a single phase center object into a multi-phase one.
+    """
+    # The file below is the same that's used for the hera_uvh5 fixture
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
+    uv_object.read(testfile, make_multi_phase=True)
+
+    # Marking the file as multi-phase and calculating the apparent coords are the
+    # two major things required for replicating the "make_multi_phase" operation above
+    hera_uvh5._set_multi_phase_center(preserve_phase_center_info=True)
+    hera_uvh5._set_app_coords_helper()
+
+    # These two objects should be identical
+    assert uv_object == hera_uvh5
