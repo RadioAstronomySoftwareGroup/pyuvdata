@@ -152,7 +152,7 @@ def test_read_write_read_carma(tmp_path):
             "ambpsys in extra_keywords is a list, array or dict",
             "bfmask in extra_keywords is a list, array or dict",
             "wcorr in extra_keywords is a list, array or dict",
-            "Cannot fix the phases of multi-object datasets, as they were not "
+            "Cannot fix the phases of multi phase center datasets, as they were not "
             "supported when the old phasing method was used, and thus, there "
             "is no need to correct the data.",
         ],

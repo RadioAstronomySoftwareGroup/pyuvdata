@@ -63,11 +63,11 @@ class Mir(UVData):
         mir_data = mir_parser.MirParser(filepath)
 
         # By default, we will want to assume that MIR datasets are phased, multi-spw,
-        # and multi-object. At present, there is no advantage to allowing these not to
-        # be true on read-in, particularly as in the long-term, these settings will
-        # hopefully become the default for all data sets.
+        # and multi phase center. At present, there is no advantage to allowing these
+        # not to be true on read-in, particularly as in the long-term, these settings
+        # will hopefully become the default for all data sets.
         self._set_phased()
-        self._set_multi_object()
+        self._set_multi_phase_center()
         self._set_flex_spw()
 
         isource_full_list = np.unique(mir_data.in_read["isource"]).tolist()
@@ -317,35 +317,35 @@ class Mir(UVData):
 
         sou_list = mir_data.codes_data[mir_data.codes_data["v_name"] == b"source"]
 
-        object_name_list = [
+        name_list = [
             sou_list[sou_list["icode"] == idx]["code"][0].decode("utf-8")
             for idx in isource
         ]
 
         for idx, sou_id in enumerate(isource):
             source_mask = mir_data.in_data["isource"] == sou_id
-            object_ra = np.mean(mir_data.in_data["rar"][source_mask]).astype(float)
-            object_dec = np.mean(mir_data.in_data["decr"][source_mask]).astype(float)
-            coord_epoch = np.mean(mir_data.in_data["epoch"][source_mask]).astype(float)
-            self._add_object(
-                object_name_list[idx],
-                object_type="sidereal",
-                object_lon=object_ra,
-                object_lat=object_dec,
-                coord_epoch=coord_epoch,
-                coord_frame="fk5",
-                object_src="file",
-                object_id=sou_id,
+            source_ra = np.mean(mir_data.in_data["rar"][source_mask]).astype(float)
+            source_dec = np.mean(mir_data.in_data["decr"][source_mask]).astype(float)
+            source_epoch = np.mean(mir_data.in_data["epoch"][source_mask]).astype(float)
+            self._add_phase_center(
+                name_list[idx],
+                cat_type="sidereal",
+                cat_lon=source_ra,
+                cat_lat=source_dec,
+                cat_epoch=source_epoch,
+                cat_frame="fk5",
+                info_source="file",
+                cat_id=sou_id,
             )
 
         # Regenerate the sou_id_array thats native to MIR into a zero-indexed per-blt
         # entry for UVData, then grab ra/dec/position data.
-        object_id_array = mir_data.in_data["isource"][bl_in_maparr[sb_screen]]
-        self.object_id_array = object_id_array.astype(int)
+        phase_center_id_array = mir_data.in_data["isource"][bl_in_maparr[sb_screen]]
+        self.phase_center_id_array = phase_center_id_array.astype(int)
 
-        self.phase_center_ra = 0.0  # This are ignored w/ multi-obj data sets
-        self.phase_center_dec = 0.0  # This are ignored w/ multi-obj data sets
-        self.phase_center_epoch = 2000.0  # This are ignored w/ multi-obj data sets
+        self.phase_center_ra = 0.0  # This is ignored w/ mutli-phase-ctr data sets
+        self.phase_center_dec = 0.0  # This is ignored w/ mutli-phase-ctr data sets
+        self.phase_center_epoch = 2000.0  # This is ignored w/ mutli-phase-ctr data sets
         self.phase_center_frame = "icrs"
 
         # Fill in the apparent coord calculations

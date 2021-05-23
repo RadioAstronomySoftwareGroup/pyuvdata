@@ -262,52 +262,55 @@ class UVData(UVBase):
         )  # 1 mHz
 
         desc = (
-            "Name(s) of source(s) or field(s) observed. Type string, or if "
-            "multi_object = True, a list of strings of length (Nobjects,)."
+            "Name(s) of source(s) or field(s) observed, type string. If "
+            'multi_phase_center = True, set to "multi".'
         )
         self._object_name = uvp.UVParameter(
             "object_name", description=desc, form="str", expected_type=str,
         )
 
-        # --- multi-object handling ---
+        # --- multi phase center handling ---
         desc = (
             'Only relevant if phase_type = "phased". Specifies the that the data set '
             "contains multiple sources within it."
         )
-        self._multi_object = uvp.UVParameter(
-            "multi_object", description=desc, expected_type=bool, value=False,
+        self._multi_phase_center = uvp.UVParameter(
+            "multi_phase_center", description=desc, expected_type=bool, value=False,
         )
 
         desc = (
-            "Required if multi_object = True. Specifies the number of sources "
+            "Required if multi_phase_center = True. Specifies the number of sources "
             "contained within the data set."
         )
 
-        self._Nobjects = uvp.UVParameter(
-            "Nobjects", description=desc, expected_type=int, required=False,
+        self._Nphase = uvp.UVParameter(
+            "Nphase", description=desc, expected_type=int, required=False,
         )
 
         desc = (
-            "Only relevant if multi_object = True. Dictionary containing information "
-            "individual objects, including coordinate information. Keys are matched "
-            "items in the object_name list attribute. At a minimum, the each "
-            'dictionary must contain the key "object_type", which can be either '
+            "Only relevant if multi_phase_center = True. Dictionary that acts as a "
+            "catalog, containing information on individual phase centers. Keys are the "
+            "names of the different phase centers in the UVData object. At a minimum, "
+            'each dictionary must contain the key "cat_type", which can be either '
             '"sidereal" (fixed position in RA/Dec), "ephem" (position in RA/Dec which'
             'moves with time), "driftscan" (fixed postion in Az/El, NOT the same as '
             '`phase_type`="drift") and "unphased" (baseline coordinates in ENU, but '
-            'data are not phased, similat to `phase_type`="drift"). Other typical '
-            'keyworks include "object_lon" (longitude coord, e.g. RA), "object_lat" '
-            '(latitude coord, e.g. Dec.), "coord_frame" (coordinate frame, e.g. '
-            'icrs), "coord_epoch" (epoch and equinox of the coordinate frame), '
-            '"coord_times" (times for the coordinates, only used for "ephem" '
-            'objects), "object_pm_ra" (proper motion in RA), "object_pm_dec" (proper '
-            'motion in Dec), "object_dist" (physical distance), "object_vel" ('
-            'rest frame velocity), "object_src" (describes where object data came '
-            'from), and "object_id" (matched to the parameter `object_id_array`. '
-            "See the documentation of the `_add_object` method for more details."
+            'data are not phased, similar to `phase_type`="drift"). Other typical '
+            'keyworks include "cat_lon" (longitude coord, e.g. RA), "cat_lat" '
+            '(latitude coord, e.g. Dec.), "cat_frame" (coordinate frame, e.g. '
+            'icrs), "cat_epoch" (epoch and equinox of the coordinate frame), '
+            '"cat_times" (times for the coordinates, only used for "ephem" '
+            'types), "cat_pm_ra" (proper motion in RA), "cat_pm_dec" (proper '
+            'motion in Dec), "cat_dist" (physical distance), "object_vel" ('
+            'rest frame velocity), "info_source" (describes where catalog info came '
+            'from), and "cat_id" (matched to the parameter `phase_center_id_array`. '
+            "See the documentation of the `phase` method for more details."
         )
-        self._object_dict = uvp.UVParameter(
-            "object_dict", description=desc, expected_type=dict, required=False,
+        self._phase_center_catalog = uvp.UVParameter(
+            "phase_center_catalog",
+            description=desc,
+            expected_type=dict,
+            required=False,
         )
 
         self._telescope_name = uvp.UVParameter(
@@ -376,7 +379,7 @@ class UVData(UVBase):
         # --- phasing information ---
         desc = (
             'String indicating phasing type. Allowed values are "drift" and '
-            '"phased" (n.b., "drift" is not the same as `object_type="driftscan"`, '
+            '"phased" (n.b., "drift" is not the same as `cat_type="driftscan"`, '
             "the latter of which _is_ phased to a fixed az-el position)."
         )
         self._phase_type = uvp.UVParameter(
@@ -482,13 +485,13 @@ class UVData(UVBase):
         )
 
         desc = (
-            "Required if multi_object = True. Maps individual entries along the Nblt "
-            "axis to a specific object in object_name, with the ID values of "
-            "individual objects stored along with other metadata in the `object_dict` "
-            " parameter. Shape (Nblts), type = int."
+            "Required if multi_phase_center = True. Maps individual indices along the "
+            "Nblt axis to an entry in `phase_center_catalog`, with the ID number of "
+            "individual entries stored as `cat_id`, along with other metadata. "
+            "Shape (Nblts), type = int."
         )
-        self._object_id_array = uvp.UVParameter(
-            "object_id_array",
+        self._phase_center_id_array = uvp.UVParameter(
+            "phase_center_id_array",
             description=desc,
             form=("Nblts",),
             expected_type=int,
@@ -697,20 +700,20 @@ class UVData(UVBase):
         # Now make sure that chan_width is set to be an array
         self._channel_width.form = ("Nfreqs",)
 
-    def _lookup_object(
+    def _look_in_catalog(
         self,
-        object_name,
-        object_dict=None,
-        object_type=None,
-        object_lon=None,
-        object_lat=None,
-        coord_frame=None,
-        coord_epoch=None,
-        coord_times=None,
-        object_pm_ra=None,
-        object_pm_dec=None,
-        object_dist=None,
-        object_vrad=None,
+        cat_name,
+        phase_dict=None,
+        cat_type=None,
+        cat_lon=None,
+        cat_lat=None,
+        cat_frame=None,
+        cat_epoch=None,
+        cat_times=None,
+        cat_pm_ra=None,
+        cat_pm_dec=None,
+        cat_dist=None,
+        cat_vrad=None,
         ignore_name=False,
     ):
         """
@@ -721,83 +724,88 @@ class UVData(UVBase):
         # 1 marcsec tols
         radian_tols = (0, 1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0))
         default_tols = (1e-5, 1e-8)
-        object_id = None
+        cat_id = None
         obj_diffs = 0
 
-        # Emulate the defaults that are set if None is detected for unphased and
-        # driftscan type objects.
-        if (object_type == "unphased") or (object_type == "driftscan"):
-            if object_lon is None:
-                object_lon = 0.0
-            if object_lat is None:
-                object_lat = np.pi / 2
-            if coord_frame is None:
-                coord_frame = "altaz"
+        # Emulate the defaults that are set if None is detected for
+        # unphased and driftscan types.
+        if (cat_type == "unphased") or (cat_type == "driftscan"):
+            if cat_lon is None:
+                cat_lon = 0.0
+            if cat_lat is None:
+                cat_lat = np.pi / 2
+            if cat_frame is None:
+                cat_frame = "altaz"
 
-        if object_dict is None:
-            object_dict = {
-                "object_type": object_type,
-                "object_lon": object_lon,
-                "object_lat": object_lat,
-                "coord_frame": coord_frame,
-                "coord_epoch": coord_epoch,
-                "coord_times": coord_times,
-                "object_pm_ra": object_pm_ra,
-                "object_pm_dec": object_pm_dec,
-                "object_dist": object_dist,
-                "object_vrad": object_vrad,
+        if phase_dict is None:
+            phase_dict = {
+                "cat_type": cat_type,
+                "cat_lon": cat_lon,
+                "cat_lat": cat_lat,
+                "cat_frame": cat_frame,
+                "cat_epoch": cat_epoch,
+                "cat_times": cat_times,
+                "cat_pm_ra": cat_pm_ra,
+                "cat_pm_dec": cat_pm_dec,
+                "cat_dist": cat_dist,
+                "cat_vrad": cat_vrad,
             }
 
-        if self.multi_object:
-            check_dict = self.object_dict
+        if self.multi_phase_center:
+            check_dict = self.phase_center_catalog
         else:
             check_dict = {}
             is_phased = self.phase_type == "phased"
             check_dict[self.object_name] = {
-                "object_type": "sidereal" if is_phased else "unphased",
-                "object_lon": self.phase_center_ra if is_phased else 0.0,
-                "object_lat": self.phase_center_dec if is_phased else np.pi / 2.0,
-                "coord_frame": self.phase_center_frame if is_phased else "altaz",
-                "coord_epoch": self.phase_center_epoch if is_phased else None,
-                "coord_times": None,
-                "object_pm_ra": None,
-                "object_pm_dec": None,
-                "object_dist": None,
-                "object_vrad": None,
-                "object_id": 0,
+                "cat_type": "sidereal" if is_phased else "unphased",
+                "cat_lon": self.phase_center_ra if is_phased else 0.0,
+                "cat_lat": self.phase_center_dec if is_phased else np.pi / 2.0,
+                "cat_frame": self.phase_center_frame if is_phased else "altaz",
+                "cat_epoch": self.phase_center_epoch if is_phased else None,
+                "cat_times": None,
+                "cat_pm_ra": None,
+                "cat_pm_dec": None,
+                "cat_dist": None,
+                "cat_vrad": None,
+                "cat_id": 0,
             }
 
         tol_dict = {
-            "object_type": None,
-            "object_lon": radian_tols,
-            "object_lat": radian_tols,
-            "coord_frame": None,
-            "coord_epoch": None,
-            "coord_times": default_tols,
-            "object_pm_ra": default_tols,
-            "object_pm_dec": default_tols,
-            "object_dist": default_tols,
-            "object_vrad": default_tols,
+            "cat_type": None,
+            "cat_lon": radian_tols,
+            "cat_lat": radian_tols,
+            "cat_frame": None,
+            "cat_epoch": None,
+            "cat_times": default_tols,
+            "cat_pm_ra": default_tols,
+            "cat_pm_dec": default_tols,
+            "cat_dist": default_tols,
+            "cat_vrad": default_tols,
         }
-        object_names = self.object_name if self.multi_object else [self.object_name]
-        for name in object_names:
+
+        if self.multi_phase_center:
+            name_list = list(self.phase_center_catalog.keys())
+        else:
+            name_list = [self.object_name]
+
+        for name in name_list:
             obj_diffs = 0
-            if (object_name != name) and (not ignore_name):
+            if (cat_name != name) and (not ignore_name):
                 continue
             for key in tol_dict.keys():
-                if object_dict.get(key) is not None:
+                if phase_dict.get(key) is not None:
                     if check_dict[name].get(key) is None:
                         obj_diffs += 1
                     elif tol_dict[key] is None:
                         # If no tolerance specified, expect attributes to be identical
-                        obj_diffs += object_dict.get(key) != check_dict[name].get(key)
+                        obj_diffs += phase_dict.get(key) != check_dict[name].get(key)
                     else:
                         # Numpy will throw a Value error if you have two arrays
                         # of different shape, which we can catch to flag that
                         # the two arrays are actually not within tolerance.
                         try:
                             obj_diffs += not np.allclose(
-                                object_dict[key],
+                                phase_dict[key],
                                 check_dict[name][key],
                                 tol_dict[key][0],
                                 tol_dict[key][1],
@@ -806,240 +814,243 @@ class UVData(UVBase):
                             obj_diffs += 1
                 else:
                     obj_diffs += check_dict[name][key] is not None
-            if (obj_diffs == 0) or (object_name == name):
-                object_id = check_dict[name]["object_id"]
+            if (obj_diffs == 0) or (cat_name == name):
+                cat_id = check_dict[name]["cat_id"]
                 break
 
-        return object_id, obj_diffs
+        return cat_id, obj_diffs
 
-    def _add_object(
+    def _add_phase_center(
         self,
-        object_name,
-        object_type=None,
-        object_lon=None,
-        object_lat=None,
-        coord_frame=None,
-        coord_epoch=None,
-        coord_times=None,
-        object_pm_ra=None,
-        object_pm_dec=None,
-        object_dist=None,
-        object_vrad=None,
-        object_src="user",
+        cat_name,
+        cat_type=None,
+        cat_lon=None,
+        cat_lat=None,
+        cat_frame=None,
+        cat_epoch=None,
+        cat_times=None,
+        cat_pm_ra=None,
+        cat_pm_dec=None,
+        cat_dist=None,
+        cat_vrad=None,
+        info_source="user",
         force_update=False,
-        object_id=None,
+        cat_id=None,
     ):
         """
         Add an entry to the internal object/source catalog.
 
-        This is a helper function for adding adding a source to the internal object
-        catalog, contained within the attribute object_dict.
+        This is a helper function for adding adding a source to the internal
+        catalog, contained within the attribute `phase_center_catalog`.
 
         Parameters
         ----------
-        object_name : str
-            Name of the object to be added, must be unique (i.e., not contained in the
-            UVData attribute object_name).
-        object_type : str
-            Type of object to be added. Must be one of the following:
-                sidereal - Most commonly used, described typically by RA/Dec
-                ephem - Describes "moving" objects, e.g., solar system bodies
-                driftscan - Fixed az/el position (assumes zenith if no args supplied)
-                unphased - Multi-obj equivalent of phase_type == "drift"
-        object_lon : float or ndarray
+        cat_name : str
+            Name of the phase center to be added, must be unique (i.e., not contained
+            as a key in the UVData attribute `phase_center_catalog`).
+        cat_type : str
+            Type of phase center to be added. Must be one of:
+                "sidereal" (fixed RA/Dec),
+                "ephem" (RA/Dec that moves with time),
+                "driftscan" (fixed az/el position),
+                "unphased" (no w-projection, equivalent to `phase_type` == "drift").
+        cat_lon : float or ndarray
             Value of the longitudinal coordinate (e.g., RA, Az, l) of the object.
-            No default, not used for unphased objects. Expected to be a float for
+            No default, not used when `cat_type="unphased"`. Expected to be a float for
             sidereal and driftscan objects, and an ndarray of floats of shape (Npts,)
-            for ephem objects.
-        object_lat : float or ndarray
+            for ephem phase centers.
+        cat_lat : float or ndarray
             Value of the latitudinal coordinate (e.g., Dec, El, b) of the object.
-            No default, not used for unphased objects. Expected to be a float for
+            No default, not used when `cat_type="unphased"`. Expected to be a float for
             sidereal and driftscan objects, and an ndarray of floats of shape (Npts,)
-            for ephem objects.
-        coord_frame : str
-            Coordinate frame that object_lon and object_lat are given in. Only used
+            for ephem phase centers.
+        cat_frame : str
+            Coordinate frame that cat_lon and cat_lat are given in. Only used
             for sidereal and ephem targets. Can be any of the several supported frames
             in astropy (a limited list: fk4, fk5, icrs, gcrs, cirs, galactic).
-        coord_epoch : str or float
-            Epoch of the coordinates, only used when coord_frame = fk4 or fk5. Given
+        cat_epoch : str or float
+            Epoch of the coordinates, only used when cat_frame = fk4 or fk5. Given
             in unites of fractional years, either as a float or as a string with the
             epoch abbreviation (e.g, Julian epoch 2000.0 would be J2000.0).
-        object_pm_ra : float
-            Proper motion in RA, in units of mas/year. Only used for sidereal objects.
-        object_pm_dec : float
-            Proper motion in Dec, in units of mas/year. Only used for sidereal objects.
-        object_dist : float or ndarray of float
+        cat_pm_ra : float
+            Proper motion in RA, in units of mas/year. Only used for sidereal phase
+            centers.
+        cat_pm_dec : float
+            Proper motion in Dec, in units of mas/year. Only used for sidereal phase
+            centers.
+        cat_dist : float or ndarray of float
             Distance of the source, in units of pc. Only used for sidereal and ephem
-            objects. Expected to be a float for sidereal and driftscan objects, and an
-            ndarray of floats of shape (Npts,) for ephem objects.
-        object_vrad : float or ndarray of float
+            phase centers. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        cat_vrad : float or ndarray of float
             Radial velocity of the source, in units of km/s. Only used for sidereal and
-            ephem objects. Expected to be a float for sidereal and driftscan objects,
-            and an ndarray of floats of shape (Npts,) for ephem objects.
+            ephem phase centers. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
         object_coord_time : ndarray of float
             Time (in Julian day) for each set of coordinates in an ephemeris. Only used
-            for ephem objects, shape (Npts,).
-        object_src : str
+            for ephem phase centers, shape (Npts,).
+        info_source : str
             Optional string describing the source of the information provided. Used
             primarily in UVData to denote when an ephemeris has been supplied by the
-            JPL-Horizons system, or user-supplied. Default is 'user'.
+            JPL-Horizons system, user-supplied, or read in by one of the various file
+            interpreters. Default is 'user'.
         force_update : bool
-            Normally, `_add_object` will throw an error if there already exists an
-            identically named object with different properties. However, if one sets
-            force_update=True, the method will overwrite the existing entry in
-            `object_dict` with the paramters supplied, preserving only the parameters
-            `object_id` and `object_name`. Note that doing this will _not_ update other
-            atributes of the `UVData` object. Default is False.
-        object_id : int
+            Normally, `_add_phase_center` will throw an error if there already exists an
+            identically named phase center with different properties. However, if one
+            sets `force_update=True`, the method will overwrite the existing entry in
+            `phase_center_catalog` with the paramters supplied, preserving only the
+            parameters `cat_id` and `cat_name`. Note that doing this will _not_ update
+            other atributes of the `UVData` object. Default is False.
+        cat_id : int
             An integer signifying the ID number of for the object, used in the
-            `object_id_array` attribute. The default is for the method to assign this
-            value automatically.
+            `phase_center_id_array` attribute. The default is for the method to assign
+            this value automatically.
 
         Returns
         -------
-        object_id : int
-            The unique ID number for the object added to the internal catalog. This
-            value is used in the `object_id_array` attribute to denote which source a
-            given baseline-time corresponds to.
+        cat_id : int
+            The unique ID number for the phase center added to the internal catalog.
+            This value is used in the `phase_center_id_array` attribute to denote which
+            source a given baseline-time corresponds to.
 
         Raises
         ------
         ValueError
             If attempting to add a non-unique source name, attempting to use the method
-            w/ a UVData object where multi_object=False, or if adding a sidereal source
-            without coordinates.
+            w/ a UVData object where multi_phase_center=False, or if adding a sidereal
+            source without coordinates.
         """
         # Check whether we should actually be doing this in the first place
-        if not self.multi_object:
-            raise ValueError("Cannot add a source if multi_object != True.")
+        if not self.multi_phase_center:
+            raise ValueError("Cannot add a source if multi_phase_center != True.")
 
-        if not isinstance(object_name, str):
-            raise ValueError("object_name must be a string.")
+        if not isinstance(cat_name, str):
+            raise ValueError("cat_name must be a string.")
 
-        # The object name "unphased" is used internally whenever we have to make a
+        # The catalog name "unphased" is used internally whenever we have to make a
         # block of data as unphased in a data set. To avoid naming collisions, check
         # that someone hasn't tried to use it for any other purpose.
-        if (object_name == "unphased") and (object_type != "unphased"):
+        if (cat_name == "unphased") and (cat_type != "unphased"):
             raise ValueError(
                 "The name unphased is reserved. Please choose another value for "
-                "object_name."
+                "cat_name."
             )
 
-        # We currently only have 4 object types -- make sure the user supplied
+        # We currently only have 4 supported types -- make sure the user supplied
         # one of those
-        if object_type not in ["sidereal", "ephem", "driftscan", "unphased"]:
+        if cat_type not in ["sidereal", "ephem", "driftscan", "unphased"]:
             raise ValueError(
                 "Only sidereal, ephem, driftscan or unphased may be used "
-                "for object_type."
+                "for cat_type."
             )
 
         # Both proper motion parameters need to be set together
-        if (object_pm_ra is None) != (object_pm_dec is None):
+        if (cat_pm_ra is None) != (cat_pm_dec is None):
             raise ValueError(
                 "Must supply values for either both or neither of "
-                "object_pm_ra and object_pm_dec."
+                "cat_pm_ra and cat_pm_dec."
             )
 
         # If left unset, unphased and driftscan defaulted to Az, El = (0, 90)
-        if (object_type == "unphased") or (object_type == "driftscan"):
-            if object_lon is None:
-                object_lon = 0.0
-            if object_lat is None:
-                object_lat = np.pi / 2
-            if coord_frame is None:
-                coord_frame = "altaz"
+        if (cat_type == "unphased") or (cat_type == "driftscan"):
+            if cat_lon is None:
+                cat_lon = 0.0
+            if cat_lat is None:
+                cat_lat = np.pi / 2
+            if cat_frame is None:
+                cat_frame = "altaz"
 
         # Let's check some case-specific things and make sure all the entires are value
-        if (coord_times is None) and (object_type == "ephem"):
-            raise ValueError("coord_times cannot be None for ephem object.")
-        elif (coord_times is not None) and (object_type != "ephem"):
-            raise ValueError("coord_times cannot be used for non-ephem objects.")
+        if (cat_times is None) and (cat_type == "ephem"):
+            raise ValueError("cat_times cannot be None for ephem object.")
+        elif (cat_times is not None) and (cat_type != "ephem"):
+            raise ValueError("cat_times cannot be used for non-ephem phase centers.")
 
-        if (object_lon is None) and (object_type in ["sidereal", "ephem"]):
-            raise ValueError("object_lon cannot be None for sidereal object.")
+        if (cat_lon is None) and (cat_type in ["sidereal", "ephem"]):
+            raise ValueError("cat_lon cannot be None for sidereal phase centers.")
 
-        if (object_lat is None) and (object_type in ["sidereal", "ephem"]):
-            raise ValueError("object_lat cannot be None for sidereal object.")
+        if (cat_lat is None) and (cat_type in ["sidereal", "ephem"]):
+            raise ValueError("cat_lat cannot be None for sidereal phase centers.")
 
-        if (coord_frame is None) and (object_type in ["sidereal", "ephem"]):
-            raise ValueError("coord_frame cannot be None for sidereal object.")
-        elif (coord_frame != "altaz") and (object_type in ["driftscan", "unphased"]):
+        if (cat_frame is None) and (cat_type in ["sidereal", "ephem"]):
+            raise ValueError("cat_frame cannot be None for sidereal phase centers.")
+        elif (cat_frame != "altaz") and (cat_type in ["driftscan", "unphased"]):
             raise ValueError(
-                "coord_frame must be either None or 'altaz' when the object type "
+                "cat_frame must be either None or 'altaz' when the cat type "
                 "is either driftscan or unphased."
             )
 
-        if (object_type == "unphased") and (object_lon != 0.0):
+        if (cat_type == "unphased") and (cat_lon != 0.0):
             raise ValueError(
-                "Objects that are unphased must have object_lon set to either "
+                "Catalog entries that are unphased must have cat_lon set to either "
                 "0 or None."
             )
-        if (object_type == "unphased") and (object_lat != (np.pi / 2)):
+        if (cat_type == "unphased") and (cat_lat != (np.pi / 2)):
             raise ValueError(
-                "Objects that are unphased must have object_lat set to either "
+                "Catalog entries that are unphased must have cat_lat set to either "
                 "pi/2 or None."
             )
 
-        if (object_type != "sidereal") and (
-            (object_pm_ra is not None) or (object_pm_dec is not None)
+        if (cat_type != "sidereal") and (
+            (cat_pm_ra is not None) or (cat_pm_dec is not None)
         ):
             raise ValueError(
-                "Non-zero proper motion values (object_pm_ra, object_pm_dec) "
-                "for object types other than sidereal are not supported."
+                "Non-zero proper motion values (cat_pm_ra, cat_pm_dec) "
+                "for cat types other than sidereal are not supported."
             )
 
-        if isinstance(coord_epoch, Time) or isinstance(coord_epoch, str):
-            if coord_frame.lower() in ["fk4", "fk4noeterms"]:
-                coord_epoch = Time(coord_epoch).byear
+        if isinstance(cat_epoch, Time) or isinstance(cat_epoch, str):
+            if cat_frame in ["fk4", "fk4noeterms"]:
+                cat_epoch = Time(cat_epoch).byear
             else:
-                coord_epoch = Time(coord_epoch).jyear
-        elif coord_epoch is not None:
-            coord_epoch = float(coord_epoch)
+                cat_epoch = Time(cat_epoch).jyear
+        elif cat_epoch is not None:
+            cat_epoch = float(cat_epoch)
 
-        if object_type == "ephem":
-            coord_times = np.array(coord_times, dtype=float).reshape(-1)
-            cshape = coord_times.shape
+        if cat_type == "ephem":
+            cat_times = np.array(cat_times, dtype=float).reshape(-1)
+            cshape = cat_times.shape
             try:
-                object_lon = np.array(object_lon, dtype=float).reshape(cshape)
-                object_lat = np.array(object_lat, dtype=float).reshape(cshape)
-                if object_dist is not None:
-                    object_dist = np.array(object_dist, dtype=float).reshape(cshape)
-                if object_vrad is not None:
-                    object_vrad = np.array(object_vrad, dtype=float).reshape(cshape)
+                cat_lon = np.array(cat_lon, dtype=float).reshape(cshape)
+                cat_lat = np.array(cat_lat, dtype=float).reshape(cshape)
+                if cat_dist is not None:
+                    cat_dist = np.array(cat_dist, dtype=float).reshape(cshape)
+                if cat_vrad is not None:
+                    cat_vrad = np.array(cat_vrad, dtype=float).reshape(cshape)
             except ValueError:
                 raise ValueError(
                     "Object properties -- lon, lat, pm_ra, pm_dec, dist, vrad -- must "
-                    "be of the same size as coord_times for ephem objects."
+                    "be of the same size as cat_times for ephem phase centers."
                 )
         else:
-            object_lon = None if object_lon is None else float(object_lon)
-            object_lat = None if object_lat is None else float(object_lat)
-            object_pm_ra = None if object_pm_ra is None else float(object_pm_ra)
-            object_pm_dec = None if object_pm_dec is None else float(object_pm_dec)
-            object_dist = None if object_dist is None else float(object_dist)
-            object_vrad = None if object_vrad is None else float(object_vrad)
+            cat_lon = None if cat_lon is None else float(cat_lon)
+            cat_lat = None if cat_lat is None else float(cat_lat)
+            cat_pm_ra = None if cat_pm_ra is None else float(cat_pm_ra)
+            cat_pm_dec = None if cat_pm_dec is None else float(cat_pm_dec)
+            cat_dist = None if cat_dist is None else float(cat_dist)
+            cat_vrad = None if cat_vrad is None else float(cat_vrad)
 
-        # Object names serve as dict keys, so we need to make sure that they're unique
+        # Names serve as dict keys, so we need to make sure that they're unique
         if not force_update:
-            temp_id, obj_diffs = self._lookup_object(
-                object_name,
-                object_type=object_type,
-                object_lon=object_lon,
-                object_lat=object_lat,
-                coord_frame=coord_frame,
-                coord_epoch=coord_epoch,
-                coord_times=coord_times,
-                object_pm_ra=object_pm_ra,
-                object_pm_dec=object_pm_dec,
-                object_dist=object_dist,
-                object_vrad=object_vrad,
+            temp_id, obj_diffs = self._look_in_catalog(
+                cat_name,
+                cat_type=cat_type,
+                cat_lon=cat_lon,
+                cat_lat=cat_lat,
+                cat_frame=cat_frame,
+                cat_epoch=cat_epoch,
+                cat_times=cat_times,
+                cat_pm_ra=cat_pm_ra,
+                cat_pm_dec=cat_pm_dec,
+                cat_dist=cat_dist,
+                cat_vrad=cat_vrad,
             )
 
             # If the source does have the same name, check to see if all the
             # atributes match. If so, no problem, go about your business
             if temp_id is not None:
                 if obj_diffs == 0:
-                    # Everything matches, return the object ID of the matching entry
+                    # Everything matches, return the catalog ID of the matching entry
                     return temp_id
                 else:
                     raise IndexError(
@@ -1049,52 +1060,49 @@ class UVData(UVBase):
         # We want to create a unique ID for each source, for use in indexing arrays.
         # The logic below ensures that we pick the lowest positive integer that is
         # not currently being used by another source
-        used_object_ids = [
-            self.object_dict[name]["object_id"] for name in self.object_name
-        ]
+        used_cat_ids = {
+            self.phase_center_catalog[name]["cat_id"]: name
+            for name in self.phase_center_catalog.keys()
+        }
 
-        if force_update and (object_name in self.object_name):
-            object_id = self.object_dict[object_name]["object_id"]
-        elif object_id is None:
-            object_id = np.arange(self.Nobjects + 1)[
-                ~np.isin(np.arange(self.Nobjects + 1), used_object_ids)
+        if force_update and (cat_name in self.phase_center_catalog.keys()):
+            cat_id = self.phase_center_catalog[cat_name]["cat_id"]
+        elif cat_id is None:
+            cat_id = np.arange(self.Nphase + 1)[
+                ~np.isin(np.arange(self.Nphase + 1), list(used_cat_ids.keys()))
             ][0]
-        elif object_id in used_object_ids:
+        elif cat_id in used_cat_ids.keys():
             raise ValueError(
-                "Provided object_id belongs to another source (%s)."
-                % self.object_name[np.where(np.equal(used_object_ids, object_id))[0][0]]
+                "Provided cat_id belongs to another source (%s)." % used_cat_ids[cat_id]
             )
 
         # If source is unique, begin creating a dictionary for it
-        object_dict = {
-            "object_id": object_id,
-            "object_type": object_type,
-            "object_lon": object_lon,
-            "object_lat": object_lat,
-            "coord_frame": coord_frame,
-            "coord_epoch": coord_epoch,
-            "coord_times": coord_times,
-            "object_pm_ra": object_pm_ra,
-            "object_pm_dec": object_pm_dec,
-            "object_vrad": object_vrad,
-            "object_dist": object_dist,
-            "object_src": object_src,
+        phase_dict = {
+            "cat_id": cat_id,
+            "cat_type": cat_type,
+            "cat_lon": cat_lon,
+            "cat_lat": cat_lat,
+            "cat_frame": cat_frame,
+            "cat_epoch": cat_epoch,
+            "cat_times": cat_times,
+            "cat_pm_ra": cat_pm_ra,
+            "cat_pm_dec": cat_pm_dec,
+            "cat_vrad": cat_vrad,
+            "cat_dist": cat_dist,
+            "info_source": info_source,
         }
 
-        self.object_dict[object_name] = object_dict
-        if not (force_update and (object_name in self.object_name)):
-            self.Nobjects += 1
-            self.object_name.append(object_name)
+        self.phase_center_catalog[cat_name] = phase_dict
+        self.Nphase = len(self.phase_center_catalog.keys())
+        return cat_id
 
-        return object_id
-
-    def _remove_object(self, defunct_name):
+    def _remove_phase_center(self, defunct_name):
         """
         Remove an entry from the internal object/source catalog.
 
-        Removes an object entry from the attributes object_name and object_dict.
-        Only allowed when the UVData object in question is a multi-object data set
-        (i.e., multi_object == True).
+        Removes an entry from the attribute `phase_center_catalog`. Only allowed when
+        the UVData object in question is a multi phase center data set (i.e.,
+        `multi_phase_center=True`).
 
         Parameters
         ----------
@@ -1104,142 +1112,145 @@ class UVData(UVBase):
         Raises
         ------
         ValueError
-            If multi_object is not set to True
+            If multi_phase_center is not set to True
         IndexError
-            If the name provided is not found in the attribute object_name
+            If the name provided is not found as a key in `phase_center_catalog`
         """
-        if not self.multi_object:
-            raise ValueError("Cannot remove an object if multi_object != True.")
+        if not self.multi_phase_center:
+            raise ValueError(
+                "Cannot remove a phase center if multi_phase_center != True."
+            )
 
-        if defunct_name not in self.object_name:
+        if defunct_name not in self.phase_center_catalog.keys():
             raise IndexError("No source by that name contained in the catalog.")
 
-        self.object_name.remove(defunct_name)
-        del self.object_dict[defunct_name]
-        self.Nobjects -= 1
+        del self.phase_center_catalog[defunct_name]
+        self.Nphase = len(self.phase_center_catalog.keys())
 
-    def _clear_unused_objects(self):
+    def _clear_unused_phase_centers(self):
         """
         Remove objects dictionaries and names that are no longer in use.
 
-        Goes through the object_dict and object_name attributes in UVData and
-        clears out entries that are no longer being used, and appropriately
-        updates the object_id_array accordingly. This function is not typically
-        called by users, but instead other finctions
+        Goes through the `phase_center_catalog` attribute in of a UVData object and
+        clears out entries that are no longer being used, and appropriately updates
+        `phase_center_id_array` accordingly. This function is not typically called
+        by users, but instead is used by other functions.
 
         Raises
         ------
         ValueError
-            If attempting to call the method when multi_object=False.
+            If attempting to call the method when multi_phase_center=False.
         """
-        if not self.multi_object:
-            raise ValueError("Cannot remove an object if multi_object != True.")
+        if not self.multi_phase_center:
+            raise ValueError(
+                "Cannot remove a phase center if multi_phase_center != True."
+            )
 
-        unique_object_ids = np.unique(self.object_id_array)
+        unique_cat_ids = np.unique(self.phase_center_id_array)
         defunct_list = []
-        Nobjects = 0
-        for object_name in self.object_name:
-            object_id = self.object_dict[object_name]["object_id"]
-            if object_id in unique_object_ids:
-                Nobjects += 1
+        Nphase = 0
+        for cat_name in self.phase_center_catalog.keys():
+            cat_id = self.phase_center_catalog[cat_name]["cat_id"]
+            if cat_id in unique_cat_ids:
+                Nphase += 1
             else:
-                defunct_list.append(object_name)
+                defunct_list.append(cat_name)
 
         # Check the number of "good" sources we have -- if we haven't dropped any,
-        # then we are free to bail, otherwise update the Nobjects attribute
-        if Nobjects == self.Nobjects:
+        # then we are free to bail, otherwise update the Nphase attribute
+        if Nphase == self.Nphase:
             return
 
         # Time to kill the entries that are no longer in the source stack
         for defunct_name in defunct_list:
-            self._remove_object(defunct_name)
+            self._remove_phase_center(defunct_name)
 
     def _check_for_unphased(self):
         """
-        Check which Nblts are unphased in a multi-object dataset.
+        Check which Nblts are unphased in a multi phase center dataset.
 
         This convenience method returns back a boolean mask to identify which data
         along the Blt axis contains unphased objects (which is only applicable when
-        multi_object=True)
+        multi_phase_center=True)
 
         Returns
         -------
         blt_mask : ndarray of bool
             A boolean mask for identifying which elements contain unphased objects
         """
-        if self.multi_object:
+        if self.multi_phase_center:
             # Check and see if we have any unphased objects, in which case
             # their w-values should be zeroed out.
             nophase_dict = {
-                self.object_dict[name]["object_id"]: self.object_dict[name][
-                    "object_type"
-                ]
+                self.phase_center_catalog[name]["cat_id"]: self.phase_center_catalog[
+                    name
+                ]["cat_type"]
                 == "unphased"
-                for name in self.object_name
+                for name in self.phase_center_catalog.keys()
             }
 
             # Use dict to construct a bool array
             blt_mask = np.array(
-                [nophase_dict[idx] for idx in self.object_id_array], dtype=bool
+                [nophase_dict[idx] for idx in self.phase_center_id_array], dtype=bool
             )
         else:
-            # If not multi-object, we just need to check the phase type
+            # If not multi phase center, we just need to check the phase type
             blt_mask = np.repeat(self.phase_type == "drift", self.Nblts)
 
         return blt_mask
 
-    def rename_object(self, old_name, new_name):
+    def rename_phase_center(self, old_name, new_name):
         """
-        Rename an object within a multi-object data set.
+        Rename a phase center/catalog entry within a multi phase center data set.
 
         Parameters
         ----------
         old_name : str
-            Object name for the data to be renamed.
+            Phase center name for the data to be renamed.
         new_name : str
-            New name for the object.
+            New name for the phase center.
 
         Raises
         ------
         ValueError
-            If attempting to run the method on a non multi-object data set, if the name
-            `object_name` is not in the data set, or if `new_name` is already taken, or
-            if attemping to name a source "unphased" (which is reserved).
+            If attempting to run the method on a non multi phase center data set, if
+            `old_name` is not found as a key in `phase_center_catalog`, if `new_name`
+            already exists as a key in `phase_center_catalog`, or if attempting to
+            name a source "unphased" (which is reserved).
         TypeError
             If `new_name` is not actually a string.
         """
-        if not self.multi_object:
-            raise ValueError("Cannot rename an object if multi_object != True.")
-        if old_name not in self.object_name:
+        if not self.multi_phase_center:
             raise ValueError(
-                "No object with the name %s found in the dataset." % old_name
+                "Cannot rename a phase center if multi_phase_center != True."
             )
+        if old_name not in self.phase_center_catalog.keys():
+            raise ValueError("No entry by the name %s in the catalog." % old_name)
         if not isinstance(new_name, str):
             raise TypeError("Value provided to new_name must be a string.")
         if new_name == old_name:
             # This is basically just a no-op, so return to user
             return
-        if new_name in self.object_name:
+        if new_name in self.phase_center_catalog.keys():
             raise ValueError(
                 "Must include a unique name for new_name, %s is already present "
-                "in object_dict." % new_name
+                "in phase_center_catalog." % new_name
             )
         if (new_name == "unphased") and (
-            self.object_dict[old_name]["object_type"] != "unphased"
+            self.phase_center_catalog[old_name]["cat_type"] != "unphased"
         ):
             raise ValueError(
                 "The name unphased is reserved. Please choose another value for "
                 "new_name."
             )
 
-        self.object_dict[new_name] = self.object_dict[old_name]
-        self.object_name.append(new_name)
-        self.Nobjects += 1
-        self._remove_object(old_name)
+        self.phase_center_catalog[new_name] = self.phase_center_catalog[old_name]
+        self.Nphase = len(self.phase_center_catalog.keys())
+        self._remove_phase_center(old_name)
 
-    def split_object(self, object_name, new_name, select_mask, downselect=False):
+    def split_phase_center(self, cat_name, new_name, select_mask, downselect=False):
         """
-        Rename the object name (but preserve other properties) of a subset of data.
+        Rename the phase center (but preserve other properties) of a subset of data.
 
         Allows you to rename a subset of the data phased to a particular object, marked
         by a different name than the original. Useful when you want to phase to one
@@ -1248,45 +1259,49 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        object_name : str
-            Object name for the data to be renamed.
+        cat_name : str
+            Name of the phase center to be split.
         new_name : str
             New name for the object.
         select_mask : array_like
-            Selection mask for which data should be identified as belonging to the
-            object labeled by `new_name`. Any array-like able to be used as an index
+            Selection mask for which data should be identified as belonging to the phase
+            center labeled by `new_name`. Any array-like able to be used as an index
             is suitable -- the most typical is an array of bool with length `Nblts`,
             or an array of ints within the range (-Nblts, Nblts).
         downselect : bool
-            If selecting data that is not marked as belonging to `object_name`,
+            If selecting data that is not marked as belonging to `cat_name`,
             normally an error is thrown. By setting this to True, `select_mask` will
-            be modified to exclude data not marked as belonging to `object_name`.
+            be modified to exclude data not marked as belonging to `cat_name`.
 
         Raises
         ------
         ValueError
-            If attempting to run the method on a non multi-object data set, if the name
-            `object_name` is not in the data set, or if `new_name` is already taken.
-            Also raised if `select_mask` contains data that doesn't belong to the
-            aforementioned object, unless setting `downselect` to True.
+            If attempting to run the method on a non multi phase center data set, if
+            `old_name` is not found as a key in `phase_center_catalog`, if `new_name`
+            already exists as a key in `phase_center_catalog`, or if attempting to
+            name a source "unphased" (which is reserved). Also raised if `select_mask`
+            contains data that doesn't belong to `cat_name`, unless setting
+            `downselect` to True.
         IndexError
             If select_mask is not a valid indexing array.
         UserWarning
-            If all data for `object_name` was selected (in which case `rename_object` is
-            called instead), or if no valid data was selected.
+            If all data for `cat_name` was selected (in which case `rename_phase_center`
+            is called instead), or if no valid data was selected.
         """
         # Check to make sure that everything lines up with
-        if not self.multi_object:
-            raise ValueError("Cannot use split_object on a non-multi-object data set.")
-        if object_name not in self.object_name:
-            raise ValueError("No object by the name %s in object_name." % object_name)
-        if new_name in self.object_name:
+        if not self.multi_phase_center:
             raise ValueError(
-                "The name %s is already found in object_name, choose another name "
+                "Cannot use split_phase_center on a non-multi phase center data set."
+            )
+        if cat_name not in self.phase_center_catalog.keys():
+            raise ValueError("No entry by the name %s in the catalog." % cat_name)
+        if new_name in self.phase_center_catalog.keys():
+            raise ValueError(
+                "The name %s is already found in the catalog, choose another name "
                 "for new_name." % new_name
             )
         if (new_name == "unphased") and (
-            self.object_dict[object_name]["object_type"] != "unphased"
+            self.phase_center_catalog[cat_name]["cat_type"] != "unphased"
         ):
             raise ValueError(
                 "The name unphased is reserved. Please choose another value for "
@@ -1303,21 +1318,21 @@ class UVData(UVBase):
             )
         # Now that we know nthat all the inputs are sensible, lets make sure that
         # the select_mask choice is sensible
-        object_id = self.object_dict[object_name]["object_id"]
+        cat_id = self.phase_center_catalog[cat_name]["cat_id"]
 
-        # If we have selected any entries that don't correspond to the object_id
+        # If we have selected any entries that don't correspond to the cat_id
         # in question, either downselect or raise an error.
-        if np.any(object_id != self.object_id_array[select_mask]):
+        if np.any(cat_id != self.phase_center_id_array[select_mask]):
             if downselect:
                 select_mask = np.logical_and(
-                    ~inv_mask, object_id == self.object_id_array
+                    ~inv_mask, cat_id == self.phase_center_id_array
                 )
                 inv_mask = ~select_mask
             else:
                 raise ValueError(
                     "Data selected with select_mask includes that which has not been "
                     "phased to %s. You can fix this by either revising select_mask or "
-                    "setting downselect=True." % object_name
+                    "setting downselect=True." % cat_name
                 )
 
         # Now check for no(-ish) ops
@@ -1326,116 +1341,119 @@ class UVData(UVBase):
             warnings.warn(
                 "No relevant data selected - %s not added to the data set" % new_name
             )
-        elif not np.any(object_id == self.object_id_array[inv_mask]):
-            # No matching object IDs found outside the range, so this is really a
+        elif not np.any(cat_id == self.phase_center_id_array[inv_mask]):
+            # No matching catalog IDs found outside the range, so this is really a
             # replace more than a split.
             warnings.warn(
-                "All data for %s selected - using rename_object instead of a "
-                "split_object." % object_name
+                "All data for %s selected - using rename_phase_center instead of a "
+                "split_phase_center." % cat_name
             )
-            self.rename_object(object_name, new_name)
+            self.rename_phase_center(cat_name, new_name)
         else:
-            temp_dict = self.object_dict[object_name]
-            object_id = self._add_object(
+            temp_dict = self.phase_center_catalog[cat_name]
+            cat_id = self._add_phase_center(
                 new_name,
-                temp_dict["object_type"],
-                object_lon=temp_dict.get("object_lon"),
-                object_lat=temp_dict.get("object_lat"),
-                coord_frame=temp_dict.get("coord_frame"),
-                coord_epoch=temp_dict.get("coord_epoch"),
-                coord_times=temp_dict.get("coord_times"),
-                object_pm_ra=temp_dict.get("object_pm_ra"),
-                object_pm_dec=temp_dict.get("object_pm_dec"),
-                object_dist=temp_dict.get("object_dist"),
-                object_vrad=temp_dict.get("object_vrad"),
+                temp_dict["cat_type"],
+                cat_lon=temp_dict.get("cat_lon"),
+                cat_lat=temp_dict.get("cat_lat"),
+                cat_frame=temp_dict.get("cat_frame"),
+                cat_epoch=temp_dict.get("cat_epoch"),
+                cat_times=temp_dict.get("cat_times"),
+                cat_pm_ra=temp_dict.get("cat_pm_ra"),
+                cat_pm_dec=temp_dict.get("cat_pm_dec"),
+                cat_dist=temp_dict.get("cat_dist"),
+                cat_vrad=temp_dict.get("cat_vrad"),
             )
-            self.object_id_array[select_mask] = object_id
+            self.phase_center_id_array[select_mask] = cat_id
 
-    def merge_object(self, objname1, objname2, force_merge=False):
+    def merge_phase_centers(self, catname1, catname2, force_merge=False):
         """
-        Merge two differently named objects into one within a multi-obj data set.
+        Merge two differently named objects into one within a mutli-phase-ctr data set.
 
         Recombines two different objects into a single catalog entry -- useful if
-        having previously used `split_object` or when multiple objects with different
-        names share the same source parameters.
+        having previously used `split_phase_center` or when multiple objects with
+        different names share the same source parameters.
 
         Parameters
         ----------
-        objname1 : str
+        catname1 : str
             String containing the name of the first object. Note that this name will
             be preserved in the UVData object.
-        objname2 : str
+        catname2 : str
             String containing the name of the second object, which will be merged into
-            the first object. Note that once the merge is complete, all information
-            about this object is removed.
+            the first phase center. Note that once the merge is complete, all
+            information about this phase center is removed.
         force_merge : bool
-            Normally, the method will throw an error if the object properties differ
-            for `objname1` and `objname2`. This can be overriden by setting this to
-            True. Default is False.Angle
+            Normally, the method will throw an error if the phase center properties
+            differ for `catname1` and `catname2`. This can be overriden by setting this
+            to True. Default is False.
 
         Raises
         ------
         ValueError
-            If objname1 or objname2 are not found in the UVData object, of if their
+            If catname1 or catname2 are not found in the UVData object, of if their
             properties differ (and `force_merge` is not set to True).
         UserWarning
             If forcing the merge of two objects with different properties.
         """
-        if not self.multi_object:
-            raise ValueError("Cannot use merge_object on a non-multi-object data set.")
-        if objname1 not in self.object_name:
-            raise ValueError("No object by the name %s in object_name." % objname1)
-        if objname2 not in self.object_name:
-            raise ValueError("No object by the name %s in object_name." % objname2)
-        temp_dict = self.object_dict[objname2]
+        if not self.multi_phase_center:
+            raise ValueError(
+                "Cannot use merge_phase_centers on a non-multi phase center data set."
+            )
+        if catname1 not in self.phase_center_catalog.keys():
+            raise ValueError("No entry by the name %s in the catalog." % catname1)
+        if catname2 not in self.phase_center_catalog.keys():
+            raise ValueError("No entry by the name %s in the catalog." % catname2)
+        temp_dict = self.phase_center_catalog[catname2]
         # First, let's check and see if the dict entries are identical
-        object_id, obj_diffs = self._lookup_object(
-            objname1,
-            object_type=temp_dict["object_type"],
-            object_lon=temp_dict.get("object_lon"),
-            object_lat=temp_dict.get("object_lat"),
-            coord_frame=temp_dict.get("coord_frame"),
-            coord_epoch=temp_dict.get("coord_epoch"),
-            coord_times=None,
-            object_pm_ra=None,
-            object_pm_dec=None,
-            object_dist=None,
-            object_vrad=None,
+        cat_id, obj_diffs = self._look_in_catalog(
+            catname1,
+            cat_type=temp_dict["cat_type"],
+            cat_lon=temp_dict.get("cat_lon"),
+            cat_lat=temp_dict.get("cat_lat"),
+            cat_frame=temp_dict.get("cat_frame"),
+            cat_epoch=temp_dict.get("cat_epoch"),
+            cat_times=None,
+            cat_pm_ra=None,
+            cat_pm_dec=None,
+            cat_dist=None,
+            cat_vrad=None,
         )
         if obj_diffs != 0:
             if force_merge:
                 warnings.warn(
                     "Forcing %s and %s together, even though their attributes "
-                    "differ" % (objname1, objname2)
+                    "differ" % (catname1, catname2)
                 )
             else:
                 raise ValueError(
-                    "Attributes of %s and %s in object_dict differ, which means "
-                    "that they are likely not referring to the same position in "
-                    "the sky. You can ignore this error and force merge_object to "
-                    "complete by setting force_merge=True, but this should be done "
-                    "with substantial caution." % (objname1, objname2)
+                    "Attributes of %s and %s in phase_center_catalog differ, which "
+                    "means that they are likely not referring to the same position in "
+                    "the sky. You can ignore this error and force merge_phase_centers "
+                    "to complete by setting force_merge=True, but this should be done "
+                    "with substantial caution." % (catname1, catname2)
                 )
 
-        old_object_id = self.object_dict[objname2]["object_id"]
-        self.object_id_array[self.object_id_array == old_object_id] = object_id
-        self._remove_object(objname2)
+        old_cat_id = self.phase_center_catalog[catname2]["cat_id"]
+        self.phase_center_id_array[self.phase_center_id_array == old_cat_id] = cat_id
+        self._remove_phase_center(catname2)
 
-    def print_objects(
-        self, object_name=None, hms_format=None, return_str=False, print_table=True
+    def print_phase_center_info(
+        self, cat_name=None, hms_format=None, return_str=False, print_table=True
     ):
         """
-        Print out the details of objects in a multi-obj data set.
+        Print out the details of objects in a mutli-phase-ctr data set.
 
-        Prints out an ASCII table that contains the details of the `object_dict`
-        attribute, which acts as the internal source catalog for UVData objects
+        Prints out an ASCII table that contains the details of the
+        `phase_center_catalog` attribute, which acts as the internal source catalog
+        for UVData objects.
 
         Parameters
         ----------
-        object_name : str
+        cat_name : str
             Optional parameter which, if provided, will cause the method to only return
-            information on the object with the matching name. Default is to print out
-            information on all objects.
+            information on the phase center with the matching name. Default is to print
+            out information on all catalog entries.
         hms_format : bool
             Optional parameter, which if selected, can be used to force coordinates to
             be printed out in Hours-Min-Sec (if set to True) or Deg-Min-Sec (if set to
@@ -1456,44 +1474,49 @@ class UVData(UVBase):
         Raises
         ------
         ValueError
-            If object_name is not found within the UVData object.
+            If `cat_name` matches no keys in `phase_center_catalog`.
         """
         r2d = 180.0 / np.pi
         r2m = 60.0 * 180.0 / np.pi
         r2s = 3600.0 * 180.0 / np.pi
         ra_frames = ["icrs", "gcrs", "fk5", "fk4", "topo"]
 
-        if not self.multi_object:
-            raise ValueError("Cannot use print_objects on a non-multi-object data set.")
-        if object_name is None:
-            dict_list = [self.object_dict[name] for name in self.object_name]
-        elif object_name in self.object_name:
-            dict_list = [self.object_dict[object_name]]
+        if not self.multi_phase_center:
+            raise ValueError(
+                "Cannot use print_phase_center_info on a "
+                "non-multi phase center data set."
+            )
+        if cat_name is None:
+            name_list = list(self.phase_center_catalog.keys())
+            dict_list = [self.phase_center_catalog[name] for name in name_list]
+        elif cat_name in self.phase_center_catalog.keys():
+            name_list = [cat_name]
+            dict_list = [self.phase_center_catalog[cat_name]]
         else:
-            raise ValueError("No object by the name %s in object_name." % object_name)
+            raise ValueError("No entry by the name %s in the catalog." % cat_name)
 
         # We want to check and actually see which fields we need to
         # print
         any_lon = any_lat = any_frame = any_epoch = any_times = False
         any_pm_ra = any_pm_dec = any_dist = any_vrad = False
 
-        object_id_list = []
+        cat_id_list = []
         for indv_dict in dict_list:
-            object_id_list.append(indv_dict["object_id"])
-            any_lon = any_lon or indv_dict.get("object_lon") is not None
-            any_lat = any_lat or indv_dict.get("object_lat") is not None
-            any_frame = any_frame or indv_dict.get("coord_frame") is not None
-            any_epoch = any_epoch or indv_dict.get("coord_epoch") is not None
-            any_times = any_times or indv_dict.get("coord_times") is not None
-            any_pm_ra = any_pm_ra or indv_dict.get("object_pm_ra") is not None
-            any_pm_dec = any_pm_dec or indv_dict.get("object_pm_dec") is not None
-            any_dist = any_dist or indv_dict.get("object_dist") is not None
-            any_vrad = any_vrad or indv_dict.get("object_vrad") is not None
+            cat_id_list.append(indv_dict["cat_id"])
+            any_lon = any_lon or indv_dict.get("cat_lon") is not None
+            any_lat = any_lat or indv_dict.get("cat_lat") is not None
+            any_frame = any_frame or indv_dict.get("cat_frame") is not None
+            any_epoch = any_epoch or indv_dict.get("cat_epoch") is not None
+            any_times = any_times or indv_dict.get("cat_times") is not None
+            any_pm_ra = any_pm_ra or indv_dict.get("cat_pm_ra") is not None
+            any_pm_dec = any_pm_dec or indv_dict.get("cat_pm_dec") is not None
+            any_dist = any_dist or indv_dict.get("cat_dist") is not None
+            any_vrad = any_vrad or indv_dict.get("cat_vrad") is not None
 
             if any_lon and (hms_format is None):
-                coord_frame = indv_dict.get("coord_frame")
-                object_type = indv_dict["object_type"]
-                if (coord_frame not in ra_frames) or (object_type == "driftscan"):
+                cat_frame = indv_dict.get("cat_frame")
+                cat_type = indv_dict["cat_type"]
+                if (cat_frame not in ra_frames) or (cat_type == "driftscan"):
                     hms_format = False
 
         if hms_format is None:
@@ -1501,18 +1524,18 @@ class UVData(UVBase):
 
         col_list = []
         col_list.append(
-            {"hdr": ("ID", "#"), "fmt": "% 4i", "field": " %4s ", "name": "object_id"}
+            {"hdr": ("ID", "#"), "fmt": "% 4i", "field": " %4s ", "name": "cat_id"}
         )
         col_list.append(
             {
-                "hdr": ("Object", "Name"),
+                "hdr": ("Cat Entry", "Name"),
                 "fmt": "%12s",
                 "field": " %12s ",
-                "name": "object_name",
+                "name": "cat_name",
             }
         )
         col_list.append(
-            {"hdr": ("Type", ""), "fmt": "%9s", "field": " %9s ", "name": "object_type"}
+            {"hdr": ("Type", ""), "fmt": "%9s", "field": " %9s ", "name": "cat_type"}
         )
 
         if any_lon:
@@ -1521,7 +1544,7 @@ class UVData(UVBase):
                     "hdr": ("Az/Lon/RA", "hours" if hms_format else "deg"),
                     "fmt": "% 3i:%02i:%05.2f",
                     "field": (" %12s " if hms_format else " %13s "),
-                    "name": "object_lon",
+                    "name": "cat_lon",
                 }
             )
         if any_lat:
@@ -1530,7 +1553,7 @@ class UVData(UVBase):
                     "hdr": ("El/Lat/Dec", "deg"),
                     "fmt": "%1s%2i:%02i:%05.2f",
                     "field": " %12s ",
-                    "name": "object_lat",
+                    "name": "cat_lat",
                 }
             )
         if any_frame:
@@ -1539,7 +1562,7 @@ class UVData(UVBase):
                     "hdr": ("Frame", ""),
                     "fmt": "%5s",
                     "field": " %5s ",
-                    "name": "coord_frame",
+                    "name": "cat_frame",
                 }
             )
         if any_epoch:
@@ -1548,7 +1571,7 @@ class UVData(UVBase):
                     "hdr": ("Epoch", ""),
                     "fmt": "%7s",
                     "field": " %7s ",
-                    "name": "coord_epoch",
+                    "name": "cat_epoch",
                 }
             )
         if any_times:
@@ -1557,7 +1580,7 @@ class UVData(UVBase):
                     "hdr": ("   Ephem Range   ", "Start-MJD    End-MJD"),
                     "fmt": " %8.2f  % 8.2f",
                     "field": " %19s ",
-                    "name": "coord_times",
+                    "name": "cat_times",
                 }
             )
         if any_pm_ra:
@@ -1566,7 +1589,7 @@ class UVData(UVBase):
                     "hdr": ("PM-Ra", "mas/yr"),
                     "fmt": "%6g",
                     "field": " %6s ",
-                    "name": "object_pm_ra",
+                    "name": "cat_pm_ra",
                 }
             )
         if any_pm_dec:
@@ -1575,7 +1598,7 @@ class UVData(UVBase):
                     "hdr": ("PM-Dec", "mas/yr"),
                     "fmt": "%6g",
                     "field": " %6s ",
-                    "name": "object_pm_dec",
+                    "name": "cat_pm_dec",
                 }
             )
         if any_dist:
@@ -1584,7 +1607,7 @@ class UVData(UVBase):
                     "hdr": ("Dist", "pc"),
                     "fmt": "%.1e",
                     "field": " %7s ",
-                    "name": "object_dist",
+                    "name": "cat_dist",
                 }
             )
         if any_vrad:
@@ -1593,7 +1616,7 @@ class UVData(UVBase):
                     "hdr": ("V_rad", "km/s"),
                     "fmt": "%6g",
                     "field": " %6s ",
-                    "name": "object_vrad",
+                    "name": "cat_vrad",
                 }
             )
 
@@ -1608,19 +1631,19 @@ class UVData(UVBase):
         info_str += top_str + "\n"
         info_str += bot_str + "\n"
         info_str += ("-" * len(bot_str)) + "\n"
-        # We want to print in the order of object_id
-        for idx in np.argsort(object_id_list):
+        # We want to print in the order of cat_id
+        for idx in np.argsort(cat_id_list):
             tbl_str = ""
             for col in col_list:
                 # If we have a "special" field that needs extra handling,
                 # take care of that up front
-                if col["name"] == "object_name":
-                    temp_val = self.object_name[idx]
+                if col["name"] == "cat_name":
+                    temp_val = name_list[idx]
                 else:
                     temp_val = dict_list[idx][col["name"]]
                 if temp_val is None:
                     temp_str = ""
-                elif col["name"] == "object_lon":
+                elif col["name"] == "cat_lon":
                     temp_val = np.median(temp_val)
                     temp_val /= 15.0 if hms_format else 1.0
                     coord_tuple = (
@@ -1629,7 +1652,7 @@ class UVData(UVBase):
                         np.mod(temp_val * r2s, 60.0),
                     )
                     temp_str = col["fmt"] % coord_tuple
-                elif col["name"] == "object_lat":
+                elif col["name"] == "cat_lat":
                     temp_val = np.median(temp_val)
                     coord_tuple = (
                         "-" if temp_val < 0.0 else "+",
@@ -1638,11 +1661,11 @@ class UVData(UVBase):
                         np.mod(np.abs(temp_val) * r2s, 60.0),
                     )
                     temp_str = col["fmt"] % coord_tuple
-                elif col["name"] == "coord_epoch":
-                    use_byrs = dict_list[idx]["coord_frame"] in ["fk4", "fk4noeterms"]
+                elif col["name"] == "cat_epoch":
+                    use_byrs = dict_list[idx]["cat_frame"] in ["fk4", "fk4noeterms"]
                     temp_val = ("B%6.1f" if use_byrs else "J%6.1f") % temp_val
                     temp_str = col["fmt"] % temp_val
-                elif col["name"] == "coord_times":
+                elif col["name"] == "cat_times":
                     time_tuple = (
                         np.min(temp_val) - 2400000.5,
                         np.max(temp_val) - 2400000.5,
@@ -1658,58 +1681,61 @@ class UVData(UVBase):
         if return_str:
             return info_str
 
-    def _update_object_id(self, object_name, new_object_id=None, reserved_ids=None):
+    def _update_phase_center_id(self, cat_name, new_cat_id=None, reserved_ids=None):
         """
         Do a thing.
 
         So that we can do ALL the things.
         """
-        if not self.multi_object:
+        if not self.multi_phase_center:
             raise ValueError(
-                "Cannot use _update_object_id on a non-multi-object data set."
+                "Cannot use _update_phase_center_id on a "
+                "non-multi phase center data set."
             )
 
-        if object_name not in self.object_name:
+        if cat_name not in self.phase_center_catalog.keys():
             raise ValueError(
-                "Cannot run _update_object_id: no object with name %s." % object_name
+                "Cannot run _update_phase_center_id: no entry with name %s." % cat_name
             )
 
-        old_object_id = self.object_dict[object_name]["object_id"]
+        old_cat_id = self.phase_center_catalog[cat_name]["cat_id"]
 
-        used_object_ids = [] if (reserved_ids is None) else reserved_ids.copy()
-        for name in self.object_name:
-            if name != object_name:
-                used_object_ids.append(self.object_dict[name]["object_id"])
-        if new_object_id is None:
+        used_cat_ids = [] if (reserved_ids is None) else reserved_ids.copy()
+        for name in self.phase_center_catalog.keys():
+            if name != cat_name:
+                used_cat_ids.append(self.phase_center_catalog[name]["cat_id"])
+        if new_cat_id is None:
             # If the old ID is in the reserved list, then we'll need to update it
-            if old_object_id not in used_object_ids:
+            if old_cat_id not in used_cat_ids:
                 # Don't need to actually update anything
                 return
             else:
-                new_object_id = np.arange(len(used_object_ids) + 1)[
-                    ~np.isin(np.arange(len(used_object_ids) + 1), used_object_ids)
+                new_cat_id = np.arange(len(used_cat_ids) + 1)[
+                    ~np.isin(np.arange(len(used_cat_ids) + 1), used_cat_ids)
                 ][0]
         else:
-            if new_object_id in used_object_ids:
-                raise ValueError("Object ID supplied already taken by another source.")
+            if new_cat_id in used_cat_ids:
+                raise ValueError("Catalog ID supplied already taken by another source.")
 
-        self.object_id_array[self.object_id_array == old_object_id] = new_object_id
-        self.object_dict[object_name]["object_id"] = new_object_id
+        self.phase_center_id_array[
+            self.phase_center_id_array == old_cat_id
+        ] = new_cat_id
+        self.phase_center_catalog[cat_name]["cat_id"] = new_cat_id
 
-    def _set_multi_object(self, preserve_object_info=False):
+    def _set_multi_phase_center(self, preserve_object_info=False):
         """
-        Set multi_object to True, and adjust required paramteres.
+        Set multi_phase_center to True, and adjust required paramteres.
 
         This method is typically not be called directly by users; instead it is called
-        by the file-reading methods to indicate that an object has multiple sources
-        together in the same data set.
+        by the file-reading methods to indicate that an object has multiple phase
+        centers with in the same data set.
 
         Parameters
         ----------
         preserve_object_info : bool
-            Preserve the source information located in object_name, and for phased data
-            sets, also phase_center_ra, phase_center_dec, phase_center_epoch and
-            phase_center_frame. Default is True.
+            Preserve the source information located in `object_name`, and for phased
+            data sets, also `phase_center_ra`, `phase_center_dec`, `phase_center_epoch`
+            and `phase_center_frame`. Default is True.
 
         Raises
         ------
@@ -1717,38 +1743,36 @@ class UVData(UVBase):
             if the telescope_name is not in known telescopes
         """
         # If you have already set this, don't do anything
-        if self.multi_object:
+        if self.multi_phase_center:
             return
 
-        self.multi_object = True
+        self.multi_phase_center = True
 
         # Mark once-option arrays as now required
-        self._object_id_array.required = True
-        self._Nobjects.required = True
-        self._object_dict.required = True
-        self._object_name.form = ("Nobjects",)
-        self._object_name.strict_type = False
+        self._phase_center_id_array.required = True
+        self._Nphase.required = True
+        self._phase_center_catalog.required = True
 
         # This should technically be required for any phased data set, but for now,
-        # we are only gonna make it mandatory for multi-obj data sets.
+        # we are only gonna make it mandatory for mutli-phase-ctr data sets.
         self._phase_center_app_ra.required = True
         self._phase_center_app_dec.required = True
         self._phase_center_frame_pa.required = True
-        self.Nobjects = 0
-        self.object_dict = {}
-        object_name = self.object_name
-        self.object_name = []
+        self.Nphase = 0
+        self.phase_center_catalog = {}
+        cat_name = self.object_name
+        self.object_name = "multi"
 
         if preserve_object_info:
-            object_id = self._add_object(
-                object_name,
-                object_type="sidereal" if (self.phase_type == "phased") else "unphased",
-                object_lon=self.phase_center_ra,
-                object_lat=self.phase_center_dec,
-                coord_frame=self.phase_center_frame,
-                coord_epoch=self.phase_center_epoch,
+            cat_id = self._add_phase_center(
+                cat_name,
+                cat_type="sidereal" if (self.phase_type == "phased") else "unphased",
+                cat_lon=self.phase_center_ra,
+                cat_lat=self.phase_center_dec,
+                cat_frame=self.phase_center_frame,
+                cat_epoch=self.phase_center_epoch,
             )
-            self.object_id_array = np.zeros(self.Nblts, dtype=int) + object_id
+            self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
 
         self.phase_center_ra = 0.0
         self.phase_center_dec = 0.0
@@ -2048,21 +2072,21 @@ class UVData(UVBase):
         if pa_only:
             app_ra = self.phase_center_app_ra
             app_dec = self.phase_center_app_dec
-        elif self.multi_object:
+        elif self.multi_phase_center:
             app_ra = np.zeros(self.Nblts, dtype=float)
             app_dec = np.zeros(self.Nblts, dtype=float)
-            for name in self.object_name:
-                temp_dict = self.object_dict[name]
-                select_mask = self.object_id_array == temp_dict["object_id"]
-                object_type = temp_dict["object_type"]
-                lon_val = temp_dict.get("object_lon")
-                lat_val = temp_dict.get("object_lat")
-                epoch = temp_dict.get("coord_epoch")
-                frame = temp_dict.get("coord_frame")
-                pm_ra = temp_dict.get("object_pm_ra")
-                pm_dec = temp_dict.get("object_pm_dec")
+            for name in self.phase_center_catalog.keys():
+                temp_dict = self.phase_center_catalog[name]
+                select_mask = self.phase_center_id_array == temp_dict["cat_id"]
+                cat_type = temp_dict["cat_type"]
+                lon_val = temp_dict.get("cat_lon")
+                lat_val = temp_dict.get("cat_lat")
+                epoch = temp_dict.get("cat_epoch")
+                frame = temp_dict.get("cat_frame")
+                pm_ra = temp_dict.get("cat_pm_ra")
+                pm_dec = temp_dict.get("cat_pm_dec")
                 vrad = temp_dict.get("vrad")
-                dist = temp_dict.get("object_dist")
+                dist = temp_dict.get("cat_dist")
 
                 app_ra[select_mask], app_dec[select_mask] = uvutils.calc_app_coords(
                     lon_val,
@@ -2076,7 +2100,7 @@ class UVData(UVBase):
                     time_array=self.time_array[select_mask],
                     lst_array=self.lst_array[select_mask],
                     telescope_loc=self.telescope_location_lat_lon_alt,
-                    object_type=object_type,
+                    coord_type=cat_type,
                 )
         else:
             # So this is actually the easier of the two cases -- just use the object
@@ -2089,7 +2113,7 @@ class UVData(UVBase):
                 time_array=self.time_array,
                 lst_array=self.lst_array,
                 telescope_loc=self.telescope_location_lat_lon_alt,
-                object_type="sidereal",
+                coord_type="sidereal",
             )
 
         # Now that we have the apparent coordinates sorted out, we can figure out what
@@ -3729,8 +3753,8 @@ class UVData(UVBase):
             self.phase_center_app_dec = self.phase_center_app_dec[index_array]
         if self.phase_center_frame_pa is not None:
             self.phase_center_frame_pa = self.phase_center_frame_pa[index_array]
-        if self.multi_object:
-            self.object_id_array = self.object_id_array[index_array]
+        if self.multi_phase_center:
+            self.phase_center_id_array = self.phase_center_id_array[index_array]
 
         if not self.metadata_only:
             self.data_array = self.data_array[index_array]
@@ -4193,8 +4217,10 @@ class UVData(UVBase):
             self.uvw_array = new_uvw
 
             # remove/update phase center
-            if self.multi_object:
-                self.object_id_array[:] = self._add_object("unphased", "unphased")
+            if self.multi_phase_center:
+                self.phase_center_id_array[:] = self._add_phase_center(
+                    "unphased", "unphased"
+                )
                 self.phase_center_app_ra = self.lst_array.copy()
                 self.phase_center_app_dec[:] = (
                     np.zeros(self.Nblts) + self.telescope_location[0]
@@ -4211,11 +4237,11 @@ class UVData(UVBase):
                 self._set_drift()
             return
 
-        # If you are a multi-object data set, there's no valid reason to be going
+        # If you are a multi phase center data set, there's no valid reason to be going
         # back to the old phase method. Time to bail!
-        if self.multi_object:
+        if self.multi_phase_center:
             raise ValueError(
-                "Multi-object data sets are not compatible with the old phasing "
+                "Multi phase center data sets are not compatible with the old phasing "
                 "method, please set use_old_proj=False."
             )
 
@@ -4341,19 +4367,19 @@ class UVData(UVBase):
         self.phase_center_epoch = None
         self._set_drift()
 
-    def _phase_object_dict_helper(
+    def _phase_dict_helper(
         self,
         ra,
         dec,
         epoch,
         phase_frame,
         ephem_times,
-        object_type,
+        cat_type,
         pm_ra,
         pm_dec,
         dist,
         vrad,
-        object_name,
+        cat_name,
         lookup_name,
         select_mask,
         time_array,
@@ -4361,73 +4387,76 @@ class UVData(UVBase):
         """
         Supplies a dictionary with parametrs for the phase method to use.
 
-        This method should not be called directly by users; it is instead a
-        function called by the `phase` method, which packages up object information
+        This method should not be called directly by users; it is instead a function
+        called by the `phase` method, which packages up phase center information
         into a single dictionary to allow for consistent behavior between different
         instantiations of `UVData` objects.
         """
-        object_id = None
-        object_src = "user"
-        object_name_list = self.object_name if self.multi_object else [self.object_name]
+        cat_id = None
+        info_source = "user"
+        if self.multi_phase_center:
+            name_list = list(self.phase_center_catalog.keys())
+        else:
+            name_list = [self.object_name]
 
-        # We only want to use the JPL-Horizons service if using a non-multi-obj instance
-        # of a UVData object.
-        if lookup_name and (object_name not in object_name_list) and self.multi_object:
-            if (object_type is None) or (object_type == "ephem"):
+        # We only want to use the JPL-Horizons service if using a non-mutli-phase-ctr
+        # instance of a UVData object.
+        if lookup_name and (cat_name not in name_list) and self.multi_phase_center:
+            if (cat_type is None) or (cat_type == "ephem"):
                 [
-                    coord_times,
-                    object_lon,
-                    object_lat,
-                    object_dist,
-                    object_vrad,
+                    cat_times,
+                    cat_lon,
+                    cat_lat,
+                    cat_dist,
+                    cat_vrad,
                 ] = uvutils.lookup_jplhorizons(
-                    object_name,
+                    cat_name,
                     time_array,
                     telescope_loc=self.telescope_location_lat_lon_alt,
                 )
-                object_type = "ephem"
-                object_pm_ra = object_pm_dec = None
-                coord_epoch = 2000.0
-                coord_frame = "icrs"
-                object_src = "jplh"
+                cat_type = "ephem"
+                cat_pm_ra = cat_pm_dec = None
+                cat_epoch = 2000.0
+                cat_frame = "icrs"
+                info_source = "jplh"
             else:
                 raise ValueError(
                     "Unable to find %s in among the existing sources "
-                    "recorded in object_name. Please supply source "
+                    "recorded in the catalog. Please supply source "
                     "information (e.g., RA and Dec coordinates) and "
-                    "set lookup_name=False." % object_name
+                    "set lookup_name=False." % cat_name
                 )
-        elif (object_name in object_name_list) and self.multi_object:
+        elif (cat_name in name_list) and self.multi_phase_center:
             # If the name of the source matches, then verify that all of its
-            # properties are the same as what is stored in object_dict.
+            # properties are the same as what is stored in phase_center_catalog.
             if lookup_name:
-                object_id = self.object_dict[object_name]["object_id"]
+                cat_id = self.phase_center_catalog[cat_name]["cat_id"]
                 obj_diffs = 0
             else:
-                object_id, obj_diffs = self._lookup_object(
-                    object_name,
-                    object_type=object_type,
-                    object_lon=ra,
-                    object_lat=dec,
-                    coord_frame=phase_frame,
-                    coord_epoch=epoch,
-                    coord_times=ephem_times,
-                    object_pm_ra=pm_ra,
-                    object_pm_dec=pm_dec,
-                    object_dist=dist,
-                    object_vrad=vrad,
+                cat_id, obj_diffs = self._look_in_catalog(
+                    cat_name,
+                    cat_type=cat_type,
+                    cat_lon=ra,
+                    cat_lat=dec,
+                    cat_frame=phase_frame,
+                    cat_epoch=epoch,
+                    cat_times=ephem_times,
+                    cat_pm_ra=pm_ra,
+                    cat_pm_dec=pm_dec,
+                    cat_dist=dist,
+                    cat_vrad=vrad,
                 )
-            # If obj_diffs > 0, it means that the object properties dont match
+            # If obj_diffs > 0, it means that the catalog entries dont match
             if obj_diffs != 0:
                 # Last chance here -- if we have selected all of the data phased
-                # to the object position, then we are still okay.
+                # to this phase center, then we are still okay.
                 if select_mask is None:
                     # We have selected all data, so we're good
                     pass
                 elif np.all(
                     np.not_equal(
-                        self.object_id_array[~select_mask],
-                        self.object_dict[object_name]["object_id"],
+                        self.phase_center_id_array[~select_mask],
+                        self.phase_center_catalog[cat_name]["cat_id"],
                     )
                 ):
                     # We have selected a subset of the data that contains
@@ -4435,88 +4464,88 @@ class UVData(UVBase):
                     pass
                 else:
                     raise ValueError(
-                        "The object name %s is not unique, but arguments to phase "
-                        "do not match that stored in object_dict. Try using a "
+                        "The entry name %s is not unique, but arguments to phase "
+                        "do not match that stored in phase_center_catalog. Try using a "
                         "different name, using select_mask to select all data "
-                        "phased to this object, or using the existing object "
-                        "information by setting lookup_name=True." % object_name
+                        "phased to this object, or using the existing phase center "
+                        "information by setting lookup_name=True." % cat_name
                     )
-                object_type = "sidereal" if object_type is None else object_type
-                object_lon = ra
-                object_lat = dec
-                coord_frame = phase_frame
-                coord_epoch = epoch
-                coord_times = ephem_times
-                object_pm_ra = pm_ra
-                object_pm_dec = pm_dec
-                object_dist = dist
-                object_vrad = vrad
+                cat_type = "sidereal" if cat_type is None else cat_type
+                cat_lon = ra
+                cat_lat = dec
+                cat_frame = phase_frame
+                cat_epoch = epoch
+                cat_times = ephem_times
+                cat_pm_ra = pm_ra
+                cat_pm_dec = pm_dec
+                cat_dist = dist
+                cat_vrad = vrad
             else:
-                temp_dict = self.object_dict[object_name]
-                object_id = temp_dict["object_id"]
-                object_type = temp_dict["object_type"]
-                object_src = temp_dict["object_src"]
+                temp_dict = self.phase_center_catalog[cat_name]
+                cat_id = temp_dict["cat_id"]
+                cat_type = temp_dict["cat_type"]
+                info_source = temp_dict["info_source"]
                 # Get here will return None if no key found, which we want
-                object_lon = temp_dict.get("object_lon")
-                object_lat = temp_dict.get("object_lat")
-                coord_frame = temp_dict.get("coord_frame")
-                coord_epoch = temp_dict.get("coord_epoch")
-                coord_times = temp_dict.get("coord_times")
-                object_pm_ra = temp_dict.get("object_pm_ra")
-                object_pm_dec = temp_dict.get("object_pm_dec")
-                object_dist = temp_dict.get("object_dist")
-                object_vrad = temp_dict.get("object_vrad")
+                cat_lon = temp_dict.get("cat_lon")
+                cat_lat = temp_dict.get("cat_lat")
+                cat_frame = temp_dict.get("cat_frame")
+                cat_epoch = temp_dict.get("cat_epoch")
+                cat_times = temp_dict.get("cat_times")
+                cat_pm_ra = temp_dict.get("cat_pm_ra")
+                cat_pm_dec = temp_dict.get("cat_pm_dec")
+                cat_dist = temp_dict.get("cat_dist")
+                cat_vrad = temp_dict.get("cat_vrad")
         else:
-            # Either this is not a multi-object data set, or the name of the
+            # Either this is not a multi phase center data set, or the name of the
             # source is unique!
-            object_type = "sidereal" if object_type is None else object_type
-            object_lon = ra
-            object_lat = dec
-            coord_frame = phase_frame
-            coord_epoch = epoch
-            coord_times = ephem_times
-            object_pm_ra = pm_ra
-            object_pm_dec = pm_dec
-            object_dist = dist
-            object_vrad = vrad
+            cat_type = "sidereal" if cat_type is None else cat_type
+            cat_lon = ra
+            cat_lat = dec
+            cat_frame = phase_frame
+            cat_epoch = epoch
+            cat_times = ephem_times
+            cat_pm_ra = pm_ra
+            cat_pm_dec = pm_dec
+            cat_dist = dist
+            cat_vrad = vrad
 
-        if coord_epoch is None:
-            coord_epoch = 1950.0 if (coord_frame in ["fk4", "fk4noeterms"]) else 2000.0
-        if isinstance(coord_epoch, str) or isinstance(coord_epoch, Time):
-            coord_epoch = Time(coord_epoch)
-            if coord_frame.lower() in ["fk4", "fk4noeterms"]:
-                coord_epoch = Time(coord_epoch).byear
+        if cat_epoch is None:
+            cat_epoch = 1950.0 if (cat_frame in ["fk4", "fk4noeterms"]) else 2000.0
+        if isinstance(cat_epoch, str) or isinstance(cat_epoch, Time):
+            cat_epoch = Time(cat_epoch)
+            if cat_frame in ["fk4", "fk4noeterms"]:
+                cat_epoch = Time(cat_epoch).byear
             else:
-                coord_epoch = Time(coord_epoch).jyear
+                cat_epoch = Time(cat_epoch).jyear
 
         # One last check - if we have an ephem object, lets make sure that the
         # time range of the ephemeris encapsulates the entire range of time_array
         check_ephem = False
-        if object_type == "ephem":
+        if cat_type == "ephem":
             # Take advantage of this to make sure that lat, lon, and times are all
             # ndarray types
-            object_lon = np.array(object_lon, dtype=float)
-            object_lat = np.array(object_lat, dtype=float)
-            coord_times = np.array(coord_times, dtype=float)
-            object_lon.shape += (1,) if (object_lon.ndim == 0) else ()
-            object_lat.shape += (1,) if (object_lat.ndim == 0) else ()
-            coord_times.shape += (1,) if (coord_times.ndim == 0) else ()
-            check_ephem = np.min(time_array) < np.min(coord_times)
-            check_ephem = check_ephem or (np.max(time_array) > np.max(coord_times))
+            cat_lon = np.array(cat_lon, dtype=float)
+            cat_lat = np.array(cat_lat, dtype=float)
+            cat_times = np.array(cat_times, dtype=float)
+            cat_lon.shape += (1,) if (cat_lon.ndim == 0) else ()
+            cat_lat.shape += (1,) if (cat_lat.ndim == 0) else ()
+            cat_times.shape += (1,) if (cat_times.ndim == 0) else ()
+            check_ephem = np.min(time_array) < np.min(cat_times)
+            check_ephem = check_ephem or (np.max(time_array) > np.max(cat_times))
             # If the ephem was supplied by JPL-Horizons, then we can easily expand
             # it to cover the requested range.
-            if check_ephem and (object_src == "jplh"):
+            if check_ephem and (info_source == "jplh"):
                 # Concat the two time ranges to make sure that we cover both the
                 # requested time range _and_ the original time range.
                 [
-                    coord_times,
-                    object_lon,
-                    object_lat,
-                    object_dist,
-                    object_vrad,
+                    cat_times,
+                    cat_lon,
+                    cat_lat,
+                    cat_dist,
+                    cat_vrad,
                 ] = uvutils.lookup_jplhorizons(
-                    object_name,
-                    np.concatenate((np.reshape(time_array, -1), coord_times)),
+                    cat_name,
+                    np.concatenate((np.reshape(time_array, -1), cat_times)),
                     telescope_loc=self.telescope_location_lat_lon_alt,
                 )
             elif check_ephem:
@@ -4528,33 +4557,33 @@ class UVData(UVBase):
                     "(and if used, set lookup_name=False)."
                 )
         # Time to repackage everything into a dict
-        object_dict = {
-            "object_name": object_name,
-            "object_type": object_type,
-            "object_lon": object_lon,
-            "object_lat": object_lat,
-            "coord_frame": coord_frame,
-            "coord_epoch": coord_epoch,
-            "coord_times": coord_times,
-            "object_pm_ra": object_pm_ra,
-            "object_pm_dec": object_pm_dec,
-            "object_dist": object_dist,
-            "object_vrad": object_vrad,
-            "object_src": object_src,
-            "object_id": object_id,
+        phase_dict = {
+            "cat_name": cat_name,
+            "cat_type": cat_type,
+            "cat_lon": cat_lon,
+            "cat_lat": cat_lat,
+            "cat_frame": cat_frame,
+            "cat_epoch": cat_epoch,
+            "cat_times": cat_times,
+            "cat_pm_ra": cat_pm_ra,
+            "cat_pm_dec": cat_pm_dec,
+            "cat_dist": cat_dist,
+            "cat_vrad": cat_vrad,
+            "info_source": info_source,
+            "cat_id": cat_id,
         }
 
         # Finally, make sure everything is a float or an ndarray of floats
-        for key in object_dict.keys():
-            if isinstance(object_dict[key], np.ndarray):
-                object_dict[key] = object_dict[key].astype(float)
-            elif (key == "object_id") and (object_dict[key] is not None):
-                # If this is the object_id, make it an int
-                object_dict[key] == int(object_dict[key])
-            elif not ((object_dict[key] is None) or isinstance(object_dict[key], str)):
-                object_dict[key] = float(object_dict[key])
+        for key in phase_dict.keys():
+            if isinstance(phase_dict[key], np.ndarray):
+                phase_dict[key] = phase_dict[key].astype(float)
+            elif (key == "cat_id") and (phase_dict[key] is not None):
+                # If this is the cat_id, make it an int
+                phase_dict[key] == int(phase_dict[key])
+            elif not ((phase_dict[key] is None) or isinstance(phase_dict[key], str)):
+                phase_dict[key] = float(phase_dict[key])
 
-        return object_dict
+        return phase_dict
 
     def phase(
         self,
@@ -4563,12 +4592,12 @@ class UVData(UVBase):
         epoch="J2000",
         phase_frame="icrs",
         ephem_times=None,
-        object_type=None,
+        cat_type=None,
         pm_ra=None,
         pm_dec=None,
         dist=None,
         vrad=None,
-        object_name=None,
+        cat_name=None,
         lookup_name=False,
         use_ant_pos=True,
         allow_rephase=True,
@@ -4616,8 +4645,8 @@ class UVData(UVBase):
             that attribute is None.
         select_mask : ndarray of bool
             Optional mask for selecting which data to operate on along the blt-axis,
-            only used if with multi-object data sets (i.e., multi_object=True). Shape
-            is (Nblts,).
+            only used if with multi phase center data sets (i.e.,
+            `multi_phase_center=True`). Shape is (Nblts,).
         use_old_proj : bool
             If True, use the "old" method for calculating baseline uvw-coordinates,
             which involved using astropy to move antenna positions (in ITRF) into
@@ -4632,13 +4661,13 @@ class UVData(UVBase):
         ValueError
             If the phase_type is 'phased' and allow_rephase is False
         """
-        # Non-multi-object datasets don't (yet) have a way of recording the 'extra'
-        # source properties, or selection mask, so make sure that these aren't using
-        # any of those if looking at a single object.
-        if not self.multi_object:
+        # Non-multi phase center datasets don't (yet) have a way of recording the
+        # 'extra' source properties, or selection mask, so make sure that these aren't
+        # using any of those if looking at a single object.
+        if not self.multi_phase_center:
             if select_mask is not None:
                 raise ValueError(
-                    "Cannot apply a selection mask if multi_object=False. "
+                    "Cannot apply a selection mask if multi_phase_center=False. "
                     "Remove the select_mask argument to continue."
                 )
 
@@ -4647,30 +4676,30 @@ class UVData(UVBase):
             for name, value in zip(check_names, check_params):
                 if value not in [0, None]:
                     raise ValueError(
-                        "Non-zero values of %s not supported when multi_object=False."
-                        % name
+                        "Non-zero values of %s not supported when "
+                        "multi_phase_center=False." % name
                     )
 
-            if (object_type != "sidereal") and (object_type is not None):
+            if (cat_type != "sidereal") and (cat_type is not None):
                 raise ValueError(
-                    "Only sidereal sources are supported when multi_object=False"
+                    "Only sidereal sources are supported when multi_phase_center=False"
                 )
             if lookup_name:
                 raise ValueError(
-                    "Object name lookup is not supported when multi_object=False"
+                    "Object name lookup is not supported when multi_phase_center=False"
                 )
         else:
-            if object_name is None:
+            if cat_name is None:
                 raise ValueError(
-                    "Must supply a unique name for object_name when phasing a "
-                    "multi-object data set."
+                    "Must supply a unique name for cat_name when phasing a "
+                    "multi phase center data set."
                 )
 
-        # If you are a multi-object data set, there's no valid reason to be going
+        # If you are a multi phase center data set, there's no valid reason to be going
         # back to the old phase method. Time to bail!
-        if self.multi_object and use_old_proj:
+        if self.multi_phase_center and use_old_proj:
             raise NotImplementedError(
-                "Multi-object data sets are not compatible with the old phasing "
+                "Multi phase center data sets are not compatible with the old phasing "
                 "method, please set use_old_proj=False."
             )
 
@@ -4744,51 +4773,51 @@ class UVData(UVBase):
             # Before moving forward with the heavy calculations, we need to do some
             # basic housekeeping to make sure that we've got the coordinate data that
             # we need in order to proceed.
-            object_dict = self._phase_object_dict_helper(
+            phase_dict = self._phase_dict_helper(
                 ra,
                 dec,
                 epoch,
                 phase_frame,
                 ephem_times,
-                object_type,
+                cat_type,
                 pm_ra,
                 pm_dec,
                 dist,
                 vrad,
-                object_name,
+                cat_name,
                 lookup_name,
                 select_mask,
                 time_array,
             )
 
             # We got the meta-data, now handle calculating the apparent coordinates.
-            # First, check if we need to look up the object in question
+            # First, check if we need to look up the phase center in question
             new_app_ra, new_app_dec = uvutils.calc_app_coords(
-                object_dict["object_lon"],
-                object_dict["object_lat"],
-                coord_frame=object_dict["coord_frame"],
-                coord_epoch=object_dict["coord_epoch"],
-                coord_times=object_dict["coord_times"],
-                object_type=object_dict["object_type"],
+                phase_dict["cat_lon"],
+                phase_dict["cat_lat"],
+                coord_frame=phase_dict["cat_frame"],
+                coord_epoch=phase_dict["cat_epoch"],
+                coord_times=phase_dict["cat_times"],
+                coord_type=phase_dict["cat_type"],
                 time_array=time_array,
                 lst_array=lst_array,
-                pm_ra=object_dict["object_pm_ra"],
-                pm_dec=object_dict["object_pm_dec"],
-                vrad=object_dict["object_vrad"],
-                dist=object_dict["object_dist"],
+                pm_ra=phase_dict["cat_pm_ra"],
+                pm_dec=phase_dict["cat_pm_dec"],
+                vrad=phase_dict["cat_vrad"],
+                dist=phase_dict["cat_dist"],
                 telescope_loc=self.telescope_location_lat_lon_alt,
             )
 
             # Now calculate position angles. If this is a single onject data set, the
-            # ref frame is always equal to the source coordinate frame. In a multi obj
-            # data set, those two components are allowed to be decoupled.
+            # ref frame is always equal to the source coordinate frame. In a multi phase
+            # center data set, those two components are allowed to be decoupled.
             new_frame_pa = uvutils.calc_frame_pos_angle(
                 time_array,
                 new_app_ra,
                 new_app_dec,
                 self.telescope_location_lat_lon_alt,
-                self.phase_center_frame if self.multi_object else phase_frame,
-                ref_epoch=self.phase_center_epoch if self.multi_object else epoch,
+                self.phase_center_frame if self.multi_phase_center else phase_frame,
+                ref_epoch=self.phase_center_epoch if self.multi_phase_center else epoch,
             )
 
             # Now its time to do some rotations and calculate the new coordinates
@@ -4812,28 +4841,28 @@ class UVData(UVBase):
             )
 
             # With all operations complete, we now start manipulating the UVData object
-            if self.multi_object:
-                object_id = self._add_object(
-                    object_dict["object_name"],
-                    object_dict["object_type"],
-                    object_lon=object_dict["object_lon"],
-                    object_lat=object_dict["object_lat"],
-                    coord_frame=object_dict["coord_frame"],
-                    coord_epoch=object_dict["coord_epoch"],
-                    coord_times=object_dict["coord_times"],
-                    object_pm_ra=object_dict["object_pm_ra"],
-                    object_pm_dec=object_dict["object_pm_dec"],
-                    object_dist=object_dict["object_dist"],
-                    object_vrad=object_dict["object_vrad"],
-                    object_src=object_dict["object_src"],
-                    object_id=object_dict["object_id"],
+            if self.multi_phase_center:
+                cat_id = self._add_phase_center(
+                    phase_dict["cat_name"],
+                    phase_dict["cat_type"],
+                    cat_lon=phase_dict["cat_lon"],
+                    cat_lat=phase_dict["cat_lat"],
+                    cat_frame=phase_dict["cat_frame"],
+                    cat_epoch=phase_dict["cat_epoch"],
+                    cat_times=phase_dict["cat_times"],
+                    cat_pm_ra=phase_dict["cat_pm_ra"],
+                    cat_pm_dec=phase_dict["cat_pm_dec"],
+                    cat_dist=phase_dict["cat_dist"],
+                    cat_vrad=phase_dict["cat_vrad"],
+                    info_source=phase_dict["info_source"],
+                    cat_id=phase_dict["cat_id"],
                     force_update=True,
                 )
 
             # Now its time to update the raw data. This will return empty if
-            # metadata_only is set to True. Note that object_type is only allowed
-            # to be unphased if this is a multi_object data set.
-            new_w_vals = 0.0 if (object_type == "unphased") else new_uvw[:, 2]
+            # metadata_only is set to True. Note that cat_type is only allowed
+            # to be unphased if this is a multi_phase_center data set.
+            new_w_vals = 0.0 if (cat_type == "unphased") else new_uvw[:, 2]
             self._apply_w_proj(new_w_vals, old_w_vals, select_mask=select_mask)
 
             # Finally, we now take it upon ourselves to update some metadata. What we
@@ -4844,35 +4873,35 @@ class UVData(UVBase):
                 self.phase_center_app_ra[select_mask] = new_app_ra
                 self.phase_center_app_dec[select_mask] = new_app_dec
                 self.phase_center_frame_pa[select_mask] = new_frame_pa
-                if self.multi_object:
-                    self.object_id_array[select_mask] = object_id
+                if self.multi_phase_center:
+                    self.phase_center_id_array[select_mask] = cat_id
             else:
                 self.uvw_array = new_uvw
                 self.phase_center_app_ra = new_app_ra
                 self.phase_center_app_dec = new_app_dec
                 self.phase_center_frame_pa = new_frame_pa
-                if self.multi_object:
-                    self.object_id_array[:] = object_id
+                if self.multi_phase_center:
+                    self.phase_center_id_array[:] = cat_id
 
-            # If not multi-object, make sure to update the ra/dec values, since
+            # If not multi phase center, make sure to update the ra/dec values, since
             # otherwise we'll have no record of source properties.
-            if not self.multi_object:
+            if not self.multi_phase_center:
                 # Make sure this is actually marked as a phased dataset now
                 self._set_phased()
 
                 # Update the phase center properties
-                self.phase_center_ra = object_dict["object_lon"]
-                self.phase_center_dec = object_dict["object_lat"]
-                self.phase_center_epoch = object_dict["coord_epoch"]
-                self.phase_center_frame = object_dict["coord_frame"]
-                if object_name is not None:
-                    self.object_name = object_name
+                self.phase_center_ra = phase_dict["cat_lon"]
+                self.phase_center_dec = phase_dict["cat_lat"]
+                self.phase_center_epoch = phase_dict["cat_epoch"]
+                self.phase_center_frame = phase_dict["cat_frame"]
+                if cat_name is not None:
+                    self.object_name = cat_name
             else:
                 self.phase_center_ra = 0.0
                 self.phase_center_dec = 0.0
                 self.phase_center_epoch = 2000.0
                 if cleanup_old_sources:
-                    self._clear_unused_objects()
+                    self._clear_unused_phase_centers()
             # All done w/ the new phase method
             return
         warnings.warn(
@@ -5229,10 +5258,10 @@ class UVData(UVBase):
             self.uvw_array = new_uvw
             return
 
-        # Multi-obj datasets should never use the 'old' uvw calculation method
-        if self.multi_object:
+        # mutli-phase-ctr datasets should never use the 'old' uvw calculation method
+        if self.multi_phase_center:
             raise NotImplementedError(
-                "Multi-object data sets are not compatible with the old uvw "
+                "Multi phase center data sets are not compatible with the old uvw "
                 "calculation  method, please set use_old_proj=False."
             )
 
@@ -5332,10 +5361,10 @@ class UVData(UVBase):
             self.set_uvws_from_antenna_positions(
                 allow_phasing=True, use_old_proj=False,
             )
-        elif self.multi_object:
+        elif self.multi_phase_center:
             raise ValueError(
-                "Cannot run fix_phase on a multi-obj dataset without using the antenna "
-                "positions. Please set use_ant_pos=True."
+                "Cannot run fix_phase on a mutli-phase-ctr dataset without using the "
+                "antenna positions. Please set use_ant_pos=True."
             )
         else:
             # Record the old values
@@ -5343,7 +5372,7 @@ class UVData(UVBase):
             phase_center_dec = self.phase_center_dec
             phase_center_frame = self.phase_center_frame
             phase_center_epoch = self.phase_center_epoch
-            object_name = self.object_name
+            cat_name = self.object_name
 
             # Bring the UVWs back to ENU/unphased
             self.unphase_to_drift(
@@ -5364,7 +5393,7 @@ class UVData(UVBase):
                 phase_center_dec,
                 phase_frame=phase_center_frame,
                 epoch=phase_center_epoch,
-                object_name=object_name,
+                cat_name=cat_name,
                 use_ant_pos=False,
             )
 
@@ -5437,15 +5466,17 @@ class UVData(UVBase):
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
         make_multi_obj : bool
-            Option to make the output a multi-object dataset, capable of holding data
-            on multiple phased targets. Setting this to true will allow for two UVData
-            objects to be combined, even if the phase target properties do not agree
-            (so long as `object_name` is unique for each UVData object). Default is
+            Option to make the output a multi phase center dataset, capable of holding
+            data on multiple phase centers. Setting this to true will allow for two
+            UVData objects to be combined, even if the phase center properties do not
+            agree (so long as the names are unique for each phase center). Default is
             False.
         ignore_name : bool
-            Option to ignore the `object_name` attribute when combining two UVData
-            objects. Doing so effectively adopts the `object_name` of the first UVData
-            object in the sum. Default is False.
+            Option to ignore the name of the phase center (`cat_name` in
+            `phase_center_catalog` when `multi_phase_center=True`, otherwise
+            `object_name`) when combining two UVData objects. Doing so effectively
+            adopts the name found in the first UVData object in the sum. Default is
+            False.
 
 
         Raises
@@ -5592,11 +5623,11 @@ class UVData(UVBase):
             compatibility_params.append("_channel_width")
 
         multi_obj_check = False
-        if this.multi_object == other.multi_object:
-            # If the names are different and we are making a multi-obj data set, then
-            # we can skip the step of checking the ra and dec, otherwise we need to
+        if this.multi_phase_center == other.multi_phase_center:
+            # If the names are different and we are making a mutli-phase-ctr data set,
+            # then we can skip the step of checking the ra and dec, otherwise we need to
             # check it
-            multi_obj_check = make_multi_obj or this.multi_object
+            multi_obj_check = make_multi_obj or this.multi_phase_center
             if not ((this.object_name != other.object_name) and multi_obj_check):
                 compatibility_params.append("_phase_center_ra")
                 compatibility_params.append("_phase_center_dec")
@@ -5605,11 +5636,11 @@ class UVData(UVBase):
             # one of the parameters we check for compatibility.
             if not (ignore_name or multi_obj_check):
                 compatibility_params.append("_object_name")
-        elif not (this.multi_object or make_multi_obj):
+        elif not (this.multi_phase_center or make_multi_obj):
             raise ValueError(
                 "To combine these data, please run the add operation with the UVData "
-                "object with multi_object set to True as the first object in the add "
-                "operation."
+                "object with multi_phase_center set to True as the first object in the "
+                "add operation."
             )
 
         # Build up history string
@@ -5762,9 +5793,9 @@ class UVData(UVBase):
                 "_phase_center_app_ra",
                 "_phase_center_app_dec",
                 "_phase_center_frame_pa",
-                "_object_id_array",
-                "_object_dict",
-                "_Nobjects",
+                "_phase_center_id_array",
+                "_phase_center_catalog",
+                "_Nphase",
             ]
             compatibility_params.extend(extra_params)
             if not ignore_name and ("_object_name" not in compatibility_params):
@@ -5902,91 +5933,92 @@ class UVData(UVBase):
                 if cp[1:] == "object_name":
                     msg += (
                         " This can potentially be remedied by setting "
-                        "ignore_name=True, or by allowing the creation of a multi-obj "
-                        "dataset (by setting make_multi_obj=True)."
+                        "ignore_name=True, or by allowing the creation of a "
+                        "mutli-phase-ctr dataset (by setting make_multi_obj=True)."
                     )
                 raise ValueError(msg)
 
         # At this point, we are assuming that the two data sets _mostly_ compatible.
-        # Last thing we need to check is if these are multi-obj data sets, whether or
-        # not they are compatible.
-        if this.multi_object or make_multi_obj:
-            if other.multi_object:
-                other_names = other.object_name
-                other_cat = other.object_dict
+        # Last thing we need to check is if these are mutli-phase-ctr data sets, whether
+        # or not they are compatible.
+        if this.multi_phase_center or make_multi_obj:
+            if other.multi_phase_center:
+                other_names = list(other.phase_center_catalog.keys())
+                other_cat = other.phase_center_catalog
             else:
                 other_names = [other.object_name]
                 other_cat = {
                     other_names[0]: {
-                        "object_type": "sidereal",
-                        "object_lon": other.phase_center_ra,
-                        "object_lat": other.phase_center_dec,
-                        "coord_frame": other.phase_center_frame,
-                        "coord_epoch": other.phase_center_epoch,
+                        "cat_type": "sidereal",
+                        "cat_lon": other.phase_center_ra,
+                        "cat_lat": other.phase_center_dec,
+                        "cat_frame": other.phase_center_frame,
+                        "cat_epoch": other.phase_center_epoch,
                     },
                 }
 
             for name in other_names:
-                object_id, obj_diffs = this._lookup_object(
-                    name, object_dict=other_cat[name]
+                cat_id, obj_diffs = this._look_in_catalog(
+                    name, phase_dict=other_cat[name]
                 )
-                if (object_id is not None) and (obj_diffs != 0):
+                if (cat_id is not None) and (obj_diffs != 0):
                     # We have a name conflict, raise an error now
                     raise ValueError(
                         "There exists a target named %s in both objects in the "
-                        " sum, but their properties are different. Use the "
-                        "rename_object method in order to rename it in one object."
+                        "sum, but their properties are different. Use the rename_"
+                        "phase_center method in order to rename it in one object."
                         % name
                     )
 
         # Begin manipulating the objects.
-        if make_multi_obj and (not this.multi_object):
-            this._set_multi_object(preserve_object_info=True)
-        if other.multi_object:
+        if make_multi_obj and (not this.multi_phase_center):
+            this._set_multi_phase_center(preserve_object_info=True)
+        if other.multi_phase_center:
             # This to get adding stuff to the catalog
             reserved_ids = [
-                other.object_dict[name]["object_id"] for name in other.object_name
+                other.phase_center_catalog[name]["cat_id"]
+                for name in other.phase_center_catalog.keys()
             ]
             # First loop, we want to look at the sources that are in this, but not
-            # other, since we need to choose object IDs that won't collide with the
+            # other, since we need to choose catalog IDs that won't collide with the
             # catalog that exists.
-            for name in this.object_name:
-                if name not in other.object_name:
-                    this._update_object_id(name, reserved_ids=reserved_ids)
+            for name in this.phase_center_catalog.keys():
+                if name not in other.phase_center_catalog.keys():
+                    this._update_phase_center_id(name, reserved_ids=reserved_ids)
             # Next loop, we want to update the IDs of sources that are in both
-            for name in this.object_name:
-                if name in other.object_name:
-                    this._update_object_id(
-                        name, new_object_id=other.object_dict[name]["object_id"],
+            for name in this.phase_center_catalog.keys():
+                if name in other.phase_center_catalog.keys():
+                    this._update_phase_center_id(
+                        name, new_cat_id=other.phase_center_catalog[name]["cat_id"],
                     )
             # Finally, add those other objects not found in this
-            for name in other.object_name:
-                if name not in list(this.object_name):
-                    this._add_object(
+            for name in other.phase_center_catalog.keys():
+                if name not in this.phase_center_catalog.keys():
+                    this._add_phase_center(
                         name,
-                        object_type=other.object_dict[name]["object_type"],
-                        object_lon=other.object_dict[name]["object_lon"],
-                        object_lat=other.object_dict[name]["object_lat"],
-                        coord_frame=other.object_dict[name]["coord_frame"],
-                        coord_epoch=other.object_dict[name]["coord_epoch"],
-                        coord_times=other.object_dict[name]["coord_times"],
-                        object_pm_ra=other.object_dict[name]["object_pm_ra"],
-                        object_pm_dec=other.object_dict[name]["object_pm_dec"],
-                        object_dist=other.object_dict[name]["object_dist"],
-                        object_vrad=other.object_dict[name]["object_vrad"],
-                        object_src=other.object_dict[name]["object_src"],
-                        object_id=other.object_dict[name]["object_id"],
+                        cat_type=other.phase_center_catalog[name]["cat_type"],
+                        cat_lon=other.phase_center_catalog[name]["cat_lon"],
+                        cat_lat=other.phase_center_catalog[name]["cat_lat"],
+                        cat_frame=other.phase_center_catalog[name]["cat_frame"],
+                        cat_epoch=other.phase_center_catalog[name]["cat_epoch"],
+                        cat_times=other.phase_center_catalog[name]["cat_times"],
+                        cat_pm_ra=other.phase_center_catalog[name]["cat_pm_ra"],
+                        cat_pm_dec=other.phase_center_catalog[name]["cat_pm_dec"],
+                        cat_dist=other.phase_center_catalog[name]["cat_dist"],
+                        cat_vrad=other.phase_center_catalog[name]["cat_vrad"],
+                        info_source=other.phase_center_catalog[name]["info_source"],
+                        cat_id=other.phase_center_catalog[name]["cat_id"],
                     )
-        elif this.multi_object:
-            # If other is not multi-object, then we'll go ahead and add the object
+        elif this.multi_phase_center:
+            # If other is not multi phase center, then we'll go ahead and add the object
             # information here.
-            other_object_id = this._add_object(
+            other_cat_id = this._add_phase_center(
                 other.object_name,
-                object_type="sidereal",
-                object_lon=other.phase_center_ra,
-                object_lat=other.phase_center_dec,
-                coord_frame=other.phase_center_frame,
-                coord_epoch=other.phase_center_epoch,
+                cat_type="sidereal",
+                cat_lon=other.phase_center_ra,
+                cat_lat=other.phase_center_dec,
+                cat_frame=other.phase_center_frame,
+                cat_epoch=other.phase_center_epoch,
             )
 
         # Pad out self to accommodate new data
@@ -6036,14 +6068,17 @@ class UVData(UVBase):
                 this.phase_center_frame_pa = np.concatenate(
                     [this.phase_center_frame_pa, other.phase_center_frame_pa[bnew_inds]]
                 )[blt_order]
-            if this.multi_object:
-                if other.multi_object:
-                    this.object_id_array = np.concatenate(
-                        [this.object_id_array, other.object_id_array[bnew_inds]]
+            if this.multi_phase_center:
+                if other.multi_phase_center:
+                    this.phase_center_id_array = np.concatenate(
+                        [
+                            this.phase_center_id_array,
+                            other.phase_center_id_array[bnew_inds],
+                        ]
                     )[blt_order]
                 else:
-                    this.object_id_array = np.concatenate(
-                        [this.object_id_array, [other_object_id] * len(bnew_inds)]
+                    this.phase_center_id_array = np.concatenate(
+                        [this.phase_center_id_array, [other_cat_id] * len(bnew_inds)]
                     )[blt_order]
 
         if len(fnew_inds) > 0:
@@ -6367,15 +6402,17 @@ class UVData(UVBase):
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
         make_multi_obj : bool
-            Option to make the output a multi-object dataset, capable of holding data
-            on multiple phased targets. Setting this to true will allow for two UVData
-            objects to be combined, even if the phase target properties do not agree
-            (so long as `object_name` is unique for each UVData object). Default is
+            Option to make the output a multi phase center dataset, capable of holding
+            data on multiple phase centers. Setting this to true will allow for two
+            UVData objects to be combined, even if the phase center properties do not
+            agree (so long as the names are unique for each phase center). Default is
             False.
         ignore_name : bool
-            Option to ignore the `object_name` attribute when combining two UVData
-            objects. Doing so effectively adopts the `object_name` of the first UVData
-            object in the sum. Default is False.
+            Option to ignore the name of the phase center (`cat_name` in
+            `phase_center_catalog` when `multi_phase_center=True`, otherwise
+            `object_name`) when combining two UVData objects. Doing so effectively
+            adopts the name found in the first UVData object in the sum. Default is
+            False.
 
 
         Raises
@@ -6626,14 +6663,14 @@ class UVData(UVBase):
             "_phase_center_ra",
             "_phase_center_dec",
             "_phase_center_epoch",
-            "_multi_object",
-            "_object_dict",
-            "_Nobjects",
+            "_multi_phase_center",
+            "_phase_center_catalog",
+            "_Nphase",
         ]
         if not this.future_array_shapes and not this.flex_spw:
             compatibility_params.append("_channel_width")
 
-        if not this.multi_object:
+        if not this.multi_phase_center:
             compatibility_params += ["_object_name"]
 
         history_update_string = " Combined data along "
@@ -6647,7 +6684,7 @@ class UVData(UVBase):
                 "_integration_time",
                 "_uvw_array",
                 "_lst_array",
-                "_object_id_array",
+                "_phase_center_id_array",
             ]
         elif axis == "polarization":
             history_update_string += "polarization"
@@ -6658,7 +6695,7 @@ class UVData(UVBase):
                 "_integration_time",
                 "_uvw_array",
                 "_lst_array",
-                "_object_id_array",
+                "_phase_center_id_array",
             ]
         elif axis == "blt":
             history_update_string += "baseline-time"
@@ -6851,9 +6888,10 @@ class UVData(UVBase):
                     [this.phase_center_frame_pa]
                     + [obj.phase_center_frame_pa for obj in other]
                 )
-            if this.multi_object:
-                this.object_id_array = np.concatenate(
-                    [this.object_id_array] + [obj.object_id_array for obj in other]
+            if this.multi_phase_center:
+                this.phase_center_id_array = np.concatenate(
+                    [this.phase_center_id_array]
+                    + [obj.phase_center_id_array for obj in other]
                 )
 
         # Check final object is self-consistent
@@ -7755,8 +7793,8 @@ class UVData(UVBase):
                 self.phase_center_app_dec = self.phase_center_app_dec[blt_inds]
             if self.phase_center_frame_pa is not None:
                 self.phase_center_frame_pa = self.phase_center_frame_pa[blt_inds]
-            if self.multi_object:
-                self.object_id_array = self.object_id_array[blt_inds]
+            if self.multi_phase_center:
+                self.phase_center_id_array = self.phase_center_id_array[blt_inds]
 
             self.Ntimes = len(np.unique(self.time_array))
             if not keep_all_metadata:
@@ -9331,8 +9369,8 @@ class UVData(UVBase):
             self.phase_center_app_dec = self.phase_center_app_dec[blt_map]
         if self.phase_center_frame_pa is not None:
             self.phase_center_frame_pa = self.phase_center_frame_pa[blt_map]
-        if self.multi_object:
-            self.object_id_array = self.object_id_array[blt_map]
+        if self.multi_phase_center:
+            self.phase_center_id_array = self.phase_center_id_array[blt_map]
 
         self.reorder_blts(order=blt_order, minor_order=blt_minor_order)
 

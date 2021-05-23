@@ -119,10 +119,9 @@ class UVFITS(UVData):
         if "SOURCE" in vis_hdu.data.parnames:
             # Preserve the source info just in case the AIPS SU table is missing, and
             # we need to revert things back.
-            self._set_multi_object(preserve_object_info=True)
+            self._set_multi_phase_center(preserve_object_info=True)
             source = vis_hdu.data.par("SOURCE")
-            self.Nobjects = len(set(source))
-            self.object_id_array = source.astype(int)
+            self.phase_center_id_array = source.astype(int)
 
         # get self.baseline_array using our convention
         self.baseline_array = self.antnums_to_baseline(
@@ -710,73 +709,71 @@ class UVFITS(UVData):
                 vis_hdu, run_check_acceptability, background_lsts=background_lsts,
             )
             # If we find the source attribute in the FITS random paramter list,
-            # the multi_object attribute will be set to True, and we should also
+            # the multi_phase_center attribute will be set to True, and we should also
             # expect that there must be an AIPS SU table.
-            if self.multi_object and "AIPS SU" not in hdunames.keys():
+            if self.multi_phase_center and "AIPS SU" not in hdunames.keys():
                 warnings.warn(
                     "UVFITS file is missing AIPS SU table, which is required when "
                     "SOURCE is one of the `random paramters` in the main binary "
                     "table. Bypassing for now, but note that this file _may_ not "
                     "work correctly in UVFITS-based programs (e.g., AIPS, CASA)."
                 )
-                self.phase_center_ra = self.object_dict[self.object_name[0]][
-                    "object_lon"
-                ]
-                self.phase_center_dec = self.object_dict[self.object_name[0]][
-                    "object_lat"
-                ]
-                self.multi_object = False
-                self._object_id_array.required = False
-                self._Nobjects.required = False
-                self._object_dict.required = False
-                self._object_name.form = "str"
-                self.object_name = self.object_name[0]
-                self.Nobjects = None
-                self.object_dict = None
-                self.object_id_array = None
-            elif self.multi_object:
-                su_hdu = hdu_list[hdunames["AIPS SU"]]
+                name = list(self.phase_center_catalog.keys())[0]
+                self.phase_center_ra = self.phase_center_catalog[name]["cat_lon"]
+                self.phase_center_dec = self.phase_center_catalog[name]["cat_lat"]
+                self.phase_center_frame = self.phase_center_catalog[name]["cat_frame"]
+                self.phase_center_epoch = self.phase_center_catalog[name]["cat_epoch"]
 
+                self.multi_phase_center = False
+                self._phase_center_id_array.required = False
+                self._Nphase.required = False
+                self._phase_center_catalog.required = False
+                self.object_name = name
+                self.Nphase = None
+                self.phase_center_catalog = None
+                self.phase_center_id_array = None
+            elif self.multi_phase_center:
+                su_hdu = hdu_list[hdunames["AIPS SU"]]
                 # We should have as many entries in the AIPS SU header as we have
                 # unique entries in the SOURCES random paramter (checked in the call
                 # to get_parameter_data above)
-                if len(su_hdu.data) != self.Nobjects:
+                if len(su_hdu.data) != len(np.unique(self.phase_center_id_array)):
                     raise RuntimeError(
                         "The UVFITS file has a malformed AIPS SU table - number of "
                         "sources do not match the number of unique source IDs in the "
                         "primary data header."
                     )  # pragma: no cover
 
+                # Reset the catalog, since it has some dummy information stored within
+                # it (that was pulled off the primary table)
+                self._remove_phase_center(list(self.phase_center_catalog.keys())[0])
+
                 # Set up these arrays so we can assign values to them
                 self.phase_center_app_ra = np.zeros(self.Nblts)
                 self.phase_center_app_dec = np.zeros(self.Nblts)
                 self.phase_center_app_pa = np.zeros(self.Nblts)
 
-                object_dict = {}
-                self.object_name = []
-
                 # Alright, we are off to the races!
-                for idx in range(self.Nobjects):
+                for idx in range(len(su_hdu.data)):
                     # Grab the indv source entry
                     sou_info = su_hdu.data[idx]
                     sou_id = sou_info["ID. NO."]
                     sou_name = sou_info["SOURCE"]
-                    self.object_name.append(sou_name)
                     sou_ra = sou_info["RAEPO"] * (np.pi / 180.0)
                     sou_dec = sou_info["DECEPO"] * (np.pi / 180.0)
                     sou_epoch = sou_info["EPOCH"]
                     sou_frame = "fk5"
 
-                    object_dict[sou_name] = {
-                        "object_id": sou_id,
-                        "object_type": "sidereal",
-                        "object_lon": sou_ra,
-                        "object_lat": sou_dec,
-                        "coord_frame": sou_frame,
-                        "coord_epoch": sou_epoch,
-                        "object_src": "file",
-                    }
-                self.object_dict = object_dict
+                    self._add_phase_center(
+                        sou_name,
+                        cat_id=sou_id,
+                        cat_type="sidereal",
+                        cat_lon=sou_ra,
+                        cat_lat=sou_dec,
+                        cat_frame=sou_frame,
+                        cat_epoch=sou_epoch,
+                        info_source="uvfits file",
+                    )
 
             # Calculate the apparent coordinate values
             self._set_app_coords_helper()
@@ -1052,11 +1049,14 @@ class UVFITS(UVData):
             "INTTIM  ": int_time_array,
         }
 
-        if self.multi_object:
+        if self.multi_phase_center:
             id_offset = np.any(
-                [temp_dict["object_id"] == 0 for temp_dict in self.object_dict.values()]
+                [
+                    temp_dict["cat_id"] == 0
+                    for temp_dict in self.phase_center_catalog.values()
+                ]
             )
-            group_parameter_dict["SOURCE  "] = self.object_id_array + id_offset
+            group_parameter_dict["SOURCE  "] = self.phase_center_id_array + id_offset
 
         pscal_dict = {
             "UU      ": 1.0,
@@ -1106,7 +1106,7 @@ class UVFITS(UVData):
             # Otherwise just use the antenna arrays
             parnames_use.append("BASELINE")
 
-        if self.multi_object:
+        if self.multi_phase_center:
             parnames_use.append("SOURCE  ")
 
         parnames_use += ["ANTENNA1", "ANTENNA2", "SUBARRAY", "INTTIM  "]
@@ -1171,7 +1171,8 @@ class UVFITS(UVData):
         hdu.header["BSCALE  "] = 1.0
         hdu.header["BZERO   "] = 0.0
 
-        hdu.header["OBJECT  "] = "MULTI" if self.multi_object else self.object_name
+        name = "MULTI" if self.multi_phase_center else self.object_name
+        hdu.header["OBJECT  "] = name
         hdu.header["TELESCOP"] = self.telescope_name
         hdu.header["LAT     "] = self.telescope_location_lat_lon_alt_degrees[0]
         hdu.header["LON     "] = self.telescope_location_lat_lon_alt_degrees[1]
@@ -1358,65 +1359,64 @@ class UVFITS(UVData):
             fits_tables.append(fq_hdu)
 
         # If needed, add the SU table
-        if self.multi_object:
+        if self.multi_phase_center:
             fmt_d = "%iD" % self.Nspws
             fmt_e = "%iE" % self.Nspws
             fmt_j = "%iJ" % self.Nspws
 
-            int_zeros = np.zeros(self.Nobjects, dtype=int)
-            flt_zeros = np.zeros(self.Nobjects, dtype=np.float64)
-            zero_arr = np.zeros((self.Nobjects, self.Nspws))
-            sou_ids = np.zeros(self.Nobjects)
-            name_arr = np.array(self.object_name)
-            cal_code = ["    "] * self.Nobjects
+            int_zeros = np.zeros(self.Nphase, dtype=int)
+            flt_zeros = np.zeros(self.Nphase, dtype=np.float64)
+            zero_arr = np.zeros((self.Nphase, self.Nspws))
+            sou_ids = np.zeros(self.Nphase)
+            name_arr = np.array(list(self.phase_center_catalog.keys()))
+            cal_code = ["    "] * self.Nphase
             # These are things we need to flip through on a source-by-source basis
-            ra_arr = np.zeros(self.Nobjects, dtype=np.float64)
-            app_ra = np.zeros(self.Nobjects, dtype=np.float64)
-            dec_arr = np.zeros(self.Nobjects, dtype=np.float64)
-            app_dec = np.zeros(self.Nobjects, dtype=np.float64)
-            epo_arr = np.zeros(self.Nobjects, dtype=np.float64)
-            pm_ra = np.zeros(self.Nobjects, dtype=np.float64)
-            pm_dec = np.zeros(self.Nobjects, dtype=np.float64)
-            rest_freq = np.zeros((self.Nobjects, self.Nspws), dtype=np.float64)
-            for idx, name in enumerate(self.object_name):
-                object_dict = self.object_dict[name]
+            ra_arr = np.zeros(self.Nphase, dtype=np.float64)
+            app_ra = np.zeros(self.Nphase, dtype=np.float64)
+            dec_arr = np.zeros(self.Nphase, dtype=np.float64)
+            app_dec = np.zeros(self.Nphase, dtype=np.float64)
+            epo_arr = np.zeros(self.Nphase, dtype=np.float64)
+            pm_ra = np.zeros(self.Nphase, dtype=np.float64)
+            pm_dec = np.zeros(self.Nphase, dtype=np.float64)
+            rest_freq = np.zeros((self.Nphase, self.Nspws), dtype=np.float64)
+            for idx, name in enumerate(name_arr):
+                phase_dict = self.phase_center_catalog[name]
                 # This is a stub for something smarter in the future
-                sou_ids[idx] = self.object_dict[name]["object_id"] + id_offset
+                sou_ids[idx] = self.phase_center_catalog[name]["cat_id"] + id_offset
                 rest_freq[idx][:] = np.mean(self.freq_array)
                 pm_ra[idx] = 0.0
                 pm_dec[idx] = 0.0
-                if object_dict["object_type"] == "sidereal":
+                if phase_dict["cat_type"] == "sidereal":
                     # So here's the deal -- we need all the objects to be in the same
-                    # coordinate frame, although nothing in object_dict forces objects
-                    # to share the same frame. So we want to make sure that everything
-                    # lines up with the coordinate frame listed in phase_center_frame.
+                    # coordinate frame, although nothing in phase_center_catalog forces
+                    # objects to share the same frame. So we want to make sure that
+                    # everything lines up with the coordinate frame listed.
                     ra_arr[idx], dec_arr[idx] = uvutils.transform_sidereal_coords(
-                        object_dict["object_lon"],
-                        object_dict["object_lat"],
-                        object_dict["coord_frame"],
+                        phase_dict["cat_lon"],
+                        phase_dict["cat_lat"],
+                        phase_dict["cat_frame"],
                         "fk5",
-                        in_coord_epoch=object_dict.get("coord_epoch"),
-                        out_coord_epoch=object_dict.get("coord_epoch"),
+                        in_coord_epoch=phase_dict.get("cat_epoch"),
+                        out_coord_epoch=phase_dict.get("cat_epoch"),
                         time_array=np.mean(self.time_array),
                     )
 
                     epo_arr[idx] = (
-                        object_dict["coord_epoch"]
-                        if "coord_epoch" in (object_dict.keys())
+                        phase_dict["cat_epoch"]
+                        if "cat_epoch" in (phase_dict.keys())
                         else 2000.0
                     )
 
+                    cat_id = self.phase_center_catalog[name]["cat_id"]
+
                     app_ra[idx] = np.median(
-                        self.phase_center_app_ra[
-                            self.object_id_array == self.object_dict[name]["object_id"]
-                        ]
+                        self.phase_center_app_ra[self.phase_center_id_array == cat_id]
                     )
 
                     app_dec[idx] = np.median(
-                        self.phase_center_app_dec[
-                            self.object_id_array == self.object_dict[name]["object_id"]
-                        ]
+                        self.phase_center_app_dec[self.phase_center_id_array == cat_id]
                     )
+
                 ra_arr *= 180.0 / np.pi
                 dec_arr *= 180.0 / np.pi
                 app_ra *= 180.0 / np.pi

@@ -1130,7 +1130,7 @@ def test_coord_inputs():
     # Now on to app_coords
     with pytest.raises(ValueError) as cm:
         uvutils.calc_app_coords(
-            0.0, 0.0, telescope_loc=(0, 1, 2), object_type="whoknows"
+            0.0, 0.0, telescope_loc=(0, 1, 2), coord_type="whoknows"
         )
     assert str(cm.value).startswith("Object type whoknows is not recognized.")
 
@@ -1442,7 +1442,7 @@ def test_calc_app_and_calc_sidereal():
     check_ra, check_dec = uvutils.calc_app_coords(
         fk5_ra,
         fk5_dec,
-        object_type="sidereal",
+        coord_type="sidereal",
         telescope_loc=telescope_loc,
         time_array=time_array,
         coord_frame="fk5",
@@ -1460,7 +1460,7 @@ def test_calc_app_and_calc_sidereal():
         icrs_ra,
         icrs_dec,
         coord_times=ephem_times,
-        object_type="ephem",
+        coord_type="ephem",
         telescope_loc=telescope_loc,
         time_array=time_array,
         coord_frame="icrs",
@@ -1472,7 +1472,7 @@ def test_calc_app_and_calc_sidereal():
         fk5_ra,
         fk5_dec,
         coord_times=ephem_times,
-        object_type="ephem",
+        coord_type="ephem",
         telescope_loc=telescope_loc,
         time_array=time_array,
         coord_frame="fk5",
@@ -1486,7 +1486,7 @@ def test_calc_app_and_calc_sidereal():
     check_ra, check_dec = uvutils.calc_app_coords(
         0.0,
         np.pi / 2.0,
-        object_type="driftscan",
+        coord_type="driftscan",
         telescope_loc=telescope_loc,
         time_array=time_array,
     )
@@ -1498,7 +1498,7 @@ def test_calc_app_and_calc_sidereal():
     check_ra, check_dec = uvutils.calc_app_coords(
         None,
         None,
-        object_type="unphased",
+        coord_type="unphased",
         telescope_loc=telescope_loc,
         time_array=time_array,
         lst_array=lst_array,
@@ -1511,7 +1511,7 @@ def test_calc_app_and_calc_sidereal():
     app_ra, app_dec = uvutils.calc_app_coords(
         0.0,
         0.0,
-        object_type="sidereal",
+        coord_type="sidereal",
         telescope_loc=telescope_loc,
         time_array=time_array,
         coord_frame="fk5",
@@ -1528,7 +1528,7 @@ def test_calc_app_and_calc_sidereal():
     app_ra, app_dec = uvutils.calc_app_coords(
         0.0,
         0.0,
-        object_type="sidereal",
+        coord_type="sidereal",
         telescope_loc=telescope_loc,
         time_array=time_array,
         coord_frame="fk4",

@@ -1002,7 +1002,7 @@ class Miriad(UVData):
         frame_pa = None
         epoch = None
         sou_dict = {}
-        Nobjects = 0
+        Nphase = 0
         record_epoch = "epoch" in uv.vartable.keys()
         record_app = ("obsra" in uv.vartable.keys()) and (
             "obsdec" in uv.vartable.keys()
@@ -1052,9 +1052,9 @@ class Miriad(UVData):
             try:
                 sou_id = sou_dict[uv["source"]]
             except KeyError:
-                sou_dict[uv["source"]] = Nobjects
-                sou_id = Nobjects
-                Nobjects += 1
+                sou_dict[uv["source"]] = Nphase
+                sou_id = Nphase
+                Nphase += 1
 
             # check extra variables for changes compared with initial value
             for extra_variable in list(check_variables.keys()):
@@ -1396,8 +1396,8 @@ class Miriad(UVData):
         if phase_type is not None:
             if phase_type == "phased":
                 self._set_phased()
-                if Nobjects > 1:
-                    self._set_multi_object()
+                if Nphase > 1:
+                    self._set_multi_phase_center()
             elif phase_type == "drift":
                 self._set_drift()
             else:
@@ -1412,10 +1412,10 @@ class Miriad(UVData):
             # file is tracking, and if not, assume that the  file is drift scanning,
             # checking if there's only one unflagged time
             if not single_time:
-                if single_ra or (Nobjects > 1):
+                if single_ra or (Nphase > 1):
                     self._set_phased()
-                    if Nobjects > 1:
-                        self._set_multi_object()
+                    if Nphase > 1:
+                        self._set_multi_phase_center()
                 else:
                     self._set_drift()
             else:
@@ -1445,11 +1445,11 @@ class Miriad(UVData):
             if record_pa:
                 self.phase_center_frame_pa = frame_pa_list
 
-        if self.multi_object:
+        if self.multi_phase_center:
             # This presupposes that the data are already phased
-            self.phase_center_ra = 0.0  # This isn't used for multi-obj data
-            self.phase_center_dec = 0.0  # This isn't used for multi-obj data
-            # The concept of an epoch is kinda weird in multi-obj datasets, because
+            self.phase_center_ra = 0.0  # This isn't used for mutli-phase-ctr data
+            self.phase_center_dec = 0.0  # This isn't used for mutli-phase-ctr data
+            # The concept of an epoch is kinda weird in mutli-phase-ctr datasets, b/c
             # different sources are allowed to have different epochs. Just set it to
             # the median value for now. Eventually, I think this should be used as the
             # "if your format forces me to use FK5, here's the epoch" value. Note that
@@ -1458,24 +1458,21 @@ class Miriad(UVData):
             # in semi-Orwellian fashion that you _really_ wanted FK4/Bessel-Newcomb).
             self.phase_center_epoch = 2000.0
             self.phase_center_frame = "icrs"
-            self.object_id_array = sou_id_list.astype(int)
-            self.Nobjects = Nobjects
-            flip_dict = {sou_dict[key]: key for key in sou_dict.keys()}
-            self.object_name = [flip_dict[key] for key in range(Nobjects)]
+            self.phase_center_id_array = sou_id_list.astype(int)
             # Here is where we should package up sources
-            object_dict = {}
-            for idx in range(Nobjects):
-                select_mask = sou_id_list == idx
+            for name in sou_dict.keys():
+                select_mask = sou_id_list == sou_dict[name]
                 epoch_val = np.median(epoch_list[select_mask])
-                object_dict[self.object_name[idx]] = {
-                    "object_id": idx,
-                    "object_type": "sidereal",
-                    "object_lon": np.median(ra_list[select_mask]),
-                    "object_lat": np.median(dec_list[select_mask]),
-                    "coord_frame": "fk4" if (epoch_val < 1984.0) else "fk5",
-                    "coord_epoch": np.median(epoch_list[select_mask]),
-                }
-            self.object_dict = object_dict
+                self._add_phase_center(
+                    name,
+                    "sidereal",
+                    cat_lon=np.median(ra_list[select_mask]),
+                    cat_lat=np.median(dec_list[select_mask]),
+                    cat_frame="fk4" if (epoch_val < 1984.0) else "fk5",
+                    cat_epoch=epoch_val,
+                    cat_id=sou_dict[name],
+                    info_source="miriad file",
+                )
         elif self.phase_type == "phased":
             # check that the RA values do not vary
             if not single_ra:
@@ -1547,13 +1544,13 @@ class Miriad(UVData):
 
         # If the data set was recorded using the old phasing method, fix that now.
         if fix_old_proj and (self.phase_type == "phased"):
-            if not self.multi_object:
+            if not self.multi_phase_center:
                 self.fix_phase(use_ant_pos=fix_use_ant_pos)
             else:
                 warnings.warn(
-                    "Cannot fix the phases of multi-object datasets, as they were not "
-                    "supported when the old phasing method was used, and thus, there "
-                    "is no need to correct the data."
+                    "Cannot fix the phases of multi phase center datasets, as they "
+                    "were not supported when the old phasing method was used, and "
+                    "thus, there is no need to correct the data."
                 )
 
         # check if object has all required uv_properties set
@@ -1724,7 +1721,7 @@ class Miriad(UVData):
 
         # NB: restfreq should go in here at some point
         #####################################################
-        if not self.multi_object:
+        if not self.multi_phase_center:
             uv.add_var("source", "a")
             uv["source"] = self.object_name
         uv.add_var("telescop", "a")
@@ -1898,8 +1895,12 @@ class Miriad(UVData):
         uv.add_var("pol", "i")
         uv.add_var("lst", "d")
         uv.add_var("cnt", "d")
-        if self.multi_object:
+        if self.multi_phase_center:
             uv.add_var("source", "a")
+            name_dict = {
+                self.phase_center_catalog[key]["cat_id"]: key
+                for key in self.phase_center_catalog.keys()
+            }
         uv.add_var("ra", "d")
         uv.add_var("dec", "d")
         uv.add_var("inttime", "d")
@@ -1926,11 +1927,11 @@ class Miriad(UVData):
             uv["lst"] = miriad_lsts[viscnt].astype(np.double)
             uv["inttime"] = self.integration_time[viscnt].astype(np.double)
             if self.phase_type == "phased":
-                if self.multi_object:
-                    object_name = self.object_name[self.object_id_array[viscnt]]
-                    uv["source"] = object_name
-                    uv["ra"] = self.object_dict[object_name]["object_lon"]
-                    uv["dec"] = self.object_dict[object_name]["object_lat"]
+                if self.multi_phase_center:
+                    cat_name = name_dict[self.phase_center_id_array[viscnt]]
+                    uv["source"] = cat_name
+                    uv["ra"] = self.phase_center_catalog[cat_name]["cat_lon"]
+                    uv["dec"] = self.phase_center_catalog[cat_name]["cat_lat"]
                 else:
                     uv["ra"] = self.phase_center_ra
                     uv["dec"] = self.phase_center_dec
