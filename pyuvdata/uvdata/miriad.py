@@ -790,7 +790,7 @@ class Miriad(UVData):
             method was used prior to writing the data, which had errors of the order of
             one part in 1e4 - 1e5. See the phasing memo for more details.
         fix_use_ant_pos : bool
-            If setting `fix_old_proj` to True, use the antenna positions to derived the
+            If setting `fix_old_proj` to True, use the antenna positions to derive the
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
 

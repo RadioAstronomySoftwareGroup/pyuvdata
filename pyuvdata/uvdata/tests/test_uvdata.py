@@ -2963,7 +2963,7 @@ def test_reorder_blts(casa_uvfits, future_shapes, multi_phase_center):
         uv1.use_future_array_shapes()
 
     if multi_phase_center:
-        uv1._set_multi_phase_center(preserve_object_info=True)
+        uv1._set_multi_phase_center(preserve_phase_center_info=True)
 
     # test default reordering in detail
     uv2 = uv1.copy()
@@ -6252,7 +6252,7 @@ def test_set_uvws_from_antenna_pos(sma_mir):
     # And make sure it left the visibilities untouched
     assert np.all(data_copy == uv_object.data_array)
 
-    uv_object._set_multi_phase_center(preserve_object_info=True)
+    uv_object._set_multi_phase_center(preserve_phase_center_info=True)
     with pytest.raises(
         NotImplementedError, match="Multi phase center data sets are not"
     ):
@@ -9931,7 +9931,7 @@ def test_catalog_operations(sma_mir, hera_uvh5):
     ):
         hera_uvh5._add_phase_center("unphased", cat_type="unphased")
 
-    # Check and see what happens with driftscan objects
+    # Check and see what happens with driftscan phase centers
     with pytest.raises(
         ValueError, match="cat_name must be a string.",
     ):
@@ -10172,7 +10172,7 @@ def test_split_merge_catalog(hera_uvh5):
         hera_uvh5.merge_phase_centers("3c84", "zenith")
 
     # Set the HERA file as multi phase center so that we can play around with it a bit
-    hera_uvh5._set_multi_phase_center(preserve_object_info=True)
+    hera_uvh5._set_multi_phase_center(preserve_phase_center_info=True)
     hera_copy = hera_uvh5.copy()
 
     # First test out a bunch of error conditions that should render no-ops
@@ -10561,7 +10561,7 @@ def test_multi_phase_multi_file(hera_uvh5, future_shapes):
 
     # Okay, now try allowing one UVData object to become a mutli-phase-ctr data set
     uv3 = uv1.__add__(uv2, make_multi_obj=True, inplace=False)
-    uvfull._set_multi_phase_center(preserve_object_info=True)
+    uvfull._set_multi_phase_center(preserve_phase_center_info=True)
     uvfull.split_phase_center("target1", "target2", ~half_mask)
     uv3.reorder_blts()
 
@@ -10570,7 +10570,7 @@ def test_multi_phase_multi_file(hera_uvh5, future_shapes):
     assert uvfull == uv3
 
     # See what happens when we make one UVData object mutli-phase-ctr but not the other
-    uv1._set_multi_phase_center(preserve_object_info=True)
+    uv1._set_multi_phase_center(preserve_phase_center_info=True)
     with pytest.raises(
         ValueError,
         match="To combine these data, please run the add operation with the UVData ",
@@ -10584,7 +10584,7 @@ def test_multi_phase_multi_file(hera_uvh5, future_shapes):
     assert uvfull == uv3
 
     # Now make the out one a mutli-phase-ctr, and rename the object
-    uv2._set_multi_phase_center(preserve_object_info=True)
+    uv2._set_multi_phase_center(preserve_phase_center_info=True)
 
     uv3 = uv1 + uv2
     uv3.reorder_blts()
@@ -10625,12 +10625,12 @@ def test_multi_phase_multi_file(hera_uvh5, future_shapes):
         _ = uv1 + uv2
 
     # Make sure this works with a mutli-phase-ctr data set, since names must be unique
-    uv1._set_multi_phase_center(preserve_object_info=True)
+    uv1._set_multi_phase_center(preserve_phase_center_info=True)
     with pytest.raises(ValueError, match="There exists a target named target1 in"):
         _ = uv1 + uv2
 
-    uv2._set_multi_phase_center(preserve_object_info=True)
-    uv1._set_multi_phase_center(preserve_object_info=True)
+    uv2._set_multi_phase_center(preserve_phase_center_info=True)
+    uv1._set_multi_phase_center(preserve_phase_center_info=True)
     with pytest.raises(ValueError, match="There exists a target named target1 in"):
         _ = uv1 + uv2
 

@@ -483,7 +483,7 @@ class UVH5(UVData):
         if "multi_phase_center" in header:
             if bool(header["multi_phase_center"][()]):
                 self._set_phased()
-                self._set_multi_phase_center(preserve_object_info=False)
+                self._set_multi_phase_center(preserve_phase_center_info=False)
         if "Nphase" in header:
             self.Nphase = int(header["Nphase"][()])
 
@@ -1121,7 +1121,7 @@ class UVH5(UVData):
             `phase_center_app_dec` are missing (as they were introduced alongside the
             new phasing method).
         fix_use_ant_pos : bool
-            If setting `fix_old_proj` to True, use the antenna positions to derived the
+            If setting `fix_old_proj` to True, use the antenna positions to derive the
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
 
