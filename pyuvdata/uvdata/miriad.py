@@ -136,6 +136,21 @@ class Miriad(UVData):
             "ytsys",
             "baseline",
             "obspa",
+            "antaz",
+            "antel",
+            "axisoff",
+            "cable",
+            "dazim",
+            "delev",
+            "jyperka",
+            "phaselo1",
+            "phaselo2",
+            "phasem1",
+            "themt",
+            "wfreq",
+            "wwidth",
+            "wsystemp",
+            "wcorr",
         ]
 
         extra_miriad_variables = []
@@ -1056,16 +1071,20 @@ class Miriad(UVData):
                 sou_id = Nphase
                 Nphase += 1
 
+            # TODO: The code below serves literally no purpose at the moment, as the
+            # values in check_variables are not used past this point. Commenting it out
+            # until it can be refactored at some point.
+
             # check extra variables for changes compared with initial value
-            for extra_variable in list(check_variables.keys()):
-                if type(check_variables[extra_variable]) == str:
-                    if uv[extra_variable] != check_variables[extra_variable]:
-                        check_variables.pop(extra_variable)
-                else:
-                    if not np.allclose(
-                        uv[extra_variable], check_variables[extra_variable]
-                    ):
-                        check_variables.pop(extra_variable)
+            # for extra_variable in list(check_variables.keys()):
+            #     if type(check_variables[extra_variable]) == str:
+            #         if uv[extra_variable] != check_variables[extra_variable]:
+            #             check_variables.pop(extra_variable)
+            #     else:
+            #         if not np.allclose(
+            #             uv[extra_variable], check_variables[extra_variable]
+            #         ):
+            #             check_variables.pop(extra_variable)
 
             try:
                 # TODO: Gotta clean this up at some point - there are going to be
