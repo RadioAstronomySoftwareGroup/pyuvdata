@@ -203,9 +203,7 @@ class MS(UVData):
         if not os.path.exists(filepath):
             raise IOError(filepath + " not found")
         # set filename variable
-        basename = filepath
-        while basename.endswith("/"):
-            basename = basename[:-1]
+        basename = filepath.rstrip("/")
         self.filename = [os.path.basename(basename)]
         self._filename.form = (1,)
         # set visibility units

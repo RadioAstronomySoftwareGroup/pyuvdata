@@ -837,9 +837,7 @@ class Miriad(UVData):
         ) = self._read_miriad_metadata(uv, correct_lat_lon=correct_lat_lon)
 
         # update filename attribute
-        basename = filepath
-        while basename.endswith("/"):
-            basename = basename[:-1]
+        basename = filepath.rstrip("/")
         self.filename = [os.path.basename(basename)]
         self._filename.form = (1,)
 

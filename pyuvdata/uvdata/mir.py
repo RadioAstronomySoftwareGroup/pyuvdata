@@ -369,9 +369,7 @@ class Mir(UVData):
         self.blt_order = ("time", "baseline")
 
         # set filename attribute
-        basename = filepath
-        while basename.endswith("/"):
-            basename = basename[:-1]
+        basename = filepath.rstrip("/")
         self.filename = [os.path.basename(basename)]
         self._filename.form = (1,)
 
