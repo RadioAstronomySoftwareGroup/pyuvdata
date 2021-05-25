@@ -415,6 +415,8 @@ UVData: Phasing
 ---------------
 Phasing/unphasing data
 
+a) Data with a single phase center.
+************************************************************
 .. code-block:: python
 
   >>> import os
@@ -446,6 +448,71 @@ Phasing/unphasing data
   >>> # Rephase to another phase center (unphases and rephases under the hood)
   >>> # Phase to a specific ra/dec/epoch (in radians)
   >>> UV.phase(5.23368, 0.710940, epoch="J2000")
+
+b) Data with a multiple phase centers enabled.
+************************************************************
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> from numpy import pi
+  >>> UV = UVData()
+  >>> uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
+  >>> # By setting `make_multi_phase=True`, we force the object returned to be
+  >>> # multi-phase-ctr capable, which comes with a few advanced features
+  >>> UV.read(uvh5_file, make_multi_phase=True)
+
+  >>> # For a multi phase center dataset, we can information on the sources in the
+  >>> # data set by using the `print_phase_center_info` command.
+  >>> UV.print_phase_center_info()
+     ID     Cat Entry       Type      Az/Lon/RA    El/Lat/Dec  Frame
+      #          Name                       deg           deg
+  -------------------------------------------------------------------
+      0        zenith   unphased     0:00:00.00  +90:00:00.00  altaz
+
+
+  >>> # With multi-phase-ctr data sets, one needs to supply a unique name for each
+  >>> # phase center. We are specifing that the type here is "sidereal", which just
+  >>> # means that the position is represented by a fixed set of coordinates in a
+  >>> # sidereal coordinate frame (e.g., ICRS, FK5, etc)
+  >>> UV.phase(5.23368, 0.710940, epoch="J2000", cat_name='target1', cat_type="sidereal")
+  >>> UV.print_phase_center_info()
+     ID     Cat Entry       Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch
+      #          Name                    hours           deg
+  ---------------------------------------------------------------------------
+      1       target1   sidereal   19:59:28.27  +40:44:01.90   icrs  J2000.0
+
+
+  >>> # And with multi-phase-ctr data sets, you can also use "ephem" objects, which
+  >>> # move with time, e.g. solar system bodies. The phase method has a `lookup_name`
+  >>> # option which, if set to true, will allow you to search JPL-Horizons for coords
+  >>> UV.phase(0, 0, epoch="J2000", cat_name="Sun", lookup_name=True)
+  >>> UV.print_phase_center_info()
+     ID     Cat Entry       Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
+      #          Name                    hours           deg                  Start-MJD    End-MJD       pc    km/s
+  ------------------------------------------------------------------------------------------------------------------
+      0           Sun      ephem    6:19:28.68  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
+
+
+  >>> # Finally, we can use a selection mask to only phase part of the data at a time,
+  >>> # like only the data belonging to the first integration
+  >>> select_mask = UV.time_array == UV.time_array[0]
+
+  >>> # Let's use this to create a 'driftscan' target, which is phased to a particular
+  >>> # azimuth and elevation (note this is different than `phase_type="drift"`, which
+  >>> # does NOT produced phased data). Note that we need to supply `phase_frame` as
+  >>> # "altaz", since driftscans are always in that frame.
+  >>> UV.phase(0, pi/2, cat_name="zenith", phase_frame='altaz', cat_type="driftscan", select_mask=select_mask)
+
+  >>> # Now when using `print_phase_center_info`, we'll see that there are multiple
+  >>> # phase centers present in the data
+  >>> UV.print_phase_center_info()
+     ID     Cat Entry       Type      Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
+      #          Name                       deg           deg                  Start-MJD    End-MJD       pc    km/s
+  -------------------------------------------------------------------------------------------------------------------
+      0           Sun      ephem    94:52:10.21  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
+      1        zenith  driftscan     0:00:00.00  +90:00:00.00  altaz  J2000.0
 
 
 UVData: Averaging and Resampling
