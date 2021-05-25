@@ -9783,7 +9783,7 @@ def test_print_object(sma_mir, hera_uvh5):
     )
     check_str = (
         "   ID     Cat Entry       Type     Az/Lon/RA"
-        "    El/Lat/Dec  Frame       Ephem Range    \n"
+        "    El/Lat/Dec  Frame        Ephem Range    \n"
         "    #          Name                    hours"
         "           deg         Start-MJD    End-MJD \n"
         "---------------------------------------------"
