@@ -1940,7 +1940,9 @@ def transform_icrs_to_app(
 
     pm_ra_coord = None if pm_ra is None else pm_ra * (units.mas / units.yr)
     pm_dec_coord = None if pm_dec is None else pm_dec * (units.mas / units.yr)
-    d_coord = None if (dist is None or dist == 0.0) else Distance(dist * units.pc)
+    d_coord = (
+        None if (dist is None or np.all(dist == 0.0)) else Distance(dist * units.pc)
+    )
     v_coord = None if vrad is None else vrad * (units.km / units.s)
 
     opt_list = [pm_ra_coord, pm_dec_coord, d_coord, v_coord]
@@ -2946,17 +2948,12 @@ def calc_app_coords(
                 time_array=unique_time_array,
             )
         else:
-            icrs_ra = lon_coord
-            icrs_dec = lat_coord
+            icrs_ra = interp_ra
+            icrs_dec = interp_dec
+        # TODO: Vel and distance handling to be integrated here, once they are are
+        # needed for velocity frame tracking
         unique_app_ra, unique_app_dec = transform_icrs_to_app(
-            unique_time_array,
-            icrs_ra,
-            icrs_dec,
-            site_loc,
-            pm_ra=pm_ra,
-            pm_dec=pm_dec,
-            vrad=vrad,
-            dist=dist,
+            unique_time_array, icrs_ra, icrs_dec, site_loc, pm_ra=pm_ra, pm_dec=pm_dec,
         )
     elif coord_type == "unphased":
         # This is the easiest one - this is just supposed to be ENU, so set the
@@ -3136,9 +3133,6 @@ def get_lst_for_time(
                 "novas and/or novas_de405 are not installed but is required for "
                 "NOVAS functionality"
             ) from e
-
-        # We import this module just to make sure that it exists, and the check below
-        # forces flake8 not to freak out that we tried loading it in the first place
 
         jd_start, jd_end, number = eph_manager.ephem_open()
 
