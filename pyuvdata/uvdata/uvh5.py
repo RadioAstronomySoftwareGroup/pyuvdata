@@ -1208,7 +1208,10 @@ class UVH5(UVData):
         None
         """
         # write out UVH5 version information
-        if self.future_array_shapes:
+        if self.multi_phase_center:
+            # this is Version 1.1!
+            header["version"] = np.string_("1.1")
+        elif self.future_array_shapes:
             # this is Version 1.0
             header["version"] = np.string_("1.0")
         else:
@@ -1416,6 +1419,16 @@ class UVH5(UVData):
             else:
                 raise IOError("File exists; skipping")
 
+        revert_fas = False
+        if self.multi_phase_center:
+            # We force using future array shapes here multi_phase_center is v1.1, but
+            # future_array_shapes is v1.0 (but a UVData object can have the
+            # multi_phase_center enabled, but not use future_array_shapes). We capture
+            # the current state so that it can be reverted later if needed.
+            if not self.future_array_shapes:
+                revert_fas = True
+                self.use_future_array_shapes()
+
         # open file for writing
         with h5py.File(filename, "w") as f:
             # write header
@@ -1460,6 +1473,9 @@ class UVH5(UVData):
                 data=self.nsample_array.astype(np.float32),
                 compression=nsample_compression,
             )
+
+        if revert_fas:
+            self.use_current_array_shapes()
 
         return
 
