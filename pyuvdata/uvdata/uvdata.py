@@ -1649,7 +1649,7 @@ class UVData(UVBase):
                 {
                     "hdr": ("   Ephem Range   ", "Start-MJD    End-MJD"),
                     "fmt": " %8.2f  % 8.2f",
-                    "field": " %19s ",
+                    "field": " %20s ",
                     "name": "cat_times",
                 }
             )
@@ -1657,7 +1657,7 @@ class UVData(UVBase):
             col_list.append(
                 {
                     "hdr": ("PM-Ra", "mas/yr"),
-                    "fmt": "%6g",
+                    "fmt": "%.4g",
                     "field": " %6s ",
                     "name": "cat_pm_ra",
                 }
@@ -1666,7 +1666,7 @@ class UVData(UVBase):
             col_list.append(
                 {
                     "hdr": ("PM-Dec", "mas/yr"),
-                    "fmt": "%6g",
+                    "fmt": "%.4g",
                     "field": " %6s ",
                     "name": "cat_pm_dec",
                 }
@@ -1684,7 +1684,7 @@ class UVData(UVBase):
             col_list.append(
                 {
                     "hdr": ("V_rad", "km/s"),
-                    "fmt": "%6g",
+                    "fmt": "%.4g",
                     "field": " %6s ",
                     "name": "cat_vrad",
                 }
@@ -1741,6 +1741,9 @@ class UVData(UVBase):
                         np.max(temp_val) - 2400000.5,
                     )
                     temp_str = col["fmt"] % time_tuple
+                elif (col["name"] == "cat_dist") or (col["name"] == "cat_vrad"):
+                    temp_val = np.median(temp_val)
+                    temp_str = col["fmt"] % temp_val
                 else:
                     temp_str = col["fmt"] % temp_val
                 tbl_str += col["field"] % temp_str
