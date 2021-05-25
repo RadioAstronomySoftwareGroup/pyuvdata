@@ -1753,7 +1753,7 @@ class UVData(UVBase):
             # We need this extra bit of code to handle trailing whitespace, since
             # otherwise some checks (e.g., doc check on tutorials) will balk
             print(
-                "\n".join([line.rstrip() for line in info_str.split("\n")])
+                "\n".join([line.rstrip() for line in info_str.split("\n")]), end=""
             )  # pragma: nocover
         if return_str:
             return info_str
