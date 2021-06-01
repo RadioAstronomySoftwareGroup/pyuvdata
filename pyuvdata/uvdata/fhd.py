@@ -455,8 +455,8 @@ class FHD(UVData):
             raise ValueError("No flags file included in file list")
         if layout_file is None:
             warnings.warn(
-                "No layout file included in file list, "
-                "antenna_postions will not be defined."
+                "No layout file included in file list, antenna_postions will not be "
+                "defined (unless they are defined in the known telescopes)."
             )
         if settings_file is None:
             warnings.warn("No settings file included in file list")
@@ -595,15 +595,25 @@ class FHD(UVData):
 
         else:
             self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
-            self.antenna_names = [
-                ant.decode("utf8").strip() for ant in bl_info["TILE_NAMES"][0].tolist()
-            ]
-            if self.telescope_name.lower() == "mwa":
+
+            # check to see if we have the layout info for this telescope.
+            # If so, don't set anything here, we'll set the values below
+            telescope_obj = uvtel.get_telescope(self.telescope_name)
+
+            if telescope_obj.Nants_telescope is None:
+                # we don't have layout info, so go ahead and set the antenna_names,
+                # antenna_numbers and Nants_telescope from the baseline info struct.
                 self.antenna_names = [
-                    "Tile" + "0" * (3 - len(ant)) + ant for ant in self.antenna_names
+                    ant.decode("utf8").strip()
+                    for ant in bl_info["TILE_NAMES"][0].tolist()
                 ]
-            self.Nants_telescope = len(self.antenna_names)
-            self.antenna_numbers = np.arange(self.Nants_telescope)
+                if self.telescope_name.lower() == "mwa":
+                    self.antenna_names = [
+                        "Tile" + "0" * (3 - len(ant)) + ant
+                        for ant in self.antenna_names
+                    ]
+                self.Nants_telescope = len(self.antenna_names)
+                self.antenna_numbers = np.arange(self.Nants_telescope)
 
         try:
             self.set_telescope_params()
