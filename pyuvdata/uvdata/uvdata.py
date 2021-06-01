@@ -2355,7 +2355,12 @@ class UVData(UVBase):
                         # This will error if there are changes to the Telescope
                         # object definition, but nothing that a normal user
                         # does will cause an error
-                        assert telescope_shape == () and self_shape != "str"
+                        assert telescope_shape == () and self_shape != "str", (
+                            "There is a mismatch in one or more array sizes of the "
+                            "UVData and telescope objects. This should not happen, "
+                            "if you see this error please make an issue in the "
+                            "pyuvdata issue log."
+                        )
                         # this parameter is as of this comment most likely a float
                         # since only diameters and antenna positions will probably
                         # trigger this else statement
