@@ -463,7 +463,7 @@ b) Data with a multiple phase centers enabled.
   >>> # multi-phase-ctr capable, which comes with a few advanced features
   >>> UV.read(uvh5_file, make_multi_phase=True)
 
-  >>> # For a multi phase center dataset, we can information on the sources in the
+  >>> # For a multi phase center dataset, we can get information on the sources in the
   >>> # data set by using the `print_phase_center_info` command.
   >>> UV.print_phase_center_info()
      ID     Cat Entry       Type      Az/Lon/RA    El/Lat/Dec  Frame
