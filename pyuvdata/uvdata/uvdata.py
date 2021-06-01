@@ -10488,6 +10488,7 @@ class UVData(UVBase):
         phase_center_radec=None,
         unphase_to_drift=False,
         phase_frame="icrs",
+        phase_epoch=None,
         orig_phase_frame=None,
         phase_use_ant_pos=True,
         antenna_nums=None,
@@ -10980,6 +10981,8 @@ class UVData(UVBase):
             ):
                 # set the phase center to be the phase center of the first file
                 phase_center_radec = [self.phase_center_ra, self.phase_center_dec]
+                phase_frame = self.phase_center_frame
+                phase_epoch = self.phase_center_epoch
 
             uv_list = []
             if len(filename) > file_num + 1:
@@ -10990,6 +10993,8 @@ class UVData(UVBase):
                             f,
                             file_type=file_type,
                             phase_center_radec=phase_center_radec,
+                            phase_frame=phase_frame,
+                            phase_epoch=phase_epoch,
                             antenna_nums=antenna_nums,
                             antenna_names=antenna_names,
                             ant_str=ant_str,
@@ -11381,11 +11386,14 @@ class UVData(UVBase):
                         rtol=self._phase_center_dec.tols[0],
                         atol=self._phase_center_dec.tols[1],
                     )
+                    or (self.phase_center_frame != phase_frame)
+                    or (self.phase_center_epoch != phase_epoch)
                 ):
                     warnings.warn("Phasing this UVData object to phase_center_radec")
                     self.phase(
                         phase_center_radec[0],
                         phase_center_radec[1],
+                        epoch=phase_epoch,
                         phase_frame=phase_frame,
                         orig_phase_frame=orig_phase_frame,
                         use_ant_pos=phase_use_ant_pos,
