@@ -10978,6 +10978,8 @@ class UVData(UVBase):
                 and phase_center_radec is None
                 and not unphase_to_drift
                 and self.phase_type == "phased"
+                and not self.multi_phase_center
+                and not make_multi_phase
             ):
                 # set the phase center to be the phase center of the first file
                 phase_center_radec = [self.phase_center_ra, self.phase_center_dec]
