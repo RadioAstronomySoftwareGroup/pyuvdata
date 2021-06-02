@@ -851,11 +851,7 @@ class UVFITS(UVData):
 
         if self.Npols > 1:
             pol_spacing = np.diff(self.polarization_array)
-            if np.min(pol_spacing) < np.max(pol_spacing):
-                # figure out "correct" spacing
-                pol_indexing = np.argsort(np.abs(self.polarization_array))
-            else:
-                pol_indexing = np.arange(len(self.polarization_array))
+            pol_indexing = np.argsort(np.abs(self.polarization_array))
             polarization_array = self.polarization_array[pol_indexing]
             pol_spacing = np.diff(polarization_array)
             if np.min(pol_spacing) < np.max(pol_spacing):
@@ -866,6 +862,7 @@ class UVFITS(UVData):
                 )
             pol_spacing = pol_spacing[0]
         else:
+            pol_indexing = np.asarray([0])
             polarization_array = self.polarization_array
             pol_spacing = 1
 
