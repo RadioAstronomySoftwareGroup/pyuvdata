@@ -3443,7 +3443,6 @@ def test_add(casa_uvfits, future_shapes):
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
-            "Combined polarizations are not evenly spaced",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
@@ -3713,7 +3712,6 @@ def test_add_drift(casa_uvfits):
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
-            "Combined polarizations are not evenly spaced",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
