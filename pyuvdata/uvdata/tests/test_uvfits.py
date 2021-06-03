@@ -990,3 +990,38 @@ def test_cotter_telescope_frame(tmp_path):
         ],
     ):
         uvd1.read_uvfits(write_file, read_data=False)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_readwriteread_reorder_pols(tmp_path, casa_uvfits, future_shapes):
+    """
+    CASA tutorial uvfits loopback test.
+
+    Read in uvfits file, write out new uvfits file, read back in and check for
+    object equality. We check that on-the-fly polarization reordering works.
+    """
+    uv_in = casa_uvfits
+
+    if future_shapes:
+        uv_in.use_future_array_shapes()
+
+    uv_out = UVData()
+    write_file = str(tmp_path / "outtest_casa.uvfits")
+
+    # reorder polarizations
+    polarization_input = uv_in.polarization_array
+    uv_in.reorder_pols(order=[3, 0, 2, 1])
+    assert not np.allclose(uv_in.polarization_array, polarization_input)
+
+    uv_in.write_uvfits(write_file)
+    uv_out.read(write_file)
+    if future_shapes:
+        uv_out.use_future_array_shapes()
+
+    # put polarizations back in order
+    uv_in.reorder_pols(order="AIPS")
+    assert uv_in == uv_out
+
+    return
