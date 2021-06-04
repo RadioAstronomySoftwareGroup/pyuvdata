@@ -3434,7 +3434,7 @@ class UVData(UVBase):
         if pick_data_ants:
             data_ants = np.unique(np.concatenate([self.ant_1_array, self.ant_2_array]))
             telescope_ants = self.antenna_numbers
-            select = [x in data_ants for x in telescope_ants]
+            select = np.in1d(telescope_ants, data_ants)
             antpos = antpos[select, :]
             ants = telescope_ants[select]
 
