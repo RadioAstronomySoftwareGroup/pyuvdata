@@ -852,7 +852,7 @@ class UVFlag(UVBase):
     def get_antpairs(self):
         """Return list of unique antpair tuples (ant1, ant2) in data."""
         assert self.type == "baseline", 'Must be "baseline" type UVFlag object.'
-        return [self.baseline_to_antnums(bl) for bl in self.get_baseline_nums()]
+        return list(zip(*self.baseline_to_antnums(self.get_baseline_nums())))
 
     def get_ants(self):
         """

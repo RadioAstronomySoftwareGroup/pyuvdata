@@ -3109,7 +3109,7 @@ class UVData(UVBase):
         list of tuples of int
             list of unique antpair tuples (ant1, ant2) with data associated with them.
         """
-        return [self.baseline_to_antnums(bl) for bl in self.get_baseline_nums()]
+        return list(zip(*self.baseline_to_antnums(self.get_baseline_nums())))
 
     def get_pols(self):
         """
@@ -7784,7 +7784,7 @@ class UVData(UVBase):
                             "Baseline number {i} is not present in the "
                             "baseline_array".format(i=bl_ind)
                         )
-                bls = [self.baseline_to_antnums(bl) for bl in bls]
+                bls = list(zip(*self.baseline_to_antnums(bls)))
             elif isinstance(bls, tuple) and (len(bls) == 2 or len(bls) == 3):
                 bls = [bls]
             if len(bls) == 0 or not all(isinstance(item, tuple) for item in bls):
