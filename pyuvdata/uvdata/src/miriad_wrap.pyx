@@ -466,6 +466,7 @@ cdef class UV:
     return
 
   @cython.boundscheck(False)
+  @cython.cdivision(True)
   cpdef raw_read(self, int n2read) except +:
     cdef int nread, i, j
     cdef double preamble[PREAMBLE_SIZE]
