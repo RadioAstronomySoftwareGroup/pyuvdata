@@ -361,68 +361,102 @@ cdef class UV:
     return
 
   @cython.boundscheck(False)
-  cdef _get_j_type(self, int htype, char *name, int length):
-    cdef numpy.ndarray[dtype=int, ndim=1] arr = np.zeros((length,), dtype=np.int16)
+  cdef numpy.ndarray[dtype=numpy.int16_t, ndim=1] _get_j_type(self, int htype, char *name, int length):
+    cdef numpy.npy_intp * dims = [length]
+    cdef numpy.ndarray[dtype=numpy.int16_t, ndim=1] arr = numpy.PyArray_ZEROS(1, dims, numpy.NPY_INT16, 0)
     uvgetvr_c(self.tno, htype, name, <char *>&arr[0], length)
     if length == 1:
-      return arr.item(0)
+      return numpy.PyArray_GETITEM(arr, numpy.PyArray_GETPTR1(arr, 0))
     return arr
 
   @cython.boundscheck(False)
   cdef _get_i_type(self, int htype, char *name, int length):
-    cdef numpy.ndarray[dtype=numpy.int32_t, ndim=1] arr = np.zeros((length,), dtype=np.int32)
+    cdef numpy.npy_intp * dims = [length]
+    cdef numpy.ndarray[dtype=numpy.int32_t, ndim=1] arr = numpy.PyArray_ZEROS(1, dims, numpy.NPY_INT32, 0)
     uvgetvr_c(self.tno, htype, name, <char *>&arr[0], length)
     if length == 1:
-      return arr.item(0)
+      return numpy.PyArray_GETITEM(arr, numpy.PyArray_GETPTR1(arr, 0))
     return arr
 
   @cython.boundscheck(False)
   cdef _get_d_type(self, int htype, char *name, int length):
-    cdef numpy.ndarray[dtype=DTYPE_f64, ndim=1] arr = np.zeros((length,), dtype=np.float64)
+    cdef numpy.npy_intp * dims = [length]
+    cdef numpy.ndarray[dtype=DTYPE_f64, ndim=1] arr = numpy.PyArray_ZEROS(1, dims, numpy.NPY_FLOAT64, 0)
     uvgetvr_c(self.tno, htype, name, <char *>&arr[0], length)
     if length == 1:
-      return arr.item(0)
+      return numpy.PyArray_GETITEM(arr, numpy.PyArray_GETPTR1(arr, 0))
     return arr
 
   @cython.boundscheck(False)
   cdef _get_r_type(self, int htype, char *name, int length):
-    cdef numpy.ndarray[dtype=numpy.float32_t, ndim=1] arr = np.zeros((length,), dtype=np.float32)
+    cdef numpy.npy_intp * dims = [length]
+    cdef numpy.ndarray[dtype=numpy.float32_t, ndim=1] arr = numpy.PyArray_ZEROS(1, dims, numpy.NPY_FLOAT32, 0)
     uvgetvr_c(self.tno, htype, name, <char *>&arr[0], length)
     if length == 1:
-      return arr.item(0)
+      return numpy.PyArray_GETITEM(arr, numpy.PyArray_GETPTR1(arr, 0))
     return arr
 
   @cython.boundscheck(False)
   cdef _get_c_type(self, int htype, char *name, int length):
-    cdef numpy.ndarray[dtype=DTYPE_c, ndim=1] arr = np.zeros((length,), dtype=np.complex64)
+    cdef numpy.npy_intp * dims = [length]
+    cdef numpy.ndarray[dtype=DTYPE_c, ndim=1] arr = numpy.PyArray_ZEROS(1, dims, numpy.NPY_COMPLEX64, 0)
     uvgetvr_c(self.tno, htype, name, <char *>&arr[0], length)
     if length == 1:
-      return arr.item(0)
+      return numpy.PyArray_GETITEM(arr, numpy.PyArray_GETPTR1(arr, 0))
     return arr
 
   @cython.boundscheck(False)
   cdef void _store_j_type(self, int htype, char *name, numpy.ndarray[dtype=int] value):
-    uvputvr_c(self.tno, htype, name, <char *>&value[0], value.size)
+    uvputvr_c(
+      self.tno,
+      htype,
+      name, <char *>&value[0],
+      numpy.PyArray_SIZE(value),
+    )
     return
 
   @cython.boundscheck(False)
   cdef void _store_i_type(self, int htype, char *name, numpy.ndarray[dtype=numpy.int32_t] value):
-    uvputvr_c(self.tno, htype, name, <char *>&value[0], value.size)
+    uvputvr_c(
+      self.tno,
+      htype,
+      name,
+      <char *>&value[0],
+      numpy.PyArray_SIZE(value),
+    )
     return
 
   @cython.boundscheck(False)
   cdef void _store_d_type(self, int htype, char *name, numpy.ndarray[dtype=DTYPE_f64] value):
-    uvputvr_c(self.tno, htype, name, <char *>&value[0], value.size)
+    uvputvr_c(
+      self.tno,
+      htype,
+      name,
+      <char *>&value[0],
+      numpy.PyArray_SIZE(value),
+    )
     return
 
   @cython.boundscheck(False)
   cdef void _store_r_type(self, int htype, char *name, numpy.ndarray[dtype=numpy.float32_t] value):
-    uvputvr_c(self.tno, htype, name, <char *>&value[0], value.size)
+    uvputvr_c(
+      self.tno,
+      htype,
+      name,
+      <char *>&value[0],
+      numpy.PyArray_SIZE(value),
+    )
     return
 
   @cython.boundscheck(False)
   cdef void _store_c_type(self, int htype, char *name, numpy.ndarray[dtype=DTYPE_c] value):
-    uvputvr_c(self.tno, htype, name, <char *>&value[0], value.size)
+    uvputvr_c(
+      self.tno,
+      htype,
+      name,
+      <char *>&value[0],
+      numpy.PyArray_SIZE(value),
+    )
     return
 
   cpdef void rewind(self):
