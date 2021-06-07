@@ -3,7 +3,6 @@
 # Licensed under the 2-clause BSD License
 
 # distutils: language = c++
-# cython: linetrace=True
 
 # python imports
 import numpy as np
