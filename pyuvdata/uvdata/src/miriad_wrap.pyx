@@ -3,6 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 # distutils: language = c++
+# cython: linetrace=True
 
 # python imports
 import numpy as np
@@ -324,6 +325,16 @@ cpdef tuple hread(int item_hdl, int offset, str type) except +:
   else:
     raise ValueError(f"unknown item type: {type[0]}")
 
+cdef numpy.ndarray atleast_1d(object value, int dtype):
+  cdef numpy.ndarray out_value = numpy.PyArray_FROMANY(value, dtype, 0, 1, numpy.NPY_ARRAY_OUT_ARRAY)
+  cdef numpy.PyArray_Dims shape
+  cdef numpy.npy_intp * size = [1]
+  if numpy.PyArray_IsZeroDim(out_value):
+    shape.ptr = size
+    shape.len = 1
+    out_value = numpy.PyArray_Newshape(out_value, &shape, numpy.NPY_CORDER)
+  return out_value
+
 cdef class UV:
   cpdef int tno
   cpdef long decimate
@@ -366,7 +377,7 @@ cdef class UV:
     cdef numpy.ndarray[dtype=numpy.int16_t, ndim=1] arr = numpy.PyArray_ZEROS(1, dims, numpy.NPY_INT16, 0)
     uvgetvr_c(self.tno, htype, name, <char *>&arr[0], length)
     if length == 1:
-      return numpy.PyArray_GETITEM(arr, numpy.PyArray_GETPTR1(arr, 0))
+      return numpy.PyArray_GETITEM(arr, <char*>numpy.PyArray_GETPTR1(arr, 0))
     return arr
 
   @cython.boundscheck(False)
@@ -375,7 +386,7 @@ cdef class UV:
     cdef numpy.ndarray[dtype=numpy.int32_t, ndim=1] arr = numpy.PyArray_ZEROS(1, dims, numpy.NPY_INT32, 0)
     uvgetvr_c(self.tno, htype, name, <char *>&arr[0], length)
     if length == 1:
-      return numpy.PyArray_GETITEM(arr, numpy.PyArray_GETPTR1(arr, 0))
+      return numpy.PyArray_GETITEM(arr, <char*>numpy.PyArray_GETPTR1(arr, 0))
     return arr
 
   @cython.boundscheck(False)
@@ -384,7 +395,7 @@ cdef class UV:
     cdef numpy.ndarray[dtype=DTYPE_f64, ndim=1] arr = numpy.PyArray_ZEROS(1, dims, numpy.NPY_FLOAT64, 0)
     uvgetvr_c(self.tno, htype, name, <char *>&arr[0], length)
     if length == 1:
-      return numpy.PyArray_GETITEM(arr, numpy.PyArray_GETPTR1(arr, 0))
+      return numpy.PyArray_GETITEM(arr, <char*>numpy.PyArray_GETPTR1(arr, 0))
     return arr
 
   @cython.boundscheck(False)
@@ -393,7 +404,7 @@ cdef class UV:
     cdef numpy.ndarray[dtype=numpy.float32_t, ndim=1] arr = numpy.PyArray_ZEROS(1, dims, numpy.NPY_FLOAT32, 0)
     uvgetvr_c(self.tno, htype, name, <char *>&arr[0], length)
     if length == 1:
-      return numpy.PyArray_GETITEM(arr, numpy.PyArray_GETPTR1(arr, 0))
+      return numpy.PyArray_GETITEM(arr, <char*>numpy.PyArray_GETPTR1(arr, 0))
     return arr
 
   @cython.boundscheck(False)
@@ -402,7 +413,7 @@ cdef class UV:
     cdef numpy.ndarray[dtype=DTYPE_c, ndim=1] arr = numpy.PyArray_ZEROS(1, dims, numpy.NPY_COMPLEX64, 0)
     uvgetvr_c(self.tno, htype, name, <char *>&arr[0], length)
     if length == 1:
-      return numpy.PyArray_GETITEM(arr, numpy.PyArray_GETPTR1(arr, 0))
+      return numpy.PyArray_GETITEM(arr, <char*>numpy.PyArray_GETPTR1(arr, 0))
     return arr
 
   @cython.boundscheck(False)
@@ -470,14 +481,15 @@ cdef class UV:
   cpdef raw_read(self, int n2read) except +:
     cdef int nread, i, j
     cdef double preamble[PREAMBLE_SIZE]
-    cdef numpy.ndarray[numpy.complex64_t , ndim=1] data = np.zeros((n2read,), dtype=np.complex64)
+    cdef numpy.npy_intp * dims = [n2read]
+    cdef numpy.npy_intp * uvw_dims = [3]
+    cdef numpy.ndarray[numpy.complex64_t, ndim=1] data = numpy.PyArray_ZEROS(1, dims, numpy.NPY_COMPLEX64, 0)
+    # This definition is special and gets to use np because intc has no cython-numpy equivalent
     cdef numpy.ndarray[int, ndim=1] flags = np.zeros((n2read,), dtype=np.intc)
-    cdef numpy.ndarray[DTYPE_f64, ndim=1] uvw = np.zeros((3,), dtype=np.float64)
+    cdef numpy.ndarray[DTYPE_f64, ndim=1] uvw = numpy.PyArray_ZEROS(1, uvw_dims, numpy.NPY_FLOAT64, 0)
 
     while True:
-
       uvread_c(self.tno, preamble, <float *>&data[0], <int *>&flags[0], n2read, &nread)
-
       if (preamble[3] != self.curtime):
         self.intcnt += 1
         self.curtime = preamble[3]
@@ -494,14 +506,15 @@ cdef class UV:
 
     return (uvw, preamble[3], (i, j)), data, flags, nread
 
-  cpdef void raw_write(self, object input_preamble, numpy.ndarray[dtype=DTYPE_c, ndim=1] data, numpy.ndarray[dtype=int, ndim=1] flags) except +:
+  @cython.boundscheck(False)
+  cpdef void raw_write(self, input_preamble, numpy.ndarray[dtype=DTYPE_c, ndim=1] data, numpy.ndarray[dtype=int, ndim=1] flags) except +:
     cdef int nread
     cdef double preamble[PREAMBLE_SIZE]
-    cdef double t = input_preamble[1]
-    cdef int i = input_preamble[2][0], j = input_preamble[2][1]
+    cdef double t = <double>input_preamble[1]
+    cdef int i = <int>input_preamble[2][0], j = <int>input_preamble[2][1]
 
     if len(input_preamble[0]) != 3:
-      raise ValueError(f"uvw must have shape (3,) but got {len(input_preamble[0])}")
+      raise ValueError(f"uvw must have shape (3,) but got {len(input_preamble.uvw)}")
 
     preamble[0] = input_preamble[0][0]
     preamble[1] = input_preamble[0][1]
@@ -509,7 +522,13 @@ cdef class UV:
     preamble[3] = t
     preamble[4] = MKBL(i, j)
 
-    uvwrite_c(self.tno, preamble, <float *>&data[0], <int *>&flags[0], data.size)
+    uvwrite_c(
+      self.tno,
+      preamble,
+      <float *>&data[0],
+      <int *>&flags[0],
+      numpy.PyArray_SIZE(data),
+    )
 
     return
 
@@ -581,20 +600,45 @@ cdef class UV:
       st = <char *>value
       uvputvr_c(self.tno, H_BYTE, name.encode(), st, len(value) + 1)
 
+
+
     elif type[0] == "j":
-      return self._store_j_type(H_INT2, name.encode(), np.atleast_1d(value).astype(np.int16))
+      return self._store_j_type(
+        H_INT2,
+        name.encode(),
+        atleast_1d(value, numpy.NPY_INT16),
+      )
 
     elif type[0] == "i":
-      return self._store_i_type(H_INT, name.encode(), np.atleast_1d(value).astype(np.int32))
+      value = atleast_1d(value, numpy.NPY_INT64)
+      # i-type is special and weird, but the inputes are int64
+      # so perform an extra casting as it gets written
+      return self._store_i_type(
+        H_INT,
+        name.encode(),
+        numpy.PyArray_Cast(value, numpy.NPY_INT32)
+      )
 
     elif type[0] == "r":
-      return self._store_r_type(H_REAL, name.encode(), np.atleast_1d(value).astype(np.float32))
+      return self._store_r_type(
+        H_REAL,
+        name.encode(),
+        atleast_1d(value, numpy.NPY_FLOAT32),
+        )
 
     elif type[0] == "d":
-      return self._store_d_type(H_DBLE, name.encode(), np.atleast_1d(value).astype(np.float64))
+      return self._store_d_type(
+        H_DBLE,
+        name.encode(),
+        atleast_1d(value, numpy.NPY_FLOAT64),
+        )
 
     elif type[0] == "c":
-      return self._store_c_type(H_CMPLX, name.encode(), np.atleast_1d(value).astype(np.complex64))
+      return self._store_c_type(
+        H_CMPLX,
+        name.encode(),
+        atleast_1d(value, numpy.NPY_COMPLEX64),
+      )
 
     else:
       raise ValueError(f"Unkown UV variable type {type[0]}")
