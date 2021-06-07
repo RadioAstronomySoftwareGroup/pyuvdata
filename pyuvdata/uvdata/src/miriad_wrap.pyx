@@ -483,8 +483,7 @@ cdef class UV:
     cdef numpy.npy_intp * dims = [n2read]
     cdef numpy.npy_intp * uvw_dims = [3]
     cdef numpy.ndarray[numpy.complex64_t, ndim=1] data = numpy.PyArray_ZEROS(1, dims, numpy.NPY_COMPLEX64, 0)
-    # This definition is special and gets to use np because intc has no cython-numpy equivalent
-    cdef numpy.ndarray[int, ndim=1] flags = np.zeros((n2read,), dtype=np.intc)
+    cdef numpy.ndarray[numpy.int32_t, ndim=1] flags = numpy.PyArray_ZEROS(1, dims, numpy.NPY_INT32, 0)
     cdef numpy.ndarray[DTYPE_f64, ndim=1] uvw = numpy.PyArray_ZEROS(1, uvw_dims, numpy.NPY_FLOAT64, 0)
 
     while True:
