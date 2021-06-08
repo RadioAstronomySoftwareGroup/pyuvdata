@@ -7240,6 +7240,9 @@ class UVData(UVBase):
                         + extra_history
                     )
 
+        # merge file names
+        this.filename = uvutils._combine_filenames(this.filename, other.filename)
+
         # Check final object is self-consistent
         if run_check:
             this.check(
@@ -7310,7 +7313,7 @@ class UVData(UVBase):
                 other,
                 difference=True,
                 inplace=inplace,
-                run_check=True,
+                run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
@@ -7321,7 +7324,7 @@ class UVData(UVBase):
                 other,
                 difference=True,
                 inplace=inplace,
-                run_check=True,
+                run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
