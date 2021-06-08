@@ -69,13 +69,11 @@ def test_read_fhd_write_read_uvfits(fhd_data, tmp_path):
     )
     uvfits_uv.read_uvfits(outfile)
 
-    # make sure filename attributes have the right length before removing
-    assert len(fhd_uv.filename) == 9
-    assert len(uvfits_uv.filename) == 1
-    fhd_uv.filename = None
-    fhd_uv._filename.form = ()
-    uvfits_uv.filename = None
-    uvfits_uv._filename.form = ()
+    # make sure filename attributes are correct
+    assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in testfiles}
+    assert uvfits_uv.filename == [os.path.basename(outfile)]
+    fhd_uv.filename = uvfits_uv.filename
+    fhd_uv._filename.form = (1,)
 
     assert fhd_uv == uvfits_uv
 
@@ -212,12 +210,10 @@ def test_read_fhd_write_read_uvfits_variant_flag(tmp_path):
     uvfits_uv.read_uvfits(outfile)
 
     # make sure filenames are what we expect
-    assert len(fhd_uv.filename) == len(files_use)
-    assert len(uvfits_uv.filename) == 1
-    fhd_uv.filename = None
-    fhd_uv._filename.form = ()
-    uvfits_uv.filename = None
-    uvfits_uv._filename.form = ()
+    assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in files_use}
+    assert uvfits_uv.filename == ["outtest_FHD_1061316296.uvfits"]
+    fhd_uv.filename = uvfits_uv.filename
+    fhd_uv._filename.form = (1,)
 
     assert fhd_uv == uvfits_uv
 
@@ -243,12 +239,10 @@ def test_read_fhd_write_read_uvfits_fix_layout(tmp_path):
     uvfits_uv.read_uvfits(outfile)
 
     # make sure filenames are what we expect
-    assert len(fhd_uv.filename) == len(files_use)
-    assert len(uvfits_uv.filename) == 1
-    fhd_uv.filename = None
-    fhd_uv._filename.form = ()
-    uvfits_uv.filename = None
-    uvfits_uv._filename.form = ()
+    assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in files_use}
+    assert uvfits_uv.filename == ["outtest_FHD_1061316296.uvfits"]
+    fhd_uv.filename = uvfits_uv.filename
+    fhd_uv._filename.form = (1,)
 
     assert fhd_uv == uvfits_uv
 
@@ -285,12 +279,10 @@ def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc(tmp_path):
     uvfits_uv.read_uvfits(outfile)
 
     # make sure filenames are what we expect
-    assert len(fhd_uv.filename) == len(files_use)
-    assert len(uvfits_uv.filename) == 1
-    fhd_uv.filename = None
-    fhd_uv._filename.form = ()
-    uvfits_uv.filename = None
-    uvfits_uv._filename.form = ()
+    assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in files_use}
+    assert uvfits_uv.filename == ["outtest_FHD_1061316296.uvfits"]
+    fhd_uv.filename = uvfits_uv.filename
+    fhd_uv._filename.form = (1,)
 
     assert fhd_uv == uvfits_uv
 
@@ -326,12 +318,10 @@ def test_read_fhd_write_read_uvfits_bad_obs_loc(tmp_path):
     uvfits_uv.read_uvfits(outfile)
 
     # make sure filenames are what we expect
-    assert len(fhd_uv.filename) == len(files_use)
-    assert len(uvfits_uv.filename) == 1
-    fhd_uv.filename = None
-    fhd_uv._filename.form = ()
-    uvfits_uv.filename = None
-    uvfits_uv._filename.form = ()
+    assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in files_use}
+    assert uvfits_uv.filename == ["outtest_FHD_1061316296.uvfits"]
+    fhd_uv.filename = uvfits_uv.filename
+    fhd_uv._filename.form = (1,)
 
     assert fhd_uv == uvfits_uv
 
@@ -358,12 +348,10 @@ def test_read_fhd_write_read_uvfits_altered_layout(tmp_path):
     uvfits_uv.read_uvfits(outfile)
 
     # make sure filenames are what we expect
-    assert len(fhd_uv.filename) == len(files_use)
-    assert len(uvfits_uv.filename) == 1
-    fhd_uv.filename = None
-    fhd_uv._filename.form = ()
-    uvfits_uv.filename = None
-    uvfits_uv._filename.form = ()
+    assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in files_use}
+    assert uvfits_uv.filename == ["outtest_FHD_1061316296.uvfits"]
+    fhd_uv.filename = uvfits_uv.filename
+    fhd_uv._filename.form = (1,)
 
     assert fhd_uv == uvfits_uv
 
@@ -395,12 +383,10 @@ def test_read_fhd_write_read_uvfits_no_settings(tmp_path):
     uvfits_uv.read_uvfits(outfile)
 
     # make sure filenames are what we expect
-    assert len(fhd_uv.filename) == len(testfiles[:-2])
-    assert len(uvfits_uv.filename) == 1
-    fhd_uv.filename = None
-    fhd_uv._filename.form = ()
-    uvfits_uv.filename = None
-    uvfits_uv._filename.form = ()
+    assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in testfiles[:-2]}
+    assert uvfits_uv.filename == ["outtest_FHD_1061316296.uvfits"]
+    fhd_uv.filename = uvfits_uv.filename
+    fhd_uv._filename.form = (1,)
 
     assert fhd_uv == uvfits_uv
 
@@ -505,12 +491,10 @@ def test_read_fhd_model(tmp_path, fhd_model):
     uvfits_uv.read_uvfits(outfile)
 
     # make sure filenames are what we expect
-    assert len(fhd_uv.filename) == len(testfiles)
-    assert len(uvfits_uv.filename) == 1
-    fhd_uv.filename = None
-    fhd_uv._filename.form = ()
-    uvfits_uv.filename = None
-    uvfits_uv._filename.form = ()
+    assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in testfiles}
+    assert uvfits_uv.filename == ["outtest_FHD_1061316296_model.uvfits"]
+    fhd_uv.filename = uvfits_uv.filename
+    fhd_uv._filename.form = (1,)
 
     assert fhd_uv == uvfits_uv
 
