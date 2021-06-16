@@ -224,7 +224,7 @@ class MirParser(object):
     metadata first to check whether or not to load additional data into memory.
     """
 
-    def __init__(self, filepath, load_vis=False, load_raw=False, load_auto=False):
+    def __init__(self, filepath, read_auto=False, load_vis=False, load_raw=False, load_auto=False):
         """
         Read in all files from a mir data set into predefined numpy datatypes.
 
@@ -236,6 +236,8 @@ class MirParser(object):
         ----------
         filepath : str
             filepath is the path to the folder containing the mir data set.
+        read_auto : bool
+            flag to read auto-correlation data, default is False.
         load_vis : bool
             flag to load visibilities into memory, default is False.
         load_raw : bool
@@ -243,6 +245,9 @@ class MirParser(object):
         load_auto : bool
             flag to load auto-correlations into memory, default is False.
         """
+
+        self._read_auto = read_auto
+
         self.filepath = filepath
         self.in_read = self.read_in_data(filepath)
         self.eng_read = self.read_eng_data(filepath)
@@ -250,7 +255,6 @@ class MirParser(object):
         self.sp_read = self.read_sp_data(filepath)
         self.codes_read = self.read_codes_data(filepath)
         self.we_read = self.read_we_data(filepath)
-        self.ac_read = self.scan_auto_data(filepath)
         self.in_start_dict = self.scan_int_start(filepath)
         self.antpos_data = self.read_antennas(filepath)
 
@@ -263,7 +267,6 @@ class MirParser(object):
         self.bl_filter = np.ones(self.bl_read.shape, dtype=np.bool_)
         self.sp_filter = np.ones(self.sp_read.shape, dtype=np.bool_)
         self.we_filter = np.ones(self.we_read.shape, dtype=np.bool_)
-        self.ac_filter = np.ones(self.ac_read.shape, dtype=np.bool_)
 
         self.in_data = self.in_read
         self.eng_data = self.eng_read
@@ -271,7 +274,16 @@ class MirParser(object):
         self.sp_data = self.sp_read
         self.codes_data = self.codes_read
         self.we_data = self.we_read
-        self.ac_data = self.ac_read
+
+
+        if read_auto:
+            self.ac_read = self.scan_auto_data(filepath)
+            self.ac_filter = np.ones(self.ac_read.shape, dtype=np.bool_)
+            self.ac_data = self.ac_read
+        else:
+            # Check for load_auto=True.
+            if load_auto:
+                load_auto = False
 
         # Raw data aren't loaded on start, because the datasets can be huge
         # You can force this after creating the object with load_data().
@@ -356,9 +368,11 @@ class MirParser(object):
         self.we_filter = np.array(
             [inhid_filter_dict[key] for key in self.we_read["scanNumber"]]
         )
-        self.ac_filter = np.array(
-            [inhid_filter_dict[key] for key in self.ac_read["inhid"]]
-        )
+
+        if self._read_auto:
+            self.ac_filter = np.array(
+                [inhid_filter_dict[key] for key in self.ac_read["inhid"]]
+            )
 
         filter_changed = not (
             np.all(np.array_equal(old_sp_filter, self.sp_filter))
@@ -372,7 +386,9 @@ class MirParser(object):
             self.sp_data = self.sp_read[self.sp_filter]
             self.eng_data = self.eng_read[self.eng_filter]
             self.we_data = self.we_read[self.we_filter]
-            self.ac_data = self.ac_read[self.ac_filter]
+
+            if self._read_auto:
+                self.ac_data = self.ac_read[self.ac_filter]
 
         # Craft some dictionaries so you know what list position matches
         # to each index entry. This helps avoid ordering issues.
