@@ -7,7 +7,7 @@ import numpy as np
 import os
 import warnings
 import h5py
-from ast import literal_eval
+import json
 
 from .uvdata import UVData
 from .. import utils as uvutils
@@ -521,7 +521,7 @@ class UVH5(UVData):
         if "phase_center_catalog" in header:
             self.phase_center_catalog = {}
             for key in header["phase_center_catalog"].keys():
-                self.phase_center_catalog[key] = literal_eval(
+                self.phase_center_catalog[key] = json.loads(
                     bytes(header["phase_center_catalog"][key][()]).decode("utf8")
                 )
         if "phase_center_frame" in header:
@@ -1215,9 +1215,6 @@ class UVH5(UVData):
             # this is Version 1.0
             header["version"] = np.string_("1.0")
         else:
-            # this is Version 0.1; we won't write this unless the user calls
-            # this function specifically, as UVData.write_uvh5() will convert to
-            # future array shapes
             header["version"] = np.string_("0.1")
 
         # write out telescope and source information
@@ -1309,7 +1306,7 @@ class UVH5(UVData):
                 # Dictionary entries can be written out as strings, in what is
                 # effectively JSON format. The str promotion up front is needed
                 # because otherwise np.string_ truncates the dictionary
-                phase_dict[k] = np.string_(str(self.phase_center_catalog[k]))
+                phase_dict[k] = json.dumps(self.phase_center_catalog[k])
 
         # write out extra keywords if it exists and has elements
         if self.extra_keywords:
