@@ -473,16 +473,16 @@ def test_rot_func_inputs():
         uvutils.cart3_to_polar2(np.array([0.0]))
 
     with pytest.raises(ValueError, match=r"rot_matrix must be of shape \(n_rot, 3, 3"):
-        uvutils.rotate_matmul_wrapper(np.zeros((1, 3, 1)), np.zeros((1, 3, 3)), 2)
+        uvutils._rotate_matmul_wrapper(np.zeros((1, 3, 1)), np.zeros((1, 3, 3)), 2)
 
     with pytest.raises(ValueError, match=r"Misshaped xyz_array - expected shape \(n_r"):
-        uvutils.rotate_matmul_wrapper(np.zeros((1, 2, 1)), np.zeros((1, 3, 3)), 1)
+        uvutils._rotate_matmul_wrapper(np.zeros((1, 2, 1)), np.zeros((1, 3, 3)), 1)
 
     with pytest.raises(ValueError, match=r"Misshaped xyz_array - expected shape \(3, "):
-        uvutils.rotate_matmul_wrapper(np.zeros((2, 1)), np.zeros((1, 3, 3)), 1)
+        uvutils._rotate_matmul_wrapper(np.zeros((2, 1)), np.zeros((1, 3, 3)), 1)
 
     with pytest.raises(ValueError, match=r"Misshaped xyz_array - expected shape \(3, "):
-        uvutils.rotate_matmul_wrapper(np.zeros((2)), np.zeros((1, 3, 3)), 1)
+        uvutils._rotate_matmul_wrapper(np.zeros((2)), np.zeros((1, 3, 3)), 1)
 
 
 def test_rot_funcs():
@@ -499,89 +499,89 @@ def test_rot_funcs():
     test_vecs = np.array([[1, 1, 1], [2, 2, 2]], dtype=float).T
 
     # Test no-ops w/ 0 deg rotations
-    assert np.all(uvutils.rotate_one_axis(x_vecs, 0.0, 0) == x_vecs)
+    assert np.all(uvutils._rotate_one_axis(x_vecs, 0.0, 0) == x_vecs)
     assert np.all(
-        uvutils.rotate_one_axis(x_vecs[:, 0], 0.0, 1)
+        uvutils._rotate_one_axis(x_vecs[:, 0], 0.0, 1)
         == x_vecs[np.newaxis, :, 0, np.newaxis],
     )
     assert np.all(
-        uvutils.rotate_one_axis(x_vecs[:, :, np.newaxis], 0.0, 2,)
+        uvutils._rotate_one_axis(x_vecs[:, :, np.newaxis], 0.0, 2,)
         == x_vecs[:, :, np.newaxis],
     )
 
     # Test no-ops w/ None
-    assert np.all(uvutils.rotate_one_axis(test_vecs, None, 1) == test_vecs)
+    assert np.all(uvutils._rotate_one_axis(test_vecs, None, 1) == test_vecs)
     assert np.all(
-        uvutils.rotate_one_axis(test_vecs[:, 0], None, 2)
+        uvutils._rotate_one_axis(test_vecs[:, 0], None, 2)
         == test_vecs[np.newaxis, :, 0, np.newaxis]
     )
     assert np.all(
-        uvutils.rotate_one_axis(test_vecs[:, :, np.newaxis], None, 0,)
+        uvutils._rotate_one_axis(test_vecs[:, :, np.newaxis], None, 0,)
         == test_vecs[:, :, np.newaxis]
     )
 
     # Test some basic equivalencies to make sure rotations are working correctly
-    assert np.allclose(x_vecs, uvutils.rotate_one_axis(x_vecs, 1.0, 0))
-    assert np.allclose(y_vecs, uvutils.rotate_one_axis(y_vecs, 2.0, 1))
-    assert np.allclose(z_vecs, uvutils.rotate_one_axis(z_vecs, 3.0, 2))
+    assert np.allclose(x_vecs, uvutils._rotate_one_axis(x_vecs, 1.0, 0))
+    assert np.allclose(y_vecs, uvutils._rotate_one_axis(y_vecs, 2.0, 1))
+    assert np.allclose(z_vecs, uvutils._rotate_one_axis(z_vecs, 3.0, 2))
 
-    assert np.allclose(x_vecs, uvutils.rotate_one_axis(y_vecs, -np.pi / 2.0, 2))
-    assert np.allclose(y_vecs, uvutils.rotate_one_axis(x_vecs, np.pi / 2.0, 2))
-    assert np.allclose(x_vecs, uvutils.rotate_one_axis(z_vecs, np.pi / 2.0, 1))
-    assert np.allclose(z_vecs, uvutils.rotate_one_axis(x_vecs, -np.pi / 2.0, 1))
-    assert np.allclose(y_vecs, uvutils.rotate_one_axis(z_vecs, -np.pi / 2.0, 0))
-    assert np.allclose(z_vecs, uvutils.rotate_one_axis(y_vecs, np.pi / 2.0, 0))
+    assert np.allclose(x_vecs, uvutils._rotate_one_axis(y_vecs, -np.pi / 2.0, 2))
+    assert np.allclose(y_vecs, uvutils._rotate_one_axis(x_vecs, np.pi / 2.0, 2))
+    assert np.allclose(x_vecs, uvutils._rotate_one_axis(z_vecs, np.pi / 2.0, 1))
+    assert np.allclose(z_vecs, uvutils._rotate_one_axis(x_vecs, -np.pi / 2.0, 1))
+    assert np.allclose(y_vecs, uvutils._rotate_one_axis(z_vecs, -np.pi / 2.0, 0))
+    assert np.allclose(z_vecs, uvutils._rotate_one_axis(y_vecs, np.pi / 2.0, 0))
 
     assert np.all(
         np.equal(
-            uvutils.rotate_one_axis(test_vecs, 1.0, 2),
-            uvutils.rotate_one_axis(test_vecs, 1.0, np.array([2])),
+            uvutils._rotate_one_axis(test_vecs, 1.0, 2),
+            uvutils._rotate_one_axis(test_vecs, 1.0, np.array([2])),
         )
     )
 
     # Testing a special case, where the xyz_array vectors are reshaped if there
     # is only a single rotation matrix used (helps speed things up significantly)
     mod_vec = x_vecs.T.reshape((2, 3, 1))
-    assert np.all(uvutils.rotate_one_axis(mod_vec, 1.0, 0) == mod_vec)
+    assert np.all(uvutils._rotate_one_axis(mod_vec, 1.0, 0) == mod_vec)
 
     # That's all the single rotation stuff, now on to the two axis rotations
-    assert np.allclose(x_vecs, uvutils.rotate_two_axis(x_vecs, 2 * np.pi, 1.0, 1, 0))
-    assert np.allclose(y_vecs, uvutils.rotate_two_axis(y_vecs, 2 * np.pi, 2.0, 2, 1))
-    assert np.allclose(z_vecs, uvutils.rotate_two_axis(z_vecs, 2 * np.pi, 3.0, 0, 2))
+    assert np.allclose(x_vecs, uvutils._rotate_two_axis(x_vecs, 2 * np.pi, 1.0, 1, 0))
+    assert np.allclose(y_vecs, uvutils._rotate_two_axis(y_vecs, 2 * np.pi, 2.0, 2, 1))
+    assert np.allclose(z_vecs, uvutils._rotate_two_axis(z_vecs, 2 * np.pi, 3.0, 0, 2))
 
     # If performing two rots on the same axis, that should be identical to using
     # a single rot (with the rot angle equal to the sum of the two rot angles)
     assert np.all(
         np.equal(
-            uvutils.rotate_one_axis(test_vecs, 2.0, 0),
-            uvutils.rotate_two_axis(test_vecs, 1.0, 1.0, 0, 0),
+            uvutils._rotate_one_axis(test_vecs, 2.0, 0),
+            uvutils._rotate_two_axis(test_vecs, 1.0, 1.0, 0, 0),
         )
     )
 
     assert np.all(
         np.equal(
-            uvutils.rotate_one_axis(test_vecs, 2.0, 0),
-            uvutils.rotate_two_axis(test_vecs, 2.0, 0.0, 0, 1),
+            uvutils._rotate_one_axis(test_vecs, 2.0, 0),
+            uvutils._rotate_two_axis(test_vecs, 2.0, 0.0, 0, 1),
         )
     )
 
     assert np.all(
         np.equal(
-            uvutils.rotate_one_axis(test_vecs, 2.0, 0),
-            uvutils.rotate_two_axis(test_vecs, None, 2.0, 1, 0),
+            uvutils._rotate_one_axis(test_vecs, 2.0, 0),
+            uvutils._rotate_two_axis(test_vecs, None, 2.0, 1, 0),
         )
     )
 
     assert np.all(
         np.equal(
-            uvutils.rotate_one_axis(test_vecs, 0.0, 0),
-            uvutils.rotate_two_axis(test_vecs, None, 0.0, 1, 2),
+            uvutils._rotate_one_axis(test_vecs, 0.0, 0),
+            uvutils._rotate_two_axis(test_vecs, None, 0.0, 1, 2),
         )
     )
 
     mod_vec = test_vecs.T.reshape((2, 3, 1))
     assert np.allclose(
-        uvutils.rotate_two_axis(mod_vec, np.pi, np.pi / 2.0, 0, 1), -mod_vec
+        uvutils._rotate_two_axis(mod_vec, np.pi, np.pi / 2.0, 0, 1), -mod_vec
     )
 
 

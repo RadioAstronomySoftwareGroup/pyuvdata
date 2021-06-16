@@ -1154,7 +1154,7 @@ def cart3_to_polar2(xyz_array):
     return lon_array, lat_array
 
 
-def rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot):
+def _rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot):
     """
     Apply a rotation matrix to a series of vectors.
 
@@ -1199,7 +1199,7 @@ def rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot):
     return rotated_xyz
 
 
-def rotate_one_axis(xyz_array, rot_amount, rot_axis):
+def _rotate_one_axis(xyz_array, rot_amount, rot_axis):
     """
     Rotate an array of 3D positions around the a single axis (x, y, or z).
 
@@ -1271,16 +1271,16 @@ def rotate_one_axis(xyz_array, rot_amount, rot_axis):
         # swap the n_vector and  n_rot axes, and then swap them back once everything
         # else is done.
         return np.transpose(
-            rotate_matmul_wrapper(
+            _rotate_matmul_wrapper(
                 np.transpose(xyz_array, axes=[2, 1, 0]), rot_matrix, n_rot,
             ),
             axes=[2, 1, 0],
         )
     else:
-        return rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot)
+        return _rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot)
 
 
-def rotate_two_axis(xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
+def _rotate_two_axis(xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
     """
     Rotate an array of 3D positions sequentially around a pair of axes (x, y, or z).
 
@@ -1328,14 +1328,14 @@ def rotate_two_axis(xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
         return deepcopy(xyz_array)
     elif no_rot1:
         # If rot_amount1 is None, then ignore it and just work w/ the 2nd rotation
-        return rotate_one_axis(xyz_array, rot_amount2, rot_axis2)
+        return _rotate_one_axis(xyz_array, rot_amount2, rot_axis2)
     elif no_rot2:
         # If rot_amount2 is None, then ignore it and just work w/ the 1st rotation
-        return rotate_one_axis(xyz_array, rot_amount1, rot_axis1)
+        return _rotate_one_axis(xyz_array, rot_amount1, rot_axis1)
     elif rot_axis1 == rot_axis2:
         # Capture the case where someone wants to do a sequence of rotations on the same
         # axis. Also known as just rotating a single axis.
-        return rotate_one_axis(xyz_array, rot_amount1 + rot_amount2, rot_axis1)
+        return _rotate_one_axis(xyz_array, rot_amount1 + rot_amount2, rot_axis1)
 
     # Figure out how many individual rotation matricies we need, accounting for the
     # fact that these can either be floats or ndarrays.
@@ -1410,13 +1410,13 @@ def rotate_two_axis(xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
         # swap the n_vector and  n_rot axes, and then swap them back once everything
         # else is done.
         return np.transpose(
-            rotate_matmul_wrapper(
+            _rotate_matmul_wrapper(
                 np.transpose(xyz_array, axes=[2, 1, 0]), rot_matrix, n_rot,
             ),
             axes=[2, 1, 0],
         )
     else:
-        return rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot)
+        return _rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot)
 
 
 def calc_uvw(
@@ -1599,8 +1599,8 @@ def calc_uvw(
         # individual antenna vectors quickly.
         ant_rot_vectors = np.reshape(
             np.transpose(
-                rotate_one_axis(
-                    rotate_two_axis(ant_vectors, unique_gha, unique_dec, 2, 1),
+                _rotate_one_axis(
+                    _rotate_two_axis(ant_vectors, unique_gha, unique_dec, 2, 1),
                     unique_pa,
                     0,
                 ),
@@ -1668,14 +1668,14 @@ def calc_uvw(
         # phasing up to hasn't changed, just the position angle (i.e., which way is
         # up on the map). This is a much easier transform to handle.
         if np.all(gha_delta_array == 0.0) and np.all(old_app_dec == app_dec):
-            new_coords = rotate_one_axis(
+            new_coords = _rotate_one_axis(
                 uvw_array[:, [2, 0, 1], np.newaxis],
                 frame_pa - (0.0 if old_frame_pa is None else old_frame_pa),
                 0,
             )[:, :, 0]
         else:
-            new_coords = rotate_two_axis(
-                rotate_two_axis(  # Yo dawg, I heard you like rotation maticies...
+            new_coords = _rotate_two_axis(
+                _rotate_two_axis(  # Yo dawg, I heard you like rotation maticies...
                     uvw_array[:, [2, 0, 1], np.newaxis],
                     0.0 if from_enu else (-old_frame_pa),
                     (-telescope_lat) if from_enu else (-old_app_dec),
@@ -1691,7 +1691,7 @@ def calc_uvw(
             # One final rotation applied here, to compensate for the fact that we want
             # the Dec-axis of our image (Fourier dual to the v-axis) to be aligned with
             # the chosen frame
-            new_coords = rotate_one_axis(new_coords, frame_pa, 0)[:, :, 0]
+            new_coords = _rotate_one_axis(new_coords, frame_pa, 0)[:, :, 0]
 
     # There's one last task to do, which is to re-align the axes from projected
     # XYZ -> uvw, where X (which points towards the source) falls on the w axis,
@@ -2075,8 +2075,15 @@ def transform_icrs_to_app(
 
     elif astrometry_library == "novas":
         # Import the NOVAS library only if it's needed/available.
-        from novas import compat as novas
-        from novas.compat import eph_manager
+        try:
+            from novas import compat as novas
+            from novas.compat import eph_manager
+            import novas_de405  # noqa
+        except ImportError as e:  # pragma: no cover
+            raise ImportError(
+                "novas and/or novas_de405 are not installed but is required for "
+                "NOVAS functionality"
+            ) from e
 
         # Call is needed to load high-precision ephem data in NOVAS
         jd_start, jd_end, number = eph_manager.ephem_open()
