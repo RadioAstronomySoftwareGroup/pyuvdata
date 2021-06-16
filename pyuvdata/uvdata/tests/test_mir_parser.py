@@ -24,8 +24,7 @@ def mir_data_object(request):
     read_auto = request.param
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     mir_data = mir_parser.MirParser(
-        testfile, load_vis=True, load_raw=True, load_auto=True,
-        read_auto=read_auto
+        testfile, load_vis=True, load_raw=True, load_auto=True, read_auto=read_auto
     )
 
     yield mir_data
@@ -79,7 +78,7 @@ def test_mir_parser_index_linked(mir_data_object):
 
     # Should not exist is read_auto=False
     # See `mir_data_object` above.
-    if hasattr(mir_data, 'ac_read'):
+    if hasattr(mir_data, "ac_read"):
         assert set(np.unique(mir_data.ac_read["inhid"])).issubset(inhid_set)
     else:
         # This should only occur when read_auto=False

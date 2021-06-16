@@ -285,7 +285,7 @@ def test_mir_remember_me_record_lengths(mir_data_object):
     # Check to make sure we've got the right number of records everywhere
 
     # ac_read only exists if read_auto=True
-    if hasattr(mir_data, 'ac_read'):
+    if hasattr(mir_data, "ac_read"):
         assert len(mir_data.ac_read) == 2
     else:
         # This should only occur when read_auto=False
@@ -481,7 +481,7 @@ def test_mir_remember_me_ac_read(mir_data_object):
     # Now check ac_read
 
     # ac_read only exists if read_auto=True
-    if hasattr(mir_data, 'ac_read'):
+    if hasattr(mir_data, "ac_read"):
 
         assert np.all(mir_data.ac_read["inhid"] == 1)
 
@@ -500,6 +500,7 @@ def test_mir_remember_me_ac_read(mir_data_object):
     else:
         # This should only occur when read_auto=False
         assert not mir_data._read_auto
+
 
 def test_mir_remember_me_sp_read(mir_data_object):
     """
