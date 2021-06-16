@@ -20,18 +20,6 @@ from ...uvdata.mir import mir_parser
 
 from .test_mir_parser import mir_data_object
 
-# @pytest.fixture
-# def mir_data_object():
-#     testfile = os.path.join(DATA_PATH, "sma_test.mir")
-#     mir_data = mir_parser.MirParser(
-#         testfile, load_vis=True, load_raw=True, load_auto=True,
-#     )
-
-#     yield mir_data
-
-#     # cleanup
-#     del mir_data
-
 
 @pytest.fixture
 def uv_in_uvfits(tmp_path):
@@ -295,7 +283,13 @@ def test_mir_remember_me_record_lengths(mir_data_object):
     mir_data = mir_data_object
 
     # Check to make sure we've got the right number of records everywhere
-    assert len(mir_data.ac_read) == 2
+
+    # ac_read only exists if read_auto=True
+    if hasattr(mir_data, 'ac_read'):
+        assert len(mir_data.ac_read) == 2
+    else:
+        # This should only occur when read_auto=False
+        assert not mir_data._read_auto
 
     assert len(mir_data.bl_read) == 4
 
@@ -485,20 +479,27 @@ def test_mir_remember_me_ac_read(mir_data_object):
     mir_data = mir_data_object
 
     # Now check ac_read
-    assert np.all(mir_data.ac_read["inhid"] == 1)
 
-    assert np.all(mir_data.ac_read["achid"] == np.arange(1, 3))
+    # ac_read only exists if read_auto=True
+    if hasattr(mir_data, 'ac_read'):
 
-    assert np.all(mir_data.ac_read["antenna"] == [1, 4])
+        assert np.all(mir_data.ac_read["inhid"] == 1)
 
-    assert np.all(mir_data.ac_read["nchunks"] == 8)
+        assert np.all(mir_data.ac_read["achid"] == np.arange(1, 3))
 
-    assert np.all(mir_data.ac_read["datasize"] == 1048596)
+        assert np.all(mir_data.ac_read["antenna"] == [1, 4])
 
-    assert np.all(mir_data.we_read["scanNumber"] == 1)
+        assert np.all(mir_data.ac_read["nchunks"] == 8)
 
-    assert np.all(mir_data.we_read["flags"] == 0)
+        assert np.all(mir_data.ac_read["datasize"] == 1048596)
 
+        assert np.all(mir_data.we_read["scanNumber"] == 1)
+
+        assert np.all(mir_data.we_read["flags"] == 0)
+
+    else:
+        # This should only occur when read_auto=False
+        assert not mir_data._read_auto
 
 def test_mir_remember_me_sp_read(mir_data_object):
     """

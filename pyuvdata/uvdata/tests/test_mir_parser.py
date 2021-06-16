@@ -81,6 +81,9 @@ def test_mir_parser_index_linked(mir_data_object):
     # See `mir_data_object` above.
     if hasattr(mir_data, 'ac_read'):
         assert set(np.unique(mir_data.ac_read["inhid"])).issubset(inhid_set)
+    else:
+        # This should only occur when read_auto=False
+        assert not mir_data._read_auto
 
     assert set(np.unique(mir_data.bl_read["inhid"])).issubset(inhid_set)
 
