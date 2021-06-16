@@ -10,6 +10,7 @@ python, not neccessarily how pyuvdata (by way of the UVData class) interacts wit
 data.
 """
 import os
+from attr import has
 
 import pytest
 import numpy as np
@@ -18,11 +19,13 @@ from ...data import DATA_PATH
 from ...uvdata.mir import mir_parser
 
 
-@pytest.fixture
-def mir_data_object():
+@pytest.fixture(params=[True, False])
+def mir_data_object(request):
+    read_auto = request.param
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     mir_data = mir_parser.MirParser(
         testfile, load_vis=True, load_raw=True, load_auto=True,
+        read_auto=read_auto
     )
 
     yield mir_data
@@ -74,7 +77,10 @@ def test_mir_parser_index_linked(mir_data_object):
     mir_data = mir_data_object
     inhid_set = set(np.unique(mir_data.in_read["inhid"]))
 
-    assert set(np.unique(mir_data.ac_read["inhid"])).issubset(inhid_set)
+    # Should not exist is read_auto=False
+    # See `mir_data_object` above.
+    if hasattr(mir_data, 'ac_read'):
+        assert set(np.unique(mir_data.ac_read["inhid"])).issubset(inhid_set)
 
     assert set(np.unique(mir_data.bl_read["inhid"])).issubset(inhid_set)
 
