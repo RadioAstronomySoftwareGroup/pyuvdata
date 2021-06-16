@@ -129,6 +129,62 @@ def test_source_group_params(casa_uvfits, tmp_path):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+def test_source_frame_defaults(casa_uvfits, tmp_path):
+    # make a file with a single source to test that it works
+    uv_in = casa_uvfits
+    # Writing a source table to UVFITS makes pyuvdata think that the data are
+    # mutli-phase-ctr, so we'll force that in the original file as well
+    write_file = os.path.join(tmp_path, "outtest_casa.uvfits")
+    write_file2 = os.path.join(tmp_path, "outtest_casa2.uvfits")
+    uv_in.write_uvfits(write_file)
+
+    with fits.open(write_file, memmap=True) as hdu_list:
+        hdunames = uvutils._fits_indexhdus(hdu_list)
+        vis_hdu = hdu_list[0]
+        vis_hdr = vis_hdu.header.copy()
+        raw_data_array = vis_hdu.data.data
+
+        par_names = vis_hdu.data.parnames
+        group_parameter_list = []
+
+        lst_ind = 0
+        for index, name in enumerate(par_names):
+            par_value = vis_hdu.data.par(name)
+            # lst_array needs to be split in 2 parts to get high enough accuracy
+            if name.lower() == "lst":
+                if lst_ind == 0:
+                    # first lst entry, par_value has full lst value
+                    # (astropy adds the 2 values)
+                    lst_array_1 = np.float32(par_value)
+                    lst_array_2 = np.float32(par_value - np.float64(lst_array_1))
+                    par_value = lst_array_1
+                    lst_ind = 1
+                else:
+                    par_value = lst_array_2
+
+            # need to account for PZERO values
+            group_parameter_list.append(par_value - vis_hdr["PZERO" + str(index + 1)])
+
+        vis_hdu = fits.GroupData(
+            raw_data_array, parnames=par_names, pardata=group_parameter_list, bitpix=-32
+        )
+        vis_hdu = fits.GroupsHDU(vis_hdu)
+        vis_hdu.header = vis_hdr
+        del vis_hdu.header["RADESYS"]
+        del vis_hdu.header["EPOCH"]
+        ant_hdu = hdu_list[hdunames["AIPS AN"]]
+
+        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+        hdulist.writeto(write_file2, overwrite=True)
+        hdulist.close()
+
+    uv_out = UVData()
+    uv_out.read(write_file2)
+    assert uv_out.phase_center_frame == "icrs"
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_missing_aips_su_table(casa_uvfits, tmp_path):
     # make a file with multiple sources to test error condition
     uv_in = casa_uvfits
