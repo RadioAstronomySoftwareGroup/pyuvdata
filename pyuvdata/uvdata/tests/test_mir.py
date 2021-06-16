@@ -18,18 +18,19 @@ from ... import UVData
 from ...data import DATA_PATH
 from ...uvdata.mir import mir_parser
 
+from .test_mir_parser import mir_data_object
 
-@pytest.fixture
-def mir_data_object():
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    mir_data = mir_parser.MirParser(
-        testfile, load_vis=True, load_raw=True, load_auto=True,
-    )
+# @pytest.fixture
+# def mir_data_object():
+#     testfile = os.path.join(DATA_PATH, "sma_test.mir")
+#     mir_data = mir_parser.MirParser(
+#         testfile, load_vis=True, load_raw=True, load_auto=True,
+#     )
 
-    yield mir_data
+#     yield mir_data
 
-    # cleanup
-    del mir_data
+#     # cleanup
+#     del mir_data
 
 
 @pytest.fixture
@@ -257,7 +258,7 @@ def test_mir_auto_read(
     Make sure that Mir autocorrelations are read correctly
     """
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    mir_data = mir_parser.MirParser(testfile)
+    mir_data = mir_parser.MirParser(testfile, read_auto=True)
     with pytest.raises(err_type, match=err_msg):
         ac_data = mir_data.scan_auto_data(testfile, nchunks=999)
 
