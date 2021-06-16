@@ -44,8 +44,7 @@ class UVData(UVBase):
         """Create a new UVData object."""
         # add the UVParameters to the class
 
-        # standard angle tolerance: 10 mas in radians.
-        # Should perhaps be decreased to 1 mas in the future
+        # standard angle tolerance: 1 mas in radians.
         radian_tol = 1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
 
         self._Ntimes = uvp.UVParameter(
