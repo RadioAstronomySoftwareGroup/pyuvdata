@@ -224,7 +224,9 @@ class MirParser(object):
     metadata first to check whether or not to load additional data into memory.
     """
 
-    def __init__(self, filepath, read_auto=False, load_vis=False, load_raw=False, load_auto=False):
+    def __init__(
+        self, filepath, read_auto=False, load_vis=False, load_raw=False, load_auto=False
+    ):
         """
         Read in all files from a mir data set into predefined numpy datatypes.
 
@@ -274,7 +276,6 @@ class MirParser(object):
         self.sp_data = self.sp_read
         self.codes_data = self.codes_read
         self.we_data = self.we_read
-
 
         if read_auto:
             self.ac_read = self.scan_auto_data(filepath)
