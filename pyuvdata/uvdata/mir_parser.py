@@ -429,7 +429,7 @@ class MirParser(object):
                 self.filepath, self.in_start_dict, self.sp_data
             )
             self.raw_data_loaded = True
-        if load_auto:
+        if load_auto and self._read_auto:
             # Have to do this because of a strange bug in data recording where
             # we record more autos worth of spectral windows than we actually
             # have online.
