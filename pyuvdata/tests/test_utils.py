@@ -33,6 +33,62 @@ pytestmark = pytest.mark.filterwarnings(
 )
 
 
+@pytest.fixture(scope="session")
+def astrometry_args():
+    default_args = {
+        "time_array": 2456789.0 + np.array([0.0, 1.25, 10.5, 100.75]),
+        "icrs_ra": 2.468,
+        "icrs_dec": 1.234,
+        "epoch": 2000.0,
+        "telescope_loc": (0.123, -0.456, 4321.0),
+        "pm_ra": 12.3,
+        "pm_dec": 45.6,
+        "vrad": 31.4,
+        "dist": 73.31,
+        "library": "erfa",
+    }
+
+    default_args["lst_array"] = uvutils.get_lst_for_time(
+        default_args["time_array"],
+        default_args["telescope_loc"][0] * (180.0 / np.pi),
+        default_args["telescope_loc"][1] * (180.0 / np.pi),
+        default_args["telescope_loc"][2],
+    )
+
+    default_args["drift_coord"] = SkyCoord(
+        default_args["lst_array"],
+        [default_args["telescope_loc"][0]] * len(default_args["lst_array"]),
+        unit="rad",
+    )
+
+    default_args["icrs_coord"] = SkyCoord(
+        default_args["icrs_ra"], default_args["icrs_dec"], unit="rad",
+    )
+
+    default_args["fk5_ra"], default_args["fk5_dec"] = uvutils.transform_sidereal_coords(
+        default_args["icrs_ra"],
+        default_args["icrs_dec"],
+        "icrs",
+        "fk5",
+        in_coord_epoch="J2000.0",
+        out_coord_epoch="J2000.0",
+    )
+
+    # These are values calculated w/o the optional arguments, e.g. pm, vrad, dist
+    default_args["app_ra"], default_args["app_dec"] = uvutils.transform_icrs_to_app(
+        default_args["time_array"],
+        default_args["icrs_ra"],
+        default_args["icrs_dec"],
+        default_args["telescope_loc"],
+    )
+
+    default_args["app_coord"] = SkyCoord(
+        default_args["app_ra"], default_args["app_dec"], unit="rad",
+    )
+
+    yield default_args
+
+
 @pytest.fixture
 def vector_list():
     x_vecs = np.array([[1, 0, 0], [2, 0, 0]], dtype=float).T
@@ -625,6 +681,10 @@ def test_rotate_two_axis(vector_list):
     ),
 )
 def test_compare_one_to_two_axis(vector_list, rot1, axis1, rot2, rot3, axis2, axis3):
+    """
+    Check that one-axis and two-axis rotations provide the same values when the
+    two-axis rotations are fundamentally rotating around a single axis.
+    """
     x_vecs, y_vecs, z_vecs, test_vecs = vector_list
     # If performing two rots on the same axis, that should be identical to using
     # a single rot (with the rot angle equal to the sum of the two rot angles)
@@ -693,24 +753,15 @@ def test_compare_one_to_two_axis(vector_list, rot1, axis1, rot2, rot3, axis2, ax
         ],
         [
             {"lst_array": None, "use_ant_pos": False, "from_enu": True},
-            (
-                ValueError,
-                'Must include lst_array if moving between ENU (i.e., "unphase',
-            ),
+            (ValueError, "Must include lst_array if moving between ENU (i.e.,"),
         ],
         [
             {"use_ant_pos": False, "old_app_ra": None},
-            (
-                ValueError,
-                "Must include old_app_ra and old_app_dec values when data are",
-            ),
+            (ValueError, "Must include old_app_ra and old_app_dec values when data"),
         ],
         [
             {"use_ant_pos": False, "old_app_dec": None},
-            (
-                ValueError,
-                "Must include old_app_ra and old_app_dec values when data are",
-            ),
+            (ValueError, "Must include old_app_ra and old_app_dec values when data"),
         ],
         [
             {"use_ant_pos": False, "old_frame_pa": None},
@@ -719,6 +770,9 @@ def test_compare_one_to_two_axis(vector_list, rot1, axis1, rot2, rot3, axis2, ax
     ),
 )
 def test_calc_uvw_input_errors(calc_uvw_args, arg_dict, err):
+    """
+    Check for argument errors with calc_uvw.
+    """
     for key in arg_dict.keys():
         calc_uvw_args[key] = arg_dict[key]
 
@@ -746,6 +800,9 @@ def test_calc_uvw_input_errors(calc_uvw_args, arg_dict, err):
 
 
 def test_calc_uvw_no_op(calc_uvw_args):
+    """
+    Test that transfroming ENU -> ENU gives you an output identical to the input.
+    """
     # This should be a no-op, check for equality
     uvw_check = uvutils.calc_uvw(
         lst_array=calc_uvw_args["lst_array"],
@@ -760,6 +817,10 @@ def test_calc_uvw_no_op(calc_uvw_args):
 
 
 def test_calc_uvw_same_place(calc_uvw_args):
+    """
+    Check and see that the uvw calculator derives the same values derived by hand
+    (i.e, that calculating for the same position returns the same answer).
+    """
     # Check ant make sure that when we plug in the original values, we recover the
     # exact same values that we calculated above.
     uvw_ant_check = uvutils.calc_uvw(
@@ -794,6 +855,11 @@ def test_calc_uvw_same_place(calc_uvw_args):
 
 @pytest.mark.parametrize("to_enu", [False, True])
 def test_calc_uvw_base_vs_ants(calc_uvw_args, to_enu):
+    """
+    Check to see that we get the same values for uvw coordinates whether we calculate
+    them using antenna positions or the previously calculated uvw's.
+    """
+
     # Now change position, and make sure that whether we used ant positions of rotated
     # uvw vectors, we derived the same uvw-coordinates at the end
     uvw_ant_check = uvutils.calc_uvw(
@@ -826,12 +892,14 @@ def test_calc_uvw_base_vs_ants(calc_uvw_args, to_enu):
         to_enu=to_enu,
     )
 
-    print(uvw_ant_check)
-    print(uvw_base_check)
     assert np.allclose(uvw_ant_check, uvw_base_check)
 
 
 def test_calc_uvw_enu_roundtrip(calc_uvw_args):
+    """
+    Check and see that we can go from uvw to ENU and back to uvw using the `uvw_array`
+    argument alone (i.e., without antenna positions).
+    """
     # Now attempt to round trip from projected to ENU back to projected -- that should
     # give us the original set of uvw-coordinates.
     temp_uvw = uvutils.calc_uvw(
@@ -862,6 +930,11 @@ def test_calc_uvw_enu_roundtrip(calc_uvw_args):
 
 
 def test_calc_uvw_pa_ex_post_facto(calc_uvw_args):
+    """
+    Check and see that one can apply the frame position angle rotation after-the-fact
+    and still get out the same answer you get if you were doing it during the initial
+    uvw coordinate calculation.
+    """
     # Finally, check and see what happens if you do the PA rotation as part of the
     # first uvw calcuation, and make sure it agrees with what you get if you decide
     # to apply the PA rotation after-the-fact.
@@ -902,112 +975,88 @@ def test_calc_uvw_pa_ex_post_facto(calc_uvw_args):
 @pytest.mark.filterwarnings('ignore:ERFA function "dtdtf" yielded')
 @pytest.mark.filterwarnings('ignore:ERFA function "utcut1" yielded')
 @pytest.mark.filterwarnings('ignore:ERFA function "utctai" yielded')
-def test_transform_icrs_to_app_arg_errs():
+@pytest.mark.parametrize(
+    "arg_dict,msg",
+    (
+        [{"library": "xyz"}, "Requested coordinate transformation library is not"],
+        [{"icrs_ra": np.arange(10)}, "ra and dec must be the same shape."],
+        [{"icrs_dec": np.arange(10)}, "ra and dec must be the same shape."],
+        [{"pm_ra": np.arange(10)}, "pm_ra must be the same shape as ra and dec."],
+        [{"pm_dec": np.arange(10)}, "pm_dec must be the same shape as ra and dec."],
+        [{"dist": np.arange(10)}, "dist must be the same shape as ra and dec."],
+        [{"vrad": np.arange(10)}, "vrad must be the same shape as ra and dec."],
+        [
+            {
+                "icrs_ra": [0, 0],
+                "icrs_dec": [0, 0],
+                "pm_ra": None,
+                "pm_dec": None,
+                "dist": None,
+                "vrad": None,
+            },
+            "time_array must be of either of",
+        ],
+        [{"time_array": 0.0, "library": "novas"}, "No current support for JPL ephems"],
+    ),
+)
+def test_transform_icrs_to_app_arg_errs(astrometry_args, arg_dict, msg):
     """
-    Verify that the various coordinate handling programs throw appropriate errors
-    when called with arguments that not consistent w/ what is expected.
+    Check for argument errors with transform_icrs_to_app
     """
     pytest.importorskip("novas")
+    default_args = astrometry_args.copy()
+    for key in arg_dict.keys():
+        default_args[key] = arg_dict[key]
+
     # Start w/ the transform_icrs_to_app block
     with pytest.raises(ValueError) as cm:
         uvutils.transform_icrs_to_app(
-            (0, 1, 2, 3),
-            [0.0],
-            [0.0, 1.0],
-            EarthLocation.from_geodetic(0, 1, height=2),
-            dist=1.0,
-            epoch=2000,
-            astrometry_library="random",
+            default_args["time_array"],
+            default_args["icrs_ra"],
+            default_args["icrs_dec"],
+            default_args["telescope_loc"],
+            pm_ra=default_args["pm_ra"],
+            pm_dec=default_args["pm_dec"],
+            dist=default_args["dist"],
+            vrad=default_args["vrad"],
+            epoch=default_args["epoch"],
+            astrometry_library=default_args["library"],
         )
-    assert str(cm.value).startswith(
-        "Requested coordinate transformation library is not supported"
-    )
+    assert str(cm.value).startswith(msg)
 
-    with pytest.raises(ValueError) as cm:
-        uvutils.transform_icrs_to_app(
-            (0, 1, 2, 3),
-            [0.0],
-            [0.0, 1.0],
-            EarthLocation.from_geodetic(0, 1, height=2),
-            dist=1.0,
-            epoch=2000,
-            astrometry_library="novas",
-        )
-    assert str(cm.value).startswith("ra and dec must be the same shape.")
 
-    with pytest.raises(ValueError) as cm:
-        uvutils.transform_icrs_to_app(
-            (0, 1, 2, 3),
-            [0.0, 1.0],
-            [0.0, 1.0],
-            EarthLocation.from_geodetic(0, 1, height=2),
-            dist=1.0,
-            epoch=2000,
-            astrometry_library="novas",
-        )
-    assert str(cm.value).startswith("dist must be the same shape as ra and dec.")
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.transform_icrs_to_app(
-            (0, 1, 2, 3),
-            [0.0, 1.0],
-            [0.0, 1.0],
-            EarthLocation.from_geodetic(0, 1, height=2),
-            dist=[1.0, 2.0],
-            epoch=2000,
-            astrometry_library="novas",
-        )
-    assert str(cm.value).startswith("time_array must be of either of length 1 (single ")
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.transform_icrs_to_app(
-            0.0,
-            [0.0, 1.0],
-            [0.0, 1.0],
-            (0, 1, 2),
-            dist=[1.0, 2.0],
-            epoch=2000,
-            astrometry_library="novas",
-        )
-    assert str(cm.value).startswith(
-        "No current support for JPL ephems outside of 1700 - 2300 AD."
-    )
-
-    # Alright, move on to app_to_icrs
-    with pytest.raises(ValueError) as cm:
-        uvutils.transform_app_to_icrs(
-            (0, 1, 2, 3),
-            [0.0],
-            [0.0, 1.0],
-            EarthLocation.from_geodetic(0, 1, height=2),
-            astrometry_library="random",
-        )
-    assert str(cm.value).startswith(
-        "Requested coordinate transformation library is not supported"
-    )
+@pytest.mark.parametrize(
+    "arg_dict,msg",
+    (
+        [{"library": "xyz"}, "Requested coordinate transformation library is not"],
+        [{"app_ra": np.arange(10)}, "app_ra and app_dec must be the same shape."],
+        [{"app_dec": np.arange(10)}, "app_ra and app_dec must be the same shape."],
+        [{"time_array": np.arange(10)}, "time_array must be of either of length 1"],
+    ),
+)
+def test_transform_app_to_icrs_arg_errs(astrometry_args, arg_dict, msg):
+    """
+    Check for argument errors with transform_app_to_icrs
+    """
+    default_args = astrometry_args.copy()
+    for key in arg_dict.keys():
+        default_args[key] = arg_dict[key]
 
     with pytest.raises(ValueError) as cm:
         uvutils.transform_app_to_icrs(
-            (0, 1, 2, 3),
-            [0.0],
-            [0.0, 1.0],
-            EarthLocation.from_geodetic(0, 1, height=2),
-            astrometry_library="erfa",
+            default_args["time_array"],
+            default_args["app_ra"],
+            default_args["app_dec"],
+            default_args["telescope_loc"],
+            astrometry_library=default_args["library"],
         )
-    assert str(cm.value).startswith("app_ra and app_dec must be the same shape.")
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.transform_app_to_icrs(
-            (0, 1, 2, 3),
-            [0.0, 1.0],
-            [0.0, 1.0],
-            EarthLocation.from_geodetic(0, 1, height=2),
-            astrometry_library="erfa",
-        )
-    assert str(cm.value).startswith("time_array must be of either of length 1 (single ")
+    assert str(cm.value).startswith(msg)
 
 
 def test_transform_sidereal_coords_arg_errs():
+    """
+    Check for argument errors with transform_sidereal_coords
+    """
     # Next on to sidereal to sidereal
     with pytest.raises(ValueError) as cm:
         uvutils.transform_sidereal_coords(
@@ -1034,57 +1083,44 @@ def test_transform_sidereal_coords_arg_errs():
 
 
 @pytest.mark.filterwarnings('ignore:ERFA function "d2dtf" yielded')
-def test_lookup_jplhorizons_arg_errs():
+@pytest.mark.parametrize(
+    "arg_dict,msg",
+    (
+        [
+            {"force_lookup": True, "time_array": np.arange(100000)},
+            "Requesting too many individual ephem points from JPL-Horizons.",
+        ],
+        [{"force_lookup": False, "high_cadence": True}, "Too many ephem points"],
+        [{"time_array": np.arange(10)}, "No current support for JPL ephems outside"],
+        [{"targ_name": "whoami"}, "Target ID is not recognized in either the small"],
+    ),
+)
+def test_lookup_jplhorizons_arg_errs(arg_dict, msg):
+    """
+    Check for argument errors with lookup_jplhorizons.
+    """
     # Don't do this test if we don't have astroquery loaded
     pytest.importorskip("astroquery")
+    default_args = {
+        "targ_name": "Mars",
+        "time_array": np.array([0.0, 1000.0]) + 2456789.0,
+        "telescope_loc": EarthLocation.from_geodetic(0, 0, height=0.0),
+        "high_cadence": False,
+        "force_lookup": None,
+    }
 
-    # Move on to the JPL-Horizons checks
-    with pytest.raises(ValueError) as cm:
-        uvutils.lookup_jplhorizons(
-            "whoami",
-            np.arange(100),
-            telescope_loc=(0, 1, 2),
-            high_cadence=True,
-            force_indv_lookup=True,
-        )
-    assert str(cm.value).startswith(
-        "Requesting too many individual ephem points from JPL-Horizons. This "
-    )
+    for key in arg_dict.keys():
+        default_args[key] = arg_dict[key]
 
     with pytest.raises(ValueError) as cm:
         uvutils.lookup_jplhorizons(
-            "whoami",
-            np.arange(100),
-            telescope_loc=(0, 1, 2),
-            high_cadence=True,
-            force_indv_lookup=False,
+            default_args["targ_name"],
+            default_args["time_array"],
+            telescope_loc=default_args["telescope_loc"],
+            high_cadence=default_args["high_cadence"],
+            force_indv_lookup=default_args["force_lookup"],
         )
-    assert str(cm.value).startswith(
-        "Too many ephem points requested from JPL-Horizons. This "
-    )
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.lookup_jplhorizons(
-            "whoami",
-            np.arange(100),
-            telescope_loc=EarthLocation.from_geodetic(0, 1, 2),
-            high_cadence=False,
-            force_indv_lookup=False,
-        )
-    assert str(cm.value).startswith(
-        "No current support for JPL ephems outside of 1700 - 2300 AD"
-    )
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.lookup_jplhorizons(
-            "whoami",
-            np.array([0.0, 1000.0]) + 2456789.0,
-            telescope_loc=None,
-            high_cadence=False,
-        )
-    assert str(cm.value).startswith(
-        "Target ID is not recognized in either the small or major bodies "
-    )
+    assert str(cm.value).startswith(msg)
 
 
 @pytest.mark.parametrize(
@@ -1098,6 +1134,9 @@ def test_lookup_jplhorizons_arg_errs():
     ],
 )
 def test_interpolate_ephem_arg_errs(bad_arg, msg):
+    """
+    Check for argument errors with interpolate_ephem
+    """
     # Now moving on to the interpolation scheme
     with pytest.raises(ValueError) as cm:
         uvutils.interpolate_ephem(
@@ -1112,6 +1151,9 @@ def test_interpolate_ephem_arg_errs(bad_arg, msg):
 
 
 def test_calc_app_coords_arg_errs():
+    """
+    Check for argument errors with calc_app_coords
+    """
     # Now on to app_coords
     with pytest.raises(ValueError) as cm:
         uvutils.calc_app_coords(
@@ -1120,50 +1162,41 @@ def test_calc_app_coords_arg_errs():
     assert str(cm.value).startswith("Object type whoknows is not recognized.")
 
 
-def test_transform_sidereal_coords():
+def test_transform_multi_sidereal_coords(astrometry_args):
     """
-    Perform some basic tests to verify that we can transform between sidereal frames.
+    Perform some basic tests to verify that we can transform between sidereal frames
+    with multiple coordinates.
     """
-    time_array = Time([2456789.0, 2456789.0], format="jd", scale="utc")
-    icrs_ra = 5.31 * np.ones(2)
-    icrs_dec = -0.88 * np.ones(2)
-    icrs_coord = SkyCoord(icrs_ra, icrs_dec, unit="rad")
-
     # Check and make sure that we can deal with non-singleton times or coords with
-    # singleton coords and times, respectively. Use GCRS, since unlike ICRS it is
-    # actually sensitive to the obstime
-    gcrs_ra, gcrs_dec = uvutils.transform_sidereal_coords(
-        icrs_ra,
-        icrs_dec,
-        "icrs",
-        "fk5",
-        in_coord_epoch=2000.0,
-        out_coord_epoch=2000.0,
-        time_array=time_array[0],
-    )
-
+    # singleton coords and times, respectively.
     check_ra, check_dec = uvutils.transform_sidereal_coords(
-        icrs_ra[0],
-        icrs_dec[0],
+        astrometry_args["icrs_ra"] * np.ones(2),
+        astrometry_args["icrs_dec"] * np.ones(2),
         "icrs",
         "fk5",
         in_coord_epoch=2000.0,
         out_coord_epoch=2000.0,
-        time_array=time_array,
+        time_array=astrometry_args["time_array"][0] * np.ones(2),
     )
-    assert np.all(np.equal(gcrs_ra, check_ra))
-    assert np.all(np.equal(gcrs_dec, check_dec))
+    assert np.all(np.equal(astrometry_args["fk5_ra"], check_ra))
+    assert np.all(np.equal(astrometry_args["fk5_dec"], check_dec))
 
+
+def test_transform_fk5_fk4_icrs_loop(astrometry_args):
+    """
+    Do a roundtrip test between ICRS, FK5, FK4 and back to ICRS to verify that we can
+    handle transformation between different sidereal frames correctly.
+    """
     # Now do a triangle between ICRS -> FK5 -> FK4 -> ICRS. If all is working well,
     # then we should recover the same position we started with.
     fk5_ra, fk5_dec = uvutils.transform_sidereal_coords(
-        icrs_ra,
-        icrs_dec,
+        astrometry_args["icrs_ra"],
+        astrometry_args["icrs_dec"],
         "icrs",
         "fk5",
         in_coord_epoch=2000.0,
         out_coord_epoch=2000.0,
-        time_array=time_array[0],
+        time_array=astrometry_args["time_array"][0],
     )
 
     fk4_ra, fk4_dec = uvutils.transform_sidereal_coords(
@@ -1185,46 +1218,46 @@ def test_transform_sidereal_coords():
     )
 
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
-    assert np.all(check_coord.separation(icrs_coord).uarcsec < 0.1)
+    assert np.all(check_coord.separation(astrometry_args["icrs_coord"]).uarcsec < 0.1)
 
 
-def test_roundtrip_icrs():
+def test_roundtrip_icrs(astrometry_args):
     """
     Performs a roundtrip test to verify that one can transform between
     ICRS <-> topocentric to the precision limit, without running into
     issues.
     """
-    # The values below were pretty much randomly chosed
-    time_array = Time(2456789.0, format="jd", scale="utc")
-    icrs_ra = 1.56
-    icrs_dec = -1.23
-    icrs_coord = SkyCoord(icrs_ra, icrs_dec, unit="rad", frame="icrs")
-
-    # Telescope position is based on SMA position
-    telescope_loc = EarthLocation.from_geodetic(
-        -155.477522997222, 19.824205263889, height=4083.948144,
-    )
     in_lib_list = ["erfa", "erfa", "astropy", "astropy"]
     out_lib_list = ["erfa", "astropy", "erfa", "astropy"]
 
-    # Go through each pair of potential round trips and make sure that things agree
-    # to better than 1 µas.
     for in_lib, out_lib in zip(in_lib_list, out_lib_list):
         app_ra, app_dec = uvutils.transform_icrs_to_app(
-            time_array,
-            icrs_ra,
-            icrs_dec,
-            telescope_loc,
-            epoch="J2000.0",
+            astrometry_args["time_array"],
+            astrometry_args["icrs_ra"],
+            astrometry_args["icrs_dec"],
+            astrometry_args["telescope_loc"],
+            epoch=astrometry_args["epoch"],
             astrometry_library=in_lib,
         )
 
         check_ra, check_dec = uvutils.transform_app_to_icrs(
-            time_array, app_ra, app_dec, telescope_loc, astrometry_library=out_lib,
+            astrometry_args["time_array"],
+            app_ra,
+            app_dec,
+            astrometry_args["telescope_loc"],
+            astrometry_library=out_lib,
         )
         check_coord = SkyCoord(check_ra, check_dec, unit="rad", frame="icrs")
-        # Verify that everything agrees to better than µas-level accuracy
-        assert np.all(icrs_coord.separation(check_coord).uarcsec < 1.0)
+        # Verify that everything agrees to better than µas-level accuracy if the
+        # libraries are the same, otherwise to 100 µas if cross-comparing libraries
+        if in_lib == out_lib:
+            assert np.all(
+                astrometry_args["icrs_coord"].separation(check_coord).uarcsec < 1.0
+            )
+        else:
+            assert np.all(
+                astrometry_args["icrs_coord"].separation(check_coord).uarcsec < 100.0
+            )
 
 
 def test_calc_parallactic_angle():
@@ -1311,10 +1344,10 @@ def test_jphl_lookup():
     assert np.allclose(ephem_vel, 0.386914)
 
 
-def test_ephem_interp():
+def test_ephem_interp_one_point():
     """
-    These tests do some simple checks to verify that the interpolator appears to be
-    producing sensible answers.
+    These tests do some simple checks to verify that the interpolator behaves properly
+    when only being provided singleton values.
     """
     # First test the case where there is only one ephem point, and thus everything
     # takes on that value
@@ -1339,8 +1372,15 @@ def test_ephem_interp():
     assert np.all(dist_vals0 == 3.0)
     assert np.all(vel_vals0 == 4.0)
 
+
+def test_ephem_interp_multi_point():
+    """
+    Test that ephem coords are interpolated correctly when supplying more than a
+    singleton value for the various arrays.
+    """
     # Next test the case where the ephem only has a couple of points, in which case the
     # code will default to using a simple, linear interpolation scheme.
+    time_array = np.arange(100) * 0.01
     ephem_times = np.array([0, 1])
     ephem_ra = np.array([0, 1]) + 1.0
     ephem_dec = np.array([0, 1]) + 2.0
@@ -1385,144 +1425,139 @@ def test_ephem_interp():
     assert np.allclose(time_array + 4.0, vel_vals2, 1e-15, 0.0)
 
 
-def test_calc_app_and_calc_sidereal():
+@pytest.mark.parametrize("frame", ["icrs", "fk5"])
+def test_calc_app_sidereal(astrometry_args, frame):
     """
-    This test combines testing of calc_app_coords and calc_sidereal_coords, to
-    verify that objects of different types that _should_ produce the same
-    coordinates actually do.
+    Tests that we can calculate app coords for sidereal objects
     """
-    # First let's set up some basic info. Telescope location taken from SMA
-    telescope_loc = EarthLocation.from_geodetic(
-        -155.477522997222, 19.824205263889, height=4083.948144,
-    )
-
-    # Dummy JD date that's easy to remember
-    time_array = Time(2456789.0, format="jd", scale="utc")
-
-    # Get the LAST
-    lst_array = uvutils.get_lst_for_time(
-        time_array.jd,
-        telescope_loc.lat.deg,
-        telescope_loc.lon.deg,
-        telescope_loc.height.to_value("m"),
-    )
-
-    # Set up for zenith as being the phase center
-    app_ra = lst_array
-    app_dec = np.array([telescope_loc.lat.rad])
-    app_coord = SkyCoord(app_ra, app_dec, unit="rad")
-
-    # We are going to calculate FK5 and ICRS here, because the two have slightly
-    # different paths through the code, and we want to make sure that both work well
-    fk5_ra, fk5_dec = uvutils.calc_sidereal_coords(
-        time_array, app_ra, app_dec, telescope_loc, "fk5", coord_epoch="J2000.0",
-    )
-
-    icrs_ra, icrs_dec = uvutils.calc_sidereal_coords(
-        time_array, app_ra, app_dec, telescope_loc, "icrs",
-    )
-
     # First step is to check and make sure we can do sidereal coords. This is the most
     # basic thing to check, so this really _should work.
     check_ra, check_dec = uvutils.calc_app_coords(
-        fk5_ra,
-        fk5_dec,
+        astrometry_args["fk5_ra"] if (frame == "fk5") else astrometry_args["icrs_ra"],
+        astrometry_args["fk5_dec"] if (frame == "fk5") else astrometry_args["icrs_dec"],
         coord_type="sidereal",
-        telescope_loc=telescope_loc,
-        time_array=time_array,
-        coord_frame="fk5",
-        coord_epoch=2000.0,
+        telescope_loc=astrometry_args["telescope_loc"],
+        time_array=astrometry_args["time_array"],
+        coord_frame=frame,
+        coord_epoch=astrometry_args["epoch"],
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
-    assert np.all(app_coord.separation(check_coord).uarcsec < 1.0)
+    assert np.all(astrometry_args["app_coord"].separation(check_coord).uarcsec < 1.0)
 
+
+@pytest.mark.parametrize("frame", ["icrs", "fk5"])
+def test_calc_app_ephem(astrometry_args, frame):
+    """
+    Tests that we can calculate app coords for ephem objects
+    """
     # Next, see what happens when we pass an ephem. Note that this is just a single
     # point ephem, so its not testing any of the fancy interpolation, but we have other
     # tests for poking at that. The two tests here are to check bot the ICRS and FK5
     # paths through the ephem.
-    ephem_times = np.array([time_array.jd])
+    if frame == "fk5":
+        ephem_ra = astrometry_args["fk5_ra"]
+        ephem_dec = astrometry_args["fk5_dec"]
+    else:
+        ephem_ra = np.array([astrometry_args["icrs_ra"]])
+        ephem_dec = np.array([astrometry_args["icrs_dec"]])
+
+    ephem_times = np.array([astrometry_args["time_array"][0]])
     check_ra, check_dec = uvutils.calc_app_coords(
-        icrs_ra,
-        icrs_dec,
+        ephem_ra,
+        ephem_dec,
         coord_times=ephem_times,
         coord_type="ephem",
-        telescope_loc=telescope_loc,
-        time_array=time_array,
-        coord_frame="icrs",
+        telescope_loc=astrometry_args["telescope_loc"],
+        time_array=astrometry_args["time_array"],
+        coord_epoch=astrometry_args["epoch"],
+        coord_frame=frame,
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
-    assert np.all(app_coord.separation(check_coord).uarcsec < 1.0)
+    assert np.all(astrometry_args["app_coord"].separation(check_coord).uarcsec < 1.0)
 
-    check_ra, check_dec = uvutils.calc_app_coords(
-        fk5_ra,
-        fk5_dec,
-        coord_times=ephem_times,
-        coord_type="ephem",
-        telescope_loc=telescope_loc,
-        time_array=time_array,
-        coord_frame="fk5",
-        coord_epoch=2000.0,
-    )
-    check_coord = SkyCoord(check_ra, check_dec, unit="rad")
-    assert np.all(app_coord.separation(check_coord).uarcsec < 1.0)
 
+def test_calc_app_driftscan(astrometry_args):
+    """
+    Tests that we can calculate app coords for driftscan objects
+    """
     # Now on to the driftscan, which takes in arguments in terms of az and el (and
     # the values we've given below should also be for zenith)
     check_ra, check_dec = uvutils.calc_app_coords(
         0.0,
         np.pi / 2.0,
         coord_type="driftscan",
-        telescope_loc=telescope_loc,
-        time_array=time_array,
+        telescope_loc=astrometry_args["telescope_loc"],
+        time_array=astrometry_args["time_array"],
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
-    assert np.all(app_coord.separation(check_coord).uarcsec < 1.0)
+    assert np.all(astrometry_args["drift_coord"].separation(check_coord).uarcsec < 1.0)
 
+
+def test_calc_app_unphased(astrometry_args):
+    """
+    Tests that we can calculate app coords for unphased objects
+    """
     # Finally, check unphased, which is forced to point toward zenith (unlike driftscan,
     # which is allowed to point at any az/el position)
     check_ra, check_dec = uvutils.calc_app_coords(
         None,
         None,
         coord_type="unphased",
-        telescope_loc=telescope_loc,
-        time_array=time_array,
-        lst_array=lst_array,
+        telescope_loc=astrometry_args["telescope_loc"],
+        time_array=astrometry_args["time_array"],
+        lst_array=astrometry_args["lst_array"],
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
-    assert np.all(app_coord.separation(check_coord).uarcsec < 1.0)
 
+    assert np.all(astrometry_args["drift_coord"].separation(check_coord).uarcsec < 1.0)
+
+
+def test_calc_app_fk5_roundtrip(astrometry_args):
     # Do a round-trip with the two top-level functions and make sure they agree to
     # better than 1 µas, first in FK5
     app_ra, app_dec = uvutils.calc_app_coords(
         0.0,
         0.0,
         coord_type="sidereal",
-        telescope_loc=telescope_loc,
-        time_array=time_array,
+        telescope_loc=astrometry_args["telescope_loc"],
+        time_array=astrometry_args["time_array"],
         coord_frame="fk5",
         coord_epoch="J2000.0",
     )
 
     check_ra, check_dec = uvutils.calc_sidereal_coords(
-        time_array, app_ra, app_dec, telescope_loc, "fk5", coord_epoch=2000.0,
+        astrometry_args["time_array"],
+        app_ra,
+        app_dec,
+        astrometry_args["telescope_loc"],
+        "fk5",
+        coord_epoch=2000.0,
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
     assert np.all(SkyCoord(0, 0, unit="rad").separation(check_coord).uarcsec < 1.0)
 
+
+def test_calc_app_fk4_roundtrip(astrometry_args):
     # Finally, check and make sure that FK4 performs similarly
     app_ra, app_dec = uvutils.calc_app_coords(
         0.0,
         0.0,
         coord_type="sidereal",
-        telescope_loc=telescope_loc,
-        time_array=time_array,
+        telescope_loc=astrometry_args["telescope_loc"],
+        time_array=astrometry_args["time_array"],
         coord_frame="fk4",
         coord_epoch=1950.0,
     )
 
     check_ra, check_dec = uvutils.calc_sidereal_coords(
-        time_array, app_ra, app_dec, telescope_loc, "fk4", coord_epoch=1950.0,
+        astrometry_args["time_array"],
+        app_ra,
+        app_dec,
+        astrometry_args["telescope_loc"],
+        "fk4",
+        coord_epoch=1950.0,
     )
+
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
     assert np.all(SkyCoord(0, 0, unit="rad").separation(check_coord).uarcsec < 1.0)
 
@@ -1530,29 +1565,20 @@ def test_calc_app_and_calc_sidereal():
 @pytest.mark.filterwarnings('ignore:ERFA function "pmsafe" yielded 4 of')
 @pytest.mark.filterwarnings('ignore:ERFA function "utcut1" yielded 2 of')
 @pytest.mark.filterwarnings('ignore:ERFA function "d2dtf" yielded 1 of')
-def test_astrometry_libraries():
+def test_astrometry_icrs_to_app(astrometry_args):
     """
-    This test goes through and tests coordinate and sidereal time calculations using
-    the three different libraries that are available to pyuvdata, namely: astropy,
-    pyERFA, and python-novas. Between these three, we expect agreement within 100 µas in
-    most instances, although for pyuvdata we tolerate differences of up to 1 mas since
-    we don't expect to need astrometry better than this. This test calculates value from
-    all three, compares that to values calculated in the past, and makes sure that all
-    values appear consistent to this 1 mas limit.
-    """
+    Check for consistency beteen astrometry libraries when converting ICRS -> TOPP
 
+    This test checks for consistency in apparent coordinate calculations using the
+    three different libraries that are available to pyuvdata, namely: astropy, pyERFA,
+    and python-novas. Between these three, we expect agreement within 100 µas in
+    most instances, although for pyuvdata we tolerate differences of up to 1 mas since
+    we don't expect to need astrometry better than this.
+    """
     pytest.importorskip("novas")
     pytest.importorskip("novas_de405")
     # Do some basic cross-checking between the different astrometry libraries
     # to see if they all line up correctly.
-    time_array = 2456789.0 + np.array([0.0, 1.25, 10.5, 100.75])
-    icrs_ra = 2.468
-    icrs_dec = 1.234
-    telescope_loc = (0.123, -0.456, 4321.0)
-    pm_ra = 12.3
-    pm_dec = 45.6
-    vrad = 31.4
-    dist = 73.31
     astrometry_list = ["novas", "erfa", "astropy"]
     coord_results = [None, None, None, None]
 
@@ -1560,36 +1586,26 @@ def test_astrometry_libraries():
     # time of coding agreed to < 1 mas with astropy v4.2.1 and novas 3.1.1.5. We
     # use those values here as a sort of history check to make sure that something
     # hasn't changed in the underlying astrometry libraries without being caught
-    coord_results[3] = (
-        np.array(
-            [
-                2.4736400623737507,
-                2.4736352750862760,
-                2.4736085367439893,
-                2.4734781687162820,
-            ]
-        ),
-        np.array(
-            [
-                1.2329576409345270,
-                1.2329556410623417,
-                1.2329541289890513,
-                1.2328577308430242,
-            ]
-        ),
+    precalc_ra = np.array(
+        [2.4736400623737507, 2.4736352750862760, 2.4736085367439893, 2.4734781687162820]
     )
+    precalc_dec = np.array(
+        [1.2329576409345270, 1.2329556410623417, 1.2329541289890513, 1.2328577308430242]
+    )
+
+    coord_results[3] = (precalc_ra, precalc_dec)
 
     for idx, name in enumerate(astrometry_list):
         coord_results[idx] = uvutils.transform_icrs_to_app(
-            time_array,
-            icrs_ra,
-            icrs_dec,
-            telescope_loc,
-            epoch=2000.0,
-            pm_ra=pm_ra,
-            pm_dec=pm_dec,
-            vrad=vrad,
-            dist=dist,
+            astrometry_args["time_array"],
+            astrometry_args["icrs_ra"],
+            astrometry_args["icrs_dec"],
+            astrometry_args["telescope_loc"],
+            epoch=astrometry_args["epoch"],
+            pm_ra=astrometry_args["pm_ra"],
+            pm_dec=astrometry_args["pm_dec"],
+            vrad=astrometry_args["vrad"],
+            dist=astrometry_args["dist"],
             astrometry_library=name,
         )
 
@@ -1603,8 +1619,16 @@ def test_astrometry_libraries():
             )
             assert np.all(alpha_coord.separation(beta_coord).marcsec < 1.0)
 
-    app_ra = 2.468
-    app_dec = 1.234
+
+def test_astrometry_app_to_icrs(astrometry_args):
+    """
+    Check for consistency beteen astrometry libraries when converting TOPO -> ICRS
+
+    This test checks for consistency between the pyERFA and astropy libraries for
+    converting apparent coords back to ICRS. Between these two, we expect agreement
+    within 100 µas in most instances, although for pyuvdata we tolerate differences of
+    up to 1 mas since we don't expect to need astrometry better than this.
+    """
     astrometry_list = ["erfa", "astropy"]
     coord_results = [None, None, None]
 
@@ -1612,28 +1636,24 @@ def test_astrometry_libraries():
     # time of coding agreed to < 1 mas with astropy v4.2.1. We again are using
     # those values here as a sort of history check to make sure that something
     # hasn't changed in the underlying astrometry libraries without being caught
-    coord_results[2] = (
-        np.array(
-            [
-                2.4623360300722170,
-                2.4623407989706756,
-                2.4623676572008280,
-                2.4624965192217900,
-            ]
-        ),
-        np.array(
-            [
-                1.2350407132378372,
-                1.2350427272595987,
-                1.2350443204758008,
-                1.2351412288987034,
-            ]
-        ),
+    precalc_ra = np.array(
+        [2.4623360300722170, 2.4623407989706756, 2.4623676572008280, 2.4624965192217900]
     )
+    precalc_dec = np.array(
+        [1.2350407132378372, 1.2350427272595987, 1.2350443204758008, 1.2351412288987034]
+    )
+    coord_results[2] = (precalc_ra, precalc_dec)
 
     for idx, name in enumerate(astrometry_list):
+        # Note we're using icrs_ra and icrs_dec instead of app_ra and app_dec keys
+        # because the above pre-calculated values were generated using the ICRS
+        # coordinate values
         coord_results[idx] = uvutils.transform_app_to_icrs(
-            time_array, app_ra, app_dec, telescope_loc, astrometry_library=name,
+            astrometry_args["time_array"],
+            astrometry_args["icrs_ra"],
+            astrometry_args["icrs_dec"],
+            astrometry_args["telescope_loc"],
+            astrometry_library=name,
         )
 
     for idx in range(len(coord_results) - 1):
@@ -1646,6 +1666,121 @@ def test_astrometry_libraries():
             )
             assert np.all(alpha_coord.separation(beta_coord).marcsec < 1.0)
 
+
+def test_sidereal_reptime(astrometry_args):
+    """
+    Check for equality when supplying a singleton time versus an array of identical
+    values for transform_sidereal_coords
+    """
+
+    gcrs_ra, gcrs_dec = uvutils.transform_sidereal_coords(
+        astrometry_args["icrs_ra"] * np.ones(2),
+        astrometry_args["icrs_dec"] * np.ones(2),
+        "icrs",
+        "gcrs",
+        time_array=Time(astrometry_args["time_array"][0], format="jd"),
+    )
+
+    check_ra, check_dec = uvutils.transform_sidereal_coords(
+        astrometry_args["icrs_ra"] * np.ones(2),
+        astrometry_args["icrs_dec"] * np.ones(2),
+        "icrs",
+        "gcrs",
+        time_array=Time(astrometry_args["time_array"][0] * np.ones(2), format="jd"),
+    )
+
+    assert np.all(gcrs_ra == check_ra)
+    assert np.all(gcrs_dec == check_dec)
+
+
+def test_transform_icrs_to_app_time_obj(astrometry_args):
+    """
+    Test that we recover identical values when using a Time objects instead of a floats
+    for the various time-related arguments in transform_icrs_to_app.
+    """
+    check_ra, check_dec = uvutils.transform_icrs_to_app(
+        Time(astrometry_args["time_array"], format="jd"),
+        astrometry_args["icrs_ra"],
+        astrometry_args["icrs_dec"],
+        astrometry_args["telescope_loc"],
+        epoch=Time(astrometry_args["epoch"], format="jyear"),
+    )
+
+    assert np.all(check_ra == astrometry_args["app_ra"])
+    assert np.all(check_dec == astrometry_args["app_dec"])
+
+
+def test_transform_app_to_icrs_objs(astrometry_args):
+    """
+    Test that we recover identical values when using Time/EarthLocation objects instead
+    of floats for time_array and telescope_loc, respectively for transform_app_to_icrs.
+    """
+    telescope_loc = EarthLocation.from_geodetic(
+        astrometry_args["telescope_loc"][1] * (180.0 / np.pi),
+        astrometry_args["telescope_loc"][0] * (180.0 / np.pi),
+        height=astrometry_args["telescope_loc"][2],
+    )
+
+    icrs_ra, icrs_dec = uvutils.transform_app_to_icrs(
+        astrometry_args["time_array"][0],
+        astrometry_args["app_ra"][0],
+        astrometry_args["app_dec"][0],
+        astrometry_args["telescope_loc"],
+    )
+
+    check_ra, check_dec = uvutils.transform_app_to_icrs(
+        Time(astrometry_args["time_array"][0], format="jd"),
+        astrometry_args["app_ra"][0],
+        astrometry_args["app_dec"][0],
+        telescope_loc,
+    )
+
+    assert np.all(check_ra == icrs_ra)
+    assert np.all(check_dec == icrs_dec)
+
+
+def test_calc_app_coords_objs(astrometry_args):
+    """
+    Test that we recover identical values when using Time/EarthLocation objects instead
+    of floats for time_array and telescope_loc, respectively for calc_app_coords.
+    """
+    telescope_loc = EarthLocation.from_geodetic(
+        astrometry_args["telescope_loc"][1] * (180.0 / np.pi),
+        astrometry_args["telescope_loc"][0] * (180.0 / np.pi),
+        height=astrometry_args["telescope_loc"][2],
+    )
+
+    app_ra, app_dec = uvutils.calc_app_coords(
+        astrometry_args["icrs_ra"],
+        astrometry_args["icrs_dec"],
+        time_array=astrometry_args["time_array"][0],
+        telescope_loc=astrometry_args["telescope_loc"],
+    )
+
+    check_ra, check_dec = uvutils.calc_app_coords(
+        astrometry_args["icrs_ra"],
+        astrometry_args["icrs_dec"],
+        time_array=Time(astrometry_args["time_array"][0], format="jd"),
+        telescope_loc=telescope_loc,
+    )
+
+    assert np.all(check_ra == app_ra)
+    assert np.all(check_dec == app_dec)
+
+
+def test_astrometry_lst(astrometry_args):
+    """
+    Check for consistency beteen astrometry libraries when calculating LAST
+
+    This test evaluates consistency in calculating local apparent sidereal time when
+    using the different astrometry libraries available in pyuvdata, namely: astropy,
+    pyERFA, and python-novas. Between these three, we expect agreement within 6 µs in
+    most instances, although for pyuvdata we tolerate differences of up to ~60 µs
+    (which translates to 1 mas in sky position error) since we don't expect to need
+    astrometry better than this.
+    """
+    pytest.importorskip("novas")
+    pytest.importorskip("novas_de405")
     astrometry_list = ["erfa", "astropy", "novas"]
     lst_results = [None, None, None, None]
     # These values were indepedently calculated using erfa v1.7.2, which at the
@@ -1657,11 +1792,13 @@ def test_astrometry_libraries():
     )
 
     for idx, name in enumerate(astrometry_list):
+        # Note that the units aren't right here (missing a rad-> deg conversion), but
+        # the above values were calculated using the arguments below.
         lst_results[idx] = uvutils.get_lst_for_time(
-            time_array,
-            telescope_loc[0],
-            telescope_loc[1],
-            telescope_loc[2],
+            astrometry_args["time_array"],
+            astrometry_args["telescope_loc"][0],
+            astrometry_args["telescope_loc"][1],
+            astrometry_args["telescope_loc"][2],
             astrometry_library=name,
         )
 
@@ -1670,6 +1807,28 @@ def test_astrometry_libraries():
             alpha_time = lst_results[idx] * units.rad
             beta_time = lst_results[jdx] * units.rad
             assert np.all(np.abs(alpha_time - beta_time).to_value("mas") < 1.0)
+
+
+def test_lst_for_time_float_vs_array(astrometry_args):
+    """
+    Test for equality when passing a single float vs an ndarray (of length 1) when
+    calling get_lst_for_time.
+    """
+    lst_array = uvutils.get_lst_for_time(
+        np.array(astrometry_args["time_array"][0]),
+        astrometry_args["telescope_loc"][0] * (180.0 / np.pi),
+        astrometry_args["telescope_loc"][1] * (180.0 / np.pi),
+        astrometry_args["telescope_loc"][2],
+    )
+
+    check_lst = uvutils.get_lst_for_time(
+        astrometry_args["time_array"][0],
+        astrometry_args["telescope_loc"][0] * (180.0 / np.pi),
+        astrometry_args["telescope_loc"][1] * (180.0 / np.pi),
+        astrometry_args["telescope_loc"][2],
+    )
+
+    assert np.all(lst_array == check_lst)
 
 
 def test_phasing_funcs():
