@@ -34,6 +34,40 @@ pytestmark = pytest.mark.filterwarnings(
 
 
 @pytest.fixture
+def vector_list():
+    x_vecs = np.array([[1, 0, 0], [2, 0, 0]], dtype=float).T
+    y_vecs = np.array([[0, 1, 0], [0, 2, 0]], dtype=float).T
+    z_vecs = np.array([[0, 0, 1], [0, 0, 2]], dtype=float).T
+    test_vecs = np.array([[1, 1, 1], [2, 2, 2]], dtype=float).T
+
+    yield x_vecs, y_vecs, z_vecs, test_vecs
+
+
+@pytest.fixture
+def calc_uvw_args():
+    default_args = {
+        "app_ra": np.zeros(3),
+        "app_dec": np.zeros(3) + 1.0,
+        "frame_pa": np.zeros(3) + 1e-3,
+        "lst_array": np.zeros(3) + np.pi,
+        "use_ant_pos": True,
+        "uvw_array": np.array([[1, -1, 0], [0, -1, 1], [-1, 0, 1]], dtype=float),
+        "antenna_positions": np.array([[0, 0, 1], [0, 1, 0], [1, 0, 0]], dtype=float),
+        "antenna_numbers": [1, 2, 3],
+        "ant_1_array": np.array([1, 1, 2]),
+        "ant_2_array": np.array([2, 3, 3]),
+        "old_app_ra": np.zeros(3) + np.pi,
+        "old_app_dec": np.zeros(3),
+        "old_frame_pa": np.zeros(3),
+        "telescope_lat": 1.0,
+        "telescope_lon": 0.0,
+        "to_enu": False,
+        "from_enu": False,
+    }
+    yield default_args
+
+
+@pytest.fixture
 def uvcalibrate_init_data():
     uvdata = UVData()
     uvdata.read(
@@ -447,56 +481,72 @@ def test_mwa_ecef_conversion():
     assert np.allclose(rot_xyz.T, xyz)
 
 
-def test_rot_func_inputs():
-    # Use this to make sure that appropriate erros get thrown when using the
-    # various rotation functions
-
-    with pytest.raises(
-        ValueError, match="lon_array and lat_array must either both be floats or ",
-    ):
-        uvutils.polar2_to_cart3(0.0, np.array([0.0]))
-
-    with pytest.raises(
-        ValueError, match="lon_array and lat_array must have the same shape."
-    ):
-        uvutils.polar2_to_cart3(np.array([0.0, 1.0]), np.array([0.0]))
-
-    with pytest.raises(ValueError, match="xyz_array must be an ndarray."):
-        uvutils.cart3_to_polar2(0.0)
-
-    with pytest.raises(ValueError, match="xyz_array must have ndim > 0"):
-        uvutils.cart3_to_polar2(np.array(0.0))
-
-    with pytest.raises(
-        ValueError, match="xyz_array must be length 3 across the zeroth axis."
-    ):
-        uvutils.cart3_to_polar2(np.array([0.0]))
-
-    with pytest.raises(ValueError, match=r"rot_matrix must be of shape \(n_rot, 3, 3"):
-        uvutils._rotate_matmul_wrapper(np.zeros((1, 3, 1)), np.zeros((1, 3, 3)), 2)
-
-    with pytest.raises(ValueError, match=r"Misshaped xyz_array - expected shape \(n_r"):
-        uvutils._rotate_matmul_wrapper(np.zeros((1, 2, 1)), np.zeros((1, 3, 3)), 1)
-
-    with pytest.raises(ValueError, match=r"Misshaped xyz_array - expected shape \(3, "):
-        uvutils._rotate_matmul_wrapper(np.zeros((2, 1)), np.zeros((1, 3, 3)), 1)
-
-    with pytest.raises(ValueError, match=r"Misshaped xyz_array - expected shape \(3, "):
-        uvutils._rotate_matmul_wrapper(np.zeros((2)), np.zeros((1, 3, 3)), 1)
+@pytest.mark.parametrize(
+    "input1,input2,msg",
+    (
+        [0.0, np.array([0.0]), "lon_array and lat_array must either both be floats or"],
+        [np.array([0.0, 1.0]), np.array([0.0]), "lon_array and lat_array must have "],
+    ),
+)
+def test_polar2_to_cart3_arg_errs(input1, input2, msg):
+    """
+    Test that bad arguments to polar2_to_cart3 throw appropriate errors.
+    """
+    with pytest.raises(ValueError) as cm:
+        uvutils.polar2_to_cart3(input1, input2)
+    assert str(cm.value).startswith(msg)
 
 
-def test_rot_funcs():
-    # These tests are used to verify the basic functionality of the primary
-    # functions used to perform rotations
+@pytest.mark.parametrize(
+    "input1,msg",
+    (
+        [0.0, "xyz_array must be an ndarray."],
+        [np.array(0.0), "xyz_array must have ndim > 0"],
+        [np.array([0.0]), "xyz_array must be length 3"],
+    ),
+)
+def test_cart3_to_polar2_arg_errs(input1, msg):
+    """
+    Test that bad arguments to cart3_to_polar2 throw appropriate errors.
+    """
+    with pytest.raises(ValueError) as cm:
+        uvutils.cart3_to_polar2(input1)
+    assert str(cm.value).startswith(msg)
 
+
+@pytest.mark.parametrize(
+    "input1,input2,input3,msg",
+    (
+        [np.zeros((1, 3, 1)), np.zeros((1, 3, 3)), 2, "rot_matrix must be of shape "],
+        [np.zeros((1, 2, 1)), np.zeros((1, 3, 3)), 1, "Misshaped xyz_array - expected"],
+        [np.zeros((2, 1)), np.zeros((1, 3, 3)), 1, "Misshaped xyz_array - expected"],
+        [np.zeros((2)), np.zeros((1, 3, 3)), 1, "Misshaped xyz_array - expected shape"],
+    ),
+)
+def test_rotate_matmul_wrapper_arg_errs(input1, input2, input3, msg):
+    """
+    Test that bad arguments to _rotate_matmul_wrapper throw appropriate errors.
+    """
+    with pytest.raises(ValueError) as cm:
+        uvutils._rotate_matmul_wrapper(input1, input2, input3)
+    assert str(cm.value).startswith(msg)
+
+
+def test_cart_to_polar_roundtrip():
+    """
+    Test that polar->cart coord transformation is the inverse of cart->polar.
+    """
     # Basic round trip with vectors
     assert uvutils.cart3_to_polar2(uvutils.polar2_to_cart3(0.0, 0.0)) == (0.0, 0.0)
 
-    # Set up a few vectors of different lengths
-    x_vecs = np.array([[1, 0, 0], [2, 0, 0]], dtype=float).T
-    y_vecs = np.array([[0, 1, 0], [0, 2, 0]], dtype=float).T
-    z_vecs = np.array([[0, 0, 1], [0, 0, 2]], dtype=float).T
-    test_vecs = np.array([[1, 1, 1], [2, 2, 2]], dtype=float).T
+
+def test_rotate_one_axis(vector_list):
+    """
+    Tests some basic vector rotation operations with a single axis rotation.
+    """
+    # These tests are used to verify the basic functionality of the primary
+    # functions used to perform rotations
+    x_vecs, y_vecs, z_vecs, test_vecs = vector_list
 
     # Test no-ops w/ 0 deg rotations
     assert np.all(uvutils._rotate_one_axis(x_vecs, 0.0, 0) == x_vecs)
@@ -544,366 +594,305 @@ def test_rot_funcs():
     mod_vec = x_vecs.T.reshape((2, 3, 1))
     assert np.all(uvutils._rotate_one_axis(mod_vec, 1.0, 0) == mod_vec)
 
-    # That's all the single rotation stuff, now on to the two axis rotations
+
+def test_rotate_two_axis(vector_list):
+    """
+    Tests some basic vector rotation operations with a double axis rotation.
+    """
+    x_vecs, y_vecs, z_vecs, test_vecs = vector_list
+
+    # These tests are used to verify the basic functionality of the primary
+    # functions used to two-axis rotations
     assert np.allclose(x_vecs, uvutils._rotate_two_axis(x_vecs, 2 * np.pi, 1.0, 1, 0))
     assert np.allclose(y_vecs, uvutils._rotate_two_axis(y_vecs, 2 * np.pi, 2.0, 2, 1))
     assert np.allclose(z_vecs, uvutils._rotate_two_axis(z_vecs, 2 * np.pi, 3.0, 0, 2))
 
-    # If performing two rots on the same axis, that should be identical to using
-    # a single rot (with the rot angle equal to the sum of the two rot angles)
-    assert np.all(
-        np.equal(
-            uvutils._rotate_one_axis(test_vecs, 2.0, 0),
-            uvutils._rotate_two_axis(test_vecs, 1.0, 1.0, 0, 0),
-        )
-    )
-
-    assert np.all(
-        np.equal(
-            uvutils._rotate_one_axis(test_vecs, 2.0, 0),
-            uvutils._rotate_two_axis(test_vecs, 2.0, 0.0, 0, 1),
-        )
-    )
-
-    assert np.all(
-        np.equal(
-            uvutils._rotate_one_axis(test_vecs, 2.0, 0),
-            uvutils._rotate_two_axis(test_vecs, None, 2.0, 1, 0),
-        )
-    )
-
-    assert np.all(
-        np.equal(
-            uvutils._rotate_one_axis(test_vecs, 0.0, 0),
-            uvutils._rotate_two_axis(test_vecs, None, 0.0, 1, 2),
-        )
-    )
-
+    # Do one more test, which verifies that we can filp our (1,1,1) test vector to
+    # the postiion at (-1, -1 , -1)
     mod_vec = test_vecs.T.reshape((2, 3, 1))
     assert np.allclose(
         uvutils._rotate_two_axis(mod_vec, np.pi, np.pi / 2.0, 0, 1), -mod_vec
     )
 
 
-def test_calc_uvw_inputs():
-    # Thes various input fails for calc_uvw routine
-
-    app_ra = np.zeros(3)
-    app_dec = np.zeros(3)
-    frame_pa = np.zeros(3)
-    lst_array = np.zeros(3)
-    uvw_array = np.array([[1, -1, 0], [0, -1, 1], [-1, 0, 1]], dtype=float)
-    antenna_positions = np.array([[0, 0, 1], [0, 1, 0], [1, 0, 0]], dtype=float)
-    antenna_numbers = [1, 2, 3]
-    ant_1_array = np.array([1, 1, 2])
-    ant_2_array = np.array([2, 3, 3])
-    telescope_lat = 0.0
-    telescope_lon = 0.0
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.calc_uvw(lst_array=None, use_ant_pos=False, to_enu=True)
-    assert str(cm.value).startswith(
-        "Must include lst_array to calculate baselines in ENU coordinates!"
-    )
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.calc_uvw(lst_array=None, use_ant_pos=True, to_enu=True)
-    assert str(cm.value).startswith("Must include telescope_lat to calculate baselines")
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.calc_uvw()
-    assert str(cm.value).startswith(
-        "Must include both app_ra and app_dec, or frame_pa to calculate "
-    )
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.calc_uvw(app_ra=app_ra, app_dec=app_dec, use_ant_pos=True)
-    assert str(cm.value).startswith(
-        "Must include antenna_positions if use_ant_pos=True."
-    )
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.calc_uvw(
-            app_ra=app_ra,
-            app_dec=app_dec,
-            use_ant_pos=True,
-            antenna_positions=antenna_positions,
+@pytest.mark.parametrize(
+    "rot1,axis1,rot2,rot3,axis2,axis3",
+    (
+        [2.0, 0, 1.0, 1.0, 0, 0],
+        [2.0, 0, 2.0, 0.0, 0, 1],
+        [2.0, 0, None, 2.0, 1, 0],
+        [0.0, 0, None, 0.0, 1, 2],
+    ),
+)
+def test_compare_one_to_two_axis(vector_list, rot1, axis1, rot2, rot3, axis2, axis3):
+    x_vecs, y_vecs, z_vecs, test_vecs = vector_list
+    # If performing two rots on the same axis, that should be identical to using
+    # a single rot (with the rot angle equal to the sum of the two rot angles)
+    assert np.all(
+        np.equal(
+            uvutils._rotate_one_axis(test_vecs, rot1, axis1),
+            uvutils._rotate_two_axis(test_vecs, rot2, rot3, axis2, axis3),
         )
-    assert str(cm.value).startswith(
-        "Must include ant_1_array, ant_2_array, and antenna_numbers "
-    )
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.calc_uvw(
-            app_ra=app_ra,
-            app_dec=app_dec,
-            use_ant_pos=True,
-            antenna_positions=antenna_positions,
-            ant_1_array=ant_1_array,
-            ant_2_array=ant_2_array,
-            antenna_numbers=antenna_numbers,
-        )
-    assert str(cm.value).startswith(
-        "Must include lst_array if use_ant_pos=True and not calculating"
-    )
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.calc_uvw(
-            app_ra=app_ra,
-            app_dec=app_dec,
-            use_ant_pos=True,
-            antenna_positions=antenna_positions,
-            ant_1_array=ant_1_array,
-            ant_2_array=ant_2_array,
-            antenna_numbers=antenna_numbers,
-            lst_array=lst_array,
-        )
-    assert str(cm.value).startswith("Must include telescope_lon if use_ant_pos=True.")
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.calc_uvw(
-            app_ra=app_ra,
-            app_dec=app_dec,
-            use_ant_pos=False,
-            telescope_lon=telescope_lon,
-            from_enu=True,
-        )
-    assert str(cm.value).startswith("Must include uvw_array if use_ant_pos=False.")
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.calc_uvw(
-            app_ra=app_ra,
-            app_dec=app_dec,
-            use_ant_pos=False,
-            uvw_array=uvw_array,
-            telescope_lon=telescope_lon,
-            from_enu=True,
-        )
-    assert str(cm.value).startswith(
-        "Must include telescope_lat and telescope_lat if moving between "
-    )
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.calc_uvw(
-            app_ra=app_ra,
-            app_dec=app_dec,
-            use_ant_pos=False,
-            uvw_array=uvw_array,
-            telescope_lon=telescope_lon,
-            telescope_lat=telescope_lat,
-            from_enu=True,
-        )
-    assert str(cm.value).startswith(
-        'Must include lst_array if moving between ENU (i.e., "unphased") '
-    )
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.calc_uvw(
-            frame_pa=frame_pa,
-            use_ant_pos=False,
-            uvw_array=uvw_array,
-            telescope_lon=telescope_lon,
-            telescope_lat=telescope_lat,
-            lst_array=lst_array,
-        )
-    assert str(cm.value).startswith(
-        "Must include old_frame_pa values if data are phased and "
-    )
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.calc_uvw(
-            app_ra=app_ra,
-            app_dec=app_dec,
-            frame_pa=frame_pa,
-            use_ant_pos=False,
-            uvw_array=uvw_array,
-            telescope_lon=telescope_lon,
-            telescope_lat=telescope_lat,
-            lst_array=lst_array,
-        )
-    assert str(cm.value).startswith(
-        "Must include old_app_ra and old_app_dec values when data are "
     )
 
 
-def test_calc_uvw():
-    # Test out some basic functionality of the calc_uvw functions, make sure
-    # that everything line up as expected.
-    app_ra = np.zeros(3)
-    app_dec = np.zeros(3) + 1.0
-    frame_pa = np.zeros(3) + 1e-3
-    lst_array = np.zeros(3) + np.pi
-    uvw_array = np.array([[1, -1, 0], [0, -1, 1], [-1, 0, 1]], dtype=float)
-    antenna_positions = np.array([[0, 0, 1], [0, 1, 0], [1, 0, 0]], dtype=float)
-    antenna_numbers = [1, 2, 3]
-    ant_1_array = np.array([1, 1, 2])
-    ant_2_array = np.array([2, 3, 3])
-    old_app_ra = np.zeros(3) + np.pi
-    old_app_dec = np.zeros(3)
-    old_frame_pa = np.zeros(3)
-    telescope_lat = 1.0
-    telescope_lon = 0.0
+@pytest.mark.parametrize(
+    "arg_dict,err",
+    (
+        [
+            {"lst_array": None, "to_enu": True, "use_ant_pos": False},
+            (ValueError, "Must include lst_array to calculate baselines in ENU"),
+        ],
+        [
+            {"lst_array": None, "to_enu": True, "telescope_lat": None},
+            (ValueError, "Must include telescope_lat to calculate baselines"),
+        ],
+        [
+            {"lst_array": None},
+            (ValueError, "Must include lst_array if use_ant_pos=True and not"),
+        ],
+        [
+            {"app_ra": None, "frame_pa": None},
+            (ValueError, "Must include both app_ra and app_dec, or frame_pa to"),
+        ],
+        [
+            {"app_dec": None, "frame_pa": None},
+            (ValueError, "Must include both app_ra and app_dec, or frame_pa to"),
+        ],
+        [
+            {"app_ra": None, "app_dec": None, "frame_pa": None},
+            (ValueError, "Must include both app_ra and app_dec, or frame_pa to"),
+        ],
+        [
+            {"antenna_positions": None},
+            (ValueError, "Must include antenna_positions if use_ant_pos=True."),
+        ],
+        [
+            {"ant_1_array": None},
+            (ValueError, "Must include ant_1_array, ant_2_array, and antenna_numbers"),
+        ],
+        [
+            {"ant_2_array": None},
+            (ValueError, "Must include ant_1_array, ant_2_array, and antenna_numbers"),
+        ],
+        [
+            {"antenna_numbers": None},
+            (ValueError, "Must include ant_1_array, ant_2_array, and antenna_numbers"),
+        ],
+        [
+            {"telescope_lon": None},
+            (ValueError, "Must include telescope_lon if use_ant_pos=True."),
+        ],
+        [
+            {"uvw_array": None, "use_ant_pos": False},
+            (ValueError, "Must include uvw_array if use_ant_pos=False."),
+        ],
+        [
+            {"telescope_lat": None, "use_ant_pos": False, "from_enu": True},
+            (ValueError, "Must include telescope_lat if moving "),
+        ],
+        [
+            {"lst_array": None, "use_ant_pos": False, "from_enu": True},
+            (
+                ValueError,
+                'Must include lst_array if moving between ENU (i.e., "unphase',
+            ),
+        ],
+        [
+            {"use_ant_pos": False, "old_app_ra": None},
+            (
+                ValueError,
+                "Must include old_app_ra and old_app_dec values when data are",
+            ),
+        ],
+        [
+            {"use_ant_pos": False, "old_app_dec": None},
+            (
+                ValueError,
+                "Must include old_app_ra and old_app_dec values when data are",
+            ),
+        ],
+        [
+            {"use_ant_pos": False, "old_frame_pa": None},
+            (ValueError, "Must include old_frame_pa values if data are phased and "),
+        ],
+    ),
+)
+def test_calc_uvw_input_errors(calc_uvw_args, arg_dict, err):
+    for key in arg_dict.keys():
+        calc_uvw_args[key] = arg_dict[key]
 
+    with pytest.raises(err[0]) as cm:
+        uvutils.calc_uvw(
+            app_ra=calc_uvw_args["app_ra"],
+            app_dec=calc_uvw_args["app_dec"],
+            frame_pa=calc_uvw_args["frame_pa"],
+            lst_array=calc_uvw_args["lst_array"],
+            use_ant_pos=calc_uvw_args["use_ant_pos"],
+            uvw_array=calc_uvw_args["uvw_array"],
+            antenna_positions=calc_uvw_args["antenna_positions"],
+            antenna_numbers=calc_uvw_args["antenna_numbers"],
+            ant_1_array=calc_uvw_args["ant_1_array"],
+            ant_2_array=calc_uvw_args["ant_2_array"],
+            old_app_ra=calc_uvw_args["old_app_ra"],
+            old_app_dec=calc_uvw_args["old_app_dec"],
+            old_frame_pa=calc_uvw_args["old_frame_pa"],
+            telescope_lat=calc_uvw_args["telescope_lat"],
+            telescope_lon=calc_uvw_args["telescope_lon"],
+            from_enu=calc_uvw_args["from_enu"],
+            to_enu=calc_uvw_args["to_enu"],
+        )
+    assert str(cm.value).startswith(err[1])
+
+
+def test_calc_uvw_no_op(calc_uvw_args):
     # This should be a no-op, check for equality
     uvw_check = uvutils.calc_uvw(
-        lst_array=lst_array,
+        lst_array=calc_uvw_args["lst_array"],
         use_ant_pos=False,
-        uvw_array=uvw_array,
-        telescope_lat=telescope_lat,
-        telescope_lon=telescope_lon,
+        uvw_array=calc_uvw_args["uvw_array"],
+        telescope_lat=calc_uvw_args["telescope_lat"],
+        telescope_lon=calc_uvw_args["telescope_lon"],
         to_enu=True,
         from_enu=True,
     )
-    assert np.all(np.equal(uvw_array, uvw_check))
+    assert np.all(np.equal(calc_uvw_args["uvw_array"], uvw_check))
 
+
+def test_calc_uvw_same_place(calc_uvw_args):
     # Check ant make sure that when we plug in the original values, we recover the
     # exact same values that we calculated above.
     uvw_ant_check = uvutils.calc_uvw(
-        app_ra=old_app_ra,
-        app_dec=old_app_dec,
-        frame_pa=old_frame_pa,
-        lst_array=lst_array,
+        app_ra=calc_uvw_args["old_app_ra"],
+        app_dec=calc_uvw_args["old_app_dec"],
+        frame_pa=calc_uvw_args["old_frame_pa"],
+        lst_array=calc_uvw_args["lst_array"],
         use_ant_pos=True,
-        antenna_positions=antenna_positions,
-        antenna_numbers=antenna_numbers,
-        ant_1_array=ant_1_array,
-        ant_2_array=ant_2_array,
-        telescope_lat=telescope_lat,
-        telescope_lon=telescope_lon,
+        antenna_positions=calc_uvw_args["antenna_positions"],
+        antenna_numbers=calc_uvw_args["antenna_numbers"],
+        ant_1_array=calc_uvw_args["ant_1_array"],
+        ant_2_array=calc_uvw_args["ant_2_array"],
+        telescope_lat=calc_uvw_args["telescope_lat"],
+        telescope_lon=calc_uvw_args["telescope_lon"],
     )
 
     uvw_base_check = uvutils.calc_uvw(
-        app_ra=old_app_ra,
-        app_dec=old_app_dec,
-        frame_pa=old_frame_pa,
-        lst_array=lst_array,
+        app_ra=calc_uvw_args["old_app_ra"],
+        app_dec=calc_uvw_args["old_app_dec"],
+        frame_pa=calc_uvw_args["old_frame_pa"],
+        lst_array=calc_uvw_args["lst_array"],
         use_ant_pos=False,
-        uvw_array=uvw_array,
-        old_app_ra=old_app_ra,
-        old_app_dec=old_app_dec,
-        old_frame_pa=old_frame_pa,
+        uvw_array=calc_uvw_args["uvw_array"],
+        old_app_ra=calc_uvw_args["old_app_ra"],
+        old_app_dec=calc_uvw_args["old_app_dec"],
+        old_frame_pa=calc_uvw_args["old_frame_pa"],
     )
 
-    assert np.allclose(uvw_ant_check, uvw_array)
-    assert np.allclose(uvw_base_check, uvw_array)
+    assert np.allclose(uvw_ant_check, calc_uvw_args["uvw_array"])
+    assert np.allclose(uvw_base_check, calc_uvw_args["uvw_array"])
 
+
+@pytest.mark.parametrize("to_enu", [False, True])
+def test_calc_uvw_base_vs_ants(calc_uvw_args, to_enu):
     # Now change position, and make sure that whether we used ant positions of rotated
     # uvw vectors, we derived the same uvw-coordinates at the end
     uvw_ant_check = uvutils.calc_uvw(
-        app_ra=app_ra,
-        app_dec=app_dec,
-        frame_pa=frame_pa,
-        old_frame_pa=frame_pa,
-        lst_array=lst_array,
+        app_ra=calc_uvw_args["app_ra"],
+        app_dec=calc_uvw_args["app_dec"],
+        frame_pa=calc_uvw_args["frame_pa"],
+        lst_array=calc_uvw_args["lst_array"],
         use_ant_pos=True,
-        antenna_positions=antenna_positions,
-        antenna_numbers=antenna_numbers,
-        ant_1_array=ant_1_array,
-        ant_2_array=ant_2_array,
-        telescope_lat=telescope_lat,
-        telescope_lon=telescope_lon,
+        antenna_positions=calc_uvw_args["antenna_positions"],
+        antenna_numbers=calc_uvw_args["antenna_numbers"],
+        ant_1_array=calc_uvw_args["ant_1_array"],
+        ant_2_array=calc_uvw_args["ant_2_array"],
+        telescope_lat=calc_uvw_args["telescope_lat"],
+        telescope_lon=calc_uvw_args["telescope_lon"],
+        to_enu=to_enu,
     )
 
     uvw_base_check = uvutils.calc_uvw(
-        app_ra=app_ra,
-        app_dec=app_dec,
-        frame_pa=frame_pa,
-        lst_array=lst_array,
+        app_ra=calc_uvw_args["app_ra"],
+        app_dec=calc_uvw_args["app_dec"],
+        frame_pa=calc_uvw_args["frame_pa"],
+        lst_array=calc_uvw_args["lst_array"],
         use_ant_pos=False,
-        uvw_array=uvw_array,
-        old_app_ra=old_app_ra,
-        old_app_dec=old_app_dec,
-        old_frame_pa=old_frame_pa,
+        uvw_array=calc_uvw_args["uvw_array"],
+        old_app_ra=calc_uvw_args["old_app_ra"],
+        old_app_dec=calc_uvw_args["old_app_dec"],
+        old_frame_pa=calc_uvw_args["old_frame_pa"],
+        telescope_lat=calc_uvw_args["telescope_lat"],
+        telescope_lon=calc_uvw_args["telescope_lon"],
+        to_enu=to_enu,
     )
 
+    print(uvw_ant_check)
+    print(uvw_base_check)
     assert np.allclose(uvw_ant_check, uvw_base_check)
 
-    # Same task for calculating ENU coords.
-    uvw_ant_check = uvutils.calc_uvw(
-        lst_array=lst_array,
-        use_ant_pos=True,
-        antenna_positions=antenna_positions,
-        antenna_numbers=antenna_numbers,
-        ant_1_array=ant_1_array,
-        ant_2_array=ant_2_array,
-        telescope_lat=telescope_lat,
-        telescope_lon=telescope_lon,
-        to_enu=True,
-    )
 
-    uvw_base_check = uvutils.calc_uvw(
-        lst_array=lst_array,
-        use_ant_pos=False,
-        uvw_array=uvw_array,
-        old_app_ra=old_app_ra,
-        old_app_dec=old_app_dec,
-        old_frame_pa=old_frame_pa,
-        telescope_lat=telescope_lat,
-        telescope_lon=telescope_lon,
-        to_enu=True,
-    )
-
-    assert np.allclose(uvw_ant_check, uvw_base_check)
-
+def test_calc_uvw_enu_roundtrip(calc_uvw_args):
     # Now attempt to round trip from projected to ENU back to projected -- that should
     # give us the original set of uvw-coordinates.
     temp_uvw = uvutils.calc_uvw(
-        lst_array=lst_array,
+        lst_array=calc_uvw_args["lst_array"],
         use_ant_pos=False,
-        uvw_array=uvw_array,
-        old_app_ra=old_app_ra,
-        old_app_dec=old_app_dec,
-        old_frame_pa=old_frame_pa,
-        telescope_lat=telescope_lat,
-        telescope_lon=telescope_lon,
+        uvw_array=calc_uvw_args["uvw_array"],
+        old_app_ra=calc_uvw_args["old_app_ra"],
+        old_app_dec=calc_uvw_args["old_app_dec"],
+        old_frame_pa=calc_uvw_args["old_frame_pa"],
+        telescope_lat=calc_uvw_args["telescope_lat"],
+        telescope_lon=calc_uvw_args["telescope_lon"],
         to_enu=True,
     )
 
     uvw_base_enu_check = uvutils.calc_uvw(
-        app_ra=old_app_ra,
-        app_dec=old_app_dec,
-        frame_pa=old_frame_pa,
-        lst_array=lst_array,
+        app_ra=calc_uvw_args["old_app_ra"],
+        app_dec=calc_uvw_args["old_app_dec"],
+        frame_pa=calc_uvw_args["old_frame_pa"],
+        lst_array=calc_uvw_args["lst_array"],
         use_ant_pos=False,
         uvw_array=temp_uvw,
-        telescope_lat=telescope_lat,
-        telescope_lon=telescope_lon,
+        telescope_lat=calc_uvw_args["telescope_lat"],
+        telescope_lon=calc_uvw_args["telescope_lon"],
         from_enu=True,
     )
 
-    assert np.allclose(uvw_array, uvw_base_enu_check)
+    assert np.allclose(calc_uvw_args["uvw_array"], uvw_base_enu_check)
 
+
+def test_calc_uvw_pa_ex_post_facto(calc_uvw_args):
     # Finally, check and see what happens if you do the PA rotation as part of the
     # first uvw calcuation, and make sure it agrees with what you get if you decide
     # to apply the PA rotation after-the-fact.
     uvw_base_check = uvutils.calc_uvw(
-        app_ra=app_ra,
-        app_dec=app_dec,
-        frame_pa=frame_pa,
-        lst_array=lst_array,
+        app_ra=calc_uvw_args["app_ra"],
+        app_dec=calc_uvw_args["app_dec"],
+        frame_pa=calc_uvw_args["frame_pa"],
+        lst_array=calc_uvw_args["lst_array"],
         use_ant_pos=False,
-        uvw_array=uvw_array,
-        old_app_ra=old_app_ra,
-        old_app_dec=old_app_dec,
-        old_frame_pa=old_frame_pa,
+        uvw_array=calc_uvw_args["uvw_array"],
+        old_app_ra=calc_uvw_args["old_app_ra"],
+        old_app_dec=calc_uvw_args["old_app_dec"],
+        old_frame_pa=calc_uvw_args["old_frame_pa"],
     )
 
     temp_uvw = uvutils.calc_uvw(
-        app_ra=app_ra,
-        app_dec=app_dec,
-        lst_array=lst_array,
+        app_ra=calc_uvw_args["app_ra"],
+        app_dec=calc_uvw_args["app_dec"],
+        lst_array=calc_uvw_args["lst_array"],
         use_ant_pos=False,
-        uvw_array=uvw_array,
-        old_app_ra=old_app_ra,
-        old_app_dec=old_app_dec,
-        old_frame_pa=old_frame_pa,
+        uvw_array=calc_uvw_args["uvw_array"],
+        old_app_ra=calc_uvw_args["old_app_ra"],
+        old_app_dec=calc_uvw_args["old_app_dec"],
+        old_frame_pa=calc_uvw_args["old_frame_pa"],
     )
 
     uvw_base_late_pa_check = uvutils.calc_uvw(
-        frame_pa=frame_pa,
+        frame_pa=calc_uvw_args["frame_pa"],
         use_ant_pos=False,
         uvw_array=temp_uvw,
-        old_frame_pa=old_frame_pa,
+        old_frame_pa=calc_uvw_args["old_frame_pa"],
     )
 
     assert np.allclose(uvw_base_check, uvw_base_late_pa_check)
@@ -913,14 +902,11 @@ def test_calc_uvw():
 @pytest.mark.filterwarnings('ignore:ERFA function "dtdtf" yielded')
 @pytest.mark.filterwarnings('ignore:ERFA function "utcut1" yielded')
 @pytest.mark.filterwarnings('ignore:ERFA function "utctai" yielded')
-@pytest.mark.filterwarnings('ignore:ERFA function "d2dtf" yielded')
-def test_coord_inputs():
+def test_transform_icrs_to_app_arg_errs():
     """
     Verify that the various coordinate handling programs throw appropriate errors
     when called with arguments that not consistent w/ what is expected.
     """
-    pytest.importorskip("astroquery")
-
     # Start w/ the transform_icrs_to_app block
     with pytest.raises(ValueError) as cm:
         uvutils.transform_icrs_to_app(
@@ -1019,6 +1005,8 @@ def test_coord_inputs():
         )
     assert str(cm.value).startswith("time_array must be of either of length 1 (single ")
 
+
+def test_transform_sidereal_coords_arg_errs():
     # Next on to sidereal to sidereal
     with pytest.raises(ValueError) as cm:
         uvutils.transform_sidereal_coords(
@@ -1042,6 +1030,12 @@ def test_coord_inputs():
             time_array=[0.0, 1.0, 2.0],
         )
     assert str(cm.value).startswith("Shape of time_array must be either that of ")
+
+
+@pytest.mark.filterwarnings('ignore:ERFA function "d2dtf" yielded')
+def test_lookup_jplhorizons_arg_errs():
+    # Don't do this test if we don't have astroquery loaded
+    pytest.importorskip("astroquery")
 
     # Move on to the JPL-Horizons checks
     with pytest.raises(ValueError) as cm:
@@ -1091,42 +1085,32 @@ def test_coord_inputs():
         "Target ID is not recognized in either the small or major bodies "
     )
 
+
+@pytest.mark.parametrize(
+    "bad_arg,msg",
+    [
+        ["etimes", "ephem_ra must have the same shape as ephem_times."],
+        ["ra", "ephem_ra must have the same shape as ephem_times."],
+        ["dec", "ephem_dec must have the same shape as ephem_times."],
+        ["dist", "ephem_dist must have the same shape as ephem_times."],
+        ["vel", "ephem_vel must have the same shape as ephem_times."],
+    ],
+)
+def test_interpolate_ephem_arg_errs(bad_arg, msg):
     # Now moving on to the interpolation scheme
     with pytest.raises(ValueError) as cm:
         uvutils.interpolate_ephem(
-            0.0, [0.0, 1.0], [0.0], [0.0], ephem_dist=[0.0], ephem_vel=[0.0],
-        )
-    assert str(cm.value).startswith("ephem_ra must have the same shape as ephem_times.")
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.interpolate_ephem(
-            0.0, [0.0, 1.0], [0.0, 1.0], [0.0], ephem_dist=[0.0], ephem_vel=[0.0],
-        )
-    assert str(cm.value).startswith(
-        "ephem_dec must have the same shape as ephem_times."
-    )
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.interpolate_ephem(
-            0.0, [0.0, 1.0], [0.0, 1.0], [0.0, 1.0], ephem_dist=[0.0], ephem_vel=[0.0],
-        )
-    assert str(cm.value).startswith(
-        "ephem_dist must have the same shape as ephem_times."
-    )
-
-    with pytest.raises(ValueError) as cm:
-        uvutils.interpolate_ephem(
             0.0,
-            [0.0, 1.0],
-            [0.0, 1.0],
-            [0.0, 1.0],
-            ephem_dist=[0.0, 1.0],
-            ephem_vel=[0.0],
+            0.0 if ("etimes" == bad_arg) else [0.0, 1.0],
+            0.0 if ("ra" == bad_arg) else [0.0, 1.0],
+            0.0 if ("dec" == bad_arg) else [0.0, 1.0],
+            ephem_dist=0.0 if ("dist" == bad_arg) else [0.0, 1.0],
+            ephem_vel=0.0 if ("vel" == bad_arg) else [0.0, 1.0],
         )
-    assert str(cm.value).startswith(
-        "ephem_vel must have the same shape as ephem_times."
-    )
+    assert str(cm.value).startswith(msg)
 
+
+def test_calc_app_coords_arg_errs():
     # Now on to app_coords
     with pytest.raises(ValueError) as cm:
         uvutils.calc_app_coords(
