@@ -3646,7 +3646,6 @@ def test_add(casa_uvfits, future_shapes):
             "positions.",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
-            "Combined polarizations are not evenly spaced",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
@@ -3892,9 +3891,7 @@ def test_add_drift(casa_uvfits):
     uv2 = uv_full.copy()
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[3])
-    with uvtest.check_warnings(
-        UserWarning, "Combined polarizations are not evenly spaced",
-    ):
+    with uvtest.check_warnings(None, None):
         uv1.__iadd__(uv2)
 
     # Combining histories
