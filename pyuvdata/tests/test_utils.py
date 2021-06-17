@@ -907,6 +907,7 @@ def test_transform_icrs_to_app_arg_errs():
     Verify that the various coordinate handling programs throw appropriate errors
     when called with arguments that not consistent w/ what is expected.
     """
+    pytest.importorskip("novas")
     # Start w/ the transform_icrs_to_app block
     with pytest.raises(ValueError) as cm:
         uvutils.transform_icrs_to_app(
