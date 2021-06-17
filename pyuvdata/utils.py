@@ -1530,7 +1530,7 @@ def calc_uvw(
             )
         if telescope_lat is None:
             raise ValueError(
-                "Must include telescope_lat to calculate baselines"
+                "Must include telescope_lat to calculate baselines "
                 "in ENU coordinates!"
             )
     else:
@@ -1626,9 +1626,9 @@ def calc_uvw(
             # equivalent to calculating uvw's based on zenith. We can use that to our
             # advantage and spoof old_app_ra and old_app_dec based on lst_array and
             # telescope_lat
-            if (telescope_lat is None) or (telescope_lon is None):
+            if telescope_lat is None:
                 raise ValueError(
-                    "Must include telescope_lat and telescope_lat if moving between "
+                    "Must include telescope_lat if moving between "
                     'ENU (i.e., "unphased") and uvw coordinates!'
                 )
             if lst_array is None:
@@ -1637,15 +1637,14 @@ def calc_uvw(
                     "and uvw coordinates!"
                 )
         else:
-            if (app_ra is None and old_app_ra is None) and (
-                app_dec is None and old_app_dec is None
+            if (old_frame_pa is None) and not (frame_pa is None or to_enu):
+                raise ValueError(
+                    "Must include old_frame_pa values if data are phased and "
+                    "applying new position angle values (frame_pa)."
+                )
+            if ((old_app_ra is None) and not (app_ra is None or to_enu)) or (
+                (old_app_dec is None) and not (app_dec is None or to_enu)
             ):
-                if old_frame_pa is None:
-                    raise ValueError(
-                        "Must include old_frame_pa values if data are phased and "
-                        "applying new position angle values (frame_pa)."
-                    )
-            elif (old_app_ra is None) or (old_app_dec is None):
                 raise ValueError(
                     "Must include old_app_ra and old_app_dec values when data are "
                     "already phased and phasing to a new position."
@@ -1677,7 +1676,7 @@ def calc_uvw(
             new_coords = _rotate_two_axis(
                 _rotate_two_axis(  # Yo dawg, I heard you like rotation maticies...
                     uvw_array[:, [2, 0, 1], np.newaxis],
-                    0.0 if from_enu else (-old_frame_pa),
+                    0.0 if (from_enu or old_frame_pa is None) else (-old_frame_pa),
                     (-telescope_lat) if from_enu else (-old_app_dec),
                     0,
                     1,
@@ -1690,8 +1689,12 @@ def calc_uvw(
 
             # One final rotation applied here, to compensate for the fact that we want
             # the Dec-axis of our image (Fourier dual to the v-axis) to be aligned with
-            # the chosen frame
-            new_coords = _rotate_one_axis(new_coords, frame_pa, 0)[:, :, 0]
+            # the chosen frame, if we not in ENU coordinates
+            if not to_enu:
+                new_coords = _rotate_one_axis(new_coords, frame_pa, 0)
+
+            # Finally drop the now-vestigal last axis of the array
+            new_coords = new_coords[:, :, 0]
 
     # There's one last task to do, which is to re-align the axes from projected
     # XYZ -> uvw, where X (which points towards the source) falls on the w axis,
