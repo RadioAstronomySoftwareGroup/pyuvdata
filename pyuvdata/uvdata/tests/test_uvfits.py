@@ -40,6 +40,24 @@ def uvfits_nospw(uvfits_nospw_main):
     return uvfits_nospw_main.copy()
 
 
+@pytest.fixture(scope="session")
+def sma_mir_main():
+    # read in test file for the resampling in time functions
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    uv_object.read(testfile)
+
+    yield uv_object
+
+
+@pytest.fixture(scope="function")
+def sma_mir(sma_mir_main):
+    # read in test file for the resampling in time functions
+    uv_object = sma_mir_main.copy()
+
+    yield uv_object
+
+
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_read_nrao(casa_uvfits):
@@ -1078,4 +1096,16 @@ def test_readwriteread_reorder_pols(tmp_path, casa_uvfits, future_shapes):
     uv_in.reorder_pols(order="AIPS")
     assert uv_in == uv_out
 
-    return
+
+@pytest.mark.parametrize(
+    "freq_val,chan_val,msg",
+    [
+        [-1, 1, "Frequency values must be > 0 for UVFITS!"],
+        [1, 0, "Something is wrong, frequency values not"],
+    ],
+)
+def test_flex_spw_uvfits_write_errs(sma_mir, freq_val, chan_val, msg):
+    sma_mir.freq_array[:] = freq_val
+    sma_mir.channel_width[:] = chan_val
+    with pytest.raises(ValueError, match=msg):
+        sma_mir.write_uvfits("dummy", spoof_nonessential=True)
