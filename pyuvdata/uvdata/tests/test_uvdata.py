@@ -10555,7 +10555,6 @@ def test_phase_dict_helper_jpl_lookup_existing(sma_mir):
     Verify that the _phase_dict_helper function correctly hands back a dict that
     matches that in the catalog, provided the source properties match.
     """
-    pytest.importorskip("astroquery")
     # Finally, check that we get a good result if feeding the same values, even if not
     # actually performing a lookup
     phase_dict = sma_mir._phase_dict_helper(
@@ -10583,6 +10582,7 @@ def test_phase_dict_helper_jpl_lookup_append(sma_mir):
     Test _phase_dict_helper to see if it will correctly call the JPL lookup when
     an old ephem does not cover the newly requested time range
     """
+    pytest.importorskip("astroquery")
     # Now see what happens if we attempt to lookup something that JPL actually knows
     obs_time = np.array(2456789.0)
     phase_dict = sma_mir._phase_dict_helper(
