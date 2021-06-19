@@ -872,15 +872,15 @@ class UVData(UVBase):
                         # Numpy will throw a Value error if you have two arrays
                         # of different shape, which we can catch to flag that
                         # the two arrays are actually not within tolerance.
-                        try:
+                        if np.shape(phase_dict[key]) != np.shape(check_dict[name][key]):
+                            cat_diffs += 1
+                        else:
                             cat_diffs += not np.allclose(
                                 phase_dict[key],
                                 check_dict[name][key],
                                 tol_dict[key][0],
                                 tol_dict[key][1],
                             )
-                        except ValueError:
-                            cat_diffs += 1
                 else:
                     cat_diffs += check_dict[name][key] is not None
             if (cat_diffs == 0) or (cat_name == name):
@@ -1122,7 +1122,7 @@ class UVData(UVBase):
                     # Everything matches, return the catalog ID of the matching entry
                     return temp_id
                 else:
-                    raise IndexError(
+                    raise ValueError(
                         "Cannot add different source with an non-unique name."
                     )
 
@@ -1362,6 +1362,8 @@ class UVData(UVBase):
             raise ValueError(
                 "Cannot use split_phase_center on a non-multi phase center data set."
             )
+        if not isinstance(new_name, str):
+            raise TypeError("Value provided to new_name must be a string.")
         if cat_name not in self.phase_center_catalog.keys():
             raise ValueError("No entry by the name %s in the catalog." % cat_name)
         if new_name in self.phase_center_catalog.keys():
@@ -1496,7 +1498,7 @@ class UVData(UVBase):
                 )
             else:
                 raise ValueError(
-                    "Attributes of %s and %s in phase_center_catalog differ, which "
+                    "Attributes of %s and %s differ in phase_center_catalog, which "
                     "means that they are likely not referring to the same position in "
                     "the sky. You can ignore this error and force merge_phase_centers "
                     "to complete by setting force_merge=True, but this should be done "
@@ -1829,7 +1831,10 @@ class UVData(UVBase):
         preserve_phase_center_info : bool
             Preserve the source information located in `object_name`, and for phased
             data sets, also `phase_center_ra`, `phase_center_dec`, `phase_center_epoch`
-            and `phase_center_frame`. Default is True.
+            and `phase_center_frame`. Default is False. Note that setting this to
+            False will mean that some required attributes will NOT be correctly set,
+            e.g., `phase_center_id_array` -- these will need to be set after calling
+            `preserve_phase_center_info` in order for the UVData object to be viable.
 
         Raises
         ------
@@ -1882,6 +1887,11 @@ class UVData(UVBase):
             self.phase_center_frame = "icrs"
         if self.phase_center_epoch is None:
             self.phase_center_epoch = 2000.0
+
+        if (cat_type == "unphased") and preserve_phase_center_info:
+            # If moving from unphased, then we'll fill in app_ra and app_dec in
+            # the way that we normally would if this were an "unphased" object.
+            self._set_app_coords_helper()
 
     def _set_drift(self):
         """
@@ -4618,11 +4628,9 @@ class UVData(UVBase):
         if cat_epoch is None:
             cat_epoch = 1950.0 if (cat_frame in ["fk4", "fk4noeterms"]) else 2000.0
         if isinstance(cat_epoch, str) or isinstance(cat_epoch, Time):
-            cat_epoch = Time(cat_epoch)
-            if cat_frame in ["fk4", "fk4noeterms"]:
-                cat_epoch = Time(cat_epoch).byear
-            else:
-                cat_epoch = Time(cat_epoch).jyear
+            cat_epoch = Time(cat_epoch).to_value(
+                "byear" if cat_frame in ["fk4", "fk4noeterms"] else "jyear"
+            )
 
         # One last check - if we have an ephem phase center, lets make sure that the
         # time range of the ephemeris encapsulates the entire range of time_array
@@ -6229,11 +6237,11 @@ class UVData(UVBase):
                 # windows need sorting. If they are ordered in ascending or descending
                 # fashion, leave them be. If not, sort in ascending order
                 for idx in this.spw_array:
-                    select_mask = this.flex_spw_id_array == idx
+                    select_mask = this.flex_spw_id_array[f_order] == idx
                     check_freqs = (
-                        this.freq_array[select_mask]
+                        this.freq_array[f_order[select_mask]]
                         if this.future_array_shapes
-                        else this.freq_array[0, select_mask]
+                        else this.freq_array[0, f_order[select_mask]]
                     )
                     if (not np.all(check_freqs[1:] > check_freqs[:-1])) and (
                         not np.all(check_freqs[1:] < check_freqs[:-1])
@@ -11353,12 +11361,6 @@ class UVData(UVBase):
 
             if make_multi_phase:
                 self._set_multi_phase_center(preserve_phase_center_info=True)
-                # If no app coords found (like for a drift data set), then
-                # go ahead and calculate those now
-                if (self.phase_center_app_ra is None) or (
-                    self.phase_center_app_dec is None
-                ):
-                    self._set_app_coords_helper()
 
             if unphase_to_drift:
                 if self.phase_type != "drift":
