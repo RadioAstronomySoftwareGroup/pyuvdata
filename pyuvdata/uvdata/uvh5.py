@@ -1303,7 +1303,7 @@ class UVH5(UVData):
         if self.phase_center_catalog:
             phase_dict = header.create_group("phase_center_catalog")
             for k in self.phase_center_catalog.keys():
-                # Dictionary entries can be written out a JSON-formatted strings.
+                # Dictionary entries can be written out as JSON-formatted strings.
                 phase_dict[k] = json.dumps(self.phase_center_catalog[k])
 
         # write out extra keywords if it exists and has elements
