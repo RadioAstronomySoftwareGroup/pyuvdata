@@ -214,7 +214,7 @@ def test_pipe(tmp_path, raw, insert_blank):
     aipy_uv2.close()
 
 
-@pytest.mark.parametrize("exclude", ["telescope", "latitud", "longitu", "history"])
+@pytest.mark.parametrize("exclude", [[], "telescop", "history", "dummy"])
 def test_init_from_uv_exclude(tmp_path, exclude):
     infile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
     test_file = os.path.join(tmp_path, "miriad_test.uv")
@@ -224,22 +224,33 @@ def test_init_from_uv_exclude(tmp_path, exclude):
 
     aipy_uv2 = aipy_extracts.UV(test_file, status="new")
     # Manually add the variable to the object to make sure the exclude works
-    # even if the value has already been initiated.
-    aipy_uv2.add_var(exclude, "d")
+    # even if the value has already been initiated. Check to make sure we aren't
+    # adding an empty list up front.
+    if exclude:
+        aipy_uv2.add_var(exclude, "d")
     aipy_uv2.init_from_uv(aipy_uv, exclude=exclude)
     aipy_uv2.write((uvw, time, (idx, jdx)), data)
     aipy_uv2.close()
 
     aipy_uv2 = aipy_extracts.UV(test_file)
-    assert exclude not in aipy_uv2.vartable
+
+    # Again check that exclude isn't just an empty list, and then make sure that
+    # the excluded variable isn't actually in the data set.
+    if exclude:
+        assert exclude not in aipy_uv2.vartable
+
+    for item in aipy_uv.variables():
+        if item != exclude:
+            assert np.all(aipy_uv[item] == aipy_uv2[item])
+
     aipy_uv.close()
     aipy_uv2.close()
 
 
 @pytest.mark.parametrize(
-    "key,value", [("latitud", 0.0), ("longitu", 0.0), ("history", "abc")]
+    "var_dict", [{}, {"latitud": 0.0}, {"longitu": 0.0}, {"history": "abc"}],
 )
-def test_init_from_uv_override(tmp_path, key, value):
+def test_init_from_uv_override(tmp_path, var_dict):
     infile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
     test_file = os.path.join(tmp_path, "miriad_test.uv")
 
@@ -247,12 +258,18 @@ def test_init_from_uv_override(tmp_path, key, value):
     ((uvw, time, (idx, jdx)), data) = aipy_uv.read()
 
     aipy_uv2 = aipy_extracts.UV(test_file, status="new")
-    aipy_uv2.init_from_uv(aipy_uv, override={key: value})
+    aipy_uv2.init_from_uv(aipy_uv, override=var_dict)
     aipy_uv2.write((uvw, time, (idx, jdx)), data)
     aipy_uv2.close()
 
     aipy_uv2 = aipy_extracts.UV(test_file)
-    assert aipy_uv2[key] == value
+
+    for item in aipy_uv.variables():
+        if item in var_dict.keys():
+            assert aipy_uv2[item] == var_dict[item]
+        else:
+            assert np.all(aipy_uv[item] == aipy_uv2[item])
+
     aipy_uv.close()
     aipy_uv2.close()
 
@@ -327,13 +344,13 @@ def test_add_to_header(tmp_path):
         [-1, "(0,1)_(2,3)", (0, 1, 2, 3), 76],
         [-1, "(0,-1)_(-2,3)", (0, 1, 2, 3, 4, 5), 342],
         [-1, "(0x,1x)_(2y,3y)", (0, 1, 2, 3,), 76],
-        [-1, "0,1,2,3,4,5,", (0, 1, 2, 3, 4, 5), 399],
+        [-1, "4,5,", (0, 1, 2, 3, 4, 5), 209],
         ["xx", -1, (), 0],
         ["xy", -1, (0, 1, 2, 3, 4, 5), 399],
         ["yx", -1, (), 0],
         ["yy", -1, (), 0],
         ["xy", "(0,1)_(2,3)", (0, 1, 2, 3), 76],
-        ["xy", "0,1,2,3,4,5,", (0, 1, 2, 3, 4, 5), 399],
+        ["xy", "4,5,", (0, 1, 2, 3, 4, 5), 209],
         ["xy", "0,1,(2)_(3)", (0, 1, 2, 3, 4, 5), 228],
     ],
 )
