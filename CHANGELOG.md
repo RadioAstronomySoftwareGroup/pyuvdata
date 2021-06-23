@@ -4,10 +4,72 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added support for multiple sources/phase centers in a single UVData object, which can
+be enabled using the `_set_multi_phase_center` method. Using this method will set the
+new attribute `multi_phase_center` to `True` (otherwise set to `False`.).
+- Added the optional attribute `Nphase`, of type `int` and required if
+`multi_phase_center=True`, which records the number of different phase centers recorded
+in the UVData object.
+- Added the optional attribute `phase_center_catalog`, a dictionary of dictionaries
+that is required if `multi_phase_center=True`, which records various meta-information
+about the different phase centers used within the UVData object. The keys of individual
+entries of phase_center_catalog are strings representing the names of the individual
+phase centers. These keys are matched to individual dictionaries which store various
+information about the phase centers, including coordinate information (e.g., `cat_lat`,
+`cat_lon`, `cat_frame`, `cat_epoch`) and a unique identification number (`cat_id`, type
+`int`).  Catalog information can be printed to the terminal using the method
+`print_phase_center_info`.
+- Added the optional attribute `phase_center_id_array`, of type `int` and shape
+`(Nblts,)` required if `multi_phase_center=True`, which records which phase center the
+individual baseline-time record is phased to. The individual values of are matched to
+`cat_id` from the individual dictionary entries of `phase_center_catalog`.
+- Added the attributes `phase_center_app_ra` and `phase_center_app_dec`, which records
+he topocentric apparent positions of the phase center as seen from the position
+`telescope_location`. Both are of type `float`, shape `(Nblts,)`.
+- Added the attribute `phase_center_frame_pa`, of type `float`, shape `(Nblts,)`, which
+encodes the position angle between the topocentric apparent frame and the celestial
+frame of phase center coordinates, as recorded in `phase_center_frame` (e.g., FK5,
+ICRS). UV-coordinates are rotated by `phase_center_frame_pa`, such that
+- Added a switch called `ignore_name` to `__add__` which allows one to ignore whether
+the `object_name` attribute matches when attempting to combine objects  (default is
+`ignore_name=False`, which will cause an error to be thrown if `object_name` does not
+match). This parameter is also available with the `read` method, when reading in
+multiple files.
+- Added a switch called `make_multi_phase` to the `__add__` method, which will convert
+the data to a multi-phase-center-enabled dataset, allowing for UVData objects with
+different phase centers to be combined. This parameter is also available with the `read`
+method, when reading in multiple files.
+- Added the `fix_phase` method, which converts UVData objects from the "old" phasing
+framework to the "new' phasing framework.
+- Added support for looking up ephemeris information of solar system objects from
+JPL-Horizons via the optionally required `astroquery` packaged.
 - Added option to select based on LST or an LST range in UVData objects.
 - Added `get_lsts` method on UVData objects for retrieving LST corresponding to data.
 
+### Changed
+- Phasing methods (e.g., `UVData.phase`, `UVData.unphase_to_drift`,
+`UVData.set_uvws_from_antenna_positions`) have undergone a significant revision, which
+change the way in UVW coordinates are calculated. Specifically, these methods will now
+use the topocentric apparent positions (stored in the attributes `phase_center_app_ra`,
+`phase_center_app_dec`). As a result, phasing of data and calculating of uvw-coordinates
+are significantly faster.
+- `phase` method now supports phase centers of different types, specified by the
+`cat_type` parameter. Supported types include "sidereal" (default; fixed position in
+RA/Dec), "ephem" (position in RA/Dec which moves with time), and "driftscan" (fixed
+position in Az/El, NOT the same as `phase_type`=“drift”). The "ephem" and "driftscan"
+types can only be used when `multi_phase_center=True`.
+- `phase` now uses antenna positions for deriving uvw-coordinates by default.
+- Decreased the standard tolerances for angle-based parameters to 1 mas (was 10 mas).
+- Updated the astropy requirement to >= 4.2.1
+- Unknown phasing types (i.e., `phase_type="unknown"`) are no longer supported, `read`
+(and the associated file-reading methods) will default `phase_type` to "drift" when
+unable to definitively ascertain the phasing type.
+
 ### Fixed
+- Phasing accuracy/UVW coordinate calculation no longer limited to 2 cm on a 3 km
+baseline (i.e.,~1 part in 1e5; new accuracy is better than 1 part in 1e8).
+- A bug in reading DSB data from Mir filetypes, that resulted in visibilities being
+matched to the wrong baselines.
 - A bug in `UVData.phase_to_time` which prevented users from rephasing phased objects.
 - A bug in `UVBeam.read_cst_beam` when specifying beams with a single file using a yaml.
 
@@ -98,7 +160,7 @@ but adds the ability to check for multiple warnings.
 - A check that the uvws match the antenna positions, as part of the acceptability checking.
 
 ### Changed
-- Upated the numpy requirement to >= 1.18
+- Updated the numpy requirement to >= 1.18
 - Moved `parse_ants` to `utils.py` to allow any UVBased object the potential to use it.
 
 ### Deprecated
