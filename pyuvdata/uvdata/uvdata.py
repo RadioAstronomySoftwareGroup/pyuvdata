@@ -4705,8 +4705,8 @@ class UVData(UVBase):
         dec,
         epoch="J2000",
         phase_frame="icrs",
-        ephem_times=None,
         cat_type=None,
+        ephem_times=None,
         pm_ra=None,
         pm_dec=None,
         dist=None,
@@ -4745,6 +4745,36 @@ class UVData(UVBase):
             The astropy frame to phase to. Either 'icrs' or 'gcrs'.
             'gcrs' accounts for precession & nutation,
             'icrs' accounts for precession, nutation & abberation.
+        cat_type : str
+            Type of phase center to be added. Must be one of:
+            "sidereal" (fixed RA/Dec), "ephem" (RA/Dec that moves with time),
+            "driftscan" (fixed az/el position). Default is "sidereal", other selections
+            are only permissible if `multi_phase_center=True`.
+        ephem_times : ndarray of float
+            Only used when `cat_type="ephem"`. Describes the time for which the values
+            of `cat_lon` and `cat_lat` are caclulated, in units of JD. Shape is (Npts,).
+        pm_ra : float
+            Proper motion in RA, in units of mas/year. Only used for sidereal phase
+            centers.
+        pm_dec : float
+            Proper motion in Dec, in units of mas/year. Only used for sidereal phase
+            centers.
+        dist : float or ndarray of float
+            Distance of the source, in units of pc. Only used for sidereal and ephem
+            phase centers. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        vrad : float or ndarray of float
+            Radial velocity of the source, in units of km/s. Only used for sidereal and
+            ephem phase centers. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        cat_name :str
+            Name of the phase center being phased to. Required if
+            `multi_phase_center=True`, otherwise `object_name` set to this value.
+        lookup_name : bool
+            Only used if `multi_phase_center=True`, allows the user to lookup phase
+            center infomation in `phase_center_catalog` (for the entry matching
+            `cat_name`). Setting this to `True` will ignore the values supplied to the
+            `ra`, `dec`, `epoch`, `phase_frame`, `pm_ra`, `pm_dec`, `dist`, `vrad`.
         use_ant_pos : bool
             If True, calculate the uvws directly from the antenna positions
             rather than from the existing uvws.
