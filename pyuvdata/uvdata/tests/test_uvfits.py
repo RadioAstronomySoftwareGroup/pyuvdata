@@ -1237,6 +1237,12 @@ def test_readwriteread_reorder_pols(tmp_path, casa_uvfits, future_shapes):
 
     # put polarizations back in order
     uv_in.reorder_pols(order="AIPS")
+
+    # make sure filename is what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == ["outtest_casa.uvfits"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
 
