@@ -1639,6 +1639,12 @@ def test_fix_phase(tmp_path):
         writepath, clobber=True, run_check=False, check_extra=False
     )
     uv_out.read(writepath, fix_old_proj=True, fix_use_ant_pos=True)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["zen.2456865.60537.xy.uvcRREAA"]
+    assert uv_out.filename == ["phasetest.miriad"]
+    uv_in.filename = uv_out.filename
+
     assert uv_in == uv_out
 
     # Now test and see what happens if we use the baseline-vector based version of the
