@@ -248,66 +248,54 @@ def test_properties(uvbeam_data):
             raise
 
 
-def test_deprecation_warnings_set_cs_params(cst_efield_2freq):
+def test_set_cs_params(cst_efield_2freq):
     """
-    Test the deprecation warnings in set_cs_params.
-    """
-    efield_beam = cst_efield_2freq
-    efield_beam2 = efield_beam.copy()
-
-    with uvtest.check_warnings(
-        DeprecationWarning, match="`set_cs_params` is deprecated"
-    ):
-        efield_beam2.set_cs_params()
-
-    assert efield_beam2 == efield_beam
-
-
-def test_deprecation_warnings_set_efield(cst_efield_2freq):
-    """
-    Test the deprecation warnings in set_efield.
+    Test _set_cs_params.
     """
     efield_beam = cst_efield_2freq
     efield_beam2 = efield_beam.copy()
 
-    with uvtest.check_warnings(DeprecationWarning, match="`set_efield` is deprecated"):
-        efield_beam2.set_efield()
+    efield_beam2._set_cs_params()
+    assert efield_beam2 == efield_beam
+
+
+def test_set_efield(cst_efield_2freq):
+    """
+    Test _set_efield parameter settings.
+    """
+    efield_beam = cst_efield_2freq
+    efield_beam2 = efield_beam.copy()
+
+    efield_beam2._set_efield()
 
     assert efield_beam2 == efield_beam
 
 
-def test_deprecation_warnings_set_power(cst_power_2freq):
+def test_set_power(cst_power_2freq):
     """
-    Test the deprecation warnings in set_power.
+    Test _set_power parameter settings.
     """
     power_beam = cst_power_2freq
     power_beam2 = power_beam.copy()
 
-    with uvtest.check_warnings(DeprecationWarning, match="`set_power` is deprecated"):
-        power_beam2.set_power()
+    power_beam2._set_power()
 
     assert power_beam2 == power_beam
 
 
-def test_deprecation_warnings_set_antenna_type(cst_efield_2freq):
+def test_set_antenna_type(cst_efield_2freq):
     """
-    Test the deprecation warnings in set_simple and set_phased_array.
+    Test set_simple and set_phased_array parameter settings.
     """
     efield_beam = cst_efield_2freq
     efield_beam2 = efield_beam.copy()
 
-    with uvtest.check_warnings(DeprecationWarning, match="`set_simple` is deprecated"):
-        efield_beam2.set_simple()
+    efield_beam2._set_simple()
 
     assert efield_beam2 == efield_beam
 
     efield_beam._set_phased_array()
-    with uvtest.check_warnings(
-        DeprecationWarning, match="`set_phased_array` is deprecated"
-    ):
-        efield_beam2.set_phased_array()
-
-    assert efield_beam2 == efield_beam
+    assert efield_beam2 != efield_beam
 
 
 def test_errors():
