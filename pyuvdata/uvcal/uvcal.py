@@ -478,20 +478,6 @@ class UVCal(UVBase):
         self._quality_array.form = self._gain_array.form
         self._total_quality_array.form = self._gain_array.form[1:]
 
-    def set_gain(self):
-        """
-        Set cal_type to 'gain' and adjust required parameters.
-
-        This method is deprecated, and will be removed in pyuvdata v2.2. Use
-        `_set_gain` instead.
-        """
-        warnings.warn(
-            "`set_gain` is deprecated, and will be removed in pyuvdata version "
-            "2.2. Use `_set_gain` instead.",
-            DeprecationWarning,
-        )
-        self._set_gain()
-
     def _set_delay(self):
         """Set cal_type to 'delay' and adjust required parameters."""
         self.cal_type = "delay"
@@ -500,20 +486,6 @@ class UVCal(UVBase):
         self._freq_range.required = True
         self._quality_array.form = self._delay_array.form
         self._total_quality_array.form = self._delay_array.form[1:]
-
-    def set_delay(self):
-        """
-        Set cal_type to 'delay' and adjust required parameters.
-
-        This method is deprecated, and will be removed in pyuvdata v2.2. Use
-        `_set_delay` instead.
-        """
-        warnings.warn(
-            "`set_delay` is deprecated, and will be removed in pyuvdata version "
-            "2.2. Use `_set_delay` instead.",
-            DeprecationWarning,
-        )
-        self._set_delay()
 
     def _set_unknown_cal_type(self):
         """Set cal_type to 'unknown' and adjust required parameters."""
@@ -524,20 +496,6 @@ class UVCal(UVBase):
         self._quality_array.form = self._gain_array.form
         self._total_quality_array.form = self._gain_array.form[1:]
 
-    def set_unknown_cal_type(self):
-        """
-        Set cal_type to 'unknown' and adjust required parameters.
-
-        This method is deprecated, and will be removed in pyuvdata v2.2. Use
-        `_set_unknown_cal_type` instead.
-        """
-        warnings.warn(
-            "`set_unknown_cal_type` is deprecated, and will be removed in "
-            "pyuvdata version 2.2. Use `_set_unknown_cal_type` instead.",
-            DeprecationWarning,
-        )
-        self._set_unknown_cal_type()
-
     def _set_sky(self):
         """Set cal_style to 'sky' and adjust required parameters."""
         self.cal_style = "sky"
@@ -545,40 +503,12 @@ class UVCal(UVBase):
         self._sky_catalog.required = True
         self._ref_antenna_name.required = True
 
-    def set_sky(self):
-        """
-        Set cal_style to 'sky' and adjust required parameters.
-
-        This method is deprecated, and will be removed in pyuvdata v2.2. Use
-        `_set_sky` instead.
-        """
-        warnings.warn(
-            "`set_sky` is deprecated, and will be removed in "
-            "pyuvdata version 2.2. Use `_set_sky` instead.",
-            DeprecationWarning,
-        )
-        self._set_sky()
-
     def _set_redundant(self):
         """Set cal_style to 'redundant' and adjust required parameters."""
         self.cal_style = "redundant"
         self._sky_field.required = False
         self._sky_catalog.required = False
         self._ref_antenna_name.required = False
-
-    def set_redundant(self):
-        """
-        Set cal_style to 'redundant' and adjust required parameters.
-
-        This method is deprecated, and will be removed in pyuvdata v2.2. Use
-        `_set_redundant` instead.
-        """
-        warnings.warn(
-            "`set_redundant` is deprecated, and will be removed in "
-            "pyuvdata version 2.2. Use `_set_redundant` instead.",
-            DeprecationWarning,
-        )
-        self._set_redundant()
 
     @property
     def _data_params(self):

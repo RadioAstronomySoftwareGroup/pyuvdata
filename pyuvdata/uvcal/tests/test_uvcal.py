@@ -379,12 +379,6 @@ def test_set_gain(gain_data, delay_data):
     assert not delay_data._delay_array.required
     assert delay_data._gain_array.form == delay_data._flag_array.form
     assert delay_data._gain_array.form == delay_data._quality_array.form
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="`set_gain` is deprecated, and will be removed in "
-        "pyuvdata version 2.2. Use `_set_gain` instead.",
-    ):
-        gain_data.set_gain()
 
 
 def test_set_delay(gain_data):
@@ -393,12 +387,6 @@ def test_set_delay(gain_data):
     assert not gain_data._gain_array.required
     assert gain_data._gain_array.form == gain_data._flag_array.form
     assert gain_data._delay_array.form == gain_data._quality_array.form
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="`set_delay` is deprecated, and will be removed in "
-        "pyuvdata version 2.2. Use `_set_delay` instead.",
-    ):
-        gain_data.set_delay()
 
 
 def test_set_unknown(gain_data):
@@ -408,13 +396,6 @@ def test_set_unknown(gain_data):
     assert gain_data._gain_array.form == gain_data._flag_array.form
     assert gain_data._gain_array.form == gain_data._quality_array.form
 
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="`set_unknown_cal_type` is deprecated, and will be removed in "
-        "pyuvdata version 2.2. Use `_set_unknown_cal_type` instead.",
-    ):
-        gain_data.set_unknown_cal_type()
-
 
 def test_set_sky(gain_data):
     gain_data._set_sky()
@@ -422,26 +403,12 @@ def test_set_sky(gain_data):
     assert gain_data._sky_catalog.required
     assert gain_data._ref_antenna_name.required
 
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="`set_sky` is deprecated, and will be removed in "
-        "pyuvdata version 2.2. Use `_set_sky` instead.",
-    ):
-        gain_data.set_sky()
-
 
 def test_set_redundant(gain_data):
     gain_data._set_redundant()
     assert not gain_data._sky_field.required
     assert not gain_data._sky_catalog.required
     assert not gain_data._ref_antenna_name.required
-
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="`set_redundant` is deprecated, and will be removed in "
-        "pyuvdata version 2.2. Use `_set_redundant` instead.",
-    ):
-        gain_data.set_redundant()
 
 
 def test_convert_filetype(gain_data):
