@@ -1914,20 +1914,6 @@ class UVData(UVBase):
         self._phase_center_app_dec.required = False
         self._phase_center_frame_pa.required = False
 
-    def set_drift(self):
-        """
-        Set phase_type to 'drift' and adjust required parameters.
-
-        This method is deprecated, and will be removed in pyuvdata v2.2. Use
-        `_set_drift` instead.
-        """
-        warnings.warn(
-            "`set_drift` is deprecated, and will be removed in pyuvdata version "
-            "2.2. Use `_set_drift` instead.",
-            DeprecationWarning,
-        )
-        self._set_drift()
-
     def _set_phased(self):
         """
         Set phase_type to 'phased' and adjust required parameters.
@@ -1943,20 +1929,6 @@ class UVData(UVBase):
         self._phase_center_app_ra.required = True
         self._phase_center_app_dec.required = True
         self._phase_center_frame_pa.required = True
-
-    def set_phased(self):
-        """
-        Set phase_type to 'phased' and adjust required parameters.
-
-        This method is deprecated, and will be removed in pyuvdata v2.2. Use
-        `_set_phased` instead.
-        """
-        warnings.warn(
-            "`set_phased` is deprecated, and will be removed in pyuvdata version "
-            "2.2. Use `_set_phased` instead.",
-            DeprecationWarning,
-        )
-        self._set_phased()
 
     @property
     def _data_params(self):
