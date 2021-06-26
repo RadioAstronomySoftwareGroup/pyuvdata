@@ -9677,24 +9677,32 @@ def test_unknown_phase():
         uv.check()
 
 
-def test_deprecation_warnings_set_phased():
+def test_set_phased():
     """
     Test the deprecation warnings in set_phased et al.
     """
     uv = UVData()
-    # first call set_phased
-    with uvtest.check_warnings(DeprecationWarning, match="`set_phased` is deprecated"):
-        uv.set_phased()
+    uv._set_phased()
     assert uv.phase_type == "phased"
-    assert uv._phase_center_ra.required is True
-    assert uv._phase_center_dec.required is True
+    assert uv._phase_center_ra.required
+    assert uv._phase_center_dec.required
+    assert uv._phase_center_app_ra.required
+    assert uv._phase_center_app_dec.required
+    assert uv._phase_center_frame_pa.required
 
-    # now call set_drift
-    with uvtest.check_warnings(DeprecationWarning, match="`set_drift` is deprecated"):
-        uv.set_drift()
+
+def test_set_drift():
+    """
+    Test parameter settings with _set_drift
+    """
+    uv = UVData()
+    uv._set_drift()
     assert uv.phase_type == "drift"
-    assert uv._phase_center_ra.required is False
-    assert uv._phase_center_dec.required is False
+    assert not uv._phase_center_ra.required
+    assert not uv._phase_center_dec.required
+    assert not uv._phase_center_app_ra.required
+    assert not uv._phase_center_app_dec.required
+    assert not uv._phase_center_frame_pa.required
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
