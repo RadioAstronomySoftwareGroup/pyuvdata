@@ -20,26 +20,6 @@ from . import _utils
 import erfa
 
 
-def _str_to_bytes(s):
-    warnings.warn(
-        "_str_to_bytes is deprecated and will be removed in pyuvdata version 2.2. "
-        "For an input string s, this function is a thin wrapper on s.encode('utf8'). "
-        "The use of encode is preferred over calling this function.",
-        DeprecationWarning,
-    )
-    return s.encode("utf8")
-
-
-def _bytes_to_str(b):
-    warnings.warn(
-        "_bytes_to_str is deprecated and will be removed in pyuvdata version 2.2. "
-        "For an input string s, this function is a thin wrapper on s.decode('utf8'). "
-        "The use of decode is preferred over calling this function.",
-        DeprecationWarning,
-    )
-    return b.decode("utf8")
-
-
 __all__ = [
     "POL_STR2NUM_DICT",
     "POL_NUM2STR_DICT",
@@ -3658,7 +3638,6 @@ def uvcalibrate(
     uvcal,
     inplace=True,
     prop_flags=True,
-    flag_missing=True,
     Dterm_cal=False,
     delay_convention="minus",
     undo=False,
@@ -3680,11 +3659,6 @@ def uvcalibrate(
         if True, propagate calibration flags to data flags
         and doesn't use flagged gains. Otherwise, uses flagged gains and
         does not propagate calibration flags to data flags.
-    flag_missing : bool, optional
-        Deprecated in favor of ant_check.
-        If True, flag baselines in uvdata otherwise don't flag and
-        don't calibrate the baseline if a participating antenna or polarization
-        is missing in uvcal.
     Dterm_cal : bool, optional
         Calibrate the off-diagonal terms in the Jones matrix if present
         in uvcal. Default is False. Currently not implemented.
@@ -3742,7 +3716,6 @@ def uvcalibrate(
             if wh_ant_match[0].size == 0:
                 name_missing.append(this_ant_name)
 
-        use_ant_nums = False
         if len(name_missing) > 0:
             if len(name_missing) == uvdata_used_antnames.size:
                 # all antenna_names with data on UVData are missing on UVCal.
@@ -3753,68 +3726,10 @@ def uvcalibrate(
                         "proceed but all data will be flagged."
                     )
                 else:
-                    # this entire clause will be replaced with just raising a
-                    # ValueError in version 2.2
-
-                    # old behavior only required that antenna numbers were present,
-                    # not names. Check numbers
-                    number_missing = []
-                    for this_ant_name in uvdata_used_antnames:
-                        uvdata_ant_num = uvdata.antenna_numbers[
-                            np.where(uvdata.antenna_names == this_ant_name)[0][0]
-                        ]
-                        if uvdata_ant_num not in uvcal_unique_nums:
-                            number_missing.append(this_ant_name)
-
-                    if len(number_missing) == 0:
-                        # all have matching numbers on UVCal
-                        use_ant_nums = True
-                        warnings.warn(
-                            "All antenna names with data on UVData are missing "
-                            "on UVCal. They do all have matching antenna numbers on "
-                            "UVCal. Currently the data will be calibrated using the "
-                            "matching antenna number, but that will be deprecated in "
-                            "version 2.2 and this will become an error.",
-                            DeprecationWarning,
-                        )
-                    elif len(number_missing) < len(name_missing):
-                        # Some have matching numbers on UVCal
-                        use_ant_nums = True
-                        both_missing = sorted(set(number_missing) & set(name_missing))
-                        only_name_missing = sorted(
-                            set(name_missing) - set(number_missing)
-                        )
-                        warnings.warn(
-                            f"Antennas {only_name_missing} have data on UVData but "
-                            "are missing on UVCal. They do have matching antenna "
-                            "numbers on UVCal. Currently the data for these antennas "
-                            "will be calibrated using the matching antenna number, "
-                            "but that will be deprecated in "
-                            "version 2.2 and this will become an error.",
-                            DeprecationWarning,
-                        )
-                        if flag_missing is True:
-                            warnings.warn(
-                                f"Antennas {both_missing} have data on UVData but "
-                                "are missing on UVCal. Currently calibration will "
-                                "proceed and since flag_missing is True, the data "
-                                "for these antennas will be flagged. This will "
-                                "become an error in version 2.2, to continue "
-                                "calibration and flag missing antennas in the "
-                                "future, set ant_check=False.",
-                                DeprecationWarning,
-                            )
-                        else:
-                            warnings.warn(
-                                f"Antennas {both_missing} have data on UVData but "
-                                "are missing on UVCal. Currently calibration will "
-                                "proceed and since flag_missing is False, the data "
-                                "for these antennas will not be calibrated or "
-                                "flagged. This will become an error in version 2.2, "
-                                "to continue calibration and flag missing "
-                                "antennas in the future, set ant_check=False.",
-                                DeprecationWarning,
-                            )
+                    raise ValueError(
+                        "All antenna names with data on UVData are missing "
+                        "on UVCal. To continue with calibration, set ant_check=False."
+                    )
             else:
                 # Only some antenna_names with data on UVData are missing on UVCal
                 if not ant_check:
@@ -3824,30 +3739,11 @@ def uvcalibrate(
                         "proceed and the data for these antennas will be flagged."
                     )
                 else:
-                    # this entire clause will be replaced with just raising a
-                    # ValueError in version 2.2
-                    if flag_missing is True:
-                        warnings.warn(
-                            f"Antennas {name_missing} have data on UVData but "
-                            "are missing on UVCal. Currently calibration will "
-                            "proceed and since flag_missing is True, the data "
-                            "for these antennas will be flagged. This will "
-                            "become an error in version 2.2, to continue "
-                            "calibration and flag missing antennas in the "
-                            "future, set ant_check=False.",
-                            DeprecationWarning,
-                        )
-                    else:
-                        warnings.warn(
-                            f"Antennas {name_missing} have data on UVData but "
-                            "are missing on UVCal. Currently calibration will "
-                            "proceed and since flag_missing is False, the data "
-                            "for these antennas will not be calibrated or "
-                            "flagged. This will become an error in version 2.2, "
-                            "to continue calibration and flag missing "
-                            "antennas in the future, set ant_check=False.",
-                            DeprecationWarning,
-                        )
+                    raise ValueError(
+                        f"Antennas {name_missing} have data on UVData but "
+                        "are missing on UVCal. To continue calibration and "
+                        "flag missing antennas, set ant_check=False."
+                    )
 
     uvdata_times = np.unique(uvdata.time_array)
     downselect_cal_times = False
@@ -3883,10 +3779,8 @@ def uvcalibrate(
                 if wh_time_match[0].size > 0:
                     uvcal_times_to_keep.append(uvcal.time_array[wh_time_match][0])
                 else:
-                    warnings.warn(
-                        f"Time {this_time} exists on UVData but not on UVCal. "
-                        "This will become an error in version 2.2",
-                        DeprecationWarning,
+                    raise ValueError(
+                        f"Time {this_time} exists on UVData but not on UVCal."
                     )
             if len(uvcal_times_to_keep) < uvcal.Ntimes:
                 downselect_cal_times = True
@@ -3908,11 +3802,9 @@ def uvcalibrate(
                     "will be applied anyway."
                 )
             else:
-                warnings.warn(
+                raise ValueError(
                     "Times do not match between UVData and UVCal. "
-                    "Set time_check=False to apply calibration anyway. "
-                    "This will become an error in version 2.2",
-                    DeprecationWarning,
+                    "Set time_check=False to apply calibration anyway."
                 )
     else:
         # time_array is length 1 and time_range exists: check uvdata_times in time_range
@@ -3927,11 +3819,9 @@ def uvcalibrate(
                     "will be applied anyway."
                 )
             else:
-                warnings.warn(
+                raise ValueError(
                     "Times do not match between UVData and UVCal. "
                     "Set time_check=False to apply calibration anyway. "
-                    "This will become an error in version 2.2",
-                    DeprecationWarning,
                 )
 
     downselect_cal_freq = False
@@ -3964,10 +3854,8 @@ def uvcalibrate(
             if wh_freq_match[0].size > 0:
                 uvcal_freqs_to_keep.append(uvcal.freq_array[wh_freq_match][0])
             else:
-                warnings.warn(
-                    f"Frequency {this_freq} exists on UVData but not on UVCal. "
-                    "This will become an error in version 2.2",
-                    DeprecationWarning,
+                raise ValueError(
+                    f"Frequency {this_freq} exists on UVData but not on UVCal."
                 )
         if len(uvcal_freqs_to_keep) < uvcal.Nfreqs:
             downselect_cal_freq = True
@@ -3983,10 +3871,8 @@ def uvcalibrate(
         # get diagonal jones str
         jones_str = parse_jpolstr(feed, x_orientation=uvcal.x_orientation)
         if jones_str not in uvcal_pol_strs:
-            warnings.warn(
+            raise ValueError(
                 f"Feed polarization {feed} exists on UVData but not on UVCal. "
-                "This will become an error in version 2.2",
-                DeprecationWarning,
             )
 
     # downselect UVCal times, frequencies
@@ -3996,16 +3882,6 @@ def uvcalibrate(
         elif not downselect_cal_freq:
             uvcal_freqs_to_keep = None
 
-        # handle backwards compatibility: prevent downselecting to nothing
-        # or to shapes that don't match
-        if downselect_cal_times and len(uvcal_times_to_keep) < uvdata.Ntimes:
-            downselect_cal_times = False
-            uvcal_times_to_keep = None
-        if downselect_cal_freq and len(uvcal_freqs_to_keep) < uvdata.Nfreqs:
-            downselect_cal_freq = False
-            uvcal_freqs_to_keep = None
-
-    if downselect_cal_freq or downselect_cal_times:
         uvcal_use = uvcal.select(
             times=uvcal_times_to_keep, frequencies=uvcal_freqs_to_keep, inplace=False
         )
@@ -4058,39 +3934,21 @@ def uvcalibrate(
             try:
                 uvcal_ant1_num = uvcal_ant_dict[uvdata_ant_dict[ant1_num]]
             except KeyError:
-                if use_ant_nums:
-                    # backwards compatibility: use antenna numbers instead
-                    # this will be removed in version 2.2
-                    uvcal_ant1_num = ant1_num
-                else:
-                    uvcal_ant1_num = None
+                uvcal_ant1_num = None
             try:
                 uvcal_ant2_num = uvcal_ant_dict[uvdata_ant_dict[ant2_num]]
             except KeyError:
-                if use_ant_nums:
-                    # backwards compatibility: use antenna numbers instead
-                    # this will be removed in version 2.2
-                    uvcal_ant2_num = ant2_num
-                else:
-                    uvcal_ant2_num = None
+                uvcal_ant2_num = None
 
             uvcal_key1 = (uvcal_ant1_num, feed1)
             uvcal_key2 = (uvcal_ant2_num, feed2)
-
-            if uvcal_ant1_num is None or uvcal_ant2_num is None:
+            if (uvcal_ant1_num is None or uvcal_ant2_num is None) or not (
+                uvcal_use._has_key(*uvcal_key1) and uvcal_use._has_key(*uvcal_key2)
+            ):
                 if uvdata.future_array_shapes:
                     uvdata.flag_array[blt_inds, :, pol_ind] = True
                 else:
                     uvdata.flag_array[blt_inds, 0, :, pol_ind] = True
-                continue
-            elif not uvcal_use._has_key(*uvcal_key1) or not uvcal_use._has_key(
-                *uvcal_key2
-            ):
-                if flag_missing:
-                    if uvdata.future_array_shapes:
-                        uvdata.flag_array[blt_inds, :, pol_ind] = True
-                    else:
-                        uvdata.flag_array[blt_inds, 0, :, pol_ind] = True
                 continue
             gain = (
                 uvcal_use.get_gains(uvcal_key1)
