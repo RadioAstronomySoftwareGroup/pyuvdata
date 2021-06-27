@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [2.2.0] - 2021-6-26
 
 ### Added
 - Added `filename` attribute for UVData objects.
@@ -48,6 +48,8 @@ JPL-Horizons via the optionally required `astroquery` packaged.
 - Added `get_lsts` method on UVData objects for retrieving LST corresponding to data.
 
 ### Changed
+- `utils.uvcalibrate` will error rather than warn if some of the newly added checks do
+not pass, including if antenna names do not match between the objects.
 - Phasing methods (e.g., `UVData.phase`, `UVData.unphase_to_drift`,
 `UVData.set_uvws_from_antenna_positions`) have undergone a significant revision, which
 change the way in UVW coordinates are calculated. Specifically, these methods will now
@@ -75,6 +77,16 @@ baseline (i.e.,~1 part in 1e5; new accuracy is better than 1 part in 1e8).
 matched to the wrong baselines.
 - A bug in `UVData.phase_to_time` which prevented users from rephasing phased objects.
 - A bug in `UVBeam.read_cst_beam` when specifying beams with a single file using a yaml.
+
+### Removed
+- The UVBeam methods `set_cs_params`, `set_efield`, `set_power`, `set_simple`, and
+`set_phased_array` have been removed.
+- The UVCal methods `set_gain`, `set_delay`, `set_unknown_cal_type`, `set_sky`, and
+`set_redundant` have been removed.
+- The UVData methods `set_phased` and `set_drift` have been removed.
+- The functions `utils._str_to_bytes` and `utils._bytes_to_str` have been removed.
+- The `flag_missing` keyword of the `utils.uvcalibrate` function has been removed.
+
 
 ## [2.1.5] - 2021-4-02
 
