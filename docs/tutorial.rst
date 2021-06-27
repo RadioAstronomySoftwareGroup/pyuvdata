@@ -1684,10 +1684,10 @@ a) Calibration of UVData by UVCal
   >>> UV.read(os.path.join(DATA_PATH, 'zen.2458116.30448.HH.uvh5'))
   >>> UVC = UVCal()
   >>> UVC.read_calfits(os.path.join(DATA_PATH, 'zen.2458116.30448.HH.flagged_abs.calfits'))
-  >>> UV_calibrated = utils.uvcalibrate(UV, UVC, inplace=False)
+  >>> UV_calibrated = utils.uvcalibrate(UV, UVC, inplace=False, ant_check=False)
 
   >>> # We can also un-calibrate using the same UVCal
-  >>> UV_uncalibrated = utils.uvcalibrate(UV_calibrated, UVC, inplace=False, undo=True)
+  >>> UV_uncalibrated = utils.uvcalibrate(UV_calibrated, UVC, inplace=False, undo=True, ant_check=False)
 
 UVCal: Selecting data
 ---------------------
