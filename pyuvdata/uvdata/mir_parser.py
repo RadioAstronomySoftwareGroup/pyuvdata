@@ -638,6 +638,11 @@ class MirParser(object):
             Numpy ndarray of custom type ac_read_dtype.
         """
         full_filepath = os.path.join(filepath, "autoCorrelations")
+
+        if not os.path.exists(full_filepath):
+            raise FileNotFoundError(f"Cannot find file {full_filepath}."
+                                    " Set `has_auto=False` to avoid reading autocorrelations.")
+
         file_size = os.path.getsize(full_filepath)
         with open(full_filepath, "rb") as auto_file:
             data_offset = 0
