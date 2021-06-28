@@ -246,7 +246,7 @@ def test_mir_auto_read(
     Make sure that Mir autocorrelations are read correctly
     """
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    mir_data = mir_parser.MirParser(testfile, read_auto=True)
+    mir_data = mir_parser.MirParser(testfile, has_auto=True)
     with pytest.raises(err_type, match=err_msg):
         ac_data = mir_data.scan_auto_data(testfile, nchunks=999)
 
@@ -284,12 +284,12 @@ def test_mir_remember_me_record_lengths(mir_data_object):
 
     # Check to make sure we've got the right number of records everywhere
 
-    # ac_read only exists if read_auto=True
-    if mir_data.ac_read is None:
+    # ac_read only exists if has_auto=True
+    if mir_data.ac_read is not None:
         assert len(mir_data.ac_read) == 2
     else:
-        # This should only occur when read_auto=False
-        assert not mir_data._read_auto
+        # This should only occur when has_auto=False
+        assert not mir_data._has_auto
 
     assert len(mir_data.bl_read) == 4
 
@@ -480,8 +480,8 @@ def test_mir_remember_me_ac_read(mir_data_object):
 
     # Now check ac_read
 
-    # ac_read only exists if read_auto=True
-    if mir_data.ac_read is None:
+    # ac_read only exists if has_auto=True
+    if mir_data.ac_read is not None:
 
         assert np.all(mir_data.ac_read["inhid"] == 1)
 
@@ -498,8 +498,8 @@ def test_mir_remember_me_ac_read(mir_data_object):
         assert np.all(mir_data.we_read["flags"] == 0)
 
     else:
-        # This should only occur when read_auto=False
-        assert not mir_data._read_auto
+        # This should only occur when has_auto=False
+        assert not mir_data._has_auto
 
 
 def test_mir_remember_me_sp_read(mir_data_object):

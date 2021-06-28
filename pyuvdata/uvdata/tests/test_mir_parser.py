@@ -21,10 +21,10 @@ from ...uvdata.mir import mir_parser
 
 @pytest.fixture(params=[True, False])
 def mir_data_object(request):
-    read_auto = request.param
+    has_auto = request.param
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     mir_data = mir_parser.MirParser(
-        testfile, load_vis=True, load_raw=True, load_auto=True, read_auto=read_auto
+        testfile, load_vis=True, load_raw=True, load_auto=True, has_auto=has_auto
     )
 
     yield mir_data
@@ -76,13 +76,13 @@ def test_mir_parser_index_linked(mir_data_object):
     mir_data = mir_data_object
     inhid_set = set(np.unique(mir_data.in_read["inhid"]))
 
-    # Should not exist is read_auto=False
+    # Should not exist is has_auto=False
     # See `mir_data_object` above.
-    if mir_data.ac_read is None:
+    if mir_data.ac_read is not None:
         assert set(np.unique(mir_data.ac_read["inhid"])).issubset(inhid_set)
     else:
-        # This should only occur when read_auto=False
-        assert not mir_data._read_auto
+        # This should only occur when has_auto=False
+        assert not mir_data._has_auto
 
     assert set(np.unique(mir_data.bl_read["inhid"])).issubset(inhid_set)
 
