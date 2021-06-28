@@ -225,7 +225,7 @@ class MirParser(object):
     """
 
     def __init__(
-        self, filepath, read_auto=False, load_vis=False, load_raw=False, load_auto=False
+        self, filepath, has_auto=False, load_vis=False, load_raw=False, load_auto=False
     ):
         """
         Read in all files from a mir data set into predefined numpy datatypes.
@@ -238,7 +238,7 @@ class MirParser(object):
         ----------
         filepath : str
             filepath is the path to the folder containing the mir data set.
-        read_auto : bool
+        has_auto : bool
             flag to read auto-correlation data, default is False.
         load_vis : bool
             flag to load visibilities into memory, default is False.
@@ -248,7 +248,7 @@ class MirParser(object):
             flag to load auto-correlations into memory, default is False.
         """
 
-        self._read_auto = read_auto
+        self._has_auto = has_auto
 
         self.filepath = filepath
         self.in_read = self.read_in_data(filepath)
@@ -277,11 +277,15 @@ class MirParser(object):
         self.codes_data = self.codes_read
         self.we_data = self.we_read
 
-        if read_auto:
+        if self._has_auto:
             self.ac_read = self.scan_auto_data(filepath)
             self.ac_filter = np.ones(self.ac_read.shape, dtype=np.bool_)
             self.ac_data = self.ac_read
         else:
+            self.ac_read = None
+            self.ac_filter = None
+            self.ac_data = None
+
             # Check for load_auto=True.
             if load_auto:
                 load_auto = False
@@ -370,7 +374,7 @@ class MirParser(object):
             [inhid_filter_dict[key] for key in self.we_read["scanNumber"]]
         )
 
-        if self._read_auto:
+        if self._has_auto:
             self.ac_filter = np.array(
                 [inhid_filter_dict[key] for key in self.ac_read["inhid"]]
             )
@@ -388,7 +392,7 @@ class MirParser(object):
             self.eng_data = self.eng_read[self.eng_filter]
             self.we_data = self.we_read[self.we_filter]
 
-            if self._read_auto:
+            if self._has_auto:
                 self.ac_data = self.ac_read[self.ac_filter]
 
         # Craft some dictionaries so you know what list position matches
@@ -430,7 +434,7 @@ class MirParser(object):
                 self.filepath, self.in_start_dict, self.sp_data
             )
             self.raw_data_loaded = True
-        if load_auto and self._read_auto:
+        if load_auto and self._has_auto:
             # Have to do this because of a strange bug in data recording where
             # we record more autos worth of spectral windows than we actually
             # have online.
