@@ -66,6 +66,8 @@ types can only be used when `multi_phase_center=True`.
 unable to definitively ascertain the phasing type.
 
 ### Fixed
+- A bug in `aipy_extracts.pipe` that caused an error when using `raw=True`.
+- A bug in `aipy_extracts.write` which caused an error when using certain masked arrays.
 - Phasing accuracy/UVW coordinate calculation no longer limited to 2 cm on a 3 km
 baseline (i.e.,~1 part in 1e5; new accuracy is better than 1 part in 1e8).
 - A bug in reading DSB data from Mir filetypes, that resulted in visibilities being

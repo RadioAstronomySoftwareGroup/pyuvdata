@@ -123,13 +123,12 @@ def parse_ants(ant_str, nants):
         if m is None:
             if ant_str[cnt:].startswith("all"):
                 rv = []
-            elif ant_str[cnt:].startswith("auto"):
+            elif ant_str[cnt:].startswith("auto") or ant_str[cnt:].startswith("-cross"):
                 rv.append(("auto", 1, -1))
-            elif ant_str[cnt:].startswith("cross"):
+            elif ant_str[cnt:].startswith("cross") or ant_str[cnt:].startswith("-auto"):
                 rv.append(("auto", 0, -1))
             else:
                 raise ValueError('Unparsable ant argument "%s"' % ant_str)
-
             c = ant_str[cnt:].find(",")
 
             if c >= 0:
@@ -266,8 +265,11 @@ itemtable = {
 }
 
 
-def _uv_pipe_default_action(uv, p, d):
-    return p, d
+def _uv_pipe_default_action(uv, p, d, f=None):
+    if f is None:
+        return p, d
+    else:
+        return p, d, f
 
 
 class UV(_miriad.UV):
@@ -301,7 +303,12 @@ class UV(_miriad.UV):
             self.rewind()  # Update variables for the user
             try:
                 self.nchan = self["nchan"]
-            except KeyError:
+            except KeyError:  # pragma: no cover
+                # Karto: it does not seem possible to end up in a situation where nchan
+                # is missing from the vartable -- the basic uvwrite utility checks
+                # that value so that knows if nchan has changes (and can update
+                # accordingly), so you would have to use something _outside_ of the
+                # MIRIAD tools to create such an error.
                 pass
         else:
             self.vartable = {"corr": corrmode}
@@ -391,10 +398,9 @@ class UV(_miriad.UV):
                     break
 
                 if itype == "a":
-                    try:
-                        c = str(c[:o], "utf-8")
-                    except TypeError:
-                        c = c[:o]
+                    # hread will always return a byte array for itype="a", which we will
+                    # want to convert into a string.
+                    c = str(c[:o], "utf-8")
 
                 rv.append(c)
                 offset += o
@@ -616,12 +622,13 @@ class UV(_miriad.UV):
         """
         if data is None:
             return
-
         if flags is not None:
             flags = np.logical_not(flags)
         elif len(data.mask.shape) == 0:
             flags = np.ones(data.shape)
-            data = data.unmask()
+            # Setting this to false will instantiate the mask, but keep all values
+            # unmasked (as expected)
+            data.mask = False
         else:
             flags = np.logical_not(data.mask)
             data = data.data
