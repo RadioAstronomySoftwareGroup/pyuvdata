@@ -2605,31 +2605,35 @@ def lookup_jplhorizons(
     with open(path_join(DATA_PATH, "jpl_major_bodies.json"), "r") as fhandle:
         major_body_dict = json_load(fhandle)
 
+    target_id = target_name
+    id_type = "smallbody"
     # If we find the target in the major body database, then we can extract the
-    # information in a bit simpler fashion
+    # target ID to make the query a bit more robust (otherwise JPL-Horizons will fail
+    # on account that id will find multiple partial matches: e.g., "Mars" will be
+    # matched with "Mars", "Mars Explorer", "Mars Barycenter"..., and JPL-Horizons will
+    # not know which to choose).
     if target_name in major_body_dict.keys():
-        ephem_data = Horizons(
-            id=major_body_dict[target_name],
-            location=site_loc,
-            epochs=epoch_list,
-            id_type="majorbody",
-        ).ephemerides(extra_precision=True)
-    else:
-        # If not in the major bodies catalog, try the minor bodies list, and if
-        # still not found, throw an error.
-        try:
-            ephem_data = Horizons(
-                id=target_name,
-                location=site_loc,
-                epochs=epoch_list,
-                id_type="smallbody",
-            ).ephemerides(extra_precision=True)
-        except ValueError as err:
-            raise ValueError(
-                "Target ID is not recognized in either the small or major bodies "
-                "catalogs, please consult the JPL-Horizons database for supported "
-                "targets (https://ssd.jpl.nasa.gov/?horizons)."
-            ) from err
+        target_id = major_body_dict[target_name]
+        id_type = "majorbody"
+
+    query_obj = Horizons(
+        id=target_id, location=site_loc, epochs=epoch_list, id_type=id_type,
+    )
+    # If not in the major bodies catalog, try the minor bodies list, and if
+    # still not found, throw an error.
+    try:
+        ephem_data = query_obj.ephemerides(extra_precision=True)
+    except ValueError as err:
+        query_obj._session.close()
+        raise ValueError(
+            "Target ID is not recognized in either the small or major bodies "
+            "catalogs, please consult the JPL-Horizons database for supported "
+            "targets (https://ssd.jpl.nasa.gov/?horizons)."
+        ) from err
+    # This is explicitly closed here to trap a bug that occassionally throws an
+    # unexpected warning, see astroquery issue #1807
+    query_obj._session.close()
+
     # Now that we have the ephem data, extract out the relevant data
     ephem_times = np.array(ephem_data["datetime_jd"])
     ephem_ra = np.array(ephem_data["RA"]) * (np.pi / 180.0)
