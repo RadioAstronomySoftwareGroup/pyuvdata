@@ -10,7 +10,6 @@ python, not neccessarily how pyuvdata (by way of the UVData class) interacts wit
 data.
 """
 import os
-from attr import has
 
 import pytest
 import numpy as np
