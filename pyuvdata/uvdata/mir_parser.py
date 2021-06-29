@@ -640,7 +640,7 @@ class MirParser(object):
         full_filepath = os.path.join(filepath, "autoCorrelations")
 
         if not os.path.exists(full_filepath):
-            raise FileNotFoundError(f"Cannot find file {full_filepath}."
+            raise FileNotFoundError(f"Cannot find file {full_filepath}."  # pragma: no cover
                                     " Set `has_auto=False` to avoid reading autocorrelations.")
 
         file_size = os.path.getsize(full_filepath)
