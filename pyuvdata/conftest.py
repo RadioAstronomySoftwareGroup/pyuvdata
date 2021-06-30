@@ -287,6 +287,7 @@ def cst_power_1freq_cut_healpix(cst_power_1freq_cut_healpix_main):
 
 @pytest.fixture(params=[True, False])
 def mir_data_object(request):
+    """Make MIR data object for tests. Param to read autocorr data."""
     has_auto = request.param
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     mir_data = mir_parser.MirParser(
