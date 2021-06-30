@@ -9,12 +9,7 @@ data in pyuvdata. Tests in this module are specific to the way that MIR is read 
 python, not neccessarily how pyuvdata (by way of the UVData class) interacts with that
 data.
 """
-import os
-
-import pytest
 import numpy as np
-
-from ...data import DATA_PATH
 
 
 def test_mir_parser_index_uniqueness(mir_data_object):
