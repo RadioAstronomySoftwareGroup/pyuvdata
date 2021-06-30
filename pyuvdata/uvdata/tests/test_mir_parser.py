@@ -15,21 +15,6 @@ import pytest
 import numpy as np
 
 from ...data import DATA_PATH
-from ...uvdata.mir import mir_parser
-
-
-@pytest.fixture(params=[True, False])
-def mir_data_object(request):
-    has_auto = request.param
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    mir_data = mir_parser.MirParser(
-        testfile, load_vis=True, load_raw=True, load_auto=True, has_auto=has_auto
-    )
-
-    yield mir_data
-
-    # cleanup
-    del mir_data
 
 
 def test_mir_parser_index_uniqueness(mir_data_object):

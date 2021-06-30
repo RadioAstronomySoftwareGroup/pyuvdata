@@ -18,9 +18,6 @@ from ... import UVData
 from ...data import DATA_PATH
 from ...uvdata.mir import mir_parser
 
-from .test_mir_parser import mir_data_object
-
-
 @pytest.fixture
 def uv_in_uvfits(tmp_path):
     uv_in = UVData()

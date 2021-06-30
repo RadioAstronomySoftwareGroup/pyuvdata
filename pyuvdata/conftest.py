@@ -12,6 +12,7 @@ import numpy as np
 
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVData, UVBeam
+from pyuvdata.uvdata.mir import mir_parser
 
 filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
 cst_folder = "NicCSTbeams"
@@ -282,3 +283,17 @@ def cst_power_1freq_cut_healpix_main(cst_power_2freq_cut_healpix_main):
 def cst_power_1freq_cut_healpix(cst_power_1freq_cut_healpix_main):
     """Make function level HEALPix cut down single freq power beam."""
     return cst_power_1freq_cut_healpix_main.copy()
+
+
+@pytest.fixture(params=[True, False])
+def mir_data_object(request):
+    has_auto = request.param
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    mir_data = mir_parser.MirParser(
+        testfile, load_vis=True, load_raw=True, load_auto=True, has_auto=has_auto
+    )
+
+    yield mir_data
+
+    # cleanup
+    del mir_data
