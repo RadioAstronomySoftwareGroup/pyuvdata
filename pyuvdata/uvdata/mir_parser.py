@@ -247,7 +247,6 @@ class MirParser(object):
         load_auto : bool
             flag to load auto-correlations into memory, default is False.
         """
-
         self._has_auto = has_auto
 
         self.filepath = filepath
@@ -640,8 +639,10 @@ class MirParser(object):
         full_filepath = os.path.join(filepath, "autoCorrelations")
 
         if not os.path.exists(full_filepath):
-            raise FileNotFoundError(f"Cannot find file {full_filepath}."  # pragma: no cover
-                                    " Set `has_auto=False` to avoid reading autocorrelations.")
+            raise FileNotFoundError(
+                f"Cannot find file {full_filepath}."  # pragma: no cover
+                " Set `has_auto=False` to avoid reading autocorrelations."
+            )
 
         file_size = os.path.getsize(full_filepath)
         with open(full_filepath, "rb") as auto_file:
