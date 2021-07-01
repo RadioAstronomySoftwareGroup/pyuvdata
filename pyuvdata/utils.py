@@ -3732,7 +3732,8 @@ def uvcalibrate(
                 else:
                     raise ValueError(
                         "All antenna names with data on UVData are missing "
-                        "on UVCal. To continue with calibration, set ant_check=False."
+                        "on UVCal. To continue with calibration "
+                        "(and flag all the data), set ant_check=False."
                     )
             else:
                 # Only some antenna_names with data on UVData are missing on UVCal
@@ -3746,7 +3747,7 @@ def uvcalibrate(
                     raise ValueError(
                         f"Antennas {name_missing} have data on UVData but "
                         "are missing on UVCal. To continue calibration and "
-                        "flag missing antennas, set ant_check=False."
+                        "flag the data from missing antennas, set ant_check=False."
                     )
 
     uvdata_times = np.unique(uvdata.time_array)

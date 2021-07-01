@@ -1680,14 +1680,14 @@ a) Calibration of UVData by UVCal
   >>> import os
   >>> from pyuvdata import UVData, UVCal, utils
   >>> from pyuvdata.data import DATA_PATH
-  >>> UV = UVData()
-  >>> UV.read(os.path.join(DATA_PATH, 'zen.2458116.30448.HH.uvh5'))
-  >>> UVC = UVCal()
-  >>> UVC.read_calfits(os.path.join(DATA_PATH, 'zen.2458116.30448.HH.flagged_abs.calfits'))
-  >>> UV_calibrated = utils.uvcalibrate(UV, UVC, inplace=False, ant_check=False)
+  >>> uvd = UVData()
+  >>> uvd.read(os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"), file_type="uvh5")
+  >>> uvc = UVCal()
+  >>> uvc.read_calfits(os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected"))
+  >>> uvd_calibrated = utils.uvcalibrate(uvd, uvc, inplace=False, ant_check=False)
 
   >>> # We can also un-calibrate using the same UVCal
-  >>> UV_uncalibrated = utils.uvcalibrate(UV_calibrated, UVC, inplace=False, undo=True, ant_check=False)
+  >>> uvd_uncalibrated = utils.uvcalibrate(uvd_calibrated, uvc, inplace=False, undo=True, ant_check=False)
 
 UVCal: Selecting data
 ---------------------
@@ -1695,8 +1695,8 @@ The select method lets you select specific antennas (by number or name),
 frequencies (in Hz or by channel number), times or polarizations
 to keep in the object while removing others.
 
-a) Select 3 antennas to keep using the antenna number.
-******************************************************
+a) Select 3 antennas to keep on UVCal object using the antenna number.
+**********************************************************************
 .. code-block:: python
 
   >>> import os

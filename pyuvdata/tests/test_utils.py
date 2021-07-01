@@ -5,6 +5,7 @@
 """Tests for common utility functions."""
 import os
 import copy
+import re
 
 import pytest
 import numpy as np
@@ -1849,7 +1850,7 @@ def test_phasing_funcs():
     gcrs_coord = icrs_coord.transform_to("gcrs")
 
     # in east/north/up frame (relative to array center) in meters: (Nants, 3)
-    ants_enu = np.array([-101.94, 0156.41, 0001.24])
+    ants_enu = np.array([-101.94, 156.41, 1.24])
 
     ant_xyz_abs = uvutils.ECEF_from_ENU(
         ants_enu, lat_lon_alt[0], lat_lon_alt[1], lat_lon_alt[2]
@@ -2796,13 +2797,15 @@ def test_uvcalibrate_apply_gains_oldfiles():
     uvd.select(frequencies=uvd.freq_array[0, :10])
     uvc.select(times=uvc.time_array[:3])
 
-    with pytest.raises(ValueError) as errinfo:
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "All antenna names with data on UVData are missing "
+            "on UVCal. To continue with calibration "
+            "(and flag all the data), set ant_check=False."
+        ),
+    ):
         uvutils.uvcalibrate(uvd, uvc, prop_flags=True, ant_check=True, inplace=False)
-
-    assert str(errinfo.value).startswith(
-        "All antenna names with data on UVData are missing "
-        "on UVCal. To continue with calibration, set ant_check=False."
-    )
 
     ants_expected = [
         "All antenna names with data on UVData are missing "
@@ -2817,27 +2820,19 @@ def test_uvcalibrate_apply_gains_oldfiles():
         f"Frequency {uvd.freq_array[0, 0]} exists on UVData but not on UVCal."
     )
 
-    with pytest.warns(UserWarning) as warninfo:
-        with pytest.raises(ValueError) as errinfo:
+    with uvtest.check_warnings(UserWarning, match=ants_expected):
+        with pytest.raises(ValueError, match=time_expected):
             uvutils.uvcalibrate(
                 uvd, uvc, prop_flags=True, ant_check=False, inplace=False
             )
-    warns = [warn.message.args[0] for warn in warninfo]
-
-    assert str(errinfo.value) == time_expected
-    assert warns == ants_expected
 
     uvc.select(times=uvc.time_array[0])
 
-    with pytest.warns(UserWarning) as warninfo:
-        with pytest.raises(ValueError) as errinfo:
+    with uvtest.check_warnings(UserWarning, match=ants_expected):
+        with pytest.raises(ValueError, match=freq_expected):
             uvutils.uvcalibrate(
                 uvd, uvc, prop_flags=True, ant_check=False, time_check=False,
             )
-    warns = [warn.message.args[0] for warn in warninfo]
-
-    assert str(errinfo.value) == freq_expected
-    assert warns == ants_expected
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -3006,7 +3001,7 @@ def test_uvcalibrate_flag_propagation(uvcalibrate_data, future_shapes):
     exp_err = (
         f"Antennas {missing_ant_names} have data on UVData but "
         "are missing on UVCal. To continue calibration and "
-        "flag missing antennas, set ant_check=False."
+        "flag the data from missing antennas, set ant_check=False."
     )
 
     with pytest.raises(ValueError) as errinfo:
@@ -3040,8 +3035,11 @@ def test_uvcalibrate_flag_propagation_name_mismatch(uvcalibrate_init_data):
     uvc.gain_array[1] = 0.0
     with pytest.raises(
         ValueError,
-        match="All antenna names with data on UVData are missing "
-        "on UVCal. To continue with calibration, set ant_check=False.",
+        match=re.escape(
+            "All antenna names with data on UVData are missing "
+            "on UVCal. To continue with calibration "
+            "(and flag all the data), set ant_check=False."
+        ),
     ):
         uvdcal = uvutils.uvcalibrate(
             uvd, uvc, prop_flags=True, ant_check=True, inplace=False
@@ -3094,8 +3092,11 @@ def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data, future_shapes
 
     with pytest.raises(
         ValueError,
-        match="All antenna names with data on UVData are missing "
-        "on UVCal. To continue with calibration, set ant_check=False.",
+        match=re.escape(
+            "All antenna names with data on UVData are missing "
+            "on UVCal. To continue with calibration "
+            "(and flag all the data), set ant_check=False."
+        ),
     ):
         uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
