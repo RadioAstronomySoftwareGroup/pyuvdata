@@ -1684,6 +1684,11 @@ a) Calibration of UVData by UVCal
   >>> uvd.read(os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"), file_type="uvh5")
   >>> uvc = UVCal()
   >>> uvc.read_calfits(os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected"))
+  >>> # this is an old calfits file which has the wrong antenna names, so we need to fix them first.
+  >>> # fix the antenna names in the uvcal object to match the uvdata object
+  >>> uvc.antenna_names = np.array(
+  ...     [name.replace("ant", "HH") for name in uvc.antenna_names]
+  ... )
   >>> uvd_calibrated = utils.uvcalibrate(uvd, uvc, inplace=False)
 
   >>> # We can also un-calibrate using the same UVCal
