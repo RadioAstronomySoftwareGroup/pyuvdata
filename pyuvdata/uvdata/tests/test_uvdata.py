@@ -10950,3 +10950,50 @@ def test_multi_phase_downselect(hera_uvh5_split, future_shapes):
         assert uvtemp.history in uvdata.history
         uvtemp.history = uvdata.history
         assert uvtemp == uvdata
+
+
+@pytest.mark.filterwarnings("ignore:Unknown phase types are no longer supported")
+@pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
+def test_eq_allowed_failures(bda_test_file, capsys):
+    """
+    Test that the allowed_failures keyword on the __eq__ method works as intended.
+    """
+    uv1 = bda_test_file
+    uv2 = uv1.copy()
+
+    # adjust optional parameters to be different
+    uv1.x_orientation = "NORTH"
+    uv2.x_orientation = "EAST"
+    assert uv1.__eq__(uv2, check_extra=True, allowed_failures=["x_orientation"])
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "x_orientation parameter value is a string, values are different\n"
+        "parameter _x_orientation does not match. Left is NORTH, right is EAST.\n"
+    )
+
+    # make sure that objects are not equal without specifying allowed_failures
+    assert uv1 != uv2
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Unknown phase types are no longer supported")
+@pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
+def test_eq_allowed_failures_filename(bda_test_file, capsys):
+    """
+    Test that the `filename` parameter does not trip up the __eq__ method.
+    """
+    uv1 = bda_test_file
+    uv2 = uv1.copy()
+
+    uv1.filename = ["foo.uvh5"]
+    uv2.filename = ["bar.uvh5"]
+    assert uv1 == uv2
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "filename parameter value is a list of strings, values are different\n"
+        "parameter _filename does not match. Left is ['foo.uvh5'], right is "
+        "['bar.uvh5'].\n"
+    )
+
+    return

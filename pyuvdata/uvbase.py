@@ -279,12 +279,13 @@ class UVBase(object):
                 p_check = self_required
 
             if allowed_failures is not None:
-                for p in allowed_failures:
-                    if not p.startswith("_"):
-                        p = "_" + p
-                    if p not in self_required:
-                        if p in p_check:
-                            p_check.remove(p)
+                for i, param in enumerate(allowed_failures):
+                    if not param.startswith("_"):
+                        param = "_" + param
+                        allowed_failures[i] = param
+                    if param not in self_required:
+                        if param in p_check:
+                            p_check.remove(param)
 
             p_equal = True
             for p in p_check:
@@ -300,7 +301,7 @@ class UVBase(object):
             if allowed_failures is not None:
                 for p in allowed_failures:
                     self_param = getattr(self, p)
-                    other_param = getattr(self, p)
+                    other_param = getattr(other, p)
                     if self_param != other_param:
                         print(
                             f"parameter {p} does not match. Left is {self_param.value},"
