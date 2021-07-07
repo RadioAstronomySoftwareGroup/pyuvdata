@@ -234,7 +234,7 @@ class UVBase(object):
         check_extra : bool
             Option to specify whether to include all parameters, or just the
             required ones. Default is True.
-        allowed_failues : list of str, optional
+        allowed_failures : list of str, optional
             List of parameter names that are allowed to fail while still passing
             an overall equality check. These should only include optional
             parameters.
