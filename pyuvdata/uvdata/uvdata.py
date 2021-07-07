@@ -2581,7 +2581,7 @@ class UVData(UVBase):
         By default, this will add the `filename` attribute to the list of
         parameters allowed to be not equal while passing an overall equality
         check. The user is permitted to add other attributes to this list with
-        the `allowed_failiures` keyword argument.
+        the `allowed_failures` keyword argument.
 
         Parameters
         ----------
@@ -2590,7 +2590,7 @@ class UVData(UVBase):
         check_extra : bool
             Option to specify whether to include all parameters, or just the
             required ones. Default is True.
-        allowed_failues : list of str, optional
+        allowed_failures : list of str, optional
             List of parameter names that are allowed to fail while still passing
             an overall equality check. These should only include optional
             parameters.
