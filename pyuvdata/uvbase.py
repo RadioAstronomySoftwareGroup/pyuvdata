@@ -223,12 +223,26 @@ class UVBase(object):
         for a in extra_list:
             yield a
 
-    def __eq__(self, other, check_extra=True):
+    def __eq__(self, other, check_extra=True, allowed_failures=None):
         """
-        Equal if classes match and parameters are equal.
+        Test if classes match and parameters are equal.
 
-        If check_extra is True, include all parameters, otherwise only include
-        required parameters.
+        Parameters
+        ----------
+        other : class
+            Other class instance to check
+        check_extra : bool
+            Option to specify whether to include all parameters, or just the
+            required ones. Default is True.
+        allowed_failues : list of str, optional
+            List of parameter names that are allowed to fail while still passing
+            an overall equality check. These should only include optional
+            parameters.
+
+        Returns
+        -------
+        bool
+            Whether the two instances are equivalent.
         """
         if isinstance(other, self.__class__):
             # only check that required parameters are identical
@@ -260,10 +274,17 @@ class UVBase(object):
                         f" right is {other_extra}."
                     )
                     return False
-
                 p_check = self_required + self_extra
             else:
                 p_check = self_required
+
+            if allowed_failures is not None:
+                for p in allowed_failures:
+                    if not p.startswith("_"):
+                        p = "_" + p
+                    if p not in self_required:
+                        if p in p_check:
+                            p_check.remove(p)
 
             p_equal = True
             for p in p_check:
@@ -275,6 +296,17 @@ class UVBase(object):
                         f" right is {other_param.value}."
                     )
                     p_equal = False
+
+            if allowed_failures is not None:
+                for p in allowed_failures:
+                    self_param = getattr(self, p)
+                    other_param = getattr(self, p)
+                    if self_param != other_param:
+                        print(
+                            f"parameter {p} does not match. Left is {self_param.value},"
+                            f" right is {other_param.value}."
+                        )
+
             return p_equal
         else:
             print("Classes do not match")

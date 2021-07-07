@@ -6827,7 +6827,6 @@ def test_redundancy_missing_groups(method, pyuvsim_redundant, tmp_path):
     # check that filenames are what we expect
     assert uv0.filename == ["fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits"]
     assert uv1.filename == ["temp_hera19_missingreds.uvfits"]
-    uv0.filename = uv1.filename
 
     assert uv0 == uv1  # Check that writing compressed files causes no issues.
 
