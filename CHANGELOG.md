@@ -1,6 +1,15 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+
+## [Unreleased]
+
+### Changed
+- The `__eq__` method on UVBase objects (and subclasses) now supports an
+`allowed_failures` keyword for parameters which are allowed to be unequal
+without failing the check.
+
+
 ## [2.2.0] - 2021-6-26
 
 ### Added
