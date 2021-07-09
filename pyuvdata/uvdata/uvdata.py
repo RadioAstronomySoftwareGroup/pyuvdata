@@ -2578,11 +2578,6 @@ class UVData(UVBase):
         """
         Test for equality between two objects.
 
-        By default, this will add the `filename` attribute to the list of
-        parameters allowed to be not equal while passing an overall equality
-        check. The user is permitted to add other attributes to this list with
-        the `allowed_failures` keyword argument.
-
         Parameters
         ----------
         other : UVData object instance
