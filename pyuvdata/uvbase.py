@@ -234,10 +234,10 @@ class UVBase(object):
         check_extra : bool
             Option to specify whether to include all parameters, or just the
             required ones. Default is True.
-        allowed_failures : list of str, optional
-            List of parameter names that are allowed to fail while still passing
-            an overall equality check. These should only include optional
-            parameters.
+        allowed_failures : iterable of str, optional
+            List or tuple of parameter names that are allowed to fail while
+            still passing an overall equality check. These should only include
+            optional parameters.
 
         Returns
         -------
@@ -248,10 +248,10 @@ class UVBase(object):
             # only check that required parameters are identical
             self_required = []
             other_required = []
-            for p in self.required():
-                self_required.append(p)
-            for p in other.required():
-                other_required.append(p)
+            for param in self.required():
+                self_required.append(param)
+            for param in other.required():
+                other_required.append(param)
             if set(self_required) != set(other_required):
                 print(
                     "Sets of required parameters do not match. "
@@ -263,10 +263,10 @@ class UVBase(object):
             if check_extra:
                 self_extra = []
                 other_extra = []
-                for p in self.extra():
-                    self_extra.append(p)
-                for p in other.extra():
-                    other_extra.append(p)
+                for param in self.extra():
+                    self_extra.append(param)
+                for param in other.extra():
+                    other_extra.append(param)
                 if set(self_extra) != set(other_extra):
                     print(
                         "Sets of extra parameters do not match. "
@@ -279,6 +279,13 @@ class UVBase(object):
                 p_check = self_required
 
             if allowed_failures is not None:
+                if isinstance(allowed_failures, str):
+                    # convert a single string into a length-1 list
+                    allowed_failures = [allowed_failures]
+                if isinstance(allowed_failures, tuple):
+                    # convert a tuple into a list
+                    allowed_failures = list(allowed_failures)
+
                 for i, param in enumerate(allowed_failures):
                     if not param.startswith("_"):
                         param = "_" + param
@@ -288,24 +295,25 @@ class UVBase(object):
                             p_check.remove(param)
 
             p_equal = True
-            for p in p_check:
-                self_param = getattr(self, p)
-                other_param = getattr(other, p)
+            for param in p_check:
+                self_param = getattr(self, param)
+                other_param = getattr(other, param)
                 if self_param != other_param:
                     print(
-                        f"parameter {p} does not match. Left is {self_param.value},"
-                        f" right is {other_param.value}."
+                        f"parameter {param} does not match. Left is "
+                        f"{self_param.value}, right is {other_param.value}."
                     )
                     p_equal = False
 
             if allowed_failures is not None:
-                for p in allowed_failures:
-                    self_param = getattr(self, p)
-                    other_param = getattr(other, p)
+                for param in allowed_failures:
+                    self_param = getattr(self, param)
+                    other_param = getattr(other, param)
                     if self_param != other_param:
                         print(
-                            f"parameter {p} does not match. Left is {self_param.value},"
-                            f" right is {other_param.value}."
+                            f"parameter {param} does not match, but is not required "
+                            f"to for equality. Left is {self_param.value}, "
+                            f"right is {other_param.value}."
                         )
 
             return p_equal

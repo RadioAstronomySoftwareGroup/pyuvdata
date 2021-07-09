@@ -10968,7 +10968,8 @@ def test_eq_allowed_failures(bda_test_file, capsys):
     captured = capsys.readouterr()
     assert captured.out == (
         "x_orientation parameter value is a string, values are different\n"
-        "parameter _x_orientation does not match. Left is NORTH, right is EAST.\n"
+        "parameter _x_orientation does not match, but is not required to for equality. "
+        "Left is NORTH, right is EAST.\n"
     )
 
     # make sure that objects are not equal without specifying allowed_failures
@@ -10992,8 +10993,30 @@ def test_eq_allowed_failures_filename(bda_test_file, capsys):
     captured = capsys.readouterr()
     assert captured.out == (
         "filename parameter value is a list of strings, values are different\n"
-        "parameter _filename does not match. Left is ['foo.uvh5'], right is "
-        "['bar.uvh5'].\n"
+        "parameter _filename does not match, but is not required to for equality. "
+        "Left is ['foo.uvh5'], right is ['bar.uvh5'].\n"
+    )
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:Unknown phase types are no longer supported")
+@pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
+def test_eq_allowed_failures_filename_string(bda_test_file, capsys):
+    """
+    Try passing a string to the __eq__ method instead of an iterable.
+    """
+    uv1 = bda_test_file
+    uv2 = uv1.copy()
+
+    uv1.filename = ["foo.uvh5"]
+    uv2.filename = ["bar.uvh5"]
+    assert uv1.__eq__(uv2, allowed_failures="filename")
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "filename parameter value is a list of strings, values are different\n"
+        "parameter _filename does not match, but is not required to for equality. "
+        "Left is ['foo.uvh5'], right is ['bar.uvh5'].\n"
     )
 
     return
