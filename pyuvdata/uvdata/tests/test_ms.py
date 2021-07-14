@@ -19,7 +19,7 @@ pytest.importorskip("casacore")
 
 
 @pytest.fixture(scope="session")
-def nrao_uv():
+def nrao_uv_main():
     # This file is known to be made with CASA's importuvfits task, but apparently the
     # history table is missing, so we can't infer that from the history. This means that
     # the uvws are not flipped/data is not conjugated as they should be. Fix that.
@@ -33,6 +33,18 @@ def nrao_uv():
     yield uvobj
 
     del uvobj
+
+
+@pytest.fixture(scope="function")
+def nrao_uv(nrao_uv_main):
+    """Make function level NRAO ms object."""
+    nrao_ms = nrao_uv_main.copy()
+    yield nrao_ms
+
+    # clean up when done
+    del nrao_ms
+
+    return
 
 
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
@@ -62,6 +74,7 @@ def test_cotter_ms():
     del uvobj
 
 
+@pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_nrao_loopback(tmp_path, nrao_uv):
     """Test reading in a CASA tutorial ms file and looping it through write_ms."""
@@ -75,6 +88,11 @@ def test_read_nrao_loopback(tmp_path, nrao_uv):
     uvobj.write_ms(testfile)
     uvobj2 = UVData()
     uvobj2.read_ms(testfile)
+
+    # also update filenames
+    assert uvobj.filename == ["day2_TDEM0003_10s_norx_1src_1spw.ms"]
+    assert uvobj2.filename == ["ms_testfile.ms"]
+    uvobj.filename = uvobj2.filename
 
     assert uvobj == uvobj2
 
