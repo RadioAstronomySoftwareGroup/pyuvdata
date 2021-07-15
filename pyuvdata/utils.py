@@ -386,9 +386,11 @@ def _check_freq_spacing(
         select_mask = np.append((np.diff(flex_spw_id_array) != 0), True)
         for idx in flex_spw_id_array[select_mask]:
             chan_mask = flex_spw_id_array == idx
-            freq_dir += [np.sign(np.mean(np.diff(freq_array_use[chan_mask])))] * np.sum(
-                chan_mask
-            )
+            diffs = np.diff(freq_array_use[chan_mask])
+            if diffs.size > 0:
+                freq_dir += [np.sign(np.mean(diffs))] * np.sum(chan_mask)
+            else:
+                freq_dir += [1.0]
 
         # Pop off the first entry, since the above arrays are diff'd
         # (and thus one element shorter)
