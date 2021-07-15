@@ -92,12 +92,12 @@ class CALFITS(UVCal):
                 )
                 delta_freq_array = rounded_spacing[0]
             else:
-                if self.future_array_shapes:
+                if self.future_array_shapes or self.flex_spw:
                     delta_freq_array = np.median(self.channel_width)
                 else:
                     delta_freq_array = self.channel_width
         else:
-            if self.future_array_shapes:
+            if self.future_array_shapes or self.flex_spw:
                 delta_freq_array = self.channel_width[0]
             else:
                 delta_freq_array = self.channel_width
@@ -215,13 +215,17 @@ class CALFITS(UVCal):
                 prihdr["INTTIME"] = median_int_time
             else:
                 prihdr["INTTIME"] = self.integration_time[0]
+        else:
+            prihdr["INTTIME"] = self.integration_time
+
+        if self.future_array_shapes or self.flex_spw:
             if self.Nfreqs > 1:
                 prihdr["CHWIDTH"] = np.median(self.channel_width)
             else:
                 prihdr["CHWIDTH"] = self.channel_width[0]
         else:
-            prihdr["INTTIME"] = self.integration_time
             prihdr["CHWIDTH"] = self.channel_width
+
         prihdr["XORIENT"] = self.x_orientation
         if self.cal_type == "delay":
             prihdr["FRQRANGE"] = ",".join(map(str, self.freq_range))

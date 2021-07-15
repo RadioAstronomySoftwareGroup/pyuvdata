@@ -97,6 +97,34 @@ def uvcal_data():
     return
 
 
+@pytest.fixture
+def multi_spw_gain(gain_data):
+    gain_obj = gain_data.copy()
+    gain_obj._set_flex_spw()
+    gain_obj.channel_width = (
+        np.zeros(gain_obj.Nfreqs, dtype=np.float64) + gain_obj.channel_width
+    )
+    gain_obj.Nspws = 2
+    gain_obj.flex_spw_id_array = np.concatenate(
+        (
+            np.ones(gain_obj.Nfreqs // 2, dtype=int),
+            np.full(gain_obj.Nfreqs // 2, 2, dtype=int),
+        )
+    )
+    gain_obj.spw_array = np.array([1, 2])
+    spw2_inds = np.nonzero(gain_obj.flex_spw_id_array == 2)[0]
+    spw2_chan_width = gain_obj.channel_width[0] * 2
+    gain_obj.freq_array[0, spw2_inds] = gain_obj.freq_array[
+        0, spw2_inds[0]
+    ] + spw2_chan_width * np.arange(spw2_inds.size)
+    gain_obj.channel_width[spw2_inds] = spw2_chan_width
+    gain_obj.check(check_freq_spacing=True)
+
+    yield gain_obj
+
+    del gain_obj
+
+
 def test_parameter_iter(uvcal_data):
     """Test expected parameters."""
     (
@@ -260,7 +288,6 @@ def test_future_array_shape(caltype, gain_data, delay_data_inputflag):
         calobj.input_flag_array = np.zeros(
             calobj._input_flag_array.expected_shape(calobj)
         ).astype(np.bool_)
-        calobj2 = calobj.copy()
     else:
         calobj = delay_data_inputflag
         calobj.total_quality_array = np.ones(
@@ -269,7 +296,8 @@ def test_future_array_shape(caltype, gain_data, delay_data_inputflag):
         calobj.input_flag_array = np.zeros(
             calobj._input_flag_array.expected_shape(calobj)
         ).astype(np.bool_)
-        calobj2 = calobj.copy()
+
+    calobj2 = calobj.copy()
 
     calobj.use_future_array_shapes()
     calobj.check()
@@ -279,18 +307,36 @@ def test_future_array_shape(caltype, gain_data, delay_data_inputflag):
 
     assert calobj == calobj2
 
+
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_future_array_shape_errors(caltype, gain_data, delay_data_inputflag):
     if caltype == "gain":
-        calobj.use_future_array_shapes()
-        calobj.channel_width[-1] = calobj.channel_width[0] * 2.0
-        calobj.check()
+        calobj = gain_data
+        calobj2 = calobj.copy()
+    else:
+        calobj = delay_data_inputflag
+
+    calobj.use_future_array_shapes()
+    calobj.integration_time[-1] = calobj.integration_time[0] * 2.0
+    calobj.check()
+
+    with pytest.raises(
+        ValueError, match="integration_time parameter contains multiple unique values"
+    ):
+        calobj.use_current_array_shapes()
+
+    if caltype == "gain":
+        calobj2.use_future_array_shapes()
+        calobj2.channel_width[-1] = calobj2.channel_width[0] * 2.0
+        calobj2.check()
 
         with pytest.raises(
             ValueError, match="channel_width parameter contains multiple unique values"
         ):
-            calobj.use_current_array_shapes()
+            calobj2.use_current_array_shapes()
 
         with pytest.raises(ValueError, match="The frequencies are not evenly spaced"):
-            calobj._check_freq_spacing()
+            calobj2._check_freq_spacing()
 
 
 def test_unknown_telescopes(gain_data, tmp_path):
@@ -397,6 +443,29 @@ def test_error_metadata_only_write(gain_data, tmp_path):
     out_file = os.path.join(tmp_path, "outtest.calfits")
     with pytest.raises(ValueError, match="Cannot write out metadata only objects to a"):
         calobj.write_calfits(out_file)
+
+
+def test_flexible_spw(gain_data):
+    calobj = gain_data
+
+    # first just make one spw and check that object still passes check
+    calobj._set_flex_spw()
+    calobj.channel_width = (
+        np.zeros(calobj.Nfreqs, dtype=np.float64) + calobj.channel_width
+    )
+    calobj.flex_spw_id_array = np.zeros(calobj.Nfreqs, dtype=int)
+    calobj.check()
+
+    # now make two
+    calobj.Nspws = 2
+    calobj.flex_spw_id_array = np.concatenate(
+        (
+            np.ones(calobj.Nfreqs // 2, dtype=int),
+            np.full(calobj.Nfreqs // 2, 2, dtype=int),
+        )
+    )
+    calobj.spw_array = np.array([1, 2])
+    calobj.check()
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
@@ -510,7 +579,7 @@ def test_select_antennas(
         assert ant in ants_to_keep
 
     assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific antennas using pyuvdata.",
+        old_history + "  Downselected to specific antennas using pyuvdata.",
         calobj2.history,
     )
 
@@ -689,7 +758,101 @@ def test_select_frequencies(
         UserWarning, match="Selected frequencies are not evenly spaced",
     ):
         calobj2.select(frequencies=freqs_to_keep)
-    pytest.raises(ValueError, calobj2.write_calfits, write_file_calfits)
+
+    with pytest.raises(
+        ValueError,
+        match="Frequencies are not evenly spaced or have differing values of channel",
+    ):
+        calobj2.write_calfits(write_file_calfits)
+
+
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
+    calobj = multi_spw_gain
+
+    if future_shapes:
+        calobj.use_future_array_shapes()
+
+    calobj2 = calobj.copy()
+    old_history = calobj.history
+
+    if future_shapes:
+        freqs_to_keep = calobj.freq_array[np.arange(4, 8)]
+    else:
+        freqs_to_keep = calobj.freq_array[0, np.arange(4, 8)]
+
+    # add dummy total_quality_array
+    calobj.total_quality_array = np.zeros(
+        calobj._total_quality_array.expected_shape(calobj)
+    )
+    calobj2.total_quality_array = np.zeros(
+        calobj2._total_quality_array.expected_shape(calobj2)
+    )
+
+    # add dummy input_flag_array
+    calobj.input_flag_array = np.zeros(
+        calobj._input_flag_array.expected_shape(calobj)
+    ).astype(np.bool_)
+    calobj2.input_flag_array = np.zeros(
+        calobj2._input_flag_array.expected_shape(calobj2)
+    ).astype(np.bool_)
+
+    calobj2.select(frequencies=freqs_to_keep)
+
+    assert len(freqs_to_keep) == calobj2.Nfreqs
+    for f in freqs_to_keep:
+        assert f in calobj2.freq_array
+    for f in np.unique(calobj2.freq_array):
+        assert f in freqs_to_keep
+
+    assert uvutils._check_histories(
+        old_history + "  Downselected to " "specific frequencies using pyuvdata.",
+        calobj2.history,
+    )
+
+    # test calfits write error
+    write_file_calfits = str(tmp_path / "select_test.calfits")
+    with pytest.raises(
+        ValueError,
+        match="The calfits format does not support multiple spectral windows",
+    ):
+        calobj2.write_calfits(write_file_calfits, clobber=True)
+
+    # test that we can write to calfits if select to only one spw
+    calobj2 = calobj.copy()
+
+    if future_shapes:
+        freqs_to_keep = calobj.freq_array[np.arange(3)]
+    else:
+        freqs_to_keep = calobj.freq_array[0, np.arange(3)]
+
+    calobj2.select(frequencies=freqs_to_keep)
+    calobj2.check()
+
+    assert len(freqs_to_keep) == calobj2.Nfreqs
+    for f in freqs_to_keep:
+        assert f in calobj2.freq_array
+    for f in np.unique(calobj2.freq_array):
+        assert f in freqs_to_keep
+
+    assert calobj2.Nspws == 1
+    calobj2.write_calfits(write_file_calfits, clobber=True)
+
+    calobj3 = UVCal()
+    calobj3.read_calfits(write_file_calfits)
+    if future_shapes:
+        calobj3.use_future_array_shapes()
+
+    calobj2.flex_spw = False
+    calobj2._flex_spw_id_array.required = False
+    calobj2.flex_spw_id_array = None
+    calobj2.spw_array = np.array([0])
+    if not future_shapes:
+        calobj2._channel_width.form = ()
+        calobj2.channel_width = calobj2.channel_width[0]
+    calobj2.check()
+
+    assert calobj3 == calobj2
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
@@ -1121,6 +1284,44 @@ def test_add_frequencies(future_shapes, gain_data):
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
+@pytest.mark.parametrize("split_f_ind", [3, 5])
+def test_add_frequencies_multispw(future_shapes, split_f_ind, multi_spw_gain):
+    """Test adding frequencies between two UVCal objects"""
+    # don't test on delays because there's no freq axis for the delay array
+
+    # split_f_ind=5 splits the objects in the same place as the spws split
+    # (so each object has only one spw). A different value splits within an spw.
+
+    calobj = multi_spw_gain
+
+    if future_shapes:
+        calobj.use_future_array_shapes()
+
+    calobj2 = calobj.copy()
+
+    calobj_full = calobj.copy()
+    if future_shapes:
+        freqs1 = calobj.freq_array[np.arange(0, split_f_ind)]
+        freqs2 = calobj.freq_array[np.arange(split_f_ind, calobj.Nfreqs)]
+    else:
+        freqs1 = calobj.freq_array[0, np.arange(0, split_f_ind)]
+        freqs2 = calobj.freq_array[0, np.arange(split_f_ind, calobj.Nfreqs)]
+    calobj.select(frequencies=freqs1)
+    calobj2.select(frequencies=freqs2)
+    calobj += calobj2
+
+    # Check history is correct, before replacing and doing a full object check
+    assert uvutils._check_histories(
+        calobj_full.history + "  Downselected to specific "
+        "frequencies using pyuvdata. Combined "
+        "data along frequency axis using pyuvdata.",
+        calobj.history,
+    )
+    calobj.history = calobj_full.history
+    assert calobj == calobj_full
+
+
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_add_times(future_shapes, caltype, gain_data, delay_data_inputflag):
     """Test adding times between two UVCal objects"""
@@ -1451,7 +1652,7 @@ def test_add_multiple_axes(gain_data):
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_add_errors(caltype, gain_data, delay_data):
+def test_add_errors(caltype, gain_data, delay_data, multi_spw_gain):
     """Test behavior that will raise errors"""
     if caltype == "gain":
         calobj = gain_data
@@ -1478,6 +1679,22 @@ def test_add_errors(caltype, gain_data, delay_data):
         ValueError, match="Parameter telescope_name does not match",
     ):
         calobj.__add__(calobj2)
+
+    # test array shape mismatch
+    calobj2 = calobj.copy()
+    calobj2.use_future_array_shapes()
+    with pytest.raises(
+        ValueError,
+        match="Both objects must have the same `future_array_shapes` parameter.",
+    ):
+        calobj + calobj2
+
+    # test flex_spw mismatch
+    with pytest.raises(
+        ValueError,
+        match="To combine these data, flex_spw must be set to the same value",
+    ):
+        gain_data + multi_spw_gain
 
 
 def test_jones_warning(gain_data):

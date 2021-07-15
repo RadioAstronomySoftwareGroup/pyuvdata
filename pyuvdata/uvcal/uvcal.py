@@ -2807,6 +2807,13 @@ class UVCal(UVBase):
             if cal_object.future_array_shapes or cal_object.flex_spw:
                 cal_object.channel_width = cal_object.channel_width[freq_inds]
 
+            if cal_object.flex_spw:
+                cal_object.flex_spw_id_array = cal_object.flex_spw_id_array[freq_inds]
+                cal_object.spw_array = cal_object.spw_array[
+                    np.isin(cal_object.spw_array, cal_object.flex_spw_id_array)
+                ]
+                cal_object.Nspws = len(cal_object.spw_array)
+
             if cal_object.Nfreqs > 1:
                 spacing_error, chanwidth_error = cal_object._check_freq_spacing(
                     raise_errors=False
