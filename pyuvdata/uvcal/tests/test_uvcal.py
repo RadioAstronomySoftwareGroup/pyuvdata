@@ -325,6 +325,11 @@ def test_future_array_shape_errors(caltype, gain_data, delay_data_inputflag):
     ):
         calobj.use_current_array_shapes()
 
+    with pytest.raises(
+        ValueError, match="The integration times are variable. The calfits format"
+    ):
+        calobj.write_calfits("foo")
+
     if caltype == "gain":
         calobj2.use_future_array_shapes()
         calobj2.channel_width[-1] = calobj2.channel_width[0] * 2.0
@@ -448,6 +453,9 @@ def test_error_metadata_only_write(gain_data, tmp_path):
 def test_flexible_spw(gain_data):
     calobj = gain_data
 
+    # check that this check passes on non-flex_spw objects
+    assert calobj._check_flex_spw_contiguous()
+
     # first just make one spw and check that object still passes check
     calobj._set_flex_spw()
     calobj.channel_width = (
@@ -466,6 +474,27 @@ def test_flexible_spw(gain_data):
     )
     calobj.spw_array = np.array([1, 2])
     calobj.check()
+
+    calobj._check_flex_spw_contiguous()
+
+    # now mix them up
+    calobj.Nspws = 2
+    calobj.flex_spw_id_array = np.concatenate(
+        (
+            np.ones(2, dtype=int),
+            np.full(2, 2, dtype=int),
+            np.ones(2, dtype=int),
+            np.full(2, 2, dtype=int),
+            np.ones(2, dtype=int),
+        )
+    )
+    calobj.spw_array = np.array([1, 2])
+    calobj.check()
+
+    with pytest.raises(
+        ValueError, match="Channels from different spectral windows are interspersed",
+    ):
+        calobj._check_flex_spw_contiguous()
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
@@ -661,7 +690,7 @@ def test_select_times(
         assert t in times_to_keep
 
     assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific times using pyuvdata.",
+        old_history + "  Downselected to specific times using pyuvdata.",
         calobj2.history,
     )
 
@@ -727,7 +756,7 @@ def test_select_frequencies(
         assert f in freqs_to_keep
 
     assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific frequencies using pyuvdata.",
+        old_history + "  Downselected to specific frequencies using pyuvdata.",
         calobj2.history,
     )
 
@@ -739,6 +768,18 @@ def test_select_frequencies(
     else:
         freqs_to_keep = calobj.freq_array[0, 5]
     calobj2.select(frequencies=freqs_to_keep)
+    calobj2.write_calfits(write_file_calfits, clobber=True)
+
+    # test writing calfits with frequencies spaced by more than the channel width
+    calobj2 = calobj.copy()
+    if future_shapes:
+        freqs_to_keep = calobj.freq_array[[0, 2, 4, 6, 8]]
+    else:
+        freqs_to_keep = calobj.freq_array[0, [0, 2, 4, 6, 8]]
+    with uvtest.check_warnings(
+        UserWarning, match="Selected frequencies are not contiguous."
+    ):
+        calobj2.select(frequencies=freqs_to_keep)
     calobj2.write_calfits(write_file_calfits, clobber=True)
 
     # check for errors associated with frequencies not included in data
@@ -806,7 +847,7 @@ def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
         assert f in freqs_to_keep
 
     assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific frequencies using pyuvdata.",
+        old_history + "  Downselected to specific frequencies using pyuvdata.",
         calobj2.history,
     )
 
@@ -1319,6 +1360,21 @@ def test_add_frequencies_multispw(future_shapes, split_f_ind, multi_spw_gain):
     )
     calobj.history = calobj_full.history
     assert calobj == calobj_full
+
+    # test adding out of order
+    calobj = calobj_full.copy()
+    calobj.select(frequencies=freqs1)
+    calobj2 += calobj
+
+    # Check history is correct, before replacing and doing a full object check
+    assert uvutils._check_histories(
+        calobj_full.history + "  Downselected to specific "
+        "frequencies using pyuvdata. Combined "
+        "data along frequency axis using pyuvdata.",
+        calobj2.history,
+    )
+    calobj2.history = calobj_full.history
+    assert calobj2 == calobj_full
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
