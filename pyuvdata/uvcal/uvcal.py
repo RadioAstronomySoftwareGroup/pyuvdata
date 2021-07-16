@@ -1333,7 +1333,7 @@ class UVCal(UVBase):
             elif delay_convention == "plus":
                 conv = 1
             else:
-                raise ValueError('delay_convention can only be "minus" or "plus"')
+                raise ValueError("delay_convention can only be 'minus' or 'plus'")
 
             self.history += "  Converted from delays to gains using pyuvdata."
 
