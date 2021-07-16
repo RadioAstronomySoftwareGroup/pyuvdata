@@ -53,6 +53,33 @@ def test_readwriteread(future_shapes, caltype, gain_data, delay_data, tmp_path):
     return
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_write_inttime_equal_timediff(future_shapes, gain_data, delay_data, tmp_path):
+    """
+    test writing out object with integration times close to time diffs
+    """
+    cal_in = gain_data
+
+    time_diffs = np.diff(cal_in.time_array)
+
+    gain_data.integration_time = np.mean(time_diffs) * (24.0 * 60.0 ** 2)
+
+    if future_shapes:
+        cal_in.use_future_array_shapes()
+
+    cal_out = UVCal()
+    write_file = str(tmp_path / "outtest.fits")
+    cal_in.write_calfits(write_file, clobber=True)
+    cal_out.read_calfits(write_file)
+
+    if future_shapes:
+        cal_out.use_future_array_shapes()
+
+    assert cal_in == cal_out
+
+    return
+
+
 @pytest.mark.parametrize(
     "filein,caltype",
     [

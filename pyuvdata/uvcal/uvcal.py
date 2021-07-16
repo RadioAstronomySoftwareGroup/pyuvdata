@@ -1343,7 +1343,7 @@ class UVCal(UVBase):
                 )
             else:
                 phase_array = np.zeros(
-                    (self.Nants_data, self.Nspws, self.Nfreqs, self.Ntimes, self.Njones)
+                    (self.Nants_data, 1, self.Nfreqs, self.Ntimes, self.Njones)
                 )
 
             if self.future_array_shapes:
@@ -1677,20 +1677,14 @@ class UVCal(UVBase):
                     zero_pad_data = np.zeros(
                         (
                             len(anew_inds),
-                            this.Nspws,
+                            1,
                             this.quality_array.shape[2],
                             this.Ntimes,
                             this.Njones,
                         )
                     )
                     zero_pad_flags = np.zeros(
-                        (
-                            len(anew_inds),
-                            this.Nspws,
-                            this.Nfreqs,
-                            this.Ntimes,
-                            this.Njones,
-                        )
+                        (len(anew_inds), 1, this.Nfreqs, this.Ntimes, this.Njones,)
                     )
                 if this.cal_type == "delay":
                     this.delay_array = np.concatenate(
@@ -1730,13 +1724,7 @@ class UVCal(UVBase):
                         )
                     else:
                         zero_pad = np.zeros(
-                            (
-                                len(anew_inds),
-                                this.Nspws,
-                                this.Nfreqs,
-                                this.Ntimes,
-                                this.Njones,
-                            )
+                            (len(anew_inds), 1, this.Nfreqs, this.Ntimes, this.Njones,)
                         )
                     if this.input_flag_array is not None:
                         this.input_flag_array = np.concatenate(
@@ -1761,7 +1749,7 @@ class UVCal(UVBase):
                                 - np.zeros(
                                     (
                                         this.Nants_data,
-                                        this.Nspws,
+                                        1,
                                         this.Nfreqs,
                                         this.Ntimes,
                                         this.Njones,
@@ -1792,7 +1780,7 @@ class UVCal(UVBase):
                 zero_pad = np.zeros(
                     (
                         this.quality_array.shape[0],
-                        this.Nspws,
+                        1,
                         len(fnew_inds),
                         this.Ntimes,
                         this.Njones,
@@ -1839,6 +1827,8 @@ class UVCal(UVBase):
                     ):
                         subsort_order = order[select_mask]
                         order[select_mask] = subsort_order[np.argsort(check_freqs)]
+                this.flex_spw_id_array = this.flex_spw_id_array[order]
+                this.spw_array = np.array(sorted(this.spw_array))
             else:
                 if this.future_array_shapes:
                     order = np.argsort(this.freq_array)
@@ -1894,17 +1884,17 @@ class UVCal(UVBase):
 
                     if this.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros(
-                            (this.Nspws, len(fnew_inds), this.Ntimes, this.Njones)
+                            (1, len(fnew_inds), this.Ntimes, this.Njones)
                         )
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=1
                         )[:, order, :, :]
                     elif other.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros(
-                            (this.Nspws, len(fnew_inds), this.Ntimes, this.Njones)
+                            (1, len(fnew_inds), this.Ntimes, this.Njones)
                         )
                         this.total_quality_array = np.zeros(
-                            (this.Nspws, Nf_tqa, this.Ntimes, this.Njones)
+                            (1, Nf_tqa, this.Ntimes, this.Njones)
                         )
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=1
@@ -1946,7 +1936,7 @@ class UVCal(UVBase):
                         zero_pad = np.zeros(
                             (
                                 this.flag_array.shape[0],
-                                this.Nspws,
+                                1,
                                 len(fnew_inds),
                                 this.Ntimes,
                                 this.Njones,
@@ -1962,7 +1952,7 @@ class UVCal(UVBase):
                                 - np.zeros(
                                     (
                                         this.flag_array.shape[0],
-                                        this.Nspws,
+                                        1,
                                         this.flag_array.shape[2],
                                         this.flag_array.shape[3],
                                         this.Njones,
@@ -2081,7 +2071,7 @@ class UVCal(UVBase):
                     zero_pad_data = np.zeros(
                         (
                             this.quality_array.shape[0],
-                            this.Nspws,
+                            1,
                             this.quality_array.shape[2],
                             len(tnew_inds),
                             this.Njones,
@@ -2090,7 +2080,7 @@ class UVCal(UVBase):
                     zero_pad_flags = np.zeros(
                         (
                             this.flag_array.shape[0],
-                            this.Nspws,
+                            1,
                             this.flag_array.shape[2],
                             len(tnew_inds),
                             this.Njones,
@@ -2114,7 +2104,7 @@ class UVCal(UVBase):
                     if this.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros(
                             (
-                                this.Nspws,
+                                1,
                                 this.quality_array.shape[2],
                                 len(tnew_inds),
                                 this.Njones,
@@ -2126,14 +2116,14 @@ class UVCal(UVBase):
                     elif other.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros(
                             (
-                                this.Nspws,
+                                1,
                                 this.quality_array.shape[2],
                                 len(tnew_inds),
                                 this.Njones,
                             )
                         )
                         this.total_quality_array = np.zeros(
-                            (this.Nspws, Nf_tqa, this.Ntimes, this.Njones)
+                            (1, Nf_tqa, this.Ntimes, this.Njones)
                         )
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=2
@@ -2143,7 +2133,7 @@ class UVCal(UVBase):
                         zero_pad = np.zeros(
                             (
                                 this.input_flag_array.shape[0],
-                                this.Nspws,
+                                1,
                                 this.input_flag_array.shape[2],
                                 len(tnew_inds),
                                 this.Njones,
@@ -2156,7 +2146,7 @@ class UVCal(UVBase):
                         zero_pad = np.zeros(
                             (
                                 this.flag_array.shape[0],
-                                this.Nspws,
+                                1,
                                 this.flag_array.shape[2],
                                 len(tnew_inds),
                                 this.Njones,
@@ -2167,7 +2157,7 @@ class UVCal(UVBase):
                             - np.zeros(
                                 (
                                     this.flag_array.shape[0],
-                                    this.Nspws,
+                                    1,
                                     this.flag_array.shape[2],
                                     this.flag_array.shape[3],
                                     this.Njones,
@@ -2284,7 +2274,7 @@ class UVCal(UVBase):
                     zero_pad_data = np.zeros(
                         (
                             this.quality_array.shape[0],
-                            this.Nspws,
+                            1,
                             this.quality_array.shape[2],
                             this.quality_array.shape[3],
                             len(jnew_inds),
@@ -2293,7 +2283,7 @@ class UVCal(UVBase):
                     zero_pad_flags = np.zeros(
                         (
                             this.flag_array.shape[0],
-                            this.Nspws,
+                            1,
                             this.flag_array.shape[2],
                             this.flag_array.shape[3],
                             len(jnew_inds),
@@ -2317,7 +2307,7 @@ class UVCal(UVBase):
                     if this.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros(
                             (
-                                this.Nspws,
+                                1,
                                 this.quality_array.shape[2],
                                 this.quality_array.shape[3],
                                 len(jnew_inds),
@@ -2329,14 +2319,14 @@ class UVCal(UVBase):
                     elif other.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros(
                             (
-                                this.Nspws,
+                                1,
                                 this.quality_array.shape[2],
                                 this.quality_array.shape[3],
                                 len(jnew_inds),
                             )
                         )
                         this.total_quality_array = np.zeros(
-                            (this.Nspws, Nf_tqa, this.Ntimes, this.Njones)
+                            (1, Nf_tqa, this.Ntimes, this.Njones)
                         )
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=3
@@ -2346,7 +2336,7 @@ class UVCal(UVBase):
                         zero_pad = np.zeros(
                             (
                                 this.input_flag_array.shape[0],
-                                this.Nspws,
+                                1,
                                 this.input_flag_array.shape[2],
                                 this.input_flag_array.shape[3],
                                 len(jnew_inds),
@@ -2359,7 +2349,7 @@ class UVCal(UVBase):
                         zero_pad = np.zeros(
                             (
                                 this.flag_array.shape[0],
-                                this.Nspws,
+                                1,
                                 this.flag_array.shape[2],
                                 this.flag_array.shape[3],
                                 len(jnew_inds),
@@ -2370,7 +2360,7 @@ class UVCal(UVBase):
                             - np.zeros(
                                 (
                                     this.flag_array.shape[0],
-                                    this.Nspws,
+                                    1,
                                     this.flag_array.shape[2],
                                     this.flag_array.shape[3],
                                     this.Njones,
