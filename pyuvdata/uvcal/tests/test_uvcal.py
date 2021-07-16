@@ -499,12 +499,10 @@ def test_flexible_spw(gain_data):
 
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("convention", ["minus", "plus"])
-def test_convert_to_gain(future_shapes, convention, gain_data, delay_data_inputflag):
-    gain_obj = gain_data
+def test_convert_to_gain(future_shapes, convention, delay_data_inputflag):
     delay_obj = delay_data_inputflag
 
     if future_shapes:
-        gain_obj.use_future_array_shapes()
         delay_obj.use_future_array_shapes()
 
     new_gain_obj = delay_obj.copy()
@@ -575,11 +573,26 @@ def test_convert_to_gain(future_shapes, convention, gain_data, delay_data_inputf
         delay_obj.history + "  Converted from delays to gains using pyuvdata."
     )
 
-    # error testing
-    pytest.raises(ValueError, delay_obj.convert_to_gain, delay_convention="bogus")
-    pytest.raises(ValueError, gain_data.convert_to_gain)
-    gain_data._set_unknown_cal_type()
-    pytest.raises(ValueError, gain_data.convert_to_gain)
+
+def test_convert_to_gain_errors(gain_data, delay_data_inputflag):
+    delay_obj = delay_data_inputflag
+    gain_obj = gain_data
+
+    with pytest.raises(
+        ValueError, match="delay_convention can only be 'minus' or 'plus'",
+    ):
+        delay_obj.convert_to_gain(delay_convention="bogus")
+
+    with pytest.raises(
+        ValueError, match="The data is already a gain cal_type.",
+    ):
+        gain_obj.convert_to_gain()
+
+    gain_obj._set_unknown_cal_type()
+    with pytest.raises(
+        ValueError, match="cal_type is unknown, cannot convert to gain",
+    ):
+        gain_obj.convert_to_gain()
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
@@ -1198,6 +1211,33 @@ def test_add_antennas(future_shapes, caltype, gain_data, delay_data_inputflag):
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
+def test_add_antennas_multispw(future_shapes, multi_spw_gain):
+    """Test adding antennas between two UVCal objects"""
+    calobj = multi_spw_gain
+
+    if future_shapes:
+        calobj.use_future_array_shapes()
+
+    calobj2 = calobj.copy()
+
+    calobj_full = calobj.copy()
+    ants1 = np.array([9, 10, 20, 22, 31, 43, 53, 64, 65, 72])
+    ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
+    calobj.select(antenna_nums=ants1)
+    calobj2.select(antenna_nums=ants2)
+    calobj += calobj2
+    # Check history is correct, before replacing and doing a full object check
+    assert uvutils._check_histories(
+        calobj_full.history + "  Downselected to specific "
+        "antennas using pyuvdata. Combined "
+        "data along antenna axis using pyuvdata.",
+        calobj.history,
+    )
+    calobj.history = calobj_full.history
+    assert calobj == calobj_full
+
+
+@pytest.mark.parametrize("future_shapes", [True, False])
 def test_add_frequencies(future_shapes, gain_data):
     """Test adding frequencies between two UVCal objects"""
     # don't test on delays because there's no freq axis for the delay array
@@ -1504,6 +1544,34 @@ def test_add_times(future_shapes, caltype, gain_data, delay_data_inputflag):
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
+def test_add_times_multispw(future_shapes, multi_spw_gain):
+    """Test adding times between two UVCal objects"""
+    calobj = multi_spw_gain
+
+    if future_shapes:
+        calobj.use_future_array_shapes()
+
+    calobj2 = calobj.copy()
+
+    calobj_full = calobj.copy()
+    n_times2 = calobj.Ntimes // 2
+    times1 = calobj.time_array[:n_times2]
+    times2 = calobj.time_array[n_times2:]
+    calobj.select(times=times1)
+    calobj2.select(times=times2)
+    calobj += calobj2
+    # Check history is correct, before replacing and doing a full object check
+    assert uvutils._check_histories(
+        calobj_full.history + "  Downselected to specific "
+        "times using pyuvdata. Combined "
+        "data along time axis using pyuvdata.",
+        calobj.history,
+    )
+    calobj.history = calobj_full.history
+    assert calobj == calobj_full
+
+
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_add_jones(future_shapes, caltype, gain_data, delay_data_inputflag):
     """Test adding Jones axes between two UVCal objects"""
@@ -1626,6 +1694,26 @@ def test_add_jones(future_shapes, caltype, gain_data, delay_data_inputflag):
     calobj2.jones_array[:] = -5
     calobj2.history = calobj_original.history
     assert calobj2 == calobj_original
+
+
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_add_jones_multispw(future_shapes, multi_spw_gain):
+    """Test adding Jones axes between two UVCal objects"""
+    calobj = multi_spw_gain
+
+    if future_shapes:
+        calobj.use_future_array_shapes()
+
+    calobj2 = calobj.copy()
+
+    # artificially change the Jones value to permit addition
+    calobj2.jones_array[0] = -6
+    calobj += calobj2
+
+    # check dimensionality of resulting object
+    assert calobj.gain_array.shape[-1] == 2
+
+    assert sorted(calobj.jones_array) == [-6, -5]
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
