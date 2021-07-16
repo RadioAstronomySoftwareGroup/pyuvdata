@@ -221,13 +221,24 @@ class MS(UVData):
         # TODO: we probably have to fix this for steerable dishes
         nants = np.max(self.antenna_numbers) + 1
         antennas = np.arange(nants, dtype=np.int32)
+
+        # We want the number of unique timestamps here, since CASA wants a
+        # per-timestamp, per-antenna entry
         times = np.asarray(
             [
                 Time(t, format="jd", scale="utc").mjd * 3600.0 * 24.0
-                for t in self.time_array
+                for t in np.unique(self.time_array)
             ]
         )
-        intervals = self.integration_time
+
+        # Same for the number of intervals
+        intervals = np.array(
+            [
+                np.median(self.integration_time[self.time_array == timestamp])
+                for timestamp in np.unique(self.time_array)
+            ]
+        )
+
         ntimes = len(times)
 
         antennas_full = np.tile(antennas, ntimes)
@@ -238,32 +249,46 @@ class MS(UVData):
         assert len(times_full) == nrows
         assert len(intervals_full) == nrows
 
-        pointing_table.addrows(nrows)
+        # This extra step of adding a single row and plugging in values for DIRECTION
+        # and TARGET are a workaround for a weird issue that pops up where, because the
+        # values are not a fixed size (they are shape(2, Npoly), where Npoly is allowed
+        # to vary from integration to integration), casacore seems to be very slow
+        # filling in the data after the fact. By "pre-filling" the first row, the
+        # addrows operation will automatically fill in an appropriately shaped array.
+        pointing_table.addrows(1)
+        pointing_table.putcell("DIRECTION", 0, np.zeros((2, 1), dtype=np.float64))
+        pointing_table.putcell("TARGET", 0, np.zeros((2, 1), dtype=np.float64))
+        pointing_table.addrows(nrows - 1)
+        pointing_table.done()
 
-        pointing_table.putcol("ANTENNA_ID", antennas_full)
-        pointing_table.putcol("TIME", times_full)
-        pointing_table.putcol("INTERVAL", intervals_full)
+        pointing_table = tables.table(
+            filepath + "::POINTING", ack=False, readonly=False
+        )
+
+        pointing_table.putcol("ANTENNA_ID", antennas_full, nrow=nrows)
+        pointing_table.putcol("TIME", times_full, nrow=nrows)
+        pointing_table.putcol("INTERVAL", intervals_full, nrow=nrows)
 
         name_col = np.asarray(["ZENITH"] * nrows, dtype=np.bytes_)
-        pointing_table.putcol("NAME", name_col)
+        pointing_table.putcol("NAME", name_col, nrow=nrows)
 
         num_poly_col = np.zeros(nrows, dtype=np.int32)
-        pointing_table.putcol("NUM_POLY", num_poly_col)
+        pointing_table.putcol("NUM_POLY", num_poly_col, nrow=nrows)
 
         time_origin_col = times_full
-        pointing_table.putcol("TIME_ORIGIN", time_origin_col)
+        pointing_table.putcol("TIME_ORIGIN", time_origin_col, nrow=nrows)
 
         # we always "point" at zenith
         direction_col = np.zeros((nrows, 2, 1), dtype=np.float64)
-        direction_col[0] = np.pi / 2
-        pointing_table.putcol("DIRECTION", direction_col)
+        direction_col[:, 1, :] = np.pi / 2
+        pointing_table.putcol("DIRECTION", direction_col, nrow=nrows)
 
         # just reuse "direction" for "target"
-        pointing_table.putcol("TARGET", direction_col)
+        pointing_table.putcol("TARGET", direction_col, nrow=nrows)
 
         # set tracking info to `False`
         tracking_col = np.zeros(nrows, dtype=np.bool_)
-        pointing_table.putcol("TRACKING", tracking_col)
+        pointing_table.putcol("TRACKING", tracking_col, nrow=nrows)
 
         pointing_table.done()
 
