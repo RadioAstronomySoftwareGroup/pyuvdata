@@ -53,6 +53,19 @@ POL_AIPS2CASA_DICT = {
     aipspol: casapol for casapol, aipspol in POL_CASA2AIPS_DICT.items()
 }
 
+VEL_DICT = {
+    "REST": 0,
+    "LSRK": 1,
+    "LSRD": 2,
+    "BARY": 3,
+    "GEO": 4,
+    "TOPO": 5,
+    "GALACTO": 6,
+    "LGROUP": 7,
+    "CMB": 8,
+    "Undefined": 64,
+}
+
 
 class MS(UVData):
     """
@@ -319,7 +332,7 @@ class MS(UVData):
         sw_table.putcell("NAME", 0, "WINDOW0")
         sw_table.putcell("REF_FREQUENCY", 0, self.freq_array[0, 0])
         sw_table.putcell("CHAN_FREQ", 0, self.freq_array[0])
-        sw_table.putcell("MEAS_FREQ_REF", 0, 1)
+        sw_table.putcell("MEAS_FREQ_REF", 0, VEL_DICT["TOPO"])
         # TODO fix for future array shapes
         chanwidths = np.ones_like(self.freq_array[0]) * self.channel_width
         sw_table.putcell("CHAN_WIDTH", 0, chanwidths)
@@ -748,6 +761,15 @@ class MS(UVData):
         ms.putcol("TIME", Time(self.time_array, format="jd").mjd * 3600.0 * 24.0)
         ms.putcol("UVW", self.uvw_array)
         ms.done()
+
+        # The above will only add the default subtables, specifically ANTENNA,
+        # DATA_DESCRIPTION, FEED, FIELD, FLAG_CMD, HISTORY, OBSERVATION, POINTING,
+        # POLARIZTION, PROCESSOR, SPECTRAL_WINDOW, and STATE, but if needed (say for
+        # example the SOURCE ta), one can use the following call to add the subtable
+        # so that it can subsequently be edited:
+        #   subtable = tables.default_ms_subltable(NAME, filepath + NAME)
+        # Done that this has to be done after the MS is closed (via done()), and one
+        # needs to close subtable (again, via done()) to finish creating the stub.
 
         self._write_ms_antenna(filepath)
         self._write_ms_feed(filepath)
