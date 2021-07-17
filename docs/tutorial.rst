@@ -54,6 +54,8 @@ are the easiest way to get data for particular sets of baselines. Those methods 
 the antenna numbers (i.e. numbers listed in ``antenna_numbers``) as inputs.
 
 
+.. _uvdata_future_shapes:
+
 UVData: parameter shape changes
 -------------------------------
 Initially, UVData objects were designed to support spectral windows as a separate axis,
@@ -1697,6 +1699,46 @@ in the full data array based on redundancy.
 ------
 UVCal
 ------
+
+
+UVCal: parameter shape changes
+-------------------------------
+As detailed in :ref:`uvdata_future_shapes`, UVData objects now support flexible spectral
+windows and will have several of their parameter shapes change in version 3.0. They also
+have a method to convert to the planned future array shapes now to support an orderly
+conversion of code and packages that use UVData objects to the future shapes.
+
+UVCal objects now also support flexible spectral windows and will see parameter shape
+changes in version 3.0.
+
+Spectral windows are implemented on UVCal objects in a similar way to the UVData
+implementation, where windows are defined as sets of frequency channels with some extra
+parameters to track which channels are in each spectral window. This allows for spectral
+windows to have arbitrary numbers of frequency channels and makes the ``channel_width``
+parameter be an array of length ``Nfreqs`` rather than a scalar, but only when the UVCal
+object contains flexible spectral windows. Supporting multiple spectral windows in this
+way removes the need for the spectral window axis on several UVCal parameters, but the
+axis was left as a length 1 axis for backwards compatibility.
+
+In version 3.0, several parameters will change shape. The length 1 axis that was
+originally intended for the spectral windows axis will be removed from the
+``gain_array``, ``delay_array``, ``flag_array``, ``quality_array``,
+``input_flag_array``, ``total_quality_array`` and ``freq_array`` parameters.
+In addition, the ``channel_width`` parameter will always be an array of length
+``Nfreqs`` and the ``integration_time`` parameter will be an array of length ``Ntimes``.
+
+In order to support an orderly conversion of code and packages that use the ``UVCal``
+object to these new parameter shapes, we have created the
+:meth:`pyuvdata.UVCal.use_future_array_shapes` method which will change the parameters
+listed above to have their future shapes. Users writing new code that uses ``UVCal``
+objects are encouraged to call that method immediately after creating a UVCal object
+or reading in data from a file to ensure that the code will be compatible with the
+forthcoming changes. Developers and maintainers of existing code that uses ``UVCal``
+objects are encouraged to similarly add that method call and convert their code to use
+the new shapes at their earliest convenience to ensure future compatibility. The method
+will be deprecated but not removed in version 3.0 (it will just become a no-op) so
+that code that calls it will continue to function.
+
 
 UVCal: Reading/writing
 ----------------------
