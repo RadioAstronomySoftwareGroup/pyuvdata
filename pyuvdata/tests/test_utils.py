@@ -124,59 +124,6 @@ def calc_uvw_args():
     yield default_args
 
 
-@pytest.fixture(scope="session")
-def uvcalibrate_init_data_main():
-    uvdata = UVData()
-    uvdata.read(
-        os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"),
-        file_type="uvh5",
-    )
-    uvcal = UVCal()
-    uvcal.read_calfits(
-        os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
-    )
-
-    yield uvdata, uvcal
-
-
-@pytest.fixture(scope="function")
-def uvcalibrate_init_data(uvcalibrate_init_data_main):
-    """Make function level initial uvcalibrate inputs."""
-    uvdata_in, uvcal_in = uvcalibrate_init_data_main
-
-    uvdata = uvdata_in.copy()
-    uvcal = uvcal_in.copy()
-
-    yield uvdata, uvcal
-
-
-@pytest.fixture(scope="session")
-def uvcalibrate_data_main(uvcalibrate_init_data_main):
-    """Make function level initial uvcalibrate inputs."""
-    uvdata_in, uvcal_in = uvcalibrate_init_data_main
-
-    uvdata = uvdata_in.copy()
-    uvcal = uvcal_in.copy()
-
-    # fix the antenna names in the uvcal object to match the uvdata object
-    uvcal.antenna_names = np.array(
-        [name.replace("ant", "HH") for name in uvcal.antenna_names]
-    )
-
-    yield uvdata, uvcal
-
-
-@pytest.fixture(scope="function")
-def uvcalibrate_data(uvcalibrate_data_main):
-    """Make function level uvcalibrate inputs."""
-    uvdata_in, uvcal_in = uvcalibrate_data_main
-
-    uvdata = uvdata_in.copy()
-    uvcal = uvcal_in.copy()
-
-    yield uvdata, uvcal
-
-
 def test_XYZ_from_LatLonAlt():
     """Test conversion from lat/lon/alt to ECEF xyz with reference values."""
     out_xyz = uvutils.XYZ_from_LatLonAlt(

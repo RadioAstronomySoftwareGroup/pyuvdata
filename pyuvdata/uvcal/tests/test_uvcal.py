@@ -2585,3 +2585,207 @@ def test_set_antpos_from_telescope_errors(gain_data, modtype, tmp_path):
         gain_data2.read_calfits(write_file_calfits)
 
     assert gain_data2.antenna_positions is None
+
+
+@pytest.mark.parametrize("uvdata_future_shapes", [True, False])
+@pytest.mark.parametrize("uvcal_future_shapes", [True, False])
+@pytest.mark.parametrize("flex_spw", [True, False])
+def test_init_from_uvdata(
+    uvdata_future_shapes, uvcal_future_shapes, flex_spw, uvcalibrate_data
+):
+    uvd, uvc = uvcalibrate_data
+
+    if uvdata_future_shapes:
+        uvd.use_future_array_shapes()
+
+    if flex_spw:
+        uvd._set_flex_spw()
+        uvd.flex_spw_id_array = [1] * (uvd.Nfreqs // 2) + [2] * (uvd.Nfreqs // 2)
+        uvd.spw_array = np.array([1, 2])
+        uvd.Nspws = 2
+        uvd.channel_width = np.full(uvd.Nfreqs, uvd.channel_width)
+        uvd.check()
+
+        uvc._set_flex_spw()
+        uvc.flex_spw_id_array = [1] * (uvc.Nfreqs // 2) + [2] * (uvc.Nfreqs // 2)
+        uvc.spw_array = np.array([1, 2])
+        uvc.Nspws = 2
+        uvc.channel_width = np.full(uvc.Nfreqs, uvc.channel_width)
+        uvc.check()
+
+    if uvcal_future_shapes:
+        uvc.use_future_array_shapes()
+
+    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
+    # but that requirement is not enforced. Set it to None for this test
+    uvc.time_range = None
+
+    uvc2 = uvc.copy(metadata_only=True)
+
+    uvc_new = UVCal()
+    uvc_new.initialize_from_uvdata(
+        uvd, uvc.gain_convention, uvc.cal_style, future_array_shapes=uvcal_future_shapes
+    )
+
+    assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
+
+    uvc_new.antenna_positions = uvc2.antenna_positions
+
+    assert uvutils._check_histories(
+        uvc_new.history,
+        "Initialized from a UVData object with pyuvdata."
+        " UVData history is: " + uvd.history,
+    )
+
+    uvc_new.history = uvc2.history
+
+    assert uvc_new == uvc2
+
+
+@pytest.mark.filterwarnings("ignore:Selected frequencies are not contiguous.")
+@pytest.mark.parametrize("uvdata_future_shapes", [True, False])
+@pytest.mark.parametrize("uvcal_future_shapes", [True, False])
+@pytest.mark.parametrize("flex_spw", [True, False])
+def test_init_from_uvdata_setfreqs(
+    uvdata_future_shapes, uvcal_future_shapes, flex_spw, uvcalibrate_data
+):
+    uvd, uvc = uvcalibrate_data
+    channel_width = uvd.channel_width
+    freqs_use = uvd.freq_array[0, 0:5]
+
+    if uvdata_future_shapes:
+        uvd.use_future_array_shapes()
+
+    if uvcal_future_shapes:
+        uvc.use_future_array_shapes()
+
+    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
+    # but that requirement is not enforced. Set it to None for this test
+    uvc.time_range = None
+
+    uvc2 = uvc.copy(metadata_only=True)
+
+    uvc2.select(frequencies=freqs_use)
+
+    if flex_spw:
+        flex_spw_id_array = np.array([1, 1, 2, 2, 2])
+        uvc2._set_flex_spw()
+        uvc2.flex_spw_id_array = flex_spw_id_array
+        uvc2.spw_array = np.array([1, 2])
+        uvc2.Nspws = 2
+        uvc2.channel_width = np.full(uvc2.Nfreqs, uvc2.channel_width)
+    else:
+        flex_spw_id_array = None
+
+    uvc_new = UVCal()
+    uvc_new.initialize_from_uvdata(
+        uvd,
+        uvc.gain_convention,
+        uvc.cal_style,
+        future_array_shapes=uvcal_future_shapes,
+        frequencies=freqs_use,
+        channel_width=channel_width,
+        flex_spw=flex_spw,
+        flex_spw_id_array=flex_spw_id_array,
+    )
+
+    assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
+
+    uvc_new.antenna_positions = uvc2.antenna_positions
+
+    assert uvutils._check_histories(
+        uvc_new.history,
+        "Initialized from a UVData object with pyuvdata."
+        " UVData history is: " + uvd.history,
+    )
+
+    uvc_new.history = uvc2.history
+
+    assert uvc_new == uvc2
+
+
+@pytest.mark.parametrize("uvdata_future_shapes", [True, False])
+@pytest.mark.parametrize("uvcal_future_shapes", [True, False])
+@pytest.mark.parametrize("metadata_only", [True, False])
+def test_init_from_uvdata_settimes(
+    uvdata_future_shapes, uvcal_future_shapes, metadata_only, uvcalibrate_data
+):
+    uvd, uvc = uvcalibrate_data
+    integration_time = np.mean(uvd.integration_time)
+    times_use = uvc.time_array[0:3]
+
+    if uvdata_future_shapes:
+        uvd.use_future_array_shapes()
+
+    if uvcal_future_shapes:
+        uvc.use_future_array_shapes()
+
+    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
+    # but that requirement is not enforced. Set it to None for this test
+    uvc.time_range = None
+
+    uvc2 = uvc.copy(metadata_only=metadata_only)
+
+    uvc2.select(times=times_use)
+
+    uvc_new = UVCal()
+    uvc_new.initialize_from_uvdata(
+        uvd,
+        uvc.gain_convention,
+        uvc.cal_style,
+        future_array_shapes=uvcal_future_shapes,
+        metadata_only=metadata_only,
+        times=times_use,
+        integration_time=integration_time,
+    )
+
+    assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
+
+    uvc_new.antenna_positions = uvc2.antenna_positions
+
+    assert uvutils._check_histories(
+        uvc_new.history,
+        "Initialized from a UVData object with pyuvdata."
+        " UVData history is: " + uvd.history,
+    )
+
+    uvc_new.history = uvc2.history
+
+    if not metadata_only:
+        uvc2.gain_array *= 0.0
+        uvc2.quality_array *= 0.0
+        uvc2.flag_array[:] = False
+        uvc2.total_quality_array = None
+
+    assert uvc_new == uvc2
+
+
+def test_init_from_uvdata_setjones(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
+    uvc.use_future_array_shapes()
+
+    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
+    # but that requirement is not enforced. Set it to None for this test
+    uvc.time_range = None
+
+    uvc2 = uvc.copy(metadata_only=True)
+
+    uvc_new = UVCal()
+    uvc_new.initialize_from_uvdata(
+        uvd, uvc.gain_convention, uvc.cal_style, jones=[-5, -6],
+    )
+
+    assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
+
+    uvc_new.antenna_positions = uvc2.antenna_positions
+
+    assert uvutils._check_histories(
+        uvc_new.history,
+        "Initialized from a UVData object with pyuvdata."
+        " UVData history is: " + uvd.history,
+    )
+
+    uvc_new.history = uvc2.history
+
+    assert uvc_new == uvc2
