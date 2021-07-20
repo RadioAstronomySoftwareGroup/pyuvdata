@@ -132,6 +132,28 @@ class MS(UVData):
             antenna_table.putcol("DISH_DIAMETER", ant_diam_table)
         antenna_table.done()
 
+    def _write_ms_data_description(self, filepath):
+        """
+        Write out the data description information into a CASA table.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to MS (without DATA_DESCRIPTION suffix).
+        """
+        if not casa_present:  # pragma: no cover
+            raise ImportError(no_casa_message) from casa_error
+
+        data_descrip_table = tables.table(
+            filepath + "::DATA_DESCRIPTION", ack=False, readonly=False
+        )
+
+        data_descrip_table.addrows(self.Nspws)
+
+        data_descrip_table.putcol("SPECTRAL_WINDOW_ID", np.arange(self.Nspws))
+
+        data_descrip_table.done()
+
     def _write_ms_feed(self, filepath):
         """
         Write out the feed information into a CASA table.
@@ -318,27 +340,34 @@ class MS(UVData):
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
 
-        # TODO fix for flexible spws
-        tables.taql(
-            "insert into {}::DATA_DESCRIPTION SET FLAG_ROW=False, "
-            "POLARIZATION_ID=0, SPECTRAL_WINDOW_ID=0".format(filepath)
-        )
-
         sw_table = tables.table(
             filepath + "::SPECTRAL_WINDOW", ack=False, readonly=False
         )
 
-        sw_table.addrows()
-        sw_table.putcell("NAME", 0, "WINDOW0")
-        sw_table.putcell("REF_FREQUENCY", 0, self.freq_array[0, 0])
-        sw_table.putcell("CHAN_FREQ", 0, self.freq_array[0])
-        sw_table.putcell("MEAS_FREQ_REF", 0, VEL_DICT["TOPO"])
-        # TODO fix for future array shapes
-        chanwidths = np.ones_like(self.freq_array[0]) * self.channel_width
-        sw_table.putcell("CHAN_WIDTH", 0, chanwidths)
-        sw_table.putcell("EFFECTIVE_BW", 0, chanwidths)
-        sw_table.putcell("RESOLUTION", 0, chanwidths)
-        sw_table.putcell("NUM_CHAN", 0, self.Nfreqs)
+        if self.future_array_shapes:
+            freq_array = self.freq_array
+            ch_width = self.channel_width
+        else:
+            freq_array = self.freq_array[0]
+            ch_width = np.zeros_like(freq_array) + self.channel_width
+
+        for idx in self.spw_array:
+            if self.flex_spw:
+                ch_mask = self.flex_spw_id_array == idx
+            else:
+                ch_mask = np.ones(freq_array.shape, dtype=bool)
+
+            sw_table.addrows()
+            sw_table.putcell("NUM_CHAN", 0, np.sum(ch_mask))
+            sw_table.putcell("NAME", 0, "WINDOW%d" % idx)
+            sw_table.putcell("CHAN_FREQ", 0, freq_array[ch_mask])
+            sw_table.putcell("CHAN_WIDTH", 0, ch_width[ch_mask])
+            sw_table.putcell("EFFECTIVE_BW", 0, ch_width[ch_mask])
+            sw_table.putcell("RESOLUTION", 0, ch_width[ch_mask])
+            # TODO: These are placeholders for now, but should be replaced with
+            # actual frequency reference info (once UVData handles that)
+            sw_table.putcell("MEAS_FREQ_REF", 0, VEL_DICT["TOPO"])
+            sw_table.putcell("REF_FREQUENCY", 0, freq_array[0])
 
     def _write_ms_observation(self, filepath):
         """
@@ -730,6 +759,7 @@ class MS(UVData):
             datamanagergroup="TiledData",
         )
 
+        # It'd be good to understand what it is that "option=4" sets
         ms_desc = tables.required_ms_desc("MAIN")
         ms_desc["FLAG"].update(
             dataManagerType="TiledColumnStMan",
@@ -772,6 +802,7 @@ class MS(UVData):
         # needs to close subtable (again, via done()) to finish creating the stub.
 
         self._write_ms_antenna(filepath)
+        self._write_ms_data_description(filepath)
         self._write_ms_feed(filepath)
         self._write_ms_field(filepath)
         self._write_ms_spectralwindow(filepath)
