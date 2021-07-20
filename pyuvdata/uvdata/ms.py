@@ -229,13 +229,117 @@ class MS(UVData):
 
         # TODO revisit for multi object!
         field_table = tables.table(filepath + "::FIELD", ack=False, readonly=False)
-        field_table.addrows()
-        phasedir = np.array([[self.phase_center_ra, self.phase_center_dec]])
-        assert self.phase_center_epoch == 2000.0
-        field_table.putcell("DELAY_DIR", 0, phasedir)
-        field_table.putcell("PHASE_DIR", 0, phasedir)
-        field_table.putcell("REFERENCE_DIR", 0, phasedir)
-        field_table.putcell("NAME", 0, self.object_name)
+        time_val = (
+            Time(np.median(self.time_array), format="jd", scale="utc").tai.mjd * 86400.0
+        )
+        n_poly = 0
+
+        if self.multi_phase_center:
+            sou_list = list(self.phase_center_catalog.keys())
+            sou_list.sort()
+        else:
+            sou_list = [
+                self.object_name,
+            ]
+
+        for idx, key in enumerate(sou_list):
+            if self.multi_phase_center:
+                cat_dict = self.phase_center_catalog[key]
+                phasedir = np.array([[cat_dict["cat_lon"], cat_dict["cat_lat"]]])
+                sou_id = cat_dict["cat_id"]
+            else:
+                phasedir = np.array([[self.phase_center_ra, self.phase_center_dec]])
+                sou_id = 0
+                assert self.phase_center_epoch == 2000.0
+
+            field_table.addrows()
+
+            field_table.putcell("DELAY_DIR", idx, phasedir)
+            field_table.putcell("PHASE_DIR", idx, phasedir)
+            field_table.putcell("REFERENCE_DIR", idx, phasedir)
+            field_table.putcell("NAME", idx, key)
+            field_table.putcell("NUM_POLY", idx, n_poly)
+            field_table.putcell("TIME", idx, time_val)
+            field_table.putcell("SOURCE_ID", idx, sou_id)
+
+        field_table.done()
+
+    def _write_ms_source(self, filepath):
+        """
+        Write out the source information into a CASA table.
+
+        Parameters
+        ----------
+        filepath : str
+            path to MS (without SOURCE suffix)
+
+        """
+        if not casa_present:  # pragma: no cover
+            raise ImportError(no_casa_message) from casa_error
+
+        source_desc = tables.complete_ms_desc("SOURCE")
+        source_table = tables.table(
+            filepath + "::SOURCE",
+            tabledesc=source_desc,
+            dminfo=tables.makedminfo(source_desc),
+            ack=False,
+            readonly=False,
+        )
+
+        time_val = (
+            Time(np.median(self.time_array), format="jd", scale="utc").tai.mjd * 86400.0
+        )
+        int_val = np.finfo(float).max
+
+        if self.multi_phase_center:
+            sou_list = list(self.phase_center_catalog.keys())
+        else:
+            sou_list = [
+                self.object_name,
+            ]
+
+        row_count = 0
+        for sou_name in sou_list:
+            if self.multi_phase_center:
+                sou_ra = self.phase_center_catalog[sou_name]["cat_lon"]
+                sou_dec = self.phase_center_catalog[sou_name]["cat_lat"]
+                pm_ra = self.phase_center_catalog[sou_name].get("cat_pm_ra")
+                pm_dec = self.phase_center_catalog[sou_name].get("cat_pm_dec")
+                if (pm_ra is None) or (pm_dec is None):
+                    pm_ra = 0.0
+                    pm_dec = 0.0
+                sou_id = self.phase_center_catalog[sou_name]["cat_id"]
+            else:
+                sou_ra = self.phase_center_ra
+                sou_dec = self.phase_center_dec
+                pm_ra = 0.0
+                pm_dec = 0.0
+                sou_id = 0
+
+            sou_dir = np.array([sou_ra, sou_dec])
+            pm_dir = np.array([pm_ra, pm_dec])
+            for jdx in range(self.Nspws):
+                source_table.addrows()
+                source_table.putcell("SOURCE_ID", row_count, sou_id)
+                source_table.putcell("TIME", row_count, time_val)
+                source_table.putcell("INTERVAL", row_count, int_val)
+                source_table.putcell("SPECTRAL_WINDOW_ID", row_count, jdx)
+                source_table.putcell("NUM_LINES", row_count, 0)
+                source_table.putcell("NAME", row_count, sou_name)
+                source_table.putcell("DIRECTION", row_count, sou_dir)
+                source_table.putcell("PROPER_MOTION", row_count, pm_dir)
+                row_count += 1
+
+        # We have one final thing we need to do here, which is to link the SOURCE table
+        # to the main table, since it's not included in the list of default subtables.
+        # You are _supposed_ to be able to provide a string, but it looks like that
+        # functionality is actually broken in CASA. Fortunately, supplying the whole
+        # table does seem to work (as least w/ casscore v3.3.1).
+        ms = tables.table(filepath, readonly=False, ack=False)
+        ms.putkeyword("SOURCE", source_table)
+        ms.done()
+
+        source_table.done()
 
     def _write_ms_pointing(self, filepath):
         """
@@ -261,7 +365,7 @@ class MS(UVData):
         # per-timestamp, per-antenna entry
         times = np.asarray(
             [
-                Time(t, format="jd", scale="utc").mjd * 3600.0 * 24.0
+                Time(t, format="jd", scale="utc").tai.mjd * 3600.0 * 24.0
                 for t in np.unique(self.time_array)
             ]
         )
@@ -351,23 +455,23 @@ class MS(UVData):
             freq_array = self.freq_array[0]
             ch_width = np.zeros_like(freq_array) + self.channel_width
 
-        for idx in self.spw_array:
+        for idx, spw_id in enumerate(self.spw_array):
             if self.flex_spw:
-                ch_mask = self.flex_spw_id_array == idx
+                ch_mask = self.flex_spw_id_array == spw_id
             else:
                 ch_mask = np.ones(freq_array.shape, dtype=bool)
 
             sw_table.addrows()
-            sw_table.putcell("NUM_CHAN", 0, np.sum(ch_mask))
-            sw_table.putcell("NAME", 0, "WINDOW%d" % idx)
-            sw_table.putcell("CHAN_FREQ", 0, freq_array[ch_mask])
-            sw_table.putcell("CHAN_WIDTH", 0, ch_width[ch_mask])
-            sw_table.putcell("EFFECTIVE_BW", 0, ch_width[ch_mask])
-            sw_table.putcell("RESOLUTION", 0, ch_width[ch_mask])
+            sw_table.putcell("NUM_CHAN", idx, np.sum(ch_mask))
+            sw_table.putcell("NAME", idx, "WINDOW%d" % spw_id)
+            sw_table.putcell("CHAN_FREQ", idx, freq_array[ch_mask])
+            sw_table.putcell("CHAN_WIDTH", idx, ch_width[ch_mask])
+            sw_table.putcell("EFFECTIVE_BW", idx, ch_width[ch_mask])
+            sw_table.putcell("RESOLUTION", idx, ch_width[ch_mask])
             # TODO: These are placeholders for now, but should be replaced with
             # actual frequency reference info (once UVData handles that)
-            sw_table.putcell("MEAS_FREQ_REF", 0, VEL_DICT["TOPO"])
-            sw_table.putcell("REF_FREQUENCY", 0, freq_array[0])
+            sw_table.putcell("MEAS_FREQ_REF", idx, VEL_DICT["TOPO"])
+            sw_table.putcell("REF_FREQUENCY", idx, freq_array[0])
 
     def _write_ms_observation(self, filepath):
         """
@@ -738,9 +842,16 @@ class MS(UVData):
                 "reflect the phasing status of the data"
             )
 
-        nchan = self.freq_array.shape[1]
+        if self.flex_spw:
+            nchan = np.sum(self.flex_spw_id_array == self.spw_array[0])
+            for spw_id in self.spw_array:
+                if np.sum(self.flex_spw_id_array == spw_id) != nchan:
+                    raise ValueError("Nope, can't do it!")
+        else:
+            nchan = self.freq_array.shape[-1]
+
         npol = len(self.polarization_array)
-        nrow = len(self.data_array)
+        nrow = len(self.data_array) * self.Nspws
 
         datacoldesc = tables.makearrcoldesc(
             "DATA",
@@ -780,31 +891,72 @@ class MS(UVData):
         # but after a question to the helpdesk we got a clear response that
         # the convention is antenna2_pos - antenna1_pos, so the convention is the
         # same as ours & Miriad's
-        ms.putcol("DATA", np.squeeze(self.data_array, axis=1))
-        ms.putcol("WEIGHT_SPECTRUM", np.squeeze(self.nsample_array, axis=1))
-        ms.putcol("FLAG", np.squeeze(self.flag_array, axis=1))
+        if self.future_array_shapes:
+            data_array = self.data_array
+            weight_array = self.nsample_array
+            flag_array = self.flag_array
+        else:
+            data_array = np.squeeze(self.data_array, axis=1)
+            weight_array = np.squeeze(self.nsample_array, axis=1)
+            flag_array = np.squeeze(self.flag_array, axis=1)
 
-        ms.putcol("ANTENNA1", self.ant_1_array)
-        ms.putcol("ANTENNA2", self.ant_2_array)
-        ms.putcol("INTERVAL", self.integration_time)
+        for idx, spw_id in enumerate(self.spw_array):
+            if self.flex_spw:
+                sel_mask = self.flex_spw_id_array == spw_id
+            else:
+                sel_mask = np.ones(self.Nfreqs, dtype=bool)
 
-        ms.putcol("TIME", Time(self.time_array, format="jd").mjd * 3600.0 * 24.0)
-        ms.putcol("UVW", self.uvw_array)
+            ms.putcol(
+                "DATA", data_array[:, sel_mask, :], startrow=idx, rowincr=self.Nspws
+            )
+            ms.putcol(
+                "WEIGHT_SPECTRUM",
+                weight_array[:, sel_mask, :],
+                startrow=idx,
+                rowincr=self.Nspws,
+            )
+            ms.putcol(
+                "FLAG", flag_array[:, sel_mask, :], startrow=idx, rowincr=self.Nspws
+            )
+
+        ms.putcol("ANTENNA1", np.repeat(self.ant_1_array, self.Nspws))
+        ms.putcol("ANTENNA2", np.repeat(self.ant_2_array, self.Nspws))
+        ms.putcol("INTERVAL", np.repeat(self.integration_time, self.Nspws))
+
+        ms.putcol("DATA_DESC_ID", np.tile(np.arange(self.Nspws), data_array.shape[0]))
+
+        ms.putcol(
+            "TIME",
+            np.repeat(
+                Time(self.time_array, format="jd").mjd * 3600.0 * 24.0, self.Nspws,
+            ),
+        )
+
+        ms.putcol("UVW", np.repeat(self.uvw_array, self.Nspws, axis=0))
+        if self.multi_phase_center:
+            # We have to do an extra bit of work here, because CASA won't accept arb
+            # values for field ID (rather, the ID number matches to the row number in
+            # the FIELD subtable). When we write out the fields, we use sort so that
+            # we get reproduce the same ordering here
+            field_id_array = self.phase_center_id_array.copy()
+            sou_list = list(self.phase_center_catalog.keys())
+            sou_list.sort()
+            for idx in range(self.Nphase):
+                sel_mask = np.equal(
+                    self.phase_center_id_array,
+                    self.phase_center_catalog[sou_list[idx]]["cat_id"],
+                )
+
+                field_id_array[sel_mask] = idx
+
+            ms.putcol("FIELD_ID", np.repeat(field_id_array, self.Nspws))
         ms.done()
-
-        # The above will only add the default subtables, specifically ANTENNA,
-        # DATA_DESCRIPTION, FEED, FIELD, FLAG_CMD, HISTORY, OBSERVATION, POINTING,
-        # POLARIZTION, PROCESSOR, SPECTRAL_WINDOW, and STATE, but if needed (say for
-        # example the SOURCE ta), one can use the following call to add the subtable
-        # so that it can subsequently be edited:
-        #   subtable = tables.default_ms_subltable(NAME, filepath + NAME)
-        # Done that this has to be done after the MS is closed (via done()), and one
-        # needs to close subtable (again, via done()) to finish creating the stub.
 
         self._write_ms_antenna(filepath)
         self._write_ms_data_description(filepath)
         self._write_ms_feed(filepath)
         self._write_ms_field(filepath)
+        self._write_ms_source(filepath)
         self._write_ms_spectralwindow(filepath)
         self._write_ms_pointing(filepath)
         self._write_ms_polarization(filepath)
