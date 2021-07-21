@@ -8,6 +8,7 @@ dependencies:
   - h5py
   - astropy-healpix
   - numpy
+  - pyerfa>=2.0
   - python-casacore
   - pyyaml
   - scipy

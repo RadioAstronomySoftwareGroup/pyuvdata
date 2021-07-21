@@ -8,6 +8,7 @@ dependencies:
   - astropy-healpix
   - cached-property
   - h5py
+  - pyerfa>=2.0
   - matplotlib
   - numpy
   - pandas

@@ -7,6 +7,7 @@ dependencies:
   - astropy>=4.2.1
   - astropy-healpix
   - h5py
+  - pyerfa>=2.0
   - matplotlib
   - numpy
   - pip

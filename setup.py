@@ -135,10 +135,11 @@ setup_args = {
     "use_scm_version": {"local_scheme": branch_scheme},
     "include_package_data": True,
     "install_requires": [
-        "numpy>=1.18",
-        "scipy",
         "astropy>=4.2.1",
         "h5py",
+        "numpy>=1.18",
+        "pyerfa>=2.0",
+        "scipy",
         "setuptools_scm",
     ],
     "extras_require": {
