@@ -137,10 +137,11 @@ Note that as of v2, `pyuvdata` is only supported on python 3.6+.
 
 Required:
 
-* numpy >= 1.18
-* scipy
 * astropy >= 4.2.1
 * h5py
+* numpy >= 1.18
+* pyerfa >= 2.0
+* scipy
 * setuptools_scm
 
 Optional:

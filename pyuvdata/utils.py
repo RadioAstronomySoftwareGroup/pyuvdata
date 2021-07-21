@@ -16,8 +16,9 @@ from astropy.coordinates import Angle
 from astropy.utils import iers
 from astropy.coordinates import SkyCoord, Distance, EarthLocation
 from astropy import units
-from . import _utils
 import erfa
+
+from . import _utils
 
 
 __all__ = [

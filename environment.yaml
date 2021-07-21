@@ -10,6 +10,7 @@ dependencies:
   - h5py
   - numpy>=1.18
   - pre-commit
+  - pyerfa>=2.0
   - pypandoc
   - python-casacore
   - pyyaml
