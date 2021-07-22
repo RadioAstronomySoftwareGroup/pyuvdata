@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+
+### Added
+- pyERFA was added as an explicit dependency (previously it was implicit because it is
+an astropy dependency).
+
+### Fixed
+- Fixed a bug in `UVBeam.efield_to_power` where a the `data_array` remained complex
+rather than real because the tolerance was too low in the numpy `real_if_close` call.
+
 ## [2.2.1] - 2021-7-21
 
 ### Changed
