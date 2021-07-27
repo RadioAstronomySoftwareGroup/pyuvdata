@@ -53,6 +53,7 @@ def _get_generic_type(expected_type, strict_type_check=False):
         return expected_type
 
     for types in [
+        (bool, np.bool_),
         (float, np.floating),
         (np.unsignedinteger),  # unexpected but just in case
         (int, np.integer),

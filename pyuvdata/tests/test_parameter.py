@@ -278,6 +278,7 @@ def test_strict_expected_type():
         (int, (int, np.integer)),
         (np.complex64, (complex, np.complexfloating)),
         (np.uint, (np.unsignedinteger)),
+        (bool, (bool, np.bool_)),
         # str type tests the pass through fallback
         (str, str),
         # check builtin attributes too
@@ -285,6 +286,7 @@ def test_strict_expected_type():
         ("int", (int, np.integer)),
         ("float", (float, np.floating)),
         ("complex", (complex, np.complexfloating)),
+        ("bool", (bool, np.bool_)),
     ],
 )
 def test_generic_type_conversion(in_type, out_type):
