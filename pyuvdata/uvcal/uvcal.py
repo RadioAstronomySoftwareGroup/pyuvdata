@@ -709,13 +709,6 @@ class UVCal(UVBase):
                 yield getattr(self, key)
 
     @property
-    def required_data_like_params(self):
-        """Iterate required defined parameters which are data-like."""
-        for key in self._required_data_params:
-            if hasattr(self, key):
-                yield getattr(self, key)
-
-    @property
     def metadata_only(self):
         """
         Property that determines whether this is a metadata only object.
@@ -3498,7 +3491,11 @@ class UVCal(UVBase):
         if future_array_shapes:
             self._set_future_array_shapes()
 
-        self.cal_type = cal_type
+        if cal_type == "gain":
+            self._set_gain()
+        elif cal_type == "delay":
+            self._set_delay()
+
         self.cal_style = cal_style
         self.gain_convention = gain_convention
 
@@ -3570,9 +3567,9 @@ class UVCal(UVBase):
                         self.channel_width = uvdata_channel_widths[0]
                     else:
                         raise ValueError(
-                            "uvdata channel widths vary does not have flexible "
-                            "spectral windows and not using future shapes. "
-                            "Please specify frequencies and channel_width"
+                            "uvdata has varying channel widths but does not have "
+                            "flexible spectral windows and future_array_shapes is "
+                            "False. Please specify frequencies and channel_width."
                         )
             if uvdata.flex_spw:
                 params_to_copy.extend(["flex_spw_id_array"])
@@ -3618,8 +3615,8 @@ class UVCal(UVBase):
                     )
                 self.channel_width = channel_width
 
-            if freq_range is not None:
-                self.freq_range = freq_range
+        if freq_range is not None:
+            self.freq_range = freq_range
 
         for param_name in params_to_copy:
             setattr(self, param_name, getattr(uvdata, param_name))

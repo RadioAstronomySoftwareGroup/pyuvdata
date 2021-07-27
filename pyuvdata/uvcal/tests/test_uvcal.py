@@ -2674,8 +2674,14 @@ def test_init_from_uvdata_setfreqs(
         uvc2.spw_array = np.array([1, 2])
         uvc2.Nspws = 2
         uvc2.channel_width = np.full(uvc2.Nfreqs, uvc2.channel_width)
+        # test passing a list instead of a single value
+        channel_width = np.full(freqs_use.size, channel_width).tolist()
+        freq_range = None
     else:
         flex_spw_id_array = None
+        # test passing in a freq_range
+        freq_range = [np.min(freqs_use), np.max(freqs_use)]
+        uvc2.freq_range = freq_range
 
     uvc_new = UVCal()
     uvc_new.initialize_from_uvdata(
@@ -2687,6 +2693,7 @@ def test_init_from_uvdata_setfreqs(
         channel_width=channel_width,
         flex_spw=flex_spw,
         flex_spw_id_array=flex_spw_id_array,
+        freq_range=freq_range,
     )
 
     assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
@@ -2704,6 +2711,57 @@ def test_init_from_uvdata_setfreqs(
     assert uvc_new == uvc2
 
 
+def test_init_from_uvdata_setfreqs_errors(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+    channel_width = uvd.channel_width
+    freqs_use = uvd.freq_array[:, 0:5]
+
+    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
+    # but that requirement is not enforced. Set it to None for this test
+    uvc.time_range = None
+
+    uvc_new = UVCal()
+    with pytest.raises(ValueError, match="Frequencies must be a 1 dimensional array"):
+        uvc_new.initialize_from_uvdata(
+            uvd,
+            uvc.gain_convention,
+            uvc.cal_style,
+            frequencies=freqs_use,
+            channel_width=channel_width,
+        )
+
+    with pytest.raises(
+        ValueError, match="If frequencies is provided and flex_spw is True"
+    ):
+        uvc_new.initialize_from_uvdata(
+            uvd,
+            uvc.gain_convention,
+            uvc.cal_style,
+            frequencies=freqs_use[0, :],
+            channel_width=channel_width,
+            flex_spw=True,
+        )
+
+    with pytest.raises(
+        ValueError, match="channel_width must be provided if frequencies is provided"
+    ):
+        uvc_new.initialize_from_uvdata(
+            uvd, uvc.gain_convention, uvc.cal_style, frequencies=freqs_use[0, :],
+        )
+
+    with pytest.raises(
+        ValueError, match="channel_width must be scalar if both future_array_shapes and"
+    ):
+        uvc_new.initialize_from_uvdata(
+            uvd,
+            uvc.gain_convention,
+            uvc.cal_style,
+            future_array_shapes=False,
+            frequencies=freqs_use[0, :],
+            channel_width=np.full(freqs_use.size, channel_width),
+        )
+
+
 @pytest.mark.parametrize("uvdata_future_shapes", [True, False])
 @pytest.mark.parametrize("uvcal_future_shapes", [True, False])
 @pytest.mark.parametrize("metadata_only", [True, False])
@@ -2719,10 +2777,11 @@ def test_init_from_uvdata_settimes(
 
     if uvcal_future_shapes:
         uvc.use_future_array_shapes()
-
-    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
-    # but that requirement is not enforced. Set it to None for this test
-    uvc.time_range = None
+        if metadata_only:
+            # test passing in a list of integration times
+            integration_time = np.full(
+                times_use.size, np.mean(uvd.integration_time)
+            ).tolist()
 
     uvc2 = uvc.copy(metadata_only=metadata_only)
 
@@ -2737,6 +2796,7 @@ def test_init_from_uvdata_settimes(
         metadata_only=metadata_only,
         times=times_use,
         integration_time=integration_time,
+        time_range=uvc.time_range,
     )
 
     assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
@@ -2758,6 +2818,41 @@ def test_init_from_uvdata_settimes(
         uvc2.total_quality_array = None
 
     assert uvc_new == uvc2
+
+
+def test_init_from_uvdata_settimes_errors(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+    times_use = uvc.time_array[0:3]
+    integration_time = np.full(times_use.size, np.mean(uvd.integration_time)).tolist()
+
+    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
+    # but that requirement is not enforced. Set it to None for this test
+    uvc.time_range = None
+
+    uvc2 = uvc.copy(metadata_only=True)
+
+    uvc2.select(times=times_use)
+
+    uvc_new = UVCal()
+    with pytest.raises(
+        ValueError, match="integation_time must be provided if times is provided"
+    ):
+        uvc_new.initialize_from_uvdata(
+            uvd, uvc.gain_convention, uvc.cal_style, times=times_use,
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="integration_time must be scalar if future_array_shapes is False.",
+    ):
+        uvc_new.initialize_from_uvdata(
+            uvd,
+            uvc.gain_convention,
+            uvc.cal_style,
+            future_array_shapes=False,
+            times=times_use,
+            integration_time=integration_time,
+        )
 
 
 def test_init_from_uvdata_setjones(uvcalibrate_data):
@@ -2789,3 +2884,239 @@ def test_init_from_uvdata_setjones(uvcalibrate_data):
     uvc_new.history = uvc2.history
 
     assert uvc_new == uvc2
+
+
+def test_init_from_uvdata_circular_pol(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
+    # convert to circular pol
+    uvd.polarization_array = np.array([-1, -2, -3, -4])
+    uvc.jones_array = np.array([-1, -2])
+
+    uvc.use_future_array_shapes()
+
+    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
+    # but that requirement is not enforced. Set it to None for this test
+    uvc.time_range = None
+
+    uvc2 = uvc.copy(metadata_only=True)
+
+    uvc_new = UVCal()
+    uvc_new.initialize_from_uvdata(uvd, uvc.gain_convention, uvc.cal_style)
+
+    assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
+
+    uvc_new.antenna_positions = uvc2.antenna_positions
+
+    assert uvutils._check_histories(
+        uvc_new.history,
+        "Initialized from a UVData object with pyuvdata."
+        " UVData history is: " + uvd.history,
+    )
+
+    uvc_new.history = uvc2.history
+
+    assert uvc_new == uvc2
+
+
+@pytest.mark.parametrize("uvdata_future_shapes", [True, False])
+@pytest.mark.parametrize("uvcal_future_shapes", [True, False])
+def test_init_from_uvdata_sky(
+    uvdata_future_shapes, uvcal_future_shapes, uvcalibrate_data, fhd_cal_raw
+):
+    uvd, uvc = uvcalibrate_data
+    uvc_sky = fhd_cal_raw
+
+    if uvdata_future_shapes:
+        uvd.use_future_array_shapes()
+
+    if uvcal_future_shapes:
+        uvc.use_future_array_shapes()
+
+    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
+    # but that requirement is not enforced. Set it to None for this test
+    uvc.time_range = None
+
+    # make cal object be a sky cal type
+    uvc._set_sky()
+    params_to_copy = [
+        "sky_field",
+        "sky_catalog",
+        "ref_antenna_name",
+        "diffuse_model",
+        "baseline_range",
+        "Nsources",
+        "observer",
+        "gain_scale",
+        "git_hash_cal",
+        "git_origin_cal",
+        "extra_keywords",
+    ]
+    for param in params_to_copy:
+        setattr(uvc, param, getattr(uvc_sky, param))
+
+    # also set gain scale to test that it is set properly
+    uvc.gain_scale = "Jy"
+
+    uvc2 = uvc.copy(metadata_only=True)
+
+    uvc_new = UVCal()
+    uvc_new.initialize_from_uvdata(
+        uvd,
+        uvc.gain_convention,
+        uvc.cal_style,
+        future_array_shapes=uvcal_future_shapes,
+        sky_field=uvc_sky.sky_field,
+        sky_catalog=uvc_sky.sky_catalog,
+        ref_antenna_name=uvc_sky.ref_antenna_name,
+        diffuse_model=uvc_sky.diffuse_model,
+        baseline_range=uvc_sky.baseline_range,
+        Nsources=uvc_sky.Nsources,
+        observer=uvc_sky.observer,
+        gain_scale="Jy",
+        git_hash_cal=uvc_sky.git_hash_cal,
+        git_origin_cal=uvc_sky.git_origin_cal,
+        extra_keywords=uvc_sky.extra_keywords,
+    )
+
+    assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
+
+    uvc_new.antenna_positions = uvc2.antenna_positions
+
+    assert uvutils._check_histories(
+        uvc_new.history,
+        "Initialized from a UVData object with pyuvdata."
+        " UVData history is: " + uvd.history,
+    )
+
+    uvc_new.history = uvc2.history
+
+    assert uvc_new == uvc2
+
+
+@pytest.mark.parametrize("uvdata_future_shapes", [True, False])
+@pytest.mark.parametrize("uvcal_future_shapes", [True, False])
+@pytest.mark.parametrize("flex_spw", [True, False])
+def test_init_from_uvdata_delay(
+    uvdata_future_shapes, uvcal_future_shapes, flex_spw, uvcalibrate_data,
+):
+    uvd, uvc = uvcalibrate_data
+
+    if uvdata_future_shapes:
+        uvd.use_future_array_shapes()
+
+    if flex_spw:
+        uvd._set_flex_spw()
+        uvd.flex_spw_id_array = [1] * (uvd.Nfreqs // 2) + [2] * (uvd.Nfreqs // 2)
+        uvd.spw_array = np.array([1, 2])
+        uvd.Nspws = 2
+        uvd.channel_width = np.full(uvd.Nfreqs, uvd.channel_width)
+        uvd.check()
+
+        uvc._set_flex_spw()
+        uvc.flex_spw_id_array = [1] * (uvc.Nfreqs // 2) + [2] * (uvc.Nfreqs // 2)
+        uvc.spw_array = np.array([1, 2])
+        uvc.Nspws = 2
+        uvc.channel_width = np.full(uvc.Nfreqs, uvc.channel_width)
+        uvc.check()
+
+    if uvcal_future_shapes:
+        uvc.use_future_array_shapes()
+
+    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
+    # but that requirement is not enforced. Set it to None for this test
+    uvc.time_range = None
+
+    # make cal object be a delay cal type
+    uvc2 = uvc.copy(metadata_only=True)
+    uvc2._set_delay()
+    uvc2.freq_range = [np.min(uvc2.freq_array), np.max(uvc2.freq_array)]
+
+    uvc_new = UVCal()
+    uvc_new.initialize_from_uvdata(
+        uvd,
+        uvc.gain_convention,
+        uvc.cal_style,
+        future_array_shapes=uvcal_future_shapes,
+        cal_type="delay",
+    )
+
+    assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
+
+    uvc_new.antenna_positions = uvc2.antenna_positions
+
+    assert uvutils._check_histories(
+        uvc_new.history,
+        "Initialized from a UVData object with pyuvdata."
+        " UVData history is: " + uvd.history,
+    )
+
+    uvc_new.history = uvc2.history
+
+    assert uvc_new == uvc2
+
+
+def test_init_from_uvdata_basic_errors(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
+    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
+    # but that requirement is not enforced. Set it to None for this test
+    uvc.time_range = None
+
+    uvc_new = UVCal()
+    with pytest.raises(ValueError, match="uvdata must be a UVData object."):
+        uvc_new.initialize_from_uvdata(uvc, uvc.gain_convention, uvc.cal_style)
+
+    with pytest.raises(
+        ValueError,
+        match="If cal_style is 'sky', ref_antenna_name, sky_catalog and sky_field "
+        "must all be provided.",
+    ):
+        uvc_new.initialize_from_uvdata(uvd, uvc.gain_convention, "sky")
+
+    uvd.polarization_array = np.array([1, 2, 3, 4])
+    with pytest.raises(
+        ValueError,
+        match="jones parameter is None and uvdata object is in "
+        "psuedo-stokes polarization. Please set jones.",
+    ):
+        uvc_new.initialize_from_uvdata(uvd, uvc.gain_convention, uvc.cal_style)
+
+
+def test_init_from_uvdata_vary_chanwidth(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
+    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
+    # but that requirement is not enforced. Set it to None for this test
+    uvc.time_range = None
+
+    # make uvdata have future array shapes and varying channel widths
+    uvd.use_future_array_shapes()
+    uvd.channel_width[-1] = uvd.channel_width[0] * 2.0
+
+    uvc_new = UVCal()
+    with pytest.raises(
+        ValueError, match="uvdata has varying channel widths but does not have"
+    ):
+        uvc_new.initialize_from_uvdata(
+            uvd, uvc.gain_convention, uvc.cal_style, future_array_shapes=False
+        )
+
+
+def test_init_from_uvdata_vary_inttimes(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
+    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
+    # but that requirement is not enforced. Set it to None for this test
+    uvc.time_range = None
+
+    # make uvdata have varying integration times
+    uvd.integration_time[-1] = uvd.integration_time[0] * 2.0
+
+    uvc_new = UVCal()
+    with pytest.raises(
+        ValueError,
+        match="uvdata integration times vary. Please specify times and "
+        "integration_time",
+    ):
+        uvc_new.initialize_from_uvdata(uvd, uvc.gain_convention, uvc.cal_style)

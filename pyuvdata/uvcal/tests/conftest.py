@@ -11,6 +11,7 @@ import numpy as np
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVCal
 import pyuvdata.tests as uvtest
+import pyuvdata.uvcal.tests.test_fhd_cal as test_fhd_cal
 
 
 @pytest.fixture(scope="session")
@@ -113,3 +114,62 @@ def delay_data_inputflag_future(delay_data_inputflag_future_main):
     yield delay_object
 
     del delay_object
+
+
+@pytest.fixture(scope="session")
+def fhd_cal_raw_main():
+    """Read in raw FHD cal."""
+    fhd_cal = UVCal()
+    with uvtest.check_warnings(
+        UserWarning, match="Telescope location derived from obs lat/lon/alt values"
+    ):
+        fhd_cal.read_fhd_cal(
+            test_fhd_cal.cal_testfile,
+            test_fhd_cal.obs_testfile,
+            layout_file=test_fhd_cal.layout_testfile,
+            settings_file=test_fhd_cal.settings_testfile,
+            raw=True,
+        )
+
+    yield fhd_cal
+
+    del fhd_cal
+
+
+@pytest.fixture(scope="function")
+def fhd_cal_raw(fhd_cal_raw_main):
+    """Make function raw FHD cal object."""
+    fhd_cal = fhd_cal_raw_main.copy()
+
+    yield fhd_cal
+
+    del fhd_cal
+
+
+@pytest.fixture(scope="session")
+def fhd_cal_fit_main():
+    """Read in fit FHD cal."""
+    fhd_cal = UVCal()
+    with uvtest.check_warnings(
+        UserWarning, match="Telescope location derived from obs lat/lon/alt values"
+    ):
+        fhd_cal.read_fhd_cal(
+            test_fhd_cal.cal_testfile,
+            test_fhd_cal.obs_testfile,
+            layout_file=test_fhd_cal.layout_testfile,
+            settings_file=test_fhd_cal.settings_testfile,
+            raw=False,
+        )
+    yield fhd_cal
+
+    del fhd_cal
+
+
+@pytest.fixture(scope="function")
+def fhd_cal_fit(fhd_cal_fit_main):
+    """Make function fit FHD cal object."""
+    fhd_cal = fhd_cal_fit_main.copy()
+
+    yield fhd_cal
+
+    del fhd_cal
