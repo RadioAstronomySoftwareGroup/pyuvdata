@@ -39,24 +39,20 @@ settings_file_multi = [
 ]
 
 
-@pytest.mark.filterwarnings("ignore:Telescope location derived from obs lat/lon/alt")
 @pytest.mark.parametrize("raw", [True, False])
-def test_read_fhdcal_raw_write_read_calfits(raw, tmp_path):
+def test_read_fhdcal_write_read_calfits(raw, fhd_cal_raw, fhd_cal_fit, tmp_path):
     """
     FHD cal to calfits loopback test.
 
     Read in FHD cal files, write out as calfits, read back in and check for
     object equality.
     """
-    fhd_cal = UVCal()
+    if raw:
+        fhd_cal = fhd_cal_raw
+    else:
+        fhd_cal = fhd_cal_fit
+
     calfits_cal = UVCal()
-    fhd_cal.read_fhd_cal(
-        cal_testfile,
-        obs_testfile,
-        layout_file=layout_testfile,
-        settings_file=settings_testfile,
-        raw=raw,
-    )
 
     filelist = [cal_testfile, obs_testfile, layout_testfile, settings_testfile]
 
@@ -68,7 +64,19 @@ def test_read_fhdcal_raw_write_read_calfits(raw, tmp_path):
     calfits_cal.read_calfits(outfile)
     assert fhd_cal == calfits_cal
 
-    # check metadata only read
+
+@pytest.mark.filterwarnings("ignore:Telescope location derived from obs lat/lon/alt")
+@pytest.mark.parametrize("raw", [True, False])
+def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
+    """
+    Test FHD cal metadata only read.
+    """
+    if raw:
+        fhd_cal_full = fhd_cal_raw
+    else:
+        fhd_cal_full = fhd_cal_fit
+
+    fhd_cal = UVCal()
     fhd_cal.read_fhd_cal(
         cal_testfile,
         obs_testfile,
@@ -77,24 +85,25 @@ def test_read_fhdcal_raw_write_read_calfits(raw, tmp_path):
         raw=raw,
         read_data=False,
     )
-    calfits_cal2 = calfits_cal.copy(metadata_only=True)
+
+    fhd_cal2 = fhd_cal_full.copy(metadata_only=True)
 
     # this file set has a mismatch in Nsources between the cal file & settings
     # file for some reason. I think it's just an issue with the files chosen
-    assert fhd_cal.Nsources != calfits_cal2.Nsources
-    fhd_cal.Nsources = calfits_cal2.Nsources
+    assert fhd_cal.Nsources != fhd_cal2.Nsources
+    fhd_cal.Nsources = fhd_cal2.Nsources
 
     # there is a loss in precision for float auto scale values in the
     # settings file vs the cal file
     assert (
         fhd_cal.extra_keywords["autoscal".upper()]
-        != calfits_cal2.extra_keywords["autoscal".upper()]
+        != fhd_cal2.extra_keywords["autoscal".upper()]
     )
-    fhd_cal.extra_keywords["autoscal".upper()] = calfits_cal2.extra_keywords[
+    fhd_cal.extra_keywords["autoscal".upper()] = fhd_cal2.extra_keywords[
         "autoscal".upper()
     ]
 
-    assert fhd_cal == calfits_cal2
+    assert fhd_cal == fhd_cal2
 
     fhd_cal.read_fhd_cal(
         cal_testfile,
@@ -104,8 +113,8 @@ def test_read_fhdcal_raw_write_read_calfits(raw, tmp_path):
         raw=raw,
         read_data=False,
     )
-    calfits_cal2.diffuse_model = None
-    fhd_cal == calfits_cal2
+    fhd_cal2.diffuse_model = None
+    fhd_cal == fhd_cal2
 
     return
 
