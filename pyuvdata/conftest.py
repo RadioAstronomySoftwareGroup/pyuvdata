@@ -12,6 +12,7 @@ import numpy as np
 
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVData, UVBeam
+import pyuvdata.tests as uvtest
 from pyuvdata.uvdata.mir import mir_parser
 
 filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
@@ -48,7 +49,14 @@ def setup_and_teardown_package():
 def casa_uvfits_main():
     """Read in CASA tutorial uvfits file."""
     uv_in = UVData()
-    uv_in.read(casa_tutorial_uvfits)
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Telescope EVLA is not in known_telescopes",
+            "The uvw_array does not match the expected values",
+        ],
+    ):
+        uv_in.read(casa_tutorial_uvfits)
 
     return uv_in
 

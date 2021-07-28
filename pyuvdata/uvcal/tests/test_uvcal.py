@@ -319,6 +319,15 @@ def test_check_warnings(gain_data):
         assert gain_data.check()
 
 
+def test_check_flag_array(gain_data):
+    gain_data.flag_array = np.ones((gain_data.flag_array.shape), dtype=int)
+
+    with pytest.raises(
+        ValueError, match="UVParameter _flag_array is not the appropriate type.",
+    ):
+        gain_data.check()
+
+
 def test_unknown_telescopes(gain_data, tmp_path):
     calobj = gain_data
     calobj.telescope_name = "foo"
