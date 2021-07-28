@@ -334,6 +334,13 @@ def test_strict_expected_type_equality():
     )
     assert param1 == param5
 
+    # check that it fails for an incompatible generic type
+    param6 = uvp.UVParameter(
+        "_test6", value=3, expected_type=int, strict_type_check=False
+    )
+    assert param1 != param6
+    assert param6 != param1
+
     return
 
 
@@ -381,6 +388,16 @@ def test_strict_expected_type_equality_arrays():
         strict_type_check=True,
     )
     assert param1 == param5
+
+    # check that it fails for an incompatible generic type
+    param6 = uvp.UVParameter(
+        "_test6",
+        value=np.full((2, 3), 3, dtype=int),
+        expected_type=int,
+        strict_type_check=False,
+    )
+    assert param1 != param6
+    assert param6 != param1
 
 
 def test_scalar_array_parameter_mismatch():
