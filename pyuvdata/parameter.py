@@ -166,23 +166,6 @@ class UVParameter(object):
                 if self.value is not None:
                     print(f"{self.name} is None on right, but not left")
                     return False
-            # check to see if strict types are used
-            if self.strict_type:
-                # types must match
-                if not isinstance(self.value, other.expected_type):
-                    print(
-                        f"{self.name} parameter has incompatible types. Left is "
-                        f"{self.expected_type}, right is {other.expected_type}"
-                    )
-                    return False
-            if other.strict_type:
-                # types must match in the other direction
-                if not isinstance(other.value, self.expected_type):
-                    print(
-                        f"{self.name} parameter has incompatible types. Left is "
-                        f"{self.expected_type}, right is {other.expected_type}"
-                    )
-                    return False
 
             if isinstance(self.value, np.ndarray) and not isinstance(
                 self.value.item(0), (str, np.str_)
@@ -193,6 +176,34 @@ class UVParameter(object):
                 if self.value.shape != other.value.shape:
                     print(f"{self.name} parameter value is array, shapes are different")
                     return False
+
+                # check to see if strict types are used
+                if self.strict_type:
+                    # types must match
+                    if other.strict_type:
+                        # both strict, expected_type must match
+                        if self.expected_type != other.expected_type:
+                            print(
+                                f"{self.name} parameter has incompatible types. "
+                                f"Left is {self.expected_type}, right is "
+                                f"{other.expected_type}"
+                            )
+                            return False
+                    elif not isinstance(self.value.item(0), other.expected_type):
+                        print(
+                            f"{self.name} parameter has incompatible dtypes. Left is "
+                            f"{self.value.dtype}, right is {other.expected_type}"
+                        )
+                        return False
+                elif other.strict_type:
+                    # types must match in the other direction
+                    if not isinstance(other.value.item(0), self.expected_type):
+                        print(
+                            f"{self.name} parameter has incompatible dtypes. Left is "
+                            f"{other.value.dtype}, right is {other.expected_type}"
+                        )
+                        return False
+
                 elif isinstance(self.value, units.Quantity):
                     if not self.value.unit.is_equivalent(other.value.unit):
                         print(
@@ -226,6 +237,24 @@ class UVParameter(object):
                     print(f"{self.name} parameter value is array, values are not close")
                     return False
             else:
+                # check to see if strict types are used
+                if self.strict_type:
+                    # types must match
+                    if not isinstance(self.value, other.expected_type):
+                        print(
+                            f"{self.name} parameter has incompatible types. Left is "
+                            f"{type(self.value)}, right is {other.expected_type}"
+                        )
+                        return False
+                if other.strict_type:
+                    # types must match in the other direction
+                    if not isinstance(other.value, self.expected_type):
+                        print(
+                            f"{self.name} parameter has incompatible types. Left is "
+                            f"{type(other.value)}, right is {other.expected_type}"
+                        )
+                        return False
+
                 str_type = False
                 if isinstance(self.value, str):
                     str_type = True
