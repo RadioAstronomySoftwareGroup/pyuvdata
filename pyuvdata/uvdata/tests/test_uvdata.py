@@ -256,6 +256,28 @@ def hera_uvh5_split(hera_uvh5_split_main):
 
 
 @pytest.fixture(scope="session")
+def hera_uvh5_xx_main():
+    """Read in a HERA uvh5 file."""
+    hera_uvh5_xx = UVData()
+    hera_uvh5_xx.read_uvh5(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5"))
+
+    return hera_uvh5_xx
+
+
+@pytest.fixture(scope="function")
+def hera_uvh5_xx(hera_uvh5_xx_main):
+    """Make function level HERA uvh5 file based object."""
+    hera_uvh5_xx = hera_uvh5_xx_main.copy()
+
+    yield hera_uvh5_xx
+
+    # clean up when done
+    del hera_uvh5_xx
+
+    return
+
+
+@pytest.fixture(scope="session")
 def sma_mir_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
@@ -352,25 +374,6 @@ def bda_test_file(bda_test_file_main):
 
     # cleanup
     del uv_object
-
-    return
-
-
-@pytest.fixture(scope="function")
-def uvdata_data(casa_uvfits):
-    uv_object = casa_uvfits
-
-    class DataHolder:
-        def __init__(self, uv_object):
-            self.uv_object = uv_object
-            self.uv_object2 = uv_object.copy()
-
-    uvdata_data = DataHolder(uv_object)
-    # yields the data we need but will continue to the del call after tests
-    yield uvdata_data
-
-    # some post-test object cleanup
-    del uvdata_data
 
     return
 
@@ -608,34 +611,32 @@ def test_properties(uvdata_props):
             raise
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_metadata_only_property(uvdata_data):
-    uvdata_data.uv_object.data_array = None
-    assert uvdata_data.uv_object.metadata_only is False
-    pytest.raises(ValueError, uvdata_data.uv_object.check)
-    uvdata_data.uv_object.flag_array = None
-    assert uvdata_data.uv_object.metadata_only is False
-    pytest.raises(ValueError, uvdata_data.uv_object.check)
-    uvdata_data.uv_object.nsample_array = None
-    assert uvdata_data.uv_object.metadata_only is True
+def test_metadata_only_property(casa_uvfits):
+    uvobj = casa_uvfits
+    uvobj.data_array = None
+    assert uvobj.metadata_only is False
+    pytest.raises(ValueError, uvobj.check)
+    uvobj.flag_array = None
+    assert uvobj.metadata_only is False
+    pytest.raises(ValueError, uvobj.check)
+    uvobj.nsample_array = None
+    assert uvobj.metadata_only is True
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_equality(uvdata_data):
+def test_equality(casa_uvfits):
     """Basic equality test."""
-    assert uvdata_data.uv_object == uvdata_data.uv_object
+    uvobj = casa_uvfits
+    assert uvobj == uvobj
 
 
-@pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_check(uvdata_data):
-    """Test simple check function."""
-    assert uvdata_data.uv_object.check()
+def test_check_nants_data(casa_uvfits):
+    """Test check function."""
+    uvobj = casa_uvfits
+
+    assert uvobj.check()
     # Check variety of special cases
-    uvdata_data.uv_object.Nants_data += 1
+    uvobj.Nants_data += 1
     with pytest.raises(
         ValueError,
         match=(
@@ -643,25 +644,36 @@ def test_check(uvdata_data):
             "ant_1_array and ant_2_array"
         ),
     ):
-        uvdata_data.uv_object.check()
-    uvdata_data.uv_object.Nants_data -= 1
-    uvdata_data.uv_object.Nbls += 1
+        uvobj.check()
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_check_nbls(casa_uvfits):
+    uvobj = casa_uvfits
+    uvobj.Nbls += 1
     with pytest.raises(
         ValueError,
         match=(
             "Nbls must be equal to the number of unique baselines in the data_array"
         ),
     ):
-        uvdata_data.uv_object.check()
-    uvdata_data.uv_object.Nbls -= 1
-    uvdata_data.uv_object.Ntimes += 1
+        uvobj.check()
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_check_ntimes(casa_uvfits):
+    uvobj = casa_uvfits
+    uvobj.Ntimes += 1
     with pytest.raises(
         ValueError,
         match=("Ntimes must be equal to the number of unique times in the time_array"),
     ):
-        uvdata_data.uv_object.check()
-    uvdata_data.uv_object.Ntimes -= 1
+        uvobj.check()
+    uvobj.Ntimes -= 1
 
+
+def test_check_strict_uvw(casa_uvfits):
+    uvobj = casa_uvfits
     with pytest.raises(
         ValueError,
         match=(
@@ -669,31 +681,24 @@ def test_check(uvdata_data):
             "positions."
         ),
     ):
-        uvdata_data.uv_object.check(strict_uvw_antpos_check=True)
+        uvobj.check(strict_uvw_antpos_check=True)
 
-    # Check case where all data is autocorrelations
-    # Currently only test files that have autos are fhd files
-    testdir = os.path.join(DATA_PATH, "fhd_vis_data/")
-    file_list = [
-        testdir + "1061316296_flags.sav",
-        testdir + "1061316296_vis_XX.sav",
-        testdir + "1061316296_params.sav",
-        testdir + "1061316296_layout.sav",
-        testdir + "1061316296_settings.txt",
-    ]
 
-    uvdata_data.uv_object.read_fhd(file_list)
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_check_autos_only(hera_uvh5_xx):
+    """
+    Check case where all data is autocorrelations
+   """
+    uvobj = hera_uvh5_xx
 
-    uvdata_data.uv_object.select(
-        blt_inds=np.where(
-            uvdata_data.uv_object.ant_1_array == uvdata_data.uv_object.ant_2_array
-        )[0]
-    )
-    assert uvdata_data.uv_object.check()
+    uvobj.select(blt_inds=np.where(uvobj.ant_1_array == uvobj.ant_2_array)[0])
+    assert uvobj.check()
 
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_check_uvw_array(hera_uvh5_xx):
     # test auto and cross corr uvw_array
-    uvd = UVData()
-    uvd.read_uvh5(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5"))
+    uvd = hera_uvh5_xx.copy()
     autos = np.isclose(uvd.ant_1_array - uvd.ant_2_array, 0.0)
     auto_inds = np.where(autos)[0]
     cross_inds = np.where(~autos)[0]
@@ -707,7 +712,7 @@ def test_check(uvdata_data):
         uvd.check()
 
     # make cross have |uvw| zero, assert ValueError
-    uvd.read_uvh5(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5"))
+    uvd = hera_uvh5_xx.copy()
     uvd.uvw_array[cross_inds[0]][:] = 0.0
     with pytest.raises(
         ValueError,
@@ -716,18 +721,30 @@ def test_check(uvdata_data):
         uvd.check()
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_future_array_shape(uvdata_data):
+def test_check_flag_array(casa_uvfits):
+    uvobj = casa_uvfits
+
+    uvobj.flag_array = np.ones((uvobj.flag_array.shape), dtype=int)
+
+    with pytest.raises(
+        ValueError, match="UVParameter _flag_array is not the appropriate type.",
+    ):
+        uvobj.check()
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_future_array_shape(casa_uvfits):
     """Convert to future shapes and check. Convert back and test for equality."""
-    uvobj = uvdata_data.uv_object
+    uvobj = casa_uvfits
+    uvobj2 = casa_uvfits.copy()
     uvobj.use_future_array_shapes()
     uvobj.check()
 
     uvobj.use_current_array_shapes()
     uvobj.check()
 
-    assert uvobj == uvdata_data.uv_object2
+    assert uvobj == uvobj2
 
     uvobj.use_future_array_shapes()
     uvobj.channel_width[-1] = uvobj.channel_width[0] * 2.0
@@ -742,68 +759,60 @@ def test_future_array_shape(uvdata_data):
         uvobj._check_freq_spacing()
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_nants_data_telescope_larger(uvdata_data):
+def test_nants_data_telescope_larger(casa_uvfits):
+    uvobj = casa_uvfits
     # make sure it's okay for Nants_telescope to be strictly greater than Nants_data
-    uvdata_data.uv_object.Nants_telescope += 1
+    uvobj.Nants_telescope += 1
     # add dummy information for "new antenna" to pass object check
-    uvdata_data.uv_object.antenna_names = np.concatenate(
-        (uvdata_data.uv_object.antenna_names, ["dummy_ant"])
+    uvobj.antenna_names = np.concatenate((uvobj.antenna_names, ["dummy_ant"]))
+    uvobj.antenna_numbers = np.concatenate((uvobj.antenna_numbers, [20]))
+    uvobj.antenna_positions = np.concatenate(
+        (uvobj.antenna_positions, np.zeros((1, 3))), axis=0
     )
-    uvdata_data.uv_object.antenna_numbers = np.concatenate(
-        (uvdata_data.uv_object.antenna_numbers, [20])
-    )
-    uvdata_data.uv_object.antenna_positions = np.concatenate(
-        (uvdata_data.uv_object.antenna_positions, np.zeros((1, 3))), axis=0
-    )
-    assert uvdata_data.uv_object.check()
+    assert uvobj.check()
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_ant1_array_not_in_antnums(uvdata_data):
+def test_ant1_array_not_in_antnums(casa_uvfits):
+    uvobj = casa_uvfits
     # make sure an error is raised if antennas in ant_1_array not in antenna_numbers
     # remove antennas from antenna_names & antenna_numbers by hand
-    uvdata_data.uv_object.antenna_names = uvdata_data.uv_object.antenna_names[1:]
-    uvdata_data.uv_object.antenna_numbers = uvdata_data.uv_object.antenna_numbers[1:]
-    uvdata_data.uv_object.antenna_positions = uvdata_data.uv_object.antenna_positions[
-        1:, :
-    ]
-    uvdata_data.uv_object.Nants_telescope = uvdata_data.uv_object.antenna_numbers.size
-    with pytest.raises(ValueError) as cm:
-        uvdata_data.uv_object.check()
-    assert str(cm.value).startswith(
-        "All antennas in ant_1_array must be in antenna_numbers"
-    )
+    uvobj.antenna_names = uvobj.antenna_names[1:]
+    uvobj.antenna_numbers = uvobj.antenna_numbers[1:]
+    uvobj.antenna_positions = uvobj.antenna_positions[1:, :]
+    uvobj.Nants_telescope = uvobj.antenna_numbers.size
+    with pytest.raises(
+        ValueError, match="All antennas in ant_1_array must be in antenna_numbers"
+    ):
+        uvobj.check()
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_ant2_array_not_in_antnums(uvdata_data):
+def test_ant2_array_not_in_antnums(casa_uvfits):
+    uvobj = casa_uvfits
     # make sure an error is raised if antennas in ant_2_array not in antenna_numbers
     # remove antennas from antenna_names & antenna_numbers by hand
-    uvobj = uvdata_data.uv_object
+    uvobj = uvobj
     uvobj.antenna_names = uvobj.antenna_names[:-1]
     uvobj.antenna_numbers = uvobj.antenna_numbers[:-1]
     uvobj.antenna_positions = uvobj.antenna_positions[:-1]
     uvobj.Nants_telescope = uvobj.antenna_numbers.size
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="All antennas in ant_2_array must be in antenna_numbers"
+    ):
         uvobj.check()
-    assert str(cm.value).startswith(
-        "All antennas in ant_2_array must be in antenna_numbers"
-    )
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_converttofiletype(uvdata_data):
-    fhd_obj = uvdata_data.uv_object._convert_to_filetype("fhd")
-    uvdata_data.uv_object._convert_from_filetype(fhd_obj)
-    assert uvdata_data.uv_object == uvdata_data.uv_object2
+def test_converttofiletype(casa_uvfits):
+    uvobj = casa_uvfits
+    uvobj2 = uvobj.copy()
+    fhd_obj = uvobj._convert_to_filetype("fhd")
+    uvobj._convert_from_filetype(fhd_obj)
+    assert uvobj == uvobj2
 
     with pytest.raises(ValueError) as cm:
-        uvdata_data.uv_object._convert_to_filetype("foo")
+        uvobj._convert_to_filetype("foo")
     assert str(cm.value).startswith(
         "filetype must be uvfits, mir, miriad, fhd, or uvh5"
     )
@@ -1479,7 +1488,6 @@ def test_select_blts(paper_uvh5, future_shapes):
     )
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_antennas(casa_uvfits):
     uv_object = casa_uvfits
@@ -1596,7 +1604,6 @@ def sort_bl(p):
     return (p[1], p[0]) + p[2:]
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_bls(casa_uvfits):
     uv_object = casa_uvfits
@@ -1781,7 +1788,6 @@ def test_select_bls(casa_uvfits):
     assert str(cm.value).startswith("Baseline number 100 is not present in the")
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_select_times(casa_uvfits, future_shapes):
@@ -1834,7 +1840,6 @@ def test_select_times(casa_uvfits, future_shapes):
     )
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_time_range(casa_uvfits):
     uv_object = casa_uvfits
@@ -1967,8 +1972,6 @@ def test_select_lsts_multi_day(casa_uvfits, future_shapes):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_lsts_out_of_range_error(casa_uvfits):
     uv_object = casa_uvfits
     unique_lsts = np.unique(uv_object.lst_array)
@@ -1980,8 +1983,6 @@ def test_select_lsts_out_of_range_error(casa_uvfits):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_lsts_too_big(casa_uvfits):
     uv_object = casa_uvfits
     # replace one LST with bogus value larger than 2*pi; otherwise we'll get an
@@ -2016,7 +2017,6 @@ def test_select_lsts_too_big(casa_uvfits):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_lst_range(casa_uvfits):
     uv_object = casa_uvfits
@@ -2050,8 +2050,6 @@ def test_select_lst_range(casa_uvfits):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_lst_range_too_big(casa_uvfits):
     uv_object = casa_uvfits
     old_history = uv_object.history
@@ -2093,7 +2091,6 @@ def test_select_lst_range_too_big(casa_uvfits):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_lst_range_wrap_around(casa_uvfits):
     uv_object = casa_uvfits
@@ -2129,8 +2126,6 @@ def test_select_lst_range_wrap_around(casa_uvfits):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_time_range_no_data(casa_uvfits):
     """Check for error associated with times not included in data."""
     uv_object = casa_uvfits
@@ -2145,8 +2140,6 @@ def test_select_time_range_no_data(casa_uvfits):
     assert str(cm.value).startswith("No elements in time range")
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_lst_range_no_data(casa_uvfits):
     """Check for error associated with LSTS not included in data."""
     uv_object = casa_uvfits
@@ -2158,8 +2151,6 @@ def test_select_lst_range_no_data(casa_uvfits):
     assert str(cm.value).startswith("No elements in LST range")
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_time_and_time_range(casa_uvfits):
     """Check for error setting times and time_range."""
     uv_object = casa_uvfits
@@ -2174,8 +2165,6 @@ def test_select_time_and_time_range(casa_uvfits):
     )
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_time_range_one_elem(casa_uvfits):
     """Check for error if time_range not length 2."""
     uv_object = casa_uvfits
@@ -2187,8 +2176,6 @@ def test_select_time_range_one_elem(casa_uvfits):
     assert str(cm.value).startswith("time_range must be length 2")
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_lst_range_one_elem(casa_uvfits):
     """Check for error if time_range not length 2."""
     uv_object = casa_uvfits
@@ -2202,7 +2189,6 @@ def test_select_lst_range_one_elem(casa_uvfits):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_select_frequencies_writeerrors(casa_uvfits, future_shapes, tmp_path):
@@ -2679,7 +2665,6 @@ def test_select_with_lst(casa_uvfits, future_shapes):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_not_inplace(casa_uvfits):
     # Test non-inplace select
@@ -3390,7 +3375,7 @@ def test_sum_vis_errors(uv1_2_set_uvws, attr_to_get, attr_to_set, arg_dict, msg)
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_add(casa_uvfits, future_shapes):
+def test_add(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv_full = casa_uvfits
 
     if future_shapes:
@@ -3737,8 +3722,7 @@ def test_add(casa_uvfits, future_shapes):
     )
 
     # test add of autocorr-only and crosscorr-only objects
-    uv_full = UVData()
-    uv_full.read_uvh5(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5"))
+    uv_full = hera_uvh5_xx
     bls = uv_full.get_antpairs()
     autos = [bl for bl in bls if bl[0] == bl[1]]
     cross = sorted(set(bls) - set(autos))
@@ -3750,7 +3734,6 @@ def test_add(casa_uvfits, future_shapes):
     assert uv2.Nbls == uv_auto.Nbls + uv_cross.Nbls
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_add_drift(casa_uvfits):
     uv_full = casa_uvfits
@@ -4321,7 +4304,7 @@ def test_add_error_too_long_phase_center(uv_phase_time_split, test_func, extra_k
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_fast_concat(casa_uvfits, future_shapes):
+def test_fast_concat(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv_full = casa_uvfits
 
     if future_shapes:
@@ -4673,8 +4656,7 @@ def test_fast_concat(casa_uvfits, future_shapes):
     )
 
     # test add of autocorr-only and crosscorr-only objects
-    uv_full = UVData()
-    uv_full.read_uvh5(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5"))
+    uv_full = hera_uvh5_xx
     bls = uv_full.get_antpairs()
     autos = [bl for bl in bls if bl[0] == bl[1]]
     cross = sorted(set(bls) - set(autos))
@@ -4686,7 +4668,6 @@ def test_fast_concat(casa_uvfits, future_shapes):
     assert uv2.Nbls == uv_auto.Nbls + uv_cross.Nbls
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_fast_concat_errors(casa_uvfits):
     uv_full = casa_uvfits
@@ -4712,8 +4693,6 @@ def test_fast_concat_errors(casa_uvfits):
         uv1.fast_concat(cal, "freq", inplace=True)
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_key2inds(casa_uvfits):
     # Test function to interpret key as antpair, pol
     uv = casa_uvfits
@@ -4806,8 +4785,6 @@ def test_key2inds(casa_uvfits):
     assert np.array_equal(ind2, [])
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_key2inds_conj_all_pols(casa_uvfits):
     uv = casa_uvfits
 
@@ -4824,7 +4801,6 @@ def test_key2inds_conj_all_pols(casa_uvfits):
     assert np.array_equal([0, 1, 3, 2], indp[1])
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_key2inds_conj_all_pols_fringe(casa_uvfits):
     uv = casa_uvfits
@@ -4844,7 +4820,6 @@ def test_key2inds_conj_all_pols_fringe(casa_uvfits):
     assert np.array_equal(np.array([]), indp[1])
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_key2inds_conj_all_pols_bl_fringe(casa_uvfits):
     uv = casa_uvfits
@@ -4866,7 +4841,6 @@ def test_key2inds_conj_all_pols_bl_fringe(casa_uvfits):
     assert np.array_equal(np.array([]), indp[1])
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_key2inds_conj_all_pols_missing_data(casa_uvfits):
     uv = casa_uvfits
@@ -4878,8 +4852,6 @@ def test_key2inds_conj_all_pols_missing_data(casa_uvfits):
     pytest.raises(KeyError, uv._key2inds, (ant2, ant1))
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_key2inds_conj_all_pols_bls(casa_uvfits):
     uv = casa_uvfits
 
@@ -4897,7 +4869,6 @@ def test_key2inds_conj_all_pols_bls(casa_uvfits):
     assert np.array_equal([0, 1, 3, 2], indp[1])
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_key2inds_conj_all_pols_missing_data_bls(casa_uvfits):
     uv = casa_uvfits
@@ -5137,8 +5108,6 @@ def test_smart_slicing(casa_uvfits, future_shapes):
     assert np.all(d == dcheck)
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_get_data(casa_uvfits):
     # Test get_data function for easy access to data
     uv = casa_uvfits
@@ -5182,8 +5151,6 @@ def test_get_data(casa_uvfits):
     assert np.all(dcheck == d)
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_get_flags(casa_uvfits):
     # Test function for easy access to flags
     uv = casa_uvfits
@@ -5223,8 +5190,6 @@ def test_get_flags(casa_uvfits):
     assert np.all(dcheck == d)
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_get_nsamples(casa_uvfits):
     # Test function for easy access to nsample array
     uv = casa_uvfits
@@ -5346,8 +5311,6 @@ def test_antpair2ind_exceptions(paper_uvh5):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_get_times(casa_uvfits):
     # Test function for easy access to times, to work in conjunction with get_data
     uv = casa_uvfits
@@ -5383,8 +5346,6 @@ def test_get_times(casa_uvfits):
     assert np.all(d == uv.time_array)
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_get_lsts(casa_uvfits):
     # Test function for easy access to LSTs, to work in conjunction with get_data
     uv = casa_uvfits
@@ -5420,8 +5381,6 @@ def test_get_lsts(casa_uvfits):
     assert np.all(d == uv.lst_array)
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_antpairpol_iter(casa_uvfits):
     # Test generator
     uv = casa_uvfits
@@ -5443,8 +5402,6 @@ def test_antpairpol_iter(casa_uvfits):
     assert len(pols) == uv.Npols
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_get_ants(casa_uvfits):
     # Test function to get unique antennas in data
     uv = casa_uvfits
@@ -5459,9 +5416,8 @@ def test_get_ants(casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_get_enu_antpos():
-    uvd = UVData()
-    uvd.read_uvh5(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5"))
+def test_get_enu_antpos(hera_uvh5_xx):
+    uvd = hera_uvh5_xx
     # no center, no pick data ants
     antpos, ants = uvd.get_ENU_antpos(center=False, pick_data_ants=False)
     assert len(ants) == 113
@@ -5497,8 +5453,6 @@ def test_telescope_loc_xyz_check(paper_uvh5, tmp_path):
     pytest.raises(ValueError, uv.read, fname)
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_get_pols(casa_uvfits):
     # Test function to get unique polarizations in string format
     uv = casa_uvfits
@@ -5524,8 +5478,6 @@ def test_get_pols_x_orientation(paper_uvh5):
     assert pols == pols_data
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_get_feedpols(casa_uvfits):
     # Test function to get unique antenna feed polarizations in data. String format.
     uv = casa_uvfits
@@ -5538,9 +5490,7 @@ def test_get_feedpols(casa_uvfits):
     pytest.raises(ValueError, uv.get_feedpols)
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_parse_ants(casa_uvfits):
+def test_parse_ants(casa_uvfits, hera_uvh5_xx):
     # Test function to get correct antenna pairs and polarizations
     uv = casa_uvfits
 
@@ -5786,9 +5736,7 @@ def test_parse_ants(casa_uvfits):
     assert Counter(polarizations) == Counter(pols_expected)
 
     # Test ant_str='auto' on file with auto correlations
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5")
-    uv.read(testfile)
+    uv = hera_uvh5_xx
 
     ant_str = "auto"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
@@ -5844,7 +5792,7 @@ def test_parse_ants(casa_uvfits):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_select_with_ant_str(casa_uvfits):
+def test_select_with_ant_str(casa_uvfits, hera_uvh5_xx):
     # Test select function with ant_str argument
     uv = casa_uvfits
     inplace = False
@@ -6122,9 +6070,7 @@ def test_select_with_ant_str(casa_uvfits):
     assert Counter(uv2.get_pols()) == Counter(pols)
 
     # Test ant_str = 'auto' on file with auto correlations
-    uv = UVData()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5")
-    uv.read(testfile)
+    uv = hera_uvh5_xx
 
     ant_str = "auto"
     ant_nums = [
@@ -6881,8 +6827,6 @@ def test_quick_redundant_vs_redundant_test_array(pyuvsim_redundant):
     assert groups == redundant_groups
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_redundancy_finder_when_nblts_not_nbls_times_ntimes(casa_uvfits):
     """Test the redundancy finder functions when Nblts != Nbls * Ntimes."""
     tol = 1  # meter
@@ -7046,8 +6990,6 @@ def test_lsts_from_time_with_only_unique_background(paper_uvh5):
     assert np.array_equal(full_lsts, uv.lst_array)
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_copy(casa_uvfits):
     """Test the copy method"""
     uv_object = casa_uvfits
@@ -8839,12 +8781,11 @@ def test_resample_in_time_warning():
     assert uv2 == uv
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_frequency_average(uvdata_data, future_shapes):
+def test_frequency_average(casa_uvfits, future_shapes):
     """Test averaging in frequency."""
-    uvobj = uvdata_data.uv_object
+    uvobj = casa_uvfits
 
     if future_shapes:
         uvobj.use_future_array_shapes()
@@ -8907,12 +8848,11 @@ def test_frequency_average(uvdata_data, future_shapes):
     assert not isinstance(uvobj.nsample_array, np.ma.MaskedArray)
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_frequency_average_uneven(uvdata_data, future_shapes):
+def test_frequency_average_uneven(casa_uvfits, future_shapes):
     """Test averaging in frequency with a number that is not a factor of Nfreqs."""
-    uvobj = uvdata_data.uv_object
+    uvobj = casa_uvfits
 
     if future_shapes:
         uvobj.use_future_array_shapes()
@@ -8972,12 +8912,11 @@ def test_frequency_average_uneven(uvdata_data, future_shapes):
     assert np.nonzero(uvobj.flag_array)[0].size == 0
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_frequency_average_flagging(uvdata_data, future_shapes):
+def test_frequency_average_flagging(casa_uvfits, future_shapes):
     """Test averaging in frequency with flagging all samples averaged."""
-    uvobj = uvdata_data.uv_object
+    uvobj = casa_uvfits
 
     if future_shapes:
         uvobj.use_future_array_shapes()
@@ -9039,134 +8978,119 @@ def test_frequency_average_flagging(uvdata_data, future_shapes):
         assert np.nonzero(uvobj.flag_array[inds01[1:], :, 0, :])[0].size == 0
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_frequency_average_flagging_partial(uvdata_data):
+def test_frequency_average_flagging_partial(casa_uvfits):
     """Test averaging in frequency with flagging only one sample averaged."""
+    uvobj = casa_uvfits
+    uvobj2 = uvobj.copy()
     # check that there's no flagging
-    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+    assert np.nonzero(uvobj.flag_array)[0].size == 0
 
     # apply some flagging for testing
-    inds01 = uvdata_data.uv_object.antpair2ind(0, 1)
-    uvdata_data.uv_object.flag_array[inds01[0], :, 0, :] = True
-    assert (
-        np.nonzero(uvdata_data.uv_object.flag_array)[0].size
-        == uvdata_data.uv_object.Npols
-    )
+    inds01 = uvobj.antpair2ind(0, 1)
+    uvobj.flag_array[inds01[0], :, 0, :] = True
+    assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols
 
-    uvdata_data.uv_object.frequency_average(2)
+    uvobj.frequency_average(2)
 
-    assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
+    assert uvobj.Nfreqs == (uvobj2.Nfreqs / 2)
 
     # TODO: Spw axis to be collapsed in future release
-    expected_freqs = uvdata_data.uv_object2.freq_array.reshape(
-        1, int(uvdata_data.uv_object2.Nfreqs / 2), 2
-    ).mean(axis=2)
-    assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
+    expected_freqs = uvobj2.freq_array.reshape(1, int(uvobj2.Nfreqs / 2), 2).mean(
+        axis=2
+    )
+    assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
-    expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze="none")
+    expected_data = uvobj2.get_data(0, 1, squeeze="none")
     # TODO: Spw axis to be collapsed in future release
     reshape_tuple = (
         expected_data.shape[0],
         1,
-        int(uvdata_data.uv_object2.Nfreqs / 2),
+        int(uvobj2.Nfreqs / 2),
         2,
-        uvdata_data.uv_object2.Npols,
+        uvobj2.Npols,
     )
     expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
-    expected_data[0, :, 0, :] = uvdata_data.uv_object2.data_array[inds01[0], :, 1, :]
-    assert np.allclose(
-        uvdata_data.uv_object.get_data(0, 1, squeeze="none"), expected_data
-    )
+    expected_data[0, :, 0, :] = uvobj2.data_array[inds01[0], :, 1, :]
+    assert np.allclose(uvobj.get_data(0, 1, squeeze="none"), expected_data)
 
     # check that there's no flagging
-    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+    assert np.nonzero(uvobj.flag_array)[0].size == 0
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_frequency_average_flagging_full_and_partial(uvdata_data):
+def test_frequency_average_flagging_full_and_partial(casa_uvfits):
     """
     Test averaging in frequency with flagging all of one and only one of
     another sample averaged.
     """
+    uvobj = casa_uvfits
+    uvobj2 = uvobj.copy()
     # check that there's no flagging
-    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+    assert np.nonzero(uvobj.flag_array)[0].size == 0
 
     # apply some flagging for testing
-    inds01 = uvdata_data.uv_object.antpair2ind(0, 1)
-    uvdata_data.uv_object.flag_array[inds01[0], :, 0:3, :] = True
-    assert (
-        np.nonzero(uvdata_data.uv_object.flag_array)[0].size
-        == uvdata_data.uv_object.Npols * 3
-    )
+    inds01 = uvobj.antpair2ind(0, 1)
+    uvobj.flag_array[inds01[0], :, 0:3, :] = True
+    assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols * 3
 
-    uvdata_data.uv_object.frequency_average(2)
+    uvobj.frequency_average(2)
 
-    assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
+    assert uvobj.Nfreqs == (uvobj2.Nfreqs / 2)
 
     # TODO: Spw axis to be collapsed in future release
-    expected_freqs = uvdata_data.uv_object2.freq_array.reshape(
-        1, int(uvdata_data.uv_object2.Nfreqs / 2), 2
-    ).mean(axis=2)
-    assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
+    expected_freqs = uvobj2.freq_array.reshape(1, int(uvobj2.Nfreqs / 2), 2).mean(
+        axis=2
+    )
+    assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
-    expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze="none")
+    expected_data = uvobj2.get_data(0, 1, squeeze="none")
     # TODO: Spw axis to be collapsed in future release
     reshape_tuple = (
         expected_data.shape[0],
         1,
-        int(uvdata_data.uv_object2.Nfreqs / 2),
+        int(uvobj2.Nfreqs / 2),
         2,
-        uvdata_data.uv_object2.Npols,
+        uvobj2.Npols,
     )
     expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
 
-    expected_data[0, :, 1, :] = uvdata_data.uv_object2.data_array[inds01[0], :, 3, :]
+    expected_data[0, :, 1, :] = uvobj2.data_array[inds01[0], :, 3, :]
 
-    assert np.allclose(
-        uvdata_data.uv_object.get_data(0, 1, squeeze="none"), expected_data
-    )
-    assert (
-        np.nonzero(uvdata_data.uv_object.flag_array)[0].size
-        == uvdata_data.uv_object.Npols
-    )
+    assert np.allclose(uvobj.get_data(0, 1, squeeze="none"), expected_data)
+    assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_frequency_average_flagging_partial_twostage(uvdata_data):
+def test_frequency_average_flagging_partial_twostage(casa_uvfits):
     """
     Test averaging in frequency in two stages with flagging only one sample averaged.
     """
+    uvobj = casa_uvfits
     # check that there's no flagging
-    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+    assert np.nonzero(uvobj.flag_array)[0].size == 0
 
     # apply some flagging for testing
-    inds01 = uvdata_data.uv_object.antpair2ind(0, 1)
-    uvdata_data.uv_object.flag_array[inds01[0], :, 0, :] = True
-    assert (
-        np.nonzero(uvdata_data.uv_object.flag_array)[0].size
-        == uvdata_data.uv_object.Npols
-    )
+    inds01 = uvobj.antpair2ind(0, 1)
+    uvobj.flag_array[inds01[0], :, 0, :] = True
+    assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols
 
-    uv_object3 = uvdata_data.uv_object.copy()
+    uv_object3 = uvobj.copy()
 
-    uvdata_data.uv_object.frequency_average(2)
-    uvdata_data.uv_object.frequency_average(2)
+    uvobj.frequency_average(2)
+    uvobj.frequency_average(2)
 
     uv_object3.frequency_average(4)
 
-    assert uvdata_data.uv_object == uv_object3
+    assert uvobj == uv_object3
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_frequency_average_summing_corr_mode(uvdata_data, future_shapes):
+def test_frequency_average_summing_corr_mode(casa_uvfits, future_shapes):
     """Test averaging in frequency."""
     # check that there's no flagging
-    uvobj = uvdata_data.uv_object
+    uvobj = casa_uvfits
 
     if future_shapes:
         uvobj.use_future_array_shapes()
@@ -9214,17 +9138,16 @@ def test_frequency_average_summing_corr_mode(uvdata_data, future_shapes):
     assert not isinstance(uvobj.nsample_array, np.ma.MaskedArray)
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_frequency_average_propagate_flags(uvdata_data, future_shapes):
+def test_frequency_average_propagate_flags(casa_uvfits, future_shapes):
     """
     Test averaging in frequency with flagging all of one and only one of
     another sample averaged, and propagating flags. Data should be identical,
     but flags should be slightly different compared to other test of the same
     name.
     """
-    uvobj = uvdata_data.uv_object
+    uvobj = casa_uvfits
 
     if future_shapes:
         uvobj.use_future_array_shapes()
@@ -9285,71 +9208,66 @@ def test_frequency_average_propagate_flags(uvdata_data, future_shapes):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_frequency_average_nsample_precision(uvdata_data):
+def test_frequency_average_nsample_precision(casa_uvfits):
     """Test averaging in frequency with a half-precision nsample_array."""
+    uvobj = casa_uvfits
+    uvobj2 = uvobj.copy()
     eq_coeffs = np.tile(
-        np.arange(uvdata_data.uv_object.Nfreqs, dtype=np.float64),
-        (uvdata_data.uv_object.Nants_telescope, 1),
+        np.arange(uvobj.Nfreqs, dtype=np.float64), (uvobj.Nants_telescope, 1),
     )
-    uvdata_data.uv_object.eq_coeffs = eq_coeffs
-    uvdata_data.uv_object.check()
+    uvobj.eq_coeffs = eq_coeffs
+    uvobj.check()
 
     # check that there's no flagging
-    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+    assert np.nonzero(uvobj.flag_array)[0].size == 0
 
     # change precision of the nsample array
-    uvdata_data.uv_object.nsample_array = uvdata_data.uv_object.nsample_array.astype(
-        np.float16
-    )
+    uvobj.nsample_array = uvobj.nsample_array.astype(np.float16)
 
     with uvtest.check_warnings(UserWarning, "eq_coeffs vary by frequency"):
-        uvdata_data.uv_object.frequency_average(2),
+        uvobj.frequency_average(2),
 
-    assert uvdata_data.uv_object.Nfreqs == (uvdata_data.uv_object2.Nfreqs / 2)
+    assert uvobj.Nfreqs == (uvobj2.Nfreqs / 2)
 
     # TODO: Spw axis to be collapsed in future release
-    expected_freqs = uvdata_data.uv_object2.freq_array.reshape(
-        1, int(uvdata_data.uv_object2.Nfreqs / 2), 2
-    ).mean(axis=2)
-    assert np.max(np.abs(uvdata_data.uv_object.freq_array - expected_freqs)) == 0
+    expected_freqs = uvobj2.freq_array.reshape(1, int(uvobj2.Nfreqs / 2), 2).mean(
+        axis=2
+    )
+    assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
     expected_coeffs = eq_coeffs.reshape(
-        uvdata_data.uv_object2.Nants_telescope,
-        int(uvdata_data.uv_object2.Nfreqs / 2),
-        2,
+        uvobj2.Nants_telescope, int(uvobj2.Nfreqs / 2), 2,
     ).mean(axis=2)
-    assert np.max(np.abs(uvdata_data.uv_object.eq_coeffs - expected_coeffs)) == 0
+    assert np.max(np.abs(uvobj.eq_coeffs - expected_coeffs)) == 0
 
     # no flagging, so the following is true
-    expected_data = uvdata_data.uv_object2.get_data(0, 1, squeeze="none")
+    expected_data = uvobj2.get_data(0, 1, squeeze="none")
     # TODO: Spw axis to be collapsed in future release
     reshape_tuple = (
         expected_data.shape[0],
         1,
-        int(uvdata_data.uv_object2.Nfreqs / 2),
+        int(uvobj2.Nfreqs / 2),
         2,
-        uvdata_data.uv_object2.Npols,
+        uvobj2.Npols,
     )
     expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
-    assert np.allclose(
-        uvdata_data.uv_object.get_data(0, 1, squeeze="none"), expected_data
-    )
+    assert np.allclose(uvobj.get_data(0, 1, squeeze="none"), expected_data)
 
-    assert np.nonzero(uvdata_data.uv_object.flag_array)[0].size == 0
+    assert np.nonzero(uvobj.flag_array)[0].size == 0
 
-    assert not isinstance(uvdata_data.uv_object.data_array, np.ma.MaskedArray)
-    assert not isinstance(uvdata_data.uv_object.nsample_array, np.ma.MaskedArray)
+    assert not isinstance(uvobj.data_array, np.ma.MaskedArray)
+    assert not isinstance(uvobj.nsample_array, np.ma.MaskedArray)
 
     # make sure we still have a half-precision nsample_array
-    assert uvdata_data.uv_object.nsample_array.dtype.type is np.float16
+    assert uvobj.nsample_array.dtype.type is np.float16
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_remove_eq_coeffs_divide(uvdata_data, future_shapes):
+def test_remove_eq_coeffs_divide(casa_uvfits, future_shapes):
     """Test using the remove_eq_coeffs method with divide convention."""
-    uvobj = uvdata_data.uv_object
+    uvobj = casa_uvfits
 
     if future_shapes:
         uvobj.use_future_array_shapes()
@@ -9375,12 +9293,11 @@ def test_remove_eq_coeffs_divide(uvdata_data, future_shapes):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_remove_eq_coeffs_multiply(uvdata_data, future_shapes):
+def test_remove_eq_coeffs_multiply(casa_uvfits, future_shapes):
     """Test using the remove_eq_coeffs method with multiply convention."""
-    uvobj = uvdata_data.uv_object
+    uvobj = casa_uvfits
 
     if future_shapes:
         uvobj.use_future_array_shapes()
@@ -9406,29 +9323,26 @@ def test_remove_eq_coeffs_multiply(uvdata_data, future_shapes):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_remove_eq_coeffs_errors(uvdata_data):
+def test_remove_eq_coeffs_errors(casa_uvfits):
     """Test errors raised by remove_eq_coeffs method."""
+    uvobj = casa_uvfits
     # raise error when eq_coeffs are not defined
     with pytest.raises(ValueError) as cm:
-        uvdata_data.uv_object.remove_eq_coeffs()
+        uvobj.remove_eq_coeffs()
     assert str(cm.value).startswith("The eq_coeffs attribute must be defined")
 
     # raise error when eq_coeffs are defined but not eq_coeffs_convention
-    uvdata_data.uv_object.eq_coeffs = np.ones(
-        (uvdata_data.uv_object.Nants_telescope, uvdata_data.uv_object.Nfreqs)
-    )
+    uvobj.eq_coeffs = np.ones((uvobj.Nants_telescope, uvobj.Nfreqs))
     with pytest.raises(ValueError) as cm:
-        uvdata_data.uv_object.remove_eq_coeffs()
+        uvobj.remove_eq_coeffs()
     assert str(cm.value).startswith(
         "The eq_coeffs_convention attribute must be defined"
     )
 
     # raise error when convention is not a valid choice
-    uvdata_data.uv_object.eq_coeffs_convention = "foo"
+    uvobj.eq_coeffs_convention = "foo"
     with pytest.raises(ValueError) as cm:
-        uvdata_data.uv_object.remove_eq_coeffs()
+        uvobj.remove_eq_coeffs()
     assert str(cm.value).startswith("Got unknown convention foo. Must be one of")
 
     return
