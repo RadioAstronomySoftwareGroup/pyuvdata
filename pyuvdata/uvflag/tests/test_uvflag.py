@@ -148,6 +148,19 @@ def test_outfile(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_check_flag_array(uvdata_obj):
+    uvf = UVFlag()
+    uvf.from_uvdata(uvdata_obj, mode="flag")
+
+    uvf.flag_array = np.ones((uvf.flag_array.shape), dtype=int)
+
+    with pytest.raises(
+        ValueError, match="UVParameter _flag_array is not the appropriate type.",
+    ):
+        uvf.check()
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_init_bad_mode(uvdata_obj):
     uv = uvdata_obj
     with pytest.raises(ValueError) as cm:
