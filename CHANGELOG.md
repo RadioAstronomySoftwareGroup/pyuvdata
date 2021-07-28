@@ -10,6 +10,10 @@ All notable changes to this project will be documented in this file.
 an astropy dependency).
 
 ### Fixed
+- A bug that allowed the check to pass on `UVData`, `UVCal` and `UVFlag` objects if the
+`flag_array` contained integers instead of booleans.
+- A bug in equality testing for `UVParameter` objects with strict types when the
+parameters contain arrays.
 - Provide a more useful error message if `UVCal.read_fhd_cal` is called with
 `read_data=False` and a settings file is not provided.
 - Fixed a bug in `UVCal.read_fhd_cal` where the reader crashed on a metadata only read
