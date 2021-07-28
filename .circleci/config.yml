@@ -14,6 +14,8 @@ jobs:
       PYTHON: << parameters.python_version >>
       ENV_NAME: << parameters.env_name >>
       OS: "linux"
+      # Circleci builds fail on forks because the version gets munged. (see #1029)
+      SETUPTOOLS_SCM_PRETEND_VERSION: "0.0.1"
     steps:
       - checkout
       - restore_cache:
@@ -45,6 +47,8 @@ jobs:
       ENV_NAME: << parameters.env_name >>
       WITH_SUDO: true
       OS: "linux"
+      # Circleci builds fail on forks because the version gets munged. (see #1029)
+      SETUPTOOLS_SCM_PRETEND_VERSION: "0.0.1"
     steps:
       - checkout
       - restore_cache:
@@ -98,6 +102,8 @@ jobs:
       PYTHON: << parameters.python_version >>
       ENV_NAME: << parameters.env_name >>
       OS: "linux"
+      # Circleci builds fail on forks because the version gets munged. (see #1029)
+      SETUPTOOLS_SCM_PRETEND_VERSION: "0.0.1"
     steps:
       - checkout
       - restore_cache:
