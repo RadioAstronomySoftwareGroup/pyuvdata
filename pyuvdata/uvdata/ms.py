@@ -71,7 +71,7 @@ class MS(UVData):
     """
     Defines a class for reading and writing casa measurement sets.
 
-    This class should not be interacted with directly, instead use the read_ms
+    This class should not be interacted with directly, instead use the Sms
     method on the UVData class.
 
     Attributes
@@ -81,6 +81,118 @@ class MS(UVData):
     """
 
     ms_required_extra = ["datacolumn", "antenna_positions"]
+
+    def _init_ms_file(self, filepath):
+        """
+        Create a skeleton MS dataset to fill.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to MS to be created.
+        """
+        # The required_ms_desc returns the defaults for a CASA MS table
+        ms_desc = tables.required_ms_desc("MAIN")
+
+        # The tables have a different choice of dataManagerType and dataManagerGroup
+        # based on a test ALMA dataset and comparison with what gets generated with
+        # a dataset that comes through importuvfits.
+        ms_desc["FLAG"].update(
+            dataManagerType="TiledShapeStMan", dataManagerGroup="TiledFlag",
+        )
+        # TODO: Check if MEASINFO:Ref should be ITRF or J2000
+        ms_desc["UVW"].update(
+            dataManagerType="TiledColumnStMan", dataManagerGroup="TiledUVW",
+        )
+        # TODO: Can stuff UVFLAG objects into this
+        ms_desc["FLAG_CATEGORY"].update(
+            dataManagerType="TiledShapeStMan",
+            dataManagerGroup="TiledFlagCategory",
+            keywords={"CATEGORY": []},
+        )
+        ms_desc["WEIGHT"].update(
+            dataManagerType="TiledShapeStMan", dataManagerGroup="TiledWgt",
+        )
+        ms_desc["SIGMA"].update(
+            dataManagerType="TiledShapeStMan", dataManagerGroup="TiledSigma",
+        )
+
+        # The ALMA default for he next set of columns from the MAIN table use the
+        # name of the column as the dataManagerGroup, so we update the casacore
+        # defaults accordingly.
+        for key in ["ANTENNA1", "ANTENNA2", "DATA_DESC_ID", "FLAG_ROW"]:
+            ms_desc[key].update(dataManagerGroup=key)
+
+        # The ALMA default for he next set of columns from the MAIN table use the
+        # IncrementalStMan dataMangerType, and so we update the casacore defaults
+        # (along with the name dataManagerGroup name to the column name, which is
+        # also the apparent default for ALMA).
+        incremental_list = [
+            "ARRAY_ID",
+            "EXPOSURE",
+            "FEED1",
+            "FEED2",
+            "FIELD_ID",
+            "INTERVAL",
+            "OBSERVATION_ID",
+            "PROCESSOR_ID",
+            "SCAN_NUMBER",
+            "STATE_ID",
+            "TIME",
+            "TIME_CENTROID",
+        ]
+        for key in incremental_list:
+            ms_desc[key].update(
+                dataManagerType="IncrementalStMan", dataManagerGroup=key,
+            )
+
+        # TODO: Verify that the casacore defaults for coldesc are satisfactory for
+        # the tables and columns below (note that these were columns with apparent
+        # discrepancies between a test ALMA dataset and what casacore generated).
+        # FEED:FOCUS_LENGTH
+        # FIELD
+        # POINTING:TARGET
+        # POINTING:POINTING_OFFSET
+        # POINTING:ENCODER
+        # POINTING:ON_SOURCE
+        # POINTING:OVER_THE_TOP
+        # SPECTRAL_WINDOW:BBC_NO
+        # SPECTRAL_WINDOW:ASSOC_SPW_ID
+        # SPECTRAL_WINDOW:ASSOC_NATURE
+        # SPECTRAL_WINDOW:SDM_WINDOW_FUNCTION
+        # SPECTRAL_WINDOW:SDM_NUM_BIN
+
+        # Create a column for the data, which is amusingly enough not actually
+        # creaed by default.
+        datacoldesc = tables.makearrcoldesc(
+            "DATA",
+            0.0 + 0.0j,
+            valuetype="complex",
+            ndim=2,
+            datamanagertype="TiledShapeStMan",
+            datamanagergroup="TiledData",
+            comment="The data column",
+        )
+        del datacoldesc["desc"]["shape"]
+        ms_desc.update(tables.maketabdesc(datacoldesc))
+
+        # Now create a column for the weight spectrum, which we plug nsample_array into
+        weightspeccoldesc = tables.makearrcoldesc(
+            "WEIGHT_SPECTRUM",
+            0.0,
+            valuetype="float",
+            ndim=2,
+            datamanagertype="TiledShapeStMan",
+            datamanagergroup="TiledWgtSpectrum",
+            comment="Weight for each data point",
+        )
+        del weightspeccoldesc["desc"]["shape"]
+
+        ms_desc.update(tables.maketabdesc(weightspeccoldesc))
+
+        # Finally, create the dataset, and return a handle to the freshly created
+        # skeleton measurement set.
+        return tables.default_ms(filepath, ms_desc, tables.makedminfo(ms_desc))
 
     def _write_ms_antenna(self, filepath):
         """
@@ -113,8 +225,10 @@ class MS(UVData):
         # The MS definition doc suggests that antenna names belong in the NAME column
         # and the telescope name belongs in the STATION column (it gives the example of
         # GREENBANK for this column.) so we follow that here.
+        # TODO: Karto, STATION == pad, NAME == Antenna name. Write something clever here
+        # about it.
         antenna_table.putcol("NAME", ant_names_table)
-        antenna_table.putcol("STATION", [self.telescope_name] * nants_table)
+        antenna_table.putcol("STATION", ant_names_table)
 
         # Antenna positions in measurement sets appear to be in absolute ECEF
         ant_pos_absolute = self.antenna_positions + self.telescope_location.reshape(
@@ -470,7 +584,7 @@ class MS(UVData):
             sw_table.putcell("RESOLUTION", idx, ch_width[ch_mask])
             # TODO: These are placeholders for now, but should be replaced with
             # actual frequency reference info (once UVData handles that)
-            sw_table.putcell("MEAS_FREQ_REF", idx, VEL_DICT["TOPO"])
+            sw_table.putcell("MEAS_FREQ_REF", idx, VEL_DICT["LSRK"])
             sw_table.putcell("REF_FREQUENCY", idx, freq_array[0])
 
     def _write_ms_observation(self, filepath):
@@ -842,89 +956,59 @@ class MS(UVData):
                 "reflect the phasing status of the data"
             )
 
-        if self.flex_spw:
-            nchan = np.sum(self.flex_spw_id_array == self.spw_array[0])
-            for spw_id in self.spw_array:
-                if np.sum(self.flex_spw_id_array == spw_id) != nchan:
-                    raise ValueError("Nope, can't do it!")
-        else:
-            nchan = self.freq_array.shape[-1]
+        # Initialize a skelton measurement set
+        ms = self._init_ms_file(filepath)
 
-        npol = len(self.polarization_array)
-        nrow = len(self.data_array) * self.Nspws
+        # All all the rows we need up front, which will allow us to fill the columns
+        # all in one shot.
+        ms.addrows(self.Nblts * self.Nspws)
 
-        datacoldesc = tables.makearrcoldesc(
-            "DATA",
-            0.0 + 0.0j,
-            valuetype="complex",
-            shape=[nchan, npol],
-            datamanagertype="TiledColumnStMan",
-            datamanagergroup="TiledData",
-        )
-        weightcoldesc = tables.makearrcoldesc(
-            "WEIGHT_SPECTRUM",
-            0.0,
-            valuetype="float",
-            shape=[nchan, npol],
-            datamanagertype="TiledColumnStMan",
-            datamanagergroup="TiledData",
-        )
+        attr_list = ["data_array", "nsample_array", "flag_array"]
+        col_list = ["DATA", "WEIGHT_SPECTRUM", "FLAG"]
 
-        # It'd be good to understand what it is that "option=4" sets
-        ms_desc = tables.required_ms_desc("MAIN")
-        ms_desc["FLAG"].update(
-            dataManagerType="TiledColumnStMan",
-            shape=[nchan, npol],
-            dataManagerGroup="TiledFlag",
-            cellShape=[nchan, npol],
-            option=4,
-        )
-        ms_desc.update(tables.maketabdesc(datacoldesc))
-        ms_desc.update(tables.maketabdesc(weightcoldesc))
+        # Some tasks in CASA require a band-representative (band-averaged?) value for
+        # the weights and noise for all channels in each row in the MAIN table, which
+        # we will roughly calculate in temp_weights below.
+        temp_weights = np.zeros((self.Nblts * self.Nspws, self.Npols), dtype=float)
 
-        ms = tables.default_ms(filepath, ms_desc, tables.makedminfo(ms_desc))
-        ms.addrows(nrow)
+        for attr, col in zip(attr_list, col_list):
+            val_dict = {}
+            temp_array = getattr(self, attr)
 
-        # TODO: remove squeeze for future array shapes
-        # FITS uvw direction convention is opposite ours and Miriad's.
-        # CASA's convention is unclear: the docs contradict themselves,
-        # but after a question to the helpdesk we got a clear response that
-        # the convention is antenna2_pos - antenna1_pos, so the convention is the
-        # same as ours & Miriad's
-        if self.future_array_shapes:
-            data_array = self.data_array
-            weight_array = self.nsample_array
-            flag_array = self.flag_array
-        else:
-            data_array = np.squeeze(self.data_array, axis=1)
-            weight_array = np.squeeze(self.nsample_array, axis=1)
-            flag_array = np.squeeze(self.flag_array, axis=1)
+            if not self.future_array_shapes:
+                temp_array = np.squeeze(temp_array, axis=1)
 
-        for idx, spw_id in enumerate(self.spw_array):
-            if self.flex_spw:
-                sel_mask = self.flex_spw_id_array == spw_id
-            else:
-                sel_mask = np.ones(self.Nfreqs, dtype=bool)
+            for idx, spw_id in enumerate(self.spw_array):
+                if self.flex_spw:
+                    sel_mask = self.flex_spw_id_array == spw_id
+                else:
+                    sel_mask = np.ones(self.Nfreqs, dtype=bool)
 
-            ms.putcol(
-                "DATA", data_array[:, sel_mask, :], startrow=idx, rowincr=self.Nspws
-            )
-            ms.putcol(
-                "WEIGHT_SPECTRUM",
-                weight_array[:, sel_mask, :],
-                startrow=idx,
-                rowincr=self.Nspws,
-            )
-            ms.putcol(
-                "FLAG", flag_array[:, sel_mask, :], startrow=idx, rowincr=self.Nspws
-            )
+                temp_dict = {
+                    "r%i" % ((self.Nspws * jdx) + 1): temp_array[None, jdx, sel_mask, :]
+                    for jdx in np.arange(self.Nblts)
+                }
+
+                if col == "WEIGHT_SPECTRUM":
+                    temp_weights[idx :: self.Nspws] = np.median(
+                        temp_array[:, sel_mask], axis=1
+                    )
+
+                val_dict.update(temp_dict)
+            ms.putvarcol(col, val_dict)
+
+        # TODO: If/when UVData objects can store visibility noise estimates, update
+        # the code below to capture those.
+        ms.putcol("WEIGHT", temp_weights)
+        ms.putcol("SIGMA", np.power(temp_weights, -0.5, where=temp_weights != 0))
 
         ms.putcol("ANTENNA1", np.repeat(self.ant_1_array, self.Nspws))
         ms.putcol("ANTENNA2", np.repeat(self.ant_2_array, self.Nspws))
         ms.putcol("INTERVAL", np.repeat(self.integration_time, self.Nspws))
 
-        ms.putcol("DATA_DESC_ID", np.tile(np.arange(self.Nspws), data_array.shape[0]))
+        ms.putcol("DATA_DESC_ID", np.tile(np.arange(self.Nspws), self.Nblts))
 
+        # Note that the default for MS is UTC, which is the same as UVData
         ms.putcol(
             "TIME",
             np.repeat(
@@ -932,6 +1016,11 @@ class MS(UVData):
             ),
         )
 
+        # FITS uvw direction convention is opposite ours and Miriad's.
+        # CASA's convention is unclear: the docs contradict themselves,
+        # but after a question to the helpdesk we got a clear response that
+        # the convention is antenna2_pos - antenna1_pos, so the convention is the
+        # same as ours & Miriad's
         ms.putcol("UVW", np.repeat(self.uvw_array, self.Nspws, axis=0))
         if self.multi_phase_center:
             # We have to do an extra bit of work here, because CASA won't accept arb
@@ -1225,6 +1314,8 @@ class MS(UVData):
 
         self.antenna_diameters = ant_diams[ant_diams > 0]
 
+        # TODO: Potentially flip which is the default -- use ant_names if filled and
+        # unique.
         station_names
         station_names_same = False
         for name in station_names[1:]:
