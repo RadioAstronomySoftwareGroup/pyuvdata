@@ -393,7 +393,7 @@ class MS(UVData):
 
         source_desc = tables.complete_ms_desc("SOURCE")
         source_table = tables.table(
-            filepath + "::SOURCE",
+            filepath + "/SOURCE",
             tabledesc=source_desc,
             dminfo=tables.makedminfo(source_desc),
             ack=False,
