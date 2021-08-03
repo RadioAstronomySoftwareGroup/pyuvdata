@@ -6,6 +6,8 @@
 
 import pytest
 import os
+import h5py
+import itertools
 import numpy as np
 
 from pyuvdata import UVData
@@ -443,10 +445,8 @@ def test_flag_nsample_basic():
     )
     # check that only bad antennas are flagged for all times, freqs, pols
     bad_ants = [59, 114]
-    good_ants = list(range(128))
-    for j in bad_ants:
-        good_ants.remove(j)
-    bad = uv.select(antenna_nums=bad_ants, inplace=False)
+    good_ants = np.delete(np.unique(uv.ant_1_array), bad_ants)
+    bad = uv.select(antenna_nums=np.unique(uv.ant_1_array)[bad_ants], inplace=False)
     good = uv.select(antenna_nums=good_ants, inplace=False)
     assert np.all(bad.flag_array)
     good.flag_array = good.flag_array.reshape(
@@ -643,17 +643,21 @@ def test_remove_dig_gains():
 
     with fits.open(filelist[0]) as meta:
         meta_tbl = meta[1].data
-        antenna_numbers = meta_tbl["Antenna"][1::2]
+        antenna_inds = meta_tbl["Antenna"][1::2]
         dig_gains = meta_tbl["Gains"][1::2, :].astype(np.float64) / 64
-    reordered_inds = antenna_numbers.argsort()
-    dig_gains = dig_gains[reordered_inds, :]
-    dig_gains = dig_gains[:, np.array([23])]
-    dig_gains = np.repeat(dig_gains, 1, axis=1)
-    dig_gains1 = dig_gains[uv2.ant_1_array, :]
-    dig_gains2 = dig_gains[uv2.ant_2_array, :]
-    dig_gains1 = dig_gains1[:, :, np.newaxis, np.newaxis]
-    dig_gains2 = dig_gains2[:, :, np.newaxis, np.newaxis]
-    uv2.data_array = uv2.data_array / (dig_gains1 * dig_gains2)
+    reordered_inds = antenna_inds.argsort()
+    bad_ant_inds = [59, 114]
+    good_ants = np.delete(reordered_inds, bad_ant_inds)
+    ant_1_inds, ant_2_inds = np.transpose(
+        list(itertools.combinations_with_replacement(np.arange(uv2.Nants_data), 2))
+    )
+    ant_1_inds = np.tile(np.array(ant_1_inds), uv2.Ntimes).astype(np.int_)
+    ant_2_inds = np.tile(np.array(ant_2_inds), uv2.Ntimes).astype(np.int_)
+    dig_gains = dig_gains[good_ants, 23]
+    uv2.data_array = uv2.data_array / (
+        dig_gains[ant_1_inds, np.newaxis, np.newaxis, np.newaxis]
+        * dig_gains[ant_2_inds, np.newaxis, np.newaxis, np.newaxis]
+    )
     uv2.history = uv1.history
 
     assert "Divided out digital gains" in uv1.history
@@ -670,16 +674,14 @@ def test_remove_coarse_band():
     uv2 = UVData()
     uv2.read(filelist[0:2], remove_coarse_band=False)
 
-    with open(DATA_PATH + "/mwa_config_data/MWA_rev_cb_10khz_doubles.txt", "r") as f:
-        cb = f.read().splitlines()
-    cb_array = np.array(cb).astype(np.float64)
-    cb_array = cb_array.reshape(32, 4)
+    with h5py.File(
+        DATA_PATH + "/mwa_config_data/MWA_rev_cb_10khz_doubles.h5", "r"
+    ) as f:
+        cb = f["coarse_band"][:]
+    cb_array = cb.reshape(32, 4)
     cb_array = np.average(cb_array, axis=1)
-    cb_array = cb_array[0]
+    uv2.data_array /= cb_array[0, np.newaxis]
 
-    uv2.data_array = uv2.data_array.swapaxes(2, 3)
-    uv2.data_array = uv2.data_array / cb_array
-    uv2.data_array = uv2.data_array.swapaxes(2, 3)
     uv2.history = uv1.history
 
     assert "Divided out coarse channel bandpass" in uv1.history
@@ -777,8 +779,7 @@ def test_start_flag(tmp_path):
         edge_width=0,
         flag_dc_offset=False,
     )
-    good_ants = np.arange(128)
-    good_ants = np.delete(good_ants, [59, 114])
+    good_ants = np.delete(np.unique(uv1.ant_1_array), [59, 114])
     uv1.select(antenna_nums=good_ants)
     # start_time is after goodtime, so data for good antennas should be unflagged
     assert np.all(~uv1.flag_array)
@@ -897,8 +898,7 @@ def test_van_vleck_cheby():
     uv2.read(filelist[10])
 
     # select only good ants
-    good_ants = np.delete(np.arange(128), 76)
-    uv1.select(antenna_nums=good_ants)
+    good_ants = np.delete(np.unique(uv2.ant_1_array), 76)
     uv2.select(antenna_nums=good_ants)
 
     assert np.allclose(uv1.data_array, uv2.data_array)
@@ -940,7 +940,8 @@ def test_remove_flagged_ants(tmp_path):
     uv2.read(
         filelist[8:10], remove_flagged_ants=False,
     )
-    good_ants = np.delete(np.arange(128), 76)
+    good_ants = np.delete(np.unique(uv2.ant_1_array), 76)
+
     uv2.select(antenna_nums=good_ants)
 
     assert uv1 == uv2
