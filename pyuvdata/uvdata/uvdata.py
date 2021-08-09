@@ -3910,14 +3910,10 @@ class UVData(UVBase):
         self.polarization_array = self.polarization_array[index_array]
         if not self.metadata_only:
             # data array is special and large, take is faster here
-            if self.future_array_shapes:
-                self.data_array = np.take(self.data_array, index_array, axis=2)
-                self.nsample_array = self.nsample_array[:, :, index_array]
-                self.flag_array = self.flag_array[:, :, index_array]
-            else:
-                self.data_array = np.take(self.data_array, index_array, axis=3)
-                self.nsample_array = self.nsample_array[:, :, :, index_array]
-                self.flag_array = self.flag_array[:, :, :, index_array]
+            # use take to increase memory efficiency by not copying arrays
+            np.take(self.data_array, index_array, axis=-1, out=self.data_array)
+            np.take(self.nsample_array, index_array, axis=-1, out=self.nsample_array)
+            np.take(self.flag_array, index_array, axis=-1, out=self.flag_array)
 
         # check if object is self-consistent
         if run_check:
