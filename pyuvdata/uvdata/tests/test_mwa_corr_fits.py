@@ -636,7 +636,7 @@ def test_invalid_precision_errors():
 def test_remove_dig_gains():
     """Test digital gain removal."""
     uv1 = UVData()
-    uv1.read(filelist[0:2])
+    uv1.read(filelist[0:2], data_array_dtype=np.complex64)
 
     uv2 = UVData()
     uv2.read(filelist[0:2], remove_dig_gains=False)
@@ -660,19 +660,27 @@ def test_remove_dig_gains():
     )
     uv2.history = uv1.history
 
+    # make sure correction doesn't change data_array type
+    assert uv1.data_array.dtype == np.complex64
     assert "Divided out digital gains" in uv1.history
     assert uv1 == uv2
 
 
 @pytest.mark.filterwarnings("ignore:telescope_location is not set.")
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-def test_remove_coarse_band():
+def test_remove_coarse_band(tmp_path):
     """Test coarse band removal."""
+    # generate a spoof file with 32 channels
+    cb_spoof = str(tmp_path / "cb_spoof_01_00.fits")
+    with fits.open(filelist[1]) as mini1:
+        mini1[1].data = np.repeat(mini1[1].data, 32, axis=0)
+        mini1.writeto(cb_spoof)
+
     uv1 = UVData()
-    uv1.read(filelist[0:2])
+    uv1.read([filelist[0], cb_spoof], data_array_dtype=np.complex64)
 
     uv2 = UVData()
-    uv2.read(filelist[0:2], remove_coarse_band=False)
+    uv2.read([filelist[0], cb_spoof], remove_coarse_band=False)
 
     with h5py.File(
         DATA_PATH + "/mwa_config_data/MWA_rev_cb_10khz_doubles.h5", "r"
@@ -680,10 +688,12 @@ def test_remove_coarse_band():
         cb = f["coarse_band"][:]
     cb_array = cb.reshape(32, 4)
     cb_array = np.average(cb_array, axis=1)
-    uv2.data_array /= cb_array[0, np.newaxis]
+    uv2.data_array /= cb_array[:, np.newaxis]
 
     uv2.history = uv1.history
 
+    # make sure correction doesn't change data_array type
+    assert uv1.data_array.dtype == np.complex64
     assert "Divided out coarse channel bandpass" in uv1.history
     assert uv1 == uv2
 

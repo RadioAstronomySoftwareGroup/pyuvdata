@@ -3,6 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading MWA correlator FITS files."""
+
 import os
 import warnings
 import itertools
@@ -429,7 +430,15 @@ class MWACorrFITS(UVData):
             self.flag_array = np.reshape(self.flag_array, shape)
 
     def _read_fits_file(
-        self, filename, time_array, file_nums_to_index, num_fine_chans, int_time,
+        self,
+        filename,
+        time_array,
+        file_nums_to_index,
+        num_fine_chans,
+        int_time,
+        map_inds,
+        conj,
+        pol_index_array,
     ):
         """
         Read the fits file and populate into memory.
@@ -458,6 +467,10 @@ class MWACorrFITS(UVData):
         file_num = int(filename.split("_")[-2][-2:])
         # map file number to frequency index
         freq_ind = file_nums_to_index[file_num] * num_fine_chans
+        # create an intermediate array for data
+        coarse_chan_data = np.zeros(
+            (self.Ntimes, num_fine_chans, self.Nbls * self.Npols), dtype=np.complex64,
+        )
         with fits.open(filename, mode="denywrite") as hdu_list:
             for hdu in hdu_list:
                 # entry 0 is a header, so we skip it.
@@ -471,14 +484,36 @@ class MWACorrFITS(UVData):
                 time_ind = np.where(time_array == time)[0][0]
                 # dump data into matrix
                 # and take data from real to complex numbers
-                indices = np.index_exp[
-                    time_ind, freq_ind : freq_ind + num_fine_chans, :
-                ]
-                self.data_array[indices] = hdu.data[:, 0::2] + 1j * hdu.data[:, 1::2]
+                coarse_chan_data[time_ind, :, :] = (
+                    hdu.data[:, 0::2] + 1j * hdu.data[:, 1::2]
+                )
+                # fill nsample and flag arrays
                 self.nsample_array[
                     time_ind, :, freq_ind : freq_ind + num_fine_chans, :
                 ] = 1.0
                 self.flag_array[time_ind, :, file_nums_to_index[file_num], :] = False
+        # do mapping and reshaping here to avoid copying whole data_array
+        np.take(coarse_chan_data, map_inds, axis=2, out=coarse_chan_data)
+        # conjugate data
+        coarse_chan_data[:, :, conj] = np.conj(coarse_chan_data[:, :, conj])
+        # reshape
+        coarse_chan_data = coarse_chan_data.reshape(
+            (self.Ntimes, num_fine_chans, self.Nbls, self.Npols)
+        )
+        coarse_chan_data = np.swapaxes(coarse_chan_data, 1, 2)
+        coarse_chan_data = coarse_chan_data.reshape(
+            self.Nblts, num_fine_chans, self.Npols
+        )
+        # reorder pols here to avoid memory spike from self.reorder_pols
+        np.take(
+            coarse_chan_data, pol_index_array, axis=-1, out=coarse_chan_data,
+        )
+        # make a mask where data actually is
+        data_mask = coarse_chan_data != 0
+        self.data_array[:, freq_ind : freq_ind + num_fine_chans, :][
+            data_mask
+        ] = coarse_chan_data[data_mask]
+
         return
 
     def _self_van_vleck_autos(self, auto_inds, pols):
@@ -597,6 +632,9 @@ class MWACorrFITS(UVData):
         """
         history_add_string = " Applied Van Vleck correction."
         # reshape to (nbls, ntimes, nfreqs, npols)
+        self.data_array = self.data_array.reshape(
+            self.Ntimes, self.Nbls, self.Nfreqs, self.Npols
+        )
         self.data_array = np.swapaxes(self.data_array, 0, 1)
         # combine axes
         self.data_array = self.data_array.reshape(
@@ -666,8 +704,9 @@ class MWACorrFITS(UVData):
                 self.Nbls, self.Ntimes, self.Nfreqs
             )
             small_sig_flags = np.swapaxes(small_sig_flags, 0, 1)
+            small_sig_flags = small_sig_flags.reshape(self.Nblts, self.Nfreqs)
             self.flag_array = np.logical_or(
-                self.flag_array, small_sig_flags[:, :, :, np.newaxis]
+                self.flag_array, small_sig_flags[:, :, np.newaxis]
             )
         # get unflagged autos
         good_autos = np.delete(autos, flagged_ant_inds)
@@ -815,14 +854,14 @@ class MWACorrFITS(UVData):
                     ].flatten()
                     # correct real
                     kap = van_vleck_crosses_int(khat.real, sig1, sig2, cheby_approx)
-                    self.data_array.real[k, :, j, :] = kap.reshape(
-                        self.Ntimes, self.Npols
-                    )
+                    self.data_array.real[
+                        k, :, j, np.array([yy, yx, xy, xx])
+                    ] = kap.reshape(self.Npols, self.Ntimes)
                     # correct imaginary
                     kap = van_vleck_crosses_int(khat.imag, sig1, sig2, cheby_approx)
-                    self.data_array.imag[k, :, j, :] = kap.reshape(
-                        self.Ntimes, self.Npols
-                    )
+                    self.data_array.imag[
+                        k, :, j, np.array([yy, yx, xy, xx])
+                    ] = kap.reshape(self.Npols, self.Ntimes)
             # correct yx autos
             for k in good_autos:
                 for j in range(self.Nfreqs):
@@ -844,8 +883,9 @@ class MWACorrFITS(UVData):
         self.data_array.real[auto_inds, :, :, pols] = (
             self.data_array.real[auto_inds, :, :, pols] ** 2
         )
-        # reshape to (ntimes, nbls, nfreqs, npols)
+        # reshape to (nblts, nfreqs, npols)
         self.data_array = np.swapaxes(self.data_array, 0, 1)
+        self.data_array = self.data_array.reshape(self.Nblts, self.Nfreqs, self.Npols)
         # rescale the data
         self.data_array *= nsamples
         # return data array to desired precision
@@ -854,6 +894,110 @@ class MWACorrFITS(UVData):
         self.history += history_add_string
 
         return flagged_ant_inds
+
+    def _get_pfb_shape(self, avg_factor):
+        with h5py.File(
+            DATA_PATH + "/mwa_config_data/MWA_rev_cb_10khz_doubles.h5", "r"
+        ) as f:
+            cb = f["coarse_band"][:]
+        cb_array = cb.reshape(int(128 / avg_factor), int(avg_factor))
+        cb_array = np.average(cb_array, axis=1)
+
+        return cb_array
+
+    def _correct_coarse_band(
+        self,
+        cb_num,
+        ant_1_inds,
+        ant_2_inds,
+        cb_array,
+        dig_gains,
+        num_fine_chans,
+        correct_van_vleck,
+        remove_coarse_band,
+        remove_dig_gains,
+    ):
+        # get coarse band data as np.complex128
+        cb_data = self.data_array[
+            :, cb_num * num_fine_chans : (cb_num + 1) * num_fine_chans, :
+        ].astype(np.complex128)
+        # get coarse band flags
+        # cb_flags = self.flag_array[
+        #     :, cb_num * num_fine_chans : (cb_num + 1) * num_fine_chans, :
+        # ]
+        # correct van vleck
+        if correct_van_vleck:
+            pass
+
+        # remove digital gains
+        if remove_dig_gains:
+            dig_gains1 = dig_gains[ant_1_inds, cb_num, np.newaxis, np.newaxis]
+            dig_gains2 = dig_gains[ant_2_inds, cb_num, np.newaxis, np.newaxis]
+            cb_data /= dig_gains1
+            cb_data /= dig_gains2
+
+        # remove coarse band
+        if remove_coarse_band:
+            cb_data /= cb_array[:num_fine_chans, np.newaxis]
+
+        # put corrected data back into data array
+        self.data_array[
+            :, cb_num * num_fine_chans : (cb_num + 1) * num_fine_chans, :
+        ] = cb_data
+
+    def _apply_corrections(
+        self,
+        ant_1_inds,
+        ant_2_inds,
+        avg_factor,
+        coarse_chans,
+        dig_gains,
+        included_coarse_chans,
+        num_fine_chans,
+        cheby_approx,
+        data_array_dtype,
+        flag_small_sig_ants,
+        correct_van_vleck,
+        remove_coarse_band,
+        remove_dig_gains,
+    ):
+        # if van vleck, look for missed ants
+        # update flag array
+        # calculate nsamples
+        if remove_dig_gains:
+            self.history += " Divided out digital gains."
+            # get gains for included coarse channels
+            coarse_inds = np.where(np.isin(coarse_chans, included_coarse_chans))[0]
+            # during commissioning a shift in the bit selection in the digital
+            # receiver was implemented which effectively multiplies the data by
+            # a factor of 64. To account for this, the digital gains are divided
+            # by a factor of 64 here. For a more detailed explanation, see PR #908.
+            dig_gains = dig_gains[:, coarse_inds] / 64
+        else:
+            dig_gains = None
+
+        # get pfb response shape
+        if remove_coarse_band:
+            self.history += " Divided out coarse channel bandpass."
+            cb_array = self._get_pfb_shape(avg_factor)
+        else:
+            cb_array = None
+
+        # apply corrections to each coarse band
+        for i in range(len(included_coarse_chans)):
+            self._correct_coarse_band(
+                i,
+                ant_1_inds,
+                ant_2_inds,
+                cb_array,
+                dig_gains,
+                num_fine_chans,
+                correct_van_vleck,
+                remove_coarse_band,
+                remove_dig_gains,
+            )
+
+        return
 
     def read_mwa_corr_fits(
         self,
@@ -1132,6 +1276,9 @@ class MWACorrFITS(UVData):
                              or use_cotter_flags=False"
             )
 
+        # reorder file numbers
+        included_file_nums = sorted(included_file_nums)
+
         # first set parameters that are always true
         self.Nspws = 1
         self.spw_array = np.array([0])
@@ -1364,25 +1511,13 @@ class MWACorrFITS(UVData):
             )
         # polarizations are ordered yy, yx, xy, xx
         self.polarization_array = np.array([-6, -8, -7, -5])
+        # get index array for reordering
+        pol_index_array = np.argsort(np.abs(self.polarization_array))
+        # reorder polarization_array here to avoid memory spike from self.reorder_pols
+        self.polarization_array = self.polarization_array[pol_index_array]
 
         if read_data:
-            # read data into an array with dimensions (time, uv, baselines*pols)
-            self.data_array = np.zeros(
-                (self.Ntimes, self.Nfreqs, self.Nbls * self.Npols),
-                dtype=data_array_dtype,
-            )
-            self.nsample_array = np.zeros(
-                (self.Ntimes, self.Nbls, self.Nfreqs, self.Npols),
-                dtype=nsample_array_dtype,
-            )
-            self.flag_array = np.full(
-                (self.Ntimes, self.Nbls, len(included_coarse_chans), self.Npols), True
-            )
-            # read data files
-            for filename in file_dict["data"]:
-                self._read_fits_file(
-                    filename, time_array, file_nums_to_index, num_fine_chans, int_time
-                )
+
             # build mapper from antenna numbers and polarizations to pfb inputs
             corr_ants_to_pfb_inputs = {}
             for i in range(len(antenna_inds)):
@@ -1391,8 +1526,8 @@ class MWACorrFITS(UVData):
 
             # for mapping, start with a pair of antennas/polarizations
             # this is the pair we want to find the data for
-            # map the pair to the corresponding pfb input indices
-            # map the pfb input indices to the pfb output indices
+            # map the pair to the corresponding coarse pfb input indices
+            # map the coarse pfb input indices to the fine pfb output indices
             # these are the indices for the data corresponding to the initial
             # antenna/pol pair
 
@@ -1405,6 +1540,32 @@ class MWACorrFITS(UVData):
             conj = np.full((self.Nbls * self.Npols), False, dtype=np.bool_, order="C",)
 
             _corr_fits.generate_map(corr_ants_to_pfb_inputs, map_inds, conj)
+            # read data into an array with dimensions (time, uv, baselines*pols)
+
+            self.data_array = np.zeros(
+                (self.Nblts, self.Nfreqs, self.Npols), dtype=data_array_dtype,
+            )
+            self.nsample_array = np.zeros(
+                (self.Ntimes, self.Nbls, self.Nfreqs, self.Npols),
+                dtype=nsample_array_dtype,
+            )
+            self.flag_array = np.full(
+                (self.Ntimes, self.Nbls, len(included_coarse_chans), self.Npols), True
+            )
+            print(self.flag_array.dtype)
+
+            # read data files
+            for filename in file_dict["data"]:
+                self._read_fits_file(
+                    filename,
+                    time_array,
+                    file_nums_to_index,
+                    num_fine_chans,
+                    int_time,
+                    map_inds,
+                    conj,
+                    pol_index_array,
+                )
 
             # propagate coarse flags
             if propagate_coarse_flags:
@@ -1415,18 +1576,19 @@ class MWACorrFITS(UVData):
             else:
                 self.flag_array = np.repeat(self.flag_array, num_fine_chans, axis=2)
 
-            # reorder data
-            self.data_array = np.take(self.data_array, map_inds, axis=2)
-
-            # conjugate data
-            self.data_array[:, :, conj] = np.conj(self.data_array[:, :, conj])
-
-            # reshape data
-            self.data_array = self.data_array.reshape(
-                (self.Ntimes, self.Nfreqs, self.Nbls, self.Npols)
+            # flag bad ants
+            bad_ant_inds = np.logical_or(
+                np.isin(ant_1_inds[: self.Nbls], flagged_ant_inds),
+                np.isin(ant_2_inds[: self.Nbls], flagged_ant_inds),
             )
+            self.flag_array[:, bad_ant_inds, :, :] = True
 
-            self.data_array = np.swapaxes(self.data_array, 1, 2)
+            self.flag_array = self.flag_array.reshape(
+                (self.Nblts, self.Nfreqs, self.Npols)
+            )
+            self.nsample_array = self.nsample_array.reshape(
+                (self.Nblts, self.Nfreqs, self.Npols)
+            )
 
             # when MWA data is cast to float for the correlator, the division
             # by 127 introduces small errors that are mitigated when the data
@@ -1445,51 +1607,27 @@ class MWACorrFITS(UVData):
                     data_array_dtype=data_array_dtype,
                     flag_small_sig_ants=flag_small_sig_ants,
                 )
+            # apply corrections
+            if np.any([correct_van_vleck, remove_coarse_band, remove_dig_gains]):
+                self._apply_corrections(
+                    ant_1_inds,
+                    ant_2_inds,
+                    avg_factor,
+                    coarse_chans,
+                    dig_gains,
+                    included_coarse_chans,
+                    num_fine_chans,
+                    cheby_approx=cheby_approx,
+                    data_array_dtype=data_array_dtype,
+                    flag_small_sig_ants=flag_small_sig_ants,
+                    correct_van_vleck=correct_van_vleck,
+                    remove_coarse_band=remove_coarse_band,
+                    remove_dig_gains=remove_dig_gains,
+                )
 
             # rescale data
             # this needs to happen after the van vleck correction
             self.data_array *= self.extra_keywords["SCALEFAC"]
-
-            # combine baseline and time axes
-            self.data_array = self.data_array.reshape(
-                (self.Nblts, self.Nfreqs, self.Npols)
-            )
-            self.flag_array = self.flag_array.reshape(
-                (self.Nblts, self.Nfreqs, self.Npols)
-            )
-            self.nsample_array = self.nsample_array.reshape(
-                (self.Nblts, self.Nfreqs, self.Npols)
-            )
-            # divide out digital gains
-            if remove_dig_gains:
-                self.history += " Divided out digital gains."
-                # get gains for included coarse channels
-                coarse_inds = np.where(np.isin(coarse_chans, included_coarse_chans))[0]
-                # during commissioning a shift in the bit selection in the digital
-                # receiver was implemented which effectively multiplies the data by
-                # a factor of 64. To account for this, the digital gains are divided
-                # by a factor of 64 here. For a more detailed explanation, see PR #908.
-                dig_gains = dig_gains[:, coarse_inds] / 64
-                dig_gains = np.repeat(dig_gains, num_fine_chans, axis=1)
-                self.data_array /= (
-                    dig_gains[ant_1_inds, :, np.newaxis]
-                    * dig_gains[ant_2_inds, :, np.newaxis]
-                )
-            # divide out coarse band shape
-            if remove_coarse_band:
-                self.history += " Divided out coarse channel bandpass."
-                # get coarse band shape
-                with h5py.File(
-                    DATA_PATH + "/mwa_config_data/MWA_rev_cb_10khz_doubles.h5", "r"
-                ) as f:
-                    cb = f["coarse_band"][:]
-                cb_array = cb.reshape(int(128 / avg_factor), int(avg_factor))
-                cb_array = np.average(cb_array, axis=1)
-                cb_array = np.tile(
-                    cb_array[0:num_fine_chans], len(included_coarse_chans)
-                )
-
-                self.data_array /= cb_array[:, np.newaxis]
 
             # cable delay corrections
             if correct_cable_len:
@@ -1537,31 +1675,17 @@ class MWACorrFITS(UVData):
             # to account for discrepancies between file conventions, in order
             # to be consistent with the uvw vector direction, all the data must
             # be conjugated
-            self.data_array = np.conj(self.data_array)
+            np.conj(self.data_array, out=self.data_array)
 
         # wait for LSTs if set in background
         if proc is not None:
             proc.join()
 
-        if not self.metadata_only:
-            # reorder polarizations
-            # reorder pols calls check so must come after
-            # lst thread is re-joined.
-            self.reorder_pols(run_check=False)
-
-        # remove bad antennas or flag bad ants
+        # remove bad antennas
         # select must be called after lst thread is re-joined
         if remove_flagged_ants:
             good_ants = np.delete(np.array(self.antenna_numbers), flagged_ant_inds)
             self.select(antenna_nums=good_ants, run_check=False)
-        else:
-            if not self.metadata_only:
-                # generage baseline flags for flagged ants
-                bad_ant_inds = np.logical_or(
-                    np.isin(ant_1_inds, flagged_ant_inds),
-                    np.isin(ant_2_inds, flagged_ant_inds),
-                )
-                self.flag_array[bad_ant_inds, :, :] = True
 
         # phasing
         if phase_to_pointing_center:
