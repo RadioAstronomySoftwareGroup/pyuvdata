@@ -985,7 +985,8 @@ class MS(UVData):
                     sel_mask = np.ones(self.Nfreqs, dtype=bool)
 
                 temp_dict = {
-                    "r%i" % ((self.Nspws * jdx) + 1): temp_array[None, jdx, sel_mask, :]
+                    "r%i"
+                    % ((self.Nspws * jdx) + 1 + idx): temp_array[None, jdx, sel_mask, :]
                     for jdx in np.arange(self.Nblts)
                 }
 
