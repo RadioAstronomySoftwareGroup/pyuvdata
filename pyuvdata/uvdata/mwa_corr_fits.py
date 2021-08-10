@@ -458,7 +458,7 @@ class MWACorrFITS(UVData):
         file_nums : array
             List of included file numbers ordered by coarse channel
         num_fine_chans : int
-            Number of fine channels in a coarse channel
+            Number of fine channels in the data files
         int_time : float
             The integration time of each observation.
         map_inds : array
@@ -523,6 +523,36 @@ class MWACorrFITS(UVData):
         ] = coarse_chan_data[data_mask]
 
         return
+
+    def _read_flag_file(self, filename, file_nums, num_fine_chans):
+        """
+        Read aoflagger flag file into flag_array.
+
+        Parameters
+        ----------
+        filename : str
+            The aoflagger fits file to read
+        file_nums : array
+            List of included file numbers ordered by coarse channel
+        num_fine_chans : int
+            Number of fine channels in the data files
+
+        """
+        flag_num = int(filename.split("_")[-1][0:2])
+        # map file number to frequency index
+        freq_ind = np.where(file_nums == flag_num)[0][0] * num_fine_chans
+        with fits.open(filename, mode="denywrite") as aoflags:
+            flags = aoflags[1].data.field("FLAGS")
+        # some flag files are longer than data; crop the ends
+        flags = flags[: self.Nblts, :]
+        # some flag files are shorter than data; assume same end time
+        blt_ind = self.Nblts - len(flags)
+        flags = flags[:, :, np.newaxis]
+        self.flag_array[
+            blt_ind:, freq_ind : freq_ind + num_fine_chans, :
+        ] = np.logical_or(
+            self.flag_array[blt_ind:, freq_ind : freq_ind + num_fine_chans, :], flags,
+        )
 
     def _self_van_vleck_autos(self, auto_inds, pols):
         # cut off small sigmas that will not converge
@@ -608,13 +638,7 @@ class MWACorrFITS(UVData):
         return
 
     def van_vleck_correction(
-        self,
-        ant_1_inds,
-        ant_2_inds,
-        flagged_ant_inds,
-        cheby_approx,
-        data_array_dtype,
-        flag_small_sig_ants,
+        self, ant_1_inds, ant_2_inds, flagged_ant_inds, cheby_approx, data_array_dtype,
     ):
         """
         Apply a van vleck correction to the data array.
@@ -678,44 +702,6 @@ class MWACorrFITS(UVData):
         self.data_array.real[auto_inds, :, pols] = np.sqrt(
             self.data_array.real[auto_inds, :, pols]
         )
-        # np.sqrt(
-        #     self.data_array.real[auto_inds, :, pols],
-        #     out=self.data_array.real[auto_inds, :, pols],
-        # )
-        # look for small sigmas that will not converge
-        small_sig_flags = np.logical_and(
-            self.data_array.real[auto_inds, :, pols] != 0,
-            self.data_array.real[auto_inds, :, pols] <= 0.5,
-        )
-        if flag_small_sig_ants:
-            # find antenna indices for small sig ants and add to flagged_ant_inds
-            # nonzero sigmas below 0.5 generally indicate bad data
-            ant_inds = np.unique(np.nonzero(small_sig_flags)[0])
-            ant_inds = ant_inds[~np.in1d(ant_inds, flagged_ant_inds)]
-            if len(ant_inds) != 0:
-                history_add_string += (
-                    " The following antennas were flagged by the Van Vleck \
-                    correction and removed from the data: "
-                    + str(ant_inds)
-                    + "."
-                )
-                flagged_ant_inds = np.concatenate((flagged_ant_inds, ant_inds))
-        else:
-            # get flags for small sig ants and add to flag array
-            small_sig_flags = np.logical_or(
-                small_sig_flags[:, 0, :], small_sig_flags[:, 1, :]
-            )
-            small_sig_flags = np.logical_or(
-                small_sig_flags[ant_1_inds, :], small_sig_flags[ant_2_inds, :],
-            )
-            small_sig_flags = small_sig_flags.reshape(
-                self.Nbls, self.Ntimes, self.Nfreqs
-            )
-            small_sig_flags = np.swapaxes(small_sig_flags, 0, 1)
-            small_sig_flags = small_sig_flags.reshape(self.Nblts, self.Nfreqs)
-            self.flag_array = np.logical_or(
-                self.flag_array, small_sig_flags[:, :, np.newaxis]
-            )
         # get unflagged autos
         good_autos = np.delete(autos, flagged_ant_inds)
         self._self_van_vleck_autos(
@@ -901,6 +887,47 @@ class MWACorrFITS(UVData):
             self.data_array = self.data_array.astype(data_array_dtype)
         self.history += history_add_string
 
+    def _flag_small_auto_ants(
+        self, nsamples, flag_small_auto_ants, ant_1_inds, ant_2_inds, flagged_ant_inds
+    ):
+        # calculate threshold so that average cross multiply = 0.25
+        threshold = 0.25 * nsamples
+        # look for small autos and flag
+        auto_inds = self.ant_1_array == self.ant_2_array
+        # TODO: look for memory spike
+        autos = self.data_array.real[auto_inds, :, 0:2]
+        # auto_flags = self.flag_array[auto_inds, :, 0:2]
+        autos = autos.reshape(self.Ntimes, self.Nants_data, self.Nfreqs, 2)
+        # auto_flags = auto_flags.reshape(self.Ntimes, self.Nants_data, self.Nfreqs, 2)
+
+        small_auto_flags = np.logical_and(autos != 0, autos <= threshold,)
+        if flag_small_auto_ants:
+            # find antenna indices for small sig ants and add to flagged_ant_inds
+            # nonzero sigmas below 0.5 generally indicate bad data
+            ant_inds = np.unique(np.nonzero(small_auto_flags)[1])
+            ant_inds = ant_inds[~np.in1d(ant_inds, flagged_ant_inds)]
+            if len(ant_inds) != 0:
+                self.history += (
+                    " The following antennas were flagged by the Van Vleck \
+                    correction: "
+                    + str(ant_inds)
+                    + "."
+                )
+                flagged_ant_inds = np.concatenate((flagged_ant_inds, ant_inds))
+        else:
+            # get flags for small sig ants and add to flag array
+            small_auto_flags = np.logical_or(
+                small_auto_flags[:, :, :, 0], small_auto_flags[:, :, :, 1]
+            )
+            # broadcast autos flags to corresponding crosses
+            small_auto_flags = np.logical_or(
+                small_auto_flags[:, ant_1_inds[: self.Nbls], :],
+                small_auto_flags[:, ant_2_inds[: self.Nbls], :],
+            )
+            small_auto_flags = small_auto_flags.reshape(self.Nblts, self.Nfreqs)
+            self.flag_array = np.logical_or(
+                self.flag_array, small_auto_flags[:, :, np.newaxis]
+            )
         return flagged_ant_inds
 
     def _get_pfb_shape(self, avg_factor):
@@ -920,6 +947,7 @@ class MWACorrFITS(UVData):
         ant_2_inds,
         cb_array,
         dig_gains,
+        nsamples,
         num_fine_chans,
         correct_van_vleck,
         remove_coarse_band,
@@ -935,19 +963,20 @@ class MWACorrFITS(UVData):
         # ]
         # correct van vleck
         if correct_van_vleck:
+            # scale data
+            # cb_data /= nsamples
+            # auto_mask = ant_1_inds == ant_2_inds
+            # cross_mask = ant_1_inds != ant_2_inds
             pass
-
         # remove digital gains
         if remove_dig_gains:
             dig_gains1 = dig_gains[ant_1_inds, cb_num, np.newaxis, np.newaxis]
             dig_gains2 = dig_gains[ant_2_inds, cb_num, np.newaxis, np.newaxis]
             cb_data /= dig_gains1
             cb_data /= dig_gains2
-
         # remove coarse band
         if remove_coarse_band:
             cb_data /= cb_array[:num_fine_chans, np.newaxis]
-
         # put corrected data back into data array
         self.data_array[
             :, cb_num * num_fine_chans : (cb_num + 1) * num_fine_chans, :
@@ -961,16 +990,27 @@ class MWACorrFITS(UVData):
         dig_gains,
         spw_inds,
         num_fine_chans,
+        flagged_ant_inds,
         cheby_approx,
         data_array_dtype,
-        flag_small_sig_ants,
+        flag_small_auto_ants,
         correct_van_vleck,
         remove_coarse_band,
         remove_dig_gains,
     ):
-        # if van vleck, look for missed ants
-        # update flag array
-        # calculate nsamples
+        # get nsamples and check for small auto ants
+        if correct_van_vleck:
+            self.history += " Applied Van Vleck correction."
+            # calculate number of samples going into real or imaginary part
+            # factor of two comes from variables being circularly-symmetric
+            nsamples = self.channel_width[0] * self.integration_time[0] * 2
+            # look for small auto data and flag
+            flagged_ant_inds = self._flag_small_auto_ants(
+                nsamples, flag_small_auto_ants, ant_1_inds, ant_2_inds, flagged_ant_inds
+            )
+        else:
+            nsamples = None
+        # get digital gains
         if remove_dig_gains:
             self.history += " Divided out digital gains."
             # get gains for included coarse channels
@@ -982,7 +1022,6 @@ class MWACorrFITS(UVData):
             dig_gains = dig_gains[:, spw_inds] / 64
         else:
             dig_gains = None
-
         # get pfb response shape
         if remove_coarse_band:
             self.history += " Divided out coarse channel bandpass."
@@ -998,24 +1037,25 @@ class MWACorrFITS(UVData):
                 ant_2_inds,
                 cb_array,
                 dig_gains,
+                nsamples,
                 num_fine_chans,
                 correct_van_vleck,
                 remove_coarse_band,
                 remove_dig_gains,
             )
 
-        return
+        return flagged_ant_inds
 
     def read_mwa_corr_fits(
         self,
         filelist,
-        use_cotter_flags=None,
+        use_aoflagger_flags=None,
         remove_dig_gains=True,
         remove_coarse_band=True,
         correct_cable_len=False,
         correct_van_vleck=False,
         cheby_approx=True,
-        flag_small_sig_ants=True,
+        flag_small_auto_ants=True,
         phase_to_pointing_center=False,
         propagate_coarse_flags=True,
         flag_init=True,
@@ -1055,7 +1095,7 @@ class MWACorrFITS(UVData):
             objects. Please see the docstring for fast_concat for details.
             Allowed values are: 'blt', 'freq', 'polarization'. Only used if
             multiple files are passed.
-        use_cotter_flags : bool
+        use_aoflagger_flags : bool
             Option to use cotter output mwaf flag files. Defaults to true if
             cotter flag files are submitted.
         remove_dig_gains : bool
@@ -1069,7 +1109,7 @@ class MWACorrFITS(UVData):
         cheby_approx : bool
             Only used if correct_van_vleck is True. Option to implement the van
             vleck correction with a chebyshev polynomial approximation.
-        flag_small_sig_ants : bool
+        flag_small_auto_ants : bool
             Only used if correct_van_vleck is True. Option to completely flag any
             antenna that has a sigma < 0.5, as sigmas in this range generally
             indicate bad data. If set to False, only the times and
@@ -1103,7 +1143,7 @@ class MWACorrFITS(UVData):
             channel of each coarse channel.
         remove_flagged_ants : bool
             Option to perform a select to remove antennas flagged in the metafits
-            file. If correct_van_vleck and flag_small_sig_ants are both True then
+            file. If correct_van_vleck and flag_small_auto_ants are both True then
             antennas flagged by the Van Vleck correction are also removed.
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
@@ -1175,7 +1215,7 @@ class MWACorrFITS(UVData):
         self._set_future_array_shapes()
 
         # iterate through files and organize
-        # create a list of included coarse channels
+        # create a list of included file numbers
         # find the first and last times that have data
         for filename in filelist:
             # update filename attribute
@@ -1250,12 +1290,12 @@ class MWACorrFITS(UVData):
 
             # look for flag files
             elif filename.lower().endswith(".mwaf"):
-                if use_cotter_flags is None:
-                    use_cotter_flags = True
+                if use_aoflagger_flags is None:
+                    use_aoflagger_flags = True
                 flag_num = int(filename.split("_")[-1][0:2])
                 included_flag_nums.append(flag_num)
-                if use_cotter_flags is False and cotter_warning is False:
-                    warnings.warn("mwaf files submitted with use_cotter_flags=False")
+                if use_aoflagger_flags is False and cotter_warning is False:
+                    warnings.warn("mwaf files submitted with use_aoflagger_flags=False")
                     cotter_warning = True
                 elif "flags" not in file_dict.keys():
                     file_dict["flags"] = [filename]
@@ -1277,10 +1317,10 @@ class MWACorrFITS(UVData):
                     self.extra_keywords[key] = ppds[key]
         if "data" not in file_dict.keys():
             raise ValueError("no data files submitted")
-        if "flags" not in file_dict.keys() and use_cotter_flags:
+        if "flags" not in file_dict.keys() and use_aoflagger_flags:
             raise ValueError(
                 "no flag files submitted. Rerun with flag files \
-                             or use_cotter_flags=False"
+                             or use_aoflagger_flags=False"
             )
 
         # reorder file numbers
@@ -1477,6 +1517,7 @@ class MWACorrFITS(UVData):
         ]
         ordered_file_nums += 1
         file_mask = np.isin(ordered_file_nums, included_file_nums)
+        # get included file numbers in coarse band order
         file_nums = ordered_file_nums[file_mask]
 
         # check that coarse channels are contiguous.
@@ -1517,7 +1558,7 @@ class MWACorrFITS(UVData):
 
         # polarizations are ordered yy, yx, xy, xx
         self.polarization_array = np.array([-6, -8, -7, -5])
-        # get index array for reordering
+        # get index array for AIPS reordering
         pol_index_array = np.argsort(np.abs(self.polarization_array))
         # reorder polarization_array here to avoid memory spike from self.reorder_pols
         self.polarization_array = self.polarization_array[pol_index_array]
@@ -1587,7 +1628,7 @@ class MWACorrFITS(UVData):
                 np.isin(ant_2_inds[: self.Nbls], flagged_ant_inds),
             )
             self.flag_array[:, bad_ant_inds, :, :] = True
-
+            # reshape arrays
             self.flag_array = self.flag_array.reshape(
                 (self.Nblts, self.Nfreqs, self.Npols)
             )
@@ -1595,35 +1636,36 @@ class MWACorrFITS(UVData):
                 (self.Nblts, self.Nfreqs, self.Npols)
             )
 
-            # when MWA data is cast to float for the correlator, the division
+            # When MWA data is cast to float for the correlator, the division
             # by 127 introduces small errors that are mitigated when the data
-            # is cast back into integer
+            # is cast back into integer.
             # this needs to happen before the van vleck correction
             self.data_array /= self.extra_keywords["SCALEFAC"]
             np.rint(self.data_array, out=self.data_array)
 
             # van vleck correction
             if correct_van_vleck:
-                flagged_ant_inds = self.van_vleck_correction(
+                self.van_vleck_correction(
                     ant_1_inds,
                     ant_2_inds,
                     flagged_ant_inds,
                     cheby_approx=cheby_approx,
                     data_array_dtype=data_array_dtype,
-                    flag_small_sig_ants=flag_small_sig_ants,
                 )
+
             # apply corrections
             if np.any([correct_van_vleck, remove_coarse_band, remove_dig_gains]):
-                self._apply_corrections(
+                flagged_ant_inds = self._apply_corrections(
                     ant_1_inds,
                     ant_2_inds,
                     avg_factor,
                     dig_gains,
                     spw_inds,
                     num_fine_chans,
+                    flagged_ant_inds,
                     cheby_approx=cheby_approx,
                     data_array_dtype=data_array_dtype,
-                    flag_small_sig_ants=flag_small_sig_ants,
+                    flag_small_auto_ants=flag_small_auto_ants,
                     correct_van_vleck=correct_van_vleck,
                     remove_coarse_band=remove_coarse_band,
                     remove_dig_gains=remove_dig_gains,
@@ -1636,8 +1678,8 @@ class MWACorrFITS(UVData):
             # cable delay corrections
             if correct_cable_len:
                 self.correct_cable_length(cable_lens, ant_1_inds, ant_2_inds)
-
-            if use_cotter_flags:
+            # add aoflagger flags to flag_array
+            if use_aoflagger_flags:
                 # throw an error if matching files not submitted
                 if included_file_nums != included_flag_nums:
                     raise ValueError(
@@ -1648,24 +1690,7 @@ class MWACorrFITS(UVData):
                         to the more aggressive of flag_init and AOFlagger"
                 )
                 for filename in file_dict["flags"]:
-                    flag_num = int(filename.split("_")[-1][0:2])
-                    # map file number to frequency index
-                    freq_ind = np.where(file_nums == flag_num)[0][0] * num_fine_chans
-                    with fits.open(filename) as aoflags:
-                        flags = aoflags[1].data.field("FLAGS")
-                    # some flag files are longer than data; crop the ends
-                    flags = flags[: self.Nblts, :]
-                    # some flag files are shorter than data; assume same end time
-                    blt_ind = self.Nblts - len(flags)
-                    flags = flags[:, :, np.newaxis]
-                    self.flag_array[
-                        blt_ind:, freq_ind : freq_ind + num_fine_chans, :
-                    ] = np.logical_or(
-                        self.flag_array[
-                            blt_ind:, freq_ind : freq_ind + num_fine_chans, :
-                        ],
-                        flags,
-                    )
+                    self._read_flag_file(filename, file_nums, num_fine_chans)
 
             if flag_init:
                 self.flag_init(
