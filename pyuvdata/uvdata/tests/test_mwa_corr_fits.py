@@ -263,18 +263,18 @@ def test_read_mwa_flags():
     mwa_uv = UVData()
     subfiles = [filelist[0], filelist[1], filelist[3], filelist[4]]
     messages = [
-        "mwaf files submitted with use_cotter_flags=False",
+        "mwaf files submitted with use_aoflagger_flags=False",
         "telescope_location is not set",
         "some coarse channel files were not submitted",
     ]
     with uvtest.check_warnings(UserWarning, messages):
-        mwa_uv.read(subfiles, use_cotter_flags=False)
+        mwa_uv.read(subfiles, use_aoflagger_flags=False)
 
     del mwa_uv
 
     mwa_uv = UVData()
     with pytest.raises(ValueError) as cm:
-        mwa_uv.read(subfiles[0:2], use_cotter_flags=True)
+        mwa_uv.read(subfiles[0:2], use_aoflagger_flags=True)
     assert str(cm.value).startswith("no flag files submitted")
     del mwa_uv
 
@@ -699,8 +699,8 @@ def test_remove_coarse_band(tmp_path):
     assert uv1 == uv2
 
 
-def test_cotter_flags():
-    """Test using cotter flags"""
+def test_aoflagger_flags():
+    """Test using aoflagger flags"""
     uv = UVData()
     files = filelist[0:2]
     files.append(filelist[3])
@@ -726,8 +726,8 @@ def test_cotter_flags():
 )
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 @pytest.mark.filterwarnings("ignore:coarse channel, start time, and end time flagging")
-def test_cotter_flags_multiple(tmp_path):
-    """Test cotter flags with multiple coarse bands"""
+def test_aoflagger_flags_multiple(tmp_path):
+    """Test aoflagger flags with multiple coarse bands"""
     mod_mini_6 = str(tmp_path / "mini_gpubox06_01.fits")
     with fits.open(filelist[2]) as mini6:
         mini6[1].header["time"] = 1447698337
@@ -961,14 +961,14 @@ def test_remove_flagged_ants(tmp_path):
 @pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 def test_small_sigs(tmp_path):
-    """Test flag_small_sig_ants."""
+    """Test flag_small_auto_ants."""
     small_sigs = str(tmp_path / "small_sigs07_02.fits")
     with fits.open(filelist[8]) as mini:
         mini[1].data[0, 0] = 1000
         mini.writeto(small_sigs)
     uv1 = UVData()
     uv1.read(
-        [small_sigs, filelist[9]], correct_van_vleck=True, flag_small_sig_ants=True,
+        [small_sigs, filelist[9]], correct_van_vleck=True, flag_small_auto_ants=True,
     )
     messages = [
         "values are being corrected with the van vleck integral",
@@ -981,7 +981,7 @@ def test_small_sigs(tmp_path):
         uv2.read(
             [small_sigs, filelist[9]],
             correct_van_vleck=True,
-            flag_small_sig_ants=False,
+            flag_small_auto_ants=False,
         )
 
     assert "flagged by the Van Vleck" in uv1.history
