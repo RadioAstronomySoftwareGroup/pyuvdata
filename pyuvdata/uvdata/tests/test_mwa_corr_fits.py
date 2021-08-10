@@ -164,6 +164,7 @@ def test_read_mwa_read_cotter():
         atol=1e-4,
         rtol=0,
     )
+    assert mwa_uv.freq_array == cotter_uv.freq_array
 
 
 def test_read_mwa_write_uvfits_meta_mod(tmp_path):
@@ -350,7 +351,7 @@ def test_fine_channels(tmp_path):
         mini6.writeto(bad_fine)
     with pytest.raises(ValueError) as cm:
         mwa_uv.read([bad_fine, filelist[1]])
-    assert str(cm.value).startswith("files submitted have different fine")
+    assert str(cm.value).startswith("files submitted have different numbers")
     del mwa_uv
 
 

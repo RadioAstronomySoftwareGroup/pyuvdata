@@ -433,7 +433,7 @@ class MWACorrFITS(UVData):
         self,
         filename,
         time_array,
-        file_nums_to_index,
+        file_nums,
         num_fine_chans,
         int_time,
         map_inds,
@@ -455,18 +455,26 @@ class MWACorrFITS(UVData):
             The mwa gpubox fits file to read
         time_array : array of floats
             The time_array object constructed during read_mwa_corr_fits call
-        file_nums_to_index : dict
-            Mappings of file name to index in coarse channel
+        file_nums : array
+            List of included file numbers ordered by coarse channel
         num_fine_chans : int
             Number of fine channels in a coarse channel
         int_time : float
             The integration time of each observation.
+        map_inds : array
+            Indices for reordering data_array from weird correlator packing.
+        conj : array
+            Indices for conjugating data_array from weird correlator packing.
+        pol_index_array : array
+            Indices for reordering polarizations to the 'AIPS' convention
 
         """
         # get the file number from the file name
         file_num = int(filename.split("_")[-2][-2:])
         # map file number to frequency index
-        freq_ind = file_nums_to_index[file_num] * num_fine_chans
+        freq_ind = np.where(file_nums == file_num)[0][0] * num_fine_chans
+        # get a coarse channel index for flag array
+        coarse_ind = np.where(file_nums == file_num)[0][0]
         # create an intermediate array for data
         coarse_chan_data = np.zeros(
             (self.Ntimes, num_fine_chans, self.Nbls * self.Npols), dtype=np.complex64,
@@ -491,7 +499,7 @@ class MWACorrFITS(UVData):
                 self.nsample_array[
                     time_ind, :, freq_ind : freq_ind + num_fine_chans, :
                 ] = 1.0
-                self.flag_array[time_ind, :, file_nums_to_index[file_num], :] = False
+                self.flag_array[time_ind, :, coarse_ind, :] = False
         # do mapping and reshaping here to avoid copying whole data_array
         np.take(coarse_chan_data, map_inds, axis=2, out=coarse_chan_data)
         # conjugate data
@@ -950,9 +958,8 @@ class MWACorrFITS(UVData):
         ant_1_inds,
         ant_2_inds,
         avg_factor,
-        coarse_chans,
         dig_gains,
-        included_coarse_chans,
+        spw_inds,
         num_fine_chans,
         cheby_approx,
         data_array_dtype,
@@ -967,12 +974,12 @@ class MWACorrFITS(UVData):
         if remove_dig_gains:
             self.history += " Divided out digital gains."
             # get gains for included coarse channels
-            coarse_inds = np.where(np.isin(coarse_chans, included_coarse_chans))[0]
-            # during commissioning a shift in the bit selection in the digital
-            # receiver was implemented which effectively multiplies the data by
-            # a factor of 64. To account for this, the digital gains are divided
-            # by a factor of 64 here. For a more detailed explanation, see PR #908.
-            dig_gains = dig_gains[:, coarse_inds] / 64
+            # During commissioning a shift in the bit selection in the digital
+            # receiver was implemented which changed the data scaling by
+            # a factor of 64. To be compatible with the earlier scaling scheme,
+            # the digital gains are divided by a factor of 64 here.
+            # For a more detailed explanation, see PR #908.
+            dig_gains = dig_gains[:, spw_inds] / 64
         else:
             dig_gains = None
 
@@ -984,7 +991,7 @@ class MWACorrFITS(UVData):
             cb_array = None
 
         # apply corrections to each coarse band
-        for i in range(len(included_coarse_chans)):
+        for i in range(len(spw_inds)):
             self._correct_coarse_band(
                 i,
                 ant_1_inds,
@@ -1219,7 +1226,7 @@ class MWACorrFITS(UVData):
                         num_fine_chans = headstart["NAXIS2"]
                     elif num_fine_chans != headstart["NAXIS2"]:
                         raise ValueError(
-                            "files submitted have different fine channel widths"
+                            "files submitted have different numbers of fine channels"
                         )
 
                     # get the file number from the file name;
@@ -1278,6 +1285,7 @@ class MWACorrFITS(UVData):
 
         # reorder file numbers
         included_file_nums = sorted(included_file_nums)
+        included_flag_nums = sorted(included_flag_nums)
 
         # first set parameters that are always true
         self.Nspws = 1
@@ -1294,6 +1302,17 @@ class MWACorrFITS(UVData):
             # get a list of coarse channels
             coarse_chans = meta_hdr["CHANNELS"].split(",")
             coarse_chans = np.array(sorted(int(i) for i in coarse_chans))
+
+            # center frequency in hertz
+            obs_freq_center = meta_hdr["FREQCENT"] * 1e6
+
+            # number of fine channels in observation
+            obs_num_fine_chans = meta_hdr["NCHANS"]
+            # calculate number of fine channels per coarse channel
+            coarse_num_fine_chans = obs_num_fine_chans / len(coarse_chans)
+
+            # frequency averaging factor
+            avg_factor = meta_hdr["NAV_FREQ"]
 
             # integration time in seconds
             int_time = meta_hdr["INTTIME"]
@@ -1433,7 +1452,6 @@ class MWACorrFITS(UVData):
         ant_1_inds, ant_2_inds = np.transpose(
             list(itertools.combinations_with_replacement(np.arange(self.Nants_data), 2))
         )
-
         ant_1_inds = np.tile(np.array(ant_1_inds), self.Ntimes).astype(np.int_)
         ant_2_inds = np.tile(np.array(ant_2_inds), self.Ntimes).astype(np.int_)
 
@@ -1441,74 +1459,62 @@ class MWACorrFITS(UVData):
         self.set_uvws_from_antenna_positions(allow_phasing=False)
 
         # coarse channel mapping:
-        # channels in group 0-128 go in order; channels in group 129-155 go in
-        # reverse order
+        # channels in group 0-128 are assigned to files in order;
+        # channels in group 129-155 are assigned in reverse order
         # that is, if the lowest channel is 127, it will be assigned to the
         # first file
         # channel 128 will be assigned to the second file
         # then the highest channel will be assigned to the third file
         # and the next hightest channel assigned to the fourth file, and so on
-        count = np.count_nonzero(coarse_chans <= 128)
-        # map all file numbers to coarse channel numbers
-        file_nums_to_coarse = {
-            i + 1: coarse_chans[i]
-            if i < count
-            else coarse_chans[(len(coarse_chans) + count - i - 1)]
-            for i in range(len(coarse_chans))
-        }
-        # map included coarse channels to file numbers
-        coarse_to_incl_files = {}
-        for i in included_file_nums:
-            coarse_to_incl_files[file_nums_to_coarse[i]] = i
-        # sort included coarse channels
-        included_coarse_chans = sorted(coarse_to_incl_files.keys())
-        # map included file numbers to an index that orders them
-        file_nums_to_index = {}
-        for i in included_coarse_chans:
-            file_nums_to_index[coarse_to_incl_files[i]] = included_coarse_chans.index(i)
+        ordered_coarse_chans = np.concatenate(
+            (
+                coarse_chans[coarse_chans <= 128],
+                np.flip(coarse_chans[coarse_chans > 128]),
+            )
+        )
+        ordered_file_nums = np.arange(len(coarse_chans))[
+            np.argsort(ordered_coarse_chans)
+        ]
+        ordered_file_nums += 1
+        file_mask = np.isin(ordered_file_nums, included_file_nums)
+        file_nums = ordered_file_nums[file_mask]
+
         # check that coarse channels are contiguous.
-        chans = np.array(included_coarse_chans)
-        for i in np.diff(chans):
-            if i != 1:
-                warnings.warn("coarse channels are not contiguous for this observation")
-                break
+        spw_inds = np.nonzero(file_mask)[0]
+        if np.any(np.diff(spw_inds) > 1):
+            warnings.warn("coarse channels are not contiguous for this observation")
+            # add spectral windows
+            self._set_flex_spw()
+            self.Nspws = len(spw_inds)
+            self.spw_array = spw_inds
+            self.flex_spw_id_array = np.repeat(self.spw_array, num_fine_chans)
 
         # warn user if not all coarse channels are included
-        if len(included_coarse_chans) != len(coarse_chans):
+        if len(included_file_nums) != len(coarse_chans):
             warnings.warn("some coarse channel files were not submitted")
 
         # build frequency array
-        self.Nfreqs = len(included_coarse_chans) * num_fine_chans
+        self.Nfreqs = len(included_file_nums) * num_fine_chans
         self.freq_array = np.zeros(self.Nfreqs)
         self.channel_width = np.full(self.Nfreqs, channel_width)
-        # each coarse channel is split into 128 fine channels of width 10 kHz.
-        # The first fine channel for each coarse channel is centered on the
-        # lower bound frequency of that channel and its center frequency is
-        # computed as fine_center = coarse_channel_number * 1280-640 (kHz).
-        # If the fine channels have been averaged (added) by some factor, the
-        # center of the resulting channel is found by averaging the centers of
-        # the first and last fine channels it is made up of.
-        # That is, avg_fine_center=(lowest_fine_center+highest_fine_center)/2
-        # where highest_fine_center=lowest_fine_center+(avg_factor-1)*10 kHz
-        # so avg_fine_center=(lowest_fine_center+lowest_fine_center+(avg_factor-1)*10)/2
-        #                   =lowest_fine_center+((avg_factor-1)*10)/2
-        #                   =lowest_fine_center+offset
-        # Calculate offset=((avg_factor-1)*10)/2 to build the frequency array
-        avg_factor = channel_width / 10000
-        width = channel_width / 1000
-        offset = (avg_factor - 1) * 10 / 2.0
-
-        for i in range(len(included_coarse_chans)):
-            # get the lowest fine freq of the coarse channel (kHz)
-            lower_fine_freq = included_coarse_chans[i] * 1280 - 640
-            # find the center of the lowest averaged channel
-            first_center = lower_fine_freq + offset
-            # add the channel centers for this coarse channel into
-            # the frequency array (converting from kHz to Hz)
-            self.freq_array[int(i * num_fine_chans) : int((i + 1) * num_fine_chans)] = (
-                np.arange(first_center, first_center + num_fine_chans * width, width)
-                * 1000
+        # the metafits file includes the observation frequency center
+        # this frequency is located at self.freq_array[self.Nfreqs/2]
+        # this will be the first frequency of the center coarse channel
+        # (if an even number of coarse channels, the center channel is to the right)
+        # use this frequency to get the frequency range for each coarse band
+        center_coarse_chan = int(len(coarse_chans) / 2)
+        for i in range(len(spw_inds)):
+            first_coarse_freq = (
+                obs_freq_center
+                + (spw_inds[i] - center_coarse_chan)
+                * coarse_num_fine_chans
+                * channel_width
             )
+            last_coarse_freq = first_coarse_freq + num_fine_chans * channel_width
+            self.freq_array[i * num_fine_chans : (i + 1) * num_fine_chans] = np.arange(
+                first_coarse_freq, last_coarse_freq, channel_width
+            )
+
         # polarizations are ordered yy, yx, xy, xx
         self.polarization_array = np.array([-6, -8, -7, -5])
         # get index array for reordering
@@ -1550,16 +1556,15 @@ class MWACorrFITS(UVData):
                 dtype=nsample_array_dtype,
             )
             self.flag_array = np.full(
-                (self.Ntimes, self.Nbls, len(included_coarse_chans), self.Npols), True
+                (self.Ntimes, self.Nbls, len(spw_inds), self.Npols), True
             )
-            print(self.flag_array.dtype)
 
             # read data files
             for filename in file_dict["data"]:
                 self._read_fits_file(
                     filename,
                     time_array,
-                    file_nums_to_index,
+                    file_nums,
                     num_fine_chans,
                     int_time,
                     map_inds,
@@ -1613,9 +1618,8 @@ class MWACorrFITS(UVData):
                     ant_1_inds,
                     ant_2_inds,
                     avg_factor,
-                    coarse_chans,
                     dig_gains,
-                    included_coarse_chans,
+                    spw_inds,
                     num_fine_chans,
                     cheby_approx=cheby_approx,
                     data_array_dtype=data_array_dtype,
@@ -1646,7 +1650,7 @@ class MWACorrFITS(UVData):
                 for filename in file_dict["flags"]:
                     flag_num = int(filename.split("_")[-1][0:2])
                     # map file number to frequency index
-                    freq_ind = file_nums_to_index[flag_num] * num_fine_chans
+                    freq_ind = np.where(file_nums == flag_num)[0][0] * num_fine_chans
                     with fits.open(filename) as aoflags:
                         flags = aoflags[1].data.field("FLAGS")
                     # some flag files are longer than data; crop the ends
