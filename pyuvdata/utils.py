@@ -4410,3 +4410,271 @@ def _combine_filenames(filename1, filename2):
         combined_filenames = filename2
 
     return combined_filenames
+
+
+def _get_dset_shape(dset, indices):
+    """
+    Given a 3-tuple of indices, determine the indexed array shape.
+
+    Parameters
+    ----------
+    dset : numpy array or h5py dataset
+        A numpy array or a reference to an HDF5 dataset on disk. Requires the
+        `dset.shape` attribute exists and returns a tuple.
+    indices : tuple
+        A 3-tuple with the indices to extract along each dimension of dset.
+        Each element should contain a list of indices, a slice element,
+        or a list of slice elements that will be concatenated after slicing.
+        For data arrays with 4 dimensions, the second dimension (the old spw axis)
+        should not be included because it can only be length one.
+
+    Returns
+    -------
+    tuple
+        a 3- or 4-tuple with the shape of the indexed array
+    tuple
+        a 3- or 4-tuple with indices used (will be different than input if dset has
+        4 dimensions)
+    """
+    dset_shape = list(dset.shape)
+    if len(dset_shape) == 4 and len(indices) == 3:
+        indices = (indices[0], np.s_[:], indices[1], indices[2])
+
+    for i, inds in enumerate(indices):
+        # check for integer
+        if isinstance(inds, (int, np.integer)):
+            dset_shape[i] = 1
+        # check for slice object
+        if isinstance(inds, slice):
+            dset_shape[i] = _get_slice_len(inds, dset_shape[i])
+        # check for list
+        if isinstance(inds, list):
+            # check for list of integers
+            if isinstance(inds[0], (int, np.integer)):
+                dset_shape[i] = len(inds)
+            elif isinstance(inds[0], slice):
+                dset_shape[i] = sum((_get_slice_len(s, dset_shape[i]) for s in inds))
+
+    return dset_shape, indices
+
+
+def _convert_to_slices(indices, max_nslice_frac=0.1):
+    """
+    Convert list of indices to a list of slices.
+
+    Parameters
+    ----------
+    indices : list
+        A 1D list of integers for array indexing.
+    max_nslice_frac : float
+        A float from 0 -- 1. If the number of slices
+        needed to represent input 'indices' divided by len(indices)
+        exceeds this fraction, then we determine that we cannot
+        easily represent 'indices' with a list of slices.
+
+    Returns
+    -------
+    list
+        list of slice objects used to represent indices
+    bool
+        If True, indices is easily represented by slices
+        (max_nslice_frac condition met), otherwise False
+
+    Notes
+    -----
+    Example:
+        if: indices = [1, 2, 3, 4, 10, 11, 12, 13, 14]
+        then: slices = [slice(1, 5, 1), slice(11, 15, 1)]
+    """
+    # check for integer index
+    if isinstance(indices, (int, np.integer)):
+        indices = [indices]
+    # check for already a slice
+    if isinstance(indices, slice):
+        return [indices], True
+    # assert indices is longer than 2, or return trivial solutions
+    if len(indices) == 0:
+        return [slice(0, 0, 0)], False
+    elif len(indices) == 1:
+        return [slice(indices[0], indices[0] + 1, 1)], True
+    elif len(indices) == 2:
+        return [slice(indices[0], indices[1] + 1, indices[1] - indices[0])], True
+
+    # setup empty slices list
+    Ninds = len(indices)
+    slices = []
+
+    # iterate over indices
+    for i, ind in enumerate(indices):
+        if i == 0:
+            # start the first slice object
+            start = ind
+            last_step = indices[i + 1] - ind
+            continue
+
+        # calculate step from previous index
+        step = ind - indices[i - 1]
+
+        # if step != last_step, this ends the slice
+        if step != last_step:
+            # append to list
+            slices.append(slice(start, indices[i - 1] + 1, last_step))
+
+            # check if this is the last element
+            if i == Ninds - 1:
+                # append last element
+                slices.append(slice(ind, ind + 1, 1))
+                continue
+
+            # setup next step
+            start = ind
+            last_step = indices[i + 1] - ind
+
+        # check if this is the last element
+        elif i == Ninds - 1:
+            # end slice and append
+            slices.append(slice(start, ind + 1, step))
+
+    # determine whether slices are a reasonable representation
+    Nslices = len(slices)
+    passed = (float(Nslices) / len(indices)) < max_nslice_frac
+
+    return slices, passed
+
+
+def _get_slice_len(s, axlen):
+    """
+    Get length of a slice s into array of len axlen.
+
+    Parameters
+    ----------
+    s : slice object
+        Slice object to index with
+    axlen : int
+        Length of axis s slices into
+
+    Returns
+    -------
+    int
+        Length of slice object
+    """
+    if s.start is None:
+        start = 0
+    else:
+        start = s.start
+    if s.stop is None:
+        stop = axlen
+    else:
+        stop = np.min([s.stop, axlen])
+    if s.step is None:
+        step = 1
+    else:
+        step = s.step
+
+    return ((stop - 1 - start) // step) + 1
+
+
+def _index_dset(dset, indices, input_array=None):
+    """
+    Index a UVH5 data, flags or nsamples h5py dataset.
+
+    Parameters
+    ----------
+    dset : h5py dataset
+        A reference to an HDF5 dataset on disk.
+    indices : tuple
+        A 3-tuple with the indices to extract along each dimension of dset.
+        Each element should contain a list of indices, a slice element,
+        or a list of slice elements that will be concatenated after slicing.
+        Indices must be provided such that all dimensions can be indexed
+        simultaneously. For data arrays with 4 dimensions, the second dimension
+        (the old spw axis) should not be included because it can only be length one.
+
+
+    Returns
+    -------
+    ndarray
+        The indexed dset
+
+    Notes
+    -----
+    This makes and fills an empty array with dset indices.
+    For trivial indexing, (e.g. a trivial slice), constructing
+    a new array and filling it is suboptimal over direct
+    indexing, e.g. dset[indices].
+    This function specializes in repeated slices over the same axis,
+    e.g. if indices is [[slice(0, 5), slice(10, 15), ...], ..., ]
+    """
+    # get dset and arr shape
+    dset_shape = dset.shape
+    arr_shape, indices = _get_dset_shape(dset, indices)
+
+    if input_array is None:
+        # create empty array of dset dtype
+        arr = np.empty(arr_shape, dtype=dset.dtype)
+    else:
+        arr = input_array
+
+    # get arr and dset indices for each dimension in indices
+    dset_indices = []
+    arr_indices = []
+    for i, dset_inds in enumerate(indices):
+        if isinstance(dset_inds, (int, np.integer)):
+            # this dimension is len 1, so slice is fine
+            arr_indices.append([slice(None)])
+            dset_indices.append([[dset_inds]])
+
+        elif isinstance(dset_inds, slice):
+            # this dimension is just a slice, so slice is fine
+            arr_indices.append([slice(None)])
+            dset_indices.append([dset_inds])
+
+        elif isinstance(dset_inds, list):
+            if isinstance(dset_inds[0], (int, np.integer)):
+                # this is a list of integers, append slice
+                arr_indices.append([slice(None)])
+                dset_indices.append([dset_inds])
+            elif isinstance(dset_inds[0], slice):
+                # this is a list of slices, need list of slice lens
+                slens = [_get_slice_len(s, dset_shape[i]) for s in dset_inds]
+                ssums = [sum(slens[:j]) for j in range(len(slens))]
+                arr_inds = [slice(s, s + l) for s, l in zip(ssums, slens)]
+                arr_indices.append(arr_inds)
+                dset_indices.append(dset_inds)
+
+    if len(dset_shape) == 3:
+        freq_dim = 1
+        pol_dim = 2
+    else:
+        freq_dim = 2
+        pol_dim = 3
+
+    # iterate over each of the 3 axes and fill the array
+    for blt_arr, blt_dset in zip(arr_indices[0], dset_indices[0]):
+        for freq_arr, freq_dset in zip(arr_indices[freq_dim], dset_indices[freq_dim]):
+            for pol_arr, pol_dset in zip(arr_indices[pol_dim], dset_indices[pol_dim]):
+                if input_array is None:
+                    # index and assign to dset
+                    if len(dset_shape) == 3:
+                        dset[blt_dset, freq_dset, pol_dset] = arr[
+                            blt_arr, freq_arr, pol_arr
+                        ]
+                    else:
+                        dset[blt_dset, :, freq_dset, pol_dset] = arr[
+                            blt_arr, freq_arr, pol_arr
+                        ]
+                else:
+                    # index dset and assign to arr
+                    if len(dset_shape) == 3:
+                        arr[blt_arr, freq_arr, pol_arr] = dset[
+                            blt_dset, freq_dset, pol_dset
+                        ]
+                    else:
+                        arr[blt_arr, :, freq_arr, pol_arr] = dset[
+                            blt_dset, :, freq_dset, pol_dset
+                        ]
+
+    if input_array is None:
+        return arr
+    else:
+        return
