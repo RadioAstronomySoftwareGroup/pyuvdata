@@ -10948,4 +10948,16 @@ def test_eq_allowed_failures_filename_string(bda_test_file, capsys):
         "Left is ['foo.uvh5'], right is ['bar.uvh5'].\n"
     )
 
+
+def test_set_data(hera_uvh5):
+    uv = hera_uvh5
+
+    ant1 = np.unique(uv.antenna_numbers)[0]
+    ant2 = np.unique(uv.antenna_numbers)[1]
+    data = 2 * uv.get_data(ant1, ant2, squeeze="none")
+    inds1, inds2, indp = uv._key2inds((ant1, ant2))
+    uv.set_data(data, ant1, ant2)
+    data2 = uv.get_data(ant1, ant2, squeeze="none")
+
+    assert np.allclose(data, data2)
     return

@@ -3437,6 +3437,97 @@ class UVData(UVBase):
 
         return antpos, ants
 
+    def set_data(self, data, key1, key2=None, key3=None):
+        """
+        Set the data array to some values provided by the user.
+
+        Parameters
+        ----------
+        data : ndarray of complex
+            The data to overwrite into the data_array. Must be the same shape as
+            the target indices.
+        key1, key2, key3 : int or tuple of ints
+            Identifier of which data to get, can be passed as 1, 2, or 3 arguments
+            or as a single tuple of length 1, 2, or 3. These are collectively
+            called the key.
+
+            If key is length 1:
+                if (key < 5) or (type(key) is str):
+                    interpreted as a polarization number/name, get all data for
+                    that pol.
+                else:
+                    interpreted as a baseline number, get all data for that baseline.
+
+            if key is length 2: interpreted as an antenna pair, get all data
+                for that baseline.
+
+            if key is length 3: interpreted as antenna pair and pol (ant1, ant2, pol),
+                get all data for that baseline, pol. pol may be a string or int.
+
+        Raises
+        ------
+        ValueError:
+            if the data are not the right shape or are not complex
+        """
+        key = []
+        for val in [key1, key2, key3]:
+            if isinstance(val, str):
+                key.append(val)
+            elif val is not None:
+                key += list(uvutils._get_iterable(val))
+        if len(key) > 3:
+            raise ValueError("no more than 3 key values can be passed")
+        ind1, ind2, indp = self._key2inds(key)
+        if len(ind1) == 0 and len(ind2) == 0:
+            raise ValueError("no data corresponding to the input key was found")
+        if len(ind2) != 0:
+            raise ValueError(
+                "the requested key is present in the data, but conjugated. Please "
+                "conjugate data and keys appropriately and try again"
+            )
+        dshape = data.shape
+        if self.future_array_shapes:
+            expected_shape = (len(ind1), self.Nfreqs, len(indp[0]))
+        else:
+            expected_shape = (len(ind1), 1, self.Nfreqs, len(indp[0]))
+        if dshape != expected_shape:
+            raise ValueError(
+                "the data are not compatible with the shape of the destination. "
+                f"Input data shape is {dshape}, expected shape is {expected_shape}."
+            )
+
+        blt_slices, blt_sliceable = uvutils._convert_to_slices(
+            ind1, max_nslice_frac=0.1
+        )
+        pol_slices, pol_sliceable = uvutils._convert_to_slices(
+            indp, max_nslice_frac=0.5
+        )
+
+        if sum([blt_sliceable, pol_sliceable]) < 2:
+            multidim_index = False
+        else:
+            multidim_index = True
+
+        inds = [ind1, np.s_[:], indp]
+        if blt_sliceable:
+            inds[0] = blt_slices
+        if multidim_index:
+            if pol_sliceable:
+                inds[2] = pol_slices
+
+        inds = tuple(inds)
+
+        uvutils._index_dset(self.data_array, inds, data)
+
+        # dset_shape, indices = uvutils._get_dset_shape(self.data_array, indices)
+
+        # if self.future_array_shapes:
+        #     self.data_array[ind1, :, indp[0]] = data
+        # else:
+        #     self.data_array[ind1, :, :, indp[0]] = data
+
+        # return
+
     def antpairpol_iter(self, squeeze="default"):
         """
         Iterate the data for each antpair, polarization combination.
