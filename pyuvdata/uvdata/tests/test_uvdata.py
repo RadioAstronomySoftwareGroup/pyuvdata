@@ -244,6 +244,11 @@ def hera_uvh5_split_main(hera_uvh5_main):
 
     yield uv1, uv2, hera_uvh5_main
 
+    # clean up when done
+    del uv1, uv2
+
+    return
+
 
 @pytest.fixture(scope="function")
 def hera_uvh5_split(hera_uvh5_split_main):
@@ -254,6 +259,11 @@ def hera_uvh5_split(hera_uvh5_split_main):
 
     yield uv1_copy, uv2_copy, uvfull_copy
 
+    # clean up when done
+    del uv1_copy, uv2_copy, uvfull_copy
+
+    return
+
 
 @pytest.fixture(scope="session")
 def hera_uvh5_xx_main():
@@ -261,7 +271,12 @@ def hera_uvh5_xx_main():
     hera_uvh5_xx = UVData()
     hera_uvh5_xx.read_uvh5(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5"))
 
-    return hera_uvh5_xx
+    yield hera_uvh5_xx
+
+    # clean up when done
+    del hera_uvh5_xx
+
+    return
 
 
 @pytest.fixture(scope="function")
