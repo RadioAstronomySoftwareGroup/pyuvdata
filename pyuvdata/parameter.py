@@ -245,7 +245,7 @@ class UVParameter(object):
                         print(
                             f"{self.name} parameter has incompatible types. Left "
                             f"requires {type(self.value)}, right is "
-                            "{other.expected_type}"
+                            f"{other.expected_type}"
                         )
                         return False
                 if other.strict_type:
