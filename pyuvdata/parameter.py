@@ -191,8 +191,9 @@ class UVParameter(object):
                             return False
                     elif not isinstance(self.value.item(0), other.expected_type):
                         print(
-                            f"{self.name} parameter has incompatible dtypes. Left is "
-                            f"{self.value.dtype}, right is {other.expected_type}"
+                            f"{self.name} parameter has incompatible dtypes. Left "
+                            f"requires {self.expected_type}, right is "
+                            f"{other.value.dtype}"
                         )
                         return False
                 elif other.strict_type:
@@ -200,7 +201,7 @@ class UVParameter(object):
                     if not isinstance(other.value.item(0), self.expected_type):
                         print(
                             f"{self.name} parameter has incompatible dtypes. Left is "
-                            f"{other.value.dtype}, right is {other.expected_type}"
+                            f"{self.value.dtype}, right requires {other.expected_type}"
                         )
                         return False
 
@@ -242,8 +243,9 @@ class UVParameter(object):
                     # types must match
                     if not isinstance(self.value, other.expected_type):
                         print(
-                            f"{self.name} parameter has incompatible types. Left is "
-                            f"{type(self.value)}, right is {other.expected_type}"
+                            f"{self.name} parameter has incompatible types. Left "
+                            f"requires {type(self.value)}, right is "
+                            "{other.expected_type}"
                         )
                         return False
                 if other.strict_type:
@@ -251,7 +253,7 @@ class UVParameter(object):
                     if not isinstance(other.value, self.expected_type):
                         print(
                             f"{self.name} parameter has incompatible types. Left is "
-                            f"{type(other.value)}, right is {other.expected_type}"
+                            f"{self.expected_type}, right requires {type(other.value)}"
                         )
                         return False
 
