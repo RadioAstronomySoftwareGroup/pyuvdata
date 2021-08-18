@@ -3519,14 +3519,7 @@ class UVData(UVBase):
 
         uvutils._index_dset(self.data_array, inds, data)
 
-        # dset_shape, indices = uvutils._get_dset_shape(self.data_array, indices)
-
-        # if self.future_array_shapes:
-        #     self.data_array[ind1, :, indp[0]] = data
-        # else:
-        #     self.data_array[ind1, :, :, indp[0]] = data
-
-        # return
+        return
 
     def antpairpol_iter(self, squeeze="default"):
         """
