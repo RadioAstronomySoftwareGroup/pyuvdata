@@ -4654,16 +4654,6 @@ def _index_dset(dset, indices, input_array=None):
         for freq_arr, freq_dset in zip(arr_indices[freq_dim], dset_indices[freq_dim]):
             for pol_arr, pol_dset in zip(arr_indices[pol_dim], dset_indices[pol_dim]):
                 if input_array is None:
-                    # index and assign to dset
-                    if len(dset_shape) == 3:
-                        dset[blt_dset, freq_dset, pol_dset] = arr[
-                            blt_arr, freq_arr, pol_arr
-                        ]
-                    else:
-                        dset[blt_dset, :, freq_dset, pol_dset] = arr[
-                            blt_arr, freq_arr, pol_arr
-                        ]
-                else:
                     # index dset and assign to arr
                     if len(dset_shape) == 3:
                         arr[blt_arr, freq_arr, pol_arr] = dset[
@@ -4672,6 +4662,16 @@ def _index_dset(dset, indices, input_array=None):
                     else:
                         arr[blt_arr, :, freq_arr, pol_arr] = dset[
                             blt_dset, :, freq_dset, pol_dset
+                        ]
+                else:
+                    # index and assign to dset
+                    if len(dset_shape) == 3:
+                        dset[blt_dset, freq_dset, pol_dset] = arr[
+                            blt_arr, freq_arr, pol_arr
+                        ]
+                    else:
+                        dset[blt_dset, :, freq_dset, pol_dset] = arr[
+                            blt_arr, freq_arr, pol_arr
                         ]
 
     if input_array is None:

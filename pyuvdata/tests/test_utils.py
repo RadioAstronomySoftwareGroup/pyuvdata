@@ -3425,3 +3425,27 @@ def test_combine_filenames(filename1, filename2, answer):
         assert set(combined_filenames) == set(answer)
 
     return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_read_slicing():
+    """Test HDF5 slicing helper functions"""
+    # check trivial slice representations
+    slices, _ = uvutils._convert_to_slices([])
+    assert slices == [slice(0, 0, 0)]
+    slices, _ = uvutils._convert_to_slices(10)
+    assert slices == [slice(10, 11, 1)]
+
+    # dataset shape checking
+    # check various kinds of indexing give the right answer
+    indices = [slice(0, 10), 0, [0, 1, 2], [0]]
+    dset = np.empty((100, 1, 1024, 2), dtype=np.float64)
+    shape, _ = uvutils._get_dset_shape(dset, indices)
+    assert tuple(shape) == (10, 1, 3, 1)
+
+    # dataset indexing
+    # check various kinds of indexing give the right answer
+    slices = [uvutils._convert_to_slices(ind)[0] for ind in indices]
+    slices[1] = 0
+    data = uvutils._index_dset(dset, slices)
+    assert data.shape == tuple(shape)
