@@ -10949,6 +10949,7 @@ def test_eq_allowed_failures_filename_string(bda_test_file, capsys):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_set_data(hera_uvh5):
     uv = hera_uvh5
 

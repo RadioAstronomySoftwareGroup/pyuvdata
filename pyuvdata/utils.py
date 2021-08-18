@@ -4664,14 +4664,14 @@ def _index_dset(dset, indices, input_array=None):
                             blt_dset, :, freq_dset, pol_dset
                         ]
                 else:
-                    # index and assign to dset
+                    # index arr and assign to dset
                     if len(dset_shape) == 3:
                         dset[blt_dset, freq_dset, pol_dset] = arr[
                             blt_arr, freq_arr, pol_arr
                         ]
                     else:
                         dset[blt_dset, :, freq_dset, pol_dset] = arr[
-                            blt_arr, freq_arr, pol_arr
+                            blt_arr, :, freq_arr, pol_arr
                         ]
 
     if input_array is None:

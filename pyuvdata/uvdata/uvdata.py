@@ -3500,7 +3500,7 @@ class UVData(UVBase):
             ind1, max_nslice_frac=0.1
         )
         pol_slices, pol_sliceable = uvutils._convert_to_slices(
-            indp, max_nslice_frac=0.5
+            indp[0], max_nslice_frac=0.5
         )
 
         if sum([blt_sliceable, pol_sliceable]) < 2:
@@ -3508,15 +3508,17 @@ class UVData(UVBase):
         else:
             multidim_index = True
 
-        inds = [ind1, np.s_[:], indp]
+        if self.future_array_shapes:
+            inds = [ind1, np.s_[:], indp[0]]
+        else:
+            inds = [ind1, np.s_[:], np.s_[:], indp[0]]
         if blt_sliceable:
             inds[0] = blt_slices
         if multidim_index:
             if pol_sliceable:
-                inds[2] = pol_slices
+                inds[-1] = pol_slices
 
         inds = tuple(inds)
-
         uvutils._index_dset(self.data_array, inds, data)
 
         return
