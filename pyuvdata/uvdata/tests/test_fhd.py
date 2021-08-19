@@ -175,6 +175,9 @@ def test_fhd_antenna_pos(fhd_data):
         read_data=False,
     )
 
+    # don't test antenna_numbers, they will not match.
+    # mwa_corr_fits now uses antenna_numbers that correspond to antenna_names
+    # instead of following the cotter convention of using 0-127.
     assert fhd_data._antenna_names == mwa_corr_obj._antenna_names
     assert fhd_data._antenna_positions == mwa_corr_obj._antenna_positions
 

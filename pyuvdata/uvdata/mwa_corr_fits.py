@@ -16,6 +16,7 @@ from astropy import constants as const
 from pyuvdata.data import DATA_PATH
 from scipy.special import erf
 from scipy.integrate import simps
+from numpy.polynomial.polynomial import polyval2d, polyval
 
 from .. import _corr_fits
 from . import UVData
@@ -903,6 +904,10 @@ class MWACorrFITS(UVData):
         cb_array,
         dig_gains,
         nsamples,
+        vv2_mu_coeff,
+        vv2_auto_coeff,
+        vv1_sig_vec,
+        vv1_rho_coeff,
         num_fine_chans,
         cheby_approx,
         correct_van_vleck,
@@ -949,13 +954,14 @@ class MWACorrFITS(UVData):
         # correct van vleck
         if correct_van_vleck:
             # find polarizations
+            # TODO: ask bryna about pols
             # xx = np.where(self.polarization_array == -5)[0][0]
             # yy = np.where(self.polarization_array == -6)[0][0]
             # xy = np.where(self.polarization_array == -7)[0][0]
             # yx = np.where(self.polarization_array == -8)[0][0]
             # pols = np.array([yy, xx])
             # get index for dc channel
-            # dc_ind = num_fine_chans / 2
+            dc_ind = int(num_fine_chans / 2)
             # scale data
             cb_data /= nsamples
             auto_mask = ant_1_inds == ant_2_inds
@@ -966,7 +972,7 @@ class MWACorrFITS(UVData):
             # auto_mask_full = cb_flags[auto_mask, :, 0:2]
             # cross_mask_full = cb_flags[cross_mask, :, :]
             # correct unflagged autos
-            # this will probably break tests; add later
+            # this will probably break tests; add later if not too painful
             # sighats = cb_data.real[auto_mask, :, 0:2][~auto_mask_full]
             sighats = cb_data.real[auto_mask, :, 0:2]
             shape = sighats.shape
@@ -974,25 +980,36 @@ class MWACorrFITS(UVData):
                 sighats.flatten()
             ).reshape(shape)
             # TODO: add 8-bit correction for autos here
-
+            # calculate coarse band 'sigmas'
+            # TODO: will need to generate a full coarse band test file for this
+            sigma_c = np.sqrt(
+                np.mean(np.square(cb_data.real[auto_mask, :, 0:2]), axis=1)
+            )
+            # broadcast coarse sigma to full band
+            sigma_c_full = np.repeat(sigma_c[:, np.newaxis, :], num_fine_chans, axis=1)
+            # calculate mus
+            # this calculation assumes the fine pfb fft has 128 points
+            muhats = polyval(sigma_c, vv2_mu_coeff)
+            # muhats = muhats.reshape(sigma_c.shape)
+            # square dc channel, subtract mu^2, take square root again
+            cb_data.real[auto_mask, dc_ind, 0:2] = np.square(
+                cb_data.real[auto_mask, dc_ind, 0:2]
+            )
+            cb_data.real[auto_mask, dc_ind, 0:2] -= np.square(muhats) / 4
+            cb_data.real[auto_mask, dc_ind, 0:2] = np.sqrt(
+                cb_data.real[auto_mask, dc_ind, 0:2]
+            )
+            # do second stage van vleck on autos
+            cb_data.real[auto_mask, :, 0:2] = polyval2d(
+                cb_data.real[auto_mask, :, 0:2], sigma_c_full, vv2_auto_coeff
+            )
             # correct crosses
-            # get indices for broadcasting autos to corresponding crosses
-            # crosses = np.where(self.ant_1_array != self.ant_2_array)[0]
-            # build auto arrays?
-            # should have shape Ncrosses * Ntimes, Nfreqs, Npols
             # get indices for broadcasting pols
             pol1_inds = np.array([0, 1, 0, 1])
             pol2_inds = np.array([0, 1, 1, 0])
             if cheby_approx:
                 # TODO: modify so that dc chans are corrected with integral
                 self.history += " Used Van Vleck Chebychev approximation."
-                # load in interpolation files
-                with h5py.File(
-                    DATA_PATH + "/mwa_config_data/Chebychev_coeff.h5", "r"
-                ) as f:
-                    rho_coeff = f["rho_data"][:]
-                with h5py.File(DATA_PATH + "/mwa_config_data/sigma1.h5", "r") as f:
-                    sig_vec = f["sig_data"][:]
                 sigs = cb_data.real[auto_mask, :, 0:2]
                 # build sigma arrays of shape (Nautos, Nfreqs, 2)
                 # so basically have three arrays: sigs, ds, sv_inds_right
@@ -1001,8 +1018,8 @@ class MWACorrFITS(UVData):
                 # get indices and distances for bilinear interpolation
                 sv_inds_right = np.zeros(sigs.shape, dtype=np.int64)
                 ds = np.zeros(sigs.shape)
-                sv_inds_right[in_mask] = np.searchsorted(sig_vec, sigs[in_mask])
-                ds[in_mask] = sig_vec[sv_inds_right[in_mask]] - sigs[in_mask]
+                sv_inds_right[in_mask] = np.searchsorted(vv1_sig_vec, sigs[in_mask])
+                ds[in_mask] = vv1_sig_vec[sv_inds_right[in_mask]] - sigs[in_mask]
                 # get indices for sigmas corresponding to crosses
                 sig1_inds = ant_1_inds[cross_mask]
                 sig2_inds = ant_2_inds[cross_mask]
@@ -1030,7 +1047,7 @@ class MWACorrFITS(UVData):
                     [cross_data.real[broad_inds], cross_data.imag[broad_inds]]
                 )
                 _corr_fits.van_vleck_cheby(
-                    kap, rho_coeff, sv_inds_right1, sv_inds_right2, ds1, ds2,
+                    kap, vv1_rho_coeff, sv_inds_right1, sv_inds_right2, ds1, ds2,
                 )
                 kap *= sig1[sig1_inds, :, :][broad_inds]
                 kap *= sig2[sig2_inds, :, :][broad_inds]
@@ -1063,7 +1080,7 @@ class MWACorrFITS(UVData):
                 sv_inds_right2 = sv_inds_right[:, :, 1][broad_inds]
                 # correct in range data with the cheby approximation
                 _corr_fits.van_vleck_cheby(
-                    kap, rho_coeff, sv_inds_right1, sv_inds_right2, ds1, ds2,
+                    kap, vv1_rho_coeff, sv_inds_right1, sv_inds_right2, ds1, ds2,
                 )
                 kap *= sig1
                 kap *= sig2
@@ -1157,10 +1174,7 @@ class MWACorrFITS(UVData):
         dig_gains,
         spw_inds,
         num_fine_chans,
-        flagged_ant_inds,
         cheby_approx,
-        data_array_dtype,
-        flag_small_auto_ants,
         correct_van_vleck,
         remove_coarse_band,
         remove_dig_gains,
@@ -1209,8 +1223,28 @@ class MWACorrFITS(UVData):
             # calculate number of samples going into real or imaginary part
             # factor of two comes from variables being circularly-symmetric
             nsamples = self.channel_width[0] * self.integration_time[0] * 2
+            with h5py.File(DATA_PATH + "/mwa_config_data/vv2_mu_coeffs.h5", "r") as f:
+                vv2_mu_coeff = f["mu_coeffs"][:]
+            with h5py.File(DATA_PATH + "/mwa_config_data/vv2_auto_coeffs.h5", "r") as f:
+                vv2_auto_coeff = f["coeffs"][:]
+            if cheby_approx:
+                # load in interpolation files
+                with h5py.File(
+                    DATA_PATH + "/mwa_config_data/Chebychev_coeff.h5", "r"
+                ) as f:
+                    vv1_rho_coeff = f["rho_data"][:]
+                with h5py.File(DATA_PATH + "/mwa_config_data/sigma1.h5", "r") as f:
+                    vv1_sig_vec = f["sig_data"][:]
+            else:
+                vv1_rho_coeff = None
+                vv1_sig_vec = None
         else:
             nsamples = None
+            vv2_mu_coeff = None
+            vv2_auto_coeff = None
+            vv1_rho_coeff = None
+            vv1_sig_vec = None
+
         # get digital gains
         if remove_dig_gains:
             self.history += " Divided out digital gains."
@@ -1238,6 +1272,10 @@ class MWACorrFITS(UVData):
                 cb_array,
                 dig_gains,
                 nsamples,
+                vv2_mu_coeff,
+                vv2_auto_coeff,
+                vv1_sig_vec,
+                vv1_rho_coeff,
                 num_fine_chans,
                 cheby_approx,
                 correct_van_vleck,
@@ -1973,10 +2011,7 @@ class MWACorrFITS(UVData):
                     dig_gains,
                     spw_inds,
                     num_fine_chans,
-                    flagged_ant_inds,
                     cheby_approx=cheby_approx,
-                    data_array_dtype=data_array_dtype,
-                    flag_small_auto_ants=flag_small_auto_ants,
                     correct_van_vleck=correct_van_vleck,
                     remove_coarse_band=remove_coarse_band,
                     remove_dig_gains=remove_dig_gains,
