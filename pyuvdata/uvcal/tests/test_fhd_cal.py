@@ -222,7 +222,13 @@ def test_unknown_telescope():
 def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfiles):
     """Try various cases of missing files."""
     fhd_cal = UVCal()
-    pytest.raises(TypeError, fhd_cal.read_fhd_cal, cal_file)  # Missing obs
+    # check useful error message for metadata only read with no settings file
+    with pytest.raises(
+        ValueError, match="A settings_file must be provided if read_data is False."
+    ):
+        fhd_cal.read_fhd_cal(
+            cal_file, obs_file, layout_file=layout_file, read_data=False
+        )
 
     message_list = [
         "No settings file",
