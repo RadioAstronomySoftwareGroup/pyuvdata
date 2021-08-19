@@ -9,7 +9,7 @@ jobs:
       env_name:
         type: string
     docker:
-      - image: continuumio/miniconda:latest
+      - image: continuumio/miniconda3:latest
     environment:
       PYTHON: << parameters.python_version >>
       ENV_NAME: << parameters.env_name >>
@@ -97,7 +97,7 @@ jobs:
       env_name:
         type: string
     docker:
-      - image: continuumio/miniconda:latest
+      - image: continuumio/miniconda3:latest
     environment:
       PYTHON: << parameters.python_version >>
       ENV_NAME: << parameters.env_name >>
@@ -114,7 +114,6 @@ jobs:
       - run:
           name: install
           command: |
-            export PATH="$HOME/miniconda/bin:$PATH"
             source activate ${ENV_NAME}
             pip install -e .
       - run:
