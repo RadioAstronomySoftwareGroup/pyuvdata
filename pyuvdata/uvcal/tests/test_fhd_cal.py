@@ -18,6 +18,9 @@ testfile_prefix = "1061316296_"
 obs_testfile = os.path.join(testdir, testfile_prefix + "obs.sav")
 cal_testfile = os.path.join(testdir, testfile_prefix + "cal.sav")
 settings_testfile = os.path.join(testdir, testfile_prefix + "settings.txt")
+settings_testfile_nodiffuse = os.path.join(
+    testdir, testfile_prefix + "nodiffuse_settings.txt"
+)
 layout_testfile = os.path.join(testdir, testfile_prefix + "layout.sav")
 
 testdir2 = os.path.join(DATA_PATH, "fhd_cal_data/set2")
@@ -89,6 +92,17 @@ def test_read_fhdcal_raw_write_read_calfits(raw, tmp_path):
     ]
 
     assert fhd_cal == calfits_cal2
+
+    fhd_cal.read_fhd_cal(
+        cal_testfile,
+        obs_testfile,
+        layout_file=layout_testfile,
+        settings_file=settings_testfile_nodiffuse,
+        raw=raw,
+        read_data=False,
+    )
+    calfits_cal2.diffuse_model = None
+    fhd_cal == calfits_cal2
 
     return
 

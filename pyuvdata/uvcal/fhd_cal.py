@@ -274,7 +274,10 @@ class FHDCal(UVCal):
                 float(settings_lines["max_cal_baseline"][0]),
             ]
             galaxy_model = int(settings_lines["galaxy_model"][0])
-            diffuse_model = settings_lines["diffuse_model"][0]
+            if len(settings_lines["diffuse_model"]) > 0:
+                diffuse_model = settings_lines["diffuse_model"][0]
+            else:
+                diffuse_model = ""
             auto_scale = settings_lines["auto_scale"]
             n_vis_cal = np.int64(settings_lines["n_vis_cal"][0])
             time_avg = int(settings_lines["time_avg"][0])
