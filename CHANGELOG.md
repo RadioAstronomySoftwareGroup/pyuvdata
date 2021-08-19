@@ -10,6 +10,10 @@ All notable changes to this project will be documented in this file.
 an astropy dependency).
 
 ### Fixed
+- Provide a more useful error message if `UVCal.read_fhd_cal` is called with
+`read_data=False` and a settings file is not provided.
+- Fixed a bug in `UVCal.read_fhd_cal` where the reader crashed on a metadata only read
+if the settings file had an empty field for the diffuse model.
 - Fixed a bug in `UVBeam.efield_to_power` where a the `data_array` remained complex
 rather than real because the tolerance was too low in the numpy `real_if_close` call.
 
