@@ -74,6 +74,9 @@ class FHDCal(UVCal):
             parameters after reading in the file.
 
         """
+        if not read_data and settings_file is None:
+            raise ValueError("A settings_file must be provided if read_data is False.")
+
         this_dict = readsav(obs_file, python_dict=True)
         obs_data = this_dict["obs"]
         bl_info = obs_data["BASELINE_INFO"][0]
@@ -226,71 +229,70 @@ class FHDCal(UVCal):
 
             self.Nants_data = int(np.union1d(ant_1_array, ant_2_array).size)
 
-            # get details from settings file if it's available
-            if settings_file is not None:
-                keywords = [
-                    "ref_antenna_name",
-                    "catalog_name",
-                    "n_sources",
-                    "min_cal_baseline",
-                    "max_cal_baseline",
-                    "galaxy_model",
-                    "diffuse_model",
-                    "auto_scale",
-                    "n_vis_cal",
-                    "time_avg",
-                    "conv_thresh",
+            # get details from settings file
+            keywords = [
+                "ref_antenna_name",
+                "catalog_name",
+                "n_sources",
+                "min_cal_baseline",
+                "max_cal_baseline",
+                "galaxy_model",
+                "diffuse_model",
+                "auto_scale",
+                "n_vis_cal",
+                "time_avg",
+                "conv_thresh",
+            ]
+            if not raw:
+                keywords += [
+                    "polyfit",
+                    "bandpass",
+                    "mode_fit",
+                    "amp_degree",
+                    "phase_degree",
                 ]
-                if not raw:
-                    keywords += [
-                        "polyfit",
-                        "bandpass",
-                        "mode_fit",
-                        "amp_degree",
-                        "phase_degree",
-                    ]
 
-                settings_lines = {}
-                with open(settings_file, "r") as read_obj:
-                    cal_start = False
-                    for line in read_obj:
-                        if not cal_start:
-                            if line.startswith("##CAL"):
-                                cal_start = True
-                        else:
-                            if line.startswith("##"):
-                                break
-                            # in cal structure section
-                            for kw in keywords:
-                                if line.strip().startswith(kw.upper()):
-                                    settings_lines[kw] = line.split()[1:]
-                self.ref_antenna_name = settings_lines["ref_antenna_name"][0]
-                self.Nsources = int(settings_lines["n_sources"][0])
-                self.sky_catalog = settings_lines["catalog_name"][0]
-                self.baseline_range = [
-                    float(settings_lines["min_cal_baseline"][0]),
-                    float(settings_lines["max_cal_baseline"][0]),
-                ]
-                galaxy_model = int(settings_lines["galaxy_model"][0])
-                diffuse_model = settings_lines["diffuse_model"][0]
-                auto_scale = settings_lines["auto_scale"]
-                n_vis_cal = np.int64(settings_lines["n_vis_cal"][0])
-                time_avg = int(settings_lines["time_avg"][0])
-                conv_thresh = float(settings_lines["conv_thresh"][0])
-
-                if not raw:
-                    polyfit = int(settings_lines["polyfit"][0])
-                    bandpass = int(settings_lines["bandpass"][0])
-                    mode_fit = settings_lines["mode_fit"]
-                    # for some reason, it's a float if it's one value,
-                    # and integers otherwise
-                    if len(mode_fit) == 1:
-                        mode_fit = float(mode_fit[0])
+            settings_lines = {}
+            with open(settings_file, "r") as read_obj:
+                cal_start = False
+                for line in read_obj:
+                    if not cal_start:
+                        if line.startswith("##CAL"):
+                            cal_start = True
                     else:
-                        mode_fit = np.array(mode_fit, dtype=np.int64)
+                        if line.startswith("##"):
+                            break
+                        # in cal structure section
+                        for kw in keywords:
+                            if line.strip().startswith(kw.upper()):
+                                settings_lines[kw] = line.split()[1:]
+            self.ref_antenna_name = settings_lines["ref_antenna_name"][0]
+            self.Nsources = int(settings_lines["n_sources"][0])
+            self.sky_catalog = settings_lines["catalog_name"][0]
+            self.baseline_range = [
+                float(settings_lines["min_cal_baseline"][0]),
+                float(settings_lines["max_cal_baseline"][0]),
+            ]
+            galaxy_model = int(settings_lines["galaxy_model"][0])
+            diffuse_model = settings_lines["diffuse_model"][0]
+            auto_scale = settings_lines["auto_scale"]
+            n_vis_cal = np.int64(settings_lines["n_vis_cal"][0])
+            time_avg = int(settings_lines["time_avg"][0])
+            conv_thresh = float(settings_lines["conv_thresh"][0])
 
-                    amp_degree = int(settings_lines["amp_degree"][0])
-                    phase_degree = int(settings_lines["phase_degree"][0])
+            if not raw:
+                polyfit = int(settings_lines["polyfit"][0])
+                bandpass = int(settings_lines["bandpass"][0])
+                mode_fit = settings_lines["mode_fit"]
+                # for some reason, it's a float if it's one value,
+                # and integers otherwise
+                if len(mode_fit) == 1:
+                    mode_fit = float(mode_fit[0])
+                else:
+                    mode_fit = np.array(mode_fit, dtype=np.int64)
+
+                amp_degree = int(settings_lines["amp_degree"][0])
+                phase_degree = int(settings_lines["phase_degree"][0])
 
         else:
             this_dict = readsav(cal_file, python_dict=True)
