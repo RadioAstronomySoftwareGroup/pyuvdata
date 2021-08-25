@@ -3260,7 +3260,7 @@ class UVData(UVBase):
         ind1, ind2, indp = self._key2inds(key)
         out = self._smart_slicing(
             self.flag_array, ind1, ind2, indp, squeeze=squeeze, force_copy=force_copy
-        ).astype(np.bool_)
+        )
         return out
 
     def get_nsamples(
@@ -3447,7 +3447,7 @@ class UVData(UVBase):
             The data to overwrite into the data_array. Must be the same shape as
             the target indices.
         key1, key2, key3 : int or tuple of ints
-            Identifier of which data to get, can be passed as 1, 2, or 3 arguments
+            Identifier of which data to set, can be passed as 1, 2, or 3 arguments
             or as a single tuple of length 1, 2, or 3. These are collectively
             called the key.
 
@@ -3467,7 +3467,7 @@ class UVData(UVBase):
         Raises
         ------
         ValueError:
-            if the data are not the right shape or are not complex
+            if the data are not the right shape
         """
         key = []
         for val in [key1, key2, key3]:
@@ -3520,6 +3520,180 @@ class UVData(UVBase):
 
         inds = tuple(inds)
         uvutils._index_dset(self.data_array, inds, data)
+
+        return
+
+    def set_flags(self, flags, key1, key2=None, key3=None):
+        """
+        Set the flag array to some values provided by the user.
+
+        Parameters
+        ----------
+        flag : ndarray of boolean
+            The flags to overwrite into the fkag_array. Must be the same shape
+            as the target indices.
+        key1, key2, key3 : int or tuple of ints
+            Identifier of which flags to set, can be passed as 1, 2, or 3 arguments
+            or as a single tuple of length 1, 2, or 3. These are collectively
+            called the key.
+
+            If key is length 1:
+                if (key < 5) or (type(key) is str):
+                    interpreted as a polarization number/name, set all flags for
+                    that pol.
+                else:
+                    interpreted as a baseline number, set all flags for that baseline.
+
+            if key is length 2: interpreted as an antenna pair, set all flags
+                for that baseline.
+
+            if key is length 3: interpreted as antenna pair and pol (ant1, ant2, pol),
+                set all flags for that baseline, pol. pol may be a string or int.
+
+        Raises
+        ------
+        ValueError:
+            if the flags are not the right shape
+        """
+        key = []
+        for val in [key1, key2, key3]:
+            if isinstance(val, str):
+                key.append(val)
+            elif val is not None:
+                key += list(uvutils._get_iterable(val))
+        if len(key) > 3:
+            raise ValueError("no more than 3 key values can be passed")
+        ind1, ind2, indp = self._key2inds(key)
+        if len(ind1) == 0 and len(ind2) == 0:
+            raise ValueError("no flags corresponding to the input key was found")
+        if len(ind2) != 0:
+            raise ValueError(
+                "the requested key is present in the flags, but conjugated. Please "
+                "conjugate keys appropriately and try again"
+            )
+        dshape = flags.shape
+        if self.future_array_shapes:
+            expected_shape = (len(ind1), self.Nfreqs, len(indp[0]))
+        else:
+            expected_shape = (len(ind1), 1, self.Nfreqs, len(indp[0]))
+        if dshape != expected_shape:
+            raise ValueError(
+                "the flags are not compatible with the shape of the destination. "
+                f"Input flags shape is {dshape}, expected shape is {expected_shape}."
+            )
+
+        blt_slices, blt_sliceable = uvutils._convert_to_slices(
+            ind1, max_nslice_frac=0.1
+        )
+        pol_slices, pol_sliceable = uvutils._convert_to_slices(
+            indp[0], max_nslice_frac=0.5
+        )
+
+        if sum([blt_sliceable, pol_sliceable]) < 2:
+            multidim_index = False
+        else:
+            multidim_index = True
+
+        if self.future_array_shapes:
+            inds = [ind1, np.s_[:], indp[0]]
+        else:
+            inds = [ind1, np.s_[:], np.s_[:], indp[0]]
+        if blt_sliceable:
+            inds[0] = blt_slices
+        if multidim_index:
+            if pol_sliceable:
+                inds[-1] = pol_slices
+
+        inds = tuple(inds)
+        uvutils._index_dset(self.flag_array, inds, flags)
+
+        return
+
+    def set_nsamples(self, nsamples, key1, key2=None, key3=None):
+        """
+        Set the nsamples array to some values provided by the user.
+
+        Parameters
+        ----------
+        nsamples : ndarray of float
+            The nsamples to overwrite into the nsample_array. Must be the same
+            shape as the target indices.
+        key1, key2, key3 : int or tuple of ints
+            Identifier of which nsamples to get, can be passed as 1, 2, or 3
+            arguments or as a single tuple of length 1, 2, or 3. These are
+            collectively called the key.
+
+            If key is length 1:
+                if (key < 5) or (type(key) is str):
+                    interpreted as a polarization number/name, set all data for
+                    that pol.
+                else:
+                    interpreted as a baseline number, set all nsamples for that
+                    baseline.
+
+            if key is length 2: interpreted as an antenna pair, set all nsamples
+                for that baseline.
+
+            if key is length 3: interpreted as antenna pair and pol (ant1, ant2,
+                pol), set all nsamples for that baseline, pol. pol may be a
+                string or int.
+
+        Raises
+        ------
+        ValueError:
+            if the nsamples are not the right shape
+        """
+        key = []
+        for val in [key1, key2, key3]:
+            if isinstance(val, str):
+                key.append(val)
+            elif val is not None:
+                key += list(uvutils._get_iterable(val))
+        if len(key) > 3:
+            raise ValueError("no more than 3 key values can be passed")
+        ind1, ind2, indp = self._key2inds(key)
+        if len(ind1) == 0 and len(ind2) == 0:
+            raise ValueError("no nsamples corresponding to the input key was found")
+        if len(ind2) != 0:
+            raise ValueError(
+                "the requested key is present in the nsamples, but conjugated. Please "
+                "conjugate keys appropriately and try again"
+            )
+        dshape = nsamples.shape
+        if self.future_array_shapes:
+            expected_shape = (len(ind1), self.Nfreqs, len(indp[0]))
+        else:
+            expected_shape = (len(ind1), 1, self.Nfreqs, len(indp[0]))
+        if dshape != expected_shape:
+            raise ValueError(
+                "the nsamples are not compatible with the shape of the destination. "
+                f"Input nsamples shape is {dshape}, expected shape is {expected_shape}."
+            )
+
+        blt_slices, blt_sliceable = uvutils._convert_to_slices(
+            ind1, max_nslice_frac=0.1
+        )
+        pol_slices, pol_sliceable = uvutils._convert_to_slices(
+            indp[0], max_nslice_frac=0.5
+        )
+
+        if sum([blt_sliceable, pol_sliceable]) < 2:
+            multidim_index = False
+        else:
+            multidim_index = True
+
+        if self.future_array_shapes:
+            inds = [ind1, np.s_[:], indp[0]]
+        else:
+            inds = [ind1, np.s_[:], np.s_[:], indp[0]]
+        if blt_sliceable:
+            inds[0] = blt_slices
+        if multidim_index:
+            if pol_sliceable:
+                inds[-1] = pol_slices
+
+        inds = tuple(inds)
+        uvutils._index_dset(self.nsample_array, inds, nsamples)
 
         return
 
