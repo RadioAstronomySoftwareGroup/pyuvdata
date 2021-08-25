@@ -10952,6 +10952,9 @@ def test_eq_allowed_failures_filename_string(bda_test_file, capsys):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_set_data(hera_uvh5, future_shapes):
+    """
+    Test setting data for a given baseline.
+    """
     uv = hera_uvh5
 
     if future_shapes:
@@ -10970,7 +10973,33 @@ def test_set_data(hera_uvh5, future_shapes):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
+def test_set_data_polkey(hera_uvh5, future_shapes):
+    """
+    Test setting data for a given baseline with a specific polarization.
+    """
+    uv = hera_uvh5
+
+    if future_shapes:
+        uv.use_future_array_shapes()
+
+    ant1 = np.unique(uv.antenna_numbers)[0]
+    ant2 = np.unique(uv.antenna_numbers)[1]
+    pol = "xx"
+    data = 2 * uv.get_data(ant1, ant2, pol, squeeze="none", force_copy=True)
+    inds1, inds2, indp = uv._key2inds((ant1, ant2, pol))
+    uv.set_data(data, ant1, ant2, pol)
+    data2 = uv.get_data(ant1, ant2, pol, squeeze="none")
+
+    assert np.allclose(data, data2)
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("future_shapes", [True, False])
 def test_set_flags(hera_uvh5, future_shapes):
+    """
+    Test setting flags for a given baseline.
+    """
     uv = hera_uvh5
     if future_shapes:
         uv.use_future_array_shapes()
@@ -10993,7 +11022,37 @@ def test_set_flags(hera_uvh5, future_shapes):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
+def test_set_flags_polkey(hera_uvh5, future_shapes):
+    """
+    Test setting flags for a given baseline with a specific polarization.
+    """
+    uv = hera_uvh5
+    if future_shapes:
+        uv.use_future_array_shapes()
+
+    ant1 = np.unique(uv.antenna_numbers)[0]
+    ant2 = np.unique(uv.antenna_numbers)[1]
+    pol = "xx"
+    flags = uv.get_flags(ant1, ant2, pol, squeeze="none", force_copy=True)
+    if future_shapes:
+        flags[:, :, :] = True
+    else:
+        flags[:, :, :, :] = True
+    inds1, inds2, indp = uv._key2inds((ant1, ant2, pol))
+    uv.set_flags(flags, ant1, ant2, pol)
+    flags2 = uv.get_flags(ant1, ant2, pol, squeeze="none")
+
+    assert np.allclose(flags, flags2)
+    assert not np.allclose(uv.flag_array, True)
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("future_shapes", [True, False])
 def test_set_nsamples(hera_uvh5, future_shapes):
+    """
+    Test setting nsamples for a given baseline.
+    """
     uv = hera_uvh5
     if future_shapes:
         uv.use_future_array_shapes()
@@ -11008,6 +11067,33 @@ def test_set_nsamples(hera_uvh5, future_shapes):
     inds1, inds2, indp = uv._key2inds((ant1, ant2))
     uv.set_nsamples(nsamples, ant1, ant2)
     nsamples2 = uv.get_nsamples(ant1, ant2, squeeze="none")
+
+    assert np.allclose(nsamples, nsamples2)
+    assert not np.allclose(uv.nsample_array, np.pi)
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_set_nsamples_polkey(hera_uvh5, future_shapes):
+    """
+    Test setting nsamples for a given baseline with a specific polarization.
+    """
+    uv = hera_uvh5
+    if future_shapes:
+        uv.use_future_array_shapes()
+
+    ant1 = np.unique(uv.antenna_numbers)[0]
+    ant2 = np.unique(uv.antenna_numbers)[1]
+    pol = "xx"
+    nsamples = uv.get_nsamples(ant1, ant2, pol, squeeze="none", force_copy=True)
+    if future_shapes:
+        nsamples[:, :, :] = np.pi
+    else:
+        nsamples[:, :, :, :] = np.pi
+    inds1, inds2, indp = uv._key2inds((ant1, ant2, pol))
+    uv.set_nsamples(nsamples, ant1, ant2, pol)
+    nsamples2 = uv.get_nsamples(ant1, ant2, pol, squeeze="none")
 
     assert np.allclose(nsamples, nsamples2)
     assert not np.allclose(uv.nsample_array, np.pi)
@@ -11034,7 +11120,7 @@ def test_set_data_bad_key_error(hera_uvh5):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_set_data_conj_data_error(hera_uvh5):
     """
-    Test an error is raised when a key has too many values.
+    Test an error is raised when a conjugated baseline is specified.
     """
     uv = hera_uvh5
 
@@ -11053,7 +11139,7 @@ def test_set_data_conj_data_error(hera_uvh5):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_set_data_wrong_shape_error(hera_uvh5):
     """
-    Test an error is raised when a key has too many values.
+    Test an error is raised when the data are the wrong shape.
     """
     uv = hera_uvh5
 
@@ -11091,7 +11177,7 @@ def test_set_flags_bad_key_error(hera_uvh5):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_set_flags_conj_data_error(hera_uvh5):
     """
-    Test an error is raised when a key has too many values.
+    Test an error is raised when a conjugated baseline is specified.
     """
     uv = hera_uvh5
 
@@ -11110,7 +11196,7 @@ def test_set_flags_conj_data_error(hera_uvh5):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_set_flags_wrong_shape_error(hera_uvh5):
     """
-    Test an error is raised when a key has too many values.
+    Test an error is raised when the flags are the wrong shape.
     """
     uv = hera_uvh5
 
@@ -11148,7 +11234,7 @@ def test_set_nsamples_bad_key_error(hera_uvh5):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_set_nsamples_conj_data_error(hera_uvh5):
     """
-    Test an error is raised when a key has too many values.
+    Test an error is raised when a conjugated baseline is specified.
     """
     uv = hera_uvh5
 
@@ -11167,7 +11253,7 @@ def test_set_nsamples_conj_data_error(hera_uvh5):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_set_nsamples_wrong_shape_error(hera_uvh5):
     """
-    Test an error is raised when a key has too many values.
+    Test an error is raised when the nsamples are the wrong shape.
     """
     uv = hera_uvh5
 
