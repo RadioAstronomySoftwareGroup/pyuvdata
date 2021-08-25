@@ -3258,9 +3258,15 @@ class UVData(UVBase):
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         ind1, ind2, indp = self._key2inds(key)
+        # When we select conjugated baselines, there is a call to np.conj()
+        # inside of _smart_slicing to correct the data array. This has the
+        # unintended consequency of promoting the dtype of an array of np.bool_
+        # to np.int8. Rather than having a bunch of special handling for this
+        # ~corner case, we instead explicitly cast back to np.bool_ before we
+        # hand back to the user.
         out = self._smart_slicing(
             self.flag_array, ind1, ind2, indp, squeeze=squeeze, force_copy=force_copy
-        )
+        ).astype(np.bool_)
         return out
 
     def get_nsamples(
