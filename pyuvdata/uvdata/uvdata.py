@@ -3507,20 +3507,14 @@ class UVData(UVBase):
             indp[0], max_nslice_frac=0.5
         )
 
-        if sum([blt_sliceable, pol_sliceable]) < 2:
-            multidim_index = False
-        else:
-            multidim_index = True
-
         if self.future_array_shapes:
             inds = [ind1, np.s_[:], indp[0]]
         else:
             inds = [ind1, np.s_[:], np.s_[:], indp[0]]
         if blt_sliceable:
             inds[0] = blt_slices
-        if multidim_index:
-            if pol_sliceable:
-                inds[-1] = pol_slices
+        if pol_sliceable:
+            inds[-1] = pol_slices
 
         inds = tuple(inds)
         uvutils._index_dset(self.data_array, inds, data)
@@ -3591,20 +3585,14 @@ class UVData(UVBase):
             indp[0], max_nslice_frac=0.5
         )
 
-        if sum([blt_sliceable, pol_sliceable]) < 2:
-            multidim_index = False
-        else:
-            multidim_index = True
-
         if self.future_array_shapes:
             inds = [ind1, np.s_[:], indp[0]]
         else:
             inds = [ind1, np.s_[:], np.s_[:], indp[0]]
         if blt_sliceable:
             inds[0] = blt_slices
-        if multidim_index:
-            if pol_sliceable:
-                inds[-1] = pol_slices
+        if pol_sliceable:
+            inds[-1] = pol_slices
 
         inds = tuple(inds)
         uvutils._index_dset(self.flag_array, inds, flags)
@@ -3677,20 +3665,14 @@ class UVData(UVBase):
             indp[0], max_nslice_frac=0.5
         )
 
-        if sum([blt_sliceable, pol_sliceable]) < 2:
-            multidim_index = False
-        else:
-            multidim_index = True
-
         if self.future_array_shapes:
             inds = [ind1, np.s_[:], indp[0]]
         else:
             inds = [ind1, np.s_[:], np.s_[:], indp[0]]
         if blt_sliceable:
             inds[0] = blt_slices
-        if multidim_index:
-            if pol_sliceable:
-                inds[-1] = pol_slices
+        if pol_sliceable:
+            inds[-1] = pol_slices
 
         inds = tuple(inds)
         uvutils._index_dset(self.nsample_array, inds, nsamples)
