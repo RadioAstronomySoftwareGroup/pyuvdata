@@ -11012,3 +11012,174 @@ def test_set_nsamples(hera_uvh5, future_shapes):
     assert np.allclose(nsamples, nsamples2)
     assert not np.allclose(uv.nsample_array, np.pi)
     return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_set_data_bad_key_error(hera_uvh5):
+    """
+    Test an error is raised when a key has too many values.
+    """
+    uv = hera_uvh5
+
+    ant1 = np.unique(uv.antenna_numbers)[0]
+    ant2 = np.unique(uv.antenna_numbers)[1]
+    data = uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
+    with pytest.raises(ValueError) as cm:
+        uv.set_data(data, (ant1, ant2, "xx", "foo"))
+    assert str(cm.value).startswith("no more than 3 key values can be passed")
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_set_data_conj_data_error(hera_uvh5):
+    """
+    Test an error is raised when a key has too many values.
+    """
+    uv = hera_uvh5
+
+    ant1 = np.unique(uv.antenna_numbers)[0]
+    ant2 = np.unique(uv.antenna_numbers)[1]
+    data = uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
+    with pytest.raises(ValueError) as cm:
+        uv.set_data(data, (ant2, ant1))
+    assert str(cm.value).startswith(
+        "the requested key is present on the object, but conjugated"
+    )
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_set_data_wrong_shape_error(hera_uvh5):
+    """
+    Test an error is raised when a key has too many values.
+    """
+    uv = hera_uvh5
+
+    ant1 = np.unique(uv.antenna_numbers)[0]
+    ant2 = np.unique(uv.antenna_numbers)[1]
+    data = uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
+    # make data the wrong rank
+    data = data[0]
+    with pytest.raises(ValueError) as cm:
+        uv.set_data(data, (ant1, ant2))
+    assert str(cm.value).startswith(
+        "the data are not compatible with the shape of the destination"
+    )
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_set_flags_bad_key_error(hera_uvh5):
+    """
+    Test an error is raised when a key has too many values.
+    """
+    uv = hera_uvh5
+
+    ant1 = np.unique(uv.antenna_numbers)[0]
+    ant2 = np.unique(uv.antenna_numbers)[1]
+    flags = uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
+    with pytest.raises(ValueError) as cm:
+        uv.set_flags(flags, (ant1, ant2, "xx", "foo"))
+    assert str(cm.value).startswith("no more than 3 key values can be passed")
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_set_flags_conj_data_error(hera_uvh5):
+    """
+    Test an error is raised when a key has too many values.
+    """
+    uv = hera_uvh5
+
+    ant1 = np.unique(uv.antenna_numbers)[0]
+    ant2 = np.unique(uv.antenna_numbers)[1]
+    flags = uv.get_flags(ant1, ant2, squeeze="none", force_copy=True)
+    with pytest.raises(ValueError) as cm:
+        uv.set_flags(flags, (ant2, ant1))
+    assert str(cm.value).startswith(
+        "the requested key is present on the object, but conjugated"
+    )
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_set_flags_wrong_shape_error(hera_uvh5):
+    """
+    Test an error is raised when a key has too many values.
+    """
+    uv = hera_uvh5
+
+    ant1 = np.unique(uv.antenna_numbers)[0]
+    ant2 = np.unique(uv.antenna_numbers)[1]
+    flags = uv.get_flags(ant1, ant2, squeeze="none", force_copy=True)
+    # make data the wrong rank
+    flags = flags[0]
+    with pytest.raises(ValueError) as cm:
+        uv.set_flags(flags, (ant1, ant2))
+    assert str(cm.value).startswith(
+        "the flags are not compatible with the shape of the destination"
+    )
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_set_nsamples_bad_key_error(hera_uvh5):
+    """
+    Test an error is raised when a key has too many values.
+    """
+    uv = hera_uvh5
+
+    ant1 = np.unique(uv.antenna_numbers)[0]
+    ant2 = np.unique(uv.antenna_numbers)[1]
+    nsamples = uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
+    with pytest.raises(ValueError) as cm:
+        uv.set_nsamples(nsamples, (ant1, ant2, "xx", "foo"))
+    assert str(cm.value).startswith("no more than 3 key values can be passed")
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_set_nsamples_conj_data_error(hera_uvh5):
+    """
+    Test an error is raised when a key has too many values.
+    """
+    uv = hera_uvh5
+
+    ant1 = np.unique(uv.antenna_numbers)[0]
+    ant2 = np.unique(uv.antenna_numbers)[1]
+    nsamples = uv.get_nsamples(ant1, ant2, squeeze="none", force_copy=True)
+    with pytest.raises(ValueError) as cm:
+        uv.set_nsamples(nsamples, (ant2, ant1))
+    assert str(cm.value).startswith(
+        "the requested key is present on the object, but conjugated"
+    )
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_set_nsamples_wrong_shape_error(hera_uvh5):
+    """
+    Test an error is raised when a key has too many values.
+    """
+    uv = hera_uvh5
+
+    ant1 = np.unique(uv.antenna_numbers)[0]
+    ant2 = np.unique(uv.antenna_numbers)[1]
+    nsamples = uv.get_nsamples(ant1, ant2, squeeze="none", force_copy=True)
+    # make data the wrong rank
+    nsamples = nsamples[0]
+    with pytest.raises(ValueError) as cm:
+        uv.set_nsamples(nsamples, (ant1, ant2))
+    assert str(cm.value).startswith(
+        "the nsamples are not compatible with the shape of the destination"
+    )
+
+    return

@@ -3260,7 +3260,7 @@ class UVData(UVBase):
         ind1, ind2, indp = self._key2inds(key)
         # When we select conjugated baselines, there is a call to np.conj()
         # inside of _smart_slicing to correct the data array. This has the
-        # unintended consequency of promoting the dtype of an array of np.bool_
+        # unintended consequence of promoting the dtype of an array of np.bool_
         # to np.int8. Rather than having a bunch of special handling for this
         # ~corner case, we instead explicitly cast back to np.bool_ before we
         # hand back to the user.
@@ -3484,11 +3484,9 @@ class UVData(UVBase):
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         ind1, ind2, indp = self._key2inds(key)
-        if len(ind1) == 0 and len(ind2) == 0:
-            raise ValueError("no data corresponding to the input key was found")
         if len(ind2) != 0:
             raise ValueError(
-                "the requested key is present in the data, but conjugated. Please "
+                "the requested key is present on the object, but conjugated. Please "
                 "conjugate data and keys appropriately and try again"
             )
         dshape = data.shape
@@ -3570,11 +3568,9 @@ class UVData(UVBase):
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         ind1, ind2, indp = self._key2inds(key)
-        if len(ind1) == 0 and len(ind2) == 0:
-            raise ValueError("no flags corresponding to the input key was found")
         if len(ind2) != 0:
             raise ValueError(
-                "the requested key is present in the flags, but conjugated. Please "
+                "the requested key is present on the object, but conjugated. Please "
                 "conjugate keys appropriately and try again"
             )
         dshape = flags.shape
@@ -3658,11 +3654,9 @@ class UVData(UVBase):
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         ind1, ind2, indp = self._key2inds(key)
-        if len(ind1) == 0 and len(ind2) == 0:
-            raise ValueError("no nsamples corresponding to the input key was found")
         if len(ind2) != 0:
             raise ValueError(
-                "the requested key is present in the nsamples, but conjugated. Please "
+                "the requested key is present on the object, but conjugated. Please "
                 "conjugate keys appropriately and try again"
             )
         dshape = nsamples.shape
