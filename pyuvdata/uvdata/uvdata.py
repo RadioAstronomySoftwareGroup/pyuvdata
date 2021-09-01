@@ -3443,6 +3443,94 @@ class UVData(UVBase):
 
         return antpos, ants
 
+    def _set_method_helper(self, dshape, key1, key2=None, key3=None):
+        """
+        Extract the indices for setting data, flags, or nsample arrays.
+
+        This is a helper method designed to work with set_data, set_flags, and
+        set_nsamples. Given the shape of the data-like array and the keys
+        corresponding to where the data should end up, it finds the indices
+        that are needed for the `_index_dset` method.
+
+        Parameters
+        ----------
+        dshape : tuple of int
+            The shape of the data-like array. This is used to ensure the array
+            is compatible with the indices selected.
+        key1, key2, key3 : int or tuple of ints
+            Identifier of which flags to set, can be passed as 1, 2, or 3 arguments
+            or as a single tuple of length 1, 2, or 3. These are collectively
+            called the key.
+
+            If key is length 1:
+                if (key < 5) or (type(key) is str):
+                    interpreted as a polarization number/name, set all flags for
+                    that pol.
+                else:
+                    interpreted as a baseline number, set all flags for that baseline.
+
+            if key is length 2: interpreted as an antenna pair, set all flags
+                for that baseline.
+
+            if key is length 3: interpreted as antenna pair and pol (ant1, ant2, pol),
+                set all flags for that baseline, pol. pol may be a string or int.
+
+        Returns
+        -------
+        inds : tuple of int
+            The indices in the data-like array to slice into.
+
+        Raises
+        ------
+        ValueError:
+            If more than 3 keys are passed, if the requested indices are
+            conjugated in the data, if the data array shape is not compatible
+            with the indices.
+
+        """
+        key = []
+        for val in [key1, key2, key3]:
+            if isinstance(val, str):
+                key.append(val)
+            elif val is not None:
+                key += list(uvutils._get_iterable(val))
+        if len(key) > 3:
+            raise ValueError("no more than 3 key values can be passed")
+        ind1, ind2, indp = self._key2inds(key)
+        if len(ind2) != 0:
+            raise ValueError(
+                "the requested key is present on the object, but conjugated. Please "
+                "conjugate data and keys appropriately and try again"
+            )
+
+        if self.future_array_shapes:
+            expected_shape = (len(ind1), self.Nfreqs, len(indp[0]))
+        else:
+            expected_shape = (len(ind1), 1, self.Nfreqs, len(indp[0]))
+        if dshape != expected_shape:
+            raise ValueError(
+                "the input array is not compatible with the shape of the destination. "
+                f"Input array shape is {dshape}, expected shape is {expected_shape}."
+            )
+
+        blt_slices, blt_sliceable = uvutils._convert_to_slices(
+            ind1, max_nslice_frac=0.1
+        )
+        pol_slices, pol_sliceable = uvutils._convert_to_slices(
+            indp[0], max_nslice_frac=0.5
+        )
+
+        if self.future_array_shapes:
+            inds = [ind1, np.s_[:], indp[0]]
+        else:
+            inds = [ind1, np.s_[:], np.s_[:], indp[0]]
+        if blt_sliceable:
+            inds[0] = blt_slices
+        if pol_sliceable:
+            inds[-1] = pol_slices
+
+        return tuple(inds)
+
     def set_data(self, data, key1, key2=None, key3=None):
         """
         Set the data array to some values provided by the user.
@@ -3470,53 +3558,20 @@ class UVData(UVBase):
             if key is length 3: interpreted as antenna pair and pol (ant1, ant2, pol),
                 get all data for that baseline, pol. pol may be a string or int.
 
+        Returns
+        -------
+        None
+
         Raises
         ------
         ValueError:
-            if the data are not the right shape
+            If more than 3 keys are passed, if the requested indices are
+            conjugated in the data, if the data array shape is not compatible
+            with the indices.
+
         """
-        key = []
-        for val in [key1, key2, key3]:
-            if isinstance(val, str):
-                key.append(val)
-            elif val is not None:
-                key += list(uvutils._get_iterable(val))
-        if len(key) > 3:
-            raise ValueError("no more than 3 key values can be passed")
-        ind1, ind2, indp = self._key2inds(key)
-        if len(ind2) != 0:
-            raise ValueError(
-                "the requested key is present on the object, but conjugated. Please "
-                "conjugate data and keys appropriately and try again"
-            )
         dshape = data.shape
-        if self.future_array_shapes:
-            expected_shape = (len(ind1), self.Nfreqs, len(indp[0]))
-        else:
-            expected_shape = (len(ind1), 1, self.Nfreqs, len(indp[0]))
-        if dshape != expected_shape:
-            raise ValueError(
-                "the data are not compatible with the shape of the destination. "
-                f"Input data shape is {dshape}, expected shape is {expected_shape}."
-            )
-
-        blt_slices, blt_sliceable = uvutils._convert_to_slices(
-            ind1, max_nslice_frac=0.1
-        )
-        pol_slices, pol_sliceable = uvutils._convert_to_slices(
-            indp[0], max_nslice_frac=0.5
-        )
-
-        if self.future_array_shapes:
-            inds = [ind1, np.s_[:], indp[0]]
-        else:
-            inds = [ind1, np.s_[:], np.s_[:], indp[0]]
-        if blt_sliceable:
-            inds[0] = blt_slices
-        if pol_sliceable:
-            inds[-1] = pol_slices
-
-        inds = tuple(inds)
+        inds = self._set_method_helper(dshape, key1, key2, key3)
         uvutils._index_dset(self.data_array, inds, data)
 
         return
@@ -3548,53 +3603,20 @@ class UVData(UVBase):
             if key is length 3: interpreted as antenna pair and pol (ant1, ant2, pol),
                 set all flags for that baseline, pol. pol may be a string or int.
 
+        Returns
+        -------
+        None
+
         Raises
         ------
         ValueError:
-            if the flags are not the right shape
+            If more than 3 keys are passed, if the requested indices are
+            conjugated in the data, if the data array shape is not compatible
+            with the indices.
+
         """
-        key = []
-        for val in [key1, key2, key3]:
-            if isinstance(val, str):
-                key.append(val)
-            elif val is not None:
-                key += list(uvutils._get_iterable(val))
-        if len(key) > 3:
-            raise ValueError("no more than 3 key values can be passed")
-        ind1, ind2, indp = self._key2inds(key)
-        if len(ind2) != 0:
-            raise ValueError(
-                "the requested key is present on the object, but conjugated. Please "
-                "conjugate keys appropriately and try again"
-            )
         dshape = flags.shape
-        if self.future_array_shapes:
-            expected_shape = (len(ind1), self.Nfreqs, len(indp[0]))
-        else:
-            expected_shape = (len(ind1), 1, self.Nfreqs, len(indp[0]))
-        if dshape != expected_shape:
-            raise ValueError(
-                "the flags are not compatible with the shape of the destination. "
-                f"Input flags shape is {dshape}, expected shape is {expected_shape}."
-            )
-
-        blt_slices, blt_sliceable = uvutils._convert_to_slices(
-            ind1, max_nslice_frac=0.1
-        )
-        pol_slices, pol_sliceable = uvutils._convert_to_slices(
-            indp[0], max_nslice_frac=0.5
-        )
-
-        if self.future_array_shapes:
-            inds = [ind1, np.s_[:], indp[0]]
-        else:
-            inds = [ind1, np.s_[:], np.s_[:], indp[0]]
-        if blt_sliceable:
-            inds[0] = blt_slices
-        if pol_sliceable:
-            inds[-1] = pol_slices
-
-        inds = tuple(inds)
+        inds = self._set_method_helper(dshape, key1, key2, key3)
         uvutils._index_dset(self.flag_array, inds, flags)
 
         return
@@ -3628,53 +3650,20 @@ class UVData(UVBase):
                 pol), set all nsamples for that baseline, pol. pol may be a
                 string or int.
 
+        Returns
+        -------
+        None
+
         Raises
         ------
         ValueError:
-            if the nsamples are not the right shape
+            If more than 3 keys are passed, if the requested indices are
+            conjugated in the data, if the data array shape is not compatible
+            with the indices.
+
         """
-        key = []
-        for val in [key1, key2, key3]:
-            if isinstance(val, str):
-                key.append(val)
-            elif val is not None:
-                key += list(uvutils._get_iterable(val))
-        if len(key) > 3:
-            raise ValueError("no more than 3 key values can be passed")
-        ind1, ind2, indp = self._key2inds(key)
-        if len(ind2) != 0:
-            raise ValueError(
-                "the requested key is present on the object, but conjugated. Please "
-                "conjugate keys appropriately and try again"
-            )
         dshape = nsamples.shape
-        if self.future_array_shapes:
-            expected_shape = (len(ind1), self.Nfreqs, len(indp[0]))
-        else:
-            expected_shape = (len(ind1), 1, self.Nfreqs, len(indp[0]))
-        if dshape != expected_shape:
-            raise ValueError(
-                "the nsamples are not compatible with the shape of the destination. "
-                f"Input nsamples shape is {dshape}, expected shape is {expected_shape}."
-            )
-
-        blt_slices, blt_sliceable = uvutils._convert_to_slices(
-            ind1, max_nslice_frac=0.1
-        )
-        pol_slices, pol_sliceable = uvutils._convert_to_slices(
-            indp[0], max_nslice_frac=0.5
-        )
-
-        if self.future_array_shapes:
-            inds = [ind1, np.s_[:], indp[0]]
-        else:
-            inds = [ind1, np.s_[:], np.s_[:], indp[0]]
-        if blt_sliceable:
-            inds[0] = blt_slices
-        if pol_sliceable:
-            inds[-1] = pol_slices
-
-        inds = tuple(inds)
+        inds = self._set_method_helper(dshape, key1, key2, key3)
         uvutils._index_dset(self.nsample_array, inds, nsamples)
 
         return
