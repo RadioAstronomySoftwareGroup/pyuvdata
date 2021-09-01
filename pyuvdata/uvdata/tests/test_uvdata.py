@@ -10972,6 +10972,31 @@ def test_set_data(hera_uvh5, future_shapes):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes")
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_set_data_evla(future_shapes):
+    """
+    Test setting data for a given baseline on a different test file.
+    """
+    filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    uv = UVData()
+    uv.read(filename)
+
+    if future_shapes:
+        uv.use_future_array_shapes()
+
+    ant1 = np.unique(uv.antenna_numbers)[0]
+    ant2 = np.unique(uv.antenna_numbers)[1]
+    data = 2 * uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
+    inds1, inds2, indp = uv._key2inds((ant1, ant2))
+    uv.set_data(data, ant1, ant2)
+    data2 = uv.get_data(ant1, ant2, squeeze="none")
+
+    assert np.allclose(data, data2)
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_set_data_polkey(hera_uvh5, future_shapes):
     """
