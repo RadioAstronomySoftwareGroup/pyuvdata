@@ -411,6 +411,23 @@ g) Quick access to file attributes of a UV* object (UVData, UVCal, UVBeam)
   >>> # Load object to instance name "uv" and will remain in interpreter
   pyuvdata_inspect.py -i <uv*_file>
 
+h) Update data arrays in place for UVData
+*****************************************
+There are methods on UVData objects which allow for updating the data, flags, or
+nsamples arrays in place. We show how to use the `set_data` method below, and
+note there are analogous `set_flags` and `set_nsamples` arrays.
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uv = UVData()
+  >>> filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+  >>> uv.read(filename)
+  >>> data = uv.get_data(1, 2, "rr", force_copy=True, squeeze="none")
+  >>> data *= 2
+  >>> uv.set_data(data, 1, 2, "rr")
+
 UVData: Phasing
 ---------------
 Phasing/unphasing data
