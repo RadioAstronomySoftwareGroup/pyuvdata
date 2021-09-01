@@ -4590,7 +4590,6 @@ def _index_dset(dset, indices, input_array=None):
         simultaneously. For data arrays with 4 dimensions, the second dimension
         (the old spw axis) should not be included because it can only be length one.
 
-
     Returns
     -------
     ndarray
@@ -4629,7 +4628,7 @@ def _index_dset(dset, indices, input_array=None):
             arr_indices.append([slice(None)])
             dset_indices.append([dset_inds])
 
-        elif isinstance(dset_inds, list):
+        elif isinstance(dset_inds, (list, np.ndarray)):
             if isinstance(dset_inds[0], (int, np.integer)):
                 # this is a list of integers, append slice
                 arr_indices.append([slice(None)])
