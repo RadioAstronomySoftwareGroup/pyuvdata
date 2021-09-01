@@ -11110,9 +11110,9 @@ def test_set_data_bad_key_error(hera_uvh5):
     ant1 = np.unique(uv.antenna_numbers)[0]
     ant2 = np.unique(uv.antenna_numbers)[1]
     data = uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
-    with pytest.raises(ValueError) as cm:
+    match = "no more than 3 key values can be passed"
+    with pytest.raises(ValueError, match=match):
         uv.set_data(data, (ant1, ant2, "xx", "foo"))
-    assert str(cm.value).startswith("no more than 3 key values can be passed")
 
     return
 
@@ -11127,11 +11127,9 @@ def test_set_data_conj_data_error(hera_uvh5):
     ant1 = np.unique(uv.antenna_numbers)[0]
     ant2 = np.unique(uv.antenna_numbers)[1]
     data = uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
-    with pytest.raises(ValueError) as cm:
+    match = "the requested key is present on the object, but conjugated"
+    with pytest.raises(ValueError, match=match):
         uv.set_data(data, (ant2, ant1))
-    assert str(cm.value).startswith(
-        "the requested key is present on the object, but conjugated"
-    )
 
     return
 
@@ -11148,11 +11146,9 @@ def test_set_data_wrong_shape_error(hera_uvh5):
     data = uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
     # make data the wrong rank
     data = data[0]
-    with pytest.raises(ValueError) as cm:
+    match = "the input array is not compatible with the shape of the destination"
+    with pytest.raises(ValueError, match=match):
         uv.set_data(data, (ant1, ant2))
-    assert str(cm.value).startswith(
-        "the data are not compatible with the shape of the destination"
-    )
 
     return
 
@@ -11167,9 +11163,9 @@ def test_set_flags_bad_key_error(hera_uvh5):
     ant1 = np.unique(uv.antenna_numbers)[0]
     ant2 = np.unique(uv.antenna_numbers)[1]
     flags = uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
-    with pytest.raises(ValueError) as cm:
+    match = "no more than 3 key values can be passed"
+    with pytest.raises(ValueError, match=match):
         uv.set_flags(flags, (ant1, ant2, "xx", "foo"))
-    assert str(cm.value).startswith("no more than 3 key values can be passed")
 
     return
 
@@ -11184,11 +11180,9 @@ def test_set_flags_conj_data_error(hera_uvh5):
     ant1 = np.unique(uv.antenna_numbers)[0]
     ant2 = np.unique(uv.antenna_numbers)[1]
     flags = uv.get_flags(ant1, ant2, squeeze="none", force_copy=True)
-    with pytest.raises(ValueError) as cm:
+    match = "the requested key is present on the object, but conjugated"
+    with pytest.raises(ValueError, match=match):
         uv.set_flags(flags, (ant2, ant1))
-    assert str(cm.value).startswith(
-        "the requested key is present on the object, but conjugated"
-    )
 
     return
 
@@ -11205,11 +11199,9 @@ def test_set_flags_wrong_shape_error(hera_uvh5):
     flags = uv.get_flags(ant1, ant2, squeeze="none", force_copy=True)
     # make data the wrong rank
     flags = flags[0]
-    with pytest.raises(ValueError) as cm:
+    match = "the input array is not compatible with the shape of the destination"
+    with pytest.raises(ValueError, match=match):
         uv.set_flags(flags, (ant1, ant2))
-    assert str(cm.value).startswith(
-        "the flags are not compatible with the shape of the destination"
-    )
 
     return
 
@@ -11224,9 +11216,9 @@ def test_set_nsamples_bad_key_error(hera_uvh5):
     ant1 = np.unique(uv.antenna_numbers)[0]
     ant2 = np.unique(uv.antenna_numbers)[1]
     nsamples = uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
-    with pytest.raises(ValueError) as cm:
+    match = "no more than 3 key values can be passed"
+    with pytest.raises(ValueError, match=match):
         uv.set_nsamples(nsamples, (ant1, ant2, "xx", "foo"))
-    assert str(cm.value).startswith("no more than 3 key values can be passed")
 
     return
 
@@ -11241,11 +11233,9 @@ def test_set_nsamples_conj_data_error(hera_uvh5):
     ant1 = np.unique(uv.antenna_numbers)[0]
     ant2 = np.unique(uv.antenna_numbers)[1]
     nsamples = uv.get_nsamples(ant1, ant2, squeeze="none", force_copy=True)
-    with pytest.raises(ValueError) as cm:
+    match = "the requested key is present on the object, but conjugated"
+    with pytest.raises(ValueError, match=match):
         uv.set_nsamples(nsamples, (ant2, ant1))
-    assert str(cm.value).startswith(
-        "the requested key is present on the object, but conjugated"
-    )
 
     return
 
@@ -11262,10 +11252,8 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
     nsamples = uv.get_nsamples(ant1, ant2, squeeze="none", force_copy=True)
     # make data the wrong rank
     nsamples = nsamples[0]
-    with pytest.raises(ValueError) as cm:
+    match = "the input array is not compatible with the shape of the destination"
+    with pytest.raises(ValueError, match=match):
         uv.set_nsamples(nsamples, (ant1, ant2))
-    assert str(cm.value).startswith(
-        "the nsamples are not compatible with the shape of the destination"
-    )
 
     return
