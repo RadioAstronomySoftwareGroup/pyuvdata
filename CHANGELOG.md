@@ -12,6 +12,8 @@ shape=(`Nfreqs`,), which indexes individual channels along the frequency axis to
 - Added `use_future_array_shapes` method to UVCal to allow users to convert to using the
 future array shapes now, with support throughout UVCal methods and related utility
 functions. Also added `use_current_array_shapes` to revert to the standard shapes.
+- Added support for wide-band gain calibrations via the `wide_band` attribute on the
+`UVCal` class, which can be set using the new `_set_wide_band` method.
 - Added `time_range`, `lsts`, and `lst_range` kwargs from UVH5.write_uvh5_part() to UVData.write_uvh5_part().
 
 ### Fixed
