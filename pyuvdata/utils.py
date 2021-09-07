@@ -3894,6 +3894,17 @@ def uvcalibrate(
         Returns if not inplace
 
     """
+    if uvcal.cal_type == "gain" and uvcal.wide_band:
+        raise ValueError(
+            "uvcalibrate currently does not support wide-band calibrations"
+        )
+    if uvcal.cal_type == "delay" and uvcal.Nspws > 1:
+        # To fix this, need to make UVCal.convert_to_gain support multiple spws
+        raise ValueError(
+            "uvcalibrate currently does not support multi spectral window delay "
+            "calibrations"
+        )
+
     if not inplace:
         uvdata = uvdata.copy()
 
@@ -4124,7 +4135,15 @@ def uvcalibrate(
             # make a copy to convert to gain
             uvcal_use = uvcal_use.copy()
             new_uvcal = True
-        uvcal_use.convert_to_gain(delay_convention=delay_convention)
+        if uvdata.future_array_shapes:
+            freq_array_use = uvdata.freq_array
+        else:
+            freq_array_use = uvdata.freq_array[0, :]
+        uvcal_use.convert_to_gain(
+            delay_convention=delay_convention,
+            freq_array=freq_array_use,
+            channel_width=uvdata.channel_width,
+        )
 
     # D-term calibration
     if Dterm_cal:
