@@ -74,7 +74,10 @@ class CALFITS(UVCal):
         # we've already run the check_freq_spacing, so spacings and channel widths are
         # the same to our tolerances
         if self.future_array_shapes:
-            ref_freq = self.freq_array[0]
+            if self.freq_array is not None:
+                ref_freq = self.freq_array[0]
+            else:
+                ref_freq = self.freq_range[0, 0]
         else:
             ref_freq = self.freq_array[0, 0]
 
@@ -98,7 +101,12 @@ class CALFITS(UVCal):
                     delta_freq_array = self.channel_width
         else:
             if self.future_array_shapes or self.flex_spw:
-                delta_freq_array = self.channel_width[0]
+                if self.channel_width is not None:
+                    delta_freq_array = self.channel_width[0]
+                else:
+                    # default to 1 Hz for wide-band cals with Nfreqs=1 and no channel
+                    # width info
+                    delta_freq_array = 1.0
             else:
                 delta_freq_array = self.channel_width
 
@@ -222,15 +230,19 @@ class CALFITS(UVCal):
             if self.Nfreqs > 1:
                 prihdr["CHWIDTH"] = np.median(self.channel_width)
             else:
-                prihdr["CHWIDTH"] = self.channel_width[0]
+                prihdr["CHWIDTH"] = delta_freq_array
         else:
             prihdr["CHWIDTH"] = self.channel_width
 
         prihdr["XORIENT"] = self.x_orientation
+        if self.future_array_shapes and self.freq_range is not None:
+            freq_range_use = self.freq_range[0, :]
+        else:
+            freq_range_use = self.freq_range
         if self.cal_type == "delay":
-            prihdr["FRQRANGE"] = ",".join(map(str, self.freq_range))
+            prihdr["FRQRANGE"] = ",".join(map(str, freq_range_use))
         elif self.freq_range is not None:
-            prihdr["FRQRANGE"] = ",".join(map(str, self.freq_range))
+            prihdr["FRQRANGE"] = ",".join(map(str, freq_range_use))
 
         if self.time_range is not None:
             prihdr["TMERANGE"] = ",".join(map(str, self.time_range))
@@ -411,21 +423,30 @@ class CALFITS(UVCal):
                 self.Njones,
                 1,
             )
+            if self.future_array_shapes:
+                # need to broadcast the flags back to the expected shape
+                flag_array_use = np.repeat(self.flag_array, self.Nfreqs, axis=2)
+                if self.input_flag_array is not None:
+                    input_flag_array_use = np.repeat(
+                        self.input_flag_array, self.Nfreqs, axis=2
+                    )
+            else:
+                flag_array_use = self.flag_array
+                input_flag_array_use = self.input_flag_array
+
             if self.input_flag_array is not None:
                 secdata = np.concatenate(
                     [
+                        np.reshape(flag_array_use.astype(np.int64), calfits_data_shape),
                         np.reshape(
-                            self.flag_array.astype(np.int64), calfits_data_shape
-                        ),
-                        np.reshape(
-                            self.input_flag_array.astype(np.int64), calfits_data_shape
+                            input_flag_array_use.astype(np.int64), calfits_data_shape
                         ),
                     ],
                     axis=-1,
                 )
             else:
                 secdata = np.reshape(
-                    self.flag_array.astype(np.int64), calfits_data_shape
+                    flag_array_use.astype(np.int64), calfits_data_shape
                 )
 
         if self.total_quality_array is not None:

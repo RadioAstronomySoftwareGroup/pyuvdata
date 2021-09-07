@@ -2884,7 +2884,9 @@ def test_uvcalibrate_delay_oldfiles():
             uvd, uvc, prop_flags=False, ant_check=False, time_check=False, inplace=False
         )
 
-    uvc.convert_to_gain()
+    uvc.convert_to_gain(
+        freq_array=uvc.freq_array[0, :], channel_width=uvc.channel_width
+    )
     with uvtest.check_warnings(UserWarning, match=ant_expected):
         uvdcal2 = uvutils.uvcalibrate(
             uvd, uvc, prop_flags=False, ant_check=False, time_check=False, inplace=False
@@ -3306,6 +3308,74 @@ def test_uvcalibrate_x_orientation_mismatch(uvcalibrate_data):
     with pytest.warns(
         UserWarning,
         match=r"UVData object does not have `x_orientation` specified but UVCal does",
+    ):
+        uvutils.uvcalibrate(uvd, uvc, inplace=False)
+
+
+def test_uvcalibrate_wideband_gain(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
+    uvc.use_future_array_shapes()
+    uvc._set_wide_band()
+
+    uvc.spw_array = np.array([1, 2, 3])
+    uvc.Nspws = 3
+    uvc.gain_array = uvc.gain_array[:, 0:3, :, :]
+    uvc.flag_array = uvc.flag_array[:, 0:3, :, :]
+    uvc.quality_array = uvc.quality_array[:, 0:3, :, :]
+    uvc.total_quality_array = uvc.total_quality_array[0:3, :, :]
+
+    uvc.freq_range = np.zeros((uvc.Nspws, 2), dtype=uvc.freq_array.dtype)
+    uvc.freq_range[0, :] = uvc.freq_array[[0, 2]]
+    uvc.freq_range[1, :] = uvc.freq_array[[2, 4]]
+    uvc.freq_range[2, :] = uvc.freq_array[[4, 6]]
+
+    uvc.channel_width = None
+    uvc.freq_array = None
+    uvc.Nfreqs = 1
+
+    uvc.check()
+    with pytest.raises(
+        ValueError,
+        match="uvcalibrate currently does not support wide-band calibrations",
+    ):
+        uvutils.uvcalibrate(uvd, uvc, inplace=False)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
+@pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band cals")
+def test_uvcalibrate_delay_multispw(uvcalibrate_data):
+    uvd = UVData()
+    uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"))
+
+    uvc = UVCal()
+    uvc.read_calfits(os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits"))
+    # downselect to match
+    uvc.select(times=uvc.time_array[3], frequencies=uvd.freq_array[0, :])
+    uvc.gain_convention = "multiply"
+
+    uvc.use_future_array_shapes()
+    uvc.Nspws = 3
+    uvc.spw_array = np.array([1, 2, 3])
+
+    # copy the delay array to the second SPW
+    uvc.delay_array = np.repeat(uvc.delay_array, uvc.Nspws, axis=1)
+    uvc.flag_array = np.repeat(uvc.flag_array, uvc.Nspws, axis=1)
+    uvc.quality_array = np.repeat(uvc.quality_array, uvc.Nspws, axis=1)
+
+    uvc.freq_range = np.repeat(uvc.freq_range, uvc.Nspws, axis=0)
+    # Make the second & third SPWs be contiguous with a 10 MHz range
+    uvc.freq_range[1, 0] = uvc.freq_range[0, 1]
+    uvc.freq_range[1, 1] = uvc.freq_range[1, 0] + 10e6
+    uvc.freq_range[2, 0] = uvc.freq_range[1, 1]
+    uvc.freq_range[2, 1] = uvc.freq_range[1, 1] + 10e6
+
+    uvc.check()
+    with pytest.raises(
+        ValueError,
+        match="uvcalibrate currently does not support multi spectral window delay "
+        "calibrations",
     ):
         uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
