@@ -1605,11 +1605,15 @@ class UVCal(UVBase):
         self.quality_array = new_quality
         self.delay_array = None
         if self.Nfreqs > 1 and not self.future_array_shapes:
-            if self.freq_array is None or not np.allclose(
-                self.freq_array,
-                freq_array_use,
-                rtol=self._freq_array.tols[0],
-                atol=self._freq_array.tols[1],
+            if (
+                self.freq_array is None
+                or self.Nfreqs != Nfreqs_use
+                or not np.allclose(
+                    self.freq_array,
+                    freq_array_use,
+                    rtol=self._freq_array.tols[0],
+                    atol=self._freq_array.tols[1],
+                )
             ):
                 warnings.warn(
                     "Existing flag array has a frequency axis of length > 1 but "
@@ -1629,10 +1633,10 @@ class UVCal(UVBase):
                 self.flag_array = np.repeat(new_flag_array, Nfreqs_use, axis=freq_axis)
                 if self.input_flag_array is not None:
                     new_input_flag_array = np.expand_dims(
-                        uvutils.and_collapse(self.new_input_flag_array, axis=freq_axis),
+                        uvutils.and_collapse(self.input_flag_array, axis=freq_axis),
                         axis=freq_axis,
                     )
-                    self.new_input_flag_array = np.repeat(
+                    self.input_flag_array = np.repeat(
                         new_input_flag_array, Nfreqs_use, axis=freq_axis
                     )
         else:

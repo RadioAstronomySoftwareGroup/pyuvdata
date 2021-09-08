@@ -4173,10 +4173,16 @@ def uvcalibrate(
             freq_array_use = uvdata.freq_array
         else:
             freq_array_use = uvdata.freq_array[0, :]
+        if uvcal.future_array_shapes == uvdata.future_array_shapes:
+            channel_width = uvdata.channel_width
+        elif uvcal.future_array_shapes:
+            channel_width = np.zeros(uvdata.Nfreqs, dtype=float) + uvdata.channel_width
+        else:
+            channel_width = uvdata.channel_width[0]
         uvcal_use.convert_to_gain(
             delay_convention=delay_convention,
             freq_array=freq_array_use,
-            channel_width=uvdata.channel_width,
+            channel_width=channel_width,
         )
 
     # D-term calibration

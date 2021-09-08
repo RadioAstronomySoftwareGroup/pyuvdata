@@ -2862,8 +2862,11 @@ def test_uvcalibrate_apply_gains_oldfiles():
             )
 
 
+@pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_uvcalibrate_delay_oldfiles():
+@pytest.mark.parametrize("uvd_future_shapes", [True, False])
+@pytest.mark.parametrize("uvc_future_shapes", [True, False])
+def test_uvcalibrate_delay_oldfiles(uvd_future_shapes, uvc_future_shapes):
     uvd = UVData()
     uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"))
 
@@ -2872,6 +2875,15 @@ def test_uvcalibrate_delay_oldfiles():
     # downselect to match
     uvc.select(times=uvc.time_array[3], frequencies=uvd.freq_array[0, :])
     uvc.gain_convention = "multiply"
+
+    if uvd_future_shapes:
+        uvd.use_future_array_shapes()
+    if uvc_future_shapes:
+        uvc.use_future_array_shapes()
+        freq_array_use = uvc.freq_array
+    else:
+        freq_array_use = uvc.freq_array[0, :]
+
     ant_expected = [
         "The uvw_array does not match the expected values",
         "All antenna names with data on UVData are missing "
@@ -2884,9 +2896,7 @@ def test_uvcalibrate_delay_oldfiles():
             uvd, uvc, prop_flags=False, ant_check=False, time_check=False, inplace=False
         )
 
-    uvc.convert_to_gain(
-        freq_array=uvc.freq_array[0, :], channel_width=uvc.channel_width
-    )
+    uvc.convert_to_gain(freq_array=freq_array_use, channel_width=uvc.channel_width)
     with uvtest.check_warnings(UserWarning, match=ant_expected):
         uvdcal2 = uvutils.uvcalibrate(
             uvd, uvc, prop_flags=False, ant_check=False, time_check=False, inplace=False
