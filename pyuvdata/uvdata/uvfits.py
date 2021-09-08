@@ -1010,7 +1010,7 @@ class UVFITS(UVData):
             pol_indexing = np.argsort(np.abs(self.polarization_array))
             polarization_array = self.polarization_array[pol_indexing]
             pol_spacing = np.diff(polarization_array)
-            if np.min(pol_spacing) < np.max(pol_spacing):
+            if not uvutils._test_array_constant(pol_spacing):
                 raise ValueError(
                     "The polarization values are not evenly spaced (probably "
                     "because of a select operation). The uvfits format "

@@ -7192,7 +7192,7 @@ class UVData(UVBase):
             this.Npols = sum([this.Npols] + [obj.Npols for obj in other])
 
             pol_separation = np.diff(this.polarization_array)
-            if np.min(pol_separation) < np.max(pol_separation):
+            if not uvutils._test_array_constant(pol_separation):
                 warnings.warn(
                     "Combined polarizations are not evenly spaced. This will "
                     "make it impossible to write this data out to some file types."
@@ -8084,7 +8084,7 @@ class UVData(UVBase):
                     freq_ind_separation = freq_ind_separation[
                         np.diff(self.flex_spw_id_array[freq_inds]) == 0
                     ]
-                if np.min(freq_ind_separation) < np.max(freq_ind_separation):
+                if not uvutils._test_array_constant(freq_ind_separation):
                     warnings.warn(
                         "Selected frequencies are not evenly spaced. This "
                         "will make it impossible to write this data out to "
@@ -8129,7 +8129,7 @@ class UVData(UVBase):
 
             if len(pol_inds) > 2:
                 pol_ind_separation = pol_inds[1:] - pol_inds[:-1]
-                if np.min(pol_ind_separation) < np.max(pol_ind_separation):
+                if not uvutils._test_array_constant(pol_ind_separation):
                     warnings.warn(
                         "Selected polarization values are not evenly spaced. This "
                         "will make it impossible to write this data out to "
@@ -8849,11 +8849,8 @@ class UVData(UVBase):
             int_times = int_times
             if len(np.unique(int_times)) == 1:
                 # this baseline has all the same integration times
-                if len(np.unique(dtime)) > 1 and not np.isclose(
-                    np.max(dtime),
-                    np.min(dtime),
-                    rtol=self._integration_time.tols[0],
-                    atol=self._integration_time.tols[1],
+                if len(np.unique(dtime)) > 1 and not uvutils._test_array_constant(
+                    dtime, self._integration_time.tols
                 ):
                     warnings.warn(
                         "There is a gap in the times of baseline {bl}. "

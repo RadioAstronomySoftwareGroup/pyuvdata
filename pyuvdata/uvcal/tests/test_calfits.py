@@ -21,6 +21,8 @@ pytestmark = pytest.mark.filterwarnings(
 )
 
 
+@pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
+@pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band cals")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_readwriteread(future_shapes, caltype, gain_data, delay_data, tmp_path):

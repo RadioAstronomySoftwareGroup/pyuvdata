@@ -2503,12 +2503,7 @@ class UVBeam(UVBase):
         # Check specific requirements
         if this.Nfreqs > 1:
             freq_separation = np.diff(this.freq_array[0, :])
-            if not np.isclose(
-                np.min(freq_separation),
-                np.max(freq_separation),
-                rtol=this._freq_array.tols[0],
-                atol=this._freq_array.tols[1],
-            ):
+            if not uvutils._test_array_constant(freq_separation, this._freq_array.tols):
                 warnings.warn(
                     "Combined frequencies are not evenly spaced. This will "
                     "make it impossible to write this data out to some file types."
@@ -2516,7 +2511,7 @@ class UVBeam(UVBase):
 
         if self.beam_type == "power" and this.Npols > 2:
             pol_separation = np.diff(this.polarization_array)
-            if np.min(pol_separation) < np.max(pol_separation):
+            if not uvutils._test_array_constant(pol_separation):
                 warnings.warn(
                     "Combined polarizations are not evenly spaced. This will "
                     "make it impossible to write this data out to some file types."
@@ -2648,11 +2643,8 @@ class UVBeam(UVBase):
 
             if beam_object.Naxes1 > 1:
                 axis1_spacing = np.diff(beam_object.axis1_array)
-                if not np.isclose(
-                    np.min(axis1_spacing),
-                    np.max(axis1_spacing),
-                    rtol=beam_object._axis1_array.tols[0],
-                    atol=beam_object._axis1_array.tols[1],
+                if not uvutils._test_array_constant(
+                    axis1_spacing, beam_object._axis1_array.tols
                 ):
                     warnings.warn(
                         "Selected values along first image axis are "
@@ -2686,11 +2678,8 @@ class UVBeam(UVBase):
 
             if beam_object.Naxes2 > 1:
                 axis2_spacing = np.diff(beam_object.axis2_array)
-                if not np.isclose(
-                    np.min(axis2_spacing),
-                    np.max(axis2_spacing),
-                    rtol=beam_object._axis2_array.tols[0],
-                    atol=beam_object._axis2_array.tols[1],
+                if not uvutils._test_array_constant(
+                    axis2_spacing, beam_object._axis2_array.tols
                 ):
                     warnings.warn(
                         "Selected values along second image axis are "
@@ -2773,11 +2762,8 @@ class UVBeam(UVBase):
                 freq_separation = (
                     beam_object.freq_array[0, 1:] - beam_object.freq_array[0, :-1]
                 )
-                if not np.isclose(
-                    np.min(freq_separation),
-                    np.max(freq_separation),
-                    rtol=beam_object._freq_array.tols[0],
-                    atol=beam_object._freq_array.tols[1],
+                if not uvutils._test_array_constant(
+                    freq_separation, beam_object._freq_array.tols
                 ):
                     warnings.warn(
                         "Selected frequencies are not evenly spaced. This "
@@ -2894,7 +2880,7 @@ class UVBeam(UVBase):
                     beam_object.polarization_array[1:]
                     - beam_object.polarization_array[:-1]
                 )
-                if np.min(pol_separation) < np.max(pol_separation):
+                if not uvutils._test_array_constant(pol_separation):
                     warnings.warn(
                         "Selected polarizations are not evenly spaced. This "
                         "is not supported by the regularly gridded beam fits format"
