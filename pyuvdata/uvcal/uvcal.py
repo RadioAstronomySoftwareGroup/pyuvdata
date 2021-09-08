@@ -3370,9 +3370,11 @@ class UVCal(UVBase):
         time_range=None,
         frequencies=None,
         channel_width=None,
-        freq_range=None,
         flex_spw=None,
         flex_spw_id_array=None,
+        wide_band=None,
+        freq_range=None,
+        spw_array=None,
         jones=None,
         ref_antenna_name=None,
         sky_catalog=None,
@@ -3415,27 +3417,43 @@ class UVCal(UVBase):
             uvdata.
         integration_time : float or array_like of float, optional
             Calibration integration time in seconds, an array of shape (Ntimes,)
-            or a scalar if `future_array_shapes` is False. Required if time_array is
+            or a scalar if `future_array_shapes` is False. Required if `time_array` is
             not None, ignored otherwise.
         time_range : array_like of float, optional
             Range of times that calibration is valid for in decimal Julian dates,
-            shape (2,). Should only be set if time_array is size (1,)
+            shape (2,). Should only be set if `time_array` is size (1,)
         frequencies : array_like of float, optional
-            Calibration frequencies (units Hz), shape (Nfreqs,). If None, use
-            freq_array from uvdata.
+            Calibration frequencies (units Hz), shape (Nfreqs,). Defaulted to the
+            freq_array from uvdata if `cal_type="gain"` and `wide_band` is not set to
+            `True`. Ignored if `cal_type="delay"` or `wide_band=True`.
         channel_width : float or array_like of float, optional
             Calibration channel width in Hz, an array of shape (Nfreqs,)
             or a scalar if `future_array_shapes` is False. Required if freq_array is
-            not None, ignored otherwise.
-        freq_range : array_like of float, optional
-            Frequency range that solutions are valid for in Hz, shape (2,). If None,
-            defaulted to the min, max of freq_array.
+            not None and `cal_type="gain"` and `wide_band` is not set to
+            `True`, ignored otherwise.
         flex_spw : bool, optional
-            Option to use flexible spectral windows. Ignored if freq_array is None.
+            Option to use flexible spectral windows. Ignored if freq_array is None or
+            `cal_type="delay"` or `wide_band=True`.
         flex_spw_id_array : array_like of int, optional
             Array giving the spectral window value for each frequency channel,
-            shape (Nfreqs,). Ignored if freq_array is None. Required if freq_array is
-            not None and flex_spw is True.
+            shape (Nfreqs,). Ignored if freq_array is None or `cal_type="delay"` or
+            `wide_band=True`. Required if freq_array is not None and flex_spw is True
+            and `cal_type="gain"` and `wide_band` is not set to `True`.
+        wide_band : bool, optional
+            Option to use wide-band calibration. Requires `future_array_shapes` to be
+            `True`. Defaulted to `True` if `future_array_shapes` is True and
+            `cal_type="delay"`, defaulted to `False` otherwise.
+        freq_range : array_like of float, optional
+            Frequency range that solutions are valid for in Hz, shape (Nspws, 2) if
+            `future_array_shapes` is True, shape (2,) otherwise.
+            Defaulted to the min, max of freq_array if `wide_band` is True or
+            `cal_type="delay"`. Defaulting is done per spectral window if uvdata has
+            multiple spectral windows and `future_array_shapes` is True.
+        spw_array : array_like of int, optional
+            Array giving the spectral window numbers. Required if either `wide_band` is
+            True or `cal_type="delay"` and if freq_range is not None and has multiple
+            spectral windows, ignored otherwise. Defaulted to uvdata.spw_array if
+            either `wide_band` is True or `cal_type="delay"` and if freq_range is None.
         jones : array_like of int, optional
             Calibration Jones elements. If None, defaults to [-5, -6] (jxx, jyy) if
             uvdata is in linear pol. [-1, -2] (jrr, jll) if uvdata is in circular pol.
@@ -3488,13 +3506,16 @@ class UVCal(UVBase):
         # re-initalize to make sure we have an empty object
         self.__init__()
 
-        if future_array_shapes:
-            self._set_future_array_shapes()
-
         if cal_type == "gain":
             self._set_gain()
         elif cal_type == "delay":
             self._set_delay()
+
+        if future_array_shapes:
+            self._set_future_array_shapes()
+
+        if wide_band is not None:
+            self._set_wide_band(wide_band=wide_band)
 
         self.cal_style = cal_style
         self.gain_convention = gain_convention
@@ -3539,84 +3560,143 @@ class UVCal(UVBase):
             "Nants_data",
             "x_orientation",
         ]
-        if frequencies is None:
-            params_to_copy.extend(["Nfreqs", "flex_spw", "spw_array", "Nspws"])
-            if uvdata.flex_spw:
-                self._set_flex_spw()
-            if uvdata.future_array_shapes == self.future_array_shapes:
-                params_to_copy.extend(["freq_array"])
-            else:
-                if self.future_array_shapes:
-                    self.freq_array = uvdata.freq_array[0, :]
+        if self.cal_type != "delay" and not self.wide_band:
+            if frequencies is None:
+                params_to_copy.extend(["Nfreqs", "flex_spw", "spw_array", "Nspws"])
+                if uvdata.flex_spw:
+                    self._set_flex_spw()
+                if uvdata.future_array_shapes == self.future_array_shapes:
+                    params_to_copy.extend(["freq_array"])
                 else:
-                    self.freq_array = uvdata.freq_array[np.newaxis, :]
+                    if self.future_array_shapes:
+                        self.freq_array = uvdata.freq_array[0, :]
+                    else:
+                        self.freq_array = uvdata.freq_array[np.newaxis, :]
 
-            if (
-                uvdata.flex_spw
-                or uvdata.future_array_shapes == self.future_array_shapes
-            ):
-                params_to_copy.extend(["channel_width"])
-            else:
-                if self.future_array_shapes:
-                    self.channel_width = np.full(
-                        self.freq_array.size, uvdata.channel_width, dtype=np.float64
-                    )
+                if (
+                    uvdata.flex_spw
+                    or uvdata.future_array_shapes == self.future_array_shapes
+                ):
+                    params_to_copy.extend(["channel_width"])
                 else:
-                    uvdata_channel_widths = np.unique(uvdata.channel_width)
-                    if uvdata_channel_widths.size == 1:
-                        self.channel_width = uvdata_channel_widths[0]
+                    if self.future_array_shapes:
+                        self.channel_width = np.full(
+                            self.freq_array.size, uvdata.channel_width, dtype=np.float64
+                        )
+                    else:
+                        uvdata_channel_widths = np.unique(uvdata.channel_width)
+                        if uvdata_channel_widths.size == 1:
+                            self.channel_width = uvdata_channel_widths[0]
+                        else:
+                            raise ValueError(
+                                "uvdata has varying channel widths but does not have "
+                                "flexible spectral windows and future_array_shapes is "
+                                "False. Please specify frequencies and channel_width."
+                            )
+                if uvdata.flex_spw:
+                    params_to_copy.extend(["flex_spw_id_array"])
+            else:
+                if frequencies.ndim != 1:
+                    raise ValueError("Frequencies must be a 1 dimensional array")
+
+                if future_array_shapes:
+                    self.freq_array = frequencies
+                else:
+                    self.freq_array = frequencies[np.newaxis, :]
+                self.Nfreqs = frequencies.size
+
+                if flex_spw:
+                    self._set_flex_spw()
+                    if flex_spw_id_array is None:
+                        raise ValueError(
+                            "If frequencies is provided and flex_spw is True, a "
+                            "flex_spw_id_array must be provided."
+                        )
+                    self.flex_spw_id_array = flex_spw_id_array
+                    self.spw_array = np.unique(self.flex_spw_id_array)
+                    self.Nspws = self.spw_array.size
+                else:
+                    self.spw_array = np.array([0])
+                    self.Nspws = 1
+                if channel_width is None:
+                    raise ValueError(
+                        "channel_width must be provided if frequencies is provided"
+                    )
+                if future_array_shapes or flex_spw:
+                    if isinstance(channel_width, (np.ndarray, list)):
+                        self.channel_width = np.asarray(channel_width)
+                    else:
+                        self.channel_width = np.full(
+                            self.Nfreqs, channel_width, dtype=np.float64
+                        )
+                else:
+                    if isinstance(channel_width, (np.ndarray, list)):
+                        raise ValueError(
+                            "channel_width must be scalar if both future_array_shapes "
+                            "and flex_spw are False."
+                        )
+                    self.channel_width = channel_width
+        else:
+            self.Nfreqs = 1
+            if freq_range is None:
+                if self.future_array_shapes:
+                    params_to_copy.extend(["spw_array", "Nspws"])
+                    if uvdata.flex_spw:
+                        self.freq_range = np.zeros((uvdata.Nspws, 2), dtype=float)
+                        for spw_ind, spw in enumerate(uvdata.spw_array):
+                            if uvdata.future_array_shapes:
+                                freqs_in_spw = uvdata.freq_array[
+                                    np.nonzero(uvdata.flex_spw_id_array == spw)
+                                ]
+                            else:
+                                freqs_in_spw = uvdata.freq_array[
+                                    0, np.nonzero(uvdata.flex_spw_id_array == spw)
+                                ]
+                            self.freq_range[spw_ind, :] = np.asarray(
+                                [np.min(freqs_in_spw), np.max(freqs_in_spw)]
+                            )
+                    else:
+                        self.freq_range = np.asarray(
+                            [[np.min(uvdata.freq_array), np.max(uvdata.freq_array)]]
+                        )
+                else:
+                    self.Nspws = 1
+                    self.spw_array = np.asarray([0])
+                    self.freq_range = [
+                        np.min(uvdata.freq_array),
+                        np.max(uvdata.freq_array),
+                    ]
+            else:
+                freq_range_use = np.asarray(freq_range)
+                if future_array_shapes:
+                    if freq_range_use.shape == (2,):
+                        freq_range_use = freq_range_use[np.newaxis, :]
+                    if freq_range_use.ndim != 2 or freq_range_use.shape[1] != 2:
+                        raise ValueError(
+                            "if future_array_shapes is True, freq_range must be an "
+                            "array shaped like (Nspws, 2)."
+                        )
+                    self.freq_range = freq_range_use
+                    self.Nspws = self.freq_range.shape[0]
+                    if self.Nspws > 1:
+                        if spw_array is None:
+                            raise ValueError(
+                                "An spw_array must be provided for delay or wide-band "
+                                "cals if freq_range has multiple spectral windows"
+                            )
+                        self.spw_array = spw_array
+                    else:
+                        self.spw_array = np.asarray([0])
+                else:
+                    self.Nspws = 1
+                    self.spw_array = np.asarray([0])
+                    if freq_range_use.size == 2:
+                        self.freq_range = np.squeeze(freq_range_use).tolist()
                     else:
                         raise ValueError(
-                            "uvdata has varying channel widths but does not have "
-                            "flexible spectral windows and future_array_shapes is "
-                            "False. Please specify frequencies and channel_width."
+                            "if future_array_shapes is False, freq_range must have "
+                            "2 elements."
                         )
-            if uvdata.flex_spw:
-                params_to_copy.extend(["flex_spw_id_array"])
-        else:
-            if frequencies.ndim != 1:
-                raise ValueError("Frequencies must be a 1 dimensional array")
-
-            if future_array_shapes:
-                self.freq_array = frequencies
-            else:
-                self.freq_array = frequencies[np.newaxis, :]
-            self.Nfreqs = frequencies.size
-
-            if flex_spw:
-                self._set_flex_spw()
-                if flex_spw_id_array is None:
-                    raise ValueError(
-                        "If frequencies is provided and flex_spw is True, a "
-                        "flex_spw_id_array must be provided."
-                    )
-                self.flex_spw_id_array = flex_spw_id_array
-                self.spw_array = np.unique(self.flex_spw_id_array)
-                self.Nspws = self.spw_array.size
-            else:
-                self.spw_array = np.array([0])
-                self.Nspws = 1
-            if channel_width is None:
-                raise ValueError(
-                    "channel_width must be provided if frequencies is provided"
-                )
-            if future_array_shapes or flex_spw:
-                if isinstance(channel_width, (np.ndarray, list)):
-                    self.channel_width = np.asarray(channel_width)
-                else:
-                    self.channel_width = np.full(
-                        self.Nfreqs, channel_width, dtype=np.float64
-                    )
-            else:
-                if isinstance(channel_width, (np.ndarray, list)):
-                    raise ValueError(
-                        "channel_width must be scalar if both future_array_shapes and "
-                        "flex_spw are False."
-                    )
-                self.channel_width = channel_width
-
-        if freq_range is not None:
-            self.freq_range = freq_range
 
         for param_name in params_to_copy:
             setattr(self, param_name, getattr(uvdata, param_name))
@@ -3626,9 +3706,6 @@ class UVCal(UVBase):
         self.antenna_numbers = self.antenna_numbers[ant_order]
         self.antenna_names = ((np.asarray(self.antenna_names))[ant_order]).tolist()
         self.antenna_positions = self.antenna_positions[ant_order, :]
-
-        if cal_type == "delay" and self.freq_range is None:
-            self.freq_range = [np.min(self.freq_array), np.max(self.freq_array)]
 
         if times is None:
             # get all unique times
