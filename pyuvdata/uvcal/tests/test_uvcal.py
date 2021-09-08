@@ -384,11 +384,30 @@ def test_future_array_shape(caltype, gain_data, delay_data_inputflag):
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_future_array_shape_errors(caltype, gain_data, delay_data_inputflag):
+def test_future_array_shape_errors(
+    caltype,
+    gain_data,
+    delay_data_inputflag,
+    multi_spw_gain,
+    multi_spw_delay,
+    wideband_gain,
+):
     if caltype == "gain":
         calobj = gain_data
         calobj2 = calobj.copy()
         calobj.use_future_array_shapes()
+
+        calobj_multi_spw = multi_spw_gain
+
+        calobj_wideband = wideband_gain
+        calobj_wideband.select(spws=1)
+        with pytest.raises(
+            ValueError,
+            match="Cannot use current array shapes if cal_style is not 'delay' and "
+            "wide_band is True.",
+        ):
+            calobj_wideband.use_current_array_shapes()
+
     else:
         calobj = delay_data_inputflag
         with uvtest.check_warnings(
@@ -396,6 +415,13 @@ def test_future_array_shape_errors(caltype, gain_data, delay_data_inputflag):
             match="When converting a delay-style cal to future array shapes",
         ):
             calobj.use_future_array_shapes()
+
+        calobj_multi_spw = multi_spw_delay
+
+    with pytest.raises(
+        ValueError, match="Cannot use current array shapes if Nspws > 1."
+    ):
+        calobj_multi_spw.use_current_array_shapes()
 
     calobj.integration_time[-1] = calobj.integration_time[0] * 2.0
     if caltype == "delay":
@@ -590,12 +616,27 @@ def test_flexible_spw(gain_data):
 
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("convention", ["minus", "plus"])
+@pytest.mark.parametrize("same_freqs", [True, False])
 def test_convert_to_gain(
-    future_shapes, convention, delay_data_inputflag, delay_data_inputflag_future
+    future_shapes,
+    convention,
+    same_freqs,
+    delay_data_inputflag,
+    delay_data_inputflag_future,
 ):
     delay_obj = delay_data_inputflag
-    freq_array = delay_obj.freq_array[0, :]
+    freq_array = copy.deepcopy(delay_obj.freq_array[0, :])
+    if not same_freqs:
+        # try with different number and same number but different values
+        if convention == "minus":
+            freq_array = freq_array[0 : (delay_obj.Nfreqs // 2)]
+        else:
+            freq_array[2] = freq_array[2] + 1e6
     channel_width = delay_obj.channel_width
+
+    # test passing a 1 element array for channel width
+    if convention == "minus":
+        channel_width = np.asarray([channel_width])
 
     if future_shapes:
         delay_obj = delay_data_inputflag_future
@@ -617,9 +658,30 @@ def test_convert_to_gain(
     else:
         new_gain_obj2 = new_gain_obj.copy()
 
-    new_gain_obj.convert_to_gain(
-        freq_array=freq_array, channel_width=channel_width, delay_convention=convention
-    )
+    if not future_shapes and not same_freqs:
+        with uvtest.check_warnings(
+            UserWarning,
+            match="Existing flag array has a frequency axis of length > 1 but "
+            "frequencies do not match freq_array. The existing flag array "
+            "(and input_flag_array if it exists) will be collapsed using "
+            "the `pyuvdata.utils.and_collapse` function which will only "
+            "flag an antpol-time if all of the frequecies are flagged for "
+            "that antpol-time. Then it will be broadcast to all the new "
+            "frequencies. To preserve the original flag information, "
+            "create a UVFlag object from this cal object before this "
+            "operation.",
+        ):
+            new_gain_obj.convert_to_gain(
+                freq_array=freq_array,
+                channel_width=channel_width,
+                delay_convention=convention,
+            )
+    else:
+        new_gain_obj.convert_to_gain(
+            freq_array=freq_array,
+            channel_width=channel_width,
+            delay_convention=convention,
+        )
     assert np.isclose(
         np.max(np.absolute(new_gain_obj.gain_array)),
         1.0,
@@ -671,13 +733,14 @@ def test_convert_to_gain(
         delay_obj.history + "  Converted from delays to gains using pyuvdata."
     )
 
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="In version 3.0 and later freq_array and channel_width will be required",
-    ):
-        new_gain_obj2.convert_to_gain(delay_convention=convention)
+    if same_freqs:
+        with uvtest.check_warnings(
+            DeprecationWarning,
+            match="In version 3.0 and later freq_array and channel_width will be",
+        ):
+            new_gain_obj2.convert_to_gain(delay_convention=convention)
 
-    assert new_gain_obj == new_gain_obj2
+        assert new_gain_obj == new_gain_obj2
 
 
 def test_convert_to_gain_errors(
@@ -691,6 +754,25 @@ def test_convert_to_gain_errors(
     ):
         delay_obj.convert_to_gain(
             freq_array=np.asarray([50e6, 60e6]), channel_width=delay_obj.channel_width
+        )
+
+    with pytest.raises(
+        ValueError, match="freq_array parameter must be a one dimensional array",
+    ):
+        delay_obj.convert_to_gain(
+            freq_array=delay_obj.freq_array, channel_width=delay_obj.channel_width
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="This object is using the current array shapes, so the "
+        "channel_width parameter must be a scalar value",
+    ):
+        delay_obj.convert_to_gain(
+            freq_array=delay_obj.freq_array[0, :],
+            channel_width=(
+                np.zeros(delay_obj.Nfreqs, dtype=float) + delay_obj.channel_width
+            ),
         )
 
     with pytest.raises(
@@ -720,6 +802,16 @@ def test_convert_to_gain_errors(
         ValueError, match="freq_array and channel_width must be provided",
     ):
         delay_obj.convert_to_gain()
+
+    with pytest.raises(
+        ValueError,
+        match="This object is using the future array shapes, so the "
+        "channel_width parameter be an array shaped like the freq_array",
+    ):
+        delay_obj.convert_to_gain(
+            freq_array=delay_data_inputflag.freq_array[0, :],
+            channel_width=delay_data_inputflag.channel_width,
+        )
 
 
 @pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
