@@ -112,24 +112,14 @@ class CALFITS(UVCal):
 
         if self.Ntimes > 1:
             time_spacing = np.diff(self.time_array)
-            if not np.isclose(
-                np.min(time_spacing),
-                np.max(time_spacing),
-                rtol=self._time_array.tols[0],
-                atol=self._time_array.tols[1],
-            ):
+            if not uvutils._test_array_constant(time_spacing, self._time_array.tols):
                 raise ValueError(
                     "The times are not evenly spaced (probably "
                     "because of a select operation). The calfits format "
                     "does not support unevenly spaced times."
                 )
             if self.future_array_shapes:
-                if not np.isclose(
-                    np.min(self.integration_time),
-                    np.max(self.integration_time),
-                    rtol=self._integration_time.tols[0],
-                    atol=self._integration_time.tols[1],
-                ):
+                if not uvutils._test_array_constant(self._integration_time):
                     raise ValueError(
                         "The integration times are variable. The calfits format "
                         "does not support variable integration times."
@@ -172,7 +162,7 @@ class CALFITS(UVCal):
 
         if self.Njones > 1:
             jones_spacing = np.diff(self.jones_array)
-            if np.min(jones_spacing) < np.max(jones_spacing):
+            if not uvutils._test_array_constant(jones_spacing):
                 raise ValueError(
                     "The jones values are not evenly spaced."
                     "The calibration fits file format does not"

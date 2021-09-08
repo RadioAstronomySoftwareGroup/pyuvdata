@@ -278,6 +278,50 @@ def _combine_history_addition(history1, history2):
     return add_hist
 
 
+def _test_array_constant(array, tols=None):
+    """
+    Check if an array contains constant values to some tolerance.
+
+    Uses np.isclose on the min & max of the arrays with the given tolerances.
+
+    Parameters
+    ----------
+    array : np.ndarray or UVParameter
+        UVParameter or array to check for varying values.
+    tols : tuple of float, optional
+        length 2 tuple giving (rtol, atol) to pass to np.isclose, defaults to (0, 0) if
+        passing an array, otherwise defaults to using the tolerance on the UVParameter.
+
+    Returns
+    -------
+    bool
+        True if the array is constant to the given tolerances, False otherwise.
+    """
+    # Import UVParameter here rather than at the top to avoid circular imports
+    from pyuvdata.parameter import UVParameter
+
+    if isinstance(array, UVParameter):
+        array_to_test = array.value
+        if tols is None:
+            tols = array.tols
+    else:
+        array_to_test = array
+        if tols is None:
+            tols = (0, 0)
+    assert isinstance(tols, tuple), "tols must be a length-2 tuple"
+    assert len(tols) == 2, "tols must be a length-2 tuple"
+
+    if array_to_test.size == 1:
+        return True
+
+    if np.min(array_to_test) == np.max(array_to_test):
+        return True
+
+    return np.isclose(
+        np.min(array_to_test), np.max(array_to_test), rtol=tols[0], atol=tols[1],
+    )
+
+
 def _check_flex_spw_contiguous(spw_array, flex_spw_id_array):
     """
     Check if the spectral windows are contiguous for flex_spw datasets.
@@ -418,20 +462,10 @@ def _check_freq_spacing(
             chanwidth_error = True
     else:
         freq_dir = np.sign(np.mean(freq_spacing))
-        if not np.isclose(
-            np.min(freq_spacing),
-            np.max(freq_spacing),
-            rtol=freq_tols[0],
-            atol=freq_tols[1],
-        ):
+        if not _test_array_constant(freq_spacing, freq_tols):
             spacing_error = True
         if future_array_shapes:
-            if not np.isclose(
-                np.min(channel_width),
-                np.max(channel_width),
-                rtol=freq_tols[0],
-                atol=freq_tols[1],
-            ):
+            if not _test_array_constant(channel_width, freq_tols):
                 spacing_error = True
             else:
                 if not np.isclose(

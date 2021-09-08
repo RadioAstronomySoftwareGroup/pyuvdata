@@ -492,12 +492,7 @@ class BeamFITS(UVBeam):
 
         if self.Nfreqs > 1:
             freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
-            if not np.isclose(
-                np.min(freq_spacing),
-                np.max(freq_spacing),
-                rtol=self._freq_array.tols[0],
-                atol=self._freq_array.tols[1],
-            ):
+            if not uvutils._test_array_constant(freq_spacing, self._freq_array.tols):
                 raise ValueError(
                     "The frequencies are not evenly spaced (probably "
                     "because of a select operation). The beamfits format "
@@ -513,11 +508,8 @@ class BeamFITS(UVBeam):
             ax_nums = reg_primary_ax_nums
             if self.Naxes1 > 1:
                 axis1_spacing = np.diff(self.axis1_array)
-                if not np.isclose(
-                    np.min(axis1_spacing),
-                    np.max(axis1_spacing),
-                    rtol=self._axis1_array.tols[0],
-                    atol=self._axis1_array.tols[1],
+                if not uvutils._test_array_constant(
+                    axis1_spacing, self._axis1_array.tols
                 ):
                     raise ValueError(
                         "The pixels are not evenly spaced along first axis. "
@@ -530,11 +522,8 @@ class BeamFITS(UVBeam):
 
             if self.Naxes2 > 1:
                 axis2_spacing = np.diff(self.axis2_array)
-                if not np.isclose(
-                    np.min(axis2_spacing),
-                    np.max(axis2_spacing),
-                    rtol=self._axis2_array.tols[0],
-                    atol=self._axis2_array.tols[1],
+                if not uvutils._test_array_constant(
+                    axis2_spacing, self._axis2_array.tols
                 ):
                     raise ValueError(
                         "The pixels are not evenly spaced along second axis. "
@@ -628,7 +617,7 @@ class BeamFITS(UVBeam):
         if self.beam_type == "power":
             if self.Npols > 1:
                 pol_spacing = np.diff(self.polarization_array)
-                if np.min(pol_spacing) < np.max(pol_spacing):
+                if not uvutils._test_array_constant(pol_spacing):
                     raise ValueError(
                         "The polarization values are not evenly "
                         "spaced (probably because of a select operation). "

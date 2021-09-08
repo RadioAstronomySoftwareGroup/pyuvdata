@@ -2766,7 +2766,7 @@ class UVCal(UVBase):
 
         if this.Njones > 2:
             jones_separation = np.diff(this.jones_array)
-            if np.min(jones_separation) < np.max(jones_separation):
+            if not uvutils._test_array_constant(jones_separation):
                 warnings.warn(
                     "Combined Jones elements are not evenly spaced. This will "
                     "make it impossible to write this data out to some file types."
@@ -2989,11 +2989,8 @@ class UVCal(UVBase):
 
             if cal_object.Ntimes > 1:
                 time_separation = np.diff(cal_object.time_array)
-                if not np.isclose(
-                    np.min(time_separation),
-                    np.max(time_separation),
-                    rtol=cal_object._time_array.tols[0],
-                    atol=cal_object._time_array.tols[1],
+                if not uvutils._test_array_constant(
+                    time_separation, cal_object._time_array.tols,
                 ):
                     warnings.warn(
                         "Selected times are not evenly spaced. This "
@@ -3267,7 +3264,7 @@ class UVCal(UVBase):
                 jones_separation = (
                     cal_object.jones_array[1:] - cal_object.jones_array[:-1]
                 )
-                if np.min(jones_separation) < np.max(jones_separation):
+                if not uvutils._test_array_constant(jones_separation):
                     warnings.warn(
                         "Selected jones polarization terms are not evenly spaced. This "
                         "is not supported by the calfits format"
