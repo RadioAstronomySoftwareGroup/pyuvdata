@@ -1711,21 +1711,33 @@ conversion of code and packages that use UVData objects to the future shapes.
 UVCal objects now also support flexible spectral windows and will see parameter shape
 changes in version 3.0.
 
-Spectral windows are implemented on UVCal objects in a similar way to the UVData
-implementation, where windows are defined as sets of frequency channels with some extra
-parameters to track which channels are in each spectral window. This allows for spectral
-windows to have arbitrary numbers of frequency channels and makes the ``channel_width``
-parameter be an array of length ``Nfreqs`` rather than a scalar, but only when the UVCal
-object contains flexible spectral windows. Supporting multiple spectral windows in this
-way removes the need for the spectral window axis on several UVCal parameters, but the
-axis was left as a length 1 axis for backwards compatibility.
+Spectral windows are implemented on standard "gain" type UVCal objects in a similar way
+to the UVData implementation, where windows are defined as sets of frequency channels
+with some extra parameters to track which channels are in each spectral window. This
+allows for spectral windows to have arbitrary numbers of frequency channels and makes
+the ``channel_width`` parameter be an array of length ``Nfreqs`` rather than a scalar,
+but only when the UVCal object contains flexible spectral windows. Supporting multiple
+spectral windows in this way removes the need for the spectral window axis on several
+UVCal parameters, but the axis was left as a length 1 axis for backwards compatibility.
 
-In version 3.0, several parameters will change shape. The length 1 axis that was
-originally intended for the spectral windows axis will be removed from the
-``gain_array``, ``delay_array``, ``flag_array``, ``quality_array``,
-``input_flag_array``, ``total_quality_array`` and ``freq_array`` parameters.
-In addition, the ``channel_width`` parameter will always be an array of length
-``Nfreqs`` and the ``integration_time`` parameter will be an array of length ``Ntimes``.
+Spectral windows are treated a little differently for wide-band style UVCal objects,
+which do not have an explicit frequency axis. For those objects, which include all
+"delay" type UVCal objects as well as wide-band gain objects, the ``freq_array``
+and ``channel_width`` parameters are not required but the ``freq_range`` parameter is
+required. UVCal objects that are wide-band and use the future array shapes
+can support multiple spectral windows, see details below.
+
+In version 3.0, several parameters will change shape. For standard "gain" type
+UVCal objects, the length 1 axis that was originally intended for the spectral windows
+axis will be removed from the ``gain_array`` , ``flag_array``, ``quality_array``,
+``input_flag_array``, ``total_quality_array`` and ``freq_array`` parameters and the
+``channel_width`` parameter will always be an array of length ``Nfreqs``. For
+wide-band and "delay" type UVCal objects, the spectral window axis will be retained but
+the axis corresponding to the frequency axis will be removed from the ``gain_array`` ,
+``delay_array``, ``flag_array``, ``quality_array``, ``input_flag_array`` and the
+``total_quality_array` and the ``freq_range`` parameter will gain a spectral window
+axis. In addition, the ``integration_time`` parameter will always be an array of
+length ``Ntimes``.
 
 In order to support an orderly conversion of code and packages that use the ``UVCal``
 object to these new parameter shapes, we have created the
