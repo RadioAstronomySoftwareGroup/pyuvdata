@@ -521,7 +521,7 @@ def test_efield_to_power(cst_efield_2freq_cut, cst_power_2freq_cut, tmp_path):
     efield_beam.Naxes_vec = 3
     with pytest.raises(
         ValueError,
-        match="Conversion to power with 3-vector efields " "is not currently supported",
+        match="Conversion to power with 3-vector efields is not currently supported",
     ):
         efield_beam.efield_to_power()
 
@@ -1412,7 +1412,7 @@ def test_select_frequencies(cst_power_1freq, tmp_path):
         assert f in freqs_to_keep
 
     assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific frequencies using pyuvdata.",
+        old_history + "  Downselected to specific frequencies using pyuvdata.",
         power_beam2.history,
     )
 
@@ -1452,7 +1452,7 @@ def test_select_frequencies(cst_power_1freq, tmp_path):
         assert f in power_beam.freq_array[0, chans_to_keep]
 
     assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific frequencies using pyuvdata.",
+        old_history + "  Downselected to specific frequencies using pyuvdata.",
         power_beam2.history,
     )
 
@@ -1502,7 +1502,7 @@ def test_select_feeds(cst_efield_1freq):
         assert f in feeds_to_keep
 
     assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific feeds using pyuvdata.",
+        old_history + "  Downselected to specific feeds using pyuvdata.",
         efield_beam2.history,
     )
 
@@ -1536,7 +1536,10 @@ def test_select_feeds(cst_efield_1freq):
         efield_beam.check()
 
 
-def test_select_polarizations(cst_power_1freq):
+@pytest.mark.parametrize(
+    "pols_to_keep", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]])
+)
+def test_select_polarizations(pols_to_keep, cst_power_1freq):
     power_beam = cst_power_1freq
 
     # generate more polarizations for testing by copying and adding several times
@@ -1562,20 +1565,43 @@ def test_select_polarizations(cst_power_1freq):
     )
 
     old_history = power_beam.history
-    pols_to_keep = [-5, -6]
 
     power_beam2 = power_beam.select(polarizations=pols_to_keep, inplace=False)
 
+    if isinstance(pols_to_keep[0], list):
+        pols_to_keep = pols_to_keep[0]
+
     assert len(pols_to_keep) == power_beam2.Npols
     for p in pols_to_keep:
-        assert p in power_beam2.polarization_array
+        if isinstance(p, int):
+            assert p in power_beam2.polarization_array
+        else:
+            assert (
+                uvutils.polstr2num(p, x_orientation=power_beam2.x_orientation)
+                in power_beam2.polarization_array
+            )
     for p in np.unique(power_beam2.polarization_array):
-        assert p in pols_to_keep
+        if isinstance(pols_to_keep[0], int):
+            assert p in pols_to_keep
+        else:
+            assert p in uvutils.polstr2num(
+                pols_to_keep, x_orientation=power_beam2.x_orientation
+            )
 
     assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific polarizations using pyuvdata.",
+        old_history + "  Downselected to specific polarizations using pyuvdata.",
         power_beam2.history,
     )
+
+
+def test_select_polarizations_errors(cst_power_1freq):
+    power_beam = cst_power_1freq
+
+    # generate more polarizations for testing by copying and adding several times
+    while power_beam.Npols < 4:
+        new_beam = power_beam.copy()
+        new_beam.polarization_array = power_beam.polarization_array - power_beam.Npols
+        power_beam += new_beam
 
     # check for errors associated with polarizations not included in data
     with pytest.raises(
@@ -2120,7 +2146,7 @@ def test_select_healpix_pixels(
         assert pi in pixels_to_keep
 
     assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific healpix pixels using pyuvdata.",
+        old_history + "  Downselected to specific healpix pixels using pyuvdata.",
         beam_healpix2.history,
     )
 

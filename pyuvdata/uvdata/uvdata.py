@@ -3838,7 +3838,7 @@ class UVData(UVBase):
         Parameters
         ----------
         order : str
-            Either a string specifying a cannonical ordering ('AIPS' or 'CASA')
+            Either a string specifying a canonical ordering ('AIPS' or 'CASA')
             or an index array of length Npols that specifies how to shuffle the
             data (this is not the desired final pol order).
             CASA ordering has cross-pols in between (e.g. XX,XY,YX,YY)
@@ -7674,9 +7674,12 @@ class UVData(UVBase):
             smaller than the first, the LSTs are treated as having phase-wrapped
             around LST = 2*pi = 0, and the LSTs kept on the object will run from
             the larger value, through 0, and end at the smaller value.
-        polarizations : array_like of int, optional
+        polarizations : array_like of int or str, optional
             The polarizations numbers to keep in the object, each value passed
-            here should exist in the polarization_array.
+            here should exist in the polarization_array. If passing strings, the
+            canonical polarization strings (e.g. "xx", "rr") are supported and if the
+            `x_orientation` attribute is set, the physical dipole strings
+            (e.g. "nn", "ee") are also supported.
         blt_inds : array_like of int, optional
             The baseline-time indices to keep in the object. This is
             not commonly used.
@@ -8314,9 +8317,12 @@ class UVData(UVBase):
             smaller than the first, the LSTs are treated as having phase-wrapped
             around LST = 2*pi = 0, and the LSTs kept on the object will run from
             the larger value, through 0, and end at the smaller value.
-        polarizations : array_like of int, optional
+        polarizations : array_like of int or str, optional
             The polarizations numbers to keep in the object, each value passed
-            here should exist in the polarization_array.
+            here should exist in the polarization_array. If passing strings, the
+            canonical polarization strings (e.g. "xx", "rr") are supported and if the
+            `x_orientation` attribute is set, the physical dipole strings
+            (e.g. "nn", "ee") are also supported.
         blt_inds : array_like of int, optional
             The baseline-time indices to keep in the object. This is
             not commonly used.

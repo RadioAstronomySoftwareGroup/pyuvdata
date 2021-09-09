@@ -1802,9 +1802,12 @@ class UVCal(UVBase):
         times : array_like of float, optional
             The times to keep in the object, each value passed here should
             exist in the time_array.
-        jones : array_like of int, optional
+        jones : array_like of int or str, optional
             The antenna polarizations numbers to keep in the object, each value
-            passed here should exist in the jones_array.
+            passed here should exist in the jones_array. If passing strings, the
+            canonical polarization strings (e.g. "Jxx", "Jrr") are supported and if the
+            `x_orientation` attribute is set, the physical dipole strings
+            (e.g. "Jnn", "Jee") are also supported.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after downselecting data on this object (the default is True,
@@ -2023,6 +2026,8 @@ class UVCal(UVBase):
 
         if jones is not None:
             jones = uvutils._get_iterable(jones)
+            if np.array(jones).ndim > 1:
+                jones = np.array(jones).flatten()
             if n_selects > 0:
                 history_update_string += ", jones polarization terms"
             else:
@@ -2031,9 +2036,13 @@ class UVCal(UVBase):
 
             jones_inds = np.zeros(0, dtype=np.int64)
             for j in jones:
-                if j in cal_object.jones_array:
+                if isinstance(j, str):
+                    j_num = uvutils.jstr2num(j, x_orientation=self.x_orientation)
+                else:
+                    j_num = j
+                if j_num in cal_object.jones_array:
                     jones_inds = np.append(
-                        jones_inds, np.where(cal_object.jones_array == j)[0]
+                        jones_inds, np.where(cal_object.jones_array == j_num)[0]
                     )
                 else:
                     raise ValueError(

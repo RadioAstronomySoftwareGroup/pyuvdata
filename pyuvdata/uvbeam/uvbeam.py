@@ -201,9 +201,7 @@ class UVBeam(UVBase):
             form=("Npixels",),
         )
 
-        desc = (
-            "String indicating beam type. Allowed values are 'efield', " "and 'power'."
-        )
+        desc = "String indicating beam type. Allowed values are 'efield', and 'power'."
         self._beam_type = uvp.UVParameter(
             "beam_type",
             description=desc,
@@ -288,7 +286,7 @@ class UVBeam(UVBase):
 
         self._spw_array = uvp.UVParameter(
             "spw_array",
-            description="Array of spectral window " "Numbers, shape (Nspws)",
+            description="Array of spectral window Numbers, shape (Nspws)",
             form=("Nspws",),
             expected_type=int,
         )
@@ -351,35 +349,35 @@ class UVBeam(UVBase):
         # --------- metadata -------------
         self._telescope_name = uvp.UVParameter(
             "telescope_name",
-            description="Name of telescope " "(string)",
+            description="Name of telescope (string)",
             form="str",
             expected_type=str,
         )
 
         self._feed_name = uvp.UVParameter(
             "feed_name",
-            description="Name of physical feed " "(string)",
+            description="Name of physical feed (string)",
             form="str",
             expected_type=str,
         )
 
         self._feed_version = uvp.UVParameter(
             "feed_version",
-            description="Version of physical feed " "(string)",
+            description="Version of physical feed (string)",
             form="str",
             expected_type=str,
         )
 
         self._model_name = uvp.UVParameter(
             "model_name",
-            description="Name of beam model " "(string)",
+            description="Name of beam model (string)",
             form="str",
             expected_type=str,
         )
 
         self._model_version = uvp.UVParameter(
             "model_version",
-            description="Version of beam model " "(string)",
+            description="Version of beam model (string)",
             form="str",
             expected_type=str,
         )
@@ -2569,11 +2567,14 @@ class UVBeam(UVBase):
             The frequencies to keep in the object.
         freq_chans : array_like of int, optional
             The frequency channel numbers to keep in the object.
-        feeds : array_like of int, optional
+        feeds : array_like of str, optional
             The feeds to keep in the object. Cannot be set if the beam_type is "power".
-        polarizations : array_like of int, optional
+        polarizations : array_like of int or str, optional
             The polarizations to keep in the object.
-            Cannot be set if the beam_type is "efield".
+            Cannot be set if the beam_type is "efield". If passing strings, the
+            canonical polarization strings (e.g. "xx", "rr") are supported and if the
+            `x_orientation` attribute is set, the physical dipole strings
+            (e.g. "nn", "ee") are also supported.
         inplace : bool
             Option to perform the select directly on self or return
             a new UVBeam object, which is a subselection of self.
@@ -2812,6 +2813,9 @@ class UVBeam(UVBase):
                 raise ValueError("polarizations cannot be used with efield beams")
 
             polarizations = uvutils._get_iterable(polarizations)
+            if np.array(polarizations).ndim > 1:
+                polarizations = np.array(polarizations).flatten()
+
             if n_selects > 0:
                 history_update_string += ", polarizations"
             else:
@@ -2820,9 +2824,13 @@ class UVBeam(UVBase):
 
             pol_inds = np.zeros(0, dtype=np.int64)
             for p in polarizations:
-                if p in beam_object.polarization_array:
+                if isinstance(p, str):
+                    p_num = uvutils.polstr2num(p, x_orientation=self.x_orientation)
+                else:
+                    p_num = p
+                if p_num in beam_object.polarization_array:
                     pol_inds = np.append(
-                        pol_inds, np.where(beam_object.polarization_array == p)[0]
+                        pol_inds, np.where(beam_object.polarization_array == p_num)[0]
                     )
                 else:
                     raise ValueError(

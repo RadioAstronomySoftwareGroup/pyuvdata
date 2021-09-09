@@ -2696,38 +2696,37 @@ def test_select_freq_chans(input_uvf, uvf_mode):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
-def test_select_polarizations(input_uvf, uvf_mode):
+@pytest.mark.parametrize("pols_to_keep", ([-5], ["xx"], ["nn"], [[-5]]))
+def test_select_polarizations(uvf_mode, pols_to_keep, input_uvf):
     uvf = input_uvf
     # used to set the mode depending on which input is given to uvf_mode
     getattr(uvf, uvf_mode)()
     np.random.seed(0)
     old_history = uvf.history
 
-    pols_to_keep = [-5]
-
+    uvf.x_orientation = "north"
     uvf2 = copy.deepcopy(uvf)
     uvf2.select(polarizations=pols_to_keep)
 
-    assert len(pols_to_keep) == uvf2.Npols
-    for p in pols_to_keep:
-        assert p in uvf2.polarization_array
-    for p in np.unique(uvf2.polarization_array):
-        assert p in pols_to_keep
-
-    assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific polarizations using pyuvdata.",
-        uvf2.history,
-    )
-
-    # check that it also works with higher dimension array
-    uvf2 = copy.deepcopy(uvf)
-    uvf2.select(polarizations=[pols_to_keep])
+    if isinstance(pols_to_keep[0], list):
+        pols_to_keep = pols_to_keep[0]
 
     assert len(pols_to_keep) == uvf2.Npols
     for p in pols_to_keep:
-        assert p in uvf2.polarization_array
+        if isinstance(p, int):
+            assert p in uvf2.polarization_array
+        else:
+            assert (
+                uvutils.polstr2num(p, x_orientation=uvf2.x_orientation)
+                in uvf2.polarization_array
+            )
     for p in np.unique(uvf2.polarization_array):
-        assert p in pols_to_keep
+        if isinstance(pols_to_keep[0], int):
+            assert p in pols_to_keep
+        else:
+            assert p in uvutils.polstr2num(
+                pols_to_keep, x_orientation=uvf2.x_orientation
+            )
 
     assert uvutils._check_histories(
         old_history + "  Downselected to " "specific polarizations using pyuvdata.",

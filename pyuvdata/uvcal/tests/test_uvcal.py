@@ -745,7 +745,10 @@ def test_select_freq_chans(caltype, gain_data, delay_data):
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_select_polarizations(caltype, gain_data, delay_data):
+@pytest.mark.parametrize(
+    "jones_to_keep", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]])
+)
+def test_select_polarizations(caltype, jones_to_keep, gain_data, delay_data):
     if caltype == "gain":
         calobj = gain_data
         calobj2 = calobj.copy()
@@ -787,15 +790,27 @@ def test_select_polarizations(caltype, gain_data, delay_data):
     calobj2 = calobj.copy()
 
     old_history = calobj.history
-    jones_to_keep = [-5, -6]
 
     calobj2.select(jones=jones_to_keep)
 
+    if isinstance(jones_to_keep[0], list):
+        jones_to_keep = jones_to_keep[0]
     assert len(jones_to_keep) == calobj2.Njones
     for j in jones_to_keep:
-        assert j in calobj2.jones_array
+        if isinstance(j, int):
+            assert j in calobj2.jones_array
+        else:
+            assert (
+                uvutils.jstr2num(j, x_orientation=calobj2.x_orientation)
+                in calobj2.jones_array
+            )
     for j in np.unique(calobj2.jones_array):
-        assert j in jones_to_keep
+        if isinstance(jones_to_keep[0], int):
+            assert j in jones_to_keep
+        else:
+            assert j in uvutils.jstr2num(
+                jones_to_keep, x_orientation=calobj2.x_orientation
+            )
 
     assert uvutils._check_histories(
         old_history + "  Downselected to "
