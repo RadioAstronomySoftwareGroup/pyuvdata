@@ -2502,16 +2502,16 @@ class UVBeam(UVBase):
 
         # Check specific requirements
         if this.Nfreqs > 1:
-            freq_separation = np.diff(this.freq_array[0, :])
-            if not uvutils._test_array_constant(freq_separation, this._freq_array.tols):
+            if not uvutils._test_array_constant_spacing(
+                this.freq_array[0, :], this._freq_array.tols
+            ):
                 warnings.warn(
                     "Combined frequencies are not evenly spaced. This will "
                     "make it impossible to write this data out to some file types."
                 )
 
         if self.beam_type == "power" and this.Npols > 2:
-            pol_separation = np.diff(this.polarization_array)
-            if not uvutils._test_array_constant(pol_separation):
+            if not uvutils._test_array_constant_spacing(this._polarization_array):
                 warnings.warn(
                     "Combined polarizations are not evenly spaced. This will "
                     "make it impossible to write this data out to some file types."
@@ -2642,10 +2642,7 @@ class UVBeam(UVBase):
             beam_object.axis1_array = beam_object.axis1_array[axis1_inds]
 
             if beam_object.Naxes1 > 1:
-                axis1_spacing = np.diff(beam_object.axis1_array)
-                if not uvutils._test_array_constant(
-                    axis1_spacing, beam_object._axis1_array.tols
-                ):
+                if not uvutils._test_array_constant_spacing(beam_object._axis1_array):
                     warnings.warn(
                         "Selected values along first image axis are "
                         "not evenly spaced. This is not supported by "
@@ -2677,10 +2674,7 @@ class UVBeam(UVBase):
             beam_object.axis2_array = beam_object.axis2_array[axis2_inds]
 
             if beam_object.Naxes2 > 1:
-                axis2_spacing = np.diff(beam_object.axis2_array)
-                if not uvutils._test_array_constant(
-                    axis2_spacing, beam_object._axis2_array.tols
-                ):
+                if not uvutils._test_array_constant_spacing(beam_object._axis2_array):
                     warnings.warn(
                         "Selected values along second image axis are "
                         "not evenly spaced. This is not supported by "

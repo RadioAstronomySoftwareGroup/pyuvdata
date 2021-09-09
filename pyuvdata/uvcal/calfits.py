@@ -111,13 +111,13 @@ class CALFITS(UVCal):
                 delta_freq_array = self.channel_width
 
         if self.Ntimes > 1:
-            time_spacing = np.diff(self.time_array)
-            if not uvutils._test_array_constant(time_spacing, self._time_array.tols):
+            if not uvutils._test_array_constant_spacing(self._time_array):
                 raise ValueError(
                     "The times are not evenly spaced (probably "
                     "because of a select operation). The calfits format "
                     "does not support unevenly spaced times."
                 )
+            time_spacing = np.diff(self.time_array)
             if self.future_array_shapes:
                 if not uvutils._test_array_constant(self._integration_time):
                     raise ValueError(
@@ -161,14 +161,13 @@ class CALFITS(UVCal):
                 time_spacing = self.integration_time / (24.0 * 60.0 ** 2)
 
         if self.Njones > 1:
-            jones_spacing = np.diff(self.jones_array)
-            if not uvutils._test_array_constant(jones_spacing):
+            if not uvutils._test_array_constant_spacing(self._jones_array):
                 raise ValueError(
                     "The jones values are not evenly spaced."
                     "The calibration fits file format does not"
                     " support unevenly spaced polarizations."
                 )
-            jones_spacing = jones_spacing[0]
+            jones_spacing = self.jones_array[1] - self.jones_array[0]
         else:
             jones_spacing = -1
 
