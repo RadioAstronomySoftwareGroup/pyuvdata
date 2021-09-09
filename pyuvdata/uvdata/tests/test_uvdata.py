@@ -2409,43 +2409,52 @@ def test_select_freq_chans(casa_uvfits, future_shapes):
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_select_polarizations(casa_uvfits, future_shapes, tmp_path):
-    uv_object = casa_uvfits
+@pytest.mark.parametrize(
+    "pols_to_keep", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]])
+)
+def test_select_polarizations(hera_uvh5, future_shapes, pols_to_keep):
+    uv_object = hera_uvh5
 
     if future_shapes:
         uv_object.use_future_array_shapes()
 
     old_history = uv_object.history
-    pols_to_keep = [-1, -2]
 
     uv_object2 = uv_object.copy()
     uv_object2.select(polarizations=pols_to_keep)
 
+    if isinstance(pols_to_keep[0], list):
+        pols_to_keep = pols_to_keep[0]
+
     assert len(pols_to_keep) == uv_object2.Npols
     for p in pols_to_keep:
-        assert p in uv_object2.polarization_array
+        if isinstance(p, int):
+            assert p in uv_object2.polarization_array
+        else:
+            assert (
+                uvutils.polstr2num(p, x_orientation=uv_object2.x_orientation)
+                in uv_object2.polarization_array
+            )
     for p in np.unique(uv_object2.polarization_array):
-        assert p in pols_to_keep
+        if isinstance(pols_to_keep[0], int):
+            assert p in pols_to_keep
+        else:
+            assert p in uvutils.polstr2num(
+                pols_to_keep, x_orientation=uv_object2.x_orientation
+            )
 
     assert uvutils._check_histories(
         old_history + "  Downselected to specific polarizations using pyuvdata.",
         uv_object2.history,
     )
 
-    # check that it also works with higher dimension array
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_polarizations_errors(casa_uvfits, tmp_path):
+    uv_object = casa_uvfits
     uv_object2 = uv_object.copy()
-    uv_object2.select(polarizations=[pols_to_keep])
-
-    assert len(pols_to_keep) == uv_object2.Npols
-    for p in pols_to_keep:
-        assert p in uv_object2.polarization_array
-    for p in np.unique(uv_object2.polarization_array):
-        assert p in pols_to_keep
-
-    assert uvutils._check_histories(
-        old_history + "  Downselected to specific polarizations using pyuvdata.",
-        uv_object2.history,
-    )
+    uv_object2.select(polarizations=[-1, -2])
 
     # check for errors associated with polarizations not included in data
     with pytest.raises(

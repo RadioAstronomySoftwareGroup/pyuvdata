@@ -1920,9 +1920,12 @@ class UVFlag(UVBase):
         times : array_like of float, optional
             The times to keep in the object, each value passed here should
             exist in the time_array.
-        polarizations : array_like of int, optional
+        polarizations : array_like of int or str, optional
             The polarizations numbers to keep in the object, each value passed
-            here should exist in the polarization_array.
+            here should exist in the polarization_array. If passing strings, the
+            canonical polarization strings (e.g. "xx", "rr") are supported and if the
+            `x_orientation` attribute is set, the physical dipole strings
+            (e.g. "nn", "ee") are also supported.
         blt_inds : array_like of int, optional
             The baseline-time indices to keep in the object. This is
             not commonly used.
@@ -2366,9 +2369,12 @@ class UVFlag(UVBase):
         times : array_like of float, optional
             The times to keep in the object, each value passed here should
             exist in the time_array.
-        polarizations : array_like of int, optional
+        polarizations : array_like of int or str, optional
             The polarizations numbers to keep in the object, each value passed
-            here should exist in the polarization_array.
+            here should exist in the polarization_array. If passing strings, the
+            canonical polarization strings (e.g. "xx", "rr") are supported and if the
+            `x_orientation` attribute is set, the physical dipole strings
+            (e.g. "nn", "ee") are also supported.
         blt_inds : array_like of int, optional
             The baseline-time indices to keep in the object. This is
             not commonly used.
