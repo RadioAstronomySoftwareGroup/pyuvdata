@@ -904,6 +904,7 @@ class MWACorrFITS(UVData):
         cb_array,
         dig_gains,
         nsamples,
+        avg_factor,
         vv2_mu_coeff,
         vv2_auto_coeff,
         vv1_sig_vec,
@@ -948,9 +949,9 @@ class MWACorrFITS(UVData):
             :, cb_num * num_fine_chans : (cb_num + 1) * num_fine_chans, :
         ].astype(np.complex128)
         # get coarse band flags
-        # cb_flags = self.flag_array[
-        #     :, cb_num * num_fine_chans : (cb_num + 1) * num_fine_chans, :
-        # ]
+        cb_flags = self.flag_array[
+            :, cb_num * num_fine_chans : (cb_num + 1) * num_fine_chans, :
+        ]
         # correct van vleck
         if correct_van_vleck:
             # find polarizations
@@ -969,17 +970,13 @@ class MWACorrFITS(UVData):
             # take square root of autos
             cb_data.real[auto_mask, :, 0:2] = np.sqrt(cb_data.real[auto_mask, :, 0:2])
             # create masks so don't correct flagged data
-            # auto_mask_full = cb_flags[auto_mask, :, 0:2]
+            auto_mask_full = cb_flags[auto_mask, :, 0:2]
             # cross_mask_full = cb_flags[cross_mask, :, :]
-            # correct unflagged autos
-            # this will probably break tests; add later if not too painful
-            # sighats = cb_data.real[auto_mask, :, 0:2][~auto_mask_full]
+            # only correct unflagged auto; flagged autos might not converge
             sighats = cb_data.real[auto_mask, :, 0:2]
-            shape = sighats.shape
-            cb_data.real[auto_mask, :, 0:2] = van_vleck_autos(
-                sighats.flatten()
-            ).reshape(shape)
-            # TODO: add 8-bit correction for autos here
+            sighats[~auto_mask_full] = van_vleck_autos(sighats[~auto_mask_full])
+            cb_data.real[auto_mask, :, 0:2] = sighats
+            # 8-bit correction for autos
             # calculate coarse band 'sigmas'
             # TODO: will need to generate a full coarse band test file for this
             sigma_c = np.sqrt(
@@ -990,28 +987,50 @@ class MWACorrFITS(UVData):
             # calculate mus
             # this calculation assumes the fine pfb fft has 128 points
             muhats = polyval(sigma_c, vv2_mu_coeff)
-            # muhats = muhats.reshape(sigma_c.shape)
+            muhats = muhats.reshape(sigma_c.shape)
             # square dc channel, subtract mu^2, take square root again
-            cb_data.real[auto_mask, dc_ind, 0:2] = np.square(
-                cb_data.real[auto_mask, dc_ind, 0:2]
+            # print(cb_data.real[auto_mask, dc_ind, 0:2])
+            print(sighats.shape)
+            print(auto_mask_full.shape)
+            sighats[:, dc_ind, :][~auto_mask_full[:, dc_ind, :]] = np.square(
+                sighats[:, dc_ind, :][~auto_mask_full[:, dc_ind, :]]
             )
-            cb_data.real[auto_mask, dc_ind, 0:2] -= np.square(muhats) / 4
-            cb_data.real[auto_mask, dc_ind, 0:2] = np.sqrt(
-                cb_data.real[auto_mask, dc_ind, 0:2]
+            sighats[:, dc_ind, :][~auto_mask_full[:, dc_ind, :]] -= (
+                np.square(muhats[:, dc_ind, :][~auto_mask_full[:, dc_ind, :]])
+                / avg_factor
             )
-            # do second stage van vleck on autos
+            sighats[:, dc_ind, :][~auto_mask_full[:, dc_ind, :]] = np.sqrt(
+                sighats[:, dc_ind, :][~auto_mask_full[:, dc_ind, :]]
+            )
+            # cb_data.real[auto_mask, dc_ind, 0:2] = sighats[:, dc_ind, :]
+            # cb_data.real[auto_mask, dc_ind, 0:2] -= np.square(muhats) / avg_factor
+            # cb_data.real[auto_mask, dc_ind, 0:2] = np.sqrt(
+            #     cb_data.real[auto_mask, dc_ind, 0:2]
+            # )
+            # print(cb_data.real[auto_mask, dc_ind, 0:2])
+            # do second stage van vleck on all autos
             cb_data.real[auto_mask, :, 0:2] = polyval2d(
                 cb_data.real[auto_mask, :, 0:2], sigma_c_full, vv2_auto_coeff
             )
+
             # correct crosses
             # get indices for broadcasting pols
             pol1_inds = np.array([0, 1, 0, 1])
             pol2_inds = np.array([0, 1, 1, 0])
+            # get indices for sigmas corresponding to crosses
+            auto_inds = np.where(
+                ant_1_inds[0 : self.Nbls] == ant_2_inds[0 : self.Nbls]
+            )[0]
+            cross_inds = np.where(
+                ant_1_inds[0 : self.Nbls] != ant_2_inds[0 : self.Nbls]
+            )[0]
+            sig1_inds = ant_1_inds[cross_inds]
+            sig2_inds = ant_2_inds[cross_inds]
             if cheby_approx:
                 # TODO: modify so that dc chans are corrected with integral
                 self.history += " Used Van Vleck Chebychev approximation."
+                # get array of xx and yy sigmas
                 sigs = cb_data.real[auto_mask, :, 0:2]
-                # build sigma arrays of shape (Nautos, Nfreqs, 2)
                 # so basically have three arrays: sigs, ds, sv_inds_right
                 # get mask for sigmas within interpolation range
                 in_mask = np.logical_and(sigs > 0.9, sigs <= 4.5)
@@ -1020,49 +1039,60 @@ class MWACorrFITS(UVData):
                 ds = np.zeros(sigs.shape)
                 sv_inds_right[in_mask] = np.searchsorted(vv1_sig_vec, sigs[in_mask])
                 ds[in_mask] = vv1_sig_vec[sv_inds_right[in_mask]] - sigs[in_mask]
-                # get indices for sigmas corresponding to crosses
-                sig1_inds = ant_1_inds[cross_mask]
-                sig2_inds = ant_2_inds[cross_mask]
                 # make a couple of masks
+                # at this point reshape?
+                broadcast_shape = (
+                    self.Ntimes,
+                    self.Nants_data,
+                    num_fine_chans,
+                    self.Npols,
+                )
                 # broadcast in_mask
-                in_mask1 = np.take(in_mask, pol1_inds, axis=-1)
-                in_mask2 = np.take(in_mask, pol2_inds, axis=-1)
+                in_mask1 = np.take(in_mask, pol1_inds, axis=-1).reshape(broadcast_shape)
+                in_mask2 = np.take(in_mask, pol2_inds, axis=-1).reshape(broadcast_shape)
                 # get a flag array where both sig1 and sig2 are within cheby range
                 broad_inds = np.logical_and(
-                    in_mask1[sig1_inds, :, :], in_mask2[sig2_inds, :, :],
+                    in_mask1[:, sig1_inds, :, :], in_mask2[:, sig2_inds, :, :],
                 )
-                sv_inds_right1 = np.take(sv_inds_right, pol1_inds, axis=-1)
-                sv_inds_right2 = np.take(sv_inds_right, pol2_inds, axis=-1)
-                ds1 = np.take(ds, pol1_inds, axis=-1)
-                ds2 = np.take(ds, pol2_inds, axis=-1)
-                sv_inds_right1 = sv_inds_right1[sig1_inds, :, :][broad_inds]
-                sv_inds_right2 = sv_inds_right2[sig2_inds, :, :][broad_inds]
-                ds1 = ds1[sig1_inds, :, :][broad_inds]
-                ds2 = ds2[sig2_inds, :, :][broad_inds]
-                sig1 = np.take(sigs, pol1_inds, axis=-1)
-                sig2 = np.take(sigs, pol2_inds, axis=-1)
+                # broadcast all the arrays to match autos with corresponding crosses
+                sv_inds_right1 = np.take(sv_inds_right, pol1_inds, axis=-1).reshape(
+                    broadcast_shape
+                )
+                sv_inds_right2 = np.take(sv_inds_right, pol2_inds, axis=-1).reshape(
+                    broadcast_shape
+                )
+                sv_inds_right1 = sv_inds_right1[:, sig1_inds, :, :][broad_inds]
+                sv_inds_right2 = sv_inds_right2[:, sig2_inds, :, :][broad_inds]
+                ds1 = np.take(ds, pol1_inds, axis=-1).reshape(broadcast_shape)
+                ds2 = np.take(ds, pol2_inds, axis=-1).reshape(broadcast_shape)
+                ds1 = ds1[:, sig1_inds, :, :][broad_inds]
+                ds2 = ds2[:, sig2_inds, :, :][broad_inds]
+                sig1 = np.take(sigs, pol1_inds, axis=-1).reshape(broadcast_shape)
+                sig2 = np.take(sigs, pol2_inds, axis=-1).reshape(broadcast_shape)
                 # correct in range values with cheby approximation
                 cross_data = cb_data[cross_mask, :, :]
+                cross_data_shape = cross_data.shape
+                cross_data = cross_data.reshape(broad_inds.shape)
                 kap = np.array(
                     [cross_data.real[broad_inds], cross_data.imag[broad_inds]]
                 )
                 _corr_fits.van_vleck_cheby(
                     kap, vv1_rho_coeff, sv_inds_right1, sv_inds_right2, ds1, ds2,
                 )
-                kap *= sig1[sig1_inds, :, :][broad_inds]
-                kap *= sig2[sig2_inds, :, :][broad_inds]
+                kap *= sig1[:, sig1_inds, :, :][broad_inds]
+                kap *= sig2[:, sig2_inds, :, :][broad_inds]
                 cross_data[broad_inds] = 1j * kap[1, :]
                 cross_data[broad_inds] += kap[0, :]
                 # correct out of range values with integral
-                sig1 = sig1[sig1_inds, :, :][~broad_inds]
-                sig2 = sig2[sig2_inds, :, :][~broad_inds]
+                sig1 = sig1[:, sig1_inds, :, :][~broad_inds]
+                sig2 = sig2[:, sig2_inds, :, :][~broad_inds]
                 cross_data[~broad_inds] = van_vleck_crosses_int(
                     cross_data[~broad_inds].real, sig1, sig2, cheby_approx,
                 ) + 1j * van_vleck_crosses_int(
                     cross_data[~broad_inds].imag, sig1, sig2, cheby_approx,
                 )
                 # put corrected data back into array
-                cb_data[cross_mask, :, :] = cross_data
+                cb_data[cross_mask, :, :] = cross_data.reshape(cross_data_shape)
                 # so right now I'm creating: broad_inds, sig1, sig2, ds1, ds2,
                 # sv_inds_right1, sv_inds_right2, cross_data
 
@@ -1272,6 +1302,7 @@ class MWACorrFITS(UVData):
                 cb_array,
                 dig_gains,
                 nsamples,
+                avg_factor,
                 vv2_mu_coeff,
                 vv2_auto_coeff,
                 vv1_sig_vec,
@@ -1911,7 +1942,6 @@ class MWACorrFITS(UVData):
             self.flag_array = np.full(
                 (self.Ntimes, self.Nbls, len(spw_inds), self.Npols), True
             )
-
             # read data files
             for filename in file_dict["data"]:
                 self._read_fits_file(

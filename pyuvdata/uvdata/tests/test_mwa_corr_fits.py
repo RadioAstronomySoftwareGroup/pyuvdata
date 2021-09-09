@@ -965,8 +965,7 @@ def test_van_vleck_int():
     # read in file corrected using integrate.quad with 1e-10 precision
     uv2 = UVData()
     uv2.read(filelist[10])
-    print(uv1.data_array[0:10, 0, 0, :])
-    print(uv2.data_array[0:10, 0, 0, :])
+
     assert np.allclose(uv1.data_array, uv2.data_array)
 
 
