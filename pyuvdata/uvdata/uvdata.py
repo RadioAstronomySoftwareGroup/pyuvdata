@@ -7191,8 +7191,7 @@ class UVData(UVBase):
             )
             this.Npols = sum([this.Npols] + [obj.Npols for obj in other])
 
-            pol_separation = np.diff(this.polarization_array)
-            if not uvutils._test_array_constant(pol_separation):
+            if not uvutils._test_array_constant_spacing(this._polarization_array):
                 warnings.warn(
                     "Combined polarizations are not evenly spaced. This will "
                     "make it impossible to write this data out to some file types."
@@ -8128,8 +8127,7 @@ class UVData(UVBase):
                     )
 
             if len(pol_inds) > 2:
-                pol_ind_separation = pol_inds[1:] - pol_inds[:-1]
-                if not uvutils._test_array_constant(pol_ind_separation):
+                if not uvutils._test_array_constant_spacing(pol_inds):
                     warnings.warn(
                         "Selected polarization values are not evenly spaced. This "
                         "will make it impossible to write this data out to "

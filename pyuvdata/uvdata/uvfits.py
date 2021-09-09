@@ -1006,17 +1006,15 @@ class UVFITS(UVData):
                 delta_freq_array = np.array([[self.channel_width]]).astype(np.float64)
 
         if self.Npols > 1:
-            pol_spacing = np.diff(self.polarization_array)
             pol_indexing = np.argsort(np.abs(self.polarization_array))
             polarization_array = self.polarization_array[pol_indexing]
-            pol_spacing = np.diff(polarization_array)
-            if not uvutils._test_array_constant(pol_spacing):
+            if not uvutils._test_array_constant_spacing(polarization_array):
                 raise ValueError(
                     "The polarization values are not evenly spaced (probably "
                     "because of a select operation). The uvfits format "
                     "does not support unevenly spaced polarizations."
                 )
-            pol_spacing = pol_spacing[0]
+            pol_spacing = polarization_array[1] - polarization_array[0]
         else:
             pol_indexing = np.asarray([0])
             polarization_array = self.polarization_array

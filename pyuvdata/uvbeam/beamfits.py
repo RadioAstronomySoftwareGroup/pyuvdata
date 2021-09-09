@@ -507,30 +507,24 @@ class BeamFITS(UVBeam):
         else:
             ax_nums = reg_primary_ax_nums
             if self.Naxes1 > 1:
-                axis1_spacing = np.diff(self.axis1_array)
-                if not uvutils._test_array_constant(
-                    axis1_spacing, self._axis1_array.tols
-                ):
+                if not uvutils._test_array_constant_spacing(self._axis1_array):
                     raise ValueError(
                         "The pixels are not evenly spaced along first axis. "
                         "The beam fits format does not support "
                         "unevenly spaced pixels."
                     )
-                axis1_spacing = axis1_spacing[0]
+                axis1_spacing = self.axis1_array[1] - self.axis1_array[0]
             else:
                 axis1_spacing = 1
 
             if self.Naxes2 > 1:
-                axis2_spacing = np.diff(self.axis2_array)
-                if not uvutils._test_array_constant(
-                    axis2_spacing, self._axis2_array.tols
-                ):
+                if not uvutils._test_array_constant_spacing(self._axis2_array):
                     raise ValueError(
                         "The pixels are not evenly spaced along second axis. "
                         "The beam fits format does not support "
                         "unevenly spaced pixels."
                     )
-                axis2_spacing = axis2_spacing[0]
+                axis2_spacing = self.axis2_array[1] - self.axis2_array[0]
             else:
                 axis2_spacing = 1
 
@@ -616,15 +610,14 @@ class BeamFITS(UVBeam):
         # set up feed or pol axis
         if self.beam_type == "power":
             if self.Npols > 1:
-                pol_spacing = np.diff(self.polarization_array)
-                if not uvutils._test_array_constant(pol_spacing):
+                if not uvutils._test_array_constant_spacing(self._polarization_array):
                     raise ValueError(
                         "The polarization values are not evenly "
                         "spaced (probably because of a select operation). "
                         "The uvfits format does not support unevenly "
                         "spaced polarizations."
                     )
-                pol_spacing = pol_spacing[0]
+                pol_spacing = self.polarization_array[1] - self.polarization_array[0]
             else:
                 pol_spacing = 1
 

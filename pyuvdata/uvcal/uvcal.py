@@ -2769,8 +2769,7 @@ class UVCal(UVBase):
                 )
 
         if this.Njones > 2:
-            jones_separation = np.diff(this.jones_array)
-            if not uvutils._test_array_constant(jones_separation):
+            if not uvutils._test_array_constant_spacing(this._jones_array):
                 warnings.warn(
                     "Combined Jones elements are not evenly spaced. This will "
                     "make it impossible to write this data out to some file types."
@@ -2992,10 +2991,7 @@ class UVCal(UVBase):
                 cal_object.integration_time = cal_object.integration_time[time_inds]
 
             if cal_object.Ntimes > 1:
-                time_separation = np.diff(cal_object.time_array)
-                if not uvutils._test_array_constant(
-                    time_separation, cal_object._time_array.tols,
-                ):
+                if not uvutils._test_array_constant_spacing(cal_object._time_array):
                     warnings.warn(
                         "Selected times are not evenly spaced. This "
                         "is not supported by the calfits format."

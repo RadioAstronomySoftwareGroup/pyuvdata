@@ -227,19 +227,16 @@ class CSTBeam(UVBeam):
         theta_data = theta_data.reshape((theta_axis.size, phi_axis.size), order="F")
         phi_data = phi_data.reshape((theta_axis.size, phi_axis.size), order="F")
 
-        delta_theta = np.diff(theta_axis)
-        if not uvutils._test_array_constant(delta_theta, self._axis2_array.tols):
+        if not uvutils._test_array_constant_spacing(theta_axis, self._axis2_array.tols):
             raise ValueError(
                 "Data does not appear to be regularly gridded in zenith angle"
             )
-        delta_theta = delta_theta[0]
 
-        delta_phi = np.diff(phi_axis)
-        if not uvutils._test_array_constant(delta_phi, self._axis1_array.tols):
+        if not uvutils._test_array_constant_spacing(phi_axis, self._axis1_array.tols):
             raise ValueError(
                 "Data does not appear to be regularly gridded in azimuth angle"
             )
-        delta_phi = delta_phi[0]
+        delta_phi = phi_axis[1] - phi_axis[0]
 
         self.axis1_array = phi_axis
         self.Naxes1 = self.axis1_array.size

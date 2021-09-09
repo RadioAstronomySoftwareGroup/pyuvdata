@@ -287,7 +287,7 @@ def _test_array_constant(array, tols=None):
     Parameters
     ----------
     array : np.ndarray or UVParameter
-        UVParameter or array to check for varying values.
+        UVParameter or array to check for constant values.
     tols : tuple of float, optional
         length 2 tuple giving (rtol, atol) to pass to np.isclose, defaults to (0, 0) if
         passing an array, otherwise defaults to using the tolerance on the UVParameter.
@@ -312,14 +312,57 @@ def _test_array_constant(array, tols=None):
     assert len(tols) == 2, "tols must be a length-2 tuple"
 
     if array_to_test.size == 1:
+        # arrays with 1 element are constant by definition
         return True
 
+    # if min and max are equal don't bother with tolerance checking
     if np.min(array_to_test) == np.max(array_to_test):
         return True
 
     return np.isclose(
         np.min(array_to_test), np.max(array_to_test), rtol=tols[0], atol=tols[1],
     )
+
+
+def _test_array_constant_spacing(array, tols=None):
+    """
+    Check if an array is constantly spaced to some tolerance.
+
+    Calls _test_array_constant on the np.diff of the array.
+
+    Parameters
+    ----------
+    array : np.ndarray or UVParameter
+        UVParameter or array to check for constant spacing.
+    tols : tuple of float, optional
+        length 2 tuple giving (rtol, atol) to pass to np.isclose, defaults to (0, 0) if
+        passing an array, otherwise defaults to using the tolerance on the UVParameter.
+
+    Returns
+    -------
+    bool
+        True if the array spacing is constant to the given tolerances, False otherwise.
+    """
+    # Import UVParameter here rather than at the top to avoid circular imports
+    from pyuvdata.parameter import UVParameter
+
+    if isinstance(array, UVParameter):
+        array_to_test = array.value
+        if tols is None:
+            tols = array.tols
+    else:
+        array_to_test = array
+        if tols is None:
+            tols = (0, 0)
+    assert isinstance(tols, tuple), "tols must be a length-2 tuple"
+    assert len(tols) == 2, "tols must be a length-2 tuple"
+
+    if array_to_test.size <= 2:
+        # arrays with 1 or 2 elements are constantly spaced by definition
+        return True
+
+    array_diff = np.diff(array_to_test)
+    return _test_array_constant(array_diff, tols=tols)
 
 
 def _check_flex_spw_contiguous(spw_array, flex_spw_id_array):
