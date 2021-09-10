@@ -11282,3 +11282,27 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
         uv.set_nsamples(nsamples, (ant1, ant2))
 
     return
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "zen.2458661.23480.HH.uvh5",
+        "sma_test.mir",
+        "carma_miriad",
+        "1133866760.uvfits",
+        fhd_files,
+    ],
+)
+def test_from_file(filename):
+
+    if "miriad" in filename:
+        pytest.importorskip("pyuvdata._miriad")
+    if isinstance(filename, str):
+        testfile = os.path.join(DATA_PATH, filename)
+    else:
+        testfile = filename
+    uvd = UVData()
+    uvd.read(testfile)
+    uvd2 = UVData.from_file(testfile)
+    assert uvd == uvd2
