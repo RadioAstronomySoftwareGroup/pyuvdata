@@ -11749,7 +11749,7 @@ class UVData(UVBase):
         ignore_name=False,
     ):
         """
-        Read a generic file into a UVData object.
+        Initialize a new UVData object by reading the input file.
 
         Parameters
         ----------
