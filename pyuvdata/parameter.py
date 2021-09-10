@@ -260,7 +260,7 @@ class UVParameter(object):
                 str_type = False
                 if isinstance(self.value, str):
                     str_type = True
-                if isinstance(self.value, (list, np.ndarray)):
+                if isinstance(self.value, (list, np.ndarray, tuple)):
                     if isinstance(self.value[0], str):
                         str_type = True
 
@@ -286,62 +286,51 @@ class UVParameter(object):
                             )
                             return False
                     except (TypeError):
-                        if self.value != other.value:
-                            if isinstance(self.value, dict):
-                                # check to see if they are equal other than
-                                # upper/lower case keys
-                                self_lower = {
-                                    k.lower(): v for k, v in self.value.items()
-                                }
-                                other_lower = {
-                                    k.lower(): v for k, v in other.value.items()
-                                }
-                                if self_lower != other_lower:
-                                    message_str = f"{self.name} parameter is a dict"
-                                    if set(self_lower.keys()) != set(
-                                        other_lower.keys()
-                                    ):
-                                        message_str += ", keys are not the same."
-                                    else:
-                                        # need to check if values are close,
-                                        # not just equal
-                                        values_close = True
-                                        for key in self_lower.keys():
-                                            try:
-                                                if not np.isclose(
-                                                    self_lower[key], other_lower[key]
-                                                ):
-                                                    message_str += (
-                                                        f", key {key} is not equal"
-                                                    )
-                                                    values_close = False
-                                            except (TypeError):
-                                                # this isn't a type that can be
-                                                # handled by np.isclose,
-                                                # test for equality
-                                                if self_lower[key] != other_lower[key]:
-                                                    message_str += (
-                                                        f", key {key} is not equal"
-                                                    )
-                                                    values_close = False
-                                        if values_close is False:
-                                            print(message_str)
-                                            return False
-                                        else:
-                                            return True
+                        if isinstance(self.value, dict):
+                            # check to see if they are equal other than
+                            # upper/lower case keys
+                            self_lower = {k.lower(): v for k, v in self.value.items()}
+                            other_lower = {k.lower(): v for k, v in other.value.items()}
+                            message_str = f"{self.name} parameter is a dict"
+                            if set(self_lower.keys()) != set(other_lower.keys()):
+                                message_str += ", keys are not the same."
+                                print(message_str)
+                                return False
+                            else:
+                                # need to check if values are close,
+                                # not just equal
+                                values_close = True
+                                for key in self_lower.keys():
+                                    try:
+                                        if not np.allclose(
+                                            self_lower[key], other_lower[key]
+                                        ):
+                                            message_str += f", key {key} is not equal"
+                                            values_close = False
+                                    except (TypeError):
+                                        # this isn't a type that can be
+                                        # handled by np.isclose,
+                                        # test for equality
+                                        if self_lower[key] != other_lower[key]:
+                                            message_str += f", key {key} is not equal"
+                                            values_close = False
+                                if values_close is False:
+                                    print(message_str)
+                                    return False
                                 else:
                                     return True
-                            else:
+                        else:
+                            if self.value != other.value:
                                 print(
                                     f"{self.name} parameter value is not a string "
                                     "or a dict and cannot be cast as a numpy "
                                     "array. The values are not equal."
                                 )
 
-                            return False
+                                return False
 
                 else:
-                    if isinstance(self.value, (list, np.ndarray)):
+                    if isinstance(self.value, (list, np.ndarray, tuple)):
                         if [s.strip() for s in self.value] != [
                             s.strip() for s in other.value
                         ]:
