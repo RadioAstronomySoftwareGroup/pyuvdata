@@ -241,8 +241,14 @@ class MS(UVData):
         antenna_table.putcol("POSITION", ant_pos_table)
         if self.antenna_diameters is not None:
             ant_diam_table = np.zeros((nants_table), dtype=self.antenna_diameters.dtype)
-            for ai, num in enumerate(self.antenna_numbers):
-                ant_diam_table[num] = self.antenna_diameters[ai]
+            # This is here is suppress an error that arises when one has antenans of
+            # different diameters (which CASA can't handle), since otherwise the
+            # "padded" antennas have zero diameter (as opposed to any real telescope).
+            if len(np.unique(self.antenna_diameters)) == 1:
+                ant_diam_table[:] = self.antenna_diameters[0]
+            else:
+                for ai, num in enumerate(self.antenna_numbers):
+                    ant_diam_table[num] = self.antenna_diameters[ai]
             antenna_table.putcol("DISH_DIAMETER", ant_diam_table)
         antenna_table.done()
 
