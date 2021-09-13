@@ -310,8 +310,15 @@ slower integral implementation.
 
 UVData: Quick data access
 -------------------------
-A small suite of functions are available to quickly access numpy arrays of data,
-flags, and nsamples.
+A small suite of functions are available to quickly access the underlying numpy
+arrays of data, flags, and nsamples. Although the user can perform this indexing
+by hand, several convenience functions exist to easily extract specific subsets
+corresponding to antenna-pair and/or polarization combinations. There are three
+specific methods that will return numpy arrays: ``get_data``, ``get_flags``, and
+``get_nsamples``. When possible, these methods will return numpy MemoryView
+objects, which is relatively fast and adds minimal memory overhead. There are
+also corresponding methods ``set_data``, ``set_flags``, and ``set_nsamples``
+which will overwrite sections of these datasets with user-provided data.
 
 a) Data for single antenna pair / polarization combination.
 ************************************************************
@@ -367,7 +374,24 @@ d) Data for single polarization, all baselines.
   >>> print(data.shape)
   (1360, 64)
 
-e) Iterate over all antenna pair / polarizations.
+e) Update data arrays in place for UVData
+*****************************************
+There are methods on UVData objects which allow for updating the data, flags, or
+nsamples arrays in place. We show how to use the `set_data` method below, and
+note there are analogous `set_flags` and `set_nsamples` arrays.
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uv = UVData()
+  >>> filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+  >>> uv.read(filename)
+  >>> data = uv.get_data(1, 2, "rr", force_copy=True, squeeze="none")
+  >>> data *= 2
+  >>> uv.set_data(data, 1, 2, "rr")
+
+f) Iterate over all antenna pair / polarizations.
 *************************************************
 .. code-block:: python
 
@@ -377,7 +401,7 @@ e) Iterate over all antenna pair / polarizations.
 
     >>> # Do something with the data, flags, nsamples
 
-f) Convenience functions to ask what antennas, baselines, and pols are in the data.
+g) Convenience functions to ask what antennas, baselines, and pols are in the data.
 ***********************************************************************************
 .. code-block:: python
 
@@ -397,7 +421,7 @@ f) Convenience functions to ask what antennas, baselines, and pols are in the da
   >>> print(UV.get_antpairpols()[0:5])
   [(0, 1, 'rr'), (0, 1, 'll'), (0, 1, 'rl'), (0, 1, 'lr'), (0, 2, 'rr')]
 
-g) Quick access to file attributes of a UV* object (UVData, UVCal, UVBeam)
+h) Quick access to file attributes of a UV* object (UVData, UVCal, UVBeam)
 **************************************************************************
 .. code-block:: python
 
@@ -410,23 +434,6 @@ g) Quick access to file attributes of a UV* object (UVData, UVCal, UVBeam)
 
   >>> # Load object to instance name "uv" and will remain in interpreter
   pyuvdata_inspect.py -i <uv*_file>
-
-h) Update data arrays in place for UVData
-*****************************************
-There are methods on UVData objects which allow for updating the data, flags, or
-nsamples arrays in place. We show how to use the `set_data` method below, and
-note there are analogous `set_flags` and `set_nsamples` arrays.
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> uv = UVData()
-  >>> filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-  >>> uv.read(filename)
-  >>> data = uv.get_data(1, 2, "rr", force_copy=True, squeeze="none")
-  >>> data *= 2
-  >>> uv.set_data(data, 1, 2, "rr")
 
 UVData: Phasing
 ---------------
