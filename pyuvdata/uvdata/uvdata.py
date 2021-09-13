@@ -3631,7 +3631,7 @@ class UVData(UVBase):
             The nsamples to overwrite into the nsample_array. Must be the same
             shape as the target indices.
         key1, key2, key3 : int or tuple of ints
-            Identifier of which nsamples to get, can be passed as 1, 2, or 3
+            Identifier of which nsamples to set, can be passed as 1, 2, or 3
             arguments or as a single tuple of length 1, 2, or 3. These are
             collectively called the key.
 
