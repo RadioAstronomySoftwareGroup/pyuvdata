@@ -10,6 +10,7 @@ import copy
 
 import numpy as np
 from astropy import units
+from astropy.io import fits
 from astropy.coordinates import Angle
 import pytest
 
@@ -18,6 +19,9 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata.data import DATA_PATH
 
+from pyuvdata.uvbeam.tests.test_mwa_beam import filename as mwa_beam_file
+from pyuvdata.uvbeam.tests.test_cst_beam import cst_files, cst_yaml_file
+
 
 try:
     from astropy_healpix import HEALPix
@@ -25,6 +29,8 @@ try:
     healpix_installed = True
 except (ImportError):
     healpix_installed = False
+
+casa_beamfits = os.path.join(DATA_PATH, "HERABEAM.FITS")
 
 
 @pytest.fixture(scope="function")
@@ -2489,3 +2495,127 @@ def test_get_beam_functions(cst_power_1freq_cut_healpix):
         ValueError, match="Do not have the right polarization information"
     ):
         healpix_power_beam._get_beam(4)
+
+
+def test_generic_read_cst():
+    uvb = UVBeam()
+    uvb.read(
+        cst_files,
+        beam_type="power",
+        frequency=np.array([150e6, 123e6]),
+        feed_pol="y",
+        telescope_name="TEST",
+        feed_name="bob",
+        feed_version="0.1",
+        model_name="E-field pattern - Rigging height 4.9m",
+        model_version="1.0",
+        run_check=False,
+    )
+    assert uvb.check()
+
+
+@pytest.mark.parametrize(
+    "filename", [cst_yaml_file, mwa_beam_file, casa_beamfits],
+)
+def test_generic_read(filename):
+    """Test generic read can infer the file types correctly."""
+    uvb = UVBeam()
+    # going to check in a second anyway, no need to double check.
+    uvb.read(filename, run_check=False)
+    # hera casa beam is missing some parameters but we just want to check
+    # that reading is going okay
+    if filename == casa_beamfits:
+        # fill in missing parameters
+        uvb.data_normalization = "peak"
+        uvb.feed_name = "casa_ideal"
+        uvb.feed_version = "v0"
+        uvb.model_name = "casa_airy"
+        uvb.model_version = "v0"
+
+        # this file is actually in an orthoslant projection RA/DEC at zenith at a
+        # particular time.
+        # For now pretend it's in a zenith orthoslant projection
+        uvb.pixel_coordinate_system = "orthoslant_zenith"
+    assert uvb.check()
+
+
+def test_generic_read_bad_filetype():
+    uvb = UVBeam()
+    with pytest.raises(ValueError, match="File type could not be determined"):
+        uvb.read("foo")
+
+
+def test_generic_read_multi(tmp_path):
+    uvb = UVBeam()
+    uvb.read(mwa_beam_file, pixels_per_deg=1, freq_range=[100e6, 200e6])
+
+    uvb1 = uvb.select(frequencies=uvb.freq_array[0, ::2], inplace=False)
+    uvb2 = uvb.select(frequencies=uvb.freq_array[0, 1::2], inplace=False)
+    fname1 = str(tmp_path / "test_beam1.beamfits")
+    fname2 = str(tmp_path / "test_beam2.beamfits")
+    uvb1.write_beamfits(fname1)
+    uvb2.write_beamfits(fname2)
+
+    uvb3 = UVBeam()
+    uvb3.read([fname1, fname2])
+    # the histories will be different
+    uvb3.history = uvb.history
+
+    assert uvb3 == uvb
+
+
+@pytest.mark.parametrize("skip", [True, False])
+@pytest.mark.parametrize("flip_order", [True, False])
+def test_generic_read_multi_bad_files(tmp_path, skip, flip_order):
+    uvb = UVBeam()
+    uvb = UVBeam()
+    uvb.read(mwa_beam_file, pixels_per_deg=1, freq_range=[100e6, 200e6])
+
+    uvb1 = uvb.select(frequencies=uvb.freq_array[0, ::2], inplace=False)
+    uvb2 = uvb.select(frequencies=uvb.freq_array[0, 1::2], inplace=False)
+    fname1 = str(tmp_path / "test_beam1.beamfits")
+    fname2 = str(tmp_path / "test_beam2.beamfits")
+    uvb1.write_beamfits(fname1)
+    uvb2.write_beamfits(fname2)
+
+    # Give file a bad beam type
+    fits.setval(fname1, "BTYPE", value="foobar")
+    uvb3 = UVBeam()
+    filenames = [fname1, fname2]
+    if flip_order:
+        # reverse the order to trigger other try/catch block
+        filenames = list(reversed(filenames))
+    if skip:
+        with uvtest.check_warnings(
+            UserWarning, f"Failed to read {filenames[0]} due to ValueError"
+        ):
+            uvb3.read(filenames, skip_bad_files=skip)
+        uvb3.history == uvb2.history
+        assert uvb3 == uvb2
+
+    else:
+
+        with pytest.raises(ValueError, match="Unknown beam_type: foobar, beam_type"):
+            uvb3.read(filenames, skip_bad_files=skip)
+
+
+def test_generic_read_all_bad_files(tmp_path):
+    uvb = UVBeam()
+    uvb = UVBeam()
+    uvb.read(mwa_beam_file, pixels_per_deg=1, freq_range=[100e6, 200e6])
+
+    uvb1 = uvb.select(frequencies=uvb.freq_array[0, ::2], inplace=False)
+    uvb2 = uvb.select(frequencies=uvb.freq_array[0, 1::2], inplace=False)
+    fname1 = str(tmp_path / "test_beam1.beamfits")
+    fname2 = str(tmp_path / "test_beam2.beamfits")
+    uvb1.write_beamfits(fname1)
+    uvb2.write_beamfits(fname2)
+    # Give files a bad beam type
+    fits.setval(fname1, "BTYPE", value="foobar")
+    fits.setval(fname2, "BTYPE", value="foobar")
+    uvb3 = UVBeam()
+    filenames = [fname1, fname2]
+    with uvtest.check_warnings(
+        UserWarning, "ALL FILES FAILED ON READ",
+    ):
+        uvb3.read(filenames, skip_bad_files=True)
