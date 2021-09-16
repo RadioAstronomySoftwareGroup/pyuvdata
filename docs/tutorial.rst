@@ -89,7 +89,9 @@ that code that calls it will continue to function.
 
 UVData: File conversion
 -----------------------
-Converting between tested data formats
+Converting between tested data formats.
+Note that it is possible to create a new ``UVData`` object
+with the class methon ``from_file`` as well.
 
 a) miriad -> uvfits
 *******************
@@ -121,14 +123,15 @@ b) uvfits -> miriad
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> import shutil
-  >>> UV = UVData()
   >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
 
-  >>> # Use the `read` method, optionally specify the file type. Can also use the
+  >>> # Use the `read` method (and by extension `from_file`), optionally specify the file type. Can also use the
   >>> # file type specific `read_uvfits` method, but only if reading a single file.
-  >>> UV.read(uvfits_file)
-  >>> UV.read(uvfits_file, file_type='uvfits')
+  >>> UV = UVData()
   >>> UV.read_uvfits(uvfits_file)
+  >>> UV.read(uvfits_file, file_type='uvfits')
+  >>> # Here we use the ``from_file`` class method without needing to initialize a new object.
+  >>> UV = UVData.from_file(uvfits_file)
 
   >>> # Write out the miriad file
   >>> write_file = os.path.join('.', 'tutorial.uv')
@@ -1953,6 +1956,9 @@ the raw files and provides the required metadata to the read_cst method. Both
 options are shown in the examples below. More details on creating a new yaml
 settings files can be found in :doc:`cst_settings_yaml`.
 
+UVBeam (like UVData) also supports a generic ``read`` function and a ``from_file``
+Class function.
+
 a) Reading a CST power beam file
 ********************************
 .. code-block:: python
@@ -2027,6 +2033,17 @@ b) Reading a CST E-field beam file
   >>> beam.read_cst_beam(settings_file, beam_type='efield')
   >>> print(beam.beam_type)
   efield
+
+  >>> # Like UVData, UVBeam has a generic `read`  method we can call.
+  >>> beam2 = UVBeam()
+  >>> beam2.read(settings_file, beam_type="efield")
+  >>> beam == beam2
+  True
+
+  >>> # UVBeam also has a `from_file` class method we can call directly.
+  >>> beam3 = UVBeam.from_file(settings_file, beam_type="efield")
+  >>> beam == beam3
+  True
 
 c) Reading in the MWA full embedded element beam
 ************************************************
