@@ -2619,3 +2619,34 @@ def test_generic_read_all_bad_files(tmp_path):
         UserWarning, "ALL FILES FAILED ON READ",
     ):
         uvb3.read(filenames, skip_bad_files=True)
+
+
+@pytest.mark.parametrize(
+    "filename", [cst_yaml_file, mwa_beam_file, casa_beamfits],
+)
+def test_from_file(filename):
+    """Test from file produces same the results as reading explicitly."""
+    uvb = UVBeam()
+    # don't run checks because of casa_beamfits, we'll do that later
+    uvb.read(filename, run_check=False)
+    uvb2 = UVBeam.from_file(filename, run_check=False)
+    uvb.read(filename, run_check=False)
+    # hera casa beam is missing some parameters but we just want to check
+    # that reading is going okay
+    if filename == casa_beamfits:
+        # fill in missing parameters
+        for _uvb in [uvb, uvb2]:
+            _uvb.data_normalization = "peak"
+            _uvb.feed_name = "casa_ideal"
+            _uvb.feed_version = "v0"
+            _uvb.model_name = "casa_airy"
+            _uvb.model_version = "v0"
+
+            # this file is actually in an orthoslant projection RA/DEC at zenith at a
+            # particular time.
+            # For now pretend it's in a zenith orthoslant projection
+            _uvb.pixel_coordinate_system = "orthoslant_zenith"
+    # double check the files are valid
+    assert uvb.check()
+    assert uvb2.check()
+    assert uvb == uvb2

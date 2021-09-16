@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 
 ### Added
+- `from_file` class function on UVData and UVBeam. Allows users to instantiate an object from a file directly from each Class.
 - Generic 'read' function for UVBeam objects.
 - UVData methods `set_data`, `set_flags`, and `set_nsamples` which allow the user to
 update values in the corresponding arrays.

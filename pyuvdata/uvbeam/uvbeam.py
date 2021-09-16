@@ -3751,6 +3751,198 @@ class UVBeam(UVBase):
                         run_check_acceptability=run_check_acceptability,
                     )
 
+    @classmethod
+    def from_file(
+        cls,
+        filename,
+        file_type=None,
+        skip_bad_files=False,
+        # cst beam settings
+        beam_type="power",
+        feed_pol=None,
+        rotate_pol=None,
+        frequency=None,
+        telescope_name=None,
+        feed_name=None,
+        feed_version=None,
+        model_name=None,
+        model_version=None,
+        history=None,
+        x_orientation=None,
+        reference_impedance=None,
+        extra_keywords=None,
+        frequency_select=None,
+        # mwa beam settings
+        delays=None,
+        amplitudes=None,
+        pixels_per_deg=5,
+        freq_range=None,
+        # generic checks
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """
+        Initialize a new UVBeam object by reading the input file(s).
+
+        Some parameters only apply to certain file types.
+
+        Parameters
+        ----------
+        filename : str or array_like of str
+            The file(s) or list(s) (or array(s)) of files to read from.
+
+            For cst yaml files only:
+
+            Settings yaml files must include the following keywords:
+
+                |  - telescope_name (str)
+                |  - feed_name (str)
+                |  - feed_version (str)
+                |  - model_name (str)
+                |  - model_version (str)
+                |  - history (str)
+                |  - frequencies (list(float))
+                |  - cst text filenames (list(str)) -- path relative to yaml file
+                |  - feed_pol (str) or (list(str))
+
+            and they may include the following optional keywords:
+
+                |  - x_orientation (str): Optional but strongly encouraged!
+                |  - ref_imp (float): beam model reference impedance
+                |  - sim_beam_type (str): e.g. 'E-farfield'
+                |  - all other fields will go into the extra_keywords attribute
+
+            More details and an example are available in the docs
+            (cst_settings_yaml.rst).
+            Specifying any of the associated keywords to this function will
+            override the values in the settings file.
+
+        file_type : str
+            One of ['mwa_beam', 'beamfits', 'cst'] or None.
+            If None, the code attempts to guess what the file type is.
+            based on file extensions
+            (mwa_beam: .hdf5, .h5; cst: .yaml, .txt; beamfits: .fits, .beamfits).
+            Note that if a list of datasets is passed, the file type is
+            determined from the first dataset.
+        beam_type : str
+            What beam_type to read in ('power' or 'efield').
+            Only applies to cst file types.
+        feed_pol : str
+            The feed or polarization or list of feeds or polarizations the
+            files correspond to.
+            Defaults to 'x' (meaning x for efield or xx for power beams).
+            Only applies to cst file types.
+        rotate_pol : bool
+            If True, assume the structure in the simulation is symmetric under
+            90 degree rotations about the z-axis (so that the y polarization can be
+            constructed by rotating the x polarization or vice versa).
+            Default: True if feed_pol is a single value or a list with all
+            the same values in it, False if it is a list with varying values.
+            Only applies to cst file types.
+        frequency : float or list of float, optional
+            The frequency or list of frequencies corresponding to the filename(s).
+            This is assumed to be in the same order as the files.
+            If not passed, the code attempts to parse it from the filenames.
+            Only applies to cst file types.
+        telescope_name : str, optional
+            The name of the telescope corresponding to the filename(s).
+            Only applies to cst file types.
+        feed_name : str, optional
+            The name of the feed corresponding to the filename(s).
+            Only applies to cst file types.
+        feed_version : str, optional
+            The version of the feed corresponding to the filename(s).
+            Only applies to cst file types.
+        model_name : str, optional
+            The name of the model corresponding to the filename(s).
+            Only applies to cst file types.
+        model_version : str, optional
+            The version of the model corresponding to the filename(s).
+            Only applies to cst file types.
+        history : str, optional
+            A string detailing the history of the filename(s).
+            Only applies to cst file types.
+        x_orientation : str, optional
+            Orientation of the physical dipole corresponding to what is
+            labelled as the x polarization. Options are "east" (indicating
+            east/west orientation) and "north" (indicating north/south orientation)
+            Only applies to cst file types.
+        reference_impedance : float, optional
+            The reference impedance of the model(s).
+            Only applies to cst file types.
+        extra_keywords : dict, optional
+            A dictionary containing any extra_keywords.
+            Only applies to cst file types.
+        frequency_select : list of float, optional
+            Only used if the file is a yaml file. Indicates which frequencies
+            to include (only read in files for those frequencies)
+            Only applies to cst file types.
+        delays : array of ints
+            Array of MWA beamformer delay steps. Should be shape (n_pols, n_dipoles).
+            Only applies to mwa_beam type files.
+        amplitudes : array of floats
+            Array of dipole amplitudes, these are absolute values
+            (i.e. relatable to physical units).
+            Should be shape (n_pols, n_dipoles).
+            Only applies to mwa_beam type files.
+        pixels_per_deg : float
+            Number of theta/phi pixels per degree. Sets the resolution of the beam.
+            Only applies to mwa_beam type files.
+        freq_range : array_like of float
+            Range of frequencies to include in Hz, defaults to all available
+            frequencies. Must be length 2.
+            Only applies to mwa_beam type files.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
+
+        Raises
+        ------
+        ValueError
+            If the file_type is not set and cannot be determined from the file name.
+        """
+        uvbeam = cls()
+        uvbeam.read(
+            filename,
+            file_type=file_type,
+            skip_bad_files=skip_bad_files,
+            # cst beam settings
+            beam_type=beam_type,
+            feed_pol=feed_pol,
+            rotate_pol=rotate_pol,
+            frequency=frequency,
+            telescope_name=telescope_name,
+            feed_name=feed_name,
+            feed_version=feed_version,
+            model_name=model_name,
+            model_version=model_version,
+            history=history,
+            x_orientation=x_orientation,
+            reference_impedance=reference_impedance,
+            extra_keywords=extra_keywords,
+            frequency_select=frequency_select,
+            # mwa beam settings
+            delays=delays,
+            amplitudes=amplitudes,
+            pixels_per_deg=pixels_per_deg,
+            freq_range=freq_range,
+            # generic checks
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+        )
+        return uvbeam
+
     def write_beamfits(
         self,
         filename,
