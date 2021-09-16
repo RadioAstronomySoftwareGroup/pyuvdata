@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 
 ### Added
+- Generic 'read' function for UVBeam objects.
 - UVData methods `set_data`, `set_flags`, and `set_nsamples` which allow the user to
 update values in the corresponding arrays.
 - pyERFA was added as an explicit dependency (previously it was implicit because it is
