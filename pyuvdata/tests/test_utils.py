@@ -2865,64 +2865,49 @@ def test_uvcalibrate_delay_oldfiles():
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_uvcalibrate_divide(uvcalibrate_data, future_shapes):
+@pytest.mark.parametrize("flip_gain_conj", [False, True])
+@pytest.mark.parametrize("gain_convention", ["divide", "multiply"])
+def test_uvcalibrate(uvcalibrate_data, future_shapes, flip_gain_conj, gain_convention):
     uvd, uvc = uvcalibrate_data
 
     if future_shapes:
         uvd.use_future_array_shapes()
 
+    uvc.gain_convention = gain_convention
+
     # set the gain_scale to "Jy" to test that vis units are set properly
-    assert uvc.gain_convention == "divide"
     assert uvc.gain_scale is None
 
-    uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False)
+    uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False, flip_gain_conj=flip_gain_conj)
     assert uvdcal.vis_units == "UNCALIB"
 
     key = (1, 13, "xx")
     ant1 = (1, "Jxx")
     ant2 = (13, "Jxx")
 
-    np.testing.assert_array_almost_equal(
-        uvdcal.get_data(key),
-        uvd.get_data(key) / (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T,
-    )
+    if flip_gain_conj:
+        gain_product = (uvc.get_gains(ant1).conj() * uvc.get_gains(ant2)).T
+    else:
+        gain_product = (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T
+
+    if gain_convention == "divide":
+        np.testing.assert_array_almost_equal(
+            uvdcal.get_data(key), uvd.get_data(key) / gain_product,
+        )
+    else:
+        np.testing.assert_array_almost_equal(
+            uvdcal.get_data(key), uvd.get_data(key) * gain_product,
+        )
 
     # test undo
     uvdcal = uvutils.uvcalibrate(
-        uvdcal, uvc, prop_flags=True, ant_check=False, inplace=False, undo=True
-    )
-
-    np.testing.assert_array_almost_equal(uvd.get_data(key), uvdcal.get_data(key))
-    assert uvdcal.vis_units == "UNCALIB"
-
-
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_uvcalibrate_multiply(uvcalibrate_data, future_shapes):
-    uvd, uvc = uvcalibrate_data
-
-    if future_shapes:
-        uvd.use_future_array_shapes()
-
-    # use multiply gain convention
-    uvc.gain_convention = "multiply"
-
-    # set the gain_scale to "Jy" to test that vis units are set properly in that case
-    uvc.gain_scale = "Jy"
-    uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False)
-
-    key = (12, 23, "xx")
-    ant1 = (12, "Jxx")
-    ant2 = (23, "Jxx")
-
-    np.testing.assert_array_almost_equal(
-        uvdcal.get_data(key),
-        uvd.get_data(key) * (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T,
-    )
-    assert uvdcal.vis_units == "Jy"
-
-    # test undo
-    uvdcal = uvutils.uvcalibrate(
-        uvdcal, uvc, prop_flags=True, ant_check=False, inplace=False, undo=True
+        uvdcal,
+        uvc,
+        prop_flags=True,
+        ant_check=False,
+        inplace=False,
+        undo=True,
+        flip_gain_conj=flip_gain_conj,
     )
 
     np.testing.assert_array_almost_equal(uvd.get_data(key), uvdcal.get_data(key))

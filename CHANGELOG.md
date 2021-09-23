@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 
 ### Added
+- Added the `flip_gain_conj` option to `utils.uvcalibrate` to use the opposite gain
+conjugation convention in calibration.
 - Support for selecting on polarization strings on `UVData`, `UVCal`, `UVBeam` and `UVFlag`.
 - `from_file` class function on UVData and UVBeam. Allows users to instantiate an object from a file directly from each Class.
 - Generic 'read' function for UVBeam objects.
