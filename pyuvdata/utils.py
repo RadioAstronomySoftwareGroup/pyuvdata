@@ -3644,6 +3644,7 @@ def uvcalibrate(
     inplace=True,
     prop_flags=True,
     Dterm_cal=False,
+    flip_gain_conj=False,
     delay_convention="minus",
     undo=False,
     time_check=True,
@@ -3667,6 +3668,12 @@ def uvcalibrate(
     Dterm_cal : bool, optional
         Calibrate the off-diagonal terms in the Jones matrix if present
         in uvcal. Default is False. Currently not implemented.
+    flip_gain_conj : bool, optional
+        This function uses the UVData ant_1_array and ant_2_array to specify the
+        antennas in the UVCal object. By default, the conjugation convention, which
+        follows the UVData convention (i.e. ant2 - ant1), is that the applied
+        gain = ant1_gain * conjugate(ant2_gain). If the other convention is required,
+        set flip_gain_conj=True.
     delay_convention : str, optional
         Exponent sign to use in conversion of 'delay' to 'gain' cal_type
         if the input uvcal is not inherently 'gain' cal_type. Default to 'minus'.
@@ -3956,10 +3963,16 @@ def uvcalibrate(
                 else:
                     uvdata.flag_array[blt_inds, 0, :, pol_ind] = True
                 continue
-            gain = (
-                uvcal_use.get_gains(uvcal_key1)
-                * np.conj(uvcal_use.get_gains(uvcal_key2))
-            ).T  # tranpose to match uvdata shape
+            if flip_gain_conj:
+                gain = (
+                    np.conj(uvcal_use.get_gains(uvcal_key1))
+                    * uvcal_use.get_gains(uvcal_key2)
+                ).T  # tranpose to match uvdata shape
+            else:
+                gain = (
+                    uvcal_use.get_gains(uvcal_key1)
+                    * np.conj(uvcal_use.get_gains(uvcal_key2))
+                ).T  # tranpose to match uvdata shape
             flag = (uvcal_use.get_flags(uvcal_key1) | uvcal_use.get_flags(uvcal_key2)).T
 
             # propagate flags
