@@ -2875,11 +2875,17 @@ def test_uvcalibrate(uvcalibrate_data, future_shapes, flip_gain_conj, gain_conve
 
     uvc.gain_convention = gain_convention
 
-    # set the gain_scale to "Jy" to test that vis units are set properly
-    assert uvc.gain_scale is None
+    if gain_convention == "divide":
+        assert uvc.gain_scale is None
+    else:
+        # set the gain_scale to "Jy" to test that vis units are set properly
+        uvc.gain_scale = "Jy"
 
     uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False, flip_gain_conj=flip_gain_conj)
-    assert uvdcal.vis_units == "UNCALIB"
+    if gain_convention == "divide":
+        assert uvdcal.vis_units == "UNCALIB"
+    else:
+        assert uvdcal.vis_units == "Jy"
 
     key = (1, 13, "xx")
     ant1 = (1, "Jxx")
