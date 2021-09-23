@@ -287,6 +287,19 @@ class UVParameter(object):
                             return False
                     except (TypeError):
                         if isinstance(self.value, dict):
+                            try:
+                                # Try a naive comparison first
+                                # this will fail if keys are the same
+                                # but cases differ.
+                                # so only look for exact equality
+                                # then default to the long test below.
+                                if self.value == other.value:
+                                    return True
+                            except ValueError:
+                                pass
+                                # this dict probably contains arrays
+                                # we will need to check each item individually
+
                             # check to see if they are equal other than
                             # upper/lower case keys
                             self_lower = {k.lower(): v for k, v in self.value.items()}
