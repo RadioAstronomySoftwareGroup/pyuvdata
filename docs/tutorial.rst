@@ -847,21 +847,12 @@ d) Select antenna pairs using baseline numbers
   >>> print(list(set(zip(UV.ant_1_array, UV.ant_2_array))))
   [(3, 24), (3, 7), (7, 24)]
 
-e) Select antenna pairs and polarizations using ant_str argument
-****************************************************************
-
-Basic options are 'auto', 'cross', or 'all'. 'auto' returns just the
-autocorrelations (all pols), while 'cross' returns just the cross-correlations
-(all pols).  The ant_str can also contain:
-
-f) Select based on local sidereal time (LST)
-********************************************
-
-Instead of specifying a series of times or a time range to select, you can
-specify the desired LST or LST range. Note that the LST is expected to be in
-radians (**not** hours), consistent with how the LSTs are stored on the
-object. When specifying an LST range, if the first number is larger than the
-second, the range is assumed to wrap around LST = 0 = 2*pi.
+e) Select polarizations
+***********************
+Selecting on polarizations can be done either using the polarization numbers or the
+polarization strings (e.g. "xx" or "yy" for linear polarizations or "rr" or "ll" for
+circular polarizations). If ``x_orientation`` is set on the object, strings represting
+the physical orientation of the dipole can also be used (e.g. "nn" or "ee).
 
 .. code-block:: python
 
@@ -869,21 +860,67 @@ second, the range is assumed to wrap around LST = 0 = 2*pi.
   >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
+  >>> import pyuvdata.utils as uvutils
   >>> UV = UVData()
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> UV.read(filename)
 
-  >>> # LSTs can be found in the lst_array
-  >>> lsts = np.unique(UV.lst_array)
-  >>> print(len(lsts))
-  15
+  >>> # polarization numbers can be found in the polarization_array
+  >>> print(UV.polarization_array)
+  [-1 -2 -3 -4]
 
-  >>> # select LSTs that are on the object
-  >>> UV.select(lsts=lsts[0:len(lsts) // 2])
+  >>> # polarization numbers can be converted to strings using a utility function
+  >>> print(uvutils.polnum2str(UV.polarization_array))
+  ['rr', 'll', 'rl', 'lr']
 
-  >>> # print length of unique LSTs after select
-  >>> print(len(np.unique(UV.lst_array)))
-  7
+  >>> # select polarizations using the polarization numbers
+  >>> UV.select(polarizations=[-1, -2, -3])
+
+  >>> # print polarization numbers and strings after select
+  >>> print(UV.polarization_array)
+  [-1 -2 -3]
+  >>> print(uvutils.polnum2str(UV.polarization_array))
+  ['rr', 'll', 'rl']
+
+  >>> # select polarizations using the polarization strings
+  >>> UV.select(polarizations=["rr", "ll"])
+
+  >>> # print polarization numbers and strings after select
+  >>> print(UV.polarization_array)
+  [-1 -2]
+  >>> print(uvutils.polnum2str(UV.polarization_array))
+  ['rr', 'll']
+
+  >>> # read in a file with linear polarizations and an x_orientation
+  >>> filename = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
+  >>> UV.read(filename)
+
+  >>> # print polarization numbers and strings
+  >>> print(UV.polarization_array)
+  [-5 -6]
+  >>> print(uvutils.polnum2str(UV.polarization_array))
+  ['xx', 'yy']
+
+  >>> # print x_orientation
+  >>> print(UV.x_orientation)
+  NORTH
+
+  >>> # select polarizations using the physical orientation strings
+  >>> UV.select(polarizations=["ee"])
+
+  >>> # print polarization numbers and strings after select
+  >>> print(UV.polarization_array)
+  [-6]
+  >>> print(uvutils.polnum2str(UV.polarization_array))
+  ['yy']
+
+
+f) Select antenna pairs and polarizations using ant_str argument
+****************************************************************
+
+Basic options are 'auto', 'cross', or 'all'. 'auto' returns just the
+autocorrelations (all pols), while 'cross' returns just the cross-correlations
+(all pols).  The ant_str can also contain:
 
 1. Individual antenna number(s):
 ________________________________
@@ -1011,7 +1048,63 @@ If a minus sign is present in front of an antenna number, it will not be kept in
   >>> print(len(UV.get_antpairs()))
   16
 
-e) Select data and return new object (leaving original intact).
+g) Select based on time or local sidereal time (LST)
+****************************************************
+You can select times to keep on an object by specifying exact times to keep or
+time ranges to keep or the desired LSTs or LST range. Note that the LST is expected to
+be in radians (**not** hours), consistent with how the LSTs are stored on the
+object. When specifying an LST range, if the first number is larger than the
+second, the range is assumed to wrap around LST = 0 = 2*pi.
+
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> UV = UVData()
+  >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+  >>> UV.read(filename)
+
+  >>> # Times can be found in the time_array, which is length Nblts.
+  >>> # Use unique to find the unique times
+  >>> print(np.unique(UV.time_array))
+  [2455312.64023149 2455312.64023727 2455312.64024305 2455312.64024884
+   2455312.64034724 2455312.64046293 2455312.64057797 2455312.64057869
+   2455312.64069444 2455312.64069492 2455312.64081019 2455312.64092547
+   2455312.64092594 2455312.6410417  2455312.64115739]
+
+  >>> # make a copy and select some times that are on the object
+  >>> UV2 = UV.copy()
+  >>> UV2.select(times=np.unique(UV.time_array)[0:5])
+
+  >>> # print the unique times after the select
+  >>> print(np.unique(UV2.time_array))
+  [2455312.64023149 2455312.64023727 2455312.64024305 2455312.64024884
+   2455312.64034724]
+
+  >>> # make a copy and select a time range
+  >>> UV2 = UV.copy()
+  >>> UV2.select(time_range=[2455312.64023, 2455312.6406])
+
+  >>> # print the unique times after the select
+  >>> print(np.unique(UV2.time_array))
+  [2455312.64023149 2455312.64023727 2455312.64024305 2455312.64024884
+   2455312.64034724 2455312.64046293 2455312.64057797 2455312.64057869]
+
+  >>> # LSTs can be found in the lst_array
+  >>> lsts = np.unique(UV.lst_array)
+  >>> print(len(lsts))
+  15
+
+  >>> # select LSTs that are on the object
+  >>> UV.select(lsts=lsts[0:len(lsts) // 2])
+
+  >>> # print length of unique LSTs after select
+  >>> print(len(np.unique(UV.lst_array)))
+  7
+
+h) Select data and return new object (leaving original intact).
 ***************************************************************
 .. code-block:: python
 
@@ -1643,7 +1736,7 @@ a) Reading a cal fits gain calibration file.
   >>> print(cal.gain_array.shape)
   (19, 1, 10, 5, 1)
 
-  >>> # plot abs of all gains for first time and first jones polarization.
+  >>> # plot abs of all gains for first time and first jones component.
   >>> for ant in range(cal.Nants_data): # doctest: +SKIP
   ...    plt.plot(cal.freq_array.flatten(), np.abs(cal.gain_array[ant, 0, :, 0, 0]))
   >>> plt.xlabel('Frequency (Hz)') # doctest: +SKIP
@@ -1725,11 +1818,11 @@ a) Calibration of UVData by UVCal
 UVCal: Selecting data
 ---------------------
 The select method lets you select specific antennas (by number or name),
-frequencies (in Hz or by channel number), times or polarizations
-to keep in the object while removing others.
+frequencies (in Hz or by channel number), times or jones components
+(by number or string) to keep in the object while removing others.
 
-a) Select 3 antennas to keep on UVCal object using the antenna number.
-**********************************************************************
+a) Select antennas to keep on UVCal object using the antenna number.
+********************************************************************
 .. code-block:: python
 
   >>> import os
@@ -1737,21 +1830,20 @@ a) Select 3 antennas to keep on UVCal object using the antenna number.
   >>> from pyuvdata.data import DATA_PATH
   >>> import numpy as np
   >>> cal = UVCal()
-  >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
+  >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
   >>> cal.read_calfits(filename)
 
   >>> # print all the antennas numbers with data in the original file
   >>> print(cal.ant_array)
-  [  9  10  20  22  31  43  53  64  65  72  80  81  88  89  96  97 104 105
-   112]
-  >>> cal.select(antenna_nums=[9, 22, 64])
+  [ 0  1 11 12 13 23 24 25]
+  >>> cal.select(antenna_nums=[1, 13, 25])
 
   >>> # print all the antennas numbers with data after the select
   >>> print(cal.ant_array)
-  [ 9 22 64]
+  [ 1 13 25]
 
-b) Select 3 antennas to keep using the antenna names, also select 5 frequencies to keep.
-****************************************************************************************
+b) Select antennas to keep using the antenna names, also select frequencies to keep.
+************************************************************************************
 .. code-block:: python
 
   >>> import os
@@ -1759,27 +1851,110 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
   >>> cal = UVCal()
-  >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
+  >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
   >>> cal.read_calfits(filename)
 
   >>> # print all the antenna names with data in the original file
-  >>> print([cal.antenna_names[np.where(cal.antenna_numbers==a)[0][0]] for a in cal.ant_array[0:9]])
-  ['ant9', 'ant10', 'ant20', 'ant22', 'ant31', 'ant43', 'ant53', 'ant64', 'ant65']
+  >>> print([cal.antenna_names[np.where(cal.antenna_numbers==a)[0][0]] for a in cal.ant_array])
+  ['ant0', 'ant1', 'ant11', 'ant12', 'ant13', 'ant23', 'ant24', 'ant25']
 
-  >>> # print all the frequencies in the original file
-  >>> print(cal.freq_array)
-  [[1.00000000e+08 1.00097656e+08 1.00195312e+08 1.00292969e+08
-    1.00390625e+08 1.00488281e+08 1.00585938e+08 1.00683594e+08
-    1.00781250e+08 1.00878906e+08]]
-  >>> cal.select(antenna_names=['ant31', 'ant81', 'ant104'], freq_chans=np.arange(0, 4))
+  >>> # print the first 10 frequencies in the original file
+  >>> print(cal.freq_array[0, 0:10])
+  [1.000000e+08 1.015625e+08 1.031250e+08 1.046875e+08 1.062500e+08
+   1.078125e+08 1.093750e+08 1.109375e+08 1.125000e+08 1.140625e+08]
+  >>> cal.select(antenna_names=['ant11', 'ant13', 'ant25'], freq_chans=np.arange(0, 4))
 
   >>> # print all the antenna names with data after the select
   >>> print([cal.antenna_names[np.where(cal.antenna_numbers==a)[0][0]] for a in cal.ant_array])
-  ['ant31', 'ant81', 'ant104']
+  ['ant11', 'ant13', 'ant25']
 
   >>> # print all the frequencies after the select
   >>> print(cal.freq_array)
-  [[1.00000000e+08 1.00097656e+08 1.00195312e+08 1.00292969e+08]]
+  [[1.000000e+08 1.015625e+08 1.031250e+08 1.046875e+08]]
+
+d) Select times
+***************
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVCal
+  >>> from pyuvdata.data import DATA_PATH
+  >>> cal = UVCal()
+  >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
+  >>> cal.read_calfits(filename)
+
+  >>> # print all the times in the original file
+  >>> print(cal.time_array)
+  [2458098.45677626 2458098.45690053 2458098.45702481 2458098.45714908
+   2458098.45727336 2458098.45739763 2458098.45752191 2458098.45764619
+   2458098.45777046 2458098.45789474]
+
+  >>> # select the first 3 times
+  >>> cal.select(times=cal.time_array[0:3])
+
+  >>> print(cal.time_array)
+  [2458098.45677626 2458098.45690053 2458098.45702481]
+
+d) Select Jones components
+**************************
+Selecting on Jones component can be done either using the component numbers or
+the component strings (e.g. "Jxx" or "Jyy" for linear polarizations or "Jrr" or
+"Jll" for circular polarizations). If ``x_orientation`` is set on the object, strings
+represting the physical orientation of the dipole can also be used (e.g. "Jnn" or "ee).
+
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVCal
+  >>> from pyuvdata.data import DATA_PATH
+  >>> import pyuvdata.utils as uvutils
+  >>> cal = UVCal()
+  >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
+  >>> cal.read_calfits(filename)
+
+  >>> # Jones component numbers can be found in the jones_array
+  >>> print(cal.jones_array)
+  [-5 -6]
+
+  >>> # Jones component numbers can be converted to strings using a utility function
+  >>> print(uvutils.jnum2str(cal.jones_array))
+  ['Jxx', 'Jyy']
+
+  >>> # make a copy of the object and select Jones components using the component numbers
+  >>> cal2 = cal.copy()
+  >>> cal2.select(jones=[-5])
+
+  >>> # print Jones component numbers and strings after select
+  >>> print(cal2.jones_array)
+  [-5]
+  >>> print(uvutils.jnum2str(cal2.jones_array))
+  ['Jxx']
+
+  >>> # make a copy of the object and select Jones components using the component strings
+  >>> cal2 = cal.copy()
+  >>> cal2.select(jones=["Jxx"])
+
+  >>> # print Jones component numbers and strings after select
+  >>> print(cal2.jones_array)
+  [-5]
+  >>> print(uvutils.jnum2str(cal2.jones_array))
+  ['Jxx']
+
+  >>> # print x_orientation
+  >>> print(cal.x_orientation)
+  east
+
+  >>> # make a copy of the object and select Jones components using the physical orientation strings
+  >>> cal2 = cal.copy()
+  >>> cal2.select(jones=["Jee"])
+
+  >>> # print Jones component numbers and strings after select
+  >>> print(cal2.jones_array)
+  [-5]
+  >>> print(uvutils.jnum2str(cal2.jones_array))
+  ['Jxx']
 
 UVCal: Adding data
 ------------------
@@ -2143,6 +2318,91 @@ a) Selecting a range of Zenith Angles
   >>> plt.xlabel('Zenith Angle (radians)') # doctest: +SKIP
   >>> plt.ylabel('Power') # doctest: +SKIP
   >>> plt.show() # doctest: +SKIP
+
+a) Selecting Feeds or Polarizations
+***********************************
+Selecting feeds on E-field beams can be done using the feed name (e.g. "x" or "y"). If
+``x_orientation`` is set on the object, strings represting the physical orientation of
+the feed can also be used (e.g. "n" or "e).
+
+Selecting polarizations on power beams can be done either using the polarization
+numbers or the polarization strings (e.g. "xx" or "yy" for linear polarizations or
+"rr" or "ll" for circular polarizations). If ``x_orientation`` is set on the object,
+strings represting the physical orientation of the dipole can also be used (e.g. "nn"
+or "ee).
+
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVBeam
+  >>> from pyuvdata.data import DATA_PATH
+  >>> import pyuvdata.utils as uvutils
+  >>> uvb = UVBeam()
+  >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
+  >>> uvb.read_cst_beam(settings_file, beam_type='efield')
+
+  >>> # The feeds names can be found in the feed_array
+  >>> print(uvb.feed_array)
+  ['x' 'y']
+
+  >>> # make a copy and select a feed
+  >>> uvb2 = uvb.copy()
+  >>> uvb2.select(feeds=["y"])
+  >>> print(uvb2.feed_array)
+  ['y']
+
+  >>> # check the x_orientation
+  >>> print(uvb.x_orientation)
+  east
+
+  >>> # make a copy and select a feed by phyiscal orientation
+  >>> uvb2 = uvb.copy()
+  >>> uvb2.select(feeds=["n"])
+  >>> print(uvb2.feed_array)
+  ['y']
+
+  >>> # convert to a power beam for selecting on polarizations
+  >>> uvb.efield_to_power()
+  >>> # polarization numbers can be found in the polarization_array
+  >>> print(uvb.polarization_array)
+  [-5 -6 -7 -8]
+
+  >>> # polarization numbers can be converted to strings using a utility function
+  >>> print(uvutils.polnum2str(uvb.polarization_array))
+  ['xx', 'yy', 'xy', 'yx']
+
+  >>> # select polarizations using the polarization numbers
+  >>> uvb.select(polarizations=[-5, -6, -7])
+
+  >>> # print polarization numbers and strings after select
+  >>> print(uvb.polarization_array)
+  [-5 -6 -7]
+  >>> print(uvutils.polnum2str(uvb.polarization_array))
+  ['xx', 'yy', 'xy']
+
+  >>> # select polarizations using the polarization strings
+  >>> uvb.select(polarizations=["xx", "yy"])
+
+  >>> # print polarization numbers and strings after select
+  >>> print(uvb.polarization_array)
+  [-5 -6]
+  >>> print(uvutils.polnum2str(uvb.polarization_array))
+  ['xx', 'yy']
+
+  >>> # print x_orientation
+  >>> print(uvb.x_orientation)
+  east
+
+  >>> # select polarizations using the physical orientation strings
+  >>> uvb.select(polarizations=["ee"])
+
+  >>> # print polarization numbers and strings after select
+  >>> print(uvb.polarization_array)
+  [-5]
+  >>> print(uvutils.polnum2str(uvb.polarization_array))
+  ['xx']
+
 
 UVBeam: Converting to beam types and coordinate systems
 -------------------------------------------------------

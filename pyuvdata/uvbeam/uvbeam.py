@@ -2568,7 +2568,9 @@ class UVBeam(UVBase):
         freq_chans : array_like of int, optional
             The frequency channel numbers to keep in the object.
         feeds : array_like of str, optional
-            The feeds to keep in the object. Cannot be set if the beam_type is "power".
+            The feeds to keep in the object. If the `x_orientation` attribute is set,
+            the physical dipole strings (e.g. "n", "e") are also supported.
+            Cannot be set if the beam_type is "power".
         polarizations : array_like of int or str, optional
             The polarizations to keep in the object.
             Cannot be set if the beam_type is "efield". If passing strings, the
@@ -2778,8 +2780,18 @@ class UVBeam(UVBase):
         if feeds is not None:
             if beam_object.beam_type == "power":
                 raise ValueError("feeds cannot be used with power beams")
+            if beam_object.x_orientation is not None:
+                x_orient_dict = {}
+                for key, value in uvutils._x_orientation_rep_dict(
+                    beam_object.x_orientation
+                ).items():
+                    if key in beam_object.feed_array:
+                        x_orient_dict[value] = key
+            else:
+                x_orient_dict = None
 
             feeds = uvutils._get_iterable(feeds)
+            feeds = [f.lower() for f in feeds]
             if n_selects > 0:
                 history_update_string += ", feeds"
             else:
@@ -2791,6 +2803,11 @@ class UVBeam(UVBase):
                 if f in beam_object.feed_array:
                     feed_inds = np.append(
                         feed_inds, np.where(beam_object.feed_array == f)[0]
+                    )
+                elif x_orient_dict is not None and f in x_orient_dict.keys():
+                    feed_inds = np.append(
+                        feed_inds,
+                        np.where(beam_object.feed_array == x_orient_dict[f])[0],
                     )
                 else:
                     raise ValueError(
