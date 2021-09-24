@@ -107,11 +107,23 @@ def test_source_group_params(casa_uvfits, tmp_path):
         par_names = vis_hdu.data.parnames
         group_parameter_list = []
 
+        time_ind = 0
         lst_ind = 0
         for index, name in enumerate(par_names):
             par_value = vis_hdu.data.par(name)
-            # lst_array needs to be split in 2 parts to get high enough accuracy
-            if name.lower() == "lst":
+            # time_array and lst_array need to be split in 2 parts to get high enough
+            # accuracy
+            if name.lower() == "date":
+                if time_ind == 0:
+                    # first time entry, par_value has full time value
+                    # (astropy adds the 2 values)
+                    time_array1 = np.float32(par_value)
+                    time_array2 = np.float32(par_value - np.float64(time_array1))
+                    par_value = time_array1
+                    time_ind = 1
+                else:
+                    par_value = time_array2
+            elif name.lower() == "lst":
                 if lst_ind == 0:
                     # first lst entry, par_value has full lst value
                     # (astropy adds the 2 values)
@@ -171,11 +183,24 @@ def test_source_frame_defaults(casa_uvfits, tmp_path):
         par_names = vis_hdu.data.parnames
         group_parameter_list = []
 
+        time_ind = 0
         lst_ind = 0
         for index, name in enumerate(par_names):
             par_value = vis_hdu.data.par(name)
             # lst_array needs to be split in 2 parts to get high enough accuracy
-            if name.lower() == "lst":
+            # time_array and lst_array need to be split in 2 parts to get high enough
+            # accuracy
+            if name.lower() == "date":
+                if time_ind == 0:
+                    # first time entry, par_value has full time value
+                    # (astropy adds the 2 values)
+                    time_array1 = np.float32(par_value)
+                    time_array2 = np.float32(par_value - np.float64(time_array1))
+                    par_value = time_array1
+                    time_ind = 1
+                else:
+                    par_value = time_array2
+            elif name.lower() == "lst":
                 if lst_ind == 0:
                     # first lst entry, par_value has full lst value
                     # (astropy adds the 2 values)
@@ -225,11 +250,23 @@ def test_missing_aips_su_table(casa_uvfits, tmp_path):
         par_names = vis_hdu.data.parnames
         group_parameter_list = []
 
+        time_ind = 0
         lst_ind = 0
         for index, name in enumerate(par_names):
             par_value = vis_hdu.data.par(name)
-            # lst_array needs to be split in 2 parts to get high enough accuracy
-            if name.lower() == "lst":
+            # time_array and lst_array need to be split in 2 parts to get high enough
+            # accuracy
+            if name.lower() == "date":
+                if time_ind == 0:
+                    # first time entry, par_value has full time value
+                    # (astropy adds the 2 values)
+                    time_array1 = np.float32(par_value)
+                    time_array2 = np.float32(par_value - np.float64(time_array1))
+                    par_value = time_array1
+                    time_ind = 1
+                else:
+                    par_value = time_array2
+            elif name.lower() == "lst":
                 if lst_ind == 0:
                     # first lst entry, par_value has full lst value
                     # (astropy adds the 2 values)

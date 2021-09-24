@@ -4,6 +4,7 @@
 
 """Class for reading and writing uvfits files."""
 import os
+import copy
 import warnings
 
 import numpy as np
@@ -1031,12 +1032,15 @@ class UVFITS(UVData):
         # FITS uvw direction convention is opposite ours and Miriad's.
         # So conjugate the visibilities and flip the uvws:
         uvw_array_sec = -1 * self.uvw_array / const.c.to("m/s").value
-        # jd_midnight = np.floor(self.time_array[0] - 0.5) + 0.5
-        tzero = np.float32(self.time_array[0])
 
-        # uvfits convention is that time_array + relevant PZERO = actual JD
-        # We are setting PZERO4 = float32(first time of observation)
-        time_array = np.float32(self.time_array - np.float64(tzero))
+        # uvfits convention is that there are two float32 time_arrays and the
+        # float64 sum of them + relevant PZERO = actual JD
+        # a common practice is to set the PZERO to the JD at midnight of the first time
+        jd_midnight = np.floor(self.time_array[0] - 0.5) + 0.5
+        time_array1 = np.float32(self.time_array - jd_midnight)
+        time_array2 = np.float32(
+            self.time_array - jd_midnight - np.float64(time_array1)
+        )
 
         int_time_array = self.integration_time
 
@@ -1046,11 +1050,13 @@ class UVFITS(UVData):
         # Set up dictionaries for populating hdu
         # Note that uvfits antenna arrays are 1-indexed so we add 1
         # to our 0-indexed arrays
+
         group_parameter_dict = {
             "UU      ": uvw_array_sec[:, 0],
             "VV      ": uvw_array_sec[:, 1],
             "WW      ": uvw_array_sec[:, 2],
-            "DATE    ": time_array,
+            "DATE    ": time_array1,
+            "DATE2   ": time_array2,
             "BASELINE": baselines_use,
             "SOURCE  ": None,
             "FREQSEL ": np.ones_like(self.time_array, dtype=np.float32),
@@ -1074,6 +1080,7 @@ class UVFITS(UVData):
             "VV      ": 1.0,
             "WW      ": 1.0,
             "DATE    ": 1.0,
+            "DATE2   ": 1.0,
             "BASELINE": 1.0,
             "SOURCE  ": 1.0,
             "FREQSEL ": 1.0,
@@ -1086,7 +1093,8 @@ class UVFITS(UVData):
             "UU      ": 0.0,
             "VV      ": 0.0,
             "WW      ": 0.0,
-            "DATE    ": tzero,
+            "DATE    ": jd_midnight,
+            "DATE2   ": 0.0,
             "BASELINE": 0.0,
             "SOURCE  ": 0.0,
             "FREQSEL ": 0.0,
@@ -1110,7 +1118,7 @@ class UVFITS(UVData):
 
         # list contains arrays of [u,v,w,date,baseline];
         # each array has shape (Nblts)
-        parnames_use = ["UU      ", "VV      ", "WW      ", "DATE    "]
+        parnames_use = ["UU      ", "VV      ", "WW      ", "DATE    ", "DATE2   "]
         if np.max(self.ant_1_array) < 255 and np.max(self.ant_2_array) < 255:
             # if the number of antennas is less than 256 then include both the
             # baseline array and the antenna arrays in the group parameters.
@@ -1134,9 +1142,11 @@ class UVFITS(UVData):
             parnames_use.append("LST     ")
             group_parameter_list.append(lst_array_2)
 
+        parnames_use_datefix = copy.deepcopy(parnames_use)
+        parnames_use_datefix[parnames_use_datefix.index("DATE2   ")] = "DATE    "
         hdu = fits.GroupData(
             uvfits_array_data,
-            parnames=parnames_use,
+            parnames=parnames_use_datefix,
             pardata=group_parameter_list,
             bitpix=-32,
         )
