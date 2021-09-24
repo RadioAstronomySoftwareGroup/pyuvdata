@@ -91,7 +91,7 @@ UVData: File conversion
 -----------------------
 Converting between tested data formats.
 Note that it is possible to create a new ``UVData`` object
-with the class methon ``from_file`` as well.
+with the class method ``from_file`` as well.
 
 a) miriad -> uvfits
 *******************
