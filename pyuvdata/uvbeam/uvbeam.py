@@ -2780,15 +2780,13 @@ class UVBeam(UVBase):
         if feeds is not None:
             if beam_object.beam_type == "power":
                 raise ValueError("feeds cannot be used with power beams")
+            x_orient_dict = {}
             if beam_object.x_orientation is not None:
-                x_orient_dict = {}
                 for key, value in uvutils._x_orientation_rep_dict(
                     beam_object.x_orientation
                 ).items():
                     if key in beam_object.feed_array:
                         x_orient_dict[value] = key
-            else:
-                x_orient_dict = None
 
             feeds = uvutils._get_iterable(feeds)
             feeds = [f.lower() for f in feeds]
@@ -2804,7 +2802,7 @@ class UVBeam(UVBase):
                     feed_inds = np.append(
                         feed_inds, np.where(beam_object.feed_array == f)[0]
                     )
-                elif x_orient_dict is not None and f in x_orient_dict.keys():
+                elif f in x_orient_dict.keys():
                     feed_inds = np.append(
                         feed_inds,
                         np.where(beam_object.feed_array == x_orient_dict[f])[0],
