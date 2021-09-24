@@ -1506,11 +1506,16 @@ def test_select_feeds(cst_efield_1freq):
         efield_beam2.history,
     )
 
+    # check with physical orientation strings:
+    efield_beam3 = efield_beam.select(feeds=["e"], inplace=False)
+
+    assert efield_beam2 == efield_beam3
+
     # check for errors associated with feeds not included in data
     with pytest.raises(
-        ValueError, match="Feed {f} is not present in the feed_array".format(f="N")
+        ValueError, match="Feed {f} is not present in the feed_array".format(f="p")
     ):
-        efield_beam.select(feeds=["N"])
+        efield_beam.select(feeds=["p"])
 
     # check for error with selecting polarizations on efield beams
     with pytest.raises(
