@@ -575,6 +575,29 @@ class MS(UVData):
             freq_array = self.freq_array[0]
             ch_width = np.zeros_like(freq_array) + self.channel_width
 
+        spwidcoldesc = tables.makearrcoldesc(
+            "ASSOC_SPW_ID",
+            0,
+            valuetype="int",
+            ndim=-1,
+            datamanagertype="StandardStMan",
+            datamanagergroup="SpW optional column Standard Manager",
+            comment="Associated spectral window id",
+        )
+        del spwidcoldesc["desc"]["shape"]
+        sw_table.addcols(spwidcoldesc)
+
+        spwassoccoldesc = tables.makearrcoldesc(
+            "ASSOC_NATURE",
+            "",
+            valuetype="string",
+            ndim=-1,
+            datamanagertype="StandardStMan",
+            datamanagergroup="SpW optional column Standard Manager",
+            comment="Nature of association with other spectral window",
+        )
+        sw_table.addcols(spwassoccoldesc)
+
         for idx, spw_id in enumerate(self.spw_array):
             if self.flex_spw:
                 ch_mask = self.flex_spw_id_array == spw_id
@@ -583,7 +606,9 @@ class MS(UVData):
 
             sw_table.addrows()
             sw_table.putcell("NUM_CHAN", idx, np.sum(ch_mask))
-            sw_table.putcell("NAME", idx, "WINDOW%d" % spw_id)
+            sw_table.putcell("NAME", idx, "SPW%d" % spw_id)
+            sw_table.putcell("ASSOC_SPW_ID", idx, spw_id)
+            sw_table.putcell("ASSOC_NATURE", idx, "")  # Blank for now
             sw_table.putcell("CHAN_FREQ", idx, freq_array[ch_mask])
             sw_table.putcell("CHAN_WIDTH", idx, ch_width[ch_mask])
             sw_table.putcell("EFFECTIVE_BW", idx, ch_width[ch_mask])
@@ -681,6 +706,7 @@ class MS(UVData):
         """
         # string to store all the casa history info
         history_str = ""
+        pyuvdata_written = False
 
         # Do not touch the history table if it has no information
         if history_table.nrows() > 0:
@@ -953,7 +979,7 @@ class MS(UVData):
                     "The data are in drift mode. "
                     "Set force_phase to true to phase the data "
                     "to zenith of the first timestamp before "
-                    "writing a uvfits file."
+                    "writing a measurement set file."
                 )
         else:
             raise ValueError(
@@ -1059,6 +1085,322 @@ class MS(UVData):
         self._write_ms_observation(filepath)
         self._write_ms_history(filepath)
 
+    def _read_ms_main(
+        self, filepath, data_column, data_desc_dict, read_weights=True, flip_conj=False,
+    ):
+        """
+        Read data from the main table of a MS file.
+
+        This method is not meant to be called by users, and is instead a utility
+        function for the `read_ms` method (which users should call instead).
+
+        Parameters
+        ----------
+        filepath : str
+            The measurement set root directory to read from.
+        data_column : str
+            name of CASA data column to read into data_array. Options are:
+            'DATA', 'MODEL', or 'CORRECTED_DATA'
+        data_desc_dict : dict
+            Dictionary describing the various rows in the DATA_DESCRIPTION table of
+            an MS file. Keys match to the individual rows, and the values are themselves
+            dicts containing several keys (including "CORR_TYPE", "SPW_ID", "NUM_CORR",
+            "NUM_CHAN").
+        read_weights : bool
+            Read in the weights from the MS file, default is True. If false, the method
+            will set the `nsamples_array` to the same uniform value (namely 1.0).
+        flip_conj : bool
+            On read, whether to flip the conjugation of the baselines. Normally the MS
+            format is the same as what is used for pyuvdata (ant2 - ant1), hence the
+            default is False.
+
+        Returns
+        -------
+        spw_list : list of int
+            List of SPW numbers present in the data set, equivalent to the attribute
+            `spw_array` in a UVData object.
+        field_list : list of int
+            List of field IDs present in the data set. Matched to rows in the FIELD
+            table for the measurement set.
+        pol_list : list of int
+            List of polarization IDs (in the AIPS convention) present in the data set.
+            Equivalent to the attribute `polarization_array` in a UVData object.
+
+        Raises
+        ------
+        ValueError
+            If the MS file contains data from multiple subarrays.
+        """
+        tb_main = tables.table(filepath, ack=False)
+        time_arr = tb_main.getcol("TIME")
+        int_arr = tb_main.getcol("EXPOSURE")
+        ant_1_arr = tb_main.getcol("ANTENNA1")
+        ant_2_arr = tb_main.getcol("ANTENNA2")
+        field_arr = tb_main.getcol("FIELD_ID")
+        uvw_arr = tb_main.getcol("UVW")
+        data_desc_arr = tb_main.getcol("DATA_DESC_ID")
+        subarr_arr = tb_main.getcol("ARRAY_ID")
+        unique_data_desc = np.unique(data_desc_arr)
+
+        if len(np.unique(subarr_arr)) > 1:
+            raise ValueError(
+                "This file appears to have multiple subarray "
+                "values; only files with one subarray are "
+                "supported."
+            )
+
+        data_desc_count = np.sum(np.isin(list(data_desc_dict.keys()), unique_data_desc))
+
+        if data_desc_count == 0:
+            # If there are no records selected, then there isnt a whole lot to do
+            return None, None, None
+        elif data_desc_count == 1:
+            # If we only have a single spectral window, then we can bypass a whole lot
+            # of slicing and dicing on account of there being a one-to-one releationship
+            # in rows of the MS to the per-blt records of UVData objects.
+            self.time_array = Time(time_arr / 86400.0, format="mjd").jd
+            self.integration_time = int_arr
+            self.ant_1_array = ant_1_arr
+            self.ant_2_array = ant_2_arr
+            self.uvw_array = uvw_arr * ((-1) ** flip_conj)
+            self.phase_center_id_array = field_arr
+            self.flag_array = tb_main.getcol("FLAG")
+
+            if flip_conj:
+                self.data_array = np.conj(tb_main.getcol(data_column))
+            else:
+                self.data_array = tb_main.getcol(data_column)
+
+            if read_weights:
+                try:
+                    self.nsample_array = tb_main.getcol("WEIGHT_SPECTRUM")
+                except RuntimeError:
+                    self.nsample_array = np.repeat(
+                        np.expand_dims(tb_main.getcol("WEIGHT"), axis=1),
+                        self.data_array.shape[1],
+                        axis=1,
+                    )
+            else:
+                self.nsample_array = np.ones_like(self.data_array)
+
+            data_desc_key = np.intersect1d(
+                unique_data_desc, list(data_desc_dict.keys())
+            )[0]
+            spw_list = [data_desc_dict[data_desc_key]["SPW_ID"]]
+            self.flex_spw_id_array = spw_list[0] + np.zeros(
+                data_desc_dict[data_desc_key]["NUM_CHAN"], dtype=int
+            )
+
+            field_list = np.unique(field_arr)
+            pol_list = [
+                POL_CASA2AIPS_DICT[key]
+                for key in data_desc_dict[data_desc_key]["CORR_TYPE"]
+            ]
+
+            tb_main.close()
+            return spw_list, field_list, pol_list
+
+        tb_main.close()
+
+        # If you are at this point, it means that we potentially have multiple spectral
+        # windows to deal with, and so some additional care is required since MS does
+        # NOT require data from all windows to be present simultaneously.
+
+        use_row = np.zeros_like(time_arr, dtype=bool)
+        data_dict = {}
+        for key in data_desc_dict.keys():
+            sel_mask = data_desc_arr == key
+
+            if not np.any(sel_mask):
+                continue
+
+            use_row[sel_mask] = True
+            data_dict[key] = dict(data_desc_dict[key])
+            data_dict[key]["TIME"] = time_arr[sel_mask]  # Midpoint time in mjd seconds
+            data_dict[key]["EXPOSURE"] = int_arr[sel_mask]  # Int time in sec
+            data_dict[key]["ANTENNA1"] = ant_1_arr[sel_mask]  # First antenna
+            data_dict[key]["ANTENNA2"] = ant_2_arr[sel_mask]  # Second antenna
+            data_dict[key]["FIELD_ID"] = field_arr[sel_mask]  # Source ID
+            data_dict[key]["UVW"] = uvw_arr[sel_mask]  # UVW coords
+
+        time_arr = time_arr[use_row]
+        ant_1_arr = ant_1_arr[use_row]
+        ant_2_arr = ant_2_arr[use_row]
+
+        unique_blts = sorted(
+            {
+                (time, ant1, ant2)
+                for time, ant1, ant2 in zip(time_arr, ant_1_arr, ant_2_arr)
+            }
+        )
+
+        blt_dict = {}
+        for idx, blt_tuple in enumerate(unique_blts):
+            blt_dict[blt_tuple] = idx
+
+        nblts = len(unique_blts)
+        pol_list = np.unique([data_dict[key]["CORR_TYPE"] for key in data_dict.keys()])
+        npols = len(pol_list)
+
+        spw_list = {
+            data_dict[key]["SPW_ID"]: (key, data_dict[key]["NUM_CHAN"])
+            for key in data_desc_dict.keys()
+        }
+
+        # Here we sort out where the various spectral windows are starting and stoping
+        # in our flex_spw spectrum, if applicable. By default, data are sorted in
+        # spw-number order.
+        nfreqs = 0
+        spw_id_array = np.array([], dtype=int)
+        for key in sorted(spw_list.keys()):
+            data_dict_key = spw_list[key][0]
+            nchan = spw_list[key][1]
+            data_dict[data_dict_key]["STARTCHAN"] = nfreqs
+            data_dict[data_dict_key]["STOPCHAN"] = nfreqs + nchan
+            data_dict[data_dict_key]["NCHAN"] = nchan
+            spw_id_array = np.append(spw_id_array, [key] * nchan)
+            nfreqs += nchan
+
+        for key in sorted(data_dict.keys()):
+            blt_idx = [
+                blt_dict[(time, ant1, ant2)]
+                for time, ant1, ant2 in zip(
+                    data_dict[key]["TIME"],
+                    data_dict[key]["ANTENNA1"],
+                    data_dict[key]["ANTENNA2"],
+                )
+            ]
+
+            data_dict[key]["BLT_IDX"] = np.array(blt_idx, dtype=int)
+            data_dict[key]["NBLTS"] = len(blt_idx)
+
+            pol_idx = np.intersect1d(
+                pol_list,
+                data_desc_dict[key]["CORR_TYPE"],
+                assume_unique=True,
+                return_indices=True,
+            )[1]
+            data_dict[key]["POL_IDX"] = pol_idx.astype(int)
+
+        # We have all of the meta-information linked the various data desc IDs,
+        # so now we can finally get to the business of filling in the actual data.
+        data_array = np.zeros((nblts, nfreqs, npols), dtype=complex)
+        nsample_array = np.ones((nblts, nfreqs, npols))
+        flag_array = np.ones((nblts, nfreqs, npols), dtype=bool)
+
+        # We will also fill in our own metadata on a per-blt basis here
+        time_arr = np.zeros(nblts)
+        int_arr = np.zeros(nblts)
+        ant_1_arr = np.zeros(nblts, dtype=int)
+        ant_2_arr = np.zeros(nblts, dtype=int)
+        field_arr = np.zeros(nblts, dtype=int)
+        uvw_arr = np.zeros((nblts, 3))
+
+        # Since each data description (i.e., spectral window) record can technically
+        # have its own values for time, int-time, etc, we want to check and verify that
+        # the values are consistent on a per-blt basis (since that's the most granular
+        # pyuvdata can store that information).
+        has_data = np.zeros(nblts, dtype=bool)
+
+        arr_tuple = (time_arr, int_arr, ant_1_arr, ant_2_arr, field_arr, uvw_arr)
+        name_tuple = ("TIME", "EXPOSURE", "ANTENNA1", "ANTENNA2", "FIELD_ID", "UVW")
+        for key in data_dict.keys():
+            # Get the indexing information for the data array
+            blt_idx = data_dict[key]["BLT_IDX"]
+            startchan = data_dict[key]["STARTCHAN"]
+            stopchan = data_dict[key]["STOPCHAN"]
+            pol_idx = data_dict[key]["POL_IDX"]
+
+            # Identify which values have already been populated with data, so we know
+            # which values to check.
+            check_mask = has_data[blt_idx]
+            check_idx = blt_idx[check_mask]
+
+            # Loop through the metadata fields we intend to populate
+            for arr, name in zip(arr_tuple, name_tuple):
+                if np.any(check_mask):
+                    if not np.all(data_dict[key][name][check_mask] == arr[check_idx]):
+                        # This is presently a warning, although it could conceivably
+                        # be made into an error. If doing so, we probably want to change
+                        # the above to 'is_close' rather than strict equality.
+                        warnings.warn(
+                            "Column %s appears to vary on between windows!" % name
+                        )
+                arr[blt_idx] = data_dict[key][name]
+
+            # Can has data now please?
+            has_data[blt_idx] = True
+
+            # Remove a slice out of the larger arrays for us to populate with an MS read
+            # operation. This has the advantage that if different data descrips contain
+            # different polarizations (which is allowed), it will populate the arrays
+            # correctly, although for most files (where all pols are written in one
+            # data descrip), this shouldn't matter.
+            temp_data = data_array[blt_idx, startchan:stopchan]
+            temp_flags = flag_array[blt_idx, startchan:stopchan]
+            if read_weights:
+                temp_weights = nsample_array[blt_idx, startchan:stopchan]
+
+            # This TaQL call allows the low-level C++ routines to handle mapping data
+            # access, and returns a table object that _only_ has records matching our
+            # request. This allows one to do a simple and fast getcol for reading the
+            # data, flags, and weights, since they should all be the same shape on a
+            # per-row basis for the same data description. Alternative read methods
+            # w/ getcell, getvarcol, and per-row getcols produced way slower code.
+            tb_main_sel = tables.taql(
+                "select from %s where DATA_DESC_ID == %i" % (filepath, key)
+            )
+
+            # Fill in the temp arrays, and then plug them back into the main array.
+            # Note that this operation has to be split in two because you can only use
+            # advanced slicing on one axis (which both blt_idx and pol_idx require).
+            if flip_conj:
+                temp_data[:, :, pol_idx] = np.conj(tb_main_sel.getcol("DATA"))
+            else:
+                temp_data[:, :, pol_idx] = tb_main_sel.getcol("DATA")
+
+            temp_flags[:, :, pol_idx] = tb_main_sel.getcol("FLAG")
+
+            data_array[blt_idx, startchan:stopchan] = temp_data
+            flag_array[blt_idx, startchan:stopchan] = temp_flags
+
+            if read_weights:
+                # The weights can be stored in a couple of different columns, but we
+                # use a try/except here to capture two separate cases (that both will
+                # produce runtime errors) -- when WEIGHT_SPECTRUM isn't a column, and
+                # when it is BUT its unfilled (which causes getcol to throw an error).
+                try:
+                    temp_weights[:, :, pol_idx] = tb_main_sel.getcol("WEIGHT_SPECTRUM")
+                except RuntimeError:
+                    temp_weights[:, :, pol_idx] = np.repeat(
+                        np.expand_dims(tb_main_sel.getcol("WEIGHT"), axis=1),
+                        data_desc_dict[key]["NUM_CHAN"],
+                        axis=1,
+                    )
+                nsample_array[blt_idx, startchan:stopchan, :] = temp_weights
+
+            # Close the table, get ready for the next loop
+            tb_main_sel.close()
+
+        self.data_array = data_array
+        self.flag_array = flag_array
+        self.nsample_array = nsample_array
+
+        self.ant_1_array = ant_1_arr
+        self.ant_2_array = ant_2_arr
+        self.time_array = Time(time_arr / 86400.0, format="mjd").jd
+        self.integration_time = int_arr
+        self.uvw_array = uvw_arr * ((-1) ** flip_conj)
+        self.phase_center_id_array = field_arr
+        self.phase_center_id_array = field_arr
+        self.flex_spw_id_array = spw_id_array
+
+        pol_list = [POL_CASA2AIPS_DICT[key] for key in pol_list]
+        spw_list = sorted(spw_list.keys())
+        field_list = np.unique(field_arr).astype(int).tolist()
+
+        return spw_list, field_list, pol_list
+
     def read_ms(
         self,
         filepath,
@@ -1071,6 +1413,7 @@ class MS(UVData):
         strict_uvw_antpos_check=False,
         use_old_phase=False,
         fix_phase=False,
+        ignore_single_chan=True,
     ):
         """
         Read in a casa measurement set.
@@ -1139,7 +1482,8 @@ class MS(UVData):
         self.extra_keywords["DATA_COL"] = data_column
 
         # get the history info
-        if tables.tableexists("HISTORY"):
+        pyuvdata_written = False
+        if tables.tableexists(filepath + "/HISTORY"):
             self.history, pyuvdata_written = self._ms_hist_to_string(
                 tables.table(filepath + "/HISTORY", ack=False)
             )
@@ -1150,51 +1494,49 @@ class MS(UVData):
         else:
             self.history = self.pyuvdata_version_str
 
-        # get frequency information from spectral window table
+        data_desc_dict = {}
+        tb_desc = tables.table(filepath + "/DATA_DESCRIPTION", ack=False)
+        for idx in range(tb_desc.nrows()):
+            data_desc_dict[idx] = {
+                "SPECTRAL_WINDOW_ID": tb_desc.getcell("SPECTRAL_WINDOW_ID", idx),
+                "POLARIZATION_ID": tb_desc.getcell("POLARIZATION_ID", idx),
+                "FLAG_ROW": tb_desc.getcell("FLAG_ROW", idx),
+            }
+        tb_desc.close()
+
+        # Polarization array
+        tb_pol = tables.table(filepath + "/POLARIZATION", ack=False)
+        for key in data_desc_dict.keys():
+            pol_id = data_desc_dict[key]["POLARIZATION_ID"]
+            data_desc_dict[key]["CORR_TYPE"] = tb_pol.getcell(
+                "CORR_TYPE", pol_id
+            ).astype(int)
+            data_desc_dict[key]["NUM_CORR"] = tb_pol.getcell("NUM_CORR", pol_id)
+        tb_pol.close()
+
         tb_spws = tables.table(filepath + "/SPECTRAL_WINDOW", ack=False)
-        spw_names = tb_spws.getcol("NAME")
-        self.Nspws = len(spw_names)
-        if self.Nspws > 1:
-            raise ValueError(
-                "Sorry.  Files with more than one spectral"
-                "window (spw) are not yet supported. A "
-                "great project for the interested student!"
-            )
-        freqs = tb_spws.getcol("CHAN_FREQ")
-        self.freq_array = freqs
-        self.Nfreqs = int(freqs.shape[1])
-        # beware! There are possibly 3 columns here that might be the correct one to use
-        # CHAN_WIDTH, EFFECTIVE_BW, RESOLUTION
-        self.channel_width = float(tb_spws.getcol("CHAN_WIDTH")[0, 0])
-        self.Nspws = int(freqs.shape[0])
+        use_assoc_id = "ASSOC_SPW_ID" in tb_spws.colnames()
+        single_chan_list = []
+        for key in data_desc_dict.keys():
+            spw_id = data_desc_dict[key]["SPECTRAL_WINDOW_ID"]
+            data_desc_dict[key]["CHAN_FREQ"] = tb_spws.getcell("CHAN_FREQ", key)
+            # beware! There are possibly 3 columns here that might be the correct one
+            # to use: CHAN_WIDTH, EFFECTIVE_BW, RESOLUTION
+            data_desc_dict[key]["CHAN_WIDTH"] = tb_spws.getcell("CHAN_WIDTH", key)
+            data_desc_dict[key]["NUM_CHAN"] = tb_spws.getcell("NUM_CHAN", key)
+            if data_desc_dict[key]["NUM_CHAN"] == 1:
+                single_chan_list.append(key)
+            if use_assoc_id:
+                data_desc_dict[key]["SPW_ID"] = int(
+                    tb_spws.getcell("ASSOC_SPW_ID", key)[0]
+                )
+            else:
+                data_desc_dict[key]["SPW_ID"] = spw_id
 
-        self.spw_array = np.arange(self.Nspws)
-        tb_spws.close()
-        # now get the data
-        tb = tables.table(filepath, ack=False)
-        # check for multiple subarrays. importuvfits does not appear to
-        # preserve subarray information!
-        subarray = np.unique(np.int32(tb.getcol("ARRAY_ID")) - 1)
-        if len(set(subarray)) > 1:
-            raise ValueError(
-                "This file appears to have multiple subarray "
-                "values; only files with one subarray are "
-                "supported."
-            )
-        times_unique = Time(
-            np.unique(tb.getcol("TIME") / (3600.0 * 24.0)), format="mjd"
-        ).jd
+        if ignore_single_chan:
+            for key in single_chan_list:
+                del data_desc_dict[key]
 
-        # check for multiple data description ids (combination of spw id & pol id)
-        data_desc_id = np.unique(np.int32(tb.getcol("DATA_DESC_ID") - 1))
-        if len(set(data_desc_id)) > 1:
-            raise ValueError(
-                "This file appears to have multiple data description ID "
-                "values; only files with one data description ID are "
-                "supported."
-            )
-
-        self.Ntimes = int(len(times_unique))
         # FITS uvw direction convention is opposite ours and Miriad's.
         # CASA's convention is unclear: the docs contradict themselves,
         # but after a question to the helpdesk we got a clear response that
@@ -1203,28 +1545,35 @@ class MS(UVData):
         # HOWEVER, it appears that CASA's importuvfits task does not make this
         # convention change. So if the data in the MS came via that task and was not
         # written by pyuvdata, we do need to flip the uvws & conjugate the data
-        if "importuvfits" in self.history and not pyuvdata_written:
-            data_array = np.conj(tb.getcol(data_column))
-        else:
-            data_array = tb.getcol(data_column)
-        self.Nblts = int(data_array.shape[0])
-        flag_array = tb.getcol("FLAG")
-        # CASA stores data in complex array with dimension NbltsxNfreqsxNpols
-        if len(data_array.shape) == 3:
-            data_array = np.expand_dims(data_array, axis=1)
-            flag_array = np.expand_dims(flag_array, axis=1)
-        self.data_array = data_array
-        self.flag_array = flag_array
-        self.Npols = int(data_array.shape[-1])
+        flip_conj = ("importuvfits" in self.history) and (not pyuvdata_written)
+        spw_list, field_list, pol_list = self._read_ms_main(
+            filepath, data_column, data_desc_dict, flip_conj=flip_conj
+        )
 
-        # see note above the data_array extraction
-        if "importuvfits" in self.history:
-            self.uvw_array = -1 * tb.getcol("UVW")
-        else:
-            self.uvw_array = tb.getcol("UVW")
+        self.Npols = len(pol_list)
+        self.polarization_array = np.array(pol_list, dtype=np.int64)
+        self.Nspws = len(spw_list)
+        self.spw_array = np.array(spw_list, dtype=np.int64)
 
-        self.ant_1_array = tb.getcol("ANTENNA1").astype(np.int32)
-        self.ant_2_array = tb.getcol("ANTENNA2").astype(np.int32)
+        self.Nfreqs = len(self.flex_spw_id_array)
+        self.freq_array = np.zeros(self.Nfreqs)
+        self.channel_width = np.zeros(self.Nfreqs)
+
+        for key in data_desc_dict.keys():
+            sel_mask = self.flex_spw_id_array == data_desc_dict[key]["SPW_ID"]
+            self.freq_array[sel_mask] = data_desc_dict[key]["CHAN_FREQ"]
+            self.channel_width[sel_mask] = data_desc_dict[key]["CHAN_WIDTH"]
+
+        if (np.unique(self.channel_width).size == 1) and (len(spw_list) == 1):
+            # If we don't _need_ the flex_spw setup, then the default is not
+            # to use it.
+            self.channel_width = float(self.channel_width[0])
+            self.flex_spw_id_array = None
+        else:
+            self._set_flex_spw()
+
+        self.Ntimes = int(np.unique(self.time_array).size)
+        self.Nblts = int(self.data_array.shape[0])
         self.Nants_data = len(
             np.unique(
                 np.concatenate(
@@ -1236,44 +1585,7 @@ class MS(UVData):
             self.ant_1_array, self.ant_2_array
         )
         self.Nbls = len(np.unique(self.baseline_array))
-        # Get times. MS from cotter are modified Julian dates in seconds
-        # (thanks to Danny Jacobs for figuring out the proper conversion)
-        self.time_array = Time(tb.getcol("TIME") / (3600.0 * 24.0), format="mjd").jd
 
-        # Polarization array
-        tb_pol = tables.table(filepath + "/POLARIZATION", ack=False)
-        num_pols = tb_pol.getcol("NUM_CORR")
-        # get pol setup ID from data description table
-        tb_data_desc = tables.table(filepath + "/DATA_DESCRIPTION", ack=False)
-        pol_id = tb_data_desc.getcol("POLARIZATION_ID")[0]
-        # use an assert because I don't think it's possible to make a file
-        # that fails this, but I'm not sure
-        assert num_pols[pol_id] == self.Npols
-
-        if np.unique(num_pols).size > 1:
-            # use getvarcol method, which returns a dict
-            pol_list = tb_pol.getvarcol("CORR_TYPE")["r" + str(pol_id + 1)][0].tolist()
-        else:
-            # list of lists, probably with each list corresponding to SPW.
-            pol_list = tb_pol.getcol("CORR_TYPE")[pol_id]
-        self.polarization_array = np.zeros(len(pol_list), dtype=np.int32)
-        for polnum, casapol in enumerate(pol_list):
-            self.polarization_array[polnum] = POL_CASA2AIPS_DICT[casapol]
-        tb_pol.close()
-
-        # Integration time
-        # use first interval and assume rest are constant (though measurement
-        # set has all integration times for each Nblt )
-        # self.integration_time=tb.getcol('INTERVAL')[0]
-        # for some reason, interval ends up larger than the difference between times...
-        if len(times_unique) == 1:
-            self.integration_time = np.ones_like(self.time_array, dtype=np.float64)
-        else:
-            # assume that all times in the file are the same size
-            int_time = self._calc_single_integration_time()
-            self.integration_time = (
-                np.ones_like(self.time_array, dtype=np.float64) * int_time
-            )
         # open table with antenna location information
         tb_ant = tables.table(filepath + "/ANTENNA", ack=False)
         tb_obs = tables.table(filepath + "/OBSERVATION", ack=False)
@@ -1315,30 +1627,21 @@ class MS(UVData):
         tb_obs.close()
 
         # antenna names
-        ant_names = tb_ant.getcol("NAME")
-        station_names = tb_ant.getcol("STATION")
-        ant_diams = tb_ant.getcol("DISH_DIAMETER")
+        ant_names = np.asarray(tb_ant.getcol("NAME"))[ant_good_position].tolist()
+        station_names = np.asarray(tb_ant.getcol("STATION"))[ant_good_position].tolist()
+        self.antenna_diameters = tb_ant.getcol("DISH_DIAMETER")[ant_good_position]
 
-        self.antenna_diameters = ant_diams[ant_diams > 0]
-
-        # TODO: Potentially flip which is the default -- use ant_names if filled and
-        # unique.
-        station_names
-        station_names_same = False
-        for name in station_names[1:]:
-            if name == station_names[0]:
-                station_names_same = True
         # importuvfits measurement sets store antenna names in the STATION column.
         # cotter measurement sets store antenna names in the NAME column, which is
         # inline with the MS definition doc. In that case all the station names are
         # the same.
-        if station_names_same:
+        # TODO: Potentially flip which is the default -- use ant_names if filled and
+        # unique. This does seem to fail though on "day2_TDEM0003_10s_norx_1src_1spw".
+        # See the test "test_read_ms_read_uvfits".
+        if len(station_names) != len(np.unique(station_names)):
             self.antenna_names = ant_names
         else:
             self.antenna_names = station_names
-
-        ant_names = np.asarray(self.antenna_names)[ant_good_position].tolist()
-        self.antenna_names = ant_names
 
         self.Nants_telescope = len(self.antenna_names)
 
@@ -1349,24 +1652,17 @@ class MS(UVData):
         self.antenna_positions = relative_positions
 
         tb_ant.close()
-        tb_field = tables.table(filepath + "/FIELD", ack=False)
 
-        # Error if the phase_dir has a polynomial term because we don't know
-        # how to handle that
-        message = (
-            "PHASE_DIR is expressed as a polynomial. "
-            "We do not currently support this mode, please make an issue."
-        )
-        assert tb_field.getcol("PHASE_DIR").shape[1] == 1, message
-
-        self.phase_type = "phased"
+        self._set_phased()
         # MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
-        epoch_string = tb.getcolkeyword("UVW", "MEASINFO")["Ref"]
+
+        tb_main = tables.table(filepath, ack=False)
+        epoch_string = tb_main.getcolkeyword("UVW", "MEASINFO")["Ref"]
         # for measurement sets made with COTTER, this keyword is ITRF
         # instead of the epoch
         if epoch_string == "ITRF":
             warnings.warn(
-                "ITRF coordinate frame detected, although within cotter this is "
+                "ITRF coordinate frame detected, although this is often "
                 "synonymous with J2000. Assuming J2000 coordinate frame."
             )
             self.phase_center_frame = "fk5"
@@ -1378,37 +1674,99 @@ class MS(UVData):
             # casa.nrao.edu/casadocs/casa-5.0.0/reference-material/coordinate-frames
             self.phase_center_frame = "fk5"
             self.phase_center_epoch = 2000.0
-        self.phase_center_ra = float(tb_field.getcol("PHASE_DIR")[0][0][0])
-        self.phase_center_dec = float(tb_field.getcol("PHASE_DIR")[0][0][1])
         self._set_phased()
+        tb_main.close()
 
         # set LST array from times and itrf
         proc = self.set_lsts_from_time_array(background=background_lsts)
 
         # CASA weights column keeps track of number of data points averaged.
 
-        # 'WEIGHT_SPECTRUM' is optional - some files may not have per-channel values
-        if "WEIGHT_SPECTRUM" in tb.colnames():
-            self.nsample_array = tb.getcol("WEIGHT_SPECTRUM")
+        tb_field = tables.table(filepath + "/FIELD", ack=False)
+
+        # Error if the phase_dir has a polynomial term because we don't know
+        # how to handle that
+        message = (
+            "PHASE_DIR is expressed as a polynomial. "
+            "We do not currently support this mode, please make an issue."
+        )
+        assert tb_field.getcol("PHASE_DIR").shape[1] == 1, message
+
+        # If only dealing with a single target, assume we don't want to make a
+        # multi-phase-center data set.
+        if len(field_list) == 1:
+            radec_center = tb_field.getcell("PHASE_DIR", field_list[0])[0]
+            self.phase_center_ra = float(radec_center[0])
+            self.phase_center_dec = float(radec_center[1])
         else:
-            self.nsample_array = tb.getcol("WEIGHT")
-            # Propagate the weights in frequency
-            self.nsample_array = np.stack(
-                [self.nsample_array for chan in range(self.Nfreqs)], axis=1
-            )
-        if len(self.nsample_array.shape) == 3:
-            self.nsample_array = np.expand_dims(self.nsample_array, axis=1)
+            epoch_val = self.phase_center_epoch
+            frame_val = self.phase_center_frame
+            self._set_multi_phase_center()
+            field_name_list = tb_field.getcol("NAME")
+            uniq_names, uniq_count = np.unique(field_name_list, return_counts=True)
+            rep_name_list = uniq_names[uniq_count > 1]
+            for rep_name in rep_name_list:
+                rep_count = 0
+                for idx in range(len(field_name_list)):
+                    if field_name_list[idx] == rep_name:
+                        field_name_list[idx] = "%s-%03i" % (
+                            field_name_list[idx],
+                            rep_count,
+                        )
+                        rep_count += 1
+
+            for field_idx in field_list:
+                radec_center = tb_field.getcell("PHASE_DIR", field_idx)[0]
+                field_name = field_name_list[field_idx]
+                self._add_phase_center(
+                    field_name,
+                    cat_type="sidereal",
+                    cat_lon=radec_center[0],
+                    cat_lat=radec_center[1],
+                    cat_frame=frame_val,
+                    cat_epoch=epoch_val,
+                    info_source="file",
+                    cat_id=field_idx,
+                )
+
         self.object_name = tb_field.getcol("NAME")[0]
         tb_field.close()
-        tb.close()
 
         if proc is not None:
             proc.join()
         # Fill in the apparent coordinates here
         self._set_app_coords_helper()
 
+        self.data_array = np.expand_dims(self.data_array, 1)
+        self.nsample_array = np.expand_dims(self.nsample_array, 1)
+        self.flag_array = np.expand_dims(self.flag_array, 1)
+        self.freq_array = np.expand_dims(self.freq_array, 0)
+
         # order polarizations
-        self.reorder_pols(order=pol_order)
+        self.reorder_pols(order=pol_order, run_check=False)
+
+        # This is a thing
+        temp_obj = self.copy(metadata_only=True)
+        if temp_obj.phase_center_frame is not None:
+            output_phase_frame = temp_obj.phase_center_frame
+        else:
+            output_phase_frame = "icrs"
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            temp_obj.set_uvws_from_antenna_positions(
+                allow_phasing=True, output_phase_frame=output_phase_frame,
+            )
+
+        if not np.allclose(temp_obj.uvw_array, self.uvw_array, atol=1):
+            if np.allclose(-temp_obj.uvw_array, self.uvw_array, atol=1):
+                warnings.warn(
+                    "UVW orientation appears to be flipped, attempting to "
+                    "fix by changing conjugation of baselines."
+                )
+                self.uvw_array *= -1
+                self.data_array = np.conj(self.data_array)
+
         if run_check:
             self.check(
                 check_extra=check_extra,
