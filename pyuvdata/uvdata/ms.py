@@ -1133,7 +1133,9 @@ class MS(UVData):
         """
         tb_main = tables.table(filepath, ack=False)
         time_arr = tb_main.getcol("TIME")
-        int_arr = tb_main.getcol("EXPOSURE")
+        # N.b., EXPOSURE is what's needed for noise calculation, but INTERVAL defines
+        # the time period over which the data are collected
+        int_arr = tb_main.getcol("INTERVAL")
         ant_1_arr = tb_main.getcol("ANTENNA1")
         ant_2_arr = tb_main.getcol("ANTENNA2")
         field_arr = tb_main.getcol("FIELD_ID")
@@ -1217,7 +1219,7 @@ class MS(UVData):
             use_row[sel_mask] = True
             data_dict[key] = dict(data_desc_dict[key])
             data_dict[key]["TIME"] = time_arr[sel_mask]  # Midpoint time in mjd seconds
-            data_dict[key]["EXPOSURE"] = int_arr[sel_mask]  # Int time in sec
+            data_dict[key]["INTERVAL"] = int_arr[sel_mask]  # Int time in sec
             data_dict[key]["ANTENNA1"] = ant_1_arr[sel_mask]  # First antenna
             data_dict[key]["ANTENNA2"] = ant_2_arr[sel_mask]  # Second antenna
             data_dict[key]["FIELD_ID"] = field_arr[sel_mask]  # Source ID
@@ -1303,7 +1305,7 @@ class MS(UVData):
         has_data = np.zeros(nblts, dtype=bool)
 
         arr_tuple = (time_arr, int_arr, ant_1_arr, ant_2_arr, field_arr, uvw_arr)
-        name_tuple = ("TIME", "EXPOSURE", "ANTENNA1", "ANTENNA2", "FIELD_ID", "UVW")
+        name_tuple = ("TIME", "INTERVAL", "ANTENNA1", "ANTENNA2", "FIELD_ID", "UVW")
         for key in data_dict.keys():
             # Get the indexing information for the data array
             blt_idx = data_dict[key]["BLT_IDX"]
@@ -1698,6 +1700,7 @@ class MS(UVData):
             radec_center = tb_field.getcell("PHASE_DIR", field_list[0])[0]
             self.phase_center_ra = float(radec_center[0])
             self.phase_center_dec = float(radec_center[1])
+            self.phase_center_id_array = None
         else:
             epoch_val = self.phase_center_epoch
             frame_val = self.phase_center_frame
