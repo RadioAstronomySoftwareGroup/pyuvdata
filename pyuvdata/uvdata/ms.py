@@ -1038,6 +1038,7 @@ class MS(UVData):
         ms.putcol("ANTENNA1", np.repeat(self.ant_1_array, self.Nspws))
         ms.putcol("ANTENNA2", np.repeat(self.ant_2_array, self.Nspws))
         ms.putcol("INTERVAL", np.repeat(self.integration_time, self.Nspws))
+        ms.putcol("EXPOSURE", np.repeat(self.integration_time, self.Nspws))
 
         ms.putcol("DATA_DESC_ID", np.tile(np.arange(self.Nspws), self.Nblts))
 
@@ -1135,7 +1136,7 @@ class MS(UVData):
         time_arr = tb_main.getcol("TIME")
         # N.b., EXPOSURE is what's needed for noise calculation, but INTERVAL defines
         # the time period over which the data are collected
-        int_arr = tb_main.getcol("INTERVAL")
+        int_arr = tb_main.getcol("EXPOSURE")
         ant_1_arr = tb_main.getcol("ANTENNA1")
         ant_2_arr = tb_main.getcol("ANTENNA2")
         field_arr = tb_main.getcol("FIELD_ID")
@@ -1517,7 +1518,13 @@ class MS(UVData):
         tb_pol.close()
 
         tb_spws = tables.table(filepath + "/SPECTRAL_WINDOW", ack=False)
-        use_assoc_id = "ASSOC_SPW_ID" in tb_spws.colnames()
+
+        try:
+            spw_id = tb_spws.getcol("ASSOC_SPW_ID")
+            use_assoc_id = True
+        except RuntimeError:
+            use_assoc_id = False
+
         single_chan_list = []
         for key in data_desc_dict.keys():
             spw_id = data_desc_dict[key]["SPECTRAL_WINDOW_ID"]

@@ -48,7 +48,7 @@ def nrao_uv(nrao_uv_main):
 
 
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped,")
 @pytest.mark.filterwarnings("ignore:telescope_location is not set")
 def test_cotter_ms():
     """Test reading in an ms made from MWA data with cotter (no dysco compression)"""
@@ -130,25 +130,18 @@ def test_no_spw():
     del uvobj
 
 
-def test_spwnotsupported():
-    """Test errors on reading in an ms file with multiple spws."""
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_spwsupported():
+    """Test reading in an ms file with multiple spws."""
     uvobj = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1scan.ms")
-    pytest.raises(ValueError, uvobj.read, testfile)
-    del uvobj
+    uvobj.read(testfile)
 
-
-def test_multi_len_spw():
-    """Test errors on reading in an ms file with multiple spws with variable lenghth."""
-    uvobj = UVData()
-    testfile = os.path.join(DATA_PATH, "multi_len_spw.ms")
-    with pytest.raises(ValueError) as cm:
-        uvobj.read(testfile)
-    assert str(cm.value).startswith("Sorry.  Files with more than one spectral")
+    assert uvobj.Nspws == 2
 
 
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped,")
 @pytest.mark.filterwarnings("ignore:telescope_location is not set")
 def test_extra_pol_setup(tmp_path):
     """Test reading in an ms file with extra polarization setups (not used in data)."""
@@ -191,6 +184,7 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
     # and the ms sets default antenna diameters even though the uvfits file
     # doesn't have them
     assert uvfits_uv != ms_uv
+    uvfits_uv.integration_time = ms_uv.integration_time
     # they are equal if only required parameters are checked:
     assert uvfits_uv.__eq__(ms_uv, check_extra=False)
 
