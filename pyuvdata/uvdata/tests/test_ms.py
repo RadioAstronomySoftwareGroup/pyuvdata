@@ -27,8 +27,8 @@ def nrao_uv_main():
     uvobj = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
     uvobj.read(testfile)
-    uvobj.uvw_array *= -1
-    uvobj.data_array = np.conj(uvobj.data_array)
+    # uvobj.uvw_array *= -1
+    # uvobj.data_array = np.conj(uvobj.data_array)
 
     yield uvobj
 
@@ -64,9 +64,9 @@ def test_cotter_ms():
         match=[
             "Warning: select on read keyword set",
             "telescope_location is not set. Using known values for MWA.",
-            "ITRF coordinate frame detected, although within cotter this is",
-        ]
-        + ["The uvw_array does not match the expected values"] * 3,
+            "ITRF coordinate frame detected, although this is often ",
+            "UVW orientation appears to be flipped,",
+        ],
     ):
         uvobj2.read(testfile, freq_chans=np.arange(2))
     uvobj.select(freq_chans=np.arange(2))
@@ -286,9 +286,8 @@ def test_multi_files(casa_uvfits, axis):
         filesread = np.array(filesread)
 
     uv_multi.read(filesread, axis=axis)
-    uv_multi.uvw_array *= -1
-    uv_multi.data_array = np.conj(uv_multi.data_array)
-
+    # uv_multi.uvw_array *= -1
+    # uv_multi.data_array = np.conj(uv_multi.data_array)
     # histories are different because of combining along freq. axis
     # replace the history
     uv_multi.history = uv_full.history
