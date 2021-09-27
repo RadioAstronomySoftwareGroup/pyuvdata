@@ -161,8 +161,13 @@ class UVFITS(UVData):
                     np.ones_like(self.time_array, dtype=np.float64) * int_time
                 )
             else:
-                raise ValueError(
-                    "integration time not specified and only one time present"
+                warnings.warn(
+                    "The integration time is not specified and only one time is "
+                    "present so it cannot be calculated from the difference between "
+                    "integration times. Setting to None which will cause the check to "
+                    "error. Set `run_check` to False to read in the file without "
+                    "checking. Then set the integration_time (to an array of length "
+                    "Nblts) directly on the object to allow futher processing."
                 )
 
         if proc is not None:

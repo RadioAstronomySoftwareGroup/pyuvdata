@@ -551,21 +551,26 @@ def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
         hdulist.writeto(write_file2, overwrite=True)
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="Required UVParameter _integration_time has not been set"
+    ):
         with uvtest.check_warnings(
-            [UserWarning, erfa.core.ErfaWarning, erfa.core.ErfaWarning, UserWarning],
+            [
+                UserWarning,
+                erfa.core.ErfaWarning,
+                erfa.core.ErfaWarning,
+                UserWarning,
+                UserWarning,
+            ],
             [
                 "Telescope EVLA is not",
-                'ERFA function "utcut1" yielded 1 of "dubious year (Note 3)"',
-                'ERFA function "utctai" yielded 1 of "dubious year (Note 3)"',
+                "ERFA function 'utcut1' yielded 1 of 'dubious year (Note 3)'",
+                "ERFA function 'utctai' yielded 1 of 'dubious year (Note 3)'",
                 "LST values stored in this file are not self-consistent",
+                "The integration time is not specified and only one time",
             ],
         ):
             uv_out.read(write_file2),
-
-    assert str(cm.value).startswith(
-        "integration time not specified and only one time present"
-    )
 
     return
 
