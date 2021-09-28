@@ -33,6 +33,22 @@ def mir_data_object():
 
 
 @pytest.fixture
+def uv_in_ms(tmp_path):
+    uv_in = UVData()
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    write_file = os.path.join(tmp_path, "outtest_mir.ms")
+
+    # Currently only one source is supported.
+    uv_in.read(testfile)
+    uv_out = UVData()
+
+    yield uv_in, uv_out, write_file
+
+    # cleanup
+    del uv_in, uv_out
+
+
+@pytest.fixture
 def uv_in_uvfits(tmp_path):
     uv_in = UVData()
     testfile = os.path.join(DATA_PATH, "sma_test.mir/")
@@ -146,6 +162,62 @@ def test_read_mir_write_uvfits(uv_in_uvfits, future_shapes):
     mir_uv._set_multi_phase_center()
 
     assert mir_uv == uvfits_uv
+
+
+@pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_read_mir_write_ms(uv_in_ms, future_shapes):
+    """
+    Mir to uvfits loopback test.
+
+    Read in Mir files, write out as ms, read back in and check for
+    object equality.
+    """
+    mir_uv, ms_uv, testfile = uv_in_ms
+
+    if future_shapes:
+        mir_uv.use_future_array_shapes()
+
+    mir_uv.write_ms(testfile)
+    ms_uv.read(testfile)
+
+    if future_shapes:
+        ms_uv.use_future_array_shapes()
+
+    # There are some minor differences between the values stored by MIR and that
+    # calculated by UVData. Since MS format requires these to be calculated on the fly,
+    # we calculate them here just to verify that everything is looking okay.
+    mir_uv.set_lsts_from_time_array()
+    mir_uv._set_app_coords_helper()
+
+    # These reorderings just make sure that data from the two formats are lined up
+    # correctly.
+    mir_uv.reorder_freqs(spw_order="number")
+    ms_uv.reorder_blts()
+
+    # MS doesn't have the concept of an "instrument" name like FITS does, and instead
+    # defaults to the telescope name. Make sure that checks out here.
+    assert mir_uv.instrument == "SWARM"
+    assert ms_uv.instrument == "SMA"
+    ms_uv.instrument = mir_uv.instrument
+
+    # Quick check for history here
+    assert ms_uv.history != mir_uv.history
+    ms_uv.history = mir_uv.history
+
+    # Only MS has extra keywords, verify those look as expected.
+    assert ms_uv.extra_keywords == {"DATA_COL": "DATA"}
+    assert mir_uv.extra_keywords == {}
+    ms_uv.extra_keywords = mir_uv.extra_keywords
+
+    # Make sure the filenames line up as expected.
+    assert mir_uv.filename == ["sma_test.mir"]
+    assert ms_uv.filename == ["outtest_mir.ms"]
+    ms_uv.filename = None
+    mir_uv.filename = None
+
+    # Finally, with all exceptions handled, check for equality.
+    assert ms_uv == mir_uv
 
 
 @pytest.mark.filterwarnings("ignore:LST values stored ")
