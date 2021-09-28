@@ -188,9 +188,14 @@ class UVH5(UVData):
         # check for vis_units
         if "vis_units" in header:
             self.vis_units = bytes(header["vis_units"][()]).decode("utf8")
+            # Added here because older files allowed for both upper and lowercase
+            # formats, although since the attribute is case sensitive, we want to
+            # correct for this here.
+            if self.vis_units == "UNCALIB":
+                self.vis_units = "uncalib"
         else:
             # default to uncalibrated data
-            self.vis_units = "UNCALIB"
+            self.vis_units = "uncalib"
 
         # check for optional values
         if "dut1" in header:
