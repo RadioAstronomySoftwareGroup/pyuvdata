@@ -64,7 +64,6 @@ def test_cotter_ms():
         match=[
             "Warning: select on read keyword set",
             "telescope_location is not set. Using known values for MWA.",
-            "ITRF coordinate frame detected, although this is often ",
             "UVW orientation appears to be flipped,",
         ],
     ):
@@ -140,7 +139,7 @@ def test_spwsupported():
     assert uvobj.Nspws == 2
 
 
-@pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
+@pytest.mark.filterwarnings("ignore:Coordinate reference frame not detected,")
 @pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped,")
 @pytest.mark.filterwarnings("ignore:telescope_location is not set")
 def test_extra_pol_setup(tmp_path):
