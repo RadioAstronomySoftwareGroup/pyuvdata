@@ -2883,7 +2883,7 @@ def test_uvcalibrate(uvcalibrate_data, future_shapes, flip_gain_conj, gain_conve
 
     uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False, flip_gain_conj=flip_gain_conj)
     if gain_convention == "divide":
-        assert uvdcal.vis_units == "UNCALIB"
+        assert uvdcal.vis_units == "uncalib"
     else:
         assert uvdcal.vis_units == "Jy"
 
@@ -2917,7 +2917,7 @@ def test_uvcalibrate(uvcalibrate_data, future_shapes, flip_gain_conj, gain_conve
     )
 
     np.testing.assert_array_almost_equal(uvd.get_data(key), uvdcal.get_data(key))
-    assert uvdcal.vis_units == "UNCALIB"
+    assert uvdcal.vis_units == "uncalib"
 
 
 @pytest.mark.filterwarnings("ignore:Combined frequencies are not contiguous.")
