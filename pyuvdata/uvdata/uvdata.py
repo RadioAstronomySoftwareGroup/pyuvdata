@@ -2091,10 +2091,7 @@ class UVData(UVBase):
                     self, param_name, (getattr(self, param_name))[:, np.newaxis, :, :]
                 )
 
-        self._freq_array.form = (
-            1,
-            "Nfreqs",
-        )
+        self._freq_array.form = (1, "Nfreqs")
         self.freq_array = self.freq_array[np.newaxis, :]
 
     def known_telescopes(self):
@@ -2325,20 +2322,7 @@ class UVData(UVBase):
         formats cannot, so we just consider it forbidden.
         """
         if self.flex_spw:
-            exp_spw_ids = np.unique(self.spw_array)
-            # This is an internal consistency check to make sure that the indexes match
-            # up as expected -- this shouldn't error unless someone is mucking with
-            # settings they shouldn't be.
-            assert np.all(np.unique(self.flex_spw_id_array) == exp_spw_ids)
-
-            n_breaks = np.sum(self.flex_spw_id_array[1:] != self.flex_spw_id_array[:-1])
-            if (n_breaks + 1) != self.Nspws:
-                raise ValueError(
-                    "Channels from different spectral windows are interspersed with "
-                    "one another, rather than being grouped together along the "
-                    "frequency axis. Most file formats do not support such "
-                    "non-grouping of data."
-                )
+            uvutils._check_flex_spw_contiguous(self.spw_array, self.flex_spw_id_array)
         else:
             # If this isn't a flex_spw data set, then there is only 1 spectral window,
             # which means that the check always passes
@@ -2364,112 +2348,17 @@ class UVData(UVBase):
             Flag that channel spacing does not match channel width.
 
         """
-        spacing_error = False
-        chanwidth_error = False
-        if self.future_array_shapes:
-            freq_spacing = np.diff(self.freq_array)
-            freq_array_use = self.freq_array
-        else:
-            freq_spacing = np.diff(self.freq_array[0])
-            freq_array_use = self.freq_array[0]
-        if self.Nfreqs == 1:
-            # Skip all of this if there is only 1 channel
-            pass
-        elif self.flex_spw:
-            # Check to make sure that the flexible spectral window has indicies set up
-            # correctly (grouped together) for this check
-            self._check_flex_spw_contiguous()
-            diff_chanwidth = np.diff(self.channel_width)
-            freq_dir = []
-            # We want to grab unique spw IDs, in the order that they appear in the data
-            select_mask = np.append((np.diff(self.flex_spw_id_array) != 0), True)
-            for idx in self.flex_spw_id_array[select_mask]:
-                chan_mask = self.flex_spw_id_array == idx
-                freq_dir += [
-                    np.sign(np.mean(np.diff(freq_array_use[chan_mask])))
-                ] * np.sum(chan_mask)
-
-            # Pop off the first entry, since the above arrays are diff'd
-            # (and thus one element shorter)
-            freq_dir = np.array(freq_dir[1:])
-            # Ignore cases where looking at the boundaries of spectral windows
-            bypass_check = self.flex_spw_id_array[1:] != self.flex_spw_id_array[:-1]
-            if not np.all(
-                np.logical_or(
-                    bypass_check,
-                    np.isclose(
-                        diff_chanwidth,
-                        0.0,
-                        rtol=self._freq_array.tols[0],
-                        atol=self._freq_array.tols[1],
-                    ),
-                )
-            ):
-                spacing_error = True
-            if not np.all(
-                np.logical_or(
-                    bypass_check,
-                    np.isclose(
-                        freq_spacing,
-                        self.channel_width[1:] * freq_dir,
-                        rtol=self._freq_array.tols[0],
-                        atol=self._freq_array.tols[1],
-                    ),
-                )
-            ):
-                chanwidth_error = True
-        else:
-            freq_dir = np.sign(np.mean(freq_spacing))
-            if not np.isclose(
-                np.min(freq_spacing),
-                np.max(freq_spacing),
-                rtol=self._freq_array.tols[0],
-                atol=self._freq_array.tols[1],
-            ):
-                spacing_error = True
-            if self.future_array_shapes:
-                if not np.isclose(
-                    np.min(self.channel_width),
-                    np.max(self.channel_width),
-                    rtol=self._freq_array.tols[0],
-                    atol=self._freq_array.tols[1],
-                ):
-                    spacing_error = True
-                else:
-                    if not np.isclose(
-                        np.mean(freq_spacing),
-                        np.mean(self.channel_width) * freq_dir,
-                        rtol=self._channel_width.tols[0],
-                        atol=self._channel_width.tols[1],
-                    ):
-                        chanwidth_error = True
-            else:
-                if not np.isclose(
-                    np.mean(freq_spacing),
-                    self.channel_width * freq_dir,
-                    rtol=self._channel_width.tols[0],
-                    atol=self._channel_width.tols[1],
-                ):
-                    chanwidth_error = True
-        if raise_errors and spacing_error:
-            raise ValueError(
-                "The frequencies are not evenly spaced (probably "
-                "because of a select operation) or has differing "
-                "values of channel widths. Some file formats "
-                "(e.g. uvfits, miriad) and methods (frequency_average) "
-                "do not support unevenly spaced frequencies."
-            )
-        if raise_errors and chanwidth_error:
-            raise ValueError(
-                "The frequencies are separated by more than their "
-                "channel width (probably because of a select operation). "
-                "Some file formats (e.g. uvfits, miriad) and "
-                "methods (frequency_average) do not support "
-                "frequencies that are spaced by more than their "
-                "channel width."
-            )
-
-        return spacing_error, chanwidth_error
+        return uvutils._check_freq_spacing(
+            self.freq_array,
+            self._freq_array.tols,
+            self.channel_width,
+            self._channel_width.tols,
+            self.flex_spw,
+            self.future_array_shapes,
+            self.spw_array,
+            self.flex_spw_id_array,
+            raise_errors=raise_errors,
+        )
 
     def _calc_nants_data(self):
         """Calculate the number of antennas from ant_1_array and ant_2_array arrays."""

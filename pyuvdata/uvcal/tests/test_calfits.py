@@ -21,46 +21,70 @@ pytestmark = pytest.mark.filterwarnings(
 )
 
 
-@pytest.mark.parametrize(
-    "filein",
-    ["zen.2457698.40355.xx.gain.calfits", "zen.2457698.40355.xx.delay.calfits"],
-)
-def test_readwriteread(filein, tmp_path):
+@pytest.mark.parametrize("future_shapes", [True, False])
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_readwriteread(future_shapes, caltype, gain_data, delay_data, tmp_path):
     """
     Omnical/Firstcal fits loopback test.
 
     Read in calfits file, write out new calfits file, read back in and check for
     object equality.
     """
-    cal_in = UVCal()
+    if caltype == "gain":
+        cal_in = gain_data
+    else:
+        cal_in = delay_data
+
+    if future_shapes:
+        cal_in.use_future_array_shapes()
+
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, filein)
     write_file = str(tmp_path / "outtest.fits")
-    cal_in.read_calfits(testfile)
-
-    assert cal_in.filename == [os.path.basename(filein)]
-
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
+
+    assert cal_out.filename == [os.path.basename(write_file)]
+
+    if future_shapes:
+        cal_out.use_future_array_shapes()
+
     assert cal_in == cal_out
+
+    return
+
+
+@pytest.mark.parametrize(
+    "filein,caltype",
+    [
+        ("zen.2457698.40355.xx.gain.calfits", "gain"),
+        ("zen.2457698.40355.xx.delay.calfits", "delay"),
+    ],
+)
+def test_read_metadata_only(filein, caltype, gain_data, delay_data, tmp_path):
+    """
+    check that metadata only reads work
+    """
+    if caltype == "gain":
+        cal_in = gain_data
+    else:
+        cal_in = delay_data
 
     # check that metadata only reads work
     cal2 = cal_in.copy(metadata_only=True)
     cal3 = UVCal()
+    testfile = os.path.join(DATA_PATH, filein)
     cal3.read_calfits(testfile, read_data=False)
     assert cal2 == cal3
 
     return
 
 
-def test_readwriteread_no_freq_range(tmp_path):
+def test_readwriteread_no_freq_range(gain_data, tmp_path):
     # test without freq_range parameter
-    cal_in = UVCal()
+    cal_in = gain_data
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     write_file = str(tmp_path / "outtest_omnical.fits")
 
-    cal_in.read_calfits(testfile)
     cal_in.freq_range = None
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
@@ -85,14 +109,12 @@ def test_readwriteread_no_time_range(tmp_path):
     return
 
 
-def test_error_unknown_cal_type(tmp_path):
+def test_error_unknown_cal_type(delay_data, tmp_path):
     """
     Test an error is raised when writing an unknown cal type.
     """
-    cal_in = UVCal()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
+    cal_in = delay_data
     write_file = str(tmp_path / "outtest_firstcal.fits")
-    cal_in.read_calfits(testfile)
 
     cal_in._set_unknown_cal_type()
     with pytest.raises(ValueError, match="unknown calibration type"):
@@ -112,16 +134,13 @@ def test_error_unknown_cal_type(tmp_path):
         ({"totqual": "CRVAL4"}, "Spectral window values are different in TOTQLTY"),
     ],
 )
-def test_fits_header_errors_delay(tmp_path, header_dict, error_msg):
+def test_fits_header_errors_delay(delay_data, tmp_path, header_dict, error_msg):
     # change values for various axes in flag and total quality hdus to not
     # match primary hdu
-    cal_in = UVCal()
+    cal_in = delay_data
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
     write_file = str(tmp_path / "outtest_firstcal.fits")
     write_file2 = str(tmp_path / "outtest_firstcal2.fits")
-
-    cal_in.read_calfits(testfile)
 
     # Create filler jones info
     cal_in.jones_array = np.array([-5, -6, -7, -8])
@@ -183,14 +202,12 @@ def test_fits_header_errors_delay(tmp_path, header_dict, error_msg):
         ({"totqual": "CRVAL4"}, "Spectral window values are different in TOTQLTY"),
     ],
 )
-def test_fits_header_errors_gain(tmp_path, header_dict, error_msg):
+def test_fits_header_errors_gain(gain_data, tmp_path, header_dict, error_msg):
     # repeat for gain type file
-    cal_in = UVCal()
+    cal_in = gain_data
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     write_file = str(tmp_path / "outtest_omnical.fits")
     write_file2 = str(tmp_path / "outtest_omnical2.fits")
-    cal_in.read_calfits(testfile)
 
     # Create filler jones info
     cal_in.jones_array = np.array([-5, -6, -7, -8])
@@ -237,14 +254,12 @@ def test_fits_header_errors_gain(tmp_path, header_dict, error_msg):
     return
 
 
-def test_latlonalt_noxyz(tmp_path):
-    cal_in = UVCal()
+def test_latlonalt_noxyz(gain_data, tmp_path):
+    cal_in = gain_data
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     write_file = str(tmp_path / "outtest.fits")
     write_file2 = str(tmp_path / "outtest_noxyz.fits")
 
-    cal_in.read_calfits(testfile)
     cal_in.write_calfits(write_file)
 
     with fits.open(write_file) as fname:
@@ -283,12 +298,10 @@ def test_latlonalt_noxyz(tmp_path):
         ],
     ],
 )
-def test_extra_keywords(kwd1, kwd2, val1, val2, tmp_path):
-    cal_in = UVCal()
+def test_extra_keywords(gain_data, kwd1, kwd2, val1, val2, tmp_path):
+    cal_in = gain_data
     cal_out = UVCal()
-    calfits_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     testfile = str(tmp_path / "outtest_extrakws.fits")
-    cal_in.read_calfits(calfits_file)
 
     # check handling of boolean keywords
     cal_in.extra_keywords[kwd1] = val1
@@ -309,11 +322,9 @@ def test_extra_keywords(kwd1, kwd2, val1, val2, tmp_path):
         ({"testarr": np.array([12, 14, 90])}, "Extra keyword testarr is of"),
     ],
 )
-def test_extra_keywords_errors(tmp_path, ex_val, error_msg):
-    cal_in = UVCal()
-    calfits_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
+def test_extra_keywords_errors(gain_data, tmp_path, ex_val, error_msg):
+    cal_in = gain_data
     testfile = str(tmp_path / "outtest_extrakwd_err.fits")
-    cal_in.read_calfits(calfits_file)
 
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
     keyword = list(ex_val.keys())[0]
@@ -329,11 +340,9 @@ def test_extra_keywords_errors(tmp_path, ex_val, error_msg):
     return
 
 
-def test_extra_keywords_warnings(tmp_path):
-    cal_in = UVCal()
-    calfits_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
+def test_extra_keywords_warnings(gain_data, tmp_path):
+    cal_in = gain_data
     testfile = str(tmp_path / "outtest_extrakwd_warn.fits")
-    cal_in.read_calfits(calfits_file)
 
     # check for warnings with extra_keywords keys that are too long
     cal_in.extra_keywords["test_long_key"] = True
@@ -350,22 +359,21 @@ def test_extra_keywords_warnings(tmp_path):
     return
 
 
-@pytest.mark.parametrize(
-    "filein",
-    ["zen.2457698.40355.xx.gain.calfits", "zen.2457698.40355.xx.delay.calfits"],
-)
-def test_input_flag_array(filein, tmp_path):
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_input_flag_array(caltype, gain_data, delay_data, tmp_path):
     """
     Test when data file has input flag array.
 
     Currently we do not have a testfile, so we will artifically create one
     and check for internal consistency.
     """
-    cal_in = UVCal()
+    if caltype == "gain":
+        cal_in = gain_data
+    else:
+        cal_in = delay_data
+
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, filein)
     write_file = str(tmp_path / "outtest_input_flags.fits")
-    cal_in.read_calfits(testfile)
     cal_in.input_flag_array = np.zeros(
         cal_in._input_flag_array.expected_shape(cal_in), dtype=bool
     )
@@ -374,28 +382,27 @@ def test_input_flag_array(filein, tmp_path):
     assert cal_in == cal_out
 
 
-@pytest.mark.parametrize(
-    "filein",
-    ["zen.2457698.40355.xx.gain.calfits", "zen.2457698.40355.xx.delay.calfits"],
-)
-def test_jones(filein, tmp_path):
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_jones(caltype, gain_data, delay_data, tmp_path):
     """
     Test when data file has more than one element in Jones matrix.
 
     Currently we do not have a testfile, so we will artifically create one
     and check for internal consistency.
     """
-    cal_in = UVCal()
+    if caltype == "gain":
+        cal_in = gain_data
+    else:
+        cal_in = delay_data
+
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, filein)
     write_file = str(tmp_path / "outtest_jones.fits")
-    cal_in.read_calfits(testfile)
 
     # Create filler jones info
     cal_in.jones_array = np.array([-5, -6, -7, -8])
     cal_in.Njones = 4
     cal_in.flag_array = np.zeros(cal_in._flag_array.expected_shape(cal_in), dtype=bool)
-    if "gain" in filein:
+    if caltype == "gain":
         cal_in.gain_array = np.ones(
             cal_in._gain_array.expected_shape(cal_in), dtype=np.complex64
         )
@@ -410,18 +417,21 @@ def test_jones(filein, tmp_path):
     assert cal_in == cal_out
 
 
-def test_readwriteread_total_quality_array(tmp_path):
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_readwriteread_total_quality_array(caltype, gain_data, delay_data, tmp_path):
     """
     Test when data file has a total quality array.
 
     Currently we have no such file, so we will artificially create one and
     check for internal consistency.
     """
-    cal_in = UVCal()
+    if caltype == "gain":
+        cal_in = gain_data
+    else:
+        cal_in = delay_data
+
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     write_file = str(tmp_path / "outtest_total_quality_array.fits")
-    cal_in.read_calfits(testfile)
 
     # Create filler total quality array
     cal_in.total_quality_array = np.zeros(
@@ -434,65 +444,38 @@ def test_readwriteread_total_quality_array(tmp_path):
     del cal_in
     del cal_out
 
-    # also test delay-type calibrations
-    cal_in = UVCal()
-    cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
-    write_file = str(tmp_path / "outtest_total_quality_array_delays.fits")
-    cal_in.read_calfits(testfile)
 
-    cal_in.total_quality_array = np.zeros(
-        cal_in._total_quality_array.expected_shape(cal_in)
-    )
-
-    cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file)
-    assert cal_in == cal_out
-    del cal_in
-    del cal_out
-
-
-def test_total_quality_array_size():
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_total_quality_array_size(caltype, gain_data, delay_data):
     """
     Test that total quality array defaults to the proper size
     """
-
-    cal_in = UVCal()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
-    cal_in.read_calfits(testfile)
+    if caltype == "gain":
+        cal_in = gain_data
+    else:
+        cal_in = delay_data
 
     # Create filler total quality array
     cal_in.total_quality_array = np.zeros(
         cal_in._total_quality_array.expected_shape(cal_in)
     )
 
-    proper_shape = (cal_in.Nspws, cal_in.Nfreqs, cal_in.Ntimes, cal_in.Njones)
-    assert cal_in.total_quality_array.shape == proper_shape
-    del cal_in
-
-    # also test delay-type calibrations
-    cal_in = UVCal()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
-    cal_in.read_calfits(testfile)
-
-    cal_in.total_quality_array = np.zeros(
-        cal_in._total_quality_array.expected_shape(cal_in)
-    )
-
-    proper_shape = (cal_in.Nspws, 1, cal_in.Ntimes, cal_in.Njones)
+    if caltype == "gain":
+        proper_shape = (1, cal_in.Nfreqs, cal_in.Ntimes, cal_in.Njones)
+    else:
+        proper_shape = (1, 1, cal_in.Ntimes, cal_in.Njones)
     assert cal_in.total_quality_array.shape == proper_shape
     del cal_in
 
 
-def test_write_time_precision(tmp_path):
+def test_write_time_precision(gain_data, tmp_path):
     """
     Test that times are being written to appropriate precision (see issue 311).
     """
-    cal_in = UVCal()
+    cal_in = gain_data
+
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     write_file = str(tmp_path / "outtest_time_prec.fits")
-    cal_in.read_calfits(testfile)
     # overwrite time array to break old code
     dt = cal_in.integration_time / (24.0 * 60.0 * 60.0)
     t0 = cal_in.time_array[0] + dt * 3
@@ -504,16 +487,15 @@ def test_write_time_precision(tmp_path):
     assert cal_in == cal_out
 
 
-def test_read_noversion_history(tmp_path):
+def test_read_noversion_history(gain_data, tmp_path):
     """
     Test that version info gets added to the history if it's missing
     """
-    cal_in = UVCal()
+    cal_in = gain_data
+
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     write_file = str(tmp_path / "outtest_nover.fits")
     write_file2 = str(tmp_path / "outtest_nover2.fits")
-    cal_in.read_calfits(testfile)
 
     cal_in.write_calfits(write_file, clobber=True)
 
@@ -535,12 +517,12 @@ def test_read_noversion_history(tmp_path):
     assert cal_in == cal_out
 
 
-def test_write_freq_spacing_not_channel_width(tmp_path):
-    cal_in = UVCal()
+@pytest.mark.filterwarnings("ignore:Selected frequencies are not contiguous")
+def test_write_freq_spacing_not_channel_width(gain_data, tmp_path):
+    cal_in = gain_data
+
     cal_out = UVCal()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     write_file = str(tmp_path / "outtest_freqspace.fits")
-    cal_in.read_calfits(testfile)
 
     # select every other frequency -- then evenly spaced but doesn't match channel width
     cal_in.select(freq_chans=np.arange(0, 10, 2))

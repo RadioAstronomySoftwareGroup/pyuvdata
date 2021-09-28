@@ -50,33 +50,57 @@ class CALFITS(UVCal):
             Option to overwrite the filename if the file already exists.
 
         """
-        if run_check:
-            self.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+        if self.Nspws > 1:
+            raise ValueError(
+                "The calfits format does not support multiple spectral windows"
             )
 
-        if self.Nfreqs > 1:
-            freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
-            if not np.isclose(
-                np.min(freq_spacing),
-                np.max(freq_spacing),
-                rtol=self._freq_array.tols[0],
-                atol=self._freq_array.tols[1],
-            ):
-                raise ValueError(
-                    "The frequencies are not evenly spaced (probably "
-                    "because of a select operation). The calfits format "
-                    "does not support unevenly spaced frequencies."
-                )
-            if np.isclose(freq_spacing[0], self.channel_width):
-                freq_spacing = self.channel_width
-            else:
-                rounded_spacing = np.around(
-                    freq_spacing, int(np.ceil(np.log10(self._freq_array.tols[1]) * -1))
-                )
-                freq_spacing = rounded_spacing[0]
+        if run_check:
+            self.check(
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+            )
+
+        # calfits allows for frequency spacing to not equal channel widths as long as
+        # the frequencies are evenly spaced, so only raise spacing error
+        spacing_error, chanwidth_error = self._check_freq_spacing(raise_errors=False)
+        if spacing_error:
+            raise ValueError(
+                "Frequencies are not evenly spaced or have differing "
+                "values of channel widths. The calfits format does not support "
+                "unevenly spaced frequencies or varying channel widths."
+            )
+
+        # we've already run the check_freq_spacing, so spacings and channel widths are
+        # the same to our tolerances
+        if self.future_array_shapes:
+            ref_freq = self.freq_array[0]
         else:
-            freq_spacing = self.channel_width
+            ref_freq = self.freq_array[0, 0]
+
+        if self.Nfreqs > 1:
+            if chanwidth_error:
+                # this means that the frequencies are evenly spaced but do not
+                # match our channel widths. Use some rounding to get a good delta.
+                if self.future_array_shapes:
+                    freq_arr_use = self.freq_array
+                else:
+                    freq_arr_use = self.freq_array[0, :]
+                rounded_spacing = np.around(
+                    np.diff(freq_arr_use),
+                    int(np.ceil(np.log10(self._freq_array.tols[1]) * -1)),
+                )
+                delta_freq_array = rounded_spacing[0]
+            else:
+                if self.future_array_shapes:
+                    delta_freq_array = np.median(self.channel_width)
+                else:
+                    delta_freq_array = self.channel_width
+        else:
+            if self.future_array_shapes:
+                delta_freq_array = self.channel_width[0]
+            else:
+                delta_freq_array = self.channel_width
 
         if self.Ntimes > 1:
             time_spacing = np.diff(self.time_array)
@@ -91,19 +115,52 @@ class CALFITS(UVCal):
                     "because of a select operation). The calfits format "
                     "does not support unevenly spaced times."
                 )
-            if np.isclose(time_spacing[0], self.integration_time / (24.0 * 60.0 ** 2)):
-                time_spacing = self.integration_time / (24.0 * 60.0 ** 2)
+            if self.future_array_shapes:
+                if not np.isclose(
+                    np.min(self.integration_time),
+                    np.max(self.integration_time),
+                    rtol=self._integration_time.tols[0],
+                    atol=self._integration_time.tols[1],
+                ):
+                    raise ValueError(
+                        "The integration times are variable. The calfits format "
+                        "does not support variable integration times."
+                    )
+                median_int_time = np.median(self.integration_time)
+                if np.isclose(time_spacing[0], median_int_time / (24.0 * 60.0 ** 2)):
+                    time_spacing = median_int_time / (24.0 * 60.0 ** 2)
+                else:
+                    rounded_spacing = np.around(
+                        time_spacing,
+                        int(
+                            np.ceil(
+                                np.log10(self._time_array.tols[1] / self.Ntimes) * -1
+                            )
+                            + 1
+                        ),
+                    )
+                    time_spacing = rounded_spacing[0]
             else:
-                rounded_spacing = np.around(
-                    time_spacing,
-                    int(
-                        np.ceil(np.log10(self._time_array.tols[1] / self.Ntimes) * -1)
-                        + 1
-                    ),
-                )
-                time_spacing = rounded_spacing[0]
+                if np.isclose(
+                    time_spacing[0], self.integration_time / (24.0 * 60.0 ** 2)
+                ):
+                    time_spacing = self.integration_time / (24.0 * 60.0 ** 2)
+                else:
+                    rounded_spacing = np.around(
+                        time_spacing,
+                        int(
+                            np.ceil(
+                                np.log10(self._time_array.tols[1] / self.Ntimes) * -1
+                            )
+                            + 1
+                        ),
+                    )
+                    time_spacing = rounded_spacing[0]
         else:
-            time_spacing = self.integration_time / (24.0 * 60.0 ** 2)
+            if self.future_array_shapes:
+                time_spacing = self.integration_time[0] / (24.0 * 60.0 ** 2)
+            else:
+                time_spacing = self.integration_time / (24.0 * 60.0 ** 2)
 
         if self.Njones > 1:
             jones_spacing = np.diff(self.jones_array)
@@ -153,8 +210,18 @@ class CALFITS(UVCal):
             prihdr["DIFFUSE"] = self.diffuse_model
         if self.gain_scale is not None:
             prihdr["GNSCALE"] = self.gain_scale
-        prihdr["INTTIME"] = self.integration_time
-        prihdr["CHWIDTH"] = self.channel_width
+        if self.future_array_shapes:
+            if self.Ntimes > 1:
+                prihdr["INTTIME"] = median_int_time
+            else:
+                prihdr["INTTIME"] = self.integration_time[0]
+            if self.Nfreqs > 1:
+                prihdr["CHWIDTH"] = np.median(self.channel_width)
+            else:
+                prihdr["CHWIDTH"] = self.channel_width[0]
+        else:
+            prihdr["INTTIME"] = self.integration_time
+            prihdr["CHWIDTH"] = self.channel_width
         prihdr["XORIENT"] = self.x_orientation
         if self.cal_type == "delay":
             prihdr["FRQRANGE"] = ",".join(map(str, self.freq_range))
@@ -178,7 +245,7 @@ class CALFITS(UVCal):
 
         # Define primary header values
         # Arrays have (column-major) dimensions of
-        # [Nimages, Njones, Ntimes, Nfreqs, Nspw, Nantennas]
+        # [Nimages, Njones, Ntimes, Nfreqs, 1, Nantennas]
         # For a "delay"-type calibration, Nfreqs is a shallow axis
 
         # set the axis for number of arrays
@@ -206,8 +273,8 @@ class CALFITS(UVCal):
         prihdr["CTYPE4"] = ("FREQS", "Frequency.")
         prihdr["CUNIT4"] = "Hz"
         prihdr["CRPIX4"] = 1
-        prihdr["CRVAL4"] = self.freq_array[0][0]
-        prihdr["CDELT4"] = freq_spacing
+        prihdr["CRVAL4"] = ref_freq
+        prihdr["CDELT4"] = delta_freq_array
 
         # spw axis: number of spectral windows
         prihdr["CTYPE5"] = ("IF", "Spectral window number.")
@@ -251,33 +318,42 @@ class CALFITS(UVCal):
 
         # define data section based on calibration type
         if self.cal_type == "gain":
+            calfits_data_shape = (
+                self.Nants_data,
+                1,
+                self.Nfreqs,
+                self.Ntimes,
+                self.Njones,
+                1,
+            )
             if self.input_flag_array is not None:
                 pridata = np.concatenate(
                     [
-                        self.gain_array.real[:, :, :, :, :, np.newaxis],
-                        self.gain_array.imag[:, :, :, :, :, np.newaxis],
-                        self.flag_array[:, :, :, :, :, np.newaxis],
-                        self.input_flag_array[:, :, :, :, :, np.newaxis],
-                        self.quality_array[:, :, :, :, :, np.newaxis],
+                        np.reshape(self.gain_array.real, calfits_data_shape),
+                        np.reshape(self.gain_array.imag, calfits_data_shape),
+                        np.reshape(self.flag_array, calfits_data_shape),
+                        np.reshape(self.input_flag_array, calfits_data_shape),
+                        np.reshape(self.quality_array, calfits_data_shape),
                     ],
                     axis=-1,
                 )
             else:
                 pridata = np.concatenate(
                     [
-                        self.gain_array.real[:, :, :, :, :, np.newaxis],
-                        self.gain_array.imag[:, :, :, :, :, np.newaxis],
-                        self.flag_array[:, :, :, :, :, np.newaxis],
-                        self.quality_array[:, :, :, :, :, np.newaxis],
+                        np.reshape(self.gain_array.real, calfits_data_shape),
+                        np.reshape(self.gain_array.imag, calfits_data_shape),
+                        np.reshape(self.flag_array, calfits_data_shape),
+                        np.reshape(self.quality_array, calfits_data_shape),
                     ],
                     axis=-1,
                 )
 
         elif self.cal_type == "delay":
+            calfits_data_shape = (self.Nants_data, 1, 1, self.Ntimes, self.Njones, 1)
             pridata = np.concatenate(
                 [
-                    self.delay_array[:, :, :, :, :, np.newaxis],
-                    self.quality_array[:, :, :, :, :, np.newaxis],
+                    np.reshape(self.delay_array, calfits_data_shape),
+                    np.reshape(self.quality_array, calfits_data_shape),
                 ],
                 axis=-1,
             )
@@ -308,8 +384,8 @@ class CALFITS(UVCal):
             sechdr["CTYPE4"] = ("FREQS", "Valid frequencies to apply delay.")
             sechdr["CUNIT4"] = "Hz"
             sechdr["CRPIX4"] = 1
-            sechdr["CRVAL4"] = self.freq_array[0][0]
-            sechdr["CDELT4"] = freq_spacing
+            sechdr["CRVAL4"] = ref_freq
+            sechdr["CDELT4"] = delta_freq_array
 
             sechdr["CTYPE5"] = ("IF", "Spectral window number.")
             sechdr["CUNIT5"] = "Integer"
@@ -323,22 +399,34 @@ class CALFITS(UVCal):
             )
 
             # convert from bool to int64; undone on read
+            calfits_data_shape = (
+                self.Nants_data,
+                1,
+                self.Nfreqs,
+                self.Ntimes,
+                self.Njones,
+                1,
+            )
             if self.input_flag_array is not None:
                 secdata = np.concatenate(
                     [
-                        self.flag_array.astype(np.int64)[:, :, :, :, :, np.newaxis],
-                        self.input_flag_array.astype(np.int64)[
-                            :, :, :, :, :, np.newaxis
-                        ],
+                        np.reshape(
+                            self.flag_array.astype(np.int64), calfits_data_shape
+                        ),
+                        np.reshape(
+                            self.input_flag_array.astype(np.int64), calfits_data_shape
+                        ),
                     ],
                     axis=-1,
                 )
             else:
-                secdata = self.flag_array.astype(np.int64)[:, :, :, :, :, np.newaxis]
+                secdata = np.reshape(
+                    self.flag_array.astype(np.int64), calfits_data_shape
+                )
 
         if self.total_quality_array is not None:
             # Set headers for the hdu containing the total_quality_array
-            # No antenna axis, so we have [Njones, Ntime, Nfreq, Nspws]
+            # No antenna axis, so we have [Njones, Ntime, Nfreq, 1]
             totqualhdr["CTYPE1"] = ("JONES", "Jones matrix array")
             totqualhdr["CUNIT1"] = (
                 "Integer",
@@ -357,8 +445,8 @@ class CALFITS(UVCal):
             totqualhdr["CTYPE3"] = ("FREQS", "Valid frequencies to apply delay.")
             totqualhdr["CUNIT3"] = "Hz"
             totqualhdr["CRPIX3"] = 1
-            totqualhdr["CRVAL3"] = self.freq_array[0][0]
-            totqualhdr["CDELT3"] = freq_spacing
+            totqualhdr["CRVAL3"] = ref_freq
+            totqualhdr["CDELT3"] = delta_freq_array
 
             # spws axis: number of spectral windows
             totqualhdr["CTYPE4"] = ("IF", "Spectral window number.")
@@ -366,7 +454,12 @@ class CALFITS(UVCal):
             totqualhdr["CRPIX4"] = 1
             totqualhdr["CRVAL4"] = 1
             totqualhdr["CDELT4"] = 1
-            totqualdata = self.total_quality_array
+
+            if self.cal_type == "gain":
+                calfits_tqa_shape = (1, self.Nfreqs, self.Ntimes, self.Njones)
+            else:
+                calfits_tqa_shape = (1, 1, self.Ntimes, self.Njones)
+            totqualdata = np.reshape(self.total_quality_array, calfits_tqa_shape)
 
         # make HDUs
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
@@ -543,17 +636,19 @@ class CALFITS(UVCal):
                 proc = None
 
             self.Nspws = hdr.pop("NAXIS5")
+            assert self.Nspws == 1, (
+                "This file appears to have multiple spectral windows, which is not "
+                "supported by the calfits format."
+            )
             # subtract 1 to be zero-indexed
             self.spw_array = uvutils._fits_gethduaxis(fname[0], 5) - 1
 
             self.Nants_data = hdr.pop("NAXIS6")
             if self.cal_type == "gain":
                 self._set_gain()
-
-                # generate frequency array from primary data unit.
                 self.Nfreqs = hdr.pop("NAXIS4")
                 self.freq_array = uvutils._fits_gethduaxis(fname[0], 4)
-                self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
+                self.freq_array.shape = (1,) + self.freq_array.shape
             if self.cal_type == "delay":
                 self._set_delay()
 
@@ -561,8 +656,12 @@ class CALFITS(UVCal):
                 # generate frequency array from flag data unit
                 # (no freq axis in primary).
                 self.Nfreqs = sechdu.header["NAXIS4"]
+                assert self.Nspws == 1, (
+                    "This file appears to have multiple spectral windows, which is not "
+                    "supported by the calfits format."
+                )
                 self.freq_array = uvutils._fits_gethduaxis(sechdu, 4)
-                self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
+                self.freq_array.shape = (1,) + self.freq_array.shape
 
                 spw_array = uvutils._fits_gethduaxis(sechdu, 5) - 1
 
@@ -639,7 +738,7 @@ class CALFITS(UVCal):
                     if self.cal_type != "delay":
                         # delay-type files won't have a freq_array
                         freq_array = uvutils._fits_gethduaxis(totqualhdu, 3)
-                        freq_array.shape = (self.Nspws,) + freq_array.shape
+                        freq_array.shape = (1,) + freq_array.shape
                         if not np.allclose(
                             freq_array,
                             self.freq_array,
