@@ -4002,7 +4002,7 @@ def uvcalibrate(
     # update attributes
     uvdata.history += "\nCalibrated with pyuvdata.utils.uvcalibrate."
     if undo:
-        uvdata.vis_units = "UNCALIB"
+        uvdata.vis_units = "uncalib"
     else:
         if uvcal_use.gain_scale is not None:
             uvdata.vis_units = uvcal_use.gain_scale
