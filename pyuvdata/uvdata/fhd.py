@@ -505,7 +505,7 @@ class FHD(UVData):
         self.Nfreqs = int(obs["N_FREQ"][0])
         self.Nspws = 1
         self.spw_array = np.array([0])
-        self.vis_units = "JY"
+        self.vis_units = "Jy"
 
         # bl_info.JDATE (a vector of length Ntimes) is the only safe date/time
         # to use in FHD files.
