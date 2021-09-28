@@ -124,8 +124,8 @@ def calc_uvw_args():
     yield default_args
 
 
-@pytest.fixture
-def uvcalibrate_init_data():
+@pytest.fixture(scope="session")
+def uvcalibrate_init_data_main():
     uvdata = UVData()
     uvdata.read(
         os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"),
@@ -139,14 +139,40 @@ def uvcalibrate_init_data():
     yield uvdata, uvcal
 
 
-@pytest.fixture
-def uvcalibrate_data(uvcalibrate_init_data):
-    uvdata, uvcal = uvcalibrate_init_data
+@pytest.fixture(scope="function")
+def uvcalibrate_init_data(uvcalibrate_init_data_main):
+    """Make function level initial uvcalibrate inputs."""
+    uvdata_in, uvcal_in = uvcalibrate_init_data_main
+
+    uvdata = uvdata_in.copy()
+    uvcal = uvcal_in.copy()
+
+    yield uvdata, uvcal
+
+
+@pytest.fixture(scope="session")
+def uvcalibrate_data_main(uvcalibrate_init_data_main):
+    """Make function level initial uvcalibrate inputs."""
+    uvdata_in, uvcal_in = uvcalibrate_init_data_main
+
+    uvdata = uvdata_in.copy()
+    uvcal = uvcal_in.copy()
 
     # fix the antenna names in the uvcal object to match the uvdata object
     uvcal.antenna_names = np.array(
         [name.replace("ant", "HH") for name in uvcal.antenna_names]
     )
+
+    yield uvdata, uvcal
+
+
+@pytest.fixture(scope="function")
+def uvcalibrate_data(uvcalibrate_data_main):
+    """Make function level uvcalibrate inputs."""
+    uvdata_in, uvcal_in = uvcalibrate_data_main
+
+    uvdata = uvdata_in.copy()
+    uvcal = uvcal_in.copy()
 
     yield uvdata, uvcal
 
@@ -2867,14 +2893,23 @@ def test_uvcalibrate_delay_oldfiles():
     assert uvdcal == uvdcal2
 
 
-@pytest.mark.parametrize("future_shapes", [True, False])
+@pytest.mark.parametrize("uvc_future_shapes", [True, False])
+@pytest.mark.parametrize("uvd_future_shapes", [True, False])
 @pytest.mark.parametrize("flip_gain_conj", [False, True])
 @pytest.mark.parametrize("gain_convention", ["divide", "multiply"])
-def test_uvcalibrate(uvcalibrate_data, future_shapes, flip_gain_conj, gain_convention):
+def test_uvcalibrate(
+    uvcalibrate_data,
+    uvc_future_shapes,
+    uvd_future_shapes,
+    flip_gain_conj,
+    gain_convention,
+):
     uvd, uvc = uvcalibrate_data
 
-    if future_shapes:
+    if uvd_future_shapes:
         uvd.use_future_array_shapes()
+    if uvc_future_shapes:
+        uvc.use_future_array_shapes()
 
     uvc.gain_convention = gain_convention
 
@@ -2923,7 +2958,7 @@ def test_uvcalibrate(uvcalibrate_data, future_shapes, flip_gain_conj, gain_conve
     assert uvdcal.vis_units == "uncalib"
 
 
-@pytest.mark.filterwarnings("ignore:Combined frequencies are not contiguous.")
+@pytest.mark.filterwarnings("ignore:Combined frequencies are separated by more than")
 def test_uvcalibrate_dterm_handling(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
@@ -2944,12 +2979,17 @@ def test_uvcalibrate_dterm_handling(uvcalibrate_data):
 
 
 @pytest.mark.filterwarnings("ignore:Cannot preserve total_quality_array")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_uvcalibrate_flag_propagation(uvcalibrate_data, future_shapes):
+@pytest.mark.parametrize("uvc_future_shapes", [True, False])
+@pytest.mark.parametrize("uvd_future_shapes", [True, False])
+def test_uvcalibrate_flag_propagation(
+    uvcalibrate_data, uvc_future_shapes, uvd_future_shapes
+):
     uvd, uvc = uvcalibrate_data
 
-    if future_shapes:
+    if uvd_future_shapes:
         uvd.use_future_array_shapes()
+    if uvc_future_shapes:
+        uvc.use_future_array_shapes()
 
     # test flag propagation
     uvc.flag_array[0] = True
@@ -3083,6 +3123,7 @@ def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data, future_shapes
 
     if future_shapes:
         uvd.use_future_array_shapes()
+        uvc.use_future_array_shapes()
 
     with pytest.raises(
         ValueError,
@@ -3189,7 +3230,7 @@ def test_uvcalibrate_time_types(uvcalibrate_data, len_time_range):
     )
 
 
-@pytest.mark.filterwarnings("ignore:Combined frequencies are not contiguous.")
+@pytest.mark.filterwarnings("ignore:Combined frequencies are separated by more than")
 def test_uvcalibrate_extra_cal_times(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
@@ -3225,6 +3266,7 @@ def test_uvcalibrate_freq_mismatch(uvcalibrate_data):
 
 
 @pytest.mark.filterwarnings("ignore:Combined frequencies are not evenly spaced.")
+@pytest.mark.filterwarnings("ignore:Selected frequencies are not contiguous.")
 def test_uvcalibrate_extra_cal_freqs(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 

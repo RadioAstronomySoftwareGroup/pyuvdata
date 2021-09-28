@@ -13,7 +13,6 @@ import numpy as np
 from pyuvdata import UVCal
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
-from pyuvdata.data import DATA_PATH
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:telescope_location is not set. Using known values",
@@ -38,6 +37,7 @@ def uvcal_data():
         "freq_array",
         "channel_width",
         "spw_array",
+        "flex_spw",
         "jones_array",
         "time_array",
         "integration_time",
@@ -47,6 +47,7 @@ def uvcal_data():
         "cal_type",
         "cal_style",
         "x_orientation",
+        "future_array_shapes",
         "history",
     ]
     required_parameters = ["_" + prop for prop in required_properties]
@@ -66,6 +67,7 @@ def uvcal_data():
         "input_flag_array",
         "time_range",
         "freq_range",
+        "flex_spw_id_array",
         "observer",
         "git_origin_cal",
         "git_hash_cal",
@@ -93,41 +95,6 @@ def uvcal_data():
     # some post-test object cleanup
     del uv_cal_object
     return
-
-
-@pytest.fixture(scope="function")
-def gain_data():
-    """Initialize for some basic uvcal tests."""
-    gain_object = UVCal()
-    gainfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
-    gain_object.read_calfits(gainfile)
-
-    yield gain_object
-
-    del gain_object
-
-
-@pytest.fixture(scope="function")
-def delay_data(tmp_path):
-    """Initialization for some basic uvcal tests."""
-
-    delay_object = UVCal()
-    delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
-
-    # add an input flag array to the file to test for that.
-    write_file = str(tmp_path / "outtest_input_flags.fits")
-    uv_in = UVCal()
-    uv_in.read_calfits(delayfile)
-    uv_in.input_flag_array = np.zeros(
-        uv_in._input_flag_array.expected_shape(uv_in), dtype=bool
-    )
-    uv_in.write_calfits(write_file, clobber=True)
-    delay_object.read_calfits(write_file)
-
-    # yield the data for testing, then del after tests finish
-    yield delay_object
-
-    del delay_object
 
 
 def test_parameter_iter(uvcal_data):
@@ -282,6 +249,50 @@ def test_check_flag_array(gain_data):
         gain_data.check()
 
 
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_future_array_shape(caltype, gain_data, delay_data_inputflag):
+    """Convert to future shapes and check. Convert back and test for equality."""
+    if caltype == "gain":
+        calobj = gain_data
+        calobj.total_quality_array = np.ones(
+            (calobj._total_quality_array.expected_shape(calobj))
+        )
+        calobj.input_flag_array = np.zeros(
+            calobj._input_flag_array.expected_shape(calobj)
+        ).astype(np.bool_)
+        calobj2 = calobj.copy()
+    else:
+        calobj = delay_data_inputflag
+        calobj.total_quality_array = np.ones(
+            (calobj._total_quality_array.expected_shape(calobj))
+        )
+        calobj.input_flag_array = np.zeros(
+            calobj._input_flag_array.expected_shape(calobj)
+        ).astype(np.bool_)
+        calobj2 = calobj.copy()
+
+    calobj.use_future_array_shapes()
+    calobj.check()
+
+    calobj.use_current_array_shapes()
+    calobj.check()
+
+    assert calobj == calobj2
+
+    if caltype == "gain":
+        calobj.use_future_array_shapes()
+        calobj.channel_width[-1] = calobj.channel_width[0] * 2.0
+        calobj.check()
+
+        with pytest.raises(
+            ValueError, match="channel_width parameter contains multiple unique values"
+        ):
+            calobj.use_current_array_shapes()
+
+        with pytest.raises(ValueError, match="The frequencies are not evenly spaced"):
+            calobj._check_freq_spacing()
+
+
 def test_unknown_telescopes(gain_data, tmp_path):
     calobj = gain_data
     calobj.telescope_name = "foo"
@@ -388,109 +399,105 @@ def test_error_metadata_only_write(gain_data, tmp_path):
         calobj.write_calfits(out_file)
 
 
-def test_convert_to_gain(gain_data, delay_data):
-    conventions = ["minus", "plus"]
-    for c in conventions:
-        gain_data.new_object = delay_data.copy()
+@pytest.mark.parametrize("future_shapes", [True, False])
+@pytest.mark.parametrize("convention", ["minus", "plus"])
+def test_convert_to_gain(future_shapes, convention, gain_data, delay_data_inputflag):
+    gain_obj = gain_data
+    delay_obj = delay_data_inputflag
 
-        gain_data.new_object.convert_to_gain(delay_convention=c)
-        assert np.isclose(
-            np.max(np.absolute(gain_data.new_object.gain_array)),
-            1.0,
-            rtol=gain_data.new_object._gain_array.tols[0],
-            atol=gain_data.new_object._gain_array.tols[1],
-        )
-        assert np.isclose(
-            np.min(np.absolute(gain_data.new_object.gain_array)),
-            1.0,
-            rtol=gain_data.new_object._gain_array.tols[0],
-            atol=gain_data.new_object._gain_array.tols[1],
-        )
+    if future_shapes:
+        gain_obj.use_future_array_shapes()
+        delay_obj.use_future_array_shapes()
 
-        if c == "minus":
-            conv = -1
-        else:
-            conv = 1
+    new_gain_obj = delay_obj.copy()
+    tqa_size = new_gain_obj.delay_array.shape[1:]
+    new_gain_obj.total_quality_array = np.ones(tqa_size)
+
+    new_gain_obj.convert_to_gain(delay_convention=convention)
+    assert np.isclose(
+        np.max(np.absolute(new_gain_obj.gain_array)),
+        1.0,
+        rtol=new_gain_obj._gain_array.tols[0],
+        atol=new_gain_obj._gain_array.tols[1],
+    )
+    assert np.isclose(
+        np.min(np.absolute(new_gain_obj.gain_array)),
+        1.0,
+        rtol=new_gain_obj._gain_array.tols[0],
+        atol=new_gain_obj._gain_array.tols[1],
+    )
+
+    if convention == "minus":
+        conv = -1
+    else:
+        conv = 1
+    if future_shapes:
         assert np.allclose(
-            np.angle(gain_data.new_object.gain_array[:, :, 10, :, :]) % (2 * np.pi),
+            np.angle(new_gain_obj.gain_array[:, 10, :, :]) % (2 * np.pi),
             (
                 conv
                 * 2
                 * np.pi
-                * delay_data.delay_array[:, :, 0, :, :]
-                * delay_data.freq_array[0, 10]
+                * delay_obj.delay_array[:, 0, :, :]
+                * delay_obj.freq_array[10]
             )
             % (2 * np.pi),
-            rtol=gain_data.new_object._gain_array.tols[0],
-            atol=gain_data.new_object._gain_array.tols[1],
+            rtol=new_gain_obj._gain_array.tols[0],
+            atol=new_gain_obj._gain_array.tols[1],
         )
         assert np.allclose(
-            delay_data.quality_array,
-            gain_data.new_object.quality_array[:, :, 10, :, :],
-            rtol=gain_data.new_object._quality_array.tols[0],
-            atol=gain_data.new_object._quality_array.tols[1],
+            delay_obj.quality_array,
+            new_gain_obj.quality_array[:, 10, :, :],
+            rtol=new_gain_obj._quality_array.tols[0],
+            atol=new_gain_obj._quality_array.tols[1],
         )
 
-        assert gain_data.new_object.history == (
-            delay_data.history + "  Converted from delays to gains using pyuvdata."
+    else:
+        assert np.allclose(
+            np.angle(new_gain_obj.gain_array[:, :, 10, :, :]) % (2 * np.pi),
+            (
+                conv
+                * 2
+                * np.pi
+                * delay_obj.delay_array[:, :, 0, :, :]
+                * delay_obj.freq_array[0, 10]
+            )
+            % (2 * np.pi),
+            rtol=new_gain_obj._gain_array.tols[0],
+            atol=new_gain_obj._gain_array.tols[1],
+        )
+        assert np.allclose(
+            delay_obj.quality_array,
+            new_gain_obj.quality_array[:, :, 10, :, :],
+            rtol=new_gain_obj._quality_array.tols[0],
+            atol=new_gain_obj._quality_array.tols[1],
         )
 
-    # test a file with a total_quality_array
-    gain_data.new_object = delay_data.copy()
-    tqa_size = gain_data.new_object.delay_array.shape[1:]
-    gain_data.new_object.total_quality_array = np.ones(tqa_size)
-    gain_data.new_object.convert_to_gain(delay_convention="minus")
-    assert np.isclose(
-        np.max(np.absolute(gain_data.new_object.gain_array)),
-        1.0,
-        rtol=gain_data.new_object._gain_array.tols[0],
-        atol=gain_data.new_object._gain_array.tols[1],
-    )
-    assert np.isclose(
-        np.min(np.absolute(gain_data.new_object.gain_array)),
-        1.0,
-        rtol=gain_data.new_object._gain_array.tols[0],
-        atol=gain_data.new_object._gain_array.tols[1],
-    )
-    assert np.allclose(
-        np.angle(gain_data.new_object.gain_array[:, :, 10, :, :]) % (2 * np.pi),
-        (
-            -1
-            * 2
-            * np.pi
-            * delay_data.delay_array[:, :, 0, :, :]
-            * delay_data.freq_array[0, 10]
-        )
-        % (2 * np.pi),
-        rtol=gain_data.new_object._gain_array.tols[0],
-        atol=gain_data.new_object._gain_array.tols[1],
-    )
-    assert np.allclose(
-        delay_data.quality_array,
-        gain_data.new_object.quality_array[:, :, 10, :, :],
-        rtol=gain_data.new_object._quality_array.tols[0],
-        atol=gain_data.new_object._quality_array.tols[1],
-    )
-
-    assert gain_data.new_object.history == (
-        delay_data.history + "  Converted from delays to gains using pyuvdata."
+    assert new_gain_obj.history == (
+        delay_obj.history + "  Converted from delays to gains using pyuvdata."
     )
 
     # error testing
-    pytest.raises(ValueError, delay_data.convert_to_gain, delay_convention="bogus")
+    pytest.raises(ValueError, delay_obj.convert_to_gain, delay_convention="bogus")
     pytest.raises(ValueError, gain_data.convert_to_gain)
     gain_data._set_unknown_cal_type()
     pytest.raises(ValueError, gain_data.convert_to_gain)
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_select_antennas(caltype, gain_data, delay_data, tmp_path):
+def test_select_antennas(
+    caltype, future_shapes, gain_data, delay_data_inputflag, tmp_path
+):
     if caltype == "gain":
         calobj = gain_data
-        calobj2 = calobj.copy()
     else:
-        calobj = delay_data
-        calobj2 = calobj.copy()
+        calobj = delay_data_inputflag
+
+    if future_shapes:
+        calobj.use_future_array_shapes()
+
+    calobj2 = calobj.copy()
 
     old_history = calobj.history
     ants_to_keep = np.array([65, 96, 9, 97, 89, 22, 20, 72])
@@ -543,6 +550,8 @@ def test_select_antennas(caltype, gain_data, delay_data, tmp_path):
     # check that reading it back in works too
     new_gain_object = UVCal()
     new_gain_object.read_calfits(write_file_calfits)
+    if future_shapes:
+        new_gain_object.use_future_array_shapes()
     assert calobj2 == new_gain_object
 
     # check that total_quality_array is handled properly when present
@@ -556,14 +565,21 @@ def test_select_antennas(caltype, gain_data, delay_data, tmp_path):
     assert calobj.total_quality_array is None
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_select_times(caltype, gain_data, delay_data, tmp_path):
+def test_select_times(
+    future_shapes, caltype, gain_data, delay_data_inputflag, tmp_path
+):
     if caltype == "gain":
         calobj = gain_data
-        calobj2 = calobj.copy()
     else:
-        calobj = delay_data
-        calobj2 = calobj.copy()
+        calobj = delay_data_inputflag
+
+    if future_shapes:
+        calobj.use_future_array_shapes()
+
+    calobj2 = calobj.copy()
+
     old_history = calobj.history
     times_to_keep = calobj.time_array[2:5]
 
@@ -603,17 +619,27 @@ def test_select_times(caltype, gain_data, delay_data, tmp_path):
     pytest.raises(ValueError, calobj2.write_calfits, write_file_calfits)
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_select_frequencies(caltype, gain_data, delay_data, tmp_path):
+def test_select_frequencies(
+    future_shapes, caltype, gain_data, delay_data_inputflag, tmp_path
+):
     if caltype == "gain":
         calobj = gain_data
-        calobj2 = calobj.copy()
     else:
-        calobj = delay_data
-        calobj2 = calobj.copy()
+        calobj = delay_data_inputflag
+
+    if future_shapes:
+        calobj.use_future_array_shapes()
+
+    calobj2 = calobj.copy()
 
     old_history = calobj.history
-    freqs_to_keep = calobj.freq_array[0, np.arange(4, 8)]
+
+    if future_shapes:
+        freqs_to_keep = calobj.freq_array[np.arange(4, 8)]
+    else:
+        freqs_to_keep = calobj.freq_array[0, np.arange(4, 8)]
 
     # add dummy total_quality_array
     calobj.total_quality_array = np.zeros(
@@ -639,7 +665,10 @@ def test_select_frequencies(caltype, gain_data, delay_data, tmp_path):
     write_file_calfits = str(tmp_path / "select_test.calfits")
     # test writing calfits with only one frequency
     calobj2 = calobj.copy()
-    freqs_to_keep = calobj.freq_array[0, 5]
+    if future_shapes:
+        freqs_to_keep = calobj.freq_array[5]
+    else:
+        freqs_to_keep = calobj.freq_array[0, 5]
     calobj2.select(frequencies=freqs_to_keep)
     calobj2.write_calfits(write_file_calfits, clobber=True)
 
@@ -652,21 +681,25 @@ def test_select_frequencies(caltype, gain_data, delay_data, tmp_path):
 
     # check for warnings and errors associated with unevenly spaced frequencies
     calobj2 = calobj.copy()
+    if future_shapes:
+        freqs_to_keep = calobj2.freq_array[[0, 5, 6]]
+    else:
+        freqs_to_keep = calobj2.freq_array[0, [0, 5, 6]]
     with uvtest.check_warnings(
         UserWarning, match="Selected frequencies are not evenly spaced",
     ):
-        calobj2.select(frequencies=calobj2.freq_array[0, [0, 5, 6]])
+        calobj2.select(frequencies=freqs_to_keep)
     pytest.raises(ValueError, calobj2.write_calfits, write_file_calfits)
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_select_freq_chans(caltype, gain_data, delay_data):
+def test_select_freq_chans(caltype, gain_data, delay_data_inputflag):
     if caltype == "gain":
         calobj = gain_data
-        calobj2 = calobj.copy()
     else:
-        calobj = delay_data
-        calobj2 = calobj.copy()
+        calobj = delay_data_inputflag
+
+    calobj2 = calobj.copy()
 
     old_history = calobj.history
     chans_to_keep = np.arange(4, 8)
@@ -688,7 +721,7 @@ def test_select_freq_chans(caltype, gain_data, delay_data):
         assert f in calobj.freq_array[0, chans_to_keep]
 
     assert uvutils._check_histories(
-        old_history + "  Downselected to " "specific frequencies using pyuvdata.",
+        old_history + "  Downselected to specific frequencies using pyuvdata.",
         calobj2.history,
     )
 
@@ -706,43 +739,72 @@ def test_select_freq_chans(caltype, gain_data, delay_data):
         assert f in calobj.freq_array[0, all_chans_to_keep]
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize(
     "jones_to_keep", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]])
 )
-def test_select_polarizations(caltype, jones_to_keep, gain_data, delay_data):
+def test_select_polarizations(
+    future_shapes, caltype, jones_to_keep, gain_data, delay_data_inputflag, tmp_path
+):
     if caltype == "gain":
         calobj = gain_data
-        calobj2 = calobj.copy()
     else:
-        calobj = delay_data
-        calobj2 = calobj.copy()
+        calobj = delay_data_inputflag
+
+    if future_shapes:
+        calobj.use_future_array_shapes()
+
+    calobj2 = calobj.copy()
 
     # add more jones terms to allow for better testing of selections
     while calobj.Njones < 4:
         new_jones = np.min(calobj.jones_array) - 1
         calobj.jones_array = np.append(calobj.jones_array, new_jones)
         calobj.Njones += 1
-        calobj.flag_array = np.concatenate(
-            (calobj.flag_array, calobj.flag_array[:, :, :, :, [-1]],), axis=4,
-        )
-        if calobj.input_flag_array is not None:
-            calobj.input_flag_array = np.concatenate(
-                (calobj.input_flag_array, calobj.input_flag_array[:, :, :, :, [-1]],),
-                axis=4,
+        if future_shapes:
+            calobj.flag_array = np.concatenate(
+                (calobj.flag_array, calobj.flag_array[:, :, :, [-1]],), axis=3,
             )
-        if caltype == "gain":
-            calobj.gain_array = np.concatenate(
-                (calobj.gain_array, calobj.gain_array[:, :, :, :, [-1]],), axis=4,
+            if calobj.input_flag_array is not None:
+                calobj.input_flag_array = np.concatenate(
+                    (calobj.input_flag_array, calobj.input_flag_array[:, :, :, [-1]],),
+                    axis=3,
+                )
+            if caltype == "gain":
+                calobj.gain_array = np.concatenate(
+                    (calobj.gain_array, calobj.gain_array[:, :, :, [-1]],), axis=3,
+                )
+            else:
+                calobj.delay_array = np.concatenate(
+                    (calobj.delay_array, calobj.delay_array[:, :, :, [-1]],), axis=3,
+                )
+            calobj.quality_array = np.concatenate(
+                (calobj.quality_array, calobj.quality_array[:, :, :, [-1]],), axis=3,
             )
         else:
-            delay_data.delay_array = np.concatenate(
-                (delay_data.delay_array, delay_data.delay_array[:, :, :, :, [-1]],),
-                axis=4,
+            calobj.flag_array = np.concatenate(
+                (calobj.flag_array, calobj.flag_array[:, :, :, :, [-1]],), axis=4,
             )
-        calobj.quality_array = np.concatenate(
-            (calobj.quality_array, calobj.quality_array[:, :, :, :, [-1]],), axis=4,
-        )
+            if calobj.input_flag_array is not None:
+                calobj.input_flag_array = np.concatenate(
+                    (
+                        calobj.input_flag_array,
+                        calobj.input_flag_array[:, :, :, :, [-1]],
+                    ),
+                    axis=4,
+                )
+            if caltype == "gain":
+                calobj.gain_array = np.concatenate(
+                    (calobj.gain_array, calobj.gain_array[:, :, :, :, [-1]],), axis=4,
+                )
+            else:
+                calobj.delay_array = np.concatenate(
+                    (calobj.delay_array, calobj.delay_array[:, :, :, :, [-1]],), axis=4,
+                )
+            calobj.quality_array = np.concatenate(
+                (calobj.quality_array, calobj.quality_array[:, :, :, :, [-1]],), axis=4,
+            )
     # add dummy total_quality_array
     calobj.total_quality_array = np.zeros(
         calobj._total_quality_array.expected_shape(calobj)
@@ -789,24 +851,31 @@ def test_select_polarizations(caltype, jones_to_keep, gain_data, delay_data):
         UserWarning, match="Selected jones polarization terms are not evenly spaced",
     ):
         calobj.select(jones=calobj.jones_array[[0, 1, 3]])
-    write_file_calfits = os.path.join(DATA_PATH, "test/select_test.calfits")
+    write_file_calfits = os.path.join(tmp_path, "select_test.calfits")
     pytest.raises(ValueError, calobj.write_calfits, write_file_calfits)
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_select(caltype, gain_data, delay_data):
+def test_select(future_shapes, caltype, gain_data, delay_data_inputflag):
     # now test selecting along all axes at once
     if caltype == "gain":
         calobj = gain_data
-        calobj2 = calobj.copy()
     else:
-        calobj = delay_data
-        calobj2 = calobj.copy()
+        calobj = delay_data_inputflag
+
+    if future_shapes:
+        calobj.use_future_array_shapes()
+
+    calobj2 = calobj.copy()
 
     old_history = calobj.history
 
     ants_to_keep = np.array([10, 89, 43, 9, 80, 96, 64])
-    freqs_to_keep = calobj.freq_array[0, np.arange(2, 5)]
+    if future_shapes:
+        freqs_to_keep = calobj.freq_array[np.arange(2, 5)]
+    else:
+        freqs_to_keep = calobj.freq_array[0, np.arange(2, 5)]
     times_to_keep = calobj.time_array[[1, 2]]
     jones_to_keep = [-5]
 
@@ -850,15 +919,19 @@ def test_select(caltype, gain_data, delay_data):
     )
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_add_antennas(caltype, gain_data, delay_data):
+def test_add_antennas(future_shapes, caltype, gain_data, delay_data_inputflag):
     """Test adding antennas between two UVCal objects"""
     if caltype == "gain":
         calobj = gain_data
-        calobj2 = calobj.copy()
     else:
-        calobj = delay_data
-        calobj2 = calobj.copy()
+        calobj = delay_data_inputflag
+
+    if future_shapes:
+        calobj.use_future_array_shapes()
+
+    calobj2 = calobj.copy()
 
     calobj_full = calobj.copy()
     ants1 = np.array([9, 10, 20, 22, 31, 43, 53, 64, 65, 72])
@@ -920,15 +993,24 @@ def test_add_antennas(caltype, gain_data, delay_data):
     assert calobj == calobj_full
 
 
-def test_add_frequencies(gain_data):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_add_frequencies(future_shapes, gain_data):
     """Test adding frequencies between two UVCal objects"""
     # don't test on delays because there's no freq axis for the delay array
     calobj = gain_data
+
+    if future_shapes:
+        calobj.use_future_array_shapes()
+
     calobj2 = calobj.copy()
 
     calobj_full = calobj.copy()
-    freqs1 = calobj.freq_array[0, np.arange(0, calobj.Nfreqs // 2)]
-    freqs2 = calobj.freq_array[0, np.arange(calobj.Nfreqs // 2, calobj.Nfreqs)]
+    if future_shapes:
+        freqs1 = calobj.freq_array[np.arange(0, calobj.Nfreqs // 2)]
+        freqs2 = calobj.freq_array[np.arange(calobj.Nfreqs // 2, calobj.Nfreqs)]
+    else:
+        freqs1 = calobj.freq_array[0, np.arange(0, calobj.Nfreqs // 2)]
+        freqs2 = calobj.freq_array[0, np.arange(calobj.Nfreqs // 2, calobj.Nfreqs)]
     calobj.select(frequencies=freqs1)
     calobj2.select(frequencies=freqs2)
     calobj += calobj2
@@ -946,7 +1028,10 @@ def test_add_frequencies(gain_data):
     calobj.select(frequencies=freqs1)
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.zeros(calobj2._total_quality_array.expected_shape(calobj2))
-    tot_tqa = np.concatenate([tqa, tqa2], axis=1)
+    if future_shapes:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=0)
+    else:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=1)
     calobj.total_quality_array = tqa
     calobj += calobj2
     assert np.allclose(
@@ -960,7 +1045,10 @@ def test_add_frequencies(gain_data):
     calobj.select(frequencies=freqs1)
     tqa = np.zeros(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
-    tot_tqa = np.concatenate([tqa, tqa2], axis=1)
+    if future_shapes:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=0)
+    else:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=1)
     calobj.total_quality_array = None
     calobj2.total_quality_array = tqa2
     calobj += calobj2
@@ -976,7 +1064,10 @@ def test_add_frequencies(gain_data):
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
     tqa *= 2
-    tot_tqa = np.concatenate([tqa, tqa2], axis=1)
+    if future_shapes:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=0)
+    else:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=1)
     calobj.total_quality_array = tqa
     calobj2.total_quality_array = tqa2
     calobj += calobj2
@@ -997,7 +1088,10 @@ def test_add_frequencies(gain_data):
     calobj2.select(frequencies=freqs2)
     ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
     ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(np.bool_)
-    tot_ifa = np.concatenate([ifa, ifa2], axis=2)
+    if future_shapes:
+        tot_ifa = np.concatenate([ifa, ifa2], axis=1)
+    else:
+        tot_ifa = np.concatenate([ifa, ifa2], axis=2)
     calobj.input_flag_array = ifa
     calobj2.input_flag_array = None
     calobj += calobj2
@@ -1007,7 +1101,10 @@ def test_add_frequencies(gain_data):
     calobj.select(frequencies=freqs1)
     ifa = np.ones(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
     ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(np.bool_)
-    tot_ifa = np.concatenate([ifa, ifa2], axis=2)
+    if future_shapes:
+        tot_ifa = np.concatenate([ifa, ifa2], axis=1)
+    else:
+        tot_ifa = np.concatenate([ifa, ifa2], axis=2)
     calobj.input_flag_array = None
     calobj2.input_flag_array = ifa2
     calobj += calobj2
@@ -1023,15 +1120,19 @@ def test_add_frequencies(gain_data):
     assert calobj == calobj_full
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_add_times(caltype, gain_data, delay_data):
+def test_add_times(future_shapes, caltype, gain_data, delay_data_inputflag):
     """Test adding times between two UVCal objects"""
     if caltype == "gain":
         calobj = gain_data
-        calobj2 = calobj.copy()
     else:
-        calobj = delay_data
-        calobj2 = calobj.copy()
+        calobj = delay_data_inputflag
+
+    if future_shapes:
+        calobj.use_future_array_shapes()
+
+    calobj2 = calobj.copy()
 
     calobj_full = calobj.copy()
     n_times2 = calobj.Ntimes // 2
@@ -1054,7 +1155,10 @@ def test_add_times(caltype, gain_data, delay_data):
     calobj.select(times=times1)
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.zeros(calobj2._total_quality_array.expected_shape(calobj2))
-    tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+    if future_shapes:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=1)
+    else:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
     calobj.total_quality_array = tqa
     calobj += calobj2
     assert np.allclose(
@@ -1068,7 +1172,10 @@ def test_add_times(caltype, gain_data, delay_data):
     calobj.select(times=times1)
     tqa = np.zeros(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
-    tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+    if future_shapes:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=1)
+    else:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
     calobj.total_quality_array = None
     calobj2.total_quality_array = tqa2
     calobj += calobj2
@@ -1084,7 +1191,10 @@ def test_add_times(caltype, gain_data, delay_data):
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
     tqa *= 2
-    tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+    if future_shapes:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=1)
+    else:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
     calobj.total_quality_array = tqa
     calobj2.total_quality_array = tqa2
     calobj += calobj2
@@ -1102,7 +1212,10 @@ def test_add_times(caltype, gain_data, delay_data):
         ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(
             np.bool_
         )
-        tot_ifa = np.concatenate([ifa, ifa2], axis=3)
+        if future_shapes:
+            tot_ifa = np.concatenate([ifa, ifa2], axis=2)
+        else:
+            tot_ifa = np.concatenate([ifa, ifa2], axis=3)
         calobj.input_flag_array = ifa
         calobj2.input_flag_array = None
         calobj += calobj2
@@ -1114,7 +1227,10 @@ def test_add_times(caltype, gain_data, delay_data):
         ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(
             np.bool_
         )
-        tot_ifa = np.concatenate([ifa, ifa2], axis=3)
+        if future_shapes:
+            tot_ifa = np.concatenate([ifa, ifa2], axis=2)
+        else:
+            tot_ifa = np.concatenate([ifa, ifa2], axis=3)
         calobj.input_flag_array = None
         calobj2.input_flag_array = ifa2
         calobj += calobj2
@@ -1130,15 +1246,19 @@ def test_add_times(caltype, gain_data, delay_data):
     assert calobj == calobj_full
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_add_jones(caltype, gain_data, delay_data):
+def test_add_jones(future_shapes, caltype, gain_data, delay_data_inputflag):
     """Test adding Jones axes between two UVCal objects"""
     if caltype == "gain":
         calobj = gain_data
-        calobj2 = calobj.copy()
     else:
-        calobj = delay_data
-        calobj2 = calobj.copy()
+        calobj = delay_data_inputflag
+
+    if future_shapes:
+        calobj.use_future_array_shapes()
+
+    calobj2 = calobj.copy()
 
     calobj_original = calobj.copy()
     # artificially change the Jones value to permit addition
@@ -1156,7 +1276,10 @@ def test_add_jones(caltype, gain_data, delay_data):
     calobj = calobj_original.copy()
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.zeros(calobj2._total_quality_array.expected_shape(calobj2))
-    tot_tqa = np.concatenate([tqa, tqa2], axis=3)
+    if future_shapes:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+    else:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=3)
     calobj.total_quality_array = tqa
     calobj += calobj2
     assert np.allclose(
@@ -1170,7 +1293,10 @@ def test_add_jones(caltype, gain_data, delay_data):
     calobj = calobj_original.copy()
     tqa = np.zeros(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
-    tot_tqa = np.concatenate([tqa, tqa2], axis=3)
+    if future_shapes:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+    else:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=3)
     calobj2.total_quality_array = tqa2
     calobj += calobj2
     assert np.allclose(
@@ -1185,7 +1311,10 @@ def test_add_jones(caltype, gain_data, delay_data):
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
     tqa *= 2
-    tot_tqa = np.concatenate([tqa, tqa2], axis=3)
+    if future_shapes:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+    else:
+        tot_tqa = np.concatenate([tqa, tqa2], axis=3)
     calobj.total_quality_array = tqa
     calobj2.total_quality_array = tqa2
     calobj += calobj2
@@ -1203,7 +1332,10 @@ def test_add_jones(caltype, gain_data, delay_data):
         ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(
             np.bool_
         )
-        tot_ifa = np.concatenate([ifa, ifa2], axis=4)
+        if future_shapes:
+            tot_ifa = np.concatenate([ifa, ifa2], axis=3)
+        else:
+            tot_ifa = np.concatenate([ifa, ifa2], axis=4)
         calobj.input_flag_array = ifa
         calobj2.input_flag_array = None
         calobj += calobj2
@@ -1215,7 +1347,10 @@ def test_add_jones(caltype, gain_data, delay_data):
         ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(
             np.bool_
         )
-        tot_ifa = np.concatenate([ifa, ifa2], axis=4)
+        if future_shapes:
+            tot_ifa = np.concatenate([ifa, ifa2], axis=3)
+        else:
+            tot_ifa = np.concatenate([ifa, ifa2], axis=4)
         calobj.input_flag_array = None
         calobj2.input_flag_array = ifa2
         calobj += calobj2
@@ -1237,14 +1372,14 @@ def test_add_jones(caltype, gain_data, delay_data):
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_add(caltype, gain_data, delay_data):
+def test_add(caltype, gain_data, delay_data_inputflag):
     """Test miscellaneous aspects of add method"""
     if caltype == "gain":
         calobj = gain_data
-        calobj2 = calobj.copy()
     else:
-        calobj = delay_data
-        calobj2 = calobj.copy()
+        calobj = delay_data_inputflag
+
+    calobj2 = calobj.copy()
 
     # test not-in-place addition
     calobj_original = calobj.copy()
@@ -1320,10 +1455,10 @@ def test_add_errors(caltype, gain_data, delay_data):
     """Test behavior that will raise errors"""
     if caltype == "gain":
         calobj = gain_data
-        calobj2 = calobj.copy()
     else:
         calobj = delay_data
-        calobj2 = calobj.copy()
+
+    calobj2 = calobj.copy()
 
     # test addition of two identical objects
     with pytest.raises(
@@ -1360,50 +1495,67 @@ def test_jones_warning(gain_data):
     assert sorted(calobj.jones_array) == [-8, -6, -5]
 
 
-def test_frequency_warnings(gain_data):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_frequency_warnings(future_shapes, gain_data):
     """Test having uneven or non-contiguous frequencies"""
     # test having unevenly spaced frequency separations
     calobj = gain_data
+
+    if future_shapes:
+        calobj.use_future_array_shapes()
+
     calobj2 = calobj.copy()
 
     go1 = calobj.copy()
     go2 = calobj2.copy()
-    freqs1 = calobj.freq_array[0, np.arange(0, 5)]
-    freqs2 = calobj2.freq_array[0, np.arange(5, 10)]
+    if future_shapes:
+        freqs1 = calobj.freq_array[np.arange(0, 5)]
+        freqs2 = calobj2.freq_array[np.arange(5, 10)]
+    else:
+        freqs1 = calobj.freq_array[0, np.arange(0, 5)]
+        freqs2 = calobj2.freq_array[0, np.arange(5, 10)]
+
     calobj.select(frequencies=freqs1)
     calobj2.select(frequencies=freqs2)
 
     # change the last frequency bin to be smaller than the others
-    df = calobj2.freq_array[0, -1] - calobj2.freq_array[0, -2]
-    calobj2.freq_array[0, -1] = calobj2.freq_array[0, -2] + df / 2
+    if future_shapes:
+        df = calobj2.freq_array[-1] - calobj2.freq_array[-2]
+        calobj2.freq_array[-1] = calobj2.freq_array[-2] + df / 2
+    else:
+        df = calobj2.freq_array[0, -1] - calobj2.freq_array[0, -2]
+        calobj2.freq_array[0, -1] = calobj2.freq_array[0, -2] + df / 2
     with uvtest.check_warnings(
         UserWarning, match="Combined frequencies are not evenly spaced"
     ):
         calobj.__iadd__(calobj2)
 
-    assert len(calobj.freq_array[0, :]) == calobj.Nfreqs
+    assert calobj.freq_array.size == calobj.Nfreqs
 
     # now check having "non-contiguous" frequencies
     calobj = go1.copy()
     calobj2 = go2.copy()
-    freqs1 = calobj.freq_array[0, np.arange(0, 5)]
-    freqs2 = calobj2.freq_array[0, np.arange(5, 10)]
     calobj.select(frequencies=freqs1)
     calobj2.select(frequencies=freqs2)
 
     # artificially space out frequencies
-    calobj.freq_array[0, :] *= 10
-    calobj2.freq_array[0, :] *= 10
+    calobj.freq_array *= 10
+    calobj2.freq_array *= 10
     with uvtest.check_warnings(
-        UserWarning, match="Combined frequencies are not contiguous"
+        UserWarning,
+        match="Combined frequencies are separated by more than their channel width",
     ):
         calobj.__iadd__(calobj2)
 
     freqs1 *= 10
     freqs2 *= 10
     freqs = np.concatenate([freqs1, freqs2])
+    if future_shapes:
+        freq_arr = calobj.freq_array
+    else:
+        freq_arr = calobj.freq_array[0, :]
     assert np.allclose(
-        calobj.freq_array[0, :],
+        freq_arr,
         freqs,
         rtol=calobj._freq_array.tols[0],
         atol=calobj._freq_array.tols[1],
@@ -1436,14 +1588,14 @@ def test_parameter_warnings(gain_data):
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_multi_files(caltype, gain_data, delay_data, tmp_path):
+def test_multi_files(caltype, gain_data, delay_data_inputflag, tmp_path):
     """Test read function when multiple files are included"""
     if caltype == "gain":
         calobj = gain_data
-        calobj2 = calobj.copy()
     else:
-        calobj = delay_data
-        calobj2 = calobj.copy()
+        calobj = delay_data_inputflag
+
+    calobj2 = calobj.copy()
 
     calobj_full = calobj.copy()
     n_times2 = calobj.Ntimes // 2
@@ -1477,45 +1629,53 @@ def test_multi_files(caltype, gain_data, delay_data, tmp_path):
     assert calobj == calobj_full_metadata_only
 
 
-def test_uvcal_get_methods():
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_uvcal_get_methods(future_shapes, gain_data):
     # load data
-    uvc = UVCal()
-    uvc.read_calfits(os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits"))
+    uvc = gain_data
+
+    if future_shapes:
+        uvc.use_future_array_shapes()
 
     # test get methods: add in a known value and make sure it is returned
     key = (10, "Jee")
     uvc.gain_array[1] = 0.0
-    d, f, q = uvc.get_gains(key), uvc.get_flags(key), uvc.get_quality(key)
+    gain_arr = uvc.get_gains(key)
+    flag_arr = uvc.get_flags(key)
+    quality_arr = uvc.get_quality(key)
 
     # test shapes
-    assert np.all(np.isclose(d, 0.0))
-    assert d.shape == (uvc.Nfreqs, uvc.Ntimes)
-    assert f.shape == (uvc.Nfreqs, uvc.Ntimes)
-    assert q.shape == (uvc.Nfreqs, uvc.Ntimes)
+    assert np.all(np.isclose(gain_arr, 0.0))
+    assert gain_arr.shape == (uvc.Nfreqs, uvc.Ntimes)
+    assert flag_arr.shape == (uvc.Nfreqs, uvc.Ntimes)
+    assert quality_arr.shape == (uvc.Nfreqs, uvc.Ntimes)
 
     # test against by-hand indexing
-    np.testing.assert_array_almost_equal(
-        d,
-        uvc.gain_array[
+    if future_shapes:
+        expected_array = uvc.gain_array[
+            uvc.ant_array.tolist().index(10), :, :, uvc.jones_array.tolist().index(-5),
+        ]
+    else:
+        expected_array = uvc.gain_array[
             uvc.ant_array.tolist().index(10),
             0,
             :,
             :,
             uvc.jones_array.tolist().index(-5),
-        ],
-    )
+        ]
+    np.testing.assert_array_almost_equal(gain_arr, expected_array)
 
     # test variable key input
-    d2 = uvc.get_gains(*key)
-    np.testing.assert_array_almost_equal(d, d2)
-    d2 = uvc.get_gains(key[0])
-    np.testing.assert_array_almost_equal(d, d2)
-    d2 = uvc.get_gains(key[:1])
-    np.testing.assert_array_almost_equal(d, d2)
-    d2 = uvc.get_gains(10, -5)
-    np.testing.assert_array_almost_equal(d, d2)
-    d2 = uvc.get_gains(10, "x")
-    np.testing.assert_array_almost_equal(d, d2)
+    gain_arr2 = uvc.get_gains(*key)
+    np.testing.assert_array_almost_equal(gain_arr, gain_arr2)
+    gain_arr2 = uvc.get_gains(key[0])
+    np.testing.assert_array_almost_equal(gain_arr, gain_arr2)
+    gain_arr2 = uvc.get_gains(key[:1])
+    np.testing.assert_array_almost_equal(gain_arr, gain_arr2)
+    gain_arr2 = uvc.get_gains(10, -5)
+    np.testing.assert_array_almost_equal(gain_arr, gain_arr2)
+    gain_arr2 = uvc.get_gains(10, "x")
+    np.testing.assert_array_almost_equal(gain_arr, gain_arr2)
 
     # check has_key
     assert uvc._has_key(antnum=10)
@@ -1531,11 +1691,9 @@ def test_uvcal_get_methods():
     pytest.raises(ValueError, uvc.get_gains, 10)
 
 
-def test_write_read_optional_attrs(tmp_path):
+def test_write_read_optional_attrs(gain_data, tmp_path):
     # read a test file
-    cal_in = UVCal()
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
-    cal_in.read_calfits(testfile)
+    cal_in = gain_data
 
     # set some optional parameters
     cal_in.gain_scale = "Jy"
@@ -1551,17 +1709,21 @@ def test_write_read_optional_attrs(tmp_path):
     assert cal_in == cal_in2
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay", "unknown", None])
-def test_copy(gain_data, delay_data, caltype):
+def test_copy(future_shapes, gain_data, delay_data_inputflag, caltype):
     """Test the copy method"""
     if caltype == "gain":
         uv_object = gain_data
     elif caltype == "delay":
-        uv_object = delay_data
+        uv_object = delay_data_inputflag
     else:
         uv_object = gain_data
         uv_object._set_unknown_cal_type()
         uv_object.cal_type = caltype
+
+    if future_shapes:
+        uv_object.use_future_array_shapes()
 
     uv_object_copy = uv_object.copy()
     assert uv_object_copy == uv_object

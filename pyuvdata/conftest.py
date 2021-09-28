@@ -12,7 +12,7 @@ from astropy.coordinates import EarthLocation
 import numpy as np
 
 from pyuvdata.data import DATA_PATH
-from pyuvdata import UVData, UVBeam
+from pyuvdata import UVData, UVCal, UVBeam
 import pyuvdata.tests as uvtest
 from pyuvdata.uvdata.mir import mir_parser
 
@@ -96,6 +96,77 @@ def paper_miriad(paper_miriad_main):
 
     # cleanup
     del uv_in
+
+
+@pytest.fixture(scope="session")
+def gain_data_main():
+    """Read in gain calfits file."""
+    gain_object = UVCal()
+    gainfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
+    gain_object.read_calfits(gainfile)
+
+    yield gain_object
+
+    del gain_object
+
+
+@pytest.fixture(scope="function")
+def gain_data(gain_data_main):
+    """Make function level gain uvcal object."""
+    gain_object = gain_data_main.copy()
+
+    yield gain_object
+
+    del gain_object
+
+
+@pytest.fixture(scope="session")
+def delay_data_main():
+    """Read in delay calfits file, add input flag array."""
+    delay_object = UVCal()
+    delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
+    delay_object.read_calfits(delayfile)
+
+    # yield the data for testing, then del after tests finish
+    yield delay_object
+
+    del delay_object
+
+
+@pytest.fixture(scope="function")
+def delay_data(delay_data_main):
+    """Make function level delay uvcal object."""
+    delay_object = delay_data_main.copy()
+
+    yield delay_object
+
+    del delay_object
+
+
+@pytest.fixture(scope="session")
+def delay_data_inputflag_main(delay_data_main):
+    """Add an input flag array to delay object."""
+    delay_object = delay_data_main.copy()
+
+    # add an input flag array for testing
+    delay_object.input_flag_array = np.zeros(
+        delay_object._input_flag_array.expected_shape(delay_object), dtype=bool
+    )
+
+    # yield the data for testing, then del after tests finish
+    yield delay_object
+
+    del delay_object
+
+
+@pytest.fixture(scope="function")
+def delay_data_inputflag(delay_data_inputflag_main):
+    """Make function level delay uvcal object."""
+    delay_object = delay_data_inputflag_main.copy()
+
+    yield delay_object
+
+    del delay_object
 
 
 def make_cst_beam(beam_type):
