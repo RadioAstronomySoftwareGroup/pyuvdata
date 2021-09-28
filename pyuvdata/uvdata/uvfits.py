@@ -566,7 +566,12 @@ class UVFITS(UVData):
             ):
                 self.history += self.pyuvdata_version_str
 
-            self.vis_units = vis_hdr.pop("BUNIT", "UNCALIB")
+            self.vis_units = vis_hdr.pop("BUNIT", "uncalib")
+            # Added here as a fix since some previous versions of UVData allowed for
+            # all caps versions of UNCALIB.
+            if self.vis_units == "UNCALIB":
+                self.vis_units = "uncalib"
+
             self.phase_center_epoch = vis_hdr.pop("EPOCH", None)
 
             # PHSFRAME is not a standard UVFITS keyword, but was used by older
