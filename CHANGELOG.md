@@ -15,6 +15,7 @@ update values in the corresponding arrays.
 an astropy dependency).
 
 ### Fixed
+- A bug in the way times were written to uvfits files that could cause a loss of precision.
 - A bug that allowed the check to pass on `UVData`, `UVCal` and `UVFlag` objects if the
 `flag_array` contained integers instead of booleans.
 - A bug in equality testing for `UVParameter` objects with strict types when the
