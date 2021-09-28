@@ -1948,7 +1948,7 @@ def test_uvh5_read_header_special_cases(casa_uvfits, tmp_path):
     uv_in.phase_center_ra = None
     uv_in.phase_center_dec = None
     uv_in.phase_center_epoch = None
-    uv_in.vis_units = "UNCALIB"
+    uv_in.vis_units = "uncalib"
     uv_in.phase_center_app_ra = None
     uv_in.phase_center_app_dec = None
     uv_in.phase_center_frame_pa = None
