@@ -85,6 +85,7 @@ def test_time_precision(tmp_path):
     This tests that the times are round-tripped through write/read uvfits to sufficient
     precision.
     """
+    pytest.importorskip("casacore")
     lwa_file = os.path.join(
         DATA_PATH, "2018-03-21-01_26_33_0004384620257280_000000_downselected.ms"
     )
