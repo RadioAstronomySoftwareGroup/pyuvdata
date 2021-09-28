@@ -11293,6 +11293,15 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
+@pytest.mark.filterwarnings("ignore:using known location values for SZA.")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected")
+@pytest.mark.filterwarnings("ignore:pamatten in extra_keywords is a list, array")
+@pytest.mark.filterwarnings("ignore:psys in extra_keywords is a list, array or dict")
+@pytest.mark.filterwarnings("ignore:psysattn in extra_keywords is a list, array or")
+@pytest.mark.filterwarnings("ignore:ambpsys in extra_keywords is a list, array or dict")
+@pytest.mark.filterwarnings("ignore:bfmask in extra_keywords is a list, array or dict")
+@pytest.mark.filterwarnings("ignore:Telescope location derived from obs lat/lon/alt")
 @pytest.mark.parametrize(
     "filename",
     [
