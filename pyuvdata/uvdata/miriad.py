@@ -232,7 +232,7 @@ class Miriad(UVData):
         if "visunits" in uv.vartable.keys():
             self.vis_units = uv["visunits"].replace("\x00", "")
         else:
-            self.vis_units = "UNCALIB"  # assume no calibration
+            self.vis_units = "uncalib"  # assume no calibration
         if "instrume" in uv.vartable.keys():
             self.instrument = uv["instrume"].replace("\x00", "")
         else:
@@ -1480,7 +1480,7 @@ class Miriad(UVData):
                     cat_frame="fk4" if (epoch_val < 1984.0) else "fk5",
                     cat_epoch=epoch_val,
                     cat_id=sou_dict[name],
-                    info_source="miriad file",
+                    info_source="file",
                 )
         elif self.phase_type == "phased":
             # check that the RA values do not vary
