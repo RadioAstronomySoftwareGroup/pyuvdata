@@ -67,6 +67,39 @@ VEL_DICT = {
 }
 
 
+# In CASA 'J2000' refers to a specific frame -- FK5 w/ an epoch of
+# J2000. We'll plug that in here directly, noting that CASA has an
+# explicit list of supported reference frames, located here:
+# casa.nrao.edu/casadocs/casa-5.0.0/reference-material/coordinate-frames
+
+COORD_UVDATA2CASA_DICT = {
+    "J2000": ("fk5", 2000.0),  # mean equator and equinox at J2000.0 (FK5)
+    "JNAT": None,  # geocentric natural frame
+    "JMEAN": None,  # mean equator and equinox at frame epoch
+    "JTRUE": None,  # true equator and equinox at frame epoch
+    "APP": ("gcrs", 2000.0),  # apparent geocentric position
+    "B1950": ("fk4", 1950.0),  # mean epoch and ecliptic at B1950.0.
+    "B1950_VLA": ("fk4", 1979.0),  # mean epoch (1979.9) and ecliptic at B1950.0
+    "BMEAN": None,  # mean equator and equinox at frame epoch
+    "BTRUE": None,  # true equator and equinox at frame epoch
+    "GALACTIC": None,  # Galactic coordinates
+    "HADEC": None,  # topocentric HA and declination
+    "AZEL": None,  # topocentric Azimuth and Elevation (N through E)
+    "AZELSW": None,  # topocentric Azimuth and Elevation (S through W)
+    "AZELNE": None,  # topocentric Azimuth and Elevation (N through E)
+    "AZELGEO": None,  # geodetic Azimuth and Elevation (N through E)
+    "AZELSWGEO": None,  # geodetic Azimuth and Elevation (S through W)
+    "AZELNEGEO": None,  # geodetic Azimuth and Elevation (N through E)
+    "ECLIPTIC": None,  # ecliptic for J2000 equator and equinox
+    "MECLIPTIC": None,  # ecliptic for mean equator of date
+    "TECLIPTIC": None,  # ecliptic for true equator of date
+    "SUPERGAL": None,  # supergalactic coordinates
+    "ITRF": None,  # coordinates wrt ITRF Earth frame
+    "TOPO": None,  # apparent topocentric position
+    "ICRS": ("icrs", 2000.0),  # International Celestial reference system
+}
+
+
 class MS(UVData):
     """
     Defines a class for reading and writing casa measurement sets.
@@ -354,6 +387,64 @@ class MS(UVData):
         )
         n_poly = 0
 
+        var_ref = False
+        coord_frame = self.phase_center_frame
+        coord_epoch = self.phase_center_epoch
+        if self.multi_phase_center:
+            for key in self.phase_center_catalog.keys():
+                if ((coord_frame is None) and (coord_epoch is None)) and not var_ref:
+                    coord_frame = self.phase_center_catalog[key]["cat_frame"]
+                    coord_epoch = self.phase_center_catalog[key]["cat_epoch"]
+
+                sou_frame = self.phase_center_catalog[key]["cat_frame"]
+                sou_epoch = self.phase_center_catalog[key]["cat_epoch"]
+
+                if (coord_frame != sou_frame) or (coord_epoch != sou_epoch):
+                    var_ref = True
+                    coord_frame = self.phase_center_frame
+                    coord_epoch = self.phase_center_epoch
+
+        if var_ref:
+            var_ref_dict = {
+                key: value for value, key in enumerate(COORD_UVDATA2CASA_DICT.keys())
+            }
+            col_ref_dict = {
+                "PHASE_DIR": "PhaseDir_Ref",
+                "DELAY_DIR": "DelayDir_Ref",
+                "REFERENCE_DIR": "RefDir_Ref",
+            }
+            for key in col_ref_dict.keys():
+                fieldcoldesc = tables.makearrcoldesc(
+                    col_ref_dict[key],
+                    0,
+                    valuetype="int",
+                    datamanagertype="StandardStMan",
+                    datamanagergroup="field standard manager",
+                )
+                del fieldcoldesc["desc"]["shape"]
+                del fieldcoldesc["desc"]["ndim"]
+                del fieldcoldesc["desc"]["_c_order"]
+
+                field_table.addcols(fieldcoldesc)
+                field_table.getcolkeyword(key, "MEASINFO")
+
+        if coord_frame is not None:
+            ref_frame = self._parse_pyuvdata_frame_ref(coord_frame, coord_epoch)
+            for col in ["PHASE_DIR", "DELAY_DIR", "REFERENCE_DIR"]:
+                meas_info_dict = field_table.getcolkeyword(col, "MEASINFO")
+                meas_info_dict["Ref"] = ref_frame
+                if var_ref:
+                    rev_ref_dict = {value: key for key, value in var_ref_dict.items()}
+                    meas_info_dict["TabRefTypes"] = [
+                        rev_ref_dict[key] for key in sorted(rev_ref_dict.keys())
+                    ]
+                    meas_info_dict["TabRefCodes"] = np.arange(
+                        len(rev_ref_dict.keys()), dtype=np.int32
+                    )
+                    meas_info_dict["VarRefCol"] = col_ref_dict[col]
+
+                field_table.putcolkeyword(col, "MEASINFO", meas_info_dict)
+
         if self.multi_phase_center:
             sou_list = list(self.phase_center_catalog.keys())
             sou_list.sort()
@@ -367,6 +458,9 @@ class MS(UVData):
                 cat_dict = self.phase_center_catalog[key]
                 phasedir = np.array([[cat_dict["cat_lon"], cat_dict["cat_lat"]]])
                 sou_id = cat_dict["cat_id"]
+                ref_dir = self._parse_pyuvdata_frame_ref(
+                    cat_dict["cat_frame"], cat_dict["cat_epoch"], raise_error=var_ref,
+                )
             else:
                 phasedir = np.array([[self.phase_center_ra, self.phase_center_dec]])
                 sou_id = 0
@@ -381,6 +475,9 @@ class MS(UVData):
             field_table.putcell("NUM_POLY", idx, n_poly)
             field_table.putcell("TIME", idx, time_val)
             field_table.putcell("SOURCE_ID", idx, sou_id)
+            if var_ref:
+                for key in col_ref_dict.keys():
+                    field_table.putcell(col_ref_dict[key], idx, var_ref_dict[ref_dir])
 
         field_table.done()
 
@@ -765,7 +862,10 @@ class MS(UVData):
             for line_no in pyuvdata_line_nos:
                 ms_line_nos.pop(line_no)
 
-            pyuvdata_written = False
+            # Handle the case where there is no history but pyuvdata
+            if len(ms_line_nos) == 0:
+                ms_line_nos = [-1]
+
             if len(pyuvdata_line_nos) > 0:
                 pyuvdata_written = True
                 for line_no in pyuvdata_line_nos:
@@ -1017,18 +1117,17 @@ class MS(UVData):
                     sel_mask = np.ones(self.Nfreqs, dtype=bool)
 
                 temp_dict = {
-                    "r%i"
+                    "%016d"
                     % ((self.Nspws * jdx) + 1 + idx): temp_array[None, jdx, sel_mask, :]
                     for jdx in np.arange(self.Nblts)
                 }
-
                 if col == "WEIGHT_SPECTRUM":
                     temp_weights[idx :: self.Nspws] = np.median(
                         temp_array[:, sel_mask], axis=1
                     )
 
                 val_dict.update(temp_dict)
-            ms.putvarcol(col, val_dict)
+            ms.putvarcol(col, {key: val_dict[key] for key in sorted(val_dict.keys())})
 
         # TODO: If/when UVData objects can store visibility noise estimates, update
         # the code below to capture those.
@@ -1085,6 +1184,99 @@ class MS(UVData):
         self._write_ms_polarization(filepath)
         self._write_ms_observation(filepath)
         self._write_ms_history(filepath)
+
+    def _parse_casa_frame_ref(self, ref_name, raise_error=True):
+        """
+        Interpret a CASA frame into an astropy-friendly frame and epoch.
+
+        Parameters
+        ----------
+        ref_name : str
+            Name of the CASA-based spatial coordinate reference frame.
+        raise_error : bool
+            Whether to raise an error if the name has no match. Default is True, if set
+            to false will raise a warning instead.
+
+        Returns
+        -------
+        frame_name : str
+            Name of the frame. Typically matched to the UVData attribute
+            `phase_center_frame`.
+        epoch_val : float
+            Epoch value for the given frame, in Julian years unless `frame_name="FK4"`,
+            in which case the value is in Besselian years. Typically matched to the
+            UVData attribute `phase_center_epoch`.
+
+        Raises
+        ------
+        ValueError
+            If the CASA coordinate frame does not match the known supported list of
+            frames for CASA.
+        NotImplementedError
+            If using a CASA coordinate frame that does not yet have a corresponding
+            astropy frame that is supported by pyuvdata.
+        """
+        try:
+            frame_tuple = COORD_UVDATA2CASA_DICT[ref_name]
+            if frame_tuple is None:
+                raise NotImplementedError(
+                    "Support for the %s frame is not yet supported."
+                )
+            else:
+                frame_name = frame_tuple[0]
+                epoch_val = frame_tuple[1]
+        except KeyError:
+            raise ValueError(
+                "The coordinate frame %s is not one of the supported frames for "
+                "measurement sets." % ref_name
+            )
+
+        return frame_name, epoch_val
+
+    def _parse_pyuvdata_frame_ref(self, frame_name, epoch_val, raise_error=True):
+        """
+        Interpret a UVData pair of frame + epoch into a CASA frame name.
+
+        Parameters
+        ----------
+        frame_name : str
+            Name of the frame. Typically matched to the UVData attribute
+            `phase_center_frame`.
+        epoch_val : float
+            Epoch value for the given frame, in Julian years unless `frame_name="FK4"`,
+            in which case the value is in Besselian years. Typically matched to the
+            UVData attribute `phase_center_epoch`.
+        raise_error : bool
+            Whether to raise an error if the name has no match. Default is True, if set
+            to false will raise a warning instead.
+
+        Returns
+        -------
+        ref_name : str
+            Name of the CASA-based spatial coordinate reference frame.
+
+        Raises
+        ------
+        ValueError
+            If the provided coordinate frame and/or epoch value has no matching
+            counterpart to those supported in CASA.
+
+        """
+        # N.B. -- this is something of a stub for a more sophisticated function to
+        # handle this. For now, this just does a reverse lookup on the limited frames
+        # supported by UVData objects, although eventually it can be expanded to support
+        # more native MS frames.
+        reverse_dict = {ref: key for key, ref in COORD_UVDATA2CASA_DICT.items()}
+
+        try:
+            ref_name = reverse_dict[(str(frame_name), float(epoch_val))]
+        except KeyError:
+            raise ValueError(
+                "Frame %s (epoch %g) does not have a corresponding match to supported "
+                "frames in the measurement set file format" % (frame_name, epoch_val)
+            )
+
+        return ref_name
 
     def _read_ms_main(
         self, filepath, data_column, data_desc_dict, read_weights=True, flip_conj=False,
@@ -1476,11 +1668,11 @@ class MS(UVData):
         self._filename.form = (1,)
         # set visibility units
         if data_column == "DATA":
-            self.vis_units = "UNCALIB"
+            self.vis_units = "uncalib"
         elif data_column == "CORRECTED_DATA":
-            self.vis_units = "JY"
+            self.vis_units = "Jy"
         elif data_column == "MODEL":
-            self.vis_units = "JY"
+            self.vis_units = "Jy"
         # limit length of extra_keywords keys to 8 characters to match uvfits & miriad
         self.extra_keywords["DATA_COL"] = data_column
 
@@ -1663,28 +1855,6 @@ class MS(UVData):
         tb_ant.close()
 
         self._set_phased()
-        # MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
-
-        tb_main = tables.table(filepath, ack=False)
-        epoch_string = tb_main.getcolkeyword("UVW", "MEASINFO")["Ref"]
-        # for measurement sets made with COTTER, this keyword is ITRF
-        # instead of the epoch
-        if epoch_string == "ITRF":
-            warnings.warn(
-                "ITRF coordinate frame detected, although this is often "
-                "synonymous with J2000. Assuming J2000 coordinate frame."
-            )
-            self.phase_center_frame = "fk5"
-            self.phase_center_epoch = 2000.0
-        elif epoch_string == "J2000":
-            # In CASA 'J2000' refers to a specific frame -- FK5 w/ an epoch of
-            # J2000. We'll plug that in here directly, noting that CASA has an
-            # explicit list of supported reference frames, located here:
-            # casa.nrao.edu/casadocs/casa-5.0.0/reference-material/coordinate-frames
-            self.phase_center_frame = "fk5"
-            self.phase_center_epoch = 2000.0
-        self._set_phased()
-        tb_main.close()
 
         # set LST array from times and itrf
         proc = self.set_lsts_from_time_array(background=background_lsts)
@@ -1701,17 +1871,62 @@ class MS(UVData):
         )
         assert tb_field.getcol("PHASE_DIR").shape[1] == 1, message
 
+        # MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
+        measinfo_keyword = tb_field.getcolkeyword("PHASE_DIR", "MEASINFO")
+
+        ref_dir_colname = None
+        ref_dir_dict = None
+        if "VarRefCol" in measinfo_keyword.keys():
+            # This seems to be a yet-undocumented feature for CASA, which allows one
+            # to specify an additional (optional?) column that defines the reference
+            # frame on a per-source basis.
+            ref_dir_colname = measinfo_keyword["VarRefCol"]
+            ref_dir_dict = {
+                key: name
+                for key, name in zip(
+                    measinfo_keyword["TabRefCodes"], measinfo_keyword["TabRefTypes"]
+                )
+            }
+
+        if "Ref" in measinfo_keyword.keys():
+            frame_tuple = self._parse_casa_frame_ref(measinfo_keyword["Ref"])
+            self.phase_center_frame = frame_tuple[0]
+            self.phase_center_epoch = frame_tuple[1]
+        else:
+            warnings.warn("Coordinate reference frame not detected, defaulting to ICRS")
+            self.phase_center_frame = "icrs"
+            self.phase_center_epoch = 2000.0
+
         # If only dealing with a single target, assume we don't want to make a
         # multi-phase-center data set.
-        if len(field_list) == 1:
+        if (len(field_list) == 1) and (ref_dir_dict is None):
             radec_center = tb_field.getcell("PHASE_DIR", field_list[0])[0]
             self.phase_center_ra = float(radec_center[0])
             self.phase_center_dec = float(radec_center[1])
             self.phase_center_id_array = None
+            self.object_name = tb_field.getcol("NAME")[0]
+            if ref_dir_colname is not None:
+                frame_tuple = self._parse_casa_frame_ref(
+                    ref_dir_dict[tb_field.getcell(ref_dir_colname, field_list[0])]
+                )
+                self.phase_center_frame = frame_tuple[0]
+                self.phase_center_epoch = frame_tuple[1]
         else:
-            epoch_val = self.phase_center_epoch
-            frame_val = self.phase_center_frame
             self._set_multi_phase_center()
+            field_id_dict = {field_idx: field_idx for field_idx in field_list}
+            try:
+                id_arr = tb_field.getcol("SOURCE_ID")
+                if np.all(id_arr >= 0) and len(np.unique(id_arr)) == len(id_arr):
+                    for idx, sou_id in enumerate(id_arr):
+                        if idx in field_list:
+                            field_id_dict[idx] = sou_id
+            except RuntimeError:
+                # Reach here if no column named SOURCE_ID exists, or if it does exist
+                # but is completely unfilled. Nothing to do at this point but move on.
+                pass
+            # Field names are allowed to be the same in CASA, so if we detect
+            # conflicting names here we use the FIELD row numbers to try and
+            # differentiate between them.
             field_name_list = tb_field.getcol("NAME")
             uniq_names, uniq_count = np.unique(field_name_list, return_counts=True)
             rep_name_list = uniq_names[uniq_count > 1]
@@ -1728,18 +1943,29 @@ class MS(UVData):
             for field_idx in field_list:
                 radec_center = tb_field.getcell("PHASE_DIR", field_idx)[0]
                 field_name = field_name_list[field_idx]
+                if ref_dir_colname is not None:
+                    frame_tuple = self._parse_casa_frame_ref(
+                        ref_dir_dict[tb_field.getcell(ref_dir_colname, field_list[0])]
+                    )
+                else:
+                    frame_tuple = (self.phase_center_frame, self.phase_center_epoch)
+
                 self._add_phase_center(
                     field_name,
                     cat_type="sidereal",
                     cat_lon=radec_center[0],
                     cat_lat=radec_center[1],
-                    cat_frame=frame_val,
-                    cat_epoch=epoch_val,
+                    cat_frame=frame_tuple[0],
+                    cat_epoch=frame_tuple[1],
                     info_source="file",
-                    cat_id=field_idx,
+                    cat_id=field_id_dict[field_idx],
                 )
+            # Only thing left to do is to update the IDs for the per-BLT records
+            self.phase_center_id_array = np.array(
+                [field_id_dict[sou_id] for sou_id in self.phase_center_id_array],
+                dtype=int,
+            )
 
-        self.object_name = tb_field.getcol("NAME")[0]
         tb_field.close()
 
         if proc is not None:
