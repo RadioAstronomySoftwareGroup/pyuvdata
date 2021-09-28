@@ -77,6 +77,44 @@ def test_read_nrao(casa_uvfits):
     assert uvobj2 == uvobj3
 
 
+@pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected")
+@pytest.mark.filterwarnings("ignore:Telescope OVRO_MMA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_time_precision(tmp_path):
+    """
+    This tests that the times are round-tripped through write/read uvfits to sufficient
+    precision.
+    """
+    lwa_file = os.path.join(
+        DATA_PATH, "2018-03-21-01_26_33_0004384620257280_000000_downselected.ms"
+    )
+    uvd = UVData()
+    uvd.read(lwa_file)
+
+    testfile = os.path.join(tmp_path, "lwa_testfile.uvfits")
+    uvd.write_uvfits(testfile, spoof_nonessential=True)
+
+    uvd2 = UVData()
+    uvd2.read(testfile)
+
+    latitude, longitude, altitude = uvd2.telescope_location_lat_lon_alt_degrees
+    unique_times, inverse_inds = np.unique(uvd2.time_array, return_inverse=True)
+    unique_lst_array = uvutils.get_lst_for_time(
+        unique_times, latitude, longitude, altitude,
+    )
+
+    calc_lst_array = unique_lst_array[inverse_inds]
+
+    assert np.allclose(
+        calc_lst_array,
+        uvd2.lst_array,
+        rtol=uvd2._lst_array.tols[0],
+        atol=uvd2._lst_array.tols[1],
+    )
+
+    assert uvd2 == uvd
+
+
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_break_read_uvfits():
     """Test errors on reading in a uvfits file with subarrays and other problems."""
