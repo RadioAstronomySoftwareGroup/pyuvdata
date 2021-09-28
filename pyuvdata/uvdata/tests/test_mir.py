@@ -173,6 +173,7 @@ def test_read_mir_write_ms(uv_in_ms, future_shapes):
     Read in Mir files, write out as ms, read back in and check for
     object equality.
     """
+    pytest.importorskip("casacore")
     mir_uv, ms_uv, testfile = uv_in_ms
 
     if future_shapes:
