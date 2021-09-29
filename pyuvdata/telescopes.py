@@ -58,6 +58,13 @@ KNOWN_TELESCOPES = {
         "altitude": 2400.0,
         "citation": "Unknown",
     },
+    "OVRO-LWA": {
+        "center_xyz": None,
+        "latitude": Angle("37.239777271d").radian,
+        "longitude": Angle("-118.281666695d").radian,
+        "altitude": 1183.48,
+        "citation": "OVRO Sharepoint Documentation",
+    },
 }
 
 
