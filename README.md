@@ -37,14 +37,17 @@ tested with ATCA files
 * uvfits conforms to AIPS memo 117 (as of March 2020).  It is tested against
 FHD, CASA, and AIPS. However AIPS is limited to <80 antennas and CASA uvfits
 import does not seem to support >255 antennas.
-* CASA measurement sets (TODO: Add more here about how we test these).
+* CASA measurement sets, primarily conforming to [CASA Memo 229](https://casa.nrao.edu/Memos/229.html), with some elements taken from the proposed v3.0 format documented in [CASA Memo 264](https://casacore.github.io/casacore-notes/264.html). Measurement sets are tested against
+VLA and MWA data sets, (the latter filled via cotter), with some manual verification
+haven been performed against ALMA and SMA data sets, the latter filled using the `importuvfits` task of CASA.
+tested against ALMA-filled datasets and with SMA datasets
 * uvh5 is an HDF5-based file format defined by the HERA collaboration,
 details in the [uvh5 memo](docs/references/uvh5_memo.pdf). Note that this is a
 somewhat new format, so it may evolve a bit
 but we will strive to make future versions backwards compatible with the current format.
 It is probably not compatible with other interferometric HDF5 files defined by other groups.
 * FHD (read-only support, tested against MWA and PAPER data)
-* MIR (read-only support, tested agains SMA data)
+* MIR (read-only support, tested against SMA data)
 * MWA correlator FITS files (read-only support, tested against Cotter outputs and FHD)
 
 ## UVCal file formats
