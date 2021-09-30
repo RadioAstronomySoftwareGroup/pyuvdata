@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file.
 
 
 ### Added
+- Added the `UVData.write_ms` method, a UVData measurement set writer.
+- Added an option to the `UVData.check` method to flip the uvws and conjugate the
+data_array to align with the `UVData` convention on baseline orientation.
 - Added the `flip_gain_conj` option to `utils.uvcalibrate` to use the opposite gain
 conjugation convention in calibration.
 - Support for selecting on polarization strings on `UVData`, `UVCal`, `UVBeam` and `UVFlag`.
