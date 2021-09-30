@@ -133,7 +133,7 @@ class MS(UVData):
         ms_desc["FLAG"].update(
             dataManagerType="TiledShapeStMan", dataManagerGroup="TiledFlag",
         )
-        # TODO: Check if MEASINFO:Ref should be ITRF or J2000
+
         ms_desc["UVW"].update(
             dataManagerType="TiledColumnStMan", dataManagerGroup="TiledUVW",
         )
@@ -150,7 +150,7 @@ class MS(UVData):
             dataManagerType="TiledShapeStMan", dataManagerGroup="TiledSigma",
         )
 
-        # The ALMA default for he next set of columns from the MAIN table use the
+        # The ALMA default for the next set of columns from the MAIN table use the
         # name of the column as the dataManagerGroup, so we update the casacore
         # defaults accordingly.
         for key in ["ANTENNA1", "ANTENNA2", "DATA_DESC_ID", "FLAG_ROW"]:
@@ -257,9 +257,9 @@ class MS(UVData):
         # while Cotter and the MS definition doc puts them in the NAME column).
         # The MS definition doc suggests that antenna names belong in the NAME column
         # and the telescope name belongs in the STATION column (it gives the example of
-        # GREENBANK for this column.) so we follow that here.
-        # TODO: Karto, STATION == pad, NAME == Antenna name. Write something clever here
-        # about it.
+        # GREENBANK for this column.) so we follow that here. For a reconfigurable
+        # array, the STATION can be though of as the "pad" name, which is distinct from
+        # the antenna name/number, and nominally fixed in position.
         antenna_table.putcol("NAME", ant_names_table)
         antenna_table.putcol("STATION", ant_names_table)
 
@@ -274,7 +274,7 @@ class MS(UVData):
         antenna_table.putcol("POSITION", ant_pos_table)
         if self.antenna_diameters is not None:
             ant_diam_table = np.zeros((nants_table), dtype=self.antenna_diameters.dtype)
-            # This is here is suppress an error that arises when one has antenans of
+            # This is here is suppress an error that arises when one has antennas of
             # different diameters (which CASA can't handle), since otherwise the
             # "padded" antennas have zero diameter (as opposed to any real telescope).
             if len(np.unique(self.antenna_diameters)) == 1:
@@ -380,7 +380,6 @@ class MS(UVData):
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
 
-        # TODO revisit for multi object!
         field_table = tables.table(filepath + "::FIELD", ack=False, readonly=False)
         time_val = (
             Time(np.median(self.time_array), format="jd", scale="utc").tai.mjd * 86400.0
@@ -392,10 +391,6 @@ class MS(UVData):
         coord_epoch = self.phase_center_epoch
         if self.multi_phase_center:
             for key in self.phase_center_catalog.keys():
-                if ((coord_frame is None) and (coord_epoch is None)) and not var_ref:
-                    coord_frame = self.phase_center_catalog[key]["cat_frame"]
-                    coord_epoch = self.phase_center_catalog[key]["cat_epoch"]
-
                 sou_frame = self.phase_center_catalog[key]["cat_frame"]
                 sou_epoch = self.phase_center_catalog[key]["cat_epoch"]
 
@@ -574,7 +569,6 @@ class MS(UVData):
         pointing_table = tables.table(
             filepath + "::POINTING", ack=False, readonly=False
         )
-        # TODO: we probably have to fix this for steerable dishes
         nants = np.max(self.antenna_numbers) + 1
         antennas = np.arange(nants, dtype=np.int32)
 
@@ -611,6 +605,9 @@ class MS(UVData):
         # to vary from integration to integration), casacore seems to be very slow
         # filling in the data after the fact. By "pre-filling" the first row, the
         # addrows operation will automatically fill in an appropriately shaped array.
+        # TODO: This works okay for steerable dishes, but less well for non-tracking
+        # arrays (i.e., where primary beam center != phase center). Fix later.
+
         pointing_table.addrows(1)
         pointing_table.putcell("DIRECTION", 0, np.zeros((2, 1), dtype=np.float64))
         pointing_table.putcell("TARGET", 0, np.zeros((2, 1), dtype=np.float64))
@@ -745,8 +742,13 @@ class MS(UVData):
         observation_table.addcols(name_col_desc)
         observation_table.putcell("TELESCOPE_LOCATION", 0, self.telescope_location)
 
-        # should we test for observer in extra keywords?
-        observation_table.putcell("OBSERVER", 0, self.telescope_name)
+        observation_table.putcell(
+            "OBSERVER",
+            0,
+            self.extra_keywords["OBSERVER"]
+            if ("OBSERVER" in self.extra_keywords.keys())
+            else self.telescope_name,
+        )
 
     def _write_ms_polarization(self, filepath):
         """
@@ -859,8 +861,10 @@ class MS(UVData):
 
             # make a list of lines that are MS specific (i.e. not pyuvdata lines)
             ms_line_nos = np.arange(ntimes).tolist()
-            for line_no in pyuvdata_line_nos:
-                ms_line_nos.pop(line_no)
+            for count, line_no in enumerate(pyuvdata_line_nos):
+                # Subtract off the count, since the line_no will effectively
+                # change with each call to pop on the list
+                ms_line_nos.pop(line_no - count)
 
             # Handle the case where there is no history but pyuvdata
             if len(ms_line_nos) == 0:
@@ -871,20 +875,10 @@ class MS(UVData):
                 for line_no in pyuvdata_line_nos:
                     if line_no < min(ms_line_nos):
                         # prepend these lines to the history
-                        history_str = message[line_no] + history_str
+                        history_str = message[line_no] + "\n" + history_str
                     else:
                         # append these lines to the history
-                        history_str += message[line_no]
-
-        def is_not_ascii(s):
-            return any(ord(c) >= 128 for c in s)
-
-        def find_not_ascii(s):
-            output = []
-            for c in s:
-                if ord(c) >= 128:
-                    output += c
-            return output
+                        history_str += message[line_no] + "\n"
 
         return history_str, pyuvdata_written
 
@@ -960,7 +954,7 @@ class MS(UVData):
                 app_params.insert(line_no, "")
                 cli_command.insert(line_no, "")
                 application.insert(line_no, "pyuvdata")
-                message.append(line_no, line)
+                message.insert(line_no, line)
                 obj_id.insert(line_no, 0)
                 obs_id.insert(line_no, -1)
                 origin.insert(line_no, "pyuvdata")
@@ -1061,11 +1055,10 @@ class MS(UVData):
             else:
                 raise IOError("File exists; skipping")
 
-        # TODO: the phasing requirement can probably go away once we have proper
-        # multi-object support.
-        if self.phase_type == "phased":
-            pass
-        elif self.phase_type == "drift":
+        # CASA does not have a way to handle "unphased" data in the way that UVData
+        # objects can, so we need to check here whether or not any such data exists
+        # (and if need be, fix it).
+        if np.any(self._check_for_unphased()):
             if force_phase:
                 print(
                     "The data are in drift mode and do not have a "
@@ -1073,7 +1066,12 @@ class MS(UVData):
                     "timestamp."
                 )
                 phase_time = Time(self.time_array[0], format="jd")
-                self.phase_to_time(phase_time)
+                self.phase_to_time(
+                    phase_time,
+                    select_mask=self._check_for_unphased()
+                    if self.multi_phase_center
+                    else None,
+                )
             else:
                 raise ValueError(
                     "The data are in drift mode. "
@@ -1081,17 +1079,11 @@ class MS(UVData):
                     "to zenith of the first timestamp before "
                     "writing a measurement set file."
                 )
-        else:
-            raise ValueError(
-                "The phasing type of the data is unknown. "
-                "Set the phase_type to drift or phased to "
-                "reflect the phasing status of the data"
-            )
 
         # Initialize a skelton measurement set
         ms = self._init_ms_file(filepath)
 
-        # All all the rows we need up front, which will allow us to fill the columns
+        # Add all the rows we need up front, which will allow us to fill the columns
         # all in one shot.
         ms.addrows(self.Nblts * self.Nspws)
 
@@ -1156,10 +1148,10 @@ class MS(UVData):
         # same as ours & Miriad's
         ms.putcol("UVW", np.repeat(self.uvw_array, self.Nspws, axis=0))
         if self.multi_phase_center:
-            # We have to do an extra bit of work here, because CASA won't accept arb
+            # We have to do an extra bit of work here, as CASA won't accept arbitrary
             # values for field ID (rather, the ID number matches to the row number in
             # the FIELD subtable). When we write out the fields, we use sort so that
-            # we get reproduce the same ordering here
+            # we can reproduce the same ordering here.
             field_id_array = self.phase_center_id_array.copy()
             sou_list = list(self.phase_center_catalog.keys())
             sou_list.sort()
@@ -1172,6 +1164,10 @@ class MS(UVData):
                 field_id_array[sel_mask] = idx
 
             ms.putcol("FIELD_ID", np.repeat(field_id_array, self.Nspws))
+
+        if len(self.extra_keywords) != 0:
+            ms.putkeyword("pyuvdata_extra", self.extra_keywords)
+
         ms.done()
 
         self._write_ms_antenna(filepath)
@@ -1216,20 +1212,33 @@ class MS(UVData):
             If using a CASA coordinate frame that does not yet have a corresponding
             astropy frame that is supported by pyuvdata.
         """
+        frame_name = None
+        epoch_val = None
         try:
             frame_tuple = COORD_UVDATA2CASA_DICT[ref_name]
             if frame_tuple is None:
-                raise NotImplementedError(
-                    "Support for the %s frame is not yet supported."
-                )
+                if raise_error:
+                    raise NotImplementedError(
+                        "Support for the %s frame is not yet supported." % ref_name
+                    )
+                else:
+                    warnings.warn(
+                        "Support for the %s frame is not yet supported." % ref_name
+                    )
             else:
                 frame_name = frame_tuple[0]
                 epoch_val = frame_tuple[1]
         except KeyError:
-            raise ValueError(
-                "The coordinate frame %s is not one of the supported frames for "
-                "measurement sets." % ref_name
-            )
+            if raise_error:
+                raise ValueError(
+                    "The coordinate frame %s is not one of the supported frames for "
+                    "measurement sets." % ref_name
+                )
+            else:
+                warnings.warn(
+                    "The coordinate frame %s is not one of the supported frames for "
+                    "measurement sets." % ref_name
+                )
 
         return frame_name, epoch_val
 
@@ -1268,18 +1277,31 @@ class MS(UVData):
         # more native MS frames.
         reverse_dict = {ref: key for key, ref in COORD_UVDATA2CASA_DICT.items()}
 
+        ref_name = None
         try:
             ref_name = reverse_dict[(str(frame_name), float(epoch_val))]
         except KeyError:
-            raise ValueError(
-                "Frame %s (epoch %g) does not have a corresponding match to supported "
-                "frames in the measurement set file format" % (frame_name, epoch_val)
-            )
+            if raise_error:
+                raise ValueError(
+                    "Frame %s (epoch %g) does not have a corresponding match to "
+                    "supported frames in the MS file format." % (frame_name, epoch_val)
+                )
+            else:
+                warnings.warn(
+                    "Frame %s (epoch %g) does not have a corresponding match to "
+                    "supported frames in the MS file format." % (frame_name, epoch_val)
+                )
 
         return ref_name
 
     def _read_ms_main(
-        self, filepath, data_column, data_desc_dict, read_weights=True, flip_conj=False,
+        self,
+        filepath,
+        data_column,
+        data_desc_dict,
+        read_weights=True,
+        flip_conj=False,
+        raise_error=True,
     ):
         """
         Read data from the main table of a MS file.
@@ -1306,6 +1328,11 @@ class MS(UVData):
             On read, whether to flip the conjugation of the baselines. Normally the MS
             format is the same as what is used for pyuvdata (ant2 - ant1), hence the
             default is False.
+        raise_error : bool
+            On read, whether to raise an error if different records (i.e.,
+            different spectral windows) report different metadata for the same
+            time-baseline combination, which CASA allows by UVData does not. Default
+            is True, if set to False will raise a warning instead.
 
         Returns
         -------
@@ -1325,6 +1352,14 @@ class MS(UVData):
             If the MS file contains data from multiple subarrays.
         """
         tb_main = tables.table(filepath, ack=False)
+
+        main_keywords = tb_main.getkeywords()
+        if "pyuvdata_extra" in main_keywords.keys():
+            self.extra_keywords = main_keywords["pyuvdata_extra"]
+
+        # limit length of extra_keywords keys to 8 characters to match uvfits & miriad
+        self.extra_keywords["DATA_COL"] = data_column
+
         time_arr = tb_main.getcol("TIME")
         # N.b., EXPOSURE is what's needed for noise calculation, but INTERVAL defines
         # the time period over which the data are collected
@@ -1376,7 +1411,7 @@ class MS(UVData):
                         axis=1,
                     )
             else:
-                self.nsample_array = np.ones_like(self.data_array)
+                self.nsample_array = np.ones_like(self.data_array, dtype=float)
 
             data_desc_key = np.intersect1d(
                 unique_data_desc, list(data_desc_dict.keys())
@@ -1412,7 +1447,7 @@ class MS(UVData):
             use_row[sel_mask] = True
             data_dict[key] = dict(data_desc_dict[key])
             data_dict[key]["TIME"] = time_arr[sel_mask]  # Midpoint time in mjd seconds
-            data_dict[key]["INTERVAL"] = int_arr[sel_mask]  # Int time in sec
+            data_dict[key]["EXPOSURE"] = int_arr[sel_mask]  # Int time in sec
             data_dict[key]["ANTENNA1"] = ant_1_arr[sel_mask]  # First antenna
             data_dict[key]["ANTENNA2"] = ant_2_arr[sel_mask]  # Second antenna
             data_dict[key]["FIELD_ID"] = field_arr[sel_mask]  # Source ID
@@ -1439,7 +1474,7 @@ class MS(UVData):
 
         spw_list = {
             data_dict[key]["SPW_ID"]: (key, data_dict[key]["NUM_CHAN"])
-            for key in data_desc_dict.keys()
+            for key in data_dict.keys()
         }
 
         # Here we sort out where the various spectral windows are starting and stoping
@@ -1498,7 +1533,8 @@ class MS(UVData):
         has_data = np.zeros(nblts, dtype=bool)
 
         arr_tuple = (time_arr, int_arr, ant_1_arr, ant_2_arr, field_arr, uvw_arr)
-        name_tuple = ("TIME", "INTERVAL", "ANTENNA1", "ANTENNA2", "FIELD_ID", "UVW")
+        name_tuple = ("TIME", "EXPOSURE", "ANTENNA1", "ANTENNA2", "FIELD_ID", "UVW")
+        vary_list = []
         for key in data_dict.keys():
             # Get the indexing information for the data array
             blt_idx = data_dict[key]["BLT_IDX"]
@@ -1513,15 +1549,26 @@ class MS(UVData):
 
             # Loop through the metadata fields we intend to populate
             for arr, name in zip(arr_tuple, name_tuple):
-                if np.any(check_mask):
-                    if not np.all(data_dict[key][name][check_mask] == arr[check_idx]):
-                        # This is presently a warning, although it could conceivably
-                        # be made into an error. If doing so, we probably want to change
-                        # the above to 'is_close' rather than strict equality.
-                        warnings.warn(
-                            "Column %s appears to vary on between windows!" % name
+                if not np.allclose(data_dict[key][name][check_mask], arr[check_idx]):
+                    if raise_error:
+                        raise ValueError(
+                            "Column %s appears to vary on between windows, which is "
+                            "not permitted for UVData objects. To bypass this error, "
+                            "you can set raise_error=False, which will raise a warning "
+                            "instead and use the first recorded value." % name
                         )
-                arr[blt_idx] = data_dict[key][name]
+                    elif name not in vary_list:
+                        # If not raising an error, then at least warn the user that
+                        # discrepant data were detected.
+                        warnings.warn(
+                            "Column %s appears to vary on between windows, defaulting "
+                            "to first recorded value." % name
+                        )
+                        # Add to a list so we don't spew multiple warnings for one
+                        # column (which could just flood the terminal).
+                        vary_list.append(name)
+
+                arr[blt_idx[~check_mask]] = data_dict[key][name][~check_mask]
 
             # Can has data now please?
             has_data[blt_idx] = True
@@ -1606,9 +1653,9 @@ class MS(UVData):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        use_old_phase=False,
-        fix_phase=False,
         ignore_single_chan=True,
+        raise_error=True,
+        read_weights=True,
     ):
         """
         Read in a casa measurement set.
@@ -1639,6 +1686,25 @@ class MS(UVData):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        ignore_single_chan : bool
+            Some measurement sets (e.g., those from ALMA) use single channel spectral
+            windows for recording pseudo-continuum channels or storing other metadata
+            in the track when the telescopes are not on source. Because of the way
+            the object is strutured (where all spectral windows are assumed to be
+            simultaneously recorded), this can significantly inflate the size and memory
+            footprint of UVData objects. By default, single channel windows are ignored
+            to avoid this issue, although they can be included if setting this parameter
+            equal to True.
+        raise_error : bool
+            The measurement set format allows for different spectral windows and
+            polarizations to have different metdata for the same time-baseline
+            combination, but UVData objects do not. If detected, by default the reader
+            will throw an error. However, if set to False, the reader will simply give
+            a warning, and will use the first value read in the file as the "correct"
+            metadata in the UVData object.
+        read_weights : bool
+            Read in the weights from the MS file, default is True. If false, the method
+            will set the `nsamples_array` to the same uniform value (namely 1.0).
 
         Raises
         ------
@@ -1654,8 +1720,10 @@ class MS(UVData):
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
 
+        vis_unit_dict = {"DATA": "uncalib", "CORRECTED_DATA": "Jy", "MODEL": "Jy"}
+
         # make sure user requests a valid data_column
-        if data_column not in ["DATA", "CORRECTED_DATA", "MODEL"]:
+        if data_column not in vis_unit_dict.keys():
             raise ValueError(
                 "Invalid data_column value supplied. Use 'Data','MODEL' or"
                 " 'CORRECTED_DATA'"
@@ -1666,15 +1734,9 @@ class MS(UVData):
         basename = filepath.rstrip("/")
         self.filename = [os.path.basename(basename)]
         self._filename.form = (1,)
+
         # set visibility units
-        if data_column == "DATA":
-            self.vis_units = "uncalib"
-        elif data_column == "CORRECTED_DATA":
-            self.vis_units = "Jy"
-        elif data_column == "MODEL":
-            self.vis_units = "Jy"
-        # limit length of extra_keywords keys to 8 characters to match uvfits & miriad
-        self.extra_keywords["DATA_COL"] = data_column
+        self.vis_units = vis_unit_dict[data_column]
 
         # get the history info
         pyuvdata_written = False
@@ -1720,16 +1782,16 @@ class MS(UVData):
         single_chan_list = []
         for key in data_desc_dict.keys():
             spw_id = data_desc_dict[key]["SPECTRAL_WINDOW_ID"]
-            data_desc_dict[key]["CHAN_FREQ"] = tb_spws.getcell("CHAN_FREQ", key)
+            data_desc_dict[key]["CHAN_FREQ"] = tb_spws.getcell("CHAN_FREQ", spw_id)
             # beware! There are possibly 3 columns here that might be the correct one
             # to use: CHAN_WIDTH, EFFECTIVE_BW, RESOLUTION
-            data_desc_dict[key]["CHAN_WIDTH"] = tb_spws.getcell("CHAN_WIDTH", key)
-            data_desc_dict[key]["NUM_CHAN"] = tb_spws.getcell("NUM_CHAN", key)
+            data_desc_dict[key]["CHAN_WIDTH"] = tb_spws.getcell("CHAN_WIDTH", spw_id)
+            data_desc_dict[key]["NUM_CHAN"] = tb_spws.getcell("NUM_CHAN", spw_id)
             if data_desc_dict[key]["NUM_CHAN"] == 1:
                 single_chan_list.append(key)
             if use_assoc_id:
                 data_desc_dict[key]["SPW_ID"] = int(
-                    tb_spws.getcell("ASSOC_SPW_ID", key)[0]
+                    tb_spws.getcell("ASSOC_SPW_ID", spw_id)[0]
                 )
             else:
                 data_desc_dict[key]["SPW_ID"] = spw_id
@@ -1748,8 +1810,20 @@ class MS(UVData):
         # written by pyuvdata, we do need to flip the uvws & conjugate the data
         flip_conj = ("importuvfits" in self.history) and (not pyuvdata_written)
         spw_list, field_list, pol_list = self._read_ms_main(
-            filepath, data_column, data_desc_dict, flip_conj=flip_conj
+            filepath,
+            data_column,
+            data_desc_dict,
+            read_weights=read_weights,
+            flip_conj=flip_conj,
+            raise_error=raise_error,
         )
+
+        if (spw_list is None) and (field_list is None) and (pol_list is None):
+            raise ValueError(
+                "No valid data available in the MS file. If this file contains "
+                "single channel data, set ignore_single_channel=True when calling "
+                "read_ms."
+            )
 
         self.Npols = len(pol_list)
         self.polarization_array = np.array(pol_list, dtype=np.int64)
@@ -1821,7 +1895,7 @@ class MS(UVData):
                     np.mean(full_antenna_positions, axis=0)
                 )
             else:
-                warnings.warn(
+                raise ValueError(
                     "Telescope frame is not ITRF and telescope is not "
                     "in known_telescopes, so telescope_location is not set."
                 )
@@ -1905,12 +1979,6 @@ class MS(UVData):
             self.phase_center_dec = float(radec_center[1])
             self.phase_center_id_array = None
             self.object_name = tb_field.getcol("NAME")[0]
-            if ref_dir_colname is not None:
-                frame_tuple = self._parse_casa_frame_ref(
-                    ref_dir_dict[tb_field.getcell(ref_dir_colname, field_list[0])]
-                )
-                self.phase_center_frame = frame_tuple[0]
-                self.phase_center_epoch = frame_tuple[1]
         else:
             self._set_multi_phase_center()
             field_id_dict = {field_idx: field_idx for field_idx in field_list}
@@ -1981,31 +2049,10 @@ class MS(UVData):
         # order polarizations
         self.reorder_pols(order=pol_order, run_check=False)
 
-        # This is a thing
-        temp_obj = self.copy(metadata_only=True)
-        if temp_obj.phase_center_frame is not None:
-            output_phase_frame = temp_obj.phase_center_frame
-        else:
-            output_phase_frame = "icrs"
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            temp_obj.set_uvws_from_antenna_positions(
-                allow_phasing=True, output_phase_frame=output_phase_frame,
-            )
-
-        if not np.allclose(temp_obj.uvw_array, self.uvw_array, atol=1):
-            if np.allclose(-temp_obj.uvw_array, self.uvw_array, atol=1):
-                warnings.warn(
-                    "UVW orientation appears to be flipped, attempting to "
-                    "fix by changing conjugation of baselines."
-                )
-                self.uvw_array *= -1
-                self.data_array = np.conj(self.data_array)
-
         if run_check:
             self.check(
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
+                allow_flip_conj=True,
             )
