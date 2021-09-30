@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.2.2] - 2021-9-30
 
 ### Added
 - Added the `UVData.write_ms` method, a UVData measurement set writer.
