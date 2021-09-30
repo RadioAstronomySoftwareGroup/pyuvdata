@@ -248,7 +248,9 @@ def test_read_carma_miriad_write_ms(tmp_path):
 
     # Make sure the MS extra keywords are as expected
     assert uv_out.extra_keywords["DATA_COL"] == "DATA"
+    assert uv_out.extra_keywords["observer"] == "SZA"
     uv_in.extra_keywords["DATA_COL"] = "DATA"
+    uv_in.extra_keywords["observer"] = "SZA"
 
     # make sure filename is what we expect
     assert uv_in.filename == ["carma_miriad"]
