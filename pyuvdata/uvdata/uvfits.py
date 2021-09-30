@@ -330,6 +330,7 @@ class UVFITS(UVData):
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
+                allow_flip_conj=True,
             )
 
     def read_uvfits(

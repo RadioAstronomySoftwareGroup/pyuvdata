@@ -2414,6 +2414,7 @@ class UVData(UVBase):
         run_check_acceptability=True,
         check_freq_spacing=False,
         strict_uvw_antpos_check=False,
+        allow_flip_conj=False,
     ):
         """
         Add some extra checks on top of checks on UVBase class.
@@ -2434,6 +2435,12 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        allow_flip_conj : bool
+            If set to True, and the UVW coordinates do not match antenna positions,
+            check and see if flipping the conjugation of the baselines (i.e, multiplying
+            the UVWs by -1) resolves  the apparent discrepancy -- and if it does, fix
+            the apparent conjugation error in `uvw_array` and `data_array`. Default is
+            False.
 
         Returns
         -------
@@ -2522,7 +2529,16 @@ class UVData(UVBase):
 
             if not np.allclose(temp_obj.uvw_array, self.uvw_array, atol=1):
                 max_diff = np.max(np.abs(temp_obj.uvw_array - self.uvw_array))
-                if not strict_uvw_antpos_check:
+                if allow_flip_conj and np.allclose(
+                    -temp_obj.uvw_array, self.uvw_array, atol=1
+                ):
+                    warnings.warn(
+                        "UVW orientation appears to be flipped, attempting to "
+                        "fix by changing conjugation of baselines."
+                    )
+                    self.uvw_array *= -1
+                    self.data_array = np.conj(self.data_array)
+                elif not strict_uvw_antpos_check:
                     warnings.warn(
                         "The uvw_array does not match the expected values given "
                         "the antenna positions. The largest discrepancy is "
@@ -5478,6 +5494,7 @@ class UVData(UVBase):
         use_old_proj=False,
         allow_rephase=True,
         orig_phase_frame=None,
+        select_mask=None,
     ):
         """
         Phase a drift scan dataset to the ra/dec of zenith at a particular time.
@@ -5504,6 +5521,11 @@ class UVData(UVBase):
             the phase_center_ra/dec of the object does not match `ra` and `dec`.
             Defaults to using the 'phase_center_frame' attribute or 'icrs' if
             that attribute is None.
+        select_mask : array_like
+            Selection mask for which data should be rephased, only applicable if
+            `multi_phase_center=True`. Any array-like able to be used as an index
+            is suitable -- the most typical is an array of bool with length `Nblts`,
+            or an array of ints within the range (-Nblts, Nblts).
 
         Raises
         ------
@@ -5545,6 +5567,10 @@ class UVData(UVBase):
             use_old_proj=use_old_proj,
             allow_rephase=allow_rephase,
             orig_phase_frame=orig_phase_frame,
+            select_mask=select_mask,
+            cat_name=("zenith_at_jd%f" % self.time_array[0])
+            if self.multi_phase_center
+            else None,
         )
 
     def set_uvws_from_antenna_positions(
@@ -10131,6 +10157,9 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        ignore_single_chan=True,
+        raise_error=True,
+        read_weights=True,
     ):
         """
         Read in data from a measurement set.
@@ -10168,6 +10197,25 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        ignore_single_chan : bool
+            Some measurement sets (e.g., those from ALMA) use single channel spectral
+            windows for recording pseudo-continuum channels or storing other metadata
+            in the track when the telescopes are not on source. Because of the way
+            the object is strutured (where all spectral windows are assumed to be
+            simultaneously recorded), this can significantly inflate the size and memory
+            footprint of UVData objects. By default, single channel windows are ignored
+            to avoid this issue, although they can be included if setting this parameter
+            equal to True.
+        raise_error : bool
+            The measurement set format allows for different spectral windows and
+            polarizations to have different metdata for the same time-baseline
+            combination, but UVData objects do not. If detected, by default the reader
+            will throw an error. However, if set to False, the reader will simply give
+            a warning, and will use the first value read in the file as the "correct"
+            metadata in the UVData object.
+        read_weights : bool
+            Read in the weights from the MS file, default is True. If false, the method
+            will set the `nsamples_array` to the same uniform value (namely 1.0).
 
         Raises
         ------
@@ -10199,6 +10247,9 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
+            ignore_single_chan=ignore_single_chan,
+            raise_error=raise_error,
+            read_weights=read_weights,
         )
         self._convert_from_filetype(ms_obj)
         del ms_obj
