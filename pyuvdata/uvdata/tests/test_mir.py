@@ -179,7 +179,7 @@ def test_read_mir_write_ms(uv_in_ms, future_shapes):
     if future_shapes:
         mir_uv.use_future_array_shapes()
 
-    mir_uv.write_ms(testfile)
+    mir_uv.write_ms(testfile, clobber=True)
     ms_uv.read(testfile)
 
     if future_shapes:
@@ -200,7 +200,7 @@ def test_read_mir_write_ms(uv_in_ms, future_shapes):
     # defaults to the telescope name. Make sure that checks out here.
     assert mir_uv.instrument == "SWARM"
     assert ms_uv.instrument == "SMA"
-    ms_uv.instrument = mir_uv.instrument
+    mir_uv.instrument = ms_uv.instrument
 
     # Quick check for history here
     assert ms_uv.history != mir_uv.history
@@ -209,13 +209,12 @@ def test_read_mir_write_ms(uv_in_ms, future_shapes):
     # Only MS has extra keywords, verify those look as expected.
     assert ms_uv.extra_keywords == {"DATA_COL": "DATA"}
     assert mir_uv.extra_keywords == {}
-    ms_uv.extra_keywords = mir_uv.extra_keywords
+    mir_uv.extra_keywords = ms_uv.extra_keywords
 
     # Make sure the filenames line up as expected.
     assert mir_uv.filename == ["sma_test.mir"]
     assert ms_uv.filename == ["outtest_mir.ms"]
-    ms_uv.filename = None
-    mir_uv.filename = None
+    mir_uv.filename = ms_uv.filename = None
 
     # Finally, with all exceptions handled, check for equality.
     assert ms_uv == mir_uv
