@@ -899,7 +899,7 @@ def test_known_telescopes():
         astropy_sites.remove("")
 
     # Using set to drop duplicate entries
-    known_telescopes = list(set(astropy_sites + ["PAPER", "HERA", "SMA", "SZA"]))
+    known_telescopes = list(set(astropy_sites + ["PAPER", "HERA", "SMA", "SZA", "OVRO-LWA"]))
     # calling np.sort().tolist() because [].sort() acts inplace and returns None
     # Before test had None == None
     assert (
