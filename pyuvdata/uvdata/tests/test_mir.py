@@ -207,7 +207,7 @@ def test_read_mir_write_ms(uv_in_ms, future_shapes):
     ms_uv.history = mir_uv.history
 
     # Only MS has extra keywords, verify those look as expected.
-    assert ms_uv.extra_keywords == {"DATA_COL": "DATA"}
+    assert ms_uv.extra_keywords == {"DATA_COL": "DATA", "observer": "SMA"}
     assert mir_uv.extra_keywords == {}
     mir_uv.extra_keywords = ms_uv.extra_keywords
 
