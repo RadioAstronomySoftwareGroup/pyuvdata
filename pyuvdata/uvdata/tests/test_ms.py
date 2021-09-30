@@ -90,7 +90,7 @@ def test_cotter_ms():
 def test_read_nrao_loopback(tmp_path, nrao_uv):
     """Test reading in a CASA tutorial ms file and looping it through write_ms."""
     uvobj = nrao_uv
-    expected_extra_keywords = ["DATA_COL"]
+    expected_extra_keywords = ["DATA_COL", "observer"]
 
     assert sorted(expected_extra_keywords) == sorted(uvobj.extra_keywords.keys())
 
@@ -114,7 +114,7 @@ def test_read_lwa(tmp_path):
     """Test reading in an LWA ms file."""
     uvobj = UVData()
     testfile = os.path.join(DATA_PATH, "lwasv_cor_58342_05_00_14.ms.tar.gz")
-    expected_extra_keywords = ["DATA_COL"]
+    expected_extra_keywords = ["DATA_COL", "observer"]
 
     import tarfile
 
