@@ -5,6 +5,7 @@ channels:
 dependencies:
   - astropy
   - h5py
+  - hdf5>=1.12.0
   - astropy-healpix
   - numpy
   - pyerfa>=2.0
