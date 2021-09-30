@@ -192,10 +192,23 @@ def test_read_write_read_carma(tmp_path):
     assert uv_in == uv_out
 
 
+@pytest.mark.filterwarnings("ignore:pamatten in extra_keywords is a list, array")
+@pytest.mark.filterwarnings("ignore:psys in extra_keywords is a list, array or dict")
+@pytest.mark.filterwarnings("ignore:psysattn in extra_keywords is a list, array or")
+@pytest.mark.filterwarnings("ignore:ambpsys in extra_keywords is a list, array or dict")
+@pytest.mark.filterwarnings("ignore:bfmask in extra_keywords is a list, array or dict")
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_carma_miriad_write_ms(tmp_path):
+    """
+    Check a roundtrip between CARMA-MIRIAD and MS formats.
+
+    Note that this check does a few different operations -- these are consolidated into
+    one test because several of them rely upon manipulating the same file object.
+    """
     pytest.importorskip("casacore")
+    from casacore import tables
+
     uv_in = UVData()
     uv_out = UVData()
     carma_file = os.path.join(DATA_PATH, "carma_miriad")
@@ -220,8 +233,10 @@ def test_read_carma_miriad_write_ms(tmp_path):
     ):
         uv_in.read(carma_file, fix_old_proj=True)
 
-    # Dump the extra keywords here, since they aren't written to MS format anyways
-    uv_in.extra_keywords = {}
+    # MIRIAD is missing these in the file, so we'll fill it in here.
+    uv_in.antenna_diameters = np.zeros(uv_in.Nants_telescope)
+    uv_in.antenna_diameters[:6] = 10.0
+    uv_in.antenna_diameters[15:] = 3.5
 
     # We need to recalculate app coords here for one source ("NOISE"), which was
     # not actually correctly calculated in the online CARMA system (long story). Since
@@ -232,14 +247,8 @@ def test_read_carma_miriad_write_ms(tmp_path):
     uv_out.read(testfile)
 
     # Make sure the MS extra keywords are as expected
-    assert uv_out.extra_keywords == {"DATA_COL": "DATA"}
-    uv_in.extra_keywords = uv_out.extra_keywords
-
-    # The original file does not have antenna diameters filled in, whereas MS treats
-    # these as all zeros. Handle this explicitly here, and then set them equal.
-    assert uv_in.antenna_diameters is None
-    assert np.all(uv_out.antenna_diameters == 0.0)
-    uv_in.antenna_diameters = uv_out.antenna_diameters
+    assert uv_out.extra_keywords["DATA_COL"] == "DATA"
+    uv_in.extra_keywords["DATA_COL"] = "DATA"
 
     # make sure filename is what we expect
     assert uv_in.filename == ["carma_miriad"]
@@ -251,6 +260,45 @@ def test_read_carma_miriad_write_ms(tmp_path):
     uv_in.history = uv_out.history
 
     # Final equality check
+    assert uv_in == uv_out
+
+    # Manipulate the table so that all fields have the same name (as is permitted
+    # for MS files), and wipe out the source_ID information
+    tb_field = tables.table(os.path.join(testfile, "FIELD"), ack=False, readonly=False)
+    orig_name = tb_field.getcol("NAME")
+    tb_field.putcol("NAME", ["TEST"] * 3)
+    tb_field.removecols("SOURCE_ID")
+    tb_field.close()
+
+    # Check and see that the naming convention lines up as expected -- only the internal
+    # catalog entries (specifically the names/keys and catalog IDs) should have changed.
+    uv_out.read(testfile)
+    cat_id_dict = {}
+    for idx in range(3):
+        sou_dict = uv_out.phase_center_catalog.pop("TEST-%03i" % idx)
+        sou_dict["cat_id"] = uv_in.phase_center_catalog[orig_name[idx]]["cat_id"]
+        uv_out.phase_center_catalog[orig_name[idx]] = sou_dict
+        cat_id_dict[idx] = uv_in.phase_center_catalog[orig_name[idx]]["cat_id"]
+
+    uv_out.phase_center_id_array = np.array(
+        [cat_id_dict[key] for key in uv_out.phase_center_id_array], dtype=int
+    )
+
+    # Final equality check
+    assert uv_in == uv_out
+
+    # Last but not least, change the coord system so that the catalog frames are the
+    # same as phase_center_frame
+    uv_in.phase_center_frame = "fk5"
+    uv_in._set_app_coords_helper()
+
+    # Check to make sure we raise an error if overwritting a file w/o clobber enabled
+    with pytest.raises(OSError, match="File exists; skipping"):
+        uv_in.write_ms(testfile, clobber=False)
+
+    # Do one last read/write/check for equality
+    uv_in.write_ms(testfile, clobber=True)
+    uv_out.read(testfile)
     assert uv_in == uv_out
 
 
