@@ -11,6 +11,7 @@ import shutil
 import numpy as np
 
 from pyuvdata import UVData
+from pyuvdata.uvdata.ms import MS
 from pyuvdata.data import DATA_PATH
 import pyuvdata.tests as uvtest
 from ..uvfits import UVFITS
@@ -20,15 +21,9 @@ pytest.importorskip("casacore")
 
 @pytest.fixture(scope="session")
 def nrao_uv_main():
-    # This file is known to be made with CASA's importuvfits task, but apparently the
-    # history table is missing, so we can't infer that from the history. This means that
-    # the uvws are not flipped/data is not conjugated as they should be. Fix that.
-
     uvobj = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
     uvobj.read(testfile)
-    # uvobj.uvw_array *= -1
-    # uvobj.data_array = np.conj(uvobj.data_array)
 
     yield uvobj
 
@@ -45,6 +40,23 @@ def nrao_uv(nrao_uv_main):
     del nrao_ms
 
     return
+
+
+@pytest.fixture(scope="session")
+def mir_uv_main():
+    mir_uv = UVData()
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    mir_uv.read(testfile)
+
+    yield mir_uv
+
+
+@pytest.fixture(scope="function")
+def mir_uv(mir_uv_main):
+    """Make a function level copy of a MIR data object"""
+    mir_uv = mir_uv_main.copy()
+
+    yield mir_uv
 
 
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
@@ -279,8 +291,7 @@ def test_multi_files(casa_uvfits, axis):
         filesread = np.array(filesread)
 
     uv_multi.read(filesread, axis=axis)
-    # uv_multi.uvw_array *= -1
-    # uv_multi.data_array = np.conj(uv_multi.data_array)
+
     # histories are different because of combining along freq. axis
     # replace the history
     uv_multi.history = uv_full.history
@@ -326,3 +337,328 @@ def test_bad_col_name():
 
     with pytest.raises(ValueError, match="Invalid data_column value supplied"):
         uvobj.read_ms(testfile, data_column="FOO")
+
+
+@pytest.mark.parametrize("check_warning", [True, False])
+@pytest.mark.parametrize(
+    "frame,errtype,msg",
+    (
+        ["JNAT", NotImplementedError, "Support for the JNAT frame is not yet"],
+        ["AZEL", NotImplementedError, "Support for the AZEL frame is not yet"],
+        ["GALACTIC", NotImplementedError, "Support for the GALACTIC frame is not yet"],
+        ["ABC", ValueError, "The coordinate frame ABC is not one of the supported"],
+        ["123", ValueError, "The coordinate frame 123 is not one of the supported"],
+    ),
+)
+def test_parse_casa_frame_ref_errors(check_warning, frame, errtype, msg):
+    """
+    Test errors with matching CASA frames to astropy frame/epochs
+    """
+    uvobj = MS()
+    if check_warning:
+        with uvtest.check_warnings(UserWarning, match=msg):
+            uvobj._parse_casa_frame_ref(frame, raise_error=False)
+    else:
+        with pytest.raises(errtype) as cm:
+            uvobj._parse_casa_frame_ref(frame)
+        assert str(cm.value).startswith(msg)
+
+
+@pytest.mark.parametrize("check_warning", [True, False])
+@pytest.mark.parametrize(
+    "frame,epoch,msg",
+    (
+        ["fk5", 1991.1, "Frame fk5 (epoch 1991.1) does not have a corresponding match"],
+        ["fk4", 1991.1, "Frame fk4 (epoch 1991.1) does not have a corresponding match"],
+        ["icrs", 2021.0, "Frame icrs (epoch 2021) does not have a corresponding"],
+    ),
+)
+def test_parse_pyuvdata_frame_ref_errors(check_warning, frame, epoch, msg):
+    """
+    Test errors with matching CASA frames to astropy frame/epochs
+    """
+    uvobj = MS()
+    if check_warning:
+        with uvtest.check_warnings(UserWarning, match=msg):
+            uvobj._parse_pyuvdata_frame_ref(frame, epoch, raise_error=False)
+    else:
+        with pytest.raises(ValueError) as cm:
+            uvobj._parse_pyuvdata_frame_ref(frame, epoch)
+        assert str(cm.value).startswith(msg)
+
+
+def test_ms_history_lesson(mir_uv, tmp_path):
+    """
+    Test that the MS reader/writer can parse complex history
+    """
+    from casacore import tables
+
+    ms_uv = UVData()
+    testfile = os.path.join(tmp_path, "out_ms_history_lesson.ms")
+    mir_uv.history = (
+        "Line 1.\nBegin measurement set history\nAPP_PARAMS;CLI_COMMAND;"
+        "APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n"
+        "End measurement set history.\nLine 2.\n"
+    )
+    mir_uv.write_ms(testfile, clobber=True)
+
+    tb_hist = tables.table(testfile + "/HISTORY", readonly=False, ack=False)
+    tb_hist.addrows()
+    for col in tb_hist.colnames():
+        tb_hist.putcell(col, tb_hist.nrows() - 1, tb_hist.getcell(col, 0))
+    tb_hist.putcell("ORIGIN", 1, "DUMMY")
+    tb_hist.putcell("APPLICATION", 1, "DUMMY")
+    tb_hist.putcell("TIME", 1, 0.0)
+    tb_hist.putcell("MESSAGE", 2, "Line 3.")
+    tb_hist.close()
+
+    ms_uv.read(testfile)
+
+    assert ms_uv.history.startswith(
+        "Line 1.\nBegin measurement set history\nAPP_PARAMS;CLI_COMMAND;APPLICATION;"
+        "MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n;;DUMMY;Line 2.;0;-1;"
+        "DUMMY;INFO;0.0\nEnd measurement set history.\nLine 3.\n  Read/written with "
+        "pyuvdata version:"
+    )
+
+    tb_hist = tables.table(os.path.join(testfile, "HISTORY"), ack=False, readonly=False)
+    tb_hist.rename(os.path.join(testfile, "FORGOTTEN"))
+    tb_hist.close()
+
+    ms_uv.read(testfile)
+    assert ms_uv.history.startswith("  Read/written with pyuvdata version:")
+
+
+def test_ms_no_ref_dir_source(mir_uv, tmp_path):
+    """
+    Test that the MS writer/reader appropriately reads in a single-source data set
+    as non-multi-phase if it can be, even if the original data set was.
+    """
+    ms_uv = UVData()
+    testfile = os.path.join(tmp_path, "out_ms_no_ref_dir_source.ms")
+
+    mir_uv.phase_center_frame = "fk5"
+    mir_uv._set_app_coords_helper()
+    mir_uv.write_ms(testfile, clobber=True)
+    ms_uv.read(testfile)
+
+    assert ms_uv.multi_phase_center is False
+
+    ms_uv._set_multi_phase_center(preserve_phase_center_info=True)
+    ms_uv._update_phase_center_id("3c84", 1)
+    ms_uv.phase_center_catalog["3c84"]["info_source"] = "file"
+
+    assert ms_uv.phase_center_catalog == mir_uv.phase_center_catalog
+
+
+def test_ms_multi_spw_data_variation(mir_uv, tmp_path):
+    """
+    Test that the MS writer/reader appropriately reads in a single-source data set
+    as non-multi-phase if it can be, even if the original data set was.
+    """
+    from casacore import tables
+
+    ms_uv = UVData()
+    testfile = os.path.join(tmp_path, "out_ms_multi_spw_data_variation.ms")
+
+    mir_uv.write_ms(testfile, clobber=True)
+
+    tb_main = tables.table(testfile, readonly=False, ack=False)
+    tb_main.putcol("EXPOSURE", np.arange(mir_uv.Nblts * mir_uv.Nspws) + 1.0)
+    tb_main.close()
+
+    with pytest.raises(ValueError) as cm:
+        ms_uv.read_ms(testfile)
+    assert str(cm.value).startswith("Column EXPOSURE appears to vary on between")
+
+    with uvtest.check_warnings(
+        UserWarning, match="Column EXPOSURE appears to vary on between windows, ",
+    ):
+        ms_uv.read_ms(testfile, raise_error=False)
+
+    # Check that the values do indeed match the first entry in the catalog
+    assert np.all(ms_uv.integration_time == np.array([1.0]))
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_ms_phasing(mir_uv, tmp_path):
+    """
+    Test that the MS writer can appropriately handle unphased data sets.
+    """
+    ms_uv = UVData()
+    testfile = os.path.join(tmp_path, "out_ms_phasing.ms")
+
+    mir_uv.unphase_to_drift()
+
+    with pytest.raises(ValueError) as cm:
+        mir_uv.write_ms(testfile, clobber=True)
+    assert str(cm.value).startswith("The data are in drift mode.")
+
+    mir_uv.write_ms(testfile, clobber=True, force_phase=True)
+
+    ms_uv.read(testfile)
+
+    assert np.allclose(ms_uv.phase_center_app_ra, ms_uv.lst_array)
+    assert np.allclose(
+        ms_uv.phase_center_app_dec, ms_uv.telescope_location_lat_lon_alt[0]
+    )
+
+
+def test_ms_single_chan(mir_uv, tmp_path):
+    """
+    Make sure that single channel writing/reading work as expected
+    """
+    ms_uv = UVData()
+    testfile = os.path.join(tmp_path, "out_ms_single_chan.ms")
+
+    mir_uv.select(freq_chans=0)
+    mir_uv.write_ms(testfile, clobber=True)
+    mir_uv.set_lsts_from_time_array()
+    mir_uv._set_app_coords_helper()
+
+    with pytest.raises(ValueError) as cm:
+        ms_uv.read_ms(testfile)
+    assert str(cm.value).startswith("No valid data available in the MS file.")
+
+    ms_uv.read_ms(testfile, ignore_single_chan=False, read_weights=False)
+
+    # Easiest way to check that everything worked is to just check for equality, but
+    # the MS file is single-spw, single-field, so we have a few things we need to fix
+
+    # First, make the date multi-phase-ctr
+    ms_uv._set_multi_phase_center(preserve_phase_center_info=True)
+    ms_uv._update_phase_center_id("3c84", 1)
+
+    # Next, turn on flex-spw
+    ms_uv._set_flex_spw()
+    ms_uv.channel_width = np.array([ms_uv.channel_width])
+    ms_uv.flex_spw_id_array = ms_uv.spw_array.copy()
+
+    # Finally, take care of the odds and ends
+    ms_uv.extra_keywords = {}
+    ms_uv.history = mir_uv.history
+    ms_uv.filename = mir_uv.filename
+    ms_uv.instrument = mir_uv.instrument
+    ms_uv.reorder_blts()
+
+    assert ms_uv == mir_uv
+
+
+def test_ms_extra_data_descrip(mir_uv, tmp_path):
+    """
+    Make sure that data sets can be read even if the main table doesn't have data
+    for a particular listed spectral window in the DATA_DESCRIPTION table.
+    """
+    from casacore import tables
+
+    ms_uv = UVData()
+    testfile = os.path.join(tmp_path, "out_ms_extra_data_descrip.ms")
+
+    mir_uv.write_ms(testfile, clobber=True)
+
+    tb_dd = tables.table(
+        os.path.join(testfile, "DATA_DESCRIPTION"), ack=False, readonly=False
+    )
+    tb_dd.addrows()
+    for col in tb_dd.colnames():
+        tb_dd.putcell(col, tb_dd.nrows() - 1, tb_dd.getcell(col, 0))
+    tb_dd.close()
+
+    ms_uv.read_ms(testfile, ignore_single_chan=False, read_weights=False)
+
+    # There are some minor differences between the values stored by MIR and that
+    # calculated by UVData. Since MS format requires these to be calculated on the fly,
+    # we calculate them here just to verify that everything is looking okay.
+    mir_uv.set_lsts_from_time_array()
+    mir_uv._set_app_coords_helper()
+
+    # These reorderings just make sure that data from the two formats are lined up
+    # correctly.
+    mir_uv.reorder_freqs(spw_order="number")
+    ms_uv.reorder_blts()
+
+    # Fix the remaining differences between the two objects, all of which are expected
+    mir_uv.instrument = mir_uv.telescope_name
+    ms_uv.history = mir_uv.history
+    mir_uv.extra_keywords = ms_uv.extra_keywords
+    mir_uv.filename = ms_uv.filename = None
+
+    # Finally, with all exceptions handled, check for equality.
+    assert ms_uv == mir_uv
+
+
+def test_ms_weights(mir_uv, tmp_path):
+    """
+    Test that the MS writer/reader appropriately handles data when the
+    WEIGHT_SPECTRUM column is missing or bypassed.
+    """
+    from casacore import tables
+
+    ms_uv = UVData()
+    testfile = os.path.join(tmp_path, "out_ms_weights.ms")
+
+    mir_uv.nsample_array[0, 0, :, 0] = np.tile(
+        np.arange(mir_uv.Nfreqs / mir_uv.Nspws), mir_uv.Nspws,
+    )
+    mir_uv.write_ms(testfile, clobber=True)
+
+    tb_main = tables.table(testfile, readonly=False, ack=False)
+    tb_main.removecols("WEIGHT_SPECTRUM")
+    tb_main.close()
+
+    ms_uv.read_ms(testfile)
+
+    # Check that the values do indeed match expected (median) value
+    assert np.all(ms_uv.nsample_array == np.median(mir_uv.nsample_array))
+
+    ms_uv.read_ms(testfile, read_weights=False)
+    # Check that the values do indeed match expected (median) value
+    assert np.all(ms_uv.nsample_array == 1.0)
+
+
+@pytest.mark.parametrize(
+    "badcol,badval,errtype,msg",
+    (
+        [None, None, IOError, "Thisisnofile.ms not found"],
+        ["DATA_DESC_ID", [1000] * 8, ValueError, "No valid data available in the MS"],
+        ["ARRAY_ID", np.arange(8), ValueError, "This file appears to have multiple"],
+        ["DATA_COL", None, ValueError, "Invalid data_column value supplied."],
+        ["TEL_LOC", None, ValueError, "Telescope frame is not ITRF and telescope is"],
+    ),
+)
+def test_ms_reader_errs(mir_uv, tmp_path, badcol, badval, errtype, msg):
+    """
+    Test whether the reader throws an appripropriate errors on read.
+    """
+    from casacore import tables
+
+    ms_uv = UVData()
+    testfile = os.path.join(tmp_path, "out_ms_reader_errs.ms")
+    mir_uv.write_ms(testfile, clobber=True)
+
+    data_col = "DATA"
+
+    if badcol is None:
+        testfile = "Thisisnofile.ms"
+    elif badcol == "DATA_COL":
+        data_col = badval
+    elif badcol == "TEL_LOC":
+        tb_obs = tables.table(
+            os.path.join(testfile, "OBSERVATION"), ack=False, readonly=False
+        )
+        tb_obs.removecols("TELESCOPE_LOCATION")
+        tb_obs.putcol("TELESCOPE_NAME", "ABC")
+        tb_obs.close()
+        tb_ant = tables.table(
+            os.path.join(testfile, "ANTENNA"), ack=False, readonly=False
+        )
+        tb_ant.putcolkeyword("POSITION", "MEASINFO", {"type": "position", "Ref": "ABC"})
+        tb_ant.close()
+    else:
+        tb_main = tables.table(testfile, ack=False, readonly=False)
+        tb_main.putcol(badcol, badval)
+        tb_main.close()
+
+    with pytest.raises(errtype) as cm:
+        ms_uv.read_ms(testfile, data_column=data_col)
+    assert str(cm.value).startswith(msg)
