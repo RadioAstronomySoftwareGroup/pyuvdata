@@ -742,13 +742,13 @@ class MS(UVData):
         observation_table.addcols(name_col_desc)
         observation_table.putcell("TELESCOPE_LOCATION", 0, self.telescope_location)
 
-        observation_table.putcell(
-            "OBSERVER",
-            0,
-            self.extra_keywords["OBSERVER"]
-            if ("OBSERVER" in self.extra_keywords.keys())
-            else self.telescope_name,
-        )
+        extra_upper = [key.upper() for key in self.extra_keywords.keys()]
+        if "OBSERVER" in extra_upper:
+            key_ind = extra_upper.index("OBSERVER")
+            key = list(self.extra_keywords.keys())[key_ind]
+            observation_table.putcell("OBSERVER", 0, self.extra_keywords[key])
+        else:
+            observation_table.putcell("OBSERVER", 0, self.telescope_name)
 
     def _write_ms_polarization(self, filepath):
         """
@@ -1866,6 +1866,7 @@ class MS(UVData):
         tb_obs = tables.table(filepath + "/OBSERVATION", ack=False)
         self.telescope_name = tb_obs.getcol("TELESCOPE_NAME")[0]
         self.instrument = tb_obs.getcol("TELESCOPE_NAME")[0]
+        self.extra_keywords["observer"] = tb_obs.getcol("OBSERVER")[0]
         full_antenna_positions = tb_ant.getcol("POSITION")
         n_ants_table = full_antenna_positions.shape[0]
         xyz_telescope_frame = tb_ant.getcolkeyword("POSITION", "MEASINFO")["Ref"]
