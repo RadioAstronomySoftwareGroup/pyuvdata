@@ -885,7 +885,7 @@ class UVBeam(UVBase):
                         "no examples to work with."
                     )
 
-        power_data = np.real_if_close(power_data)
+        power_data = np.real_if_close(power_data, tol=1000)
 
         beam_object.data_array = power_data
         beam_object.Nfeeds = None
