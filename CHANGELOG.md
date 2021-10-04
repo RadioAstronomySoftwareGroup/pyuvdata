@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- A bug that resulted in a potential error when attempting to write out multi-phase-center data sets into the UVH5 file format.
+
+
 ## [2.2.2] - 2021-9-30
 
 ### Added
