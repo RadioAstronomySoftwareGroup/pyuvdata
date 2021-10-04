@@ -3282,3 +3282,19 @@ def test_fix_phase(tmp_path):
         "This data appears to have been phased-up using the old `phase` method,",
     ):
         uv_out.read(writepath, fix_old_proj=False)
+
+
+def test_cast_to_multiphase(uv_uvh5, tmp_path):
+    """
+    Test that round-tripping a UVH5 dataset after turning a single-phase-ctr
+    data set into a multi-phase-ctr writes out correctly
+    """
+    test_uvh5 = UVData()
+    testfile = os.path.join(tmp_path, "out_cast_to_multiphase.uvh5")
+
+    uv_uvh5._set_multi_phase_center(preserve_phase_center_info=True)
+
+    uv_uvh5.write_uvh5(testfile)
+    test_uvh5.read(testfile)
+
+    assert test_uvh5 == uv_uvh5
