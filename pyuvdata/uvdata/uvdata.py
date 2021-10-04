@@ -1142,9 +1142,11 @@ class UVData(UVBase):
         if force_update and (cat_name in self.phase_center_catalog.keys()):
             cat_id = self.phase_center_catalog[cat_name]["cat_id"]
         elif cat_id is None:
-            cat_id = np.arange(self.Nphase + 1)[
-                ~np.isin(np.arange(self.Nphase + 1), list(used_cat_ids.keys()))
-            ][0]
+            cat_id = int(
+                np.arange(self.Nphase + 1)[
+                    ~np.isin(np.arange(self.Nphase + 1), list(used_cat_ids.keys()))
+                ][0]
+            )
         elif cat_id in used_cat_ids.keys():
             raise ValueError(
                 "Provided cat_id belongs to another source (%s)." % used_cat_ids[cat_id]
