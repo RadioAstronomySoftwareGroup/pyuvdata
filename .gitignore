@@ -41,6 +41,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+cov.xml
 *,cover
 .pytest_cache
 pyuvdata/tests/cover
