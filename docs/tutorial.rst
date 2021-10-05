@@ -519,7 +519,7 @@ b) Data with a multiple phase centers enabled.
      ID     Cat Entry       Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
       #          Name                    hours           deg                  Start-MJD    End-MJD       pc    km/s
   ------------------------------------------------------------------------------------------------------------------
-      0           Sun      ephem    6:19:28.68  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
+      0           Sun      ephem    6:19:28.68  +23:21:44.64   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
 
 
   >>> # Finally, we can use a selection mask to only phase part of the data at a time,
