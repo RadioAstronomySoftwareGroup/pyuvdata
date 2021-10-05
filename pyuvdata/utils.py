@@ -2623,7 +2623,9 @@ def lookup_jplhorizons(
     # If not in the major bodies catalog, try the minor bodies list, and if
     # still not found, throw an error.
     try:
-        ephem_data = query_obj.ephemerides(extra_precision=True)
+        # TODO: Investigate as to why setting extra_precision to True seems to
+        # break everything for MacOS 10.15.
+        ephem_data = query_obj.ephemerides(extra_precision=False)
     except ValueError as err:
         query_obj._session.close()
         raise ValueError(
