@@ -2623,9 +2623,13 @@ def lookup_jplhorizons(
     # If not in the major bodies catalog, try the minor bodies list, and if
     # still not found, throw an error.
     try:
-        # TODO: Investigate as to why setting extra_precision to True seems to
-        # break everything for MacOS 10.15.
-        ephem_data = query_obj.ephemerides(extra_precision=False)
+        ephem_data = query_obj.ephemerides(extra_precision=True)
+    except KeyError:
+        # This is a fix for a MacOS-10.15 + astroquery + JPL-Horizons bug, that's not
+        # currently well understood. In this case, the source is identified, but
+        # astroquery can't correctly parse the return message from JPL-Horizons.
+        # See astroquery issue #2169.
+        ephem_data = query_obj.ephemerides(extra_precision=False)  # pragma: no cover
     except ValueError as err:
         query_obj._session.close()
         raise ValueError(
