@@ -2625,8 +2625,8 @@ def lookup_jplhorizons(
     try:
         ephem_data = query_obj.ephemerides(extra_precision=True)
     except KeyError:
-        # This is a fix for a MacOS-10.15 + astroquery + JPL-Horizons bug, that's not
-        # currently well understood. In this case, the source is identified, but
+        # This is a fix for an astroquery + JPL-Horizons bug, that's related to
+        # API change on JPL's side. In this case, the source is identified, but
         # astroquery can't correctly parse the return message from JPL-Horizons.
         # See astroquery issue #2169.
         ephem_data = query_obj.ephemerides(extra_precision=False)  # pragma: no cover
