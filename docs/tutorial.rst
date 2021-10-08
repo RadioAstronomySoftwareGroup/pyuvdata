@@ -539,10 +539,6 @@ b) Data with a multiple phase centers enabled.
   -------------------------------------------------------------------------------------------------------------------
       0           Sun      ephem    94:52:10.20  +23:21:44.64   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
       1        zenith  driftscan     0:00:00.00  +90:00:00.00  altaz  J2000.0
-  ..
-    NOTE TO DEVELOPERS: If this throws an error on doctest, it could be related to an
-    API-related error with JPL-Horizons and astroquery. Please file an issue in our
-    GitHub issue log so that we can fix it.
 
 
 UVData: Averaging and Resampling
