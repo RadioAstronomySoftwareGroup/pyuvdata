@@ -8,6 +8,7 @@ import os
 import pytest
 from astropy.utils import iers
 from astropy.time import Time
+from astropy.coordinates import EarthLocation
 import numpy as np
 
 from pyuvdata.data import DATA_PATH
@@ -39,6 +40,9 @@ def setup_and_teardown_package():
         t1.ut1
     except (Exception):
         iers.conf.auto_max_age = None
+
+    # Also ensure that we're downloading the site data from astropy
+    EarthLocation._get_site_registry(force_download=True)
 
     yield
 
