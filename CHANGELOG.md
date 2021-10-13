@@ -4,13 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+
+## [2.2.3] - 2021-10-13
+
 ### Fixed
 - A bug that resulted in coordinate queries via for solar-system objects `utils.lookup_jplhorizons` to throw an error. The workaround temporarily requires the precision for ephemerides to be limited to 0.05 arcseconds.
 - A bug that resulted in a potential error when attempting to write out multi-phase-center data sets into the UVH5 file format.
 
 
 ## [2.2.2] - 2021-9-30
-
 
 ### Added
 - Added the `UVData.write_ms` method, a UVData measurement set writer.
