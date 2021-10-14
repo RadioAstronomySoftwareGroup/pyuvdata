@@ -2356,6 +2356,11 @@ class UVCal(UVBase):
         clobber : bool
             Option to overwrite the filename if the file already exists.
 
+        Raises
+        ------
+        ValueError
+            If the UVCal object is a metadata only object.
+
         """
         if self.metadata_only:
             raise ValueError(
