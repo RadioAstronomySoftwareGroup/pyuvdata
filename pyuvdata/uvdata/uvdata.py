@@ -12213,7 +12213,7 @@ class UVData(UVBase):
         ------
         ValueError
             If the frequencies are not evenly spaced or are separated by more
-            than their channel width.
+            than their channel width or if the UVData object is a metadata only object.
         TypeError
             If any entry in extra_keywords is not a single string or number.
 
@@ -12247,6 +12247,8 @@ class UVData(UVBase):
 
         Raises
         ------
+        ValueError
+            If the UVData object is a metadata only object.
         NotImplementedError
             Method is not fully implemented yet, and thus will raise an error
 
@@ -12292,6 +12294,11 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+
+        Raises
+        ------
+        ValueError
+            If the UVData object is a metadata only object.
 
         """
         if self.metadata_only:
@@ -12363,6 +12370,7 @@ class UVData(UVBase):
             Any of ['antenna_positions', 'gst0', 'rdate', 'earth_omega', 'dut1',
             'timesys'] are not set on the object and `spoof_nonessential` is False.
             If the `timesys` parameter is not set to "UTC".
+            If the UVData object is a metadata only object.
         TypeError
             If any entry in extra_keywords is not a single string or number.
 
@@ -12437,6 +12445,11 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+
+        Raises
+        ------
+        ValueError
+            If the UVData object is a metadata only object.
 
         """
         if self.metadata_only:
