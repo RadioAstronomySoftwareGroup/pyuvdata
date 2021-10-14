@@ -426,6 +426,14 @@ def test_convert_filetype(gain_data):
         gain_data._convert_to_filetype("uvfits")
 
 
+def test_error_metadata_only_write(gain_data, tmp_path):
+    calobj = gain_data.copy(metadata_only=True)
+
+    out_file = os.path.join(tmp_path, "outtest.calfits")
+    with pytest.raises(ValueError, match="Cannot write out metadata only objects to a"):
+        calobj.write_calfits(out_file)
+
+
 def test_convert_to_gain(gain_data, delay_data):
     conventions = ["minus", "plus"]
     for c in conventions:
