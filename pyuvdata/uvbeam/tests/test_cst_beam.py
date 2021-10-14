@@ -969,7 +969,19 @@ def test_hera_yaml():
 
     beam2.read_cst_beam(cst_yaml_vivaldi, beam_type="power", frequency_select=[150e6])
 
-    beam1.efield_to_power(calc_cross_pols=False)
+    # separate out the check to print some debugging info if the
+    # `real_if_close` tolerance is not met (as sometimes happens in conda builds)
+    beam1.efield_to_power(calc_cross_pols=False, run_check=False)
+
+    if not isinstance(beam1.data_array, float):
+        print("Max imaginary component:")
+        print(np.max(np.abs(beam1.data_array.imag)))
+        print("data_array dtype:")
+        print(beam1.data_array.dtype)
+        print("Machine epsilon for data_array dtype:")
+        print(np.finfo(beam1.data_array.dtype).eps)
+
+    beam1.check()
 
     # The values in the beam file only have 4 sig figs, so they don't match precisely
     diff = np.abs(beam1.data_array - beam2.data_array)

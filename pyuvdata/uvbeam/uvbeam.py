@@ -884,8 +884,13 @@ class UVBeam(UVBase):
                         "is not currently supported because we have "
                         "no examples to work with."
                     )
-
-        power_data = np.real_if_close(power_data, tol=1000)
+        # the tol here is the tolerance in machine epsilons for the complex part of the
+        # elements in the array. Per the numpy docstring:
+        # Machine epsilon varies from machine to machine and between data types but
+        # Python floats on most platforms have a machine epsilon equal to
+        # 2.2204460492503131e-16. You can use ‘np.finfo(float).eps’ to print out the
+        # machine epsilon for floats.
+        power_data = np.real_if_close(power_data, tol=1e4)
 
         beam_object.data_array = power_data
         beam_object.Nfeeds = None
