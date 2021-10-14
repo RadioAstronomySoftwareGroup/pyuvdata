@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.2.4] - 2021-10-14
+
 ### Fixed
 - Fixed a bug in converting non-crosspol power beams to real in `UVBeam.efield_to_power`.
 
