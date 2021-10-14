@@ -885,7 +885,22 @@ class UVBeam(UVBase):
                         "no examples to work with."
                     )
 
-        power_data = np.real_if_close(power_data, tol=1000)
+        if not calc_cross_pols:
+            max_abs_imag = np.max(np.abs(power_data.imag))
+            if not np.isclose(
+                max_abs_imag,
+                0,
+                rtol=beam_object._data_array.tols[0],
+                atol=beam_object._data_array.tols[1],
+            ):  # pragma: no cover
+                warnings.warn(
+                    "The calculated power beam has a non-zero imaginary component "
+                    f"(the maximum absolute imaginary component is {max_abs_imag}). "
+                    "The power beam should be real because the crosspols are not "
+                    "calculated. Setting the power beam equal to the real part of the "
+                    "calculated power beam."
+                )
+            power_data = power_data.real
 
         beam_object.data_array = power_data
         beam_object.Nfeeds = None
