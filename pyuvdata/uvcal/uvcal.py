@@ -2357,6 +2357,11 @@ class UVCal(UVBase):
             Option to overwrite the filename if the file already exists.
 
         """
+        if self.metadata_only:
+            raise ValueError(
+                "Cannot write out metadata only objects to a calfits file."
+            )
+
         calfits_obj = self._convert_to_filetype("calfits")
         calfits_obj.write_calfits(
             filename,

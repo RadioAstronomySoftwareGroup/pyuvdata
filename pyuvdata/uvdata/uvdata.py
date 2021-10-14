@@ -12218,6 +12218,9 @@ class UVData(UVBase):
             If any entry in extra_keywords is not a single string or number.
 
         """
+        if self.metadata_only:
+            raise ValueError("Cannot write out metadata only objects to a miriad file.")
+
         miriad_obj = self._convert_to_filetype("miriad")
         miriad_obj.write_miriad(
             filepath,
@@ -12248,6 +12251,9 @@ class UVData(UVBase):
             Method is not fully implemented yet, and thus will raise an error
 
         """
+        if self.metadata_only:
+            raise ValueError("Cannot write out metadata only objects to a mir file.")
+
         mir_obj = self._convert_to_filetype("mir")
         mir_obj.write_mir(filepath,)
         del mir_obj
@@ -12288,6 +12294,11 @@ class UVData(UVBase):
             uvws match antenna positions does not pass.
 
         """
+        if self.metadata_only:
+            raise ValueError(
+                "Cannot write out metadata only objects to a measurement set file."
+            )
+
         ms_obj = self._convert_to_filetype("ms")
         ms_obj.write_ms(
             filename,
@@ -12356,6 +12367,9 @@ class UVData(UVBase):
             If any entry in extra_keywords is not a single string or number.
 
         """
+        if self.metadata_only:
+            raise ValueError("Cannot write out metadata only objects to a uvfits file.")
+
         uvfits_obj = self._convert_to_filetype("uvfits")
         uvfits_obj.write_uvfits(
             filename,
@@ -12425,6 +12439,13 @@ class UVData(UVBase):
             uvws match antenna positions does not pass.
 
         """
+        if self.metadata_only:
+            raise ValueError(
+                "Cannot write out metadata only objects to a uvh5 file. To initialize "
+                "a uvh5 file for partial writing, use the `initialize_uvh5_file` "
+                "method."
+            )
+
         uvh5_obj = self._convert_to_filetype("uvh5")
         uvh5_obj.write_uvh5(
             filename,

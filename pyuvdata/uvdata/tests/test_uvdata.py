@@ -638,6 +638,19 @@ def test_metadata_only_property(casa_uvfits):
     assert uvobj.metadata_only is True
 
 
+@pytest.mark.parametrize("filetype", ["miriad", "mir", "ms", "uvfits", "uvh5"])
+def test_error_metadata_only_write(casa_uvfits, filetype, tmp_path):
+    uvobj = casa_uvfits
+    uvobj.data_array = None
+    uvobj.flag_array = None
+    uvobj.nsample_array = None
+    assert uvobj.metadata_only is True
+
+    out_file = os.path.join(tmp_path, "outtest." + filetype)
+    with pytest.raises(ValueError, match="Cannot write out metadata only objects to a"):
+        getattr(uvobj, "write_" + filetype)(out_file)
+
+
 def test_equality(casa_uvfits):
     """Basic equality test."""
     uvobj = casa_uvfits
