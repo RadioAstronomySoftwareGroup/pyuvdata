@@ -811,6 +811,10 @@ class UVBeam(UVBase):
         if beam_object.beam_type != "efield":
             raise ValueError("beam_type must be efield")
 
+        if beam_object.Nfeeds == 1:
+            # There are no cross pols with one feed. Set this so the power beam is real
+            calc_cross_pols = False
+
         efield_data = beam_object.data_array
         efield_naxes_vec = beam_object.Naxes_vec
 
@@ -820,8 +824,8 @@ class UVBeam(UVBase):
 
         if calc_cross_pols:
             beam_object.Npols = beam_object.Nfeeds ** 2
-            if beam_object.Nfeeds > 1:
-                feed_pol_order.extend([(0, 1), (1, 0)])
+            # to get here we have Nfeeds > 1
+            feed_pol_order.extend([(0, 1), (1, 0)])
         else:
             beam_object.Npols = beam_object.Nfeeds
 
