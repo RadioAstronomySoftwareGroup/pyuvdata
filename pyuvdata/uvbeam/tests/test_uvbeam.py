@@ -378,7 +378,7 @@ def test_efield_to_pstokes_error(cst_power_2freq_cut):
         power_beam.efield_to_pstokes()
 
 
-def test_efield_to_power(cst_efield_2freq_cut, cst_power_2freq_cut, tmp_path):
+def test_efield_to_power(cst_efield_2freq_cut, cst_power_2freq_cut):
     efield_beam = cst_efield_2freq_cut
     power_beam = cst_power_2freq_cut
 
@@ -397,6 +397,37 @@ def test_efield_to_power(cst_efield_2freq_cut, cst_power_2freq_cut, tmp_path):
     # modify the history to match
     power_beam.history += " Converted from efield to power using pyuvdata."
     assert power_beam == new_power_beam
+
+
+def test_efield_to_power_1feed(cst_efield_2freq_cut, cst_power_2freq_cut):
+    efield_beam = cst_efield_2freq_cut
+    efield_beam.select(feeds=["x"])
+
+    power_beam = cst_power_2freq_cut
+    power_beam.select(polarizations=["xx"])
+
+    new_power_beam = efield_beam.efield_to_power(calc_cross_pols=True, inplace=False)
+
+    # The values in the beam file only have 4 sig figs, so they don't match precisely
+    diff = np.abs(new_power_beam.data_array - power_beam.data_array)
+    assert np.max(diff) < 2
+    reldiff = diff / power_beam.data_array
+    assert np.max(reldiff) < 0.002
+
+    # set data_array tolerances higher to test the rest of the object
+    # tols are (relative, absolute)
+    tols = [0.002, 0]
+    power_beam._data_array.tols = tols
+    # modify the history to match
+    power_beam.history = new_power_beam.history
+
+    assert power_beam == new_power_beam
+
+
+def test_efield_to_power_nonorthogonal(cst_efield_2freq_cut):
+    efield_beam = cst_efield_2freq_cut
+
+    new_power_beam = efield_beam.efield_to_power(calc_cross_pols=False, inplace=False)
 
     # test with non-orthogonal basis vectors
     # first construct a beam with non-orthogonal basis vectors
@@ -449,6 +480,12 @@ def test_efield_to_power(cst_efield_2freq_cut, cst_power_2freq_cut, tmp_path):
 
     assert new_power_beam == new_power_beam2
 
+
+def test_efield_to_power_rotated(cst_efield_2freq_cut):
+    efield_beam = cst_efield_2freq_cut
+
+    new_power_beam = efield_beam.efield_to_power(calc_cross_pols=False, inplace=False)
+
     # now construct a beam with  orthogonal but rotated basis vectors
     new_basis_vecs = np.zeros_like(efield_beam.basis_vector_array)
     new_basis_vecs[0, 0, :, :] = np.sqrt(0.5)
@@ -473,6 +510,10 @@ def test_efield_to_power(cst_efield_2freq_cut, cst_power_2freq_cut, tmp_path):
     new_power_beam2.efield_to_power(calc_cross_pols=False)
 
     assert new_power_beam == new_power_beam2
+
+
+def test_efield_to_power_crosspol(cst_efield_2freq_cut, tmp_path):
+    efield_beam = cst_efield_2freq_cut
 
     # test calculating cross pols
     new_power_beam = efield_beam.efield_to_power(calc_cross_pols=True, inplace=False)
@@ -512,6 +553,11 @@ def test_efield_to_power(cst_efield_2freq_cut, cst_power_2freq_cut, tmp_path):
         calc_cross_pols=False, keep_basis_vector=True, inplace=False
     )
     assert np.allclose(new_power_beam.data_array, np.abs(efield_beam.data_array) ** 2)
+
+
+def test_efield_to_power_errors(cst_efield_2freq_cut, cst_power_2freq_cut):
+    efield_beam = cst_efield_2freq_cut
+    power_beam = cst_power_2freq_cut
 
     # test raises error if beam is already a power beam
     with pytest.raises(ValueError, match="beam_type must be efield"):

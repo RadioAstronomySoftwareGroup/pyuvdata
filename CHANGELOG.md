@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Fixed a bug in `UVBeam.efield_to_power` when there is only one feed.
+
 ## [2.2.4] - 2021-10-14
 
 ### Fixed
