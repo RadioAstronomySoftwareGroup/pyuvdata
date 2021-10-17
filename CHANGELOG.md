@@ -4,10 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Added
-- Warning to `utils.uvcalibrate` when uvdata x_orientation is not set.
-
 ### Fixed
+- Added a warning in `utils.uvcalibrate` when uvdata x_orientation is not set.
 - Fixed a bug in `UVBeam.efield_to_power` when there is only one feed.
 
 ## [2.2.4] - 2021-10-14
