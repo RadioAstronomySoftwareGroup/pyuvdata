@@ -3879,12 +3879,21 @@ def uvcalibrate(
         if len(uvcal_freqs_to_keep) < uvcal.Nfreqs:
             downselect_cal_freq = True
 
-    # raise warning if x_orientation doesn't match
-    if uvdata.x_orientation != uvcal.x_orientation:
-        warnings.warn(
-            "Data and calibration x_orientation do not match!",
-            UserWarning,
-        )
+    # if x_orientation doesn't match raise a ValueError,
+    # unless one is a None in which case raise a warning
+    uvd_xo = uvdata.x_orientation
+    uvc_xo = uvcal.x_orientation
+    if uvd_xo != uvc_xo:
+        if uvd_xo is None or uvc_xo is None:
+            # just raise a warning
+            warnings.warn(
+                "Data and calibration x_orientation do not match!", UserWarning
+            )
+        else:
+            # raise an error
+            raise ValueError(
+                r"Data and calibration x_orientation are set " "but do not match!"
+            )
 
     uvdata_pol_strs = polnum2str(
         uvdata.polarization_array, x_orientation=uvdata.x_orientation
@@ -3898,7 +3907,7 @@ def uvcalibrate(
         jones_str = parse_jpolstr(feed, x_orientation=uvcal.x_orientation)
         if jones_str not in uvcal_pol_strs:
             raise ValueError(
-                f"Feed polarization {feed} exists on UVData but not on UVCal. "
+                "Feed polarization {feed} exists on UVData but not on UVCal. "
             )
 
     # downselect UVCal times, frequencies
