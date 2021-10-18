@@ -3255,19 +3255,19 @@ def test_uvcalibrate_feedpol_mismatch(uvcalibrate_data):
 def test_uvcalibrate_x_orientation_mismatch(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
-    # first check x_orientation warning (i.e. None x_orientation)
-    uvd.x_orientation = None
-    uvc.x_orientation = "east"
+    # first check None uvc_x
+    uvd.x_orientation = "east"
+    uvc.x_orientation = None
     with pytest.warns(
-        UserWarning, match="Data and calibration x_orientation do not match!",
+        UserWarning, match="Using uvcal x_orientation for uvdata",
     ):
         uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
-    # next check for explicit ValueError if they are both set
-    uvd.x_orientation = "north"
-    with pytest.raises(
-        ValueError,
-        match=("Data and calibration x_orientation are set but do not match!"),
+    # next check None uvd_x
+    uvd.x_orientation = None
+    uvc.x_orientation = "east"
+    with pytest.warns(
+        UserWarning, match="Using uvdata x_orientation for uvcal",
     ):
         uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
