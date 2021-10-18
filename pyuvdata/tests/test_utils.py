@@ -2848,7 +2848,9 @@ def test_uvcalibrate_delay_oldfiles():
     ant_expected = [
         "All antenna names with data on UVData are missing "
         "on UVCal. Since ant_check is False, calibration will "
-        "proceed but all data will be flagged."
+        "proceed but all data will be flagged.",
+        "Using uvdata x_orientation for uvcal",
+        "",
     ]
     with uvtest.check_warnings(UserWarning, match=ant_expected):
         uvdcal = uvutils.uvcalibrate(
