@@ -2850,7 +2850,6 @@ def test_uvcalibrate_delay_oldfiles():
         "on UVCal. Since ant_check is False, calibration will "
         "proceed but all data will be flagged.",
         "Using uvdata x_orientation for uvcal",
-        "",
     ]
     with uvtest.check_warnings(UserWarning, match=ant_expected):
         uvdcal = uvutils.uvcalibrate(
