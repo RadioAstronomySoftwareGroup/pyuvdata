@@ -512,7 +512,7 @@ cdef class UV:
     cdef int i = <int>input_preamble[2][0], j = <int>input_preamble[2][1]
 
     if len(input_preamble[0]) != 3:
-      raise ValueError(f"uvw must have shape (3,) but got {len(input_preamble.uvw)}")
+      raise ValueError(f"uvw must have shape (3,) but got {len(input_preamble[0])}")
 
     preamble[0] = input_preamble[0][0]
     preamble[1] = input_preamble[0][1]
