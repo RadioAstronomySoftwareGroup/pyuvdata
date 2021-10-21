@@ -261,7 +261,7 @@ cpdef int hwrite(int item_hdl, int offset, val, str type) except *:
     offset = H_DBLE_SIZE
 
   elif type[0] == "c":
-    if not isinstance(val, np.complex64):
+    if not isinstance(val, (np.complex64, np.complexfloating)):
       raise ValueError("expected a complex")
 
     cx[0] = <float>val.real
@@ -598,8 +598,6 @@ cdef class UV:
       st = <char *>value
       uvputvr_c(self.tno, H_BYTE, name.encode(), st, len(value) + 1)
 
-
-
     elif type[0] == "j":
       return self._store_j_type(
         H_INT2,
@@ -609,7 +607,7 @@ cdef class UV:
 
     elif type[0] == "i":
       value = atleast_1d(value, numpy.NPY_INT64)
-      # i-type is special and weird, but the inputes are int64
+      # i-type is special and weird, but the inputs are int64
       # so perform an extra casting as it gets written
       return self._store_i_type(
         H_INT,
