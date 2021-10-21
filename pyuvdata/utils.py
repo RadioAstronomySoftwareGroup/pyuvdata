@@ -3705,6 +3705,10 @@ def uvcalibrate(
     if not inplace:
         uvdata = uvdata.copy()
 
+    # check both objects
+    uvdata.check()
+    uvcal.check()
+
     # Check whether the UVData antennas *that have data associated with them*
     # have associated data in the UVCal object
     uvdata_unique_nums = np.unique(np.append(uvdata.ant_1_array, uvdata.ant_2_array))
@@ -3879,23 +3883,17 @@ def uvcalibrate(
         if len(uvcal_freqs_to_keep) < uvcal.Nfreqs:
             downselect_cal_freq = True
 
-    # check if one x_or is set but another isn't
+    # check if uvdata.x_orientation isn't set (it's required for uvcal)
     uvd_x = uvdata.x_orientation
-    uvc_x = uvcal.x_orientation
-    if uvd_x != uvc_x:
-        if uvd_x is None:
-            # set uvd_x
-            uvdata.x_orientation = uvc_x
-            warnings.warn("Using uvdata x_orientation for uvcal")
+    if uvd_x is None:
+        # use the uvcal x_orientation throughout
+        uvd_x = uvcal.x_orientation
+        warnings.warn(
+            "UVData object does not have `x_orientation` specified but UVCal does. "
+            "Matching based on `x` and `y` only "
+        )
 
-        elif uvc_x is None:
-            # set uvc_x
-            uvcal.x_orientation = uvd_x
-            warnings.warn("Using uvcal x_orientation for uvdata")
-
-    uvdata_pol_strs = polnum2str(
-        uvdata.polarization_array, x_orientation=uvdata.x_orientation
-    )
+    uvdata_pol_strs = polnum2str(uvdata.polarization_array, x_orientation=uvd_x)
     uvcal_pol_strs = jnum2str(uvcal.jones_array, x_orientation=uvcal.x_orientation)
     uvdata_feed_pols = {
         feed for pol in uvdata_pol_strs for feed in POL_TO_FEED_DICT[pol]
@@ -3905,7 +3903,7 @@ def uvcalibrate(
         jones_str = parse_jpolstr(feed, x_orientation=uvcal.x_orientation)
         if jones_str not in uvcal_pol_strs:
             raise ValueError(
-                "Feed polarization {feed} exists on UVData but not on UVCal. "
+                f"Feed polarization {feed} exists on UVData but not on UVCal. "
             )
 
     # downselect UVCal times, frequencies
@@ -3954,9 +3952,7 @@ def uvcalibrate(
             # get indices for this key
             blt_inds = uvdata.antpair2ind(key)
             pol_ind = np.argmin(
-                np.abs(
-                    uvdata.polarization_array - polstr2num(key[2], uvdata.x_orientation)
-                )
+                np.abs(uvdata.polarization_array - polstr2num(key[2], uvd_x))
             )
 
             # try to get gains for each antenna

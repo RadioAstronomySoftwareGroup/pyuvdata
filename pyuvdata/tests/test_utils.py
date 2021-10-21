@@ -2808,6 +2808,7 @@ def test_uvcalibrate_apply_gains_oldfiles():
         uvutils.uvcalibrate(uvd, uvc, prop_flags=True, ant_check=True, inplace=False)
 
     ants_expected = [
+        "The uvw_array does not match the expected values",
         "All antenna names with data on UVData are missing "
         "on UVCal. Since ant_check is False, calibration will "
         "proceed but all data will be flagged.",
@@ -2846,10 +2847,11 @@ def test_uvcalibrate_delay_oldfiles():
     uvc.select(times=uvc.time_array[3], frequencies=uvd.freq_array[0, :])
     uvc.gain_convention = "multiply"
     ant_expected = [
+        "The uvw_array does not match the expected values",
         "All antenna names with data on UVData are missing "
         "on UVCal. Since ant_check is False, calibration will "
         "proceed but all data will be flagged.",
-        "Using uvdata x_orientation for uvcal",
+        r"UVData object does not have `x_orientation` specified but UVCal does",
     ]
     with uvtest.check_warnings(UserWarning, match=ant_expected):
         uvdcal = uvutils.uvcalibrate(
@@ -3256,19 +3258,12 @@ def test_uvcalibrate_feedpol_mismatch(uvcalibrate_data):
 def test_uvcalibrate_x_orientation_mismatch(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
-    # first check None uvc_x
-    uvd.x_orientation = "east"
-    uvc.x_orientation = None
-    with pytest.warns(
-        UserWarning, match="Using uvcal x_orientation for uvdata",
-    ):
-        uvutils.uvcalibrate(uvd, uvc, inplace=False)
-
     # next check None uvd_x
     uvd.x_orientation = None
     uvc.x_orientation = "east"
     with pytest.warns(
-        UserWarning, match="Using uvdata x_orientation for uvcal",
+        UserWarning,
+        match=r"UVData object does not have `x_orientation` specified but UVCal does",
     ):
         uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
