@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Improved readability, functionality, and memory usage in `read_mwa_corr_fits`.
+- Flexible spectral windows to `read_mwa_corr_fits`.
+
 ### Fixed
 - Added a warning in `utils.uvcalibrate` when uvdata x_orientation is not set.
 - Fixed a bug in `UVBeam.efield_to_power` when there is only one feed.
