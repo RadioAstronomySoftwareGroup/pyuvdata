@@ -10819,11 +10819,16 @@ class UVData(UVBase):
             Option to divide out coarse band shape.
         correct_cable_len : bool
             Option to apply a cable delay correction.
-        correct_van_vleck : bool
-            Option to apply a van vleck correction.
+        correct_van_vleck : bool or string
+            Option to apply a van vleck correction. Allowed options are True,
+            which applies both the four-bit and eight-bit corrections; False,
+            which applies neither correction; 'four_bit', which applies only the
+            four-bit correction; or 'eight-bit', which applies only the eight-bit
+            correction. The 'four_bit' and 'eight_bit' options are intended for
+            testing rather than for general use.
         cheby_approx : bool
-            Only used if correct_van_vleck is True. Option to implement the van
-            vleck correction with a chebyshev polynomial approximation.
+            Only used if correct_van_vleck is True or 'four_bit'. Option to implement
+            the four-bit van vleck correction with a chebyshev polynomial approximation.
         flag_small_auto_ants : bool
             Only used if correct_van_vleck is True. Option to completely flag any
             antenna for which the autocorrelation falls below a threshold found by
@@ -11586,13 +11591,18 @@ class UVData(UVBase):
         correct_cable_len : bool
             Flag to apply cable length correction. Only used if file_type is
             'mwa_corr_fits'.
-        correct_van_vleck : bool
-            Flag to apply a van vleck correction. Only used if file_type is
+        correct_van_vleck : bool or string
+            Option to apply a van vleck correction. Allowed options are True,
+            which applies both the four-bit and eight-bit corrections; False,
+            which applies neither correction; 'four_bit', which applies only the
+            four-bit correction; or 'eight-bit', which applies only the eight-bit
+            correction. The 'four_bit' and 'eight_bit' options are intended for
+            testing rather than for general use. Only used if file_type is
             'mwa_corr_fits'.
         cheby_approx : bool
-            Only used if file_type is 'mwa_corr_fits' and correct_van_vleck is True.
-            Option to implement the van vleck correction with a chebyshev polynomial
-            approximation. Set to False to run the integral version of the correction.
+            Only used if correct_van_vleck is True or 'four_bit'. Option to implement
+            the four-bit van vleck correction with a chebyshev polynomial approximation.
+            Only used if file_type is 'mwa_corr_fits'.
         flag_small_auto_ants : bool
             Only used if correct_van_vleck is True. Option to completely flag any
             antenna for which the autocorrelation falls below a threshold found by

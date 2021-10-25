@@ -949,13 +949,13 @@ def test_input_output_mapping():
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 def test_van_vleck_int():
-    """Test van vleck correction integral implementation."""
+    """Test four bit van vleck correction integral implementation."""
     uv1 = UVData()
     uv1.read(
         filelist[8:10],
         flag_init=False,
         data_array_dtype=np.complex64,
-        correct_van_vleck=True,
+        correct_van_vleck="four_bit",
         cheby_approx=False,
         remove_coarse_band=False,
         remove_dig_gains=False,
@@ -971,12 +971,12 @@ def test_van_vleck_int():
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 def test_van_vleck_cheby():
-    """Test van vleck correction chebyshev implementation."""
+    """Test four bit van vleck correction chebyshev implementation."""
     uv1 = UVData()
     uv1.read(
         filelist[8:10],
         flag_init=False,
-        correct_van_vleck=True,
+        correct_van_vleck="four_bit",
         cheby_approx=True,
         remove_coarse_band=False,
         remove_dig_gains=False,
@@ -989,13 +989,13 @@ def test_van_vleck_cheby():
     # select only good ants
     good_ants = np.delete(np.unique(uv2.ant_1_array), 76)
     uv2.select(antenna_nums=good_ants)
-    print(uv1.data_array[0:10, 0, 0, :])
-    print(uv2.data_array[0:10, 0, 0, :])
+
     assert np.allclose(uv1.data_array, uv2.data_array)
 
 
 def test_van_vleck_interp(tmp_path):
-    """Test van vleck correction with sigmas out of cheby interpolation range."""
+    """Test four bit van vleck correction with sigmas out of cheby
+    interpolation range."""
     small_sigs = str(tmp_path / "small_sigs07_01.fits")
     with fits.open(filelist[8]) as mini:
         mini[1].data = np.full((1, 66048), 7744)
@@ -1011,7 +1011,7 @@ def test_van_vleck_interp(tmp_path):
         uv.read(
             [small_sigs, filelist[9]],
             flag_init=False,
-            correct_van_vleck=True,
+            correct_van_vleck="four_bit",
             cheby_approx=True,
             remove_coarse_band=False,
             remove_dig_gains=False,
