@@ -281,21 +281,17 @@ def van_vleck_crosses_cheby(
 
     """
     kap = np.array([khat[broad_inds].real, khat[broad_inds].imag])
-    print(f"calculated kap")
     _corr_fits.van_vleck_cheby(
         kap, rho_coeff, sv_inds_right1, sv_inds_right2, ds1, ds2,
     )
-    print(f"ran cython")
     khat[broad_inds] = (kap[0, :] + 1j * kap[1, :]) * (
         sig1[broad_inds] * sig2[broad_inds]
     )
-    print(f"assigned khat")
     khat[~broad_inds] = van_vleck_crosses_int(
         khat.real[~broad_inds], sig1[~broad_inds], sig2[~broad_inds], cheby_approx
     ) + 1j * van_vleck_crosses_int(
         khat.imag[~broad_inds], sig1[~broad_inds], sig2[~broad_inds], cheby_approx
     )
-    print(f"calculated integral")
 
     return khat
 
@@ -554,89 +550,6 @@ class MWACorrFITS(UVData):
             self.flag_array[blt_ind:, freq_ind : freq_ind + num_fine_chans, :], flags,
         )
 
-    def _self_van_vleck_autos(self, auto_inds, pols):
-        # cut off small sigmas that will not converge
-        flag_arr = np.full(self.data_array.shape, False)
-        flag_arr[auto_inds[:, np.newaxis], :, pols] = (
-            self.data_array.real[auto_inds[:, np.newaxis], :, pols] > 0.5
-        )
-        sighat = self.data_array.real[flag_arr]
-        if len(sighat) > 0:
-            guess = np.copy(sighat)
-            inds = np.where(np.abs(sighat_vector(guess) - sighat) > 1e-10)[0]
-            while len(inds) != 0:
-                guess[inds] -= (
-                    sighat_vector(guess[inds]) - sighat[inds]
-                ) / sighat_vector_prime(guess[inds])
-                inds = np.where(np.abs(sighat_vector(guess) - sighat) > 1e-10)[0]
-            self.data_array.real[flag_arr] = guess
-        return
-
-    def _self_van_vleck_crosses_cheby(
-        self,
-        corr_inds,
-        auto1_inds,
-        auto2_inds,
-        sig1_inds,
-        sig2_inds,
-        corr_pol,
-        auto_pols,
-        in_inds,
-        rho_coeff,
-        sv_inds_right,
-        ds,
-        cheby_approx,
-    ):
-        """
-        Compute a chebyshev approximation of corrcorrect_simps.
-
-        Uses a bilinear interpolation to find chebyshev coefficients. Assumes distance
-        between points of interpolation grid is 0.01. If sig1 or sig2 falls outside
-        the interpolation grid, the corresponding values are corrected using
-        van_vleck_crosses_int.
-
-        For an explanation of the Van Vleck corrections used and their implementation
-        in this code, see the memos at
-        https://github.com/EoRImaging/Memos/blob/master/PDFs/007_Van_Vleck_A.pdf and
-        https://github.com/EoRImaging/Memos/blob/master/PDFs/008_Van_Vleck_B.pdf
-
-        """
-        (pol1, pol2) = auto_pols[1]
-        (sig1_pol, sig2_pol) = auto_pols[0]
-        # broadcast in_inds
-        broad_inds = np.logical_and(
-            in_inds[sig1_inds, pol1, :], in_inds[sig2_inds, pol2, :],
-        )
-        # broadcast indices and distances for bilinear interpolation
-        sv_inds_right1 = sv_inds_right[sig1_inds, pol1, :][broad_inds]
-        sv_inds_right2 = sv_inds_right[sig2_inds, pol2, :][broad_inds]
-        ds1 = ds[sig1_inds, pol1, :][broad_inds]
-        ds2 = ds[sig2_inds, pol2, :][broad_inds]
-        flag_arr = np.full(self.data_array.shape, False)
-        not_flag_arr = np.full(self.data_array.shape, False)
-        flag_arr[corr_inds, :, corr_pol] = broad_inds
-        not_flag_arr[corr_inds, :, corr_pol] = ~broad_inds
-        kap = np.array([self.data_array[flag_arr].real, self.data_array[flag_arr].imag])
-        print(f"calculated kap")
-        _corr_fits.van_vleck_cheby(
-            kap, rho_coeff, sv_inds_right1, sv_inds_right2, ds1, ds2,
-        )
-        kap *= self.data_array[auto1_inds, :, sig1_pol][broad_inds].real
-        kap *= self.data_array[auto2_inds, :, sig2_pol][broad_inds].real
-        print(f"ran cython")
-        self.data_array[flag_arr] = 1j * kap[1, :]
-        self.data_array[flag_arr] += kap[0, :]
-        print(f"assigned khat")
-        sig1 = self.data_array[auto1_inds, :, sig1_pol][~broad_inds].real
-        sig2 = self.data_array[auto2_inds, :, sig2_pol][~broad_inds].real
-        self.data_array[not_flag_arr] = van_vleck_crosses_int(
-            self.data_array[not_flag_arr].real, sig1, sig2, cheby_approx,
-        ) + 1j * van_vleck_crosses_int(
-            self.data_array[not_flag_arr].imag, sig1, sig2, cheby_approx,
-        )
-        print(f"calculated integral")
-        return
-
     def van_vleck_correction(
         self, ant_1_inds, ant_2_inds, flagged_ant_inds, cheby_approx, data_array_dtype,
     ):
@@ -704,15 +617,15 @@ class MWACorrFITS(UVData):
         )
         # get unflagged autos
         good_autos = np.delete(autos, flagged_ant_inds)
-        self._self_van_vleck_autos(
-            good_autos, pols,
-        )
-        # sighat = self.data_array.real[good_autos[:, np.newaxis], :, pols].flatten()
-        # correct autos
-        # sigma = van_vleck_autos(sighat)
-        # self.data_array.real[good_autos[:, np.newaxis], :, pols] = sigma.reshape(
-        #     len(good_autos), len(pols), self.Ntimes * self.Nfreqs
+        # self._self_van_vleck_autos(
+        #     good_autos, pols,
         # )
+        sighat = self.data_array.real[good_autos[:, np.newaxis], :, pols].flatten()
+        # correct autos
+        sigma = van_vleck_autos(sighat)
+        self.data_array.real[good_autos[:, np.newaxis], :, pols] = sigma.reshape(
+            len(good_autos), len(pols), self.Ntimes * self.Nfreqs
+        )
         # get good crosses
         bad_ant_inds = np.nonzero(
             np.logical_or(
@@ -748,78 +661,48 @@ class MWACorrFITS(UVData):
                 xx: [(xx, xx), (1, 1)],
             }
             for i in [xx, yy, xy, yx]:
-                # (pol1, pol2) = pol_dict[i][1]
-                # (sig1_pol, sig2_pol) = pol_dict[i][0]
+                (pol1, pol2) = pol_dict[i][1]
+                (sig1_pol, sig2_pol) = pol_dict[i][0]
                 # broadcast in_inds
-                # broad_inds = np.logical_and(
-                #     in_inds[sig1_inds, pol1, :],
-                #     in_inds[sig2_inds, pol2, :],
-                # )
+                broad_inds = np.logical_and(
+                    in_inds[sig1_inds, pol1, :], in_inds[sig2_inds, pol2, :],
+                )
                 # broadcast indices and distances for bilinear interpolation
-                # sv_inds_right1 = sv_inds_right[sig1_inds, pol1, :][broad_inds]
-                # sv_inds_right2 = sv_inds_right[sig2_inds, pol2, :][broad_inds]
-                # ds1 = ds[sig1_inds, pol1, :][broad_inds]
-                # ds2 = ds[sig2_inds, pol2, :][broad_inds]
-                print(f"correcting crosses")
-                # self.data_array[crosses, :, i] = van_vleck_crosses_cheby(
-                #     self.data_array[crosses, :, i],
-                #     self.data_array.real[autos[sig1_inds], :, sig1_pol],
-                #     self.data_array.real[autos[sig2_inds], :, sig2_pol],
-                #     broad_inds,
-                #     rho_coeff,
-                #     sv_inds_right1,
-                #     sv_inds_right2,
-                #     ds1,
-                #     ds2,
-                #     cheby_approx,
-                # )
-                self._self_van_vleck_crosses_cheby(
-                    crosses,
-                    autos[sig1_inds],
-                    autos[sig2_inds],
-                    sig1_inds,
-                    sig2_inds,
-                    i,
-                    pol_dict[i],
-                    in_inds,
+                sv_inds_right1 = sv_inds_right[sig1_inds, pol1, :][broad_inds]
+                sv_inds_right2 = sv_inds_right[sig2_inds, pol2, :][broad_inds]
+                ds1 = ds[sig1_inds, pol1, :][broad_inds]
+                ds2 = ds[sig2_inds, pol2, :][broad_inds]
+                self.data_array[crosses, :, i] = van_vleck_crosses_cheby(
+                    self.data_array[crosses, :, i],
+                    self.data_array.real[autos[sig1_inds], :, sig1_pol],
+                    self.data_array.real[autos[sig2_inds], :, sig2_pol],
+                    broad_inds,
                     rho_coeff,
-                    sv_inds_right,
-                    ds,
+                    sv_inds_right1,
+                    sv_inds_right2,
+                    ds1,
+                    ds2,
                     cheby_approx,
                 )
             # correct yx autos
             sig_inds = ant_1_inds[good_autos]
-            # broad_inds = np.logical_and(
-            #     in_inds[sig_inds, 0, :], in_inds[sig_inds, 1, :]
-            # )
-            # sv_inds_right1 = sv_inds_right[sig_inds, 0, :][broad_inds]
-            # sv_inds_right2 = sv_inds_right[sig_inds, 1, :][broad_inds]
-            # ds1 = ds[sig_inds, 0, :][broad_inds]
-            # ds2 = ds[sig_inds, 1, :][broad_inds]
-            # self.data_array[good_autos, :, yx] = van_vleck_crosses_cheby(
-            #     self.data_array[good_autos, :, yx],
-            #     self.data_array.real[good_autos, :, yy],
-            #     self.data_array.real[good_autos, :, xx],
-            #     broad_inds,
-            #     rho_coeff,
-            #     sv_inds_right1,
-            #     sv_inds_right2,
-            #     ds1,
-            #     ds2,
-            #     cheby_approx,
-            # )
-            self._self_van_vleck_crosses_cheby(
-                good_autos,
-                good_autos,
-                good_autos,
-                sig_inds,
-                sig_inds,
-                yx,
-                pol_dict[yx],
-                in_inds,
+            broad_inds = np.logical_and(
+                in_inds[sig_inds, 0, :], in_inds[sig_inds, 1, :]
+            )
+            sv_inds_right1 = sv_inds_right[sig_inds, 0, :][broad_inds]
+            sv_inds_right2 = sv_inds_right[sig_inds, 1, :][broad_inds]
+            ds1 = ds[sig_inds, 0, :][broad_inds]
+            ds2 = ds[sig_inds, 1, :][broad_inds]
+            self.data_array[good_autos, :, yx] = van_vleck_crosses_cheby(
+                self.data_array[good_autos, :, yx],
+                self.data_array.real[good_autos, :, yy],
+                self.data_array.real[good_autos, :, xx],
+                broad_inds,
                 rho_coeff,
-                sv_inds_right,
-                ds,
+                sv_inds_right1,
+                sv_inds_right2,
+                ds1,
+                ds2,
                 cheby_approx,
             )
             # add back in frequency axis
@@ -957,16 +840,8 @@ class MWACorrFITS(UVData):
         cb_data = self.data_array[
             :, cb_num * num_fine_chans : (cb_num + 1) * num_fine_chans, :
         ].astype(np.complex128)
-        # get coarse band flags
-        # cb_flags = self.flag_array[
-        #     :, cb_num * num_fine_chans : (cb_num + 1) * num_fine_chans, :
-        # ]
         # correct van vleck
         if correct_van_vleck:
-            # scale data
-            # cb_data /= nsamples
-            # auto_mask = ant_1_inds == ant_2_inds
-            # cross_mask = ant_1_inds != ant_2_inds
             pass
         # remove digital gains
         if remove_dig_gains:
