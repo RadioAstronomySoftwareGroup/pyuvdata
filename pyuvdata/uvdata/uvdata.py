@@ -11776,13 +11776,13 @@ class UVData(UVBase):
         pol_order="AIPS",
         data_array_dtype=np.complex128,
         nsample_array_dtype=np.float32,
-        use_cotter_flags=None,
+        use_aoflagger_flags=None,
         remove_dig_gains=True,
         remove_coarse_band=True,
         correct_cable_len=False,
         correct_van_vleck=False,
         cheby_approx=True,
-        flag_small_sig_ants=True,
+        flag_small_auto_ants=True,
         propagate_coarse_flags=True,
         flag_init=True,
         edge_width=80e3,
@@ -11948,7 +11948,7 @@ class UVData(UVBase):
             cases where no sampling or averaging of baselines will occur,
             because round-off errors can be quite large (~1e-3). Only used if
             file_type is 'mwa_corr_fits'.
-        use_cotter_flags : bool
+        use_aoflagger_flags : bool
             Only used if file_type is 'mwa_corr_fits'. Option to use cotter output
             mwaf flag files. Defaults to true if cotter flag files are submitted.
         remove_dig_gains : bool
@@ -11967,7 +11967,7 @@ class UVData(UVBase):
             Only used if file_type is 'mwa_corr_fits' and correct_van_vleck is True.
             Option to implement the van vleck correction with a chebyshev polynomial
             approximation. Set to False to run the integral version of the correction.
-        flag_small_sig_ants : bool
+        flag_small_auto_ants : bool
             Only used if correct_van_vleck is True. Option to completely flag any
             antenna that has a sigma < 0.5, as sigmas in this range generally
             indicate bad data. If set to False, only the times and
@@ -12004,7 +12004,7 @@ class UVData(UVBase):
             used if file_type is 'mwa_corr_fits'.
         remove_flagged_ants : bool
             Option to perform a select to remove antennas flagged in the metafits
-            file. If correct_van_vleck and flag_small_sig_ants are both True then
+            file. If correct_van_vleck and flag_small_auto_ants are both True then
             antennas flagged by the Van Vleck correction are also removed.
             Only used if file_type is 'mwa_corr_fits'.
         phase_to_pointing_center : bool
@@ -12127,13 +12127,13 @@ class UVData(UVBase):
             pol_order=pol_order,
             data_array_dtype=data_array_dtype,
             nsample_array_dtype=nsample_array_dtype,
-            use_cotter_flags=use_cotter_flags,
+            use_aoflagger_flags=use_aoflagger_flags,
             remove_dig_gains=remove_dig_gains,
             remove_coarse_band=remove_coarse_band,
             correct_cable_len=correct_cable_len,
             correct_van_vleck=correct_van_vleck,
             cheby_approx=cheby_approx,
-            flag_small_sig_ants=flag_small_sig_ants,
+            flag_small_auto_ants=flag_small_auto_ants,
             propagate_coarse_flags=propagate_coarse_flags,
             flag_init=flag_init,
             edge_width=edge_width,
