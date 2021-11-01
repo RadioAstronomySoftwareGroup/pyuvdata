@@ -2891,7 +2891,18 @@ def test_uvcalibrate_delay_oldfiles(uvd_future_shapes, uvc_future_shapes):
         "proceed but all data will be flagged.",
         r"UVData object does not have `x_orientation` specified but UVCal does",
     ]
-    with uvtest.check_warnings(UserWarning, match=ant_expected):
+    dep_warning = [
+        "Nfreqs will be required to be 1 for wide_band cals "
+        "(including all delay cals) starting in version 3.0"
+    ]
+    if uvc_future_shapes:
+        warn_expected = [UserWarning] * 3 + [DeprecationWarning]
+        msg_expected = ant_expected + dep_warning
+    else:
+        warn_expected = [UserWarning] * 3
+        msg_expected = ant_expected
+
+    with uvtest.check_warnings(warn_expected, match=msg_expected):
         uvdcal = uvutils.uvcalibrate(
             uvd, uvc, prop_flags=False, ant_check=False, time_check=False, inplace=False
         )
