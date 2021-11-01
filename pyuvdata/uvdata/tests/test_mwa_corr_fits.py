@@ -695,7 +695,7 @@ def test_remove_coarse_band(tmp_path):
 
     # make sure correction doesn't change data_array type
     assert uv1.data_array.dtype == np.complex64
-    assert "Divided out coarse channel bandpass" in uv1.history
+    assert "Divided out pfb coarse channel bandpass" in uv1.history
     assert uv1 == uv2
 
 
@@ -986,3 +986,18 @@ def test_small_sigs(tmp_path):
 
     assert "flagged by the Van Vleck" in uv1.history
     assert uv2.Nants_data - uv1.Nants_data == 1
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_deprecated_keywords():
+    """Test warnings for deprecated keywords"""
+    uv = UVData()
+    messages = ["Use `use_aoflagger_flags`"]
+    messages.append("Use `flag_small_auto_ants`")
+    messages.append("telescope_location is not set")
+    messages.append("some coarse channel files were not submitted")
+    with uvtest.check_warnings(
+        [DeprecationWarning, DeprecationWarning, UserWarning, UserWarning], messages
+    ):
+        uv.read(filelist[0:2], use_cotter_flags=False, flag_small_sig_ants=True)
