@@ -311,11 +311,11 @@ class MWACorrFITS(UVData):
         Parameters
         ----------
         cable_lens : list of strings
-        A list of strings containing the cable lengths for each antenna.
+            A list of strings containing the cable lengths for each antenna.
         ant_1_inds : array
-        An array of indices for antenna 1
+            An array of indices for antenna 1
         ant_2_inds : array
-        An array of indices for antenna 2
+            An array of indices for antenna 2
 
         """
         # as of version 0.29.X cython does not handle numpy arrays of strings
@@ -454,7 +454,7 @@ class MWACorrFITS(UVData):
         file_nums : array
             List of included file numbers ordered by coarse channel
         num_fine_chans : int
-            Number of fine channels in the data files
+            Number of fine channels in each data file
         int_time : float
             The integration time of each observation.
         map_inds : array
@@ -512,7 +512,8 @@ class MWACorrFITS(UVData):
         np.take(
             coarse_chan_data, pol_index_array, axis=-1, out=coarse_chan_data,
         )
-        # make a mask where data actually is
+        # make a mask where data actually is so coarse channels that
+        # are split into two files don't overwrite eachother
         data_mask = coarse_chan_data != 0
         self.data_array[:, freq_ind : freq_ind + num_fine_chans, :][
             data_mask
@@ -527,11 +528,11 @@ class MWACorrFITS(UVData):
         Parameters
         ----------
         filename : str
-            The aoflagger fits file to read
+            The aoflagger fits file to read.
         file_nums : array
-            List of included file numbers ordered by coarse channel
+            List of included file numbers ordered by coarse channel.
         num_fine_chans : int
-            Number of fine channels in the data files
+            Number of fine channels in each data file.
 
         """
         flag_num = int(filename.split("_")[-1][0:2])
@@ -563,16 +564,17 @@ class MWACorrFITS(UVData):
 
         Parameters
         ----------
+        ant_1_inds : array
+            An array of indices for antenna 1.
+        ant_2_inds : array
+            An array of indices for antenna 2.
+        flagged_ant_inds : numpy array of type int
+            List of indices of flagged antennas.
         cheby_approx : bool
-            Option to implement the van vleck correction with a chebyshev polynomial
+            Option to implement the van vleck correction with a chebyshev polynomial.
             approximation.
         data_array_dtype : numpy dtype
             Datatype to store the output data_array as.
-
-        Returns
-        -------
-        flagged_ant_inds : numpy array of type int
-            Updated list of indices of flagged antennas
 
         """
         history_add_string = " Applied Van Vleck correction."
@@ -617,9 +619,6 @@ class MWACorrFITS(UVData):
         )
         # get unflagged autos
         good_autos = np.delete(autos, flagged_ant_inds)
-        # self._self_van_vleck_autos(
-        #     good_autos, pols,
-        # )
         sighat = self.data_array.real[good_autos[:, np.newaxis], :, pols].flatten()
         # correct autos
         sigma = van_vleck_autos(sighat)
@@ -773,20 +772,48 @@ class MWACorrFITS(UVData):
     def _flag_small_auto_ants(
         self, nsamples, flag_small_auto_ants, ant_1_inds, ant_2_inds, flagged_ant_inds
     ):
+        """
+        Find and flag autocorrelations below a threshold.
+
+        Specifically, look for autocorrelations < 0.5 * channel_width * int_time,
+        as these have been found by the Van Vleck correction to indicate bad data.
+        If flag_small_auto_ants is True, then antennas with autos below the
+        threshold will be flagged completely. Otherwise, antennas will be flagged
+        at only the times and frequencies at which their autos are below the threshold.
+
+        Parameters
+        ----------
+        nsamples : int
+            Twice the numkber of electric field samples in an autocorrelation; equal
+            to 2 * channel_width * int_time. The auto divided by nsamples is equal to
+            the expectation value of the electric field samples squared.
+        flag_small_auto_ants : bool
+            Keyword option to flag antenna entirely or only at specific times and
+            frequencies.
+        ant_1_inds : numpy array of type int
+            Indices of antenna 1 corresponding the the baseline-time axis.
+        ant_2_inds : numpy array of type int
+            Indices of antenna 2 corresponding the the baseline-time axis.
+        flagged_ant_inds : numpy array of type int
+            List of indices of flagged antennas.
+
+        Returns
+        -------
+        flagged_ant_inds : numpy array of type int
+            Updated list of indices of flagged antennas.
+
+        """
         # calculate threshold so that average cross multiply = 0.25
         threshold = 0.25 * nsamples
         # look for small autos and flag
         auto_inds = self.ant_1_array == self.ant_2_array
-        # TODO: look for memory spike
         autos = self.data_array.real[auto_inds, :, 0:2]
         # auto_flags = self.flag_array[auto_inds, :, 0:2]
         autos = autos.reshape(self.Ntimes, self.Nants_data, self.Nfreqs, 2)
-        # auto_flags = auto_flags.reshape(self.Ntimes, self.Nants_data, self.Nfreqs, 2)
-
+        # find autos below threshold
         small_auto_flags = np.logical_and(autos != 0, autos <= threshold,)
         if flag_small_auto_ants:
             # find antenna indices for small sig ants and add to flagged_ant_inds
-            # nonzero sigmas below 0.5 generally indicate bad data
             ant_inds = np.unique(np.nonzero(small_auto_flags)[1])
             ant_inds = ant_inds[~np.in1d(ant_inds, flagged_ant_inds)]
             if len(ant_inds) != 0:
@@ -798,7 +825,7 @@ class MWACorrFITS(UVData):
                 )
                 flagged_ant_inds = np.concatenate((flagged_ant_inds, ant_inds))
         else:
-            # get flags for small sig ants and add to flag array
+            # get flags for small auto ants and add to flag array
             small_auto_flags = np.logical_or(
                 small_auto_flags[:, :, :, 0], small_auto_flags[:, :, :, 1]
             )
@@ -814,6 +841,19 @@ class MWACorrFITS(UVData):
         return flagged_ant_inds
 
     def _get_pfb_shape(self, avg_factor):
+        """
+        Get pfb shape from file and apply appropriate averaging.
+
+        Parameters
+        ----------
+        avg_factor : int
+            Factor by which frequency channels have been averaged.
+
+        Returns
+        -------
+        cb_array : numpy array of type float
+            Array corresponding to pfb shape for a coarse band.
+        """
         with h5py.File(
             DATA_PATH + "/mwa_config_data/MWA_rev_cb_10khz_doubles.h5", "r"
         ) as f:
@@ -836,13 +876,39 @@ class MWACorrFITS(UVData):
         remove_coarse_band,
         remove_dig_gains,
     ):
+        """
+        Apply pfb, digital gain, and Van Vleck corrections to a coarse band.
+
+        Parameters
+        ----------
+        cb_num : int
+            Index of coarse band.
+        ant_1_inds : numpy array of type int
+            Indices of antenna 1 corresponding the the baseline-time axis.
+        ant_2_inds : numpy array of type int
+            Indices of antenna 2 corresponding the the baseline-time axis.
+        cb_array : numpy array of type float
+            Array corresponding to pfb shape for a coarse band.
+        dig_gains : numpy array of type float
+            Array corresponding to digital gains for each antenna and coarse band.
+        nsamples : int
+            Twice the numkber of electric field samples in an autocorrelation; equal
+            to 2 * channel_width * int_time. The auto divided by nsamples is equal to
+            the expectation value of the electric field sample squared.
+        num_fine_chans : int
+            Number of fine channels in each data file.
+        correct_van_vleck : bool
+            Option to apply Van Vleck correction to data.
+        remove_coarse_band : bool
+            Option to remove pfb coarse band shape from data.
+        remove_dig_gains : bool
+            Option to remove digital gains from data.
+
+        """
         # get coarse band data as np.complex128
         cb_data = self.data_array[
             :, cb_num * num_fine_chans : (cb_num + 1) * num_fine_chans, :
         ].astype(np.complex128)
-        # correct van vleck
-        if correct_van_vleck:
-            pass
         # remove digital gains
         if remove_dig_gains:
             dig_gains1 = dig_gains[ant_1_inds, cb_num, np.newaxis, np.newaxis]
@@ -873,6 +939,44 @@ class MWACorrFITS(UVData):
         remove_coarse_band,
         remove_dig_gains,
     ):
+        """
+        Prepare and apply pfb, digital gain, and Van Vleck corrections.
+
+        Parameters
+        ----------
+        ant_1_inds : numpy array of type int
+            Indices of antenna 1 corresponding the the baseline-time axis.
+        ant_2_inds : numpy array of type int
+            Indices of antenna 2 corresponding the the baseline-time axis.
+        avg_factor : int
+            Factor by which frequency channels have been averaged.
+        dig_gains : array
+            Array of digital gains with shape (Nants, Ncoarse_chans).
+        spw_inds : array of type int
+            Array of coarse band numbers.
+        num_fine_chans : int
+            Number of fine channels in each data file.
+        flagged_ant_inds : numpy array of type int
+            List of indices of flagged antennas.
+        cheby_approx : bool
+            Option to use chebyshev approximation for Van Vleck correction.
+        data_array_dtype : numpy dtype
+            Datatype to store the output data_array as.
+        flag_small_auto_ants : bool
+            Option to completely flag antennas found by _flag_small_auto_ants.
+        correct_van_vleck : bool
+            Option to apply Van Vleck correction to data.
+        remove_coarse_band : bool
+            Option to remove pfb coarse band shape from data.
+        remove_dig_gains : bool
+            Option to remove digital gains from data.
+
+        Returns
+        -------
+        flagged_ant_inds : numpy array of type int
+            Updated list of indices of flagged antennas
+
+        """
         # get nsamples and check for small auto ants
         if correct_van_vleck:
             self.history += " Applied Van Vleck correction."
@@ -899,7 +1003,7 @@ class MWACorrFITS(UVData):
             dig_gains = None
         # get pfb response shape
         if remove_coarse_band:
-            self.history += " Divided out coarse channel bandpass."
+            self.history += " Divided out pfb coarse channel bandpass."
             cb_array = self._get_pfb_shape(avg_factor)
         else:
             cb_array = None
@@ -971,8 +1075,8 @@ class MWACorrFITS(UVData):
             Allowed values are: 'blt', 'freq', 'polarization'. Only used if
             multiple files are passed.
         use_aoflagger_flags : bool
-            Option to use cotter output mwaf flag files. Defaults to true if
-            cotter flag files are submitted.
+            Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
+            flag files are submitted.
         remove_dig_gains : bool
             Option to divide out digital gains.
         remove_coarse_band : bool
@@ -986,9 +1090,11 @@ class MWACorrFITS(UVData):
             vleck correction with a chebyshev polynomial approximation.
         flag_small_auto_ants : bool
             Only used if correct_van_vleck is True. Option to completely flag any
-            antenna that has a sigma < 0.5, as sigmas in this range generally
-            indicate bad data. If set to False, only the times and
-            frequencies at which sigma < 0.5 will be flagged for the antenna.
+            antenna for which the autocorrelation falls below a threshold found by
+            the Van Vleck correction to indicate bad data. Specifically, the
+            threshold used is 0.5 * integration_time * channel_width. If set to False,
+            only the times and frequencies at which the auto is below the
+            threshold will be flagged for the antenna.
         phase_to_pointing_center : bool
             Option to phase to the observation pointing center.
         propagate_coarse_flags : bool
@@ -1071,7 +1177,7 @@ class MWACorrFITS(UVData):
         end_time = 0.0
         included_file_nums = []
         included_flag_nums = []
-        cotter_warning = False
+        aoflagger_warning = False
         num_fine_chans = 0
 
         # do datatype checks
@@ -1169,9 +1275,9 @@ class MWACorrFITS(UVData):
                     use_aoflagger_flags = True
                 flag_num = int(filename.split("_")[-1][0:2])
                 included_flag_nums.append(flag_num)
-                if use_aoflagger_flags is False and cotter_warning is False:
+                if use_aoflagger_flags is False and aoflagger_warning is False:
                     warnings.warn("mwaf files submitted with use_aoflagger_flags=False")
-                    cotter_warning = True
+                    aoflagger_warning = True
                 elif "flags" not in file_dict.keys():
                     file_dict["flags"] = [filename]
                 else:
@@ -1363,7 +1469,7 @@ class MWACorrFITS(UVData):
             self.ant_1_array, self.ant_2_array
         )
 
-        # make antenna indice arrays
+        # make antenna index arrays
         ant_1_inds, ant_2_inds = np.transpose(
             list(itertools.combinations_with_replacement(np.arange(self.Nants_data), 2))
         )
@@ -1462,8 +1568,7 @@ class MWACorrFITS(UVData):
             conj = np.full((self.Nbls * self.Npols), False, dtype=np.bool_, order="C",)
 
             _corr_fits.generate_map(corr_ants_to_pfb_inputs, map_inds, conj)
-            # read data into an array with dimensions (time, uv, baselines*pols)
-
+            # create arrays for data, nsamples, and flags
             self.data_array = np.zeros(
                 (self.Nblts, self.Nfreqs, self.Npols), dtype=data_array_dtype,
             )

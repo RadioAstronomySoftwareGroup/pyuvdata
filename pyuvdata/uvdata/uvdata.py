@@ -10261,12 +10261,14 @@ class UVData(UVBase):
         filelist,
         axis=None,
         use_aoflagger_flags=None,
+        use_cotter_flags=None,
         remove_dig_gains=True,
         remove_coarse_band=True,
         correct_cable_len=False,
         correct_van_vleck=False,
         cheby_approx=True,
         flag_small_auto_ants=True,
+        flag_small_sig_ants=None,
         propagate_coarse_flags=True,
         flag_init=True,
         edge_width=80e3,
@@ -10306,8 +10308,10 @@ class UVData(UVBase):
             Allowed values are: 'blt', 'freq', 'polarization'. Only used if
             multiple files are passed.
         use_aoflagger_flags : bool
-            Option to use cotter output mwaf flag files. Defaults to true if cotter
+            Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
             flag files are submitted.
+        use_cotter_flags : bool
+            Being replaced by use_aoflagger_flags and will be removed in v2.4.
         remove_dig_gains : bool
             Option to divide out digital gains.
         remove_coarse_band : bool
@@ -10321,9 +10325,13 @@ class UVData(UVBase):
             vleck correction with a chebyshev polynomial approximation.
         flag_small_auto_ants : bool
             Only used if correct_van_vleck is True. Option to completely flag any
-            antenna that has a sigma < 0.5, as sigmas in this range generally
-            indicate bad data. If set to False, only the times and
-            frequencies at which sigma < 0.5 will be flagged for the antenna.
+            antenna for which the autocorrelation falls below a threshold found by
+            the Van Vleck correction to indicate bad data. Specifically, the
+            threshold used is 0.5 * integration_time * channel_width. If set to False,
+            only the times and frequencies at which the auto is below the
+            threshold will be flagged for the antenna.
+        flag_small_sig_ants : bool
+            Being replaced with flag_small_auto_ants and will be removed in v2.4.
         propagate_coarse_flags : bool
             Option to propagate flags for missing coarse channel integrations
             across frequency.
@@ -10405,6 +10413,22 @@ class UVData(UVBase):
                 "Reading multiple files from class specific "
                 "read functions is no longer supported. "
                 "Use the generic `uvdata.read` function instead."
+            )
+        if use_cotter_flags is not None:
+            use_aoflagger_flags = use_cotter_flags
+            warnings.warn(
+                "Use `use_aoflagger_flags` instead of `use_cotter_flags`."
+                "`use_cotter_flags` is deprecated, and will be removed in "
+                "pyuvdata v2.4.",
+                DeprecationWarning,
+            )
+        if flag_small_sig_ants is not None:
+            flag_small_auto_ants = flag_small_sig_ants
+            warnings.warn(
+                "Use `flag_small_auto_ants` instead of `flag_small_sig_ants`."
+                "`flag_small_sig_ants` is deprecated, and will be removed in "
+                "pyuvdata v2.4.",
+                DeprecationWarning,
             )
 
         corr_obj = mwa_corr_fits.MWACorrFITS()
@@ -10859,12 +10883,14 @@ class UVData(UVBase):
         data_array_dtype=np.complex128,
         nsample_array_dtype=np.float32,
         use_aoflagger_flags=None,
+        use_cotter_flags=None,
         remove_dig_gains=True,
         remove_coarse_band=True,
         correct_cable_len=False,
         correct_van_vleck=False,
         cheby_approx=True,
         flag_small_auto_ants=True,
+        flag_small_sig_ants=None,
         propagate_coarse_flags=True,
         flag_init=True,
         edge_width=80e3,
@@ -11031,8 +11057,10 @@ class UVData(UVBase):
             because round-off errors can be quite large (~1e-3). Only used if
             file_type is 'mwa_corr_fits'.
         use_aoflagger_flags : bool
-            Only used if file_type is 'mwa_corr_fits'. Option to use cotter output
-            mwaf flag files. Defaults to true if cotter flag files are submitted.
+            Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
+            flag files are submitted.
+        use_cotter_flags : bool
+            Being replaced by use_aoflagger_flags and will be removed in v2.4.
         remove_dig_gains : bool
             Only used if file_type is 'mwa_corr_fits'. Option to divide out digital
             gains.
@@ -11051,10 +11079,14 @@ class UVData(UVBase):
             approximation. Set to False to run the integral version of the correction.
         flag_small_auto_ants : bool
             Only used if correct_van_vleck is True. Option to completely flag any
-            antenna that has a sigma < 0.5, as sigmas in this range generally
-            indicate bad data. If set to False, only the times and
-            frequencies at which sigma < 0.5 will be flagged for the antenna.
-            Only used if file_type is 'mwa_corr_fits'.
+            antenna for which the autocorrelation falls below a threshold found by
+            the Van Vleck correction to indicate bad data. Specifically, the
+            threshold used is 0.5 * integration_time * channel_width. If set to False,
+            only the times and frequencies at which the auto is below the
+            threshold will be flagged for the antenna. Only used if file_type is
+            'mwa_corr_fits'.
+        flag_small_sig_ants : bool
+            Being replaced by flag_small_auto_ants and will be removed in v2.4.
         propogate_coarse_flags : bool
             Option to propogate flags for missing coarse channel integrations
             across frequency. Only used if file_type is 'mwa_corr_fits'.
@@ -11604,12 +11636,14 @@ class UVData(UVBase):
                 self.read_mwa_corr_fits(
                     filename,
                     use_aoflagger_flags=use_aoflagger_flags,
+                    use_cotter_flags=use_cotter_flags,
                     remove_dig_gains=remove_dig_gains,
                     remove_coarse_band=remove_coarse_band,
                     correct_cable_len=correct_cable_len,
                     correct_van_vleck=correct_van_vleck,
                     cheby_approx=cheby_approx,
                     flag_small_auto_ants=flag_small_auto_ants,
+                    flag_small_sig_ants=flag_small_sig_ants,
                     propagate_coarse_flags=propagate_coarse_flags,
                     flag_init=flag_init,
                     edge_width=edge_width,
@@ -11777,12 +11811,14 @@ class UVData(UVBase):
         data_array_dtype=np.complex128,
         nsample_array_dtype=np.float32,
         use_aoflagger_flags=None,
+        use_cotter_flags=None,
         remove_dig_gains=True,
         remove_coarse_band=True,
         correct_cable_len=False,
         correct_van_vleck=False,
         cheby_approx=True,
         flag_small_auto_ants=True,
+        flag_small_sig_ants=None,
         propagate_coarse_flags=True,
         flag_init=True,
         edge_width=80e3,
@@ -11949,8 +11985,10 @@ class UVData(UVBase):
             because round-off errors can be quite large (~1e-3). Only used if
             file_type is 'mwa_corr_fits'.
         use_aoflagger_flags : bool
-            Only used if file_type is 'mwa_corr_fits'. Option to use cotter output
-            mwaf flag files. Defaults to true if cotter flag files are submitted.
+            Only used if file_type is 'mwa_corr_fits'. Option to use aoflagger mwaf
+            flag files. Defaults to true if aoflagger flag files are submitted.
+        use_cotter_flags : bool
+            Being replaced by use_aoflagger_flags and will be removed in v2.4.
         remove_dig_gains : bool
             Only used if file_type is 'mwa_corr_fits'. Option to divide out digital
             gains.
@@ -11969,10 +12007,14 @@ class UVData(UVBase):
             approximation. Set to False to run the integral version of the correction.
         flag_small_auto_ants : bool
             Only used if correct_van_vleck is True. Option to completely flag any
-            antenna that has a sigma < 0.5, as sigmas in this range generally
-            indicate bad data. If set to False, only the times and
-            frequencies at which sigma < 0.5 will be flagged for the antenna.
-            Only used if file_type is 'mwa_corr_fits'.
+            antenna for which the autocorrelation falls below a threshold found by
+            the Van Vleck correction to indicate bad data. Specifically, the
+            threshold used is 0.5 * integration_time * channel_width. If set to False,
+            only the times and frequencies at which the auto is below the
+            threshold will be flagged for the antenna. Only used if file_type is
+            'mwa_corr_fits'.
+        flag_small_sig_ants : bool
+            Being replaced by flag_small_auto_ants and will be removed in v2.4.
         propogate_coarse_flags : bool
             Option to propogate flags for missing coarse channel integrations
             across frequency. Only used if file_type is 'mwa_corr_fits'.
@@ -12128,12 +12170,14 @@ class UVData(UVBase):
             data_array_dtype=data_array_dtype,
             nsample_array_dtype=nsample_array_dtype,
             use_aoflagger_flags=use_aoflagger_flags,
+            use_cotter_flags=use_cotter_flags,
             remove_dig_gains=remove_dig_gains,
             remove_coarse_band=remove_coarse_band,
             correct_cable_len=correct_cable_len,
             correct_van_vleck=correct_van_vleck,
             cheby_approx=cheby_approx,
             flag_small_auto_ants=flag_small_auto_ants,
+            flag_small_sig_ants=flag_small_sig_ants,
             propagate_coarse_flags=propagate_coarse_flags,
             flag_init=flag_init,
             edge_width=edge_width,
