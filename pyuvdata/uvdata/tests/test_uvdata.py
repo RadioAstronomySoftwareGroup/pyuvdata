@@ -774,6 +774,18 @@ def test_future_array_shape(casa_uvfits):
 
     assert uvobj == uvobj2
 
+    uvobj2.data_array = None
+    uvobj2.flag_array = None
+    uvobj2.nsample_array = None
+    assert uvobj2.metadata_only
+
+    uvobj2.use_future_array_shapes()
+    assert uvobj2._data_array.expected_shape(uvobj2) == (
+        uvobj2.Nblts,
+        uvobj2.Nfreqs,
+        uvobj2.Npols,
+    )
+
     uvobj.use_future_array_shapes()
     uvobj.channel_width[-1] = uvobj.channel_width[0] * 2.0
     uvobj.check()
