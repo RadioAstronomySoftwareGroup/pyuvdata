@@ -965,6 +965,8 @@ def test_van_vleck_int():
     # read in file corrected using integrate.quad with 1e-10 precision
     uv2 = UVData()
     uv2.read(filelist[10])
+    print(uv1.data_array[0:10, 0, 0, :])
+    print(uv2.data_array[0:10, 0, 0, :])
     assert np.allclose(uv1.data_array, uv2.data_array)
 
 
@@ -988,7 +990,8 @@ def test_van_vleck_cheby():
     # select only good ants
     good_ants = np.delete(np.unique(uv2.ant_1_array), 76)
     uv2.select(antenna_nums=good_ants)
-
+    print(uv1.data_array[0:10, 0, 0, :])
+    print(uv2.data_array[0:10, 0, 0, :])
     assert np.allclose(uv1.data_array, uv2.data_array)
 
 
@@ -1001,7 +1004,7 @@ def test_van_vleck_interp(tmp_path):
     messages = [
         "values are being corrected with the van vleck integral",
     ]
-    messages = messages * 10
+    messages = messages * 4
     messages.append("some coarse channel files were not submitted")
     messages.append("Fixing auto-correlations to be be real-only,")
     uv = UVData()
@@ -1056,7 +1059,7 @@ def test_small_sigs(tmp_path):
     messages = [
         "values are being corrected with the van vleck integral",
     ]
-    messages = messages * 8
+    messages = messages * 4
     messages.append("some coarse channel files were not submitted")
     messages.append("cable length correction is now defaulted to True")
     uv2 = UVData()
