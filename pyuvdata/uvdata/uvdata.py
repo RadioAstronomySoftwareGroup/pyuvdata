@@ -1971,9 +1971,8 @@ class UVData(UVBase):
         self.future_array_shapes = True
         self._freq_array.form = ("Nfreqs",)
         self._channel_width.form = ("Nfreqs",)
-        if not self.metadata_only:
-            for param_name in self._data_params:
-                getattr(self, "_" + param_name).form = ("Nblts", "Nfreqs", "Npols")
+        for param_name in self._data_params:
+            getattr(self, "_" + param_name).form = ("Nblts", "Nfreqs", "Npols")
 
     def use_future_array_shapes(self):
         """
