@@ -662,3 +662,26 @@ def test_ms_reader_errs(mir_uv, tmp_path, badcol, badval, errtype, msg):
     with pytest.raises(errtype) as cm:
         ms_uv.read_ms(testfile, data_column=data_col)
     assert str(cm.value).startswith(msg)
+
+
+def test_antenna_diameter_handling(hera_uvh5, tmp_path):
+    uv_obj = hera_uvh5
+
+    uv_obj.antenna_diameters = np.asarray(uv_obj.antenna_diameters, dtype=">f4")
+
+    test_file = os.path.join(tmp_path, "dish_diameter_out.ms")
+    uv_obj.write_ms(test_file, force_phase=True)
+
+    uv_obj2 = UVData.from_file(test_file)
+
+    # MS write/read adds some stuff to history & extra keywords
+    uv_obj2.history = uv_obj.history
+    uv_obj2.extra_keywords = uv_obj.extra_keywords
+
+    # Uh oh, we're losing x_orientation in the ms write/read round trip.
+    # That's a problem.
+    assert uv_obj.x_orientation is not None
+    assert uv_obj2.x_orientation is None
+    uv_obj2.x_orientation = uv_obj.x_orientation
+
+    assert uv_obj2 == uv_obj
