@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - A bug that resulted in the wrong expected shapes for data-like arrays when metadata
 only UVData objects were set to use future array shapes.
+- A bug that caused an error when writing non-double antenna diameters to measurement set files
 - Added a warning in `utils.uvcalibrate` when uvdata x_orientation is not set.
 - Fixed a bug in `UVBeam.efield_to_power` when there is only one feed.
 

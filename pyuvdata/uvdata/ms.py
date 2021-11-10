@@ -18,7 +18,7 @@ from .. import utils as uvutils
 __all__ = ["MS"]
 
 no_casa_message = (
-    "casacore is not installed but is required for " "measurement set functionality"
+    "casacore is not installed but is required for measurement set functionality"
 )
 
 casa_present = True
