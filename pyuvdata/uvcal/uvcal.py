@@ -467,6 +467,11 @@ class UVCal(UVBase):
             expected_type=dict,
         )
 
+        desc = "List containing the unique names of input files"
+        self._filename = uvp.UVParameter(
+            "filename", required=False, description=desc, expected_type=str,
+        )
+
         super(UVCal, self).__init__()
 
     def _set_gain(self):
@@ -1178,6 +1183,11 @@ class UVCal(UVBase):
                             "These objects have overlapping data and"
                             " cannot be combined."
                         )
+
+        # Update filename parameter
+        this.filename = uvutils._combine_filenames(this.filename, other.filename)
+        if this.filename is not None:
+            this._filename.form = (len(this.filename),)
 
         temp = np.nonzero(~np.in1d(other.ant_array, this.ant_array))[0]
         if len(temp) > 0:

@@ -195,6 +195,7 @@ def test_init_uvdata(uvdata_obj):
     assert 'Flag object with type "baseline"' in uvf.history
     assert pyuvdata_version_str in uvf.history
     assert uvf.label == "test"
+    assert uvf.filename == uv.filename
 
 
 def test_add_extra_keywords(uvdata_obj):
@@ -304,6 +305,7 @@ def test_init_uvcal():
     assert np.all(uvf.ant_array == uvc.ant_array)
     assert 'Flag object with type "antenna"' in uvf.history
     assert pyuvdata_version_str in uvf.history
+    assert uvf.filename == uvc.filename
 
 
 def test_init_uvcal_mode_flag():
@@ -500,6 +502,7 @@ def test_read_write_loop(uvdata_obj, test_outfile):
     uvf.write(test_outfile, clobber=True)
     uvf2 = UVFlag(test_outfile)
     assert uvf.__eq__(uvf2, check_history=True)
+    assert uvf2.filename == [os.path.basename(test_outfile)]
 
 
 def test_read_write_loop_with_optional_x_orientation(uvdata_obj, test_outfile):
@@ -701,6 +704,10 @@ def test_read_list(uvdata_obj, test_outfile):
     uvf = UVFlag(uv)
     uvf.write(test_outfile, clobber=True)
     uvf.read([test_outfile, test_f_file])
+    assert uvf.filename == sorted(
+        os.path.basename(file) for file in [test_outfile, test_f_file]
+    )
+
     uvf1 = UVFlag(uv)
     uvf2 = UVFlag(test_f_file)
     assert np.array_equal(

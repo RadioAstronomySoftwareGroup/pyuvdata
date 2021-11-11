@@ -58,6 +58,9 @@ def test_read_fhdcal_raw_write_read_calfits(raw, tmp_path):
         raw=raw,
     )
 
+    filelist = [cal_testfile, obs_testfile, layout_testfile, settings_testfile]
+
+    assert fhd_cal.filename == sorted(os.path.basename(file) for file in filelist)
     assert np.max(fhd_cal.gain_array) < 2.0
 
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")

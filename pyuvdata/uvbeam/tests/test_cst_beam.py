@@ -86,8 +86,16 @@ def test_read_yaml(cst_efield_2freq):
     }
 
     beam1 = cst_efield_2freq
+    assert beam1.filename == ["HERA_NicCST_123MHz.txt", "HERA_NicCST_150MHz.txt"]
 
     beam2.read_cst_beam(cst_yaml_file, beam_type="efield")
+    assert beam2.filename == sorted(
+        [
+            os.path.basename(cst_yaml_file),
+            "HERA_NicCST_123MHz.txt",
+            "HERA_NicCST_150MHz.txt",
+        ]
+    )
     assert beam1 == beam2
 
     assert beam2.reference_impedance == 100

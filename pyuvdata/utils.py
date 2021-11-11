@@ -4404,7 +4404,7 @@ def parse_ants(uv, ant_str, print_toggle=False, x_orientation=None):
 
 
 def _combine_filenames(filename1, filename2):
-    """Combine the filename attribute from multiple UVData objects.
+    """Combine the filename attribute from multiple UVBase objects.
 
     The 4 cases are:
     1. `filename1` has been set, `filename2` has not
@@ -4420,7 +4420,7 @@ def _combine_filenames(filename1, filename2):
     Parameters
     ----------
     filename1 : list of str or None
-        The list of filenames for the first UVData object. If it is not set, it
+        The list of filenames for the first UVBase object. If it is not set, it
         should be `None`.
     filename2 : list of str or None
         The list of filenames for the second UVData object. If it is not set, it

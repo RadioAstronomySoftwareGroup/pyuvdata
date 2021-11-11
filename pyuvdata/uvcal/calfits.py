@@ -2,6 +2,7 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Class for reading and writing calibration FITS files."""
+import os
 import warnings
 
 import numpy as np
@@ -434,6 +435,11 @@ class CALFITS(UVCal):
             parameters after reading in the file.
 
         """
+        # update filename attribute
+        basename = os.path.basename(filename)
+        self.filename = [basename]
+        self._filename.form = (1,)
+
         with fits.open(filename) as fname:
             hdr = fname[0].header.copy()
             hdunames = uvutils._fits_indexhdus(fname)

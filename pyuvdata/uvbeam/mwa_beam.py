@@ -2,6 +2,7 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Read in the Sujinto et al. full embedded element MWA Beam."""
+import os
 import warnings
 
 import numpy as np
@@ -528,6 +529,11 @@ class MWABeam(UVBeam):
             available frequencies.
 
         """
+        # update filename attribute
+        basename = os.path.basename(h5filepath)
+        self.filename = [basename]
+        self._filename.form = (1,)
+
         freqs_hz, pol_names, dipole_names, max_length = self._read_metadata(h5filepath)
 
         n_dp = dipole_names.size

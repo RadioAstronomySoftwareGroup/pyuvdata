@@ -585,6 +585,11 @@ class UVBeam(UVBase):
             tols=1e-3,
         )
 
+        desc = "List containing the unique names of input files"
+        self._filename = uvp.UVParameter(
+            "filename", required=False, description=desc, expected_type=str,
+        )
+
         super(UVBeam, self).__init__()
 
     def _set_cs_params(self):
@@ -2205,6 +2210,11 @@ class UVBeam(UVBase):
                                 " cannot be combined."
                             )
 
+        # Update filename parameter
+        this.filename = uvutils._combine_filenames(this.filename, other.filename)
+        if this.filename is not None:
+            this._filename.form = (len(this.filename),)
+
         if this.pixel_coordinate_system == "healpix":
             temp = np.nonzero(~np.in1d(other.pixel_array, this.pixel_array))[0]
             if len(temp) > 0:
@@ -3387,6 +3397,12 @@ class UVBeam(UVBase):
             )
             self._convert_from_filetype(cst_beam_obj)
             del cst_beam_obj
+
+        if not isinstance(filename, (list, tuple)) and filename.endswith("yaml"):
+            # update filelist
+            basename = os.path.basename(filename)
+            self.filename = uvutils._combine_filenames(self.filename, [basename])
+            self._filename.form = (len(self.filename),)
 
     def read_mwa_beam(
         self,

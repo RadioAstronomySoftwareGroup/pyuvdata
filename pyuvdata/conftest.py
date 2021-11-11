@@ -98,7 +98,7 @@ def paper_miriad(paper_miriad_main):
     del uv_in
 
 
-def make_cst_beam(beam_type, nfreq):
+def make_cst_beam(beam_type):
     """Make the default CST testing beam."""
     extra_keywords = {
         "software": "CST 2016",
@@ -138,17 +138,19 @@ def cut_beam(beam):
 
 
 def single_freq_version(beam):
-    """Make a single freq version with expected history."""
+    """Make a single freq version with expected history and filename."""
     history_use = beam.history[: beam.history.find(" Combined data")]
     beam.select(freq_chans=1)
     beam.history = history_use
+    beam.filename = [beam.filename[1]]
+    beam._filename.form = (1,)
     return beam
 
 
 @pytest.fixture(scope="session")
 def cst_efield_2freq_main():
     """Make session level 2-freq efield beam."""
-    return make_cst_beam("efield", 2)
+    return make_cst_beam("efield")
 
 
 @pytest.fixture(scope="function")
@@ -224,7 +226,7 @@ def cst_efield_1freq_cut_healpix(cst_efield_1freq_cut_healpix_main):
 @pytest.fixture(scope="session")
 def cst_power_2freq_main():
     """Make session level 2-freq power beam."""
-    return make_cst_beam("power", 2)
+    return make_cst_beam("power")
 
 
 @pytest.fixture(scope="function")

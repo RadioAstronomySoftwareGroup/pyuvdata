@@ -2591,32 +2591,6 @@ class UVData(UVBase):
 
         return True
 
-    def __eq__(self, other, check_extra=True, allowed_failures=("filename",)):
-        """
-        Test for equality between two objects.
-
-        Parameters
-        ----------
-        other : UVData object instance
-            UVData instance to check
-        check_extra : bool
-            Option to specify whether to include all parameters, or just the
-            required ones. Default is True.
-        allowed_failures : iterable of str, optional
-            List or tuple of parameter names that are allowed to fail while
-            still passing an overall equality check. These should only include
-            optional parameters. By default, the `filename` parameter will be
-            ignored.
-
-        Returns
-        -------
-        bool
-            Whether the two instances are equivalent.
-        """
-        return super(UVData, self).__eq__(
-            other, check_extra=check_extra, allowed_failures=allowed_failures
-        )
-
     def copy(self, metadata_only=False):
         """
         Make and return a copy of the UVData object.
