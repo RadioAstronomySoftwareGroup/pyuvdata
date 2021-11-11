@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added a `filename` attribute to UVCal, UVBeam and UVFlag objects.
 - Support for reading MWAX/birli uvfits files.
 - Flexible spectral windows to `read_mwa_corr_fits`.
 
