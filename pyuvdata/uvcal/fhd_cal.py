@@ -77,6 +77,17 @@ class FHDCal(UVCal):
         if not read_data and settings_file is None:
             raise ValueError("A settings_file must be provided if read_data is False.")
 
+        filelist = [cal_file, obs_file]
+        if layout_file is not None:
+            filelist.append(layout_file)
+        if settings_file is not None:
+            filelist.append(settings_file)
+        for filename in filelist:
+            # update filelist
+            basename = os.path.basename(filename)
+            self.filename = uvutils._combine_filenames(self.filename, [basename])
+            self._filename.form = (len(self.filename),)
+
         this_dict = readsav(obs_file, python_dict=True)
         obs_data = this_dict["obs"]
         bl_info = obs_data["BASELINE_INFO"][0]

@@ -3,6 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing beamfits files."""
+import os
 import warnings
 
 import numpy as np
@@ -75,6 +76,11 @@ class BeamFITS(UVBeam):
             Option to check acceptable range of the values of
             required parameters after reading in the file.
         """
+        # update filename attribute
+        basename = os.path.basename(filename)
+        self.filename = [basename]
+        self._filename.form = (1,)
+
         with fits.open(filename) as fname:
             primary_hdu = fname[0]
             primary_header = primary_hdu.header.copy()

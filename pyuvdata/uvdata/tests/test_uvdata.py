@@ -30,44 +30,6 @@ from collections import Counter
 
 @pytest.fixture(scope="function")
 def uvdata_props():
-    required_parameters = [
-        "_data_array",
-        "_nsample_array",
-        "_flag_array",
-        "_Ntimes",
-        "_Nbls",
-        "_Nblts",
-        "_Nfreqs",
-        "_Npols",
-        "_Nspws",
-        "_uvw_array",
-        "_time_array",
-        "_ant_1_array",
-        "_ant_2_array",
-        "_lst_array",
-        "_baseline_array",
-        "_freq_array",
-        "_polarization_array",
-        "_spw_array",
-        "_integration_time",
-        "_channel_width",
-        "_object_name",
-        "_telescope_name",
-        "_instrument",
-        "_telescope_location",
-        "_history",
-        "_vis_units",
-        "_Nants_data",
-        "_Nants_telescope",
-        "_antenna_names",
-        "_antenna_numbers",
-        "_antenna_positions",
-        "_phase_type",
-        "_flex_spw",
-        "_future_array_shapes",
-        "_multi_phase_center",
-    ]
-
     required_properties = [
         "data_array",
         "nsample_array",
@@ -105,33 +67,7 @@ def uvdata_props():
         "future_array_shapes",
         "multi_phase_center",
     ]
-
-    extra_parameters = [
-        "_extra_keywords",
-        "_x_orientation",
-        "_antenna_diameters",
-        "_blt_order",
-        "_gst0",
-        "_rdate",
-        "_earth_omega",
-        "_dut1",
-        "_timesys",
-        "_uvplane_reference_time",
-        "_phase_center_ra",
-        "_phase_center_dec",
-        "_phase_center_app_ra",
-        "_phase_center_app_dec",
-        "_phase_center_frame_pa",
-        "_phase_center_epoch",
-        "_phase_center_frame",
-        "_Nphase",
-        "_phase_center_catalog",
-        "_phase_center_id_array",
-        "_eq_coeffs",
-        "_eq_coeffs_convention",
-        "_flex_spw_id_array",
-        "_filename",
-    ]
+    required_parameters = ["_" + prop for prop in required_properties]
 
     extra_properties = [
         "extra_keywords",
@@ -159,6 +95,7 @@ def uvdata_props():
         "flex_spw_id_array",
         "filename",
     ]
+    extra_parameters = ["_" + prop for prop in extra_properties]
 
     other_properties = [
         "telescope_location_lat_lon_alt",

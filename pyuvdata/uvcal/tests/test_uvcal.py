@@ -24,32 +24,6 @@ pytestmark = pytest.mark.filterwarnings(
 @pytest.fixture(scope="function")
 def uvcal_data():
     """Set up some uvcal iter tests."""
-    required_parameters = [
-        "_Nfreqs",
-        "_Njones",
-        "_Ntimes",
-        "_Nspws",
-        "_Nants_data",
-        "_Nants_telescope",
-        "_antenna_names",
-        "_antenna_numbers",
-        "_ant_array",
-        "_telescope_name",
-        "_freq_array",
-        "_channel_width",
-        "_spw_array",
-        "_jones_array",
-        "_time_array",
-        "_integration_time",
-        "_gain_convention",
-        "_flag_array",
-        "_quality_array",
-        "_cal_type",
-        "_cal_style",
-        "_x_orientation",
-        "_history",
-    ]
-
     required_properties = [
         "Nfreqs",
         "Njones",
@@ -75,29 +49,7 @@ def uvcal_data():
         "x_orientation",
         "history",
     ]
-
-    extra_parameters = [
-        "_telescope_location",
-        "_antenna_positions",
-        "_lst_array",
-        "_gain_array",
-        "_delay_array",
-        "_sky_field",
-        "_sky_catalog",
-        "_ref_antenna_name",
-        "_Nsources",
-        "_baseline_range",
-        "_diffuse_model",
-        "_input_flag_array",
-        "_time_range",
-        "_freq_range",
-        "_observer",
-        "_git_origin_cal",
-        "_git_hash_cal",
-        "_total_quality_array",
-        "_extra_keywords",
-        "_gain_scale",
-    ]
+    required_parameters = ["_" + prop for prop in required_properties]
 
     extra_properties = [
         "telescope_location",
@@ -120,7 +72,9 @@ def uvcal_data():
         "total_quality_array",
         "extra_keywords",
         "gain_scale",
+        "filename",
     ]
+    extra_parameters = ["_" + prop for prop in extra_properties]
 
     other_properties = ["pyuvdata_version_str"]
 
@@ -1511,6 +1465,7 @@ def test_multi_files(caltype, gain_data, delay_data, tmp_path):
         "along time axis using pyuvdata.",
         calobj.history,
     )
+    assert calobj.filename == ["read_multi1.calfits", "read_multi2.calfits"]
     calobj.history = calobj_full.history
     assert calobj == calobj_full
 

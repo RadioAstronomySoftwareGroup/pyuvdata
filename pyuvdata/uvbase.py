@@ -223,7 +223,7 @@ class UVBase(object):
         for a in extra_list:
             yield a
 
-    def __eq__(self, other, check_extra=True, allowed_failures=None):
+    def __eq__(self, other, check_extra=True, allowed_failures=("filename",)):
         """
         Test if classes match and parameters are equal.
 
@@ -237,7 +237,8 @@ class UVBase(object):
         allowed_failures : iterable of str, optional
             List or tuple of parameter names that are allowed to fail while
             still passing an overall equality check. These should only include
-            optional parameters.
+            optional parameters. By default, the `filename` parameter will be
+            ignored.
 
         Returns
         -------
@@ -307,14 +308,15 @@ class UVBase(object):
 
             if allowed_failures is not None:
                 for param in allowed_failures:
-                    self_param = getattr(self, param)
-                    other_param = getattr(other, param)
-                    if self_param != other_param:
-                        print(
-                            f"parameter {param} does not match, but is not required "
-                            f"to for equality. Left is {self_param.value}, "
-                            f"right is {other_param.value}."
-                        )
+                    if hasattr(self, param):
+                        self_param = getattr(self, param)
+                        other_param = getattr(other, param)
+                        if self_param != other_param:
+                            print(
+                                f"parameter {param} does not match, but is not "
+                                "required to for equality. Left is "
+                                f"{self_param.value}, right is {other_param.value}."
+                            )
 
             return p_equal
         else:

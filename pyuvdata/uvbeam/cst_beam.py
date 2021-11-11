@@ -2,6 +2,7 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Class for reading beam CST files."""
+import os
 import re
 import warnings
 
@@ -124,6 +125,11 @@ class CSTBeam(UVBeam):
             required parameters after reading in the file.
 
         """
+        # update filename attribute
+        basename = os.path.basename(filename)
+        self.filename = [basename]
+        self._filename.form = (1,)
+
         self.telescope_name = telescope_name
         self.feed_name = feed_name
         self.feed_version = feed_version

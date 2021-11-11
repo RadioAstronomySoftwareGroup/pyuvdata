@@ -36,26 +36,6 @@ casa_beamfits = os.path.join(DATA_PATH, "HERABEAM.FITS")
 @pytest.fixture(scope="function")
 def uvbeam_data():
     """Setup and teardown for basic parameter, property and iterator tests."""
-    required_parameters = [
-        "_beam_type",
-        "_Nfreqs",
-        "_Naxes_vec",
-        "_Nspws",
-        "_pixel_coordinate_system",
-        "_freq_array",
-        "_spw_array",
-        "_data_normalization",
-        "_data_array",
-        "_bandpass_array",
-        "_telescope_name",
-        "_feed_name",
-        "_feed_version",
-        "_model_name",
-        "_model_version",
-        "_history",
-        "_antenna_type",
-    ]
-
     required_properties = [
         "beam_type",
         "Nfreqs",
@@ -75,38 +55,7 @@ def uvbeam_data():
         "history",
         "antenna_type",
     ]
-
-    extra_parameters = [
-        "_Naxes1",
-        "_Naxes2",
-        "_Npixels",
-        "_Nfeeds",
-        "_Npols",
-        "_Ncomponents_vec",
-        "_axis1_array",
-        "_axis2_array",
-        "_nside",
-        "_ordering",
-        "_pixel_array",
-        "_feed_array",
-        "_polarization_array",
-        "_basis_vector_array",
-        "_extra_keywords",
-        "_Nelements",
-        "_element_coordinate_system",
-        "_element_location_array",
-        "_delay_array",
-        "_x_orientation",
-        "_interpolation_function",
-        "_freq_interp_kind",
-        "_gain_array",
-        "_coupling_matrix",
-        "_reference_impedance",
-        "_receiver_temperature_array",
-        "_loss_array",
-        "_mismatch_array",
-        "_s_parameters",
-    ]
+    required_parameters = ["_" + prop for prop in required_properties]
 
     extra_properties = [
         "Naxes1",
@@ -138,7 +87,9 @@ def uvbeam_data():
         "loss_array",
         "mismatch_array",
         "s_parameters",
+        "filename",
     ]
+    extra_parameters = ["_" + prop for prop in extra_properties]
 
     other_properties = ["pyuvdata_version_str"]
 
@@ -2635,6 +2586,7 @@ def test_generic_read_multi(tmp_path):
 
     uvb3 = UVBeam()
     uvb3.read([fname1, fname2])
+    assert uvb3.filename == ["test_beam1.beamfits", "test_beam2.beamfits"]
     # the histories will be different
     uvb3.history = uvb.history
 

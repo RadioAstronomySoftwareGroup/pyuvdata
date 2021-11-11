@@ -442,6 +442,11 @@ class UVFlag(UVBase):
             acceptable_vals=["east", "north"],
         )
 
+        desc = "List containing the unique names of input files"
+        self._filename = uvp.UVParameter(
+            "filename", required=False, description=desc, expected_type=str,
+        )
+
         # initialize the underlying UVBase properties
         super(UVFlag, self).__init__()
 
@@ -747,7 +752,7 @@ class UVFlag(UVBase):
 
         Useful when changing type or mode or to save memory.
         Will set all non-required attributes to None, except x_orientation,
-        extra_keywords and weights_square_array.
+        extra_keywords, weights_square_array and filename.
 
         """
         for p in self:
@@ -758,6 +763,7 @@ class UVFlag(UVBase):
                 and attr.name != "x_orientation"
                 and attr.name != "weights_square_array"
                 and attr.name != "extra_keywords"
+                and attr.name != "filename"
             ):
                 attr.value = None
                 setattr(self, p, attr)
@@ -1579,6 +1585,11 @@ class UVFlag(UVBase):
                 "UVFlag object of mode " + other.mode + " cannot be "
                 "added to object of mode " + this.type + "."
             )
+
+        # Update filename parameter
+        this.filename = uvutils._combine_filenames(this.filename, other.filename)
+        if this.filename is not None:
+            this._filename.form = (len(this.filename),)
 
         # Simplify axis referencing
         axis = axis.lower()
@@ -2539,6 +2550,11 @@ class UVFlag(UVBase):
             if not os.path.exists(filename):
                 raise IOError(filename + " not found.")
 
+            # update filename attribute
+            basename = os.path.basename(filename)
+            self.filename = [basename]
+            self._filename.form = (1,)
+
             # Open file for reading
             with h5py.File(filename, "r") as f:
                 header = f["/Header"]
@@ -2972,6 +2988,9 @@ class UVFlag(UVBase):
                 elif self.mode == "metric":
                     self.metric_array = np.zeros(array_shape, dtype=np.float64)
 
+        self.filename = indata.filename
+        self._filename.form = indata._filename.form
+
         if indata.x_orientation is not None:
             self.x_orientation = indata.x_orientation
 
@@ -3132,6 +3151,9 @@ class UVFlag(UVBase):
                     )
         if self.mode == "metric":
             self.weights_array = np.ones(self.metric_array.shape)
+
+        self.filename = indata.filename
+        self._filename.form = indata._filename.form
 
         if indata.x_orientation is not None:
             self.x_orientation = indata.x_orientation

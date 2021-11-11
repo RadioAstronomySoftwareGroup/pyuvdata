@@ -37,6 +37,9 @@ def test_readwriteread(filein, tmp_path):
     testfile = os.path.join(DATA_PATH, filein)
     write_file = str(tmp_path / "outtest.fits")
     cal_in.read_calfits(testfile)
+
+    assert cal_in.filename == [os.path.basename(filein)]
+
     cal_in.write_calfits(write_file, clobber=True)
     cal_out.read_calfits(write_file)
     assert cal_in == cal_out

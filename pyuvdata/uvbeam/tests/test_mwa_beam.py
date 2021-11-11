@@ -34,6 +34,7 @@ def test_read_write_mwa(mwa_beam_1ppd, tmp_path):
     beam2 = UVBeam()
 
     beam1.read_mwa_beam(filename, pixels_per_deg=1)
+    assert beam1.filename == ["mwa_full_EE_test.h5"]
 
     assert beam1.pixel_coordinate_system == "az_za"
     assert beam1.beam_type == "efield"

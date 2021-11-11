@@ -58,6 +58,8 @@ def hera_beam_casa():
 
 def test_read_cst_write_read_fits_efield(cst_efield_1freq, tmp_path):
     beam_in = cst_efield_1freq.copy()
+    assert beam_in.filename == ["HERA_NicCST_150MHz.txt"]
+
     beam_out = UVBeam()
 
     # add optional parameters for testing purposes
