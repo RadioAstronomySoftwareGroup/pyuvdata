@@ -998,7 +998,7 @@ def test_van_vleck_interp(tmp_path):
     messages = [
         "values are being corrected with the van vleck integral",
     ]
-    messages = messages * 4
+    messages = messages * 2
     messages.append("some coarse channel files were not submitted")
     messages.append("Fixing auto-correlations to be be real-only,")
     uv = UVData()
@@ -1051,7 +1051,7 @@ def test_small_autos(tmp_path):
     messages = [
         "values are being corrected with the van vleck integral",
     ]
-    messages = messages * 4
+    messages = messages * 2
     messages.append("some coarse channel files were not submitted")
     messages.append("cable length correction is now defaulted to True")
     uv2 = UVData()
