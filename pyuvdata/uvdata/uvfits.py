@@ -635,6 +635,19 @@ class UVFITS(UVData):
                             "to be a Cotter file, setting to ITRF."
                         )
                         xyz_telescope_frame = "ITRF"
+
+                    elif self.extra_keywords.get("SOFTWARE", None).lower() == "birli":
+                        # MWAX pipeline has a package named birli used to write
+                        # uvfits files.
+                        warnings.warn(
+                            "Required Antenna frame keyword not set, but this appears "
+                            "to be a MWAX file, setting to ITRF."
+                        )
+                        xyz_telescope_frame = "ITRF"
+
+                    else:
+                        xyz_telescope_frame = "????"
+
                 else:
                     warnings.warn(
                         "Required Antenna frame keyword not set, setting to ????"
