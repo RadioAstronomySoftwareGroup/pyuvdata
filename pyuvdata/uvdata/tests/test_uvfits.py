@@ -1339,3 +1339,34 @@ def test_flex_spw_uvfits_write_errs(sma_mir, freq_val, chan_val, msg):
     sma_mir.channel_width[:] = chan_val
     with pytest.raises(ValueError, match=msg):
         sma_mir.write_uvfits("dummy", spoof_nonessential=True)
+
+
+def test_mwax_birli_frame(tmp_path):
+    fits_file = os.path.join(DATA_PATH, "1061316296.uvfits")
+    outfile = tmp_path / "mwax_birli.uvfits"
+    with fits.open(fits_file, memmap=True) as hdu_list:
+        hdu_list[0].header["SOFTWARE"] = "birli"
+        # remove the frame keyword
+        del hdu_list[1].header["FRAME"]
+        hdu_list.writeto(outfile)
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Required Antenna frame keyword not set, but this appears to be an MWAX "
+            "file, setting to ITRF.",
+        ],
+    ):
+        UVData.from_file(outfile, read_data=False)
+
+
+def test_mwax_missing_frame_comment(tmp_path):
+    fits_file = os.path.join(DATA_PATH, "1061316296.uvfits")
+    outfile = tmp_path / "mwax_birli.uvfits"
+    with fits.open(fits_file, memmap=True) as hdu_list:
+        del hdu_list[1].header["FRAME"], hdu_list[0].header["COMMENT"]
+        hdu_list[0].header["COMMENT"] = "A dummy comment."
+        hdu_list.writeto(outfile)
+    with uvtest.check_warnings(
+        UserWarning, ["Required Antenna frame keyword not set, setting to ????"],
+    ):
+        UVData.from_file(outfile, read_data=False)

@@ -624,7 +624,24 @@ class UVFITS(UVData):
             if "FRAME" in ant_hdu.header.keys():
                 xyz_telescope_frame = ant_hdu.header["FRAME"]
             else:
-                if "COMMENT" in self.extra_keywords:
+                # want to make a case-insensitive comparison so look for existance
+                # first before comparing. This may need to change later if
+                # there are other explicit softwares we want to support assuming
+                # a frame for.
+                if (
+                    "SOFTWARE" in self.extra_keywords
+                    and self.extra_keywords.get("SOFTWARE").lower() == "birli"
+                ):
+                    # MWAX pipeline has a package named birli used to write
+                    # uvfits files.
+                    warnings.warn(
+                        "Required Antenna frame keyword not set, but this appears "
+                        "to be an MWAX file, setting to ITRF."
+                    )
+                    xyz_telescope_frame = "ITRF"
+
+                elif "COMMENT" in self.extra_keywords:
+
                     if uvutils._check_history_version(
                         self.extra_keywords["COMMENT"],
                         "Created by Cotter MWA preprocessor",
@@ -636,16 +653,10 @@ class UVFITS(UVData):
                         )
                         xyz_telescope_frame = "ITRF"
 
-                    elif self.extra_keywords.get("SOFTWARE", None).lower() == "birli":
-                        # MWAX pipeline has a package named birli used to write
-                        # uvfits files.
-                        warnings.warn(
-                            "Required Antenna frame keyword not set, but this appears "
-                            "to be a MWAX file, setting to ITRF."
-                        )
-                        xyz_telescope_frame = "ITRF"
-
                     else:
+                        warnings.warn(
+                            "Required Antenna frame keyword not set, setting to ????"
+                        )
                         xyz_telescope_frame = "????"
 
                 else:
