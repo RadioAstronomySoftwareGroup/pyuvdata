@@ -372,7 +372,7 @@ def checkWarnings(
     elif known_warning == "paper_uvfits":
         # The default warnings for known telescopes when reading uvfits files
         category = [UserWarning] * 2
-        message = ["Required Antenna frame keyword", "telescope_location is not set"]
+        message = ["Required Antenna keyword 'FRAME'", "telescope_location is not set"]
         nwarnings = 2
     elif known_warning == "fhd":
         category = [UserWarning]
