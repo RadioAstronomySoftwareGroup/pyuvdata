@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Support for reading MWAX/birli fits files
 - Flexible spectral windows to `read_mwa_corr_fits`.
 
 ### Changed
