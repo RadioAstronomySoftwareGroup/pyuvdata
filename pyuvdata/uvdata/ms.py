@@ -11,6 +11,7 @@ import numpy as np
 import os
 import warnings
 from astropy.time import Time
+from scipy import ndimage as nd
 
 from .uvdata import UVData
 from .. import utils as uvutils
@@ -1164,6 +1165,24 @@ class MS(UVData):
                 field_id_array[sel_mask] = idx
 
             ms.putcol("FIELD_ID", np.repeat(field_id_array, self.Nspws))
+
+            # Additionally group integrations (rows) into scan numbers.
+            slice_list = []
+            for idx in range(self.Nphase):
+                sou_id = self.phase_center_catalog[sou_list[idx]]["cat_id"]
+                slice_list.extend(
+                    nd.find_objects(nd.label(self.phase_center_id_array == sou_id)[0])
+                )
+
+            # Sort by start integration number, which we can extract from
+            # the start of each slice in the list.
+            slice_list_ord = sorted(slice_list, key=lambda x: x[0].start)
+
+            scan_array = np.zeros_like(self.phase_center_id_array)
+            for ii, slice_scan in enumerate(slice_list_ord):
+                scan_array[slice_scan] = ii
+
+            ms.putcol("SCAN_NUMBER", np.repeat(scan_array, self.Nspws))
 
         if len(self.extra_keywords) != 0:
             ms.putkeyword("pyuvdata_extra", self.extra_keywords)
