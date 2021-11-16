@@ -1179,6 +1179,7 @@ class MWACorrFITS(UVData):
         included_flag_nums = []
         aoflagger_warning = False
         num_fine_chans = 0
+        mwax = None
 
         # do datatype checks
         if data_array_dtype not in (np.complex64, np.complex128):
@@ -1225,6 +1226,12 @@ class MWACorrFITS(UVData):
                                 "files from different observations submitted "
                                 "in same list"
                             )
+                    # check if mwax
+                    if mwax is None:
+                        if "CORR_VER" in head0.keys():
+                            mwax = True
+                        else:
+                            mwax = False
                     # check headers for first and last times containing data
                     headstart = fits.getheader(filename, 1)
                     headfin = fits.getheader(filename, -1)
@@ -1242,17 +1249,32 @@ class MWACorrFITS(UVData):
                         start_time = first_time
                     if end_time < last_time:
                         end_time = last_time
-                    # get number of fine channels
+                    # get number of fine channels in each coarse channel
                     if num_fine_chans == 0:
-                        num_fine_chans = headstart["NAXIS2"]
-                    elif num_fine_chans != headstart["NAXIS2"]:
-                        raise ValueError(
-                            "files submitted have different numbers of fine channels"
-                        )
+                        if mwax:
+                            num_fine_chans = head0["NFINECHS"]
+                        else:
+                            num_fine_chans = headstart["NAXIS2"]
+                    else:
+                        if mwax:
+                            if num_fine_chans != head0["NFINECHS"]:
+                                raise ValueError(
+                                    "files submitted have different numbers \
+                                    of fine channels"
+                                )
+                        else:
+                            if num_fine_chans != headstart["NAXIS2"]:
+                                raise ValueError(
+                                    "files submitted have different numbers \
+                                        of fine channels"
+                                )
 
                     # get the file number from the file name;
                     # this will later be mapped to a coarse channel
-                    file_num = int(filename.split("_")[-2][-2:])
+                    if mwax:
+                        file_num = int(filename.split("_")[-2][-3:])
+                    else:
+                        file_num = int(filename.split("_")[-2][-2:])
                     if file_num not in included_file_nums:
                         included_file_nums.append(file_num)
                     # organize files
@@ -1262,6 +1284,7 @@ class MWACorrFITS(UVData):
                         file_dict["data"].append(filename)
 
                     # save bscale keyword
+                    # TODO: figure out if need this for mwax
                     if "SCALEFAC" not in self.extra_keywords.keys():
                         if "BSCALE" in head0.keys():
                             self.extra_keywords["SCALEFAC"] = head0["BSCALE"]
@@ -1415,6 +1438,7 @@ class MWACorrFITS(UVData):
 
         # set parameters from other parameters
         self.Nants_data = len(self.antenna_numbers)
+        # TODO: think about what makes sense here
         self.Nants_telescope = len(self.antenna_numbers)
         self.Nbls = int(
             len(self.antenna_numbers) * (len(self.antenna_numbers) + 1) / 2.0
