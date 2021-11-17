@@ -3298,3 +3298,22 @@ def test_cast_to_multiphase(uv_uvh5, tmp_path):
     test_uvh5.read(testfile)
 
     assert test_uvh5 == uv_uvh5
+
+
+def test_none_extra_keywords(uv_uvh5, tmp_path):
+    """Test that we can round-trip None values in extra_keywords"""
+    test_uvh5 = UVData()
+    testfile = os.path.join(tmp_path, "none_extra_keywords.uvh5")
+
+    uv_uvh5.extra_keywords["foo"] = None
+
+    uv_uvh5.write_uvh5(testfile)
+    test_uvh5.read(testfile)
+
+    assert test_uvh5 == uv_uvh5
+
+    # also confirm dataset is empty/null
+    with h5py.File(testfile, "r") as h5f:
+        assert h5f["Header/extra_keywords/foo"].shape is None
+
+    return
