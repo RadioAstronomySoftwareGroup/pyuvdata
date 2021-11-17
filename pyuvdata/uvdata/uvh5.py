@@ -388,7 +388,11 @@ class UVH5(UVData):
                         header["extra_keywords"][key][()]
                     ).decode("utf8")
                 else:
-                    self.extra_keywords[key] = header["extra_keywords"][key][()]
+                    # special handling for empty datasets == python `None` type
+                    if header["extra_keywords"][key].shape is None:
+                        self.extra_keywords[key] = None
+                    else:
+                        self.extra_keywords[key] = header["extra_keywords"][key][()]
 
         if proc is not None:
             # if lsts are in the background wait for them to return
@@ -1073,6 +1077,9 @@ class UVH5(UVData):
             for k in self.extra_keywords.keys():
                 if isinstance(self.extra_keywords[k], str):
                     extra_keywords[k] = np.string_(self.extra_keywords[k])
+                elif self.extra_keywords[k] is None:
+                    # save as empty/null dataset
+                    extra_keywords[k] = h5py.Empty("f")
                 else:
                     extra_keywords[k] = self.extra_keywords[k]
 
