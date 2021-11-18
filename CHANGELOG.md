@@ -5,10 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- Support for reading MWAX/birli fits files
+- Support for reading MWAX/birli uvfits files.
 - Flexible spectral windows to `read_mwa_corr_fits`.
 
 ### Changed
+- Assumes uvfits files are in ITRF frame unless explicitly stated otherwise. Consistent with AIPS 117.
 - Improved readability, functionality, and memory usage in `read_mwa_corr_fits`.
 
 ### Fixed
