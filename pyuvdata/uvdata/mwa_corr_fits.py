@@ -432,6 +432,7 @@ class MWACorrFITS(UVData):
         file_nums,
         num_fine_chans,
         int_time,
+        mwax,
         map_inds,
         conj,
         pol_index_array,
@@ -466,16 +467,29 @@ class MWACorrFITS(UVData):
 
         """
         # get the file number from the file name
-        file_num = int(filename.split("_")[-2][-2:])
+        if mwax:
+            file_num = int(filename.split("_")[-2][-3:])
+        else:
+            file_num = int(filename.split("_")[-2][-2:])
         # map file number to frequency index
         freq_ind = np.where(file_nums == file_num)[0][0] * num_fine_chans
         # get a coarse channel index for flag array
         coarse_ind = np.where(file_nums == file_num)[0][0]
         # create an intermediate array for data
-        coarse_chan_data = np.zeros(
-            (self.Ntimes, num_fine_chans, self.Nbls * self.Npols), dtype=np.complex64,
-        )
+        if mwax:
+            coarse_chan_data = np.zeros(
+                (self.Ntimes, self.Nbls, num_fine_chans * self.Npols),
+                dtype=np.complex64,
+            )
+        else:
+            coarse_chan_data = np.zeros(
+                (self.Ntimes, num_fine_chans, self.Nbls * self.Npols),
+                dtype=np.complex64,
+            )
         with fits.open(filename, mode="denywrite") as hdu_list:
+            # if mwax, data is in every other hdu
+            if mwax:
+                hdu_list = hdu_list[1::2]
             for hdu in hdu_list:
                 # entry 0 is a header, so we skip it.
                 if hdu.data is None:
@@ -492,19 +506,26 @@ class MWACorrFITS(UVData):
                     hdu.data[:, 0::2] + 1j * hdu.data[:, 1::2]
                 )
                 # fill nsample and flag arrays
+                # TODO: use weights arrays if mwax?
                 self.nsample_array[
                     time_ind, :, freq_ind : freq_ind + num_fine_chans, :
                 ] = 1.0
                 self.flag_array[time_ind, :, coarse_ind, :] = False
-        # do mapping and reshaping here to avoid copying whole data_array
-        np.take(coarse_chan_data, map_inds, axis=2, out=coarse_chan_data)
-        # conjugate data
-        coarse_chan_data[:, :, conj] = np.conj(coarse_chan_data[:, :, conj])
+        if not mwax:
+            # do mapping and reshaping here to avoid copying whole data_array
+            np.take(coarse_chan_data, map_inds, axis=2, out=coarse_chan_data)
+            # conjugate data
+            coarse_chan_data[:, :, conj] = np.conj(coarse_chan_data[:, :, conj])
         # reshape
-        coarse_chan_data = coarse_chan_data.reshape(
-            (self.Ntimes, num_fine_chans, self.Nbls, self.Npols)
-        )
-        coarse_chan_data = np.swapaxes(coarse_chan_data, 1, 2)
+        if mwax:
+            coarse_chan_data = coarse_chan_data.reshape(
+                (self.Ntimes, self.Nbls, num_fine_chans, self.Npols)
+            )
+        else:
+            coarse_chan_data = coarse_chan_data.reshape(
+                (self.Ntimes, num_fine_chans, self.Nbls, self.Npols)
+            )
+            coarse_chan_data = np.swapaxes(coarse_chan_data, 1, 2)
         coarse_chan_data = coarse_chan_data.reshape(
             self.Nblts, num_fine_chans, self.Npols
         )
@@ -1240,7 +1261,7 @@ class MWACorrFITS(UVData):
                     if start_time == 0.0:
                         start_time = first_time
                     # check that files with a timing offset can be aligned
-                    elif np.abs(start_time - first_time) % headstart["INTTIME"] != 0.0:
+                    elif np.abs(start_time - first_time) % head0["INTTIME"] != 0.0:
                         raise ValueError(
                             "coarse channel start times are misaligned by an amount that is not \
                             an integer multiple of the integration time"
@@ -1405,6 +1426,12 @@ class MWACorrFITS(UVData):
             bad_keys = ["SIMPLE", "EXTEND", "BITPIX", "NAXIS", "DATE-OBS"]
             for key in bad_keys:
                 meta_hdr.remove(key, remove_all=True)
+            # if not mwax, remove mwax-specific keys
+            if not mwax:
+                mwax_keys = ["DELAYMOD", "DELDESC", "CABLEDEL", "GEODEL", "CALIBDEL"]
+                for key in mwax_keys:
+                    if key in meta_hdr.keys():
+                        meta_hdr.remove(key, remove_all=True)
             # store remaining keys in extra keywords
             for key in meta_hdr:
                 if key == "COMMENT":
@@ -1438,7 +1465,8 @@ class MWACorrFITS(UVData):
 
         # set parameters from other parameters
         self.Nants_data = len(self.antenna_numbers)
-        # TODO: think about what makes sense here
+        # TODO: think about what makes sense here:
+        # we can get this from the INSTRUMEN keyword I think
         self.Nants_telescope = len(self.antenna_numbers)
         self.Nbls = int(
             len(self.antenna_numbers) * (len(self.antenna_numbers) + 1) / 2.0
@@ -1502,25 +1530,28 @@ class MWACorrFITS(UVData):
 
         # create self.uvw_array
         self.set_uvws_from_antenna_positions(allow_phasing=False)
-
-        # coarse channel mapping:
-        # channels in group 0-128 are assigned to files in order;
-        # channels in group 129-155 are assigned in reverse order
-        # that is, if the lowest channel is 127, it will be assigned to the
-        # first file
-        # channel 128 will be assigned to the second file
-        # then the highest channel will be assigned to the third file
-        # and the next hightest channel assigned to the fourth file, and so on
-        ordered_coarse_chans = np.concatenate(
-            (
-                coarse_chans[coarse_chans <= 128],
-                np.flip(coarse_chans[coarse_chans > 128]),
+        if not mwax:
+            # coarse channel mapping:
+            # channels in group 0-128 are assigned to files in order;
+            # channels in group 129-155 are assigned in reverse order
+            # that is, if the lowest channel is 127, it will be assigned to the
+            # first file
+            # channel 128 will be assigned to the second file
+            # then the highest channel will be assigned to the third file
+            # and the next hightest channel assigned to the fourth file, and so on
+            ordered_coarse_chans = np.concatenate(
+                (
+                    coarse_chans[coarse_chans <= 128],
+                    np.flip(coarse_chans[coarse_chans > 128]),
+                )
             )
-        )
-        ordered_file_nums = np.arange(len(coarse_chans))[
-            np.argsort(ordered_coarse_chans)
-        ]
-        ordered_file_nums += 1
+            ordered_file_nums = np.arange(len(coarse_chans))[
+                np.argsort(ordered_coarse_chans)
+            ]
+            ordered_file_nums += 1
+        else:
+            # for mwax, the file numbers are the coarse channel numbers
+            ordered_file_nums = coarse_chans
         file_mask = np.isin(ordered_file_nums, included_file_nums)
         # get included file numbers in coarse band order
         file_nums = ordered_file_nums[file_mask]
@@ -1560,38 +1591,48 @@ class MWACorrFITS(UVData):
             self.freq_array[i * num_fine_chans : (i + 1) * num_fine_chans] = np.arange(
                 first_coarse_freq, last_coarse_freq, channel_width
             )
-
-        # polarizations are ordered yy, yx, xy, xx
-        self.polarization_array = np.array([-6, -8, -7, -5])
+        # for mwax, polarizations are ordered xx, xy, yx, yy
+        if mwax:
+            self.polarization_array = np.array([-5, -7, -8, -6])
+        # otherwise, polarizations are ordered yy, yx, xy, xx
+        else:
+            self.polarization_array = np.array([-6, -8, -7, -5])
         # get index array for AIPS reordering
         pol_index_array = np.argsort(np.abs(self.polarization_array))
         # reorder polarization_array here to avoid memory spike from self.reorder_pols
         self.polarization_array = self.polarization_array[pol_index_array]
 
         if read_data:
+            if not mwax:
+                # build mapper from antenna numbers and polarizations to pfb inputs
+                corr_ants_to_pfb_inputs = {}
+                for i in range(len(antenna_inds)):
+                    for p in range(2):
+                        corr_ants_to_pfb_inputs[(antenna_inds[i], p)] = 2 * i + p
 
-            # build mapper from antenna numbers and polarizations to pfb inputs
-            corr_ants_to_pfb_inputs = {}
-            for i in range(len(antenna_inds)):
-                for p in range(2):
-                    corr_ants_to_pfb_inputs[(antenna_inds[i], p)] = 2 * i + p
+                # for mapping, start with a pair of antennas/polarizations
+                # this is the pair we want to find the data for
+                # map the pair to the corresponding coarse pfb input indices
+                # map the coarse pfb input indices to the fine pfb output indices
+                # these are the indices for the data corresponding to the initial
+                # antenna/pol pair
 
-            # for mapping, start with a pair of antennas/polarizations
-            # this is the pair we want to find the data for
-            # map the pair to the corresponding coarse pfb input indices
-            # map the coarse pfb input indices to the fine pfb output indices
-            # these are the indices for the data corresponding to the initial
-            # antenna/pol pair
+                # These two 1D arrays will be both C and F contiguous
+                # but we are explicitly declaring C to be consistent with the rest
+                # of the python which interacts with the C/Cython code.
+                # generate a mapping index array
+                map_inds = np.zeros(
+                    (self.Nbls * self.Npols), dtype=np.int32, order="C",
+                )
+                # generate a conjugation array
+                conj = np.full(
+                    (self.Nbls * self.Npols), False, dtype=np.bool_, order="C",
+                )
 
-            # These two 1D arrays will be both C and F contiguous
-            # but we are explicitly declaring C to be consistent with the rest
-            # of the python which interacts with the C/Cython code.
-            # generate a mapping index array
-            map_inds = np.zeros((self.Nbls * self.Npols), dtype=np.int32, order="C",)
-            # generate a conjugation array
-            conj = np.full((self.Nbls * self.Npols), False, dtype=np.bool_, order="C",)
-
-            _corr_fits.generate_map(corr_ants_to_pfb_inputs, map_inds, conj)
+                _corr_fits.generate_map(corr_ants_to_pfb_inputs, map_inds, conj)
+            else:
+                map_inds = None
+                conj = None
             # create arrays for data, nsamples, and flags
             self.data_array = np.zeros(
                 (self.Nblts, self.Nfreqs, self.Npols), dtype=data_array_dtype,
@@ -1612,6 +1653,7 @@ class MWACorrFITS(UVData):
                     file_nums,
                     num_fine_chans,
                     int_time,
+                    mwax,
                     map_inds,
                     conj,
                     pol_index_array,
@@ -1644,8 +1686,10 @@ class MWACorrFITS(UVData):
             # by 127 introduces small errors that are mitigated when the data
             # is cast back into integer.
             # this needs to happen before the van vleck correction
-            self.data_array /= self.extra_keywords["SCALEFAC"]
-            np.rint(self.data_array, out=self.data_array)
+            # TODO: don't do this if mwax?
+            if not mwax:
+                self.data_array /= self.extra_keywords["SCALEFAC"]
+                np.rint(self.data_array, out=self.data_array)
 
             # van vleck correction
             if correct_van_vleck:
@@ -1677,7 +1721,8 @@ class MWACorrFITS(UVData):
 
             # rescale data
             # this needs to happen after the van vleck correction
-            self.data_array *= self.extra_keywords["SCALEFAC"]
+            if not mwax:
+                self.data_array *= self.extra_keywords["SCALEFAC"]
 
             # cable delay corrections
             if correct_cable_len:
