@@ -537,7 +537,7 @@ b) Data with a multiple phase centers enabled.
      ID     Cat Entry       Type      Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
       #          Name                       deg           deg                  Start-MJD    End-MJD       pc    km/s
   -------------------------------------------------------------------------------------------------------------------
-      0           Sun      ephem    94:52:10.20  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
+      0           Sun      ephem    94:52:10.21  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
       1        zenith  driftscan     0:00:00.00  +90:00:00.00  altaz  J2000.0
 
 
