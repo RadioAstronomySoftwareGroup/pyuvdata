@@ -13,6 +13,8 @@ All notable changes to this project will be documented in this file.
 - Improved readability, functionality, and memory usage in `read_mwa_corr_fits`.
 
 ### Fixed
+- A bug that prevented `extra_keywords` keys with a value of `None` from being
+  saved to UVH5 files.
 - A bug that resulted in the wrong expected shapes for data-like arrays when metadata
 only UVData objects were set to use future array shapes.
 - A bug that caused an error when writing non-double antenna diameters to measurement set files
