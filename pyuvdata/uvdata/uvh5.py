@@ -922,6 +922,15 @@ class UVH5(UVData):
             if not read_data:
                 # don't read in the data. This means the object is incomplete,
                 # but that may not matter for many purposes.
+
+                # run a check if desired before returning
+                if run_check:
+                    self.check(
+                        check_extra=check_extra,
+                        run_check_acceptability=run_check_acceptability,
+                        strict_uvw_antpos_check=strict_uvw_antpos_check,
+                    )
+
                 return
 
             # Now read in the data
