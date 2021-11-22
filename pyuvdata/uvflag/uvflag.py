@@ -442,7 +442,10 @@ class UVFlag(UVBase):
             acceptable_vals=["east", "north"],
         )
 
-        desc = "List containing the unique names of input files"
+        desc = (
+            "List of strings containing the unique basenames (not the full path) of "
+            "input files."
+        )
         self._filename = uvp.UVParameter(
             "filename", required=False, description=desc, expected_type=str,
         )
