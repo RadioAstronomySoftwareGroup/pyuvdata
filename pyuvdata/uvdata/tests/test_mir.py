@@ -183,6 +183,10 @@ def test_read_mir_write_ms(uv_in_ms, future_shapes):
     mir_uv.write_ms(testfile, clobber=True)
     ms_uv.read(testfile)
 
+    # Single integration with 1 phase center = single scan number
+    # output in the MS
+    assert ms_uv.scan_number_array == np.array([1])
+
     if future_shapes:
         ms_uv.use_future_array_shapes()
 
