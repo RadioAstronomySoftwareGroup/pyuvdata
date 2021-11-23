@@ -1166,23 +1166,35 @@ class MS(UVData):
 
             ms.putcol("FIELD_ID", np.repeat(field_id_array, self.Nspws))
 
-            # Additionally group integrations (rows) into scan numbers.
-            slice_list = []
-            for idx in range(self.Nphase):
-                sou_id = self.phase_center_catalog[sou_list[idx]]["cat_id"]
-                slice_list.extend(
-                    nd.find_objects(nd.label(self.phase_center_id_array == sou_id)[0])
-                )
+            # If scan numbers are not already defined from reading an MS,
+            # group integrations (rows) into scan numbers.
+            if self.scan_number_array is None:
 
-            # Sort by start integration number, which we can extract from
-            # the start of each slice in the list.
-            slice_list_ord = sorted(slice_list, key=lambda x: x[0].start)
+                slice_list = []
+                for idx in range(self.Nphase):
+                    sou_id = self.phase_center_catalog[sou_list[idx]]["cat_id"]
+                    slice_list.extend(
+                        nd.find_objects(
+                            nd.label(self.phase_center_id_array == sou_id)[0]
+                        )
+                    )
 
-            scan_array = np.zeros_like(self.phase_center_id_array)
-            for ii, slice_scan in enumerate(slice_list_ord):
-                scan_array[slice_scan] = ii
+                # Sort by start integration number, which we can extract from
+                # the start of each slice in the list.
+                slice_list_ord = sorted(slice_list, key=lambda x: x[0].start)
 
-            ms.putcol("SCAN_NUMBER", np.repeat(scan_array, self.Nspws))
+                # Incrementally increase the scan number with each group in
+                # slice_list_ord
+                scan_array = np.zeros_like(self.phase_center_id_array)
+                for ii, slice_scan in enumerate(slice_list_ord):
+                    scan_array[slice_scan] = ii
+
+                scan_array_tiled = np.repeat(scan_array, self.Nspws)
+
+            else:
+                scan_array_tiled = np.repeat(self.scan_number_array, self.Nspws)
+
+            ms.putcol("SCAN_NUMBER", scan_array_tiled)
 
         if len(self.extra_keywords) != 0:
             ms.putkeyword("pyuvdata_extra", self.extra_keywords)
@@ -1386,6 +1398,7 @@ class MS(UVData):
         ant_1_arr = tb_main.getcol("ANTENNA1")
         ant_2_arr = tb_main.getcol("ANTENNA2")
         field_arr = tb_main.getcol("FIELD_ID")
+        scan_number_arr = tb_main.getcol("SCAN_NUMBER")
         uvw_arr = tb_main.getcol("UVW")
         data_desc_arr = tb_main.getcol("DATA_DESC_ID")
         subarr_arr = tb_main.getcol("ARRAY_ID")
@@ -1413,6 +1426,8 @@ class MS(UVData):
             self.ant_2_array = ant_2_arr
             self.uvw_array = uvw_arr * ((-1) ** flip_conj)
             self.phase_center_id_array = field_arr
+            self.scan_number_array = scan_number_arr
+
             self.flag_array = tb_main.getcol("FLAG")
 
             if flip_conj:
@@ -1470,6 +1485,7 @@ class MS(UVData):
             data_dict[key]["ANTENNA1"] = ant_1_arr[sel_mask]  # First antenna
             data_dict[key]["ANTENNA2"] = ant_2_arr[sel_mask]  # Second antenna
             data_dict[key]["FIELD_ID"] = field_arr[sel_mask]  # Source ID
+            data_dict[key]["SCAN_NUMBER"] = scan_number_arr[sel_mask]  # Scan number
             data_dict[key]["UVW"] = uvw_arr[sel_mask]  # UVW coords
 
         time_arr = time_arr[use_row]
@@ -1543,6 +1559,7 @@ class MS(UVData):
         ant_1_arr = np.zeros(nblts, dtype=int)
         ant_2_arr = np.zeros(nblts, dtype=int)
         field_arr = np.zeros(nblts, dtype=int)
+        scan_number_arr = np.zeros(nblts, dtype=int)
         uvw_arr = np.zeros((nblts, 3))
 
         # Since each data description (i.e., spectral window) record can technically
@@ -1551,8 +1568,24 @@ class MS(UVData):
         # pyuvdata can store that information).
         has_data = np.zeros(nblts, dtype=bool)
 
-        arr_tuple = (time_arr, int_arr, ant_1_arr, ant_2_arr, field_arr, uvw_arr)
-        name_tuple = ("TIME", "EXPOSURE", "ANTENNA1", "ANTENNA2", "FIELD_ID", "UVW")
+        arr_tuple = (
+            time_arr,
+            int_arr,
+            ant_1_arr,
+            ant_2_arr,
+            field_arr,
+            scan_number_arr,
+            uvw_arr,
+        )
+        name_tuple = (
+            "TIME",
+            "EXPOSURE",
+            "ANTENNA1",
+            "ANTENNA2",
+            "FIELD_ID",
+            "SCAN_NUMBER",
+            "UVW",
+        )
         vary_list = []
         for key in data_dict.keys():
             # Get the indexing information for the data array
@@ -1654,6 +1687,7 @@ class MS(UVData):
         self.uvw_array = uvw_arr * ((-1) ** flip_conj)
         self.phase_center_id_array = field_arr
         self.phase_center_id_array = field_arr
+        self.scan_number_array = scan_number_arr
         self.flex_spw_id_array = spw_id_array
 
         pol_list = [POL_CASA2AIPS_DICT[key] for key in pol_list]
