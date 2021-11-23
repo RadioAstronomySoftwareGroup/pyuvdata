@@ -18,6 +18,10 @@ from ..uvfits import UVFITS
 
 pytest.importorskip("casacore")
 
+# Only MSs have `scan_number_array` defined.
+# Skip for eq or neq comparisons as needed.
+allowed_failures_with_ms = ("filename", "scan_number_array")
+
 
 @pytest.fixture(scope="session")
 def nrao_uv_main():
@@ -200,7 +204,10 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
     assert uvfits_uv != ms_uv
     uvfits_uv.integration_time = ms_uv.integration_time
     # they are equal if only required parameters are checked:
-    assert uvfits_uv.__eq__(ms_uv, check_extra=False)
+    # scan numbers only defined for the MS
+    assert uvfits_uv.__eq__(
+        ms_uv, check_extra=False, allowed_failures=allowed_failures_with_ms
+    )
 
     # set those parameters to none to check that the rest of the objects match
     ms_uv.antenna_diameters = None
@@ -220,6 +227,9 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
     assert uvfits_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
     assert ms_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.ms"]
     uvfits_uv.filename = ms_uv.filename
+
+    # propagate scan numbers to the uvfits, ONLY for comparison
+    uvfits_uv.scan_number_array = ms_uv.scan_number_array
 
     assert uvfits_uv == ms_uv
 
@@ -242,6 +252,9 @@ def test_read_ms_write_uvfits(nrao_uv, tmp_path):
     assert uvfits_uv.filename == ["outtest.uvfits"]
     assert ms_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.ms"]
     uvfits_uv.filename = ms_uv.filename
+
+    # propagate scan numbers to the uvfits, ONLY for comparison
+    uvfits_uv.scan_number_array = ms_uv.scan_number_array
 
     assert uvfits_uv == ms_uv
     del ms_uv
@@ -267,6 +280,9 @@ def test_read_ms_write_miriad(nrao_uv, tmp_path):
     assert miriad_uv.filename == ["outtest_miriad"]
     assert ms_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.ms"]
     miriad_uv.filename = ms_uv.filename
+
+    # propagate scan numbers to the miriad uvdata, ONLY for comparison
+    miriad_uv.scan_number_array = ms_uv.scan_number_array
 
     assert miriad_uv == ms_uv
 
@@ -326,7 +342,7 @@ def test_multi_files(casa_uvfits, axis):
     uv_multi.filename = uv_full.filename
     uv_multi._filename.form = (1,)
 
-    assert uv_multi == uv_full
+    assert uv_multi.__eq__(uv_full, allowed_failures=allowed_failures_with_ms)
     del uv_full
     del uv_multi
 
@@ -544,6 +560,9 @@ def test_ms_single_chan(mir_uv, tmp_path):
     ms_uv.instrument = mir_uv.instrument
     ms_uv.reorder_blts()
 
+    # propagate scan numbers to the uvfits, ONLY for comparison
+    mir_uv.scan_number_array = ms_uv.scan_number_array
+
     assert ms_uv == mir_uv
 
 
@@ -585,6 +604,9 @@ def test_ms_extra_data_descrip(mir_uv, tmp_path):
     ms_uv.history = mir_uv.history
     mir_uv.extra_keywords = ms_uv.extra_keywords
     mir_uv.filename = ms_uv.filename = None
+
+    # propagate scan numbers to the miriad uvdata, ONLY for comparison
+    mir_uv.scan_number_array = ms_uv.scan_number_array
 
     # Finally, with all exceptions handled, check for equality.
     assert ms_uv == mir_uv
@@ -687,4 +709,4 @@ def test_antenna_diameter_handling(hera_uvh5, tmp_path):
     assert uv_obj2.x_orientation is None
     uv_obj2.x_orientation = uv_obj.x_orientation
 
-    assert uv_obj2 == uv_obj
+    assert uv_obj2.__eq__(uv_obj, allowed_failures=allowed_failures_with_ms)
