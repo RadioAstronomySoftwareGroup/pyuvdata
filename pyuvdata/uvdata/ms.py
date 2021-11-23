@@ -1196,6 +1196,10 @@ class MS(UVData):
 
             ms.putcol("SCAN_NUMBER", scan_array_tiled)
 
+        else:
+            if self.scan_number_array is not None:
+                ms.putcol("SCAN_NUMBER", self.scan_number_array)
+
         if len(self.extra_keywords) != 0:
             ms.putkeyword("pyuvdata_extra", self.extra_keywords)
 
