@@ -497,6 +497,18 @@ class UVData(UVBase):
             required=False,
         )
 
+        desc = (
+            "Optional if multi_phase_center = True when reading an MS. Retains the "
+            "scan number when reading an MS. Shape (Nblts), type = int."
+        )
+        self._scan_number_array = uvp.UVParameter(
+            "scan_number_array",
+            description=desc,
+            form=("Nblts",),
+            expected_type=int,
+            required=False,
+        )
+
         # --- antenna information ----
         desc = (
             "Number of antennas with data present (i.e. number of unique "
