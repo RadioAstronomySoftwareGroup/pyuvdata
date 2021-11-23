@@ -32,6 +32,7 @@ from ..miriad import Miriad
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
+from .test_ms import allowed_failures_with_ms
 
 aipy_extracts = pytest.importorskip("pyuvdata.uvdata.aipy_extracts")
 
@@ -262,7 +263,7 @@ def test_read_carma_miriad_write_ms(tmp_path):
     uv_in.history = uv_out.history
 
     # Final equality check
-    assert uv_in == uv_out
+    assert uv_in.__eq__(uv_out, allowed_failures=allowed_failures_with_ms)
 
     # Manipulate the table so that all fields have the same name (as is permitted
     # for MS files), and wipe out the source_ID information
@@ -287,7 +288,7 @@ def test_read_carma_miriad_write_ms(tmp_path):
     )
 
     # Final equality check
-    assert uv_in == uv_out
+    assert uv_in.__eq__(uv_out, allowed_failures=allowed_failures_with_ms)
 
     # Last but not least, change the coord system so that the catalog frames are the
     # same as phase_center_frame
@@ -301,7 +302,7 @@ def test_read_carma_miriad_write_ms(tmp_path):
     # Do one last read/write/check for equality
     uv_in.write_ms(testfile, clobber=True)
     uv_out.read(testfile)
-    assert uv_in == uv_out
+    assert uv_in.__eq__(uv_out, allowed_failures=allowed_failures_with_ms)
 
 
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
@@ -1484,6 +1485,9 @@ def test_read_ms_write_miriad_casa_history(tmp_path):
     assert miriad_uv.filename == ["outtest_miriad"]
     assert ms_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.ms"]
     miriad_uv.filename = ms_uv.filename
+
+    # propagate scan numbers to the uvfits, ONLY for comparison
+    miriad_uv.scan_number_array = ms_uv.scan_number_array
 
     assert miriad_uv == ms_uv
 
