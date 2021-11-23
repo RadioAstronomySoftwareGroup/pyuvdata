@@ -1187,7 +1187,7 @@ class MS(UVData):
                 # slice_list_ord
                 scan_array = np.zeros_like(self.phase_center_id_array)
                 for ii, slice_scan in enumerate(slice_list_ord):
-                    scan_array[slice_scan] = ii
+                    scan_array[slice_scan] = ii + 1
 
                 scan_array_tiled = np.repeat(scan_array, self.Nspws)
 
