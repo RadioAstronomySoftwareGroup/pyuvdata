@@ -566,6 +566,65 @@ def test_ms_single_chan(mir_uv, tmp_path):
     assert ms_uv == mir_uv
 
 
+def test_ms_scannumber_multiphasecenter(tmp_path):
+    """
+    Make sure that single channel writing/reading work as expected
+    """
+    carma_file = os.path.join(DATA_PATH, "carma_miriad")
+    testfile = os.path.join(tmp_path, "carma_out.ms")
+
+    miriad_uv = UVData()
+
+    # Copied in from test_miriad.py::test_read_carma_miriad_write_ms
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Altitude is not present in Miriad file, "
+            "using known location values for SZA.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+            "pamatten in extra_keywords is a list, array or dict",
+            "psys in extra_keywords is a list, array or dict",
+            "psysattn in extra_keywords is a list, array or dict",
+            "ambpsys in extra_keywords is a list, array or dict",
+            "bfmask in extra_keywords is a list, array or dict",
+            "Cannot fix the phases of multi phase center datasets, as they were not "
+            "supported when the old phasing method was used, and thus, there "
+            "is no need to correct the data.",
+        ],
+    ):
+        miriad_uv.read(carma_file, fix_old_proj=True)
+
+    # MIRIAD is missing these in the file, so we'll fill it in here.
+    miriad_uv.antenna_diameters = np.zeros(miriad_uv.Nants_telescope)
+    miriad_uv.antenna_diameters[:6] = 10.0
+    miriad_uv.antenna_diameters[15:] = 3.5
+
+    # We need to recalculate app coords here for one source ("NOISE"), which was
+    # not actually correctly calculated in the online CARMA system (long story). Since
+    # the MS format requires recalculating apparent coords after read in, we'll
+    # calculate them here just to verify that everything matches.
+    miriad_uv._set_app_coords_helper()
+    miriad_uv.write_ms(testfile, clobber=True)
+
+    # Check on the scan number grouping based on consecutive integrations per phase
+    # center
+
+    # Double-check multi-phase center is True.
+    assert miriad_uv.multi_phase_center
+
+    # Read back in as MS. Should have 3 scan numbers defined.
+    ms_uv = UVData()
+    ms_uv.read(testfile)
+
+    assert np.unique(ms_uv.scan_number_array).size == 3
+    assert (np.unique(ms_uv.scan_number_array) == np.array([1, 2, 3])).all()
+
+    # The scan numbers should match the phase center IDs, offset by 1
+    # so that the scan numbers start with 1, not 0.
+    assert ((miriad_uv.phase_center_id_array == (ms_uv.scan_number_array - 1))).all()
+
+
 def test_ms_extra_data_descrip(mir_uv, tmp_path):
     """
     Make sure that data sets can be read even if the main table doesn't have data
