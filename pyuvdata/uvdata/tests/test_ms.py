@@ -106,7 +106,7 @@ def test_read_nrao_loopback(tmp_path, nrao_uv):
     uvobj.filename = uvobj2.filename
 
     # Test that the scan numbers are equal
-    assert uvobj.scan_number_array == uvobj2.scan_number_array
+    assert (uvobj.scan_number_array == uvobj2.scan_number_array).all()
 
     assert uvobj == uvobj2
 
