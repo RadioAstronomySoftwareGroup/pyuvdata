@@ -1367,14 +1367,35 @@ class MWACorrFITS(UVData):
             # get a list of coarse channels
             coarse_chans = meta_hdr["CHANNELS"].split(",")
             coarse_chans = np.array(sorted(int(i) for i in coarse_chans))
-
-            # center frequency in hertz
-            obs_freq_center = meta_hdr["FREQCENT"] * 1e6
-
+            # fine channel width
+            channel_width = float(meta_hdr.pop("FINECHAN") * 1000)
             # number of fine channels in observation
             obs_num_fine_chans = meta_hdr["NCHANS"]
             # calculate number of fine channels per coarse channel
             coarse_num_fine_chans = obs_num_fine_chans / len(coarse_chans)
+
+            # center frequency of first fine channel of center coarse channel in hertz
+            # For the legacy correlator, the metafits file includes the observation
+            # frequency center, which is the center frequency of the first fine
+            # channel of the center coarse channel. (If there are an even number of
+            # coarse channels, the center channel is to the right).
+            # For mwax, the center frequency of the first fine channel of a coarse
+            # channel is the leftmost edge of the coarse channel.
+            if mwax:
+                # calculate coarse channel width in MHz
+                coarse_chan_width = meta_hdr["BANDWDTH"] / len(coarse_chans)
+                # coarse channel center freq is channel number * coarse channel width
+                center_coarse_chan_center = (
+                    meta_hdr["CENTCHAN"] * coarse_chan_width * 1e6
+                )
+                # calculate center of first fine channel; this works if the number of
+                # fine channels is even or odd
+                obs_freq_center = (
+                    center_coarse_chan_center
+                    - int(coarse_num_fine_chans / 2) * channel_width
+                )
+            else:
+                obs_freq_center = meta_hdr["FREQCENT"] * 1e6
 
             # frequency averaging factor
             avg_factor = meta_hdr["NAV_FREQ"]
@@ -1405,8 +1426,6 @@ class MWACorrFITS(UVData):
                             be submitted"
                     )
 
-            # get parameters from header
-            channel_width = float(meta_hdr.pop("FINECHAN") * 1000)
             if "HISTORY" in meta_hdr:
                 self.history = str(meta_hdr["HISTORY"])
                 meta_hdr.remove("HISTORY", remove_all=True)
@@ -1531,7 +1550,7 @@ class MWACorrFITS(UVData):
         # create self.uvw_array
         self.set_uvws_from_antenna_positions(allow_phasing=False)
         if not mwax:
-            # coarse channel mapping:
+            # coarse channel mapping for the legacy correlator:
             # channels in group 0-128 are assigned to files in order;
             # channels in group 129-155 are assigned in reverse order
             # that is, if the lowest channel is 127, it will be assigned to the
@@ -1539,14 +1558,14 @@ class MWACorrFITS(UVData):
             # channel 128 will be assigned to the second file
             # then the highest channel will be assigned to the third file
             # and the next hightest channel assigned to the fourth file, and so on
-            ordered_coarse_chans = np.concatenate(
+            mapped_coarse_chans = np.concatenate(
                 (
                     coarse_chans[coarse_chans <= 128],
                     np.flip(coarse_chans[coarse_chans > 128]),
                 )
             )
             ordered_file_nums = np.arange(len(coarse_chans))[
-                np.argsort(ordered_coarse_chans)
+                np.argsort(mapped_coarse_chans)
             ]
             ordered_file_nums += 1
         else:
@@ -1555,7 +1574,6 @@ class MWACorrFITS(UVData):
         file_mask = np.isin(ordered_file_nums, included_file_nums)
         # get included file numbers in coarse band order
         file_nums = ordered_file_nums[file_mask]
-
         # check that coarse channels are contiguous.
         spw_inds = np.nonzero(file_mask)[0]
         if np.any(np.diff(spw_inds) > 1):
@@ -1563,7 +1581,7 @@ class MWACorrFITS(UVData):
             # add spectral windows
             self._set_flex_spw()
             self.Nspws = len(spw_inds)
-            self.spw_array = spw_inds
+            self.spw_array = coarse_chans[spw_inds]
             self.flex_spw_id_array = np.repeat(self.spw_array, num_fine_chans)
 
         # warn user if not all coarse channels are included
@@ -1574,11 +1592,8 @@ class MWACorrFITS(UVData):
         self.Nfreqs = len(included_file_nums) * num_fine_chans
         self.freq_array = np.zeros(self.Nfreqs)
         self.channel_width = np.full(self.Nfreqs, channel_width)
-        # the metafits file includes the observation frequency center
-        # this frequency is located at self.freq_array[self.Nfreqs/2]
-        # this will be the first frequency of the center coarse channel
-        # (if an even number of coarse channels, the center channel is to the right)
-        # use this frequency to get the frequency range for each coarse band
+        # Use the center frequency of the first fine channel of the center coarse
+        # channel to get the frequency range for each included coarse channel.
         center_coarse_chan = int(len(coarse_chans) / 2)
         for i in range(len(spw_inds)):
             first_coarse_freq = (
@@ -1686,7 +1701,6 @@ class MWACorrFITS(UVData):
             # by 127 introduces small errors that are mitigated when the data
             # is cast back into integer.
             # this needs to happen before the van vleck correction
-            # TODO: don't do this if mwax?
             if not mwax:
                 self.data_array /= self.extra_keywords["SCALEFAC"]
                 np.rint(self.data_array, out=self.data_array)
