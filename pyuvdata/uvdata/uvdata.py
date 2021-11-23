@@ -498,8 +498,8 @@ class UVData(UVBase):
         )
 
         desc = (
-            "Optional if multi_phase_center = True when reading an MS. Retains the "
-            "scan number when reading an MS. Shape (Nblts), type = int."
+            "Optional when reading a MS. Retains the  scan number when reading a MS."
+            " Shape (Nblts), type = int."
         )
         self._scan_number_array = uvp.UVParameter(
             "scan_number_array",
