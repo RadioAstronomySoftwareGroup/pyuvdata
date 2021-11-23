@@ -90,6 +90,7 @@ def uvdata_props():
         "Nphase",
         "phase_center_catalog",
         "phase_center_id_array",
+        "scan_number_array",
         "eq_coeffs",
         "eq_coeffs_convention",
         "flex_spw_id_array",
