@@ -13,7 +13,8 @@ import copy
 
 __all__ = ["MirParser"]
 
-# MIR structure definitions.
+# MIR structure definitions. Note that because these are all binaries, we need to
+# specify the endianness so that we don't potentially muck that on different machines
 in_dtype = np.dtype(
     [
         ("traid", np.int32),
@@ -58,7 +59,7 @@ in_dtype = np.dtype(
         ("adec", np.float64),
         ("mjd", np.float64),
     ]
-)
+).newbyteorder("little")
 
 eng_dtype = np.dtype(
     [
@@ -91,7 +92,7 @@ eng_dtype = np.dtype(
         ("tsys_rx2", np.float64),
         ("ambient_load_temperature", np.float64),
     ]
-)
+).newbyteorder("little")
 
 bl_dtype = np.dtype(
     [
@@ -133,7 +134,7 @@ bl_dtype = np.dtype(
         ("sparedbl5", np.float64),
         ("sparedbl6", np.float64),
     ]
-)
+).newbyteorder("little")
 
 sp_dtype = np.dtype(
     [
@@ -176,11 +177,11 @@ sp_dtype = np.dtype(
         ("sparedbl5", np.float64),
         ("sparedbl6", np.float64),
     ]
-)
+).newbyteorder("little")
 
 codes_dtype = np.dtype(
     [("v_name", "S12"), ("icode", np.int16), ("code", "S26"), ("ncode", np.int16)]
-)
+).newbyteorder("little")
 
 we_dtype = np.dtype(
     [
@@ -194,7 +195,7 @@ we_dtype = np.dtype(
         ("windDir", np.float32, 11),
         ("h2o", np.float32, 11),
     ]
-)
+).newbyteorder("little")
 
 ac_read_dtype = np.dtype(
     [
@@ -206,7 +207,7 @@ ac_read_dtype = np.dtype(
         ("dataoff", np.int64),
         ("dhrs", np.float64),
     ]
-)
+).newbyteorder("little")
 
 antpos_dtype = np.dtype([("antenna", np.int16), ("xyz_pos", np.float64, 3)])
 
