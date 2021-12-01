@@ -1383,7 +1383,9 @@ class MWACorrFITS(UVData):
             # channel of the center coarse channel. (If there are an even number of
             # coarse channels, the center channel is to the right).
             # For mwax, the center frequency of the first fine channel of a coarse
-            # channel is the leftmost edge of the coarse channel.
+            # channel is the leftmost edge of the coarse channel if the number of
+            # fine channels per coarse channel is even. Otherwise it is offset by
+            # half of the fine channel width.
             if mwax:
                 # calculate coarse channel width in MHz
                 coarse_chan_width = meta_hdr["BANDWDTH"] / len(coarse_chans)
