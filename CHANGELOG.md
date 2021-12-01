@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Support for reading MWAX correlator fits files.
 - Added a warning when using `UVData.write_uvfits` when the `vis_units` attribute is
 anything other than `Jy`.
 - Added a warning when using `UVData.write_uvfits` if a UVData object has > 256 antennas,
