@@ -31,6 +31,8 @@ testfiles = [
     "1061315448_20130823175130_mini_gpubox07_01.fits",
     "1061315448.metafits",
     "1061315448_20130823175130_mini_vv_07_01.uvh5",
+    "1320409688.metafits",
+    "1320409688_20211108122750_mini_ch137_000.fits",
 ]
 filelist = [os.path.join(testdir, filei) for filei in testfiles]
 
@@ -100,6 +102,63 @@ def test_read_mwa_write_uvfits(tmp_path):
     mwa_uv._filename.form = (1,)
 
     assert mwa_uv == uvfits_uv
+
+
+def test_read_mwax_write_uvfits(tmp_path):
+    """
+    MWAX correlator fits to uvfits loopback test.
+
+    Read in MWAX correlator files, write out as uvfits, read back in and check
+    for object equality.
+    """
+    # spoof testfile to contain 2 times and 2 freqs
+    spoof_file = str(tmp_path / "mwax_spoof_ch137_000.fits")
+    with fits.open(filelist[12]) as mini1:
+        mini1[0].header["NFINECHS"] = 2
+        mini1[1].data = np.repeat(mini1[1].data, 2, axis=1)
+        mini1[2].data = np.repeat(mini1[2].data, 2, axis=1)
+        extra_dat = np.copy(mini1[1].data)
+        extra_samps = np.copy(mini1[2].data)
+        # mini1.append(fits.HDUList([mini1[1], mini1[2]]))
+        mini1.append(fits.ImageHDU(extra_dat))
+        mini1.append(fits.ImageHDU(extra_samps))
+        mini1[3].header["TIME"] = 1636374472
+        mini1[4].header["TIME"] = 1636374472
+        mini1[3].header["MILLITIM"] = 0
+        mini1[4].header["MILLITIM"] = 0
+        mini1.writeto(spoof_file)
+    mwax_uv = UVData()
+    uvfits_uv = UVData()
+    messages = [
+        "telescope_location is not set",
+        "some coarse channel files were not submitted",
+    ]
+    with uvtest.check_warnings(UserWarning, messages):
+        mwax_uv.read_mwa_corr_fits(
+            [spoof_file, filelist[11]],
+            correct_cable_len=True,
+            phase_to_pointing_center=True,
+        )
+
+    testfile = str(tmp_path / "outtest_MWAXcorr.uvfits")
+    mwax_uv.write_uvfits(testfile, spoof_nonessential=True)
+    uvfits_uv.read_uvfits(testfile)
+
+    assert mwax_uv == uvfits_uv
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_mwax_metafits_keys(tmp_path):
+    """Check that mwax keywords are removed from extra_keywords for legacy files"""
+    meta_spoof_file = str(tmp_path / "spoof_1131733552.metafits")
+    with fits.open(filelist[0]) as meta:
+        meta[0].header["DELAYMOD"] = None
+        meta.writeto(meta_spoof_file)
+    uv = UVData()
+    uv.read([meta_spoof_file, filelist[1]])
+
+    assert "DELAYMOD" not in uv.extra_keywords.keys()
 
 
 @pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
@@ -353,6 +412,26 @@ def test_fine_channels(tmp_path):
         mwa_uv.read([bad_fine, filelist[1]])
     assert str(cm.value).startswith("files submitted have different numbers")
     del mwa_uv
+
+
+def test_fine_channels_mwax(tmp_path):
+    """
+    Break read_mwa_corr_fits by submitting mwax files with different fine channels.
+
+    Test that error is raised if files with different numbers of fine channels
+    are submitted.
+    """
+    mwax_uv = UVData()
+    bad_fine = str(tmp_path / "bad_ch137_000.fits.fits")
+    with fits.open(filelist[12]) as mini:
+        mini[1].data = np.repeat(mini[1].data, 2, axis=1)
+        mini[2].data = np.repeat(mini[2].data, 2, axis=1)
+        mini[0].header["NFINECHS"] = 2
+        mini.writeto(bad_fine)
+    with pytest.raises(ValueError) as cm:
+        mwax_uv.read([bad_fine, filelist[12]])
+    assert str(cm.value).startswith("files submitted have different numbers")
+    del mwax_uv
 
 
 @pytest.mark.parametrize(
