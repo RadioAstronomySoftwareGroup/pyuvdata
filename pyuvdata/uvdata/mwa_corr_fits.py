@@ -506,7 +506,7 @@ class MWACorrFITS(UVData):
                     hdu.data[:, 0::2] + 1j * hdu.data[:, 1::2]
                 )
                 # fill nsample and flag arrays
-                # TODO: use weights arrays if mwax?
+                # think about using the mwax weights array in the future
                 self.nsample_array[
                     time_ind, :, freq_ind : freq_ind + num_fine_chans, :
                 ] = 1.0
@@ -1251,6 +1251,10 @@ class MWACorrFITS(UVData):
                     if mwax is None:
                         if "CORR_VER" in head0.keys():
                             mwax = True
+                            # save mwax version #s into extra_keywords
+                            self.extra_keywords["U2S_VER"] = head0["U2S_VER"]
+                            self.extra_keywords["CBF_VER"] = head0["CBF_VER"]
+                            self.extra_keywords["DB2F_VER"] = head0["DB2F_VER"]
                         else:
                             mwax = False
                     # check headers for first and last times containing data
@@ -1305,7 +1309,6 @@ class MWACorrFITS(UVData):
                         file_dict["data"].append(filename)
 
                     # save bscale keyword
-                    # TODO: figure out if need this for mwax
                     if "SCALEFAC" not in self.extra_keywords.keys():
                         if "BSCALE" in head0.keys():
                             self.extra_keywords["SCALEFAC"] = head0["BSCALE"]
@@ -1438,9 +1441,8 @@ class MWACorrFITS(UVData):
             self.instrument = meta_hdr["TELESCOP"]
             self.telescope_name = meta_hdr.pop("TELESCOP")
             self.object_name = meta_hdr.pop("FILENAME")
+            self.Nants_telescope = int(meta_hdr.pop("INSTRUME")[0:3])
 
-            # get rid of the instrument keyword so it doesn't get put back in
-            meta_hdr.remove("INSTRUME")
             # get rid of keywords that uvfits.py gets rid of
             bad_keys = ["SIMPLE", "EXTEND", "BITPIX", "NAXIS", "DATE-OBS"]
             for key in bad_keys:
@@ -1484,9 +1486,6 @@ class MWACorrFITS(UVData):
 
         # set parameters from other parameters
         self.Nants_data = len(self.antenna_numbers)
-        # TODO: think about what makes sense here:
-        # we can get this from the INSTRUMEN keyword I think
-        self.Nants_telescope = len(self.antenna_numbers)
         self.Nbls = int(
             len(self.antenna_numbers) * (len(self.antenna_numbers) + 1) / 2.0
         )
