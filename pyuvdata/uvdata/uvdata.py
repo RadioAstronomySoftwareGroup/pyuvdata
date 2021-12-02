@@ -10341,8 +10341,8 @@ class UVData(UVBase):
         use_aoflagger_flags=None,
         use_cotter_flags=None,
         remove_dig_gains=True,
-        remove_coarse_band=True,
-        correct_cable_len=False,
+        remove_coarse_band=None,
+        correct_cable_len=None,
         correct_van_vleck=False,
         cheby_approx=True,
         flag_small_auto_ants=True,
@@ -10368,7 +10368,8 @@ class UVData(UVBase):
         Read in MWA correlator gpu box files.
 
         The default settings remove some of the instrumental effects in the bandpass
-        by dividing out the digital gains and the coarse band shape.
+        by dividing out the coarse band shape (for legacy data only) and the digital
+        gains, and applying a cable length correction.
         If the desired output is raw correlator data, set remove_dig_gains=False,
         remove_coarse_band=False, correct_cable_len=False, and
         phase_to_pointing_center=False.
@@ -10963,8 +10964,8 @@ class UVData(UVBase):
         use_aoflagger_flags=None,
         use_cotter_flags=None,
         remove_dig_gains=True,
-        remove_coarse_band=True,
-        correct_cable_len=False,
+        remove_coarse_band=None,
+        correct_cable_len=None,
         correct_van_vleck=False,
         cheby_approx=True,
         flag_small_auto_ants=True,
@@ -11891,8 +11892,8 @@ class UVData(UVBase):
         use_aoflagger_flags=None,
         use_cotter_flags=None,
         remove_dig_gains=True,
-        remove_coarse_band=True,
-        correct_cable_len=False,
+        remove_coarse_band=None,
+        correct_cable_len=None,
         correct_van_vleck=False,
         cheby_approx=True,
         flag_small_auto_ants=True,

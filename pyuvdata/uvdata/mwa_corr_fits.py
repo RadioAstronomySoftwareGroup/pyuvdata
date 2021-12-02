@@ -1051,8 +1051,8 @@ class MWACorrFITS(UVData):
         filelist,
         use_aoflagger_flags=None,
         remove_dig_gains=True,
-        remove_coarse_band=True,
-        correct_cable_len=False,
+        remove_coarse_band=None,
+        correct_cable_len=None,
         correct_van_vleck=False,
         cheby_approx=True,
         flag_small_auto_ants=True,
@@ -1077,7 +1077,8 @@ class MWACorrFITS(UVData):
         Read in MWA correlator gpu box files.
 
         The default settings remove some of the instrumental effects in the bandpass
-        by dividing out the digital gains and the coarse band shape.
+        by dividing out the coarse band shape (for legacy data only) and the digital
+        gains, and applying a cable length correction.
         If the desired output is raw correlator data, set remove_dig_gains=False,
         remove_coarse_band=False, correct_cable_len=False, and
         phase_to_pointing_center=False.
@@ -1717,6 +1718,12 @@ class MWACorrFITS(UVData):
                 )
 
             # apply corrections
+            # we don't yet have a coarse band shape for mwax
+            if remove_coarse_band is None:
+                if not mwax:
+                    remove_coarse_band = True
+                else:
+                    remove_coarse_band = False
             if np.any([correct_van_vleck, remove_coarse_band, remove_dig_gains]):
                 flagged_ant_inds = self._apply_corrections(
                     ant_1_inds,
@@ -1740,6 +1747,12 @@ class MWACorrFITS(UVData):
                 self.data_array *= self.extra_keywords["SCALEFAC"]
 
             # cable delay corrections
+            if correct_cable_len is None:
+                correct_cable_len = True
+                warnings.warn(
+                    "cable length correction is defaulted to True. To read in files \
+                    without applying the correction set correct_cable_len=False."
+                )
             if correct_cable_len:
                 self.correct_cable_length(cable_lens, ant_1_inds, ant_2_inds)
             # add aoflagger flags to flag_array
