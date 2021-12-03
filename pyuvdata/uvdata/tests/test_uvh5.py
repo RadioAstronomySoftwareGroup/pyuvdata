@@ -106,13 +106,12 @@ def initialize_with_zeros_ints(uvd, filename):
         data_dset = dgrp["visdata"]
         flags_dset = dgrp["flags"]
         nsample_dset = dgrp["nsamples"]
-        with data_dset.astype(uvh5._hera_corr_dtype):
-            if uvd.future_array_shapes:
-                data_dset[:, :, :, "r"] = data.real
-                data_dset[:, :, :, "i"] = data.imag
-            else:
-                data_dset[:, :, :, :, "r"] = data.real
-                data_dset[:, :, :, :, "i"] = data.imag
+        if uvd.future_array_shapes:
+            data_dset[:, :, :, "r"] = data.real
+            data_dset[:, :, :, "i"] = data.imag
+        else:
+            data_dset[:, :, :, :, "r"] = data.real
+            data_dset[:, :, :, :, "i"] = data.imag
         flags_dset = flags  # noqa
         nsample_dset = nsamples  # noqa
     return
@@ -2456,9 +2455,8 @@ def test_read_complex_astype(tmp_path):
         dset = dgrp.create_dataset(
             "testdata", test_data_shape, dtype=uvh5._hera_corr_dtype
         )
-        with dset.astype(uvh5._hera_corr_dtype):
-            dset[:, :, :, :, "r"] = test_data.real
-            dset[:, :, :, :, "i"] = test_data.imag
+        dset[:, :, :, :, "r"] = test_data.real
+        dset[:, :, :, :, "i"] = test_data.imag
 
     # test that reading the data back in works as expected
     indices = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
@@ -2486,9 +2484,8 @@ def test_read_complex_astype_errors(tmp_path):
         dset = dgrp.create_dataset(
             "testdata", test_data_shape, dtype=uvh5._hera_corr_dtype
         )
-        with dset.astype(uvh5._hera_corr_dtype):
-            dset[:, :, :, :, "r"] = test_data.real
-            dset[:, :, :, :, "i"] = test_data.imag
+        dset[:, :, :, :, "r"] = test_data.real
+        dset[:, :, :, :, "i"] = test_data.imag
 
     # test passing in a forbidden output datatype
     indices = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
@@ -2523,9 +2520,8 @@ def test_write_complex_astype(tmp_path):
     with h5py.File(test_file, "r") as h5f:
         dset = h5f["Data/testdata"]
         file_data = np.zeros(test_data_shape, dtype=np.complex64)
-        with dset.astype(uvh5._hera_corr_dtype):
-            file_data.real = dset["r"][:, :, :, :]
-            file_data.imag = dset["i"][:, :, :, :]
+        file_data.real = dset.astype(uvh5._hera_corr_dtype)["r"][:, :, :, :]
+        file_data.imag = dset.astype(uvh5._hera_corr_dtype)["i"][:, :, :, :]
 
     assert np.allclose(file_data, test_data)
 
