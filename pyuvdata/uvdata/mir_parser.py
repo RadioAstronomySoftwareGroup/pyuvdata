@@ -453,6 +453,50 @@ class MirParser(object):
         if self.auto_data is not None:
             self.auto_data = None
 
+    def tsys_calibrate_data(
+        self, interp_rxa_ants=None, interp_rxb_ants=None, jypk=130.0
+    ):
+        """
+        Apply Tsys calibration to the visibilities.
+
+        SMA MIR data are recorded as correlation coefficients. This allows one to apply
+        system temperature information to the data to get values in units of Jy.
+        """
+        tsys_dict = {
+            (idx, jdx, 0): tsys
+            for idx, jdx, tsys in zip(
+                self.eng_data["inhid"],
+                self.eng_data["antennaNumber"],
+                self.eng_data["tsys"],
+            )
+        }
+        tsys_dict.update(
+            {
+                (idx, jdx, 1): tsys
+                for idx, jdx, tsys in zip(
+                    self.eng_data["inhid"],
+                    self.eng_data["antennaNumber"],
+                    self.eng_data["tsys"],
+                )
+            }
+        )
+
+        normal_dict = {
+            blhid: (2 * jypk)
+            * (tsys_dict[(idx, jdx, kdx)] * tsys_dict[(idx, ldx, mdx)]) ** 0.5
+            for blhid, idx, jdx, kdx, ldx, mdx in zip(
+                self.bl_data["blhid"],
+                self.bl_data["inhid"],
+                self.bl_data["iant1"],
+                self.bl_data["ant1rx"],
+                self.bl_data["iant2"],
+                self.bl_data["ant2rx"],
+            )
+        }
+
+        for idx, blhid in enumerate(self.sp_data["blhid"]):
+            self.vis_data[idx] *= normal_dict[blhid]
+
     @staticmethod
     def read_in_data(filepath):
         """
