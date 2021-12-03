@@ -7,7 +7,7 @@ dependencies:
   - astropy>=4.2.1
   - astropy-healpix
   - cached-property
-  - h5py
+  - h5py>=3.0
   - pyerfa>=2.0
   - matplotlib
   - numpy
