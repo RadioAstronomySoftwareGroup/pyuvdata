@@ -6,7 +6,7 @@ dependencies:
   - astropy
   - numpy
   - scipy
-  - h5py
+  - h5py>=3.0
   - pyerfa>=2.0
   - coverage
   - pytest>=6.2.0

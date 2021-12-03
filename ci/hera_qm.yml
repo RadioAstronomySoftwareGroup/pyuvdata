@@ -5,7 +5,7 @@ channels:
 dependencies:
   - astropy>=4.2.1
   - astropy-healpix
-  - h5py
+  - h5py>=3.0
   - numpy
   - matplotlib
   - pip
