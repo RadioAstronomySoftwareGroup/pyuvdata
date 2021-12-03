@@ -243,10 +243,8 @@ class UVCal(UVBase):
             tols=1e-3 / (60.0 * 60.0 * 24.0),
         )
 
-        # standard angle tolerance: 10 mas in radians.
-        # Should perhaps be decreased to 1 mas in the future
-        # should we do this now?
-        radian_tol = 10 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
+        # standard angle tolerance: 1 mas in radians.
+        radian_tol = 1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
         desc = "Array of lsts, center of integration, shape (Ntimes), units radians"
         self._lst_array = uvp.UVParameter(
             "lst_array",
