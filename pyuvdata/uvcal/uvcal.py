@@ -3406,7 +3406,7 @@ class UVCal(UVBase):
             for details).
         metadata_only : bool
             Option to only initialize the metadata. If False, this method also
-            initalizes the data-like arrays with the appropriate sizes.
+            initializes the data-like arrays with the appropriate sizes.
         include_uvdata_history : bool
             Option to include the history from the uvdata object in the uvcal history.
         cal_type : str
@@ -3503,7 +3503,7 @@ class UVCal(UVBase):
         if not isinstance(uvdata, UVData):
             raise ValueError("uvdata must be a UVData object.")
 
-        # re-initalize to make sure we have an empty object
+        # re-initialize to make sure we have an empty object
         self.__init__()
 
         if cal_type == "gain":

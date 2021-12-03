@@ -2627,8 +2627,11 @@ def test_init_from_uvdata(
         uvd, uvc.gain_convention, uvc.cal_style, future_array_shapes=uvcal_future_shapes
     )
 
+    # antenna positions are different by ~6cm or less. The ones in the uvcal file
+    # derive from info on our telescope object while the ones in the uvdata file
+    # derive from the HERA correlator. I'm not sure why they're different, but it may be
+    # because the data are a little old
     assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-
     uvc_new.antenna_positions = uvc2.antenna_positions
 
     assert uvutils._check_histories(
@@ -2638,6 +2641,16 @@ def test_init_from_uvdata(
     )
 
     uvc_new.history = uvc2.history
+
+    # The times are different by 9.31322575e-10, which is below than our tolerance on
+    # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
+    # in the lsts of 5.86770454e-09 which are larger than our tolerance
+    # (which is 1mas = 4.84813681109536e-09)
+    # I'm not sure why the times are different at all, there must have been some loss
+    # of precision in the processing pipeline.
+    assert uvc_new._time_array == uvc2._time_array
+    uvc_new.time_array = uvc2.time_array
+    uvc_new.set_lsts_from_time_array()
 
     assert uvc_new == uvc2
 
@@ -2691,8 +2704,11 @@ def test_init_from_uvdata_setfreqs(
         flex_spw_id_array=flex_spw_id_array,
     )
 
+    # antenna positions are different by ~6cm or less. The ones in the uvcal file
+    # derive from info on our telescope object while the ones in the uvdata file
+    # derive from the HERA correlator. I'm not sure why they're different, but it may be
+    # because the data are a little old
     assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-
     uvc_new.antenna_positions = uvc2.antenna_positions
 
     assert uvutils._check_histories(
@@ -2700,6 +2716,16 @@ def test_init_from_uvdata_setfreqs(
         "Initialized from a UVData object with pyuvdata."
         " UVData history is: " + uvd.history,
     )
+
+    # The times are different by 9.31322575e-10, which is below than our tolerance on
+    # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
+    # in the lsts of 5.86770454e-09 which are larger than our tolerance
+    # (which is 1mas = 4.84813681109536e-09)
+    # I'm not sure why the times are different at all, there must have been some loss
+    # of precision in the processing pipeline.
+    assert uvc_new._time_array == uvc2._time_array
+    uvc_new.time_array = uvc2.time_array
+    uvc_new.set_lsts_from_time_array()
 
     uvc_new.history = uvc2.history
 
@@ -2794,8 +2820,11 @@ def test_init_from_uvdata_settimes(
         time_range=uvc.time_range,
     )
 
+    # antenna positions are different by ~6cm or less. The ones in the uvcal file
+    # derive from info on our telescope object while the ones in the uvdata file
+    # derive from the HERA correlator. I'm not sure why they're different, but it may be
+    # because the data are a little old
     assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-
     uvc_new.antenna_positions = uvc2.antenna_positions
 
     assert uvutils._check_histories(
@@ -2811,6 +2840,16 @@ def test_init_from_uvdata_settimes(
         uvc2.quality_array *= 0.0
         uvc2.flag_array[:] = False
         uvc2.total_quality_array = None
+
+    # The times are different by 9.31322575e-10, which is below than our tolerance on
+    # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
+    # in the lsts of 5.86770454e-09 which are larger than our tolerance
+    # (which is 1mas = 4.84813681109536e-09)
+    # I'm not sure why the times are different at all, there must have been some loss
+    # of precision in the processing pipeline.
+    assert uvc_new._time_array == uvc2._time_array
+    uvc_new.time_array = uvc2.time_array
+    uvc_new.set_lsts_from_time_array()
 
     assert uvc_new == uvc2
 
@@ -2866,8 +2905,11 @@ def test_init_from_uvdata_setjones(uvcalibrate_data):
         uvd, uvc.gain_convention, uvc.cal_style, jones=[-5, -6],
     )
 
+    # antenna positions are different by ~6cm or less. The ones in the uvcal file
+    # derive from info on our telescope object while the ones in the uvdata file
+    # derive from the HERA correlator. I'm not sure why they're different, but it may be
+    # because the data are a little old
     assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-
     uvc_new.antenna_positions = uvc2.antenna_positions
 
     assert uvutils._check_histories(
@@ -2877,6 +2919,16 @@ def test_init_from_uvdata_setjones(uvcalibrate_data):
     )
 
     uvc_new.history = uvc2.history
+
+    # The times are different by 9.31322575e-10, which is below than our tolerance on
+    # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
+    # in the lsts of 5.86770454e-09 which are larger than our tolerance
+    # (which is 1mas = 4.84813681109536e-09)
+    # I'm not sure why the times are different at all, there must have been some loss
+    # of precision in the processing pipeline.
+    assert uvc_new._time_array == uvc2._time_array
+    uvc_new.time_array = uvc2.time_array
+    uvc_new.set_lsts_from_time_array()
 
     assert uvc_new == uvc2
 
@@ -2899,8 +2951,11 @@ def test_init_from_uvdata_circular_pol(uvcalibrate_data):
     uvc_new = UVCal()
     uvc_new.initialize_from_uvdata(uvd, uvc.gain_convention, uvc.cal_style)
 
+    # antenna positions are different by ~6cm or less. The ones in the uvcal file
+    # derive from info on our telescope object while the ones in the uvdata file
+    # derive from the HERA correlator. I'm not sure why they're different, but it may be
+    # because the data are a little old
     assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-
     uvc_new.antenna_positions = uvc2.antenna_positions
 
     assert uvutils._check_histories(
@@ -2910,6 +2965,16 @@ def test_init_from_uvdata_circular_pol(uvcalibrate_data):
     )
 
     uvc_new.history = uvc2.history
+
+    # The times are different by 9.31322575e-10, which is below than our tolerance on
+    # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
+    # in the lsts of 5.86770454e-09 which are larger than our tolerance
+    # (which is 1mas = 4.84813681109536e-09)
+    # I'm not sure why the times are different at all, there must have been some loss
+    # of precision in the processing pipeline.
+    assert uvc_new._time_array == uvc2._time_array
+    uvc_new.time_array = uvc2.time_array
+    uvc_new.set_lsts_from_time_array()
 
     assert uvc_new == uvc2
 
@@ -2974,8 +3039,11 @@ def test_init_from_uvdata_sky(
         extra_keywords=uvc_sky.extra_keywords,
     )
 
+    # antenna positions are different by ~6cm or less. The ones in the uvcal file
+    # derive from info on our telescope object while the ones in the uvdata file
+    # derive from the HERA correlator. I'm not sure why they're different, but it may be
+    # because the data are a little old
     assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-
     uvc_new.antenna_positions = uvc2.antenna_positions
 
     assert uvutils._check_histories(
@@ -2985,6 +3053,16 @@ def test_init_from_uvdata_sky(
     )
 
     uvc_new.history = uvc2.history
+
+    # The times are different by 9.31322575e-10, which is below than our tolerance on
+    # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
+    # in the lsts of 5.86770454e-09 which are larger than our tolerance
+    # (which is 1mas = 4.84813681109536e-09)
+    # I'm not sure why the times are different at all, there must have been some loss
+    # of precision in the processing pipeline.
+    assert uvc_new._time_array == uvc2._time_array
+    uvc_new.time_array = uvc2.time_array
+    uvc_new.set_lsts_from_time_array()
 
     assert uvc_new == uvc2
 
@@ -3072,8 +3150,11 @@ def test_init_from_uvdata_delay(
         spw_array=spw_array,
     )
 
+    # antenna positions are different by ~6cm or less. The ones in the uvcal file
+    # derive from info on our telescope object while the ones in the uvdata file
+    # derive from the HERA correlator. I'm not sure why they're different, but it may be
+    # because the data are a little old
     assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-
     uvc_new.antenna_positions = uvc2.antenna_positions
 
     assert uvutils._check_histories(
@@ -3083,6 +3164,16 @@ def test_init_from_uvdata_delay(
     )
 
     uvc_new.history = uvc2.history
+
+    # The times are different by 9.31322575e-10, which is below than our tolerance on
+    # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
+    # in the lsts of 5.86770454e-09 which are larger than our tolerance
+    # (which is 1mas = 4.84813681109536e-09)
+    # I'm not sure why the times are different at all, there must have been some loss
+    # of precision in the processing pipeline.
+    assert uvc_new._time_array == uvc2._time_array
+    uvc_new.time_array = uvc2.time_array
+    uvc_new.set_lsts_from_time_array()
 
     assert uvc_new == uvc2
 
@@ -3160,8 +3251,11 @@ def test_init_from_uvdata_wideband(
         spw_array=spw_array,
     )
 
+    # antenna positions are different by ~6cm or less. The ones in the uvcal file
+    # derive from info on our telescope object while the ones in the uvdata file
+    # derive from the HERA correlator. I'm not sure why they're different, but it may be
+    # because the data are a little old
     assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-
     uvc_new.antenna_positions = uvc2.antenna_positions
 
     assert uvutils._check_histories(
@@ -3171,6 +3265,16 @@ def test_init_from_uvdata_wideband(
     )
 
     uvc_new.history = uvc2.history
+
+    # The times are different by 9.31322575e-10, which is below than our tolerance on
+    # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
+    # in the lsts of 5.86770454e-09 which are larger than our tolerance
+    # (which is 1mas = 4.84813681109536e-09)
+    # I'm not sure why the times are different at all, there must have been some loss
+    # of precision in the processing pipeline.
+    assert uvc_new._time_array == uvc2._time_array
+    uvc_new.time_array = uvc2.time_array
+    uvc_new.set_lsts_from_time_array()
 
     assert uvc_new == uvc2
 
