@@ -5,8 +5,8 @@
 """Class for reading and writing Mir files."""
 import os
 import numpy as np
-from itertools import compress
 from astropy.time import Time
+import warnings
 
 from .uvdata import UVData
 from . import mir_parser
@@ -34,6 +34,10 @@ class Mir(UVData):
         corrchunk=None,
         pseudo_cont=False,
         flex_spw=True,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
     ):
         """
         Read in data from an SMA MIR file, and map to the UVData model.
@@ -49,11 +53,11 @@ class Mir(UVData):
             The file path to the MIR folder to read from.
         isource : list of int
             Source code(s) for MIR dataset
-        irec : int
+        irec : array-like of int
             Receiver code for MIR dataset
-        isb : list of int
+        isb : array-like of int
             Sideband codes for MIR dataset (0 = LSB, 1 = USB). Default is both sb.
-        corrchunk : list of int
+        corrchunk : array-like of int
             Correlator chunk codes for MIR dataset
         pseudo_cont : boolean
             Read in only pseudo-continuuum values. Default is false.
@@ -63,6 +67,52 @@ class Mir(UVData):
         # Use the mir_parser to read in metadata, which can be used to select data.
         mir_data = mir_parser.MirParser(filepath)
 
+        if isource is not None:
+            mir_data.use_in *= np.isin(mir_data.in_read["isource"], isource)
+            if not np.any(mir_data.use_in):
+                raise ValueError("No valid sources selected!")
+
+        if irec is not None:
+            mir_data.use_bl *= np.isin(mir_data.bl_read["irec"], irec)
+            if not np.any(mir_data.use_in):
+                raise ValueError("No valid receivers selected!")
+
+        if isb is not None:
+            mir_data.use_bl *= np.isin(mir_data.bl_read["isb"], isb)
+            if not np.any(mir_data.use_in):
+                raise ValueError("No valid sidebands selected!")
+
+        if corrchunk is not None:
+            mir_data.use_sp *= np.isin(mir_data.sp_read["corrchunk"], corrchunk)
+            if not np.any(mir_data.use_sp):
+                raise ValueError("No valid spectral bands selected!")
+        elif not pseudo_cont:
+            mir_data.use_sp *= mir_data.sp_read["corrchunk"] != 0
+
+        mir_data._update_filter()
+
+        if len(mir_data.in_data) == 0:
+            raise IndexError("No valid records matching those selections!")
+
+        self._init_from_mir_parser(mir_data)
+
+        if run_check:
+            self.check(
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
+                allow_flip_conj=True,
+            )
+
+    def _init_from_mir_parser(self, mir_data):
+        """
+        Convert a MirParser object into a UVData object.
+
+        Parameters
+        ----------
+        mir_data : MirParser object
+            MIR dataset to be converted into a UVData object.
+        """
         # By default, we will want to assume that MIR datasets are phased, multi-spw,
         # and multi phase center. At present, there is no advantage to allowing these
         # not to be true on read-in, particularly as in the long-term, these settings
@@ -71,113 +121,97 @@ class Mir(UVData):
         self._set_multi_phase_center()
         self._set_flex_spw()
 
-        isource_full_list = np.unique(mir_data.in_read["isource"]).tolist()
-        if isource is None:
-            isource = isource_full_list.copy()
-        elif not isinstance(isource, list):
-            isource = [isource]
-
-        # Grab the list of sources we want to select on
-        isource_dict = {key: key in isource for key in isource_full_list}
-        if not np.any([isource_dict[key] for key in isource_full_list]):
-            raise IndexError("No valid sources selected!")
-
-        # Select out the receiver that we want to deal with, since we can only
-        # currently handle one of each
-        if irec is None:
-            irec = mir_data.bl_read["irec"][0]
-
-        # Begin sorting out the spectral windows, starting with which sidebands to
-        # include in the read
-        isb_full_list = np.unique(mir_data.bl_read["isb"]).tolist()
-        if isb is None:
-            isb = isb_full_list.copy()
-
-        isb_dict = {key: key in isb for key in isb_full_list}
-        if len(isb) == 0:
-            raise IndexError("No valid sidebands selected!")
-        elif not (set(isb).issubset(set(isb_full_list))):
-            raise IndexError("isb values contain invalid entries")
-
-        # Remember whether or not we're dealing with DSB (2 windows per corrchunk)
-        dsb_spws = True if len(isb) == 2 else False
-
-        corrchunk_full_list = np.unique(mir_data.sp_read["corrchunk"]).tolist()
-        if corrchunk is None:
-            if pseudo_cont:
-                corrchunk = [0]
-            else:
-                corrchunk = corrchunk_full_list.copy()
-                corrchunk.remove(0) if 0 in corrchunk else None
-        corrchunk_dict = {key: key in corrchunk for key in corrchunk_full_list}
-
-        mir_data.use_in = np.array(
-            [isource_dict[key] for key in mir_data.in_read["isource"]]
-        )
-        mir_data.use_bl = np.logical_and(
-            np.logical_and(
-                mir_data.bl_read["irec"] == irec, mir_data.bl_read["ipol"] == 0
-            ),
-            np.array([isb_dict[key] for key in mir_data.bl_read["isb"]]),
-        )
-
-        mir_data.use_sp = np.array(
-            [corrchunk_dict[key] for key in mir_data.sp_read["corrchunk"]]
-        )
-
-        # Update the filters, and will make sure we're looking at the right metadata.
-        mir_data._update_filter()
-        if len(mir_data.in_data) == 0:
-            raise IndexError("No valid records matching those selections!")
-
         # Create a simple list for broadcasting values stored on a
         # per-intergration basis in MIR into the (tasty) per-blt records in UVDATA.
-        bl_in_maparr = [
-            mir_data.inhid_dict[idx]
-            for idx in mir_data.bl_data["inhid"][mir_data.bl_data["isb"] == isb[0]]
-        ]
+        bl_in_maparr = np.array(
+            [mir_data.inhid_dict[idx] for idx in mir_data.bl_data["inhid"]]
+        )
 
         # Create a simple array/list for broadcasting values stored on a
         # per-blt basis into per-spw records, and per-time into per-blt records
         sp_bl_maparr = np.array(
             [mir_data.blhid_dict[idx] for idx in mir_data.sp_data["blhid"]]
         )
-        bl_in_maparr = np.array(
-            [mir_data.inhid_dict[idx] for idx in mir_data.bl_data["inhid"]]
-        )
-        # Different sidebands in MIR are (strangely enough) recorded as being
-        # different baseline records. To be compatible w/ UVData, we just splice
-        # the sidebands together.
-        corrchunk_sb = [idx for jdx in sorted(isb) for idx in [jdx] * len(corrchunk)]
-        corrchunk *= 1 + dsb_spws
-        sb_screen = mir_data.bl_data["isb"] == isb[0]
 
-        # SMA data typicaly have two sidebads be spectral window, we differentiate
-        # between them by using a minus sign. The 0th spectral window is a
-        # synthetic continuum window, for which out negative flip doesnt work. Thus,
-        # we pick a 'high' number that we expect will always be out of range.
-        corrchunk_names = np.array(
-            [
-                (256 if (idx == 0) else idx) * ((-1) ** (1 + jdx))
-                for idx, jdx in zip(corrchunk, corrchunk_sb)
-            ],
-            dtype=int,
-        )
+        pol_split_tuning = False
+        if len(np.unique(mir_data.bl_data["ipol"])) == 4:
+            # This is a full-polarization observation, and so we can take a few
+            # things for granted here about the spectral tunings
+            spdx_list = [
+                (winid, sbid, polid)
+                for winid, sbid, polid in zip(
+                    mir_data.sp_data["corrchunk"],
+                    mir_data.bl_data["isb"][sp_bl_maparr],
+                    mir_data.bl_data["ipol"][sp_bl_maparr],
+                )
+            ]
+            pol_dict = {
+                key: idx for idx, key in enumerate(np.unique(mir_data.bl_data["ipol"]))
+            }
+        else:
+            spdx_list = [
+                (winid, sbid, polid)
+                for winid, sbid, polid in zip(
+                    mir_data.sp_data["corrchunk"],
+                    mir_data.bl_data["isb"][sp_bl_maparr],
+                    mir_data.bl_data["ant1rx"][sp_bl_maparr],
+                )
+            ]
 
-        # Here we'll want to construct a simple dictionary, that'll basically help us
-        # to construct the frequency axis, and map the UVData spectral window ID number
-        # to our weird mapping system in MIR.
-        Nfreqs = 0  # Set to zero to starts for flex_spw
+            # If not full-pol, then we need to check if the tunings are spilt, because
+            # the two polarizations will effectively be concat'd across the freq
+            # axis instead of the pol axis.
+            sel_mask = mir_data.bl_data["ant1rx"][sp_bl_maparr] == 0
 
-        # Initialize some arrays that we'll be appending to
-        flex_spw_id_array = np.array([], dtype=np.int64)
-        channel_width = np.array([], dtype=np.float64)
-        freq_array = np.array([], dtype=np.float64)
-        for idx in range(len(corrchunk)):
-            data_mask = np.logical_and(
-                mir_data.sp_data["corrchunk"] == corrchunk[idx],
-                mir_data.bl_data["isb"][sp_bl_maparr] == corrchunk_sb[idx],
+            # The data all belong to one receiver
+            if np.all(sel_mask) or np.all(sel_mask):
+                pol_dict = {int(np.all(~sel_mask)): 0}
+            else:
+                loa_freq = np.median(mir_data.sp_data["gunnLO"][sel_mask])
+                lob_freq = np.median(mir_data.sp_data["gunnLO"][~sel_mask])
+                pol_split_tuning = not np.isclose(loa_freq, lob_freq)
+                pol_dict = {0: 0, 1: int(not pol_split_tuning)}
+
+        pol_code_dict = {}
+        for code in mir_data.codes_read[mir_data.codes_read["v_name"] == b"pol"]:
+            pol_code_dict[code["icode"]] = code["code"].decode("UTF-8").lower()
+
+        Npols = len(set(pol_dict.values()))
+        polarization_array = np.zeros(Npols, dtype=int)
+
+        for key in pol_dict.keys():
+            polarization_array[pol_dict[key]] = uvutils.POL_STR2NUM_DICT[
+                pol_code_dict[key]
+            ]
+
+        blt_list = [
+            (intid, ant1, ant2)
+            for intid, ant1, ant2 in zip(
+                mir_data.bl_data["inhid"],
+                mir_data.bl_data["iant1"],
+                mir_data.bl_data["iant2"],
             )
+        ]
+
+        blt_dict = {
+            blt_tuple: idx
+            for idx, blt_tuple in enumerate(
+                sorted(set(blt_list), key=lambda x: (x[0], x[1], x[2]))
+            )
+        }
+
+        blhid_blt_order = {
+            key: blt_dict[value]
+            for key, value in zip(mir_data.bl_data["blhid"], blt_list)
+        }
+
+        # By Grabthar's Hammer, what a savings!
+        Nblts = len(blt_dict)
+
+        spdx_dict = {}
+        spw_dict = {}
+        for spdx in set(spdx_list):
+            data_mask = np.array([spdx == item for item in spdx_list])
 
             # Grab values, get them into appropriate types
             spw_fsky = np.unique(mir_data.sp_data["fsky"][data_mask])
@@ -195,41 +229,84 @@ class Mir(UVData):
             spw_fres = float(spw_fres * 1e6)  # MHz -> Hz
             spw_nchan = int(spw_nchan)
 
-            # Tally up the number of channels
-            Nfreqs += spw_nchan
+            spw_id = 255 if (spdx[0] == 0) else spdx[0]
+            spw_id *= (-1) ** (1 + spdx[1])
+            spw_id += 512 if pol_split_tuning else 0
 
             # Populate the channel width array
-            channel_width = np.append(
-                channel_width, abs(spw_fres) + np.zeros(spw_nchan, dtype=np.float64)
-            )
+            channel_width = abs(spw_fres) + np.zeros(spw_nchan, dtype=np.float64)
 
             # Populate the spw_id_array
-            flex_spw_id_array = np.append(
-                flex_spw_id_array,
-                corrchunk_names[idx] + np.zeros(spw_nchan, dtype=np.int64),
-            )
+            spw_id_array = spw_id + np.zeros(spw_nchan, dtype=np.int64)
 
             # So the freq array here is a little weird, because the current fsky
             # refers to the point between the nch/2 and nch/2 + 1 channel in the
             # raw (unaveraged) spectrum. This was done for the sake of some
             # convenience, at the cost of clarity. In some future format of the
             # data, we expect to be able to drop seemingly random offset here.
-            freq_array = np.append(
-                freq_array,
+            freq_array = (
                 spw_fsky
                 - (np.sign(spw_fres) * 139648.4375)
-                + (spw_fres * (np.arange(spw_nchan) + 0.5 - (spw_nchan / 2))),
+                + (spw_fres * (np.arange(spw_nchan) + 0.5 - (spw_nchan / 2)))
             )
+
+            spdx_dict[spdx] = {
+                "spw_id": spw_id,
+                "pol_idx": pol_dict[spdx[2]],
+            }
+
+            spw_dict[spw_id] = {
+                "nchan": spw_nchan,
+                "freqs": spw_fres,
+                "fsky": spw_fsky,
+                "channel_width": channel_width,
+                "spw_id_array": spw_id_array,
+                "freq_array": freq_array,
+                "pol_state": spdx[2],
+            }
+
+        spw_array = sorted(spw_dict.keys())
+        Nspws = len(spw_array)
+        Nfreqs = 0
+        for key in spw_array:
+            spw_dict[key]["ch_slice"] = slice(Nfreqs, Nfreqs + spw_dict[key]["nchan"])
+            Nfreqs += spw_dict[key]["nchan"]
+
+        # Initialize some arrays that we'll be appending to
+        flex_spw_id_array = np.zeros(Nfreqs, dtype=np.int64)
+        channel_width = np.zeros(Nfreqs, dtype=np.float64)
+        freq_array = np.zeros(Nfreqs, dtype=np.float64)
+        flex_pol = np.zeros(Nspws, dtype=np.int64)
+        for idx, key in enumerate(spw_array):
+            flex_spw_id_array[spw_dict[key]["ch_slice"]] = spw_dict[key]["spw_id_array"]
+            channel_width[spw_dict[key]["ch_slice"]] = spw_dict[key]["channel_width"]
+            freq_array[spw_dict[key]["ch_slice"]] = spw_dict[key]["freq_array"]
+            flex_pol[idx] = spw_dict[key]["pol_state"] if pol_split_tuning else 0.0
+
+        for key in spdx_dict:
+            spdx_dict[key]["ch_slice"] = spw_dict[spdx_dict[key]["spw_id"]]["ch_slice"]
+
+        # Load up the visibilities into the MirParser object.
+        vis_data = np.zeros((Nblts, Npols, Nfreqs), dtype=np.complex64)
+        mir_data.load_data(load_vis=True)
+
+        for sp_rec, window, vis_rec in zip(
+            mir_data.sp_data, spdx_list, mir_data.vis_data
+        ):
+            blt_idx = blhid_blt_order[sp_rec["blhid"]]
+            spdx = spdx_dict[window]
+            vis_data[(blt_idx, spdx["pol_idx"], spdx["ch_slice"])] = vis_rec
+
+        # Drop the data from the MirParser object once we have it loaded up.
+        mir_data.unload_data()
 
         # Now assign our flexible arrays to the object itself
         # TODO: Spw axis to be collapsed in future release
         self.freq_array = freq_array[np.newaxis, :]
         self.Nfreqs = Nfreqs
+        self.Nspws = Nspws
         self.channel_width = channel_width
         self.flex_spw_id_array = flex_spw_id_array
-
-        # Load up the visibilities into the MirParser object.
-        mir_data.load_data(load_vis=True, load_raw=True)
 
         # Derive Nants_data from baselines.
         self.Nants_data = len(
@@ -239,12 +316,9 @@ class Mir(UVData):
         )
         self.Nants_telescope = 8
         self.Nbls = int(self.Nants_data * (self.Nants_data - 1) / 2)
-        self.Nblts = len(mir_data.bl_data) // (1 + dsb_spws)
-        self.Npols = 1  # todo: We will need to go back and expand this.
-        self.Nspws = len(corrchunk)
+        self.Nblts = Nblts
+        self.Npols = Npols
         self.Ntimes = len(mir_data.in_data)
-        self.ant_1_array = mir_data.bl_data["iant1"][sb_screen]
-        self.ant_2_array = mir_data.bl_data["iant2"][sb_screen]
         self.antenna_names = [
             "Ant 1",
             "Ant 2",
@@ -274,49 +348,99 @@ class Mir(UVData):
         # telescope geocentric position is required , i.e we are going from
         # relRotECEF -> relECEF
         self.antenna_positions = uvutils.ECEF_from_rotECEF(antXYZ, lon)
-        self.baseline_array = self.antnums_to_baseline(
-            self.ant_1_array, self.ant_2_array, attempt256=False
-        )
 
         self.history = "Raw Data"
         self.instrument = "SWARM"
 
-        # We can just skip an appropriate number of records
-        self.integration_time = mir_data.sp_data["integ"][:: len(corrchunk)].astype(
-            float
+        # Let's try to chalk up all the per-sp stuff here, eh?
+        sp_to_blt = ["igq", "ipq", "flags", "vradcat"]
+        sp_temp_dict = {}
+        suppress_warning = False
+        for sp_rec in mir_data.sp_data:
+            temp_dict = {item: sp_rec[item] for item in sp_to_blt}
+            try:
+                # We only want to throw this warning once -- no sense in flooding the
+                # user with errors that can't do much about.
+                if not suppress_warning:
+                    if sp_temp_dict[blhid_blt_order[sp_rec["blhid"]]] != temp_dict:
+                        warnings.warn(
+                            "Per-spectral window metadata differ. Defaulting to using "
+                            "the last value in the data set."
+                        )
+            except KeyError:
+                sp_temp_dict[blhid_blt_order[sp_rec["blhid"]]] = temp_dict
+
+        # Let's try to chalk up all the per-sp stuff here, eh?
+        bl_to_blt = ["u", "v", "w", "iant1", "iant2"]
+        in_to_blt = ["lst", "mjd", "ara", "adec", "isource", "rinteg"]
+
+        blt_temp_dict = {}
+        suppress_warning = False
+        for idx, bl_rec in enumerate(mir_data.bl_data):
+            temp_dict = {item: bl_rec[item] for item in bl_to_blt}
+            in_rec = mir_data.in_data[bl_in_maparr[idx]]
+            temp_dict.update({item: in_rec[item] for item in in_to_blt})
+            temp_dict.update(sp_temp_dict[blhid_blt_order[bl_rec["blhid"]]])
+            try:
+                if not suppress_warning:
+                    if blt_temp_dict[blhid_blt_order[bl_rec["blhid"]]] != temp_dict:
+                        warnings.warn(
+                            "Per-baseline metadata differ. Defaulting to using "
+                            "the last value in the data set."
+                        )
+            except KeyError:
+                blt_temp_dict[blhid_blt_order[bl_rec["blhid"]]] = temp_dict
+
+        integration_time = np.zeros(Nblts, dtype=float)
+        lst_array = np.zeros(Nblts, dtype=float)
+        mjd_array = np.zeros(Nblts, dtype=float)
+        ant_1_array = np.zeros(Nblts, dtype=int)
+        ant_2_array = np.zeros(Nblts, dtype=int)
+        uvw_array = np.zeros((Nblts, 3), dtype=float)
+        phase_center_id_array = np.zeros(Nblts, dtype=int)
+        app_ra = np.zeros(Nblts, dtype=float)
+        app_dec = np.zeros(Nblts, dtype=float)
+
+        for blt_key in blt_temp_dict.keys():
+            temp_dict = blt_temp_dict[blt_key]
+            integration_time[blt_key] = temp_dict["rinteg"]
+            lst_array[blt_key] = temp_dict["lst"] * (np.pi / 12.0)
+            mjd_array[blt_key] = temp_dict["mjd"]
+            ant_1_array[blt_key] = temp_dict["iant1"]
+            ant_2_array[blt_key] = temp_dict["iant2"]
+            uvw_array[blt_key] = np.array(
+                [temp_dict["u"], temp_dict["v"], temp_dict["w"]]
+            )
+            phase_center_id_array[blt_key] = temp_dict["isource"]
+            app_ra[blt_key] = temp_dict["ara"]
+            app_dec[blt_key] = temp_dict["adec"]
+
+        self.ant_1_array = ant_1_array
+        self.ant_2_array = ant_2_array
+        self.baseline_array = self.antnums_to_baseline(
+            self.ant_1_array, self.ant_2_array, attempt256=False
         )
 
+        # We can just skip an appropriate number of records
+        self.integration_time = integration_time
+
         # TODO: Using MIR V3 convention, will need to be V2 compatible eventually.
-        self.lst_array = (
-            mir_data.in_data["lst"][bl_in_maparr[:: 1 + dsb_spws]].astype(float)
-        ) * (np.pi / 12.0)
+        self.lst_array = lst_array
+        self.time_array = Time(mjd_array, scale="tt", format="mjd").utc.jd
 
-        # TODO: We change between xx yy and rr ll, so we will need to update this.
-        self.polarization_array = np.asarray([-5])
-
-        self.spw_array = corrchunk_names
-
+        self.polarization_array = polarization_array
+        self.spw_array = spw_array
         self.telescope_name = "SMA"
-        time_array_mjd = mir_data.in_read["mjd"][bl_in_maparr[sb_screen]]
-
-        self.time_array = Time(time_array_mjd, scale="tt", format="mjd").utc.jd
 
         # Need to flip the sign convention here on uvw, since we use a1-a2 versus the
         # standard a2-a1 that uvdata expects
-        self.uvw_array = (-1.0) * np.transpose(
-            np.vstack(
-                (
-                    mir_data.bl_data["u"][sb_screen],
-                    mir_data.bl_data["v"][sb_screen],
-                    mir_data.bl_data["w"][sb_screen],
-                )
-            )
-        )
+        self.uvw_array = (-1.0) * uvw_array
 
         # todo: Raw data is in correlation coefficients, we may want to convert to Jy.
         self.vis_units = "uncalib"
 
         sou_list = mir_data.codes_data[mir_data.codes_data["v_name"] == b"source"]
+        isource = np.unique(mir_data.in_data["isource"])
 
         name_list = [
             sou_list[sou_list["icode"] == idx]["code"][0].decode("utf-8")
@@ -341,8 +465,7 @@ class Mir(UVData):
 
         # Regenerate the sou_id_array thats native to MIR into a zero-indexed per-blt
         # entry for UVData, then grab ra/dec/position data.
-        phase_center_id_array = mir_data.in_data["isource"][bl_in_maparr[sb_screen]]
-        self.phase_center_id_array = phase_center_id_array.astype(int)
+        self.phase_center_id_array = phase_center_id_array
 
         self.phase_center_ra = 0.0  # This is ignored w/ mutli-phase-ctr data sets
         self.phase_center_dec = 0.0  # This is ignored w/ mutli-phase-ctr data sets
@@ -350,8 +473,8 @@ class Mir(UVData):
         self.phase_center_frame = "icrs"
 
         # Fill in the apparent coord calculations
-        self.phase_center_app_ra = mir_data.in_data["ara"][bl_in_maparr[sb_screen]]
-        self.phase_center_app_dec = mir_data.in_data["adec"][bl_in_maparr[sb_screen]]
+        self.phase_center_app_ra = app_ra
+        self.phase_center_app_dec = app_dec
 
         # For MIR, uvws are always calculated in the "apparent" position. We can adjust
         # this by calculating the position angle with our preferred coordinate frame
@@ -369,43 +492,11 @@ class Mir(UVData):
         self.blt_order = ("time", "baseline")
 
         # set filename attribute
-        basename = filepath.rstrip("/")
+        basename = mir_data.filepath.rstrip("/")
         self.filename = [os.path.basename(basename)]
         self._filename.form = (1,)
 
-        # TODO: Spw axis to be collapsed in future release
-        if dsb_spws:
-            # Gotta do a little bit of sleight-of-hand here, on account of
-            # the fact that the ordering of the sidebands makes absolutely
-            # no sense.
-            data_array = np.concatenate(
-                (
-                    np.reshape(
-                        np.concatenate(
-                            list(compress(mir_data.vis_data, sb_screen[sp_bl_maparr])),
-                        ),
-                        (self.Nblts, 1, self.Nfreqs // 2, self.Npols),
-                    ),
-                    np.reshape(
-                        np.concatenate(
-                            list(compress(mir_data.vis_data, ~sb_screen[sp_bl_maparr])),
-                        ),
-                        (self.Nblts, 1, self.Nfreqs // 2, self.Npols),
-                    ),
-                ),
-                axis=2,
-            )
-        else:
-            # If single sideband, then this is a pretty simple operation
-            data_array = np.reshape(
-                np.concatenate(mir_data.vis_data),
-                (self.Nblts, 1, self.Nfreqs, self.Npols),
-            )
-
-        # Don't need the data anymore, so drop it
-        mir_data.unload_data()
-
-        self.data_array = data_array
+        self.data_array = np.transpose(vis_data, (0, 2, 1))[:, np.newaxis, :, :]
         self.flag_array = np.zeros(self.data_array.shape, dtype=bool)
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.float32)
 
