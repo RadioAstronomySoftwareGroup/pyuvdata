@@ -2615,7 +2615,7 @@ def lookup_jplhorizons(
     # not know which to choose).
     if target_name in major_body_dict.keys():
         target_id = major_body_dict[target_name]
-        id_type = "majorbody"
+        id_type = None
 
     query_obj = Horizons(
         id=target_id, location=site_loc, epochs=epoch_list, id_type=id_type,
