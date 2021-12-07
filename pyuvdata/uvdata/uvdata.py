@@ -733,37 +733,41 @@ class UVData(UVBase):
         override : bool
             When True, will redefine existing scan numbers. Default is False.
         """
-        # We are grouping based on integrations on a phase center.
-        # If this isn't defined, we cannot define scan numbers in this way.
-        if self.phase_center_catalog is None:
-            return
-
         if self.scan_number_array is None or override:
 
-            sou_list = list(self.phase_center_catalog.keys())
-            sou_list.sort()
+            # We are grouping based on integrations on a phase center.
+            # If this isn't defined, we cannot define scan numbers in this way
+            # and default to a single "scan".
+            if self.phase_center_catalog is None:
+                self.scan_number_array = np.zeros((self.Nblts,), dtype=int)
 
-            slice_list = []
-            # This loops over phase centers, finds contiguous integrations with
-            # ndimage.label, and then finds the slices to return those contiguous
-            # integrations with nd.find_objects.
-            for idx in range(self.Nphase):
-                sou_id = self.phase_center_catalog[sou_list[idx]]["cat_id"]
-                slice_list.extend(
-                    nd.find_objects(nd.label(self.phase_center_id_array == sou_id)[0])
-                )
+            else:
+                sou_list = list(self.phase_center_catalog.keys())
+                sou_list.sort()
 
-            # Sort by start integration number, which we can extract from
-            # the start of each slice in the list.
-            slice_list_ord = sorted(slice_list, key=lambda x: x[0].start)
+                slice_list = []
+                # This loops over phase centers, finds contiguous integrations with
+                # ndimage.label, and then finds the slices to return those contiguous
+                # integrations with nd.find_objects.
+                for idx in range(self.Nphase):
+                    sou_id = self.phase_center_catalog[sou_list[idx]]["cat_id"]
+                    slice_list.extend(
+                        nd.find_objects(
+                            nd.label(self.phase_center_id_array == sou_id)[0]
+                        )
+                    )
 
-            # Incrementally increase the scan number with each group in
-            # slice_list_ord
-            scan_array = np.zeros_like(self.phase_center_id_array)
-            for ii, slice_scan in enumerate(slice_list_ord):
-                scan_array[slice_scan] = ii + 1
+                # Sort by start integration number, which we can extract from
+                # the start of each slice in the list.
+                slice_list_ord = sorted(slice_list, key=lambda x: x[0].start)
 
-            self.scan_number_array = scan_array
+                # Incrementally increase the scan number with each group in
+                # slice_list_ord
+                scan_array = np.zeros_like(self.phase_center_id_array)
+                for ii, slice_scan in enumerate(slice_list_ord):
+                    scan_array[slice_scan] = ii + 1
+
+                self.scan_number_array = scan_array
 
     def _look_in_catalog(
         self,
