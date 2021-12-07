@@ -453,17 +453,19 @@ class MirParser(object):
         if self.auto_data is not None:
             self.auto_data = None
 
-    def tsys_calibrate_data(
+    def _tsys_calibrate_data(
         self, interp_rxa_ants=None, interp_rxb_ants=None, jypk=130.0
     ):
         """
         Apply Tsys calibration to the visibilities.
 
         SMA MIR data are recorded as correlation coefficients. This allows one to apply
-        system temperature information to the data to get values in units of Jy.
+        system temperature information to the data to get values in units of Jy. This
+        method is not meant to be called by users, but is instead meant to be called
+        by data read methods.
         """
         tsys_dict = {
-            (idx, jdx, 0): tsys
+            (idx, jdx, 0): tsys ** 0.5
             for idx, jdx, tsys in zip(
                 self.eng_data["inhid"],
                 self.eng_data["antennaNumber"],
@@ -472,7 +474,7 @@ class MirParser(object):
         }
         tsys_dict.update(
             {
-                (idx, jdx, 1): tsys
+                (idx, jdx, 1): tsys ** 0.5
                 for idx, jdx, tsys in zip(
                     self.eng_data["inhid"],
                     self.eng_data["antennaNumber"],
@@ -482,8 +484,8 @@ class MirParser(object):
         )
 
         normal_dict = {
-            blhid: (2 * jypk)
-            * (tsys_dict[(idx, jdx, kdx)] * tsys_dict[(idx, ldx, mdx)]) ** 0.5
+            blhid: (2.0 * jypk)
+            * (tsys_dict[(idx, jdx, kdx)] * tsys_dict[(idx, ldx, mdx)])
             for blhid, idx, jdx, kdx, ldx, mdx in zip(
                 self.bl_data["blhid"],
                 self.bl_data["inhid"],
