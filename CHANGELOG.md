@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 - Flexible spectral windows to `read_mwa_corr_fits`.
 
 ### Changed
+- Updated the astroquery requirement to >= 0.4.4, due to changes in the API handling for
+calls to JPL Horizons.
 - Assumes uvfits files are in ITRF frame unless explicitly stated otherwise. Consistent with AIPS 117.
 - Improved readability, functionality, and memory usage in `read_mwa_corr_fits`.
 
