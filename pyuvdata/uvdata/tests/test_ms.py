@@ -18,9 +18,7 @@ from ..uvfits import UVFITS
 
 pytest.importorskip("casacore")
 
-# Only MSs have `scan_number_array` defined.
-# Skip for eq or neq comparisons as needed.
-allowed_failures_with_ms = ("filename", "scan_number_array")
+allowed_failures = "filename"
 
 
 @pytest.fixture(scope="session")
@@ -205,9 +203,7 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
     uvfits_uv.integration_time = ms_uv.integration_time
     # they are equal if only required parameters are checked:
     # scan numbers only defined for the MS
-    assert uvfits_uv.__eq__(
-        ms_uv, check_extra=False, allowed_failures=allowed_failures_with_ms
-    )
+    assert uvfits_uv.__eq__(ms_uv, check_extra=False, allowed_failures=allowed_failures)
 
     # set those parameters to none to check that the rest of the objects match
     ms_uv.antenna_diameters = None
@@ -296,6 +292,9 @@ def test_multi_files(casa_uvfits, axis):
     """
     uv_full = casa_uvfits.copy()
 
+    # Ensure the scan numbers are defined for the comparison
+    uv_full._set_scan_numbers()
+
     uv_multi = UVData()
     testfile1 = os.path.join(DATA_PATH, "multi_1.ms")
     testfile2 = os.path.join(DATA_PATH, "multi_2.ms")
@@ -342,7 +341,7 @@ def test_multi_files(casa_uvfits, axis):
     uv_multi.filename = uv_full.filename
     uv_multi._filename.form = (1,)
 
-    assert uv_multi.__eq__(uv_full, allowed_failures=allowed_failures_with_ms)
+    assert uv_multi.__eq__(uv_full, allowed_failures=allowed_failures)
     del uv_full
     del uv_multi
 
@@ -768,4 +767,4 @@ def test_antenna_diameter_handling(hera_uvh5, tmp_path):
     assert uv_obj2.x_orientation is None
     uv_obj2.x_orientation = uv_obj.x_orientation
 
-    assert uv_obj2.__eq__(uv_obj, allowed_failures=allowed_failures_with_ms)
+    assert uv_obj2.__eq__(uv_obj, allowed_failures=allowed_failures)
