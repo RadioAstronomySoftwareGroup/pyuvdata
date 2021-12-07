@@ -10,6 +10,7 @@ import warnings
 import threading
 
 import numpy as np
+from scipy import ndimage as nd
 from astropy import constants as const
 import astropy.units as units
 from astropy.time import Time
@@ -718,6 +719,51 @@ class UVData(UVBase):
         self._flex_spw_id_array.required = True
         # Now make sure that chan_width is set to be an array
         self._channel_width.form = ("Nfreqs",)
+
+    def _set_scan_numbers(self, override=False):
+        """
+        Set scan numbers by grouping consecutive integrations on the same phase center.
+
+        This approach mimics the definition of scan number in measurement sets and is
+        especially helpful for distinguishing between repeated visits to multiple
+        phase centers.
+
+        Parameters
+        ----------
+        override : bool
+            When True, will redefine existing scan numbers. Default is False.
+        """
+        # We are grouping based on integrations on a phase center.
+        # If this isn't defined, we cannot define scan numbers in this way.
+        if self.phase_center_catalog is None:
+            return
+
+        if self.scan_number_array is None or override:
+
+            sou_list = list(self.phase_center_catalog.keys())
+            sou_list.sort()
+
+            slice_list = []
+            # This loops over phase centers, finds contiguous integrations with
+            # ndimage.label, and then finds the slices to return those contiguous
+            # integrations with nd.find_objects.
+            for idx in range(self.Nphase):
+                sou_id = self.phase_center_catalog[sou_list[idx]]["cat_id"]
+                slice_list.extend(
+                    nd.find_objects(nd.label(self.phase_center_id_array == sou_id)[0])
+                )
+
+            # Sort by start integration number, which we can extract from
+            # the start of each slice in the list.
+            slice_list_ord = sorted(slice_list, key=lambda x: x[0].start)
+
+            # Incrementally increase the scan number with each group in
+            # slice_list_ord
+            scan_array = np.zeros_like(self.phase_center_id_array)
+            for ii, slice_scan in enumerate(slice_list_ord):
+                scan_array[slice_scan] = ii + 1
+
+            self.scan_number_array = scan_array
 
     def _look_in_catalog(
         self,
