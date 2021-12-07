@@ -1170,7 +1170,7 @@ class MS(UVData):
         if self.scan_number_array is None:
             self._set_scan_numbers()
 
-        if self.multi_phase_center:
+        if self.Nspws > 1:
             scan_array_tiled = np.repeat(self.scan_number_array, self.Nspws)
             ms.putcol("SCAN_NUMBER", scan_array_tiled)
         else:
