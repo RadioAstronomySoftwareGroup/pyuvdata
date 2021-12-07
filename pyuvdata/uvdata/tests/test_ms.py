@@ -714,9 +714,9 @@ def test_ms_weights(mir_uv, tmp_path):
     ms_uv = UVData()
     testfile = os.path.join(tmp_path, "out_ms_weights.ms")
 
-    mir_uv.nsample_array[0, 0, :, 0] = np.tile(
-        np.arange(mir_uv.Nfreqs / mir_uv.Nspws), mir_uv.Nspws,
-    )
+    mir_uv.nsample_array[0, 0, :, :] = np.tile(
+        np.arange(mir_uv.Nfreqs / mir_uv.Nspws), (mir_uv.Npols, mir_uv.Nspws)
+    ).T
     mir_uv.write_ms(testfile, clobber=True)
 
     tb_main = tables.table(testfile, readonly=False, ack=False)
