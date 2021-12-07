@@ -11,7 +11,6 @@ import numpy as np
 import os
 import warnings
 from astropy.time import Time
-from scipy import ndimage as nd
 
 from .uvdata import UVData
 from .. import utils as uvutils
@@ -1166,36 +1165,14 @@ class MS(UVData):
 
             ms.putcol("FIELD_ID", np.repeat(field_id_array, self.Nspws))
 
-            # If scan numbers are not already defined from reading an MS,
-            # group integrations (rows) into scan numbers.
-            if self.scan_number_array is None:
+        # If scan numbers are not already defined from reading an MS,
+        # group integrations (rows) into scan numbers.
+        if self.scan_number_array is None:
+            self._set_scan_numbers()
 
-                slice_list = []
-                for idx in range(self.Nphase):
-                    sou_id = self.phase_center_catalog[sou_list[idx]]["cat_id"]
-                    slice_list.extend(
-                        nd.find_objects(
-                            nd.label(self.phase_center_id_array == sou_id)[0]
-                        )
-                    )
-
-                # Sort by start integration number, which we can extract from
-                # the start of each slice in the list.
-                slice_list_ord = sorted(slice_list, key=lambda x: x[0].start)
-
-                # Incrementally increase the scan number with each group in
-                # slice_list_ord
-                scan_array = np.zeros_like(self.phase_center_id_array)
-                for ii, slice_scan in enumerate(slice_list_ord):
-                    scan_array[slice_scan] = ii + 1
-
-                scan_array_tiled = np.repeat(scan_array, self.Nspws)
-
-            else:
-                scan_array_tiled = np.repeat(self.scan_number_array, self.Nspws)
-
+        if self.multi_phase_center:
+            scan_array_tiled = np.repeat(self.scan_number_array, self.Nspws)
             ms.putcol("SCAN_NUMBER", scan_array_tiled)
-
         else:
             if self.scan_number_array is not None:
                 ms.putcol("SCAN_NUMBER", self.scan_number_array)
