@@ -17,7 +17,6 @@ import numpy as np
 from ... import UVData
 from ...data import DATA_PATH
 from ...uvdata.mir import mir_parser
-from .test_ms import allowed_failures_with_ms
 
 
 @pytest.fixture
@@ -222,7 +221,7 @@ def test_read_mir_write_ms(uv_in_ms, future_shapes):
     mir_uv.filename = ms_uv.filename = None
 
     # Finally, with all exceptions handled, check for equality.
-    assert ms_uv.__eq__(mir_uv, allowed_failures=allowed_failures_with_ms)
+    assert ms_uv.__eq__(mir_uv, allowed_failures=["filename"])
 
 
 @pytest.mark.filterwarnings("ignore:LST values stored ")
