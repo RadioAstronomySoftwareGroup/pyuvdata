@@ -739,7 +739,7 @@ class UVData(UVBase):
             # If this isn't defined, we cannot define scan numbers in this way
             # and default to a single "scan".
             if self.phase_center_catalog is None:
-                self.scan_number_array = np.zeros((self.Nblts,), dtype=int)
+                self.scan_number_array = np.ones((self.Nblts,), dtype=int)
 
             else:
                 sou_list = list(self.phase_center_catalog.keys())
