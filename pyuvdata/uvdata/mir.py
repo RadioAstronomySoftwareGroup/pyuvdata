@@ -74,12 +74,12 @@ class Mir(UVData):
 
         if irec is not None:
             mir_data.use_bl *= np.isin(mir_data.bl_read["irec"], irec)
-            if not np.any(mir_data.use_in):
+            if not np.any(mir_data.use_bl):
                 raise ValueError("No valid receivers selected!")
 
         if isb is not None:
             mir_data.use_bl *= np.isin(mir_data.bl_read["isb"], isb)
-            if not np.any(mir_data.use_in):
+            if not np.any(mir_data.use_bl):
                 raise ValueError("No valid sidebands selected!")
 
         if corrchunk is not None:
@@ -90,9 +90,6 @@ class Mir(UVData):
             mir_data.use_sp *= mir_data.sp_read["corrchunk"] != 0
 
         mir_data._update_filter()
-
-        if len(mir_data.in_data) == 0:
-            raise IndexError("No valid records matching those selections!")
 
         self._init_from_mir_parser(mir_data)
 
@@ -273,15 +270,18 @@ class Mir(UVData):
             Nfreqs += spw_dict[key]["nchan"]
 
         # Initialize some arrays that we'll be appending to
-        flex_spw_id_array = np.zeros(Nfreqs, dtype=np.int64)
+        flex_spw_id_array = np.zeros(Nfreqs, dtype=int)
         channel_width = np.zeros(Nfreqs, dtype=np.float64)
         freq_array = np.zeros(Nfreqs, dtype=np.float64)
-        flex_pol = np.zeros(Nspws, dtype=np.int64)
+        flex_pol = np.zeros(Nspws, dtype=int)
         for idx, key in enumerate(spw_array):
             flex_spw_id_array[spw_dict[key]["ch_slice"]] = spw_dict[key]["spw_id_array"]
             channel_width[spw_dict[key]["ch_slice"]] = spw_dict[key]["channel_width"]
             freq_array[spw_dict[key]["ch_slice"]] = spw_dict[key]["freq_array"]
             flex_pol[idx] = spw_dict[key]["pol_state"] if pol_split_tuning else 0.0
+
+        if pol_split_tuning:
+            flex_pol = None
 
         for key in spdx_dict:
             spdx_dict[key]["ch_slice"] = spw_dict[spdx_dict[key]["spw_id"]]["ch_slice"]
@@ -429,7 +429,7 @@ class Mir(UVData):
         self.time_array = Time(mjd_array, scale="tt", format="mjd").utc.jd
 
         self.polarization_array = polarization_array
-        self.spw_array = spw_array
+        self.spw_array = np.array(spw_array, dtype=int)
         self.telescope_name = "SMA"
 
         # Need to flip the sign convention here on uvw, since we use a1-a2 versus the
@@ -460,7 +460,7 @@ class Mir(UVData):
                 cat_epoch=source_epoch,
                 cat_frame="fk5",
                 info_source="file",
-                cat_id=sou_id,
+                cat_id=int(sou_id),
             )
 
         # Regenerate the sou_id_array thats native to MIR into a zero-indexed per-blt
