@@ -153,7 +153,7 @@ Optional:
 * astropy-healpix (for working with beams in HEALPix formats)
 * pyyaml (for working with settings files for CST beam files)
 * novas and novas_de405 (for using the NOVAS library for astrometry)
-* astroquery >= 0.4.1 (for enabling lookup functionality with JPL-Horizons)
+* astroquery >= 0.4.4 (for enabling lookup functionality with JPL-Horizons)
 
 The numpy and astropy versions are important, so make sure these are up to date.
 
