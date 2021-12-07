@@ -97,7 +97,7 @@ extensions = [corr_fits_extension, utils_extension]
 if not is_platform_windows():
     extensions.append(miriad_extension)
 
-astroquery_reqs = ["astroquery"]
+astroquery_reqs = ["astroquery>=0.4.4"]
 novas_reqs = ["novas", "novas_de405"]
 casa_reqs = ["python-casacore>=3.1.0"]
 healpix_reqs = ["astropy_healpix"]
