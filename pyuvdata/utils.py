@@ -65,7 +65,9 @@ __all__ = [
 POL_STR2NUM_DICT = {"pI": 1, "pQ": 2, "pU": 3, "pV": 4,
                     "I": 1, "Q": 2, "U": 3, "V": 4,  # support straight stokes names
                     "rr": -1, "ll": -2, "rl": -3, "lr": -4,
-                    "xx": -5, "yy": -6, "xy": -7, "yx": -8}
+                    "xx": -5, "yy": -6, "xy": -7, "yx": -8,
+                    "hh": -5, "vv": -6, "hv": -7, "vh": -8}
+
 # maps polarization integers to polarization strings
 POL_NUM2STR_DICT = {1: "pI", 2: "pQ", 3: "pU", 4: "pV",
                     -1: "rr", -2: "ll", -3: "rl", -4: "lr",
