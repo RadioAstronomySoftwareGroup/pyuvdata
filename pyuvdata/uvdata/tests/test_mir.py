@@ -55,7 +55,7 @@ def uv_in_uvfits(tmp_path):
     write_file = os.path.join(tmp_path, "outtest_mir.uvfits")
 
     # Currently only one source is supported.
-    uv_in.read(testfile, pseudo_cont=True)
+    uv_in.read(testfile, pseudo_cont=False)
     uv_out = UVData()
 
     yield uv_in, uv_out, write_file
@@ -292,17 +292,17 @@ def test_read_mir_no_records():
     """
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     uv_in = UVData()
-    with pytest.raises(IndexError, match="No valid sources selected!"):
+    with pytest.raises(ValueError, match="No valid sources selected!"):
         uv_in.read_mir(testfile, isource=-1)
 
-    with pytest.raises(IndexError, match="No valid records matching those selections!"):
+    with pytest.raises(ValueError, match="No valid receivers selected!"):
         uv_in.read_mir(testfile, irec=-1)
 
-    with pytest.raises(IndexError, match="No valid sidebands selected!"):
-        uv_in.read_mir(testfile, isb=[])
+    with pytest.raises(ValueError, match="No valid sidebands selected!"):
+        uv_in.read_mir(testfile, isb=-156)
 
-    with pytest.raises(IndexError, match="isb values contain invalid entries"):
-        uv_in.read_mir(testfile, isb=[-156])
+    with pytest.raises(ValueError, match="No valid spectral bands selected!"):
+        uv_in.read_mir(testfile, corrchunk=999)
 
 
 def test_read_mir_sideband_select():
