@@ -17,7 +17,6 @@ from pyuvdata import UVData
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
-from .test_ms import allowed_failures_with_ms
 
 casa_tutorial_uvfits = os.path.join(
     DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits"
@@ -114,7 +113,7 @@ def test_time_precision(tmp_path):
         atol=uvd2._lst_array.tols[1],
     )
 
-    assert uvd2.__eq__(uvd, allowed_failures=allowed_failures_with_ms)
+    assert uvd2.__eq__(uvd, allowed_failures=["filename", "scan_number_array"])
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
