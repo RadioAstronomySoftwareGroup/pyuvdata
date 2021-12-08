@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added a warning when using `UVData.write_uvfits` if a UVData object has > 256 antennas,
+recommending use of `UVData.write_ms` if intending to import the data into CASA.
 - Reading writing of scan numbers for MS files as `UVData.scan_number_array`.
 - Grouping of contiguous integrations for a phase center into "scan numbers" in `UVData._set_scan_numbers`.
 This grouping defines `UVData.scan_number_array` when not originally present in the data (e.g. reading in
