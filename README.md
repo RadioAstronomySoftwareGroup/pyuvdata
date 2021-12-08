@@ -36,7 +36,8 @@ Also can convert raw data quality metrics into flags using thresholding.
 tested with ATCA files
 * uvfits conforms to AIPS memo 117 (as of March 2020).  It is tested against
 FHD, CASA, and AIPS. However AIPS is limited to <80 antennas and CASA uvfits
-import does not seem to support >255 antennas.
+import does not seem to support >255 antennas. Users with data sets containing > 255
+antennas should use the measurement set writer instead.
 * CASA measurement sets, primarily conforming to [CASA Memo 229](https://casa.nrao.edu/Memos/229.html), with some elements taken from the proposed v3.0 format documented in [CASA Memo 264](https://casacore.github.io/casacore-notes/264.html). Measurement sets are tested against
 VLA and MWA data sets, (the latter filled via cotter), with some manual verification
 haven been performed against ALMA and SMA data sets, the latter filled using the `importuvfits` task of CASA.
