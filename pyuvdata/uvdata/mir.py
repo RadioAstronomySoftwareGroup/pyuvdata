@@ -289,6 +289,7 @@ class Mir(UVData):
         # Load up the visibilities into the MirParser object.
         vis_data = np.zeros((Nblts, Npols, Nfreqs), dtype=np.complex64)
         mir_data.load_data(load_vis=True)
+        mir_data._apply_tsys()
 
         for sp_rec, window, vis_rec in zip(
             mir_data.sp_data, spdx_list, mir_data.vis_data
@@ -436,8 +437,7 @@ class Mir(UVData):
         # standard a2-a1 that uvdata expects
         self.uvw_array = (-1.0) * uvw_array
 
-        # todo: Raw data is in correlation coefficients, we may want to convert to Jy.
-        self.vis_units = "uncalib"
+        self.vis_units = "Jy"
 
         sou_list = mir_data.codes_data[mir_data.codes_data["v_name"] == b"source"]
         isource = np.unique(mir_data.in_data["isource"])
