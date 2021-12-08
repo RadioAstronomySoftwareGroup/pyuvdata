@@ -960,6 +960,7 @@ def test_remove_flagged_ants(tmp_path):
 
 @pytest.mark.filterwarnings("ignore:telescope_location is not set. ")
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:.*values are being corrected with the van vleck")
 def test_small_sigs(tmp_path):
     """Test flag_small_auto_ants."""
     small_sigs = str(tmp_path / "small_sigs07_02.fits")
