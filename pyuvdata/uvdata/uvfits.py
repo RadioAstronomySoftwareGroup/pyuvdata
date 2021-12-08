@@ -828,6 +828,12 @@ class UVFITS(UVData):
         """
         Write the data to a uvfits file.
 
+        If using this method to write out a data set for import into CASA, users should
+        be aware that the `importuvifts` task does not currently support reading in
+        data sets where the number of antennas is > 255. If writing out such a data set
+        for use in CASA, we suggest using the measurement set writer (`UVData.write_ms`)
+        instead.
+
         Parameters
         ----------
         filename : str
@@ -1118,6 +1124,13 @@ class UVFITS(UVData):
             # baseline array and the antenna arrays in the group parameters.
             # Otherwise just use the antenna arrays
             parnames_use.append("BASELINE")
+        else:
+            warnings.warn(
+                "Found > 256 antennas in this data set. This is permitted by UVFITS "
+                "standards, but may cause the `importuvfits` utility within CASA to "
+                "crash. If attempting to use this data set in CASA, consider using "
+                "the measurement set writer method (`write_ms`) instead."
+            )
 
         if self.multi_phase_center:
             parnames_use.append("SOURCE  ")
