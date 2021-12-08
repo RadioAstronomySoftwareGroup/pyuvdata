@@ -98,7 +98,15 @@ def test_read_nrao_loopback(tmp_path, nrao_uv):
 
     testfile = os.path.join(tmp_path, "ms_testfile.ms")
 
-    uvobj.write_ms(testfile)
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Writing in the MS file that the units of the data are",
+            "The uvw_array does not match the expected values",
+        ],
+    ):
+        uvobj.write_ms(testfile)
+
     uvobj2 = UVData()
     uvobj2.read_ms(testfile)
 
@@ -753,7 +761,10 @@ def test_antenna_diameter_handling(hera_uvh5, tmp_path):
     uv_obj.antenna_diameters = np.asarray(uv_obj.antenna_diameters, dtype=">f4")
 
     test_file = os.path.join(tmp_path, "dish_diameter_out.ms")
-    uv_obj.write_ms(test_file, force_phase=True)
+    with uvtest.check_warnings(
+        UserWarning, match="Writing in the MS file that the units of the data are"
+    ):
+        uv_obj.write_ms(test_file, force_phase=True)
 
     uv_obj2 = UVData.from_file(test_file)
 
