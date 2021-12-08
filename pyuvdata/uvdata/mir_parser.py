@@ -453,9 +453,7 @@ class MirParser(object):
         if self.auto_data is not None:
             self.auto_data = None
 
-    def _tsys_calibrate_data(
-        self, interp_rxa_ants=None, interp_rxb_ants=None, jypk=130.0
-    ):
+    def _apply_tsys(self, interp_rxa_ants=None, interp_rxb_ants=None, jypk=130.0):
         """
         Apply Tsys calibration to the visibilities.
 
