@@ -1121,6 +1121,16 @@ class MS(UVData):
                 val_dict.update(temp_dict)
             ms.putvarcol(col, {key: val_dict[key] for key in sorted(val_dict.keys())})
 
+        # Write out the units of the visibilities, post a warning if its not in Jy since
+        # we don't know how every CASA program may react
+        ms.putcolkeyword("DATA", "QuantumUnits", self.vis_units)
+        if self.vis_units != "Jy":
+            warnings.warn(
+                "Writing in the MS file that the units of the data are %s, although "
+                "some CASA process will ignore this and assume the units are all in Jy "
+                "(or may not know how to handle data in these units)." % self.vis_units
+            )
+
         # TODO: If/when UVData objects can store visibility noise estimates, update
         # the code below to capture those.
         ms.putcol("WEIGHT", temp_weights)
@@ -1360,6 +1370,7 @@ class MS(UVData):
         Raises
         ------
         ValueError
+            If the `data_column` is not set to an allowed value.
             If the MS file contains data from multiple subarrays.
         """
         tb_main = tables.table(filepath, ack=False)
@@ -1367,6 +1378,21 @@ class MS(UVData):
         main_keywords = tb_main.getkeywords()
         if "pyuvdata_extra" in main_keywords.keys():
             self.extra_keywords = main_keywords["pyuvdata_extra"]
+
+        default_vis_units = {"DATA": "uncalib", "CORRECTED_DATA": "Jy", "MODEL": "Jy"}
+
+        # make sure user requests a valid data_column
+        if data_column not in default_vis_units.keys():
+            raise ValueError(
+                "Invalid data_column value supplied. Use 'Data','MODEL' or"
+                " 'CORRECTED_DATA'"
+            )
+
+        # set visibility units
+        try:
+            self.vis_units = tb_main.getcolkeywords(data_column)["QuantumUnits"]
+        except KeyError:
+            self.vis_units = default_vis_units[data_column]
 
         # limit length of extra_keywords keys to 8 characters to match uvfits & miriad
         self.extra_keywords["DATA_COL"] = data_column
@@ -1753,23 +1779,12 @@ class MS(UVData):
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
 
-        vis_unit_dict = {"DATA": "uncalib", "CORRECTED_DATA": "Jy", "MODEL": "Jy"}
-
-        # make sure user requests a valid data_column
-        if data_column not in vis_unit_dict.keys():
-            raise ValueError(
-                "Invalid data_column value supplied. Use 'Data','MODEL' or"
-                " 'CORRECTED_DATA'"
-            )
         if not os.path.exists(filepath):
             raise IOError(filepath + " not found")
         # set filename variable
         basename = filepath.rstrip("/")
         self.filename = [os.path.basename(basename)]
         self._filename.form = (1,)
-
-        # set visibility units
-        self.vis_units = vis_unit_dict[data_column]
 
         # get the history info
         pyuvdata_written = False
