@@ -243,7 +243,20 @@ def test_read_carma_miriad_write_ms(tmp_path):
     # the MS format requires recalculating apparent coords after read in, we'll
     # calculate them here just to verify that everything matches.
     uv_in._set_app_coords_helper()
-    uv_in.write_ms(testfile, clobber=True)
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "The uvw_array does not match the expected values given the antenna ",
+            "pamatten in extra_keywords is a list, array or dict",
+            "psys in extra_keywords is a list, array or dict",
+            "psysattn in extra_keywords is a list, array or dict",
+            "ambpsys in extra_keywords is a list, array or dict",
+            "bfmask in extra_keywords is a list, array or dict",
+            "Writing in the MS file that the units of the data are",
+        ],
+    ):
+        uv_in.write_ms(testfile, clobber=True)
+
     uv_out.read(testfile)
 
     # Make sure the MS extra keywords are as expected
