@@ -12414,6 +12414,12 @@ class UVData(UVBase):
         """
         Write the data to a uvfits file.
 
+        If using this method to write out a data set for import into CASA, users should
+        be aware that the `importuvifts` task does not currently support reading in
+        data sets where the number of antennas is > 255. If writing out such a data set
+        for use in CASA, we suggest using the measurement set writer (`UVData.write_ms`)
+        instead.
+
         Parameters
         ----------
         filename : str
