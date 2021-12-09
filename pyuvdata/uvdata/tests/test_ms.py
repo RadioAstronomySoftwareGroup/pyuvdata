@@ -413,6 +413,7 @@ def test_parse_pyuvdata_frame_ref_errors(check_warning, frame, epoch, msg):
         assert str(cm.value).startswith(msg)
 
 
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 def test_ms_history_lesson(mir_uv, tmp_path):
     """
     Test that the MS reader/writer can parse complex history
@@ -455,6 +456,7 @@ def test_ms_history_lesson(mir_uv, tmp_path):
     assert ms_uv.history.startswith("  Read/written with pyuvdata version:")
 
 
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 def test_ms_no_ref_dir_source(mir_uv, tmp_path):
     """
     Test that the MS writer/reader appropriately reads in a single-source data set
@@ -477,6 +479,7 @@ def test_ms_no_ref_dir_source(mir_uv, tmp_path):
     assert ms_uv.phase_center_catalog == mir_uv.phase_center_catalog
 
 
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 def test_ms_multi_spw_data_variation(mir_uv, tmp_path):
     """
     Test that the MS writer/reader appropriately reads in a single-source data set
@@ -506,6 +509,7 @@ def test_ms_multi_spw_data_variation(mir_uv, tmp_path):
     assert np.all(ms_uv.integration_time == np.array([1.0]))
 
 
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_ms_phasing(mir_uv, tmp_path):
     """
@@ -530,6 +534,7 @@ def test_ms_phasing(mir_uv, tmp_path):
     )
 
 
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 def test_ms_single_chan(mir_uv, tmp_path):
     """
     Make sure that single channel writing/reading work as expected
@@ -573,6 +578,14 @@ def test_ms_single_chan(mir_uv, tmp_path):
     assert ms_uv == mir_uv
 
 
+@pytest.mark.filterwarnings("ignore:pamatten in extra_keywords is a list, array")
+@pytest.mark.filterwarnings("ignore:psys in extra_keywords is a list, array or dict")
+@pytest.mark.filterwarnings("ignore:psysattn in extra_keywords is a list, array or")
+@pytest.mark.filterwarnings("ignore:ambpsys in extra_keywords is a list, array or dict")
+@pytest.mark.filterwarnings("ignore:bfmask in extra_keywords is a list, array or dict")
+@pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 def test_ms_scannumber_multiphasecenter(tmp_path):
     """
     Make sure that single channel writing/reading work as expected
@@ -632,6 +645,7 @@ def test_ms_scannumber_multiphasecenter(tmp_path):
     assert ((miriad_uv.phase_center_id_array == (ms_uv.scan_number_array - 1))).all()
 
 
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 def test_ms_extra_data_descrip(mir_uv, tmp_path):
     """
     Make sure that data sets can be read even if the main table doesn't have data
@@ -678,6 +692,7 @@ def test_ms_extra_data_descrip(mir_uv, tmp_path):
     assert ms_uv == mir_uv
 
 
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 def test_ms_weights(mir_uv, tmp_path):
     """
     Test that the MS writer/reader appropriately handles data when the
@@ -707,6 +722,7 @@ def test_ms_weights(mir_uv, tmp_path):
     assert np.all(ms_uv.nsample_array == 1.0)
 
 
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 @pytest.mark.parametrize(
     "badcol,badval,errtype,msg",
     (
