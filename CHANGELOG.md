@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added a warning when using `UVData.write_uvfits` when the `vis_units` attribute is
+anything other than `Jy`.
 - Added a warning when using `UVData.write_uvfits` if a UVData object has > 256 antennas,
 recommending use of `UVData.write_ms` if intending to import the data into CASA.
 - Reading writing of scan numbers for MS files as `UVData.scan_number_array`.
@@ -16,6 +18,11 @@ a non-MS file) and is used when writing to an MS file.
 - Flexible spectral windows to `read_mwa_corr_fits`.
 
 ### Changed
+- Changed the defaults by which the `UVData.antenna_names` attribute is set when reading
+measurement sets (used to default to station names, now uses antenna names if available
+and the MS file was not written using the CASA `importuvfits` routine).
+- Fixed a bug where `UVData.x_orientation` and `UVData.vis_units` were not being written
+ to / read from measurement sets.
 - Updated the astroquery requirement to >= 0.4.4, due to changes in the API handling for
 calls to JPL Horizons.
 - Assumes uvfits files are in ITRF frame unless explicitly stated otherwise. Consistent with AIPS 117.
