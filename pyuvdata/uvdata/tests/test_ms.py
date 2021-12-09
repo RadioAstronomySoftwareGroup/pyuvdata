@@ -772,10 +772,4 @@ def test_antenna_diameter_handling(hera_uvh5, tmp_path):
     uv_obj2.history = uv_obj.history
     uv_obj2.extra_keywords = uv_obj.extra_keywords
 
-    # Uh oh, we're losing x_orientation in the ms write/read round trip.
-    # That's a problem. Documented in issue #1083.
-    assert uv_obj.x_orientation is not None
-    assert uv_obj2.x_orientation is None
-    uv_obj2.x_orientation = uv_obj.x_orientation
-
     assert uv_obj2.__eq__(uv_obj, allowed_failures=allowed_failures)
