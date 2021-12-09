@@ -371,6 +371,20 @@ class UVData(UVBase):
             required=False,
         )
 
+        desc = (
+            "Optional, only used if flex_spw = True. Allows for labeling individual "
+            "spectral windows with different polarizations. If set, Npols must be set "
+            "to 1 (i.e., only one polarization per spectral window allowed). Shape "
+            "(Nspws), type = int."
+        )
+        self._flex_spw_polarization_array = uvp.UVParameter(
+            "flex_spw_polarization_array",
+            description=desc,
+            form=("Nspws",),
+            expected_type=int,
+            required=False,
+        )
+
         desc = "Flag indicating that this object is using the future array shapes."
         self._future_array_shapes = uvp.UVParameter(
             "future_array_shapes", description=desc, expected_type=bool, value=False,
@@ -2440,6 +2454,13 @@ class UVData(UVBase):
             raise ValueError(
                 "Ntimes must be equal to the number of unique "
                 "times in the time_array"
+            )
+
+        # Check that usage of flex_spw_polarization_array follows the rule that each
+        # window only has a single polarization per spectral window.
+        if self.Npols != 1 and self.flex_spw_polarization_array is not None:
+            raise ValueError(
+                "Npols must be equal to 1 if flex_spw_polarization_array is set."
             )
 
         # require that all entries in ant_1_array and ant_2_array exist in
