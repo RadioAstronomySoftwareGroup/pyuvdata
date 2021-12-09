@@ -1189,6 +1189,9 @@ class MS(UVData):
         if len(self.extra_keywords) != 0:
             ms.putkeyword("pyuvdata_extra", self.extra_keywords)
 
+        if self.x_orientation is not None:
+            ms.putkeyword("pyuvdata_xorient", self.x_orientation)
+
         ms.done()
 
         self._write_ms_antenna(filepath)
@@ -1378,6 +1381,9 @@ class MS(UVData):
         main_keywords = tb_main.getkeywords()
         if "pyuvdata_extra" in main_keywords.keys():
             self.extra_keywords = main_keywords["pyuvdata_extra"]
+
+        if "pyuvdata_xorient" in main_keywords.keys():
+            self.x_orientation = main_keywords["pyuvdata_xorient"]
 
         default_vis_units = {"DATA": "uncalib", "CORRECTED_DATA": "Jy", "MODEL": "Jy"}
 
