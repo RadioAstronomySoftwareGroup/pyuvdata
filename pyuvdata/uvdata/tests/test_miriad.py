@@ -199,6 +199,7 @@ def test_read_write_read_carma(tmp_path):
 @pytest.mark.filterwarnings("ignore:bfmask in extra_keywords is a list, array or dict")
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 def test_read_carma_miriad_write_ms(tmp_path):
     """
     Check a roundtrip between CARMA-MIRIAD and MS formats.
