@@ -164,6 +164,7 @@ def test_read_mir_write_uvfits(uv_in_uvfits, future_shapes):
     assert mir_uv == uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_read_mir_write_ms(uv_in_ms, future_shapes):
