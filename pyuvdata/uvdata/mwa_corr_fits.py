@@ -1494,7 +1494,7 @@ class MWACorrFITS(UVData):
         )
 
         # get telescope parameters
-        self.set_telescope_params()
+        self.set_telescope_params(warn=False)
 
         # build time array of centers
         time_array = np.arange(
@@ -1750,8 +1750,9 @@ class MWACorrFITS(UVData):
             if correct_cable_len is None:
                 correct_cable_len = True
                 warnings.warn(
-                    "cable length correction is defaulted to True. To read in files \
-                    without applying the correction set correct_cable_len=False."
+                    "cable length correction is now defaulted to True rather than False. \
+                    To read in files without applying the correction set \
+                    correct_cable_len=False. This warning will be removed in v2.4"
                 )
             if correct_cable_len:
                 self.correct_cable_length(cable_lens, ant_1_inds, ant_2_inds)

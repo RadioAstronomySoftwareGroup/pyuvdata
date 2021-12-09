@@ -2110,7 +2110,7 @@ class UVData(UVBase):
         """
         return uvtel.known_telescopes()
 
-    def set_telescope_params(self, overwrite=False):
+    def set_telescope_params(self, overwrite=False, warn=True):
         """
         Set telescope related parameters.
 
@@ -2170,13 +2170,14 @@ class UVData(UVBase):
 
             if len(params_set) > 0:
                 params_set_str = ", ".join(params_set)
-                warnings.warn(
-                    "{params} is not set. Using known values "
-                    "for {telescope_name}.".format(
-                        params=params_set_str,
-                        telescope_name=telescope_obj.telescope_name,
+                if warn:
+                    warnings.warn(
+                        "{params} is not set. Using known values "
+                        "for {telescope_name}.".format(
+                            params=params_set_str,
+                            telescope_name=telescope_obj.telescope_name,
+                        )
                     )
-                )
         else:
             raise ValueError(
                 f"Telescope {self.telescope_name} is not in known_telescopes."
