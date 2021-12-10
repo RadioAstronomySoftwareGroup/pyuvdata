@@ -6478,7 +6478,7 @@ class UVData(UVBase):
             if np.any(this_argsort != other_argsort):
                 temp_ind = np.arange(this.Nblts)
                 temp_ind[this_blts_ind[this_argsort]] = temp_ind[
-                    this_blts_ind[this_blts_ind[other_argsort]]
+                    this_blts_ind[other_argsort]
                 ]
 
                 this.reorder_blts(temp_ind)
@@ -6489,10 +6489,10 @@ class UVData(UVBase):
             if np.any(this_argsort != other_argsort):
                 temp_ind = np.arange(this.Nfreqs)
                 temp_ind[this_freq_ind[this_argsort]] = temp_ind[
-                    this_freq_ind[this_blts_ind[other_argsort]]
+                    this_freq_ind[other_argsort]
                 ]
 
-                this.reorder_freqs(temp_ind)
+                this.reorder_freqs(channel_order=temp_ind)
 
         if len(this_pol_ind) != 0:
             this_argsort = np.argsort(this_pol_ind)
@@ -6500,7 +6500,7 @@ class UVData(UVBase):
             if np.any(this_argsort != other_argsort):
                 temp_ind = np.arange(this.Npols)
                 temp_ind[this_pol_ind[this_argsort]] = temp_ind[
-                    this_pol_ind[this_blts_ind[other_argsort]]
+                    this_pol_ind[other_argsort]
                 ]
 
                 this.reorder_pols(temp_ind)
