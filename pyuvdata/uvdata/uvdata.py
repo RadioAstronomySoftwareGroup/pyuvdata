@@ -6415,6 +6415,8 @@ class UVData(UVBase):
                     )
 
         # Begin manipulating the objects.
+        # First, handle the internal source catalogs, since merging them is kind of a
+        # weird, one-off process (i.e., nothing is cat'd across a particular axis)
         if make_multi_phase and (not this.multi_phase_center):
             this._set_multi_phase_center(preserve_phase_center_info=True)
         if other.multi_phase_center:
@@ -6464,6 +6466,109 @@ class UVData(UVBase):
                 cat_frame=other.phase_center_frame,
                 cat_epoch=other.phase_center_epoch,
             )
+
+        # Next, we want to make sure that the ordering of the _overlapping_ data is
+        # the same, so that things can get plugged together in a sensible way.
+        if len(this_blts_ind) != 0:
+            this_argsort = np.argsort(this_blts_ind)
+            other_argsort = np.argsort(other_blts_ind)
+
+            if np.any(this_argsort != other_argsort):
+                old_ind = this_blts_ind[this_argsort]
+                new_ind = this_blts_ind[other_argsort]
+                this.ant_1_array[old_ind] = this.ant_1_array[new_ind]
+                this.ant_2_array[old_ind] = this.ant_2_array[new_ind]
+                this.baseline_array[old_ind] = this.baseline_array[new_ind]
+                this.lst_array[old_ind] = this.lst_array[new_ind]
+                this.uvw_array[old_ind] = this.uvw_array[new_ind]
+                this.integration_time[old_ind] = this.integration_time[new_ind]
+                this.time_array[old_ind] = this.time_array[new_ind]
+                if this.data_array is not None:
+                    this.data_array[old_ind] = this.data_array[new_ind]
+                if this.flag_array is not None:
+                    this.flag_array[old_ind] = this.flag_array[new_ind]
+                if this.nsample_array is not None:
+                    this.nsample_array[old_ind] = this.nsample_array[new_ind]
+                if this.phase_center_app_ra is not None:
+                    this.phase_center_app_ra[old_ind] = this.phase_center_app_ra[
+                        new_ind
+                    ]
+                    this.phase_center_app_dec[old_ind] = this.phase_center_app_dec[
+                        new_ind
+                    ]
+                    this.phase_center_frame_pa[old_ind] = this.phase_center_frame_pa[
+                        new_ind
+                    ]
+                if this.phase_center_id_array is not None:
+                    this.phase_center_id_array[old_ind] = this.phase_center_id_array[
+                        new_ind
+                    ]
+                if this.scan_number_array is not None:
+                    this.scan_number_array[old_ind] = this.scan_number_array[new_ind]
+
+        if len(this_freq_ind) != 0:
+            this_argsort = np.argsort(this_freq_ind)
+            other_argsort = np.argsort(other_freq_ind)
+            if np.any(this_argsort != other_argsort):
+                old_ind = this_freq_ind[this_argsort]
+                new_ind = this_freq_ind[other_argsort]
+                if this.future_array_shapes:
+                    this.freq_array[old_ind] = this.freq_array[new_ind]
+                    this.channel_width[old_ind] = this.channel_width[new_ind]
+                else:
+                    this.freq_array[:, old_ind] = this.freq_array[:, new_ind]
+                    if self.flex_spw:
+                        this.channel_width[old_ind] = this.channel_width[new_ind]
+                if this.flex_spw_id_array is not None:
+                    this.flex_spw_id_array[old_ind] = this.flex_spw_id_array[new_ind]
+                if this.eq_coeffs is not None:
+                    this.eq_coeffs[:, old_ind] = this.eq_coeffs[:, new_ind]
+                if this.future_array_shapes:
+                    if this.data_array is not None:
+                        this.data_array[:, old_ind] = this.data_array[:, new_ind]
+                    if this.flag_array is not None:
+                        this.flag_array[:, old_ind] = this.flag_array[:, new_ind]
+                    if this.nsample_array is not None:
+                        this.nsample_array[:, old_ind] = this.nsample_array[:, new_ind]
+                else:
+                    if this.data_array is not None:
+                        this.data_array[:, :, old_ind] = this.data_array[:, :, new_ind]
+                    if this.flag_array is not None:
+                        this.flag_array[:, :, old_ind] = this.flag_array[:, :, new_ind]
+                    if this.nsample_array is not None:
+                        this.nsample_array[:, :, old_ind] = this.nsample_array[
+                            :, :, new_ind
+                        ]
+
+        if len(this_pol_ind) != 0:
+            this_argsort = np.argsort(this_pol_ind)
+            other_argsort = np.argsort(other_pol_ind)
+            if np.any(this_argsort != other_argsort):
+                old_ind = this_pol_ind[this_argsort]
+                new_ind = this_pol_ind[other_argsort]
+                this.polarization_array[old_ind] = this.polarization_array[new_ind]
+                if this.future_array_shapes:
+                    if this.data_array is not None:
+                        this.data_array[:, :, old_ind] = this.data_array[:, :, new_ind]
+                    if this.flag_array is not None:
+                        this.flag_array[:, :, old_ind] = this.flag_array[:, :, new_ind]
+                    if this.nsample_array is not None:
+                        this.nsample_array[:, :, old_ind] = this.nsample_array[
+                            :, :, new_ind
+                        ]
+                else:
+                    if this.data_array is not None:
+                        this.data_array[:, :, :, old_ind] = this.data_array[
+                            :, :, :, new_ind
+                        ]
+                    if this.flag_array is not None:
+                        this.flag_array[:, :, old_ind] = this.flag_array[
+                            :, :, :, new_ind
+                        ]
+                    if this.nsample_array is not None:
+                        this.nsample_array[:, :, :, old_ind] = this.nsample_array[
+                            :, :, :, new_ind
+                        ]
 
         # Pad out self to accommodate new data
         if len(bnew_inds) > 0:
