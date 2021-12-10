@@ -11261,3 +11261,68 @@ def test_from_file(filename):
     uvd.read(testfile)
     uvd2 = UVData.from_file(testfile)
     assert uvd == uvd2
+
+
+@pytest.mark.parametrize("add_type", ["blt", "freq", "pol"])
+@pytest.mark.parametrize("sort_type", ["blt", "freq", "pol"])
+@pytest.mark.parametrize("future_array_shapes", [True, False])
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_add_pol_sorting_bl(casa_uvfits, add_type, sort_type, future_array_shapes):
+    if future_array_shapes:
+        casa_uvfits.use_future_array_shapes()
+
+    if add_type == "pol":
+        uv1 = casa_uvfits.select(polarizations=["ll", "lr"], inplace=False)
+        uv2 = casa_uvfits.select(polarizations=["rr", "rl"], inplace=False)
+    elif add_type == "blt":
+        uv1 = casa_uvfits.select(
+            blt_inds=np.arange(0, casa_uvfits.Nblts // 2), inplace=False
+        )
+        uv2 = casa_uvfits.select(
+            blt_inds=np.arange(casa_uvfits.Nblts // 2, casa_uvfits.Nblts), inplace=False
+        )
+    elif add_type == "freq":
+        uv1 = casa_uvfits.select(
+            freq_chans=np.arange(0, casa_uvfits.Nfreqs // 2), inplace=False
+        )
+        uv2 = casa_uvfits.select(
+            freq_chans=np.arange(casa_uvfits.Nfreqs // 2, casa_uvfits.Nfreqs),
+            inplace=False,
+        )
+
+    if sort_type == "blt":
+        uv1.reorder_blts("time", "ant1")
+        uv2.reorder_blts("time", "ant2")
+        casa_uvfits.reorder_blts("bda")
+        order_check = uv1.ant_1_array == uv2.ant_1_array
+    elif sort_type == "freq":
+        uv1.reorder_freqs(channel_order="freq")
+        uv2.reorder_freqs(channel_order="-freq")
+        casa_uvfits.reorder_freqs("freq")
+        order_check = uv1.freq_array == uv2.freq_array
+    elif sort_type == "pol":
+        uv1.reorder_pols("AIPS")
+        uv2.reorder_pols("CASA")
+        casa_uvfits.reorder_pols("CASA")
+        order_check = uv1.polarization_array == uv2.polarization_array
+
+    # Make sure that the order has actually been scrambled
+    assert not np.all(order_check)
+
+    # Combine the objects
+    uv3 = uv1 + uv2
+
+    if sort_type == "blt":
+        uv3.reorder_blts("bda")
+    elif sort_type == "freq":
+        uv3.reorder_freqs(channel_order="freq")
+    elif sort_type == "pol":
+        uv3.reorder_pols("CASA")
+
+    # Deal with the history separately, since it will be different
+    assert str.startswith(uv3.history, casa_uvfits.history)
+    casa_uvfits.history = ""
+    uv3.history = ""
+
+    # Finally, make sure everything else lines up
+    assert uv3 == casa_uvfits
