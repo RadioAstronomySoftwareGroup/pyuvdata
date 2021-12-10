@@ -4329,6 +4329,8 @@ class UVData(UVBase):
                         ]
                     if flip_spws:
                         spw_order = np.flip(spw_order)
+                else:
+                    spw_order = self.spw_array
                 # Now that we know the spw order, we can apply the first sort
                 index_array = np.concatenate(
                     [index_array[temp_spws == idx] for idx in spw_order]
