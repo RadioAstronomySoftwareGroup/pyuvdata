@@ -1965,7 +1965,7 @@ class MS(UVData):
         # cotter measurement sets store antenna names in the NAME column, which is
         # inline with the MS definition doc. In that case all the station names are
         # the same. Default to using what the MS definition doc specifies, unless
-        # we read importuvfits in the history, of the antenna column is not filled
+        # we read importuvfits in the history, or if the antenna column is not filled.
         if ("importuvfits" not in self.history) and (
             len(ant_names) == len(np.unique(ant_names)) and ("" not in ant_names)
         ):
