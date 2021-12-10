@@ -94,6 +94,7 @@ def uvdata_props():
         "eq_coeffs",
         "eq_coeffs_convention",
         "flex_spw_id_array",
+        "flex_spw_polarization_array",
         "filename",
     ]
     extra_parameters = ["_" + prop for prop in extra_properties]
