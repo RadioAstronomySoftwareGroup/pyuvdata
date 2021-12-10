@@ -134,6 +134,40 @@ class UVFITS(UVData):
         # initialize internal variables based on the antenna lists
         self.Nants_data = int(np.union1d(self.ant_1_array, self.ant_2_array).size)
 
+        # check for suffixes in the baseline coordinate names indicating the
+        # baseline coordinate system
+        if (
+            "UU" in vis_hdu.data.parnames
+            and "VV" in vis_hdu.data.parnames
+            and "WW" in vis_hdu.data.parnames
+        ):
+            uvw_names = ["UU", "VV", "WW"]
+        elif (
+            "UU---SIN" in vis_hdu.data.parnames
+            and "VV---SIN" in vis_hdu.data.parnames
+            and "WW---SIN" in vis_hdu.data.parnames
+        ):
+            uvw_names = ["UU---SIN", "VV---SIN", "WW---SIN"]
+        elif (
+            "UU---NCP" in vis_hdu.data.parnames
+            and "VV---NCP" in vis_hdu.data.parnames
+            and "WW---NCP" in vis_hdu.data.parnames
+        ):
+            uvw_names = ["UU---NCP", "VV---NCP", "WW---NCP"]
+            warnings.warn(
+                "The baseline coordinates (uvws) in this file are specified in the "
+                "---NCP coordinate system, which is does not agree with our baseline "
+                "coordinate conventions. The values are not being modified to align "
+                "with our convention."
+            )
+        else:
+            raise ValueError(
+                "There is no consistent set of baseline coordinates in this file. "
+                "The UU, VV and WW coordinate must have no suffix or the '---SIN' or "
+                "'---NCP' suffix and the suffixes must match on all three baseline "
+                "coordinate parameters."
+            )
+
         # read baseline vectors in units of seconds, return in meters
         # FITS uvw direction convention is opposite ours and Miriad's.
         # So conjugate the visibilities and flip the uvws:
@@ -141,9 +175,9 @@ class UVFITS(UVData):
             np.array(
                 np.stack(
                     (
-                        vis_hdu.data.par("UU"),
-                        vis_hdu.data.par("VV"),
-                        vis_hdu.data.par("WW"),
+                        vis_hdu.data.par(uvw_names[0]),
+                        vis_hdu.data.par(uvw_names[1]),
+                        vis_hdu.data.par(uvw_names[2]),
                     )
                 )
             )

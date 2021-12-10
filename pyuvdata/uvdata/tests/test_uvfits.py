@@ -436,6 +436,154 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
+@pytest.mark.parametrize("uvw_suffix", ["---SIN", "---NCP"])
+def test_uvw_coordinate_suffixes(casa_uvfits, tmp_path, uvw_suffix):
+    uv_in = casa_uvfits
+    write_file = str(tmp_path / "outtest_casa.uvfits")
+    write_file2 = str(tmp_path / "outtest_casa2.uvfits")
+    uv_in.write_uvfits(write_file)
+
+    with fits.open(write_file, memmap=True) as hdu_list:
+        hdunames = uvutils._fits_indexhdus(hdu_list)
+        vis_hdu = hdu_list[0]
+        vis_hdr = vis_hdu.header.copy()
+        raw_data_array = vis_hdu.data.data
+
+        par_names = vis_hdu.data.parnames
+        group_parameter_list = []
+
+        time_ind = 0
+        lst_ind = 0
+        for index, name in enumerate(par_names):
+            par_value = vis_hdu.data.par(name)
+            # time_array and lst_array need to be split in 2 parts to get high enough
+            # accuracy
+            if name.lower() == "date":
+                if time_ind == 0:
+                    # first time entry, par_value has full time value
+                    # (astropy adds the 2 values)
+                    time_array1 = np.float32(par_value)
+                    time_array2 = np.float32(par_value - np.float64(time_array1))
+                    par_value = time_array1
+                    time_ind = 1
+                else:
+                    par_value = time_array2
+            elif name.lower() == "lst":
+                if lst_ind == 0:
+                    # first lst entry, par_value has full lst value
+                    # (astropy adds the 2 values)
+                    lst_array_1 = np.float32(par_value)
+                    lst_array_2 = np.float32(par_value - np.float64(lst_array_1))
+                    par_value = lst_array_1
+                    lst_ind = 1
+                else:
+                    par_value = lst_array_2
+
+            # need to account for PZERO values
+            group_parameter_list.append(par_value - vis_hdr["PZERO" + str(index + 1)])
+
+        for name in ["UU", "VV", "WW"]:
+            par_names[par_names.index(name)] = name + uvw_suffix
+        vis_hdu = fits.GroupData(
+            raw_data_array, parnames=par_names, pardata=group_parameter_list, bitpix=-32
+        )
+        vis_hdu = fits.GroupsHDU(vis_hdu)
+        vis_hdu.header = vis_hdr
+        ant_hdu = hdu_list[hdunames["AIPS AN"]]
+
+        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+        hdulist.writeto(write_file2, overwrite=True)
+        hdulist.close()
+
+    if uvw_suffix == "---NCP":
+        with uvtest.check_warnings(
+            UserWarning,
+            match=[
+                "Telescope EVLA is not in known_telescopes.",
+                "The baseline coordinates (uvws) in this file are specified in the "
+                "---NCP coordinate system",
+                "The uvw_array does not match the expected values given the antenna ",
+            ],
+        ):
+            uv2 = UVData.from_file(write_file2)
+    else:
+        uv2 = UVData.from_file(write_file2)
+
+    assert uv2 == uv_in
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
+@pytest.mark.parametrize(
+    "uvw_suffix", [["---SIN", "", ""], ["", "---NCP", ""], ["", "---NCP", "---SIN"]]
+)
+def test_uvw_coordinate_suffix_errors(casa_uvfits, tmp_path, uvw_suffix):
+    uv_in = casa_uvfits
+    write_file = str(tmp_path / "outtest_casa.uvfits")
+    write_file2 = str(tmp_path / "outtest_casa2.uvfits")
+    uv_in.write_uvfits(write_file)
+
+    with fits.open(write_file, memmap=True) as hdu_list:
+        hdunames = uvutils._fits_indexhdus(hdu_list)
+        vis_hdu = hdu_list[0]
+        vis_hdr = vis_hdu.header.copy()
+        raw_data_array = vis_hdu.data.data
+
+        par_names = vis_hdu.data.parnames
+        group_parameter_list = []
+
+        time_ind = 0
+        lst_ind = 0
+        for index, name in enumerate(par_names):
+            par_value = vis_hdu.data.par(name)
+            # time_array and lst_array need to be split in 2 parts to get high enough
+            # accuracy
+            if name.lower() == "date":
+                if time_ind == 0:
+                    # first time entry, par_value has full time value
+                    # (astropy adds the 2 values)
+                    time_array1 = np.float32(par_value)
+                    time_array2 = np.float32(par_value - np.float64(time_array1))
+                    par_value = time_array1
+                    time_ind = 1
+                else:
+                    par_value = time_array2
+            elif name.lower() == "lst":
+                if lst_ind == 0:
+                    # first lst entry, par_value has full lst value
+                    # (astropy adds the 2 values)
+                    lst_array_1 = np.float32(par_value)
+                    lst_array_2 = np.float32(par_value - np.float64(lst_array_1))
+                    par_value = lst_array_1
+                    lst_ind = 1
+                else:
+                    par_value = lst_array_2
+
+            # need to account for PZERO values
+            group_parameter_list.append(par_value - vis_hdr["PZERO" + str(index + 1)])
+
+        for ind, name in enumerate(["UU", "VV", "WW"]):
+            par_names[par_names.index(name)] = name + uvw_suffix[ind]
+        vis_hdu = fits.GroupData(
+            raw_data_array, parnames=par_names, pardata=group_parameter_list, bitpix=-32
+        )
+        vis_hdu = fits.GroupsHDU(vis_hdu)
+        vis_hdu.header = vis_hdr
+        ant_hdu = hdu_list[hdunames["AIPS AN"]]
+
+        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+        hdulist.writeto(write_file2, overwrite=True)
+        hdulist.close()
+
+    with pytest.raises(
+        ValueError,
+        match="There is no consistent set of baseline coordinates in this file.",
+    ):
+        UVData.from_file(write_file2)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_readwriteread_no_lst(tmp_path, casa_uvfits):
     uv_in = casa_uvfits
