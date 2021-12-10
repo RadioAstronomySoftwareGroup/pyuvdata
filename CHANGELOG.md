@@ -22,6 +22,9 @@ calls to JPL Horizons.
 - Improved readability, functionality, and memory usage in `read_mwa_corr_fits`.
 
 ### Fixed
+- A bug that could have resulted in `UVData.__add__` combining objects together incorrectly
+  when containing overlapping time-baselines/polarization/frequency channels together
+  that were ordered differently for the two `UVData` objects.
 - A bug that prevented `extra_keywords` keys with a value of `None` from being
   saved to UVH5 files.
 - A bug that resulted in the wrong expected shapes for data-like arrays when metadata
