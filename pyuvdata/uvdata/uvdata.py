@@ -2549,6 +2549,25 @@ class UVData(UVBase):
         """Calculate the number of antennas from ant_1_array and ant_2_array arrays."""
         return int(np.union1d(self.ant_1_array, self.ant_2_array).size)
 
+    def _fix_autos(self):
+        """Remove imaginary component of auto-correlations."""
+        auto_screen = self.ant_1_array == self.ant_2_array
+        auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pQ", "pV"]
+        pol_screen = np.array(
+            [
+                uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
+                for pol in self.polarization_array
+            ]
+        )
+
+        auto_data = self.data_array[auto_screen]
+        if self.future_array_shapes:
+            auto_data[:, :, pol_screen] = np.abs(auto_data[:, :, pol_screen])
+        else:
+            auto_data[:, :, :, pol_screen] = np.abs(auto_data[:, :, :, pol_screen])
+
+        self.data_array[auto_screen] = auto_data
+
     def check(
         self,
         check_extra=True,
@@ -2556,6 +2575,8 @@ class UVData(UVBase):
         check_freq_spacing=False,
         strict_uvw_antpos_check=False,
         allow_flip_conj=False,
+        check_autos=False,
+        fix_autos=False,
     ):
         """
         Add some extra checks on top of checks on UVBase class.
@@ -2727,6 +2748,39 @@ class UVData(UVBase):
                 raise ValueError(
                     "Some auto-correlations have non-zero uvw_array coordinates."
                 )
+            if (self.data_array is not None and np.any(autos)) and check_autos:
+                # Verify here that the autos do not have any imaginary components
+                auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pQ", "pV"]
+                pol_screen = np.array(
+                    [
+                        uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
+                        for pol in self.polarization_array
+                    ]
+                )
+                # There's no relevant pols to check, just skip the rest of this
+                if not np.any(pol_screen):
+                    return
+
+                # Check autos if they have imag component -- doing iscomplex first and
+                # then pol select was faster in every case checked in test files
+                auto_imag = np.iscomplex(self.data_array[autos])
+                if np.all(pol_screen):
+                    auto_imag = np.any(auto_imag)
+                elif self.future_array_shapes:
+                    auto_imag = np.any(auto_imag[:, :, pol_screen])
+                else:
+                    auto_imag = np.any(auto_imag[:, :, :, pol_screen])
+                if auto_imag:
+                    if fix_autos:
+                        warnings.warn(
+                            "Fixing auto-correlations to be be real-only, after some "
+                            "imaginary values were detected in data_array."
+                        )
+                        self._fix_autos()
+                    else:
+                        raise ValueError(
+                            "Some auto-correlations have non-real values in data_array."
+                        )
             if np.any(
                 np.isclose(
                     # this line used to use np.linalg.norm but it turns out
