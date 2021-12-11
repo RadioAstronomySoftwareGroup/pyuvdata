@@ -10204,6 +10204,8 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        check_autos=True,
+        fix_autos=True,
     ):
         """
         Read in data from a list of FHD files.
@@ -10274,6 +10276,8 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
+            check_autos=check_autos,
+            fix_autos=fix_autos,
         )
         self._convert_from_filetype(fhd_obj)
         del fhd_obj
@@ -10291,6 +10295,8 @@ class UVData(UVBase):
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
         allow_flex_pol=True,
+        check_autos=True,
+        fix_autos=True,
     ):
         """
         Read in data from an SMA MIR file.
@@ -10352,6 +10358,8 @@ class UVData(UVBase):
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
             allow_flex_pol=allow_flex_pol,
+            check_autos=check_autos,
+            fix_autos=fix_autos,
         )
         self._convert_from_filetype(mir_obj)
         del mir_obj
@@ -10376,6 +10384,8 @@ class UVData(UVBase):
         calc_lst=True,
         fix_old_proj=False,
         fix_use_ant_pos=True,
+        check_autos=True,
+        fix_autos=True,
     ):
         """
         Read in data from a miriad file.
@@ -10501,6 +10511,8 @@ class UVData(UVBase):
             calc_lst=calc_lst,
             fix_old_proj=fix_old_proj,
             fix_use_ant_pos=fix_use_ant_pos,
+            check_autos=check_autos,
+            fix_autos=fix_autos,
         )
         self._convert_from_filetype(miriad_obj)
         del miriad_obj
@@ -10520,6 +10532,8 @@ class UVData(UVBase):
         raise_error=True,
         read_weights=True,
         allow_flex_pol=True,
+        check_autos=True,
+        fix_autos=True,
     ):
         """
         Read in data from a measurement set.
@@ -10617,6 +10631,8 @@ class UVData(UVBase):
             raise_error=raise_error,
             read_weights=read_weights,
             allow_flex_pol=allow_flex_pol,
+            check_autos=check_autos,
+            fix_autos=fix_autos,
         )
         self._convert_from_filetype(ms_obj)
         del ms_obj
@@ -10650,6 +10666,8 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        check_autos=True,
+        fix_autos=True,
     ):
         """
         Read in MWA correlator gpu box files.
@@ -10823,6 +10841,8 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
+            check_autos=check_autos,
+            fix_autos=fix_autos,
         )
         self._convert_from_filetype(corr_obj)
         del corr_obj
@@ -10852,6 +10872,8 @@ class UVData(UVBase):
         strict_uvw_antpos_check=False,
         fix_old_proj=None,
         fix_use_ant_pos=True,
+        check_autos=True,
+        fix_autos=True,
     ):
         """
         Read in header, metadata and data from a single uvfits file.
@@ -11011,6 +11033,8 @@ class UVData(UVBase):
             strict_uvw_antpos_check=strict_uvw_antpos_check,
             fix_old_proj=fix_old_proj,
             fix_use_ant_pos=fix_use_ant_pos,
+            check_autos=check_autos,
+            fix_autos=fix_autos,
         )
         self._convert_from_filetype(uvfits_obj)
         del uvfits_obj
@@ -11042,6 +11066,8 @@ class UVData(UVBase):
         strict_uvw_antpos_check=False,
         fix_old_proj=None,
         fix_use_ant_pos=True,
+        check_autos=True,
+        fix_autos=True,
     ):
         """
         Read a UVH5 file.
@@ -11213,6 +11239,8 @@ class UVData(UVBase):
             strict_uvw_antpos_check=strict_uvw_antpos_check,
             fix_old_proj=fix_old_proj,
             fix_use_ant_pos=fix_use_ant_pos,
+            check_autos=check_autos,
+            fix_autos=fix_autos,
         )
         self._convert_from_filetype(uvh5_obj)
         del uvh5_obj
@@ -11285,6 +11313,8 @@ class UVData(UVBase):
         make_multi_phase=False,
         ignore_name=False,
         allow_flex_pol=True,
+        check_autos=True,
+        fix_autos=True,
     ):
         """
         Read a generic file into a UVData object.
@@ -11708,6 +11738,8 @@ class UVData(UVBase):
                         fix_use_ant_pos=fix_use_ant_pos,
                         make_multi_phase=make_multi_phase,
                         allow_flex_pol=allow_flex_pol,
+                        check_autos=check_autos,
+                        fix_autos=fix_autos,
                     )
                     unread = False
                 except KeyError as err:
@@ -11792,6 +11824,8 @@ class UVData(UVBase):
                             fix_use_ant_pos=fix_use_ant_pos,
                             make_multi_phase=make_multi_phase,
                             allow_flex_pol=allow_flex_pol,
+                            check_autos=check_autos,
+                            fix_autos=fix_autos,
                         )
                         uv_list.append(uv2)
                     except KeyError as err:
@@ -11979,6 +12013,8 @@ class UVData(UVBase):
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
                     fix_old_proj=fix_old_proj,
                     fix_use_ant_pos=fix_use_ant_pos,
+                    check_autos=check_autos,
+                    fix_autos=fix_autos,
                 )
 
             elif file_type == "mir":
@@ -11994,6 +12030,8 @@ class UVData(UVBase):
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
                     allow_flex_pol=allow_flex_pol,
+                    check_autos=check_autos,
+                    fix_autos=fix_autos,
                 )
                 select = False
 
@@ -12016,6 +12054,8 @@ class UVData(UVBase):
                     calc_lst=calc_lst,
                     fix_old_proj=fix_old_proj,
                     fix_use_ant_pos=fix_use_ant_pos,
+                    check_autos=check_autos,
+                    fix_autos=fix_autos,
                 )
 
             elif file_type == "mwa_corr_fits":
@@ -12046,6 +12086,8 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
+                    check_autos=check_autos,
+                    fix_autos=fix_autos,
                 )
 
             elif file_type == "fhd":
@@ -12058,6 +12100,8 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
+                    check_autos=check_autos,
+                    fix_autos=fix_autos,
                 )
 
             elif file_type == "ms":
@@ -12071,6 +12115,8 @@ class UVData(UVBase):
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
                     allow_flex_pol=allow_flex_pol,
+                    check_autos=check_autos,
+                    fix_autos=fix_autos,
                 )
 
             elif file_type == "uvh5":
@@ -12099,6 +12145,8 @@ class UVData(UVBase):
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
                     fix_old_proj=fix_old_proj,
                     fix_use_ant_pos=fix_use_ant_pos,
+                    check_autos=check_autos,
+                    fix_autos=fix_autos,
                 )
                 select = False
 
@@ -12119,6 +12167,8 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
+                    check_autos=check_autos,
+                    fix_autos=fix_autos,
                 )
 
             if make_multi_phase:
@@ -12234,6 +12284,8 @@ class UVData(UVBase):
         make_multi_phase=False,
         ignore_name=False,
         allow_flex_pol=True,
+        check_autos=True,
+        fix_autos=True,
     ):
         """
         Initialize a new UVData object by reading the input file.
@@ -12602,6 +12654,8 @@ class UVData(UVBase):
             make_multi_phase=make_multi_phase,
             ignore_name=ignore_name,
             allow_flex_pol=allow_flex_pol,
+            check_autos=check_autos,
+            fix_autos=fix_autos,
         )
         return uvd
 
@@ -12615,6 +12669,8 @@ class UVData(UVBase):
         strict_uvw_antpos_check=False,
         no_antnums=False,
         calc_lst=False,
+        check_autos=True,
+        fix_autos=False,
     ):
         """
         Write the data to a miriad file.
@@ -12681,6 +12737,8 @@ class UVData(UVBase):
             strict_uvw_antpos_check=strict_uvw_antpos_check,
             no_antnums=no_antnums,
             calc_lst=calc_lst,
+            check_autos=check_autos,
+            fix_autos=fix_autos,
         )
         del miriad_obj
 
@@ -12719,6 +12777,8 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        check_autos=True,
+        fix_autos=False,
     ):
         """
         Write a CASA measurement set (MS).
@@ -12765,6 +12825,8 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
+            check_autos=check_autos,
+            fix_autos=fix_autos,
         )
         del ms_obj
 
@@ -12778,6 +12840,8 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        check_autos=True,
+        fix_autos=False,
     ):
         """
         Write the data to a uvfits file.
@@ -12853,6 +12917,8 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
+            check_autos=check_autos,
+            fix_autos=fix_autos,
         )
         del uvfits_obj
 
@@ -12869,6 +12935,8 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        check_autos=True,
+        fix_autos=False,
     ):
         """
         Write a completely in-memory UVData object to a UVH5 file.
@@ -12937,6 +13005,8 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
+            check_autos=check_autos,
+            fix_autos=fix_autos,
         )
         del uvh5_obj
 
@@ -13018,6 +13088,8 @@ class UVData(UVBase):
         blt_inds=None,
         add_to_history=None,
         run_check_acceptability=True,
+        check_autos=True,
+        fix_autos=False,
     ):
         """
         Write data to a UVH5 file that has already been initialized.
@@ -13131,5 +13203,7 @@ class UVData(UVBase):
             blt_inds=blt_inds,
             add_to_history=add_to_history,
             run_check_acceptability=run_check_acceptability,
+            check_autos=check_autos,
+            fix_autos=fix_autos,
         )
         del uvh5_obj
