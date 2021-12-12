@@ -12167,8 +12167,6 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
-                    check_autos=check_autos,
-                    fix_autos=fix_autos,
                 )
 
             if make_multi_phase:
@@ -13088,8 +13086,6 @@ class UVData(UVBase):
         blt_inds=None,
         add_to_history=None,
         run_check_acceptability=True,
-        check_autos=True,
-        fix_autos=False,
     ):
         """
         Write data to a UVH5 file that has already been initialized.
@@ -13203,7 +13199,5 @@ class UVData(UVBase):
             blt_inds=blt_inds,
             add_to_history=add_to_history,
             run_check_acceptability=run_check_acceptability,
-            check_autos=check_autos,
-            fix_autos=fix_autos,
         )
         del uvh5_obj
