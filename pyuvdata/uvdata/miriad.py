@@ -730,6 +730,8 @@ class Miriad(UVData):
         calc_lst=True,
         fix_old_proj=False,
         fix_use_ant_pos=True,
+        check_autos=True,
+        fix_autos=True,
     ):
         """
         Read in data from a miriad file.
@@ -808,6 +810,12 @@ class Miriad(UVData):
             If setting `fix_old_proj` to True, use the antenna positions to derive the
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
+        check_autos : bool
+            Check whether any auto-correlations have imaginary values in them (which
+            should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only. Default is False.
 
         Raises
         ------
@@ -1569,6 +1577,8 @@ class Miriad(UVData):
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
                 allow_flip_conj=True,
+                check_autos=check_autos,
+                fix_autos=fix_autos,
             )
 
     def write_miriad(
@@ -1581,6 +1591,8 @@ class Miriad(UVData):
         strict_uvw_antpos_check=False,
         no_antnums=False,
         calc_lst=False,
+        check_autos=True,
+        fix_autos=False,
     ):
         """
         Write the data to a miriad file.
@@ -1615,6 +1627,12 @@ class Miriad(UVData):
             marks the midpoint). Default is False, which instead uses a simple formula
             for correcting the LSTs, expected to be accurate to approximately 0.1 µsec
             precision.
+        check_autos : bool
+            Check whether any auto-correlations have imaginary values in them (which
+            should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only. Default is False.
 
         Raises
         ------
@@ -1651,6 +1669,8 @@ class Miriad(UVData):
                 run_check_acceptability=run_check_acceptability,
                 check_freq_spacing=True,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
+                check_autos=check_autos,
+                fix_autos=fix_autos,
             )
 
         if os.path.exists(filepath):
