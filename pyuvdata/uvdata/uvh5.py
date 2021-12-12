@@ -423,6 +423,8 @@ class UVH5(UVData):
         strict_uvw_antpos_check,
         fix_old_proj,
         fix_use_ant_pos,
+        check_autos,
+        fix_autos,
     ):
         """
         Read the data-size arrays (data, flags, nsamples) from a file.
@@ -737,6 +739,8 @@ class UVH5(UVData):
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
                 allow_flip_conj=True,
+                check_autos=check_autos,
+                fix_autos=fix_autos,
             )
 
         return
@@ -767,6 +771,8 @@ class UVH5(UVData):
         strict_uvw_antpos_check=False,
         fix_old_proj=None,
         fix_use_ant_pos=True,
+        check_autos=True,
+        fix_autos=True,
     ):
         """
         Read in data from a UVH5 file.
@@ -883,6 +889,12 @@ class UVH5(UVData):
             If setting `fix_old_proj` to True, use the antenna positions to derive the
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
+        check_autos : bool
+            Check whether any auto-correlations have imaginary values in them (which
+            should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only. Default is True.
 
         Returns
         -------
@@ -957,6 +969,8 @@ class UVH5(UVData):
                 strict_uvw_antpos_check,
                 fix_old_proj,
                 fix_use_ant_pos,
+                check_autos,
+                fix_autos,
             )
 
         # For now, always use current shapes when data is read in, even if the file
@@ -1112,6 +1126,8 @@ class UVH5(UVData):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        check_autos=True,
+        fix_autos=False,
     ):
         """
         Write an in-memory UVData object to a UVH5 file.
@@ -1152,6 +1168,12 @@ class UVH5(UVData):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        check_autos : bool
+            Check whether any auto-correlations have imaginary values in them (which
+            should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only. Default is False.
 
         Returns
         -------
@@ -1184,6 +1206,8 @@ class UVH5(UVData):
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
+                check_autos=check_autos,
+                fix_autos=fix_autos,
             )
 
         if os.path.exists(filename):
