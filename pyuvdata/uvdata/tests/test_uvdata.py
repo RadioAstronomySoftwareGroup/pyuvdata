@@ -204,24 +204,6 @@ def hera_uvh5_xx(hera_uvh5_xx_main):
 
 
 @pytest.fixture(scope="session")
-def sma_mir_main():
-    # read in test file for the resampling in time functions
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    uv_object.read(testfile)
-
-    yield uv_object
-
-
-@pytest.fixture(scope="function")
-def sma_mir(sma_mir_main):
-    # read in test file for the resampling in time functions
-    uv_object = sma_mir_main.copy()
-
-    yield uv_object
-
-
-@pytest.fixture(scope="session")
 def sma_mir_catalog(sma_mir_main):
     catalog_dict = sma_mir_main.phase_center_catalog
 
@@ -623,6 +605,7 @@ def test_check_strict_uvw(casa_uvfits):
         uvobj.check(strict_uvw_antpos_check=True)
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_check_autos_only(hera_uvh5_xx):
     """
@@ -1089,6 +1072,7 @@ def test_phase_unphase_hera_bad_frame(uv1_2_set_uvws):
     assert str(cm.value).startswith("phase_frame can only be set to icrs or gcrs.")
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("use_ant_pos1", [True, False])
 @pytest.mark.parametrize("use_ant_pos2", [True, False])
@@ -1221,6 +1205,7 @@ def test_phasing_fix_old_proj(hera_uvh5, future_shapes):
 # We're using the old phase method here since these values were all derived using that
 # method, so we'll just filter out those warnings now.
 @pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_old_phasing(future_shapes):
     """Use MWA files phased to 2 different places to test phasing."""
@@ -11236,6 +11221,7 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
 @pytest.mark.filterwarnings("ignore:using known location values for SZA.")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected")
@@ -11405,3 +11391,54 @@ def test_make_flex_pol_errs(sma_mir, err_msg, param, param_val):
     with uvtest.check_warnings(None):
         sma_mir._make_flex_pol(False, False)
     assert sma_copy == sma_mir
+
+
+@pytest.mark.parametrize("dataset", ["hera", "casa"])
+@pytest.mark.parametrize("future_array_shapes", [True, False])
+def test_auto_check(
+    hera_uvh5_main, casa_uvh5_main, future_array_shapes, dataset, tmp_path
+):
+    """
+    Checks that checking/fixing the autos works correctly, both with dual-pol data
+    (supplied by hera_uvh5) and full-pol data (supplied by casa_uvfits).
+    """
+    if dataset == "hera":
+        uv = hera_uvh5_main.copy()
+    elif dataset == "casa":
+        uv = casa_uvh5_main.copy()
+
+    if future_array_shapes:
+        uv.use_future_array_shapes()
+
+    out_file = os.path.join(tmp_path, "auto_check.uvh5")
+
+    # Corrupt the auto data
+    auto_screen = uv.ant_1_array == uv.ant_2_array
+    uv.data_array[auto_screen] *= 1j
+
+    with pytest.raises(
+        ValueError, match="Some auto-correlations have non-real values in data_array."
+    ):
+        uv.write_uvh5(out_file, clobber=True)
+
+    uv.write_uvh5(out_file, check_autos=False, clobber=True)
+
+    with pytest.raises(
+        ValueError, match="Some auto-correlations have non-real values in data_array."
+    ):
+        uv1 = uv.from_file(out_file, fix_autos=False)
+
+    with uvtest.check_warnings(UserWarning, "Fixing auto-correlations to be be real"):
+        uv1 = uv.from_file(out_file)
+
+    with uvtest.check_warnings(UserWarning, "Fixing auto-correlations to be be real"):
+        uv.write_uvh5(out_file, fix_autos=True, clobber=True)
+
+    uv2 = uv.from_file(out_file)
+
+    assert uv1 == uv2
+
+    if future_array_shapes:
+        uv1.use_future_array_shapes()
+
+    assert uv == uv1
