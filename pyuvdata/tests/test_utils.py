@@ -2671,7 +2671,7 @@ def test_mean_weights_and_weights_square():
     assert np.allclose(wso, np.sum(1.0 / (np.arange(data.shape[1]) + 1) ** 2))
 
     # Zero weights
-    w = np.ones_like(w)
+    w = np.ones_like(data)
     w[0, :] = 0
     w[:, 0] = 0
     out, wo = uvutils.mean_collapse(data, weights=w, axis=0, return_weights=True)
@@ -2810,6 +2810,7 @@ def test_and_collapse_errors():
     pytest.raises(ValueError, uvutils.and_collapse, data)
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvcalibrate_apply_gains_oldfiles():
     # read data
@@ -2863,6 +2864,7 @@ def test_uvcalibrate_apply_gains_oldfiles():
 
 
 @pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("uvd_future_shapes", [True, False])
 @pytest.mark.parametrize("uvc_future_shapes", [True, False])
@@ -2918,6 +2920,7 @@ def test_uvcalibrate_delay_oldfiles(uvd_future_shapes, uvc_future_shapes):
 
 @pytest.mark.parametrize("uvc_future_shapes", [True, False])
 @pytest.mark.parametrize("uvd_future_shapes", [True, False])
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.parametrize("flip_gain_conj", [False, True])
 @pytest.mark.parametrize("gain_convention", ["divide", "multiply"])
 def test_uvcalibrate(
@@ -3401,6 +3404,7 @@ def test_uvcalibrate_delay_multispw(uvcalibrate_data):
         uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_apply_uvflag(future_shapes):
