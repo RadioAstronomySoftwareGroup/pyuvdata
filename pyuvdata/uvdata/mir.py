@@ -38,6 +38,8 @@ class Mir(UVData):
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
         allow_flex_pol=True,
+        check_autos=True,
+        fix_autos=False,
     ):
         """
         Read in data from an SMA MIR file, and map to the UVData model.
@@ -80,6 +82,12 @@ class Mir(UVData):
             "flexible polarization", which compresses the polarization-axis of various
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window. Default is True.
+        check_autos : bool
+            Check whether any auto-correlations have imaginary values in them (which
+            should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only. Default is False.
         """
         # Use the mir_parser to read in metadata, which can be used to select data.
         mir_data = mir_parser.MirParser(filepath)
@@ -611,6 +619,16 @@ class Mir(UVData):
         self.data_array = np.transpose(vis_data, (0, 2, 1))[:, np.newaxis, :, :]
         self.flag_array = np.zeros(self.data_array.shape, dtype=bool)
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.float32)
+
+        if run_check:
+            self.check(
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
+                allow_flip_conj=True,
+                check_autos=check_autos,
+                fix_autos=fix_autos,
+            )
 
     def write_mir(self, filename):
         """
