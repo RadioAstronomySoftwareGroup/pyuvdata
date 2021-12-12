@@ -147,6 +147,7 @@ def test_outfile(tmp_path):
     yield str(tmp_path / "outtest_uvflag.h5")
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_check_flag_array(uvdata_obj):
     uvf = UVFlag()

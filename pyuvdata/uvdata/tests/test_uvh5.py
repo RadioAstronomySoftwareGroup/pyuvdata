@@ -3212,6 +3212,7 @@ def test_read_metadata(casa_uvfits, tmp_path):
     os.remove(testfile)
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
 def test_fix_phase(tmp_path):
     """Test that the fix phase method works"""
