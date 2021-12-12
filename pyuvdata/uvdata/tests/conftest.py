@@ -129,3 +129,20 @@ def mir_data_object(request):
 
     # cleanup
     del mir_data
+
+
+def sma_mir_main():
+    # read in test file for the resampling in time functions
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    uv_object.read(testfile)
+
+    yield uv_object
+
+
+@pytest.fixture(scope="function")
+def sma_mir(sma_mir_main):
+    # read in test file for the resampling in time functions
+    uv_object = sma_mir_main.copy()
+
+    yield uv_object
