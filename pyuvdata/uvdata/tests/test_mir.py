@@ -280,7 +280,8 @@ def test_read_mir_no_records():
         uv_in.read_mir(testfile, corrchunk=999)
 
 
-def test_read_mir_sideband_select(sma_mir):
+@pytest.mark.parametrize("pseudo_cont", [True, False])
+def test_read_mir_sideband_select(sma_mir, pseudo_cont):
     """
     Mir sideband read check
 
@@ -288,6 +289,8 @@ def test_read_mir_sideband_select(sma_mir):
     stitch them back together as though they were read together from the start.
     """
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    if pseudo_cont:
+        sma_mir.read(testfile, pseudo_cont=pseudo_cont)
 
     # Re-order here so that we can more easily compare the two
     sma_mir.reorder_freqs(channel_order="freq", spw_order="freq")
@@ -295,10 +298,10 @@ def test_read_mir_sideband_select(sma_mir):
     sma_mir.history = ""
 
     mir_lsb = UVData()
-    mir_lsb.read(testfile, isb=[0])
+    mir_lsb.read(testfile, isb=[0], pseudo_cont=pseudo_cont)
 
     mir_usb = UVData()
-    mir_usb.read(testfile, isb=[1])
+    mir_usb.read(testfile, isb=[1], pseudo_cont=pseudo_cont)
 
     mir_recomb = mir_lsb + mir_usb
     # Re-order here so that we can more easily compare the two
