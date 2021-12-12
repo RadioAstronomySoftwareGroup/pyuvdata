@@ -2767,6 +2767,8 @@ class UVData(UVBase):
                 )
             if (self.data_array is not None and np.any(autos)) and check_autos:
                 # Verify here that the autos do not have any imaginary components
+                # Only these pols have "true" auto-correlations, that we'd expect
+                # to be real only. Select on only them
                 auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pQ", "pV"]
                 pol_screen = np.array(
                     [
@@ -2774,19 +2776,20 @@ class UVData(UVBase):
                         for pol in self.polarization_array
                     ]
                 )
-                # There's no relevant pols to check, just skip the rest of this
-                if not np.any(pol_screen):
-                    return
 
                 # Check autos if they have imag component -- doing iscomplex first and
-                # then pol select was faster in every case checked in test files
-                auto_imag = np.iscomplex(self.data_array[autos])
-                if np.all(pol_screen):
-                    auto_imag = np.any(auto_imag)
-                elif self.future_array_shapes:
-                    auto_imag = np.any(auto_imag[:, :, pol_screen])
+                # then pol select was faster in every case checked in test files.
+                if not np.any(pol_screen):
+                    # There's no relevant pols to check, just skip the rest of this
+                    auto_imag = False
                 else:
-                    auto_imag = np.any(auto_imag[:, :, :, pol_screen])
+                    auto_imag = np.iscomplex(self.data_array[autos])
+                    if np.all(pol_screen):
+                        auto_imag = np.any(auto_imag)
+                    elif self.future_array_shapes:
+                        auto_imag = np.any(auto_imag[:, :, pol_screen])
+                    else:
+                        auto_imag = np.any(auto_imag[:, :, :, pol_screen])
                 if auto_imag:
                     if fix_autos:
                         warnings.warn(
