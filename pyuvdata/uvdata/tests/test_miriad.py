@@ -1030,6 +1030,7 @@ def test_miriad_antenna_diameters(uv_in_paper):
     assert uv_in == uv_out
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_miriad_write_read_diameters(tmp_path):
     uv_in = UVData()
@@ -1660,6 +1661,7 @@ def test_antpos_units(casa_uvfits, tmp_path):
     assert np.allclose(aantpos, uv.antenna_positions)
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_readmiriad_write_miriad_check_time_format(tmp_path):
     """

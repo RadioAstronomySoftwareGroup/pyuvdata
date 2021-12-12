@@ -1000,6 +1000,7 @@ def test_van_vleck_interp(tmp_path):
     ]
     messages = messages * 10
     messages.append("some coarse channel files were not submitted")
+    messages.append("Fixing auto-correlations to be be real-only,")
     uv = UVData()
     with uvtest.check_warnings(UserWarning, messages):
         uv.read(
