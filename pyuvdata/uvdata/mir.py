@@ -83,11 +83,11 @@ class Mir(UVData):
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window. Default is True.
         check_autos : bool
-            Check whether any auto-correlations have imaginary values in them (which
-            should not mathematically exist). Default is True.
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only. Default is False.
+            that they are real-only in data_array. Default is False.
         """
         # Use the mir_parser to read in metadata, which can be used to select data.
         mir_data = mir_parser.MirParser(filepath)

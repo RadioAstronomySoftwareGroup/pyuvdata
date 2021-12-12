@@ -503,11 +503,11 @@ class UVFITS(UVData):
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
         check_autos : bool
-            Check whether any auto-correlations have imaginary values in them (which
-            should not mathematically exist). Default is True.
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only. Default is True.
+            that they are real-only in data_array. Default is True.
 
         Raises
         ------
@@ -914,11 +914,11 @@ class UVFITS(UVData):
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
         check_autos : bool
-            Check whether any auto-correlations have imaginary values in them (which
-            should not mathematically exist). Default is True.
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only. Default is False.
+            that they are real-only in data_array. Default is False.
 
         Raises
         ------
