@@ -11393,19 +11393,18 @@ def test_make_flex_pol_errs(sma_mir, err_msg, param, param_val):
     assert sma_copy == sma_mir
 
 
-@pytest.mark.parametrize("dataset", ["hera", "casa"])
+@pytest.mark.parametrize("dataset", ["hera", "mwa"])
 @pytest.mark.parametrize("future_array_shapes", [True, False])
-def test_auto_check(
-    hera_uvh5_main, casa_uvh5_main, future_array_shapes, dataset, tmp_path
-):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_auto_check(hera_uvh5, uv_phase_comp, future_array_shapes, dataset, tmp_path):
     """
     Checks that checking/fixing the autos works correctly, both with dual-pol data
     (supplied by hera_uvh5) and full-pol data (supplied by casa_uvfits).
     """
     if dataset == "hera":
-        uv = hera_uvh5_main.copy()
-    elif dataset == "casa":
-        uv = casa_uvh5_main.copy()
+        uv = hera_uvh5
+    elif dataset == "mwa":
+        uv, _ = uv_phase_comp
 
     if future_array_shapes:
         uv.use_future_array_shapes()
