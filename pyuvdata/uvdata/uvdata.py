@@ -2551,7 +2551,11 @@ class UVData(UVBase):
 
     def _fix_autos(self):
         """Remove imaginary component of auto-correlations."""
+        # Select out the autos
         auto_screen = self.ant_1_array == self.ant_2_array
+
+        # Only these pols have "true" auto-correlations, that we'd expect
+        # to be real only. Select on only them
         auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pQ", "pV"]
         pol_screen = np.array(
             [
@@ -2560,13 +2564,20 @@ class UVData(UVBase):
             ]
         )
 
-        auto_data = self.data_array[auto_screen]
-        if self.future_array_shapes:
-            auto_data[:, :, pol_screen] = np.abs(auto_data[:, :, pol_screen])
-        else:
-            auto_data[:, :, :, pol_screen] = np.abs(auto_data[:, :, :, pol_screen])
+        # Make sure we actually have work to do here, otherwise skip all of this
+        if np.any(pol_screen) and np.any(auto_screen):
+            # Select out the relevant data. Need to do this because we have two
+            # complex slices we need to do
+            auto_data = self.data_array[auto_screen]
 
-        self.data_array[auto_screen] = auto_data
+            # Set the autos to be real-only by taking the absolute value
+            if self.future_array_shapes:
+                auto_data[:, :, pol_screen] = np.abs(auto_data[:, :, pol_screen])
+            else:
+                auto_data[:, :, :, pol_screen] = np.abs(auto_data[:, :, :, pol_screen])
+
+            # Finally, plug the modified values back into data_array
+            self.data_array[auto_screen] = auto_data
 
     def check(
         self,
@@ -2603,6 +2614,12 @@ class UVData(UVBase):
             the UVWs by -1) resolves  the apparent discrepancy -- and if it does, fix
             the apparent conjugation error in `uvw_array` and `data_array`. Default is
             False.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is False.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is False.
 
         Returns
         -------
@@ -10249,6 +10266,12 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is True.
 
         Raises
         ------
@@ -10343,6 +10366,12 @@ class UVData(UVBase):
             "flexible polarization", which compresses the polarization-axis of various
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window.  Default is True.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is True.
         """
         from . import mir
 
@@ -10470,6 +10499,12 @@ class UVData(UVBase):
             If setting `fix_old_proj` to True, use the antenna positions to derive the
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is True.
 
         Raises
         ------
@@ -10597,6 +10632,12 @@ class UVData(UVBase):
             "flexible polarization", which compresses the polarization-axis of various
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window.  Default is True.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is True.
 
         Raises
         ------
@@ -10779,6 +10820,12 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is True.
 
         Raises
         ------
@@ -10987,6 +11034,12 @@ class UVData(UVBase):
             If setting `fix_old_proj` to True, use the antenna positions to derive the
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is True.
 
         Raises
         ------
@@ -11193,6 +11246,12 @@ class UVData(UVBase):
             If setting `fix_old_proj` to True, use the antenna positions to derive the
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is True.
 
         Raises
         ------
@@ -11614,6 +11673,12 @@ class UVData(UVBase):
             If the data are multi source or have multiple
             spectral windows.
             If phase_center_radec is not None and is not length 2.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is True.
 
         """
         if isinstance(filename, (list, tuple, np.ndarray)):
@@ -12803,6 +12868,12 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is False.
 
         Raises
         ------
@@ -12877,6 +12948,12 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is False.
 
         Raises
         ------
@@ -12977,6 +13054,12 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is False.
 
         Raises
         ------

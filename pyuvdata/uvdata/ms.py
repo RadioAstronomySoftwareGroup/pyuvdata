@@ -1081,11 +1081,11 @@ class MS(UVData):
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
         check_autos : bool
-            Check whether any auto-correlations have imaginary values in them (which
-            should not mathematically exist). Default is True.
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only. Default is False.
+            that they are real-only in data_array. Default is False.
         """
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
@@ -1943,11 +1943,11 @@ class MS(UVData):
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window.  Default is True.
         check_autos : bool
-            Check whether any auto-correlations have imaginary values in them (which
-            should not mathematically exist). Default is True.
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only. Default is True.
+            that they are real-only in data_array. Default is True.
 
         Raises
         ------
