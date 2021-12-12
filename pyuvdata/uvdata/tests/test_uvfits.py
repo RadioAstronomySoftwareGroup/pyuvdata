@@ -40,24 +40,6 @@ def uvfits_nospw(uvfits_nospw_main):
     return uvfits_nospw_main.copy()
 
 
-@pytest.fixture(scope="session")
-def sma_mir_main():
-    # read in test file for the resampling in time functions
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    uv_object.read(testfile)
-
-    yield uv_object
-
-
-@pytest.fixture(scope="function")
-def sma_mir(sma_mir_main):
-    # read in test file for the resampling in time functions
-    uv_object = sma_mir_main.copy()
-
-    yield uv_object
-
-
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_read_nrao(casa_uvfits):
@@ -77,6 +59,7 @@ def test_read_nrao(casa_uvfits):
     assert uvobj2 == uvobj3
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected")
 @pytest.mark.filterwarnings("ignore:Telescope OVRO_MMA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
