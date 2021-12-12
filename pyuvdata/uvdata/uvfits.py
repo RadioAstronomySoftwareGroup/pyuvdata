@@ -231,6 +231,8 @@ class UVFITS(UVData):
         strict_uvw_antpos_check,
         fix_old_proj,
         fix_use_ant_pos,
+        check_autos,
+        fix_autos,
     ):
         """
         Read just the visibility and flag data of the uvfits file.
@@ -365,6 +367,8 @@ class UVFITS(UVData):
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
                 allow_flip_conj=True,
+                check_autos=check_autos,
+                fix_autos=fix_autos,
             )
 
     def read_uvfits(
@@ -391,6 +395,8 @@ class UVFITS(UVData):
         strict_uvw_antpos_check=False,
         fix_old_proj=False,
         fix_use_ant_pos=True,
+        check_autos=True,
+        fix_autos=True,
     ):
         """
         Read in header, metadata and data from a uvfits file.
@@ -496,7 +502,12 @@ class UVFITS(UVData):
             If setting `fix_old_proj` to True, use the antenna positions to derive the
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
-
+        check_autos : bool
+            Check whether any auto-correlations have imaginary values in them (which
+            should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only. Default is True.
 
         Raises
         ------
@@ -853,6 +864,8 @@ class UVFITS(UVData):
                 strict_uvw_antpos_check,
                 fix_old_proj,
                 fix_use_ant_pos,
+                check_autos,
+                fix_autos,
             )
 
     def write_uvfits(
@@ -865,6 +878,8 @@ class UVFITS(UVData):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        check_autos=True,
+        fix_autos=False,
     ):
         """
         Write the data to a uvfits file.
@@ -898,6 +913,12 @@ class UVFITS(UVData):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        check_autos : bool
+            Check whether any auto-correlations have imaginary values in them (which
+            should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only. Default is False.
 
         Raises
         ------
@@ -920,6 +941,8 @@ class UVFITS(UVData):
                 run_check_acceptability=run_check_acceptability,
                 check_freq_spacing=True,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
+                check_autos=check_autos,
+                fix_autos=fix_autos,
             )
 
         if self.phase_type == "phased":
