@@ -1054,6 +1054,8 @@ class MS(UVData):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        check_autos=True,
+        fix_autos=False,
     ):
         """
         Write a CASA measurement set (MS).
@@ -1078,7 +1080,12 @@ class MS(UVData):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
-
+        check_autos : bool
+            Check whether any auto-correlations have imaginary values in them (which
+            should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only. Default is False.
         """
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
@@ -1088,6 +1095,8 @@ class MS(UVData):
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
+                check_autos=check_autos,
+                fix_autos=fix_autos,
             )
 
         if os.path.exists(filepath):
@@ -1876,6 +1885,8 @@ class MS(UVData):
         raise_error=True,
         read_weights=True,
         allow_flex_pol=False,
+        check_autos=True,
+        fix_autos=True,
     ):
         """
         Read in a casa measurement set.
@@ -1931,6 +1942,12 @@ class MS(UVData):
             "flexible polarization", which compresses the polarization-axis of various
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window.  Default is True.
+        check_autos : bool
+            Check whether any auto-correlations have imaginary values in them (which
+            should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only. Default is True.
 
         Raises
         ------
@@ -2273,4 +2290,6 @@ class MS(UVData):
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
                 allow_flip_conj=True,
+                check_autos=check_autos,
+                fix_autos=fix_autos,
             )
