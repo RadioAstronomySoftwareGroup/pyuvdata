@@ -2780,6 +2780,7 @@ class UVData(UVBase):
                     else:
                         raise ValueError(
                             "Some auto-correlations have non-real values in data_array."
+                            " You can attempt to fix this by setting fix_autos=True."
                         )
             if np.any(
                 np.isclose(
