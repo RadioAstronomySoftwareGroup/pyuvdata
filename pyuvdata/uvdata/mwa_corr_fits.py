@@ -1083,6 +1083,8 @@ class MWACorrFITS(UVData):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        check_autos=True,
+        fix_autos=True,
     ):
         """
         Read in MWA correlator gpu box files.
@@ -1189,6 +1191,12 @@ class MWACorrFITS(UVData):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        check_autos : bool
+            Check whether any auto-correlations have imaginary values in them (which
+            should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only. Default is True.
 
 
         Raises
@@ -1820,4 +1828,6 @@ class MWACorrFITS(UVData):
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
                 allow_flip_conj=True,
+                check_autos=check_autos,
+                fix_autos=fix_autos,
             )
