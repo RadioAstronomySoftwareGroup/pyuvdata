@@ -399,31 +399,42 @@ class MWACorrFITS(UVData):
         num_start_flag = int(start_flag / self.integration_time[0])
         num_end_flag = int(end_flag / self.integration_time[0])
 
+        shape = self.flag_array.shape
+        reshape = [self.Ntimes, self.Nbls, self.Nfreqs, self.Npols]
+
+        self.flag_array = (
+            self.flag_array
+            if (shape == reshape)
+            else np.reshape(self.flag_array, reshape,)
+        )
+
+        bad_chan_inds = []
         if num_ch_flag > 0:
-            edge_inds = []
             for ch_count in range(num_ch_flag):
                 # count up from the left
                 left_chans = list(range(ch_count, self.Nfreqs, num_fine_chan))
                 # count down from the right
                 right_chans = list(range(self.Nfreqs - 1 - ch_count, 0, -num_fine_chan))
-                edge_inds = edge_inds + left_chans + right_chans
-
-            self.flag_array[:, edge_inds, :] = True
+                bad_chan_inds += left_chans + right_chans
 
         if flag_dc_offset:
-            center_inds = list(range(num_fine_chan // 2, self.Nfreqs, num_fine_chan))
+            bad_chan_inds += list(range(num_fine_chan // 2, self.Nfreqs, num_fine_chan))
 
-            self.flag_array[:, center_inds, :] = True
+        if len(bad_chan_inds) != 0:
+            self.flag_array[:, :, bad_chan_inds, :] = True
 
         if (num_start_flag > 0) or (num_end_flag > 0):
-            shape = self.flag_array.shape
-            reshape = [self.Ntimes, self.Nbls, self.Nfreqs, self.Npols]
-            self.flag_array = np.reshape(self.flag_array, reshape)
             if num_start_flag > 0:
-                self.flag_array[:num_start_flag, :, :, :] = True
+                self.flag_array[:num_start_flag] = True
             if num_end_flag > 0:
-                self.flag_array[-num_end_flag:, :, :, :] = True
+                self.flag_array[-num_end_flag:] = True
             self.flag_array = np.reshape(self.flag_array, shape)
+
+        self.flag_array = (
+            self.flag_array
+            if (shape == reshape)
+            else np.reshape(self.flag_array, shape,)
+        )
 
     def _read_fits_file(
         self,
@@ -1685,6 +1696,15 @@ class MWACorrFITS(UVData):
             else:
                 self.flag_array = np.repeat(self.flag_array, num_fine_chans, axis=2)
 
+            if flag_init:
+                self.flag_init(
+                    num_fine_chans,
+                    edge_width=edge_width,
+                    start_flag=start_flag,
+                    end_flag=end_flag,
+                    flag_dc_offset=flag_dc_offset,
+                )
+
             # flag bad ants
             bad_ant_inds = np.logical_or(
                 np.isin(ant_1_inds[: self.Nbls], flagged_ant_inds),
@@ -1769,15 +1789,6 @@ class MWACorrFITS(UVData):
                 )
                 for filename in file_dict["flags"]:
                     self._read_flag_file(filename, file_nums, num_fine_chans)
-
-            if flag_init:
-                self.flag_init(
-                    num_fine_chans,
-                    edge_width=edge_width,
-                    start_flag=start_flag,
-                    end_flag=end_flag,
-                    flag_dc_offset=flag_dc_offset,
-                )
 
             # to account for discrepancies between file conventions, in order
             # to be consistent with the uvw vector direction, all the data must
