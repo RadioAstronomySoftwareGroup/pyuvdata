@@ -161,7 +161,7 @@ cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
 
     else:
       message = (
-        "antnums_to_baseline: found > 256 antennas, using "
+        "antnums_to_baseline: found antenna numbers > 256, using "
         "2048 baseline indexing. Beware compatibility "
         "with CASA etc"
       )

@@ -521,8 +521,9 @@ def test_readwriteread_large_antnums(tmp_path, casa_uvfits):
         [
             "The uvw_array does not match the expected values given the antenna "
             "positions",
-            "Found > 256 antennas in this data set. This is permitted by UVFITS ",
-            "antnums_to_baseline: found > 256 antennas, using 2048 baseline",
+            "Found antenna numbers > 256 in this data set. This is permitted by "
+            "UVFITS ",
+            "antnums_to_baseline: found antenna numbers > 256, using 2048 baseline",
         ],
     ):
         uv_in.write_uvfits(write_file)

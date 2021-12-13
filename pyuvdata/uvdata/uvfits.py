@@ -1126,10 +1126,10 @@ class UVFITS(UVData):
             parnames_use.append("BASELINE")
         else:
             warnings.warn(
-                "Found > 256 antennas in this data set. This is permitted by UVFITS "
-                "standards, but may cause the `importuvfits` utility within CASA to "
-                "crash. If attempting to use this data set in CASA, consider using "
-                "the measurement set writer method (`write_ms`) instead."
+                "Found antenna numbers > 256 in this data set. This is permitted by "
+                "UVFITS standards, but may cause the `importuvfits` utility within "
+                "CASA to crash. If attempting to use this data set in CASA, consider "
+                "using the measurement set writer method (`write_ms`) instead."
             )
 
         if self.multi_phase_center:
