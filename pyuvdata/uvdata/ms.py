@@ -1080,12 +1080,13 @@ class MS(UVData):
                     "writing a measurement set file."
                 )
 
+        # If scan numbers are not already defined from reading an MS,
+        # group integrations (rows) into scan numbers.
+        if self.scan_number_array is None:
+            self._set_scan_numbers()
+
         # Initialize a skelton measurement set
         ms = self._init_ms_file(filepath)
-
-        # Add all the rows we need up front, which will allow us to fill the columns
-        # all in one shot.
-        ms.addrows(self.Nblts * self.Nspws)
 
         attr_list = ["data_array", "nsample_array", "flag_array"]
         col_list = ["DATA", "WEIGHT_SPECTRUM", "FLAG"]
@@ -1094,33 +1095,57 @@ class MS(UVData):
         # the weights and noise for all channels in each row in the MAIN table, which
         # we will roughly calculate in temp_weights below.
         temp_weights = np.zeros((self.Nblts * self.Nspws, self.Npols), dtype=float)
+        data_desc_array = np.zeros((self.Nblts * self.Nspws))
+        blt_map_array = np.zeros((self.Nblts * self.Nspws), dtype=int)
 
-        for attr, col in zip(attr_list, col_list):
-            val_dict = {}
-            temp_array = getattr(self, attr)
-
-            if not self.future_array_shapes:
-                temp_array = np.squeeze(temp_array, axis=1)
-
-            for idx, spw_id in enumerate(self.spw_array):
-                if self.flex_spw:
-                    sel_mask = self.flex_spw_id_array == spw_id
+        # Add all the rows we need up front, which will allow us to fill the
+        # columns all in one shot.
+        ms.addrows(self.Nblts * self.Nspws)
+        if self.Nspws == 1:
+            for attr, col in zip(attr_list, col_list):
+                if self.future_array_shapes:
+                    ms.putcol(col, getattr(self, attr))
                 else:
-                    sel_mask = np.ones(self.Nfreqs, dtype=bool)
+                    ms.putcol(col, np.squeeze(getattr(self, attr), axis=1))
+            if self.future_array_shapes:
+                temp_weights = np.median(self.nsample_array, axis=1)
+            else:
+                temp_weights = np.squeeze(np.median(self.nsample_array, axis=2), axis=1)
+            blt_map_array = np.arange(self.Nblts)
+        else:
+            spw_sel_dict = {}
+            for spw_id in self.spw_array:
+                spw_sel_dict[spw_id] = self.flex_spw_id_array == spw_id
 
-                temp_dict = {
-                    "%016d"
-                    % ((self.Nspws * jdx) + 1 + idx): temp_array[None, jdx, sel_mask, :]
-                    for jdx in np.arange(self.Nblts)
-                }
-                if col == "WEIGHT_SPECTRUM":
-                    temp_weights[idx :: self.Nspws] = np.median(
-                        temp_array[:, sel_mask], axis=1
+            last_row = 0
+            for scan_num in sorted(np.unique(self.scan_number_array)):
+                scan_screen = self.scan_number_array == scan_num
+                Nrecs = np.sum(scan_screen)
+                data_desc_array[last_row : last_row + (Nrecs * self.Nspws)] = np.repeat(
+                    np.arange(self.Nspws), Nrecs,
+                )
+                blt_map_array[last_row : last_row + (Nrecs * self.Nspws)] = np.tile(
+                    np.where(scan_screen)[0], self.Nspws,
+                )
+                val_dict = {}
+                for attr, col in zip(attr_list, col_list):
+                    if self.future_array_shapes:
+                        val_dict[col] = getattr(self, attr)[scan_screen]
+                    else:
+                        val_dict[col] = np.squeeze(
+                            getattr(self, attr)[scan_screen], axis=1
+                        )
+
+                for idx, key in enumerate(self.spw_array):
+                    for col in col_list:
+                        ms.putcol(
+                            col, val_dict[col][:, spw_sel_dict[key]], last_row, Nrecs
+                        )
+
+                    temp_weights[last_row : last_row + Nrecs] = np.median(
+                        val_dict["WEIGHT_SPECTRUM"][:, spw_sel_dict[key]], axis=1
                     )
-
-                val_dict.update(temp_dict)
-            ms.putvarcol(col, {key: val_dict[key] for key in sorted(val_dict.keys())})
-
+                    last_row += Nrecs
         # Write out the units of the visibilities, post a warning if its not in Jy since
         # we don't know how every CASA program may react
         ms.putcolkeyword("DATA", "QuantumUnits", self.vis_units)
@@ -1136,19 +1161,17 @@ class MS(UVData):
         ms.putcol("WEIGHT", temp_weights)
         ms.putcol("SIGMA", np.power(temp_weights, -0.5, where=temp_weights != 0))
 
-        ms.putcol("ANTENNA1", np.repeat(self.ant_1_array, self.Nspws))
-        ms.putcol("ANTENNA2", np.repeat(self.ant_2_array, self.Nspws))
-        ms.putcol("INTERVAL", np.repeat(self.integration_time, self.Nspws))
-        ms.putcol("EXPOSURE", np.repeat(self.integration_time, self.Nspws))
+        ms.putcol("ANTENNA1", self.ant_1_array[blt_map_array])
+        ms.putcol("ANTENNA2", self.ant_2_array[blt_map_array])
+        ms.putcol("INTERVAL", self.integration_time[blt_map_array])
+        ms.putcol("EXPOSURE", self.integration_time[blt_map_array])
 
-        ms.putcol("DATA_DESC_ID", np.tile(np.arange(self.Nspws), self.Nblts))
+        ms.putcol("DATA_DESC_ID", data_desc_array)
 
         # Note that the default for MS is UTC, which is the same as UVData
         ms.putcol(
             "TIME",
-            np.repeat(
-                Time(self.time_array, format="jd").mjd * 3600.0 * 24.0, self.Nspws,
-            ),
+            Time(self.time_array[blt_map_array], format="jd").mjd * 3600.0 * 24.0,
         )
 
         # FITS uvw direction convention is opposite ours and Miriad's.
@@ -1156,7 +1179,7 @@ class MS(UVData):
         # but after a question to the helpdesk we got a clear response that
         # the convention is antenna2_pos - antenna1_pos, so the convention is the
         # same as ours & Miriad's
-        ms.putcol("UVW", np.repeat(self.uvw_array, self.Nspws, axis=0))
+        ms.putcol("UVW", self.uvw_array[blt_map_array])
         if self.multi_phase_center:
             # We have to do an extra bit of work here, as CASA won't accept arbitrary
             # values for field ID (rather, the ID number matches to the row number in
@@ -1173,16 +1196,10 @@ class MS(UVData):
 
                 field_id_array[sel_mask] = idx
 
-            ms.putcol("FIELD_ID", np.repeat(field_id_array, self.Nspws))
-
-        # If scan numbers are not already defined from reading an MS,
-        # group integrations (rows) into scan numbers.
-        if self.scan_number_array is None:
-            self._set_scan_numbers()
+            ms.putcol("FIELD_ID", field_id_array[blt_map_array])
 
         if self.Nspws > 1:
-            scan_array_tiled = np.repeat(self.scan_number_array, self.Nspws)
-            ms.putcol("SCAN_NUMBER", scan_array_tiled)
+            ms.putcol("SCAN_NUMBER", self.scan_number_array[blt_map_array])
         else:
             ms.putcol("SCAN_NUMBER", self.scan_number_array)
 
