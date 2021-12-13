@@ -103,6 +103,8 @@ def test_read_mwa_write_uvfits(tmp_path):
     assert mwa_uv == uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:antnums_to_baseline")
+@pytest.mark.filterwarnings("ignore:Found antenna numbers > 256 in this data")
 def test_read_mwax_write_uvfits(tmp_path):
     """
     MWAX correlator fits to uvfits loopback test.
@@ -137,7 +139,6 @@ def test_read_mwax_write_uvfits(tmp_path):
             correct_cable_len=True,
             phase_to_pointing_center=True,
         )
-
     testfile = str(tmp_path / "outtest_MWAXcorr.uvfits")
     mwax_uv.write_uvfits(testfile, spoof_nonessential=True)
     uvfits_uv.read_uvfits(testfile)

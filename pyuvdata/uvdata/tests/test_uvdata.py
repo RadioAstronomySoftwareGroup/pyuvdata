@@ -815,7 +815,7 @@ def test_antnums_to_baselines(uvdata_baseline):
     # Check attempt256
     assert uvdata_baseline.uv_object.antnums_to_baseline(0, 0, attempt256=True) == 257
     assert uvdata_baseline.uv_object.antnums_to_baseline(257, 256) == 594177
-    with uvtest.check_warnings(UserWarning, "found > 256 antennas"):
+    with uvtest.check_warnings(UserWarning, "found antenna numbers > 256"):
         uvdata_baseline.uv_object.antnums_to_baseline(257, 256, attempt256=True)
     pytest.raises(Exception, uvdata_baseline.uv_object2.antnums_to_baseline, 0, 0)
     # check a len-1 array returns as an array
