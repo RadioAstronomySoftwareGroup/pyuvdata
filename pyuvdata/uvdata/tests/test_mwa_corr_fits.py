@@ -131,6 +131,7 @@ def test_read_mwax_write_uvfits(tmp_path):
     mwax_uv = UVData()
     uvfits_uv = UVData()
     messages = [
+        "Fixing auto-correlations to be be real-only, after some imaginary values",
         "some coarse channel files were not submitted",
     ]
     with uvtest.check_warnings(UserWarning, messages):
