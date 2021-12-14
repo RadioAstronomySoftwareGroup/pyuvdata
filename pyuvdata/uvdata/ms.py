@@ -1096,7 +1096,9 @@ class MS(UVData):
         # we will roughly calculate in temp_weights below.
         temp_weights = np.zeros((self.Nblts * self.Nspws, self.Npols), dtype=float)
         data_desc_array = np.zeros((self.Nblts * self.Nspws))
-        blt_map_array = np.zeros((self.Nblts * self.Nspws), dtype=int)
+
+        time_array, time_ind = np.unique(self.time_array, return_inverse=True)
+        time_array = (Time(time_array, format="jd").mjd * 3600.0 * 24.0)[time_ind]
 
         # Add all the rows we need up front, which will allow us to fill the
         # columns all in one shot.
@@ -1111,8 +1113,13 @@ class MS(UVData):
                 temp_weights = np.median(self.nsample_array, axis=1)
             else:
                 temp_weights = np.squeeze(np.median(self.nsample_array, axis=2), axis=1)
-            blt_map_array = np.arange(self.Nblts)
+            ant_1_array = self.ant_1_array
+            ant_2_array = self.ant_2_array
+            integration_time = self.integration_time
+            uvw_array = self.uvw_array
+            scan_number_array = self.scan_number_array
         else:
+            blt_map_array = np.zeros((self.Nblts * self.Nspws), dtype=int)
             spw_sel_dict = {}
             for spw_id in self.spw_array:
                 spw_sel_dict[spw_id] = self.flex_spw_id_array == spw_id
@@ -1146,6 +1153,12 @@ class MS(UVData):
                         val_dict["WEIGHT_SPECTRUM"][:, spw_sel_dict[key]], axis=1
                     )
                     last_row += Nrecs
+            ant_1_array = self.ant_1_array[blt_map_array]
+            ant_2_array = self.ant_2_array[blt_map_array]
+            integration_time = self.integration_time[blt_map_array]
+            time_array = time_array[blt_map_array]
+            uvw_array = self.uvw_array[blt_map_array]
+            scan_number_array = self.scan_number_array[blt_map_array]
         # Write out the units of the visibilities, post a warning if its not in Jy since
         # we don't know how every CASA program may react
         ms.putcolkeyword("DATA", "QuantumUnits", self.vis_units)
@@ -1161,31 +1174,27 @@ class MS(UVData):
         ms.putcol("WEIGHT", temp_weights)
         ms.putcol("SIGMA", np.power(temp_weights, -0.5, where=temp_weights != 0))
 
-        ms.putcol("ANTENNA1", self.ant_1_array[blt_map_array])
-        ms.putcol("ANTENNA2", self.ant_2_array[blt_map_array])
-        ms.putcol("INTERVAL", self.integration_time[blt_map_array])
-        ms.putcol("EXPOSURE", self.integration_time[blt_map_array])
-
+        ms.putcol("ANTENNA1", ant_1_array)
+        ms.putcol("ANTENNA2", ant_2_array)
+        ms.putcol("INTERVAL", integration_time)
+        ms.putcol("EXPOSURE", integration_time)
         ms.putcol("DATA_DESC_ID", data_desc_array)
 
         # Note that the default for MS is UTC, which is the same as UVData
-        ms.putcol(
-            "TIME",
-            Time(self.time_array[blt_map_array], format="jd").mjd * 3600.0 * 24.0,
-        )
+        ms.putcol("TIME", time_array)
 
         # FITS uvw direction convention is opposite ours and Miriad's.
         # CASA's convention is unclear: the docs contradict themselves,
         # but after a question to the helpdesk we got a clear response that
         # the convention is antenna2_pos - antenna1_pos, so the convention is the
         # same as ours & Miriad's
-        ms.putcol("UVW", self.uvw_array[blt_map_array])
+        ms.putcol("UVW", uvw_array)
         if self.multi_phase_center:
             # We have to do an extra bit of work here, as CASA won't accept arbitrary
             # values for field ID (rather, the ID number matches to the row number in
             # the FIELD subtable). When we write out the fields, we use sort so that
             # we can reproduce the same ordering here.
-            field_id_array = self.phase_center_id_array.copy()
+            field_ids = np.empty_like(self.phase_center_id_array)
             sou_list = list(self.phase_center_catalog.keys())
             sou_list.sort()
             for idx in range(self.Nphase):
@@ -1194,14 +1203,13 @@ class MS(UVData):
                     self.phase_center_catalog[sou_list[idx]]["cat_id"],
                 )
 
-                field_id_array[sel_mask] = idx
+                field_ids[sel_mask] = idx
 
-            ms.putcol("FIELD_ID", field_id_array[blt_map_array])
+            ms.putcol(
+                "FIELD_ID", field_ids[blt_map_array] if self.Nspws > 1 else field_ids
+            )
 
-        if self.Nspws > 1:
-            ms.putcol("SCAN_NUMBER", self.scan_number_array[blt_map_array])
-        else:
-            ms.putcol("SCAN_NUMBER", self.scan_number_array)
+        ms.putcol("SCAN_NUMBER", scan_number_array)
 
         if len(self.extra_keywords) != 0:
             ms.putkeyword("pyuvdata_extra", self.extra_keywords)
