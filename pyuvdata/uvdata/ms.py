@@ -697,7 +697,6 @@ class MS(UVData):
                 ch_mask = self.flex_spw_id_array == spw_id
             else:
                 ch_mask = np.ones(freq_array.shape, dtype=bool)
-            print(np.min(ch_width))
             sw_table.addrows()
             sw_table.putcell("NUM_CHAN", idx, np.sum(ch_mask))
             sw_table.putcell("NAME", idx, "SPW%d" % spw_id)
@@ -712,6 +711,8 @@ class MS(UVData):
             # actual frequency reference info (once UVData handles that)
             sw_table.putcell("MEAS_FREQ_REF", idx, VEL_DICT["LSRK"])
             sw_table.putcell("REF_FREQUENCY", idx, freq_array[0])
+
+        sw_table.done()
 
     def _write_ms_observation(self, filepath):
         """
@@ -751,6 +752,8 @@ class MS(UVData):
         else:
             observation_table.putcell("OBSERVER", 0, self.telescope_name)
 
+        observation_table.done()
+
     def _write_ms_polarization(self, filepath):
         """
         Write out the polarization information into a CASA table.
@@ -783,6 +786,8 @@ class MS(UVData):
         )
         pol_table.putcell("CORR_PRODUCT", 0, pol_tuples)
         pol_table.putcell("NUM_CORR", 0, self.Npols)
+
+        pol_table.done()
 
     def _ms_hist_to_string(self, history_table):
         """
@@ -1098,6 +1103,9 @@ class MS(UVData):
         temp_weights = np.zeros((self.Nblts * self.Nspws, self.Npols), dtype=float)
         data_desc_array = np.zeros((self.Nblts * self.Nspws))
 
+        # astropys Time has some overheads associated with it, so use unique to run
+        # this date conversion as few times as possible. Note that the default for MS
+        # is MJD UTC seconds, versus JD UTC days for UVData.
         time_array, time_ind = np.unique(self.time_array, return_inverse=True)
         time_array = (Time(time_array, format="jd").mjd * 3600.0 * 24.0)[time_ind]
 
@@ -1105,36 +1113,68 @@ class MS(UVData):
         # columns all in one shot.
         ms.addrows(self.Nblts * self.Nspws)
         if self.Nspws == 1:
+            # If we only have one spectral window, there is nothing we need to worry
+            # about ordering, so just write the data-related arrays as is to disk
             for attr, col in zip(attr_list, col_list):
                 if self.future_array_shapes:
                     ms.putcol(col, getattr(self, attr))
                 else:
                     ms.putcol(col, np.squeeze(getattr(self, attr), axis=1))
+
+            # Band-averaged weights are used for some things in CASA - calculate them
+            # here using median nsamples.
             if self.future_array_shapes:
                 temp_weights = np.median(self.nsample_array, axis=1)
             else:
                 temp_weights = np.squeeze(np.median(self.nsample_array, axis=2), axis=1)
+
+            # Grab pointers for the per-blt record arrays
             ant_1_array = self.ant_1_array
             ant_2_array = self.ant_2_array
             integration_time = self.integration_time
             uvw_array = self.uvw_array
             scan_number_array = self.scan_number_array
         else:
+            # If we have _more_ than one spectral window, then we need to handle each
+            # window separately, since they can have differing numbers of channels.
+            # (n.b., tables.putvarcol can write complex tables like these, but its
+            # slower and more memory-intensive than putcol).
+
+            # Since muliple records trace back to a single baseline-time, we use this
+            # array to map from arrays that store on a per-record basis to positions
+            # within arrays that record metadata on a per-blt basis.
             blt_map_array = np.zeros((self.Nblts * self.Nspws), dtype=int)
+
+            # we will select out individual spectral windows several times, so create
+            # these masks once up front before we enter the loop.
             spw_sel_dict = {}
             for spw_id in self.spw_array:
                 spw_sel_dict[spw_id] = self.flex_spw_id_array == spw_id
 
+            # Based on some analysis of ALMA/ACA data, various routines in CASA appear
+            # to prefer data be grouped together on a "per-scan" basis, then per-spw,
+            # and then the more usual selections of per-time, per-ant1, etc.
             last_row = 0
             for scan_num in sorted(np.unique(self.scan_number_array)):
+                # Select all data from the scan
                 scan_screen = self.scan_number_array == scan_num
+
+                # Get the number of records inside the scan, where 1 record = 1 spw in
+                # 1 baseline at 1 time
                 Nrecs = np.sum(scan_screen)
+
+                # Record which SPW/"Data Description" this data is matched to
                 data_desc_array[last_row : last_row + (Nrecs * self.Nspws)] = np.repeat(
                     np.arange(self.Nspws), Nrecs,
                 )
+
+                # Record index positions
                 blt_map_array[last_row : last_row + (Nrecs * self.Nspws)] = np.tile(
                     np.where(scan_screen)[0], self.Nspws,
                 )
+
+                # Extract out the relevant data out of our data-like arrays that
+                # belong to this scan number.
                 val_dict = {}
                 for attr, col in zip(attr_list, col_list):
                     if self.future_array_shapes:
@@ -1144,22 +1184,30 @@ class MS(UVData):
                             getattr(self, attr)[scan_screen], axis=1
                         )
 
+                # This is where the bulk of the heavy lifting is - use the per-spw
+                # channel masks to record one spectral window at a time.
                 for idx, key in enumerate(self.spw_array):
                     for col in col_list:
                         ms.putcol(
                             col, val_dict[col][:, spw_sel_dict[key]], last_row, Nrecs
                         )
 
+                    # Tally here the "wideband" weights for the whole spectral window,
+                    # which is used in some CASA routines.
                     temp_weights[last_row : last_row + Nrecs] = np.median(
                         val_dict["WEIGHT_SPECTRUM"][:, spw_sel_dict[key]], axis=1
                     )
                     last_row += Nrecs
+
+            # Now that we have an array to map baselime-time to individual records,
+            # use our indexing array to map various metadata.
             ant_1_array = self.ant_1_array[blt_map_array]
             ant_2_array = self.ant_2_array[blt_map_array]
             integration_time = self.integration_time[blt_map_array]
             time_array = time_array[blt_map_array]
             uvw_array = self.uvw_array[blt_map_array]
             scan_number_array = self.scan_number_array[blt_map_array]
+
         # Write out the units of the visibilities, post a warning if its not in Jy since
         # we don't know how every CASA program may react
         ms.putcolkeyword("DATA", "QuantumUnits", self.vis_units)
@@ -1177,11 +1225,16 @@ class MS(UVData):
 
         ms.putcol("ANTENNA1", ant_1_array)
         ms.putcol("ANTENNA2", ant_2_array)
+
+        # "INVERVAL" refers to "width" of the window of time time over which data was
+        # collected, while "EXPOSURE" is the sum total of integration time.  UVData
+        # does not differentiate between these concepts, hence why one array is used
+        # for both values.
         ms.putcol("INTERVAL", integration_time)
         ms.putcol("EXPOSURE", integration_time)
-        ms.putcol("DATA_DESC_ID", data_desc_array)
 
-        # Note that the default for MS is UTC, which is the same as UVData
+        ms.putcol("DATA_DESC_ID", data_desc_array)
+        ms.putcol("SCAN_NUMBER", scan_number_array)
         ms.putcol("TIME", time_array)
 
         # FITS uvw direction convention is opposite ours and Miriad's.
@@ -1190,6 +1243,7 @@ class MS(UVData):
         # the convention is antenna2_pos - antenna1_pos, so the convention is the
         # same as ours & Miriad's
         ms.putcol("UVW", uvw_array)
+
         if self.multi_phase_center:
             # We have to do an extra bit of work here, as CASA won't accept arbitrary
             # values for field ID (rather, the ID number matches to the row number in
@@ -1210,8 +1264,9 @@ class MS(UVData):
                 "FIELD_ID", field_ids[blt_map_array] if self.Nspws > 1 else field_ids
             )
 
-        ms.putcol("SCAN_NUMBER", scan_number_array)
-
+        # Finally, record extra keywords and x_orientation, both of which the MS format
+        # doesn't quite have equivalent fields to stuff data into (and instead is put
+        # into the main header as a keyword).
         if len(self.extra_keywords) != 0:
             ms.putkeyword("pyuvdata_extra", self.extra_keywords)
 
