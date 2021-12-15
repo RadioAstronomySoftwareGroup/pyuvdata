@@ -19,6 +19,9 @@ a non-MS file) and is used when writing to an MS file.
 - Flexible spectral windows to `read_mwa_corr_fits`.
 
 ### Changed
+- Changed the `UVData.write_ms` to reduce processing time and memory footprint.
+- Changed the order in which data are written in Measurement Set format via the method
+  `UVData.write_ms`, where data are now first grouped together by `scan_number_array`.
 - Changed the defaults by which the `UVData.antenna_names` attribute is set when reading
 measurement sets (used to default to station names, now uses antenna names if available
 and the MS file was not written using the CASA `importuvfits` routine).
@@ -30,6 +33,8 @@ calls to JPL Horizons.
 - Improved readability, functionality, and memory usage in `read_mwa_corr_fits`.
 
 ### Fixed
+- A bug that could cause some routines in CASA to fail when using data sets written by
+  `UVData.write_ms`.
 - A bug that could have resulted in `UVData.__add__` combining objects together incorrectly
   when containing overlapping time-baselines/polarization/frequency channels together
   that were ordered differently for the two `UVData` objects.
