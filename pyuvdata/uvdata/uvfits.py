@@ -154,12 +154,6 @@ class UVFITS(UVData):
             and "WW---NCP" in vis_hdu.data.parnames
         ):
             uvw_names = ["UU---NCP", "VV---NCP", "WW---NCP"]
-            warnings.warn(
-                "The baseline coordinates (uvws) in this file are specified in the "
-                "---NCP coordinate system, which is does not agree with our baseline "
-                "coordinate conventions. The values are not being modified to align "
-                "with our convention."
-            )
         else:
             raise ValueError(
                 "There is no consistent set of baseline coordinates in this file. "
@@ -817,6 +811,13 @@ class UVFITS(UVData):
 
             # Calculate the apparent coordinate values
             self._set_app_coords_helper()
+
+            # fix up the uvws if in the NCP baseline coordinate frame.
+            # Must be done here because it requires the phase_center_app_dec
+            if "UU---NCP" in vis_hdu.data.parnames:
+                self.uvw_array = uvutils._rotate_one_axis(
+                    self.uvw_array[:, :, None], self.phase_center_app_dec - np.pi / 2, 0
+                )[:, :, 0]
 
             if not read_data:
                 # don't read in the data. This means the object is a metadata
