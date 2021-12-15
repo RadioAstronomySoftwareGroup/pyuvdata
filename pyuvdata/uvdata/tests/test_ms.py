@@ -511,10 +511,14 @@ def test_ms_multi_spw_data_variation(mir_uv, tmp_path):
 
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_ms_phasing(mir_uv, tmp_path):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_ms_phasing(mir_uv, future_shapes, tmp_path):
     """
     Test that the MS writer can appropriately handle unphased data sets.
     """
+    if future_shapes:
+        mir_uv.use_future_array_shapes()
+
     ms_uv = UVData()
     testfile = os.path.join(tmp_path, "out_ms_phasing.ms")
 
@@ -535,10 +539,14 @@ def test_ms_phasing(mir_uv, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
-def test_ms_single_chan(mir_uv, tmp_path):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_ms_single_chan(mir_uv, future_shapes, tmp_path):
     """
     Make sure that single channel writing/reading work as expected
     """
+    if future_shapes:
+        mir_uv.use_future_array_shapes()
+
     ms_uv = UVData()
     testfile = os.path.join(tmp_path, "out_ms_single_chan.ms")
 
@@ -564,6 +572,9 @@ def test_ms_single_chan(mir_uv, tmp_path):
     ms_uv._set_flex_spw()
     ms_uv.channel_width = np.array([ms_uv.channel_width])
     ms_uv.flex_spw_id_array = ms_uv.spw_array.copy()
+
+    if future_shapes:
+        ms_uv.use_future_array_shapes()
 
     # Finally, take care of the odds and ends
     ms_uv.extra_keywords = {}
