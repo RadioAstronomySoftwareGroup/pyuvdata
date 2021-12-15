@@ -141,7 +141,7 @@ class MS(UVData):
         ms_desc["FLAG_CATEGORY"].update(
             dataManagerType="TiledShapeStMan",
             dataManagerGroup="TiledFlagCategory",
-            keywords={"CATEGORY": []},
+            keywords={"CATEGORY": np.array("baddata")},
         )
         ms_desc["WEIGHT"].update(
             dataManagerType="TiledShapeStMan", dataManagerGroup="TiledWgt",
@@ -697,7 +697,7 @@ class MS(UVData):
                 ch_mask = self.flex_spw_id_array == spw_id
             else:
                 ch_mask = np.ones(freq_array.shape, dtype=bool)
-
+            print(np.min(ch_width))
             sw_table.addrows()
             sw_table.putcell("NUM_CHAN", idx, np.sum(ch_mask))
             sw_table.putcell("NAME", idx, "SPW%d" % spw_id)
@@ -706,6 +706,7 @@ class MS(UVData):
             sw_table.putcell("CHAN_FREQ", idx, freq_array[ch_mask])
             sw_table.putcell("CHAN_WIDTH", idx, ch_width[ch_mask])
             sw_table.putcell("EFFECTIVE_BW", idx, ch_width[ch_mask])
+            sw_table.putcell("TOTAL_BANDWIDTH", idx, np.sum(ch_width[ch_mask]))
             sw_table.putcell("RESOLUTION", idx, ch_width[ch_mask])
             # TODO: These are placeholders for now, but should be replaced with
             # actual frequency reference info (once UVData handles that)
