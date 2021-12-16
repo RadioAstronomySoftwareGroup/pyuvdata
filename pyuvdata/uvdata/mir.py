@@ -173,13 +173,20 @@ class Mir(UVData):
         for code in mir_data.codes_read[mir_data.codes_read["v_name"] == b"pol"]:
             pol_code_dict[code["icode"]] = code["code"].decode("UTF-8").lower()
 
-        Npols = len(set(pol_dict.values()))
-        polarization_array = np.zeros(Npols, dtype=int)
+        if pol_split_tuning:
+            # Encode polarization array to be pseudo Stokes I, since that is effectively
+            # how these values are going to be treated.
+            Npols = 1
+            polarization_array = np.array([1])
+            # TODO: Add split tuning handing here
+        else:
+            Npols = len(set(pol_dict.values()))
+            polarization_array = np.zeros(Npols, dtype=int)
 
-        for key in pol_dict.keys():
-            polarization_array[pol_dict[key]] = uvutils.POL_STR2NUM_DICT[
-                pol_code_dict[key]
-            ]
+            for key in pol_dict.keys():
+                polarization_array[pol_dict[key]] = uvutils.POL_STR2NUM_DICT[
+                    pol_code_dict[key]
+                ]
 
         blt_list = [
             (intid, ant1, ant2)
