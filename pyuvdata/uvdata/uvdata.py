@@ -382,6 +382,7 @@ class UVData(UVBase):
             description=desc,
             form=("Nspws",),
             expected_type=int,
+            acceptable_vals=list(np.arange(-8, 0)) + list(np.arange(1, 5)),
             required=False,
         )
 
@@ -2458,10 +2459,16 @@ class UVData(UVBase):
 
         # Check that usage of flex_spw_polarization_array follows the rule that each
         # window only has a single polarization per spectral window.
-        if self.Npols != 1 and self.flex_spw_polarization_array is not None:
-            raise ValueError(
-                "Npols must be equal to 1 if flex_spw_polarization_array is set."
-            )
+        if self.flex_spw_polarization_array is not None:
+            if self.Npols != 1:
+                raise ValueError(
+                    "Npols must be equal to 1 if flex_spw_polarization_array is set."
+                )
+            if np.any(self.polarization_array != 1):
+                raise ValueError(
+                    "polarization_array must all be equal to 1 if "
+                    "flex_spw_polarization_array is set."
+                )
 
         # require that all entries in ant_1_array and ant_2_array exist in
         # antenna_numbers
