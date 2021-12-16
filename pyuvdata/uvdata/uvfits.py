@@ -154,6 +154,12 @@ class UVFITS(UVData):
             and "WW---NCP" in vis_hdu.data.parnames
         ):
             uvw_names = ["UU---NCP", "VV---NCP", "WW---NCP"]
+            warnings.warn(
+                "The baseline coordinates (uvws) in this file are specified in the "
+                "---NCP coordinate system, which is does not agree with our baseline "
+                "coordinate conventions. Rotating the uvws to match our convention "
+                "(Note that this rotation has not been widely tested)."
+            )
         else:
             raise ValueError(
                 "There is no consistent set of baseline coordinates in this file. "

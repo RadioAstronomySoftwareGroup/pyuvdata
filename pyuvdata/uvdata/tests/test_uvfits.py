@@ -496,12 +496,22 @@ def test_uvw_coordinate_suffixes(casa_uvfits, tmp_path, uvw_suffix):
         hdulist.writeto(write_file2, overwrite=True)
         hdulist.close()
 
-    uv2 = UVData.from_file(write_file2)
-
     if uvw_suffix == "---NCP":
+        with uvtest.check_warnings(
+            UserWarning,
+            match=[
+                "Telescope EVLA is not in known_telescopes.",
+                "The baseline coordinates (uvws) in this file are specified in the "
+                "---NCP coordinate system",
+                "The uvw_array does not match the expected values",
+            ],
+        ):
+            uv2 = UVData.from_file(write_file2)
         uv2.uvw_array = uvutils._rotate_one_axis(
             uv2.uvw_array[:, :, None], -1 * (uv2.phase_center_app_dec - np.pi / 2), 0
         )[:, :, 0]
+    else:
+        uv2 = UVData.from_file(write_file2)
 
     assert uv2 == uv_in
 
