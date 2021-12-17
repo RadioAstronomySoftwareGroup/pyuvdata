@@ -1236,6 +1236,7 @@ class MS(UVData):
         ms.putcol("DATA_DESC_ID", data_desc_array)
         ms.putcol("SCAN_NUMBER", scan_number_array)
         ms.putcol("TIME", time_array)
+        ms.putcol("TIME_CENTROID", time_array)
 
         # FITS uvw direction convention is opposite ours and Miriad's.
         # CASA's convention is unclear: the docs contradict themselves,
