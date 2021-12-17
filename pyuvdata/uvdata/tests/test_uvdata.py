@@ -11332,3 +11332,24 @@ def test_add_pol_sorting_bl(casa_uvfits, add_type, sort_type, future_array_shape
 
     # Finally, make sure everything else lines up
     assert uv3 == casa_uvfits
+
+
+@pytest.mark.parametrize(
+    "pol_sel,err_msg",
+    [
+        [None, "Npols must be equal to 1 if flex_spw_polarization_array is set."],
+        [-5, "polarization_array must all be equal to 0 if flex_spw_polarization"],
+    ],
+)
+def test_flex_pol_errs(sma_mir, pol_sel, err_msg):
+    """
+    Test that appropriate errors are thrown when flex_spw_polarization_array is set
+    incorrectly.
+    """
+    sma_mir.select(polarizations=pol_sel)
+    sma_mir.flex_spw_polarization_array = sma_mir.spw_array
+
+    with pytest.raises(ValueError) as cm:
+        sma_mir.check()
+
+    assert str(cm.value).startswith(err_msg)
