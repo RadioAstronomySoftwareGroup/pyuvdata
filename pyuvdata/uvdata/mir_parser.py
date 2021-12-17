@@ -225,277 +225,39 @@ class MirParser(object):
     metadata first to check whether or not to load additional data into memory.
     """
 
-    def __init__(
-        self, filepath, has_auto=False, load_vis=False, load_raw=False, load_auto=False
-    ):
+    def __iter__(self):
+        """Iterate over all MirParser attributes."""
+        attribute_list = [
+            a
+            for a in dir(self)
+            if not a.startswith("__") and not callable(getattr(self, a))
+        ]
+
+        for attribute in attribute_list:
+            yield attribute
+
+    def copy(self):
         """
-        Read in all files from a mir data set into predefined numpy datatypes.
-
-        The full dataset can be quite large, as such the default behavior of
-        this function is only to load the metadata. Use the keyword params to
-        load other data into memory.
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-        has_auto : bool
-            flag to read auto-correlation data, default is False.
-        load_vis : bool
-            flag to load visibilities into memory, default is False.
-        load_raw : bool
-            flag to load raw data into memory, default is False.
-        load_auto : bool
-            flag to load auto-correlations into memory, default is False.
-        """
-        self._has_auto = has_auto
-
-        self.filepath = filepath
-        self.in_read = self.read_in_data(filepath)
-        self.eng_read = self.read_eng_data(filepath)
-        self.bl_read = self.read_bl_data(filepath)
-        self.sp_read = self.read_sp_data(filepath)
-        self.codes_read = self.read_codes_data(filepath)
-        self.we_read = self.read_we_data(filepath)
-        self.in_start_dict = self.scan_int_start(filepath)
-        self.antpos_data = self.read_antennas(filepath)
-
-        self.use_in = np.ones(self.in_read.shape, dtype=np.bool_)
-        self.use_bl = np.ones(self.bl_read.shape, dtype=np.bool_)
-        self.use_sp = np.ones(self.sp_read.shape, dtype=np.bool_)
-
-        self.in_filter = np.ones(self.in_read.shape, dtype=np.bool_)
-        self.eng_filter = np.ones(self.eng_read.shape, dtype=np.bool_)
-        self.bl_filter = np.ones(self.bl_read.shape, dtype=np.bool_)
-        self.sp_filter = np.ones(self.sp_read.shape, dtype=np.bool_)
-        self.we_filter = np.ones(self.we_read.shape, dtype=np.bool_)
-
-        self.in_data = self.in_read
-        self.eng_data = self.eng_read
-        self.bl_data = self.bl_read
-        self.sp_data = self.sp_read
-        self.codes_data = self.codes_read
-        self.we_data = self.we_read
-
-        if self._has_auto:
-            self.ac_read = self.scan_auto_data(filepath)
-            self.ac_filter = np.ones(self.ac_read.shape, dtype=np.bool_)
-            self.ac_data = self.ac_read
-        else:
-            self.ac_read = None
-            self.ac_filter = None
-            self.ac_data = None
-
-            # Check for load_auto=True.
-            if load_auto:
-                load_auto = False
-
-        # Raw data aren't loaded on start, because the datasets can be huge
-        # You can force this after creating the object with load_data().
-        self.vis_data = None
-        self.raw_data = None
-        self.auto_data = None
-        self.raw_scale_fac = None
-
-        self.inhid_dict = {}
-        self.blhid_dict = {}
-        self.sphid_dict = {}
-
-        self.load_data(load_vis=load_vis, load_raw=load_raw, load_auto=load_auto)
-
-    def _update_filter(self):
-        """
-        Update MirClass internal filters for the data.
-
-        Expands the internal 'use_in', 'use_bl', and 'use_sp' arrays to
-        construct filters for the individual structures/data
+        Make and return a copy of the MirParser object.
 
         Returns
         -------
-        filter_changed : bool
-            Indicates whether the underlying selected records changed.
+        MirParser
+            Copy of self.
         """
-        old_in_filter = self.in_filter
-        old_bl_filter = self.bl_filter
-        old_sp_filter = self.sp_filter
+        mp = MirParser()
 
-        # Start with in-level records
-        inhid_filter_dict = {
-            key: value for key, value in zip(self.in_read["inhid"], self.use_in)
-        }
+        # include all attributes, not just UVParameter ones.
+        for attr in self.__iter__():
+            # skip properties
+            if isinstance(getattr(type(self), attr, None), property):
+                continue
 
-        # Filter out de-selected bl records
-        self.bl_filter = np.logical_and(
-            self.use_bl, [inhid_filter_dict[key] for key in self.bl_read["inhid"]]
-        )
+            # skip data like parameters
+            # parameter names have a leading underscore we want to ignore
+            setattr(mp, attr, copy.deepcopy(getattr(self, attr)))
 
-        # Build a dict of bl-level records
-        blhid_filter_dict = {
-            key: value for key, value in zip(self.bl_read["blhid"], self.bl_filter)
-        }
-
-        # Filter out de-selected sp records
-        self.sp_filter = np.logical_and(
-            self.use_sp, [blhid_filter_dict[key] for key in self.sp_read["blhid"]]
-        )
-
-        # Check for bl records that have no good sp records
-        sp_bl_check = {key: False for key in self.bl_read["blhid"]}
-        sp_bl_check.update(
-            {key: True for key in np.unique(self.sp_read["blhid"][self.sp_filter])}
-        )
-
-        # Filter out de-selected bl records
-        self.bl_filter = np.logical_and(
-            self.bl_filter, [sp_bl_check[key] for key in self.bl_read["blhid"]]
-        )
-
-        # Check for in records that have no good bl records
-        bl_in_check = {key: False for key in self.in_read["inhid"]}
-        bl_in_check.update(
-            {key: True for key in np.unique(self.bl_read["inhid"][self.bl_filter])}
-        )
-
-        # Filter out de-selected in records
-        self.in_filter = np.logical_and(
-            self.use_in, [bl_in_check[key] for key in self.in_read["inhid"]]
-        )
-
-        # Create a temporary dictionary for filtering the remaining dtypes
-        inhid_filter_dict = {
-            key: value for key, value in zip(self.in_read["inhid"], self.in_filter)
-        }
-
-        # Filter out the last two data products, based on the above
-        self.eng_filter = np.array(
-            [inhid_filter_dict[key] for key in self.eng_read["inhid"]]
-        )
-        self.we_filter = np.array(
-            [inhid_filter_dict[key] for key in self.we_read["scanNumber"]]
-        )
-
-        if self._has_auto:
-            self.ac_filter = np.array(
-                [inhid_filter_dict[key] for key in self.ac_read["inhid"]]
-            )
-
-        filter_changed = not (
-            np.all(np.array_equal(old_sp_filter, self.sp_filter))
-            and np.all(np.array_equal(old_bl_filter, self.bl_filter))
-            and np.all(np.array_equal(old_in_filter, self.in_filter))
-        )
-
-        if filter_changed:
-            self.in_data = self.in_read[self.in_filter]
-            self.bl_data = self.bl_read[self.bl_filter]
-            self.sp_data = self.sp_read[self.sp_filter]
-            self.eng_data = self.eng_read[self.eng_filter]
-            self.we_data = self.we_read[self.we_filter]
-
-            if self._has_auto:
-                self.ac_data = self.ac_read[self.ac_filter]
-
-        # Craft some dictionaries so you know what list position matches
-        # to each index entry. This helps avoid ordering issues.
-        self.inhid_dict = {
-            self.in_data["inhid"][idx]: idx for idx in range(len(self.in_data))
-        }
-        self.blhid_dict = {
-            self.bl_data["blhid"][idx]: idx for idx in range(len(self.bl_data))
-        }
-        self.sphid_dict = {
-            self.sp_data["sphid"][idx]: idx for idx in range(len(self.sp_data))
-        }
-
-        return filter_changed
-
-    def load_data(self, load_vis=True, load_raw=False, load_auto=False):
-        """
-        Load visibility data into MirParser class.
-
-        Parameters
-        ----------
-        load_vis : bool, optional
-            Load the visibility data (floats) into object (deault is True)
-        load_raw : bool, optional
-            Load the raw visibility data (ints) into object (default is False)
-        load_auto: bool, optional
-            Load the autos (floats) into object (default is False)
-        """
-        self._update_filter()
-
-        if load_vis:
-            self.vis_data = self.parse_vis_data(
-                self.filepath, self.in_start_dict, self.sp_data
-            )
-            self.vis_data_loaded = True
-        if load_raw:
-            self.raw_data, self.raw_scale_fac = self.parse_raw_data(
-                self.filepath, self.in_start_dict, self.sp_data
-            )
-            self.raw_data_loaded = True
-        if load_auto and self._has_auto:
-            # Have to do this because of a strange bug in data recording where
-            # we record more autos worth of spectral windows than we actually
-            # have online.
-            winsel = np.unique(self.sp_data["corrchunk"])
-            winsel = winsel[winsel != 0].astype(int) - 1
-            self.auto_data = self.read_auto_data(
-                self.filepath, self.ac_data, winsel=winsel
-            )
-
-    def unload_data(self):
-        """Unload data from the MirParser object."""
-        if self.vis_data is not None:
-            self.vis_data = None
-        if self.raw_data is not None:
-            self.raw_data = None
-        if self.auto_data is not None:
-            self.auto_data = None
-
-    def _apply_tsys(self, interp_rxa_ants=None, interp_rxb_ants=None, jypk=130.0):
-        """
-        Apply Tsys calibration to the visibilities.
-
-        SMA MIR data are recorded as correlation coefficients. This allows one to apply
-        system temperature information to the data to get values in units of Jy. This
-        method is not meant to be called by users, but is instead meant to be called
-        by data read methods.
-        """
-        tsys_dict = {
-            (idx, jdx, 0): tsys ** 0.5
-            for idx, jdx, tsys in zip(
-                self.eng_data["inhid"],
-                self.eng_data["antennaNumber"],
-                self.eng_data["tsys"],
-            )
-        }
-        tsys_dict.update(
-            {
-                (idx, jdx, 1): tsys ** 0.5
-                for idx, jdx, tsys in zip(
-                    self.eng_data["inhid"],
-                    self.eng_data["antennaNumber"],
-                    self.eng_data["tsys"],
-                )
-            }
-        )
-
-        normal_dict = {
-            blhid: (2.0 * jypk)
-            * (tsys_dict[(idx, jdx, kdx)] * tsys_dict[(idx, ldx, mdx)])
-            for blhid, idx, jdx, kdx, ldx, mdx in zip(
-                self.bl_data["blhid"],
-                self.bl_data["inhid"],
-                self.bl_data["iant1"],
-                self.bl_data["ant1rx"],
-                self.bl_data["iant2"],
-                self.bl_data["ant2rx"],
-            )
-        }
-
-        for idx, blhid in enumerate(self.sp_data["blhid"]):
-            self.vis_data[idx] *= normal_dict[blhid]
+        return mp
 
     @staticmethod
     def read_in_data(filepath):
@@ -970,3 +732,313 @@ class MirParser(object):
                 num_vals += 1
                 inhid_list.append(ind_key)
         return in_data_dict
+
+    def _update_filter(self):
+        """
+        Update MirClass internal filters for the data.
+
+        Expands the internal 'use_in', 'use_bl', and 'use_sp' arrays to
+        construct filters for the individual structures/data
+
+        Returns
+        -------
+        filter_changed : bool
+            Indicates whether the underlying selected records changed.
+        """
+        old_in_filter = self.in_filter
+        old_bl_filter = self.bl_filter
+        old_sp_filter = self.sp_filter
+
+        # Start with in-level records
+        inhid_filter_dict = {
+            key: value for key, value in zip(self.in_read["inhid"], self.use_in)
+        }
+
+        # Filter out de-selected bl records
+        self.bl_filter = np.logical_and(
+            self.use_bl, [inhid_filter_dict[key] for key in self.bl_read["inhid"]]
+        )
+
+        # Build a dict of bl-level records
+        blhid_filter_dict = {
+            key: value for key, value in zip(self.bl_read["blhid"], self.bl_filter)
+        }
+
+        # Filter out de-selected sp records
+        self.sp_filter = np.logical_and(
+            self.use_sp, [blhid_filter_dict[key] for key in self.sp_read["blhid"]]
+        )
+
+        # Check for bl records that have no good sp records
+        sp_bl_check = {key: False for key in self.bl_read["blhid"]}
+        sp_bl_check.update(
+            {key: True for key in np.unique(self.sp_read["blhid"][self.sp_filter])}
+        )
+
+        # Filter out de-selected bl records
+        self.bl_filter = np.logical_and(
+            self.bl_filter, [sp_bl_check[key] for key in self.bl_read["blhid"]]
+        )
+
+        # Check for in records that have no good bl records
+        bl_in_check = {key: False for key in self.in_read["inhid"]}
+        bl_in_check.update(
+            {key: True for key in np.unique(self.bl_read["inhid"][self.bl_filter])}
+        )
+
+        # Filter out de-selected in records
+        self.in_filter = np.logical_and(
+            self.use_in, [bl_in_check[key] for key in self.in_read["inhid"]]
+        )
+
+        # Create a temporary dictionary for filtering the remaining dtypes
+        inhid_filter_dict = {
+            key: value for key, value in zip(self.in_read["inhid"], self.in_filter)
+        }
+
+        # Filter out the last two data products, based on the above
+        self.eng_filter = np.array(
+            [inhid_filter_dict[key] for key in self.eng_read["inhid"]]
+        )
+        self.we_filter = np.array(
+            [inhid_filter_dict[key] for key in self.we_read["scanNumber"]]
+        )
+
+        if self._has_auto:
+            self.ac_filter = np.array(
+                [inhid_filter_dict[key] for key in self.ac_read["inhid"]]
+            )
+
+        filter_changed = not (
+            np.all(np.array_equal(old_sp_filter, self.sp_filter))
+            and np.all(np.array_equal(old_bl_filter, self.bl_filter))
+            and np.all(np.array_equal(old_in_filter, self.in_filter))
+        )
+
+        if filter_changed:
+            self.in_data = self.in_read[self.in_filter]
+            self.bl_data = self.bl_read[self.bl_filter]
+            self.sp_data = self.sp_read[self.sp_filter]
+            self.eng_data = self.eng_read[self.eng_filter]
+            self.we_data = self.we_read[self.we_filter]
+
+            if self._has_auto:
+                self.ac_data = self.ac_read[self.ac_filter]
+
+        # Craft some dictionaries so you know what list position matches
+        # to each index entry. This helps avoid ordering issues.
+        self.inhid_dict = {
+            self.in_data["inhid"][idx]: idx for idx in range(len(self.in_data))
+        }
+        self.blhid_dict = {
+            self.bl_data["blhid"][idx]: idx for idx in range(len(self.bl_data))
+        }
+        self.sphid_dict = {
+            self.sp_data["sphid"][idx]: idx for idx in range(len(self.sp_data))
+        }
+
+        return filter_changed
+
+    def load_data(self, load_vis=True, load_raw=False, load_auto=False):
+        """
+        Load visibility data into MirParser class.
+
+        Parameters
+        ----------
+        load_vis : bool, optional
+            Load the visibility data (floats) into object (deault is True)
+        load_raw : bool, optional
+            Load the raw visibility data (ints) into object (default is False)
+        load_auto: bool, optional
+            Load the autos (floats) into object (default is False)
+        """
+        self._update_filter()
+
+        if load_vis:
+            self.vis_data = self.parse_vis_data(
+                self.filepath, self.in_start_dict, self.sp_data
+            )
+            self.vis_data_loaded = True
+        if load_raw:
+            self.raw_data, self.raw_scale_fac = self.parse_raw_data(
+                self.filepath, self.in_start_dict, self.sp_data
+            )
+            self.raw_data_loaded = True
+        if load_auto and self._has_auto:
+            # Have to do this because of a strange bug in data recording where
+            # we record more autos worth of spectral windows than we actually
+            # have online.
+            winsel = np.unique(self.sp_data["corrchunk"])
+            winsel = winsel[winsel != 0].astype(int) - 1
+            self.auto_data = self.read_auto_data(
+                self.filepath, self.ac_data, winsel=winsel
+            )
+
+    def unload_data(self):
+        """Unload data from the MirParser object."""
+        if self.vis_data is not None:
+            self.vis_data = None
+        if self.raw_data is not None:
+            self.raw_data = None
+        if self.auto_data is not None:
+            self.auto_data = None
+        if self.raw_scale_fac is not None:
+            self.raw_scale_fac = None
+
+    def _apply_tsys(self, interp_rxa_ants=None, interp_rxb_ants=None, jypk=130.0):
+        """
+        Apply Tsys calibration to the visibilities.
+
+        SMA MIR data are recorded as correlation coefficients. This allows one to apply
+        system temperature information to the data to get values in units of Jy. This
+        method is not meant to be called by users, but is instead meant to be called
+        by data read methods.
+        """
+        tsys_dict = {
+            (idx, jdx, 0): tsys ** 0.5
+            for idx, jdx, tsys in zip(
+                self.eng_data["inhid"],
+                self.eng_data["antennaNumber"],
+                self.eng_data["tsys"],
+            )
+        }
+        tsys_dict.update(
+            {
+                (idx, jdx, 1): tsys ** 0.5
+                for idx, jdx, tsys in zip(
+                    self.eng_data["inhid"],
+                    self.eng_data["antennaNumber"],
+                    self.eng_data["tsys"],
+                )
+            }
+        )
+
+        normal_dict = {
+            blhid: (2.0 * jypk)
+            * (tsys_dict[(idx, jdx, kdx)] * tsys_dict[(idx, ldx, mdx)])
+            for blhid, idx, jdx, kdx, ldx, mdx in zip(
+                self.bl_data["blhid"],
+                self.bl_data["inhid"],
+                self.bl_data["iant1"],
+                self.bl_data["ant1rx"],
+                self.bl_data["iant2"],
+                self.bl_data["ant2rx"],
+            )
+        }
+
+        for idx, blhid in enumerate(self.sp_data["blhid"]):
+            self.vis_data[idx] *= normal_dict[blhid]
+
+    def from_file(
+        self, filepath, has_auto=False, load_vis=False, load_raw=False, load_auto=False,
+    ):
+        """
+        Read in all files from a mir data set into predefined numpy datatypes.
+
+        The full dataset can be quite large, as such the default behavior of
+        this function is only to load the metadata. Use the keyword params to
+        load other data into memory.
+
+        Parameters
+        ----------
+        filepath : str
+            filepath is the path to the folder containing the mir data set.
+        has_auto : bool
+            flag to read auto-correlation data, default is False.
+        load_vis : bool
+            flag to load visibilities into memory, default is False.
+        load_raw : bool
+            flag to load raw data into memory, default is False.
+        load_auto : bool
+            flag to load auto-correlations into memory, default is False.
+        """
+        self._has_auto = has_auto
+        self.filepath = filepath
+        self.in_read = self.read_in_data(filepath)
+        self.eng_read = self.read_eng_data(filepath)
+        self.bl_read = self.read_bl_data(filepath)
+        self.sp_read = self.read_sp_data(filepath)
+        self.codes_read = self.read_codes_data(filepath)
+        self.we_read = self.read_we_data(filepath)
+        self.in_start_dict = self.scan_int_start(filepath)
+        self.antpos_data = self.read_antennas(filepath)
+
+        self.use_in = np.ones(self.in_read.shape, dtype=np.bool_)
+        self.use_bl = np.ones(self.bl_read.shape, dtype=np.bool_)
+        self.use_sp = np.ones(self.sp_read.shape, dtype=np.bool_)
+
+        self.in_filter = np.ones(self.in_read.shape, dtype=np.bool_)
+        self.eng_filter = np.ones(self.eng_read.shape, dtype=np.bool_)
+        self.bl_filter = np.ones(self.bl_read.shape, dtype=np.bool_)
+        self.sp_filter = np.ones(self.sp_read.shape, dtype=np.bool_)
+        self.we_filter = np.ones(self.we_read.shape, dtype=np.bool_)
+
+        self.in_data = self.in_read
+        self.eng_data = self.eng_read
+        self.bl_data = self.bl_read
+        self.sp_data = self.sp_read
+        self.codes_data = self.codes_read
+        self.we_data = self.we_read
+
+        if self._has_auto:
+            self.ac_read = self.scan_auto_data(filepath)
+            self.ac_filter = np.ones(self.ac_read.shape, dtype=np.bool_)
+            self.ac_data = self.ac_read
+        else:
+            self.ac_read = None
+            self.ac_filter = None
+            self.ac_data = None
+
+            # Check for load_auto=True.
+            if load_auto:
+                load_auto = False
+
+        # Raw data aren't loaded on start, because the datasets can be huge
+        # You can force this after creating the object with load_data().
+        self.vis_data = None
+        self.raw_data = None
+        self.auto_data = None
+        self.raw_scale_fac = None
+
+        self.inhid_dict = {}
+        self.blhid_dict = {}
+        self.sphid_dict = {}
+
+        self.load_data(load_vis=load_vis, load_raw=load_raw, load_auto=load_auto)
+
+    def __init__(
+        self,
+        filepath=None,
+        has_auto=False,
+        load_vis=False,
+        load_raw=False,
+        load_auto=False,
+    ):
+        """
+        Read in all files from a mir data set into predefined numpy datatypes.
+
+        The full dataset can be quite large, as such the default behavior of
+        this function is only to load the metadata. Use the keyword params to
+        load other data into memory.
+
+        Parameters
+        ----------
+        filepath : str
+            filepath is the path to the folder containing the mir data set.
+        has_auto : bool
+            flag to read auto-correlation data, default is False.
+        load_vis : bool
+            flag to load visibilities into memory, default is False.
+        load_raw : bool
+            flag to load raw data into memory, default is False.
+        load_auto : bool
+            flag to load auto-correlations into memory, default is False.
+        """
+        if filepath is not None:
+            self.from_file(
+                filepath,
+                has_auto=has_auto,
+                load_vis=load_vis,
+                load_raw=load_raw,
+                load_auto=load_auto,
+            )
