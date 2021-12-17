@@ -167,26 +167,25 @@ class Mir(UVData):
                 loa_freq = np.median(mir_data.sp_data["gunnLO"][sel_mask])
                 lob_freq = np.median(mir_data.sp_data["gunnLO"][~sel_mask])
                 pol_split_tuning = not np.isclose(loa_freq, lob_freq)
-                pol_dict = {0: 0, 1: int(not pol_split_tuning)}
+                pol_dict = {0: 0, 1: 1}
 
         pol_code_dict = {}
         for code in mir_data.codes_read[mir_data.codes_read["v_name"] == b"pol"]:
-            pol_code_dict[code["icode"]] = code["code"].decode("UTF-8").lower()
+            pol_code_dict[code["icode"]] = uvutils.POL_STR2NUM_DICT[
+                code["code"].decode("UTF-8").lower()
+            ]
 
         if pol_split_tuning:
             # Encode polarization array to be pseudo Stokes I, since that is effectively
             # how these values are going to be treated.
             Npols = 1
             polarization_array = np.array([1])
-            # TODO: Add split tuning handing here
         else:
             Npols = len(set(pol_dict.values()))
             polarization_array = np.zeros(Npols, dtype=int)
 
             for key in pol_dict.keys():
-                polarization_array[pol_dict[key]] = uvutils.POL_STR2NUM_DICT[
-                    pol_code_dict[key]
-                ]
+                polarization_array[pol_dict[key]] = pol_code_dict[key]
 
         blt_list = [
             (intid, ant1, ant2)
@@ -235,7 +234,7 @@ class Mir(UVData):
 
             spw_id = 255 if (spdx[0] == 0) else spdx[0]
             spw_id *= (-1) ** (1 + spdx[1])
-            spw_id += 512 if pol_split_tuning else 0
+            spw_id += 512 if (pol_split_tuning and spdx[2] == 1) else 0
 
             # Populate the channel width array
             channel_width = abs(spw_fres) + np.zeros(spw_nchan, dtype=np.float64)
@@ -256,7 +255,7 @@ class Mir(UVData):
 
             spdx_dict[spdx] = {
                 "spw_id": spw_id,
-                "pol_idx": pol_dict[spdx[2]],
+                "pol_idx": 0 if pol_split_tuning else pol_dict[spdx[2]],
             }
 
             spw_dict[spw_id] = {
@@ -266,7 +265,7 @@ class Mir(UVData):
                 "channel_width": channel_width,
                 "spw_id_array": spw_id_array,
                 "freq_array": freq_array,
-                "pol_state": spdx[2],
+                "pol_state": pol_code_dict[spdx[2]],
             }
 
         spw_array = sorted(spw_dict.keys())
@@ -285,9 +284,9 @@ class Mir(UVData):
             flex_spw_id_array[spw_dict[key]["ch_slice"]] = spw_dict[key]["spw_id_array"]
             channel_width[spw_dict[key]["ch_slice"]] = spw_dict[key]["channel_width"]
             freq_array[spw_dict[key]["ch_slice"]] = spw_dict[key]["freq_array"]
-            flex_pol[idx] = spw_dict[key]["pol_state"] if pol_split_tuning else 0.0
+            flex_pol[idx] = spw_dict[key]["pol_state"]
 
-        if pol_split_tuning:
+        if not pol_split_tuning:
             flex_pol = None
 
         for key in spdx_dict:
@@ -437,6 +436,7 @@ class Mir(UVData):
         self.time_array = Time(mjd_array, scale="tt", format="mjd").utc.jd
 
         self.polarization_array = polarization_array
+        self.flex_spw_polarization_array = flex_pol
         self.spw_array = np.array(spw_array, dtype=int)
         self.telescope_name = "SMA"
 
