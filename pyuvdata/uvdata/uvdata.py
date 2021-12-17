@@ -2551,6 +2551,15 @@ class UVData(UVBase):
 
     def _fix_autos(self):
         """Remove imaginary component of auto-correlations."""
+        if self.polarization_array is None or (
+            self.ant_1_array is None or self.ant_2_array is None
+        ):
+            warnings.warn(
+                "Cannot use _fix_autos if ant_1_array, ant_2_array, or "
+                "polarization_array are None. Leaving data_array untouched."
+            )
+            return
+
         # Select out the autos
         auto_screen = self.ant_1_array == self.ant_2_array
 
@@ -2565,7 +2574,9 @@ class UVData(UVBase):
         )
 
         # Make sure we actually have work to do here, otherwise skip all of this
-        if np.any(pol_screen) and np.any(auto_screen):
+        if (np.any(pol_screen) and np.any(auto_screen)) and not (
+            pol_screen is None or auto_screen is None
+        ):
             # Select out the relevant data. Need to do this because we have two
             # complex slices we need to do
             auto_data = self.data_array[auto_screen]
@@ -13185,6 +13196,7 @@ class UVData(UVBase):
         blt_inds=None,
         add_to_history=None,
         run_check_acceptability=True,
+        fix_autos=False,
     ):
         """
         Write data to a UVH5 file that has already been initialized.
@@ -13275,8 +13287,14 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        fix_autos : bool
+            Force the auto-correlations to be real-only values in data_array.
+            Default is False.
 
         """
+        if fix_autos:
+            self._fix_autos()
+
         uvh5_obj = self._convert_to_filetype("uvh5")
         uvh5_obj.write_uvh5_part(
             filename,
