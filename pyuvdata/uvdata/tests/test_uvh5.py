@@ -3314,3 +3314,44 @@ def test_none_extra_keywords(uv_uvh5, tmp_path):
         assert h5f["Header/extra_keywords/foo"].shape is None
 
     return
+
+
+def test_write_uvh5_part_fix_autos(uv_uvh5, tmp_path):
+    """Test that fix_autos works correctly on partial UVH5 wrute"""
+    test_uvh5 = UVData()
+    testfile = os.path.join(tmp_path, "write_uvh5_part_fix_autos.uvh5")
+
+    # Select out the relevant data (where the 0 and 1 indicies of the pol array
+    # correspond to xx and yy polarization data), and corrupt it accordingly
+    auto_data = uv_uvh5.data_array[uv_uvh5.ant_1_array == uv_uvh5.ant_2_array]
+    auto_data[:, :, :, [0, 1]] *= 1j
+    uv_uvh5.data_array[uv_uvh5.ant_1_array == uv_uvh5.ant_2_array] = auto_data
+
+    # Create and write out the data, with fix_autos set to operate
+    initialize_with_zeros_ints(uv_uvh5, testfile)
+    uv_uvh5.write_uvh5_part(
+        testfile,
+        uv_uvh5.data_array,
+        uv_uvh5.flag_array,
+        uv_uvh5.nsample_array,
+        fix_autos=True,
+    )
+
+    # Fix the autos we corrupted earlier, and plug the data back in to data_array
+    auto_data[:, :, :, [0, 1]] *= -1j
+    uv_uvh5.data_array[uv_uvh5.ant_1_array == uv_uvh5.ant_2_array] = auto_data
+
+    # Read in the data on disk, make sure it looks like our manually repaired data
+    test_uvh5.read(testfile)
+
+    assert uv_uvh5 == test_uvh5
+
+
+def test_fix_autos_no_op():
+    """Test that a no-op with _fix_autos returns a warning"""
+    uvd = UVData()
+
+    with uvtest.check_warnings(
+        UserWarning, "Cannot use _fix_autos if ant_1_array, ant_2_array, or "
+    ):
+        uvd._fix_autos()
