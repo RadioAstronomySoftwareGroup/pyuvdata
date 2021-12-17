@@ -16,20 +16,8 @@ import numpy as np
 
 from ... import UVData
 from ...data import DATA_PATH
-from ...uvdata.mir import mir_parser
-
-
-@pytest.fixture
-def mir_data_object():
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    mir_data = mir_parser.MirParser(
-        testfile, load_vis=True, load_raw=True, load_auto=True,
-    )
-
-    yield mir_data
-
-    # cleanup
-    del mir_data
+from ...uvdata.mir_parser import MirParser
+from ...uvdata.mir import Mir
 
 
 @pytest.fixture
@@ -344,7 +332,7 @@ def test_mir_auto_read(
     Make sure that Mir autocorrelations are read correctly
     """
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    mir_data = mir_parser.MirParser(testfile, has_auto=True)
+    mir_data = MirParser(testfile, has_auto=True)
     with pytest.raises(err_type, match=err_msg):
         ac_data = mir_data.scan_auto_data(testfile, nchunks=999)
 
@@ -364,320 +352,62 @@ def test_mir_auto_read(
     mir_data.unload_data()
 
 
-# Below are a series of checks that are designed to check to make sure that the
-# MirParser class is able to produce consistent values from an engineering data
-# set (originally stored in /data/engineering/mir_data/200724_16:35:14), to make
-# sure that we haven't broken the ability of the reader to handle the data. Since
-# this file is the basis for the above checks, we've put this here rather than in
-# test_mir_parser.py
-
-
-def test_mir_remember_me_record_lengths(mir_data_object):
+def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
     """
-    Mir record length checker
+    Mir to MS loopback test with flex-pol.
 
-    Make sure the test file containts the right number of records
+    Read in Mir files, write out as ms, read back in and check for
+    object equality.
     """
-    mir_data = mir_data_object
-
-    # Check to make sure we've got the right number of records everywhere
-
-    # ac_read only exists if has_auto=True
-    if mir_data.ac_read is not None:
-        assert len(mir_data.ac_read) == 2
-    else:
-        # This should only occur when has_auto=False
-        assert not mir_data._has_auto
-
-    assert len(mir_data.bl_read) == 4
-
-    assert len(mir_data.codes_read) == 99
-
-    assert len(mir_data.eng_read) == 2
-
-    assert len(mir_data.in_read) == 1
-
-    assert len(mir_data.raw_data) == 20
-
-    assert len(mir_data.raw_scale_fac) == 20
-
-    assert len(mir_data.sp_read) == 20
-
-    assert len(mir_data.vis_data) == 20
-
-    assert len(mir_data.we_read) == 1
-
-
-def test_mir_remember_me_codes_read(mir_data_object):
-    """
-    Mir codes_read checker.
-
-    Make sure that certain values in the codes_read file of the test data set match
-    whatwe know to be 'true' at the time of observations.
-    """
-    mir_data = mir_data_object
-
-    assert mir_data.codes_read[0][0] == b"filever"
-
-    assert mir_data.codes_read[0][2] == b"3"
-
-    assert mir_data.codes_read[90][0] == b"ref_time"
-
-    assert mir_data.codes_read[90][1] == 0
-
-    assert mir_data.codes_read[90][2] == b"Jul 24, 2020"
-
-    assert mir_data.codes_read[90][3] == 0
-
-    assert mir_data.codes_read[91][0] == b"ut"
-
-    assert mir_data.codes_read[91][1] == 1
-
-    assert mir_data.codes_read[91][2] == b"Jul 24 2020  4:34:39.00PM"
-
-    assert mir_data.codes_read[91][3] == 0
-
-    assert mir_data.codes_read[93][0] == b"source"
-
-    assert mir_data.codes_read[93][2] == b"3c84"
-
-    assert mir_data.codes_read[97][0] == b"ra"
-
-    assert mir_data.codes_read[97][2] == b"03:19:48.15"
-
-    assert mir_data.codes_read[98][0] == b"dec"
-
-    assert mir_data.codes_read[98][2] == b"+41:30:42.1"
-
-
-def test_mir_remember_me_in_read(mir_data_object):
-    """
-    Mir in_read checker.
-
-    Make sure that certain values in the in_read file of the test data set match what
-    we know to be 'true' at the time of observations, including that spare values are
-    stored as zero.
-    """
-    mir_data = mir_data_object
-
-    # Check to make sure that things seem right in in_read
-    assert np.all(mir_data.in_read["traid"] == 484)
-
-    assert np.all(mir_data.in_read["proid"] == 484)
-
-    assert np.all(mir_data.in_read["inhid"] == 1)
-
-    assert np.all(mir_data.in_read["ints"] == 1)
-
-    assert np.all(mir_data.in_read["souid"] == 1)
-
-    assert np.all(mir_data.in_read["isource"] == 1)
-
-    assert np.all(mir_data.in_read["ivrad"] == 1)
-
-    assert np.all(mir_data.in_read["ira"] == 1)
-
-    assert np.all(mir_data.in_read["idec"] == 1)
-
-    assert np.all(mir_data.in_read["epoch"] == 2000.0)
-
-    assert np.all(mir_data.in_read["tile"] == 0)
-
-    assert np.all(mir_data.in_read["obsflag"] == 0)
-
-    assert np.all(mir_data.in_read["obsmode"] == 0)
-
-    assert np.all(np.round(mir_data.in_read["mjd"]) == 59055)
-
-    assert np.all(mir_data.in_read["spareshort"] == 0)
-
-    assert np.all(mir_data.in_read["spareint6"] == 0)
-
-
-def test_mir_remember_me_bl_read(mir_data_object):
-    """
-    Mir bl_read checker.
-
-    Make sure that certain values in the bl_read file of the test data set match what
-    we know to be 'true' at the time of observations, including that spare values are
-    stored as zero.
-    """
-    mir_data = mir_data_object
-
-    # Now check bl_read
-    assert np.all(mir_data.bl_read["blhid"] == np.arange(1, 5))
-
-    assert np.all(mir_data.bl_read["isb"] == [0, 0, 1, 1])
-
-    assert np.all(mir_data.bl_read["ipol"] == [0, 0, 0, 0])
-
-    assert np.all(mir_data.bl_read["ant1rx"] == [0, 1, 0, 1])
-
-    assert np.all(mir_data.bl_read["ant2rx"] == [0, 1, 0, 1])
-
-    assert np.all(mir_data.bl_read["pointing"] == 0)
-
-    assert np.all(mir_data.bl_read["irec"] == [0, 3, 0, 3])
-
-    assert np.all(mir_data.bl_read["iant1"] == 1)
-
-    assert np.all(mir_data.bl_read["iant2"] == 4)
-
-    assert np.all(mir_data.bl_read["iblcd"] == 2)
-
-    assert np.all(mir_data.bl_read["spareint1"] == 0)
-
-    assert np.all(mir_data.bl_read["spareint2"] == 0)
-
-    assert np.all(mir_data.bl_read["spareint3"] == 0)
-
-    assert np.all(mir_data.bl_read["spareint4"] == 0)
-
-    assert np.all(mir_data.bl_read["spareint5"] == 0)
-
-    assert np.all(mir_data.bl_read["spareint6"] == 0)
-
-    assert np.all(mir_data.bl_read["sparedbl3"] == 0.0)
-
-    assert np.all(mir_data.bl_read["sparedbl4"] == 0.0)
-
-    assert np.all(mir_data.bl_read["sparedbl5"] == 0.0)
-
-    assert np.all(mir_data.bl_read["sparedbl6"] == 0.0)
-
-
-def test_mir_remember_me_eng_read(mir_data_object):
-    """
-    Mir bl_read checker.
-
-    Make sure that certain values in the eng_read file of the test data set match what
-    we know to be 'true' at the time of observations.
-    """
-    mir_data = mir_data_object
-
-    # Now check eng_read
-    assert np.all(mir_data.eng_read["antennaNumber"] == [1, 4])
-
-    assert np.all(mir_data.eng_read["padNumber"] == [5, 8])
-
-    assert np.all(mir_data.eng_read["trackStatus"] == 1)
-
-    assert np.all(mir_data.eng_read["commStatus"] == 1)
-
-    assert np.all(mir_data.eng_read["inhid"] == 1)
-
-
-def test_mir_remember_me_ac_read(mir_data_object):
-    """
-    Mir bl_read checker.
-
-    Make sure that certain values in the autoCorrelations file of the test data set
-    match what we know to be 'true' at the time of observations.
-    """
-    mir_data = mir_data_object
-
-    # Now check ac_read
-
-    # ac_read only exists if has_auto=True
-    if mir_data.ac_read is not None:
-
-        assert np.all(mir_data.ac_read["inhid"] == 1)
-
-        assert np.all(mir_data.ac_read["achid"] == np.arange(1, 3))
-
-        assert np.all(mir_data.ac_read["antenna"] == [1, 4])
-
-        assert np.all(mir_data.ac_read["nchunks"] == 8)
-
-        assert np.all(mir_data.ac_read["datasize"] == 1048596)
-
-        assert np.all(mir_data.we_read["scanNumber"] == 1)
-
-        assert np.all(mir_data.we_read["flags"] == 0)
-
-    else:
-        # This should only occur when has_auto=False
-        assert not mir_data._has_auto
-
-
-def test_mir_remember_me_sp_read(mir_data_object):
-    """
-    Mir sp_read checker.
-
-    Make sure that certain values in the sp_read file of the test data set match what
-    we know to be 'true' at the time of observations, including that spare values are
-    stored as zero.
-    """
-    mir_data = mir_data_object
-
-    # Now check sp_read
-    assert np.all(mir_data.sp_read["sphid"] == np.arange(1, 21))
-
-    assert np.all(mir_data.sp_read["sphid"] == np.arange(1, 21))
-
-    assert np.all(mir_data.sp_read["igq"] == 0)
-
-    assert np.all(mir_data.sp_read["ipq"] == 1)
-
-    assert np.all(mir_data.sp_read["igq"] == 0)
-
-    assert np.all(mir_data.sp_read["iband"] == [0, 1, 2, 3, 4] * 4)
-
-    assert np.all(mir_data.sp_read["ipstate"] == 0)
-
-    assert np.all(mir_data.sp_read["tau0"] == 0.0)
-
-    assert np.all(mir_data.sp_read["cabinLO"] == 0.0)
-
-    assert np.all(mir_data.sp_read["corrLO1"] == 0.0)
-
-    assert np.all(mir_data.sp_read["vradcat"] == 0.0)
-
-    assert np.all(mir_data.sp_read["nch"] == [4, 16384, 16384, 16384, 16384] * 4)
-
-    assert np.all(mir_data.sp_read["corrblock"] == [0, 1, 1, 1, 1] * 4)
-
-    assert np.all(mir_data.sp_read["corrchunk"] == [0, 1, 2, 3, 4] * 4)
-
-    assert np.all(mir_data.sp_read["correlator"] == 1)
-
-    assert np.all(mir_data.sp_read["spareint2"] == 0)
-
-    assert np.all(mir_data.sp_read["spareint3"] == 0)
-
-    assert np.all(mir_data.sp_read["spareint4"] == 0)
-
-    assert np.all(mir_data.sp_read["spareint5"] == 0)
-
-    assert np.all(mir_data.sp_read["spareint6"] == 0)
-
-    assert np.all(mir_data.sp_read["sparedbl1"] == 0.0)
-
-    assert np.all(mir_data.sp_read["sparedbl2"] == 0.0)
-
-    assert np.all(mir_data.sp_read["sparedbl3"] == 0.0)
-
-    assert np.all(mir_data.sp_read["sparedbl4"] == 0.0)
-
-    assert np.all(mir_data.sp_read["sparedbl5"] == 0.0)
-
-    assert np.all(mir_data.sp_read["sparedbl6"] == 0.0)
-
-
-def test_mir_remember_me_sch_read(mir_data_object):
-    """
-    Mir sch_read checker.
-
-    Make sure that certain values in the sch_read file of the test data set match what
-    we know to be 'true' at the time of observations.
-    """
-    mir_data = mir_data_object
-
-    # Now check sch_read related values. Thanks to a glitch in the data recorder,
-    # all of the pseudo-cont values are the same
-    assert np.all(mir_data.raw_scale_fac[0::5] == [-26] * 4)
-
-    assert (
-        np.array(mir_data.raw_data[0::5]).flatten().tolist()
-        == [-4302, -20291, -5261, -21128, -4192, -19634, -4999, -16346] * 4
-    )
+    pytest.importorskip("casacore")
+    testfile = os.path.join(tmp_path, "read_mir_write_ms_flex_pol.ms")
+    mir_uv = UVData()
+    ms_uv = UVData()
+
+    # Read in the raw data so that we can manipulate it, and make it look like the
+    # test data set was recorded with split-tuning
+    mir_data.sp_data["gunnLO"][np.isin(mir_data.sp_data["blhid"], [1, 3])] += 30.0
+    mir_data.sp_data["gunnLO"][np.isin(mir_data.sp_data["fsky"], [1, 3])] += 30.0
+
+    # Spin up a Mir object, which can be covered into a UVData object,
+    # with flex-pol enabled.
+    mir_obj = Mir()
+    mir_obj._init_from_mir_parser(mir_data)
+    mir_uv._convert_from_filetype(mir_obj)
+
+    # Write out our modified data set
+    mir_uv.write_ms(testfile, clobber=True)
+    ms_uv.read(testfile)
+
+    # There are some minor differences between the values stored by MIR and that
+    # calculated by UVData. Since MS format requires these to be calculated on the
+    # fly, we calculate them here just to verify that everything is looking okay.
+    mir_uv.set_lsts_from_time_array()
+    mir_uv._set_app_coords_helper()
+
+    # These reorderings just make sure that data from the two formats
+    # are lined up correctly.
+    mir_uv.reorder_freqs(spw_order="number")
+    ms_uv.reorder_blts()
+
+    # MS doesn't have the concept of an "instrument" name like FITS does, and instead
+    # defaults to the telescope name. Make sure that checks out here.
+    assert mir_uv.instrument == "SWARM"
+    assert ms_uv.instrument == "SMA"
+    mir_uv.instrument = ms_uv.instrument
+
+    # Quick check for history here
+    assert ms_uv.history != mir_uv.history
+    ms_uv.history = mir_uv.history
+
+    # Only MS has extra keywords, verify those look as expected.
+    assert ms_uv.extra_keywords == {"DATA_COL": "DATA", "observer": "SMA"}
+    assert mir_uv.extra_keywords == {}
+    mir_uv.extra_keywords = ms_uv.extra_keywords
+
+    # Make sure the filenames line up as expected.
+    assert mir_uv.filename == ["sma_test.mir"]
+    assert ms_uv.filename == ["read_mir_write_ms_flex_pol.ms"]
+
+    # Finally, with all exceptions handled, check for equality.
+    assert ms_uv.__eq__(mir_uv, allowed_failures=["filename"])

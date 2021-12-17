@@ -9,7 +9,7 @@ import pytest
 
 from pyuvdata.data import DATA_PATH
 from pyuvdata import UVData
-from pyuvdata.uvdata.mir import mir_parser
+from pyuvdata.uvdata.mir_parser import MirParser
 import pyuvdata.tests as uvtest
 
 casa_tutorial_uvfits = os.path.join(
@@ -47,6 +47,23 @@ def casa_uvfits(casa_uvfits_main):
     del casa_uvfits
 
     return
+
+
+@pytest.fixture(scope="session")
+def mir_data_main():
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    mir_data = MirParser(
+        testfile, load_vis=True, load_raw=True, load_auto=True, has_auto=True,
+    )
+
+    yield mir_data
+
+
+@pytest.fixture(scope="function")
+def mir_data(mir_data_main):
+    mir_data = mir_data_main.copy()
+
+    yield mir_data
 
 
 @pytest.fixture(scope="session")
@@ -104,7 +121,7 @@ def mir_data_object(request):
     """Make MIR data object for tests. Param to read autocorr data."""
     has_auto = request.param
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    mir_data = mir_parser.MirParser(
+    mir_data = MirParser(
         testfile, load_vis=True, load_raw=True, load_auto=True, has_auto=has_auto
     )
 
