@@ -345,6 +345,7 @@ class MS(UVData):
             spectral_window_id_table = np.repeat(
                 np.arange(self.Nspws), np.max(self.antenna_numbers) + 1,
             )
+            antenna_id_table = np.tile(antenna_id_table, self.Nspws)
             # we want "x" or "y", *not* "e" or "n", so as not to confuse CASA
             pol_str = uvutils.polnum2str(self.flex_spw_polarization_array)
 
@@ -802,7 +803,7 @@ class MS(UVData):
             pol_table.putcell("CORR_PRODUCT", 0, pol_tuples)
             pol_table.putcell("NUM_CORR", 0, self.Npols)
         else:
-            for spw_pol in np.unique(self._flex_spw_polarization_array):
+            for idx, spw_pol in enumerate(np.unique(self.flex_spw_polarization_array)):
 
                 pol_str = uvutils.polnum2str([spw_pol])
                 feed_pols = {
@@ -816,10 +817,10 @@ class MS(UVData):
 
                 pol_table.addrows()
                 pol_table.putcell(
-                    "CORR_TYPE", 0, np.array([POL_AIPS2CASA_DICT[spw_pol]]),
+                    "CORR_TYPE", idx, np.array([POL_AIPS2CASA_DICT[spw_pol]]),
                 )
-                pol_table.putcell("CORR_PRODUCT", 0, pol_tuples)
-                pol_table.putcell("NUM_CORR", 0, self.Npols)
+                pol_table.putcell("CORR_PRODUCT", idx, pol_tuples)
+                pol_table.putcell("NUM_CORR", idx, self.Npols)
 
         pol_table.done()
 
@@ -1477,6 +1478,11 @@ class MS(UVData):
             different spectral windows) report different metadata for the same
             time-baseline combination, which CASA allows by UVData does not. Default
             is True, if set to False will raise a warning instead.
+        allow_flex_pol : bool
+            If only one polarization per spectral window is read (and the polarization
+            differs from window to window), compress down the polarization-axis of
+            various attributes (e.g, `data_array`, `flag_array`) to be of length 1.
+            Default is True.
 
         Returns
         -------
@@ -1489,6 +1495,11 @@ class MS(UVData):
         pol_list : list of int
             List of polarization IDs (in the AIPS convention) present in the data set.
             Equivalent to the attribute `polarization_array` in a UVData object.
+        flex_pol : list of int
+            If `allow_flex_pol=True`, and only one polarization per spectral window is
+            read (differing window-to-window), list of the polarization IDs present
+            for each window. Equivalent to the attribute `flex_spw_polarization_array`
+            in a UVData object.
 
         Raises
         ------
@@ -1699,7 +1710,7 @@ class MS(UVData):
                     data_dict[key]["POL_IDX"][0]
                 ]
                 data_dict[key]["POL_IDX"] = np.array([0])
-            pol_list = np.array([1])
+            pol_list = np.array([0])
             flex_pol = np.array(
                 [spw_dict[key]["POL"] for key in sorted(spw_dict.keys())], dtype=int,
             )
@@ -1864,6 +1875,7 @@ class MS(UVData):
         ignore_single_chan=True,
         raise_error=True,
         read_weights=True,
+        allow_flex_pol=False,
     ):
         """
         Read in a casa measurement set.
@@ -1913,6 +1925,12 @@ class MS(UVData):
         read_weights : bool
             Read in the weights from the MS file, default is True. If false, the method
             will set the `nsamples_array` to the same uniform value (namely 1.0).
+        allow_flex_pol : bool
+            If only one polarization per spectral window is read (and the polarization
+            differs from window to window), allow for the `UVData` object to use
+            "flexible polarization", which compresses the polarization-axis of various
+            attributes to be of length 1, sets the `flex_spw_polarization_array`
+            attribute to define the polarization per spectral window.  Default is True.
 
         Raises
         ------
@@ -2013,6 +2031,7 @@ class MS(UVData):
             read_weights=read_weights,
             flip_conj=flip_conj,
             raise_error=raise_error,
+            allow_flex_pol=allow_flex_pol,
         )
 
         if (spw_list is None) and (field_list is None) and (pol_list is None):
@@ -2026,6 +2045,7 @@ class MS(UVData):
         self.polarization_array = np.array(pol_list, dtype=np.int64)
         self.Nspws = len(spw_list)
         self.spw_array = np.array(spw_list, dtype=np.int64)
+        self.flex_spw_polarization_array = flex_pol
 
         self.Nfreqs = len(self.flex_spw_id_array)
         self.freq_array = np.zeros(self.Nfreqs)
