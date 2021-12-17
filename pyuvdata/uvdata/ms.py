@@ -305,6 +305,16 @@ class MS(UVData):
 
         data_descrip_table.putcol("SPECTRAL_WINDOW_ID", np.arange(self.Nspws))
 
+        if self.flex_spw_polarization_array is not None:
+            pol_dict = {
+                pol: idx
+                for idx, pol in enumerate(np.unique(self.flex_spw_polarization_array))
+            }
+            data_descrip_table.putcol(
+                "POLARIZATION_ID",
+                np.array([pol_dict[key] for key in self.flex_spw_polarization_array]),
+            )
+
         data_descrip_table.done()
 
     def _write_ms_feed(self, filepath):
@@ -323,48 +333,49 @@ class MS(UVData):
         feed_table = tables.table(filepath + "::FEED", ack=False, readonly=False)
 
         nfeeds_table = np.max(self.antenna_numbers) + 1
-        feed_table.addrows(nfeeds_table)
-
         antenna_id_table = np.arange(nfeeds_table, dtype=np.int32)
-        feed_table.putcol("ANTENNA_ID", antenna_id_table)
 
-        beam_id_table = -1 * np.ones(nfeeds_table, dtype=np.int32)
-        feed_table.putcol("BEAM_ID", beam_id_table)
+        if self.flex_spw_polarization_array is None:
+            spectral_window_id_table = -1 * np.ones(nfeeds_table, dtype=np.int32)
 
-        beam_offset_table = np.zeros((nfeeds_table, 2, 2), dtype=np.float64)
-        feed_table.putcol("BEAM_OFFSET", beam_offset_table)
+            # we want "x" or "y", *not* "e" or "n", so as not to confuse CASA
+            pol_str = uvutils.polnum2str(self.polarization_array)
+        else:
+            nfeeds_table *= self.Nspws
+            spectral_window_id_table = np.repeat(
+                np.arange(self.Nspws), np.max(self.antenna_numbers) + 1,
+            )
+            # we want "x" or "y", *not* "e" or "n", so as not to confuse CASA
+            pol_str = uvutils.polnum2str(self.flex_spw_polarization_array)
 
-        feed_id_table = np.zeros(nfeeds_table, dtype=np.int32)
-        feed_table.putcol("FEED_ID", feed_id_table)
-
-        interval_table = np.zeros(nfeeds_table, dtype=np.float64)
-        feed_table.putcol("INTERVAL", interval_table)
-
-        # we want "x" or "y", *not* "e" or "n", so as not to confuse CASA
-        pol_str = uvutils.polnum2str(self.polarization_array)
         feed_pols = {feed for pol in pol_str for feed in uvutils.POL_TO_FEED_DICT[pol]}
         nfeed_pols = len(feed_pols)
-        num_receptors_table = np.tile(np.int32(nfeed_pols), nfeeds_table)
-        feed_table.putcol("NUM_RECEPTORS", num_receptors_table)
-
         pol_types = [pol.upper() for pol in sorted(feed_pols)]
         pol_type_table = np.tile(pol_types, (nfeeds_table, 1))
-        feed_table.putcol("POLARIZATION_TYPE", pol_type_table)
 
+        num_receptors_table = np.tile(np.int32(nfeed_pols), nfeeds_table)
+        beam_id_table = -1 * np.ones(nfeeds_table, dtype=np.int32)
+        beam_offset_table = np.zeros((nfeeds_table, 2, 2), dtype=np.float64)
+        feed_id_table = np.zeros(nfeeds_table, dtype=np.int32)
+        interval_table = np.zeros(nfeeds_table, dtype=np.float64)
         pol_response_table = np.dstack(
             [np.eye(2, dtype=np.complex64) for n in range(nfeeds_table)]
         ).transpose()
-        feed_table.putcol("POL_RESPONSE", pol_response_table)
-
         position_table = np.zeros((nfeeds_table, 3), dtype=np.float64)
-        feed_table.putcol("POSITION", position_table)
-
         receptor_angle_table = np.zeros((nfeeds_table, nfeed_pols), dtype=np.float64)
+
+        feed_table.addrows(nfeeds_table)
+        feed_table.putcol("ANTENNA_ID", antenna_id_table)
+        feed_table.putcol("BEAM_ID", beam_id_table)
+        feed_table.putcol("BEAM_OFFSET", beam_offset_table)
+        feed_table.putcol("FEED_ID", feed_id_table)
+        feed_table.putcol("INTERVAL", interval_table)
+        feed_table.putcol("NUM_RECEPTORS", num_receptors_table)
+        feed_table.putcol("POLARIZATION_TYPE", pol_type_table)
+        feed_table.putcol("POL_RESPONSE", pol_response_table)
+        feed_table.putcol("POSITION", position_table)
         feed_table.putcol("RECEPTOR_ANGLE", receptor_angle_table)
-
-        spectral_window_id_table = -1 * np.ones(nfeeds_table, dtype=np.int32)
         feed_table.putcol("SPECTRAL_WINDOW_ID", spectral_window_id_table)
-
         feed_table.done()
 
     def _write_ms_field(self, filepath):
@@ -767,25 +778,48 @@ class MS(UVData):
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
 
-        pol_str = uvutils.polnum2str(self.polarization_array)
-        feed_pols = {feed for pol in pol_str for feed in uvutils.POL_TO_FEED_DICT[pol]}
-        pol_types = [pol.lower() for pol in sorted(feed_pols)]
-        pol_tuples = np.asarray(
-            [(pol_types.index(i), pol_types.index(j)) for i, j in pol_str],
-            dtype=np.int32,
-        )
-
         pol_table = tables.table(filepath + "::POLARIZATION", ack=False, readonly=False)
-        pol_table.addrows()
-        pol_table.putcell(
-            "CORR_TYPE",
-            0,
-            np.array(
-                [POL_AIPS2CASA_DICT[aipspol] for aipspol in self.polarization_array]
-            ),
-        )
-        pol_table.putcell("CORR_PRODUCT", 0, pol_tuples)
-        pol_table.putcell("NUM_CORR", 0, self.Npols)
+
+        if self.flex_spw_polarization_array is None:
+            pol_str = uvutils.polnum2str(self.polarization_array)
+            feed_pols = {
+                feed for pol in pol_str for feed in uvutils.POL_TO_FEED_DICT[pol]
+            }
+            pol_types = [pol.lower() for pol in sorted(feed_pols)]
+            pol_tuples = np.asarray(
+                [(pol_types.index(i), pol_types.index(j)) for i, j in pol_str],
+                dtype=np.int32,
+            )
+
+            pol_table.addrows()
+            pol_table.putcell(
+                "CORR_TYPE",
+                0,
+                np.array(
+                    [POL_AIPS2CASA_DICT[aipspol] for aipspol in self.polarization_array]
+                ),
+            )
+            pol_table.putcell("CORR_PRODUCT", 0, pol_tuples)
+            pol_table.putcell("NUM_CORR", 0, self.Npols)
+        else:
+            for spw_pol in np.unique(self._flex_spw_polarization_array):
+
+                pol_str = uvutils.polnum2str([spw_pol])
+                feed_pols = {
+                    feed for pol in pol_str for feed in uvutils.POL_TO_FEED_DICT[pol]
+                }
+                pol_types = [pol.lower() for pol in sorted(feed_pols)]
+                pol_tuples = np.asarray(
+                    [(pol_types.index(i), pol_types.index(j)) for i, j in pol_str],
+                    dtype=np.int32,
+                )
+
+                pol_table.addrows()
+                pol_table.putcell(
+                    "CORR_TYPE", 0, np.array([POL_AIPS2CASA_DICT[spw_pol]]),
+                )
+                pol_table.putcell("CORR_PRODUCT", 0, pol_tuples)
+                pol_table.putcell("NUM_CORR", 0, self.Npols)
 
         pol_table.done()
 
@@ -1408,6 +1442,7 @@ class MS(UVData):
         read_weights=True,
         flip_conj=False,
         raise_error=True,
+        allow_flex_pol=False,
     ):
         """
         Read data from the main table of a MS file.
@@ -1509,7 +1544,7 @@ class MS(UVData):
 
         if data_desc_count == 0:
             # If there are no records selected, then there isnt a whole lot to do
-            return None, None, None
+            return None, None, None, None
         elif data_desc_count == 1:
             # If we only have a single spectral window, then we can bypass a whole lot
             # of slicing and dicing on account of there being a one-to-one releationship
@@ -1556,7 +1591,7 @@ class MS(UVData):
             ]
 
             tb_main.close()
-            return spw_list, field_list, pol_list
+            return spw_list, field_list, pol_list, None
 
         tb_main.close()
 
@@ -1601,25 +1636,31 @@ class MS(UVData):
         pol_list = np.unique([data_dict[key]["CORR_TYPE"] for key in data_dict.keys()])
         npols = len(pol_list)
 
-        spw_list = {
-            data_dict[key]["SPW_ID"]: (key, data_dict[key]["NUM_CHAN"])
+        spw_dict = {
+            data_dict[key]["SPW_ID"]: {
+                "DATA_DICT_KEY": key,
+                "NUM_CHAN": data_dict[key]["NUM_CHAN"],
+            }
             for key in data_dict.keys()
         }
+        spw_list = sorted(spw_dict.keys())
 
         # Here we sort out where the various spectral windows are starting and stoping
         # in our flex_spw spectrum, if applicable. By default, data are sorted in
         # spw-number order.
         nfreqs = 0
         spw_id_array = np.array([], dtype=int)
-        for key in sorted(spw_list.keys()):
-            data_dict_key = spw_list[key][0]
-            nchan = spw_list[key][1]
+        for key in sorted(spw_dict.keys()):
+            len(data_dict) == len(spw_dict)
+            data_dict_key = spw_dict[key]["DATA_DICT_KEY"]
+            nchan = spw_dict[key]["NUM_CHAN"]
             data_dict[data_dict_key]["STARTCHAN"] = nfreqs
             data_dict[data_dict_key]["STOPCHAN"] = nfreqs + nchan
-            data_dict[data_dict_key]["NCHAN"] = nchan
+            data_dict[data_dict_key]["NUM_CHAN"] = nchan
             spw_id_array = np.append(spw_id_array, [key] * nchan)
             nfreqs += nchan
 
+        all_single_pol = True
         for key in sorted(data_dict.keys()):
             blt_idx = [
                 blt_dict[(time, ant1, ant2)]
@@ -1640,6 +1681,25 @@ class MS(UVData):
                 return_indices=True,
             )[1]
             data_dict[key]["POL_IDX"] = pol_idx.astype(int)
+            all_single_pol = all_single_pol and (len(pol_idx) == 1)
+
+        pol_list = [POL_CASA2AIPS_DICT[key] for key in pol_list]
+        flex_pol = None
+
+        if (
+            allow_flex_pol
+            and all_single_pol
+            and ((len(pol_list) > 1) and (len(data_desc_dict) == len(spw_dict)))
+        ):
+            for key in data_dict.keys():
+                spw_dict[data_dict[key]["SPW_ID"]]["POL"] = pol_list[
+                    data_dict[key]["POL_IDX"][0]
+                ]
+                data_dict[key]["POL_IDX"] = np.array([0])
+            pol_list = np.array([1])
+            flex_pol = np.array(
+                [spw_dict[key]["POL"] for key in sorted(spw_dict.keys())], dtype=int,
+            )
 
         # We have all of the meta-information linked the various data desc IDs,
         # so now we can finally get to the business of filling in the actual data.
@@ -1784,11 +1844,9 @@ class MS(UVData):
         self.scan_number_array = scan_number_arr
         self.flex_spw_id_array = spw_id_array
 
-        pol_list = [POL_CASA2AIPS_DICT[key] for key in pol_list]
-        spw_list = sorted(spw_list.keys())
         field_list = np.unique(field_arr).astype(int).tolist()
 
-        return spw_list, field_list, pol_list
+        return spw_list, field_list, pol_list, flex_pol
 
     def read_ms(
         self,
@@ -1945,7 +2003,7 @@ class MS(UVData):
         # convention change. So if the data in the MS came via that task and was not
         # written by pyuvdata, we do need to flip the uvws & conjugate the data
         flip_conj = ("importuvfits" in self.history) and (not pyuvdata_written)
-        spw_list, field_list, pol_list = self._read_ms_main(
+        spw_list, field_list, pol_list, flex_pol = self._read_ms_main(
             filepath,
             data_column,
             data_desc_dict,
