@@ -393,7 +393,7 @@ class MS(UVData):
 
         field_table = tables.table(filepath + "::FIELD", ack=False, readonly=False)
         time_val = (
-            Time(np.median(self.time_array), format="jd", scale="utc").tai.mjd * 86400.0
+            Time(np.median(self.time_array), format="jd", scale="utc").mjd * 86400.0
         )
         n_poly = 0
 
@@ -510,7 +510,7 @@ class MS(UVData):
         )
 
         time_val = (
-            Time(np.median(self.time_array), format="jd", scale="utc").tai.mjd * 86400.0
+            Time(np.median(self.time_array), format="jd", scale="utc").mjd * 86400.0
         )
         int_val = np.finfo(float).max
 
@@ -587,7 +587,7 @@ class MS(UVData):
         # per-timestamp, per-antenna entry
         times = np.asarray(
             [
-                Time(t, format="jd", scale="utc").tai.mjd * 3600.0 * 24.0
+                Time(t, format="jd", scale="utc").mjd * 3600.0 * 24.0
                 for t in np.unique(self.time_array)
             ]
         )
@@ -1141,7 +1141,10 @@ class MS(UVData):
         # this date conversion as few times as possible. Note that the default for MS
         # is MJD UTC seconds, versus JD UTC days for UVData.
         time_array, time_ind = np.unique(self.time_array, return_inverse=True)
-        time_array = (Time(time_array, format="jd").mjd * 3600.0 * 24.0)[time_ind]
+        # TODO: Verify this should actually be UTC, and not some other scale
+        time_array = (Time(time_array, format="jd", scale="utc").mjd * 3600.0 * 24.0)[
+            time_ind
+        ]
 
         # Add all the rows we need up front, which will allow us to fill the
         # columns all in one shot.
