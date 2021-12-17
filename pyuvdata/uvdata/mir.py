@@ -33,11 +33,11 @@ class Mir(UVData):
         isb=None,
         corrchunk=None,
         pseudo_cont=False,
-        flex_spw=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        allow_flex_pol=True,
     ):
         """
         Read in data from an SMA MIR file, and map to the UVData model.
@@ -63,6 +63,23 @@ class Mir(UVData):
             Read in only pseudo-continuuum values. Default is false.
         flex_spw : boolean
             Allow for support of multiple spectral windows. Default is true.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            before writing the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
+        allow_flex_pol : bool
+            If only one polarization per spectral window is read (and the polarization
+            differs from window to window), allow for the `UVData` object to use
+            "flexible polarization", which compresses the polarization-axis of various
+            attributes to be of length 1, sets the `flex_spw_polarization_array`
+            attribute to define the polarization per spectral window. Default is True.
         """
         # Use the mir_parser to read in metadata, which can be used to select data.
         mir_data = mir_parser.MirParser(filepath)
@@ -91,7 +108,7 @@ class Mir(UVData):
 
         mir_data._update_filter()
 
-        self._init_from_mir_parser(mir_data)
+        self._init_from_mir_parser(mir_data, allow_flex_pol=allow_flex_pol)
 
         if run_check:
             self.check(
@@ -101,7 +118,7 @@ class Mir(UVData):
                 allow_flip_conj=True,
             )
 
-    def _init_from_mir_parser(self, mir_data):
+    def _init_from_mir_parser(self, mir_data, allow_flex_pol=True):
         """
         Convert a MirParser object into a UVData object.
 
@@ -109,6 +126,12 @@ class Mir(UVData):
         ----------
         mir_data : MirParser object
             MIR dataset to be converted into a UVData object.
+        allow_flex_pol : bool
+            If only one polarization per spectral window is read (and the polarization
+            differs from window to window), allow for the `UVData` object to use
+            "flexible polarization", which compresses the polarization-axis of various
+            attributes to be of length 1, sets the `flex_spw_polarization_array`
+            attribute to define the polarization per spectral window. Default is True.
         """
         # By default, we will want to assume that MIR datasets are phased, multi-spw,
         # and multi phase center. At present, there is no advantage to allowing these
@@ -175,11 +198,9 @@ class Mir(UVData):
                 code["code"].decode("UTF-8").lower()
             ]
 
-        if pol_split_tuning:
-            # Encode polarization array to be pseudo Stokes I, since that is effectively
-            # how these values are going to be treated.
+        if pol_split_tuning and allow_flex_pol:
             Npols = 1
-            polarization_array = np.array([1])
+            polarization_array = np.array([0])
         else:
             Npols = len(set(pol_dict.values()))
             polarization_array = np.zeros(Npols, dtype=int)
@@ -255,7 +276,9 @@ class Mir(UVData):
 
             spdx_dict[spdx] = {
                 "spw_id": spw_id,
-                "pol_idx": 0 if pol_split_tuning else pol_dict[spdx[2]],
+                "pol_idx": (
+                    0 if (pol_split_tuning and allow_flex_pol) else pol_dict[spdx[2]]
+                ),
             }
 
             spw_dict[spw_id] = {

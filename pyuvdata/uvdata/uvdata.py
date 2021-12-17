@@ -226,7 +226,7 @@ class UVData(UVBase):
             "polarization_array",
             description=desc,
             expected_type=int,
-            acceptable_vals=list(np.arange(-8, 0)) + list(np.arange(1, 5)),
+            acceptable_vals=list(np.arange(-8, 5)),
             form=("Npols",),
         )
 
@@ -2464,9 +2464,9 @@ class UVData(UVBase):
                 raise ValueError(
                     "Npols must be equal to 1 if flex_spw_polarization_array is set."
                 )
-            if np.any(self.polarization_array != 1):
+            if np.any(self.polarization_array != 0):
                 raise ValueError(
-                    "polarization_array must all be equal to 1 if "
+                    "polarization_array must all be equal to 0 if "
                     "flex_spw_polarization_array is set."
                 )
 
@@ -9964,6 +9964,11 @@ class UVData(UVBase):
         isb=None,
         corrchunk=None,
         pseudo_cont=False,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
+        allow_flex_pol=True,
     ):
         """
         Read in data from an SMA MIR file.
@@ -9987,6 +9992,27 @@ class UVData(UVBase):
             Correlator chunk code for MIR dataset
         pseudo_cont : boolean
             Read in only pseudo-continuuum values. Default is false.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
+        allow_flex_pol : bool
+            If only one polarization per spectral window is read (and the polarization
+            differs from window to window), allow for the `UVData` object to use
+            "flexible polarization", which compresses the polarization-axis of various
+            attributes to be of length 1, sets the `flex_spw_polarization_array`
+            attribute to define the polarization per spectral window.  Default is True.
         """
         from . import mir
 
@@ -9998,6 +10024,11 @@ class UVData(UVBase):
             isb=isb,
             corrchunk=corrchunk,
             pseudo_cont=pseudo_cont,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
+            allow_flex_pol=allow_flex_pol,
         )
         self._convert_from_filetype(mir_obj)
         del mir_obj
@@ -10165,6 +10196,7 @@ class UVData(UVBase):
         ignore_single_chan=True,
         raise_error=True,
         read_weights=True,
+        allow_flex_pol=True,
     ):
         """
         Read in data from a measurement set.
@@ -10221,6 +10253,12 @@ class UVData(UVBase):
         read_weights : bool
             Read in the weights from the MS file, default is True. If false, the method
             will set the `nsamples_array` to the same uniform value (namely 1.0).
+        allow_flex_pol : bool
+            If only one polarization per spectral window is read (and the polarization
+            differs from window to window), allow for the `UVData` object to use
+            "flexible polarization", which compresses the polarization-axis of various
+            attributes to be of length 1, sets the `flex_spw_polarization_array`
+            attribute to define the polarization per spectral window.  Default is True.
 
         Raises
         ------
@@ -10255,6 +10293,7 @@ class UVData(UVBase):
             ignore_single_chan=ignore_single_chan,
             raise_error=raise_error,
             read_weights=read_weights,
+            allow_flex_pol=allow_flex_pol,
         )
         self._convert_from_filetype(ms_obj)
         del ms_obj
@@ -10922,6 +10961,7 @@ class UVData(UVBase):
         fix_use_ant_pos=True,
         make_multi_phase=False,
         ignore_name=False,
+        allow_flex_pol=True,
     ):
         """
         Read a generic file into a UVData object.
@@ -11201,6 +11241,14 @@ class UVData(UVBase):
             combining multiple files, which would otherwise result in an error being
             raised because of attributes not matching. Doing so effectively adopts the
             name found in the first file read in. Default is False.
+        allow_flex_pol : bool
+            If only one polarization per spectral window is read (and the polarization
+            differs from window to window), allow for the `UVData` object to use
+            "flexible polarization", which compresses the polarization-axis of various
+            attributes to be of length 1, sets the `flex_spw_polarization_array`
+            attribute to define the polarization per spectral window. Only applicable
+            for MIR and MS filetypes, otherwise this argument is ignord. Default is
+            True.
 
         Raises
         ------
@@ -11336,6 +11384,7 @@ class UVData(UVBase):
                         fix_old_proj=fix_old_proj,
                         fix_use_ant_pos=fix_use_ant_pos,
                         make_multi_phase=make_multi_phase,
+                        allow_flex_pol=allow_flex_pol,
                     )
                     unread = False
                 except KeyError as err:
@@ -11419,6 +11468,7 @@ class UVData(UVBase):
                             fix_old_proj=fix_old_proj,
                             fix_use_ant_pos=fix_use_ant_pos,
                             make_multi_phase=make_multi_phase,
+                            allow_flex_pol=allow_flex_pol,
                         )
                         uv_list.append(uv2)
                     except KeyError as err:
@@ -11616,6 +11666,11 @@ class UVData(UVBase):
                     isb=isb,
                     corrchunk=corrchunk,
                     pseudo_cont=pseudo_cont,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                    strict_uvw_antpos_check=strict_uvw_antpos_check,
+                    allow_flex_pol=allow_flex_pol,
                 )
                 select = False
 
@@ -11692,6 +11747,7 @@ class UVData(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
+                    allow_flex_pol=allow_flex_pol,
                 )
 
             elif file_type == "uvh5":
@@ -11854,6 +11910,7 @@ class UVData(UVBase):
         fix_use_ant_pos=True,
         make_multi_phase=False,
         ignore_name=False,
+        allow_flex_pol=True,
     ):
         """
         Initialize a new UVData object by reading the input file.
@@ -12133,6 +12190,14 @@ class UVData(UVBase):
             combining multiple files, which would otherwise result in an error being
             raised because of attributes not matching. Doing so effectively adopts the
             name found in the first file read in. Default is False.
+        allow_flex_pol : bool
+            If only one polarization per spectral window is read (and the polarization
+            differs from window to window), allow for the `UVData` object to use
+            "flexible polarization", which compresses the polarization-axis of various
+            attributes to be of length 1, sets the `flex_spw_polarization_array`
+            attribute to define the polarization per spectral window. Only applicable
+            for MIR and MS filetypes, otherwise this argument is ignord. Default is
+            True.
 
         Raises
         ------
@@ -12213,6 +12278,7 @@ class UVData(UVBase):
             fix_use_ant_pos=fix_use_ant_pos,
             make_multi_phase=make_multi_phase,
             ignore_name=ignore_name,
+            allow_flex_pol=allow_flex_pol,
         )
         return uvd
 
