@@ -69,6 +69,22 @@ def test_readwriteread_no_freq_range(tmp_path):
     return
 
 
+def test_readwriteread_no_time_range(tmp_path):
+    # test without time_range parameter
+    cal_in = UVCal()
+    cal_out = UVCal()
+    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
+    write_file = str(tmp_path / "outtest_omnical.fits")
+
+    cal_in.read_calfits(testfile)
+    cal_in.time_range = None
+    cal_in.write_calfits(write_file, clobber=True)
+    cal_out.read_calfits(write_file)
+    assert cal_in == cal_out
+
+    return
+
+
 def test_error_unknown_cal_type(tmp_path):
     """
     Test an error is raised when writing an unknown cal type.
