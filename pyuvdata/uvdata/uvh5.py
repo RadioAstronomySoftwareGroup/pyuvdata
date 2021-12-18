@@ -232,6 +232,8 @@ class UVH5(UVData):
                 self._set_flex_spw()
         if "flex_spw_id_array" in header:
             self.flex_spw_id_array = header["flex_spw_id_array"][:]
+        if "flex_spw_polarization_array" in header:
+            self.flex_spw_polarization_array = header["flex_spw_polarization_array"][:]
         if "multi_phase_center" in header:
             if bool(header["multi_phase_center"][()]):
                 self._set_phased()
@@ -1065,6 +1067,8 @@ class UVH5(UVData):
             header["eq_coeffs_convention"] = np.string_(self.eq_coeffs_convention)
         if self.flex_spw_id_array is not None:
             header["flex_spw_id_array"] = self.flex_spw_id_array
+        if self.flex_spw_polarization_array is not None:
+            header["flex_spw_polarization_array"] = self.flex_spw_polarization_array
         if self.phase_center_id_array is not None:
             header["phase_center_id_array"] = self.phase_center_id_array
         if self.Nphase is not None:

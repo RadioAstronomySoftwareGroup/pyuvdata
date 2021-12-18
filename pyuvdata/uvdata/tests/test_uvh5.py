@@ -62,6 +62,24 @@ def uv_partial_write(casa_uvfits, tmp_path):
     return
 
 
+@pytest.fixture(scope="session")
+def sma_mir_main():
+    # read in test file for the resampling in time functions
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    uv_object.read(testfile)
+
+    yield uv_object
+
+
+@pytest.fixture(scope="function")
+def sma_mir(sma_mir_main):
+    # read in test file for the resampling in time functions
+    uv_object = sma_mir_main.copy()
+
+    yield uv_object
+
+
 def initialize_with_zeros(uvd, filename):
     """
     Make a uvh5 file with all zero values for data-sized arrays.
@@ -3313,3 +3331,27 @@ def test_none_extra_keywords(uv_uvh5, tmp_path):
         assert h5f["Header/extra_keywords/foo"].shape is None
 
     return
+
+
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_flex_pol_roundtrip(sma_mir, future_shapes, tmp_path):
+    """Test that we can round-trip flex-pol data sets"""
+    sma_mir.flag_array[:, :, : sma_mir.Nfreqs // 2, 0] = True
+    sma_mir.flag_array[:, :, sma_mir.Nfreqs // 2 :, 1] = True
+    testfile = os.path.join(tmp_path, "flex_pol_roundtrip.uvh5")
+
+    if future_shapes:
+        sma_mir.use_future_array_shapes()
+
+    sma_mir._make_flex_pol()
+    sma_mir.write_uvh5(testfile)
+
+    test_uvh5 = UVData.from_file(testfile)
+
+    if future_shapes:
+        test_uvh5.use_future_array_shapes()
+
+    assert sma_mir.history != test_uvh5.history
+    sma_mir.history = test_uvh5.history = None
+
+    assert sma_mir == test_uvh5
