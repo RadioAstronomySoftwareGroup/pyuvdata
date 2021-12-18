@@ -250,12 +250,8 @@ class MirParser(object):
         # include all attributes, not just UVParameter ones.
         for attr in self.__iter__():
             # skip properties
-            if isinstance(getattr(type(self), attr, None), property):
-                continue
-
-            # skip data like parameters
-            # parameter names have a leading underscore we want to ignore
-            setattr(mp, attr, copy.deepcopy(getattr(self, attr)))
+            if not isinstance(getattr(type(self), attr, None), property):
+                setattr(mp, attr, copy.deepcopy(getattr(self, attr)))
 
         return mp
 
@@ -839,18 +835,23 @@ class MirParser(object):
 
         return filter_changed
 
-    def load_data(self, load_vis=True, load_raw=False, load_auto=False):
+    def load_data(
+        self, load_vis=True, load_raw=False, load_auto=False, apply_tsys=True
+    ):
         """
         Load visibility data into MirParser class.
 
         Parameters
         ----------
-        load_vis : bool, optional
-            Load the visibility data (floats) into object (deault is True)
-        load_raw : bool, optional
-            Load the raw visibility data (ints) into object (default is False)
-        load_auto: bool, optional
-            Load the autos (floats) into object (default is False)
+        load_vis : bool
+            Load the visibility data (floats) into object (deault is True).
+        load_raw : bool
+            Load the raw visibility data (ints) into object (default is False).
+        load_auto: bool
+            Load the autos (floats) into object (default is False).
+        apply_tsys : bool
+            If load_vis is set to true, applys tsys corrections to the data (default
+            is True).
         """
         self._update_filter()
 
@@ -859,6 +860,8 @@ class MirParser(object):
                 self.filepath, self.in_start_dict, self.sp_data
             )
             self.vis_data_loaded = True
+            if apply_tsys:
+                self._apply_tsys()
         if load_raw:
             self.raw_data, self.raw_scale_fac = self.parse_raw_data(
                 self.filepath, self.in_start_dict, self.sp_data
@@ -989,10 +992,6 @@ class MirParser(object):
             self.ac_filter = None
             self.ac_data = None
 
-            # Check for load_auto=True.
-            if load_auto:
-                load_auto = False
-
         # Raw data aren't loaded on start, because the datasets can be huge
         # You can force this after creating the object with load_data().
         self.vis_data = None
@@ -1004,7 +1003,11 @@ class MirParser(object):
         self.blhid_dict = {}
         self.sphid_dict = {}
 
-        self.load_data(load_vis=load_vis, load_raw=load_raw, load_auto=load_auto)
+        self.load_data(
+            load_vis=load_vis,
+            load_raw=load_raw,
+            load_auto=(load_auto and self._has_auto),
+        )
 
     def __init__(
         self,

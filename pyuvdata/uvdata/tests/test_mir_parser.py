@@ -10,6 +10,7 @@ python, not neccessarily how pyuvdata (by way of the UVData class) interacts wit
 data.
 """
 import numpy as np
+import pytest
 
 
 def test_mir_parser_index_uniqueness(mir_data):
@@ -84,6 +85,19 @@ def test_mir_parser_unload_data(mir_data):
 
     for attr in attr_list:
         assert getattr(mir_data, attr) is None
+
+
+@pytest.mark.parametrize("filter_type", ["use_in", "use_bl", "use_sp"])
+def test_mir_parser_update_filter(mir_data, filter_type):
+    """
+    Verify that filtering operations work as expected.
+    """
+    getattr(mir_data, filter_type)[:] = False
+    mir_data._update_filter()
+
+    attr_list = ["in_data", "bl_data", "eng_data", "sp_data", "ac_data"]
+    for attr in attr_list:
+        assert len(getattr(mir_data, attr)) == 0
 
 
 # Below are a series of checks that are designed to check to make sure that the
