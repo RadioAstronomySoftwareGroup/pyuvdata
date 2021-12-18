@@ -153,45 +153,64 @@ class Mir(UVData):
             [mir_data.blhid_dict[idx] for idx in mir_data.sp_data["blhid"]]
         )
 
-        pol_split_tuning = False
-        if len(np.unique(mir_data.bl_data["ipol"])) == 4:
-            # This is a full-polarization observation, and so we can take a few
-            # things for granted here about the spectral tunings
-            spdx_list = [
-                (winid, sbid, polid)
-                for winid, sbid, polid in zip(
-                    mir_data.sp_data["corrchunk"],
-                    mir_data.bl_data["isb"][sp_bl_maparr],
-                    mir_data.bl_data["ipol"][sp_bl_maparr],
-                )
-            ]
-            pol_dict = {
-                key: idx for idx, key in enumerate(np.unique(mir_data.bl_data["ipol"]))
-            }
-        else:
-            spdx_list = [
-                (winid, sbid, polid)
-                for winid, sbid, polid in zip(
-                    mir_data.sp_data["corrchunk"],
-                    mir_data.bl_data["isb"][sp_bl_maparr],
-                    mir_data.bl_data["ant1rx"][sp_bl_maparr],
-                )
-            ]
+        if len(np.unique(mir_data.bl_data["ipol"])) == 1 and (
+            np.sum([mir_data.codes_read["v_name"] == b"pol"]) == 4
+        ):
+            # If only one pol is found, and the polarization dictionary has only four
+            # codes, then we actually need to verify this is a single pol observation,
+            # since the current system has a quirk that it marks both X- and Y-pol
+            # receivers with the same code.
+            pol_dict = {}
+            pol_arr = np.zeros_like(mir_data.bl_data["ipol"][sp_bl_maparr])
 
-            # If not full-pol, then we need to check if the tunings are spilt, because
+            ant1_rxa_mask = mir_data.bl_data["ant1rx"][sp_bl_maparr] == 0
+            ant2_rxa_mask = mir_data.bl_data["ant2rx"][sp_bl_maparr] == 0
+
+            pol_arr[np.logical_and(ant1_rxa_mask, ant2_rxa_mask)] = 0
+            pol_arr[np.logical_and(~ant1_rxa_mask, ~ant2_rxa_mask)] = 1
+            pol_arr[np.logical_and(ant1_rxa_mask, ~ant2_rxa_mask)] = 2
+            pol_arr[np.logical_and(~ant1_rxa_mask, ant2_rxa_mask)] = 3
+        else:
+            # If this has multiple ipol codes, then we don't need to worry about the
+            # single-code ambiguity.
+            pol_arr = mir_data.bl_data["ipol"][sp_bl_maparr]
+
+        # Construct and indexing list, that we'll use later to figure out what data
+        # goes where, based on spw, sideband, and pol code.
+        spdx_list = [
+            (winid, sbid, polid)
+            for winid, sbid, polid in zip(
+                mir_data.sp_data["corrchunk"],
+                mir_data.bl_data["isb"][sp_bl_maparr],
+                pol_arr,
+            )
+        ]
+
+        # Create a dict with the ordering of the pols
+        pol_dict = {key: idx for idx, key in enumerate(np.unique(pol_arr))}
+
+        pol_split_tuning = False
+        if len(pol_dict) == 2:
+            # If dual-pol, then we need to check if the tunings are spilt, because
             # the two polarizations will effectively be concat'd across the freq
             # axis instead of the pol axis.
-            sel_mask = mir_data.bl_data["ant1rx"][sp_bl_maparr] == 0
+            rxa_mask = np.logical_and(
+                mir_data.bl_data["ant1rx"][sp_bl_maparr] == 0,
+                mir_data.bl_data["ant2rx"][sp_bl_maparr] == 0,
+            )
+            rxb_mask = np.logical_and(
+                mir_data.bl_data["ant1rx"][sp_bl_maparr] == 1,
+                mir_data.bl_data["ant2rx"][sp_bl_maparr] == 1,
+            )
 
-            # The data all belong to one receiver
-            if np.all(sel_mask) or np.all(sel_mask):
-                pol_dict = {int(np.all(~sel_mask)): 0}
-            else:
-                loa_freq = np.median(mir_data.sp_data["gunnLO"][sel_mask])
-                lob_freq = np.median(mir_data.sp_data["gunnLO"][~sel_mask])
+            if np.any(rxa_mask) and np.any(rxb_mask):
+                # If we have both VV and HH data, check to see that the tunings of the
+                # two receivers match.
+                loa_freq = np.median(mir_data.sp_data["gunnLO"][rxa_mask])
+                lob_freq = np.median(mir_data.sp_data["gunnLO"][rxb_mask])
                 pol_split_tuning = not np.isclose(loa_freq, lob_freq)
-                pol_dict = {0: 0, 1: 1}
 
+        # Map MIR pol code to pyuvdata/AIPS polarization number
         pol_code_dict = {}
         for code in mir_data.codes_read[mir_data.codes_read["v_name"] == b"pol"]:
             pol_code_dict[code["icode"]] = uvutils.POL_STR2NUM_DICT[
@@ -199,15 +218,20 @@ class Mir(UVData):
             ]
 
         if pol_split_tuning and allow_flex_pol:
+            # If we have a split tuning that, that means we can take advantage of
+            # the flex-pol feature within UVData
             Npols = 1
             polarization_array = np.array([0])
         else:
+            # Otherwise, calculate dimentions and arrays for the polarization axis
+            # like normal.
             Npols = len(set(pol_dict.values()))
             polarization_array = np.zeros(Npols, dtype=int)
 
             for key in pol_dict.keys():
                 polarization_array[pol_dict[key]] = pol_code_dict[key]
 
+        # Create a list of baseline-time combinations in the data
         blt_list = [
             (intid, ant1, ant2)
             for intid, ant1, ant2 in zip(
@@ -217,6 +241,8 @@ class Mir(UVData):
             )
         ]
 
+        # Use the list above to create a dict that maps baseline-time combo
+        # to position along the mouthwatering blt-axis.
         blt_dict = {
             blt_tuple: idx
             for idx, blt_tuple in enumerate(
@@ -224,14 +250,18 @@ class Mir(UVData):
             )
         }
 
+        # Match blhid in MIR to blt position in UVData
         blhid_blt_order = {
             key: blt_dict[value]
             for key, value in zip(mir_data.bl_data["blhid"], blt_list)
         }
 
-        # By Grabthar's Hammer, what a savings!
+        # The more blts, the better
         Nblts = len(blt_dict)
 
+        # Here we need to do a little fancy footwork in order to map spectral windows
+        # to ranges along the freq-axis, and calculate some values that will eventually
+        # populate arrays related to this axis (e.g., freq_array, chan_width).
         spdx_dict = {}
         spw_dict = {}
         for spdx in set(spdx_list):
@@ -242,17 +272,23 @@ class Mir(UVData):
             spw_fres = np.unique(mir_data.sp_data["fres"][data_mask])
             spw_nchan = np.unique(mir_data.sp_data["nch"][data_mask])
 
-            # Make sure that something weird hasn't happend with the metadata (this
-            # really should never happen)
+            # Make sure that something weird hasn't happened with the metadata (this
+            # really should never happen, only one value should exist per window).
             assert len(spw_fsky) == 1
             assert len(spw_fres) == 1
             assert len(spw_nchan) == 1
 
-            #  Get the data in the right units and dtype
+            # Get the data in the right units and dtype
             spw_fsky = float(spw_fsky * 1e9)  # GHz -> Hz
             spw_fres = float(spw_fres * 1e6)  # MHz -> Hz
             spw_nchan = int(spw_nchan)
 
+            # We need to do a some extra handling here, because a single correlator
+            # can produce multiple spectral windows (e.g., LSB/USB). The scheme below
+            # will negate the corr band number if LSB, will set the corr band number to
+            # 255 if the values arise from the pseudo-wideband values, and will add 512
+            # if the pols are split-tuned. This scheme, while a little funky, guarantees
+            # that each unique freq range has its own spectral window number.
             spw_id = 255 if (spdx[0] == 0) else spdx[0]
             spw_id *= (-1) ** (1 + spdx[1])
             spw_id += 512 if (pol_split_tuning and spdx[2] == 1) else 0
@@ -274,6 +310,8 @@ class Mir(UVData):
                 + (spw_fres * (np.arange(spw_nchan) + 0.5 - (spw_nchan / 2)))
             )
 
+            # Note here that if we're using flex-pol, then the polarization axis of
+            # the UVData object is 1, hence why pol_idx is forced to be 0 here.
             spdx_dict[spdx] = {
                 "spw_id": spw_id,
                 "pol_idx": (
@@ -281,6 +319,7 @@ class Mir(UVData):
                 ),
             }
 
+            # Stuff this dictionary full of the per-spw metadata
             spw_dict[spw_id] = {
                 "nchan": spw_nchan,
                 "freqs": spw_fres,
@@ -389,14 +428,16 @@ class Mir(UVData):
         for sp_rec in mir_data.sp_data:
             temp_dict = {item: sp_rec[item] for item in sp_to_blt}
             try:
-                # We only want to throw this warning once -- no sense in flooding the
-                # user with errors that can't do much about.
-                if not suppress_warning:
-                    if sp_temp_dict[blhid_blt_order[sp_rec["blhid"]]] != temp_dict:
+                if sp_temp_dict[blhid_blt_order[sp_rec["blhid"]]] != temp_dict:
+                    # We only want to throw this warning once -- no sense in flooding
+                    # the user with errors they can't do much about.
+                    if not suppress_warning:
                         warnings.warn(
                             "Per-spectral window metadata differ. Defaulting to using "
                             "the last value in the data set."
                         )
+                        suppress_warning = True
+                    sp_temp_dict[blhid_blt_order[sp_rec["blhid"]]] = temp_dict
             except KeyError:
                 sp_temp_dict[blhid_blt_order[sp_rec["blhid"]]] = temp_dict
 
@@ -412,12 +453,15 @@ class Mir(UVData):
             temp_dict.update({item: in_rec[item] for item in in_to_blt})
             temp_dict.update(sp_temp_dict[blhid_blt_order[bl_rec["blhid"]]])
             try:
-                if not suppress_warning:
-                    if blt_temp_dict[blhid_blt_order[bl_rec["blhid"]]] != temp_dict:
+                if blt_temp_dict[blhid_blt_order[bl_rec["blhid"]]] != temp_dict:
+                    # Again, if we reach this point, only raise a warning one time
+                    if not suppress_warning:
                         warnings.warn(
                             "Per-baseline metadata differ. Defaulting to using "
                             "the last value in the data set."
                         )
+                        suppress_warning = True
+                    blt_temp_dict[blhid_blt_order[bl_rec["blhid"]]] = temp_dict
             except KeyError:
                 blt_temp_dict[blhid_blt_order[bl_rec["blhid"]]] = temp_dict
 
@@ -434,7 +478,7 @@ class Mir(UVData):
         for blt_key in blt_temp_dict.keys():
             temp_dict = blt_temp_dict[blt_key]
             integration_time[blt_key] = temp_dict["rinteg"]
-            lst_array[blt_key] = temp_dict["lst"] * (np.pi / 12.0)
+            lst_array[blt_key] = temp_dict["lst"] * (np.pi / 12.0)  # Hours -> rad
             mjd_array[blt_key] = temp_dict["mjd"]
             ant_1_array[blt_key] = temp_dict["iant1"]
             ant_2_array[blt_key] = temp_dict["iant2"]

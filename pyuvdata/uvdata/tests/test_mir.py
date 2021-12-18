@@ -13,6 +13,7 @@ import os
 
 import pytest
 import numpy as np
+import pyuvdata.tests as uvtest
 
 from ... import UVData
 from ...data import DATA_PATH
@@ -361,8 +362,6 @@ def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
     """
     pytest.importorskip("casacore")
     testfile = os.path.join(tmp_path, "read_mir_write_ms_flex_pol.ms")
-    mir_uv = UVData()
-    ms_uv = UVData()
 
     # Read in the raw data so that we can manipulate it, and make it look like the
     # test data set was recorded with split-tuning
@@ -371,13 +370,14 @@ def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
 
     # Spin up a Mir object, which can be covered into a UVData object,
     # with flex-pol enabled.
+    mir_uv = UVData()
     mir_obj = Mir()
     mir_obj._init_from_mir_parser(mir_data)
     mir_uv._convert_from_filetype(mir_obj)
 
     # Write out our modified data set
     mir_uv.write_ms(testfile, clobber=True)
-    ms_uv.read(testfile)
+    ms_uv = UVData.from_file(testfile)
 
     # There are some minor differences between the values stored by MIR and that
     # calculated by UVData. Since MS format requires these to be calculated on the
@@ -411,3 +411,59 @@ def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
 
     # Finally, with all exceptions handled, check for equality.
     assert ms_uv.__eq__(mir_uv, allowed_failures=["filename"])
+
+
+def test_inconsistent_sp_records(mir_data, uv_in_ms):
+    """
+    Test that the MIR object does the right thing w/ inconsistent meta-data.
+    """
+    sma_mir, _, _ = uv_in_ms
+
+    mir_data.use_sp = mir_data.sp_read["iband"] != 0
+    mir_data.sp_read["flags"][1] = True
+    mir_data.load_data()
+
+    with uvtest.check_warnings(UserWarning, "Per-spectral window metadata differ."):
+        mir_uv = UVData()
+        mir_obj = Mir()
+        mir_obj._init_from_mir_parser(mir_data)
+        mir_uv._convert_from_filetype(mir_obj)
+
+    assert mir_uv == sma_mir
+
+
+def test_inconsistent_bl_records(mir_data, uv_in_ms):
+    """
+    Test that the MIR object does the right thing w/ inconsistent meta-data.
+    """
+    sma_mir, _, _ = uv_in_ms
+
+    mir_data.use_sp = mir_data.sp_read["iband"] != 0
+    mir_data.bl_read["u"][0] = 0.0
+    mir_data.load_data()
+    with uvtest.check_warnings(UserWarning, "Per-baseline metadata differ."):
+        mir_uv = UVData()
+        mir_obj = Mir()
+        mir_obj._init_from_mir_parser(mir_data)
+        mir_uv._convert_from_filetype(mir_obj)
+
+    assert mir_uv == sma_mir
+
+
+def test_multi_ipol(mir_data, uv_in_ms):
+    """
+    Test that the MIR object does the right thing when different polarization types
+    are recorded in the pol code.
+    """
+    sma_mir, _, _ = uv_in_ms
+
+    mir_data.use_sp = mir_data.sp_read["iband"] != 0
+    mir_data.bl_read["ipol"][:] = mir_data.bl_read["ant1rx"]
+    mir_data.load_data()
+
+    mir_uv = UVData()
+    mir_obj = Mir()
+    mir_obj._init_from_mir_parser(mir_data)
+    mir_uv._convert_from_filetype(mir_obj)
+
+    assert mir_uv == sma_mir
