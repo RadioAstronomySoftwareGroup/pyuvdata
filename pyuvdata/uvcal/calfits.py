@@ -160,7 +160,9 @@ class CALFITS(UVCal):
             prihdr["FRQRANGE"] = ",".join(map(str, self.freq_range))
         elif self.freq_range is not None:
             prihdr["FRQRANGE"] = ",".join(map(str, self.freq_range))
-        prihdr["TMERANGE"] = ",".join(map(str, self.time_range))
+
+        if self.time_range is not None:
+            prihdr["TMERANGE"] = ",".join(map(str, self.time_range))
 
         if self.observer:
             prihdr["OBSERVER"] = self.observer
@@ -495,7 +497,9 @@ class CALFITS(UVCal):
 
                 self.history += self.pyuvdata_version_str
 
-            self.time_range = list(map(float, hdr.pop("TMERANGE").split(",")))
+            time_range = hdr.pop("TMERANGE", None)
+            if time_range is not None:
+                self.time_range = list(map(float, time_range.split(",")))
             self.gain_convention = hdr.pop("GNCONVEN")
             self.gain_scale = hdr.pop("GNSCALE", None)
             self.x_orientation = hdr.pop("XORIENT")
