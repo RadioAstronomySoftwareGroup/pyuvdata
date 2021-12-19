@@ -11335,21 +11335,73 @@ def test_add_pol_sorting_bl(casa_uvfits, add_type, sort_type, future_array_shape
 
 
 @pytest.mark.parametrize(
-    "pol_sel,err_msg",
+    "pol_sel,flex_err,err_msg",
     [
-        [None, "Npols must be equal to 1 if flex_spw_polarization_array is set."],
-        [-5, "polarization_array must all be equal to 0 if flex_spw_polarization"],
+        [None, True, "Npols must be equal to 1 if flex_spw_polarization_array is set."],
+        [-5, True, "polarization_array must all be equal to 0 if flex_spw_pol"],
+        [None, False, "polarization_array may not be equal to 0 if flex_spw_pol"],
     ],
 )
-def test_flex_pol_errs(sma_mir, pol_sel, err_msg):
+def test_flex_pol_check_errs(sma_mir, pol_sel, flex_err, err_msg):
     """
     Test that appropriate errors are thrown when flex_spw_polarization_array is set
     incorrectly.
     """
     sma_mir.select(polarizations=pol_sel)
-    sma_mir.flex_spw_polarization_array = sma_mir.spw_array
+    if flex_err:
+        sma_mir.flex_spw_polarization_array = sma_mir.spw_array
+    else:
+        sma_mir.polarization_array[0] = 0
 
     with pytest.raises(ValueError) as cm:
         sma_mir.check()
 
     assert str(cm.value).startswith(err_msg)
+
+
+def test_flex_pol_no_op(sma_mir):
+    """
+    Test that appropriate errors are thrown when flex_spw_polarization_array is set
+    incorrectly.
+    """
+    sma_mir.select(polarizations=["xx"])
+    sma_copy = sma_mir.copy()
+    sma_mir.remove_flex_pol()
+
+    assert sma_mir == sma_copy
+
+    sma_mir.flag_array[:, :, : sma_mir.Nfreqs // 2, 0] = True
+    sma_mir._make_flex_pol()
+    sma_copy = sma_mir.copy()
+
+    sma_mir._make_flex_pol()
+
+    assert sma_mir == sma_copy
+
+
+@pytest.mark.parametrize(
+    "err_msg,param,param_val",
+    [
+        ["Cannot make a flex-pol UVData object if flex_spw=False.", "flex_spw", False],
+        ["Cannot make a flex-pol UVData object, as some windows have", None, None],
+    ],
+)
+def test_make_flex_pol_errs(sma_mir, err_msg, param, param_val):
+    """Check to make sure that _make_flex_pol throws correct errors"""
+
+    if param is not None:
+        setattr(sma_mir, param, param_val)
+
+    sma_copy = sma_mir.copy()
+
+    with pytest.raises(ValueError) as cm:
+        sma_mir._make_flex_pol(True, True)
+    assert str(cm.value).startswith(err_msg)
+
+    with uvtest.check_warnings(UserWarning, err_msg):
+        sma_mir._make_flex_pol(False, True)
+    assert sma_copy == sma_mir
+
+    with uvtest.check_warnings(None):
+        sma_mir._make_flex_pol(False, False)
+    assert sma_copy == sma_mir

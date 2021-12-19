@@ -21,6 +21,47 @@ from ...uvdata.mir_parser import MirParser
 from ...uvdata.mir import Mir
 
 
+@pytest.fixture(scope="session")
+def sma_mir_main():
+    # read in test file for the resampling in time functions
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    uv_object.read(testfile)
+
+    yield uv_object
+
+
+@pytest.fixture(scope="function")
+def sma_mir(sma_mir_main):
+    # read in test file for the resampling in time functions
+    uv_object = sma_mir_main.copy()
+
+    yield uv_object
+
+
+@pytest.fixture(scope="session")
+def sma_mir_filt_main():
+    # read in test file for the resampling in time functions
+    uv_object = UVData()
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    uv_object.read(testfile, pseudo_cont=True, corrchunk=0)
+
+    uv_object.flag_array[:, :, : uv_object.Nfreqs // 2, 0] = True
+    uv_object.flag_array[:, :, uv_object.Nfreqs // 2 :, 1] = True
+    uv_object.set_lsts_from_time_array()
+    uv_object._set_app_coords_helper()
+
+    yield uv_object
+
+
+@pytest.fixture(scope="function")
+def sma_mir_filt(sma_mir_filt_main):
+    # read in test file for the resampling in time functions
+    uv_object = sma_mir_filt_main.copy()
+
+    yield uv_object
+
+
 @pytest.fixture
 def uv_in_ms(tmp_path):
     uv_in = UVData()
@@ -450,13 +491,11 @@ def test_inconsistent_bl_records(mir_data, uv_in_ms):
     assert mir_uv == sma_mir
 
 
-def test_multi_ipol(mir_data, uv_in_ms):
+def test_multi_ipol(mir_data, sma_mir):
     """
     Test that the MIR object does the right thing when different polarization types
     are recorded in the pol code.
     """
-    sma_mir, _, _ = uv_in_ms
-
     mir_data.use_sp = mir_data.sp_read["iband"] != 0
     mir_data.bl_read["ipol"][:] = mir_data.bl_read["ant1rx"]
     mir_data.load_data()
@@ -467,3 +506,114 @@ def test_multi_ipol(mir_data, uv_in_ms):
     mir_uv._convert_from_filetype(mir_obj)
 
     assert mir_uv == sma_mir
+
+
+@pytest.mark.parametrize("filetype", ["uvh5", "miriad", "ms", "uvfits"])
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_flex_pol_roundtrip(sma_mir_filt, filetype, future_shapes, tmp_path):
+    """Test that we can round-trip flex-pol data sets"""
+    testfile = os.path.join(tmp_path, "flex_pol_roundtrip." + filetype)
+    if filetype == "ms":
+        pytest.importorskip("casacore")
+    elif filetype == "miriad":
+        pytest.importorskip("pyuvdata._miriad")
+
+    if future_shapes:
+        sma_mir_filt.use_future_array_shapes()
+
+    sma_mir_filt._make_flex_pol(raise_error=True)
+
+    # sma_mir_filtered._make_flex_pol()
+    if filetype == "uvfits":
+        sma_mir_filt.write_uvfits(testfile, spoof_nonessential=True)
+    else:
+        getattr(sma_mir_filt, "write_" + filetype)(testfile)
+
+    test_uv = UVData.from_file(testfile)
+
+    if future_shapes:
+        test_uv.use_future_array_shapes()
+
+    if filetype in ["uvfits", "miriad"]:
+        test_uv._make_flex_pol(raise_error=True)
+
+    assert np.all(
+        sma_mir_filt.flex_spw_polarization_array == test_uv.flex_spw_polarization_array
+    )
+    assert np.all(sma_mir_filt.polarization_array == test_uv.polarization_array)
+    assert np.all(sma_mir_filt.flag_array == test_uv.flag_array)
+    assert np.all(sma_mir_filt.data_array == test_uv.data_array)
+    assert np.all(sma_mir_filt.nsample_array == test_uv.nsample_array)
+
+
+def test_flex_pol_select(sma_mir_filt):
+    """Test select operations on flex-pol UVData objects"""
+
+    sma_mir_filt._make_flex_pol(raise_error=True)
+    with pytest.raises(ValueError) as cm:
+        sma_mir_filt.select(polarizations=["xx"], freq_chans=[0, 1, 2, 3])
+
+    assert str(cm.value).startswith("No data matching this polarization and frequency")
+
+    sma_mir_filt.select(polarizations=["xx"])
+
+    assert sma_mir_filt.flex_spw_polarization_array is None
+    assert np.all(sma_mir_filt.polarization_array == -5)
+
+    sma_mir_filt._make_flex_pol()
+
+    assert np.all(sma_mir_filt.flex_spw_polarization_array == -5)
+    assert np.all(sma_mir_filt.polarization_array == 0)
+
+
+@pytest.mark.parametrize(
+    "make_flex,err_msg",
+    [
+        [True, "Cannot add a flex-pol UVData objects where the same"],
+        [False, "Cannot add a flex-pol and non-flex-pol UVData objects."],
+    ],
+)
+def test_flex_pol_add_errs(sma_mir_filt, make_flex, err_msg):
+    """Test that the add error throws appropriate errors"""
+    sma_copy = sma_mir_filt.copy()
+    sma_mir_filt._make_flex_pol()
+
+    if make_flex:
+        sma_copy.select(polarizations=["xx"])
+        sma_copy.flag_array[:] = True
+        sma_copy.data_array[:] = 0.0
+        sma_copy._make_flex_pol()
+
+    with pytest.raises(ValueError) as cm:
+        sma_copy + sma_mir_filt
+    assert str(cm.value).startswith(err_msg)
+
+
+def test_flex_pol_add(sma_mir_filt):
+    """Test that the add method works correctly with flex-pol data"""
+    sma_xx_copy = sma_mir_filt.copy()
+    sma_yy_copy = sma_mir_filt.copy()
+    sma_mir_filt._make_flex_pol()
+
+    sma_xx_copy.select(polarizations=["xx"], freq_chans=[4, 5, 6, 7])
+    sma_xx_copy._make_flex_pol()
+    sma_yy_copy.select(polarizations=["yy"], freq_chans=[0, 1, 2, 3])
+    sma_yy_copy._make_flex_pol()
+
+    sma_check = sma_yy_copy + sma_xx_copy
+
+    assert sma_check.history != sma_mir_filt.history
+    sma_check.history = sma_mir_filt.history = None
+
+    assert sma_check == sma_mir_filt
+
+
+def test_flex_pol_spw_all_flag(sma_mir_filt):
+    """
+    Test that if one spw is totally flagged, the polarization gets filled correctly.
+    """
+    print(sma_mir_filt.polarization_array)
+    sma_mir_filt.flag_array[:, :, : sma_mir_filt.Nfreqs // 2, :] = True
+    sma_mir_filt._make_flex_pol()
+
+    assert np.all(sma_mir_filt.flex_spw_polarization_array == -5)

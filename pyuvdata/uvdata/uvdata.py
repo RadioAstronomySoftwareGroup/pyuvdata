@@ -2406,11 +2406,7 @@ class UVData(UVBase):
 
         # Otherwise, move through all of the data params
         for name, param in zip(self._data_params, self.data_like_parameters):
-            # If the parameter isn't filled, then just skip it
-            if param is None:
-                continue
-
-            # Otherwise, we need to construct an array with the appropriate shape
+            # We need to construct arrays with the appropriate shape
             new_shape = [self.Nblts, 1, self.Nfreqs, self.Npols]
 
             # Pop the spw-axis if using future array shapes
@@ -2432,23 +2428,18 @@ class UVData(UVBase):
                 # slice (wherease spw_screen is a complex slice, which we can only have
                 # one of for an array).
                 if self.future_array_shapes:
-                    new_param[:, spw_screen, pol_idx] = param[:, spw_screen]
+                    new_param[:, spw_screen, pol_idx] = param[:, spw_screen, 0]
                 else:
-                    new_param[:, :, spw_screen, pol_idx] = param[:, :, spw_screen]
+                    new_param[:, :, spw_screen, pol_idx] = param[:, :, spw_screen, 0]
 
             # With the new array defined and filled, set the attribute equal to it
             setattr(self, name, new_param)
 
+        # Finally, remove the flex-pol attribute
+        self.flex_spw_polarization_array = None
+
     def _make_flex_pol(self, raise_error=False, raise_warning=True):
         """Convert a regular UVData object into one with flex-polarization enabled."""
-        if self.flag_array is None:
-            msg = "Cannot make a flex-pol UVData object if flag_array is None."
-            if raise_error:
-                raise ValueError(msg)
-            if raise_warning:
-                warnings.warn(msg)
-            return
-
         if not self.flex_spw:
             msg = "Cannot make a flex-pol UVData object if flex_spw=False."
             if raise_error:
@@ -2459,16 +2450,17 @@ class UVData(UVBase):
 
         if self.Npols == 1:
             # This is basically a no-op, fix the to pol-array attributes and exit
-            self.flex_spw_polarization_array = (
-                np.zeros_like(self.spw_array) + self.polarization_array[0]
-            )
-            self.polarization_array = [0]
+            if self.flex_spw_polarization_array is None:
+                self.flex_spw_polarization_array = (
+                    np.zeros_like(self.spw_array) + self.polarization_array[0]
+                )
+                self.polarization_array = np.array([0])
             return
 
+        flex_pol_idx = np.zeros_like(self.spw_array)
         for idx, spw in enumerate(self.spw_array):
             spw_screen = self.flex_spw_id_array == spw
 
-            flex_pol_idx = np.zeros_like(self.spw_array)
             if self.future_array_shapes:
                 pol_check = ~np.all(self.flag_array[:, spw_screen], axis=(0, 1))
             else:
@@ -2483,7 +2475,6 @@ class UVData(UVBase):
                     raise ValueError(msg)
                 if raise_warning:
                     warnings.warn(msg)
-                print(idx, spw)
                 return
             elif not np.any(pol_check):
                 flex_pol_idx[idx] = -1
@@ -6349,7 +6340,7 @@ class UVData(UVBase):
                 other_flexpol_dict = {
                     spw: pol
                     for spw, pol in zip(
-                        this.spw_array, this.flex_spw_polarization_array
+                        other.spw_array, other.flex_spw_polarization_array
                     )
                 }
                 for key in other_flexpol_dict.keys():
@@ -8379,12 +8370,14 @@ class UVData(UVBase):
                         np.isin(self.flex_spw_id_array, self.spw_array[spw_inds])
                     )[0]
                 else:
+                    freq_inds = np.array(freq_inds)
                     freq_inds = freq_inds[
                         np.isin(
                             self.flex_spw_id_array[freq_inds], self.spw_array[spw_inds],
                         )
                     ]
 
+                freq_inds = sorted(freq_inds)
                 # Trap a corner case here where the frequency and polarization selects
                 # on a flex-pol data set end up with no actual data being selected.
                 if len(freq_inds) == 0:
@@ -12588,9 +12581,12 @@ class UVData(UVBase):
 
         miriad_obj = self._convert_to_filetype("miriad")
 
-        # If we have a flex-pol dataset, remove it so that we can pass
-        # the data to the writer without issue.
+        # If we have a flex-pol dataset, remove it so that we can pass the data to the
+        # writer without issue. We create a copy because otherwise we run the risk of
+        # messing w/ the metadata of the original object, and because the overhead of
+        # doing so is generally smaller than that from removing flex-pol.
         if self.flex_spw_polarization_array is not None:
+            miriad_obj = miriad_obj.copy()
             miriad_obj.remove_flex_pol()
 
         miriad_obj.write_miriad(
@@ -12757,9 +12753,12 @@ class UVData(UVBase):
 
         uvfits_obj = self._convert_to_filetype("uvfits")
 
-        # If we have a flex-pol dataset, remove it so that we can pass
-        # the data to the writer without issue.
+        # If we have a flex-pol dataset, remove it so that we can pass the data to the
+        # writer without issue. We create a copy because otherwise we run the risk of
+        # messing w/ the metadata of the original object, and because the overhead of
+        # doing so is generally smaller than that from removing flex-pol.
         if self.flex_spw_polarization_array is not None:
+            uvfits_obj = uvfits_obj.copy()
             uvfits_obj.remove_flex_pol()
 
         uvfits_obj.write_uvfits(
