@@ -888,7 +888,7 @@ class MirParser(object):
         if self.raw_scale_fac is not None:
             self.raw_scale_fac = None
 
-    def _apply_tsys(self, interp_rxa_ants=None, interp_rxb_ants=None, jypk=130.0):
+    def _apply_tsys(self, jypk=130.0):
         """
         Apply Tsys calibration to the visibilities.
 
@@ -896,7 +896,20 @@ class MirParser(object):
         system temperature information to the data to get values in units of Jy. This
         method is not meant to be called by users, but is instead meant to be called
         by data read methods.
+
+        Parameteres
+        -----------
+        jypk : float
+            Forward gain of the antenna (in units of Jy/K), which is multiplied against
+            the system temperatures in order to produce values in units of Jy
+            (technically this is the SEFD, which when multiplied against correlator
+            coefficients produces visibilities in units of Jy). Default is 130.0, which
+            is the estiamted value for SMA.
         """
+        # Create a dictionary here to map antenna pair + integration time step with
+        # a sqrt(tsys) value. Note that the last index here is the receiver number,
+        # which techically has a diffenret keyword under which the system temperatures
+        # are stored.
         tsys_dict = {
             (idx, jdx, 0): tsys ** 0.5
             for idx, jdx, tsys in zip(
@@ -916,6 +929,8 @@ class MirParser(object):
             }
         )
 
+        # now create a per-blhid SEFD dictionary based on antenna pair, integration
+        # timestep, and receiver pairing.
         normal_dict = {
             blhid: (2.0 * jypk)
             * (tsys_dict[(idx, jdx, kdx)] * tsys_dict[(idx, ldx, mdx)])
@@ -929,6 +944,8 @@ class MirParser(object):
             )
         }
 
+        # Finally, multiply the individual spectral records by the SEFD values
+        # that are in the dictionary.
         for idx, blhid in enumerate(self.sp_data["blhid"]):
             self.vis_data[idx] *= normal_dict[blhid]
 
@@ -955,27 +972,43 @@ class MirParser(object):
         load_auto : bool
             flag to load auto-correlations into memory, default is False.
         """
+        # Set up some basic attributes
         self._has_auto = has_auto
         self.filepath = filepath
-        self.in_read = self.read_in_data(filepath)
-        self.eng_read = self.read_eng_data(filepath)
-        self.bl_read = self.read_bl_data(filepath)
-        self.sp_read = self.read_sp_data(filepath)
-        self.codes_read = self.read_codes_data(filepath)
-        self.we_read = self.read_we_data(filepath)
-        self.in_start_dict = self.scan_int_start(filepath)
-        self.antpos_data = self.read_antennas(filepath)
 
+        # These functions will read in the major blocks of metadata that get plugged
+        # in to the various attributes of the MirParser object. Note that "_read"
+        # objects contain the whole data set, while "_data" contains that after
+        # filtering (more on that below).
+        self.in_read = self.read_in_data(filepath)  # Per integration records
+        self.eng_read = self.read_eng_data(filepath)  # Per antenna-int records
+        self.bl_read = self.read_bl_data(filepath)  # Per baaseline-int records
+        self.sp_read = self.read_sp_data(filepath)  # Per spectral win-bl-int records
+        self.codes_read = self.read_codes_data(filepath)  # Metadata for the whole track
+        self.we_read = self.read_we_data(filepath)  # Per-int weather data
+        self.antpos_data = self.read_antennas(filepath)  # Antenna positions
+
+        # This indexes the "main" file that contains all the visibilities, to make
+        # it faster to read in the data
+        self.in_start_dict = self.scan_int_start(filepath)
+
+        # These are fliters used for selecting out specific pieces of data on a per
+        # int, blt, or spw-time basis. These are supposed to be the user-facing ones
+        # that will 9at some point) be made to interact w/ additional functions
         self.use_in = np.ones(self.in_read.shape, dtype=np.bool_)
         self.use_bl = np.ones(self.bl_read.shape, dtype=np.bool_)
         self.use_sp = np.ones(self.sp_read.shape, dtype=np.bool_)
 
+        # These are filters after broadcasting the above "use_" filters, on a per
+        # meta-data object basis.
         self.in_filter = np.ones(self.in_read.shape, dtype=np.bool_)
         self.eng_filter = np.ones(self.eng_read.shape, dtype=np.bool_)
         self.bl_filter = np.ones(self.bl_read.shape, dtype=np.bool_)
         self.sp_filter = np.ones(self.sp_read.shape, dtype=np.bool_)
         self.we_filter = np.ones(self.we_read.shape, dtype=np.bool_)
 
+        # Set the "_data" equal to the "_read" attibutes, since nothing is filtered
+        # on read
         self.in_data = self.in_read
         self.eng_data = self.eng_read
         self.bl_data = self.bl_read
@@ -984,6 +1017,8 @@ class MirParser(object):
         self.we_data = self.we_read
 
         if self._has_auto:
+            # If the data has auto correlations, then scan the auto file, pull out
+            # the metadata, and get the data index locatinos for faster reads.
             self.ac_read = self.scan_auto_data(filepath)
             self.ac_filter = np.ones(self.ac_read.shape, dtype=np.bool_)
             self.ac_data = self.ac_read
@@ -999,10 +1034,13 @@ class MirParser(object):
         self.auto_data = None
         self.raw_scale_fac = None
 
+        # These dicts match index number to array position. It ends up being filled
+        # by _update_filter, which is called inside of load_data below.
         self.inhid_dict = {}
         self.blhid_dict = {}
         self.sphid_dict = {}
 
+        # If requested, now we load out the visibilities.
         self.load_data(
             load_vis=load_vis,
             load_raw=load_raw,
@@ -1037,6 +1075,7 @@ class MirParser(object):
         load_auto : bool
             flag to load auto-correlations into memory, default is False.
         """
+        # On init, if a filepath is provided, then fill in the object
         if filepath is not None:
             self.from_file(
                 filepath,

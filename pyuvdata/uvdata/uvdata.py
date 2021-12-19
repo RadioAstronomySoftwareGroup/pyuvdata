@@ -2384,11 +2384,11 @@ class UVData(UVBase):
         """
         Convert a flex-pol UVData object into one with a standard polarization axis.
 
-        This is an internal helper function, which is not designed to be called by
-        users, but rather individual read/write functions for the UVData object.
         This will convert a flexible-polarization dataset into one with standard
-        polarization handling. Note that depending on how it is used, this can inflate
-        the size of data-like parameters by a factor of Nspws.
+        polarization handling, which is required for some operations or writing in
+        certain filetypes. Note that depending on how it is used, this can inflate
+        the size of data-like parameters by up to a factor of Nspws (the true value
+        depends on the number of unique entiries in `flex_spw_polarization_array`).
         """
         if self.flex_spw_polarization_array is None:
             # There isn't anything to do, so just move along
@@ -2439,7 +2439,28 @@ class UVData(UVBase):
         self.flex_spw_polarization_array = None
 
     def _make_flex_pol(self, raise_error=False, raise_warning=True):
-        """Convert a regular UVData object into one with flex-polarization enabled."""
+        """
+        Convert a regular UVData object into one with flex-polarization enabled.
+
+        This is an internal helper function, which is not designed to be called by
+        users, but rather individual read/write functions for the UVData object.
+        This will convert a regulat UVData object into one that uses flexible
+        polarization, which allows for each spectral window to have its own unique
+        polarization code, useful for storing data more compactly when different
+        windows have different polarizations recorded. Note that at this time,
+        only one polarization code per-spw is allowed -- if more than one polarization
+        is found to have unflagged data in a given spectral window, then the object
+        will not be converted.
+
+        Parameters
+        ----------
+        raise_error : bool
+            If an object cannot be converted to flex-pol, then raise a ValueError.
+            Default is False.
+        raise_warning : bool
+            If an object cannot be converted to flex-pol, and `raise_error=False`, then
+            raise a warning that the conversion failed. Default is True.
+        """
         if not self.flex_spw:
             msg = "Cannot make a flex-pol UVData object if flex_spw=False."
             if raise_error:
