@@ -591,15 +591,19 @@ def test_flex_pol_add_errs(sma_mir_filt, make_flex, err_msg):
 
 def test_flex_pol_add(sma_mir_filt):
     """Test that the add method works correctly with flex-pol data"""
+    # Grab two copies of the data before we start to manipulate it
     sma_xx_copy = sma_mir_filt.copy()
     sma_yy_copy = sma_mir_filt.copy()
     sma_mir_filt._make_flex_pol()
 
+    # In both copies, isolate out the relevant polarization data.
     sma_xx_copy.select(polarizations=["xx"], freq_chans=[4, 5, 6, 7])
     sma_xx_copy._make_flex_pol()
     sma_yy_copy.select(polarizations=["yy"], freq_chans=[0, 1, 2, 3])
     sma_yy_copy._make_flex_pol()
 
+    # Add the two back together here, and make sure we can the same value out,
+    # modulo the history.
     sma_check = sma_yy_copy + sma_xx_copy
 
     assert sma_check.history != sma_mir_filt.history
@@ -612,8 +616,10 @@ def test_flex_pol_spw_all_flag(sma_mir_filt):
     """
     Test that if one spw is totally flagged, the polarization gets filled correctly.
     """
-    print(sma_mir_filt.polarization_array)
+    # Flag all of the data where we have y-pol data
     sma_mir_filt.flag_array[:, :, : sma_mir_filt.Nfreqs // 2, :] = True
     sma_mir_filt._make_flex_pol()
 
+    # Since all of the y-pol data is flagged, the flex-pol data should only contain
+    # xx visibilities (as recorded in flex_spw_polarization_array).t
     assert np.all(sma_mir_filt.flex_spw_polarization_array == -5)
