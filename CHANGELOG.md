@@ -33,6 +33,8 @@ calls to JPL Horizons.
 - Improved readability, functionality, and memory usage in `read_mwa_corr_fits`.
 
 ### Fixed
+- A bug where the `TIME_CENTROID` field was not being filled in data sets written by
+  `UVData.write_ms`, which caused odd behavior in some CASA routines (e.g., `gaincal`).
 - A bug in reading in uvfits files with baseline coordinates that have suffixes of
 '---SIN' or '---NCP' which are allowed in uvfits files.
 - A bug that could cause some routines in CASA to fail when using data sets written by
