@@ -501,19 +501,19 @@ def test_read_noversion_history(tmp_path):
 
     cal_in.write_calfits(write_file, clobber=True)
 
-    fname = fits.open(write_file)
-    data = fname[0].data
-    primary_hdr = fname[0].header
-    hdunames = uvutils._fits_indexhdus(fname)
-    ant_hdu = fname[hdunames["ANTENNAS"]]
+    with fits.open(write_file) as fname:
+        data = fname[0].data
+        primary_hdr = fname[0].header
+        hdunames = uvutils._fits_indexhdus(fname)
+        ant_hdu = fname[hdunames["ANTENNAS"]]
 
-    primary_hdr["HISTORY"] = ""
+        primary_hdr["HISTORY"] = ""
 
-    prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
-    hdulist = fits.HDUList([prihdu, ant_hdu])
+        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+        hdulist = fits.HDUList([prihdu, ant_hdu])
 
-    hdulist.writeto(write_file2, overwrite=True)
-    hdulist.close()
+        hdulist.writeto(write_file2, overwrite=True)
+        hdulist.close()
 
     cal_out.read_calfits(write_file2)
     assert cal_in == cal_out
