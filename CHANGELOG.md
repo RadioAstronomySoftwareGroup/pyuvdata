@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.2.5] - 2021-12-21
+
 ### Added
 - Support for reading MWAX correlator fits files.
 - Added a warning when using `UVData.write_uvfits` when the `vis_units` attribute is
