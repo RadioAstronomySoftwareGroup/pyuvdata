@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Added `time_range`, `lsts`, and `lst_range` kwargs from UVH5.write_uvh5_part() to UVData.write_uvh5_part().
+
 ## [2.2.5] - 2021-12-21
 
 ### Added
