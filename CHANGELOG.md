@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added the `flex_spw` attribute to the `UVCal` class, which can be set to True by using
+the new `_set_flex_spw` method.
+- Added the optional `flex_spw_id_array` attribute to UVCal class, of type=int and
+shape=(`Nfreqs`,), which indexes individual channels along the frequency axis to `spw_array`.
+- Added `use_future_array_shapes` method to UVCal to allow users to convert to using the
+future array shapes now, with support throughout UVCal methods and related utility
+functions. Also added `use_current_array_shapes` to revert to the standard shapes.
 - Added `time_range`, `lsts`, and `lst_range` kwargs from UVH5.write_uvh5_part() to UVData.write_uvh5_part().
 
 ### Fixed
