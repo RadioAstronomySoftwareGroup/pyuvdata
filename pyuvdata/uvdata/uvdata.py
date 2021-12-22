@@ -12676,6 +12676,9 @@ class UVData(UVBase):
         frequencies=None,
         freq_chans=None,
         times=None,
+        time_range=None,
+        lsts=None,
+        lst_range=None,
         polarizations=None,
         blt_inds=None,
         add_to_history=None,
@@ -12740,6 +12743,21 @@ class UVData(UVBase):
         times : array_like of float, optional
             The times to include when writing data into the file, each value
             passed here should exist in the time_array.
+        time_range : array_like of float, optional
+            The time range in Julian Date to include when writing data to the
+            file, must be length 2. Some of the times in the object should fall
+            between the first and last elements. Cannot be used with `times`.
+        lsts : array_like of float, optional
+            The local sidereal times (LSTs) to keep in the object, each value
+            passed here should exist in the lst_array. Cannot be used with
+            `times`, `time_range`, or `lst_range`.
+        lst_range : array_like of float, optional
+            The local sidereal time (LST) range in radians to keep in the
+            object, must be of length 2. Some of the LSTs in the object should
+            fall between the first and last elements. If the second value is
+            smaller than the first, the LSTs are treated as having phase-wrapped
+            around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            the larger value, through 0, and end at the smaller value.
         polarizations : array_like of int, optional
             The polarizations numbers to include when writing data into the file,
             each value passed here should exist in the polarization_array.
@@ -12771,6 +12789,9 @@ class UVData(UVBase):
             frequencies=frequencies,
             freq_chans=freq_chans,
             times=times,
+            time_range=time_range,
+            lsts=lsts,
+            lst_range=lst_range,
             polarizations=polarizations,
             blt_inds=blt_inds,
             add_to_history=add_to_history,
