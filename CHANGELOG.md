@@ -15,6 +15,19 @@ functions. Also added `use_current_array_shapes` to revert to the standard shape
 - Added support for wide-band gain calibrations via the `wide_band` attribute on the
 `UVCal` class, which can be set using the new `_set_wide_band` method.
 - Added `time_range`, `lsts`, and `lst_range` kwargs from UVH5.write_uvh5_part() to UVData.write_uvh5_part().
+- A new attribute to `UVData` called `flex_spw_polarization_array`, of type=int and shape=(`Nspws`,),
+  which allows for individual spectral windows to carry different polarization data.
+- Added the `_make_flex_pol` and `remove_flex_pol` methods to `UVData`, which allows for
+  one to convert a standard `UVData` object to one with "flexible-polarization".
+- Added a new method to `MirParser` called `_apply_tsys`, which will convert MIR visibility data
+  from correlation coefficiencts to pseudo-Jy.
+- Added a method to `Mir` called `_init_from_mir_parser`, which allows for one to pass
+  a `MirParser` object to be coverted into a UVData object (rather than reading from
+  a file on disk).
+
+## Changed
+- General performance improvements in the `read_mir` method.
+- Enabled `read_mir` to read in dual- and full-polarization data.
 
 ### Fixed
 - Fixed a bug where `UVData.compress_by_redundancy` sometimes produced incorrectly
