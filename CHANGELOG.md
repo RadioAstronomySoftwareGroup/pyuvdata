@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- A new attribute to `UVData` called `flex_spw_polarization_array`, of type=int and shape=(`Nspws`,),
+  which allows for individual spectral windows to carry different polarization data.
+- Added the `_make_flex_pol` and `remove_flex_pol` methods to `UVData`, which allows for
+  one to convert a standard `UVData` object to one with "flexible-polarization".
+- Added a new method to `MirParser` called `_apply_tsys`, which will convert MIR visibility data
+  from correlation coefficiencts to pseudo-Jy.
+- Added a method to `Mir` called `_init_from_mir_parser`, which allows for one to pass
+  a `MirParser` object to be coverted into a UVData object (rather than reading from
+  a file on disk).
 - Added the `flex_spw` attribute to the `UVCal` class, which can be set to True by using
 the new `_set_flex_spw` method.
 - Added the optional `flex_spw_id_array` attribute to UVCal class, of type=int and
@@ -15,15 +24,7 @@ functions. Also added `use_current_array_shapes` to revert to the standard shape
 - Added support for wide-band gain calibrations via the `wide_band` attribute on the
 `UVCal` class, which can be set using the new `_set_wide_band` method.
 - Added `time_range`, `lsts`, and `lst_range` kwargs from UVH5.write_uvh5_part() to UVData.write_uvh5_part().
-- A new attribute to `UVData` called `flex_spw_polarization_array`, of type=int and shape=(`Nspws`,),
-  which allows for individual spectral windows to carry different polarization data.
-- Added the `_make_flex_pol` and `remove_flex_pol` methods to `UVData`, which allows for
-  one to convert a standard `UVData` object to one with "flexible-polarization".
-- Added a new method to `MirParser` called `_apply_tsys`, which will convert MIR visibility data
-  from correlation coefficiencts to pseudo-Jy.
-- Added a method to `Mir` called `_init_from_mir_parser`, which allows for one to pass
-  a `MirParser` object to be coverted into a UVData object (rather than reading from
-  a file on disk).
+- Added `time_range`, `lsts`, and `lst_range` kwargs from UVH5.write_uvh5_part() to UVData.write_uvh5_part().
 
 ## Changed
 - General performance improvements in the `read_mir` method.
