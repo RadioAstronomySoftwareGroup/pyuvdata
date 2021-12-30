@@ -6286,8 +6286,13 @@ def test_redundancy_contract_expand(
         for bl in gp:
             inds = np.where(bl == uv0.baseline_array)
             uv0.data_array[inds] *= 0
-            uv0.data_array[inds] += complex(gp_ind)
+            # Make this data complex so that we can track phase issues
+            uv0.data_array[inds] += complex(1 + gp_ind, 1 - gp_ind)
         index_bls.append(gp[0])
+
+    # Data in the conjugated list, make sure that we manually conjugate here
+    conj_mask = np.isin(uv0.baseline_array, conjugates)
+    uv0.data_array[conj_mask] = np.conj(uv0.data_array[conj_mask])
 
     if flagging_level == "none":
         assert np.all(~uv0.flag_array)

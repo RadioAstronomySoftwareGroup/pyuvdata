@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 - Added `time_range`, `lsts`, and `lst_range` kwargs from UVH5.write_uvh5_part() to UVData.write_uvh5_part().
 
 ### Fixed
+- Fixed a bug where `UVData.compress_by_redundancy` sometimes produced incorrectly
+  conjugated visibilities.
 - Fixed a bug where `lsts` and `lst_range` got ignored when doing partial i/o with multiple files.
 
 ## [2.2.5] - 2021-12-21

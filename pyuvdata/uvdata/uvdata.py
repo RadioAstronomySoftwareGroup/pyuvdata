@@ -9614,6 +9614,12 @@ class UVData(UVBase):
             new_obj.select(bls=bl_ants, keep_all_metadata=keep_all_metadata)
 
             if not self.metadata_only:
+                # If the baseline is in the "conjugated" list, we will need to
+                # fix the conjugation on assignment (since the visibilities are
+                # tabulated assuming that the baseline position is on the opposite
+                # side of the uvw origin).
+                fix_conj = np.isin(new_obj.baseline_array, conjugates)
+
                 # initalize the data like arrays
                 if new_obj.future_array_shapes:
                     temp_data_array = np.zeros(
@@ -9767,8 +9773,14 @@ class UVData(UVBase):
                         )
                         avg_nsample = np.sum(nsample_to_avg, axis=0)
                         avg_flag = np.all(flags_to_avg, axis=0)
-
                         temp_data_array[this_obj_ind] = avg_vis
+
+                        # If we need to flip the conjugation, to that on the
+                        # value assignment here.
+                        if fix_conj[this_obj_ind]:
+                            temp_data_array[this_obj_ind] = np.conj(avg_vis)
+                        else:
+                            temp_data_array[this_obj_ind] = avg_vis
                         temp_nsample_array[this_obj_ind] = avg_nsample
                         temp_flag_array[this_obj_ind] = avg_flag
 
