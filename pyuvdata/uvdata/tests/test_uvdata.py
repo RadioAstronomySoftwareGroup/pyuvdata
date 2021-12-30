@@ -11257,10 +11257,10 @@ def test_from_file(filename):
 
 @pytest.mark.parametrize("add_type", ["blt", "freq", "pol"])
 @pytest.mark.parametrize("sort_type", ["blt", "freq", "pol"])
-@pytest.mark.parametrize("future_array_shapes", [True, False])
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_add_pol_sorting_bl(casa_uvfits, add_type, sort_type, future_array_shapes):
-    if future_array_shapes:
+def test_add_pol_sorting_bl(casa_uvfits, add_type, sort_type, future_shapes):
+    if future_shapes:
         casa_uvfits.use_future_array_shapes()
 
     if add_type == "pol":
@@ -11394,9 +11394,9 @@ def test_make_flex_pol_errs(sma_mir, err_msg, param, param_val):
 
 
 @pytest.mark.parametrize("dataset", ["hera", "mwa"])
-@pytest.mark.parametrize("future_array_shapes", [True, False])
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_auto_check(hera_uvh5, uv_phase_comp, future_array_shapes, dataset, tmp_path):
+def test_auto_check(hera_uvh5, uv_phase_comp, future_shapes, dataset, tmp_path):
     """
     Checks that checking/fixing the autos works correctly, both with dual-pol data
     (supplied by hera_uvh5) and full-pol data (supplied by casa_uvfits).
@@ -11406,7 +11406,7 @@ def test_auto_check(hera_uvh5, uv_phase_comp, future_array_shapes, dataset, tmp_
     elif dataset == "mwa":
         uv, _ = uv_phase_comp
 
-    if future_array_shapes:
+    if future_shapes:
         uv.use_future_array_shapes()
 
     out_file = os.path.join(tmp_path, "auto_check.uvh5")
@@ -11437,7 +11437,7 @@ def test_auto_check(hera_uvh5, uv_phase_comp, future_array_shapes, dataset, tmp_
 
     assert uv1 == uv2
 
-    if future_array_shapes:
+    if future_shapes:
         uv1.use_future_array_shapes()
 
     assert uv == uv1
