@@ -10,6 +10,7 @@ This module extracts data types associated with MIR files.
 import numpy as np
 import os
 import copy
+import warnings
 
 __all__ = ["MirParser"]
 
@@ -273,6 +274,26 @@ class MirParser(object):
         return np.fromfile(os.path.join(filepath, "in_read"), dtype=in_dtype)
 
     @staticmethod
+    def write_in_data(filepath, in_data, append_data=False):
+        """
+        Write "in_read" mir file to disk (@staticmethod).
+
+        Parameters
+        ----------
+        filepath : str
+            filepath is the path to the folder containing the mir data set.
+        in_data : ndarray of type in_dtype
+            Array of entries in the format matching what is returned by read_in_data.
+        """
+        if not os.path.isdir(filepath):
+            os.makedirs(filepath)
+
+        with open(
+            os.path.join(filepath, "in_read"), "ab" if append_data else "wb+"
+        ) as file:
+            in_data.tofile(file)
+
+    @staticmethod
     def read_eng_data(filepath):
         """
         Read "eng_read" mir file into memory (@staticmethod).
@@ -288,6 +309,26 @@ class MirParser(object):
             Numpy ndarray of custom dtype of eng_dtype.
         """
         return np.fromfile(os.path.join(filepath, "eng_read"), dtype=eng_dtype)
+
+    @staticmethod
+    def write_eng_data(filepath, eng_data, append_data=False):
+        """
+        Write "in_read" mir file to disk (@staticmethod).
+
+        Parameters
+        ----------
+        filepath : str
+            filepath is the path to the folder containing the mir data set.
+        eng_data : ndarray of type eng_dtype
+            Array of entries in the format matching what is returned by read_eng_data.
+        """
+        if not os.path.isdir(filepath):
+            os.makedirs(filepath)
+
+        with open(
+            os.path.join(filepath, "eng_read"), "ab" if append_data else "wb+"
+        ) as file:
+            eng_data.tofile(file)
 
     @staticmethod
     def read_bl_data(filepath):
@@ -307,6 +348,26 @@ class MirParser(object):
         return np.fromfile(os.path.join(filepath, "bl_read"), dtype=bl_dtype)
 
     @staticmethod
+    def write_bl_data(filepath, bl_data, append_data=False):
+        """
+        Write "bl_read" mir file to disk (@staticmethod).
+
+        Parameters
+        ----------
+        filepath : str
+            filepath is the path to the folder containing the mir data set.
+        bl_data : ndarray of type bl_dtype
+            Array of entries in the format matching what is returned by read_bl_data.
+        """
+        if not os.path.isdir(filepath):
+            os.makedirs(filepath)
+
+        with open(
+            os.path.join(filepath, "bl_read"), "ab" if append_data else "wb+"
+        ) as file:
+            bl_data.tofile(file)
+
+    @staticmethod
     def read_sp_data(filepath):
         """
         Read "sp_read" mir file into memory (@staticmethod).
@@ -322,6 +383,41 @@ class MirParser(object):
             Numpy ndarray of custom dtype of sp_dtype.
         """
         return np.fromfile(os.path.join(filepath, "sp_read"), dtype=sp_dtype)
+
+    @staticmethod
+    def write_sp_data(filepath, sp_data, append_data=False, recalc_dataoff=True):
+        """
+        Write "sp_read" mir file to disk (@staticmethod).
+
+        Parameters
+        ----------
+        filepath : str
+            filepath is the path to the folder containing the mir data set.
+        sp_data : ndarray of type bl_dtype
+            Array of entries in the format matching what is returned by read_sp_data.
+        """
+        if not os.path.isdir(filepath):
+            os.makedirs(filepath)
+
+        if recalc_dataoff:
+            # Make a copy of sp_data so as to not affect the original data
+            sp_data = sp_data.copy()
+            nch_arr = sp_data["nch"].astype(np.int64)
+            new_dataoff = np.zeros_like(sp_data["dataoff"])
+            for inhid in np.unique(sp_data["inhid"]):
+                data_mask = sp_data["inhid"] == inhid
+                nch_subarr = nch_arr[data_mask]
+                new_dataoff[data_mask] = 2 * np.cumsum(1 + (2 * nch_subarr)) - (
+                    1 + (2 * nch_subarr)
+                )
+
+            # With the new values calculated, put the updated values back into sp_data
+            sp_data["dataoff"] = new_dataoff
+
+        with open(
+            os.path.join(filepath, "sp_read"), "ab" if append_data else "wb+"
+        ) as file:
+            sp_data.tofile(file)
 
     @staticmethod
     def read_codes_data(filepath):
@@ -341,6 +437,26 @@ class MirParser(object):
         return np.fromfile(os.path.join(filepath, "codes_read"), dtype=codes_dtype)
 
     @staticmethod
+    def write_codes_data(filepath, codes_data, append_data=False):
+        """
+        Write "codes_read" mir file to disk (@staticmethod).
+
+        Parameters
+        ----------
+        filepath : str
+            filepath is the path to the folder containing the mir data set.
+        codes_data : ndarray of type codes_dtype
+            Array of entries in the format matching what is returned by read_codes_data.
+        """
+        if not os.path.isdir(filepath):
+            os.makedirs(filepath)
+
+        with open(
+            os.path.join(filepath, "codes_read"), "ab" if append_data else "wb+"
+        ) as file:
+            codes_data.tofile(file)
+
+    @staticmethod
     def read_we_data(filepath):
         """
         Read "we_read" mir file into memory (@staticmethod).
@@ -356,6 +472,26 @@ class MirParser(object):
             Numpy ndarray of custom dtype of we_dtype.
         """
         return np.fromfile(os.path.join(filepath, "we_read"), dtype=we_dtype)
+
+    @staticmethod
+    def write_we_data(filepath, we_data, append_data=False):
+        """
+        Write "we_read" mir file to disk (@staticmethod).
+
+        Parameters
+        ----------
+        filepath : str
+            filepath is the path to the folder containing the mir data set.
+        we_data : ndarray of type we_dtype
+            Array of entries in the format matching what is returned by read_we_data.
+        """
+        if not os.path.isdir(filepath):
+            os.makedirs(filepath)
+
+        with open(
+            os.path.join(filepath, "we_read"), "ab" if append_data else "wb+"
+        ) as file:
+            we_data.tofile(file)
 
     @staticmethod
     def read_antennas(filepath):
@@ -385,6 +521,33 @@ class MirParser(object):
         return antpos_data
 
     @staticmethod
+    def write_antennas(filepath, antpos_data):
+        """
+        Write "codes_read" mir file to disk (@staticmethod).
+
+        Parameters
+        ----------
+        filepath : str
+            filepath is the path to the folder containing the mir data set.
+        codes_data : ndarray of type codes_dtype
+            Array of entries in the format matching what is returned by read_codes_data.
+        """
+        if not os.path.isdir(filepath):
+            os.makedirs(filepath)
+
+        with open(os.path.join(filepath, "antennas"), "w+") as file:
+            for antpos in antpos_data:
+                file.write(
+                    "%i %.17e %.17e %.17e\n"
+                    % (
+                        antpos["antenna"],
+                        antpos["xyz_pos"][0],
+                        antpos["xyz_pos"][1],
+                        antpos["xyz_pos"][2],
+                    )
+                )
+
+    @staticmethod
     def scan_int_start(filepath):
         """
         Read "sch_read" mir file into a python dictionary (@staticmethod).
@@ -404,22 +567,22 @@ class MirParser(object):
         with open(full_filepath, "rb") as visibilities_file:
             data_offset = 0
             last_offset = 0
-            in_offset_dict = {}
+            int_start_dict = {}
             while data_offset < file_size:
                 int_vals = np.fromfile(
                     visibilities_file,
-                    dtype=np.dtype([("inhid", np.int32), ("insize", np.int32)]),
+                    dtype=np.dtype([("inhid", np.int32), ("nbyt", np.int32)]),
                     count=1,
                     offset=last_offset,
                 )
-                in_offset_dict[int_vals["inhid"][0]] = (
-                    int_vals["insize"][0] + 8,
+                int_start_dict[int_vals["inhid"][0]] = (
+                    int_vals["nbyt"][0],
                     data_offset,
                 )
-                last_offset = int_vals["insize"][0]
+                last_offset = int_vals["nbyt"][0]
                 data_offset += last_offset + 8
 
-        return in_offset_dict
+        return int_start_dict
 
     @staticmethod
     def scan_auto_data(filepath, nchunks=8):
@@ -494,7 +657,267 @@ class MirParser(object):
         return ac_data
 
     @staticmethod
-    def parse_vis_data(filepath, in_start_dict, sp_data):
+    def read_packdata(filepath, int_start_dict):
+        """
+        Read "sch_read" mir file into memory (@staticmethod).
+
+        Parameters
+        ----------
+        filepath : str
+            filepath is the path to the folder containing the mir data set.
+        int_start_dict : dict
+            indexes to the visibility locations within the file.
+
+        Returns
+        -------
+        int_data_dict : dict
+            Dictionary of the data, where the keys are inhid and the values are
+            the 'raw' block of values recorded in "sch_read" for that inhid.
+        """
+        int_data_dict = {}
+        int_dtype_dict = {}
+        size_list = np.unique(
+            [int_start_dict[ind_key][0] for ind_key in int_start_dict.keys()]
+        )
+
+        for int_size in size_list:
+            int_dtype_dict[int_size] = np.dtype(
+                [
+                    ("inhid", np.int32),
+                    ("nbyt", np.int32),
+                    ("packdata", np.int16, int_size // 2),
+                ]
+            ).newbyteorder("little")
+
+        inhid_list = []
+        with open(os.path.join(filepath, "sch_read"), "rb") as visibilities_file:
+            last_offset = last_size = num_vals = del_offset = 0
+            key_list = sorted(int_start_dict.keys())
+            # We add an extra key here, None, which cannot match any of the values in
+            # int_start_dict (since inhid is type int). This basically tricks the loop
+            # below into spitting out the last integration
+            key_list.append(None)
+            for ind_key in key_list:
+                if ind_key is None:
+                    int_size = int_start = 0
+                else:
+                    (int_size, int_start) = int_start_dict[ind_key]
+                if (int_size != last_size) or (
+                    last_offset + (8 + last_size) * num_vals != int_start
+                ):
+                    # Numpy's fromfile works fastest when reading multiple instances
+                    # of the same dtype. As long as the record sizes are the same, we
+                    # can tie mutiple file reads together into one call. The dtype
+                    # depends on the record size, which is why we have to dump the
+                    # data when last_size changes.
+                    if num_vals != 0 and last_size != 0:
+                        int_data_dict.update(
+                            zip(
+                                inhid_list,
+                                np.fromfile(
+                                    visibilities_file,
+                                    dtype=int_dtype_dict[last_size],
+                                    count=num_vals,
+                                    offset=del_offset,
+                                ),
+                            )
+                        )
+                    del_offset = int_start - (last_offset + (num_vals * last_size))
+                    last_offset = int_start
+                    last_size = int_size
+                    num_vals = 0
+                    inhid_list = []
+                num_vals += 1
+                inhid_list.append(ind_key)
+        return int_data_dict
+
+    @staticmethod
+    def make_packdata(sp_data, raw_data):
+        """Write packdata to disk."""
+        inhid_arr = sp_data["inhid"]
+        sphid_arr = sp_data["sphid"]
+        nch_arr = sp_data["nch"].astype(np.int64)
+
+        unique_inhid = np.unique(inhid_arr)
+        int_start_dict = {}
+        offset_val = 0
+        for inhid in unique_inhid:
+            data_mask = inhid_arr == inhid
+            int_size = (2 * np.sum(nch_arr[data_mask]) + np.sum(data_mask)) * 2
+            int_start_dict[inhid] = (int_size, offset_val)
+            offset_val += int_size + 8
+
+        int_dtype_dict = {}
+        size_list = np.unique(
+            [int_start_dict[ind_key][0] for ind_key in int_start_dict.keys()]
+        )
+
+        for int_size in size_list:
+            int_dtype_dict[int_size] = np.dtype(
+                [
+                    ("inhid", np.int32),
+                    ("nbyt", np.int32),
+                    ("packdata", np.int16, int_size // 2),
+                ]
+            ).newbyteorder("little")
+
+        int_data_dict = {}
+        for inhid, (int_size, _) in int_start_dict.items():
+            packdata = np.zeros((), dtype=int_dtype_dict[int_size])
+
+            data_mask = inhid_arr == inhid
+            nch_subarr = nch_arr[data_mask]
+            sphid_subarr = sphid_arr[data_mask]
+            dataoff_subarr = np.cumsum((2 * nch_subarr) + 1) - ((2 * nch_subarr) + 1)
+
+            raw_subdata = {sphid: raw_data[sphid] for sphid in sphid_subarr}
+
+            slice_list = [
+                slice(idx, jdx)
+                for idx, jdx in zip(
+                    dataoff_subarr + 1, dataoff_subarr + 1 + (2 * nch_subarr)
+                )
+            ]
+
+            if np.max([ch_slice.stop for ch_slice in slice_list]) > (int_size // 2):
+                raise ValueError(
+                    "Mismatch between values of dataoff in sp_data and the size "
+                    "of the spectral records in the data."
+                )
+
+            packdata["inhid"] = inhid
+            packdata["nbyt"] = int_size
+
+            for idx, ch_slice, sp_raw in zip(
+                dataoff_subarr, slice_list, raw_subdata.values()
+            ):
+                packdata["packdata"][idx] = sp_raw["scale_fac"]
+                packdata["packdata"][ch_slice] = sp_raw["raw_data"]
+
+            int_data_dict[inhid] = packdata
+
+        return int_data_dict
+
+    @staticmethod
+    def write_packdata(filepath, int_data_dict, append_data=False):
+        """
+        Write packed data to disk.
+
+        Parameters
+        ----------
+        filepath : str
+            String  describing the folder in which the data should be written.
+        int_data_dict : dict
+            Dict containing packed data
+        append_data : bool
+            Option whether to append to an existing file, if one already exists, or to
+            overwrite any existing data. Default is False (overwrite existing data).
+        """
+        if not os.path.isdir(filepath):
+            os.makedirs(filepath)
+
+        with open(
+            os.path.join(filepath, "sch_read"), "ab+" if append_data else "wb+"
+        ) as file:
+            for item in int_data_dict.values():
+                item.tofile(file)
+
+    @staticmethod
+    def convert_raw_to_vis(raw_dict):
+        """
+        Create a dict with visibilitity data via a raw data dict.
+
+        Parameters
+        ----------
+        raw_dict : dict
+            A dictionary in the format of `raw_data`, where the keys are matched to
+            individual values of sphid in `sp_data`, and each entry comtains a dict
+            with two items: "scale_fac", and np.int16 which describes the common
+            exponent for the spectrum, and "raw_data", an array of np.int16 (of length
+            equal to twice that found in `sp_data["nch"]` for the corresponding value
+            of sphid) containing the compressed visibilities.  Note that entries equal
+            to -32768 aren't possible with the compression scheme used for MIR, and so
+            this value is used to mark flags.
+
+        Returns
+        -------
+        vis_dict : dict
+            A dictionary in the format of `vis_data`, where the keys are matched to
+            individual values of sphid in `sp_data`, and each entry comtains a dict
+            with two items: "vis_data", an array of np.complex64 containing the
+            visibilities, and "vis_flags", an array of bool containing the per-channel
+            flags of the spectrum (both are of length equal to `sp_data["nch"]` for the
+            corresponding value of sphid).
+        """
+        vis_dict = {
+            sphid: {
+                "vis_data": (
+                    (np.float32(2) ** sp_raw["scale_fac"]) * sp_raw["raw_data"]
+                ).view(dtype=np.complex64),
+                "vis_flags": sp_raw["raw_data"][::2] == -32768,
+            }
+            for sphid, sp_raw in raw_dict.items()
+        }
+
+        for item in vis_dict.values():
+            item["vis_data"][item["vis_flags"]] = 0.0
+
+        return vis_dict
+
+    @staticmethod
+    def convert_vis_to_raw(vis_dict):
+        """
+        Create a dict with visibilitity data via a raw data dict.
+
+        Parameters
+        ----------
+        vis_dict : dict
+            A dictionary in the format of `vis_data`, where the keys are matched to
+            individual values of sphid in `sp_data`, and each entry comtains a dict
+            with two items: "vis_data", an array of np.complex64 containing the
+            visibilities, and "vis_flags", an array of bool containing the per-channel
+            flags of the spectrum (both are of length equal to `sp_data["nch"]` for the
+            corresponding value of sphid).
+
+        Returns
+        -------
+        raw_dict : dict
+            A dictionary in the format of `raw_data`, where the keys are matched to
+            individual values of sphid in `sp_data`, and each entry comtains a dict
+            with two items: "scale_fac", and np.int16 which describes the common
+            exponent for the spectrum, and "raw_data", an array of np.int16 (of length
+            equal to twice that found in `sp_data["nch"]` for the corresponding value
+            of sphid) containing the compressed visibilities.  Note that entries equal
+            to -32768 aren't possible with the compression scheme used for MIR, and so
+            this value is used to mark flags.
+        """
+        scale_fac = np.frexp(
+            [
+                np.abs(sp_vis["vis_data"].view(dtype=np.float32)).max(initial=1e-45)
+                for sp_vis in vis_dict.values()
+            ]
+        )[1].astype(np.int16) - np.int16(15)
+
+        raw_dict = {
+            sphid: {
+                "scale_fac": sfac,
+                "raw_data": np.where(
+                    sp_vis["vis_flags"],
+                    np.complex64(-32768 - 32768j),
+                    sp_vis["vis_data"] * np.complex64(2) ** (-sfac),
+                )
+                .view(dtype=np.float32)
+                .astype(np.int16),
+            }
+            for sfac, (sphid, sp_vis) in zip(scale_fac, vis_dict.items())
+        }
+
+        return raw_dict
+
+    @staticmethod
+    def read_vis_data(
+        filepath, int_start_dict, sp_data, return_vis=True, return_raw=False
+    ):
         """
         Read "sch_read" mir file into a list of ndarrays. (@staticmethod).
 
@@ -502,7 +925,7 @@ class MirParser(object):
         ----------
         filepath : str
             Path to the folder containing the mir data set.
-        in_start_dict: dict of tuples
+        int_start_dict: dict of tuples
             Dictionary returned from scan_int_start, which records position and
             record size for each integration
         sp_data : ndarray of sp_data_type
@@ -510,97 +933,55 @@ class MirParser(object):
 
         Returns
         -------
-        vis_list : list of ndarrays
+        vis_dict : list of ndarrays
             List of ndarrays (dtype=csingle/complex64), with indices equal to sphid
             and values being the floating-point visibilities for the spectrum
         """
         # Gather the needed metadata
         inhid_arr = sp_data["inhid"]
-        nch_arr = sp_data["nch"]
-        dataoff_arr = sp_data["dataoff"] // 2
-        sp_pos = np.arange(len(dataoff_arr))
-
-        unique_inhid = np.unique(inhid_arr)
-        unique_nch = np.unique(nch_arr)
-        vis_list = []
-        sp_pos_list = []
-        for inhid in unique_inhid:
-            packdata = MirParser.read_vis_data(filepath, {inhid: in_start_dict[inhid]})[
-                inhid
-            ]["packdata"]
-            data_mask = inhid_arr == inhid
-            dataoff_subarr = dataoff_arr[data_mask]
-            nch_subarr = nch_arr[data_mask]
-            sp_pos_subarr = sp_pos[data_mask]
-            scale_fac = np.power(2.0, packdata[dataoff_subarr], dtype=np.float32)
-            for spec_size in unique_nch:
-                start_list = dataoff_subarr[spec_size == nch_subarr] + 1
-                end_list = start_list + (spec_size * 2)
-                temp_data = np.multiply(
-                    scale_fac[spec_size == nch_subarr, None],
-                    np.array(
-                        [packdata[idx:jdx] for idx, jdx in zip(start_list, end_list)]
-                    ),
-                    dtype=np.float32,
-                ).view(dtype=np.complex64)
-                vis_list.extend([temp_data[idx, :] for idx in range(len(start_list))])
-                # Record where the data _should_ go in the list
-                sp_pos_list.extend(sp_pos_subarr[spec_size == nch_subarr])
-        # Do a bit of order swapping so that things match with sp_read
-        sp_pos_dict = {sp_pos_list[idx]: idx for idx in range(len(sp_pos_list))}
-        vis_list = [vis_list[sp_pos_dict[idx]] for idx in range(len(sp_pos_list))]
-        return vis_list
-
-    @staticmethod
-    def parse_raw_data(filepath, in_start_dict, sp_data):
-        """
-        Read "sch_read" mir file into a python dictionary (@staticmethod).
-
-        Note that this returns a list rather than a dict to help expedite some
-        processing tasks where order of the arrays matters.
-
-        Parameters
-        ----------
-        filepath : str
-            Path to the folder containing the mir data set.
-        in_start_dict: dict of tuples
-            Dictionary returned from scan_int_start, which records position and
-            record size for each integration
-        sp_data : ndarray of sp_data_type
-            Array from "sp_read", returned by "read_sp_read".
-
-        Returns
-        -------
-        vis_list : list of ndarray
-            List of ndarrays (dtype=int16), each containing the 'raw' set
-            of values in "sch_read", ordered in the same way that as sp_data.
-        scale_fac_list : list of int16
-            List of scale factors (in log2 units) for each item in vis_list,
-            also orded identically to sp_data.
-        """
-        # Gather the needed metadata
-        inhid_arr = sp_data["inhid"]
+        sphid_arr = sp_data["sphid"]
         nch_arr = sp_data["nch"].astype(np.int64)
         dataoff_arr = sp_data["dataoff"] // 2
 
         unique_inhid = np.unique(inhid_arr)
-        vis_list = []
-        scale_fac_list = []
+        raw_dict = {}
+
+        int_data_dict = MirParser.read_packdata(
+            filepath, {idx: int_start_dict[idx] for idx in unique_inhid}
+        )
+
         for inhid in unique_inhid:
-            packdata = MirParser.read_vis_data(filepath, {inhid: in_start_dict[inhid]})[
-                inhid
-            ]["packdata"]
+            packdata = int_data_dict.pop(inhid)["packdata"]
+
             data_mask = inhid_arr == inhid
             dataoff_subarr = dataoff_arr[data_mask]
             nch_subarr = nch_arr[data_mask]
-            scale_fac_list += copy.deepcopy(packdata[dataoff_subarr]).tolist()
-            start_list = dataoff_subarr + 1
-            end_list = start_list + (nch_subarr * 2)
-            vis_list += [
-                copy.deepcopy(packdata[idx:jdx])
-                for idx, jdx in zip(start_list, end_list)
-            ]
-        return vis_list, scale_fac_list
+            sphid_subarr = sphid_arr[data_mask]
+
+            scale_fac = packdata[dataoff_subarr]
+            start_idx = dataoff_subarr + 1
+            end_idx = start_idx + (nch_subarr * 2)
+            raw_list = [packdata[idx:jdx] for idx, jdx in zip(start_idx, end_idx)]
+
+            raw_dict.update(
+                {
+                    shpid: {"scale_fac": sfac, "raw_data": raw_data}
+                    for shpid, sfac, raw_data in zip(sphid_subarr, scale_fac, raw_list,)
+                }
+            )
+            # Do the del here to break the reference to the "old" data so that
+            # subsequent assignments don't cause issues for raw_dict.
+            del packdata
+
+        results = ()
+
+        if return_raw:
+            results += (raw_dict,)
+
+        if return_vis:
+            results += (MirParser.convert_raw_to_vis(raw_dict),)
+
+        return results
 
     @staticmethod
     def read_auto_data(filepath, ac_data, winsel=None):
@@ -653,81 +1034,6 @@ class MirParser(object):
                 ).reshape((nchunks[idx], 2, 2**14))[winsel, :, :]
 
         return auto_data
-
-    @staticmethod
-    def read_vis_data(filepath, in_start_dict):
-        """
-        Read "sch_read" mir file into memory (@staticmethod).
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-        in_start_dict : dict
-            indexes to the visibility locations within the file.
-
-        Returns
-        -------
-        in_data_dict : dict
-            Dictionary of the data, where the keys are inhid and the values are
-            the 'raw' block of values recorded in "sch_read" for that inhid.
-        """
-        in_data_dict = {}
-        in_dtype_dict = {}
-        size_list = np.unique(
-            [in_start_dict[ind_key][0] for ind_key in in_start_dict.keys()]
-        )
-
-        for in_size in size_list:
-            in_dtype_dict[in_size] = np.dtype(
-                [
-                    ("inhid", np.int32),
-                    ("nbyt", np.int32),
-                    ("packdata", np.int16, (in_size - 8) // 2),
-                ]
-            )
-
-        inhid_list = []
-        with open(os.path.join(filepath, "sch_read"), "rb") as visibilities_file:
-            last_offset = last_size = num_vals = del_offset = 0
-            key_list = sorted(in_start_dict.keys())
-            # We add an extra key here, None, which cannot match any of the values in
-            # in_start_dict (since inhid is type int). This basically tricks the loop
-            # below into spitting out the last integration
-            key_list.append(None)
-            for ind_key in key_list:
-                if ind_key is None:
-                    in_size = in_start = 0
-                else:
-                    (in_size, in_start) = in_start_dict[ind_key]
-                if (in_size != last_size) or (
-                    last_offset + last_size * num_vals != in_start
-                ):
-                    # Numpy's fromfile works fastest when reading multiple instances
-                    # of the same dtype. As long as the record sizes are the same, we
-                    # can tie mutiple file reads together into one call. The dtype
-                    # depends on the record size, which is why we have to dump the
-                    # data when last_size changes.
-                    if num_vals != 0 and last_size != 0:
-                        in_data_dict.update(
-                            zip(
-                                inhid_list,
-                                np.fromfile(
-                                    visibilities_file,
-                                    dtype=in_dtype_dict[last_size],
-                                    count=num_vals,
-                                    offset=del_offset,
-                                ).copy(),
-                            )
-                        )
-                    del_offset = in_start - (last_offset + (num_vals * last_size))
-                    last_offset = in_start
-                    last_size = in_size
-                    num_vals = 0
-                    inhid_list = []
-                num_vals += 1
-                inhid_list.append(ind_key)
-        return in_data_dict
 
     def _update_filter(self):
         """
@@ -836,7 +1142,7 @@ class MirParser(object):
         return filter_changed
 
     def load_data(
-        self, load_vis=True, load_raw=False, load_auto=False, apply_tsys=True
+        self, load_vis=True, load_raw=False, load_auto=False, apply_tsys=True,
     ):
         """
         Load visibility data into MirParser class.
@@ -850,23 +1156,35 @@ class MirParser(object):
         load_auto: bool
             Load the autos (floats) into object (default is False).
         apply_tsys : bool
-            If load_vis is set to true, applys tsys corrections to the data (default
+            If load_vis is set to true, apply tsys corrections to the data (default
             is True).
         """
         self._update_filter()
 
+        if load_vis or load_raw:
+            vis_tuple = self.read_vis_data(
+                self.filepath,
+                self.int_start_dict,
+                self.sp_data,
+                return_vis=load_vis,
+                return_raw=load_raw,
+            )
+
+        if load_vis and load_raw:
+            self.raw_data, self.vis_data = vis_tuple
+        elif load_vis:
+            (self.vis_data,) = vis_tuple
+        elif load_raw:
+            (self.raw_data,) = vis_tuple
+
         if load_vis:
-            self.vis_data = self.parse_vis_data(
-                self.filepath, self.in_start_dict, self.sp_data
-            )
             self.vis_data_loaded = True
-            if apply_tsys:
-                self._apply_tsys()
         if load_raw:
-            self.raw_data, self.raw_scale_fac = self.parse_raw_data(
-                self.filepath, self.in_start_dict, self.sp_data
-            )
             self.raw_data_loaded = True
+
+        if apply_tsys and load_vis:
+            self._apply_tsys()
+
         if load_auto and self._has_auto:
             # Have to do this because of a strange bug in data recording where
             # we record more autos worth of spectral windows than we actually
@@ -876,6 +1194,7 @@ class MirParser(object):
             self.auto_data = self.read_auto_data(
                 self.filepath, self.ac_data, winsel=winsel
             )
+            self.auto_data_loaded = True
 
     def unload_data(self):
         """Unload data from the MirParser object."""
@@ -885,8 +1204,10 @@ class MirParser(object):
             self.raw_data = None
         if self.auto_data is not None:
             self.auto_data = None
-        if self.raw_scale_fac is not None:
-            self.raw_scale_fac = None
+
+        self.raw_data_loaded = False
+        self.vis_data_loaded = False
+        self.auto_data_loaded = False
 
     def _apply_tsys(self, jypk=130.0):
         """
@@ -946,16 +1267,11 @@ class MirParser(object):
 
         # Finally, multiply the individual spectral records by the SEFD values
         # that are in the dictionary.
-        for idx, blhid in enumerate(self.sp_data["blhid"]):
-            self.vis_data[idx] *= normal_dict[blhid]
+        for sphid, blhid in zip(self.sp_data["sphid"], self.sp_data["blhid"]):
+            self.vis_data[sphid]["vis_data"] *= normal_dict[blhid]
 
-    def from_file(
-        self,
-        filepath,
-        has_auto=False,
-        load_vis=False,
-        load_raw=False,
-        load_auto=False,
+    def fromfile(
+        self, filepath, has_auto=False, load_vis=False, load_raw=False, load_auto=False,
     ):
         """
         Read in all files from a mir data set into predefined numpy datatypes.
@@ -995,7 +1311,7 @@ class MirParser(object):
 
         # This indexes the "main" file that contains all the visibilities, to make
         # it faster to read in the data
-        self.in_start_dict = self.scan_int_start(filepath)
+        self.int_start_dict = self.scan_int_start(filepath)
 
         # These are fliters used for selecting out specific pieces of data on a per
         # int, blt, or spw-time basis. These are supposed to be the user-facing ones
@@ -1037,7 +1353,9 @@ class MirParser(object):
         self.vis_data = None
         self.raw_data = None
         self.auto_data = None
-        self.raw_scale_fac = None
+        self.vis_data_loaded = False
+        self.raw_data_loaded = False
+        self.auto_data_loaded = False
 
         # These dicts match index number to array position. It ends up being filled
         # by _update_filter, which is called inside of load_data below.
@@ -1082,10 +1400,91 @@ class MirParser(object):
         """
         # On init, if a filepath is provided, then fill in the object
         if filepath is not None:
-            self.from_file(
+            self.fromfile(
                 filepath,
                 has_auto=has_auto,
                 load_vis=load_vis,
                 load_raw=load_raw,
                 load_auto=load_auto,
             )
+
+    def tofile(self, filepath, append_data=False, append_codes=False, load_data=False):
+        """
+        Write a MirParser object to disk in MIR format.
+
+        Parameters
+        ----------
+        filepath : str
+        append_data : bool
+        append_codes : bool
+        """
+        # If no directory exists, create one to write the data to
+        if not os.path.isdir(filepath):
+            os.makedirs(filepath)
+
+        # Check that the data are loaded
+        if load_data:
+            self.load_data(load_vis=False, load_raw=True, load_auto=False)
+
+        # Start out by writing the metadata out to file
+        self.write_in_data(filepath, self.in_data, append_data=append_data)
+        self.write_eng_data(filepath, self.eng_data, append_data=append_data)
+        self.write_bl_data(filepath, self.bl_data, append_data=append_data)
+        self.write_sp_data(filepath, self.sp_data, append_data=append_data)
+        self.write_codes_data(
+            filepath, self.codes_data, append_data=(append_data and append_codes)
+        )
+        self.write_we_data(filepath, self.we_data, append_data=append_data)
+        self.write_antennas(filepath, self.antpos_data)
+
+        # Now handle the data -- if no data has been loaded, then it's time to bail
+        if not (self.vis_data_loaded or self.raw_data_loaded):
+            warnings.warn("No data loaded, writing metadata only to disk")
+            return
+        elif self.raw_data_loaded:
+            raw_dict = self.raw_data
+        else:
+            raw_dict = self.convert_vis_to_raw(self.vis_data)
+
+        self.write_packdata(
+            filepath,
+            self.make_packdata(self.sp_data, raw_dict),
+            append_data=append_data,
+        )
+
+    @staticmethod
+    def rechunk_vis(vis_dict, chan_avg_arr):
+        """Rechunk a single visibility spectrum."""
+        with np.errstate(divide="ignore"):
+            for chan_avg, sp_vis in zip(chan_avg_arr, vis_dict.values()):
+                # If there isn't anything to average, we can skip the heavy lifting
+                # and just proceed on to the next record.
+                if chan_avg == 1:
+                    continue
+                temp_count = np.sum(
+                    ~sp_vis["vis_flags"].reshape((-1, chan_avg)),
+                    axis=-1,
+                    dtype=np.float32,
+                )
+
+                sp_vis["vis_data"] = np.where(
+                    temp_count,
+                    np.divide(
+                        sp_vis["vis_data"].reshape((-1, chan_avg)).sum(axis=-1),
+                        temp_count,
+                    ),
+                    np.complex64(0),
+                )
+
+                sp_vis["vis_flags"] = temp_count == 0
+
+        return vis_dict
+
+    @staticmethod
+    def rechunk_raw():
+        """Rechunk a raw visibility spectrum."""
+        pass
+
+    def rechunk(self, chan_avg):
+        """Rechunk a MirParser object."""
+        pass
