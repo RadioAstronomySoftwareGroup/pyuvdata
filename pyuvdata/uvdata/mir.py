@@ -367,15 +367,28 @@ class Mir(UVData):
         # slowest and the freq-axis the fastest (i.e., the data is roughly ordered by
         # blt, pol, freq).
         vis_data = np.zeros((Nblts, Npols, Nfreqs), dtype=np.complex64)
-        mir_data.load_data(load_vis=True)
-        mir_data._apply_tsys()
+        vis_flags = np.ones((Nblts, Npols, Nfreqs), dtype=bool)
+        if not mir_data.vis_data_loaded:
+            mir_data.load_data(load_vis=True, apply_tsys=True)
+
+        if not np.all(
+            np.isin(list(mir_data.vis_data.keys()), mir_data.sp_data["sphid"])
+        ):
+            raise ValueError(
+                "Mismatch between keys invis_data and sphid in sp_data, which should "
+                "not happen. Please file an issue in our GitHub issue log so that we "
+                "can fix it."
+            )
 
         for sp_rec, window, vis_rec in zip(
-            mir_data.sp_data, spdx_list, mir_data.vis_data
+            mir_data.sp_data, spdx_list, mir_data.vis_data.values()
         ):
             blt_idx = blhid_blt_order[sp_rec["blhid"]]
             spdx = spdx_dict[window]
-            vis_data[(blt_idx, spdx["pol_idx"], spdx["ch_slice"])] = vis_rec
+            vis_data[(blt_idx, spdx["pol_idx"], spdx["ch_slice"])] = vis_rec["vis_data"]
+            vis_flags[(blt_idx, spdx["pol_idx"], spdx["ch_slice"])] = vis_rec[
+                "vis_flags"
+            ]
 
         # Drop the data from the MirParser object once we have it loaded up.
         mir_data.unload_data()
@@ -617,7 +630,7 @@ class Mir(UVData):
         # and we need to get it to (Nblts, 1, Nfreqs, Npols) to match what UVData
         # expects.
         self.data_array = np.transpose(vis_data, (0, 2, 1))[:, np.newaxis, :, :]
-        self.flag_array = np.zeros(self.data_array.shape, dtype=bool)
+        self.flag_array = np.transpose(vis_flags, (0, 2, 1))[:, np.newaxis, :, :]
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.float32)
 
     def write_mir(self, filename):
