@@ -423,8 +423,8 @@ def test_inconsistent_bl_records(mir_data, sma_mir):
     """
     Test that the MIR object does the right thing w/ inconsistent meta-data.
     """
-    mir_data.use_sp = mir_data.sp_read["iband"] != 0
-    mir_data.bl_read["u"][0] = 0.0
+    mir_data._update_filter(use_sp=(mir_data._sp_read["iband"] != 0))
+    mir_data.bl_data["u"][0] = 0.0
     mir_data.load_data()
     with uvtest.check_warnings(UserWarning, "Per-baseline metadata differ."):
         mir_uv = UVData()
@@ -440,8 +440,8 @@ def test_multi_ipol(mir_data, sma_mir):
     Test that the MIR object does the right thing when different polarization types
     are recorded in the pol code.
     """
-    mir_data.use_sp = mir_data.sp_read["iband"] != 0
-    mir_data.bl_read["ipol"][:] = mir_data.bl_read["ant1rx"]
+    mir_data._update_filter(use_sp=(mir_data._sp_read["iband"] != 0))
+    mir_data.bl_data["ipol"][:] = mir_data.bl_data["ant1rx"]
     mir_data.load_data()
 
     mir_uv = UVData()

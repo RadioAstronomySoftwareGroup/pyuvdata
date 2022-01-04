@@ -92,29 +92,34 @@ class Mir(UVData):
         # Use the mir_parser to read in metadata, which can be used to select data.
         mir_data = mir_parser.MirParser(filepath)
 
+        # Create filters of appropriate size
+        use_in = np.ones(len(mir_data._in_read), dtype=bool)
+        use_bl = np.ones(len(mir_data._bl_read), dtype=bool)
+        use_sp = np.ones(len(mir_data._sp_read), dtype=bool)
+
         if isource is not None:
-            mir_data.use_in *= np.isin(mir_data.in_data["isource"], isource)
-            if not np.any(mir_data.use_in):
+            use_in *= np.isin(mir_data._in_read["isource"], isource)
+            if not np.any(use_in):
                 raise ValueError("No valid sources selected!")
 
         if irec is not None:
-            mir_data.use_bl *= np.isin(mir_data.bl_data["irec"], irec)
-            if not np.any(mir_data.use_bl):
+            use_bl *= np.isin(mir_data._bl_read["irec"], irec)
+            if not np.any(use_bl):
                 raise ValueError("No valid receivers selected!")
 
         if isb is not None:
-            mir_data.use_bl *= np.isin(mir_data.bl_data["isb"], isb)
-            if not np.any(mir_data.use_bl):
+            use_bl *= np.isin(mir_data._bl_read["isb"], isb)
+            if not np.any(use_bl):
                 raise ValueError("No valid sidebands selected!")
 
         if corrchunk is not None:
-            mir_data.use_sp *= np.isin(mir_data.sp_data["corrchunk"], corrchunk)
-            if not np.any(mir_data.use_sp):
+            use_sp *= np.isin(mir_data._sp_read["corrchunk"], corrchunk)
+            if not np.any(use_sp):
                 raise ValueError("No valid spectral bands selected!")
         elif not pseudo_cont:
-            mir_data.use_sp *= mir_data.sp_data["corrchunk"] != 0
+            use_sp *= mir_data._sp_read["corrchunk"] != 0
 
-        mir_data._update_filter()
+        mir_data._update_filter(use_in=use_in, use_bl=use_bl, use_sp=use_sp)
 
         self._init_from_mir_parser(mir_data, allow_flex_pol=allow_flex_pol)
 
@@ -368,7 +373,7 @@ class Mir(UVData):
         # blt, pol, freq).
         vis_data = np.zeros((Nblts, Npols, Nfreqs), dtype=np.complex64)
         vis_flags = np.ones((Nblts, Npols, Nfreqs), dtype=bool)
-        if not mir_data.vis_data_loaded:
+        if not mir_data._vis_data_loaded:
             mir_data.load_data(load_vis=True, apply_tsys=True)
 
         if not np.all(
