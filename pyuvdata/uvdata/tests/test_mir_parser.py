@@ -20,13 +20,13 @@ def test_mir_parser_index_uniqueness(mir_data):
     Make sure that there are no duplicate indicies for things that are primary keys
     for the various table-like structures that are used in MIR
     """
-    inhid_list = mir_data.in_read["inhid"]
+    inhid_list = mir_data._in_read["inhid"]
     assert np.all(np.unique(inhid_list) == sorted(inhid_list))
 
-    blhid_list = mir_data.bl_read["blhid"]
+    blhid_list = mir_data._bl_read["blhid"]
     assert np.all(np.unique(blhid_list) == sorted(blhid_list))
 
-    sphid_list = mir_data.sp_read["sphid"]
+    sphid_list = mir_data._sp_read["sphid"]
     assert np.all(np.unique(sphid_list) == sorted(sphid_list))
 
 
@@ -36,11 +36,11 @@ def test_mir_parser_index_valid(mir_data):
 
     Make sure that all indexes are non-negative
     """
-    assert np.all(mir_data.in_read["inhid"] >= 0)
+    assert np.all(mir_data._in_read["inhid"] >= 0)
 
-    assert np.all(mir_data.bl_read["blhid"] >= 0)
+    assert np.all(mir_data._bl_read["blhid"] >= 0)
 
-    assert np.all(mir_data.sp_read["sphid"] >= 0)
+    assert np.all(mir_data._sp_read["sphid"] >= 0)
 
 
 def test_mir_parser_index_linked(mir_data):
@@ -49,33 +49,34 @@ def test_mir_parser_index_linked(mir_data):
 
     Make sure that all referenced indicies have matching pairs in their parent tables
     """
-    inhid_set = set(np.unique(mir_data.in_read["inhid"]))
+    inhid_set = set(np.unique(mir_data._in_read["inhid"]))
 
     # Should not exist is has_auto=False
-    if mir_data.ac_read is not None:
-        assert set(np.unique(mir_data.ac_read["inhid"])).issubset(inhid_set)
+    # See `mir_data_object` above.
+    if mir_data._ac_read is not None:
+        assert set(np.unique(mir_data._ac_read["inhid"])).issubset(inhid_set)
     else:
         # This should only occur when has_auto=False
         assert not mir_data._has_auto
 
-    assert set(np.unique(mir_data.bl_read["inhid"])).issubset(inhid_set)
+    assert set(np.unique(mir_data._bl_read["inhid"])).issubset(inhid_set)
 
-    assert set(np.unique(mir_data.eng_read["inhid"])).issubset(inhid_set)
+    assert set(np.unique(mir_data._eng_read["inhid"])).issubset(inhid_set)
 
-    assert set(np.unique(mir_data.eng_read["inhid"])).issubset(inhid_set)
+    assert set(np.unique(mir_data._eng_read["inhid"])).issubset(inhid_set)
 
-    assert set(np.unique(mir_data.sp_read["inhid"])).issubset(inhid_set)
+    assert set(np.unique(mir_data._sp_read["inhid"])).issubset(inhid_set)
 
-    blhid_set = set(np.unique(mir_data.bl_read["blhid"]))
+    blhid_set = set(np.unique(mir_data._bl_read["blhid"]))
 
-    assert set(np.unique(mir_data.sp_read["blhid"])).issubset(blhid_set)
+    assert set(np.unique(mir_data._sp_read["blhid"])).issubset(blhid_set)
 
 
 def test_mir_parser_unload_data(mir_data):
     """
     Check that the unload_data function works as expected
     """
-    attr_list = ["vis_data", "raw_data", "auto_data", "raw_scale_fac"]
+    attr_list = ["vis_data", "raw_data", "auto_data"]
 
     for attr in attr_list:
         assert getattr(mir_data, attr) is not None
@@ -91,8 +92,8 @@ def test_mir_parser_update_filter(mir_data, filter_type):
     """
     Verify that filtering operations work as expected.
     """
-    getattr(mir_data, filter_type)[:] = False
-    mir_data._update_filter()
+    keywarg = {filter_type: []}
+    mir_data._update_filter(**keywarg)
 
     attr_list = ["in_data", "bl_data", "eng_data", "sp_data", "ac_data"]
     for attr in attr_list:
@@ -116,29 +117,27 @@ def test_mir_remember_me_record_lengths(mir_data):
     # Check to make sure we've got the right number of records everywhere
 
     # ac_read only exists if has_auto=True
-    if mir_data.ac_read is not None:
-        assert len(mir_data.ac_read) == 2
+    if mir_data._ac_read is not None:
+        assert len(mir_data._ac_read) == 2
     else:
         # This should only occur when has_auto=False
         assert not mir_data._has_auto
 
-    assert len(mir_data.bl_read) == 4
+    assert len(mir_data._bl_read) == 4
 
-    assert len(mir_data.codes_read) == 99
+    assert len(mir_data._codes_read) == 99
 
-    assert len(mir_data.eng_read) == 2
+    assert len(mir_data._eng_read) == 2
 
-    assert len(mir_data.in_read) == 1
+    assert len(mir_data._in_read) == 1
 
     assert len(mir_data.raw_data) == 20
 
-    assert len(mir_data.raw_scale_fac) == 20
-
-    assert len(mir_data.sp_read) == 20
+    assert len(mir_data._sp_read) == 20
 
     assert len(mir_data.vis_data) == 20
 
-    assert len(mir_data.we_read) == 1
+    assert len(mir_data._we_read) == 1
 
 
 def test_mir_remember_me_codes_read(mir_data):
@@ -148,37 +147,37 @@ def test_mir_remember_me_codes_read(mir_data):
     Make sure that certain values in the codes_read file of the test data set match
     whatwe know to be 'true' at the time of observations.
     """
-    assert mir_data.codes_read[0][0] == b"filever"
+    assert mir_data._codes_read[0][0] == b"filever"
 
-    assert mir_data.codes_read[0][2] == b"3"
+    assert mir_data._codes_read[0][2] == b"3"
 
-    assert mir_data.codes_read[90][0] == b"ref_time"
+    assert mir_data._codes_read[90][0] == b"ref_time"
 
-    assert mir_data.codes_read[90][1] == 0
+    assert mir_data._codes_read[90][1] == 0
 
-    assert mir_data.codes_read[90][2] == b"Jul 24, 2020"
+    assert mir_data._codes_read[90][2] == b"Jul 24, 2020"
 
-    assert mir_data.codes_read[90][3] == 0
+    assert mir_data._codes_read[90][3] == 0
 
-    assert mir_data.codes_read[91][0] == b"ut"
+    assert mir_data._codes_read[91][0] == b"ut"
 
-    assert mir_data.codes_read[91][1] == 1
+    assert mir_data._codes_read[91][1] == 1
 
-    assert mir_data.codes_read[91][2] == b"Jul 24 2020  4:34:39.00PM"
+    assert mir_data._codes_read[91][2] == b"Jul 24 2020  4:34:39.00PM"
 
-    assert mir_data.codes_read[91][3] == 0
+    assert mir_data._codes_read[91][3] == 0
 
-    assert mir_data.codes_read[93][0] == b"source"
+    assert mir_data._codes_read[93][0] == b"source"
 
-    assert mir_data.codes_read[93][2] == b"3c84"
+    assert mir_data._codes_read[93][2] == b"3c84"
 
-    assert mir_data.codes_read[97][0] == b"ra"
+    assert mir_data._codes_read[97][0] == b"ra"
 
-    assert mir_data.codes_read[97][2] == b"03:19:48.15"
+    assert mir_data._codes_read[97][2] == b"03:19:48.15"
 
-    assert mir_data.codes_read[98][0] == b"dec"
+    assert mir_data._codes_read[98][0] == b"dec"
 
-    assert mir_data.codes_read[98][2] == b"+41:30:42.1"
+    assert mir_data._codes_read[98][2] == b"+41:30:42.1"
 
 
 def test_mir_remember_me_in_read(mir_data):
@@ -190,37 +189,37 @@ def test_mir_remember_me_in_read(mir_data):
     stored as zero.
     """
     # Check to make sure that things seem right in in_read
-    assert np.all(mir_data.in_read["traid"] == 484)
+    assert np.all(mir_data._in_read["traid"] == 484)
 
-    assert np.all(mir_data.in_read["proid"] == 484)
+    assert np.all(mir_data._in_read["proid"] == 484)
 
-    assert np.all(mir_data.in_read["inhid"] == 1)
+    assert np.all(mir_data._in_read["inhid"] == 1)
 
-    assert np.all(mir_data.in_read["ints"] == 1)
+    assert np.all(mir_data._in_read["ints"] == 1)
 
-    assert np.all(mir_data.in_read["souid"] == 1)
+    assert np.all(mir_data._in_read["souid"] == 1)
 
-    assert np.all(mir_data.in_read["isource"] == 1)
+    assert np.all(mir_data._in_read["isource"] == 1)
 
-    assert np.all(mir_data.in_read["ivrad"] == 1)
+    assert np.all(mir_data._in_read["ivrad"] == 1)
 
-    assert np.all(mir_data.in_read["ira"] == 1)
+    assert np.all(mir_data._in_read["ira"] == 1)
 
-    assert np.all(mir_data.in_read["idec"] == 1)
+    assert np.all(mir_data._in_read["idec"] == 1)
 
-    assert np.all(mir_data.in_read["epoch"] == 2000.0)
+    assert np.all(mir_data._in_read["epoch"] == 2000.0)
 
-    assert np.all(mir_data.in_read["tile"] == 0)
+    assert np.all(mir_data._in_read["tile"] == 0)
 
-    assert np.all(mir_data.in_read["obsflag"] == 0)
+    assert np.all(mir_data._in_read["obsflag"] == 0)
 
-    assert np.all(mir_data.in_read["obsmode"] == 0)
+    assert np.all(mir_data._in_read["obsmode"] == 0)
 
-    assert np.all(np.round(mir_data.in_read["mjd"]) == 59055)
+    assert np.all(np.round(mir_data._in_read["mjd"]) == 59055)
 
-    assert np.all(mir_data.in_read["spareshort"] == 0)
+    assert np.all(mir_data._in_read["spareshort"] == 0)
 
-    assert np.all(mir_data.in_read["spareint6"] == 0)
+    assert np.all(mir_data._in_read["spareint6"] == 0)
 
 
 def test_mir_remember_me_bl_read(mir_data):
@@ -232,69 +231,81 @@ def test_mir_remember_me_bl_read(mir_data):
     stored as zero.
     """
     # Now check bl_read
-    assert np.all(mir_data.bl_read["blhid"] == np.arange(1, 5))
+    assert np.all(mir_data._bl_read["blhid"] == np.arange(1, 5))
 
-    assert np.all(mir_data.bl_read["isb"] == [0, 0, 1, 1])
+    assert np.all(mir_data._bl_read["isb"] == [0, 0, 1, 1])
 
-    assert np.all(mir_data.bl_read["ipol"] == [0, 0, 0, 0])
+    assert np.all(mir_data._bl_read["ipol"] == [0, 0, 0, 0])
 
-    assert np.all(mir_data.bl_read["ant1rx"] == [0, 1, 0, 1])
+    assert np.all(mir_data._bl_read["ant1rx"] == [0, 1, 0, 1])
 
-    assert np.all(mir_data.bl_read["ant2rx"] == [0, 1, 0, 1])
+    assert np.all(mir_data._bl_read["ant2rx"] == [0, 1, 0, 1])
 
-    assert np.all(mir_data.bl_read["pointing"] == 0)
+    assert np.all(mir_data._bl_read["pointing"] == 0)
 
-    assert np.all(mir_data.bl_read["irec"] == [0, 3, 0, 3])
+    assert np.all(mir_data._bl_read["irec"] == [0, 3, 0, 3])
 
-    assert np.all(mir_data.bl_read["iant1"] == 1)
+    assert np.all(mir_data._bl_read["iant1"] == 1)
 
-    assert np.all(mir_data.bl_read["iant2"] == 4)
+    assert np.all(mir_data._bl_read["iant2"] == 4)
 
-    assert np.all(mir_data.bl_read["iblcd"] == 2)
+    assert np.all(mir_data._bl_read["iblcd"] == 2)
 
-    assert np.all(mir_data.bl_read["spareint1"] == 0)
+    assert np.all(mir_data._bl_read["spareint1"] == 0)
 
-    assert np.all(mir_data.bl_read["spareint2"] == 0)
+    assert np.all(mir_data._bl_read["spareint2"] == 0)
 
-    assert np.all(mir_data.bl_read["spareint3"] == 0)
+    assert np.all(mir_data._bl_read["spareint3"] == 0)
 
-    assert np.all(mir_data.bl_read["spareint4"] == 0)
+    assert np.all(mir_data._bl_read["spareint4"] == 0)
 
-    assert np.all(mir_data.bl_read["spareint5"] == 0)
+    assert np.all(mir_data._bl_read["spareint5"] == 0)
 
-    assert np.all(mir_data.bl_read["spareint6"] == 0)
+    assert np.all(mir_data._bl_read["spareint6"] == 0)
 
-    assert np.all(mir_data.bl_read["sparedbl3"] == 0.0)
+    assert np.all(mir_data._bl_read["sparedbl3"] == 0.0)
 
-    assert np.all(mir_data.bl_read["sparedbl4"] == 0.0)
+    assert np.all(mir_data._bl_read["sparedbl4"] == 0.0)
 
-    assert np.all(mir_data.bl_read["sparedbl5"] == 0.0)
+    assert np.all(mir_data._bl_read["sparedbl5"] == 0.0)
 
-    assert np.all(mir_data.bl_read["sparedbl6"] == 0.0)
+    assert np.all(mir_data._bl_read["sparedbl6"] == 0.0)
 
 
 def test_mir_remember_me_eng_read(mir_data):
     """
-    Mir bl_read checker.
+    Mir eng_read checker.
 
     Make sure that certain values in the eng_read file of the test data set match what
     we know to be 'true' at the time of observations.
     """
     # Now check eng_read
-    assert np.all(mir_data.eng_read["antennaNumber"] == [1, 4])
+    assert np.all(mir_data._eng_read["antennaNumber"] == [1, 4])
 
-    assert np.all(mir_data.eng_read["padNumber"] == [5, 8])
+    assert np.all(mir_data._eng_read["padNumber"] == [5, 8])
 
-    assert np.all(mir_data.eng_read["trackStatus"] == 1)
+    assert np.all(mir_data._eng_read["trackStatus"] == 1)
 
-    assert np.all(mir_data.eng_read["commStatus"] == 1)
+    assert np.all(mir_data._eng_read["commStatus"] == 1)
 
-    assert np.all(mir_data.eng_read["inhid"] == 1)
+    assert np.all(mir_data._eng_read["inhid"] == 1)
+
+
+def test_mir_remember_me_we_read(mir_data):
+    """
+    Mir we_read checker.
+
+    Make sure that certain values in the we_read file of the test data set match what
+    we know to be 'true' at the time of observations.
+    """
+    assert np.all(mir_data._we_read["scanNumber"] == 1)
+
+    assert np.all(mir_data._we_read["flags"] == 0)
 
 
 def test_mir_remember_me_ac_read(mir_data):
     """
-    Mir bl_read checker.
+    Mir ac_read checker.
 
     Make sure that certain values in the autoCorrelations file of the test data set
     match what we know to be 'true' at the time of observations.
@@ -302,21 +313,17 @@ def test_mir_remember_me_ac_read(mir_data):
     # Now check ac_read
 
     # ac_read only exists if has_auto=True
-    if mir_data.ac_read is not None:
+    if mir_data._ac_read is not None:
 
-        assert np.all(mir_data.ac_read["inhid"] == 1)
+        assert np.all(mir_data._ac_read["inhid"] == 1)
 
-        assert np.all(mir_data.ac_read["achid"] == np.arange(1, 3))
+        assert np.all(mir_data._ac_read["achid"] == np.arange(1, 3))
 
-        assert np.all(mir_data.ac_read["antenna"] == [1, 4])
+        assert np.all(mir_data._ac_read["antenna"] == [1, 4])
 
-        assert np.all(mir_data.ac_read["nchunks"] == 8)
+        assert np.all(mir_data._ac_read["nchunks"] == 8)
 
-        assert np.all(mir_data.ac_read["datasize"] == 1048596)
-
-        assert np.all(mir_data.we_read["scanNumber"] == 1)
-
-        assert np.all(mir_data.we_read["flags"] == 0)
+        assert np.all(mir_data._ac_read["datasize"] == 1048596)
 
     else:
         # This should only occur when has_auto=False
@@ -332,57 +339,57 @@ def test_mir_remember_me_sp_read(mir_data):
     stored as zero.
     """
     # Now check sp_read
-    assert np.all(mir_data.sp_read["sphid"] == np.arange(1, 21))
+    assert np.all(mir_data._sp_read["sphid"] == np.arange(1, 21))
 
-    assert np.all(mir_data.sp_read["sphid"] == np.arange(1, 21))
+    assert np.all(mir_data._sp_read["sphid"] == np.arange(1, 21))
 
-    assert np.all(mir_data.sp_read["igq"] == 0)
+    assert np.all(mir_data._sp_read["igq"] == 0)
 
-    assert np.all(mir_data.sp_read["ipq"] == 1)
+    assert np.all(mir_data._sp_read["ipq"] == 1)
 
-    assert np.all(mir_data.sp_read["igq"] == 0)
+    assert np.all(mir_data._sp_read["igq"] == 0)
 
-    assert np.all(mir_data.sp_read["iband"] == [0, 1, 2, 3, 4] * 4)
+    assert np.all(mir_data._sp_read["iband"] == [0, 1, 2, 3, 4] * 4)
 
-    assert np.all(mir_data.sp_read["ipstate"] == 0)
+    assert np.all(mir_data._sp_read["ipstate"] == 0)
 
-    assert np.all(mir_data.sp_read["tau0"] == 0.0)
+    assert np.all(mir_data._sp_read["tau0"] == 0.0)
 
-    assert np.all(mir_data.sp_read["cabinLO"] == 0.0)
+    assert np.all(mir_data._sp_read["cabinLO"] == 0.0)
 
-    assert np.all(mir_data.sp_read["corrLO1"] == 0.0)
+    assert np.all(mir_data._sp_read["corrLO1"] == 0.0)
 
-    assert np.all(mir_data.sp_read["vradcat"] == 0.0)
+    assert np.all(mir_data._sp_read["vradcat"] == 0.0)
 
-    assert np.all(mir_data.sp_read["nch"] == [4, 16384, 16384, 16384, 16384] * 4)
+    assert np.all(mir_data._sp_read["nch"] == [4, 16384, 16384, 16384, 16384] * 4)
 
-    assert np.all(mir_data.sp_read["corrblock"] == [0, 1, 1, 1, 1] * 4)
+    assert np.all(mir_data._sp_read["corrblock"] == [0, 1, 1, 1, 1] * 4)
 
-    assert np.all(mir_data.sp_read["corrchunk"] == [0, 1, 2, 3, 4] * 4)
+    assert np.all(mir_data._sp_read["corrchunk"] == [0, 1, 2, 3, 4] * 4)
 
-    assert np.all(mir_data.sp_read["correlator"] == 1)
+    assert np.all(mir_data._sp_read["correlator"] == 1)
 
-    assert np.all(mir_data.sp_read["spareint2"] == 0)
+    assert np.all(mir_data._sp_read["spareint2"] == 0)
 
-    assert np.all(mir_data.sp_read["spareint3"] == 0)
+    assert np.all(mir_data._sp_read["spareint3"] == 0)
 
-    assert np.all(mir_data.sp_read["spareint4"] == 0)
+    assert np.all(mir_data._sp_read["spareint4"] == 0)
 
-    assert np.all(mir_data.sp_read["spareint5"] == 0)
+    assert np.all(mir_data._sp_read["spareint5"] == 0)
 
-    assert np.all(mir_data.sp_read["spareint6"] == 0)
+    assert np.all(mir_data._sp_read["spareint6"] == 0)
 
-    assert np.all(mir_data.sp_read["sparedbl1"] == 0.0)
+    assert np.all(mir_data._sp_read["sparedbl1"] == 0.0)
 
-    assert np.all(mir_data.sp_read["sparedbl2"] == 0.0)
+    assert np.all(mir_data._sp_read["sparedbl2"] == 0.0)
 
-    assert np.all(mir_data.sp_read["sparedbl3"] == 0.0)
+    assert np.all(mir_data._sp_read["sparedbl3"] == 0.0)
 
-    assert np.all(mir_data.sp_read["sparedbl4"] == 0.0)
+    assert np.all(mir_data._sp_read["sparedbl4"] == 0.0)
 
-    assert np.all(mir_data.sp_read["sparedbl5"] == 0.0)
+    assert np.all(mir_data._sp_read["sparedbl5"] == 0.0)
 
-    assert np.all(mir_data.sp_read["sparedbl6"] == 0.0)
+    assert np.all(mir_data._sp_read["sparedbl6"] == 0.0)
 
 
 def test_mir_remember_me_sch_read(mir_data):
@@ -393,10 +400,15 @@ def test_mir_remember_me_sch_read(mir_data):
     we know to be 'true' at the time of observations.
     """
     # Now check sch_read related values. Thanks to a glitch in the data recorder,
-    # all of the pseudo-cont values are the same
-    assert np.all(mir_data.raw_scale_fac[0::5] == [-26] * 4)
+    # all of the pseudo-cont values are the same for the test file.
+    assert np.all(
+        sp_raw["scale_fac"] == -26 if (np.mod(idx, 5) == 0) else True
+        for idx, sp_raw in enumerate(mir_data.raw_data.values())
+    )
 
-    assert (
-        np.array(mir_data.raw_data[0::5]).flatten().tolist()
-        == [-4302, -20291, -5261, -21128, -4192, -19634, -4999, -16346] * 4
+    check_arr = np.array([-4302, -20291, -5261, -21128, -4192, -19634, -4999, -16346])
+
+    assert np.all(
+        np.all(sp_raw["raw_data"] == check_arr) if (np.mod(idx, 5) == 0) else True
+        for idx, sp_raw in enumerate(mir_data.raw_data.values())
     )
