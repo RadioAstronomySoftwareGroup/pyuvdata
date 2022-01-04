@@ -657,7 +657,7 @@ class MirParser(object):
         return ac_data
 
     @staticmethod
-    def read_packdata(filepath, int_start_dict):
+    def read_packdata(filepath, int_start_dict, use_mmap=False):
         """
         Read "sch_read" mir file into memory (@staticmethod).
 
@@ -674,6 +674,7 @@ class MirParser(object):
             Dictionary of the data, where the keys are inhid and the values are
             the 'raw' block of values recorded in "sch_read" for that inhid.
         """
+        full_filepath = os.path.join(filepath, "sch_read")
         int_data_dict = {}
         int_dtype_dict = {}
         size_list = np.unique(
@@ -690,45 +691,76 @@ class MirParser(object):
             ).newbyteorder("little")
 
         inhid_list = []
-        with open(os.path.join(filepath, "sch_read"), "rb") as visibilities_file:
-            last_offset = last_size = num_vals = del_offset = 0
-            key_list = sorted(int_start_dict.keys())
-            # We add an extra key here, None, which cannot match any of the values in
-            # int_start_dict (since inhid is type int). This basically tricks the loop
-            # below into spitting out the last integration
-            key_list.append(None)
-            for ind_key in key_list:
-                if ind_key is None:
-                    int_size = int_start = 0
-                else:
-                    (int_size, int_start) = int_start_dict[ind_key]
-                if (int_size != last_size) or (
-                    last_offset + (8 + last_size) * num_vals != int_start
-                ):
-                    # Numpy's fromfile works fastest when reading multiple instances
-                    # of the same dtype. As long as the record sizes are the same, we
-                    # can tie mutiple file reads together into one call. The dtype
-                    # depends on the record size, which is why we have to dump the
-                    # data when last_size changes.
-                    if num_vals != 0 and last_size != 0:
-                        int_data_dict.update(
-                            zip(
-                                inhid_list,
-                                np.fromfile(
-                                    visibilities_file,
-                                    dtype=int_dtype_dict[last_size],
-                                    count=num_vals,
-                                    offset=del_offset,
-                                ),
-                            )
+        last_offset = last_size = num_vals = del_offset = 0
+        key_list = sorted(int_start_dict.keys())
+
+        # We add an extra key here, None, which cannot match any of the values in
+        # int_start_dict (since inhid is type int). This basically tricks the loop
+        # below into spitting out the last integration
+        key_list.append(None)
+
+        read_list = []
+
+        for ind_key in key_list:
+            if ind_key is None:
+                int_size = int_start = 0
+            else:
+                (int_size, int_start) = int_start_dict[ind_key]
+            if (int_size != last_size) or (
+                last_offset + (8 + last_size) * num_vals != int_start
+            ):
+                # Numpy's fromfile works fastest when reading multiple instances
+                # of the same dtype. As long as the record sizes are the same, we
+                # can tie mutiple file reads together into one call. The dtype
+                # depends on the record size, which is why we have to dump the
+                # data when last_size changes.
+                if num_vals != 0 and last_size != 0:
+                    read_list.append(
+                        {
+                            "inhid_list": inhid_list,
+                            "int_dtype_dict": int_dtype_dict[last_size],
+                            "num_vals": num_vals,
+                            "del_offset": del_offset,
+                            "start_offset": last_offset,
+                        }
+                    )
+                del_offset = int_start - (last_offset + (num_vals * last_size))
+                last_offset = int_start
+                last_size = int_size
+                num_vals = 0
+                inhid_list = []
+            num_vals += 1
+            inhid_list.append(ind_key)
+
+        if use_mmap:
+            for read_dict in read_list:
+                int_data_dict.update(
+                    zip(
+                        read_dict["inhid_list"],
+                        np.memmap(
+                            filename=full_filepath,
+                            dtype=read_dict["int_dtype_dict"],
+                            mode="r",
+                            offset=read_dict["del_offset"],
+                            shape=(read_dict["num_vals"],),
+                        ),
+                    )
+                )
+        else:
+            with open(full_filepath, "rb") as visibilities_file:
+                for read_dict in read_list:
+                    int_data_dict.update(
+                        zip(
+                            read_dict["inhid_list"],
+                            np.fromfile(
+                                visibilities_file,
+                                dtype=read_dict["int_dtype_dict"],
+                                count=read_dict["num_vals"],
+                                offset=read_dict["del_offset"],
+                            ),
                         )
-                    del_offset = int_start - (last_offset + (num_vals * last_size))
-                    last_offset = int_start
-                    last_size = int_size
-                    num_vals = 0
-                    inhid_list = []
-                num_vals += 1
-                inhid_list.append(ind_key)
+                    )
+
         return int_data_dict
 
     @staticmethod
@@ -916,7 +948,12 @@ class MirParser(object):
 
     @staticmethod
     def read_vis_data(
-        filepath, int_start_dict, sp_data, return_vis=True, return_raw=False
+        filepath,
+        int_start_dict,
+        sp_data,
+        return_vis=True,
+        return_raw=False,
+        use_mmap=False,
     ):
         """
         Read "sch_read" mir file into a list of ndarrays. (@staticmethod).
@@ -947,7 +984,9 @@ class MirParser(object):
         raw_dict = {}
 
         int_data_dict = MirParser.read_packdata(
-            filepath, {idx: int_start_dict[idx] for idx in unique_inhid}
+            filepath,
+            {idx: int_start_dict[idx] for idx in unique_inhid},
+            use_mmap=use_mmap,
         )
 
         for inhid in unique_inhid:
@@ -958,15 +997,14 @@ class MirParser(object):
             nch_subarr = nch_arr[data_mask]
             sphid_subarr = sphid_arr[data_mask]
 
-            scale_fac = packdata[dataoff_subarr]
-            start_idx = dataoff_subarr + 1
-            end_idx = start_idx + (nch_subarr * 2)
+            start_idx = dataoff_subarr
+            end_idx = start_idx + (nch_subarr * 2) + 1
             raw_list = [packdata[idx:jdx] for idx, jdx in zip(start_idx, end_idx)]
 
             raw_dict.update(
                 {
-                    shpid: {"scale_fac": sfac, "raw_data": raw_data}
-                    for shpid, sfac, raw_data in zip(sphid_subarr, scale_fac, raw_list,)
+                    shpid: {"scale_fac": raw_data[0], "raw_data": raw_data[1:]}
+                    for shpid, raw_data in zip(sphid_subarr, raw_list)
                 }
             )
             # Do the del here to break the reference to the "old" data so that
@@ -1041,11 +1079,6 @@ class MirParser(object):
 
         Expands the internal 'use_in', 'use_bl', and 'use_sp' arrays to
         construct filters for the individual structures/data
-
-        Returns
-        -------
-        filter_changed : bool
-            Indicates whether the underlying selected records changed.
         """
         in_filter = np.zeros(len(self._in_read), dtype=bool)
         bl_filter = np.zeros(len(self._bl_read), dtype=bool)
@@ -1112,10 +1145,13 @@ class MirParser(object):
         self._blhid_dict = {blhid: idx for idx, blhid in enumerate(bl_blhid)}
         self._sphid_dict = {sphid: idx for idx, sphid in enumerate(sp_sphid)}
 
-        return True
-
     def load_data(
-        self, load_vis=True, load_raw=False, load_auto=False, apply_tsys=True,
+        self,
+        load_vis=None,
+        load_raw=None,
+        load_auto=False,
+        apply_tsys=True,
+        use_mmap=False,
     ):
         """
         Load visibility data into MirParser class.
@@ -1132,6 +1168,14 @@ class MirParser(object):
             If load_vis is set to true, apply tsys corrections to the data (default
             is True).
         """
+        if (load_vis is None) and (load_raw is None):
+            load_vis = True
+
+        if load_raw is None:
+            load_raw = not load_vis
+        elif load_vis is None:
+            load_vis = not load_raw
+
         if load_vis or load_raw:
             vis_tuple = self.read_vis_data(
                 self.filepath,
@@ -1139,6 +1183,7 @@ class MirParser(object):
                 self.sp_data,
                 return_vis=load_vis,
                 return_raw=load_raw,
+                use_mmap=use_mmap,
             )
 
         if load_vis and load_raw:
@@ -1449,3 +1494,26 @@ class MirParser(object):
     def rechunk(self, chan_avg):
         """Rechunk a MirParser object."""
         pass
+
+    def read_compass_gains():
+        """Read COMPASS-formatted gains."""
+        pass
+
+    def read_compass_flags():
+        """Read COMPASS-formatted flags."""
+        pass
+
+    def _combine_codes_read():
+        """Combine two codes_read arrays from two MirParser objects."""
+
+    def __add__(self):
+        """Add two MirParser objects."""
+
+    def __iadd__(self):
+        """Add two MirParser objects in place."""
+
+    def select():
+        """Select data."""
+
+    def redoppler_data():
+        """Re-doppler the data, FOR POWER."""
