@@ -93,26 +93,26 @@ class Mir(UVData):
         mir_data = mir_parser.MirParser(filepath)
 
         if isource is not None:
-            mir_data.use_in *= np.isin(mir_data.in_read["isource"], isource)
+            mir_data.use_in *= np.isin(mir_data.in_data["isource"], isource)
             if not np.any(mir_data.use_in):
                 raise ValueError("No valid sources selected!")
 
         if irec is not None:
-            mir_data.use_bl *= np.isin(mir_data.bl_read["irec"], irec)
+            mir_data.use_bl *= np.isin(mir_data.bl_data["irec"], irec)
             if not np.any(mir_data.use_bl):
                 raise ValueError("No valid receivers selected!")
 
         if isb is not None:
-            mir_data.use_bl *= np.isin(mir_data.bl_read["isb"], isb)
+            mir_data.use_bl *= np.isin(mir_data.bl_data["isb"], isb)
             if not np.any(mir_data.use_bl):
                 raise ValueError("No valid sidebands selected!")
 
         if corrchunk is not None:
-            mir_data.use_sp *= np.isin(mir_data.sp_read["corrchunk"], corrchunk)
+            mir_data.use_sp *= np.isin(mir_data.sp_data["corrchunk"], corrchunk)
             if not np.any(mir_data.use_sp):
                 raise ValueError("No valid spectral bands selected!")
         elif not pseudo_cont:
-            mir_data.use_sp *= mir_data.sp_read["corrchunk"] != 0
+            mir_data.use_sp *= mir_data.sp_data["corrchunk"] != 0
 
         mir_data._update_filter()
 
@@ -152,17 +152,17 @@ class Mir(UVData):
         # Create a simple list for broadcasting values stored on a
         # per-intergration basis in MIR into the (tasty) per-blt records in UVDATA.
         bl_in_maparr = np.array(
-            [mir_data.inhid_dict[idx] for idx in mir_data.bl_data["inhid"]]
+            [mir_data._inhid_dict[idx] for idx in mir_data.bl_data["inhid"]]
         )
 
         # Create a simple array/list for broadcasting values stored on a
         # per-blt basis into per-spw records, and per-time into per-blt records
         sp_bl_maparr = np.array(
-            [mir_data.blhid_dict[idx] for idx in mir_data.sp_data["blhid"]]
+            [mir_data._blhid_dict[idx] for idx in mir_data.sp_data["blhid"]]
         )
 
         if len(np.unique(mir_data.bl_data["ipol"])) == 1 and (
-            np.sum([mir_data.codes_read["v_name"] == b"pol"]) == 4
+            np.sum([mir_data.codes_data["v_name"] == b"pol"]) == 4
         ):
             # If only one pol is found, and the polarization dictionary has only four
             # codes, then we actually need to verify this is a single pol observation,
@@ -220,7 +220,7 @@ class Mir(UVData):
 
         # Map MIR pol code to pyuvdata/AIPS polarization number
         pol_code_dict = {}
-        for code in mir_data.codes_read[mir_data.codes_read["v_name"] == b"pol"]:
+        for code in mir_data.codes_data[mir_data.codes_data["v_name"] == b"pol"]:
             pol_code_dict[code["icode"]] = uvutils.POL_STR2NUM_DICT[
                 code["code"].decode("UTF-8").lower()
             ]

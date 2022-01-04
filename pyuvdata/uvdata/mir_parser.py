@@ -1035,7 +1035,7 @@ class MirParser(object):
 
         return auto_data
 
-    def _update_filter(self, force_update=False):
+    def _update_filter(self, use_in=None, use_bl=None, use_sp=None):
         """
         Update MirClass internal filters for the data.
 
@@ -1047,92 +1047,75 @@ class MirParser(object):
         filter_changed : bool
             Indicates whether the underlying selected records changed.
         """
-        if not force_update:
-            old_in_filter = self.in_filter.copy()
-            old_bl_filter = self.bl_filter.copy()
-            old_sp_filter = self.sp_filter.copy()
+        in_filter = np.zeros(len(self._in_read), dtype=bool)
+        bl_filter = np.zeros(len(self._bl_read), dtype=bool)
+        sp_filter = np.zeros(len(self._sp_read), dtype=bool)
 
-        in_inhid = self.in_read["inhid"]
-        bl_inhid = self.bl_read["inhid"]
-        bl_blhid = self.bl_read["blhid"]
-        sp_blhid = self.sp_read["blhid"]
-        sp_sphid = self.sp_read["sphid"]
+        in_filter[use_in] = True
+        bl_filter[use_bl] = True
+        sp_filter[use_sp] = True
 
-        # Filter out de-selected in records
-        self.in_filter = self.use_in.copy()
+        in_inhid = self._in_read["inhid"]
+        bl_inhid = self._bl_read["inhid"]
+        bl_blhid = self._bl_read["blhid"]
+        sp_blhid = self._sp_read["blhid"]
+        sp_sphid = self._sp_read["sphid"]
 
         # Filter out de-selected bl records
-        self.bl_filter = self.use_bl.copy()
-        self.bl_filter[self.bl_filter] = np.isin(
-            bl_inhid[self.bl_filter], in_inhid[self.in_filter]
-        )
+        bl_filter[bl_filter] = np.isin(bl_inhid[bl_filter], in_inhid[in_filter])
 
         # Filter out de-selected sp records
-        self.sp_filter = self.use_sp.copy()
-        self.sp_filter[self.sp_filter] = np.isin(
-            sp_blhid[self.sp_filter], bl_blhid[self.bl_filter]
-        )
+        sp_filter[sp_filter] = np.isin(sp_blhid[sp_filter], bl_blhid[bl_filter])
 
         # Check for bl records that have no good sp records
         # Filter out de-selected bl records
-        self.bl_filter[self.bl_filter] = np.isin(
-            bl_blhid[self.bl_filter],
-            np.unique(sp_blhid[self.sp_filter]),
-            assume_unique=True,
+        bl_filter[bl_filter] = np.isin(
+            bl_blhid[bl_filter], np.unique(sp_blhid[sp_filter]), assume_unique=True,
         )
 
         # Check for in records that have no good bl records
         # Filter out de-selected in records
-        self.in_filter[self.in_filter] = np.isin(
-            in_inhid[self.in_filter],
-            np.unique(bl_inhid[self.bl_filter]),
-            assume_unique=True,
+        in_filter[in_filter] = np.isin(
+            in_inhid[in_filter], np.unique(bl_inhid[bl_filter]), assume_unique=True,
         )
 
-        if not force_update:
-            filter_changed = not (
-                np.all(np.array_equal(old_sp_filter, self.sp_filter))
-                and np.all(np.array_equal(old_bl_filter, self.bl_filter))
-                and np.all(np.array_equal(old_in_filter, self.in_filter))
-            )
-            if not filter_changed:
-                return False
+        in_inhid = in_inhid[in_filter]
+        bl_blhid = bl_blhid[bl_filter]
+        sp_sphid = sp_sphid[sp_filter]
 
-        in_inhid = in_inhid[self.in_filter]
-        bl_blhid = bl_blhid[self.bl_filter]
-        sp_sphid = sp_sphid[self.sp_filter]
+        # Filter out the last three data products, based on the above
+        eng_filter = np.isin(self._eng_read["inhid"], in_inhid)
+        we_filter = np.isin(self._we_read["scanNumber"], in_inhid)
+        ac_filter = (
+            np.isin(self._ac_read["inhid"], in_inhid) if self._has_auto else None
+        )
 
-        # Filter out the last two data products, based on the above
-        self.eng_filter = np.isin(self.eng_read["inhid"], in_inhid)
-        self.we_filter = np.isin(self.we_read["scanNumber"], in_inhid)
+        self._in_filter = in_filter
+        self._eng_filter = eng_filter
+        self._bl_filter = bl_filter
+        self._sp_filter = sp_filter
+        self._we_filter = we_filter
+        self._ac_filter = ac_filter
 
-        self.in_data = self.in_read[self.in_filter]
-        self.bl_data = self.bl_read[self.bl_filter]
-        self.sp_data = self.sp_read[self.sp_filter]
-        self.eng_data = self.eng_read[self.eng_filter]
-        self.we_data = self.we_read[self.we_filter]
+        self.in_data = self._in_read[self._in_filter]
+        self.eng_data = self._eng_read[self._eng_filter]
+        self.bl_data = self._bl_read[self._bl_filter]
+        self.sp_data = self._sp_read[self._sp_filter]
+        self.codes_data = self._codes_read.copy()
+        self.we_data = self._we_read[self._we_filter]
+        # Handle the autos specially, since they are not always scanned/loaded
+        self.ac_data = self._ac_read[self._ac_filter] if self._has_auto else None
 
-        # Handle the autos separately, since they are not always scanned/loaded
-        if self._has_auto:
-            self.ac_filter = np.isin(self.ac_read["inhid"], in_inhid)
-            self.ac_data = self.ac_read[self.ac_filter]
-        else:
-            self.ac_filter = self.ac_data = None
         # Craft some dictionaries so you know what list position matches
         # to each index entry. This helps avoid ordering issues.
-        self.inhid_dict = {inhid: idx for idx, inhid in enumerate(in_inhid)}
-        self.blhid_dict = {blhid: idx for idx, blhid in enumerate(bl_blhid)}
-        self.sphid_dict = {sphid: idx for idx, sphid in enumerate(sp_sphid)}
+        self._inhid_dict = {inhid: idx for idx, inhid in enumerate(in_inhid)}
+        self._blhid_dict = {blhid: idx for idx, blhid in enumerate(bl_blhid)}
+        self._sphid_dict = {sphid: idx for idx, sphid in enumerate(sp_sphid)}
 
         return True
 
     def load_data(
-        self,
-        load_vis=True,
-        load_raw=False,
-        load_auto=False,
-        apply_tsys=True,
-        force_update=False,
+        self, load_vis=True, load_raw=False, load_auto=False, apply_tsys=True,
     ):
         """
         Load visibility data into MirParser class.
@@ -1149,12 +1132,10 @@ class MirParser(object):
             If load_vis is set to true, apply tsys corrections to the data (default
             is True).
         """
-        self._update_filter(force_update=force_update)
-
         if load_vis or load_raw:
             vis_tuple = self.read_vis_data(
                 self.filepath,
-                self.int_start_dict,
+                self._int_start_dict,
                 self.sp_data,
                 return_vis=load_vis,
                 return_raw=load_raw,
@@ -1168,9 +1149,9 @@ class MirParser(object):
             (self.raw_data,) = vis_tuple
 
         if load_vis:
-            self.vis_data_loaded = True
+            self._vis_data_loaded = True
         if load_raw:
-            self.raw_data_loaded = True
+            self._raw_data_loaded = True
 
         if apply_tsys and load_vis:
             self._apply_tsys()
@@ -1184,7 +1165,7 @@ class MirParser(object):
             self.auto_data = self.read_auto_data(
                 self.filepath, self.ac_data, winsel=winsel
             )
-            self.auto_data_loaded = True
+            self._auto_data_loaded = True
 
     def unload_data(self):
         """Unload data from the MirParser object."""
@@ -1195,9 +1176,9 @@ class MirParser(object):
         if self.auto_data is not None:
             self.auto_data = None
 
-        self.raw_data_loaded = False
-        self.vis_data_loaded = False
-        self.auto_data_loaded = False
+        self._raw_data_loaded = False
+        self._vis_data_loaded = False
+        self._auto_data_loaded = False
 
     def _apply_tsys(self, jypk=130.0):
         """
@@ -1291,55 +1272,43 @@ class MirParser(object):
         # in to the various attributes of the MirParser object. Note that "_read"
         # objects contain the whole data set, while "_data" contains that after
         # filtering (more on that below).
-        self.in_read = self.read_in_data(filepath)  # Per integration records
-        self.eng_read = self.read_eng_data(filepath)  # Per antenna-int records
-        self.bl_read = self.read_bl_data(filepath)  # Per baaseline-int records
-        self.sp_read = self.read_sp_data(filepath)  # Per spectral win-bl-int records
-        self.codes_read = self.read_codes_data(filepath)  # Metadata for the whole track
-        self.we_read = self.read_we_data(filepath)  # Per-int weather data
+        self._in_read = self.read_in_data(filepath)  # Per integration records
+        self._eng_read = self.read_eng_data(filepath)  # Per antenna-int records
+        self._bl_read = self.read_bl_data(filepath)  # Per baaseline-int records
+        self._sp_read = self.read_sp_data(filepath)  # Per spectral win-bl-int records
+        self._codes_read = self.read_codes_data(filepath)  # Metadata for the track
+        self._we_read = self.read_we_data(filepath)  # Per-int weather data
         self.antpos_data = self.read_antennas(filepath)  # Antenna positions
 
         # This indexes the "main" file that contains all the visibilities, to make
         # it faster to read in the data
-        self.int_start_dict = self.scan_int_start(filepath)
-
-        # These are fliters used for selecting out specific pieces of data on a per
-        # int, blt, or spw-time basis. These are supposed to be the user-facing ones
-        # that will 9at some point) be made to interact w/ additional functions
-        self.use_in = np.ones(self.in_read.shape, dtype=np.bool_)
-        self.use_bl = np.ones(self.bl_read.shape, dtype=np.bool_)
-        self.use_sp = np.ones(self.sp_read.shape, dtype=np.bool_)
+        self._int_start_dict = self.scan_int_start(filepath)
 
         if self._has_auto:
             # If the data has auto correlations, then scan the auto file, pull out
             # the metadata, and get the data index locatinos for faster reads.
-            self.ac_read = self.scan_auto_data(filepath)
+            self._ac_read = self.scan_auto_data(filepath)
         else:
-            self.ac_read = None
+            self._ac_read = None
+
+        # _update_filter will assign all of the *_filter attributes, as well as the
+        # user-facing *_data attributes on call, in addition to the various *hid_dict's
+        # that map ID number to array index position.
+        self._update_filter()
 
         # Raw data aren't loaded on start, because the datasets can be huge
         # You can force this after creating the object with load_data().
         self.vis_data = self.raw_data = self.auto_data = None
 
-        self.vis_data_loaded = False
-        self.raw_data_loaded = False
-        self.auto_data_loaded = False
+        self._vis_data_loaded = False
+        self._raw_data_loaded = False
+        self._auto_data_loaded = False
 
-        # These dicts match index number to array position. It ends up being filled
-        # by _update_filter, which is called inside of load_data below.
-        self.inhid_dict = {}
-        self.blhid_dict = {}
-        self.sphid_dict = {}
-
-        # If requested, now we load out the visibilities. Note that the option for
-        # force_update allows us to skip filling in the other attributes, since
-        # _update_filter (called by load_data) will assign all of the *_filter and
-        # *_data attributes on call.
+        # If requested, now we load out the visibilities.
         self.load_data(
             load_vis=load_vis,
             load_raw=load_raw,
             load_auto=(load_auto and self._has_auto),
-            force_update=True,
         )
 
     def __init__(
@@ -1410,10 +1379,10 @@ class MirParser(object):
         self.write_antennas(filepath, self.antpos_data)
 
         # Now handle the data -- if no data has been loaded, then it's time to bail
-        if not (self.vis_data_loaded or self.raw_data_loaded):
+        if not (self._vis_data_loaded or self._raw_data_loaded):
             warnings.warn("No data loaded, writing metadata only to disk")
             return
-        elif self.raw_data_loaded:
+        elif self._raw_data_loaded:
             raw_dict = self.raw_data
         else:
             raw_dict = self.convert_vis_to_raw(self.vis_data)
