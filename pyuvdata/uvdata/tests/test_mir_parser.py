@@ -100,6 +100,34 @@ def test_mir_parser_update_filter(mir_data, filter_type):
         assert len(getattr(mir_data, attr)) == 0
 
 
+def test_mir_auto_read(mir_data):
+    """
+    Mir read tester
+
+    Make sure that Mir autocorrelations are read correctly
+    """
+    mir_data.fromfile(mir_data.filepath, has_auto=True)
+
+    with pytest.raises(IndexError) as cm:
+        ac_data = mir_data.scan_auto_data(mir_data.filepath, nchunks=999)
+    str(cm.value).startswith("Could not determine auto-correlation record size!")
+
+    ac_data = mir_data.scan_auto_data(mir_data.filepath)
+    assert np.all(ac_data["nchunks"] == 8)
+    int_start_dict = {inhid: None for inhid in np.unique(ac_data["inhid"])}
+
+    mir_data.load_data(load_vis=False, load_auto=True)
+
+    # Select the relevant auto records, which should be for spwin 0-3
+    auto_data = mir_data.read_auto_data(mir_data.filepath, int_start_dict, ac_data)
+
+    for ac1, ac2 in zip(auto_data, mir_data.auto_data):
+        assert np.all(
+            np.logical_or(ac1 == ac2, np.logical_and(np.isnan(ac1), np.isnan(ac2)))
+        )
+    mir_data.unload_data()
+
+
 # Below are a series of checks that are designed to check to make sure that the
 # MirParser class is able to produce consistent values from an engineering data
 # set (originally stored in /data/engineering/mir_data/200724_16:35:14), to make
@@ -323,7 +351,7 @@ def test_mir_remember_me_ac_read(mir_data):
 
         assert np.all(mir_data._ac_read["nchunks"] == 8)
 
-        assert np.all(mir_data._ac_read["datasize"] == 1048596)
+        assert np.all(mir_data._ac_read["datasize"] == 1048576)
 
     else:
         # This should only occur when has_auto=False

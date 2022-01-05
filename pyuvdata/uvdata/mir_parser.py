@@ -226,18 +226,20 @@ class MirParser(object):
     metadata first to check whether or not to load additional data into memory.
     """
 
-    def __iter__(self):
+    def __iter__(self, metadata_only=False):
         """Iterate over all MirParser attributes."""
         attribute_list = [
             a
             for a in dir(self)
-            if not a.startswith("__") and not callable(getattr(self, a))
+            if not a.startswith("__")
+            and not callable(getattr(self, a))
+            and not (metadata_only and a in ["vis_data", "raw_data", "auto_data"])
         ]
 
         for attribute in attribute_list:
             yield attribute
 
-    def copy(self):
+    def copy(self, metadata_only=False):
         """
         Make and return a copy of the MirParser object.
 
@@ -249,7 +251,7 @@ class MirParser(object):
         mp = MirParser()
 
         # include all attributes, not just UVParameter ones.
-        for attr in self.__iter__():
+        for attr in self.__iter__(metadata_only=metadata_only):
             # skip properties
             if not isinstance(getattr(type(self), attr, None), property):
                 setattr(mp, attr, copy.deepcopy(getattr(self, attr)))
@@ -648,7 +650,7 @@ class MirParser(object):
                     marker + 1,
                     auto_vals["antenna"][0],
                     nchunks,
-                    last_offset + 20,
+                    last_offset,
                     data_offset,
                     auto_vals["dhrs"][0],
                 )
@@ -960,9 +962,9 @@ class MirParser(object):
 
         Parameters
         ----------
-        filepath : str
-            Path to the folder containing the mir data set.
-        int_start_dict: dict of tuples
+        filepath : str or sequence of str
+            Path to the folder(s) containing the mir data set.
+        int_start_dict: dict or sequence of dict
             Dictionary returned from scan_int_start, which records position and
             record size for each integration
         sp_data : ndarray of sp_data_type
@@ -974,6 +976,18 @@ class MirParser(object):
             List of ndarrays (dtype=csingle/complex64), with indices equal to sphid
             and values being the floating-point visibilities for the spectrum
         """
+        if isinstance(filepath, str):
+            filepath = [filepath]
+
+        if isinstance(int_start_dict, dict):
+            int_start_dict = [int_start_dict]
+
+        if len(filepath) != len(int_start_dict):
+            raise ValueError(
+                "Must provide a sequence of the same length for "
+                "filepath and int_start_dict"
+            )
+
         # Gather the needed metadata
         inhid_arr = sp_data["inhid"]
         sphid_arr = sp_data["sphid"]
@@ -981,14 +995,21 @@ class MirParser(object):
         dataoff_arr = sp_data["dataoff"] // 2
 
         unique_inhid = np.unique(inhid_arr)
+
+        int_data_dict = {}
+        for file, startdict in zip(filepath, int_start_dict):
+            int_data_dict.update(
+                MirParser.read_packdata(
+                    file,
+                    {
+                        idx: startdict[idx]
+                        for idx in np.intersect1d(unique_inhid, list(startdict.keys()))
+                    },
+                    use_mmap=use_mmap,
+                )
+            )
+
         raw_dict = {}
-
-        int_data_dict = MirParser.read_packdata(
-            filepath,
-            {idx: int_start_dict[idx] for idx in unique_inhid},
-            use_mmap=use_mmap,
-        )
-
         for inhid in unique_inhid:
             packdata = int_data_dict.pop(inhid)["packdata"]
 
@@ -1022,7 +1043,7 @@ class MirParser(object):
         return results
 
     @staticmethod
-    def read_auto_data(filepath, ac_data, winsel=None):
+    def read_auto_data(filepath, int_start_dict, ac_data, winsel=None):
         """
         Read "autoCorrelations" mir file into memory (@staticmethod).
 
@@ -1031,8 +1052,10 @@ class MirParser(object):
 
         Parameters
         ----------
-        filepath : str
+        filepath : str or sequence of str
             Path to the folder containing the mir data set.
+        int_start_dict : dict or sequence of dict
+            Fill this in later.
         ac_data : arr of dtype ac_read_dtype
             Structure from returned from scan_auto_data.
         winsel : list of int (optional)
@@ -1045,7 +1068,20 @@ class MirParser(object):
             where n_ch is number of channels (currently always 16384 per chunk),
             n_chunk is the number of spectral "chunks" (i.e., Nspws), and n_rec is the
             number of receivers per antenna recorded (always 2 -- 1 per polarization).
+
         """
+        if isinstance(filepath, str):
+            filepath = [filepath]
+
+        if isinstance(int_start_dict, dict):
+            int_start_dict = [int_start_dict]
+
+        if len(filepath) != len(int_start_dict):
+            raise ValueError(
+                "Must provide a sequence of the same length for "
+                "filepath and int_start_dict"
+            )
+
         if winsel is None:
             winsel = np.arange(0, ac_data["nchunks"][0])
 
@@ -1055,25 +1091,26 @@ class MirParser(object):
         # TODO: Allow this to be flexible if dealing w/ spectrally averaged data
         # (although it's only use currently is in its unaveraged formal for
         # normaliztion of the crosses)
-        auto_data = np.empty((len(ac_data), len(winsel), 2, 2**14), dtype=np.float32)
-        dataoff = ac_data["dataoff"]
-        datasize = ac_data["datasize"]
-        del_offset = np.insert(np.diff(dataoff) - datasize[0:-1], 0, dataoff[0])
-        nvals = ac_data["nchunks"] * 2 * (2**14)
-        nchunks = ac_data["nchunks"]
+        auto_data = {}
+        for file, startdict in zip(filepath, int_start_dict):
+            unique_inhid = np.unique(ac_data["inhid"])
+            ac_mask = np.intersect1d(unique_inhid, list(startdict.keys()))
 
-        with open(os.path.join(filepath, "autoCorrelations"), "rb") as auto_file:
-            for idx in range(len(dataoff)):
-                auto_data[idx] = np.fromfile(
-                    auto_file,
-                    dtype=np.float32,
-                    count=nvals[idx],
-                    offset=20 + del_offset[idx],
-                ).reshape((nchunks[idx], 2, 2**14))[winsel, :, :]
+            dataoff_arr = ac_data["dataoff"][ac_mask]
+            nvals_arr = ac_data["datasize"][ac_mask].astype(np.int64) // 4
+            achid_arr = ac_data["achid"][ac_mask]
+            with open(os.path.join(file, "autoCorrelations"), "rb") as auto_file:
+                lastpos = 0
+                for achid, dataoff, nvals in zip(achid_arr, dataoff_arr, nvals_arr):
+                    deloff = dataoff - lastpos
+                    auto_data[achid] = np.fromfile(
+                        auto_file, dtype=np.float32, count=nvals, offset=deloff,
+                    ).reshape((-1, 2, 2 ** 14))[winsel]
+                    lastpos = dataoff + (4 * nvals)
 
         return auto_data
 
-    def _update_filter(self, use_in=None, use_bl=None, use_sp=None):
+    def _update_filter(self, use_in=None, use_bl=None, use_sp=None, update_data=True):
         """
         Update MirClass internal filters for the data.
 
@@ -1136,6 +1173,8 @@ class MirParser(object):
         self.sp_data = self._sp_read[self._sp_filter]
         self.codes_data = self._codes_read.copy()
         self.we_data = self._we_read[self._we_filter]
+        self.antpos_data = self._antpos_read.copy()
+
         # Handle the autos specially, since they are not always scanned/loaded
         self.ac_data = self._ac_read[self._ac_filter] if self._has_auto else None
 
@@ -1144,6 +1183,14 @@ class MirParser(object):
         self._inhid_dict = {inhid: idx for idx, inhid in enumerate(in_inhid)}
         self._blhid_dict = {blhid: idx for idx, blhid in enumerate(bl_blhid)}
         self._sphid_dict = {sphid: idx for idx, sphid in enumerate(sp_sphid)}
+
+        if update_data:
+            self.load_data(
+                load_vis=self._vis_data_loaded,
+                load_raw=self._raw_data_loaded,
+                load_auto=self._auto_data_loaded,
+                apply_tsys=self._tsys_applied,
+            )
 
     def load_data(
         self,
@@ -1178,8 +1225,8 @@ class MirParser(object):
 
         if load_vis or load_raw:
             vis_tuple = self.read_vis_data(
-                self.filepath,
-                self._int_start_dict,
+                list(self._file_dict.keys()),
+                list(self._file_dict.values()),
                 self.sp_data,
                 return_vis=load_vis,
                 return_raw=load_raw,
@@ -1208,7 +1255,10 @@ class MirParser(object):
             winsel = np.unique(self.sp_data["corrchunk"])
             winsel = winsel[winsel != 0].astype(int) - 1
             self.auto_data = self.read_auto_data(
-                self.filepath, self.ac_data, winsel=winsel
+                list(self._file_dict.keys()),
+                list(self._file_dict.values()),
+                self.ac_data,
+                winsel=winsel,
             )
             self._auto_data_loaded = True
 
@@ -1221,8 +1271,9 @@ class MirParser(object):
         if self.auto_data is not None:
             self.auto_data = None
 
-        self._raw_data_loaded = False
         self._vis_data_loaded = False
+        self._tsys_applied = False
+        self._raw_data_loaded = False
         self._auto_data_loaded = False
 
     def _apply_tsys(self, jypk=130.0):
@@ -1243,6 +1294,11 @@ class MirParser(object):
             coefficients produces visibilities in units of Jy). Default is 130.0, which
             is the estiamted value for SMA.
         """
+        if not self._vis_data_loaded:
+            raise ValueError(
+                "Must call load_data first before applying tsys normalization."
+            )
+
         # Create a dictionary here to map antenna pair + integration time step with
         # a sqrt(tsys) value. Note that the last index here is the receiver number,
         # which techically has a different keyword under which the system temperatures
@@ -1286,6 +1342,8 @@ class MirParser(object):
         for sphid, blhid in zip(self.sp_data["sphid"], self.sp_data["blhid"]):
             self.vis_data[sphid]["vis_data"] *= normal_dict[blhid]
 
+        self._tsys_applied = True
+
     def fromfile(
         self, filepath, has_auto=False, load_vis=False, load_raw=False, load_auto=False,
     ):
@@ -1309,10 +1367,6 @@ class MirParser(object):
         load_auto : bool
             flag to load auto-correlations into memory, default is False.
         """
-        # Set up some basic attributes
-        self._has_auto = has_auto
-        self.filepath = filepath
-
         # These functions will read in the major blocks of metadata that get plugged
         # in to the various attributes of the MirParser object. Note that "_read"
         # objects contain the whole data set, while "_data" contains that after
@@ -1323,12 +1377,14 @@ class MirParser(object):
         self._sp_read = self.read_sp_data(filepath)  # Per spectral win-bl-int records
         self._codes_read = self.read_codes_data(filepath)  # Metadata for the track
         self._we_read = self.read_we_data(filepath)  # Per-int weather data
-        self.antpos_data = self.read_antennas(filepath)  # Antenna positions
+        self._antpos_read = self.read_antennas(filepath)  # Antenna positions
 
         # This indexes the "main" file that contains all the visibilities, to make
         # it faster to read in the data
-        self._int_start_dict = self.scan_int_start(filepath)
+        self._file_dict = {filepath: self.scan_int_start(filepath)}
+        self.filepath = filepath
 
+        self._has_auto = has_auto
         if self._has_auto:
             # If the data has auto correlations, then scan the auto file, pull out
             # the metadata, and get the data index locatinos for faster reads.
@@ -1336,18 +1392,19 @@ class MirParser(object):
         else:
             self._ac_read = None
 
-        # _update_filter will assign all of the *_filter attributes, as well as the
-        # user-facing *_data attributes on call, in addition to the various *hid_dict's
-        # that map ID number to array index position.
-        self._update_filter()
-
         # Raw data aren't loaded on start, because the datasets can be huge
         # You can force this after creating the object with load_data().
         self.vis_data = self.raw_data = self.auto_data = None
 
         self._vis_data_loaded = False
+        self._tsys_applied = False
         self._raw_data_loaded = False
         self._auto_data_loaded = False
+
+        # _update_filter will assign all of the *_filter attributes, as well as the
+        # user-facing *_data attributes on call, in addition to the various *hid_dict's
+        # that map ID number to array index position.
+        self._update_filter()
 
         # If requested, now we load out the visibilities.
         self.load_data(
@@ -1495,22 +1552,94 @@ class MirParser(object):
         """Rechunk a MirParser object."""
         pass
 
+    @staticmethod
     def read_compass_gains():
         """Read COMPASS-formatted gains."""
         pass
 
+    @staticmethod
     def read_compass_flags():
         """Read COMPASS-formatted flags."""
         pass
 
-    def _combine_codes_read():
+    @staticmethod
+    def _combine_codes_read(arr1, arr2, overwrite=False):
         """Combine two codes_read arrays from two MirParser objects."""
+        pass
 
-    def __add__(self):
+    @staticmethod
+    def _combine_read_arr(arr1, arr2, index_name=None, overwrite=False):
+        """Do a thing."""
+        if arr1.dtype != arr2.dtype:
+            raise ValueError("Both arrays must be of the same dtype.")
+
+        # For a codes_read array, the indexing procedure is a bit funky, so we call
+        # a special task to handle that corner case.
+        if arr1.dtype == codes_dtype:
+            return MirParser._combine_codes_read(arr1, arr2, overwrite=overwrite)
+
+        if not isinstance(index_name, str):
+            raise ValueError("index_name must be a string.")
+
+        if index_name not in arr1.dtype.names:
+            raise ValueError("index_name not recognized as a field in either array.")
+
+        _, idx1, idx2 = np.intersect1d(
+            arr1[index_name], arr2[index_name], return_indices=True
+        )
+
+        if not (np.array_equal(arr1[idx1], arr2[idx2]) or overwrite):
+            raise ValueError("Arrays have overlapping indicies with different data.")
+
+        arr_sel = np.isin(np.arange(len(arr2)), idx2, invert=True)
+        return np.concatenate(arr1, arr2[arr_sel])
+
+    def __add__(self, other_obj, reindex=True, overwrite=False, inplace=False):
         """Add two MirParser objects."""
+        new_obj = self.copy(metadata_only=True)
 
-    def __iadd__(self):
+        # First check that the metadata are compatible. First up, if we are _not_
+        # permitted to adjust HID numbers in the file, make sure that we don't have
+        # conflicting indicies.
+        attr_read_dict = {
+            "_in_read": "inhid",
+            "_eng_read": "inhid",
+            "_bl_read": "blhid",
+            "_sp_read": "sphid",
+            "_we_read": "scanNumber",
+            "_codes_read": None,
+            "_antpos_read": "antenna",
+            "_ac_read": "achid",
+            "in_data": "inhid",
+            "eng_data": "inhid",
+            "bl_data": "blhid",
+            "sp_data": "sphid",
+            "we_data": "scanNumber",
+            "codes_data": None,
+            "antpos_data": "antenna",
+        }
+
+        # If we
+        if reindex:
+            pass
+
+        # Now that we know we are good to go, begin by either making a copy of
+        # or pointing to the original object in question.
+        if inplace:
+            for item in attr_read_dict.keys():
+                setattr(self, item, getattr(new_obj, item))
+            new_obj = self
+
+        # Next merge the metadata
+
+        # Finally, because of the size we need to handle
+
+        if not inplace:
+            return new_obj
+
+    def __iadd__(self, other_obj, allow_reindexing=True):
         """Add two MirParser objects in place."""
+        self.__add__(other_obj, allow_reindexing=allow_reindexing, inplace=True)
 
     def select():
         """Select data."""
