@@ -1553,55 +1553,93 @@ class MirParser(object):
         pass
 
     @staticmethod
-    def read_compass_gains():
-        """Read COMPASS-formatted gains."""
-        pass
-
-    @staticmethod
-    def read_compass_flags():
-        """Read COMPASS-formatted flags."""
-        pass
-
-    @staticmethod
-    def _combine_codes_read(arr1, arr2, overwrite=False):
-        """Combine two codes_read arrays from two MirParser objects."""
-        pass
-
-    @staticmethod
-    def _combine_read_arr(arr1, arr2, index_name=None, overwrite=False):
+    def _combine_read_arr_check(arr1, arr2, index_name=None):
         """Do a thing."""
         if arr1.dtype != arr2.dtype:
             raise ValueError("Both arrays must be of the same dtype.")
 
-        # For a codes_read array, the indexing procedure is a bit funky, so we call
-        # a special task to handle that corner case.
+        # For a codes_read array, the indexing procedure is a bit funky,
+        # so we handle this as a special case.
         if arr1.dtype == codes_dtype:
-            return MirParser._combine_codes_read(arr1, arr2, overwrite=overwrite)
+            arr1_dict = {
+                (item["v_name"], item["icode"], item["ncode"]): item["code"]
+                for item in arr1
+            }
+            arr2_dict = {
+                (item["v_name"], item["icode"], item["ncode"]): item["code"]
+                for item in arr2
+            }
+
+            for key in arr1_dict.keys():
+                try:
+                    if not (arr1_dict[key] == arr2_dict[key]):
+                        return False
+                except KeyError:
+                    # If the keys don't confict, then there's no potential clash, so
+                    # just move on to the next entry.
+                    pass
+            return True
 
         if not isinstance(index_name, str):
             raise ValueError("index_name must be a string.")
 
         if index_name not in arr1.dtype.names:
-            raise ValueError("index_name not recognized as a field in either array.")
+            raise ValueError("index_name not a recognized field in either array.")
 
         _, idx1, idx2 = np.intersect1d(
             arr1[index_name], arr2[index_name], return_indices=True
         )
 
-        if not (np.array_equal(arr1[idx1], arr2[idx2]) or overwrite):
-            raise ValueError("Arrays have overlapping indicies with different data.")
+        return np.array_equal(arr1[idx1], arr2[idx2])
+
+    @staticmethod
+    def _combine_read_arr(arr1, arr2, index_name=None, overwrite=False):
+        """Do a thing."""
+        if overwrite:
+            # If we are overwriting, then make sure that the two arrays are of the
+            # same dtype before continuing.
+            if arr1.dtype != arr2.dtype:
+                raise ValueError("Both arrays must be of the same dtype.")
+        else:
+            # If not overwriting, check and make sure
+            if not MirParser._combine_read_arr_check(arr1, arr2, index_name=index_name):
+                raise ValueError(
+                    "Arrays have overlapping indicies with different data, "
+                    "cannot combine the two safely."
+                )
+
+        # For a codes_read array, the indexing procedure is a bit funky,
+        # so we handle this as a special case.
+        if arr1.dtype == codes_dtype:
+            arr1_set = {(item["v_name"], item["icode"], item["ncode"]) for item in arr1}
+
+            idx2 = np.array(
+                [
+                    idx
+                    for idx, item in enumerate(arr2)
+                    if (item["v_name"], item["icode"], item["ncode"]) in arr1_set
+                ]
+            )
+        else:
+            if not isinstance(index_name, str):
+                raise ValueError("index_name must be a string.")
+
+            if index_name not in arr1.dtype.names:
+                raise ValueError("index_name not a recognized field in either array.")
+
+            _, _, idx2 = np.intersect1d(
+                arr1[index_name], arr2[index_name], return_indices=True
+            )
 
         arr_sel = np.isin(np.arange(len(arr2)), idx2, invert=True)
         return np.concatenate(arr1, arr2[arr_sel])
 
     def __add__(self, other_obj, reindex=True, overwrite=False, inplace=False):
         """Add two MirParser objects."""
-        new_obj = self.copy(metadata_only=True)
-
         # First check that the metadata are compatible. First up, if we are _not_
         # permitted to adjust HID numbers in the file, make sure that we don't have
         # conflicting indicies.
-        attr_read_dict = {
+        attr_index_dict = {
             "_in_read": "inhid",
             "_eng_read": "inhid",
             "_bl_read": "blhid",
@@ -1619,30 +1657,82 @@ class MirParser(object):
             "antpos_data": "antenna",
         }
 
-        # If we
+        attr_read_list = [
+            "_in_read",
+            "_eng_read",
+            "_bl_read",
+            "_we_read",
+            "_codes_read",
+            "_antpos_read",
+        ]
+
+        if self._has_auto != other_obj._has_auto:
+            warnings.warn("")
+        elif self._has_auto:
+            attr_read_list.append("_ac_read")
+
+        # Check to see if we need to reindex, and if no, which items actually need
+        # reindexing.
         if reindex:
-            pass
+            reindex_list = []
+            # reindex_idx1 = []
+            # reindex_idx2 = []
+            for key, value in attr_index_dict.items():
+                if not MirParser._combine_read_arr_check(
+                    getattr(self, key), getattr(other_obj, key), index_name=value
+                ):
+                    reindex_list.append(key)
+            if reindex_list == []:
+                # There isn't anything to reindex - data sets have no conflicts. We can
+                # treat this as though it were an overwrite operation.
+                pass
+            else:
+                if "_antpos_read" in reindex_list:
+                    if overwrite:
+                        pass
+                    else:
+                        raise ValueError(
+                            "Antenna positions change between objects, which is not "
+                            "currently allowed for MirParser objects. Set "
+                            "overwrite=True to carry forward with only the antenna "
+                            "positions from the first object."
+                        )
+        else:
+            # If we are not reindexing, then we want to make sure that any overlapping
+            # data are identical.
+            for key, value in attr_index_dict.items():
+                if not MirParser._combine_read_arr_check(
+                    getattr(self, key), getattr(other_obj, key), index_name=value
+                ):
+                    raise ValueError(
+                        "Cannot combine objects due to an index conflict in %s. "
+                        "To continue, you must set reindex=True to allow for the "
+                        "index values to be recalculated." % key
+                    )
 
         # Now that we know we are good to go, begin by either making a copy of
         # or pointing to the original object in question.
-        if inplace:
-            for item in attr_read_dict.keys():
-                setattr(self, item, getattr(new_obj, item))
-            new_obj = self
 
         # Next merge the metadata
 
         # Finally, because of the size we need to handle
 
-        if not inplace:
-            return new_obj
-
-    def __iadd__(self, other_obj, allow_reindexing=True):
+    def __iadd__(self, other_obj, reindex=True, overwrite=False):
         """Add two MirParser objects in place."""
-        self.__add__(other_obj, allow_reindexing=allow_reindexing, inplace=True)
+        self.__add__(other_obj, reindex=reindex, overwrite=overwrite, inplace=True)
 
     def select():
         """Select data."""
+
+    @staticmethod
+    def read_compass_gains():
+        """Read COMPASS-formatted gains."""
+        pass
+
+    @staticmethod
+    def read_compass_flags():
+        """Read COMPASS-formatted flags."""
+        pass
 
     def redoppler_data():
         """Re-doppler the data, FOR POWER."""
