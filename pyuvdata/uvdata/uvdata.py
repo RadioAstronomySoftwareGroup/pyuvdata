@@ -8374,14 +8374,7 @@ class UVData(UVBase):
                         "polarization_array".format(p=p)
                     )
 
-            if len(pol_inds) > 2:
-                if not uvutils._test_array_constant_spacing(pol_inds):
-                    warnings.warn(
-                        "Selected polarization values are not evenly spaced. This "
-                        "will make it impossible to write this data out to "
-                        "some file types"
-                    )
-            elif len(spw_inds) > 0:
+            if len(spw_inds) > 0:
                 # Since this is a flex-pol data set, we need to filter on the freq
                 # axis instead of the pol axis
                 pol_inds = None
@@ -8415,6 +8408,16 @@ class UVData(UVBase):
                         "will make it impossible to write this data out to "
                         "some file types"
                     )
+            else:
+                pol_inds = np.unique(pol_inds)
+                if len(pol_inds) > 2:
+                    if not uvutils._test_array_constant_spacing(pol_inds):
+                        warnings.warn(
+                            "Selected polarization values are not evenly spaced. This "
+                            "will make it impossible to write this data out to "
+                            "some file types"
+                        )
+                pol_inds = pol_inds.tolist()
         else:
             pol_inds = None
 
