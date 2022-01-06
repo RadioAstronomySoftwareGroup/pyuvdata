@@ -4150,6 +4150,7 @@ class UVData(UVBase):
         self,
         order="time",
         minor_order=None,
+        autos_first=False,
         conj_convention=None,
         uvw_tol=0.0,
         conj_convention_use_enu=True,
@@ -4159,9 +4160,12 @@ class UVData(UVBase):
         strict_uvw_antpos_check=False,
     ):
         """
-        Arrange blt axis according to desired order.
+        Arrange baseline-times axis according to desired order.
 
-        Optionally conjugate some baselines.
+        If the specified order is an index type, it will be the slowest changing index
+        along the baseline-time axis (the minor order will be the next slowest).
+        If the `conj_convention` is set, this method can also conjugate some baselines
+        using the `conjugate_bls` method.
 
         Parameters
         ----------
@@ -4169,12 +4173,19 @@ class UVData(UVBase):
             A string describing the desired order along the blt axis.
             Options are: `time`, `baseline`, `ant1`, `ant2`, `bda` or an
             index array of length Nblts that specifies the new order.
+            If this is `time`, `baseline`, `ant1`, `ant2` then this will be the
+            slowest changing index.
         minor_order : str
             Optionally specify a secondary ordering. Default depends on how
             order is set: if order is 'time', this defaults to `baseline`,
             if order is `ant1`, or `ant2` this defaults to the other antenna,
             if order is `baseline` the only allowed value is `time`. Ignored if
             order is `bda` If this is the same as order, it is reset to the default.
+            If this is `time`, `baseline`, `ant1`, `ant2` then this will be the
+            next slowest changing index.
+        autos_first : bool
+            If True, sort the autos before all the crosses. The autos and crosses will
+            each be sorted according to the order and minor order keywords.
         conj_convention : str or array_like of int
             Optionally conjugate baselines to make the baselines have the
             desired orientation. See conjugate_bls for allowed values and details.
@@ -4272,57 +4283,67 @@ class UVData(UVBase):
         else:
             self.blt_order = None
 
-        if not isinstance(order, np.ndarray):
-            # Use lexsort to sort along different arrays in defined order.
-            if order == "time":
-                arr1 = self.time_array
-                if minor_order == "ant1":
-                    arr2 = self.ant_1_array
-                    arr3 = self.ant_2_array
-                elif minor_order == "ant2":
-                    arr2 = self.ant_2_array
-                    arr3 = self.ant_1_array
-                else:
-                    # minor_order is baseline
-                    arr2 = self.baseline_array
-                    arr3 = self.baseline_array
-            elif order == "ant1":
-                arr1 = self.ant_1_array
-                if minor_order == "time":
-                    arr2 = self.time_array
-                    arr3 = self.ant_2_array
-                elif minor_order == "ant2":
-                    arr2 = self.ant_2_array
-                    arr3 = self.time_array
-                else:  # minor_order is baseline
-                    arr2 = self.baseline_array
-                    arr3 = self.time_array
-            elif order == "ant2":
-                arr1 = self.ant_2_array
-                if minor_order == "time":
-                    arr2 = self.time_array
-                    arr3 = self.ant_1_array
-                elif minor_order == "ant1":
-                    arr2 = self.ant_1_array
-                    arr3 = self.time_array
-                else:
-                    # minor_order is baseline
-                    arr2 = self.baseline_array
-                    arr3 = self.time_array
-            elif order == "baseline":
-                arr1 = self.baseline_array
-                # only allowed minor order is time
-                arr2 = self.time_array
-                arr3 = self.time_array
-            elif order == "bda":
-                arr1 = self.integration_time
-                # only allowed minor order is time
-                arr2 = self.baseline_array
-                arr3 = self.time_array
+        if autos_first:
+            # find the auto indices
+            auto_inds = np.nonzero(self.ant_1_array == self.ant_2_array)[0]
+            cross_inds = np.nonzero(self.ant_1_array == self.ant_2_array)[0]
+            inds_use_list = [auto_inds, cross_inds]
+        else:
+            inds_use_list = [np.arange(self.Nblts)]
 
-            # lexsort uses the listed arrays from last to first
-            # (so the primary sort is on the last one)
-            index_array = np.lexsort((arr3, arr2, arr1))
+        if not isinstance(order, np.ndarray):
+            index_array = []
+            for inds_use in inds_use_list:
+                # Use lexsort to sort along different arrays in defined order.
+                if order == "time":
+                    arr1 = self.time_array[inds_use]
+                    if minor_order == "ant1":
+                        arr2 = self.ant_1_array[inds_use]
+                        arr3 = self.ant_2_array[inds_use]
+                    elif minor_order == "ant2":
+                        arr2 = self.ant_2_array[inds_use]
+                        arr3 = self.ant_1_array[inds_use]
+                    else:
+                        # minor_order is baseline
+                        arr2 = self.baseline_array[inds_use]
+                        arr3 = self.baseline_array[inds_use]
+                elif order == "ant1":
+                    arr1 = self.ant_1_array[inds_use]
+                    if minor_order == "time":
+                        arr2 = self.time_array[inds_use]
+                        arr3 = self.ant_2_array[inds_use]
+                    elif minor_order == "ant2":
+                        arr2 = self.ant_2_array[inds_use]
+                        arr3 = self.time_array[inds_use]
+                    else:  # minor_order is baseline
+                        arr2 = self.baseline_array[inds_use]
+                        arr3 = self.time_array[inds_use]
+                elif order == "ant2":
+                    arr1 = self.ant_2_array[inds_use]
+                    if minor_order == "time":
+                        arr2 = self.time_array[inds_use]
+                        arr3 = self.ant_1_array[inds_use]
+                    elif minor_order == "ant1":
+                        arr2 = self.ant_1_array[inds_use]
+                        arr3 = self.time_array[inds_use]
+                    else:
+                        # minor_order is baseline
+                        arr2 = self.baseline_array[inds_use]
+                        arr3 = self.time_array[inds_use]
+                elif order == "baseline":
+                    arr1 = self.baseline_array[inds_use]
+                    # only allowed minor order is time
+                    arr2 = self.time_array[inds_use]
+                    arr3 = self.time_array[inds_use]
+                elif order == "bda":
+                    arr1 = self.integration_time[inds_use]
+                    # only allowed minor order is time
+                    arr2 = self.baseline_array[inds_use]
+                    arr3 = self.time_array[inds_use]
+
+                # lexsort uses the listed arrays from last to first
+                # (so the primary sort is on the last one)
+                index_array.extend(np.lexsort((arr3, arr2, arr1)))
         else:
             index_array = order
 
