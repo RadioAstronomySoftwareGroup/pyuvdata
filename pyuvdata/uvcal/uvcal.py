@@ -792,7 +792,9 @@ class UVCal(UVBase):
                     "`pyuvdata.utils.and_collapse` function which will only flag an "
                     "antpol-time if all of the frequecies are flagged for that "
                     "antpol-time. To preserve the full flag information, create a "
-                    "UVFlag object from this cal object before this operation."
+                    "UVFlag object from this cal object before this operation. "
+                    "In the future, these flag arrays will be removed from UVCal "
+                    "objects in favor of using UVFlag objects."
                 )
                 self.flag_array = uvutils.and_collapse(self.flag_array, axis=1)[
                     :, np.newaxis, :, :
@@ -826,7 +828,7 @@ class UVCal(UVBase):
 
     def use_current_array_shapes(self):
         """
-        Change the array shapes of this object to match the current future shapes.
+        Change the array shapes of this object to match the current shapes.
 
         This method sets allows users to convert back to the current array shapes.
         This method sets the `future_array_shapes` parameter on this object to False.
@@ -1622,7 +1624,8 @@ class UVCal(UVBase):
                     "that antpol-time. Then it will be broadcast to all the new "
                     "frequencies. To preserve the original flag information, "
                     "create a UVFlag object from this cal object before this "
-                    "operation."
+                    "operation. In the future, these flag arrays will be removed from "
+                    "UVCal objects in favor of using UVFlag objects."
                 )
                 new_flag_array = np.expand_dims(
                     uvutils.and_collapse(self.flag_array, axis=freq_axis),
