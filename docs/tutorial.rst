@@ -1735,7 +1735,7 @@ axis will be removed from the ``gain_array`` , ``flag_array``, ``quality_array``
 wide-band and "delay" type UVCal objects, the spectral window axis will be retained but
 the axis corresponding to the frequency axis will be removed from the ``gain_array`` ,
 ``delay_array``, ``flag_array``, ``quality_array``, ``input_flag_array`` and the
-``total_quality_array` and the ``freq_range`` parameter will gain a spectral window
+``total_quality_array`` and the ``freq_range`` parameter will gain a spectral window
 axis. In addition, the ``integration_time`` parameter will always be an array of
 length ``Ntimes``.
 
