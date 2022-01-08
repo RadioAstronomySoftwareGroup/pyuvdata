@@ -6349,7 +6349,7 @@ class UVData(UVBase):
                 raise ValueError(
                     "Cannot add a flex-pol and non-flex-pol UVData objects. Use "
                     "the `remove_flex_pol` method to convert the objects to "
-                    "have a regular polariztion axis."
+                    "have a regular polarization axis."
                 )
             elif this.flex_spw_polarization_array is not None:
                 this_flexpol_dict = {
@@ -10237,25 +10237,26 @@ class UVData(UVBase):
         """
         Read in data from an SMA MIR file.
 
-        Note that with the exception of filepath, the reset of the parameters are
-        used to sub-select a range of data that matches the limitations of the current
-        instantiation of pyuvdata  -- namely 1 spectral window, 1 source. These could
-        be dropped in the future, as pyuvdata capabilities grow.
+        Note that with the exception of filepath, the rest of the parameters are
+        used to sub-select a range of data.
 
         Parameters
         ----------
         filepath : str
              The file path to the MIR folder to read from.
         isource : int
-            Source code for MIR dataset
+            Source code for MIR dataset. The default is None, which selects all sources.
         irec : int
-            Receiver code for MIR dataset
+            Receiver code for MIR dataset. The default is None, which selects all
+            receivers.
         isb : int
-            Sideband code for MIR dataset
+            Sideband code for MIR dataset. The default is None, which selects both
+            sidebands.
         corrchunk : int
-            Correlator chunk code for MIR dataset
+            Correlator chunk code for MIR dataset. The default is None, which selects
+            all chunks.
         pseudo_cont : boolean
-            Read in only pseudo-continuuum values. Default is false.
+            Read in only the pseudo-continuuum values. Default is False.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
