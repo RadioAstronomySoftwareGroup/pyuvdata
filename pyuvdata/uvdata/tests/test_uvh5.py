@@ -62,24 +62,6 @@ def uv_partial_write(casa_uvfits, tmp_path):
     return
 
 
-@pytest.fixture(scope="session")
-def sma_mir_main():
-    # read in test file for the resampling in time functions
-    uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    uv_object.read(testfile)
-
-    yield uv_object
-
-
-@pytest.fixture(scope="function")
-def sma_mir(sma_mir_main):
-    # read in test file for the resampling in time functions
-    uv_object = sma_mir_main.copy()
-
-    yield uv_object
-
-
 def initialize_with_zeros(uvd, filename):
     """
     Make a uvh5 file with all zero values for data-sized arrays.
