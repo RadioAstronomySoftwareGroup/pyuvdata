@@ -924,7 +924,7 @@ class MirParser(object):
                 for idx, jdx, tsys in zip(
                     self.eng_data["inhid"],
                     self.eng_data["antennaNumber"],
-                    self.eng_data["tsys"],
+                    self.eng_data["tsys_rx2"],
                 )
             }
         )
