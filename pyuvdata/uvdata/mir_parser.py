@@ -1593,7 +1593,9 @@ class MirParser(object):
         return np.array_equal(arr1[idx1], arr2[idx2])
 
     @staticmethod
-    def _combine_read_arr(arr1, arr2, index_name=None, overwrite=False):
+    def _combine_read_arr(
+        arr1, arr2, index_name=None, return_indices=False, overwrite=False
+    ):
         """Do a thing."""
         if overwrite:
             # If we are overwriting, then make sure that the two arrays are of the
@@ -1627,27 +1629,29 @@ class MirParser(object):
             if index_name not in arr1.dtype.names:
                 raise ValueError("index_name not a recognized field in either array.")
 
-            _, _, idx2 = np.intersect1d(
+            _, idx1, idx2 = np.intersect1d(
                 arr1[index_name], arr2[index_name], return_indices=True
             )
 
-        arr_sel = np.isin(np.arange(len(arr2)), idx2, invert=True)
-        return np.concatenate(arr1, arr2[arr_sel])
+        arr_sel = np.isin(np.arange(len(arr1)), idx1, invert=True)
+        result = np.concatenate(arr1[arr_sel], arr2)
 
-    def __add__(self, other_obj, reindex=True, overwrite=False, inplace=False):
+        if return_indices:
+            result = (result, arr_sel)
+
+        return result
+
+    def __add__(self, other_obj, overwrite=False, force=False, inplace=False):
         """Add two MirParser objects."""
+        if not isinstance(other_obj, MirParser):
+            raise ValueError(
+                "Cannot add a MirParser object an object of a different type."
+            )
+
         # First check that the metadata are compatible. First up, if we are _not_
         # permitted to adjust HID numbers in the file, make sure that we don't have
         # conflicting indicies.
         attr_index_dict = {
-            "_in_read": "inhid",
-            "_eng_read": "inhid",
-            "_bl_read": "blhid",
-            "_sp_read": "sphid",
-            "_we_read": "scanNumber",
-            "_codes_read": None,
-            "_antpos_read": "antenna",
-            "_ac_read": "achid",
             "in_data": "inhid",
             "eng_data": "inhid",
             "bl_data": "blhid",
@@ -1657,65 +1661,159 @@ class MirParser(object):
             "antpos_data": "antenna",
         }
 
-        attr_read_list = [
+        comp_list = [
             "_in_read",
             "_eng_read",
             "_bl_read",
             "_we_read",
             "_codes_read",
             "_antpos_read",
+            "_file_dict",
         ]
 
         if self._has_auto != other_obj._has_auto:
             warnings.warn("")
         elif self._has_auto:
-            attr_read_list.append("_ac_read")
+            comp_list.append("_ac_read")
+            attr_index_dict["ac_read"] = "achid"
 
-        # Check to see if we need to reindex, and if no, which items actually need
-        # reindexing.
-        if reindex:
-            reindex_list = []
-            # reindex_idx1 = []
-            # reindex_idx2 = []
-            for key, value in attr_index_dict.items():
-                if not MirParser._combine_read_arr_check(
-                    getattr(self, key), getattr(other_obj, key), index_name=value
-                ):
-                    reindex_list.append(key)
-            if reindex_list == []:
-                # There isn't anything to reindex - data sets have no conflicts. We can
-                # treat this as though it were an overwrite operation.
-                pass
-            else:
-                if "_antpos_read" in reindex_list:
-                    if overwrite:
-                        pass
-                    else:
-                        raise ValueError(
-                            "Antenna positions change between objects, which is not "
-                            "currently allowed for MirParser objects. Set "
-                            "overwrite=True to carry forward with only the antenna "
-                            "positions from the first object."
-                        )
-        else:
-            # If we are not reindexing, then we want to make sure that any overlapping
-            # data are identical.
-            for key, value in attr_index_dict.items():
-                if not MirParser._combine_read_arr_check(
-                    getattr(self, key), getattr(other_obj, key), index_name=value
-                ):
+        # First thing -- check that everything here appears to belong to the same file
+        force_list = []
+        for item in comp_list:
+            if not np.array_equal(getattr(self, item), getattr(self, item)):
+                force_list.append(item)
+
+        if force_list != []:
+            force_list = ", ".join(force_list)
+            if force:
+                if not (self._vis_data_loaded or self._raw_data_loaded):
                     raise ValueError(
-                        "Cannot combine objects due to an index conflict in %s. "
-                        "To continue, you must set reindex=True to allow for the "
-                        "index values to be recalculated." % key
+                        "Cannot combine objects with force=True when no vis or raw "
+                        "data gave been loaded. Run the `load_data` method on both "
+                        "objects (with the same arguments) to clear this error."
                     )
+                else:
+                    warnings.warn(
+                        "Objects here do not appear to be from the same file, but "
+                        "proceeding ahead since force=True (%s clashes)." % force_list
+                    )
+            else:
+                raise ValueError(
+                    "Objects appear to come from different files, based on "
+                    "differences in %s. You can use the `concat` method to combine "
+                    "data from different files, or if you can set force=True to "
+                    "forgo this check." % force_list
+                )
+
+        # Okay, so now we know that either the files are the same or otherwise we don't
+        # care. Now more on to the data arrays.
+        overwrite_list = []
+        for item, index in attr_index_dict.items():
+            if not MirParser._combine_read_arr_check(
+                getattr(self, item), getattr(other_obj, item), index_name=index
+            ):
+                overwrite_list.append(item)
+
+        if overwrite_list != []:
+            overwrite_list = ", ".join(overwrite_list)
+            if overwrite:
+                warnings.warn(
+                    "Data in objects appears to overlap, but with differing metadata. "
+                    "Proceeding since overwrite=True (%s overlaps)." % overwrite_list
+                )
+            else:
+                raise ValueError(
+                    "Objects appear to contain overlapping data, where the metadata "
+                    "differs in %s. This can be corrected by calling `load_data` on "
+                    "the individual objects to reload the metadata, or by setting "
+                    "overwrite=True, which will pull metadata from the second object "
+                    "in the add sequence." % overwrite_list
+                )
+
+        # One final check - see if we have the smae type of data loaded or not.
+        if self._vis_data_loaded != other_obj._vis_data_loaded:
+            raise ValueError(
+                "Cannot combine objects where one has vis data loaded and the other "
+                "does not. Run the `load_data` method on both objects (with the same "
+                "arguments) to clear this error."
+            )
+        elif self._vis_data_loaded:
+            # Does the data have the same normalization? If not, raise an error.
+            if self._tsys_applied != other_obj._tsys_applied:
+                raise ValueError(
+                    "Cannot combine objects where one has tsys normalization applied "
+                    "and the other does not. Run the `load_data` method on both "
+                    "objects (with the same arguments) to clear this error."
+                )
+
+        # Check if both have the same state for the raw data.
+        if self._raw_data_loaded != other_obj._raw_data_loaded:
+            raise ValueError(
+                "Cannot combine objects where one has raw data loaded and the other "
+                "does not. Run the `load_data` method on both objects (with the same "
+                "arguments) to clear this error."
+            )
+
+        # Finally, check if both have the same state for the raw data.
+        if self._auto_data_loaded != other_obj._auto_data_loaded:
+            raise ValueError(
+                "Cannot combine objects where one has auto data loaded and the other "
+                "does not. Run the `load_data` method on both objects (with the same "
+                "arguments) to clear this error."
+            )
 
         # Now that we know we are good to go, begin by either making a copy of
         # or pointing to the original object in question.
+        new_obj = self if inplace else self.copy()
 
         # Next merge the metadata
+        for item, index in attr_index_dict.items():
+            setattr(
+                new_obj,
+                item,
+                MirParser._combine_read_arr(
+                    getattr(self, item), getattr(other_obj, item), index_name=index
+                ),
+            )
 
-        # Finally, because of the size we need to handle
+        # Finally, since the various data arrays are stored as dicts, we can just
+        # update them here.
+        if new_obj.raw_data is not None:
+            new_obj.raw_data.update(other_obj.raw_data)
+
+        if new_obj.vis_data is not None:
+            new_obj.raw_data.update(other_obj.raw_data)
+
+        if new_obj.auto_data is not None:
+            new_obj.auto_data.update(other_obj.auto_data)
+
+        # Finally, we need to do a special bit of handling if we "forced" the two
+        # objects together. If we did, then we need to update the core attributes
+        # so that the *data and *_read arrays all agree.
+        if comp_list != []:
+            new_obj._file_dict = {}
+
+            new_obj._in_read = new_obj.in_data.copy()
+            new_obj._in_filter = np.ones(new_obj._in_read, dtype=bool)
+
+            new_obj._eng_read = new_obj.eng_data.copy()
+            new_obj._eng_filter = np.ones(new_obj._eng_read, dtype=bool)
+
+            new_obj._bl_read = new_obj.bl_data.copy()
+            new_obj._bl_filter = np.ones(new_obj._bl_read, dtype=bool)
+
+            new_obj._sp_read = new_obj.sp_data.copy()
+            new_obj._sp_filter = np.ones(new_obj._sp_read, dtype=bool)
+
+            new_obj._codes_read = new_obj.codes_data.copy()
+
+            new_obj._we_read = new_obj.we_data.copy()
+            new_obj._we_filter = np.ones(new_obj._we_read, dtype=bool)
+
+            new_obj._antpos_read = new_obj.antpos_data.copy()
+
+        if not inplace:
+            return new_obj
 
     def __iadd__(self, other_obj, reindex=True, overwrite=False):
         """Add two MirParser objects in place."""
