@@ -1223,6 +1223,29 @@ class MirParser(object):
         elif load_vis is None:
             load_vis = not load_raw
 
+        if self._file_dict == {}:
+            if load_raw:
+                if self._raw_data_loaded:
+                    warnings.warn(
+                        "No file to load from, and raw data is already loaded, "
+                        "skipping raw data load."
+                    )
+                else:
+                    self.raw_data = self.convert_vis_to_raw(self.vis_data)
+                    self._raw_data_loaded = True
+            if load_vis:
+                if self._vis_data_loaded:
+                    warnings.warn(
+                        "No file to load from, and vis data is already loaded, "
+                        "skipping vis data load."
+                    )
+                else:
+                    self.raw_data = self.convert_raw_to_vis(self.raw_data)
+                    self._vis_data_loaded = True
+                    if apply_tsys:
+                        self._apply_tsys()
+            return
+
         if load_vis or load_raw:
             vis_tuple = self.read_vis_data(
                 list(self._file_dict.keys()),
@@ -1264,6 +1287,11 @@ class MirParser(object):
 
     def unload_data(self):
         """Unload data from the MirParser object."""
+        if self._file_dict == {}:
+            raise ValueError(
+                "Cannot unload data as there is no file to load data from."
+            )
+
         if self.vis_data is not None:
             self.vis_data = None
         if self.raw_data is not None:
@@ -1819,8 +1847,14 @@ class MirParser(object):
         """Add two MirParser objects in place."""
         self.__add__(other_obj, reindex=reindex, overwrite=overwrite, inplace=True)
 
-    def select():
+    def select(self, reset=False):
         """Select data."""
+        if reset:
+            self._in_filter = np.ones(len(self._in_read), dtype=bool)
+            self._eng_filter = np.ones(len(self._eng_read), dtype=bool)
+            self._bl_filter = np.ones(len(self._bl_read), dtype=bool)
+            self._sp_filter = np.ones(len(self._sp_read), dtype=bool)
+            self._we_filter = np.ones(len(self._we_read), dtype=bool)
 
     @staticmethod
     def read_compass_gains():
