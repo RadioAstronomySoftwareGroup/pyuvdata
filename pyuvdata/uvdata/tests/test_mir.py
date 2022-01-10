@@ -13,8 +13,8 @@ import os
 
 import pytest
 import numpy as np
-import pyuvdata.tests as uvtest
 
+from ... import tests as uvtest
 from ... import UVData
 from ...data import DATA_PATH
 from ...uvdata.mir_parser import MirParser
