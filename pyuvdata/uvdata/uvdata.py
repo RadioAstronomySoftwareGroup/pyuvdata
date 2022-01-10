@@ -2413,7 +2413,7 @@ class UVData(UVBase):
             if self.future_array_shapes:
                 del new_shape[1]
 
-            # Use fill here, since we want zeros if we are working with nsample_array
+            # Use full here, since we want zeros if we are working with nsample_array
             # or data_array, otherwise we want True if working w/ flag_array.
             new_param = np.full(new_shape, name == "flag_array", dtype=param.dtype)
 
@@ -2444,7 +2444,7 @@ class UVData(UVBase):
 
         This is an internal helper function, which is not designed to be called by
         users, but rather individual read/write functions for the UVData object.
-        This will convert a regulat UVData object into one that uses flexible
+        This will convert a regular UVData object into one that uses flexible
         polarization, which allows for each spectral window to have its own unique
         polarization code, useful for storing data more compactly when different
         windows have different polarizations recorded. Note that at this time,
@@ -2482,6 +2482,9 @@ class UVData(UVBase):
         for idx, spw in enumerate(self.spw_array):
             spw_screen = self.flex_spw_id_array == spw
 
+            # For each window, we want to check that there is only one poalrization with
+            # any unflagged data, which we can do by seeing if not all of the flags
+            # are set across the non-polarization axes (hence the ~np.all()).
             if self.future_array_shapes:
                 pol_check = ~np.all(self.flag_array[:, spw_screen], axis=(0, 1))
             else:
@@ -2522,8 +2525,9 @@ class UVData(UVBase):
 
         # Now go through one-by-one with data-like parameters and update
         for name, param in zip(self._data_params, self.data_like_parameters):
-            # Use fill here, since we want zeros if we are working with nsample_array
-            # or data_array, otherwise we want True if working w/ flag_array.
+            # We can use empty here, since we know that we will be filling all
+            # values of his array (and empty allows us to forgo the extra overhead
+            # of setting all the elements to a particular value).
             new_param = np.empty(new_shape, dtype=param.dtype)
 
             # Now we have to iterate through each spectral window
