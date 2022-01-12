@@ -167,7 +167,7 @@ class Mir(UVData):
         )
 
         if len(np.unique(mir_data.bl_data["ipol"])) == 1 and (
-            np.sum([mir_data.codes_data["v_name"] == b"pol"]) == 4
+            len(mir_data.codes_dict["pol"]) == 4
         ):
             # If only one pol is found, and the polarization dictionary has only four
             # codes, then we actually need to verify this is a single pol observation,
@@ -225,11 +225,15 @@ class Mir(UVData):
 
         # Map MIR pol code to pyuvdata/AIPS polarization number
         pol_code_dict = {}
-        for code in mir_data.codes_data[mir_data.codes_data["v_name"] == b"pol"]:
-            pol_code_dict[code["icode"]] = uvutils.POL_STR2NUM_DICT[
-                code["code"].decode("UTF-8").lower()
-            ]
-
+        for key, (code, _) in mir_data.codes_dict["pol"].items():
+            # There are pol modes/codes that are support in MIR that are not in AIPS
+            # or CASA, although they are rarely used, so we can skip over translating
+            # them in the try/except loop here (if present in he data, it will throw
+            # an error further downstream).
+            try:
+                pol_code_dict[key] = uvutils.POL_STR2NUM_DICT[code.lower()]
+            except KeyError:
+                pass
         if pol_split_tuning and allow_flex_pol:
             # If we have a split tuning that, that means we can take advantage of
             # the flex-pol feature within UVData
@@ -574,21 +578,14 @@ class Mir(UVData):
 
         self.vis_units = "Jy"
 
-        sou_list = mir_data.codes_data[mir_data.codes_data["v_name"] == b"source"]
         isource = np.unique(mir_data.in_data["isource"])
-
-        name_list = [
-            sou_list[sou_list["icode"] == idx]["code"][0].decode("utf-8")
-            for idx in isource
-        ]
-
         for idx, sou_id in enumerate(isource):
             source_mask = mir_data.in_data["isource"] == sou_id
             source_ra = np.mean(mir_data.in_data["rar"][source_mask]).astype(float)
             source_dec = np.mean(mir_data.in_data["decr"][source_mask]).astype(float)
             source_epoch = np.mean(mir_data.in_data["epoch"][source_mask]).astype(float)
             self._add_phase_center(
-                name_list[idx],
+                mir_data.codes_dict["source"][sou_id][0],
                 cat_type="sidereal",
                 cat_lon=source_ra,
                 cat_lat=source_dec,

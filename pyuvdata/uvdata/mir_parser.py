@@ -955,7 +955,7 @@ class MirParser(object):
         sp_data,
         return_vis=True,
         return_raw=False,
-        use_mmap=False,
+        use_mmap=True,
     ):
         """
         Read "sch_read" mir file into a list of ndarrays. (@staticmethod).
@@ -1110,6 +1110,53 @@ class MirParser(object):
 
         return auto_data
 
+    @staticmethod
+    def make_codes_dict(codes_read):
+        """Make a codes dict."""
+        codes_dict = {}
+        for item in codes_read:
+            v_name = item["v_name"].decode("UTF-8")
+            try:
+                codes_dict[v_name][0].append(item["code"].decode("UTF-8"))
+                codes_dict[v_name][1].append(int(item["icode"]))
+                codes_dict[v_name][2].append(int(item["ncode"]))
+            except KeyError:
+                codes_dict[v_name] = [
+                    [item["code"].decode("UTF-8")],
+                    [int(item["icode"])],
+                    [int(item["ncode"])],
+                ]
+
+        for key in codes_dict.keys():
+            if len(codes_dict[key][0]) == 1 and (
+                codes_dict[key][1] == [0] and codes_dict[key][2] == [1]
+            ):
+                codes_dict[key] = codes_dict[key][0][0]
+            else:
+                codes_dict[key] = {
+                    idx: (code, ncode)
+                    for code, idx, ncode in zip(
+                        codes_dict[key][0], codes_dict[key][1], codes_dict[key][2]
+                    )
+                }
+
+        return codes_dict
+
+    @staticmethod
+    def make_codes_read(codes_dict):
+        """Makea codes_read array."""
+        codes_tuples = []
+        for key, value in codes_dict.items():
+            if isinstance(value, dict):
+                for subkey, subval in value.items():
+                    codes_tuples.append((key, subkey, subval[0], subval[1]))
+            else:
+                codes_tuples.append((key, 0, value, 1))
+
+        codes_read = np.array(codes_tuples, dtype=codes_dtype)
+
+        return codes_read
+
     def _update_filter(self, use_in=None, use_bl=None, use_sp=None, update_data=True):
         """
         Update MirClass internal filters for the data.
@@ -1172,6 +1219,7 @@ class MirParser(object):
         self.bl_data = self._bl_read[self._bl_filter]
         self.sp_data = self._sp_read[self._sp_filter]
         self.codes_data = self._codes_read.copy()
+        self.codes_dict = self.make_codes_dict(self._codes_read)
         self.we_data = self._we_read[self._we_filter]
         self.antpos_data = self._antpos_read.copy()
 
@@ -1198,7 +1246,7 @@ class MirParser(object):
         load_raw=None,
         load_auto=False,
         apply_tsys=True,
-        use_mmap=False,
+        use_mmap=True,
     ):
         """
         Load visibility data into MirParser class.
@@ -1285,24 +1333,23 @@ class MirParser(object):
             )
             self._auto_data_loaded = True
 
-    def unload_data(self):
+    def unload_data(self, unload_vis=True, unload_raw=True, unload_auto=True):
         """Unload data from the MirParser object."""
         if self._file_dict == {}:
             raise ValueError(
                 "Cannot unload data as there is no file to load data from."
             )
 
-        if self.vis_data is not None:
+        if unload_vis:
             self.vis_data = None
-        if self.raw_data is not None:
+            self._vis_data_loaded = False
+            self._tsys_applied = False
+        if unload_raw:
             self.raw_data = None
-        if self.auto_data is not None:
+            self._raw_data_loaded = False
+        if unload_auto:
             self.auto_data = None
-
-        self._vis_data_loaded = False
-        self._tsys_applied = False
-        self._raw_data_loaded = False
-        self._auto_data_loaded = False
+            self._auto_data_loaded = False
 
     def _apply_tsys(self, jypk=130.0):
         """
@@ -1503,7 +1550,9 @@ class MirParser(object):
         self.write_bl_data(filepath, self.bl_data, append_data=append_data)
         self.write_sp_data(filepath, self.sp_data, append_data=append_data)
         self.write_codes_data(
-            filepath, self.codes_data, append_data=(append_data and append_codes)
+            filepath,
+            self.make_codes_read(self.codes_dict),
+            append_data=(append_data and append_codes),
         )
         self.write_we_data(filepath, self.we_data, append_data=append_data)
         self.write_antennas(filepath, self.antpos_data)
@@ -1685,7 +1734,6 @@ class MirParser(object):
             "bl_data": "blhid",
             "sp_data": "sphid",
             "we_data": "scanNumber",
-            "codes_data": None,
             "antpos_data": "antenna",
         }
 
@@ -1741,6 +1789,11 @@ class MirParser(object):
                 getattr(self, item), getattr(other_obj, item), index_name=index
             ):
                 overwrite_list.append(item)
+
+        # Since codes_dict is a dict (as the name implies), we handle it specially
+        # outside of the above loop.
+        if self.codes_dict != other_obj.codes_dict:
+            overwrite_list.append("codes_dict")
 
         if overwrite_list != []:
             overwrite_list = ", ".join(overwrite_list)
@@ -1804,6 +1857,9 @@ class MirParser(object):
                 ),
             )
 
+        # Again. handle the codes dict special here.
+        new_obj.codes_dict.update(other_obj.codes_dict)
+
         # Finally, since the various data arrays are stored as dicts, we can just
         # update them here.
         if new_obj.raw_data is not None:
@@ -1833,7 +1889,7 @@ class MirParser(object):
             new_obj._sp_read = new_obj.sp_data.copy()
             new_obj._sp_filter = np.ones(new_obj._sp_read, dtype=bool)
 
-            new_obj._codes_read = new_obj.codes_data.copy()
+            new_obj._codes_read = MirParser.make_codes_read(new_obj.codes_dict)
 
             new_obj._we_read = new_obj.we_data.copy()
             new_obj._we_filter = np.ones(new_obj._we_read, dtype=bool)
@@ -1843,21 +1899,93 @@ class MirParser(object):
         if not inplace:
             return new_obj
 
-    def __iadd__(self, other_obj, reindex=True, overwrite=False):
+    def __iadd__(self, other_obj, overwrite=False, force=False):
         """Add two MirParser objects in place."""
-        self.__add__(other_obj, reindex=reindex, overwrite=overwrite, inplace=True)
+        self.__add__(other_obj, overwrite=overwrite, force=force, inplace=True)
 
-    def select(self, reset=False):
+    @staticmethod
+    def concat(obj_list, force=True):
+        """Concat multiple MirParser objects together."""
+        comp_list = [
+            "_in_read",
+            "_eng_read",
+            "_bl_read",
+            "_we_read",
+            "_codes_read",
+            "_antpos_read",
+            "_file_dict",
+        ]
+
+        auto_check = obj_list[0]._has_auto
+        raise_warning = True
+        for idx, obj1 in enumerate(obj_list):
+            if not isinstance(obj1, MirParser):
+                raise ValueError("Can only concat MirParser objects.")
+            if obj1._has_auto != auto_check:
+                raise ValueError(
+                    "Cannot combine objects both with and without auto-correlation "
+                    "data. When reading data from file, must keep _has_auto set "
+                    "consistently between file reads."
+                )
+            if obj1._file_dict == {}:
+                raise ValueError(
+                    "Cannot concat objects without an associated file (this is caused "
+                    "by adding objects together with force=True)."
+                )
+            for obj2 in obj_list[:idx]:
+                for item in comp_list:
+                    if not np.array_equal(getattr(obj1, item), getattr(obj2, item)):
+                        if not force:
+                            raise ValueError(
+                                "Two objects in the list appear to hold the same data. "
+                                "Verify that you don't have two objects that are "
+                                "loaded from the same file."
+                            )
+                        elif raise_warning:
+                            warnings.warn(
+                                "Objects may contain the same data, pushing forward "
+                                "anyways since force=False."
+                            )
+                            raise_warning = False
+
+    def select(
+        self,
+        select_list,
+        sel_in=None,
+        sel_bl=None,
+        sel_sp=None,
+        loaddata=True,
+        reset=False,
+    ):
         """Select data."""
         if reset:
-            self._in_filter = np.ones(len(self._in_read), dtype=bool)
-            self._eng_filter = np.ones(len(self._eng_read), dtype=bool)
-            self._bl_filter = np.ones(len(self._bl_read), dtype=bool)
-            self._sp_filter = np.ones(len(self._sp_read), dtype=bool)
-            self._we_filter = np.ones(len(self._we_read), dtype=bool)
+            use_in = np.ones(len(self._in_read), dtype=bool)
+            use_bl = np.ones(len(self._bl_read), dtype=bool)
+            use_sp = np.ones(len(self._sp_read), dtype=bool)
+        else:
+            use_in = self._in_filter.copy()
+            use_bl = self._bl_filter.copy()
+            use_sp = self._sp_filter.copy()
+
+            for item, jtem in zip([use_in, use_bl, use_sp], [sel_in, sel_bl, sel_sp]):
+                if jtem is not None:
+                    submask = np.zeros(sum(item), dtype=bool)
+                    submask[jtem] = True
+                    item[item] = submask
+
+        self._update_filter(
+            use_in=use_in, use_bl=use_bl, use_sp=use_sp, update_data=loaddata,
+        )
+
+    def redoppler_data():
+        """Re-doppler the data, FOR POWER."""
 
     @staticmethod
     def read_compass_gains():
+        """Read COMPASS-formatted gains."""
+        pass
+
+    def appy_compass_gains():
         """Read COMPASS-formatted gains."""
         pass
 
@@ -1866,5 +1994,6 @@ class MirParser(object):
         """Read COMPASS-formatted flags."""
         pass
 
-    def redoppler_data():
-        """Re-doppler the data, FOR POWER."""
+    def apply_compass_flags():
+        """Read COMPASS-formatted flags."""
+        pass
