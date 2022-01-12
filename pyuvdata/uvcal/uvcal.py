@@ -3774,10 +3774,10 @@ class UVCal(UVBase):
             for param in self._required_data_params:
                 uvparam = getattr(self, "_" + param)
                 expected_type = uvparam.expected_type
-                if isinstance(expected_type, tuple):
-                    dtype_use = expected_type[0]
-                else:
-                    dtype_use = expected_type
+                # all data like params on UVCal have expected types that are tuples.
+                # since self is re-initialized at the start of this method, the user
+                # can't affect this, so don't need handling for non-tuples
+                dtype_use = expected_type[0]
                 setattr(
                     self,
                     param,
