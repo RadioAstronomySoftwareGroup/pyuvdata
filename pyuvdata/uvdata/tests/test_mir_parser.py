@@ -112,7 +112,7 @@ def test_mir_remember_me_record_lengths(mir_data):
     """
     Mir record length checker
 
-    Make sure the test file containts the right number of records
+    Make sure the test file contains the right number of records
     """
     # Check to make sure we've got the right number of records everywhere
 

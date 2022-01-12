@@ -908,7 +908,7 @@ class MirParser(object):
         """
         # Create a dictionary here to map antenna pair + integration time step with
         # a sqrt(tsys) value. Note that the last index here is the receiver number,
-        # which techically has a diffenret keyword under which the system temperatures
+        # which techically has a different keyword under which the system temperatures
         # are stored.
         tsys_dict = {
             (idx, jdx, 0): tsys ** 0.5

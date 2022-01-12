@@ -588,7 +588,7 @@ class MS(UVData):
         # per-timestamp, per-antenna entry
         times = np.asarray(
             [
-                Time(t, format="jd", scale="utc").mjd * 3600.0 * 24.0
+                Time(t, format="jd", scale="utc").mjd * 86400.0
                 for t in np.unique(self.time_array)
             ]
         )
@@ -1143,7 +1143,7 @@ class MS(UVData):
         # is MJD UTC seconds, versus JD UTC days for UVData.
         time_array, time_ind = np.unique(self.time_array, return_inverse=True)
         # TODO: Verify this should actually be UTC, and not some other scale
-        time_array = (Time(time_array, format="jd", scale="utc").mjd * 3600.0 * 24.0)[
+        time_array = (Time(time_array, format="jd", scale="utc").mjd * 86400.0)[
             time_ind
         ]
 
