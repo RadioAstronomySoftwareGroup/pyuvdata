@@ -191,7 +191,7 @@ class Mir(UVData):
 
         pol_split_tuning = False
         if len(pol_dict) == 2:
-            # If dual-pol, then we need to check if the tunings are spilt, because
+            # If dual-pol, then we need to check if the tunings are split, because
             # the two polarizations will effectively be concat'd across the freq
             # axis instead of the pol axis.
             rxa_mask = np.logical_and(
@@ -223,7 +223,7 @@ class Mir(UVData):
             Npols = 1
             polarization_array = np.array([0])
         else:
-            # Otherwise, calculate dimentions and arrays for the polarization axis
+            # Otherwise, calculate dimensions and arrays for the polarization axis
             # like normal.
             Npols = len(set(pol_dict.values()))
             polarization_array = np.zeros(Npols, dtype=int)
@@ -354,7 +354,10 @@ class Mir(UVData):
         for key in spdx_dict:
             spdx_dict[key]["ch_slice"] = spw_dict[spdx_dict[key]["spw_id"]]["ch_slice"]
 
-        # Load up the visibilities into the MirParser object.
+        # Load up the visibilities into the MirParser object. The array is shaped this
+        # way since when reading in a MIR file, we scan through the blt-axis the
+        # slowest and the freq-axis the fastest (i.e., the data is roughly ordered by
+        # blt, pol, freq).
         vis_data = np.zeros((Nblts, Npols, Nfreqs), dtype=np.complex64)
         mir_data.load_data(load_vis=True)
         mir_data._apply_tsys()
@@ -421,16 +424,26 @@ class Mir(UVData):
         self.history = "Raw Data"
         self.instrument = "SWARM"
 
-        # Let's try to chalk up all the per-sp stuff here, eh?
-        sp_to_blt = ["igq", "ipq", "flags", "vradcat"]
+        # Before proceeding, we want to check that information that's stored on a
+        # per-spectral record basis (sphid) is consistent across a given baseline-time
+        # (n.b., blhid changes on sideband and polarization, so multiple blhids
+        # correspond to a single baseline-time). We need to do this check here since
+        # pyuvdata handles this metadata on a per-baseline-time basis (and there's no
+        # good reason it should vary on a per-sphid basis).
+        sp_to_blt = ["igq", "ipq", "vradcat"]
         sp_temp_dict = {}
         suppress_warning = False
         for sp_rec in mir_data.sp_data:
+            # Evaluate each spectral records metadata individually, and create a simple
+            # dict that contains the metadata we want to check.
             temp_dict = {item: sp_rec[item] for item in sp_to_blt}
             try:
+                # If we have already captured metadata about this baseline-time, check
+                # to make sure that it agrees with the previous entires.
                 if sp_temp_dict[blhid_blt_order[sp_rec["blhid"]]] != temp_dict:
-                    # We only want to throw this warning once -- no sense in flooding
-                    # the user with errors they can't do much about.
+                    # If the entry does NOT agree with what was previously given,
+                    # warn the user, and update the record (we only want to warn once
+                    # to avoid flooding the user with error messages).
                     if not suppress_warning:
                         warnings.warn(
                             "Per-spectral window metadata differ. Defaulting to using "
@@ -439,20 +452,38 @@ class Mir(UVData):
                         suppress_warning = True
                     sp_temp_dict[blhid_blt_order[sp_rec["blhid"]]] = temp_dict
             except KeyError:
+                # If we get a key error, it means this is the first record to be
+                # evaluated for this given baseline-time, so create a new dict
+                # entry so that subseqent sphid records can be evaluated.
                 sp_temp_dict[blhid_blt_order[sp_rec["blhid"]]] = temp_dict
 
-        # Let's try to chalk up all the per-sp stuff here, eh?
+        # Next step: we want to check that information that's stored on a per-baseline
+        # record basis (blhid) is consistent across a given baseline-time (n.b., again,
+        # blhid changes on sideband and polarization, so multiple blhids correspond to
+        # a single baseline-time). We need to do this check here since pyuvdata handles
+        # this metadata on a per-baseline-time basis.
         bl_to_blt = ["u", "v", "w", "iant1", "iant2"]
-        in_to_blt = ["lst", "mjd", "ara", "adec", "isource", "rinteg"]
 
+        # Note that these are entries that vary per-integration record (inhid), but
+        # we include them here so that we can easily expand the per-integration data
+        # to the per-baseline-time length arrays that UVData expects.
+        in_to_blt = ["lst", "mjd", "ara", "adec", "isource", "rinteg"]
         blt_temp_dict = {}
         suppress_warning = False
         for idx, bl_rec in enumerate(mir_data.bl_data):
+            # Evaluate each spectral records metadata individually, and create a simple
+            # dict that contains the metadata we want to check.
             temp_dict = {item: bl_rec[item] for item in bl_to_blt}
             in_rec = mir_data.in_data[bl_in_maparr[idx]]
+
+            # Update the dict with the per-inhid data as well.
             temp_dict.update({item: in_rec[item] for item in in_to_blt})
+
+            # Finally, fold in the originally per-sphid data that we checked above.
             temp_dict.update(sp_temp_dict[blhid_blt_order[bl_rec["blhid"]]])
             try:
+                # If we have already captured metadata about this baseline-time, check
+                # to make sure that it agrees with the previous entires.
                 if blt_temp_dict[blhid_blt_order[bl_rec["blhid"]]] != temp_dict:
                     # Again, if we reach this point, only raise a warning one time
                     if not suppress_warning:
@@ -463,8 +494,12 @@ class Mir(UVData):
                         suppress_warning = True
                     blt_temp_dict[blhid_blt_order[bl_rec["blhid"]]] = temp_dict
             except KeyError:
+                # If we get a key error, it means this is the first record to be
+                # evaluated for this given baseline-time, so create a new dict
+                # entry so that subseqent blhid records can be evaluated.
                 blt_temp_dict[blhid_blt_order[bl_rec["blhid"]]] = temp_dict
 
+        # Initialize the metadata arrays.
         integration_time = np.zeros(Nblts, dtype=float)
         lst_array = np.zeros(Nblts, dtype=float)
         mjd_array = np.zeros(Nblts, dtype=float)
@@ -475,9 +510,12 @@ class Mir(UVData):
         app_ra = np.zeros(Nblts, dtype=float)
         app_dec = np.zeros(Nblts, dtype=float)
 
+        # Use the per-blt dict that we constructed above to populate the various
+        # metadata arrays that we need for constructing the UVData object.
         for blt_key in blt_temp_dict.keys():
             temp_dict = blt_temp_dict[blt_key]
             integration_time[blt_key] = temp_dict["rinteg"]
+            # TODO: Using MIR V3 convention for lst, will need make it V2 compatible.
             lst_array[blt_key] = temp_dict["lst"] * (np.pi / 12.0)  # Hours -> rad
             mjd_array[blt_key] = temp_dict["mjd"]
             ant_1_array[blt_key] = temp_dict["iant1"]
@@ -489,16 +527,13 @@ class Mir(UVData):
             app_ra[blt_key] = temp_dict["ara"]
             app_dec[blt_key] = temp_dict["adec"]
 
+        # Finally, assign arrays to arributed
         self.ant_1_array = ant_1_array
         self.ant_2_array = ant_2_array
         self.baseline_array = self.antnums_to_baseline(
             self.ant_1_array, self.ant_2_array, attempt256=False
         )
-
-        # We can just skip an appropriate number of records
         self.integration_time = integration_time
-
-        # TODO: Using MIR V3 convention, will need to be V2 compatible eventually.
         self.lst_array = lst_array
         self.time_array = Time(mjd_array, scale="tt", format="mjd").utc.jd
 
@@ -570,6 +605,9 @@ class Mir(UVData):
         self.filename = [os.path.basename(basename)]
         self._filename.form = (1,)
 
+        # We call transpose here since vis_data above is shape (Nblts, Npols, Nfreqs),
+        # and we need to get it to (Nblts, 1, Nfreqs, Npols) to match what UVData
+        # expects.
         self.data_array = np.transpose(vis_data, (0, 2, 1))[:, np.newaxis, :, :]
         self.flag_array = np.zeros(self.data_array.shape, dtype=bool)
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.float32)

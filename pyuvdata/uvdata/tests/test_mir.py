@@ -461,7 +461,7 @@ def test_inconsistent_sp_records(mir_data, uv_in_ms):
     sma_mir, _, _ = uv_in_ms
 
     mir_data.use_sp = mir_data.sp_read["iband"] != 0
-    mir_data.sp_read["flags"][1] = True
+    mir_data.sp_read["ipq"][1] = 0
     mir_data.load_data()
 
     with uvtest.check_warnings(UserWarning, "Per-spectral window metadata differ."):

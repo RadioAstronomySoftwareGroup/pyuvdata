@@ -11516,7 +11516,7 @@ class UVData(UVBase):
             "flexible polarization", which compresses the polarization-axis of various
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window. Only applicable
-            for MIR and MS filetypes, otherwise this argument is ignord. Default is
+            for MIR and MS filetypes, otherwise this argument is ignored. Default is
             True.
 
         Raises
@@ -12465,7 +12465,7 @@ class UVData(UVBase):
             "flexible polarization", which compresses the polarization-axis of various
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window. Only applicable
-            for MIR and MS filetypes, otherwise this argument is ignord. Default is
+            for MIR and MS filetypes, otherwise this argument is ignored. Default is
             True.
 
         Raises
