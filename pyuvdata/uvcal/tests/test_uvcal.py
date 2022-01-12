@@ -3134,6 +3134,8 @@ def test_init_from_uvdata_delay(
         if flex_spw:
             spw_array = uvc2.spw_array
         else:
+            # check that it works with 1d array for one spw
+            freq_range = np.squeeze(uvc2.freq_range)
             spw_array = None
     else:
         freq_range = None
