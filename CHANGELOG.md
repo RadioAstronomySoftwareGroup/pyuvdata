@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- An option to `UVData.reorder_blts` to sort the autos before the crosses.
 - Added new functionality to `UVData.check` to verify that auto-correlations are real-only,
 along with an option to force them to be real-only if non-zero imaginary components are detected.
 
