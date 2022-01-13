@@ -4170,22 +4170,24 @@ class UVData(UVBase):
         Parameters
         ----------
         order : str or array_like of int
-            A string describing the desired order along the blt axis.
-            Options are: `time`, `baseline`, `ant1`, `ant2`, `bda` or an
+            A string describing the desired order along the blt axis or an
             index array of length Nblts that specifies the new order.
+            If a string, the options are: `time`, `baseline`, `ant1`, `ant2`, `bda`.
             If this is `time`, `baseline`, `ant1`, `ant2` then this will be the
             slowest changing index.
         minor_order : str
-            Optionally specify a secondary ordering. Default depends on how
-            order is set: if order is 'time', this defaults to `baseline`,
+            Optionally specify a secondary ordering.
+            Default depends on how order is set:
+            if order is 'time', this defaults to `baseline`,
             if order is `ant1`, or `ant2` this defaults to the other antenna,
-            if order is `baseline` the only allowed value is `time`. Ignored if
-            order is `bda` If this is the same as order, it is reset to the default.
-            If this is `time`, `baseline`, `ant1`, `ant2` then this will be the
-            next slowest changing index.
+            if order is `baseline` the only allowed value is `time`.
+            Ignored if order is `bda` or an integer array.
+            If this is the same as order, it is reset to the default.
+            This will be the next slowest changing index.
         autos_first : bool
             If True, sort the autos before all the crosses. The autos and crosses will
-            each be sorted according to the order and minor order keywords.
+            each be sorted according to the order and minor order keywords. Ignored if
+            order is an integer array.
         conj_convention : str or array_like of int
             Optionally conjugate baselines to make the baselines have the
             desired orientation. See conjugate_bls for allowed values and details.
@@ -4286,7 +4288,7 @@ class UVData(UVBase):
         if autos_first:
             # find the auto indices
             auto_inds = np.nonzero(self.ant_1_array == self.ant_2_array)[0]
-            cross_inds = np.nonzero(self.ant_1_array == self.ant_2_array)[0]
+            cross_inds = np.nonzero(self.ant_1_array != self.ant_2_array)[0]
             inds_use_list = [auto_inds, cross_inds]
         else:
             inds_use_list = [np.arange(self.Nblts)]
@@ -4294,6 +4296,8 @@ class UVData(UVBase):
         if not isinstance(order, np.ndarray):
             index_array = []
             for inds_use in inds_use_list:
+                if inds_use.size == 0:
+                    continue
                 # Use lexsort to sort along different arrays in defined order.
                 if order == "time":
                     arr1 = self.time_array[inds_use]
@@ -4343,9 +4347,11 @@ class UVData(UVBase):
 
                 # lexsort uses the listed arrays from last to first
                 # (so the primary sort is on the last one)
-                index_array.extend(np.lexsort((arr3, arr2, arr1)))
+                index_array.extend(inds_use[np.lexsort((arr3, arr2, arr1))].tolist())
         else:
             index_array = order
+
+        index_array = np.asarray(index_array, dtype=int)
 
         # actually do the reordering
         self.ant_1_array = self.ant_1_array[index_array]
