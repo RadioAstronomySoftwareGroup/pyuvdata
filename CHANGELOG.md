@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.2.6] - 2022-01-12
+
 ### Added
 - A new attribute to `UVData` called `flex_spw_polarization_array`, of type=int and shape=(`Nspws`,),
   which allows for individual spectral windows to carry different polarization data.
