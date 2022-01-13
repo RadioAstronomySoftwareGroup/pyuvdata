@@ -11,6 +11,7 @@ import numpy as np
 import os
 import copy
 import warnings
+from collections.abc import Collection
 
 __all__ = ["MirParser"]
 
@@ -1456,7 +1457,7 @@ class MirParser(object):
 
         # This indexes the "main" file that contains all the visibilities, to make
         # it faster to read in the data
-        self._file_dict = {filepath: self.scan_int_start(filepath)}
+        self._file_dict = {os.path.abspath(filepath): self.scan_int_start(filepath)}
         self.filepath = filepath
 
         self._has_auto = has_auto
@@ -1947,6 +1948,13 @@ class MirParser(object):
                                 "anyways since force=False."
                             )
                             raise_warning = False
+
+    def _parse_select(self, read_arr, select_arg):
+        """Parse a select argument."""
+        if isinstance(select_arg, str):
+            pass
+        elif isinstance(select_arg, Collection):
+            pass
 
     def select(
         self,

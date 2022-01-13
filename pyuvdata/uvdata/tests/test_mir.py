@@ -376,8 +376,8 @@ def test_inconsistent_sp_records(mir_data, sma_mir):
     """
     Test that the MIR object does the right thing w/ inconsistent meta-data.
     """
-    mir_data.use_sp = mir_data.sp_read["iband"] != 0
-    mir_data.sp_read["ipq"][1] = 0
+    mir_data._update_filter(use_sp=(mir_data._sp_read["iband"] != 0))
+    mir_data.sp_data["ipq"][1] = 0
     mir_data.load_data()
 
     with uvtest.check_warnings(UserWarning, "Per-spectral window metadata differ."):
