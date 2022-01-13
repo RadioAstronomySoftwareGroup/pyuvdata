@@ -1469,7 +1469,8 @@ b) Sorting along the baseline-time axis
 The :meth:`~pyuvdata.UVData.reorder_blts` method will reorder the baseline-time axis by
 sorting by ``'time'``, ``'baseline'``, ``'ant1'`` or ``'ant2'`` or according to an order
 preferred for data that have baseline dependent averaging ``'bda'``. A user can also
-just specify a desired order by passing an array of baseline-time indices.
+just specify a desired order by passing an array of baseline-time indices. There is also
+an option to sort the auto visibilitiess before the cross visibilities (``autos_first``).
 
 .. code-block:: python
 
