@@ -22,50 +22,39 @@ from ...uvdata.mir import Mir
 
 
 @pytest.fixture(scope="session")
-def mir_data():
+def sma_mir_filt_main():
+    # read in test file for the resampling in time functions
+    uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    mir_data = MirParser(
-        testfile, load_vis=True, load_raw=True, load_auto=True,
-    )
+    uv_object.read(testfile, pseudo_cont=True, corrchunk=0)
 
-    yield mir_data
+    uv_object.flag_array[:, :, : uv_object.Nfreqs // 2, 0] = True
+    uv_object.flag_array[:, :, uv_object.Nfreqs // 2 :, 1] = True
+    uv_object.set_lsts_from_time_array()
+    uv_object._set_app_coords_helper()
 
-
-@pytest.fixture
-def uv_in_ms(tmp_path):
-    write_file = os.path.join(tmp_path, "outtest_mir.ms")
-    uv_out = UVData()
-
-    yield uv_out, write_file
+    yield uv_object
 
 
-@pytest.fixture
-def uv_in_uvfits(tmp_path):
-    write_file = os.path.join(tmp_path, "outtest_mir.uvfits")
+@pytest.fixture(scope="function")
+def sma_mir_filt(sma_mir_filt_main):
+    # read in test file for the resampling in time functions
+    uv_object = sma_mir_filt_main.copy()
 
-    uv_out = UVData()
-
-    yield uv_out, write_file
-
-
-@pytest.fixture
-def uv_in_uvh5(tmp_path):
-    write_file = os.path.join(tmp_path, "outtest_mir.uvh5")
-    uv_out = UVData()
-
-    yield uv_out, write_file
+    yield uv_object
 
 
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_read_mir_write_uvfits(sma_mir, uv_in_uvfits, future_shapes):
+def test_read_mir_write_uvfits(sma_mir, tmp_path, future_shapes):
     """
     Mir to uvfits loopback test.
 
     Read in Mir files, write out as uvfits, read back in and check for
     object equality.
     """
-    uvfits_uv, testfile = uv_in_uvfits
+    testfile = os.path.join(tmp_path, "outtest_mir.uvfits")
+    uvfits_uv = UVData()
 
     if future_shapes:
         sma_mir.use_future_array_shapes()
@@ -143,7 +132,7 @@ def test_read_mir_write_uvfits(sma_mir, uv_in_uvfits, future_shapes):
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_read_mir_write_ms(sma_mir, uv_in_ms, future_shapes):
+def test_read_mir_write_ms(sma_mir, tmp_path, future_shapes):
     """
     Mir to uvfits loopback test.
 
@@ -151,7 +140,8 @@ def test_read_mir_write_ms(sma_mir, uv_in_ms, future_shapes):
     object equality.
     """
     pytest.importorskip("casacore")
-    ms_uv, testfile = uv_in_ms
+    testfile = os.path.join(tmp_path, "outtest_mir.ms")
+    ms_uv = UVData()
 
     if future_shapes:
         sma_mir.use_future_array_shapes()
@@ -202,14 +192,15 @@ def test_read_mir_write_ms(sma_mir, uv_in_ms, future_shapes):
 
 
 @pytest.mark.filterwarnings("ignore:LST values stored ")
-def test_read_mir_write_uvh5(sma_mir, uv_in_uvh5):
+def test_read_mir_write_uvh5(sma_mir, tmp_path):
     """
     Mir to uvfits loopback test.
 
     Read in Mir files, write out as uvfits, read back in and check for
     object equality.
     """
-    uvh5_uv, testfile = uv_in_uvh5
+    testfile = os.path.join(tmp_path, "outtest_mir.uvh5")
+    uvh5_uv = UVData()
 
     sma_mir.write_uvh5(testfile)
     uvh5_uv.read_uvh5(testfile)
@@ -401,12 +392,10 @@ def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
     assert ms_uv.__eq__(mir_uv, allowed_failures=["filename"])
 
 
-def test_inconsistent_sp_records(mir_data, uv_in_ms):
+def test_inconsistent_sp_records(mir_data, sma_mir):
     """
     Test that the MIR object does the right thing w/ inconsistent meta-data.
     """
-    sma_mir, _, _ = uv_in_ms
-
     mir_data.use_sp = mir_data.sp_read["iband"] != 0
     mir_data.sp_read["ipq"][1] = 0
     mir_data.load_data()
@@ -420,12 +409,10 @@ def test_inconsistent_sp_records(mir_data, uv_in_ms):
     assert mir_uv == sma_mir
 
 
-def test_inconsistent_bl_records(mir_data, uv_in_ms):
+def test_inconsistent_bl_records(mir_data, sma_mir):
     """
     Test that the MIR object does the right thing w/ inconsistent meta-data.
     """
-    sma_mir, _, _ = uv_in_ms
-
     mir_data.use_sp = mir_data.sp_read["iband"] != 0
     mir_data.bl_read["u"][0] = 0.0
     mir_data.load_data()

@@ -52,7 +52,6 @@ def test_mir_parser_index_linked(mir_data):
     inhid_set = set(np.unique(mir_data.in_read["inhid"]))
 
     # Should not exist is has_auto=False
-    # See `mir_data_object` above.
     if mir_data.ac_read is not None:
         assert set(np.unique(mir_data.ac_read["inhid"])).issubset(inhid_set)
     else:

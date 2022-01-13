@@ -3366,6 +3366,7 @@ def test_uvcalibrate_wideband_gain(uvcalibrate_data):
         uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band cals")
