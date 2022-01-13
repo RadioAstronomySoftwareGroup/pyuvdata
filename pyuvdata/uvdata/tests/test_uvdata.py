@@ -3004,6 +3004,7 @@ def test_reorder_blts(casa_uvfits, future_shapes, multi_phase_center):
         [{"order": "time"}, {"order": "time", "minor_order": "baseline"}],
         [{}, {"order": np.arange(1360)}],  # casa_uvfits already in default order
         [{"order": "time"}, {"order": "time", "conj_convention": "ant1<ant2"}],
+        [{"autos_first": True}, {"autos_first": False}],  # No autos in this file
     ],
 )
 def test_reorder_blts_equiv(casa_uvfits, args1, args2, future_shapes, multi_phase):
@@ -3055,11 +3056,27 @@ def test_reorder_blts_equiv(casa_uvfits, args1, args2, future_shapes, multi_phas
         ],
     ],
 )
-def test_reorder_blts_sort_order(hera_uvh5, order, m_order, check_tuple, check_attr):
-    hera_uvh5.reorder_blts(order=order, minor_order=m_order)
+@pytest.mark.parametrize("autos_first", [True, False])
+def test_reorder_blts_sort_order(
+    hera_uvh5, order, m_order, check_tuple, check_attr, autos_first
+):
+    hera_uvh5.reorder_blts(order=order, minor_order=m_order, autos_first=autos_first)
     assert hera_uvh5.blt_order == check_tuple
-    for item in check_attr:
-        assert np.all(np.diff(getattr(hera_uvh5, item)) >= 0)
+    if isinstance(order, str) and autos_first:
+        auto_inds = np.nonzero(hera_uvh5.ant_1_array == hera_uvh5.ant_2_array)[0]
+        cross_inds = np.nonzero(hera_uvh5.ant_1_array != hera_uvh5.ant_2_array)[0]
+
+        assert np.max(auto_inds) < np.min(cross_inds)
+        for item in check_attr:
+            attr_arr = getattr(hera_uvh5, item)
+            attr_auto = attr_arr[: np.min(cross_inds)]
+            attr_cross = attr_arr[np.min(cross_inds) :]
+            assert np.all(np.diff(attr_auto) >= 0)
+            assert np.all(np.diff(attr_cross) >= 0)
+
+    else:
+        for item in check_attr:
+            assert np.all(np.diff(getattr(hera_uvh5, item)) >= 0)
 
 
 @pytest.mark.parametrize(
