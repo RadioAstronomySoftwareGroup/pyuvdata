@@ -620,16 +620,6 @@ class Mir(UVData):
         self.flag_array = np.zeros(self.data_array.shape, dtype=bool)
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.float32)
 
-        if run_check:
-            self.check(
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
-                strict_uvw_antpos_check=strict_uvw_antpos_check,
-                allow_flip_conj=True,
-                check_autos=check_autos,
-                fix_autos=fix_autos,
-            )
-
     def write_mir(self, filename):
         """
         Write out the SMA MIR files.

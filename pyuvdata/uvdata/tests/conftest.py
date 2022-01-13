@@ -50,23 +50,6 @@ def casa_uvfits(casa_uvfits_main):
 
 
 @pytest.fixture(scope="session")
-def mir_data_main():
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    mir_data = MirParser(
-        testfile, load_vis=True, load_raw=True, load_auto=True, has_auto=True,
-    )
-
-    yield mir_data
-
-
-@pytest.fixture(scope="function")
-def mir_data(mir_data_main):
-    mir_data = mir_data_main.copy()
-
-    yield mir_data
-
-
-@pytest.fixture(scope="session")
 def hera_uvh5_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
@@ -116,21 +99,7 @@ def paper_miriad(paper_miriad_main):
     del uv_in
 
 
-@pytest.fixture(params=[True, False])
-def mir_data_object(request):
-    """Make MIR data object for tests. Param to read autocorr data."""
-    has_auto = request.param
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    mir_data = MirParser(
-        testfile, load_vis=True, load_raw=True, load_auto=True, has_auto=has_auto
-    )
-
-    yield mir_data
-
-    # cleanup
-    del mir_data
-
-
+@pytest.fixture(scope="session")
 def sma_mir_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
@@ -146,3 +115,20 @@ def sma_mir(sma_mir_main):
     uv_object = sma_mir_main.copy()
 
     yield uv_object
+
+
+@pytest.fixture(scope="session")
+def mir_data_main():
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    mir_data = MirParser(
+        testfile, load_vis=True, load_raw=True, load_auto=True, has_auto=True,
+    )
+
+    yield mir_data
+
+
+@pytest.fixture(scope="function")
+def mir_data(mir_data_main):
+    mir_data = mir_data_main.copy()
+
+    yield mir_data
