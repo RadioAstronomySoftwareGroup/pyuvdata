@@ -12,6 +12,7 @@ import os
 import copy
 import warnings
 from collections.abc import Collection
+import h5py
 
 __all__ = ["MirParser"]
 
@@ -551,7 +552,7 @@ class MirParser(object):
                 )
 
     @staticmethod
-    def scan_int_start(filepath):
+    def scan_int_start(filepath, allowed_inhid=None):
         """
         Read "sch_read" mir file into a python dictionary (@staticmethod).
 
@@ -566,23 +567,33 @@ class MirParser(object):
             Dictionary containing the indexes from sch_read.
         """
         full_filepath = os.path.join(filepath, "sch_read")
+
         file_size = os.path.getsize(full_filepath)
+        data_offset = 0
+        last_offset = 0
+        int_start_dict = {}
         with open(full_filepath, "rb") as visibilities_file:
-            data_offset = 0
-            last_offset = 0
-            int_start_dict = {}
             while data_offset < file_size:
                 int_vals = np.fromfile(
                     visibilities_file,
                     dtype=np.dtype([("inhid", np.int32), ("nbyt", np.int32)]),
                     count=1,
                     offset=last_offset,
-                )
-                int_start_dict[int_vals["inhid"][0]] = (
-                    int_vals["nbyt"][0],
+                )[0]
+
+                if allowed_inhid is not None:
+                    if not int_vals["inhid"] in allowed_inhid:
+                        raise ValueError(
+                            "Index value inhid in sch_read does not match list of "
+                            "allowed indices. The list of allowed values for inhid may "
+                            "be incomplete, or sch_read may have become corrupted in "
+                            "some way."
+                        )
+                int_start_dict[int_vals["inhid"]] = (
+                    int_vals["nbyt"],
                     data_offset,
                 )
-                last_offset = int_vals["nbyt"][0]
+                last_offset = int_vals["nbyt"]
                 data_offset += last_offset + 8
 
         return int_start_dict
@@ -1215,13 +1226,13 @@ class MirParser(object):
         self._we_filter = we_filter
         self._ac_filter = ac_filter
 
-        self.in_data = self._in_read[self._in_filter]
-        self.eng_data = self._eng_read[self._eng_filter]
-        self.bl_data = self._bl_read[self._bl_filter]
-        self.sp_data = self._sp_read[self._sp_filter]
+        self.in_data = self._in_read[in_filter]
+        self.eng_data = self._eng_read[eng_filter]
+        self.bl_data = self._bl_read[bl_filter]
+        self.sp_data = self._sp_read[sp_filter]
         self.codes_data = self._codes_read.copy()
         self.codes_dict = self.make_codes_dict(self._codes_read)
-        self.we_data = self._we_read[self._we_filter]
+        self.we_data = self._we_read[we_filter]
         self.antpos_data = self._antpos_read.copy()
 
         # Handle the autos specially, since they are not always scanned/loaded
@@ -1421,7 +1432,13 @@ class MirParser(object):
         self._tsys_applied = True
 
     def fromfile(
-        self, filepath, has_auto=False, load_vis=False, load_raw=False, load_auto=False,
+        self,
+        filepath,
+        has_auto=False,
+        load_vis=False,
+        load_raw=False,
+        load_auto=False,
+        metadata_only=False,
     ):
         """
         Read in all files from a mir data set into predefined numpy datatypes.
@@ -1456,8 +1473,14 @@ class MirParser(object):
         self._antpos_read = self.read_antennas(filepath)  # Antenna positions
 
         # This indexes the "main" file that contains all the visibilities, to make
-        # it faster to read in the data
-        self._file_dict = {os.path.abspath(filepath): self.scan_int_start(filepath)}
+        # it faster to read in the data. Only need this if we want to read in more
+        # than just the metadata.
+        if not metadata_only:
+            self._file_dict = {
+                os.path.abspath(filepath): self.scan_int_start(
+                    filepath, allowed_inhid=self._in_read["inhid"],
+                )
+            }
         self.filepath = filepath
 
         self._has_auto = has_auto
@@ -1496,6 +1519,7 @@ class MirParser(object):
         load_vis=False,
         load_raw=False,
         load_auto=False,
+        metadata_only=False,
     ):
         """
         Read in all files from a mir data set into predefined numpy datatypes.
@@ -1525,6 +1549,7 @@ class MirParser(object):
                 load_vis=load_vis,
                 load_raw=load_raw,
                 load_auto=load_auto,
+                metadata_only=metadata_only,
             )
 
     def tofile(self, filepath, append_data=False, append_codes=False, load_data=False):
@@ -1986,22 +2011,61 @@ class MirParser(object):
         )
 
     def redoppler_data():
-        """Re-doppler the data, FOR POWER."""
+        """
+        Re-doppler the data, FOR POWER.
 
-    @staticmethod
-    def read_compass_gains():
+        Note that this function may be moved out into utils module once UVData objects
+        are capable of carrying Doppler tracking-related information.
+        """
+        pass
+
+    def parse_compass_solns(self, filename):
+        """Read COMPASS-formatted gains and flags."""
+        with h5py.File(filename, "r") as file:
+            mjd_compass = np.array(file["mjdArr"][0])
+            flags_compass = np.array(file["flagArr"])
+
+            spw_dict = {}
+
+            mjd_mir = self._in_read["mjd"]
+            inhid_arr = self._in_read["inhid"]
+            flags_compass = np.array(file["flagArr"])
+
+            inhid_dict = {}
+            atol = 0.5 / 86400
+            for mjd, inhid in zip(mjd_mir, inhid_arr):
+                idx_check = np.where(np.isclose(mjd, mjd_compass, atol=atol))[0]
+                inhid_dict[inhid] = None if (len(idx_check) == 0) else idx_check[0]
+
+            blhid_dict = {
+                blhid: idx for idx, blhid in enumerate(self._bl_read["blhid"])
+            }
+
+            sp_bl_map = [blhid_dict[blhid] for blhid in self._sp_read["blhid"]]
+
+            inhid_arr = self._sp_read["inhid"]
+            sphid_arr = self._sp_read["sphid"]
+            sb_arr = self._bl_read["isb"][sp_bl_map]
+            rx1_arr = self._bl_read["ant1rx"][sp_bl_map]
+            rx2_arr = self._bl_read["ant2rx"][sp_bl_map]
+            blcd_arr = self._bl_read["iblcd"][sp_bl_map]
+            ant1_arr = self._bl_read["iant2"][sp_bl_map]
+            ant2_arr = self._bl_read["iant2"][sp_bl_map]
+            chunk_arr = self._sp_read["corrchunk"]
+
+            flag_dict = {}
+            for sphid, inhid, blcd, rx1, rx2, sb, chunk in zip(
+                sphid_arr, inhid_arr, blcd_arr, rx1_arr, rx2_arr, sb_arr, chunk_arr
+            ):
+                indx = inhid_dict[inhid]
+                if indx is None:
+                    flag_dict[sphid] = None
+                    continue
+
+                spw_idx = spw_dict[(rx1, rx2, sb, chunk)]
+                if spw_idx == 1:
+                    return ant1_arr, ant2_arr, flags_compass
+
+    def apply_compass_solns():
         """Read COMPASS-formatted gains."""
-        pass
-
-    def appy_compass_gains():
-        """Read COMPASS-formatted gains."""
-        pass
-
-    @staticmethod
-    def read_compass_flags():
-        """Read COMPASS-formatted flags."""
-        pass
-
-    def apply_compass_flags():
-        """Read COMPASS-formatted flags."""
         pass
