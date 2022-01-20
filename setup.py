@@ -10,8 +10,8 @@ import platform
 from setuptools import setup, Extension, find_namespace_packages
 
 import numpy
-from distutils.sysconfig import get_config_var
-from distutils.version import LooseVersion
+from sysconfig import get_config_var
+from packaging.version import parse
 from Cython.Build import cythonize
 
 # add pyuvdata to our path in order to use the branch_scheme function
@@ -38,9 +38,9 @@ def is_platform_windows():
 # implementation based on pandas, see https://github.com/pandas-dev/pandas/issues/23424
 if is_platform_mac():
     if "MACOSX_DEPLOYMENT_TARGET" not in os.environ:
-        current_system = LooseVersion(platform.mac_ver()[0])
-        python_target = LooseVersion(get_config_var("MACOSX_DEPLOYMENT_TARGET"))
-        if python_target < "10.9" and current_system >= "10.9":
+        current_system = parse(platform.mac_ver()[0])
+        python_target = parse(get_config_var("MACOSX_DEPLOYMENT_TARGET"))
+        if python_target < parse("10.9") and current_system >= parse("10.9"):
             os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
 
 # define the cython compile args, depending on platform
