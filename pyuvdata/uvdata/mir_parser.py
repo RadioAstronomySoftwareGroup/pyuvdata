@@ -1987,7 +1987,7 @@ class MirParser(object):
         sel_in=None,
         sel_bl=None,
         sel_sp=None,
-        loaddata=True,
+        loaddata=None,
         reset=False,
     ):
         """Select data."""
@@ -2010,6 +2010,237 @@ class MirParser(object):
             use_in=use_in, use_bl=use_bl, use_sp=use_sp, update_data=loaddata,
         )
 
+    def parse_compass_solns(self, filename):
+        """Read COMPASS-formatted gains and flags."""
+        # Before
+        blhid_dict = {blhid: idx for idx, blhid in enumerate(self._bl_read["blhid"])}
+        sp_bl_map = [blhid_dict[blhid] for blhid in self._sp_read["blhid"]]
+
+        sphid_dict = {}
+        for sphid, inhid, ant1, rx1, ant2, rx2, sb, chunk in zip(
+            self._sp_read["sphid"],
+            self._sp_read["inhid"],
+            self._bl_read["iant1"][sp_bl_map],
+            self._bl_read["ant1rx"][sp_bl_map],
+            self._bl_read["iant2"][sp_bl_map],
+            self._bl_read["ant2rx"][sp_bl_map],
+            self._bl_read["isb"][sp_bl_map],
+            self._sp_read["corrchunk"],
+        ):
+            sphid_dict[(inhid, ant1, rx1, ant2, rx2, sb, chunk)] = sphid
+
+        compass_soln_dict = {}
+        bandpass_gains = {}
+        with h5py.File(filename, "r") as file:
+            # First, pull out the bandpass solns
+            ant_arr = np.array(file["antArr"][0])
+            rx_arr = np.array(file["rx1Arr"][0])
+            sb_arr = np.array(file["sbArr"][0])
+            chunk_arr = np.array(file["winArr"][0])
+            bp_arr = np.array(file["bandpassArr"])
+
+            for idx, ant in enumerate(ant_arr):
+                for jdx, rx, sb, chunk in enumerate(zip(rx_arr, sb_arr, chunk_arr)):
+                    cal_data = bp_arr[idx, jdx]
+                    cal_flags = (cal_data == 0.0) | ~np.isfinite(cal_data)
+                    cal_data[cal_flags] = 1.0
+                    bandpass_gains[(ant, rx, sb, chunk)] = {
+                        "cal_data": cal_data,
+                        "cal_flags": cal_flags,
+                    }
+
+            compass_soln_dict["bandpass_gains"] = bandpass_gains
+
+            # Now, we can move on to flags. Note that COMPASS doesn't have access to
+            # the integration header IDs, so we have to do a little bit of matching
+            # based on the timestamp of the data in COMPASS vs MIR (via the MJD).
+            mjd_compass = np.array(file["mjdArr"][0])
+            mjd_mir = self._in_read["mjd"]
+            inhid_arr = self._in_read["inhid"]
+
+            index_dict = {}
+            atol = 0.5 / 86400
+            for idx, mjd in enumerate(mjd_compass):
+                check = np.where(np.isclose(mjd, mjd_mir, atol=atol))[0]
+                index_dict[idx] = None if (len(check) == 0) else inhid_arr[check[0]]
+
+            flags_arr = np.array(file["flagArr"])
+            wflags_arr = np.array(file["wideFlagArr"])
+            ant1_arr = np.array(file["ant1Arr"][0])
+            rx1_arr = np.array(file["rx1Arr"][0])
+            ant2_arr = np.array(file["ant2Arr"][0])
+            rx2_arr = np.array(file["rx2Arr"][0])
+            sb_arr = np.array(file["sbArr"][0])
+            chunk_arr = np.array(file["winArr"][0])
+
+            wide_flags = {}
+            for idx, rx1, rx2, sb, chunk in enumerate(
+                zip(rx1_arr, rx2_arr, sb_arr, chunk_arr)
+            ):
+                for jdx, ant1, ant2 in enumerate(zip(ant1_arr, ant2_arr)):
+                    wide_flags[(ant1, rx1, ant2, rx2, sb, chunk)] = wflags_arr[idx, jdx]
+
+            # Now we
+            sphid_flags = {}
+            for idx, inhid in index_dict.items():
+                if inhid is None:
+                    continue
+                for jdx, rx1, rx2, sb, chunk in enumerate(
+                    zip(rx1_arr, rx2_arr, sb_arr, chunk_arr)
+                ):
+                    for kdx, ant1, ant2 in enumerate(zip(ant1_arr, ant2_arr)):
+                        try:
+                            sphid = sphid_dict[(inhid, ant1, rx1, ant2, rx2, sb, chunk)]
+                            sphid_flags[sphid] = flags_arr[idx, jdx, kdx]
+                        except KeyError:
+                            # If we don't have a match for the entry, that's okay,
+                            # since this may just be a subset of the data that COMPASS
+                            # processed for the track. In this case, discard the flags.
+                            pass
+
+            if len(sphid_flags) == 0:
+                # If we don't have _any_ flags recorded, raise a warning, since this
+                # might be an indicator that we've selected the wrong set of solns.
+                warnings.warn(
+                    "No metadata from COMPASS matches that in this data set. Verify "
+                    "that the COMPASS solutions are in fact for this set of data."
+                )
+
+        return compass_soln_dict
+
+    def apply_compass_solns(self, compass_soln_dict, apply_flags=True, apply_bp=True):
+        """Read COMPASS-formatted gains."""
+        # Let's assume that COMPASS is magical. BECAUSE IT IS!
+
+        # If the data isn't loaded, there really isn't anything to do.
+        if not self._vis_data_loaded:
+            raise ValueError(
+                "Visibility data must be loaded in order to apply COMPASS solns. Run "
+                "`load_data(load_vis=True)` to fix this issue."
+            )
+
+        # Before we do anything else, we want to be able to map certain entires that
+        # are per-blhid to be per-sphid.
+        sp_bl_map = [self._blhid_dict[blhid] for blhid in self.sp_data["blhid"]]
+
+        # Now grab all of the metadata we want for processing the spectral records
+        sphid_arr = self.sp_data["sphid"]  # Spectral window header ID
+        ant1_arr = self.bl_data["iant1"][sp_bl_map]  # Ant 1 Number
+        rx1_arr = self.bl_data["ant1rx"][sp_bl_map]  # Pol for Ant 1 | 0 : X/L , 1: Y/R
+        ant2_arr = self.bl_data["iant2"][sp_bl_map]  # Ant 2 Number
+        rx2_arr = self.bl_data["ant2rx"][sp_bl_map]  # Pol for Ant 2 | 0 : X/L , 1: Y/R
+        chunk_arr = self.bl_data["corrchunk"]  # Correlator window number
+        sb_arr = self.bl_data["isb"][sp_bl_map]  # Sidebad ID | 0 : LSB, 1 : USB
+
+        # In case we need it for "dummy" gains solutions, tabulate how many channels
+        # there are in each spectral window, remembering that spectral windows can
+        # vary depending on which polarization we are looking at (determined by the
+        # values in rx1 and rx2).
+        chunk_size_dict = {
+            (sb, chunk, rx1, rx2): nch
+            for sb, chunk, rx1, rx2, nch in zip(
+                sb_arr, chunk_arr, rx1_arr, rx2_arr, self.sp_data["nch"]
+            )
+        }
+
+        if apply_bp:
+            # Let's grab the bandpass solns upfront before we iterate through
+            # all of the individual spectral records.
+            bp_compass = compass_soln_dict["bandpass_gains"]
+
+            for sphid, sb, ant1, rx1, ant2, rx2, chunk in zip(
+                sphid_arr, sb_arr, ant1_arr, rx1_arr, ant2_arr, rx2_arr, chunk_arr
+            ):
+                # Create an empty dictionary here for calculating the solutions for
+                # individual receiver pairs within different spectral windows. We'll
+                # be basically calcuating the gains solns on an "as needed" basis.
+                bp_soln = {}
+
+                try:
+                    # If we have calculated the bandpass soln before, grab it now.
+                    cal_soln = bp_soln[(ant1, rx1, ant2, rx2, chunk, sb)]
+                except KeyError:
+                    # If we haven't calculated the bandpass soln for this particular
+                    # pairing before, then we need to calculate it!
+                    try:
+                        # Attempt to lookup the solns for the first antenna in the pair
+                        ant1soln = bp_compass[(ant1, rx1, sb, chunk)]["cal_data"]
+
+                        # If we can't find a soln for the first antenna, then make
+                        # all the gains values equal to one and mark all the channels
+                        # as being flagged.
+                        ant1flags = bp_compass[(ant1, rx1, sb, chunk)]["cal_flags"]
+                    except KeyError:
+                        # If we can't find a soln for the first antenna, then make
+                        # all the gains values equal to one and mark all the channels
+                        # as being flagged.
+                        ant1soln = np.ones(
+                            chunk_size_dict[(sb, chunk, rx1, rx2)], dtype=np.complex64
+                        )
+                        ant1flags = np.ones(ant1soln.shape, dtype=bool)
+                    try:
+                        # Attempt to lookup the solns for the second antenna in the pair
+                        ant1soln = bp_compass[(ant1, rx1, sb, chunk)]["cal_data"]
+                        ant1flags = bp_compass[(ant1, rx1, sb, chunk)]["cal_flags"]
+                    except KeyError:
+                        # If we can't find a soln for the second antenna, then make
+                        # all the gains values equal to one and mark all the channels
+                        # as being flagged.
+                        ant2soln = np.ones(
+                            chunk_size_dict[(sb, chunk, rx1, rx2)], dtype=np.complex64
+                        )
+                        ant2flags = np.ones(ant1soln.shape, dtype=bool)
+
+                    # For each baseline, we can calculate the correction needed by
+                    # multipling the gains for ant1 by the complex conj of the gains
+                    # for antenna 2. Note that the convention for the gains solns in
+                    # COMPASS are set such that they need to be divided out. Division
+                    # is a more computationally expensive operation than multiplication,
+                    # so we take the reciprocal such that we can just multiply the
+                    # visibilities that gains solns we calculate here.
+                    cal_data = np.reciprocal(ant1soln * np.conj(ant2soln))
+
+                    # Flag the soln if either ant1 or ant2 solns are bad.
+                    cal_flags = ant1flags | ant2flags
+
+                    # Finally, construct our simple dict, and plug it back in to our
+                    # bookkeeping dict that we are using to record the solns.
+                    cal_soln = {"cal_data": cal_data, "cal_flags": cal_flags}
+                    bp_soln[(ant1, rx1, ant2, rx2, chunk, sb)] = cal_soln
+                finally:
+                    # One way or another, we should have a set of gains solutions that
+                    # we can apply now (flagging the data where appropriate).
+                    self.vis_data[sphid]["vis_data"] *= cal_soln["cal_data"]
+                    self.vis_data[sphid]["vis_flags"] += cal_soln["cal_flags"]
+
+        if apply_flags:
+            # For sake of reading/coding, let's assign assign the two catalogs of flags
+            # to their own variables, so that we can easily call them later.
+            sphid_flags = compass_soln_dict["sphid_flags"]
+            wide_flags = compass_soln_dict["wide_flags"]
+
+            for idx, sphid in enumerate(sphid_arr):
+                # Now we'll step through each spectral record that we have to process.
+                try:
+                    # If we have a flags entry for this sphid, then go ahead and apply
+                    # them to the flags table for that spectral record.
+                    self.vis_data[sphid]["vis_flags"] += sphid_flags[sphid]
+                except KeyError:
+                    # If no key is found, then we want to try and use the "broader"
+                    # flags to mask out the data that's associated with the given
+                    # antenna-receiver combination (for that sideband and spec window).
+                    # Note that if we do not have an entry here, something is amiss.
+                    self.vis_data[sphid]["vis_flags"] += wide_flags[
+                        (
+                            ant1_arr[idx],
+                            rx1_arr[idx],
+                            ant2_arr[idx],
+                            rx2_arr[idx],
+                            sb_arr[idx],
+                            chunk_arr[idx],
+                        )
+                    ]
+
     def redoppler_data():
         """
         Re-doppler the data, FOR POWER.
@@ -2017,55 +2248,4 @@ class MirParser(object):
         Note that this function may be moved out into utils module once UVData objects
         are capable of carrying Doppler tracking-related information.
         """
-        pass
-
-    def parse_compass_solns(self, filename):
-        """Read COMPASS-formatted gains and flags."""
-        with h5py.File(filename, "r") as file:
-            mjd_compass = np.array(file["mjdArr"][0])
-            flags_compass = np.array(file["flagArr"])
-
-            spw_dict = {}
-
-            mjd_mir = self._in_read["mjd"]
-            inhid_arr = self._in_read["inhid"]
-            flags_compass = np.array(file["flagArr"])
-
-            inhid_dict = {}
-            atol = 0.5 / 86400
-            for mjd, inhid in zip(mjd_mir, inhid_arr):
-                idx_check = np.where(np.isclose(mjd, mjd_compass, atol=atol))[0]
-                inhid_dict[inhid] = None if (len(idx_check) == 0) else idx_check[0]
-
-            blhid_dict = {
-                blhid: idx for idx, blhid in enumerate(self._bl_read["blhid"])
-            }
-
-            sp_bl_map = [blhid_dict[blhid] for blhid in self._sp_read["blhid"]]
-
-            inhid_arr = self._sp_read["inhid"]
-            sphid_arr = self._sp_read["sphid"]
-            sb_arr = self._bl_read["isb"][sp_bl_map]
-            rx1_arr = self._bl_read["ant1rx"][sp_bl_map]
-            rx2_arr = self._bl_read["ant2rx"][sp_bl_map]
-            blcd_arr = self._bl_read["iblcd"][sp_bl_map]
-            ant1_arr = self._bl_read["iant2"][sp_bl_map]
-            ant2_arr = self._bl_read["iant2"][sp_bl_map]
-            chunk_arr = self._sp_read["corrchunk"]
-
-            flag_dict = {}
-            for sphid, inhid, blcd, rx1, rx2, sb, chunk in zip(
-                sphid_arr, inhid_arr, blcd_arr, rx1_arr, rx2_arr, sb_arr, chunk_arr
-            ):
-                indx = inhid_dict[inhid]
-                if indx is None:
-                    flag_dict[sphid] = None
-                    continue
-
-                spw_idx = spw_dict[(rx1, rx2, sb, chunk)]
-                if spw_idx == 1:
-                    return ant1_arr, ant2_arr, flags_compass
-
-    def apply_compass_solns():
-        """Read COMPASS-formatted gains."""
         pass
