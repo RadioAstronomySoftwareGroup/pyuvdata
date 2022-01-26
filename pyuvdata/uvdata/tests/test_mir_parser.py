@@ -291,7 +291,7 @@ def test_mir_remember_me_bl_read(mir_data):
 
     assert np.all(mir_data._bl_read["spareint6"] == 0)
 
-    assert np.all(mir_data._bl_read["sparedbl3"] == 0.0)
+    assert np.all(mir_data._bl_read["wtave"] == 0.0)
 
     assert np.all(mir_data._bl_read["sparedbl4"] == 0.0)
 
@@ -407,9 +407,9 @@ def test_mir_remember_me_sp_read(mir_data):
 
     assert np.all(mir_data._sp_read["spareint6"] == 0)
 
-    assert np.all(mir_data._sp_read["sparedbl1"] == 0.0)
+    assert np.all(mir_data._sp_read["tssb"] == 0.0)
 
-    assert np.all(mir_data._sp_read["sparedbl2"] == 0.0)
+    assert np.all(mir_data._sp_read["fDDS"] == 0.0)
 
     assert np.all(mir_data._sp_read["sparedbl3"] == 0.0)
 
