@@ -11,195 +11,363 @@ import numpy as np
 import os
 import copy
 import warnings
-from collections.abc import Collection
 import h5py
 
 __all__ = ["MirParser"]
 
 # MIR structure definitions. Note that because these are all binaries, we need to
 # specify the endianness so that we don't potentially muck that on different machines
+
+# in_read is the per-integration header meta information.
 in_dtype = np.dtype(
     [
+        # Track id number, set to the Project ID (different from SMA Project Code)
         ("traid", np.int32),
+        # Integration header ID number
         ("inhid", np.int32),
+        # Scan number (usually same as inhid)
         ("ints", np.int32),
+        # Azimuth of target from array center (deg)
         ("az", np.float32),
+        # Elevation of target from array center (deg)
         ("el", np.float32),
+        # Hour angle of target at array center (hours)
         ("ha", np.float32),
+        # Time code (matched to ut in codes_read)
         ("iut", np.int16),
+        # Date code (matched to ref_time in codes_read)
         ("iref_time", np.int16),
+        # Avg time (in TT) at scan midpoint (hours)
         ("dhrs", np.float64),
+        # Radial velocity of target (catalog value, km/s)
         ("vc", np.float32),
+        # X-component of unit vector pointing towards source (from array center).
         ("sx", np.float64),
+        # Y-component of unit vector pointing towards source (from array center).
         ("sy", np.float64),
+        # Z-component of unit vector pointing towards source (from array center).
         ("sz", np.float64),
+        # Integration time of scan (seconds)
         ("rinteg", np.float32),
+        # Project ID Number
         ("proid", np.int32),
+        # Source ID number
         ("souid", np.int32),
+        # Source ID code (matched to source in codes_read)
         ("isource", np.int16),
+        # Radial velocity code (matched to vrad in codes_read)
         ("ivrad", np.int16),
+        # Offset in RA/Cross-Dec, used in mosaics (arcsec)
         ("offx", np.float32),
+        # Offset in Dec, used in mosaics (arcsec)
         ("offy", np.float32),
+        # Source RA Code (matched to ra in codes_read)
         ("ira", np.int16),
+        # Source Dec Code (matched to dec in codes_read)
         ("idec", np.int16),
+        # Catalog RA (radians)
         ("rar", np.float64),
+        # Catalog Dec (radians)
         ("decr", np.float64),
+        # Epoch value (Julian years, typically 2000.0)
         ("epoch", np.float32),
+        # Angular diameter of source (arcsec)
         ("size", np.float32),
+        # RA of velocity reference position (rad)
         ("vrra", np.float32),
+        # Dec of velocity reference position (rad)
         ("vrdec", np.float32),
+        # LAST at array center (hours)
         ("lst", np.float32),
+        # Project ID code (matched to projectid in codes_read)
         ("iproject", np.int16),
+        # Tile position of pointing (used sometimes in mosaics)
         ("tile", np.int16),
+        # Obs mode (bitwise flag, not used yet)
         ("obsmode", np.uint8),
+        # Obs flags (bitwise flag, not used yet)
         ("obsflag", np.uint8),
+        # Spare value, always 0
         ("spareshort", np.int16),
+        # Spare value, always 0
         ("spareint6", np.int32),
+        # RxA YIG Frequency, sometimes used for flagging (GHz)
         ("yIGFreq1", np.float64),
+        # RxB YIG Frequency, sometimes used for flagging (GHz)
         ("yIGFreq2", np.float64),
+        # Source flux, in known (Jy)
         ("sflux", np.float64),
+        # Apparent RA at array center (rad)
         ("ara", np.float64),
+        # Apparent Dec at array center (rad)
         ("adec", np.float64),
+        # Modified Julian Date (TT scale; days)
         ("mjd", np.float64),
     ]
 ).newbyteorder("little")
 
+# eng_read records the per-antenna, per-integration metadata. These data are not
+# typically used during data processing, but can be helpful in identifying bad or
+# otherwise suspect data.
 eng_dtype = np.dtype(
     [
+        # Antenna number, should match iant in bl_read
         ("antennaNumber", np.int32),
+        # Pad number that the antenna is sitting on
         ("padNumber", np.int32),
+        # Whether or not antenna was in the project (0 = offline, 1 = online)
         ("antennaStatus", np.int32),
+        # Whether or not antenna was tracking (0 = offline, 1 = online)
         ("trackStatus", np.int32),
+        # Whether or not antenna was online (0 = offline, 1 = online)
         ("commStatus", np.int32),
+        # Integration header ID
         ("inhid", np.int32),
+        # Scan number (usually same as inhid)
         ("ints", np.int32),
+        # Avg time (in TT) at scan midpoint (hours)
         ("dhrs", np.float64),
+        # Hour angle of target at antenna position (hours)
         ("ha", np.float64),
+        # LAST at antenna position (hours)
         ("lst", np.float64),
+        # Pointing model correction in Az for antenna (arcsec)
         ("pmdaz", np.float64),
+        # Pointing model correction in El for antenna (arcsec)
         ("pmdel", np.float64),
+        # Tilt measurement of antenna in the direction of antenna Azimuth (arcsec)
         ("tiltx", np.float64),
+        # Tilt measurement of antenna in the cross-direction of antenna Azimuth (arcsec)
         ("tilty", np.float64),
+        # Actual azimuth of the antenna (deg)
         ("actual_az", np.float64),
+        # Actual elevation of the antenna (deg)
         ("actual_el", np.float64),
+        # Pointing offset of the antenna in Az (arcsec)
         ("azoff", np.float64),
+        # Pointing offset of the antenna in El (arcsec)
         ("eloff", np.float64),
+        # RMS tracking error of the antenna in azimuth (arcsec)
         ("az_tracking_error", np.float64),
+        # RMS tracking error of the antenna in elevation (arcsec)
         ("el_tracking_error", np.float64),
+        # Estimated refraction for the antenna given weather conditions (arcsec)
         ("refraction", np.float64),
+        # Secondary x-position (left-right) relative to mount (mm)
         ("chopper_x", np.float64),
+        # Secondary y-position (up-down) relative to mount (mm)
         ("chopper_y", np.float64),
+        # Secondary z-position (toward-away) relative to mount (mm)
         ("chopper_z", np.float64),
+        # Secondary tilt angle relative to mount (arcsec)
         ("chopper_angle", np.float64),
+        # System temperature for RxA/rx1 for the antenna
         ("tsys", np.float64),
+        # System temperature for RxB/rx2 for the antenna
         ("tsys_rx2", np.float64),
+        # Ambient load temperature of the antenna
         ("ambient_load_temperature", np.float64),
     ]
 ).newbyteorder("little")
 
+# sp_read records the per-baseline, per-time record metadata.
 bl_dtype = np.dtype(
     [
+        # Baseline header ID
         ("blhid", np.int32),
+        # Integration header ID, matched in in_read
         ("inhid", np.int32),
+        # Sidebad code (matched to sb in codes_read; usually 0=LSB, 1=USB)
         ("isb", np.int16),
+        # Polariztion code (matched to pol in codes_read)
         ("ipol", np.int16),
+        # Ant1 receiver number (0 = RxA, 1 = RxB)
         ("ant1rx", np.int16),
+        # Ant2 receiver number (0 = RxA, 1 = RxB)
         ("ant2rx", np.int16),
+        # Pointing status (1 = offset pointing, 0 = target at pri beam center)
         ("pointing", np.int16),
+        # Reciever code (matched to rec in codes_read)
         ("irec", np.int16),
+        # u coordinate for the baseline (meters)
         ("u", np.float32),
+        # v coordinate for the baseline (meters)
         ("v", np.float32),
+        # w coordinate for the baseline (meters)
         ("w", np.float32),
+        # uv-distance for the baseline (meters)
         ("prbl", np.float32),
+        # Coherence of the baseline (not used, between 0 and 1)
         ("coh", np.float32),
+        # Avg time (in TT) at baseline-scan midpoint (hours)
         ("avedhrs", np.float64),
+        # Average amplitude across the baseline-sideband
         ("ampave", np.float32),
+        # Average phase across the baseline-sideband
         ("phaave", np.float32),
+        # Baseline number
         ("blsid", np.int32),
+        # Antenna number of the first ant in the baseline pair
         ("iant1", np.int16),
+        # Antenna number of the second ant in the baseline pair
         ("iant2", np.int16),
+        # Index position for tsys data of ant1 in tsys_read (not used)
         ("ant1TsysOff", np.int32),
+        # Index position for tsys data of ant2 in tsys_read (not used)
         ("ant2TsysOff", np.int32),
+        # Baseline code (matched to blcd in codes_read)
         ("iblcd", np.int16),
+        # East-west baseline length (meters)
         ("ble", np.float32),
+        # North-south baseline length (meters)
         ("bln", np.float32),
+        # Up-down baseline length (meters)
         ("blu", np.float32),
+        # Spare value, always 0
         ("spareint1", np.int32),
+        # Spare value, always 0
         ("spareint2", np.int32),
+        # Spare value, always 0
         ("spareint3", np.int32),
+        # Spare value, always 0
         ("spareint4", np.int32),
+        # Spare value, always 0
         ("spareint5", np.int32),
+        # Spare value, always 0
         ("spareint6", np.int32),
+        # Center freq for ampave, phaave (GHz)
         ("fave", np.float64),
+        # Bandwidth for ampave, phaave (MHz)
         ("bwave", np.float64),
-        ("sparedbl3", np.float64),
+        # Average weight for ampave, phaave (Jy**-2)
+        ("wtave", np.float64),
+        # Spare value, always 0
         ("sparedbl4", np.float64),
+        # Spare value, always 0
         ("sparedbl5", np.float64),
+        # Spare value, always 0
         ("sparedbl6", np.float64),
     ]
 ).newbyteorder("little")
 
+# sp_read records the per-spectral record (per-band, per-time, per-baseline) metadata.
 sp_dtype = np.dtype(
     [
+        # Spectral header ID number
         ("sphid", np.int32),
+        # Baseline header ID number, matched to entry in bl_read
         ("blhid", np.int32),
+        # Integration header ID number, matched to entry in in_read
         ("inhid", np.int32),
+        # Gain code (matched to gq in codes_read)
         ("igq", np.int16),
+        # Passband code (matched to pq in codes_read)
         ("ipq", np.int16),
+        # Band code (matched to band in codes_read, ususally equal to corrchunk)
         ("iband", np.int16),
+        # Polarization state code (matched to pstate in codes_read, not used)
         ("ipstate", np.int16),
+        # Opacity at 225 GHz (nepers)
         ("tau0", np.float32),
+        # Velocity at source restframe at band center (km/s)
         ("vel", np.float64),
+        # Velocity resolution at source restframe at band center (km/s)
         ("vres", np.float32),
+        # Sky frequency at band center (GHz)
         ("fsky", np.float64),
+        # Channel resolution (MHz)
         ("fres", np.float32),
+        # Gunn frequency (GHz)
         ("gunnLO", np.float64),
+        # Cabin BDA LO frequency (GHz, not used anymore)
         ("cabinLO", np.float64),
+        # Second downconverter frequency (GHz, not used anymore)
         ("corrLO1", np.float64),
+        # Final downconverter frequency (GHz)
         ("corrLO2", np.float64),
+        # Integration time for spw-baseline-scan (s)
         ("integ", np.float32),
+        # Weights for the spectral record (sec / tssb ** 2)
         ("wt", np.float32),
+        # Bitwise flagging for the spectral record (0 = good data, 0 != bad data)
         ("flags", np.int32),
+        # Catalog radial velocity of the source in the given frame (m/s)
         ("vradcat", np.float32),
+        # Number of channels in the spectral record
         ("nch", np.int16),
+        # Number of spectral records for this record -- always 1 (why does this exist?)
         ("nrec", np.int16),
+        # Index offset of the spectral record in sch_read
         ("dataoff", np.int32),
+        # Rest frequency of the source (GHz)
         ("rfreq", np.float64),
+        # Correlator block (0 = synthetic continuum; 1 = SWARM)
         ("corrblock", np.int16),
+        # Correlator chunk (spectral window number)
         ("corrchunk", np.int16),
+        # Correlator number (0 = ASIC; 1 = SWARM)
         ("correlator", np.int32),
+        # Spare value, always 0
         ("spareint2", np.int32),
+        # Spare value, always 0
         ("spareint3", np.int32),
+        # Spare value, always 0
         ("spareint4", np.int32),
+        # Spare value, always 0
         ("spareint5", np.int32),
+        # Spare value, always 0
         ("spareint6", np.int32),
-        ("sparedbl1", np.float64),
-        ("sparedbl2", np.float64),
+        # SSB tsys (K)
+        ("tssb", np.float64),
+        # DDS frequency offset on nominal Gunn LO (GHz)
+        ("fDDS", np.float64),
+        # Spare value, always 0
         ("sparedbl3", np.float64),
+        # Spare value, always 0
         ("sparedbl4", np.float64),
+        # Spare value, always 0
         ("sparedbl5", np.float64),
+        # Spare value, always 0
         ("sparedbl6", np.float64),
     ]
 ).newbyteorder("little")
+
+# codes_read is a special set of metadata, basically used for storing "everything else".
+# It is typically used for storing information that does not change over the course of
+# the track, although a few commonly used codes due vary integration by integration.
 
 codes_dtype = np.dtype(
     [("v_name", "S12"), ("icode", np.int16), ("code", "S26"), ("ncode", np.int16)]
 ).newbyteorder("little")
 
+# we_read records various weather data collected at the antennas, which is typically
+# used for refraction correction by online fringe tracking.
 we_dtype = np.dtype(
     [
+        # Scan number (should be equal to inhid)
         ("scanNumber", np.int32),
+        # Per-antenna flags, w/ bitwise flagging conditions
         ("flags", np.int32, 11),
+        # Refractivity (N = (n - 1) * 1e6)
         ("N", np.float32, 11),
+        # Ambient temperature measured at each antenna (C)
         ("Tamb", np.float32, 11),
+        # Air pressure measured at each antenna (mbar)
         ("pressure", np.float32, 11),
+        # Relative humidity measured at head antenna (%)
         ("humid", np.float32, 11),
+        # Wind speed measured at each antenna (m/s, -1 if no hardware)
         ("windSpeed", np.float32, 11),
+        # Wind direction measured at each antenna (rad, -1 if no hardward)
         ("windDir", np.float32, 11),
+        # Boresite PWV measured at each antenna (mm, -1 if no hardware)
         ("h2o", np.float32, 11),
     ]
 ).newbyteorder("little")
 
+# ac_read is _not_ something that is actually read in, but is instead a "helper"
+# data structure for recording some of the metadata associated with the auto
+# correlations. Because of this, the dtype below may change.
 ac_read_dtype = np.dtype(
     [
         ("inhid", np.int32),
@@ -1562,6 +1730,8 @@ class MirParser(object):
         append_data : bool
         append_codes : bool
         """
+        # TODO: Add comments
+        # TODO: Add docstring
         # If no directory exists, create one to write the data to
         if not os.path.isdir(filepath):
             os.makedirs(filepath)
@@ -1599,50 +1769,126 @@ class MirParser(object):
         )
 
     @staticmethod
-    def rechunk_vis(vis_dict, chan_avg_arr, inplace=False):
-        """Rechunk a single visibility spectrum."""
+    def _rechunk_vis(vis_dict, chan_avg_arr, inplace=False):
+        """
+        Rechunk regular visibility spectra.
+
+        Note this routine is not intended to be called by users, but instead is a
+        low-level call from the `rechunk` method of MirParser to spectrally average
+        data.
+
+        Parameters
+        ----------
+        vis_dict : dict
+            A dict containing visibility data, where the keys match to individual values
+            of `sphid` in `sp_data`, with each value being its own dict, with keys
+            "vis_data" (the visibility data, dtype=np.complex64) and "vis_flags"
+            (the flagging inforformation, dtype=bool).
+        chan_avg_arr : sequence of int
+            A list, array, or tuple of integers, specifying how many channels to
+            average over within each spectral record.
+        inplace : bool
+            If True, entries in `vis_dict` will be updated with spectrally averaged
+            data. If False (default), then the method will construct a new dict that
+            will contain the spectrally averaged data.
+
+        Returns
+        -------
+        new_vis_dict : dict
+            A dict containing the spectrally averaged data, in the same format as
+            that provided in `vis_dict`.
+        """
         new_vis_dict = vis_dict if inplace else {}
 
-        with np.errstate(divide="ignore"):
-            for chan_avg, (sphid, sp_vis) in zip(chan_avg_arr, vis_dict.items()):
-                # If there isn't anything to average, we can skip the heavy lifting
-                # and just proceed on to the next record.
-                if chan_avg == 1:
-                    if not inplace:
-                        new_vis_dict[sphid] = copy.deepcopy(sp_vis)
-                    continue
-                temp_count = np.sum(
-                    ~sp_vis["vis_flags"].reshape((-1, chan_avg)),
-                    axis=-1,
-                    dtype=np.float32,
-                )
+        for chan_avg, (sphid, sp_vis) in zip(chan_avg_arr, vis_dict.items()):
+            # If there isn't anything to average, we can skip the heavy lifting
+            # and just proceed on to the next record.
+            if chan_avg == 1:
+                if not inplace:
+                    new_vis_dict[sphid] = copy.deepcopy(sp_vis)
+                continue
 
-                temp_vis = np.where(
-                    temp_count,
-                    np.divide(
-                        sp_vis["vis_data"].reshape((-1, chan_avg)).sum(axis=-1),
-                        temp_count,
-                    ),
-                    np.complex64(0),
-                )
+            # Otherwise, we need to first get a handle on which data is "good"
+            # for spectrally averaging over.
+            good_mask = ~sp_vis["vis_flags"].reshape((-1, chan_avg))
 
-                new_vis_dict[sphid] = {
-                    "vis_data": temp_vis,
-                    "vis_flags": temp_count == 0,
-                }
+            # We need to count the number of valid visibilities that goes into each
+            # new channel, so that we can normalize apporpriately later. Note we cast
+            # to float32 here, since the data are complex64 (and so there's no extra
+            # casting required, but we get the benefit of only mutiplyng real-only and
+            # complex data).
+            temp_count = good_mask.sum(axis=-1, dtype=np.float32)
+
+            # Need to mask out when we have no counts, since it'll produce a divide
+            # by zero error. As an added bonus, this will let us zero out any channels
+            # without any valid visilibies.
+            temp_count = np.reciprocal(
+                temp_count, where=(temp_count != 0), out=temp_count
+            )
+
+            # Now take the sum of all valid visibilities, multiplied by the
+            # normalization factor.
+            temp_vis = (
+                sp_vis["vis_data"].reshape((-1, chan_avg)).sum(where=good_mask, axis=-1)
+                * temp_count
+            )
+
+            # Finally, plug the spectrally averaged data back into the dict
+            new_vis_dict[sphid] = {
+                "vis_data": temp_vis,
+                "vis_flags": temp_count == 0,  # Flag channels with no valid data
+            }
 
         return vis_dict
 
     @staticmethod
-    def rechunk_raw(raw_dict, chan_avg_arr, inplace=False):
-        """Rechunk a raw visibility spectrum."""
+    def _rechunk_raw(raw_dict, chan_avg_arr, inplace=False):
+        """
+        Rechunk a raw visibility spectrum.
+
+        Note this routine is not intended to be called by users, but instead is a
+        low-level call from the `rechunk` method of MirParser to spectrally average
+        data.
+
+        Parameters
+        ----------
+        raw_dict : dict
+            A dict containing raw visibility data, where the keys match to individual
+            values of `sphid` in `sp_data`, with each value being its own dict, with
+            keys "raw_data" (the raw visibility data, dtype=np.int16) and "scale_fac"
+            (scale factor to multiply raw data by , dtype=np.int16).
+        chan_avg_arr : sequence of int
+            A list, array, or tuple of integers, specifying how many channels to
+            average over within each spectral record.
+        inplace : bool
+            If True, entries in `raw_dict` will be updated with spectrally averaged
+            data. If False (default), then the method will construct a new dict that
+            will contain the spectrally averaged data.
+
+        Returns
+        -------
+        new_raw_dict : dict
+            A dict containing the spectrally averaged data, in the same format as
+            that provided in `raw_dict`.
+
+        """
+        # If inplace, point our new dict to the old one, otherwise create
+        # an ampty dict to plug values into.
         new_raw_dict = raw_dict if inplace else {}
 
         for chan_avg, (sphid, sp_raw) in zip(chan_avg_arr, raw_dict.items()):
+            # If the number of channels to average is 1, then we just need to make
+            # a deep copy of the old data and plug it in to the new dict.
             if chan_avg == 1:
                 if not inplace:
                     new_raw_dict[sphid] = copy.deepcopy(sp_raw)
                 continue
+
+            # If we are _not_ skipping the spectral averaging, then it turns out to
+            # be faster to convert the raw data to "regular" data, spectrally average
+            # it, and then convert it back to the raw format. Note that we set up a
+            # "dummy" dict here with an sphid of 0 to make it easy to retrieve that
+            # entry after the sequence of calls.
             new_raw_dict[sphid] = MirParser.convert_vis_to_raw(
                 MirParser.rechunk_vis(
                     MirParser.convert_raw_to_vis({0: sp_raw}),
@@ -1651,13 +1897,20 @@ class MirParser(object):
                 )
             )[0]
 
+        # Finally, return the dict containing the raw data.
+        return new_raw_dict
+
     def rechunk(self, chan_avg):
         """Rechunk a MirParser object."""
-        pass
+        # TODO: Add comments
+        # TODO: Add docstring
+        # TODO: Flesh out this command, which should be used by users.
 
     @staticmethod
     def _combine_read_arr_check(arr1, arr2, index_name=None):
         """Do a thing."""
+        # TODO: Add comments
+        # TODO: Add docstring
         if arr1.dtype != arr2.dtype:
             raise ValueError("Both arrays must be of the same dtype.")
 
@@ -1700,6 +1953,8 @@ class MirParser(object):
         arr1, arr2, index_name=None, return_indices=False, overwrite=False
     ):
         """Do a thing."""
+        # TODO: Add comments
+        # TODO: Add docstring
         if overwrite:
             # If we are overwriting, then make sure that the two arrays are of the
             # same dtype before continuing.
@@ -1746,6 +2001,8 @@ class MirParser(object):
 
     def __add__(self, other_obj, overwrite=False, force=False, inplace=False):
         """Add two MirParser objects."""
+        # TODO: Put in docstring.
+        # TODO: Add a few more comments here.
         if not isinstance(other_obj, MirParser):
             raise ValueError(
                 "Cannot add a MirParser object an object of a different type."
@@ -1974,16 +2231,113 @@ class MirParser(object):
                             )
                             raise_warning = False
 
-    def _parse_select(self, read_arr, select_arg):
+    @staticmethod
+    def _parse_select_compare(select_field, select_comp, select_val, data_arr):
         """Parse a select argument."""
-        if isinstance(select_arg, str):
+        op_dict = {
+            "eq": lambda val, comp: np.isin(val, comp),
+            "ne": lambda val, comp: np.isin(val, comp, invert=True),
+            "btw": lambda val, lims: ((val >= lims[0]) and (val <= lims[1])),
+            "lt": np.less,
+            "le": np.less_equal,
+            "gt": np.greater,
+            "ge": np.greater_equal,
+        }
+
+        if select_comp not in op_dict.keys():
+            raise ValueError(
+                "select_comp must be one of: %s" % ", ".join(op_dict.keys())
+            )
+
+        return op_dict["select_comp"](data_arr[select_field], select_val)
+
+    def _parse_select(
+        self, select_field, select_comp, select_val, use_in, use_bl, use_sp
+    ):
+        # TODO: Check comments here
+        # TODO: Fill out case where codes dict needs to be parsed.
+        # TODO: Put in doc string.
+        if select_field in self.codes_dict.keys():
             pass
-        elif isinstance(select_arg, Collection):
+        elif select_field == "ant":
             pass
+
+        # Now is the time to get to the business of actually figuring out which data
+        # we need to grab. The exact action will depend on which data structure
+        # we need to select on.
+        if select_field in self.in_data.dtype.names:
+            # If this is a field in in_data, then we just need to update use_in
+            use_in[self._in_filter] = self._parse_select_compare(
+                select_field, select_comp, select_val, self.in_data,
+            )
+        elif select_field in self.bl_data.dtype.names:
+            # Same story for bl_data and use_bl
+            use_bl[self._bl_filter] = self._parse_select_compare(
+                select_field, select_comp, select_val, self.bl_data,
+            )
+        elif select_field in self.sp_data.dtype.names:
+            # And ditto for sp_data and use_sp
+            use_sp[self._sp_filter] = self._parse_select_compare(
+                select_field, select_comp, select_val, self.sp_data,
+            )
+        elif select_field in self.eng_data.dtype.names:
+            # We have to handle the engineering data a little differently, because most
+            # of the other metadata is per-baseline, but the eng data is all recorded
+            # per antenna. So first up, we need to check and see which data is about
+            # to be discarded by our selection
+            data_mask = self._parse_select_compare(
+                select_field, select_comp, select_val, self.eng_data,
+            )
+
+            # Need to run through the data tuple-by-tuple to see if a given ant-time
+            # pairing is good or not. We can either check if a given tuple is in the
+            # "allowed" set, or in the "disallowed" set -- pick which based on which
+            # results in the shortest list of tuples we need to compare to.
+            flip_mask = np.mean(data_mask) > 0.5
+            if flip_mask:
+                data_mask = ~data_mask
+
+            # Create the list of allowed/disallowed tuples to check against
+            check_items = [
+                (inhid, ant)
+                for inhid, ant in zip(
+                    self.eng_data["inhid"][data_mask],
+                    self.eng_data["antennaNumber"][data_mask],
+                )
+            ]
+
+            # Finally, evaluate entry-by-entry that each baseline is "allowed" or
+            # "disallowed" based on the antennas in the baseline pairing and the
+            # value in the integration index header number.
+            use_bl[self._bl_filter] = [
+                ((inhid, ant1) in check_items or (inhid, ant2) in check_items)
+                for inhid, ant1, ant2 in zip(
+                    self.bl_data["inhid"], self.bl_data["iant1"], self.bl_data["iant2"],
+                )
+            ]
+
+            # We want use_bl to return a boolean mask where True means that the data
+            # are good, so if we "flipped" the mask earlier, we have the inverse of
+            # that -- fix this now.
+            if flip_mask:
+                use_bl[self._bl_filter] = ~use_bl[self._bl_filter]
+        elif select_field in self.we_data.dtype.names:
+            # We currently are not parsing on the weather data, since it contains
+            # both array-wide and per-antenna information. Pass on this for now.
+            raise NotImplementedError(
+                "Selecting based on we_read data not yet supported."
+            )
+        else:
+            # If we didn't recognize the field in any dtype, throw an error now.
+            raise ValueError(
+                "Field name %s not recognized in any data structure." % select_field
+            )
 
     def select(
         self,
-        select_list,
+        select_field=None,
+        select_comp=None,
+        select_val=None,
         sel_in=None,
         sel_bl=None,
         sel_sp=None,
@@ -1991,28 +2345,97 @@ class MirParser(object):
         reset=False,
     ):
         """Select data."""
-        if reset:
-            use_in = np.ones(len(self._in_read), dtype=bool)
-            use_bl = np.ones(len(self._bl_read), dtype=bool)
-            use_sp = np.ones(len(self._sp_read), dtype=bool)
+        # TODO: Add docstring.
+        # TODO: Add more comments.
+        # If all we need to do is reset, then do that now
+        if select_field is None or select_comp is None or select_val is None:
+            select_args = [select_field, select_comp, select_val]
+            select_names = ["select_field", "select_comp", "select_val"]
+            for arg, name in zip(select_args, select_names):
+                if arg is not None:
+                    raise ValueError(
+                        "%s must be set if seeting other selection arguments based "
+                        "on field names in the data." % name
+                    )
         else:
-            use_in = self._in_filter.copy()
-            use_bl = self._bl_filter.copy()
-            use_sp = self._sp_filter.copy()
+            if not isinstance(select_field, str):
+                raise ValueError("select_field must be a string.")
+            if select_comp not in ["eq", "ne", "lt", "le", "gt", "ge", "btw"]:
+                raise ValueError(
+                    "select_comp must be one of 'eq', 'ne', 'lt', "
+                    "'le', 'gt', 'ge', or 'btw'."
+                )
+            if reset:
+                raise warnings.warn(
+                    "Resetting data selection, all other arguments are ignored."
+                )
 
+        if reset:
+            self.unload_data()
+            self._update_filter()
+            return
+
+        use_in = self._in_filter.copy()
+        use_bl = self._bl_filter.copy()
+        use_sp = self._sp_filter.copy()
+
+        if not ((sel_in is None) and (sel_bl is None) and (sel_sp is None)):
             for item, jtem in zip([use_in, use_bl, use_sp], [sel_in, sel_bl, sel_sp]):
                 if jtem is not None:
                     submask = np.zeros(sum(item), dtype=bool)
                     submask[jtem] = True
                     item[item] = submask
+            self._update_filter(
+                use_in=use_in, use_bl=use_bl, use_sp=use_sp, update_data=loaddata,
+            )
+            return
 
+        if select_field is None:
+            raise ValueError(
+                "select_field cannot be set to None if reset=False and sel_in, sel_bl, "
+                "and sel_sp are unset."
+            )
+
+        # Note that the call to _parse_select here will modify use_in, use_bl, and
+        # use_sp in situ.
+        self._parse_select(
+            select_field, select_comp, select_val, use_in, use_bl, use_sp
+        )
+
+        # Now that we've screened the data that we want, update the object appropriately
         self._update_filter(
             use_in=use_in, use_bl=use_bl, use_sp=use_sp, update_data=loaddata,
         )
 
-    def parse_compass_solns(self, filename):
-        """Read COMPASS-formatted gains and flags."""
-        # Before
+    def _read_compass_solns(self, filename):
+        """
+        Read COMPASS-formatted gains and flags.
+
+        This is an internal helper function, not designed to be called by users. Reads
+        in an HDF5 file containing the COMPASS-derived flags and gains tables, that
+        can later be applied to the data.
+
+        Parameters
+        ----------
+        filename : str
+            Name of the file containing the COMPASS flags and gains solutions.
+
+        Returns
+        -------
+        compass_soln_dict : dict
+            Dictionary containing the flags and gains tables for the dataset. The dict
+            contains multiple entries, including "wide_flags", "sphid_flags", and
+            "bandpass_gains", which each correspond to their own dicts for flags and
+            gains tavles.
+
+        Raises
+        ------
+        UserWarning
+
+        """
+        # TODO: Add a docstring
+        # TODO: Add comments here.
+        # TODO: Make sure that this works.
         blhid_dict = {blhid: idx for idx, blhid in enumerate(self._bl_read["blhid"])}
         sp_bl_map = [blhid_dict[blhid] for blhid in self._sp_read["blhid"]]
 
@@ -2080,6 +2503,8 @@ class MirParser(object):
                 for jdx, ant1, ant2 in enumerate(zip(ant1_arr, ant2_arr)):
                     wide_flags[(ant1, rx1, ant2, rx2, sb, chunk)] = wflags_arr[idx, jdx]
 
+            compass_soln_dict["wide_flags"] = wide_flags
+
             # Now we
             sphid_flags = {}
             for idx, inhid in index_dict.items():
@@ -2106,11 +2531,38 @@ class MirParser(object):
                     "that the COMPASS solutions are in fact for this set of data."
                 )
 
+            compass_soln_dict["sphid_flags"] = sphid_flags
+
         return compass_soln_dict
 
-    def apply_compass_solns(self, compass_soln_dict, apply_flags=True, apply_bp=True):
-        """Read COMPASS-formatted gains."""
-        # Let's assume that COMPASS is magical. BECAUSE IT IS!
+    def _apply_compass_solns(self, compass_soln_dict, apply_flags=True, apply_bp=True):
+        """
+        Apply COMPASS-derived gains and flagging.
+
+        Note that this is an internal helper function, not designed to be called by
+        users. This routine will apply flagging and gains read in by the COMPASS
+        pipeline (as returned by the `_read_compass_solns` method). Presently, the
+        method will only attempt to apply spectral flagging and bandpass solutions
+        for unaveraged data. Be aware that this routine will modify values stored
+        in the `vis_data` attribute.
+
+        Parameters
+        ----------
+        compass_soln_dict : dict
+            A dict containing the the various flagging and gains tables from COMPASS,
+            as returned by `_read_compass_solns`.
+        apply_flags : bool
+            If True (default), apply COMPASS flags to the data set.
+        apply_bp : bool
+            If True (default), apply COMPASS bandpass solutions.
+
+        Raises
+        ------
+        ValueError
+            If visibility data are not loaded (not that its not enough to have raw data
+            loaded -- that needs to be converted to "normal" vis data).
+        """
+        # TODO: Actually test that this works.
 
         # If the data isn't loaded, there really isn't anything to do.
         if not self._vis_data_loaded:
@@ -2241,11 +2693,14 @@ class MirParser(object):
                         )
                     ]
 
-    def redoppler_data():
+    def redoppler_data(self):
         """
-        Re-doppler the data, FOR POWER.
+        Re-doppler the data.
 
         Note that this function may be moved out into utils module once UVData objects
-        are capable of carrying Doppler tracking-related information.
+        are capable of carrying Doppler tracking-related information. Also, this
+        function is stubbed out for now awaiting an upstream fix to the MIR data
+        structure.
         """
-        pass
+        # TODO: Make this work
+        raise NotImplementedError("redoppler_data has not yet been implemented.")
