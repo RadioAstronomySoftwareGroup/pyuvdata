@@ -13,6 +13,10 @@ along with an option to force them to be real-only if non-zero imaginary compone
 - `UVFlag.to_baseline()` uses internal time tolerances (both rtol and atol) stored in the UVParameter
   `_time_array.tols` to check whether times in the UVFlag object and the input UVFlag/UVData object match.
 
+### Deprecated
+- The `with_conjugates` keyword in favor of the `include_conjugates` keyword in the
+`utils.get_baseline_redundancies` function.
+
 ## [2.2.6] - 2022-01-12
 
 ### Added
