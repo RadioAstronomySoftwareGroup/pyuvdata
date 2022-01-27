@@ -3341,7 +3341,9 @@ def test_init_from_uvdata_basic_errors(uvcalibrate_data):
     uvc.time_range = None
 
     uvc_new = UVCal()
-    with pytest.raises(ValueError, match="uvdata must be a UVData object."):
+    with pytest.raises(
+        ValueError, match="uvdata must be a UVData \\(or subclassed\\) object."
+    ):
         uvc_new.initialize_from_uvdata(uvc, uvc.gain_convention, uvc.cal_style)
 
     with pytest.raises(
