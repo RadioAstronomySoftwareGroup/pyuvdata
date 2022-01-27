@@ -1395,7 +1395,7 @@ class UVCal(UVBase):
         Returns
         -------
         complex ndarray
-            Gain solution of shape (Nfreqs, Ntimes, Npol) or (Nfreqs, Ntimes)
+            Gain solution of shape (Nfreqs, Ntimes, NJones) or (Nfreqs, Ntimes)
             if jpol is set or if squeeze_pol is True and Njones = 1.
         """
         if self.cal_type != "gain":
@@ -1423,7 +1423,7 @@ class UVCal(UVBase):
         Returns
         -------
         boolean ndarray
-            Flags of shape (Nfreqs, Ntimes, Npol) or (Nfreqs, Ntimes)
+            Flags of shape (Nfreqs, Ntimes, Njones) or (Nfreqs, Ntimes)
             if jpol is set or if squeeze_pol is True and Njones = 1.
         """
         return self._slice_array(
@@ -1448,7 +1448,7 @@ class UVCal(UVBase):
         Returns
         -------
         float ndarray
-            Qualities of shape (Nfreqs, Ntimes, Npol) or (Nfreqs, Ntimes)
+            Qualities of shape (Nfreqs, Ntimes, NJones) or (Nfreqs, Ntimes)
             if jpol is not None or if squeeze_pol is True and Njones = 1.
         """
         return self._slice_array(
@@ -2746,7 +2746,7 @@ class UVCal(UVBase):
                             np.ix_(ants_t2o, [0], freqs_t2o, times_t2o, jones_t2o)
                         ] = other.input_flag_array
 
-        # Update N parameters (e.g. Npols)
+        # Update N parameters (e.g. NJones)
         this.Njones = this.jones_array.shape[0]
         this.Ntimes = this.time_array.shape[0]
         if this.cal_type == "gain":
@@ -3397,7 +3397,7 @@ class UVCal(UVBase):
             The UVData object to initialize from.
         gain_convention : str
             What gain convention the UVCal object should be initialized to
-            ("minus" or "plus").
+            ("multiply" or "divide").
         cal_style : str
             What calibration style the UVCal object should be initialized to
             ("sky" or "redundant").
@@ -3406,7 +3406,8 @@ class UVCal(UVBase):
             for details).
         metadata_only : bool
             Option to only initialize the metadata. If False, this method also
-            initializes the data-like arrays with the appropriate sizes.
+            initializes the data-like arrays to zeros (or False for the flag_array)
+            with the appropriate sizes.
         include_uvdata_history : bool
             Option to include the history from the uvdata object in the uvcal history.
         cal_type : str
@@ -3500,8 +3501,8 @@ class UVCal(UVBase):
             if jones_array is None and uvdata is in psuedo-stokes.
 
         """
-        if not isinstance(uvdata, UVData):
-            raise ValueError("uvdata must be a UVData object.")
+        if not issubclass(type(uvdata), UVData):
+            raise ValueError("uvdata must be a UVData (or subclassed) object.")
 
         # re-initialize to make sure we have an empty object
         self.__init__()
@@ -3752,9 +3753,17 @@ class UVCal(UVBase):
 
         if jones is None:
             if np.all(uvdata.polarization_array < -4):
-                self.jones_array = np.array([-5, -6])
+                if uvdata.Npols == 1 and uvdata.polarization_array[0] > -7:
+                    # single pol data, make a single pol cal object
+                    self.jones_array = uvdata.polarization_array
+                else:
+                    self.jones_array = np.array([-5, -6])
             elif np.all(uvdata.polarization_array < 0):
-                self.jones_array = np.array([-1, -2])
+                if uvdata.Npols == 1 and uvdata.polarization_array[0] > -3:
+                    # single pol data, make a single pol cal object
+                    self.jones_array = uvdata.polarization_array
+                else:
+                    self.jones_array = np.array([-1, -2])
             else:
                 raise ValueError(
                     "jones parameter is None and uvdata object is in "
