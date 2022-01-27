@@ -1989,10 +1989,13 @@ class MirParser(object):
         # Finally, mark whether or not we loaded these asttributes
         if load_vis:
             self._vis_data_loaded = True
+            # Since we've loaded in "fresh" data, we mark that tsys has
+            # not yet been applied (otherwise apply_tsys can thrown an error).
+            self._tsys_applied = False
         if load_raw:
             self._raw_data_loaded = True
 
-        # Apply tsys if needed
+        # Apply tsys if needed.
         if apply_tsys and load_vis:
             self.apply_tsys()
 
@@ -2058,7 +2061,7 @@ class MirParser(object):
             self.auto_data = None
             self._auto_data_loaded = False
 
-    def apply_tsys(self, invert=False):
+    def apply_tsys(self, invert=False, force=False):
         """
         Apply Tsys calibration to the visibilities.
 
@@ -2071,19 +2074,23 @@ class MirParser(object):
             If set to True, this will effectively undo the Tsys correction that has
             been applied. Default is False (convert uncalibrated visilibities to units
             of Jy).
+        force : bool
+            Normally the method will check if tsys has already been applied (or not
+            applied yet, if `invert=True`), and will throw an error if that is the case.
+            If set to True, this check will be bypassed. Default is False.
         """
         if not self._vis_data_loaded:
             raise ValueError(
                 "Must call load_data first before applying tsys normalization."
             )
 
-        if self._tsys_applied and not invert:
+        if (self._tsys_applied and not invert) and (not force):
             raise ValueError(
                 "Cannot apply tsys again if it has been applied already. Run "
                 "apply_tsys with invert=True to undo the prior correction first."
             )
 
-        if not self._tsys_applied and invert:
+        if (not self._tsys_applied and invert) and (not force):
             raise ValueError(
                 "Cannot undo tsys application if it was never applied. Set "
                 "invert=True to apply the correction first."
