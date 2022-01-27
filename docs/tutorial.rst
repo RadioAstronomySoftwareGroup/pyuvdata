@@ -1579,41 +1579,35 @@ UVData: Working with Redundant Baselines
 
 a) Finding Redundant Baselines
 ******************************
-:mod:`~pyuvdata.utils` contains functions for finding redundant groups of baselines in
-an array, either by antenna positions or uvw coordinates. Baselines are
-considered redundant if they are within a specified tolerance distance (default is 1 meter).
+The method :meth:`~pyuvdata.UVData.get_redundancies` provides options for finding
+redundant groups of baselines in an array, either by antenna positions or uvw
+coordinates. Baselines are considered redundant if they are within a specified tolerance
+distance (default is 1 meter).
 
-The :func:`~pyuvdata.utils.get_baseline_redundancies` function accepts an array of baseline indices
-and an array of baseline vectors (ie, uvw coordinates) as input, and finds
-redundancies among the vectors as given. If the ``with_conjugates`` option is
-selected, it will include baselines that are redundant when reversed in the same group.
-In this case, a list of ``conjugates`` is returned as well,
+The default behavior is to use ``uvw_array`` on the object (representing the baselines
+that have data on the object) to find redundancies among the uvw vectors. If the
+``include_conjugates`` option is set, it will include baselines that are redundant when
+reversed in the same group. In this case, a list of ``conjugates`` is returned as well,
 which contains indices for the baselines that were flipped for the redundant groups.
-In either mode of operation, this will only return baseline indices that are in the list passed in.
 
-The :func:`~pyuvdata.utils.get_antenna_redundancies` function accepts an array of
-antenna indices and an array of antenna positions as input, defines baseline vectors
-and indices in the convention that ``ant1<ant2``, and runs
-:func:`~pyuvdata.utils.get_baseline_redundancies` to find redundant baselines. It will then apply the conjugates
-list to the groups it finds.
+If the ``use_antpos`` keyword is set, ``antenna_positions`` will be used to calculate
+redundancies instead of the ``uvw_array``. This can result in different behavior because
+all possible redundant baselines will be returned, not just the ones with data on the
+object. In this case, the baselines are defined in the u>0 convention, so some of the
+baselines may be conjugated relative to the baselines with data on the object. If the
+``conjugate_bls`` keyword is set, it will also update baseline conjugation on the object
+so that the baselines in the returned groups correspond with the baselines listed on the
+object (except for antenna pairs with no associated data).
 
-There is a subtle difference between the purposes of the two functions.
-:func:`~pyuvdata.utils.get_antenna_redundancies` gives you all redundant baselines from the
-antenna positions, and does not necessarily reflect the baselines
-in a file (this is similar to what is written in the ``hera_cal`` package used by the
-HERA collaboration).
-Alternatively, :func:`~pyuvdata.utils.get_baseline_redundancies` may be given the actual
-baseline vectors in a file and it will search for redundancies just among those baselines.
+There are also utility functions to get redundant groups from either a list of baselines
+vectors and corresponding baseline indices
+(:func:`~pyuvdata.utils.get_baseline_redundancies`)
+or antenna positions and antenna indices
+(:func:`~pyuvdata.utils.get_antenna_redundancies`). Note that using these utility
+functions for the baselines on an object is less memory efficient than using
+:meth:`~pyuvdata.UVData.get_redundancies` because the latter only uses the first time in
+the baseline array.
 
-The method :meth:`~pyuvdata.UVData.get_redundancies` is provided as a convenience. If
-run with the ``use_antpos`` option, it will mimic the behavior of
-:func:`~pyuvdata.utils.get_antenna_redundancies`.
-Otherwise it will return redundancies in the existing data using
-:func:`~pyuvdata.utils.get_baseline_redundancies`.
-If run with ``use_antpos`` and the ``conjugate_bls`` option, it will also adjust the
-``data_array`` and ``baseline_array`` so that the baselines in the returned groups
-correspond with the baselines listed on the object (i.e., except for
-antenna pairs with no associated data).
 
 .. code-block:: python
 
@@ -1628,27 +1622,26 @@ antenna pairs with no associated data).
   >>> uvd.read(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
   >>> uvd.unphase_to_drift(use_ant_pos=True)
   >>> tol = 0.05  # Tolerance in meters
-  >>> uvd.select(times=uvd.time_array[0])
 
   >>> # Returned values: list of redundant groups, corresponding mean baseline vectors, baseline lengths. No conjugates included, so conjugates is None.
-  >>> baseline_groups, vec_bin_centers, lengths = uvutils.get_baseline_redundancies(uvd.baseline_array, uvd.uvw_array, tol=tol)
+  >>> baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol)
   >>> print(len(baseline_groups))
   19
 
-  >>> # The with_conjugates option includes baselines that are redundant when reversed.
+  >>> # The include_conjugates option includes baselines that are redundant when reversed.
   >>> # If used, the conjugates list will contain a list of indices of baselines that must be flipped to be redundant.
-  >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvutils.get_baseline_redundancies(uvd.baseline_array, uvd.uvw_array, tol=tol, with_conjugates=True)
+  >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvd.get_redundancies(tol=tol, include_conjugates=True)
   >>> print(len(baseline_groups))
   19
 
   >>> # Using antenna positions instead
   >>> antpos, antnums = uvd.get_ENU_antpos()
-  >>> baseline_groups, vec_bin_centers, lengths = uvutils.get_antenna_redundancies(antnums, antpos, tol=tol, include_autos=True)
+  >>> baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol, use_antpos=True)
   >>> print(len(baseline_groups))
   20
 
-  >>> # get_antenna_redundancies has the option to ignore autocorrelations.
-  >>> baseline_groups, vec_bin_centers, lengths = uvutils.get_antenna_redundancies(antnums, antpos, tol=tol, include_autos=False)
+  >>> # get_redundancies has the option to ignore autocorrelations.
+  >>> baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol, use_antpos=True, include_autos=False)
   >>> print(len(baseline_groups))
   19
 

@@ -3543,7 +3543,9 @@ def find_clusters(location_ids, location_vectors, tol, strict=False):
     return loc_gps
 
 
-def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates=False):
+def get_baseline_redundancies(
+    baselines, baseline_vecs, tol=1.0, with_conjugates=False, include_conjugates=False,
+):
     """
     Find redundant baseline groups.
 
@@ -3555,8 +3557,11 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
         Baseline vectors in meters, shape (Nbls, 3)
     tol : float
         Absolute tolerance of redundancy, in meters.
-    with_conjugates : bool
+    include_conjugates : bool
         Option to include baselines that are redundant when flipped.
+    with_conjugates : bool
+        Deprecated, use `include_conjugates` instead. Option to include baselines that
+        are redundant when flipped.
 
     Returns
     -------
@@ -3568,7 +3573,7 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
         List of redundant group baseline lengths in meters
     baseline_ind_conj : list of int
         List of baselines that are redundant when reversed. Only returned if
-        with_conjugates is True
+        include_conjugates is True
 
     """
     Nbls = baselines.shape[0]
@@ -3579,6 +3584,14 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
     baseline_vecs = copy.copy(baseline_vecs)  # Protect the vectors passed in.
 
     if with_conjugates:
+        warnings.warn(
+            "The with_conjugates keyword is deprecated and will be removed in "
+            "version 2.4. Use include_conjugates instead.",
+            DeprecationWarning,
+        )
+        include_conjugates = True
+
+    if include_conjugates:
         conjugates = []
         for bv in baseline_vecs:
             uneg = bv[0] < -tol
@@ -3592,7 +3605,7 @@ def get_baseline_redundancies(baselines, baseline_vecs, tol=1.0, with_conjugates
         baseline_vecs[conjugates] *= -1
         baseline_ind_conj = baselines[conjugates]
         bl_gps, vec_bin_centers, lens = get_baseline_redundancies(
-            baselines, baseline_vecs, tol=tol, with_conjugates=False
+            baselines, baseline_vecs, tol=tol, include_conjugates=False
         )
         return bl_gps, vec_bin_centers, lens, baseline_ind_conj
 
@@ -3675,7 +3688,7 @@ def get_antenna_redundancies(
     bls = np.array(bls)
     bl_vecs = np.array(bl_vecs)
     gps, vecs, lens, conjs = get_baseline_redundancies(
-        bls, bl_vecs, tol=tol, with_conjugates=True
+        bls, bl_vecs, tol=tol, include_conjugates=True
     )
     # Flip the baselines in the groups.
     for gi, gp in enumerate(gps):

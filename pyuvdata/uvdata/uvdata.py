@@ -9857,7 +9857,7 @@ class UVData(UVBase):
         baselines = np.take(self.baseline_array, unique_inds)
 
         return uvutils.get_baseline_redundancies(
-            baselines, baseline_vecs, tol=tol, with_conjugates=include_conjugates
+            baselines, baseline_vecs, tol=tol, include_conjugates=include_conjugates
         )
 
     def compress_by_redundancy(
