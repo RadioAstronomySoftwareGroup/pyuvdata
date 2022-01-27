@@ -1598,7 +1598,7 @@ class MirParser(object):
 
         # The current generation correlator always produces 2**14 == 16384 channels per
         # spectral window.
-        # TODO: Allow this to be flexible if dealing w/ spectrally averaged data
+        # TODO read_auto_data: Allow this work w/ spectrally averaged data
         # (although this is presently blocked by the way the _old_ rechunker behaves)
         auto_data = {}
 
@@ -1843,7 +1843,9 @@ class MirParser(object):
         UserWarning
             If there is no file to load data from.
         """
-        # TODO: Add comments
+        # If we don't specify load_vis or load_raw, we want to default to just loading
+        # one or the other (since they're redundant with one another), with preference
+        # to vis_data if no arguments provided.
         if (load_vis is None) and (load_raw is None):
             load_vis = True
 
@@ -1853,6 +1855,11 @@ class MirParser(object):
             load_vis = not load_raw
 
         if self._file_dict == {}:
+            # If there is no file_dict, that _usually_ means that we added two
+            # MirParser objects together that did not belong to the same file
+            # with force=True, which breaks the underlying connection to the
+            # data on disk. If this is the case, we want to tread a bit carefully,
+            # and not actually unload any data if at all possible.
             if load_raw:
                 if self._raw_data_loaded:
                     warnings.warn(
@@ -1860,8 +1867,25 @@ class MirParser(object):
                         "skipping raw data load."
                     )
                 else:
-                    self.raw_data = self.convert_vis_to_raw(self.vis_data)
+                    if self._tsys_applied:
+                        warnings.warn(
+                            "Temporarily undoing tsys application to avoid "
+                            "double-applying tsys."
+                        )
+                        self.apply_tsys(invert=False)
+                        self._tsys_applied = True
+                    # Use update here to prevent wiping out other data stored in memory
+                    self.raw_data.update(
+                        self.convert_vis_to_raw(
+                            {
+                                sphid: self.vis_data[sphid]
+                                for sphid in self.sp_data["sphid"]
+                            }
+                        )
+                    )
                     self._raw_data_loaded = True
+                    if self._tsys_applied:
+                        self.apply_tsys()
             if load_vis:
                 if self._vis_data_loaded:
                     warnings.warn(
@@ -1869,17 +1893,31 @@ class MirParser(object):
                         "skipping vis data load."
                     )
                 else:
-                    self.raw_data = self.convert_raw_to_vis(self.raw_data)
+                    # Use update here to prevent wiping out other data stored in memory
+                    self.vis_data.update(
+                        self.convert_raw_to_vis(
+                            {
+                                sphid: self.raw_data[sphid]
+                                for sphid in self.sp_data["sphid"]
+                            }
+                        )
+                    )
                     self._vis_data_loaded = True
                     if apply_tsys:
-                        self._apply_tsys()
+                        # Note that this online looks at sp_data["sphid"] to determine
+                        # which records to update, which by the logic above are the
+                        # only ones that we have converted from raw to vis.
+                        self.apply_tsys()
             if allow_downselect:
                 warnings.warn(
                     "allow_downselect argument ignored because no file to load from."
                 )
             return
 
+        # If we are potentially downselecting data (typically used when calling select),
+        # make sure that we actually have all the data we need loaded.
         if allow_downselect:
+            # Check that vis_data has all entries
             if self._vis_data_loaded:
                 if not np.all(
                     np.isin(self.sp_data["sphid"], list(self.vis_data.keys()))
@@ -1888,6 +1926,7 @@ class MirParser(object):
             elif load_vis:
                 allow_downselect = False
 
+            # Check that raw_data has all entries
             if self._raw_data_loaded:
                 if not np.all(
                     np.isin(self.sp_data["sphid"], list(self.raw_data.keys()))
@@ -1896,23 +1935,29 @@ class MirParser(object):
             elif load_raw:
                 allow_downselect = False
 
+            # Check that auto_data has all entries
             if self._auto_data_loaded:
                 if not np.all(
-                    np.isin(self.ac_data["achid"], list(self.raw_data.keys()))
+                    np.isin(self.ac_data["achid"], list(self.auto_data.keys()))
                 ):
                     allow_downselect = False
             elif load_auto:
                 allow_downselect = False
 
+        # If we passed through the logic above without issue, then we are okay to
+        # run through downselection.
         if allow_downselect:
+            # Process vis_data
             if self._vis_data_loaded and load_vis:
                 self.vis_data = {
                     sphid: self.vis_data[sphid] for sphid in self.sp_data["sphid"]
                 }
+            # Process raw_data
             if self._raw_data_loaded and load_raw:
                 self.vis_data = {
                     sphid: self.vis_data[sphid] for sphid in self.sp_data["sphid"]
                 }
+            # Process auto_data
             if self._auto_data_loaded and load_auto:
                 self.vis_data = {
                     achid: self.auto_data[achid] for achid in self.ac_data["achid"]
@@ -1920,6 +1965,8 @@ class MirParser(object):
             # At this point, there is nothing futher to do, so we can exit.
             return
 
+        # Finally, if we can't downselect, load the data in now using the information
+        # stored in _file_dict.
         if load_vis or load_raw:
             vis_tuple = self.read_vis_data(
                 list(self._file_dict.keys()),
@@ -1930,6 +1977,8 @@ class MirParser(object):
                 use_mmap=use_mmap,
             )
 
+        # Because the read_vis_data returns a tuple of varying length depending on
+        # return_vis and return_raw, we want to parse that here.
         if load_vis and load_raw:
             self.raw_data, self.vis_data = vis_tuple
         elif load_vis:
@@ -1937,14 +1986,19 @@ class MirParser(object):
         elif load_raw:
             (self.raw_data,) = vis_tuple
 
+        # Finally, mark whether or not we loaded these asttributes
         if load_vis:
             self._vis_data_loaded = True
         if load_raw:
             self._raw_data_loaded = True
 
+        # Apply tsys if needed
         if apply_tsys and load_vis:
-            self._apply_tsys()
+            self.apply_tsys()
 
+        # We wrap the auto data here in a somewhat special way because of some issues
+        # with the existing online code and how it writes out data. At some point
+        # we will fix this, but for now, we triage the autos here.
         if load_auto and self._has_auto:
             # Have to do this because of a strange bug in data recording where
             # we record more autos worth of spectral windows than we actually
@@ -1960,8 +2014,34 @@ class MirParser(object):
             self._auto_data_loaded = True
 
     def unload_data(self, unload_vis=True, unload_raw=True, unload_auto=True):
-        """Unload data from the MirParser object."""
-        # TODO: Add docstring
+        """
+        Unload data from the MirParser object.
+
+        Unloads the data-related attributes from memory, if they are loaded. Because
+        these attributes can be formidible in size, this operation will substantially
+        reduce the memory footprint of the MirParser object.
+
+        Note that you cannot use this operation if adding together to MirParser
+        ojbects with force=True.
+
+        Parameters
+        ----------
+        unload_vis : bool
+            Unload the visibilities stored in the `vis_data` attribute, if loaded.
+            Default is True.
+        unload_raw : bool
+            Unload the raw visibilities stored in the `raw_data` attribute, if loaded.
+            Default is True.
+        unload_auto : bool
+            Unload the auto-correlations stored in the `auto_data` attribute, if loaded.
+            Default is True.
+
+        Raises
+        ------
+        ValueError
+            If attempting to unload data if there is no file to load visibility data
+            from.
+        """
         if self._file_dict == {}:
             raise ValueError(
                 "Cannot unload data as there is no file to load data from."
@@ -1978,27 +2058,35 @@ class MirParser(object):
             self.auto_data = None
             self._auto_data_loaded = False
 
-    def _apply_tsys(self, jypk=130.0):
+    def apply_tsys(self, invert=False):
         """
         Apply Tsys calibration to the visibilities.
 
         SMA MIR data are recorded as correlation coefficients. This allows one to apply
-        system temperature information to the data to get values in units of Jy. This
-        method is not meant to be called by users, but is instead meant to be called
-        by data read methods.
+        system temperature information to the data to get values in units of Jy.
 
         Parameteres
         -----------
-        jypk : float
-            Forward gain of the antenna (in units of Jy/K), which is multiplied against
-            the system temperatures in order to produce values in units of Jy
-            (technically this is the SEFD, which when multiplied against correlator
-            coefficients produces visibilities in units of Jy). Default is 130.0, which
-            is the estiamted value for SMA.
+        invert : bool
+            If set to True, this will effectively undo the Tsys correction that has
+            been applied. Default is False (convert uncalibrated visilibities to units
+            of Jy).
         """
         if not self._vis_data_loaded:
             raise ValueError(
                 "Must call load_data first before applying tsys normalization."
+            )
+
+        if self._tsys_applied and not invert:
+            raise ValueError(
+                "Cannot apply tsys again if it has been applied already. Run "
+                "apply_tsys with invert=True to undo the prior correction first."
+            )
+
+        if not self._tsys_applied and invert:
+            raise ValueError(
+                "Cannot undo tsys application if it was never applied. Set "
+                "invert=True to apply the correction first."
             )
 
         # Create a dictionary here to map antenna pair + integration time step with
@@ -2027,7 +2115,7 @@ class MirParser(object):
         # now create a per-blhid SEFD dictionary based on antenna pair, integration
         # timestep, and receiver pairing.
         normal_dict = {
-            blhid: (2.0 * jypk)
+            blhid: (2.0 * self.jypk)
             * (tsys_dict[(idx, jdx, kdx)] * tsys_dict[(idx, ldx, mdx)])
             for blhid, idx, jdx, kdx, ldx, mdx in zip(
                 self.bl_data["blhid"],
@@ -2039,12 +2127,16 @@ class MirParser(object):
             )
         }
 
+        if invert:
+            for key, value in normal_dict.items():
+                normal_dict[key] = 1.0 / value
+
         # Finally, multiply the individual spectral records by the SEFD values
         # that are in the dictionary.
         for sphid, blhid in zip(self.sp_data["sphid"], self.sp_data["blhid"]):
             self.vis_data[sphid]["vis_data"] *= normal_dict[blhid]
 
-        self._tsys_applied = True
+        self._tsys_applied = not invert
 
     def fromfile(
         self,
@@ -2112,6 +2204,13 @@ class MirParser(object):
         self._tsys_applied = False
         self._raw_data_loaded = False
         self._auto_data_loaded = False
+
+        # This value is the forward gain of the antenna (in units of Jy/K), which is
+        # multiplied against the system temperatures in order to produce values in units
+        # of Jy (technically this is the SEFD, which when multiplied against correlator
+        # coefficients produces visibilities in units of Jy). Default is 130.0, which
+        # is the estiamted value for SMA.
+        self.jypk = 130.0
 
         # _update_filter will assign all of the *_filter attributes, as well as the
         # user-facing *_data attributes on call, in addition to the various *hid_dict's
@@ -2279,6 +2378,13 @@ class MirParser(object):
         else:
             # Otherwise, if using vis_data, we need to convert that to the raw format
             # before we write the data to disk.
+            if self._tsys_applied:
+                warnings.warn(
+                    "Writing out raw data with tsys applied. Be aware that you will "
+                    "need to use set apply_tsys=True when calling load_data."
+                    "Otherwise, call apply_tsys(invert=True) prior to writing out "
+                    "the data set."
+                )
             raw_dict = self.convert_vis_to_raw(self.vis_data)
 
         # Finally, we can package up the raw data (using make_packdata) in order to
@@ -2423,21 +2529,51 @@ class MirParser(object):
 
     def rechunk(self, chan_avg):
         """Rechunk a MirParser object."""
-        # TODO: Add comments
-        # TODO: Add docstring
-        # TODO: Flesh out this command, which should be used by users.
+        # TODO rechunk: Add comments
+        # TODO rechunk: Add docstring
+        # TODO rechunk: Flesh out this command, which should be used by users.
 
     @staticmethod
     def _combine_read_arr_check(arr1, arr2, index_name=None):
-        """Do a thing."""
-        # TODO: Add comments
-        # TODO: Add docstring
+        """
+        Check if two MirParser metadata arrays have conflicting index values.
+
+        This method is an internal helper function not meant to be called by users.
+        It checks two arrays of metadata of one of the custom dtypes used by MirParser
+        (for the attributes `in_data`, `bl_data`, `sp_data`, `eng_data`, `we_data`,
+        and `_codes_read`) to make sure that if they contain identical index values,
+        both arrays contain identical metadata. Used in checking if two arrays can
+        be combined without conflict (via the method `_combine_read_arr`).
+
+        Parameter
+        ---------
+        arr1 : ndarray
+            Array of metadata, to be compared to `arr2`.
+        arr2 : ndarray
+            Array of metadata, to be compared to `arr1`.
+        index_name : str
+            Name of the field which contains the unique index information (e.g., inhid
+            for `_in_read`). No default, not requird if `arr1` and `arr2` have a dtype
+            of codes_dtype. Typically, "inhid" is matched to elements in in_read and
+            eng_read, "blhid" to bl_read, "sphid" to sp_read, "achid" to ac_read, and
+            "scanNumber" to we_read.
+
+        Returns
+        -------
+        good_to_merge : bool
+            If True, the two arrays have no entries where the index value matches but
+            the associated metadata does not, and thus should be safe to merge.
+        """
+        # First up, make sure we have two ndarrays of the same dtype
         if arr1.dtype != arr2.dtype:
             raise ValueError("Both arrays must be of the same dtype.")
 
         # For a codes_read array, the indexing procedure is a bit funky,
         # so we handle this as a special case.
         if arr1.dtype == codes_dtype:
+            # Entries should be uniquely indexed by the combination of v_name, icode,
+            # and ncode (the latter of which is _usually_ ignored anyways). The code
+            # is allowed to take on whatever value it wants (duplicate or not).
             arr1_dict = {
                 (item["v_name"], item["icode"], item["ncode"]): item["code"]
                 for item in arr1
@@ -2449,6 +2585,8 @@ class MirParser(object):
 
             for key in arr1_dict.keys():
                 try:
+                    # Check to see that if a key (v_name, icode, ncode) exists in both
+                    # sets of codes_read, that the value (code) is the same in both.
                     if not (arr1_dict[key] == arr2_dict[key]):
                         return False
                 except KeyError:
@@ -2457,75 +2595,185 @@ class MirParser(object):
                     pass
             return True
 
+        # If not using codes_read, the logic here is a bit simpler. Make sure that
+        # index_name is actually a string, since other types can produce spurious
+        # results.
         if not isinstance(index_name, str):
             raise ValueError("index_name must be a string.")
 
+        # Make sure the field name actually exists in the array
         if index_name not in arr1.dtype.names:
             raise ValueError("index_name not a recognized field in either array.")
 
+        # Finally, figure out where we have overlapping entries, based on the field
+        # used for indexing entries.
         _, idx1, idx2 = np.intersect1d(
             arr1[index_name], arr2[index_name], return_indices=True
         )
 
+        # Finally, compare where we have coverlap and make sure the two arrays
+        # are the same.
         return np.array_equal(arr1[idx1], arr2[idx2])
 
     @staticmethod
     def _combine_read_arr(
         arr1, arr2, index_name=None, return_indices=False, overwrite=False
     ):
-        """Do a thing."""
-        # TODO: Add comments
-        # TODO: Add docstring
+        """
+        Combine two MirParser metadata arrays.
+
+        This method is an internal helper function not meant to be called by users.
+        It combines two arrays of metadata of one of the custom dtypes used by MirParser
+        into a single array.
+
+        Parameters
+        ----------
+        arr1 : ndarray
+            Array of metadata, to be combined with `arr2`.
+        arr2 : ndarray
+            Array of metadata, to be combined with `arr1`. Note that if `arr1` and
+            `arr2` have overlapping index values, entries in `arr2` will overwrite
+            those in `arr1`.
+        index_name : str
+            Name of the field which contains the unique index information (e.g., inhid
+            for `_in_read`). No default, not requird if `arr1` and `arr2` have a dtype
+            of codes_dtype. Typically, "inhid" is matched to elements in in_read and
+            eng_read, "blhid" to bl_read, "sphid" to sp_read, "achid" to ac_read, and
+            "scanNumber" to we_read.
+        return_indices : bool
+            If set to True, return which index values of `arr1` were merged into the
+            final metadata array.
+        overwrite : bool
+            If `arr1` and `arr2` have overlapping index values, then an error will be
+            thrown in the metadata for those entries is not the same. However, if
+            set to True, then these differences will be ignored, and values of `arr2`
+            will overwrite conflicting entries in `arr1` in the final array.
+
+        Returns
+        -------
+        comb_arr : ndarray
+            Array of the combined values of `arr1` and `arr2`, of the same dtype as
+            both of these arrays.
+        arr1_index : ndarray
+            Array of index positions of `arr1` which were used in `comb_arr` (i.e., not
+            overwritten or otherwise dropped). Returned only if `return_indices=True`.
+
+        Raises
+        ------
+        ValueError
+            If `arr1` and `arr2` are of different dtypes, or if entries in `index_name`
+            overlap in the two arrays but `overwrite=False`. Also if `index_name` is
+            not a string, or is not a field in `arr1` or `arr2`.
+        """
         if overwrite:
             # If we are overwriting, then make sure that the two arrays are of the
             # same dtype before continuing.
             if arr1.dtype != arr2.dtype:
                 raise ValueError("Both arrays must be of the same dtype.")
         else:
-            # If not overwriting, check and make sure
+            # If not overwriting, check and make sure that there are no overlapping
+            # entries which might clobber differing metadata.
             if not MirParser._combine_read_arr_check(arr1, arr2, index_name=index_name):
                 raise ValueError(
                     "Arrays have overlapping indicies with different data, "
                     "cannot combine the two safely."
                 )
 
-        # For a codes_read array, the indexing procedure is a bit funky,
-        # so we handle this as a special case.
+        # At this point, we are assuming we are safe to overwrite entries (either
+        # because its safe to do so or because the user told us that we could). We want
+        # to then pluck out the entries in arr1 that have non-overlapping index values
+        # versus arr2. To do so, first we find the overlapping values.
         if arr1.dtype == codes_dtype:
-            arr1_set = {(item["v_name"], item["icode"], item["ncode"]) for item in arr1}
+            # For a codes_read array, the indexing procedure is a bit funky,
+            # so we handle this as a special case. Make a set of unique indexing
+            # values to compare against from arr2.
+            arr2_set = {(item["v_name"], item["icode"], item["ncode"]) for item in arr2}
 
-            idx2 = np.array(
+            # Loop through each entry in arr1 -- if we have a matching index from arr2,
+            # then grab the position within the array.
+            idx1 = np.array(
                 [
                     idx
-                    for idx, item in enumerate(arr2)
-                    if (item["v_name"], item["icode"], item["ncode"]) in arr1_set
+                    for idx, item in enumerate(arr1)
+                    if (item["v_name"], item["icode"], item["ncode"]) in arr2_set
                 ]
             )
         else:
+            # If not a codes_read type array, the logic here is a bit simpler.
             if not isinstance(index_name, str):
                 raise ValueError("index_name must be a string.")
 
             if index_name not in arr1.dtype.names:
                 raise ValueError("index_name not a recognized field in either array.")
 
-            _, idx1, idx2 = np.intersect1d(
+            # Use intersect1d to find where we have overlap from arr1, and grab the
+            # array positions where said overlap occurs
+            _, idx1, _ = np.intersect1d(
                 arr1[index_name], arr2[index_name], return_indices=True
             )
 
+        # We basically want to invert our selection here, so use arange to make the
+        # full list of possible position indexes to generate a list of non-overlapping
+        # metadata entries.
         arr_sel = np.isin(np.arange(len(arr1)), idx1, invert=True)
         result = np.concatenate(arr1[arr_sel], arr2)
 
+        # If we are returning the index positions, stuff that into the result now
         if return_indices:
             result = (result, arr_sel)
 
         return result
 
     def __add__(self, other_obj, overwrite=False, force=False, inplace=False):
-        """Add two MirParser objects."""
-        # TODO: Put in docstring.
-        # TODO: Add a few more comments here.
+        """
+        Add two MirParser objects.
+
+        Combine two MirParser objects together, nominally under the assumption that
+        they have been read in by the same file. If two objects are read in from
+        _different_ files, then users may find the `concat` method more appropriate
+        to use.
+
+        Note that while some metadata checking is performed to verify that the objects
+        look identical, no checking is done on the `vis_data`, `raw_data`, and
+        `auto_data` attributes (other than that they exist).
+
+        Parameters
+        ----------
+        other_obj : MirParser object
+            Other MirParser object to combine with this data set.
+        overwrite : bool
+            If set to True, metadata from `other_obj` will overwrite that present in
+            this object, even if they differ. Default is False.
+        force : bool
+            Normally, if attempting to combine MirParser objects that were created from
+            different files, the method will throw an error. This is done because it
+            partially breaks the normal operating mode of MirParser, where data can
+            be loaded up from disk on-the-fly on an as-needed basis. If set to True,
+            different objects can be combined, although the ability to read on demand
+            will be disabled for the resultant object (i.e., only data loaded into
+            memory will be available). Default is False.
+        inplace : bool
+            If set to True, replace this object with the one resulting from the
+            addition operation. Default is False.
+
+        Returns
+        -------
+        new_obj : MirParser object
+            A new object that contains the combined data of the two objects. Only
+            returned if `inplace=False`.
+
+        Raises
+        ------
+        TypeError
+            If attemting to add a MirParser object with any other type of object.
+        ValueError
+            If the objects cannot be combined, either because of differing metadata (if
+            `overwrite=False`), different data being loaded (raw vs vis vs auto), or
+            because the two objects appear to be loaded from different files (and
+            `force=False`).
+        """
         if not isinstance(other_obj, MirParser):
-            raise ValueError(
+            raise TypeError(
                 "Cannot add a MirParser object an object of a different type."
             )
 
@@ -2551,8 +2799,14 @@ class MirParser(object):
             "_file_dict",
         ]
 
+        # Check and see if both objects have autos, and if so, add that to the list of
+        # metadata to check.
         if self._has_auto != other_obj._has_auto:
-            warnings.warn("")
+            # Deal with this after we check other metadata, but warn the user now.
+            warnings.warn(
+                "Both objects do not have auto-correlation data. Will unload from "
+                "the final object."
+            )
         elif self._has_auto:
             comp_list.append("_ac_read")
             attr_index_dict["ac_read"] = "achid"
@@ -2563,14 +2817,29 @@ class MirParser(object):
             if not np.array_equal(getattr(self, item), getattr(self, item)):
                 force_list.append(item)
 
+        # If we have evidence that these two objects belong to different files, then
+        # we can proceed in a few different ways.
         if force_list != []:
             force_list = ", ".join(force_list)
             if force:
-                if not (self._vis_data_loaded or self._raw_data_loaded):
+                # If we are forcing the two objects together, it'll basically sever our
+                # link to the underlying file, so we need to make sure that the data
+                # are actually loaded here, and if using vis_data, that both have
+                # tsys actually applied.
+                if not (
+                    (self._vis_data_loaded and other_obj._vis_data_loaded)
+                    or (self._raw_data_loaded and other_obj._raw_data_loaded)
+                ):
                     raise ValueError(
                         "Cannot combine objects with force=True when no vis or raw "
                         "data gave been loaded. Run the `load_data` method on both "
                         "objects (with the same arguments) to clear this error."
+                    )
+                elif self._tsys_applied != other_obj._tsys_applied:
+                    raise ValueError(
+                        "Cannot combine objects with force=True where one object "
+                        "has tsys correction applied and the other does not. Run "
+                        "load_data(apply_tsys=True) on both objects to correct this."
                     )
                 else:
                     warnings.warn(
@@ -2578,6 +2847,8 @@ class MirParser(object):
                         "proceeding ahead since force=True (%s clashes)." % force_list
                     )
             else:
+                # If these are different files, then the user should be using concat
+                # instead. You can of course bypass this with force=True.
                 raise ValueError(
                     "Objects appear to come from different files, based on "
                     "differences in %s. You can use the `concat` method to combine "
@@ -2599,6 +2870,8 @@ class MirParser(object):
         if self.codes_dict != other_obj.codes_dict:
             overwrite_list.append("codes_dict")
 
+        # Alert the user if we are about to overwrite any data, or raise an error if
+        # we aren't allowed to do so.
         if overwrite_list != []:
             overwrite_list = ", ".join(overwrite_list)
             if overwrite:
@@ -2672,12 +2945,20 @@ class MirParser(object):
         if new_obj.vis_data is not None:
             new_obj.raw_data.update(other_obj.raw_data)
 
-        if new_obj.auto_data is not None:
+        if self._has_auto != other_obj._has_auto:
+            # Remember this check earlier? Now is the time to dump the auto data
+            # if both objects didn't have it.
+            new_obj.auto_data = None
+            new_obj.ac_data = new_obj._ac_read = None
+            new_obj._ac_filter = None
+            new_obj._has_auto = False
+        elif new_obj.auto_data is not None:
+            # Otherwise fold in the auto data
             new_obj.auto_data.update(other_obj.auto_data)
 
         # Finally, we need to do a special bit of handling if we "forced" the two
         # objects together. If we did, then we need to update the core attributes
-        # so that the *data and *_read arrays all agree.
+        # so that the *_data and *_read arrays all agree.
         if comp_list != []:
             new_obj._file_dict = {}
 
@@ -2704,10 +2985,44 @@ class MirParser(object):
             return new_obj
 
     def __iadd__(self, other_obj, overwrite=False, force=False):
-        """Add two MirParser objects in place."""
-        # TODO: Finish fleshing this out.
-        # TODO: Add doc string
-        # TODO: Add comments
+        """
+        Add two MirParser objects in place.
+
+        Combine two MirParser objects together, nominally under the assumption that
+        they have been read in by the same file. If two objects are read in from
+        _different_ files, then users may find the `concat` method more appropriate
+        to use.
+
+        Note that while some metadata checking is performed to verify that the objects
+        look identical, no checking is done on the `vis_data`, `raw_data`, and
+        `auto_data` attributes (other than that they exist).
+
+        Parameters
+        ----------
+        other_obj : MirParser object
+            Other MirParser object to combine with this data set.
+        overwrite : bool
+            If set to True, metadata from `other_obj` will overwrite that present in
+            this object, even if they differ. Default is False.
+        force : bool
+            Normally, if attempting to combine MirParser objects that were created from
+            different files, the method will throw an error. This is done because it
+            partially breaks the normal operating mode of MirParser, where data can
+            be loaded up from disk on-the-fly on an as-needed basis. If set to True,
+            different objects can be combined, although the ability to read on demand
+            will be disabled for the resultant object (i.e., only data loaded into
+            memory will be available). Default is False.
+
+        Raises
+        ------
+        TypeError
+            If attemting to add a MirParser object with any other type of object.
+        ValueError
+            If the objects cannot be combined, either because of differing metadata (if
+            `overwrite=False`), different data being loaded (raw vs vis vs auto), or
+            because the two objects appear to be loaded from different files (and
+            `force=False`).
+        """
         self.__add__(other_obj, overwrite=overwrite, force=force, inplace=True)
 
     @staticmethod
@@ -2722,9 +3037,9 @@ class MirParser(object):
             "_antpos_read",
             "_file_dict",
         ]
-        # TODO: Finish fleshing this out.
-        # TODO: Add doc string
-        # TODO: Add comments
+        # TODO concat: Finish fleshing this out.
+        # TODO concat: Add doc string
+        # TODO concat: Add comments
         auto_check = obj_list[0]._has_auto
         raise_warning = True
         for idx, obj1 in enumerate(obj_list):
@@ -2759,7 +3074,52 @@ class MirParser(object):
 
     @staticmethod
     def _parse_select_compare(select_field, select_comp, select_val, data_arr):
-        """Parse a select argument."""
+        """
+        Parse a select command into a set of boolean masks.
+
+        This is an internal helper function built as part of the low-level API, and not
+        meant to be used by general users. This method will produce a masking screen
+        based on the arguments provided to determine which data should be selected,
+        and is called by the method `MirParser.select`.
+
+        Parameters
+        ----------
+        select_field : str
+            Field in the `data_arr` to use in evaluating whether to select data.
+        select_comp : str
+            Specifies the type of comparison to do between the value supplied in
+            `select_val` and the metadata. No default, allowed values include:
+            "eq" (equal to, matching any in `select_val`),
+            "ne" (not equal to, not matching any in `select_val`),
+            "lt" (less than `select_val`),
+            "le" (less than or equal to `select_val`),
+            "gt" (greater than `select_val`),
+            "ge" (greater than or equal to `select_val`),
+            "btw" (between the range given by two values in `select_val`),
+            "out" (outside of the range give by two values in `select_val`).
+        select_val : number of str, or sequence of number or str
+            Value(s) to compare data in `select_field` against. If `select_comp` is
+            "lt", "le", "gt", "ge", then this must be either a single number
+            or string. If `select_comp` is "btw" or "out", then this must be a list
+            of length 2. If `select_comp` is "eq" or "ne", then this can be either a
+            single value or a sequence of values.
+        data_arr : ndarray
+            Structured array to evaluate, which should have the field `select_field`
+            within it. Must simply contain named fields.
+
+        Returns
+        -------
+        data_mask : ndarray of bool
+            Boolean array marking whether `select_field` in `data_arr` meets the
+            condition set by `select_comp` and `select_val`.
+
+        Raises
+        ------
+        ValueError
+            If `select_comp` is not one of the permitted strings, or if `select_field`
+            is not one of the fields within `data_arr`.
+        """
+        # Create a simple dict to match operation keywords to a function.
         op_dict = {
             "eq": lambda val, comp: np.isin(val, comp),
             "ne": lambda val, comp: np.isin(val, comp, invert=True),
@@ -2771,11 +3131,17 @@ class MirParser(object):
             "out": lambda val, lims: ((val < lims[0]) or (val > lims[1])),
         }
 
+        # Make sure the inputs look valid
         if select_comp not in op_dict.keys():
             raise ValueError(
                 "select_comp must be one of: %s" % ", ".join(op_dict.keys())
             )
+        if select_field not in data_arr.dtype.names:
+            raise ValueError(
+                "select_field %s not found in structured array." % select_field
+            )
 
+        # Evaluate data_arr now
         return op_dict["select_comp"](data_arr[select_field], select_val)
 
     def _parse_select(
@@ -3220,7 +3586,7 @@ class MirParser(object):
             If the COMPASS solutions do not appear to overlap in time with that in
             the MirParser object.
         """
-        # TODO: Verify this works.
+        # TODO _read_compass_solns: Verify this works.
         # When we read in the COMPASS solutions, we will need to map some per-blhid
         # values to per-sphid values, so create an indexing array that we can do this
         # with conveniently.
@@ -3379,7 +3745,7 @@ class MirParser(object):
             If visibility data are not loaded (not that its not enough to have raw data
             loaded -- that needs to be converted to "normal" vis data).
         """
-        # TODO: Actually test that this works.
+        # TODO _apply_compass_solns: Actually test that this works.
 
         # If the data isn't loaded, there really isn't anything to do.
         if not self._vis_data_loaded:
@@ -3519,5 +3885,5 @@ class MirParser(object):
         function is stubbed out for now awaiting an upstream fix to the MIR data
         structure.
         """
-        # TODO: Make this work
+        # TODO redoppler_data: Make this work
         raise NotImplementedError("redoppler_data has not yet been implemented.")
