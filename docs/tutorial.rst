@@ -1584,7 +1584,7 @@ redundant groups of baselines in an array, either by antenna positions or uvw
 coordinates. Baselines are considered redundant if they are within a specified tolerance
 distance (default is 1 meter).
 
-The default behavior is to use ``uvw_array`` on the object (representing the baselines
+The default behavior is to use the ``uvw_array`` on the object (representing the baselines
 that have data on the object) to find redundancies among the uvw vectors. If the
 ``include_conjugates`` option is set, it will include baselines that are redundant when
 reversed in the same group. In this case, a list of ``conjugates`` is returned as well,
@@ -1595,7 +1595,7 @@ redundancies instead of the ``uvw_array``. This can result in different behavior
 all possible redundant baselines will be returned, not just the ones with data on the
 object. In this case, the baselines are defined in the u>0 convention, so some of the
 baselines may be conjugated relative to the baselines with data on the object. If the
-``conjugate_bls`` keyword is set, it will also update baseline conjugation on the object
+``conjugate_bls`` keyword is set, it will also update the baseline conjugation on the object
 so that the baselines in the returned groups correspond with the baselines listed on the
 object (except for antenna pairs with no associated data).
 

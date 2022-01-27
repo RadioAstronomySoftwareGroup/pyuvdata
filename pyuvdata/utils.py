@@ -3544,7 +3544,7 @@ def find_clusters(location_ids, location_vectors, tol, strict=False):
 
 
 def get_baseline_redundancies(
-    baselines, baseline_vecs, tol=1.0, with_conjugates=False, include_conjugates=False,
+    baselines, baseline_vecs, tol=1.0, include_conjugates=False, with_conjugates=False
 ):
     """
     Find redundant baseline groups.
