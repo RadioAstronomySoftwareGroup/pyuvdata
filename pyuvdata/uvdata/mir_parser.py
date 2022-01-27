@@ -1601,10 +1601,10 @@ class MirParser(object):
         # TODO: Allow this to be flexible if dealing w/ spectrally averaged data
         # (although this is presently blocked by the way the _old_ rechunker behaves)
         auto_data = {}
+
         for file, startdict in zip(filepath, int_start_dict):
             # Select out the appropriate records for this file
-            unique_inhid = np.unique(ac_data["inhid"])
-            ac_mask = np.intersect1d(unique_inhid, list(startdict.keys()))
+            ac_mask = np.isin(ac_data["inhid"], list(startdict.keys()))
 
             dataoff_arr = ac_data["dataoff"][ac_mask]
             nvals_arr = ac_data["datasize"][ac_mask].astype(np.int64) // 4
