@@ -2201,14 +2201,17 @@ def test_redundancy_finder():
     # Check with conjugated baseline redundancies returned
     # Ensure at least one baseline has u==0 and v!=0 (for coverage of this case)
     bl_positions[16, 0] = 0
-    (
-        baseline_groups,
-        vec_bin_centers,
-        lens,
-        conjugates,
-    ) = uvutils.get_baseline_redundancies(
-        uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True
-    )
+    with uvtest.check_warnings(
+        DeprecationWarning, "The with_conjugates keyword is deprecated"
+    ):
+        (
+            baseline_groups,
+            vec_bin_centers,
+            lens,
+            conjugates,
+        ) = uvutils.get_baseline_redundancies(
+            uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True
+        )
 
     # restore baseline (16,0) and repeat to get correct groups
     bl_positions = bl_pos_backup
@@ -2218,7 +2221,7 @@ def test_redundancy_finder():
         lens,
         conjugates,
     ) = uvutils.get_baseline_redundancies(
-        uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True
+        uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
     )
 
     # Apply flips to compare with get_antenna_redundancies().
@@ -2266,7 +2269,7 @@ def test_high_tolerance_redundancy_error():
             lens,
             conjugates,
         ) = uvutils.get_baseline_redundancies(
-            uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True
+            uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
         )
     assert "Some baselines are falling into" in str(cm.value)
 
@@ -2299,7 +2302,7 @@ def test_redundancy_conjugates():
         if uneg or (uzer and vneg) or (uzer and vzer and wneg):
             expected_conjugates.append(bl_inds[i])
     bl_gps, vecs, lens, conjugates = uvutils.get_baseline_redundancies(
-        bl_inds, bl_vecs, tol=tol, with_conjugates=True
+        bl_inds, bl_vecs, tol=tol, include_conjugates=True
     )
 
     assert sorted(conjugates) == sorted(expected_conjugates)
@@ -2320,7 +2323,7 @@ def test_redundancy_finder_fully_redundant_array():
         lens,
         conjugates,
     ) = uvutils.get_baseline_redundancies(
-        uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True
+        uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
     )
 
     # Only 1 set of redundant baselines
