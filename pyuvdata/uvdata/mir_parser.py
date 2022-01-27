@@ -720,6 +720,88 @@ class MirParser(object):
                 )
 
     @staticmethod
+    def calc_int_start(sp_data):
+        """
+        Calculate the integration size records based on spectral record metadata.
+
+        This is the "faster" equivalent to scan_int_start, which simply reads through
+        spectral records to estimate where in the file each integration record starts.
+        It can be significantly faster (by factors of 1000) than scan_int_start,
+        although in some corner cases, if the data are not ordered by inhid in sch_read,
+        can produce inaccurate results. This should never happen with data recorded
+        from the telescope.
+
+        Parameters
+        ----------
+        filepath : str
+            filepath is the path to the folder containing the mir data set.
+        sp_data : ndarray
+            Metadata from the individual spectral records of the MIR data set, of the
+            custom dtype `sp_dtype`.
+
+        Returns
+        -------
+        int_start_dict : dict
+            Dictionary containing the indexes from sch_read, where keys match to the
+            inhid indexes, and the values contain a two-element tuple, with the length
+            of the packdata array (in bytes) the relative offset (also in bytes) of
+            the record within the sch_read file.
+        """
+        # Grab the individual inhid values out of the spectral records.
+        inhid_arr = sp_data["inhid"]
+
+        # We need to calculate the size (in bytes) of each spectral record here.
+        # Each channel contains two int16 values (real + imag), with each record
+        # containing one additional int16 value (the common scale factor/exponent),
+        # and each int16 value takes up 2 bytes of space. Note cast to int here is
+        # to avoid overflow issues (since nch is int16).
+        size_arr = ((2 * sp_data["nch"].astype(int)) + 1) * 2
+
+        # If the data are NOT in inhid order, then we need to actually get the data
+        # sorted now. Note that this check takes about 0.1% of the sort time, so better
+        # to do this check here rather than forcing a sort regardless of order.
+        if np.any(inhid_arr[:-1] > inhid_arr[1:]):
+            sort_idx = np.argsort(inhid_arr)
+            inhid_arr = inhid_arr[sort_idx]
+            size_arr = size_arr[sort_idx]
+
+        # Calculate where the inhid changes, since it marks the "boundaries" of the
+        # inhid record. Note that this records where the block ends, but the +1 will
+        # shift this to where the block _begins_ (and also is more compatible with
+        # how slices operate). We concat the first and last index positions to complete
+        # the list of all start/stop positions of each block.
+        arr_bounds = np.concatenate(
+            ([0], 1 + np.where(inhid_arr[:-1] != inhid_arr[1:])[0], [len(inhid_arr)])
+        )
+
+        # Use the above to just grab the unique inhid values
+        inhid_arr = inhid_arr[arr_bounds[:-1]]
+
+        # And we can use cumsum to quickly calculate how big each record is. Note that
+        # this ends up being _much_faster than summing on a per-inhid basis, so long
+        # as there is >1 unique inhid value (most datasets have O(10^3)).
+        size_arr = np.cumsum(size_arr)[arr_bounds[1:] - 1]
+
+        # We need to get a per-record size, so subtract off the "starting point" of
+        # the prior integration record.
+        size_arr[1:] -= size_arr[:-1]
+
+        # Create a dict to plug values into
+        int_start_dict = {}
+        # Record where in the file we expect to be (in bytes from start)
+        marker = 0
+        for inhid, record_size in zip(inhid_arr, size_arr):
+            # Plug in the entry into the dict
+            int_start_dict[inhid] = (inhid, record_size, marker)
+
+            # Shift the marker by the record size. Note the extra 8 bytes come from
+            # the fact that sch_read has the inhid and number of bytes recorded as
+            # int32 values, which are each 4 bytes in size.
+            marker += record_size + 8
+
+        return int_start_dict
+
+    @staticmethod
     def scan_int_start(filepath, allowed_inhid=None):
         """
         Read "sch_read" mir file into a python dictionary (@staticmethod).
@@ -731,8 +813,11 @@ class MirParser(object):
 
         Returns
         -------
-        dict
-            Dictionary containing the indexes from sch_read.
+        int_start_dict : dict
+            Dictionary containing the indexes from sch_read, where keys match to the
+            inhid indexes, and the values contain a two-element tuple, with the length
+            of the packdata array (in bytes) the relative offset (also in bytes) of
+            the record within the sch_read file.
         """
         full_filepath = os.path.join(filepath, "sch_read")
 
@@ -758,6 +843,7 @@ class MirParser(object):
                             "some way."
                         )
                 int_start_dict[int_vals["inhid"]] = (
+                    int_vals["inhid"],
                     int_vals["nbyt"],
                     data_offset,
                 )
@@ -765,6 +851,93 @@ class MirParser(object):
                 data_offset += last_offset + 8
 
         return int_start_dict
+
+    def fix_int_start(self, filepath=None, int_start_dict=None):
+        """
+        Fix an integration postion dictionary.
+
+        This method will fix potential errors in an internal dictionary used to mark
+        where in the main visibility file an individual spectral record is located.
+        Under normal conditions, this routine does not need to be run, unless another
+        method reported a specific error on read calling for the user to run this code.
+
+        Parameter
+        ---------
+        filepath : list of str
+            Optional argument, specifying the path of the individual files. Default
+            is to pull this information from the MirParser object itself.
+        int_start_dict : list of dict
+            Optional argument, specifying the starting positions in the file for each
+            record. Default is to pull this information from the MirParser object
+            itself.
+
+        Returns
+        -------
+        file_dict : dict
+            Only returned if filepath and int_start_dict are provided, a dictionary
+            whose keys are the individual values of filepath, matched with the
+            updated integration position dictionary (i.e., int_start_dict).
+
+        Raises
+        ------
+        ValueError
+            If either (but not both) filepath and int_start_dict are set, or if the
+            length of the list in filepath does not match that of int_start_dict.
+        """
+        # Make sure both arguments are set
+        if (filepath is None) != (int_start_dict is None):
+            raise ValueError(
+                "Must either set both or neither of filepath and "
+                "int_start_dict arguments."
+            )
+
+        # Determine whether or not to return the file_dict
+        return_dict = filepath is not None
+
+        # If arguments aren't provided, then grab the relevant data from the object
+        if filepath is None:
+            filepath = list(self._file_dict.keys())
+
+            # Note that we want the deep copy here to avoid potentially corrupting
+            # the object-based values _before_ we finish readign in the new values
+            # (which could raise an error on read).
+            int_start_dict = copy.deepcopy(list(self._file_dict.values()))
+        else:
+            if len(filepath) != len(int_start_dict):
+                raise ValueError(
+                    "Both filepath and int_start_dict must be lists of the same length."
+                )
+
+        for ifile, idict in zip(filepath, int_start_dict):
+            # Each file's inhid is allowed to be different than the objects inhid --
+            # this is used in cases when combining multiple files together (via
+            # concat). Here, we make a mapping of "file-based" inhid values to that
+            # stored in the object.
+            idict_map = {inhid: finhid for inhid, (finhid, _, _) in idict.items()}
+
+            # Make the new dict by scaning the sch_read file.
+            new_dict = self.scan_int_start(
+                filepath=ifile, allowed_inhid=list(idict_map.keys())
+            )
+
+            # Go through the individual entries in each dict, and update them
+            # with the "correct" values as determined by scanning through sch_read
+            for key in idict.keys():
+                idict[key] = new_dict[idict_map[key]]
+
+        # Finally, create the internal file dict by zipping together filepaths and
+        # the integration position dicts.
+        file_dict = {
+            os.path.abspath(ifile): idict
+            for ifile, idict in zip(filepath, int_start_dict)
+        }
+
+        # If we are supposed to return a dict, do that now, otherwise update
+        # the attribute in the object.
+        if return_dict:
+            return file_dict
+        else:
+            self._file_dict = file_dict
 
     @staticmethod
     def scan_auto_data(filepath, nchunks=8):
@@ -849,6 +1022,10 @@ class MirParser(object):
             filepath is the path to the folder containing the mir data set.
         int_start_dict : dict
             indexes to the visibility locations within the file.
+        use_mmap : bool
+            By default, the method will read all of the data into memory. However,
+            if set to True, then the method will return mmap-based objects instead,
+            which can be substantially faster on sparser reads.
 
         Returns
         -------
@@ -859,8 +1036,11 @@ class MirParser(object):
         full_filepath = os.path.join(filepath, "sch_read")
         int_data_dict = {}
         int_dtype_dict = {}
+
+        # We want to create a unique dtype for records of different sizes. This will
+        # make it easier/faster to read in a sequence of integrations of the same size.
         size_list = np.unique(
-            [int_start_dict[ind_key][0] for ind_key in int_start_dict.keys()]
+            [int_start_dict[ind_key][1] for ind_key in int_start_dict.keys()]
         )
 
         for int_size in size_list:
@@ -872,6 +1052,7 @@ class MirParser(object):
                 ]
             ).newbyteorder("little")
 
+        # Initialize a few values before we start running through the data.
         inhid_list = []
         last_offset = last_size = num_vals = del_offset = 0
         key_list = sorted(int_start_dict.keys())
@@ -881,13 +1062,17 @@ class MirParser(object):
         # below into spitting out the last integration
         key_list.append(None)
 
+        # Read list is basically storing all of the individual reads that we need to
+        # execute in order to grab all of the data that we need. Note that each entry
+        # here is going to correspond to a call to either np.fromfile or np.memmap.
         read_list = []
 
         for ind_key in key_list:
             if ind_key is None:
+                # This basically helps flush out the last read/integration in this loop
                 int_size = int_start = 0
             else:
-                (int_size, int_start) = int_start_dict[ind_key]
+                (_, int_size, int_start) = int_start_dict[ind_key]
             if (int_size != last_size) or (
                 last_offset + (8 + last_size) * num_vals != int_start
             ):
@@ -906,15 +1091,25 @@ class MirParser(object):
                             "start_offset": last_offset,
                         }
                     )
+                # Capture the difference between the last integration and this
+                # integration that we're going to drop into the next read.
                 del_offset = int_start - (last_offset + (num_vals * last_size))
+                # Starting positino for a sequence of integrations
                 last_offset = int_start
+                # Size of record (make sure all records are the same size in 1 read)
                 last_size = int_size
+                # Number of integraions in the read
                 num_vals = 0
+                # Tally all the inhids in the read
                 inhid_list = []
             num_vals += 1
             inhid_list.append(ind_key)
 
+        # Time to actually read in the data
         if use_mmap:
+            # memmap is a little special, in that it wants the _absolute_ offset rather
+            # than the relative offset that np.fromfile uses (if passing a file object
+            # rather than a string with the path toward the file).
             for read_dict in read_list:
                 int_data_dict.update(
                     zip(
@@ -923,13 +1118,15 @@ class MirParser(object):
                             filename=full_filepath,
                             dtype=read_dict["int_dtype_dict"],
                             mode="r",
-                            offset=read_dict["del_offset"],
+                            offset=read_dict["start_offset"],
                             shape=(read_dict["num_vals"],),
                         ),
                     )
                 )
         else:
             with open(full_filepath, "rb") as visibilities_file:
+                # Note that we do one open here to avoid the overheads associated with
+                # opening and closing the file each integration.
                 for read_dict in read_list:
                     int_data_dict.update(
                         zip(
@@ -947,23 +1144,60 @@ class MirParser(object):
 
     @staticmethod
     def make_packdata(sp_data, raw_data):
-        """Write packdata to disk."""
+        """
+        Write packdata from raw_data.
+
+        This method will convert raw data into packed data, ready to be written to
+        disk (i.e., MIR-formatted). This method is typically called by file writing
+        utilities.
+
+        Parameters
+        ----------
+        sp_data : ndarray of sp_data_type
+            Array from the file "sp_read", returned by `read_sp_data`.
+        raw_dict : dict
+            A dictionary in the format of `raw_data`, where the keys are matched to
+            individual values of sphid in `sp_data`, and each entry comtains a dict
+            with two items: "scale_fac", and np.int16 which describes the common
+            exponent for the spectrum, and "raw_data", an array of np.int16 (of length
+            equal to twice that found in `sp_data["nch"]` for the corresponding value
+            of sphid) containing the compressed visibilities.  Note that entries equal
+            to -32768 aren't possible with the compression scheme used for MIR, and so
+            this value is used to mark flags.
+
+        Returns
+        -------
+        int_data_dict : dict
+            A dict whose keys correspond to the unique values of "inhid" in `sp_data`,
+            and values correspond to the packed data arrays -- an ndarray with a
+            custom dtype. Each packed data element contains three fields: "inhid" (
+            nominally matching the keys mentioned above), "nbyt" describing the size
+            of the packed data (in bytes), and "packdata", which is the packed raw
+            data.
+        """
+        # Before we start, grab some relevant metadata
         inhid_arr = sp_data["inhid"]
         sphid_arr = sp_data["sphid"]
-        nch_arr = sp_data["nch"].astype(np.int64)
+        nch_arr = sp_data["nch"].astype(np.int64)  # Cast to int64 to avoid overflows
 
+        # Figure out which unique inhids we have, and figure out how big each
+        # integraion record is. We construct int_start_dict, which has the same format
+        # as what's returned by scan_int_start (for the sake of consistency).
         unique_inhid = np.unique(inhid_arr)
         int_start_dict = {}
         offset_val = 0
         for inhid in unique_inhid:
             data_mask = inhid_arr == inhid
             int_size = (2 * np.sum(nch_arr[data_mask]) + np.sum(data_mask)) * 2
-            int_start_dict[inhid] = (int_size, offset_val)
+            int_start_dict[inhid] = (inhid, int_size, offset_val)
             offset_val += int_size + 8
 
+        # Figure out all of the unique dtypes we need for constructing the individual
+        # packed datasets (where we need a different dtype based on the number of
+        # individual visibilities we're packing in).
         int_dtype_dict = {}
         size_list = np.unique(
-            [int_start_dict[ind_key][0] for ind_key in int_start_dict.keys()]
+            [int_start_dict[ind_key][1] for ind_key in int_start_dict.keys()]
         )
 
         for int_size in size_list:
@@ -975,17 +1209,26 @@ class MirParser(object):
                 ]
             ).newbyteorder("little")
 
+        # Now we start the heavy lifting -- start looping through the individual
+        # integrations and pack them together.
         int_data_dict = {}
-        for inhid, (int_size, _) in int_start_dict.items():
+        for inhid, int_size, _ in int_start_dict.values():
             packdata = np.zeros((), dtype=int_dtype_dict[int_size])
 
+            # Select out the relevant data for this integration
             data_mask = inhid_arr == inhid
             nch_subarr = nch_arr[data_mask]
             sphid_subarr = sphid_arr[data_mask]
+
+            # We're pluging in data spectral record by spectral record, which means
+            # slicing through the packdata array and plugging things in. Figure out
+            # how "deep" into the packdata array we need to plug each spectral record.
             dataoff_subarr = np.cumsum((2 * nch_subarr) + 1) - ((2 * nch_subarr) + 1)
 
+            # Convenience dict
             raw_subdata = {sphid: raw_data[sphid] for sphid in sphid_subarr}
 
+            # Generate the individual slices so we can interate over it.
             slice_list = [
                 slice(idx, jdx)
                 for idx, jdx in zip(
@@ -993,15 +1236,21 @@ class MirParser(object):
                 )
             ]
 
+            # Make sure we haven't somehow made a packdata that won't fit. This
+            # should not be possible unless the metadata is somehow suspect.
             if np.max([ch_slice.stop for ch_slice in slice_list]) > (int_size // 2):
                 raise ValueError(
                     "Mismatch between values of dataoff in sp_data and the size "
                     "of the spectral records in the data."
                 )
 
+            # Plug in the "easy" parts of packdata
             packdata["inhid"] = inhid
             packdata["nbyt"] = int_size
 
+            # Now step through all of the spectral records and plug it in to the
+            # main packdata array. In testing, this worked out to be a good degree
+            # faster than running np.concat.
             for idx, ch_slice, sp_raw in zip(
                 dataoff_subarr, slice_list, raw_subdata.values()
             ):
@@ -1063,6 +1312,17 @@ class MirParser(object):
             flags of the spectrum (both are of length equal to `sp_data["nch"]` for the
             corresponding value of sphid).
         """
+        # The code here was derived after a bunch of testing, trying to find the fastest
+        # way to covert the compressed data into the "normal" format. Some notes:
+        #   1) The setup below is actually faster than ldexp, probably because of
+        #      the specific dtpye we are using.
+        #   2) Casting 2 as float32 will appropriately cast sp_raw valuse into float32
+        #      as well.
+        #   3) I only check for the "special" value for flags in the real component. A
+        #      little less robust (both real and imag are marked), but faster and
+        #      barring data corruption, this shouldn't be an issue (and a single bad
+        #      channel sneaking through is okay).
+        #   4) pairs of float32 -> complex64 is super fast and efficient.
         vis_dict = {
             sphid: {
                 "vis_data": (
@@ -1073,6 +1333,8 @@ class MirParser(object):
             for sphid, sp_raw in raw_dict.items()
         }
 
+        # In testing, flagging the bad channels out after-the-fact was significantly
+        # faster than trying to much w/ the data above.
         for item in vis_dict.values():
             item["vis_data"][item["vis_flags"]] = 0.0
 
@@ -1105,20 +1367,35 @@ class MirParser(object):
             to -32768 aren't possible with the compression scheme used for MIR, and so
             this value is used to mark flags.
         """
+        # Similar to convert_raw_to_vis, fair bit of testing went into making this as
+        # fast as possible. Strangely enough, frexp is _way_ faster than ldexp.
+        # Note that we only want to calculate a common exponent based on the unflagged
+        # spectral channels.
         scale_fac = np.frexp(
             [
                 np.abs(sp_vis["vis_data"].view(dtype=np.float32)).max(initial=1e-45)
                 for sp_vis in vis_dict.values()
             ]
         )[1].astype(np.int16) - np.int16(15)
+        # Note we need the -15 above because the range of raw_data goes from - 2**15
+        # to 2**15 (being an int16 value).
 
+        # Again, the 10 lines below were the product of lots of speed testing.
+        #   1) The setup below is actually faster than ldexp, probably because of
+        #      the specific dtpye we are using.
+        #   2) Casting 2 as float32 saves on complex multiplies, and makes this run
+        #      about 2x faster.
+        #   3) The call to where here ensures that we plug in the "special" flag value
+        #      whereever flags are detected.
+        #   4) pairs of complex64 -> float32 via view, then float32 -> int16 via
+        #      astype was the fastest way to do the required rounding.
         raw_dict = {
             sphid: {
                 "scale_fac": sfac,
                 "raw_data": np.where(
                     sp_vis["vis_flags"],
                     np.complex64(-32768 - 32768j),
-                    sp_vis["vis_data"] * np.complex64(2) ** (-sfac),
+                    sp_vis["vis_data"] * (np.float32(2) ** (-sfac)),
                 )
                 .view(dtype=np.float32)
                 .astype(np.int16),
@@ -1148,17 +1425,46 @@ class MirParser(object):
             Dictionary returned from scan_int_start, which records position and
             record size for each integration
         sp_data : ndarray of sp_data_type
-            Array from "sp_read", returned by "read_sp_read".
+            Array from the file "sp_read", returned by `read_sp_data`.
+        return_vis : bool
+            If set to True, will return a dictionary containing the visibilities read
+            in the "normal" format. Default is True.
+        return_vis : bool
+            If set to True, will return a dictionary containing the visibilities read
+            in the "raw" format. Default is False.
+        use_mmap : bool
+            If False, then each integration record needs to be read in before it can
+            be parsed on a per-spectral record basis (which can be slow if only reading
+            a small subset of the data). Default is True, which will leverage mmap to
+            access data on disk (that does not require reading in the whole record).
+            There is usually no performance penalty to doing this, although reading in
+            data is slow, you may try seeing this to False and seeing if performance
+            improves.
 
         Returns
         -------
-        vis_dict : list of ndarrays
-            List of ndarrays (dtype=csingle/complex64), with indices equal to sphid
-            and values being the floating-point visibilities for the spectrum
+        raw_data : dict
+            A dictionary, whose the keys are matched to individual values of sphid in
+            `sp_data`, and each entry comtains a dict with two items: "scale_fac",
+            and np.int16 which describes the common exponent for the spectrum, and
+            "raw_data", an array of np.int16 (of length equal to twice that found in
+            `sp_data["nch"]` for the corresponding value of sphid) containing the
+            compressed visibilities.  Note that entries equal to -32768 aren't possible
+            with the compression scheme used for MIR, and so this value is used to mark
+            flags. Only returned in return_raw=True.
+        vis_dict : dict
+            A dictionary in the format of `vis_data`, where the keys are matched to
+            individual values of sphid in `sp_data`, and each entry comtains a dict
+            with two items: "vis_data", an array of np.complex64 containing the
+            visibilities, and "vis_flags", an array of bool containing the per-channel
+            flags of the spectrum (both are of length equal to `sp_data["nch"]` for the
+            corresponding value of sphid). Only returned in return_vis=True.
         """
+        # If filepath is just a str, make it a list so we can iterate over it
         if isinstance(filepath, str):
             filepath = [filepath]
 
+        # Same thing for int_start_dict (if it's just a single dict)
         if isinstance(int_start_dict, dict):
             int_start_dict = [int_start_dict]
 
@@ -1168,15 +1474,21 @@ class MirParser(object):
                 "filepath and int_start_dict"
             )
 
-        # Gather the needed metadata
+        # Gather the needed metadata that we'll need in order to read in the data.
         inhid_arr = sp_data["inhid"]
         sphid_arr = sp_data["sphid"]
+        # Cast to int64 here to avoid overflow issues (since nch is int16)
         nch_arr = sp_data["nch"].astype(np.int64)
+        # The divide by two here is because each value is int16 (2 bytes), whereas
+        # dataoff records of "offset" in number of bytes.
         dataoff_arr = sp_data["dataoff"] // 2
 
         unique_inhid = np.unique(inhid_arr)
 
+        # Begin the process of reading the data in, stuffing the "packdata" arrays
+        # (to be converted into "raw" data) into the dict below.
         int_data_dict = {}
+        check_dict = {}
         for file, startdict in zip(filepath, int_start_dict):
             int_data_dict.update(
                 MirParser.read_packdata(
@@ -1188,17 +1500,35 @@ class MirParser(object):
                     use_mmap=use_mmap,
                 )
             )
+            check_dict.update(startdict)
 
+        # With the packdata in hand, start parsing the individual spectral records.
         raw_dict = {}
         for inhid in unique_inhid:
+            # There is very little to check in the packdata records, so make sure
+            # that this entry corresponds to the inhid and size we expect.
+            if (int_data_dict[inhid]["inhid"] != check_dict[inhid][0]) or (
+                int_data_dict[inhid]["nbyt"] != check_dict[inhid][1]
+            ):
+                raise ValueError(
+                    "Values in int_start_dict do not match that recorded inside "
+                    "the data file. Run `fix_int_start` to regenerate the integration "
+                    "position information."
+                )
+
+            # Pop here let's us delete this at the end (and hopefully let garbage
+            # collection do it's job correctly).
             packdata = int_data_dict.pop(inhid)["packdata"]
 
+            # Select out the right subset of metadata
             data_mask = inhid_arr == inhid
             dataoff_subarr = dataoff_arr[data_mask]
             nch_subarr = nch_arr[data_mask]
             sphid_subarr = sphid_arr[data_mask]
 
+            # Dataoff marks the starting position of the record
             start_idx = dataoff_subarr
+            # Each record has a real & imag value per channel, plus one common exponent
             end_idx = start_idx + (nch_subarr * 2) + 1
             raw_list = [packdata[idx:jdx] for idx, jdx in zip(start_idx, end_idx)]
 
@@ -1212,6 +1542,7 @@ class MirParser(object):
             # subsequent assignments don't cause issues for raw_dict.
             del packdata
 
+        # Figure out which results we need to pass back
         results = ()
 
         if return_raw:
@@ -1235,7 +1566,9 @@ class MirParser(object):
         filepath : str or sequence of str
             Path to the folder containing the mir data set.
         int_start_dict : dict or sequence of dict
-            Fill this in later.
+            Dictionary (or sequence of dictonaries) which stores the integration file
+            positions, the keys of which are used for determining which values on the
+            integration header number (inhid) match which file.
         ac_data : arr of dtype ac_read_dtype
             Structure from returned from scan_auto_data.
         winsel : list of int (optional)
@@ -1243,12 +1576,10 @@ class MirParser(object):
 
         Returns
         -------
-        auto_data : arr of single
-            An array of shape (n_ch, n_chunk, n_rec), which containts the auto spectra,
-            where n_ch is number of channels (currently always 16384 per chunk),
-            n_chunk is the number of spectral "chunks" (i.e., Nspws), and n_rec is the
-            number of receivers per antenna recorded (always 2 -- 1 per polarization).
-
+        auto_data : dict
+            A dictionary, whose keys are matched to values to achid in ac_data, and
+            values contain the spectrum of individual auto-correlation records, of
+            type np.float32.
         """
         if isinstance(filepath, str):
             filepath = [filepath]
@@ -1265,14 +1596,13 @@ class MirParser(object):
         if winsel is None:
             winsel = np.arange(0, ac_data["nchunks"][0])
 
-        winsel = np.array(winsel)
         # The current generation correlator always produces 2**14 == 16384 channels per
         # spectral window.
         # TODO: Allow this to be flexible if dealing w/ spectrally averaged data
-        # (although it's only use currently is in its unaveraged formal for
-        # normaliztion of the crosses)
+        # (although this is presently blocked by the way the _old_ rechunker behaves)
         auto_data = {}
         for file, startdict in zip(filepath, int_start_dict):
+            # Select out the appropriate records for this file
             unique_inhid = np.unique(ac_data["inhid"])
             ac_mask = np.intersect1d(unique_inhid, list(startdict.keys()))
 
@@ -1280,6 +1610,7 @@ class MirParser(object):
             nvals_arr = ac_data["datasize"][ac_mask].astype(np.int64) // 4
             achid_arr = ac_data["achid"][ac_mask]
             with open(os.path.join(file, "autoCorrelations"), "rb") as auto_file:
+                # Start scanning through the file now.
                 lastpos = 0
                 for achid, dataoff, nvals in zip(achid_arr, dataoff_arr, nvals_arr):
                     deloff = dataoff - lastpos
@@ -1292,7 +1623,23 @@ class MirParser(object):
 
     @staticmethod
     def make_codes_dict(codes_read):
-        """Make a codes dict."""
+        """
+        Make a dictionary from codes_read.
+
+        Generates a dictionary based on a codes_read array.
+
+        Parameters
+        ----------
+        codes_read : ndarray of dtype codes_dtype
+            Array from the file "codes_read", returned by `read_codes_data`.
+
+        Returns
+        -------
+        codes_dict : dict
+            Dictionary whose keys match the value of "v_name" in `codes_read`, with
+            values made up of a dictionary with keys corresponding to "icode" and values
+            of a tuple made of of ("code", "ncode") from each element of `codes_read`.
+        """
         codes_dict = {}
         for item in codes_read:
             v_name = item["v_name"].decode("UTF-8")
@@ -1324,7 +1671,25 @@ class MirParser(object):
 
     @staticmethod
     def make_codes_read(codes_dict):
-        """Makea codes_read array."""
+        """
+        Make from codes_read array from a dictionary.
+
+        Generates an array of dtype codes_dtype, based on a dictionary. Note that the
+        format should match that output by `make_codes_dict`.
+
+        Parameters
+        ----------
+        codes_dict : dict
+            Dictionary whose keys match the value of "v_name" in `codes_read`, with
+            values made up of a dictionary with keys corresponding to "icode" and values
+            of a tuple made of of ("code", "ncode") from each element of `codes_read`.
+
+        Returns
+        -------
+        codes_read : ndarray of dtype codes_dtype
+            Array of dtype codes_dtype, with an entry corresponding to each unique
+            entry in `codes_dict`.
+        """
         codes_tuples = []
         for key, value in codes_dict.items():
             if isinstance(value, dict):
@@ -1337,12 +1702,27 @@ class MirParser(object):
 
         return codes_read
 
-    def _update_filter(self, use_in=None, use_bl=None, use_sp=None, update_data=True):
+    def _update_filter(self, use_in=None, use_bl=None, use_sp=None, update_data=None):
         """
         Update MirClass internal filters for the data.
 
         Expands the internal 'use_in', 'use_bl', and 'use_sp' arrays to
-        construct filters for the individual structures/data
+        construct filters for the individual structures/data.
+
+        use_in : bool
+            Boolean array of shape (N_in, ), where `N_in = len(self.in_data)`, which
+            marks with integration records to include.
+        use_bl : bool
+            Boolean array of shape (N_bl, ), where `N_bl = len(self.bl_data)`, which
+            marks with baseline records to include.
+        use_sp : bool
+            Boolean array of shape (N_sp, ), where `N_bl = len(self.sp_data)`, which
+            marks with baseline records to include.
+        update_data : bool
+            If set to True, will read in data from disk after selecting records. If
+            set to False, data attributes (e.g., `vis_data`, `raw_data`, `auto_data`)
+            will not be updated on select. Default is to update the data _if_ it has
+            been loaded previously, but to otherwise skip loading the data.
         """
         in_filter = np.zeros(len(self._in_read), dtype=bool)
         bl_filter = np.zeros(len(self._bl_read), dtype=bool)
@@ -1412,12 +1792,13 @@ class MirParser(object):
         self._blhid_dict = {blhid: idx for idx, blhid in enumerate(bl_blhid)}
         self._sphid_dict = {sphid: idx for idx, sphid in enumerate(sp_sphid)}
 
-        if update_data:
+        if update_data or (update_data is None):
             self.load_data(
                 load_vis=self._vis_data_loaded,
                 load_raw=self._raw_data_loaded,
                 load_auto=self._auto_data_loaded,
                 apply_tsys=self._tsys_applied,
+                allow_downselect=(update_data is None),
             )
 
     def load_data(
@@ -1427,6 +1808,7 @@ class MirParser(object):
         load_auto=False,
         apply_tsys=True,
         use_mmap=True,
+        allow_downselect=False,
     ):
         """
         Load visibility data into MirParser class.
@@ -1442,7 +1824,26 @@ class MirParser(object):
         apply_tsys : bool
             If load_vis is set to true, apply tsys corrections to the data (default
             is True).
+        use_mmap : bool
+            If False, then each integration record needs to be read in before it can
+            be parsed on a per-spectral record basis (which can be slow if only reading
+            a small subset of the data). Default is True, which will leverage mmap to
+            access data on disk (that does not require reading in the whole record).
+            There is usually no performance penalty to doing this, although reading in
+            data is slow, you may try seeing this to False and seeing if performance
+            improves.
+        allow_downselect : bool
+            If data has been previously loaded, and all spectral records are currently
+            contained in `vis_data`, `raw_data`, and/or `auto_data` (if `load_vis`,
+            `load_raw`, and/or `load_auto` are True, respectively), then down-select
+            from the currently loaded data rather than reading the data from disk.
+
+        Raises
+        ------
+        UserWarning
+            If there is no file to load data from.
         """
+        # TODO: Add comments
         if (load_vis is None) and (load_raw is None):
             load_vis = True
 
@@ -1472,6 +1873,51 @@ class MirParser(object):
                     self._vis_data_loaded = True
                     if apply_tsys:
                         self._apply_tsys()
+            if allow_downselect:
+                warnings.warn(
+                    "allow_downselect argument ignored because no file to load from."
+                )
+            return
+
+        if allow_downselect:
+            if self._vis_data_loaded:
+                if not np.all(
+                    np.isin(self.sp_data["sphid"], list(self.vis_data.keys()))
+                ):
+                    allow_downselect = False
+            elif load_vis:
+                allow_downselect = False
+
+            if self._raw_data_loaded:
+                if not np.all(
+                    np.isin(self.sp_data["sphid"], list(self.raw_data.keys()))
+                ):
+                    allow_downselect = False
+            elif load_raw:
+                allow_downselect = False
+
+            if self._auto_data_loaded:
+                if not np.all(
+                    np.isin(self.ac_data["achid"], list(self.raw_data.keys()))
+                ):
+                    allow_downselect = False
+            elif load_auto:
+                allow_downselect = False
+
+        if allow_downselect:
+            if self._vis_data_loaded and load_vis:
+                self.vis_data = {
+                    sphid: self.vis_data[sphid] for sphid in self.sp_data["sphid"]
+                }
+            if self._raw_data_loaded and load_raw:
+                self.vis_data = {
+                    sphid: self.vis_data[sphid] for sphid in self.sp_data["sphid"]
+                }
+            if self._auto_data_loaded and load_auto:
+                self.vis_data = {
+                    achid: self.auto_data[achid] for achid in self.ac_data["achid"]
+                }
+            # At this point, there is nothing futher to do, so we can exit.
             return
 
         if load_vis or load_raw:
@@ -1515,6 +1961,7 @@ class MirParser(object):
 
     def unload_data(self, unload_vis=True, unload_raw=True, unload_auto=True):
         """Unload data from the MirParser object."""
+        # TODO: Add docstring
         if self._file_dict == {}:
             raise ValueError(
                 "Cannot unload data as there is no file to load data from."
@@ -1645,9 +2092,7 @@ class MirParser(object):
         # than just the metadata.
         if not metadata_only:
             self._file_dict = {
-                os.path.abspath(filepath): self.scan_int_start(
-                    filepath, allowed_inhid=self._in_read["inhid"],
-                )
+                os.path.abspath(filepath): self.calc_int_start(self._sp_read)
             }
         self.filepath = filepath
 
@@ -1720,18 +2165,62 @@ class MirParser(object):
                 metadata_only=metadata_only,
             )
 
-    def tofile(self, filepath, append_data=False, append_codes=False, load_data=False):
+    def tofile(
+        self,
+        filepath,
+        write_raw=True,
+        load_data=False,
+        append_data=False,
+        append_codes=False,
+        bypass_append_check=False,
+    ):
         """
         Write a MirParser object to disk in MIR format.
+
+        Writes out a MirParser object to disk, in the binary MIR format. This method
+        can worth with either a full dataset, or partial datasets appended together
+        multiple times.
 
         Parameters
         ----------
         filepath : str
+            Path of the directory to write out the data set.
+        write_raw : bool
+            If set to True (default), the method will attempt to write out the data
+            stored in the `raw_data` attribute, and if this attribute is unpopulated,
+            will then revert to using `vis_data` instead. If set to False, the
+            preference order is swapped -- `vis_data` will be used first, but if not
+            populated, `raw_data` will be used instead. This option has no effect if
+            using a metadata-only MirParser object.
+        load_data : bool
+            If set to True, load the raw visibility data. Default is False, which will
+            forgo loading data. Note that if no data are loaded, then the method
+            will then write out a metadata-only object.
         append_data : bool
+            When called, this method will generally overwrite any prior MIR data
+            located in the target directory. If set to True, this will allow the method
+            to append data instead. Note that appending will only work correctly if not
+            attempting to combine datasets with overlapping integration (inhid values).
         append_codes : bool
+            Generally the `codes_data` information remains static over the course of
+            a track, and thus only needs to be written out once. However, if set to
+            True, then the information in `codes_data` will be appended to the
+            "codes_read" file. Default is False, and users are recommended to exercise
+            caution using this switch (and leave it alone unless certain it is
+            required), as it can corrupt. Only used if `append_data=True`.
+        bypass_append_check : bool
+            Normally, if seting `append_data=True`, the method will check to see that
+            there are no clashes in terms of header ID numbers. However, if set to
+            True, this option will bypass this check. Default is False, and users
+            should exercise caution using this switch (and leave it alone unless
+            certain it is required) as it can corrupt a dataset. Only used if
+            `append_data=True`.
+
+        Raises
+        ------
+        UserWarning
+            If only metadata is loaded in the MirParser object.
         """
-        # TODO: Add comments
-        # TODO: Add docstring
         # If no directory exists, create one to write the data to
         if not os.path.isdir(filepath):
             os.makedirs(filepath)
@@ -1740,11 +2229,37 @@ class MirParser(object):
         if load_data:
             self.load_data(load_vis=False, load_raw=True, load_auto=False)
 
-        # Start out by writing the metadata out to file
+        # If appending, we want to make sure that there are no clashes between the
+        # header IDs we are about to write to disk, and the ones that already exist
+        # on disk.
+        if append_data and (not bypass_append_check):
+            try:
+                inhid_check = self.read_in_data(filepath)["inhid"]
+                if np.any(self.in_data["inhid"], inhid_check):
+                    raise ValueError(
+                        "Cannot append data when integration header IDs overlap."
+                    )
+                blhid_check = self.read_bl_data(filepath)["blhid"]
+                if np.any(self.bl_data["blhid"], blhid_check):
+                    raise ValueError(
+                        "Cannot append data when baseline header IDs overlap."
+                    )
+                sphid_check = self.read_sp_data(filepath)["sphid"]
+                if np.any(self.bl_data["sphid"], sphid_check):
+                    raise ValueError(
+                        "Cannot append data when spectral record header IDs overlap."
+                    )
+            except FileNotFoundError:
+                # If there's no file, then we have nothing to worry about.
+                pass
+
+        # Start out by writing the metadata out to file the various files
         self.write_in_data(filepath, self.in_data, append_data=append_data)
         self.write_eng_data(filepath, self.eng_data, append_data=append_data)
         self.write_bl_data(filepath, self.bl_data, append_data=append_data)
         self.write_sp_data(filepath, self.sp_data, append_data=append_data)
+        # Note that the handling of codes a bit special, on account of the fact that
+        # they should not change over the course of a single track.
         self.write_codes_data(
             filepath,
             self.make_codes_read(self.codes_dict),
@@ -1757,11 +2272,17 @@ class MirParser(object):
         if not (self._vis_data_loaded or self._raw_data_loaded):
             warnings.warn("No data loaded, writing metadata only to disk")
             return
-        elif self._raw_data_loaded:
+        elif (self._raw_data_loaded and write_raw) or (not self._vis_data_loaded):
+            # If we have raw_data and we prefer to use that, or if vis_data is not
+            # loaded, then we can just grab the raw data dict directly from the object.
             raw_dict = self.raw_data
         else:
+            # Otherwise, if using vis_data, we need to convert that to the raw format
+            # before we write the data to disk.
             raw_dict = self.convert_vis_to_raw(self.vis_data)
 
+        # Finally, we can package up the raw data (using make_packdata) in order to
+        # write the raw-format data to disk.
         self.write_packdata(
             filepath,
             self.make_packdata(self.sp_data, raw_dict),
@@ -2184,6 +2705,9 @@ class MirParser(object):
 
     def __iadd__(self, other_obj, overwrite=False, force=False):
         """Add two MirParser objects in place."""
+        # TODO: Finish fleshing this out.
+        # TODO: Add doc string
+        # TODO: Add comments
         self.__add__(other_obj, overwrite=overwrite, force=force, inplace=True)
 
     @staticmethod
@@ -2198,7 +2722,9 @@ class MirParser(object):
             "_antpos_read",
             "_file_dict",
         ]
-
+        # TODO: Finish fleshing this out.
+        # TODO: Add doc string
+        # TODO: Add comments
         auto_check = obj_list[0]._has_auto
         raise_warning = True
         for idx, obj1 in enumerate(obj_list):
@@ -2237,11 +2763,12 @@ class MirParser(object):
         op_dict = {
             "eq": lambda val, comp: np.isin(val, comp),
             "ne": lambda val, comp: np.isin(val, comp, invert=True),
-            "btw": lambda val, lims: ((val >= lims[0]) and (val <= lims[1])),
             "lt": np.less,
             "le": np.less_equal,
             "gt": np.greater,
             "ge": np.greater_equal,
+            "btw": lambda val, lims: ((val >= lims[0]) and (val <= lims[1])),
+            "out": lambda val, lims: ((val < lims[0]) or (val > lims[1])),
         }
 
         if select_comp not in op_dict.keys():
@@ -2254,13 +2781,121 @@ class MirParser(object):
     def _parse_select(
         self, select_field, select_comp, select_val, use_in, use_bl, use_sp
     ):
-        # TODO: Check comments here
-        # TODO: Fill out case where codes dict needs to be parsed.
-        # TODO: Put in doc string.
+        """
+        Parse a select command into a set of boolean masks.
+
+        This is an internal helper function built as part of the low-level API, and not
+        meant to be used by general users. This method will produce a masking screen
+        based on the arguments provided to determine which data should be selected,
+        and is called by the method `MirParser.select`.
+
+        Parameters
+        ----------
+        select_field : str
+            Field in the MirParser metadata to use in evaluating whether to select
+            data. This must match one of the dtype fields given in the the attributes
+            `in_data`, `bl_data`, `sp_data`, `we_data`, `eng_data`, or the keys of
+            `codes_dict`.
+        select_comp : str
+            Specifies the type of comparison to do between the value supplied in
+            `select_val` and the metadata. No default, allowed values include:
+            "eq" (equal to, matching any in `select_val`),
+            "ne" (not equal to, not matching any in `select_val`),
+            "lt" (less than `select_val`),
+            "le" (less than or equal to `select_val`),
+            "gt" (greater than `select_val`),
+            "ge" (greater than or equal to `select_val`),
+            "btw" (between the range given by two values in `select_val`),
+            "out" (outside of the range give by two values in `select_val`).
+        select_val : number of str, or sequence of number or str
+            Value(s) to compare data in `select_field` against. If `select_comp` is
+            "lt", "le", "gt", "ge", then this must be either a single number
+            or string. If `select_comp` is "btw" or "out", then this must be a list
+            of length 2. If `select_comp` is "eq" or "ne", then this can be either a
+            single value or a sequence of values.
+        use_in : ndarray of bool
+            Boolean array of the same length as the attribute `_in_read`, which marks
+            which data is "good" (i.e., should be selected). Note that this array
+            is modified in-situ (rather than being returned).
+        use_bl : ndarray of bool
+            Boolean array of the same length as the attribute `_bl_read`, which marks
+            which data is "good" (i.e., should be selected). Note that this array
+            is modified in-situ (rather than being returned).
+        use_sp : ndarray of bool
+            Boolean array of the same length as the attribute `_sp_read`, which marks
+            which data is "good" (i.e., should be selected). Note that this array
+            is modified in-situ (rather than being returned).
+
+        Raises
+        ------
+        ValueError
+            When `select_field` matches a key in the attribute `codes_dict`, if either
+            `select_comp` is anything but "eq" or "ne", or `select_val` is not either
+            a string or sequence of strings. Also if `select_field` matches not fields
+            in any of the dtypes for the attributes `in_data`, `bl_data`, `sp_data`,
+            `eng_data`, or `we_data`.
+        NotImplementedError
+            When `select_field` matches a field in `we_data` (cannot currently select
+            on this field due to the fact that it contains both per-antenna and
+            per-integration data inter-mingled).
+        """
+        # We are going to convert select_val to an ndarray here, because it can handle
+        # all of the accepted data types, and provides some nice convenience funcs.
+        select_val = np.array(select_val)
+
+        # We want select_val to be potentially iterable, so if it's a singleton
+        # then take care of this now.
+        select_val.shape += (1,) if (select_val.shape == 0) else ()
+
         if select_field in self.codes_dict.keys():
-            pass
+            if select_comp not in ["eq", "ne"]:
+                raise ValueError(
+                    'select_comp must be either "eq" or "ne" if matching a field'
+                    "found in the attribute codes_dict."
+                )
+
+            # Create a temporary dict to map strings to index codes (i.e, icodes)
+            temp_codes = {
+                code_str: icode
+                for icode, (code_str, _) in self.codes_dict[select_field].items()
+            }
+
+            # Create a dummy array to plug our icodes into
+            temp_vals = []
+
+            for item in select_val:
+                if not np.isinstance(item, str):
+                    raise ValueError(
+                        "If select_field matches a key in codes_dict, then select_val "
+                        "must either be a string or a sequence of strings."
+                    )
+                try:
+                    # Find which icode matches the string that's been provided.
+                    temp_vals.append(temp_codes[item])
+                except KeyError:
+                    # If we don't find any enties, that's fine, just skip this one.
+                    pass
+
+            # Now that we've converted all of the strings into a list of codes, convert
+            # select_val back into an ndarray so that it behaves like we expect.
+            select_val = np.array(temp_vals)
+
+            # All of the fields connected to codes_dict just have an "i" up front.
+            select_field = "i" + select_field
+
         elif select_field == "ant":
-            pass
+            # Ant is a funny (and annoying) keyword, because it can refer to either
+            # ant1 or ant2, and we want to capture the case for both. Rather than
+            # handing this with a special call to _parse_select_compare, we can just
+            # change the select field to antennaNumber, which will match what is in
+            # eng_data (which is already handled correctly).
+            select_field = "antennaNumber"
+        elif select_field in ["ant1", "ant2"]:
+            # Final special case -- these technically have an "i" in front of then,
+            # for iant1 and iant2, which _usually_ means its supposed to match an
+            # entry in codes_read, but in this case is not. In any case, just
+            # manually plug in the i here.
+            select_field = "i" + select_field
 
         # Now is the time to get to the business of actually figuring out which data
         # we need to grab. The exact action will depend on which data structure
@@ -2338,17 +2973,101 @@ class MirParser(object):
         select_field=None,
         select_comp=None,
         select_val=None,
-        sel_in=None,
-        sel_bl=None,
-        sel_sp=None,
-        loaddata=None,
+        use_in=None,
+        use_bl=None,
+        use_sp=None,
+        update_data=None,
         reset=False,
     ):
-        """Select data."""
-        # TODO: Add docstring.
-        # TODO: Add more comments.
-        # If all we need to do is reset, then do that now
+        """
+        Select a subset of data inside a MIR-formated file.
+
+        This routine allows for one to select a subset of data within a MIR file, base
+        on various metadata. The select command is designed to be _reasonably_ flexible,
+        although is limited to running a single evaluation at a time. Users should be
+        aware that the command is case sensitive, and uses "strict" agreement (i.e.,
+        it does not mimic the behavior is `np.isclose`) with metadata values.
+
+        The select command will automatically translate between the `codes_read` file
+        and the various indexing keys, e.g., it will convert an allowed value for
+        "source" (found in`codes_read`) into allowed values for "isource" (found in
+        `in_read`). Multiple calls to select work by effectingly "AND"-ing the flags,
+        e.g., running select for Antenna 1 and then Antenna 2 will result in only the
+        1-2 baseline to appear.
+
+        Parameters
+        ----------
+        select_field : str
+            Field in the MirParser metadata to use in evaluating whether to select
+            data. This must match one of the dtype fields given in the the attributes
+            `in_data`, `bl_data`, `sp_data`, `we_data`, `eng_data`, or the keys of
+            `codes_dict`.
+        select_comp : str
+            Specifies the type of comparison to do between the value supplied in
+            `select_val` and the metadata. No default, allowed values include:
+            "eq" (equal to, matching any in `select_val`),
+            "ne" (not equal to, not matching any in `select_val`),
+            "lt" (less than `select_val`),
+            "le" (less than or equal to `select_val`),
+            "gt" (greater than `select_val`),
+            "ge" (greater than or equal to `select_val`),
+            "btw" (between the range given by two values in `select_val`),
+            "out" (outside of the range give by two values in `select_val`).
+            Note that this argument is ignored if resetting flags or supplying
+            arguments to `use_in`, `use_bl`, or `use_sp`.
+        select_val : str or number, or list of str or number.
+            Value(s) to compare data in `select_field` against. If `select_comp` is
+            "lt", "le", "gt", "ge", then this must be either a single number
+            or string. If `select_comp` is "btw" or "out", then this must be a list
+            of length 2. If `select_comp` is "eq" or "ne", then this can be either a
+            single value or a sequence of values.
+        use_in : slice-like
+            Specify which elements of the attribute `in_data` to keep by supplying
+            either a simple slice, or an array-like of bools or ints that can be used
+            as a complex slice (i.e., the argument can be used as an index to get
+            specific entries in `in_data` array). Good for performing complex selections
+            on a per-integration basis.
+        use_bl : slice-like
+            Specify which elements of the attribute `bl_data` to keep by supplying
+            either a simple slice, or an array-like of bools or ints that can be used
+            as a complex slice (i.e., the argument can be used as an index to get
+            specific entries in `bl_data` array). Good for performing complex selections
+            on a per-baseline basis.
+        use_sp : slice-like
+            Specify which elements of the attribute `sp_data` to keep by supplying
+            either a simple slice, or an array-like of bools or ints that can be used
+            as a complex slice (i.e., the argument can be used as an index to get
+            specific entries in `sp_data` array). Good for performing complex selections
+            on a per-spectral record basis.
+        update_data : bool
+            Whether or not to update the visibility values (as recorded in the
+            attributes `vis_data` and `raw_data`). If set to True, it will force data
+            to be loaded from disk (even if not previously loaded), and if False, it
+            will not update those attributes. The default is to do nothing if data are
+            not loaded, otherwise to downselect from the existing data in the object
+            if all records are present (and otherwise to load the data from disk).
+        reset : bool
+            If set to true, undoes any previous filters, so that all records are once
+            again visible. Note that this will also unload the data. Default is False.
+
+        Raises
+        ------
+        UserWarning
+            If an argument is supplied for `select_field`, `select_comp`, or
+            `select_val` of `reset=True`, or `use_in`, `use_bl`, or `use_sp` are set.
+        ValueError
+            If `select_field` is not a string, if `select_comp` is not one of the
+            permitted values, or if `select_val` does not match the expected size
+            given the argument supplied to `select_comp`.
+        IndexError
+            If the arguments supplied to `use_in`, `use_bl`, or `use_sp` are not able
+            to correctly index the attributes `in_data`, `bl_data`, or `sp_data`,
+            respectively.
+        """
+        # Make sure that the input arguments look alright before proceeding to
+        # the heavy lifting of select.
         if select_field is None or select_comp is None or select_val is None:
+            # Make sure the arguments below are either all filled or none are filled
             select_args = [select_field, select_comp, select_val]
             select_names = ["select_field", "select_comp", "select_val"]
             for arg, name in zip(select_args, select_names):
@@ -2358,43 +3077,110 @@ class MirParser(object):
                         "on field names in the data." % name
                     )
         else:
-            if not isinstance(select_field, str):
-                raise ValueError("select_field must be a string.")
-            if select_comp not in ["eq", "ne", "lt", "le", "gt", "ge", "btw"]:
-                raise ValueError(
-                    "select_comp must be one of 'eq', 'ne', 'lt', "
-                    "'le', 'gt', 'ge', or 'btw'."
-                )
             if reset:
+                # If doing a reset, then warn that the other arguments are going to
+                # get ignored.
                 raise warnings.warn(
                     "Resetting data selection, all other arguments are ignored."
                 )
+            elif not (use_in is None and use_bl is None and use_sp is None):
+                # Same case for the use_in, use_bl, and use_sp arguments -- we ignore
+                # the "normal" selection commands if these are provided.
+                raise warnings.warn(
+                    "Selecting data using use_in, use_bl and/or use_sp; "
+                    "all other arguments are ignored."
+                )
+            elif not isinstance(select_field, str):
+                # Make sure select_field is a string (since all dtype fields are one)
+                raise ValueError("select_field must be a string.")
+            elif select_comp not in ["eq", "ne", "lt", "le", "gt", "ge", "btw", "out"]:
+                # Make sure we can interpret select_comp
+                raise ValueError(
+                    'select_comp must be one of "eq", "ne", "lt", '
+                    '"le", "gt", "ge", "btw", or "out".'
+                )
+            elif select_comp in ["lt", "le", "gt", "ge"]:
+                # If one of the less/greater than (or equal) select comparisons, make
+                # sure that there is only a single number.
+                if np.array(select_val).size != 1 or not isinstance(
+                    np.array(select_val)[0], np.number
+                ):
+                    raise ValueError(
+                        "select_val must be a single number if select_comp "
+                        'is either "lt", "le", "gt", or "ge".'
+                    )
+            elif select_comp in ["btw", "out"]:
+                # Make sure is using between or outside, that we have two numbers
+                if (len(select_val) != 2) or not isinstance(
+                    np.array(select_val)[0], np.number
+                ):
+                    raise ValueError(
+                        'If select_comp is "btw" or "out", select_val must be a '
+                        "sequence if length two."
+                    )
+                # If the range is flipped, fix that now.
+                if select_val[0] > select_val[1]:
+                    select_val = [select_val[1], select_val[0]]
 
+        # If all we need to do is reset, then do that now and bail.
         if reset:
             self.unload_data()
             self._update_filter()
             return
 
-        use_in = self._in_filter.copy()
-        use_bl = self._bl_filter.copy()
-        use_sp = self._sp_filter.copy()
+        # If directly supplying slices upon which to select the data, deal with
+        # those now. Note that these are slices on *_data instead of *_read
+        # (the latter of which contains all of the metadata, not just that selected).
+        if not ((use_in is None) and (use_bl is None) and (use_sp is None)):
+            # We need to pass to update_filter a set of boolean masks of the same
+            # length as the *_read attributes, so we need to convert use_in, use_bl,
+            # and use_sp (which don't need to be bool arrays) into the right form.
+            # We use this dict just to make bookkeeping simpler.
+            filt_dict = {
+                "use_in": (use_in, self._in_filter),
+                "use_bl": (use_bl, self._bl_filter),
+                "use_sp": (use_sp, self._sp_filter),
+            }
+            try:
+                # Note arg_filter come from args, obj_filter come from MirParser attrs
+                for key, (arg_filter, obj_filter) in filt_dict.items():
+                    if arg_filter is None:
+                        use_filt = None
+                    else:
+                        temp_filt = np.zeros(np.sum(obj_filter), dtype=bool)
+                        temp_filt[arg_filter] = True
+                        use_filt = obj_filter.copy()
+                        use_filt[use_filt] = temp_filt
+                    filt_dict[key] = use_filt
+            except IndexError:
+                raise IndexError(
+                    "use_in, use_bl, and use_sp must be set such that they can be "
+                    "used to index in_data, bl_data, and sp_data, respectively."
+                )
 
-        if not ((sel_in is None) and (sel_bl is None) and (sel_sp is None)):
-            for item, jtem in zip([use_in, use_bl, use_sp], [sel_in, sel_bl, sel_sp]):
-                if jtem is not None:
-                    submask = np.zeros(sum(item), dtype=bool)
-                    submask[jtem] = True
-                    item[item] = submask
+            # Now that we have made our masks, update the data accordingly
             self._update_filter(
-                use_in=use_in, use_bl=use_bl, use_sp=use_sp, update_data=loaddata,
+                use_in=filt_dict["use_in"],
+                use_bl=filt_dict["use_bl"],
+                use_sp=filt_dict["use_sp"],
+                update_data=update_data,
             )
             return
 
+        # If select_field is None at this point, then we have a great big no-op.
+        # Just let the user know before we exit.
         if select_field is None:
-            raise ValueError(
-                "select_field cannot be set to None if reset=False and sel_in, sel_bl, "
-                "and sel_sp are unset."
+            warnings.warn(
+                "No arguments supplied to select_field to filter on. Returning "
+                "the MirParser object unchanged."
             )
+            return
+
+        # If we are at this point, use_* arguments are all none, so fill them in based
+        # on what the filter attributes say they should be.
+        use_in = self._in_filter.copy()
+        use_bl = self._bl_filter.copy()
+        use_sp = self._sp_filter.copy()
 
         # Note that the call to _parse_select here will modify use_in, use_bl, and
         # use_sp in situ.
@@ -2404,7 +3190,7 @@ class MirParser(object):
 
         # Now that we've screened the data that we want, update the object appropriately
         self._update_filter(
-            use_in=use_in, use_bl=use_bl, use_sp=use_sp, update_data=loaddata,
+            use_in=use_in, use_bl=use_bl, use_sp=use_sp, update_data=update_data,
         )
 
     def _read_compass_solns(self, filename):
@@ -2431,37 +3217,51 @@ class MirParser(object):
         Raises
         ------
         UserWarning
-
+            If the COMPASS solutions do not appear to overlap in time with that in
+            the MirParser object.
         """
-        # TODO: Add a docstring
-        # TODO: Add comments here.
-        # TODO: Make sure that this works.
-        blhid_dict = {blhid: idx for idx, blhid in enumerate(self._bl_read["blhid"])}
-        sp_bl_map = [blhid_dict[blhid] for blhid in self._sp_read["blhid"]]
+        # TODO: Verify this works.
+        # When we read in the COMPASS solutions, we will need to map some per-blhid
+        # values to per-sphid values, so create an indexing array that we can do this
+        # with conveniently.
+        sp_bl_map = [self._blhid_dict[blhid] for blhid in self.sp_data["blhid"]]
 
+        # COMPASS stores its solns in a multi-dimensional array that needs to be
+        # split apart in order to match for MirParser format. We can match each sphid
+        # to a particular paring of antennas and polarizations/receivers, sideband,
+        # and spectral chunk, so we use the dict below to map that sequence to a
+        # particular sphid, for later use.
         sphid_dict = {}
         for sphid, inhid, ant1, rx1, ant2, rx2, sb, chunk in zip(
-            self._sp_read["sphid"],
-            self._sp_read["inhid"],
-            self._bl_read["iant1"][sp_bl_map],
-            self._bl_read["ant1rx"][sp_bl_map],
-            self._bl_read["iant2"][sp_bl_map],
-            self._bl_read["ant2rx"][sp_bl_map],
-            self._bl_read["isb"][sp_bl_map],
-            self._sp_read["corrchunk"],
+            self.sp_data["sphid"],
+            self.sp_data["inhid"],
+            self.bl_data["iant1"][sp_bl_map],
+            self.bl_data["ant1rx"][sp_bl_map],
+            self.bl_data["iant2"][sp_bl_map],
+            self.bl_data["ant2rx"][sp_bl_map],
+            self.bl_data["isb"][sp_bl_map],
+            self.sp_data["corrchunk"],
         ):
             sphid_dict[(inhid, ant1, rx1, ant2, rx2, sb, chunk)] = sphid
 
+        # Create an empty dict, that'll be what we hand back to the user.
         compass_soln_dict = {}
-        bandpass_gains = {}
-        with h5py.File(filename, "r") as file:
-            # First, pull out the bandpass solns
-            ant_arr = np.array(file["antArr"][0])
-            rx_arr = np.array(file["rx1Arr"][0])
-            sb_arr = np.array(file["sbArr"][0])
-            chunk_arr = np.array(file["winArr"][0])
-            bp_arr = np.array(file["bandpassArr"])
 
+        # This dict will be what we stuff bandpass solns into, as an entry in the "main"
+        # COMPASS solutions dict (just above).
+        bandpass_gains = {}
+
+        # MATLAB v7.3 format uses HDF5 format, so h5py here ftw!
+        with h5py.File(filename, "r") as file:
+            # First, pull out the bandpass solns, and the associated metadata
+            ant_arr = np.array(file["antArr"][0])  # Antenna number
+            rx_arr = np.array(file["rx1Arr"][0])  # Receiver (0=RxA, 1=RxB)
+            sb_arr = np.array(file["sbArr"][0])  # Sideband (0=LSB, 1=USB)
+            chunk_arr = np.array(file["winArr"][0])  # Spectral win #
+            bp_arr = np.array(file["bandpassArr"])  # BP gains (3D array)
+
+            # Parse out the bandpass solutions for each antenna, pol/receiver, and
+            # sideband-chunk combination.
             for idx, ant in enumerate(ant_arr):
                 for jdx, rx, sb, chunk in enumerate(zip(rx_arr, sb_arr, chunk_arr)):
                     cal_data = bp_arr[idx, jdx]
@@ -2472,43 +3272,59 @@ class MirParser(object):
                         "cal_flags": cal_flags,
                     }
 
+            # Once we've divied up the solutions, plug this dict back into the main one.
             compass_soln_dict["bandpass_gains"] = bandpass_gains
 
             # Now, we can move on to flags. Note that COMPASS doesn't have access to
             # the integration header IDs, so we have to do a little bit of matching
             # based on the timestamp of the data in COMPASS vs MIR (via the MJD).
             mjd_compass = np.array(file["mjdArr"][0])
-            mjd_mir = self._in_read["mjd"]
-            inhid_arr = self._in_read["inhid"]
+            mjd_mir = self.in_data["mjd"]
+            inhid_arr = self.in_data["inhid"]
 
+            # Match each index to an inhid entry
             index_dict = {}
             atol = 0.5 / 86400
             for idx, mjd in enumerate(mjd_compass):
                 check = np.where(np.isclose(mjd, mjd_mir, atol=atol))[0]
                 index_dict[idx] = None if (len(check) == 0) else inhid_arr[check[0]]
 
-            flags_arr = np.array(file["flagArr"])
-            wflags_arr = np.array(file["wideFlagArr"])
-            ant1_arr = np.array(file["ant1Arr"][0])
-            rx1_arr = np.array(file["rx1Arr"][0])
-            ant2_arr = np.array(file["ant2Arr"][0])
-            rx2_arr = np.array(file["rx2Arr"][0])
-            sb_arr = np.array(file["sbArr"][0])
-            chunk_arr = np.array(file["winArr"][0])
+            # Pull out some metadata here for parsing the individual solutions
+            flags_arr = np.array(file["flagArr"])  # Per-sphid flags
+            wflags_arr = np.array(file["wideFlagArr"])  # "For all time" flags
+            ant1_arr = np.array(file["ant1Arr"][0])  # First ant in baseline
+            rx1_arr = np.array(file["rx1Arr"][0])  # Receiver/pol of first ant
+            ant2_arr = np.array(file["ant2Arr"][0])  # Second ant in baseline
+            rx2_arr = np.array(file["rx2Arr"][0])  # Receiver/pol of second ant
+            sb_arr = np.array(file["sbArr"][0])  # Sideband (0=LSB, 1=USB)
+            chunk_arr = np.array(file["winArr"][0])  # Chunk/spectral window number
 
+            # The wide flags record when some set of channels was bad throughout an
+            # entire track, and are calculated on a per-baseline basis. Make a dict
+            # with the keys mapped to ant-receivers/pols and sideband-chunk.
             wide_flags = {}
+
+            # Note that the two loops here are used to match the indexing scheme of the
+            # flags (so the slowest loop iterates on the outer-most axis of the array).
             for idx, rx1, rx2, sb, chunk in enumerate(
                 zip(rx1_arr, rx2_arr, sb_arr, chunk_arr)
             ):
                 for jdx, ant1, ant2 in enumerate(zip(ant1_arr, ant2_arr)):
                     wide_flags[(ant1, rx1, ant2, rx2, sb, chunk)] = wflags_arr[idx, jdx]
 
+            # Once the wide flags dict is built, plug it back into the main dict.
             compass_soln_dict["wide_flags"] = wide_flags
 
-            # Now we
+            # Now we need to handle the per-sphid flags.
             sphid_flags = {}
+
+            # Note that the three loops here match the indexing scheme of the spectral
+            # flags (so the slowest loop iterates on the outer-most axis of the array).
             for idx, inhid in index_dict.items():
                 if inhid is None:
+                    # If there is no matching inhid, it means that the COMPASS soln
+                    # has no flags for this integration. Skip it (on apply, it will
+                    # use the wide flags instead).
                     continue
                 for jdx, rx1, rx2, sb, chunk in enumerate(
                     zip(rx1_arr, rx2_arr, sb_arr, chunk_arr)
@@ -2531,6 +3347,7 @@ class MirParser(object):
                     "that the COMPASS solutions are in fact for this set of data."
                 )
 
+            # Finally, plug this set of flags back into the solns dict.
             compass_soln_dict["sphid_flags"] = sphid_flags
 
         return compass_soln_dict
