@@ -574,17 +574,24 @@ class MirParser(object):
         if recalc_dataoff:
             # Make a copy of sp_data so as to not affect the original data
             sp_data = sp_data.copy()
-            nch_arr = sp_data["nch"].astype(np.int64)
-            new_dataoff = np.zeros_like(sp_data["dataoff"])
-            for inhid in np.unique(sp_data["inhid"]):
-                data_mask = sp_data["inhid"] == inhid
-                nch_subarr = nch_arr[data_mask]
-                new_dataoff[data_mask] = 2 * np.cumsum(1 + (2 * nch_subarr)) - (
-                    1 + (2 * nch_subarr)
-                )
+            offset_dict = {}
+            inhid_arr = sp_data["inhid"]
 
-            # With the new values calculated, put the updated values back into sp_data
-            sp_data["dataoff"] = new_dataoff
+            # Each channel is 4 bytes in length (int16 real + int16 imag), plus
+            # each spectral record has an int16 up front as the common exponent
+            record_size_arr = (4 * sp_data["nch"].astype(int)) + 2
+
+            # Note that this will pass a reference to the array in the structured
+            # array sp_data, so updating offset_arr will also update sp_data.
+            offset_arr = sp_data["dataoff"]
+            for idx, (inhid, record_size) in enumerate(zip(inhid_arr, record_size_arr)):
+                try:
+                    temp_val = offset_dict[inhid]
+                    offset_arr[idx] = temp_val
+                    offset_dict[inhid] = record_size + temp_val
+                except KeyError:
+                    offset_arr[idx] = 0
+                    offset_dict[inhid] = record_size
 
         with open(
             os.path.join(filepath, "sp_read"), "ab" if append_data else "wb+"
@@ -1178,71 +1185,55 @@ class MirParser(object):
         # Before we start, grab some relevant metadata
         inhid_arr = sp_data["inhid"]
         sphid_arr = sp_data["sphid"]
-        nch_arr = sp_data["nch"].astype(np.int64)  # Cast to int64 to avoid overflows
 
-        # Figure out which unique inhids we have, and figure out how big each
-        # integraion record is. We construct int_start_dict, which has the same format
-        # as what's returned by scan_int_start (for the sake of consistency).
-        unique_inhid = np.unique(inhid_arr)
-        int_start_dict = {}
-        offset_val = 0
-        for inhid in unique_inhid:
-            data_mask = inhid_arr == inhid
-            int_size = (2 * np.sum(nch_arr[data_mask]) + np.sum(data_mask)) * 2
-            int_start_dict[inhid] = (inhid, int_size, offset_val)
-            offset_val += int_size + 8
+        # Each channel containts two int16 values (real + imag), plus each
+        # spectral record has an int16 up front as the common exponent
+        record_size_arr = (2 * sp_data["nch"].astype(int)) + 1
+
+        # We need to run through the spectral records and see:
+        # a) Which sphids match to which inhids,
+        # b) Where each spectral record fits inside the "packed" data array, and
+        # c) The total size of the packed data array for each integration
+        inhid_offset_dict = {}
+        inhid_sphid_dict = {}
+        for inhid, sphid, record_size in zip(inhid_arr, sphid_arr, record_size_arr):
+            try:
+                # We assign here to avoid having to do this lookup twice
+                temp_val = inhid_offset_dict[inhid]
+                # By keeping a running tally of the integration size, we can also
+                # figure out where each spectral record fits into the paced data
+                inhid_offset_dict[inhid] = record_size + temp_val
+                inhid_sphid_dict[inhid][sphid] = (temp_val, (record_size + temp_val))
+            except KeyError:
+                # If no key is found, it means we're processing this inhid for the
+                # first time, so plug in a record accordingly.
+                inhid_offset_dict[inhid] = record_size
+                inhid_sphid_dict[inhid] = {sphid: (0, record_size)}
 
         # Figure out all of the unique dtypes we need for constructing the individual
         # packed datasets (where we need a different dtype based on the number of
         # individual visibilities we're packing in).
         int_dtype_dict = {}
-        size_list = np.unique(
-            [int_start_dict[ind_key][1] for ind_key in int_start_dict.keys()]
-        )
 
-        for int_size in size_list:
+        for int_size in np.unique(list(inhid_offset_dict.values())):
             int_dtype_dict[int_size] = np.dtype(
                 [
                     ("inhid", np.int32),
                     ("nbyt", np.int32),
-                    ("packdata", np.int16, int_size // 2),
+                    ("packdata", np.int16, int_size),
                 ]
             ).newbyteorder("little")
 
         # Now we start the heavy lifting -- start looping through the individual
         # integrations and pack them together.
         int_data_dict = {}
-        for inhid, int_size, _ in int_start_dict.values():
-            packdata = np.zeros((), dtype=int_dtype_dict[int_size])
+        for inhid, int_size in inhid_offset_dict.items():
+            # Make an empty packdata dtype, which we will fill with new values
+            packdata = np.empty((), dtype=int_dtype_dict[int_size])
 
-            # Select out the relevant data for this integration
-            data_mask = inhid_arr == inhid
-            nch_subarr = nch_arr[data_mask]
-            sphid_subarr = sphid_arr[data_mask]
-
-            # We're pluging in data spectral record by spectral record, which means
-            # slicing through the packdata array and plugging things in. Figure out
-            # how "deep" into the packdata array we need to plug each spectral record.
-            dataoff_subarr = np.cumsum((2 * nch_subarr) + 1) - ((2 * nch_subarr) + 1)
-
-            # Convenience dict
-            raw_subdata = {sphid: raw_data[sphid] for sphid in sphid_subarr}
-
-            # Generate the individual slices so we can interate over it.
-            slice_list = [
-                slice(idx, jdx)
-                for idx, jdx in zip(
-                    dataoff_subarr + 1, dataoff_subarr + 1 + (2 * nch_subarr)
-                )
-            ]
-
-            # Make sure we haven't somehow made a packdata that won't fit. This
-            # should not be possible unless the metadata is somehow suspect.
-            if np.max([ch_slice.stop for ch_slice in slice_list]) > (int_size // 2):
-                raise ValueError(
-                    "Mismatch between values of dataoff in sp_data and the size "
-                    "of the spectral records in the data."
-                )
+            # Convenience dict which contains the sphids as keys and start/stop of
+            # the slice for each spectral record as values for each integrtation.
+            datapos_dict = inhid_sphid_dict[inhid]
 
             # Plug in the "easy" parts of packdata
             packdata["inhid"] = inhid
@@ -1251,11 +1242,10 @@ class MirParser(object):
             # Now step through all of the spectral records and plug it in to the
             # main packdata array. In testing, this worked out to be a good degree
             # faster than running np.concat.
-            for idx, ch_slice, sp_raw in zip(
-                dataoff_subarr, slice_list, raw_subdata.values()
-            ):
-                packdata["packdata"][idx] = sp_raw["scale_fac"]
-                packdata["packdata"][ch_slice] = sp_raw["raw_data"]
+            for sphid, (ch_start, ch_stop) in datapos_dict.items():
+                sp_raw = raw_data[sphid]
+                packdata["packdata"][ch_start] = sp_raw["scale_fac"]
+                packdata["packdata"][(ch_start + 1) : ch_stop] = sp_raw["raw_data"]
 
             int_data_dict[inhid] = packdata
 
@@ -1702,113 +1692,138 @@ class MirParser(object):
 
         return codes_read
 
-    def _update_filter(self, use_in=None, use_bl=None, use_sp=None, update_data=None):
+    def apply_tsys(self, invert=False, force=False):
         """
-        Update MirClass internal filters for the data.
+        Apply Tsys calibration to the visibilities.
 
-        Expands the internal 'use_in', 'use_bl', and 'use_sp' arrays to
-        construct filters for the individual structures/data.
+        SMA MIR data are recorded as correlation coefficients. This allows one to apply
+        system temperature information to the data to get values in units of Jy.
 
-        use_in : bool
-            Boolean array of shape (N_in, ), where `N_in = len(self.in_data)`, which
-            marks with integration records to include.
-        use_bl : bool
-            Boolean array of shape (N_bl, ), where `N_bl = len(self.bl_data)`, which
-            marks with baseline records to include.
-        use_sp : bool
-            Boolean array of shape (N_sp, ), where `N_bl = len(self.sp_data)`, which
-            marks with baseline records to include.
-        update_data : bool
-            If set to True, will read in data from disk after selecting records. If
-            set to False, data attributes (e.g., `vis_data`, `raw_data`, `auto_data`)
-            will not be updated on select. Default is to update the data _if_ it has
-            been loaded previously, but to otherwise skip loading the data.
+        Parameteres
+        -----------
+        invert : bool
+            If set to True, this will effectively undo the Tsys correction that has
+            been applied. Default is False (convert uncalibrated visilibities to units
+            of Jy).
+        force : bool
+            Normally the method will check if tsys has already been applied (or not
+            applied yet, if `invert=True`), and will throw an error if that is the case.
+            If set to True, this check will be bypassed. Default is False.
         """
-        in_filter = np.zeros(len(self._in_read), dtype=bool)
-        bl_filter = np.zeros(len(self._bl_read), dtype=bool)
-        sp_filter = np.zeros(len(self._sp_read), dtype=bool)
-
-        in_filter[use_in] = True
-        bl_filter[use_bl] = True
-        sp_filter[use_sp] = True
-
-        in_inhid = self._in_read["inhid"]
-        bl_inhid = self._bl_read["inhid"]
-        bl_blhid = self._bl_read["blhid"]
-        sp_blhid = self._sp_read["blhid"]
-        sp_sphid = self._sp_read["sphid"]
-
-        # Filter out de-selected bl records
-        bl_filter[bl_filter] = np.isin(bl_inhid[bl_filter], in_inhid[in_filter])
-
-        # Filter out de-selected sp records
-        sp_filter[sp_filter] = np.isin(sp_blhid[sp_filter], bl_blhid[bl_filter])
-
-        # Check for bl records that have no good sp records
-        # Filter out de-selected bl records
-        bl_filter[bl_filter] = np.isin(
-            bl_blhid[bl_filter], np.unique(sp_blhid[sp_filter]), assume_unique=True,
-        )
-
-        # Check for in records that have no good bl records
-        # Filter out de-selected in records
-        in_filter[in_filter] = np.isin(
-            in_inhid[in_filter], np.unique(bl_inhid[bl_filter]), assume_unique=True,
-        )
-
-        in_inhid = in_inhid[in_filter]
-        bl_blhid = bl_blhid[bl_filter]
-        sp_sphid = sp_sphid[sp_filter]
-
-        # Filter out the last three data products, based on the above
-        eng_filter = np.isin(self._eng_read["inhid"], in_inhid)
-        we_filter = np.isin(self._we_read["scanNumber"], in_inhid)
-        ac_filter = (
-            np.isin(self._ac_read["inhid"], in_inhid) if self._has_auto else None
-        )
-
-        self._in_filter = in_filter
-        self._eng_filter = eng_filter
-        self._bl_filter = bl_filter
-        self._sp_filter = sp_filter
-        self._we_filter = we_filter
-        self._ac_filter = ac_filter
-
-        self.in_data = self._in_read[in_filter]
-        self.eng_data = self._eng_read[eng_filter]
-        self.bl_data = self._bl_read[bl_filter]
-        self.sp_data = self._sp_read[sp_filter]
-        self.codes_data = self._codes_read.copy()
-        self.codes_dict = self.make_codes_dict(self._codes_read)
-        self.we_data = self._we_read[we_filter]
-        self.antpos_data = self._antpos_read.copy()
-
-        # Handle the autos specially, since they are not always scanned/loaded
-        self.ac_data = self._ac_read[self._ac_filter] if self._has_auto else None
-
-        # Craft some dictionaries so you know what list position matches
-        # to each index entry. This helps avoid ordering issues.
-        self._inhid_dict = {inhid: idx for idx, inhid in enumerate(in_inhid)}
-        self._blhid_dict = {blhid: idx for idx, blhid in enumerate(bl_blhid)}
-        self._sphid_dict = {sphid: idx for idx, sphid in enumerate(sp_sphid)}
-
-        if update_data or (update_data is None):
-            self.load_data(
-                load_vis=self._vis_data_loaded,
-                load_raw=self._raw_data_loaded,
-                load_auto=self._auto_data_loaded,
-                apply_tsys=self._tsys_applied,
-                allow_downselect=(update_data is None),
+        if not self._vis_data_loaded:
+            raise ValueError(
+                "Must call load_data first before applying tsys normalization."
             )
+
+        if (self._tsys_applied and not invert) and (not force):
+            raise ValueError(
+                "Cannot apply tsys again if it has been applied already. Run "
+                "apply_tsys with invert=True to undo the prior correction first."
+            )
+
+        if (not self._tsys_applied and invert) and (not force):
+            raise ValueError(
+                "Cannot undo tsys application if it was never applied. Set "
+                "invert=True to apply the correction first."
+            )
+
+        # Create a dictionary here to map antenna pair + integration time step with
+        # a sqrt(tsys) value. Note that the last index here is the receiver number,
+        # which techically has a different keyword under which the system temperatures
+        # are stored.
+        tsys_dict = {
+            (idx, jdx, 0): tsys ** 0.5
+            for idx, jdx, tsys in zip(
+                self.eng_data["inhid"],
+                self.eng_data["antennaNumber"],
+                self.eng_data["tsys"],
+            )
+        }
+        tsys_dict.update(
+            {
+                (idx, jdx, 1): tsys ** 0.5
+                for idx, jdx, tsys in zip(
+                    self.eng_data["inhid"],
+                    self.eng_data["antennaNumber"],
+                    self.eng_data["tsys_rx2"],
+                )
+            }
+        )
+
+        # now create a per-blhid SEFD dictionary based on antenna pair, integration
+        # timestep, and receiver pairing.
+        normal_dict = {
+            blhid: (2.0 * self.jypk)
+            * (tsys_dict[(idx, jdx, kdx)] * tsys_dict[(idx, ldx, mdx)])
+            for blhid, idx, jdx, kdx, ldx, mdx in zip(
+                self.bl_data["blhid"],
+                self.bl_data["inhid"],
+                self.bl_data["iant1"],
+                self.bl_data["ant1rx"],
+                self.bl_data["iant2"],
+                self.bl_data["ant2rx"],
+            )
+        }
+
+        if invert:
+            for key, value in normal_dict.items():
+                normal_dict[key] = 1.0 / value
+
+        # Finally, multiply the individual spectral records by the SEFD values
+        # that are in the dictionary.
+        for sphid, blhid in zip(self.sp_data["sphid"], self.sp_data["blhid"]):
+            self.vis_data[sphid]["vis_data"] *= normal_dict[blhid]
+
+        self._tsys_applied = not invert
+
+    def _downselect_data(self, select_vis=True, select_raw=True, select_auto=True):
+        """Do a thing."""
+        if self._file_dict == {}:
+            # There isn't anything to do here, because we can't downselect if there
+            # isn't an associated file object. Bail at this point.
+            return
+
+        try:
+            # Check that vis_data has all entries we need for processing the data
+            if self._vis_data_loaded and select_vis:
+                vis_data = {
+                    sphid: self.vis_data[sphid] for sphid in self.sp_data["sphid"]
+                }
+
+            # Now check raw_data
+            if self._raw_data_loaded and select_raw:
+                raw_data = {
+                    sphid: self.raw_data[sphid] for sphid in self.sp_data["sphid"]
+                }
+
+            # Now check auto_data
+            if self._auto_data_loaded and select_auto:
+                auto_data = {
+                    achid: self.auto_data[achid] for achid in self.ac_data["achid"]
+                }
+        except KeyError:
+            raise KeyError(
+                "Missing spectral records in data attributes. Run load_data instead."
+            )
+
+        # At this point, we can actually plug our values in, since we know that the
+        # operation above succeeded.
+        if self._vis_data_loaded and select_vis:
+            self.vis_data = vis_data
+        if self._raw_data_loaded and select_raw:
+            self.raw_data = raw_data
+        if self._auto_data_loaded and select_auto:
+            self.auto_data = auto_data
 
     def load_data(
         self,
         load_vis=None,
         load_raw=None,
-        load_auto=False,
+        load_auto=None,
         apply_tsys=True,
         use_mmap=True,
-        allow_downselect=False,
+        allow_downselect=None,
+        allow_conversion=None,
     ):
         """
         Load visibility data into MirParser class.
@@ -1837,70 +1852,49 @@ class MirParser(object):
             contained in `vis_data`, `raw_data`, and/or `auto_data` (if `load_vis`,
             `load_raw`, and/or `load_auto` are True, respectively), then down-select
             from the currently loaded data rather than reading the data from disk.
+        allow_conversion : bool
+            Allow the method to convert previously loaded raw_data into "normal"
+            visibility data.
 
         Raises
         ------
         UserWarning
             If there is no file to load data from.
         """
-        # If we don't specify load_vis or load_raw, we want to default to just loading
-        # one or the other (since they're redundant with one another), with preference
-        # to vis_data if no arguments provided.
-        if (load_vis is None) and (load_raw is None):
-            load_vis = True
-
-        if load_raw is None:
-            load_raw = not load_vis
-        elif load_vis is None:
-            load_vis = not load_raw
-
         if self._file_dict == {}:
             # If there is no file_dict, that _usually_ means that we added two
             # MirParser objects together that did not belong to the same file
             # with force=True, which breaks the underlying connection to the
             # data on disk. If this is the case, we want to tread a bit carefully,
             # and not actually unload any data if at all possible.
-            if load_raw:
+            if load_raw or (load_raw is None and not (load_vis or load_vis is None)):
                 if self._raw_data_loaded:
                     warnings.warn(
                         "No file to load from, and raw data is already loaded, "
                         "skipping raw data load."
                     )
                 else:
-                    if self._tsys_applied:
-                        warnings.warn(
-                            "Temporarily undoing tsys application to avoid "
-                            "double-applying tsys."
-                        )
-                        self.apply_tsys(invert=False)
-                        self._tsys_applied = True
-                    # Use update here to prevent wiping out other data stored in memory
-                    self.raw_data.update(
-                        self.convert_vis_to_raw(
-                            {
-                                sphid: self.vis_data[sphid]
-                                for sphid in self.sp_data["sphid"]
-                            }
-                        )
+                    raise ValueError(
+                        "Cannot load raw data from disk without a file to load from. "
+                        "Set load_raw=False to continue."
                     )
-                    self._raw_data_loaded = True
-                    if self._tsys_applied:
-                        self.apply_tsys()
-            if load_vis:
+            elif load_vis or (load_vis is None):
                 if self._vis_data_loaded:
                     warnings.warn(
                         "No file to load from, and vis data is already loaded, "
                         "skipping vis data load."
                     )
-                else:
+                elif not self._raw_data_loaded:
+                    raise ValueError(
+                        "No file to load vis_data from, cannot run load_data."
+                    )
+                elif allow_conversion:
                     # Use update here to prevent wiping out other data stored in memory
-                    self.vis_data.update(
-                        self.convert_raw_to_vis(
-                            {
-                                sphid: self.raw_data[sphid]
-                                for sphid in self.sp_data["sphid"]
-                            }
-                        )
+                    self.vis_data = self.convert_raw_to_vis(
+                        {
+                            sphid: self.raw_data[sphid]
+                            for sphid in self._sp_read["sphid"]
+                        }
                     )
                     self._vis_data_loaded = True
                     if apply_tsys:
@@ -1908,62 +1902,120 @@ class MirParser(object):
                         # which records to update, which by the logic above are the
                         # only ones that we have converted from raw to vis.
                         self.apply_tsys()
+                else:
+                    raise ValueError(
+                        "No file to load vis_data from, but raw_data is loaded. "
+                        "Set allow_conversion=True to load in vis_data."
+                    )
             if allow_downselect:
                 warnings.warn(
                     "allow_downselect argument ignored because no file to load from."
                 )
             return
 
+        # Last chance before we load data -- see if we already have raw_data in hand,
+        # and just need to convert it. If allow_conversion is None, we should decide
+        # first whether or not to attempt this.
+        if allow_conversion or (allow_conversion is None):
+            if not (load_vis or (load_vis is None)) or (
+                load_raw and (load_vis is None)
+            ):
+                # Literally nothing to do here because we don't want the vis_data
+                allow_conversion = False
+            elif load_raw:
+                # We can't do conversion if we need to load up the autos/raw from disk.
+                if allow_conversion:
+                    warnings.warn("Cannot load raw data AND convert, moving on.")
+                allow_conversion = False
+            elif not self._raw_data_loaded:
+                # Also can't convert data if no raw data was loaded to begin with.
+                if allow_conversion:
+                    warnings.warn(
+                        "Raw data not loaded, cannot convert, attempting alternatives."
+                    )
+                allow_conversion = False
+            elif not np.all(np.isin(self.sp_data["sphid"], list(self.raw_data.keys()))):
+                if allow_conversion:
+                    warnings.warn(
+                        "Loaded raw data does not contain all spectral records, "
+                        "skipping conversion."
+                    )
+                allow_conversion = False
+            else:
+                allow_conversion = True
+
+        if allow_conversion:
+            self.vis_data = self.convert_raw_to_vis(self.raw_data)
+            self._vis_data_loaded = True
+            self._tsys_applied = False
+            # If we need to apply tsys, do that now.
+            if apply_tsys:
+                self.apply_tsys()
+
         # If we are potentially downselecting data (typically used when calling select),
         # make sure that we actually have all the data we need loaded.
-        if allow_downselect:
-            # Check that vis_data has all entries
-            if self._vis_data_loaded:
-                if not np.all(
-                    np.isin(self.sp_data["sphid"], list(self.vis_data.keys()))
-                ):
-                    allow_downselect = False
-            elif load_vis:
-                allow_downselect = False
+        if allow_downselect or (allow_downselect is None):
+            data_list = []
+            # We group both types of cross-correlation data here (raw + normal). Mostly
+            # we do this because the heavy
+            if (load_vis or (load_vis is None)) or (load_raw or (load_raw is None)):
+                data_list.append("cross")
 
-            # Check that raw_data has all entries
-            if self._raw_data_loaded:
-                if not np.all(
-                    np.isin(self.sp_data["sphid"], list(self.raw_data.keys()))
-                ):
-                    allow_downselect = False
-            elif load_raw:
-                allow_downselect = False
+            if load_auto or (load_auto is None):
+                data_list.append("auto")
 
-            # Check that auto_data has all entries
-            if self._auto_data_loaded:
-                if not np.all(
-                    np.isin(self.ac_data["achid"], list(self.auto_data.keys()))
-                ):
-                    allow_downselect = False
-            elif load_auto:
-                allow_downselect = False
+            # Anything we aren't downselecting we should be unloading at this point
+            self.unload_data(
+                unload_vis=(not (load_vis or (load_vis is None))),
+                unload_raw=(not (load_raw or (load_raw is None))),
+                unload_auto=(not (load_auto or (load_auto is None))),
+            )
 
-        # If we passed through the logic above without issue, then we are okay to
-        # run through downselection.
-        if allow_downselect:
-            # Process vis_data
-            if self._vis_data_loaded and load_vis:
-                self.vis_data = {
-                    sphid: self.vis_data[sphid] for sphid in self.sp_data["sphid"]
-                }
-            # Process raw_data
-            if self._raw_data_loaded and load_raw:
-                self.vis_data = {
-                    sphid: self.vis_data[sphid] for sphid in self.sp_data["sphid"]
-                }
-            # Process auto_data
-            if self._auto_data_loaded and load_auto:
-                self.vis_data = {
-                    achid: self.auto_data[achid] for achid in self.ac_data["achid"]
-                }
-            # At this point, there is nothing futher to do, so we can exit.
-            return
+            for data in data_list:
+                try:
+                    self._downselect_data(
+                        select_vis=data == "cross",
+                        select_raw=data == "cross",
+                        select_auto=data == "auto",
+                    )
+                except KeyError:
+                    # If we can't downselect, then we have to unload the data.
+                    self.unload_data(
+                        unload_vis=data == "cross",
+                        unload_raw=data == "cross",
+                        unload_auto=data == "auto",
+                    )
+                    if allow_downselect is not None:
+                        warnings.warn(
+                            "Cannot downselect %s data, attempting alternatives." % data
+                        )
+        else:
+            # If we can't downselect, then we don't trust that the data attributes
+            # have only the spectral records that we want. Unload them now, except
+            # for vis_data if we just generated that from raw_data.
+            self.unload_data(
+                unload_vis=(not allow_conversion), unload_raw=True, unload_auto=True,
+            )
+
+        # At this point, we've unloaded any data we can't carry forward, so if we still
+        # need to load stuff from the file, we can handle this now.
+        if (load_vis is None) and (load_raw is None):
+            # If letting us choose between vis_data and raw_data, give preference
+            # to vis_data. Note we only have to load the data if it hasn't been loaded.
+            load_vis = not self._vis_data_loaded
+
+        if load_raw is None:
+            # Load raw_data only if won't have loaded vis_data, or otherwise
+            # if we already have the raw_data loaded into memory.
+            load_raw = not (
+                (load_vis or self._vis_data_loaded) or self._raw_data_loaded
+            )
+        elif load_vis is None:
+            # Load vis_data only if won't have loaded raw_data, or otherwise
+            # if we already have the vis_data loaded into memory.
+            load_vis = not (
+                (load_raw or self._raw_data_loaded) or self._vis_data_loaded
+            )
 
         # Finally, if we can't downselect, load the data in now using the information
         # stored in _file_dict.
@@ -1977,32 +2029,33 @@ class MirParser(object):
                 use_mmap=use_mmap,
             )
 
-        # Because the read_vis_data returns a tuple of varying length depending on
-        # return_vis and return_raw, we want to parse that here.
-        if load_vis and load_raw:
-            self.raw_data, self.vis_data = vis_tuple
-        elif load_vis:
-            (self.vis_data,) = vis_tuple
-        elif load_raw:
-            (self.raw_data,) = vis_tuple
+            # Because the read_vis_data returns a tuple of varying length depending on
+            # return_vis and return_raw, we want to parse that here.
+            if load_vis and load_raw:
+                self.raw_data, self.vis_data = vis_tuple
+            elif load_vis:
+                (self.vis_data,) = vis_tuple
+            elif load_raw:
+                (self.raw_data,) = vis_tuple
 
-        # Finally, mark whether or not we loaded these asttributes
-        if load_vis:
-            self._vis_data_loaded = True
-            # Since we've loaded in "fresh" data, we mark that tsys has
-            # not yet been applied (otherwise apply_tsys can thrown an error).
-            self._tsys_applied = False
-        if load_raw:
-            self._raw_data_loaded = True
+            # Finally, mark whether or not we loaded these asttributes
+            if load_vis:
+                self._vis_data_loaded = True
+                # Since we've loaded in "fresh" data, we mark that tsys has
+                # not yet been applied (otherwise apply_tsys can thrown an error).
+                self._tsys_applied = False
 
-        # Apply tsys if needed.
-        if apply_tsys and load_vis:
-            self.apply_tsys()
+                # Apply tsys if needed.
+                if apply_tsys and load_vis:
+                    self.apply_tsys()
+            if load_raw:
+                self._raw_data_loaded = True
 
         # We wrap the auto data here in a somewhat special way because of some issues
         # with the existing online code and how it writes out data. At some point
-        # we will fix this, but for now, we triage the autos here.
-        if load_auto and self._has_auto:
+        # we will fix this, but for now, we triage the autos here. Note that if we
+        # already have the auto_data loaded, we can bypass this step.
+        if load_auto and self._has_auto and (not self._auto_data_loaded):
             # Have to do this because of a strange bug in data recording where
             # we record more autos worth of spectral windows than we actually
             # have online.
@@ -2061,89 +2114,172 @@ class MirParser(object):
             self.auto_data = None
             self._auto_data_loaded = False
 
-    def apply_tsys(self, invert=False, force=False):
+    def _update_filter(
+        self,
+        use_in=None,
+        use_bl=None,
+        use_sp=None,
+        update_data=None,
+        allow_downselect=False,
+    ):
         """
-        Apply Tsys calibration to the visibilities.
+        Update MirClass internal filters for the data.
 
-        SMA MIR data are recorded as correlation coefficients. This allows one to apply
-        system temperature information to the data to get values in units of Jy.
+        Expands the internal 'use_in', 'use_bl', and 'use_sp' arrays to
+        construct filters for the individual structures/data.
 
-        Parameteres
-        -----------
-        invert : bool
-            If set to True, this will effectively undo the Tsys correction that has
-            been applied. Default is False (convert uncalibrated visilibities to units
-            of Jy).
-        force : bool
-            Normally the method will check if tsys has already been applied (or not
-            applied yet, if `invert=True`), and will throw an error if that is the case.
-            If set to True, this check will be bypassed. Default is False.
+        use_in : bool
+            Boolean array of shape (N_in, ), where `N_in = len(self.in_data)`, which
+            marks with integration records to include.
+        use_bl : bool
+            Boolean array of shape (N_bl, ), where `N_bl = len(self.bl_data)`, which
+            marks with baseline records to include.
+        use_sp : bool
+            Boolean array of shape (N_sp, ), where `N_bl = len(self.sp_data)`, which
+            marks with baseline records to include.
+        update_data : bool
+            If set to True, will read in data from disk after selecting records. If
+            set to False, data attributes (e.g., `vis_data`, `raw_data`, `auto_data`)
+            will be unloaded. If set to True, data attributes will be reloaded, based
+            on what had been previously.  Default is to downselect the data from that
+            previously unloaded if possible, otherwise unload the data.
         """
-        if not self._vis_data_loaded:
-            raise ValueError(
-                "Must call load_data first before applying tsys normalization."
-            )
+        in_filter = np.zeros(len(self._in_read), dtype=bool)
+        bl_filter = np.zeros(len(self._bl_read), dtype=bool)
+        sp_filter = np.zeros(len(self._sp_read), dtype=bool)
 
-        if (self._tsys_applied and not invert) and (not force):
-            raise ValueError(
-                "Cannot apply tsys again if it has been applied already. Run "
-                "apply_tsys with invert=True to undo the prior correction first."
-            )
+        in_filter[use_in] = True
+        bl_filter[use_bl] = True
+        sp_filter[use_sp] = True
 
-        if (not self._tsys_applied and invert) and (not force):
-            raise ValueError(
-                "Cannot undo tsys application if it was never applied. Set "
-                "invert=True to apply the correction first."
-            )
+        in_inhid = self._in_read["inhid"]
+        bl_inhid = self._bl_read["inhid"]
+        bl_blhid = self._bl_read["blhid"]
+        sp_blhid = self._sp_read["blhid"]
+        sp_sphid = self._sp_read["sphid"]
 
-        # Create a dictionary here to map antenna pair + integration time step with
-        # a sqrt(tsys) value. Note that the last index here is the receiver number,
-        # which techically has a different keyword under which the system temperatures
-        # are stored.
-        tsys_dict = {
-            (idx, jdx, 0): tsys**0.5
-            for idx, jdx, tsys in zip(
-                self.eng_data["inhid"],
-                self.eng_data["antennaNumber"],
-                self.eng_data["tsys"],
-            )
-        }
-        tsys_dict.update(
-            {
-                (idx, jdx, 1): tsys**0.5
-                for idx, jdx, tsys in zip(
-                    self.eng_data["inhid"],
-                    self.eng_data["antennaNumber"],
-                    self.eng_data["tsys_rx2"],
-                )
-            }
+        # Filter out de-selected bl records
+        bl_filter[bl_filter] = np.isin(bl_inhid[bl_filter], in_inhid[in_filter])
+
+        # Filter out de-selected sp records
+        sp_filter[sp_filter] = np.isin(sp_blhid[sp_filter], bl_blhid[bl_filter])
+
+        # Check for bl records that have no good sp records
+        # Filter out de-selected bl records
+        bl_filter[bl_filter] = np.isin(
+            bl_blhid[bl_filter], np.unique(sp_blhid[sp_filter]), assume_unique=True,
         )
 
-        # now create a per-blhid SEFD dictionary based on antenna pair, integration
-        # timestep, and receiver pairing.
-        normal_dict = {
-            blhid: (2.0 * self.jypk)
-            * (tsys_dict[(idx, jdx, kdx)] * tsys_dict[(idx, ldx, mdx)])
-            for blhid, idx, jdx, kdx, ldx, mdx in zip(
-                self.bl_data["blhid"],
-                self.bl_data["inhid"],
-                self.bl_data["iant1"],
-                self.bl_data["ant1rx"],
-                self.bl_data["iant2"],
-                self.bl_data["ant2rx"],
+        # Check for in records that have no good bl records
+        # Filter out de-selected in records
+        in_filter[in_filter] = np.isin(
+            in_inhid[in_filter], np.unique(bl_inhid[bl_filter]), assume_unique=True,
+        )
+
+        in_inhid = in_inhid[in_filter]
+        bl_blhid = bl_blhid[bl_filter]
+        sp_sphid = sp_sphid[sp_filter]
+
+        # Filter out the last three data products, based on the above
+        eng_filter = np.isin(self._eng_read["inhid"], in_inhid)
+        we_filter = np.isin(self._we_read["scanNumber"], in_inhid)
+        ac_filter = (
+            np.isin(self._ac_read["inhid"], in_inhid) if self._has_auto else None
+        )
+
+        if allow_downselect:
+            try:
+                # If we are downselecting, we want to make sure that we are definitely
+                # selecting a subset of the prior data, which we can check by
+                # looking at the filters that already exist in the data.
+                assert np.all(self._in_filter[in_filter])
+                assert np.all(self._eng_filter[eng_filter])
+                assert np.all(self._bl_filter[bl_filter])
+                assert np.all(self._sp_filter[sp_filter])
+                assert np.all(self._we_filter[we_filter])
+                if self._has_auto:
+                    assert np.all(self._ac_filter[ac_filter])
+
+                # Note that these final set of checks are for making sure that we can
+                # downselect the data itself, assuming that it's been loaded. This
+                # should ensure that _downselect_data works below without error.
+                if self._vis_data_loaded:
+                    assert np.all(
+                        np.isin(list(self.vis_data.keys(), self.sp_data["sphid"]))
+                    )
+                if self._raw_data_loaded:
+                    assert np.all(
+                        np.isin(list(self.raw_data.keys(), self.sp_data["sphid"]))
+                    )
+                if self._auto_data_loaded:
+                    assert np.all(
+                        np.isin(list(self.auto_data.keys(), self.ac_data["achid"]))
+                    )
+            except AssertionError:
+                allow_downselect = False
+
+        if allow_downselect:
+            # If we are allowing the data to be downselected, then we just want to
+            # select from the already loaded data vales. Note that we skip codes
+            # and ant positions since those are assumed to be constant over the track.
+            self.in_data = self.in_data[in_filter[self._in_filter]]
+            self.eng_data = self.in_data[eng_filter[self._eng_filter]]
+            self.bl_data = self.in_data[bl_filter[self._bl_filter]]
+            self.sp_data = self.in_data[sp_filter[self._sp_filter]]
+            self.we_data = self.in_data[we_filter[self._we_filter]]
+            if self._has_auto:
+                self.ac_data = self.ac_data[ac_filter[self._ac_filter]]
+            else:
+                self.ac_data = None
+        else:
+            self.in_data = self._in_read[in_filter]
+            self.eng_data = self._eng_read[eng_filter]
+            self.bl_data = self._bl_read[bl_filter]
+            self.sp_data = self._sp_read[sp_filter]
+            self.we_data = self._we_read[we_filter]
+            if self._has_auto:
+                self.ac_data = self._ac_read[ac_filter]
+            else:
+                self.ac_data = None
+
+            # Also "refresh" the codes_dict and antpos values, just in case
+            # the user changed them under the hood.
+            self.codes_dict = self.make_codes_dict(self._codes_read)
+            self.antpos_data = self._antpos_read.copy()
+
+        # Now go through and update the filters
+        self._in_filter = in_filter
+        self._eng_filter = eng_filter
+        self._bl_filter = bl_filter
+        self._sp_filter = sp_filter
+        self._we_filter = we_filter
+        self._ac_filter = ac_filter
+
+        # Craft some dictionaries so you know what list position matches
+        # to each index entry. This helps avoid ordering issues.
+        self._inhid_dict = {inhid: idx for idx, inhid in enumerate(in_inhid)}
+        self._blhid_dict = {blhid: idx for idx, blhid in enumerate(bl_blhid)}
+        self._sphid_dict = {sphid: idx for idx, sphid in enumerate(sp_sphid)}
+
+        if (update_data is None) or (update_data and allow_downselect):
+            try:
+                self._downselect_data()
+            except KeyError:
+                self.unload_data()
+        elif update_data and not self._data_mucked:
+            self.load_data(
+                load_vis=self._vis_data_loaded,
+                load_raw=self._raw_data_loaded,
+                load_auto=self._auto_data_loaded,
+                apply_tsys=self._tsys_applied,
+                allow_downselect=False,
+                allow_conversion=False,
             )
-        }
-
-        if invert:
-            for key, value in normal_dict.items():
-                normal_dict[key] = 1.0 / value
-
-        # Finally, multiply the individual spectral records by the SEFD values
-        # that are in the dictionary.
-        for sphid, blhid in zip(self.sp_data["sphid"], self.sp_data["blhid"]):
-            self.vis_data[sphid]["vis_data"] *= normal_dict[blhid]
-
-        self._tsys_applied = not invert
+        else:
+            if update_data:
+                warnings.warn("Unable to update data attributes, unloading them now.")
+            self.unload_data()
+            self._data_mucked = False
 
     def fromfile(
         self,
@@ -2211,6 +2347,7 @@ class MirParser(object):
         self._tsys_applied = False
         self._raw_data_loaded = False
         self._auto_data_loaded = False
+        self._data_mucked = False
 
         # This value is the forward gain of the antenna (in units of Jy/K), which is
         # multiplied against the system temperatures in order to produce values in units
@@ -2539,9 +2676,30 @@ class MirParser(object):
         # TODO rechunk: Add comments
         # TODO rechunk: Add docstring
         # TODO rechunk: Flesh out this command, which should be used by users.
+        raise_err = False
+        if isinstance(chan_avg, dict):
+            for key, value in chan_avg:
+                if isinstance(chan_avg, int) or isinstance(chan_avg, np.int_):
+                    raise_err = True
+                    break
+                if isinstance(chan_avg, int) or isinstance(chan_avg, np.int_):
+                    raise_err = True
+                    break
+        elif not (isinstance(chan_avg, int) or isinstance(chan_avg, np.int_)):
+            raise_err = True
+
+        if raise_err:
+            pass
+
+        if self._file_dict == {}:
+            # If no associated file dict, then we need to deal with _all_ the spectral
+            # records in _sp_read, not just the ones in sp_data.
+            pass
+        else:
+            pass
 
     @staticmethod
-    def _combine_read_arr_check(arr1, arr2, index_name=None):
+    def _combine_read_arr_check(arr1, arr2, index_name=None, any_match=False):
         """
         Check if two MirParser metadata arrays have conflicting index values.
 
@@ -2564,12 +2722,18 @@ class MirParser(object):
             of codes_dtype. Typically, "inhid" is matched to elements in in_read and
             eng_read, "blhid" to bl_read, "sphid" to sp_read, "achid" to ac_read, and
             "scanNumber" to we_read.
+        any_match : bool
+            Nominally the method checks to see if all fields in each array match when
+            overlapping indicies exist. However, if this is set to True, it will check
+            instead if any elements with overlapping indicies have metadata that agree.
 
         Returns
         -------
-        good_to_merge : bool
-            If True, the two arrays have no entries where the index value matches but
-            the associated metadata does not, and thus should be safe to merge.
+        check_status : bool
+            If True, and `any_match=False`, any entries between the two arrays where
+            the index value matches has metadata which is indentical, and thus should
+            be safe to merge. If True and `any=True`, then the two arrays have at
+            least one entry where the index value matches and the metadata agrees.
         """
         # First up, make sure we have two ndarrays of the same dtype
         if arr1.dtype != arr2.dtype:
@@ -2596,6 +2760,8 @@ class MirParser(object):
                     # sets of codes_read, that the value (code) is the same in both.
                     if not (arr1_dict[key] == arr2_dict[key]):
                         return False
+                    elif any_match:
+                        return True
                 except KeyError:
                     # If the keys don't confict, then there's no potential clash, so
                     # just move on to the next entry.
@@ -2620,7 +2786,12 @@ class MirParser(object):
 
         # Finally, compare where we have coverlap and make sure the two arrays
         # are the same.
-        return np.array_equal(arr1[idx1], arr2[idx2])
+        if any_match:
+            check_status = np.any(arr1[idx1] == arr2[idx2])
+        else:
+            check_status = np.array_equal(arr1[idx1], arr2[idx2])
+
+        return check_status
 
     @staticmethod
     def _combine_read_arr(
@@ -3034,7 +3205,13 @@ class MirParser(object):
 
     @staticmethod
     def concat(obj_list, force=True):
-        """Concat multiple MirParser objects together."""
+        """
+        Concat multiple MirParser objects together.
+
+        Users should be aware that this method will return an object where no data
+        are loaded and any selection criterion have been reset (i.e., what you get
+        when running `select(reset=True)`).
+        """
         comp_list = [
             "_in_read",
             "_eng_read",
@@ -3042,7 +3219,6 @@ class MirParser(object):
             "_we_read",
             "_codes_read",
             "_antpos_read",
-            "_file_dict",
         ]
         # TODO concat: Finish fleshing this out.
         # TODO concat: Add doc string
@@ -3053,11 +3229,15 @@ class MirParser(object):
             if not isinstance(obj1, MirParser):
                 raise ValueError("Can only concat MirParser objects.")
             if obj1._has_auto != auto_check:
-                raise ValueError(
-                    "Cannot combine objects both with and without auto-correlation "
-                    "data. When reading data from file, must keep _has_auto set "
-                    "consistently between file reads."
-                )
+                if force:
+                    auto_check = False
+                else:
+                    raise ValueError(
+                        "Cannot combine objects both with and without auto-correlation "
+                        "data. When reading data from file, must keep _has_auto set "
+                        "consistently between file reads. You can bypass this error "
+                        "(and unload all auto-correlation data) by setting force=True."
+                    )
             if obj1._file_dict == {}:
                 raise ValueError(
                     "Cannot concat objects without an associated file (this is caused "
@@ -3068,9 +3248,10 @@ class MirParser(object):
                     if not np.array_equal(getattr(obj1, item), getattr(obj2, item)):
                         if not force:
                             raise ValueError(
-                                "Two objects in the list appear to hold the same data. "
-                                "Verify that you don't have two objects that are "
-                                "loaded from the same file."
+                                "Two of the objects provided appear to hold identical "
+                                "data. Verify that you don't have two objects that are "
+                                "loaded from the same file. You can bypass this error "
+                                "by setting force=True (use with caution!)."
                             )
                         elif raise_warning:
                             warnings.warn(
@@ -3078,6 +3259,54 @@ class MirParser(object):
                                 "anyways since force=False."
                             )
                             raise_warning = False
+
+        # So at this point, we've checked to see that the list of objects either aren't
+        # totally identical (or have forced the user to set force=True). Check real
+        # quick that this isn't a single object (the path for which is much simpler)
+        if len(obj_list) == 1:
+            new_obj = obj_list[0].copy()
+            new_obj.unload_data()
+            return new_obj
+
+        # Check if we have to effectively dump the auto data (and warn the user)
+        for idx, obj1 in enumerate(obj_list):
+            if auto_check != obj1._has_auto:
+                warnings.warn(
+                    "Some (but not all) objects have auto-correlation data -- ignoring "
+                    "this data and setting _has_data=False on the returned object."
+                )
+                break
+
+        # Finally, if we haven't raised a warning yet, check and see if there are _any_
+        # identical entries in in_read, since it contains information that should always
+        # be unique to every observation.
+        for idx, obj1 in enumerate(obj_list):
+            # If we have already disabled the warning, it means that we have already
+            # detected a problem but the user set force=True.
+            if not raise_warning:
+                break
+            else:
+                for obj2 in obj_list[:idx]:
+                    if MirParser._combine_read_arr_check(
+                        obj1._in_read, obj2._in_read, "inhid", any_match=True,
+                    ):
+                        if force:
+                            warnings.warn(
+                                "Objects may contain overlapping data, pushing "
+                                "forward  anyways since force=False."
+                            )
+                            raise_warning = False
+                            break
+                        else:
+                            raise ValueError(
+                                "Two of the objects appear to have overlapping data. "
+                                "Verify that you don't have two objects that are "
+                                "loaded from the same file. You can bypass this error "
+                                "by setting force=True (use with caution!)."
+                            )
+
+        # Alright, at this point we have checked everything that we needed to check,
+        # and so now we want to actually start the process of merging all the data.
 
     @staticmethod
     def _parse_select_compare(select_field, select_comp, select_val, data_arr):
@@ -3415,10 +3644,10 @@ class MirParser(object):
         update_data : bool
             Whether or not to update the visibility values (as recorded in the
             attributes `vis_data` and `raw_data`). If set to True, it will force data
-            to be loaded from disk (even if not previously loaded), and if False, it
-            will not update those attributes. The default is to do nothing if data are
+            to be loaded from disk, based on what had been previously loaded. If False,
+            it will unload those attributes. The default is to do nothing if data are
             not loaded, otherwise to downselect from the existing data in the object
-            if all records are present (and otherwise to load the data from disk).
+            if all records are present (and otherwise unload the data).
         reset : bool
             If set to true, undoes any previous filters, so that all records are once
             again visible. Note that this will also unload the data. Default is False.
@@ -3497,8 +3726,7 @@ class MirParser(object):
 
         # If all we need to do is reset, then do that now and bail.
         if reset:
-            self.unload_data()
-            self._update_filter()
+            self._update_filter(update_data=False)
             return
 
         # If directly supplying slices upon which to select the data, deal with
@@ -3863,25 +4091,33 @@ class MirParser(object):
 
             for idx, sphid in enumerate(sphid_arr):
                 # Now we'll step through each spectral record that we have to process.
+                # Note that we use unpackbits because MATLAB/HDF5 doesn't seem to have
+                # a way to store single-bit values, and so the data are effectively
+                # compressed into uint8, which can be reinflated via unpackbits.
                 try:
                     # If we have a flags entry for this sphid, then go ahead and apply
                     # them to the flags table for that spectral record.
-                    self.vis_data[sphid]["vis_flags"] += sphid_flags[sphid]
+                    self.vis_data[sphid]["vis_flags"] += np.unpackbits(
+                        sphid_flags[sphid], bitorder="little"
+                    )
                 except KeyError:
                     # If no key is found, then we want to try and use the "broader"
                     # flags to mask out the data that's associated with the given
                     # antenna-receiver combination (for that sideband and spec window).
                     # Note that if we do not have an entry here, something is amiss.
-                    self.vis_data[sphid]["vis_flags"] += wide_flags[
-                        (
-                            ant1_arr[idx],
-                            rx1_arr[idx],
-                            ant2_arr[idx],
-                            rx2_arr[idx],
-                            sb_arr[idx],
-                            chunk_arr[idx],
-                        )
-                    ]
+                    self.vis_data[sphid]["vis_flags"] += np.unpackbits(
+                        wide_flags[
+                            (
+                                ant1_arr[idx],
+                                rx1_arr[idx],
+                                ant2_arr[idx],
+                                rx2_arr[idx],
+                                sb_arr[idx],
+                                chunk_arr[idx],
+                            )
+                        ],
+                        bitorder="little",
+                    )
 
     def redoppler_data(self):
         """
