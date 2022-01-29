@@ -1268,7 +1268,8 @@ class UVFlag(UVBase):
                 for t_index, bl in enumerate(uv.baseline_array):
                     uvf_t_index = np.nonzero(
                         np.isclose(
-                            uv.time_array[t_index] == self.time_array,
+                            uv.time_array[t_index],
+                            self.time_array,
                             atol=time_atol,
                             rtol=0.0,
                         )
