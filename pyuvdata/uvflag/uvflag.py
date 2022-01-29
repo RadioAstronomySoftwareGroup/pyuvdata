@@ -1015,7 +1015,6 @@ class UVFlag(UVBase):
         self,
         method="quadmean",
         keep_pol=True,
-        time_atol=0.0,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -1033,10 +1032,6 @@ class UVFlag(UVBase):
             than one polarization, the resulting polarization_array
             will be a single element array with a comma separated string
             encoding the original polarizations.
-        time_atol : float
-            Absolute tolerance in units of time (usually JD) to consider two
-            times to be identical when matching times in this UVFlag object to
-            times in the input uv. Default 0.0 means they must be exactly equal.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after converting to waterfall type.
@@ -1085,7 +1080,7 @@ class UVFlag(UVBase):
             if return_weights_square:
                 ws = np.zeros((Nt, Nf, Np))
             for i, t in enumerate(np.unique(self.time_array)):
-                ind = np.isclose(self.time_array, t, atol=time_atol, rtol=0.0)
+                ind = self.time_array == t
                 if self.mode == "metric":
                     _weights = self.weights_array[ind, :, :]
                 else:
