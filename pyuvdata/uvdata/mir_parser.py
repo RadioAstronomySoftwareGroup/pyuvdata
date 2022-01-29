@@ -1631,6 +1631,22 @@ class MirParser(object):
             of a tuple made of of ("code", "ncode") from each element of `codes_read`.
         """
         codes_dict = {}
+
+        # These are entries that are supposed to change over the course of the track,
+        # but _may_ not if there is only a single entry. For sake of consistency, we
+        # force these to behave like v_names that have multiple entries
+        code_diff_allowed = [
+            "ref_time",
+            "ut",
+            "vrad",
+            "source",
+            "stype",
+            "svtype",
+            "project",
+            "ra",
+            "dec",
+        ]
+
         for item in codes_read:
             v_name = item["v_name"].decode("UTF-8")
             try:
@@ -1645,8 +1661,10 @@ class MirParser(object):
                 ]
 
         for key in codes_dict.keys():
-            if len(codes_dict[key][0]) == 1 and (
-                codes_dict[key][1] == [0] and codes_dict[key][2] == [1]
+            if (
+                len(codes_dict[key][0]) == 1
+                and (key not in code_diff_allowed)
+                and (codes_dict[key][1] == [0] and codes_dict[key][2] == [1])
             ):
                 codes_dict[key] = codes_dict[key][0][0]
             else:
@@ -2282,13 +2300,7 @@ class MirParser(object):
             self._data_mucked = False
 
     def fromfile(
-        self,
-        filepath,
-        has_auto=False,
-        load_vis=False,
-        load_raw=False,
-        load_auto=False,
-        metadata_only=False,
+        self, filepath, has_auto=False, load_vis=False, load_raw=False, load_auto=False,
     ):
         """
         Read in all files from a mir data set into predefined numpy datatypes.
@@ -2323,12 +2335,10 @@ class MirParser(object):
         self._antpos_read = self.read_antennas(filepath)  # Antenna positions
 
         # This indexes the "main" file that contains all the visibilities, to make
-        # it faster to read in the data. Only need this if we want to read in more
-        # than just the metadata.
-        if not metadata_only:
-            self._file_dict = {
-                os.path.abspath(filepath): self.calc_int_start(self._sp_read)
-            }
+        # it faster to read in the data.
+        self._file_dict = {
+            os.path.abspath(filepath): self.calc_int_start(self._sp_read)
+        }
         self.filepath = filepath
 
         self._has_auto = has_auto
@@ -2341,12 +2351,13 @@ class MirParser(object):
 
         # Raw data aren't loaded on start, because the datasets can be huge
         # You can force this after creating the object with load_data().
-        self.vis_data = self.raw_data = self.auto_data = None
+        # Calling to unload_data will set all the relevant fields  we need.
+        self.unload_data(unload_vis=True, unload_raw=True, unload_auto=True)
 
-        self._vis_data_loaded = False
-        self._tsys_applied = False
-        self._raw_data_loaded = False
-        self._auto_data_loaded = False
+        # _data_mucked records if we've done something where the loaded data may not
+        # match the metadata sorted in the *_read attributes, and thus some care is
+        # required before loading up data from disk. This is normally unset by
+        # running select(reset=True).
         self._data_mucked = False
 
         # This value is the forward gain of the antenna (in units of Jy/K), which is
@@ -2375,7 +2386,6 @@ class MirParser(object):
         load_vis=False,
         load_raw=False,
         load_auto=False,
-        metadata_only=False,
     ):
         """
         Read in all files from a mir data set into predefined numpy datatypes.
@@ -2405,7 +2415,6 @@ class MirParser(object):
                 load_vis=load_vis,
                 load_raw=load_raw,
                 load_auto=load_auto,
-                metadata_only=metadata_only,
             )
 
     def tofile(
@@ -3212,18 +3221,21 @@ class MirParser(object):
         are loaded and any selection criterion have been reset (i.e., what you get
         when running `select(reset=True)`).
         """
-        comp_list = [
+        # These are items that should be different
+        diff_list = [
             "_in_read",
             "_eng_read",
             "_bl_read",
             "_we_read",
             "_codes_read",
-            "_antpos_read",
         ]
+        # There are items that should be the same
+
         # TODO concat: Finish fleshing this out.
         # TODO concat: Add doc string
         # TODO concat: Add comments
         auto_check = obj_list[0]._has_auto
+        antpos_check = False
         raise_warning = True
         for idx, obj1 in enumerate(obj_list):
             if not isinstance(obj1, MirParser):
@@ -3244,8 +3256,24 @@ class MirParser(object):
                     "by adding objects together with force=True)."
                 )
             for obj2 in obj_list[:idx]:
-                for item in comp_list:
-                    if not np.array_equal(getattr(obj1, item), getattr(obj2, item)):
+                for key in obj1._file_dict.keys():
+                    if key in obj2._file_dict.keys():
+                        raise ValueError(
+                            "At least one object to be concatenated has been loaded "
+                            "from the same file as another (index position %d). "
+                            "Remove it from the list to continue." % idx
+                        )
+                if not np.array_equal(obj1._antpos_read, obj2._antpos_read):
+                    if not force:
+                        raise ValueError(
+                            "Two of the objects provided do not have the same antenna "
+                            "positions. You can bypass this error by setting "
+                            "force=True (use with caution!)."
+                        )
+                    else:
+                        antpos_check = True
+                for item in diff_list:
+                    if np.array_equal(getattr(obj1, item), getattr(obj2, item)):
                         if not force:
                             raise ValueError(
                                 "Two of the objects provided appear to hold identical "
@@ -3277,6 +3305,69 @@ class MirParser(object):
                 )
                 break
 
+        # Also if forced, warn the user that we're about to adopt a single set of
+        # antenna positions, even though the list has different ones.
+        if antpos_check:
+            warnings.warn(
+                "Some objects have different antenna positions than others. Taking "
+                "antenna positions from first object in the list and discarding the "
+                "rest."
+            )
+
+        # Next item -- move on and check that the codes_read entries actually look
+        # sensible. The list below entails the codes that are allowed to be different,
+        # otherwise the entries need to be identical (note that this is a hard failure
+        # at the moment since differences can signal truly incompatible data).
+        code_diff_allowed = [
+            "ref_time",
+            "ut",
+            "vrad",
+            "source",
+            "stype",
+            "svtype",
+            "project",
+            "ra",
+            "dec",
+        ]
+        # We're going to convert codes_read to a codes_dict for both convenience here
+        # and also for later use when we combine the objects.
+        codes_dict_list = []
+        for idx, obj1 in enumerate(obj_list):
+            obj1_codes = MirParser.make_codes_dict(obj1._codes_read)
+            codes_dict_list.append(obj1_codes)
+            for jdx, obj2 in enumerate(obj_list[:idx]):
+                obj2_codes = codes_dict_list[jdx]
+
+                # Check to make sure they objects have the same set of keys
+                if list(obj1_codes.keys()) != list(obj2_codes.keys()):
+                    raise ValueError(
+                        "codes_dict contains different keys between objects, "
+                        "data are not compatible."
+                    )
+                for key in obj1_codes.keys():
+                    if key in code_diff_allowed:
+                        continue
+                    if obj1_codes[key] != obj2_codes[key]:
+                        # Okay, so now we have a problem - something that shouldn't
+                        # differ between the files does. Most probable explanations are
+                        # filever, polarization, and band, so check those first in
+                        # order to give a move informative error message (otherwise
+                        # just report the offending key)
+                        err_msg = "Cannot concat objects, "
+                        if key == "filever":
+                            err_msg += "differing file versions detected."
+                        elif key == "pol":
+                            err_msg += (
+                                "differing polarization states detected (polarized"
+                                "and non-polarized records present)."
+                            )
+                        elif key == "band":
+                            err_msg += "differing correlator configurations detected "
+                            "(different number of spectral bands per object)."
+                        else:
+                            err_msg += "%s key in codes_dict differs." % key
+                        raise ValueError(err_msg)
+
         # Finally, if we haven't raised a warning yet, check and see if there are _any_
         # identical entries in in_read, since it contains information that should always
         # be unique to every observation.
@@ -3307,6 +3398,283 @@ class MirParser(object):
 
         # Alright, at this point we have checked everything that we needed to check,
         # and so now we want to actually start the process of merging all the data.
+        # Start with in_read, since we need to cascade the inhid changes downward.
+        in_read_list = []
+        inhid_dict_list = []
+        inhid_count = 1
+        for obj in obj_list:
+            # Make a copy of the array, for updating and later concat
+            temp_in_read = obj._in_read.copy()
+
+            # Map out the old index values to the new one
+            old_inhid = temp_in_read["inhid"]
+            new_inhid = np.arange(inhid_count, inhid_count + len(temp_in_read))
+
+            # Up the count so that the next set of index values are unique.
+            inhid_count += len(temp_in_read)
+
+            # Make a dict so that we can map inhid values later
+            inhid_dict_list.append(
+                {oldid: newid for oldid, newid in zip(old_inhid, new_inhid)}
+            )
+            # Plug in the new index values
+            temp_in_read["inhid"] = new_inhid
+            temp_in_read["ints"] = new_inhid
+
+            # Save this array for later when we construct the final object.
+            in_read_list.append(temp_in_read)
+
+        bl_read_list = []
+        blhid_dict_list = []
+        blhid_count = 1
+        for idx, obj in enumerate(obj_list):
+            # Make a copy of the array, for updating and later concat
+            temp_bl_read = obj._bl_read.copy()
+
+            # Map out the old index values to the new one
+            old_blhid = temp_bl_read["blhid"]
+            new_blhid = np.arange(blhid_count, blhid_count + len(temp_bl_read))
+
+            # Up the count so that the next set of index values are unique.
+            blhid_count += len(temp_bl_read)
+
+            # Make a dict so that we can map blhid values later
+            blhid_dict_list.append(
+                {oldid: newid for oldid, newid in zip(old_blhid, new_blhid)}
+            )
+            # Plug in the new index values
+            temp_bl_read["blhid"] = new_blhid
+
+            # We've got the blhid index remade, now propagate changes to inhid.
+            inhid_dict = inhid_dict_list[idx]
+            temp_bl_read["inhid"] = [inhid_dict[idx] for idx in temp_bl_read["inhid"]]
+
+            # Finally, add the updated array to the list.
+            bl_read_list.append(temp_bl_read)
+
+        sp_read_list = []
+        sphid_dict_list = []
+        sphid_count = 1
+        for obj in enumerate(obj_list):
+            # Make a copy of the array, for updating and later concat
+            temp_sp_read = obj._sp_read.copy()
+
+            # Map out the old index values to the new one
+            old_sphid = temp_sp_read["sphid"]
+            new_sphid = np.arange(sphid_count, sphid_count + len(temp_sp_read))
+
+            # Up the count so that the next set of index values are unique.
+            sphid_count += len(temp_sp_read)
+
+            # Make a dict so that we can map sphid values later
+            sphid_dict_list.append(
+                {oldid: newid for oldid, newid in zip(old_sphid, new_sphid)}
+            )
+            # Plug in the new index values
+            temp_sp_read["sphid"] = new_sphid
+
+            # We've got the sphid index remade, now propagate changes to inhid/blhid.
+            inhid_dict = inhid_dict_list[idx]
+            blhid_dict = blhid_dict_list[idx]
+            temp_sp_read["inhid"] = [inhid_dict[idx] for idx in temp_sp_read["inhid"]]
+            temp_sp_read["blhid"] = [blhid_dict[idx] for idx in temp_sp_read["blhid"]]
+
+            # Finally, add the updated array to the list.
+            sp_read_list.append(temp_sp_read)
+
+        # If we have autos, now is the time to update the spectral records
+        if auto_check:
+            ac_read_list = []
+            achid_dict_list = []
+            achid_count = 1
+            for idx, obj in enumerate(obj_list):
+                # Make a copy of the array, for updating and later concat
+                temp_ac_read = obj._ac_read.copy()
+
+                # Map out the old index values to the new one
+                old_achid = temp_ac_read["achid"]
+                new_achid = np.arange(achid_count, achid_count + len(temp_ac_read))
+
+                # Up the count so that the next set of index values are unique.
+                achid_count += len(temp_ac_read)
+
+                # Make a dict so that we can map achid values later
+                achid_dict_list.append(
+                    {oldid: newid for oldid, newid in zip(old_achid, new_achid)}
+                )
+                # Plug in the new index values
+                temp_ac_read["achid"] = new_achid
+
+                # We've got the achid index remade, now propagate changes to inhid.
+                inhid_dict = inhid_dict_list[idx]
+                temp_ac_read["inhid"] = [
+                    inhid_dict[idx] for idx in temp_ac_read["inhid"]
+                ]
+
+                # Finally, add the updated array to the list.
+                ac_read_list.append(temp_ac_read)
+
+        # Now that the "primary" data structures are fixed, we'll move on to the
+        # data that only requires updating inhids, namely eng_read and we_read ()
+        eng_read_list = []
+        for idx, obj in enumerate(obj_list):
+            # Make a copy of the array for update
+            temp_eng_read = obj._eng_read.copy()
+
+            # Update index values
+            inhid_dict = inhid_dict_list[idx]
+            temp_eng_read["inhid"] = [inhid_dict[idx] for idx in temp_eng_read["inhid"]]
+            temp_eng_read["inhid"] = temp_eng_read["ints"]
+            # Hold on to array for later concat
+            eng_read_list.append(temp_eng_read)
+
+        we_read_list = []
+        for idx, obj in enumerate(obj_list):
+            # Make a copy of the array for update
+            temp_we_read = obj._we_read.copy()
+
+            # Update index values
+            inhid_dict = inhid_dict_list[idx]
+            temp_we_read["scanNumber"] = [
+                inhid_dict[idx] for idx in temp_we_read["scanNumber"]
+            ]
+            # Hold on to array for later concat
+            we_read_list.append(temp_we_read)
+
+        # Last, but not least, we need to deal with codes_read dicts and combine them
+        # together, specifically the entries in code_diff_allowed.
+        project_count = ref_time_count = source_count = 0
+        ref_time_dict = {}
+        source_dict = {}
+        for idx, temp_codes in enumerate(codes_dict_list):
+            # Codes should all match to entries in in_read, so grab that and the
+            # inhid dict in case we need to make some updates.
+            inhid_dict = inhid_dict_list[idx]
+            in_read = in_read_list[idx]
+            # First up, deal with the codes that should match to inhid, so handling
+            # them is very easy, and doesn't require any updates to in_read.
+            for item in ["ut", "ra", "dec", "vrad"]:
+                sub_codes = temp_codes[item]
+                sub_codes = {
+                    inhid_dict[key]: sub_codes[key] for key in sub_codes.keys()
+                }
+                temp_codes[item] = sub_codes
+
+            # Next up, deal with the project codes, which just requires entering them
+            # in squence.
+            project_map = {}
+            for key in temp_codes["project"].keys():
+                project_count += 1
+                project_map[key] = project_count
+
+            temp_codes["project"] = {
+                project_map[key]: value for key, value in temp_codes["project"].items()
+            }
+            # Update in_read with the new index codes for project
+            in_read["iproject"] = [project_map[key] for key in in_read["iproject"]]
+
+            # Next up, go through ref_times. These _can_ be identical across files,
+            # so we want to check for uniqueness here
+            ref_time_map = {}
+            for key, value in temp_codes["ref_time"].items():
+                try:
+                    ref_time_map[key] = ref_time_dict[value]
+                except KeyError:
+                    ref_time_count += 1
+                    ref_time_dict[value] = ref_time_map[key] = ref_time_count
+
+            temp_codes["ref_time"] = {
+                ref_time_map[key]: value
+                for key, value in temp_codes["ref_time"].items()
+            }
+            # Update in_read with the new index codes for ref_time
+            in_read["iref_time"] = [ref_time_map[key] for key in in_read["iref_time"]]
+
+            # Okay, the final tricky bit -- deal with the source information, which
+            # is _technically_ shared across three codes. If source is the same, all
+            # three _should_ be the same, but we want to make sure. Note that all
+            # three codes here by design share the same icode for the same source,
+            # and therefore the same key in codes_dict.
+            source_map = {}
+            for key in temp_codes["source"].keys():
+                temp_key = (
+                    temp_codes["source"][key],
+                    temp_codes["stype"][key],
+                    temp_codes["svtype"][key],
+                )
+                try:
+                    source_map[key] = source_dict[temp_key]
+                except KeyError:
+                    source_count += 1
+                    source_map[key] = source_dict[temp_key] = source_count
+
+            for item in ["source", "stype", "svtype"]:
+                temp_codes[item] = {
+                    source_map[key]: value for key, value in temp_codes[item].items()
+                }
+
+            # Update in_read with the new index codes for source
+            in_read["isource"] = [source_map[key] for key in in_read["isource"]]
+
+            if idx == 0:
+                codes_dict = temp_codes
+            else:
+                for key in code_diff_allowed:
+                    codes_dict[key].update(temp_codes[key])
+
+        # And with that, we now have everything we need -- all that's left is some
+        # concats and variable assignments. Note that "_read" objects contain the
+        # whole data set, while "_data" contains that after filtering/selecting.
+
+        # Spin up a new object to start plugging things into.
+        new_obj = MirParser()
+        new_obj._in_read = np.concatenate(in_read_list)  # Per integration records
+        new_obj._eng_read = np.concatenate(eng_read_list)  # Per antenna-int records
+        new_obj._bl_read = np.concatenate(bl_read_list)  # Per baaseline-int records
+        new_obj._sp_read = np.concatenate(sp_read_list)  # Per spectral win-bl-int recs
+        new_obj._we_read = np.concatenate(we_read_list)  # Per-int weather data
+
+        # We just spent a lot of time making the codes_dict correct, so here we now
+        # have to convert that back into the codes_read format.
+        new_obj._codes_read = MirParser.make_codes_read(codes_dict)
+
+        # Antenna positions we handle special, since there can be only one. Adopt the
+        # values found in the first object in the list.
+        new_obj._antpos_read = obj_list[0]._antpos_read
+
+        # Pull together all of the _file_dicts that were contained here
+        new_obj._file_dict = {
+            key: value for obj in obj_list for key, value in obj._file_dict.items()
+        }
+
+        # Keep a "user-facing" record of which files this object contains
+        new_obj.filepath = ";".join([obj.filepath for obj in obj_list])
+
+        # Now we finally get to use the auto-check value we set earlier!
+        new_obj._has_auto = auto_check
+        if auto_check:
+            new_obj._ac_read = np.concatenate(ac_read_list)
+        else:
+            new_obj._ac_read = None
+
+        # Raw data aren't loaded with a concat operation, and metadata should
+        # not be mucked (since there's no metadata in *_data yet).
+        new_obj.unload_data(unload_vis=True, unload_raw=True, unload_auto=True)
+        new_obj._data_mucked = False
+
+        # This value is the forward gain of the antenna (in units of Jy/K).
+        # Default is 130.0, which is the estimated value for SMA.
+        new_obj.jypk = 130.0
+
+        # _update_filter will assign all of the *_filter attributes, as well as the
+        # user-facing *_data attributes on call, in addition to the various *hid_dict's
+        # that map ID number to array index position. Note that we can do this slightly
+        # quicker here if we wanted to, but it's nice not to have to duplicate a bunch
+        # of code further on down.
+        new_obj._update_filter()
+
+        # And viola! New object ready for the user to interface with!
+        return new_obj
 
     @staticmethod
     def _parse_select_compare(select_field, select_comp, select_val, data_arr):
