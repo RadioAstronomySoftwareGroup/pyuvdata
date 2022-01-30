@@ -1794,8 +1794,47 @@ class MirParser(object):
 
         self._tsys_applied = not invert
 
+    def _check_data_index(self):
+        """
+        Check that data attribute indexes match metadata.
+
+        This is a simple check to make sure that index values stored in the attribute
+        sp_data (namely "sphid") and ac_data (if loaded; "achid") provide a one-to-one
+        match with the keys of raw_data/vis_data and auto_data, respectively.
+
+        Returns
+        -------
+        check : bool
+            If True, the index values all match up with keys in data data attributes.
+        """
+        # Note that we have to modify out checking here if _file_dict is empty, since
+        # it means that all spectral records have to be loaded already, even if not
+        # selected.
+        arr_fmt = "_%s_read" if (self._file_dict == {}) else "%s_data"
+
+        # Set this list up here to make the code that follows a bit more generic (so
+        # that we can have 1 loop rather than 3 if statements).
+        check_list = [
+            (self._vis_data_loaded, arr_fmt % "sp", "sphid", self.vis_data),
+            (self._raw_data_loaded, arr_fmt % "sp", "sphid", self.vis_data),
+            (self._auto_data_loaded, arr_fmt % "ac", "achid", self.auto_data),
+        ]
+
+        # Run our check
+        for (load_state, idx_attr, idx_field, data_arr) in check_list:
+            if not load_state:
+                # If not loaded, move along
+                continue
+            if sorted(getattr(self, idx_attr)[idx_field]) != sorted(data_arr.keys()):
+                # If we have a mismatch, we can leave ASAP
+                return False
+
+        # If you got to this point, it means that we've got agreement!
+        return True
+
     def _downselect_data(self, select_vis=True, select_raw=True, select_auto=True):
         """Do a thing."""
+        # TODO _downselect_data: Needs a docstring
         if self._file_dict == {}:
             # There isn't anything to do here, because we can't downselect if there
             # isn't an associated file object. Bail at this point.
@@ -2680,32 +2719,219 @@ class MirParser(object):
         # Finally, return the dict containing the raw data.
         return new_raw_dict
 
-    def rechunk(self, chan_avg):
-        """Rechunk a MirParser object."""
-        # TODO rechunk: Add comments
-        # TODO rechunk: Add docstring
-        # TODO rechunk: Flesh out this command, which should be used by users.
-        raise_err = False
-        if isinstance(chan_avg, dict):
-            for key, value in chan_avg:
-                if isinstance(chan_avg, int) or isinstance(chan_avg, np.int_):
-                    raise_err = True
-                    break
-                if isinstance(chan_avg, int) or isinstance(chan_avg, np.int_):
-                    raise_err = True
-                    break
-        elif not (isinstance(chan_avg, int) or isinstance(chan_avg, np.int_)):
-            raise_err = True
+    @staticmethod
+    def _rechunk_auto(auto_dict, chan_avg_arr, inplace=False):
+        """
+        Rechunk auto-correlation spectra.
 
-        if raise_err:
-            pass
+        Note this routine is not intended to be called by users, but instead is a
+        low-level call from the `rechunk` method of MirParser to spectrally average
+        data.
 
-        if self._file_dict == {}:
+        Parameters
+        ----------
+        auto_dict : dict
+            A dict containing visibility data, where the keys match to individual values
+            of `achid` in `ac_data`, with each value being an auto-correlation spectrum
+            (dtype=np.float32).
+        chan_avg_arr : sequence of int
+            A list, array, or tuple of integers, specifying how many channels to
+            average over within each spectral record.
+        inplace : bool
+            If True, entries in `auto_dict` will be updated with spectrally averaged
+            data. If False (default), then the method will construct a new dict that
+            will contain the spectrally averaged data.
+
+        Returns
+        -------
+        new_auto_dict : dict
+            A dict containing the spectrally averaged data, in the same format as
+            that provided in `auto_dict`.
+        """
+        new_auto_dict = auto_dict if inplace else {}
+
+        for chan_avg, (achid, sp_auto) in zip(chan_avg_arr, auto_dict.items()):
+            # If there isn't anything to average, we can skip the heavy lifting
+            # and just proceed on to the next record.
+            if chan_avg == 1:
+                if not inplace:
+                    new_auto_dict[achid] = copy.deepcopy(sp_auto)
+                continue
+
+            # The autos are a bit simpler than the vis/raw data -- there are no
+            # flags (yet), so all we need to do is to average the data.
+            new_auto_dict[achid] = (
+                sp_auto["vis_data"].reshape((-1, chan_avg)).mean(axis=-1)
+            )
+
+        return new_auto_dict
+
+    def rechunk(
+        self, chan_avg, load_vis=False, load_raw=False, load_block=10, use_mmap=True,
+    ):
+        """
+        Rechunk a MirParser object.
+
+        Spectrally average a MIR dataset. This command attempts to emulate the old
+        "SMARechunker" program within the MirParser object. Users should be aware
+        that running this operation modifies the metadata in such a way that new data
+        will not be able to be loaded until running `select(reset=True)`.
+
+        Note that this command will only process data from the "normal" spectral
+        windows, and not the pseudo-continuum data (which will remain untouched).
+
+        Parameters
+        ----------
+        chan_avg : int
+            Number of contiguous spectral channels to average over.
+        load_vis : bool
+            If set to True, "normal" visibility data will be loaded and specrally
+            averaged on the fly. Useful for when attempting to read in large datasets.
+            Default is False, which results in only previously loaded data being
+            processed.
+        load_raw : bool
+            Similar to `load_raw`, if set to True, the raw visibility data will be
+            loaded from disk and spectrally averaged on the fly. Default is False,
+            which results in only previously loaded data being processed.
+        load_block : int
+            Only used if `load_vis=True` or `load_raw=True`. The number of integrations
+            to load data from simultaneously. Default is 10, which typically limits
+            additional memory overheads to 1-2 GB on a typical data set.
+        use_mmap : bool
+            If False, then each integration record needs to be read in before it can
+            be parsed on a per-spectral record basis (which can be slow if only reading
+            a small subset of the data). Default is True, which will leverage mmap to
+            access data on disk (that does not require reading in the whole record).
+            There is usually no performance penalty to doing this, although reading in
+            data is slow, you may try seeing this to False and seeing if performance
+            improves.
+        """
+        # Start of by doing some argument checking.
+        arg_dict = {"load_block": load_block, "chan_avg": chan_avg}
+        for key, value in arg_dict.items():
+            if not (isinstance(value, int) or isinstance(value, np.int_)):
+                raise ValueError("%s must be of type int." % key)
+            elif value < 1:
+                raise ValueError("%s cannot be a number less than one." % key)
+
+        if load_vis or load_raw:
+            if self._data_mucked:
+                raise ValueError(
+                    "Cannot load data due to modifications of metadata records. "
+                    "Run select(reset=True) in order to clear this issue, or "
+                    "set load_data and load_raw to False."
+                )
+            elif self._file_dict == {}:
+                raise ValueError(
+                    "Cannot unload data as there is no file to load data from."
+                )
+        else:
+            if chan_avg == 1:
+                # This is a no-op, so we can actually bail at this point.
+                return
+            if (not (self._vis_data_loaded or self._raw_data_loaded)) and (
+                not self._auto_data_loaded
+            ):
+                warnings.warn("No data loaded to average, returning.")
+                return
+            if not self._check_data_index():
+                # If the above returns False, then we have a problem, and can't
+                # actually run this operation (have to reload the data).
+                raise ValueError(
+                    "Index values do not match data keys. Data will need to be "
+                    "reloaded before continuing (with select(reset=True)."
+                )
+
+        sp_data = self._sp_read if (self._file_dict == {}) else self.sp_data
+        chan_avg_arr = np.where(sp_data["corrchunk"] == 0, 1, chan_avg)
+
+        if np.any(np.mod(sp_data["nch"], chan_avg_arr) != 0):
+            raise ValueError(
+                "chan_avg does not go evenly into the number of channels in each "
+                "spectral window (typically chan_avg should be set to a power of 2)."
+            )
+
+        # Note we are about to modify the data AND metadata, so mark this
+        # object as mucked to prevent us from trusting the metadata.
+        self._data_mucked = True
+
+        if not (load_vis or load_raw):
             # If no associated file dict, then we need to deal with _all_ the spectral
             # records in _sp_read, not just the ones in sp_data.
-            pass
+            if self._vis_data_loaded:
+                self._rechunk_vis(self.vis_data, chan_avg_arr, inplace=True)
+            if self._raw_data_loaded:
+                self._rechunk_raw(self.raw_data, chan_avg_arr, inplace=True)
+            if self._auto_data_loaded:
+                self._rechunk_auto(self.auto_data, chan_avg_arr, inplace=True)
         else:
-            pass
+            if self._raw_data_loaded or (
+                self._vis_data_loaded or self._auto_data_loaded
+            ):
+                warnings.warn(
+                    "Setting load_data or load_raw to true will unload "
+                    "previously loaded data."
+                )
+            self.unload_data()
+
+            # If we're going to load the data, then we only want to load a few
+            # blocks of data at a time, otherwise we run the risk of overtaxing
+            # memory by loading in the data at a resolution we can't handle.
+            # First, pluck out the unique inhid's
+            unique_inhid = np.unique(self.sp_data["inhid"])
+            marker = 0
+            while marker < len(unique_inhid):
+                # Grab a subset of sp_data, since it's the sphids in this array
+                # that will tell read_vis_data which data to load up. Note were
+                # selecting whole integrations since that's how the data are
+                # packed together, so each packdata only need be read once.
+                data_mask = np.isin(
+                    sp_data["inhid"], unique_inhid[marker : marker + load_block]
+                )
+
+                temp_sp_data = sp_data[data_mask]
+                temp_chan_avg = chan_avg_arr[data_mask]
+
+                # One way or another, we only want to load one set of data. If we just
+                # want the raw data, then we can save on memory by just loading that.
+                # Otherwise, we want to load vis, since it's faster to process (at the
+                # expense of some additional memory overhead).
+                (data_dict,) = self.read_vis_data(
+                    list(self._file_dict.keys()),
+                    list(self._file_dict.values()),
+                    temp_sp_data,
+                    return_vis=load_vis,
+                    return_raw=(load_raw and not load_vis),
+                    use_mmap=use_mmap,
+                )
+
+                if load_raw and not load_vis:
+                    # by calling the _rechunk_raw method.
+                    self._rechunk_raw(data_dict, temp_chan_avg, inplace=True)
+                    self.raw_data.update(data_dict)
+                else:
+                    # Otherwise, if we want the vis, it's faster and more efficient
+                    # to convert the data from raw to vis, rechunk, and then convert
+                    # back to raw _if_ we need it
+                    self._rechunk_vis(data_dict, temp_chan_avg, inplace=True)
+                    self.vis_data.update(data_dict)
+                    if load_raw:
+                        self.raw_data.update(self.convert_vis_to_raw(data_dict))
+
+                # Delete data_dict, just to break any potential references and allow
+                # cache to clear.
+                del data_dict
+                marker += load_block
+
+            self._vis_data_loaded = load_vis
+            self._raw_data_loaded = load_raw
+
+        # Last task - update the metadata about num of channels accordingly,
+        # and clobber the dataoff values.
+        sp_data["nch"] = sp_data["nch"] // chan_avg_arr
+        sp_data["dataoff"] = 0
+        if self._file_dict == {}:
+            self.sp_data["nch"] = self._sp_read["nch"][self._sp_filter]
 
     @staticmethod
     def _combine_read_arr_check(arr1, arr2, index_name=None, any_match=False):
@@ -3217,29 +3443,71 @@ class MirParser(object):
         """
         Concat multiple MirParser objects together.
 
+        Concatenates together multiple MirParser objects (loaded from different files
+        on disk) into a single object. Note that this method will only work if they are
+        compatible, which means that the following criterion are met: data are taken in
+        the same polarization mode, data are taken with the same correlator
+        configuration (i.e., number of bands), and data are recorded with the same MIR
+        file verison, that the antenna postiions record in each are the same, and the
+        `_has_auto` flag has been set the same for all objects.
+
+        Note that this method is intended for combining _different_ files together, and
+        will normally throw an error if it appears as though two objects contain the
+        same data. Users desiring to add together two datasets loaded from the same
+        file (with, for example, different `select` commands run on each) should look
+        to the `__add__` method instead.
+
         Users should be aware that this method will return an object where no data
         are loaded and any selection criterion have been reset (i.e., what you get
         when running `select(reset=True)`).
+
+        Parameters
+        ----------
+        obj_list : list of MirParser objects
+            List of MirParser objects to be combined.
+        force : bool
+            Normally, if one of the objects looks like it has some of the same data as
+            another in the list to be concatenated, an error will be thrown. This is
+            to prevent the same visibilities from being loaded into the same data file
+            twice, which can have undesirable effects downstream. If set to True, this
+            check will result in a warning instead of an error (if at all possible).
+            Users should use this option with caution. Default is False.
+
+        Returns
+        -------
+        new_obj : MirParser object
+            A concatenated data set in a single MirParser object.
+
+        Raises
+        ------
+        ValueError
+            If objects appear to contain the same data or have differing values for the
+            antenna positions or the `_has_data` flag (if `force=False`). Also if two
+            objects point to the same file on disk from which data are loaded, of if
+            two objects are otherwise not compatible for being concatenated (different
+            file verison, polarization state, or correlator config).
         """
-        # These are items that should be different
+        # These are items that should be different in at least _some_ way, which
+        # we can use np.array_equal to check between objects that this is the case.
         diff_list = [
             "_in_read",
             "_eng_read",
             "_bl_read",
-            "_we_read",
+            "_sp_read" "_we_read",
             "_codes_read",
         ]
-        # There are items that should be the same
 
-        # TODO concat: Finish fleshing this out.
-        # TODO concat: Add doc string
-        # TODO concat: Add comments
+        # Store some check values here, so that we can take appropriate action later.
         auto_check = obj_list[0]._has_auto
         antpos_check = False
+        # raise_warning just makes it so that we sound the alarm once on a given
+        # problem. No sense in flooding the channel w/ warning messages.
         raise_warning = True
         for idx, obj1 in enumerate(obj_list):
+            # Nice try, buddy - can't concat non-MirParser objects.
             if not isinstance(obj1, MirParser):
                 raise ValueError("Can only concat MirParser objects.")
+            # Check that the autos are either all loaded or unloaded
             if obj1._has_auto != auto_check:
                 if force:
                     auto_check = False
@@ -3250,12 +3518,17 @@ class MirParser(object):
                         "consistently between file reads. You can bypass this error "
                         "(and unload all auto-correlation data) by setting force=True."
                     )
+            # Make sure that this object actually points to a file on disk (otherwise
+            # it's gonna break a lot of functionality in MirParser).
             if obj1._file_dict == {}:
                 raise ValueError(
                     "Cannot concat objects without an associated file (this is caused "
                     "by adding objects together with force=True)."
                 )
+            # Time to do some inter-object comparisons.
             for obj2 in obj_list[:idx]:
+                # Make sure that objects don't point to the same file on disk.
+                # No double-loading of data allowed!
                 for key in obj1._file_dict.keys():
                     if key in obj2._file_dict.keys():
                         raise ValueError(
@@ -3263,6 +3536,7 @@ class MirParser(object):
                             "from the same file as another (index position %d). "
                             "Remove it from the list to continue." % idx
                         )
+                # Check that the antenna positions agree
                 if not np.array_equal(obj1._antpos_read, obj2._antpos_read):
                     if not force:
                         raise ValueError(
@@ -3272,6 +3546,7 @@ class MirParser(object):
                         )
                     else:
                         antpos_check = True
+                # Check that our diff_list actually looks different between objects
                 for item in diff_list:
                     if np.array_equal(getattr(obj1, item), getattr(obj2, item)):
                         if not force:
