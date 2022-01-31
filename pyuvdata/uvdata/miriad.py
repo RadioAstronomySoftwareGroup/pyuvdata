@@ -1860,20 +1860,6 @@ class Miriad(UVData):
         # vectors.  This is not supported at present!
         # NB: complex numbers *should* be supportable, but are not currently
         # supported due to unexplained errors in _miriad and/or its underlying libraries
-        numpy_types = {
-            np.int8: int,
-            np.int16: int,
-            np.int32: int,
-            np.int64: int,
-            np.uint8: int,
-            np.uint16: int,
-            np.uint32: int,
-            np.uint64: int,
-            np.float16: float,
-            np.float32: float,
-            np.float64: float,
-            np.float128: float,
-        }
         types = {
             str: "a",
             int: "i",
@@ -1881,14 +1867,20 @@ class Miriad(UVData):
             bool: "a",  # booleans are stored as strings and changed back on read
         }
         for key, value in self.extra_keywords.items():
-            if isinstance(value, tuple(numpy_types.keys())):
-                if numpy_types[type(value)] == int:
+            raise_type_error = False
+            if isinstance(value, np.number):
+                if issubclass(value.dtype.type, np.integer):
                     value = int(value)
-                elif numpy_types[type(value)] == float:
+                elif issubclass(value.dtype.type, np.floating):
                     value = float(value)
+                elif issubclass(value.dtype.type, np.complexfloating):
+                    raise_type_error = True
             elif type(value) == bool:
                 value = str(value)
             elif type(value) not in types.keys():
+                raise_type_error = True
+
+            if raise_type_error:
                 raise TypeError(
                     "Extra keyword {keyword} is of {keytype}. "
                     "Only strings and real numbers are "
