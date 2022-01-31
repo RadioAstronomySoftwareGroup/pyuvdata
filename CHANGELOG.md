@@ -5,10 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added an absolute time tolerance parameter `time_atol` in `UVFlag.to_baseline()`
 - An option to `UVData.reorder_blts` to sort the autos before the crosses.
 - Added new functionality to `UVData.check` to verify that auto-correlations are real-only,
 along with an option to force them to be real-only if non-zero imaginary components are detected.
-- Added an absolute time tolerance parameter `time_atol` in `UVFlag.to_baseline()`
 
 ## [2.2.6] - 2022-01-12
 
