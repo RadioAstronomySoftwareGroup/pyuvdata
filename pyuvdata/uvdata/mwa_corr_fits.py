@@ -140,7 +140,7 @@ def corrcorrect_vect_prime(rho, sig1, sig2):
     return _corr_fits.get_khat(rho, sig1, sig2)
 
 
-def van_vleck_autos(sighat_arr):
+def van_vleck_autos(sighat):
     """
     Use Newton's method to solve the inverse of sighat_vector.
 
@@ -160,23 +160,18 @@ def van_vleck_autos(sighat_arr):
         Array of Van Vleck corrected scaled auto-correlations.
 
     """
-    # cut off small sigmas that will not converge
-    cutoff_inds = np.where(sighat_arr > 0.5)[0]
-    sighat = sighat_arr[cutoff_inds]
-    if len(sighat) > 0:
-        guess = np.copy(sighat)
+    guess = np.copy(sighat)
+    inds = np.where(np.abs(sighat_vector(guess) - sighat) > 1e-10)[0]
+    while len(inds) != 0:
+        guess[inds] -= (
+            sighat_vector(guess[inds]) - sighat[inds]
+        ) / sighat_vector_prime(guess[inds])
         inds = np.where(np.abs(sighat_vector(guess) - sighat) > 1e-10)[0]
-        while len(inds) != 0:
-            guess[inds] -= (
-                sighat_vector(guess[inds]) - sighat[inds]
-            ) / sighat_vector_prime(guess[inds])
-            inds = np.where(np.abs(sighat_vector(guess) - sighat) > 1e-10)[0]
-        sighat_arr[cutoff_inds] = guess
 
-    return sighat_arr
+    return guess
 
 
-def van_vleck_crosses_int(k_arr, sig1_arr, sig2_arr):
+def van_vleck_crosses_int(k_arr, sig1_arr, sig2_arr, cheby_approx):
     """
     Use Newton's method to solve the inverse of corrcorrect_simps.
 
@@ -202,30 +197,35 @@ def van_vleck_crosses_int(k_arr, sig1_arr, sig2_arr):
         Array of Van Vleck corrected scaled cross-correlations.
 
     """
-    nonzero_inds = np.where((k_arr != 0) & (sig1_arr != 0) & (sig2_arr != 0))[0]
-    if len(nonzero_inds) > 0.0:
-        # if cheby_approx:
-        #     warnings.warn(
-        #         str(len(nonzero_inds))
-        #         + " values are being corrected with the van vleck integral"
-        #     )
-        neg_inds = np.where(k_arr < 0.0)[0]
-        khat = np.abs(k_arr[nonzero_inds])
-        sig1 = sig1_arr[nonzero_inds]
-        sig2 = sig2_arr[nonzero_inds]
-        x0 = khat / (sig1 * sig2)
-        corr = corrcorrect_simps(x0, sig1, sig2) - khat
-        x0 -= corr / corrcorrect_vect_prime(x0, sig1, sig2)
-        inds = np.where(np.abs(corr) > 1e-8)[0]
-        while len(inds) != 0:
-            corr = corrcorrect_simps(x0[inds], sig1[inds], sig2[inds]) - khat[inds]
-            x0[inds] -= corr / corrcorrect_vect_prime(x0[inds], sig1[inds], sig2[inds])
-            inds2 = np.where(np.abs(corr) > 1e-8)[0]
-            inds = inds[inds2]
-        k_arr[nonzero_inds] = x0 * sig1 * sig2
-        k_arr[neg_inds] = np.negative(k_arr[neg_inds])
-
-    return k_arr
+    real = k_arr.real
+    imag = k_arr.imag
+    warned = False
+    for kap in real, imag:
+        nonzero_mask = (kap != 0) & (sig1_arr != 0) & (sig2_arr != 0)
+        if len(np.nonzero(nonzero_mask)[0]) > 0.0:
+            if cheby_approx and not warned:
+                warnings.warn(
+                    str(len(np.nonzero(nonzero_mask)[0]))
+                    + " values are being corrected with the van vleck integral"
+                )
+                warned = True
+            neg_inds = np.where(kap < 0.0)[0]
+            khat = np.abs(kap[nonzero_mask])
+            sig1 = sig1_arr[nonzero_mask]
+            sig2 = sig2_arr[nonzero_mask]
+            x0 = khat / (sig1 * sig2)
+            corr = corrcorrect_simps(x0, sig1, sig2) - khat
+            x0 -= corr / corrcorrect_vect_prime(x0, sig1, sig2)
+            inds = np.where(np.abs(corr) > 1e-8)[0]
+            while len(inds) != 0:
+                corr = corrcorrect_simps(x0[inds], sig1[inds], sig2[inds]) - khat[inds]
+                x0[inds] -= corr / corrcorrect_vect_prime(
+                    x0[inds], sig1[inds], sig2[inds]
+                )
+                inds2 = np.where(np.abs(corr) > 1e-8)[0]
+                inds = inds[inds2]
+            kap[nonzero_mask] = x0 * sig1 * sig2
+            kap[neg_inds] = np.negative(kap[neg_inds])
 
 
 def van_vleck_crosses_cheby(
@@ -294,8 +294,6 @@ def van_vleck_crosses_cheby(
     ) + 1j * van_vleck_crosses_int(
         khat.imag[~range_mask], sig1[~range_mask], sig2[~range_mask]
     )
-
-    return khat
 
 
 class MWACorrFITS(UVData):
@@ -585,224 +583,6 @@ class MWACorrFITS(UVData):
             self.flag_array[blt_ind:, freq_ind : freq_ind + num_fine_chans, :], flags,
         )
 
-    def van_vleck_correction(
-        self, ant_1_inds, ant_2_inds, flagged_ant_inds, cheby_approx, data_array_dtype,
-    ):
-        """
-        Apply a van vleck correction to the data array.
-
-        For an explanation of the Van Vleck corrections used and their implementation
-        in this code, see the memos at
-        https://github.com/EoRImaging/Memos/blob/master/PDFs/007_Van_Vleck_A.pdf and
-        https://github.com/EoRImaging/Memos/blob/master/PDFs/008_Van_Vleck_B.pdf
-
-        Parameters
-        ----------
-        ant_1_inds : array
-            An array of indices for antenna 1.
-        ant_2_inds : array
-            An array of indices for antenna 2.
-        flagged_ant_inds : numpy array of type int
-            List of indices of flagged antennas.
-        cheby_approx : bool
-            Option to implement the van vleck correction with a chebyshev polynomial.
-            approximation.
-        data_array_dtype : numpy dtype
-            Datatype to store the output data_array as.
-
-        """
-        history_add_string = " Applied Van Vleck correction."
-        # reshape to (nbls, ntimes, nfreqs, npols)
-        self.data_array = self.data_array.reshape(
-            self.Ntimes, self.Nbls, self.Nfreqs, self.Npols
-        )
-        self.data_array = np.swapaxes(self.data_array, 0, 1)
-        # combine axes
-        self.data_array = self.data_array.reshape(
-            (self.Nbls, self.Nfreqs * self.Ntimes, self.Npols)
-        )
-        # need data array to have 64 bit precision
-        # work on this in the future to only change precision where necessary
-        if self.data_array.dtype != np.complex128:
-            self.data_array = self.data_array.astype(np.complex128)
-
-        # scale the data
-        # number of samples per fine channel is equal to channel width (Hz)
-        # multiplied be the integration time (s)
-        # circular symmetry gives a factor of two
-        nsamples = self.channel_width[0] * self.integration_time[0] * 2
-        self.data_array /= nsamples
-        # get indices for autos
-        autos = np.where(
-            self.ant_1_array[0 : self.Nbls] == self.ant_2_array[0 : self.Nbls]
-        )[0]
-        # get indices for crosses
-        crosses = np.where(
-            self.ant_1_array[0 : self.Nbls] != self.ant_2_array[0 : self.Nbls]
-        )[0]
-        # find polarizations
-        xx = np.where(self.polarization_array == -5)[0][0]
-        yy = np.where(self.polarization_array == -6)[0][0]
-        xy = np.where(self.polarization_array == -7)[0][0]
-        yx = np.where(self.polarization_array == -8)[0][0]
-        pols = np.array([yy, xx])
-        # square root autos
-        auto_inds = autos[:, np.newaxis]
-        self.data_array.real[auto_inds, :, pols] = np.sqrt(
-            self.data_array.real[auto_inds, :, pols]
-        )
-        # get unflagged autos
-        good_autos = np.delete(autos, flagged_ant_inds)
-        sighat = self.data_array.real[good_autos[:, np.newaxis], :, pols].flatten()
-        # correct autos
-        sigma = van_vleck_autos(sighat)
-        self.data_array.real[good_autos[:, np.newaxis], :, pols] = sigma.reshape(
-            len(good_autos), len(pols), self.Ntimes * self.Nfreqs
-        )
-        # get good crosses
-        bad_ant_inds = np.nonzero(
-            np.logical_or(
-                np.isin(ant_1_inds[0 : self.Nbls], flagged_ant_inds),
-                np.isin(ant_2_inds[0 : self.Nbls], flagged_ant_inds),
-            )
-        )[0]
-        crosses = np.delete(crosses, np.nonzero(np.isin(crosses, bad_ant_inds))[0])
-        # correct crosses
-        if cheby_approx:
-            history_add_string += " Used Van Vleck Chebychev approximation."
-            # load in interpolation files
-            with h5py.File(DATA_PATH + "/mwa_config_data/Chebychev_coeff.h5", "r") as f:
-                rho_coeff = f["rho_data"][:]
-            with h5py.File(DATA_PATH + "/mwa_config_data/sigma1.h5", "r") as f:
-                sig_vec = f["sig_data"][:]
-            sigs = self.data_array.real[autos[:, np.newaxis], :, pols]
-            # find sigmas within interpolation range
-            in_mask = np.logical_and(sigs > 0.9, sigs <= 4.5)
-            # get indices and distances for bilinear interpolation
-            sv_inds_right = np.zeros(in_mask.shape, dtype=np.int64)
-            ds = np.zeros(in_mask.shape)
-            sv_inds_right[in_mask] = np.searchsorted(sig_vec, sigs[in_mask])
-            ds[in_mask] = sig_vec[sv_inds_right[in_mask]] - sigs[in_mask]
-            # get indices for sigmas corresponding to crosses
-            sig1_inds = ant_1_inds[crosses]
-            sig2_inds = ant_2_inds[crosses]
-            # iterate over polarization
-            pol_dict = {
-                yy: [(yy, yy), (0, 0)],
-                yx: [(yy, xx), (0, 1)],
-                xy: [(xx, yy), (1, 0)],
-                xx: [(xx, xx), (1, 1)],
-            }
-            for i in [xx, yy, xy, yx]:
-                (pol1, pol2) = pol_dict[i][1]
-                (sig1_pol, sig2_pol) = pol_dict[i][0]
-                # broadcast in_mask
-                range_mask = np.logical_and(
-                    in_mask[sig1_inds, pol1, :], in_mask[sig2_inds, pol2, :],
-                )
-                # broadcast indices and distances for bilinear interpolation
-                sv_inds_right1 = sv_inds_right[sig1_inds, pol1, :][range_mask]
-                sv_inds_right2 = sv_inds_right[sig2_inds, pol2, :][range_mask]
-                ds1 = ds[sig1_inds, pol1, :][range_mask]
-                ds2 = ds[sig2_inds, pol2, :][range_mask]
-                self.data_array[crosses, :, i] = van_vleck_crosses_cheby(
-                    self.data_array[crosses, :, i],
-                    self.data_array.real[autos[sig1_inds], :, sig1_pol],
-                    self.data_array.real[autos[sig2_inds], :, sig2_pol],
-                    range_mask,
-                    rho_coeff,
-                    sv_inds_right1,
-                    sv_inds_right2,
-                    ds1,
-                    ds2,
-                    cheby_approx,
-                )
-            # correct yx autos
-            sig_inds = ant_1_inds[good_autos]
-            range_mask = np.logical_and(
-                in_mask[sig_inds, 0, :], in_mask[sig_inds, 1, :]
-            )
-            sv_inds_right1 = sv_inds_right[sig_inds, 0, :][range_mask]
-            sv_inds_right2 = sv_inds_right[sig_inds, 1, :][range_mask]
-            ds1 = ds[sig_inds, 0, :][range_mask]
-            ds2 = ds[sig_inds, 1, :][range_mask]
-            self.data_array[good_autos, :, yx] = van_vleck_crosses_cheby(
-                self.data_array[good_autos, :, yx],
-                self.data_array.real[good_autos, :, yy],
-                self.data_array.real[good_autos, :, xx],
-                range_mask,
-                rho_coeff,
-                sv_inds_right1,
-                sv_inds_right2,
-                ds1,
-                ds2,
-                cheby_approx,
-            )
-            # add back in frequency axis
-            self.data_array = self.data_array.reshape(
-                (self.Nbls, self.Ntimes, self.Nfreqs, self.Npols)
-            )
-        # solve integral directly
-        else:
-            # add back in frequency axis
-            self.data_array = self.data_array.reshape(
-                (self.Nbls, self.Ntimes, self.Nfreqs, self.Npols)
-            )
-            for k in crosses:
-                auto1 = autos[ant_1_inds[k]]
-                auto2 = autos[ant_2_inds[k]]
-                for j in range(self.Nfreqs):
-                    # get data
-                    sig1 = self.data_array.real[
-                        auto1, :, j, np.array([yy, yy, xx, xx])
-                    ].flatten()
-                    sig2 = self.data_array.real[
-                        auto2, :, j, np.array([yy, xx, yy, xx])
-                    ].flatten()
-                    khat = self.data_array[
-                        k, :, j, np.array([yy, yx, xy, xx])
-                    ].flatten()
-                    # correct real
-                    kap = van_vleck_crosses_int(khat.real, sig1, sig2)
-                    self.data_array.real[
-                        k, :, j, np.array([yy, yx, xy, xx])
-                    ] = kap.reshape(self.Npols, self.Ntimes)
-                    # correct imaginary
-                    kap = van_vleck_crosses_int(khat.imag, sig1, sig2)
-                    self.data_array.imag[
-                        k, :, j, np.array([yy, yx, xy, xx])
-                    ] = kap.reshape(self.Npols, self.Ntimes)
-            # correct yx autos
-            for k in good_autos:
-                for j in range(self.Nfreqs):
-                    # get data
-                    sig1 = self.data_array.real[k, :, j, yy]
-                    sig2 = self.data_array.real[k, :, j, xx]
-                    khat = self.data_array[k, :, j, yx]
-                    # correct real
-                    kap = van_vleck_crosses_int(khat.real, sig1, sig2)
-                    self.data_array.real[k, :, j, yx] = kap
-                    # correct imaginary
-                    kap = van_vleck_crosses_int(khat.imag, sig1, sig2)
-                    self.data_array.imag[k, :, j, yx] = kap
-        # correct xy autos
-        self.data_array[good_autos, :, :, xy] = np.conj(
-            self.data_array[good_autos, :, :, yx]
-        )
-        # square autos
-        self.data_array.real[auto_inds, :, :, pols] = (
-            self.data_array.real[auto_inds, :, :, pols] ** 2
-        )
-        # reshape to (nblts, nfreqs, npols)
-        self.data_array = np.swapaxes(self.data_array, 0, 1)
-        self.data_array = self.data_array.reshape(self.Nblts, self.Nfreqs, self.Npols)
-        # rescale the data
-        self.data_array *= nsamples
-        # return data array to desired precision
-        if self.data_array.dtype != data_array_dtype:
-            self.data_array = self.data_array.astype(data_array_dtype)
-        self.history += history_add_string
-
     def _flag_small_auto_ants(
         self, nsamples, flag_small_auto_ants, ant_1_inds, ant_2_inds, flagged_ant_inds
     ):
@@ -917,7 +697,6 @@ class MWACorrFITS(UVData):
             ds[in_mask] = vv1_sig_vec[sv_inds_right[in_mask]] - sighats[in_mask]
             # correct xy autos
             range_mask = np.logical_and(in_mask[:, :, 0], in_mask[:, :, 1])
-            # vv_mask = np.logical_and(range_mask, xy_auto_mask)
             kap = np.array(
                 [xy_auto_data.real[range_mask], xy_auto_data.imag[range_mask]]
             )
@@ -937,17 +716,11 @@ class MWACorrFITS(UVData):
             xy_auto_data[range_mask] += kap[0, :]
             # correct out of range data with the integral
             if len(np.nonzero(~range_mask)[0]) != 0:
-                warnings.warn(
-                    str(len(np.nonzero(~range_mask)[0]))
-                    + " values are being corrected with the van vleck integral"
-                )
                 sig1 = sighats[:, :, 0][~range_mask]
                 sig2 = sighats[:, :, 1][~range_mask]
-                xy_auto_data[~range_mask] = van_vleck_crosses_int(
-                    xy_auto_data[~range_mask].real, sig1, sig2,
-                ) + 1j * van_vleck_crosses_int(
-                    xy_auto_data[~range_mask].imag, sig1, sig2,
-                )
+                kap = xy_auto_data[~range_mask]
+                van_vleck_crosses_int(kap, sig1, sig2, cheby_approx)
+                xy_auto_data[~range_mask] = kap
             # broadcast in_mask
             in_mask = in_mask.reshape(auto_array_shape)
             in_mask1, in_mask2 = self._autos_to_crosses(
@@ -985,16 +758,11 @@ class MWACorrFITS(UVData):
             cross_data[range_mask] += kap[0, :]
             # correct out of range values with integral
             if len(np.nonzero(~range_mask)[0]) != 0:
-                warnings.warn(
-                    str(len(np.nonzero(~range_mask)[0]))
-                    + " values are being corrected with the van vleck integral"
+                kap = cross_data[~range_mask]
+                van_vleck_crosses_int(
+                    kap, sig1[~range_mask], sig2[~range_mask], cheby_approx,
                 )
-                cross_data[~range_mask] = van_vleck_crosses_int(
-                    cross_data[~range_mask].real, sig1[~range_mask], sig2[~range_mask],
-                ) + 1j * van_vleck_crosses_int(
-                    cross_data[~range_mask].imag, sig1[~range_mask], sig2[~range_mask],
-                )
-
+                cross_data[~range_mask] = kap
         else:
             # do integral correction
             # reshape data
@@ -1011,12 +779,9 @@ class MWACorrFITS(UVData):
                     sig1 = sighats[:, k, j, 0]
                     sig2 = sighats[:, k, j, 1]
                     khat = xy_auto_data[:, k, j]
-                    # correct real
-                    kap = van_vleck_crosses_int(khat.real, sig1, sig2)
-                    xy_auto_data.real[:, k, j] = kap
-                    # correct imaginary
-                    kap = van_vleck_crosses_int(khat.imag, sig1, sig2)
-                    xy_auto_data.imag[:, k, j] = kap
+                    van_vleck_crosses_int(
+                        xy_auto_data[:, k, j], sig1, sig2, cheby_approx
+                    )
             # correct crosses
             sighats1, sighats2 = self._autos_to_crosses(
                 sighats, sig1_inds, sig2_inds, pol1_inds, pol2_inds
@@ -1027,12 +792,8 @@ class MWACorrFITS(UVData):
                     sig1 = sighats1[:, k, j, :].flatten()
                     sig2 = sighats2[:, k, j, :].flatten()
                     khat = cross_data[:, k, j, :].flatten()
-                    # correct real
-                    kap = van_vleck_crosses_int(khat.real, sig1, sig2)
-                    cross_data[:, k, j, :] = kap.reshape(self.Ntimes, self.Npols)
-                    # correct imaginary
-                    kap = van_vleck_crosses_int(khat.imag, sig1, sig2)
-                    cross_data.imag[:, k, j, :] = kap.reshape(self.Ntimes, self.Npols)
+                    van_vleck_crosses_int(khat, sig1, sig2, cheby_approx)
+                    cross_data[:, k, j, :] = khat.reshape(self.Ntimes, self.Npols)
 
             xy_auto_data = xy_auto_data.reshape(xy_auto_shape)
         sighats = sighats.reshape(sighats_shape)
@@ -1089,6 +850,20 @@ class MWACorrFITS(UVData):
 
         return cb_array
 
+    def _vv2_crosses(self, data, sig_c_1, sig_c_2, vv2_cross_coeff):
+        range_mask = np.logical_and(np.abs(data) < 0.35, data != 0)
+        if len(np.nonzero(~range_mask)[0]) != 0:
+            print(np.max(data[~range_mask]))
+            warnings.warn(
+                str(len(np.nonzero(~range_mask)[0]))
+                + " xy real values are above vv2 correction range"
+            )
+        # for now, correct data that is outside of range.
+        # This can be changed later
+        neg_mask = data < 0
+        data = chebval3d(np.abs(data), sig_c_1, sig_c_2, vv2_cross_coeff,)
+        data[neg_mask] = np.negative(data[neg_mask])
+
     def _correct_coarse_band(
         self,
         cb_num,
@@ -1142,10 +917,6 @@ class MWACorrFITS(UVData):
         cb_data = self.data_array[
             :, cb_num * num_fine_chans : (cb_num + 1) * num_fine_chans, :
         ].astype(np.complex128)
-        # get coarse band flags
-        cb_flags = self.flag_array[
-            :, cb_num * num_fine_chans : (cb_num + 1) * num_fine_chans, :
-        ]
         # correct van vleck
         if correct_van_vleck is not False:
             # make sure pols are ordered [-5, -6, -7, -8]
@@ -1159,9 +930,6 @@ class MWACorrFITS(UVData):
             cb_data /= nsamples
             auto_mask = ant_1_inds == ant_2_inds
             cross_mask = ant_1_inds != ant_2_inds
-            # create masks so don't correct flagged data
-            auto_mask_full = ~cb_flags[auto_mask, :, 0:2]
-            cross_mask_full = ~cb_flags[cross_mask, :, :]
             # get data for correcting
             sighats = np.sqrt(cb_data.real[auto_mask, :, 0:2])
             cross_data = cb_data[cross_mask, :, :]
@@ -1170,17 +938,17 @@ class MWACorrFITS(UVData):
             if correct_van_vleck is True or correct_van_vleck == "four_bit":
                 # autos that are too small will not converge
                 range_mask = sighats > 0.5
-                sighats[range_mask] = van_vleck_autos(sighats[range_mask])
+                if len(sighats[range_mask]) != 0:
+                    sighats[range_mask] = van_vleck_autos(sighats[range_mask])
             # 8-bit correction for autos
             if correct_van_vleck is True or correct_van_vleck == "eight_bit":
                 # calculate coarse band 'sigmas'
-                # TODO: will need to generate a full coarse band test file for this
                 sigma_c = np.sqrt(np.mean(np.square(sighats), axis=1))
                 # broadcast coarse sigma to full band
                 sigma_c_full = np.repeat(
                     sigma_c[:, np.newaxis, :], num_fine_chans, axis=1
                 )
-                # calculate mus
+                # calculate nonzero mean introduced by asymettric rounding
                 # this calculation assumes the fine pfb fft has 128 points
                 muhats = polyval(sigma_c, vv2_mu_coeff)
                 muhats = muhats.reshape(sigma_c.shape)
@@ -1190,17 +958,15 @@ class MWACorrFITS(UVData):
                 dc_ind = int(num_fine_chans / 2)
                 # autos that are too small will go negative when subtracting mu^2
                 dc_mask = sighats[:, dc_ind, :] > 0.1
-                sighats[:, dc_ind, :][dc_mask] = np.square(
-                    sighats[:, dc_ind, :][dc_mask]
+                sighats[:, dc_ind, :][dc_mask] = np.sqrt(
+                    np.square(sighats[:, dc_ind, :][dc_mask])
+                    - (np.square(muhats[dc_mask]) / avg_factor)
                 )
-                sighats[:, dc_ind, :][dc_mask] -= (
-                    np.square(muhats[dc_mask]) / avg_factor
-                )
-                sighats[:, dc_ind, :][dc_mask] = np.sqrt(sighats[:, dc_ind, :][dc_mask])
                 # apply second stage correction
                 # get autos within range
                 range_mask = np.logical_and(sighats > 0.5, sighats < 4.5)
                 if len(np.nonzero(sighats > 4.5)[0]) != 0:
+                    print(np.max(sighats))
                     print(
                         str(len(np.nonzero(sighats > 4.5)[0]))
                         + " autos are above the vv2 range"
@@ -1218,27 +984,11 @@ class MWACorrFITS(UVData):
             )[0]
             sig1_inds = ant_1_inds[cross_inds]
             sig2_inds = ant_2_inds[cross_inds]
-            # make mask for xy auto crosses
-            xy_auto_mask = np.logical_and(
-                auto_mask_full[:, :, 0], auto_mask_full[:, :, 1]
-            )
-            # broadcast sigma flags to get flag array for unflagged crosses, sig1, sig2
-            auto_mask_full = auto_mask_full.reshape(
-                self.Ntimes, self.Nants_data, num_fine_chans, 2,
-            )
-            cross_mask_full = cross_mask_full.reshape(
-                self.Ntimes, len(cross_inds), num_fine_chans, self.Npols,
-            )
-            sig1_mask, sig2_mask = self._autos_to_crosses(
-                auto_mask_full, sig1_inds, sig2_inds, pol1_inds, pol2_inds
-            )
-            # combine to get unflagged data for correction crosses
-            full_cross_mask = np.logical_and(
-                np.logical_and(sig1_mask, sig2_mask), cross_mask_full
-            )
             # reshape cross data
             cross_data_shape = cross_data.shape
-            cross_data = cross_data.reshape(cross_mask_full.shape)
+            cross_data = cross_data.reshape(
+                self.Ntimes, len(sig1_inds), self.Nfreqs, self.Npols
+            )
             # 4-bit correction for crosses
             if correct_van_vleck is True or correct_van_vleck == "four_bit":
                 self._vv1_crosses(
@@ -1268,44 +1018,19 @@ class MWACorrFITS(UVData):
                     pol1_inds,
                     pol2_inds,
                 )
-                # take xy_autos and crosses through polynomial
-                # check that values are within range
-                range_mask = np.abs(xy_auto_data.real[xy_auto_mask]) < 0.35
-                if len(np.nonzero(~range_mask)[0]) != 0:
-                    warnings.warn(
-                        str(len(np.nonzero(~range_mask)[0]))
-                        + " xy real values are above vv2 correction range"
-                    )
-                    print(np.max(xy_auto_data.real[xy_auto_mask][~range_mask]))
-                # for now, correct data that is outside of range.
-                # This can be changed later
-                neg_mask = xy_auto_data.real[xy_auto_mask] < 0
-                xy_auto_data.real[xy_auto_mask] = chebval3d(
-                    np.abs(xy_auto_data.real[xy_auto_mask]),
-                    sigma_c_full[:, :, 0][xy_auto_mask],
-                    sigma_c_full[:, :, 1][xy_auto_mask],
+                # correct real xy autos
+                self._vv2_crosses(
+                    xy_auto_data.real,
+                    sigma_c_full[:, :, 0],
+                    sigma_c_full[:, :, 1],
                     vv2_cross_coeff,
                 )
-                xy_auto_data.real[xy_auto_mask][neg_mask] = np.negative(
-                    xy_auto_data.real[xy_auto_mask][neg_mask]
-                )
-                # correct imaginary
-                range_mask = np.abs(xy_auto_data.imag[xy_auto_mask]) < 0.35
-                if len(np.nonzero(~range_mask)[0]) != 0:
-                    warnings.warn(
-                        str(len(np.nonzero(~range_mask)[0]))
-                        + " xy imag values are above vv2 correction range"
-                    )
-                    print(np.max(xy_auto_data.imag[xy_auto_mask][~range_mask]))
-                neg_mask = xy_auto_data.imag[xy_auto_mask] < 0
-                xy_auto_data.imag[xy_auto_mask] = chebval3d(
-                    xy_auto_data.imag[xy_auto_mask],
-                    sigma_c_full[:, :, 0][xy_auto_mask],
-                    sigma_c_full[:, :, 1][xy_auto_mask],
+                # correct imaginary xy autos
+                self._vv2_crosses(
+                    xy_auto_data.imag,
+                    sigma_c_full[:, :, 0],
+                    sigma_c_full[:, :, 1],
                     vv2_cross_coeff,
-                )
-                xy_auto_data.imag[xy_auto_mask][neg_mask] = np.negative(
-                    xy_auto_data.imag[xy_auto_mask][neg_mask]
                 )
                 # correct cross data
                 # extend sigma_c
@@ -1316,42 +1041,9 @@ class MWACorrFITS(UVData):
                     sigma_c_full, sig1_inds, sig2_inds, pol1_inds, pol2_inds
                 )
                 # correct real values
-                range_mask = np.abs(cross_data.real[full_cross_mask]) < 0.35
-                if len(np.nonzero(~range_mask)) != 0:
-                    warnings.warn(
-                        str(len(np.nonzero(~range_mask)[0]))
-                        + " cross real values are above vv2 correction range"
-                    )
-                    print(np.max(cross_data.real[full_cross_mask][~range_mask]))
-
-                neg_mask = cross_data.real[full_cross_mask] < 0
-                cross_data.real[full_cross_mask] = chebval3d(
-                    np.abs(cross_data.real[full_cross_mask]),
-                    sigma_c1[full_cross_mask],
-                    sigma_c2[full_cross_mask],
-                    vv2_cross_coeff,
-                )
-                cross_data.real[full_cross_mask][neg_mask] = np.negative(
-                    cross_data.real[full_cross_mask][neg_mask]
-                )
+                self._vv2_crosses(cross_data.real, sigma_c1, sigma_c2, vv2_cross_coeff)
                 # correct imag values
-                range_mask = np.abs(cross_data.imag[full_cross_mask]) < 0.35
-                if len(np.nonzero(~range_mask)[0]) != 0:
-                    warnings.warn(
-                        str(len(np.nonzero(~range_mask)[0]))
-                        + " cross imag values are above vv2 correction range"
-                    )
-                    print(np.max(cross_data.imag[full_cross_mask][~range_mask]))
-                neg_mask = cross_data.imag[full_cross_mask] < 0
-                cross_data.imag[full_cross_mask] = chebval3d(
-                    np.abs(cross_data.imag[full_cross_mask]),
-                    sigma_c1[full_cross_mask],
-                    sigma_c2[full_cross_mask],
-                    vv2_cross_coeff,
-                )
-                cross_data.imag[full_cross_mask][neg_mask] = np.negative(
-                    cross_data.imag[full_cross_mask][neg_mask]
-                )
+                self._vv2_crosses(cross_data.imag, sigma_c1, sigma_c2, vv2_cross_coeff)
 
             # put corrected data back into coarse band array
             cb_data.real[auto_mask, :, 0:2] = np.square(sighats)
@@ -1419,11 +1111,6 @@ class MWACorrFITS(UVData):
             Option to remove pfb coarse band shape from data.
         remove_dig_gains : bool
             Option to remove digital gains from data.
-
-        Returns
-        -------
-        flagged_ant_inds : numpy array of type int
-            Updated list of indices of flagged antennas
 
         """
         # van vleck correction
@@ -1938,8 +1625,7 @@ class MWACorrFITS(UVData):
                 meta_hdr.remove(key, remove_all=True)
             # if not mwax, remove mwax-specific keys
             if not mwax:
-                mwax_keys = ["DELAYMOD", "DELDESC", "CABLEDEL", "GEODEL", "CALIBDEL"]
-                for key in mwax_keys:
+                for key in ["DELAYMOD", "DELDESC", "CABLEDEL", "GEODEL", "CALIBDEL"]:
                     if key in meta_hdr.keys():
                         meta_hdr.remove(key, remove_all=True)
             # store remaining keys in extra keywords
@@ -2013,7 +1699,7 @@ class MWACorrFITS(UVData):
 
         # make initial antenna arrays, where ant_1 <= ant_2
         # itertools.combinations_with_replacement returns
-        # all pairs in the range 0...Nants_telescope
+        # all pairs of self.antenna_numbers,
         # including pairs with the same number (e.g. (0,0) auto-correlation).
         # this is a little faster than having nested for-loops moving over the
         # upper triangle of antenna-pair combinations matrix.
@@ -2160,15 +1846,8 @@ class MWACorrFITS(UVData):
                     conj,
                     pol_index_array,
                 )
-
-            # When MWA data is cast to float for the correlator, the division
-            # by 127 introduces small errors that are mitigated when the data
-            # is cast back into integer.
-            # this needs to happen before the van vleck correction
-            self.data_array /= self.extra_keywords["SCALEFAC"]
-            np.rint(self.data_array, out=self.data_array)
-
-            # propagate coarse flags
+            # propagate coarse flags so that if coarse band data is missing for
+            # a time stamp, the the entire time stamp is flagged
             if propagate_coarse_flags:
                 self.flag_array = np.any(self.flag_array, axis=2)
                 self.flag_array = np.repeat(
@@ -2220,16 +1899,6 @@ class MWACorrFITS(UVData):
             if not mwax:
                 self.data_array /= self.extra_keywords["SCALEFAC"]
                 np.rint(self.data_array, out=self.data_array)
-
-            # # van vleck correction
-            # if correct_van_vleck:
-            #     self.van_vleck_correction(
-            #         ant_1_inds,
-            #         ant_2_inds,
-            #         flagged_ant_inds,
-            #         cheby_approx=cheby_approx,
-            #         data_array_dtype=data_array_dtype,
-            #     )
             # TODO: check memory usage of this function
             # apply corrections
             # we don't yet have a coarse band shape for mwax
@@ -2253,12 +1922,10 @@ class MWACorrFITS(UVData):
                     remove_coarse_band=remove_coarse_band,
                     remove_dig_gains=remove_dig_gains,
                 )
-
             # rescale data
             # this needs to happen after the van vleck correction
             if not mwax:
                 self.data_array *= self.extra_keywords["SCALEFAC"]
-
             # cable delay corrections
             if correct_cable_len is None:
                 correct_cable_len = True
