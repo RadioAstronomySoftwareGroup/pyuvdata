@@ -988,6 +988,7 @@ def test_van_vleck_cheby():
     assert np.allclose(uv1.data_array, uv2.data_array)
 
 
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 def test_van_vleck_8bit(tmp_path):
     """Test eight bit van vleck correction"""
     full_band = str(tmp_path / "full_band07_01.fits")
@@ -999,16 +1000,19 @@ def test_van_vleck_8bit(tmp_path):
         mini[2].header["TIME"] = mini[1].header["TIME"]
         mini.writeto(full_band)
     uv = UVData()
-    uv.read(
-        [full_band, filelist[9]],
-        flag_init=False,
-        remove_coarse_band=False,
-        remove_dig_gains=False,
-        correct_cable_len=False,
-        phase_to_pointing_center=False,
-        correct_van_vleck=True,
-    )
-    assert uv.Ntimes == 2
+    messages = ["xy real values are above vv2 correction range"]
+    messages = messages * 4
+    messages.append("some coarse channel files were not submitted")
+    with uvtest.check_warnings(UserWarning, messages):
+        uv.read(
+            [full_band, filelist[9]],
+            flag_init=False,
+            remove_coarse_band=False,
+            remove_dig_gains=False,
+            correct_cable_len=False,
+            phase_to_pointing_center=False,
+            correct_van_vleck=True,
+        )
 
 
 def test_van_vleck_interp(tmp_path):
