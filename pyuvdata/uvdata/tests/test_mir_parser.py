@@ -10,9 +10,49 @@ python, not neccessarily how pyuvdata (by way of the UVData class) interacts wit
 data.
 """
 import numpy as np
+import h5py
 import pytest
 import os
 from ..mir_parser import MirParser
+from ... import tests as uvtest
+
+
+@pytest.fixture(scope="module")
+def compass_soln_file(tmp_path_factory):
+    tmp_path = tmp_path_factory.mktemp("mir_parser", numbered=True)
+    filename = os.path.join(tmp_path, "compass_soln.mat")
+    with h5py.File(filename, "w") as file:
+        # Set up some basic indexing for our one-baseline test file
+        file["antArr"] = np.array([[1, 4]])
+        file["ant1Arr"] = np.array([[1]])
+        file["ant2Arr"] = np.array([[4]])
+        file["rx1Arr"] = np.repeat([0, 0, 1, 1], 4).reshape(1, -1)
+        file["rx2Arr"] = np.repeat([0, 0, 1, 1], 4).reshape(1, -1)
+        file["sbArr"] = np.repeat([0, 1, 0, 1], 4).reshape(1, -1)
+        file["winArr"] = np.tile([[1, 2, 3, 4]], 4)
+
+        # Make a set of bp solns that are easy to recreate in the test (to verify
+        # that we actually have the solutions that we expect).
+        bp_soln = np.arange(16 * 16384) + (np.flip(np.arange(16 * 16384)) * 1j)
+
+        file["bandpassArr"] = np.reshape(
+            np.concatenate((bp_soln, np.conj(np.reciprocal(bp_soln)))), (2, 16, 16384),
+        ).astype(np.complex64)
+
+        # This number is pulled from the test mir_data object, in in_data["mjd"].
+        file["mjdArr"] = np.array([[59054.69153811]])
+
+        # Set up a picket fence of flags for the "normal" flagging. Note we use
+        # uint8 here because of the compression scheme COMPASS uses.
+        file["flagArr"] = np.full((1, 1, 16, 2048), 170, dtype=np.uint8)
+
+        # Set up the wide flags so that the first half of the spectrum is flagged.
+        file["wideFlagArr"] = np.tile(
+            ((np.arange(2048) < 1024) * 255).reshape(1, 1, -1).astype(np.uint8),
+            (1, 16, 1),
+        )
+
+    yield filename
 
 
 def test_mir_parser_index_uniqueness(mir_data):
@@ -130,14 +170,64 @@ def test_mir_auto_read(mir_data):
     mir_data.unload_data()
 
 
-def test_mir_write(mir_data, tmp_path):
+@pytest.mark.parametrize(
+    "attr,read_func,write_func",
+    [
+        ["_antpos_read", "read_antennas", "write_antennas"],
+        ["_bl_read", "read_bl_data", "write_bl_data"],
+        ["_codes_read", "read_codes_data", "write_codes_data"],
+        ["_eng_read", "read_eng_data", "write_eng_data"],
+        ["_in_read", "read_in_data", "write_in_data"],
+        ["_sp_read", "read_sp_data", "write_sp_data"],
+        ["_we_read", "read_we_data", "write_we_data"],
+    ],
+)
+def test_mir_write_item(mir_data, attr, read_func, write_func, tmp_path):
     """
-    Mir write tester
+    Mir write tester.
+
+    Test writing out individual components of the metadata of a MIR dataset.
+    """
+    filepath = os.path.join(tmp_path, "test_write%s" % attr)
+    orig_attr = getattr(mir_data, attr)
+    getattr(mir_data, write_func)(filepath, orig_attr)
+    check_attr = getattr(mir_data, read_func)(filepath)
+    assert np.array_equal(orig_attr, check_attr)
+
+
+def test_mir_raw_data(mir_data, tmp_path):
+    """
+    Test reading and writing of raw data.
+    """
+    filepath = os.path.join(tmp_path, "test_write_raw")
+    mir_data.write_rawdata(filepath, mir_data.raw_data, mir_data.sp_data)
+    int_start_dict = mir_data.scan_int_start(
+        filepath, allowed_inhid=mir_data.in_data["inhid"]
+    )
+
+    (raw_data, _) = mir_data.read_vis_data(
+        filepath, int_start_dict, mir_data.sp_data, return_raw=True
+    )
+
+    assert raw_data.keys() == mir_data.raw_data.keys()
+
+    for key in raw_data.keys():
+        for subkey in ["raw_data", "scale_fac"]:
+            assert np.array_equal(raw_data[key][subkey], mir_data.raw_data[key][subkey])
+
+
+@pytest.mark.parametrize("data_type", ["none", "raw", "vis"])
+def test_mir_write_full(mir_data, tmp_path, data_type):
+    """
+    Mir write dataset tester.
 
     Make sure we can round-trip a MIR dataset correctly.
     """
     # We want to clear our the auto data here, since we can't _yet_ write that out
-    mir_data.unload_data(unload_vis=False, unload_raw=False, unload_auto=True)
+    mir_data.unload_data()
+    if data_type == "vis":
+        mir_data.load_data(load_vis=True, apply_tsys=False)
+
     mir_data._has_auto = False
     mir_data._ac_filter = mir_data._ac_read = mir_data.ac_data = None
 
@@ -147,11 +237,20 @@ def test_mir_write(mir_data, tmp_path):
     mir_data._codes_read = mir_data.make_codes_read(mir_data.codes_dict)
 
     # Write out our test dataset
-    filepath = os.path.join(tmp_path, "mir.test")
-    mir_data.tofile(filepath)
+    filepath = os.path.join(tmp_path, "test_write_full_%s.mir" % data_type)
+
+    with uvtest.check_warnings(
+        None if (data_type != "none") else UserWarning,
+        None if (data_type != "none") else "No data loaded, writing metadata only",
+    ):
+        mir_data.tofile(
+            filepath, write_raw=(data_type != "vis"), load_data=(data_type == "raw")
+        )
 
     # Read in test dataset.
-    mir_copy = MirParser(filepath, load_vis=True, load_raw=True)
+    mir_copy = MirParser(filepath)
+    if data_type != "none":
+        mir_copy.load_data(load_raw=(data_type == "raw"), apply_tsys=False)
 
     # The objects won't be equal off the bad - a couple of things to handle first.
     assert mir_data != mir_copy
@@ -168,13 +267,118 @@ def test_mir_write(mir_data, tmp_path):
     assert mir_data == mir_copy
 
 
+def test_compass_flag_sphid_apply(mir_data, compass_soln_file):
+    """
+    Test COMPASS per-sphid flagging.
+
+    Test that applying COMPASS flags on a per-sphid basis works as expected.
+    """
+    # Unflag previously flagged data
+    for entry in mir_data.vis_data.values():
+        entry["vis_flags"][:] = False
+
+    compass_solns = mir_data._read_compass_solns(compass_soln_file)
+    mir_data._apply_compass_solns(compass_solns, apply_bp=False, apply_flags=True)
+    for key, entry in mir_data.vis_data.items():
+        if mir_data.sp_data["corrchunk"][mir_data._sphid_dict[key]] != 0:
+            assert np.all(entry["vis_flags"][1::2])
+            assert not np.any(entry["vis_flags"][::2])
+
+    # Make sure that things work when the flags are all set to True
+    for entry in mir_data.vis_data.values():
+        entry["vis_flags"][:] = True
+    for key, entry in mir_data.vis_data.items():
+        if mir_data.sp_data["corrchunk"][mir_data._sphid_dict[key]] != 0:
+            assert np.all(entry["vis_flags"])
+
+
+def test_compass_flag_wide_apply(mir_data, compass_soln_file):
+    """
+    Test COMPASS wide flagging.
+
+    Test that applying COMPASS flags on a per-baseline (all time) basis works correctly.
+    """
+    for entry in mir_data.vis_data.values():
+        entry["vis_flags"][:] = False
+
+    mir_data.in_data["mjd"] += 1
+    with uvtest.check_warnings(
+        UserWarning, "No metadata from COMPASS matches that in this data set."
+    ):
+        compass_solns = mir_data._read_compass_solns(compass_soln_file)
+
+    mir_data._apply_compass_solns(compass_solns, apply_bp=False, apply_flags=True)
+
+    for key, entry in mir_data.vis_data.items():
+        if mir_data.sp_data["corrchunk"][mir_data._sphid_dict[key]] != 0:
+            assert np.all(entry["vis_flags"][:8192])
+            assert not np.any(entry["vis_flags"][8192:])
+
+    # Make sure that things work when the flags are all set to True
+    for entry in mir_data.vis_data.values():
+        entry["vis_flags"][:] = True
+    for key, entry in mir_data.vis_data.items():
+        if mir_data.sp_data["corrchunk"][mir_data._sphid_dict[key]] != 0:
+            assert np.all(entry["vis_flags"])
+
+    mir_data._apply_compass_solns(compass_solns, apply_bp=False, apply_flags=True)
+
+
+@pytest.mark.parametrize("muck_solns", ["none", "some", "all"])
+def test_compass_bp_apply(mir_data, compass_soln_file, muck_solns):
+    """
+    Test COMPASS bandpass calibraiton.
+
+    Test that applying COMPASS bandpass solutions works correctly.
+    """
+    tempval = np.complex64(1 + 1j)
+    for entry in mir_data.vis_data.values():
+        entry["vis_data"][:] = tempval
+        entry["vis_flags"][:] = False
+
+    if muck_solns != "none":
+        mir_data.bl_data["iant1"] += 1
+        if muck_solns == "all":
+            mir_data.bl_data["iant2"] += 1
+
+    with uvtest.check_warnings(
+        None if (muck_solns == "none") else UserWarning,
+        None if (muck_solns == "none") else "No metadata from COMPASS matches",
+    ):
+        compass_solns = mir_data._read_compass_solns(compass_soln_file)
+
+    mir_data._apply_compass_solns(compass_solns, apply_bp=True, apply_flags=False)
+
+    for key, entry in mir_data.vis_data.items():
+        if mir_data.sp_data["corrchunk"][mir_data._sphid_dict[key]] != 0:
+            # If muck_solns is not some, then all the values should agree with our
+            # temp value above, otherwise none should
+            assert (muck_solns != "some") == np.allclose(entry["vis_data"], tempval)
+            assert (muck_solns != "none") == np.all(entry["vis_flags"])
+
+
+def test_compass_error(mir_data, compass_soln_file):
+    """
+    Test COMPASS-related errors.
+
+    Verify that known error conditions trigger expected errors.
+    """
+    mir_data.unload_data()
+
+    compass_solns = mir_data._read_compass_solns(compass_soln_file)
+
+    with pytest.raises(ValueError) as err:
+        mir_data._apply_compass_solns(compass_solns)
+
+    assert str(err.value).startswith("Visibility data must be loaded")
+
+
 # __add__
 # __eq__
 # __iadd__
 # __init__
 # __iter__
 # __ne__
-# _apply_compass_solns
 # _check_data_index
 # _combine_read_arr
 # _combine_read_arr_check
@@ -198,16 +402,9 @@ def test_mir_write(mir_data, tmp_path):
 # make_codes_dict
 # make_codes_read
 # make_packdata
-# read_antennas
 # read_auto_data
-# read_bl_data
-# read_codes_data
-# read_eng_data
-# read_in_data
 # read_packdata
-# read_sp_data
 # read_vis_data
-# read_we_data
 # rechunk
 # redoppler_data
 # scan_auto_data
@@ -215,15 +412,6 @@ def test_mir_write(mir_data, tmp_path):
 # segment_by_index
 # select
 # tofile
-# unload_data
-# write_antennas
-# write_bl_data
-# write_codes_data
-# write_eng_data
-# write_in_data
-# write_rawdata
-# write_sp_data
-# write_we_data
 
 # Below are a series of checks that are designed to check to make sure that the
 # MirParser class is able to produce consistent values from an engineering data
