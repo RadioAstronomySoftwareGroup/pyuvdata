@@ -11,6 +11,8 @@ data.
 """
 import numpy as np
 import pytest
+import os
+from ..mir_parser import MirParser
 
 
 def test_mir_parser_index_uniqueness(mir_data):
@@ -127,6 +129,101 @@ def test_mir_auto_read(mir_data):
         )
     mir_data.unload_data()
 
+
+def test_mir_write(mir_data, tmp_path):
+    """
+    Mir write tester
+
+    Make sure we can round-trip a MIR dataset correctly.
+    """
+    # We want to clear our the auto data here, since we can't _yet_ write that out
+    mir_data.unload_data(unload_vis=False, unload_raw=False, unload_auto=True)
+    mir_data._has_auto = False
+    mir_data._ac_filter = mir_data._ac_read = mir_data.ac_data = None
+
+    # We're doing a bit of slight-of-hand here to account for the fact that the ordering
+    # of codes_read does not matter for data handling (and we can't easily recreate
+    # that ordering). All this does is make the ordering consistent.
+    mir_data._codes_read = mir_data.make_codes_read(mir_data.codes_dict)
+
+    # Write out our test dataset
+    filepath = os.path.join(tmp_path, "mir.test")
+    mir_data.tofile(filepath)
+
+    # Read in test dataset.
+    mir_copy = MirParser(filepath, load_vis=True, load_raw=True)
+
+    # The objects won't be equal off the bad - a couple of things to handle first.
+    assert mir_data != mir_copy
+
+    # _file_dict has the filepath as a key, so we handle this in a special way.
+    assert list(mir_data._file_dict.values()) == list(mir_copy._file_dict.values())
+    mir_data._file_dict = mir_copy._file_dict = None
+
+    # Filename obviously _should_ be different...
+    assert mir_data.filepath != mir_copy.filepath
+    mir_data.filepath = mir_copy.filepath = None
+
+    # Check for final equality with the above exceptions handled.
+    assert mir_data == mir_copy
+
+
+# __add__
+# __eq__
+# __iadd__
+# __init__
+# __iter__
+# __ne__
+# _apply_compass_solns
+# _check_data_index
+# _combine_read_arr
+# _combine_read_arr_check
+# _downselect_data
+# _parse_select
+# _parse_select_compare
+# _read_compass_solns
+# _rechunk_auto
+# _rechunk_raw
+# _rechunk_vis
+# _update_filter
+# apply_tsys
+# calc_int_start
+# concat
+# convert_raw_to_vis
+# convert_vis_to_raw
+# copy
+# fix_int_start
+# fromfile
+# load_data
+# make_codes_dict
+# make_codes_read
+# make_packdata
+# read_antennas
+# read_auto_data
+# read_bl_data
+# read_codes_data
+# read_eng_data
+# read_in_data
+# read_packdata
+# read_sp_data
+# read_vis_data
+# read_we_data
+# rechunk
+# redoppler_data
+# scan_auto_data
+# scan_int_start
+# segment_by_index
+# select
+# tofile
+# unload_data
+# write_antennas
+# write_bl_data
+# write_codes_data
+# write_eng_data
+# write_in_data
+# write_rawdata
+# write_sp_data
+# write_we_data
 
 # Below are a series of checks that are designed to check to make sure that the
 # MirParser class is able to produce consistent values from an engineering data
