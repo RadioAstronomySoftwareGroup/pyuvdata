@@ -4770,7 +4770,7 @@ class MirParser(object):
             # Parse out the bandpass solutions for each antenna, pol/receiver, and
             # sideband-chunk combination.
             for idx, ant in enumerate(ant_arr):
-                for jdx, rx, sb, chunk in enumerate(zip(rx_arr, sb_arr, chunk_arr)):
+                for jdx, (rx, sb, chunk) in enumerate(zip(rx_arr, sb_arr, chunk_arr)):
                     cal_data = bp_arr[idx, jdx]
                     cal_flags = (cal_data == 0.0) | ~np.isfinite(cal_data)
                     cal_data[cal_flags] = 1.0
@@ -4813,10 +4813,10 @@ class MirParser(object):
 
             # Note that the two loops here are used to match the indexing scheme of the
             # flags (so the slowest loop iterates on the outer-most axis of the array).
-            for idx, rx1, rx2, sb, chunk in enumerate(
-                zip(rx1_arr, rx2_arr, sb_arr, chunk_arr)
-            ):
-                for jdx, ant1, ant2 in enumerate(zip(ant1_arr, ant2_arr)):
+            for idx, (ant1, ant2) in enumerate(zip(ant1_arr, ant2_arr)):
+                for jdx, (rx1, rx2, sb, chunk) in enumerate(
+                    zip(rx1_arr, rx2_arr, sb_arr, chunk_arr)
+                ):
                     wide_flags[(ant1, rx1, ant2, rx2, sb, chunk)] = wflags_arr[idx, jdx]
 
             # Once the wide flags dict is built, plug it back into the main dict.
@@ -4833,10 +4833,10 @@ class MirParser(object):
                     # has no flags for this integration. Skip it (on apply, it will
                     # use the wide flags instead).
                     continue
-                for jdx, rx1, rx2, sb, chunk in enumerate(
-                    zip(rx1_arr, rx2_arr, sb_arr, chunk_arr)
-                ):
-                    for kdx, ant1, ant2 in enumerate(zip(ant1_arr, ant2_arr)):
+                for jdx, (ant1, ant2) in enumerate(zip(ant1_arr, ant2_arr)):
+                    for kdx, (rx1, rx2, sb, chunk) in enumerate(
+                        zip(rx1_arr, rx2_arr, sb_arr, chunk_arr)
+                    ):
                         try:
                             sphid = sphid_dict[(inhid, ant1, rx1, ant2, rx2, sb, chunk)]
                             sphid_flags[sphid] = flags_arr[idx, jdx, kdx]
@@ -4905,7 +4905,7 @@ class MirParser(object):
         rx1_arr = self.bl_data["ant1rx"][sp_bl_map]  # Pol for Ant 1 | 0 : X/L , 1: Y/R
         ant2_arr = self.bl_data["iant2"][sp_bl_map]  # Ant 2 Number
         rx2_arr = self.bl_data["ant2rx"][sp_bl_map]  # Pol for Ant 2 | 0 : X/L , 1: Y/R
-        chunk_arr = self.bl_data["corrchunk"]  # Correlator window number
+        chunk_arr = self.sp_data["corrchunk"]  # Correlator window number
         sb_arr = self.bl_data["isb"][sp_bl_map]  # Sidebad ID | 0 : LSB, 1 : USB
 
         # In case we need it for "dummy" gains solutions, tabulate how many channels
@@ -4956,8 +4956,8 @@ class MirParser(object):
                         ant1flags = np.ones(ant1soln.shape, dtype=bool)
                     try:
                         # Attempt to lookup the solns for the second antenna in the pair
-                        ant1soln = bp_compass[(ant1, rx1, sb, chunk)]["cal_data"]
-                        ant1flags = bp_compass[(ant1, rx1, sb, chunk)]["cal_flags"]
+                        ant2soln = bp_compass[(ant2, rx2, sb, chunk)]["cal_data"]
+                        ant2flags = bp_compass[(ant2, rx2, sb, chunk)]["cal_flags"]
                     except KeyError:
                         # If we can't find a soln for the second antenna, then make
                         # all the gains values equal to one and mark all the channels
@@ -5005,25 +5005,31 @@ class MirParser(object):
                     # them to the flags table for that spectral record.
                     self.vis_data[sphid]["vis_flags"] += np.unpackbits(
                         sphid_flags[sphid], bitorder="little"
-                    )
+                    ).astype(bool)
                 except KeyError:
                     # If no key is found, then we want to try and use the "broader"
                     # flags to mask out the data that's associated with the given
                     # antenna-receiver combination (for that sideband and spec window).
                     # Note that if we do not have an entry here, something is amiss.
-                    self.vis_data[sphid]["vis_flags"] += np.unpackbits(
-                        wide_flags[
-                            (
-                                ant1_arr[idx],
-                                rx1_arr[idx],
-                                ant2_arr[idx],
-                                rx2_arr[idx],
-                                sb_arr[idx],
-                                chunk_arr[idx],
-                            )
-                        ],
-                        bitorder="little",
-                    )
+                    try:
+                        self.vis_data[sphid]["vis_flags"] += np.unpackbits(
+                            wide_flags[
+                                (
+                                    ant1_arr[idx],
+                                    rx1_arr[idx],
+                                    ant2_arr[idx],
+                                    rx2_arr[idx],
+                                    sb_arr[idx],
+                                    chunk_arr[idx],
+                                )
+                            ],
+                            bitorder="little",
+                        ).astype(bool)
+                    except KeyError:
+                        # If we _still_ have no key, that means that this data was
+                        # not evaluated by COMPASS, and for now we will default to
+                        # not touching the flags.
+                        pass
 
     def redoppler_data(self):
         """
