@@ -397,7 +397,20 @@ class MirParser(object):
     """
 
     def __iter__(self, metadata_only=False):
-        """Iterate over all MirParser attributes."""
+        """
+        Iterate over all MirParser attributes.
+
+        Parameters
+        ----------
+        metadata_only : bool
+            If true, data-related attributes ("vis_data","raw_data", and "auto_data")
+            will be excluded from the yielded iterable.
+
+        Yields
+        ------
+        attr : MirParser attribute
+            Attribute of the MirParser object.
+        """
         attribute_list = [
             a
             for a in dir(self)
@@ -409,9 +422,160 @@ class MirParser(object):
         for attribute in attribute_list:
             yield attribute
 
+    def __eq__(self, other, verbose=True, metadata_only=False):
+        """
+        Compare MirParser attributes for equality.
+
+        Parameters
+        ----------
+        other : MirParser
+            MirParser object to compare with.
+        verbose : bool
+            If True, will print out all of the differences between the two objects.
+            Default is True.
+        metadata_only : bool
+            If True, the attributes `auto_data`, `raw_data`, and `vis_data` will not
+            be compared between objects. Default is False.
+
+        Returns
+        -------
+        check : bool
+            Whether or not the two objects are equal.
+        """
+        if not isinstance(other, self.__class__):
+            raise ValueError(
+                "Cannot compare MirParser with non-MirParser class objects."
+            )
+
+        # I say these objects are the same -- prove me wrong!
+        is_eq = True
+
+        # First up, check the list of attributes between the two objects
+        this_attr = set(self.__iter__(metadata_only=metadata_only))
+        other_attr = set(other.__iter__(metadata_only=metadata_only))
+
+        # Go through and drop any attributes that both objects do not have (and set
+        # is_eq to False if any such attributes found).
+        for item in this_attr.union(other_attr):
+            target = None
+            if item not in this_attr:
+                other_attr.remove(item)
+                target = "right"
+            elif item not in other_attr:
+                this_attr.remove(item)
+                target = "left"
+            if target is not None:
+                is_eq = False
+                if verbose:
+                    print("%s does not exist in %s." % (item, target))
+
+        # At this point we _only_ have attributes present in both lists
+        for item in this_attr:
+            this_attr = getattr(self, item)
+            other_attr = getattr(other, item)
+            # Make sure the attributes are of the same type to help ensure
+            # we can actually compare the two without error.
+            if not isinstance(this_attr, type(other_attr)):
+                is_eq = False
+                if verbose:
+                    print(
+                        "%s is of different types, left is %s, right is %s."
+                        % (item, type(this_attr), type(other_attr))
+                    )
+                continue
+
+            # If both are NoneType, we actually have nothing to do here
+            if this_attr is None:
+                continue
+
+            item_diff = False
+            # Now go through and compare the attribute values
+            if item in ["auto_data", "raw_data", "vis_data"]:
+                # Data-related attributes are a bit special, in that they are dicts
+                # of dicts (note this may change at some point).
+                if this_attr.keys() != other_attr.keys():
+                    is_eq = False
+                    if verbose:
+                        print(
+                            f"{item} has different keys, left is {this_attr.keys()}, "
+                            f"right is %{other_attr.keys()}."
+                        )
+                    continue
+                # For the attributes with multiple fields to check, list them
+                # here for convenience.
+                comp_dict = {
+                    "raw_data": ["raw_data", "scale_fac"],
+                    "vis_data": ["vis_data", "vis_flags"],
+                }
+                for key in this_attr.keys():
+                    # auto_data entries are just ndarrays, which we can compare directly
+                    if item == "auto_data":
+                        if not np.array_equal(this_attr[key], other_attr[key]):
+                            item_diff = True
+                    else:
+                        # If cross-correlation data, then there are multiple dict
+                        # entries that we need to compare (defined above).
+                        for subkey in comp_dict[item]:
+                            if not np.array_equal(
+                                this_attr[key][subkey], other_attr[key][subkey]
+                            ):
+                                item_diff = True
+                    if item_diff:
+                        is_eq = False
+                        if verbose:
+                            print(f"{item} has the same keys, but different values")
+                        break
+                # Nothing to do further here with dicts
+                continue
+
+            if isinstance(getattr(self, item), np.ndarray):
+                # Need to handle ndarrays a bit special here
+                if not np.array_equal(getattr(self, item), getattr(other, item)):
+                    item_diff = True
+            elif getattr(self, item) != getattr(other, item):
+                item_diff = True
+
+            if item_diff:
+                is_eq = False
+                if verbose:
+                    print(
+                        f"{item} has different values, left is {getattr(self, item)}, "
+                        f"right is %{getattr(other, item)}."
+                    )
+
+        return is_eq
+
+    def __ne__(self, other, verbose=False, metadata_only=False):
+        """
+        Compare two MirParser objects for inequality.
+
+        Parameters
+        ----------
+        other : MirParser
+            MirParser object to compare with.
+        verbose : bool
+            If True, will print out all of the differences between the two objects.
+            Default is False.
+        metadata_only : bool
+            If True, the attributes `auto_data`, `raw_data`, and `vis_data` will not
+            be compared between objects. Default is False.
+
+        Returns
+        -------
+        check : bool
+            Whether or not the two objects are different.
+        """
+        return not self.__eq__(other, verbose=verbose, metadata_only=metadata_only)
+
     def copy(self, metadata_only=False):
         """
         Make and return a copy of the MirParser object.
+
+        Parameters
+        ----------
+        metadata_only : bool
+            If set to True, will forgo copying the attributes `vis_data`, raw_data`,
+            and `auto_data`.
 
         Returns
         -------
@@ -427,6 +591,72 @@ class MirParser(object):
                 setattr(mp, attr, copy.deepcopy(getattr(self, attr)))
 
         return mp
+
+    @staticmethod
+    def segment_by_index(read_arr, index_field):
+        """
+        Break an array into multiple subarrays based on an index value.
+
+        This function will break an array into subarrays, based on the indexing field
+        provided. Useful in functions that require grouping of data. Note that the
+        ordering of subarray will match that of read_arr (in terms of first appearance
+        of each value of the index field), but ordering within subarrays may be
+        different.
+
+        Parameters
+        ----------
+        read_arr : ndarray
+            Structured ndarray to be broken into segments.
+        index_field : str
+            Field within `read_arr` to group data by.
+
+        Returns
+        -------
+        subarr_dict : dict
+            Dict with keys of unique entries of `index_field`, and values which are
+            ndarrays containing all elements of `read_arr` where the index field is
+            equal to the key.
+        pos_dict : dict
+            Similar to `subarr_dict`, unique entries of `index_field` make up the keys
+            of this dict, with values corresponding to and ndarray of dtype=int which
+            reports the position within `read_arr` where each subarray value comes from.
+
+        Raises
+        ------
+        TypeError
+            If `read_arr` is not an ndarray, or if `index_field` is not a string.
+        ValueError
+            If `index_field` is not a field within `read_arr`.
+        """
+        if not isinstance(read_arr, np.ndarray):
+            raise TypeError("read_arr must be of type ndarray.")
+        if not isinstance(index_field, str):
+            raise TypeError("read_arr must be of type ndarray.")
+        if index_field not in read_arr.dtype.names:
+            raise ValueError(
+                "index_field %s is not a recognized field in read_arr" % index_field
+            )
+
+        subarr_dict = {}
+        pos_dict = {}
+        for pos, (indv_rec, idx) in enumerate(zip(read_arr, read_arr[index_field])):
+            try:
+                subarr_dict[idx].append(indv_rec)
+                pos_dict[idx].append(pos)
+            except KeyError:
+                subarr_dict[idx] = [indv_rec]
+                pos_dict[idx] = [pos]
+
+        # We want structured arrays rather than a list of "singleton" structures, so
+        # use concat here to restore our broken-up entries into arrays again.
+        subarr_dict = {
+            key: np.concatenate([value]) for key, value in subarr_dict.items()
+        }
+
+        # Same thing with position arrays
+        pos_dict = {key: np.concatenate([value]) for key, value in pos_dict.items()}
+
+        return subarr_dict, pos_dict
 
     @staticmethod
     def read_in_data(filepath):
@@ -854,7 +1084,7 @@ class MirParser(object):
                     int_vals["nbyt"],
                     data_offset,
                 )
-                last_offset = int_vals["nbyt"]
+                last_offset = int_vals["nbyt"].astype(int)
                 data_offset += last_offset + 8
 
         return int_start_dict
@@ -1237,7 +1467,7 @@ class MirParser(object):
 
             # Plug in the "easy" parts of packdata
             packdata["inhid"] = inhid
-            packdata["nbyt"] = int_size
+            packdata["nbyt"] = int_size * 2
 
             # Now step through all of the spectral records and plug it in to the
             # main packdata array. In testing, this worked out to be a good degree
@@ -1252,7 +1482,7 @@ class MirParser(object):
         return int_data_dict
 
     @staticmethod
-    def write_packdata(filepath, int_data_dict, append_data=False):
+    def write_rawdata(filepath, raw_dict, sp_data, append_data=False):
         """
         Write packed data to disk.
 
@@ -1269,11 +1499,20 @@ class MirParser(object):
         if not os.path.isdir(filepath):
             os.makedirs(filepath)
 
+        # In order to write to disk, we need to create an intermediate product known
+        # as "packed data", which is written on a per-integration basis. These create
+        # duplicate copies of the data which can cause the memory footprint to balloon,
+        # So we want to just create one packdata entry at a time. To do that, we
+        # actually need to sgement sp_data by the integration ID.
+        sp_in_dict, _ = MirParser.segment_by_index(sp_data, "inhid")
+
+        # We can now open the file once, and write each array upon construction
         with open(
             os.path.join(filepath, "sch_read"), "ab+" if append_data else "wb+"
         ) as file:
-            for item in int_data_dict.values():
-                item.tofile(file)
+            for key in sorted(sp_in_dict.keys()):
+                packdata = MirParser.make_packdata(sp_in_dict[key], raw_dict)[key]
+                packdata.tofile(file)
 
     @staticmethod
     def convert_raw_to_vis(raw_dict):
@@ -1403,6 +1642,7 @@ class MirParser(object):
         return_vis=True,
         return_raw=False,
         use_mmap=True,
+        read_only=False,
     ):
         """
         Read "sch_read" mir file into a list of ndarrays. (@staticmethod).
@@ -1520,12 +1760,25 @@ class MirParser(object):
             start_idx = dataoff_subarr
             # Each record has a real & imag value per channel, plus one common exponent
             end_idx = start_idx + (nch_subarr * 2) + 1
-            raw_list = [packdata[idx:jdx] for idx, jdx in zip(start_idx, end_idx)]
 
+            # We copy here if we want the raw values AND we've used memmap, since
+            # otherwise the resultant entries in raw_data will be memmap arrays, which
+            # will be read only (and we want attributes to be modifiable.)
             raw_dict.update(
                 {
-                    shpid: {"scale_fac": raw_data[0], "raw_data": raw_data[1:]}
-                    for shpid, raw_data in zip(sphid_subarr, raw_list)
+                    shpid: {
+                        "scale_fac": (
+                            packdata[idx].copy()
+                            if ((return_raw and use_mmap) and not read_only)
+                            else packdata[idx]
+                        ),
+                        "raw_data": (
+                            packdata[idx + 1 : jdx].copy()
+                            if ((return_raw and use_mmap) and not read_only)
+                            else packdata[idx + 1 : jdx]
+                        ),
+                    }
+                    for shpid, idx, jdx in zip(sphid_subarr, start_idx, end_idx)
                 }
             )
             # Do the del here to break the reference to the "old" data so that
@@ -1879,6 +2132,7 @@ class MirParser(object):
         load_auto=None,
         apply_tsys=True,
         use_mmap=True,
+        read_only=False,
         allow_downselect=None,
         allow_conversion=None,
     ):
@@ -2084,6 +2338,7 @@ class MirParser(object):
                 return_vis=load_vis,
                 return_raw=load_raw,
                 use_mmap=use_mmap,
+                read_only=read_only,
             )
 
             # Because the read_vis_data returns a tuple of varying length depending on
@@ -2581,10 +2836,8 @@ class MirParser(object):
 
         # Finally, we can package up the raw data (using make_packdata) in order to
         # write the raw-format data to disk.
-        self.write_packdata(
-            filepath,
-            self.make_packdata(self.sp_data, raw_dict),
-            append_data=append_data,
+        self.write_rawdata(
+            filepath, raw_dict, self.sp_data, append_data=append_data,
         )
 
     @staticmethod
@@ -2661,7 +2914,7 @@ class MirParser(object):
         return vis_dict
 
     @staticmethod
-    def _rechunk_raw(raw_dict, chan_avg_arr, inplace=False):
+    def _rechunk_raw(raw_dict, chan_avg_arr, inplace=False, return_vis=False):
         """
         Rechunk a raw visibility spectrum.
 
@@ -2673,7 +2926,7 @@ class MirParser(object):
         ----------
         raw_dict : dict
             A dict containing raw visibility data, where the keys match to individual
-            values of `sphid` in `sp_data`, with each value being its own dict, with
+            values of "sphid" in `sp_data`, with each value being its own dict, with
             keys "raw_data" (the raw visibility data, dtype=np.int16) and "scale_fac"
             (scale factor to multiply raw data by , dtype=np.int16).
         chan_avg_arr : sequence of int
@@ -2683,24 +2936,34 @@ class MirParser(object):
             If True, entries in `raw_dict` will be updated with spectrally averaged
             data. If False (default), then the method will construct a new dict that
             will contain the spectrally averaged data.
+        return_vis : bool
+            If True, return data in the "normal" visibility format, where each
+            spectral record has a key of "sphid" and a value being a dict of
+            "vis_data" (the visibility data, dtype=np.complex64) and "vis_flags"
+            (the flagging inforformation, dtype=bool). This option is ignored if
+            `inplace=True`.
 
         Returns
         -------
-        new_raw_dict : dict
+        data_dict : dict
             A dict containing the spectrally averaged data, in the same format as
-            that provided in `raw_dict`.
-
+            that provided in `raw_dict` (unless `return_vis=True`).
         """
         # If inplace, point our new dict to the old one, otherwise create
         # an ampty dict to plug values into.
-        new_raw_dict = raw_dict if inplace else {}
+        data_dict = raw_dict if inplace else {}
+        return_vis = (not inplace) and return_vis
 
         for chan_avg, (sphid, sp_raw) in zip(chan_avg_arr, raw_dict.items()):
             # If the number of channels to average is 1, then we just need to make
             # a deep copy of the old data and plug it in to the new dict.
             if chan_avg == 1:
                 if not inplace:
-                    new_raw_dict[sphid] = copy.deepcopy(sp_raw)
+                    data_dict[sphid] = (
+                        MirParser.convert_raw_to_vis({0: sp_raw})[0]
+                        if return_vis
+                        else copy.deepcopy(sp_raw)
+                    )
                 continue
 
             # If we are _not_ skipping the spectral averaging, then it turns out to
@@ -2708,16 +2971,23 @@ class MirParser(object):
             # it, and then convert it back to the raw format. Note that we set up a
             # "dummy" dict here with an sphid of 0 to make it easy to retrieve that
             # entry after the sequence of calls.
-            new_raw_dict[sphid] = MirParser.convert_vis_to_raw(
-                MirParser.rechunk_vis(
+            if return_vis:
+                data_dict[sphid] = MirParser.rechunk_vis(
                     MirParser.convert_raw_to_vis({0: sp_raw}),
                     [chan_avg],
                     inplace=False,
-                )
-            )[0]
+                )[0]
+            else:
+                data_dict[sphid] = MirParser.convert_vis_to_raw(
+                    MirParser.rechunk_vis(
+                        MirParser.convert_raw_to_vis({0: sp_raw}),
+                        [chan_avg],
+                        inplace=False,
+                    )
+                )[0]
 
         # Finally, return the dict containing the raw data.
-        return new_raw_dict
+        return data_dict
 
     @staticmethod
     def _rechunk_auto(auto_dict, chan_avg_arr, inplace=False):
@@ -2767,7 +3037,7 @@ class MirParser(object):
         return new_auto_dict
 
     def rechunk(
-        self, chan_avg, load_vis=False, load_raw=False, load_block=10, use_mmap=True,
+        self, chan_avg, load_vis=False, load_raw=False, use_mmap=True,
     ):
         """
         Rechunk a MirParser object.
@@ -2793,10 +3063,6 @@ class MirParser(object):
             Similar to `load_raw`, if set to True, the raw visibility data will be
             loaded from disk and spectrally averaged on the fly. Default is False,
             which results in only previously loaded data being processed.
-        load_block : int
-            Only used if `load_vis=True` or `load_raw=True`. The number of integrations
-            to load data from simultaneously. Default is 10, which typically limits
-            additional memory overheads to 1-2 GB on a typical data set.
         use_mmap : bool
             If False, then each integration record needs to be read in before it can
             be parsed on a per-spectral record basis (which can be slow if only reading
@@ -2807,7 +3073,7 @@ class MirParser(object):
             improves.
         """
         # Start of by doing some argument checking.
-        arg_dict = {"load_block": load_block, "chan_avg": chan_avg}
+        arg_dict = {"chan_avg": chan_avg}
         for key, value in arg_dict.items():
             if not (isinstance(value, int) or isinstance(value, np.int_)):
                 raise ValueError("%s must be of type int." % key)
@@ -2874,54 +3140,51 @@ class MirParser(object):
                 )
             self.unload_data()
 
-            # If we're going to load the data, then we only want to load a few
-            # blocks of data at a time, otherwise we run the risk of overtaxing
-            # memory by loading in the data at a resolution we can't handle.
-            # First, pluck out the unique inhid's
-            unique_inhid = np.unique(self.sp_data["inhid"])
-            marker = 0
-            while marker < len(unique_inhid):
-                # Grab a subset of sp_data, since it's the sphids in this array
-                # that will tell read_vis_data which data to load up. Note were
-                # selecting whole integrations since that's how the data are
-                # packed together, so each packdata only need be read once.
-                data_mask = np.isin(
-                    sp_data["inhid"], unique_inhid[marker : marker + load_block]
-                )
+            # If we're going to load the data, then we only want to load a block of
+            # data at a time, otherwise we run the risk of overtaxing memory by loading
+            # in the data at a resolution we can't handle. To do this, we need to break
+            # up the sp_data by integration ID, which segment_by_index will do for us.
+            sp_in_dict, pos_dict = self.segment_by_index(sp_data, "inhid")
+            chan_avg_arr = []
 
-                temp_sp_data = sp_data[data_mask]
-                temp_chan_avg = chan_avg_arr[data_mask]
+            for subset_sp_data, pos_arr in zip(sp_in_dict.values(), pos_dict.values()):
+                # Pluck out the relevant entries from the channel averaging array we
+                # calculated earlier.
+                temp_chan_avg = chan_avg_arr[pos_arr]
 
-                # One way or another, we only want to load one set of data. If we just
-                # want the raw data, then we can save on memory by just loading that.
-                # Otherwise, we want to load vis, since it's faster to process (at the
-                # expense of some additional memory overhead).
+                # We only want to load one set of data, and for the moment, we can
+                # save some work by _just_ loading the raw data.
                 (data_dict,) = self.read_vis_data(
                     list(self._file_dict.keys()),
                     list(self._file_dict.values()),
-                    temp_sp_data,
-                    return_vis=load_vis,
-                    return_raw=(load_raw and not load_vis),
+                    subset_sp_data,
+                    return_vis=False,
+                    return_raw=True,
                     use_mmap=use_mmap,
                 )
 
                 if load_raw and not load_vis:
-                    # by calling the _rechunk_raw method.
-                    self._rechunk_raw(data_dict, temp_chan_avg, inplace=True)
+                    # If we _only_ want the raw data, we can save a bit on memory
+                    # by calling _rechunk_raw and replacing the records in-situ within
+                    # data_dict, when can then be used to update raw_data.
+                    self._rechunk_raw(data_dict, temp_chan_avg, in_place=True)
                     self.raw_data.update(data_dict)
                 else:
-                    # Otherwise, if we want the vis, it's faster and more efficient
-                    # to convert the data from raw to vis, rechunk, and then convert
-                    # back to raw _if_ we need it
-                    self._rechunk_vis(data_dict, temp_chan_avg, inplace=True)
-                    self.vis_data.update(data_dict)
-                    if load_raw:
-                        self.raw_data.update(self.convert_vis_to_raw(data_dict))
+                    # Otherwise, if we ever want the visibility data, it's faster to
+                    # allow _rechunk_raw to return "normal" data (which it converts
+                    # records to for the rechunk), and then deal with the conversion
+                    # to raw data later if needed.
+                    self.vis_data.update(
+                        self._rechunk_raw(data_dict, temp_chan_avg, return_vis=True)
+                    )
 
                 # Delete data_dict, just to break any potential references and allow
                 # cache to clear.
                 del data_dict
-                marker += load_block
+
+            if load_vis and load_raw:
+                # If we want vis and raw, make the raw copy now based on vis.
+                self.raw_data = self.convert_vis_to_raw(self.vis_data)
 
             self._vis_data_loaded = load_vis
             self._raw_data_loaded = load_raw
