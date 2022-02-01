@@ -1137,7 +1137,6 @@ class UVFlag(UVBase):
         self,
         uv,
         force_pol=False,
-        time_atol=0.0,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -1156,10 +1155,6 @@ class UVFlag(UVBase):
             Otherwise, will require polarizations match.
             For example, this keyword is useful if one flags on all
             pols combined, and wants to broadcast back to individual pols.
-        time_atol : float
-            Absolute tolerance in units of time (usually JD) to consider two
-            times to be identical when matching times in this UVFlag object to
-            times in the input uv. Default 0.0 means they must be exactly equal.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after converting to baseline type.
@@ -1230,7 +1225,14 @@ class UVFlag(UVBase):
                     warr = np.zeros_like(uv.flag_array, dtype=np.float64)
                 sarr = self.metric_array
             for i, t in enumerate(np.unique(self.time_array)):
-                ti = np.where(np.isclose(uv.time_array, t, atol=time_atol, rtol=0.0))
+                ti = np.where(
+                    np.isclose(
+                        uv.time_array,
+                        t,
+                        rtol=max(self._time_array.tols[0], uv._time_array.tols[0]),
+                        atol=max(self._time_array.tols[1], uv._time_array.tols[1]),
+                    )
+                )
                 arr[ti, :, :, :] = sarr[i, :, :][np.newaxis, np.newaxis, :, :]
                 if self.mode == "metric":
                     warr[ti, :, :, :] = self.weights_array[i, :, :][
@@ -1270,8 +1272,8 @@ class UVFlag(UVBase):
                         np.isclose(
                             uv.time_array[t_index],
                             self.time_array,
-                            atol=time_atol,
-                            rtol=0.0,
+                            rtol=max(self._time_array.tols[0], uv._time_array.tols[0]),
+                            atol=max(self._time_array.tols[1], uv._time_array.tols[1]),
                         )
                     )[0]
                     if uvf_t_index.size > 0:
