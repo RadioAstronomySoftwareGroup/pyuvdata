@@ -373,45 +373,234 @@ def test_compass_error(mir_data, compass_soln_file):
     assert str(err.value).startswith("Visibility data must be loaded")
 
 
-# __add__
-# __eq__
-# __iadd__
-# __init__
-# __iter__
-# __ne__
-# _check_data_index
-# _combine_read_arr
-# _combine_read_arr_check
-# _downselect_data
-# _parse_select
-# _parse_select_compare
-# _read_compass_solns
-# _rechunk_auto
-# _rechunk_raw
-# _rechunk_vis
-# _update_filter
-# apply_tsys
-# calc_int_start
-# concat
-# convert_raw_to_vis
-# convert_vis_to_raw
-# copy
-# fix_int_start
-# fromfile
-# load_data
-# make_codes_dict
-# make_codes_read
-# make_packdata
-# read_auto_data
-# read_packdata
-# read_vis_data
-# rechunk
-# redoppler_data
-# scan_auto_data
-# scan_int_start
-# segment_by_index
-# select
-# tofile
+@pytest.mark.parametrize("load_scheme", ["raw", "vis", "both", "drop"])
+def test_compare_rechunk(mir_data, load_scheme):
+    """Compare rechunking with different options."""
+    mir_copy = mir_data.copy()
+
+    # Rechunk by a random factor of two.
+    mir_data.rechunk(8)
+
+    # Verify that a chance has actually occured
+    assert mir_data != mir_copy
+
+    # Drop whatever data we aren't comparing.
+    if load_scheme == "drop":
+        # Drop the file dict, which means we can't load the data anymore.
+        mir_copy._file_dict = {}
+        mir_copy.rechunk(8)
+
+        # Modify these two attributes so that they'll definitely match the above
+        # (after the rechunking is done, of course)
+        mir_data._file_dict = {}
+        for item in ["nch", "fres", "vres"]:
+            mir_data._sp_read[item] = mir_data.sp_data[item]
+    else:
+        mir_data.unload_data(
+            unload_vis=(load_scheme == "raw"), unload_raw=(load_scheme == "vis"),
+        )
+        with uvtest.check_warnings(
+            UserWarning, "Setting load_data or load_raw to True will unload"
+        ):
+            mir_copy.rechunk(
+                8, load_vis=(load_scheme != "raw"), load_raw=(load_scheme != "vis")
+            )
+
+        if load_scheme != "raw":
+            mir_copy.apply_tsys()
+
+    assert mir_copy == mir_data
+
+
+@pytest.mark.parametrize(
+    "field,comp,err_msg",
+    [
+        ["sphid", "abc", "select_comp must be one of"],
+        ["abc", "eq", "select_field abc not found in structured array."],
+    ],
+)
+def test_parse_select_compare_errs(mir_data, field, comp, err_msg):
+    """Verify that _parse_select_compare throws expected errors."""
+    with pytest.raises(ValueError) as err:
+        mir_data._parse_select_compare(field, comp, None, mir_data.sp_data)
+
+    assert str(err.value).startswith(err_msg)
+
+
+@pytest.mark.parametrize(
+    "comp,value,index_arr",
+    [
+        ["eq", [1, 2, 3, 4], np.arange(1, 5)],
+        ["ne", [1, 2, 3, 4], np.arange(5, 21)],
+        ["le", 10, np.arange(1, 11)],
+        ["gt", 10, np.arange(11, 21)],
+        ["lt", 15, np.arange(1, 16)],
+        ["ge", 15, np.arange(15, 21)],
+        ["btw", [5, 15], np.arange(5, 16)],
+        ["out", [5, 15], [1, 2, 3, 4, 16, 17, 18, 19, 20]],
+    ],
+)
+def test_parse_select_compare(mir_data, comp, value, index_arr):
+    """Test test_parse_select_compare"""
+    mask_arr = mir_data._parse_select_compare("sphid", comp, value, mir_data.sp_data)
+
+    assert np.all(np.isin(mir_data.sp_data["sphid"][mask_arr], index_arr))
+
+
+@pytest.mark.parametrize(
+    "field,comp,err_type,err_msg",
+    [
+        ["source", "btw", ValueError, 'select_comp must be either "eq" or "ne" '],
+        ["source", "eq", ValueError, "If select_field matches a key in codes_dict"],
+        ["windSpeed", "eq", NotImplementedError, "Selecting based on we_read"],
+        ["awesomeness", "eq", ValueError, "Field name awesomeness not recognized"],
+    ],
+)
+def test_parse_select_errs(mir_data, field, comp, err_type, err_msg):
+    """Verify that _parse_select throws expected errors."""
+    with pytest.raises(err_type) as err:
+        mir_data._parse_select(field, comp, None, None, None, None)
+
+    assert str(err.value).startswith(err_msg)
+
+
+@pytest.mark.parametrize(
+    "field,comp,value,inhid,blhid,sphid",
+    [
+        ["source", "eq", "3c84", [1], [1, 2, 3, 4], np.arange(1, 21)],
+        ["mjd", "lt", 0.0, [], [1, 2, 3, 4], np.arange(1, 21)],
+        ["sb", "ne", "u", [1], [1, 2], np.arange(1, 21)],
+        ["fsky", "ge", 230.0, [1], [1, 2, 3, 4], np.arange(11, 21)],
+        ["padNumber", "ne", [5, 6, 7, 8], [1], [], np.arange(1, 21)],
+    ],
+)
+def test_parse_select(mir_data, field, comp, value, inhid, blhid, sphid):
+    """Verify that _parse_select works as expected."""
+    use_in = np.ones_like(mir_data._in_filter)
+    use_bl = np.ones_like(mir_data._bl_filter)
+    use_sp = np.ones_like(mir_data._sp_filter)
+    mir_data._parse_select(field, comp, value, use_in, use_bl, use_sp)
+
+    assert np.all(np.isin(mir_data.in_data["inhid"][use_in], inhid))
+    assert np.all(np.isin(mir_data.bl_data["blhid"][use_bl], blhid))
+    assert np.all(np.isin(mir_data.sp_data["sphid"][use_sp], sphid))
+
+    # Test that flagged items remain flagged.
+    use_in[:] = False
+    use_bl[:] = False
+    use_sp[:] = False
+    mir_data._update_filter(use_in=use_in, use_bl=use_bl, use_sp=use_sp)
+    mir_data._parse_select(field, comp, value, use_in, use_bl, use_sp)
+    for arr in [use_in, use_bl, use_sp]:
+        assert not np.any(arr)
+
+
+@pytest.mark.parametrize(
+    "field,comp,value,use_in,err_type,err_msg",
+    [
+        [None, 0, None, None, ValueError, "select_field, select_comp, and select_val"],
+        [0, 0, "a", None, ValueError, "select_field must be a string."],
+        ["mjd", 0, "a", None, ValueError, 'select_comp must be one of "eq", "ne",'],
+        ["mjd", "lt", "a", None, ValueError, "select_val must be a single number"],
+        ["mjd", "lt", [0, 1], None, ValueError, "select_val must be a single number"],
+        ["mjd", "btw", "b", None, ValueError, 'If select_comp is "btw" or "out",'],
+        ["mjd", "out", ["a", "b"], None, ValueError, 'If select_comp is "btw" or'],
+        ["mjd", "out", 0.0, None, ValueError, 'If select_comp is "btw" or "out",'],
+        ["mjd", "btw", [1, 2, 3], None, ValueError, 'If select_comp is "btw" or "out"'],
+        [None, None, None, 0.5, IndexError, "use_in, use_bl, and use_sp must be set"],
+    ],
+)
+def test_select_errs(mir_data, field, comp, value, use_in, err_type, err_msg):
+    """Verify that select throws errors as expected."""
+    with pytest.raises(err_type) as err:
+        mir_data.select(
+            select_field=field, select_comp=comp, select_val=value, use_in=use_in,
+        )
+
+    assert str(err.value).startswith(err_msg)
+
+
+@pytest.mark.parametrize(
+    "field,comp,value,use_in,reset,warn_msg",
+    [
+        ["a", "b", "c", None, True, "Resetting data selection, all other arguments"],
+        ["a", "b", "c", [0], False, "Selecting data using use_in, use_bl and/or"],
+        [None, None, None, None, False, "No arguments supplied to select_field"],
+    ],
+)
+def test_select_warn(mir_data, field, comp, value, use_in, reset, warn_msg):
+    """Verify that select throws warnings as expected."""
+    with uvtest.check_warnings(UserWarning, warn_msg):
+        mir_data.select(
+            select_field=field,
+            select_comp=comp,
+            select_val=value,
+            use_in=use_in,
+            reset=reset,
+        )
+
+    # Verify that the indexing looks okay, even with the warning
+    assert mir_data._check_data_index()
+
+
+@pytest.mark.parametrize(
+    "field,comp,value,vis_keys",
+    [
+        ["mjd", "btw", [60000.0, 50000.0], np.arange(1, 21)],
+        ["source", "ne", "nosourcehere", np.arange(1, 21)],
+        ["ant", "eq", 4, np.arange(1, 21)],
+        ["ant1", "ne", 8, np.arange(1, 21)],
+        ["ant1rx", "eq", 0, [1, 2, 3, 4, 5, 11, 12, 13, 14, 15]],
+        ["corrchunk", "ne", [1, 2, 3, 4], np.arange(1, 21, 5)],
+    ],
+)
+def test_select(mir_data, field, comp, value, vis_keys):
+    """Verify that select throws warnings as expected."""
+    mir_data.select(select_field=field, select_comp=comp, select_val=value)
+
+    # Confirm that we have all the indexes we should internally
+    assert mir_data._check_data_index()
+
+    # Cross-reference with the list we provide to be sure we have everything.
+    assert np.all(np.isin(list(mir_data.vis_data.keys()), vis_keys))
+
+
+@pytest.mark.parametrize(
+    "use_in,use_bl,use_sp, vis_keys",
+    [
+        [[0], None, None, np.arange(1, 21)],
+        [None, [0], None, np.arange(1, 6)],
+        [None, None, [0], [1]],
+        [None, [0], [1], [2]],
+        [[0], [1], [2], []],
+        [[0], [0], None, np.arange(1, 6)],
+    ],
+)
+def test_select_use_mask(mir_data, use_in, use_bl, use_sp, vis_keys):
+    """Check that use_* parameters for select work as expected"""
+    mir_data.select(use_in=use_in, use_bl=use_bl, use_sp=use_sp)
+
+    # Confirm that we have all the indexes we should internally
+    assert mir_data._check_data_index()
+
+    # Cross-reference with the list we provide to be sure we have everything.
+    assert np.all(np.isin(list(mir_data.vis_data.keys()), vis_keys))
+
+
+def test_select_reset(mir_data):
+    """Verify that running reset with select returns all entries as expected."""
+    mir_copy = mir_data.copy()
+    # Unload the data on the copy, since that's done on reset
+    mir_copy.unload_data()
+
+    # Select based on something that should not exist.
+    mir_data.select(select_field="mjd", select_comp="eq", select_val=0.0)
+    assert len(mir_data.vis_data.keys()) == 0
+
+    # Now run reset
+    mir_data.select(reset=True)
+    assert mir_data == mir_copy
+
 
 # Below are a series of checks that are designed to check to make sure that the
 # MirParser class is able to produce consistent values from an engineering data
