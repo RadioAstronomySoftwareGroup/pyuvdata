@@ -510,13 +510,19 @@ class MirParser(object):
                 for key in this_attr.keys():
                     # auto_data entries are just ndarrays, which we can compare directly
                     if item == "auto_data":
-                        if not np.array_equal(this_attr[key], other_attr[key]):
+                        if this_attr[key].shape != other_attr[key].shape:
+                            item_diff = True
+                        elif not np.allclose(this_attr[key], other_attr[key]):
                             item_diff = True
                     else:
                         # If cross-correlation data, then there are multiple dict
                         # entries that we need to compare (defined above).
                         for subkey in comp_dict[item]:
-                            if not np.array_equal(
+                            if this_attr[key][subkey].shape != (
+                                other_attr[key][subkey].shape
+                            ):
+                                item_diff = True
+                            elif not np.allclose(
                                 this_attr[key][subkey], other_attr[key][subkey]
                             ):
                                 item_diff = True
@@ -654,7 +660,9 @@ class MirParser(object):
         }
 
         # Same thing with position arrays
-        pos_dict = {key: np.concatenate([value]) for key, value in pos_dict.items()}
+        pos_dict = {
+            key: np.concatenate([value], dtype=int) for key, value in pos_dict.items()
+        }
 
         return subarr_dict, pos_dict
 
@@ -2512,21 +2520,9 @@ class MirParser(object):
                 if self._has_auto:
                     assert np.all(self._ac_filter[ac_filter])
 
-                # Note that these final set of checks are for making sure that we can
-                # downselect the data itself, assuming that it's been loaded. This
-                # should ensure that _downselect_data works below without error.
-                if self._vis_data_loaded:
-                    assert np.all(
-                        np.isin(list(self.vis_data.keys(), self.sp_data["sphid"]))
-                    )
-                if self._raw_data_loaded:
-                    assert np.all(
-                        np.isin(list(self.raw_data.keys(), self.sp_data["sphid"]))
-                    )
-                if self._auto_data_loaded:
-                    assert np.all(
-                        np.isin(list(self.auto_data.keys(), self.ac_data["achid"]))
-                    )
+                # Note that this final check is for making sure that we can downselect
+                # the data itself, ensuring _downselect_data works below without error.
+                assert self._check_data_index()
             except AssertionError:
                 allow_downselect = False
 
@@ -2535,10 +2531,10 @@ class MirParser(object):
             # select from the already loaded data vales. Note that we skip codes
             # and ant positions since those are assumed to be constant over the track.
             self.in_data = self.in_data[in_filter[self._in_filter]]
-            self.eng_data = self.in_data[eng_filter[self._eng_filter]]
-            self.bl_data = self.in_data[bl_filter[self._bl_filter]]
-            self.sp_data = self.in_data[sp_filter[self._sp_filter]]
-            self.we_data = self.in_data[we_filter[self._we_filter]]
+            self.eng_data = self.eng_data[eng_filter[self._eng_filter]]
+            self.bl_data = self.bl_data[bl_filter[self._bl_filter]]
+            self.sp_data = self.sp_data[sp_filter[self._sp_filter]]
+            self.we_data = self.we_data[we_filter[self._we_filter]]
             if self._has_auto:
                 self.ac_data = self.ac_data[ac_filter[self._ac_filter]]
             else:
@@ -2911,7 +2907,7 @@ class MirParser(object):
                 "vis_flags": temp_count == 0,  # Flag channels with no valid data
             }
 
-        return vis_dict
+        return new_vis_dict
 
     @staticmethod
     def _rechunk_raw(raw_dict, chan_avg_arr, inplace=False, return_vis=False):
@@ -2972,14 +2968,14 @@ class MirParser(object):
             # "dummy" dict here with an sphid of 0 to make it easy to retrieve that
             # entry after the sequence of calls.
             if return_vis:
-                data_dict[sphid] = MirParser.rechunk_vis(
+                data_dict[sphid] = MirParser._rechunk_vis(
                     MirParser.convert_raw_to_vis({0: sp_raw}),
                     [chan_avg],
                     inplace=False,
                 )[0]
             else:
                 data_dict[sphid] = MirParser.convert_vis_to_raw(
-                    MirParser.rechunk_vis(
+                    MirParser._rechunk_vis(
                         MirParser.convert_raw_to_vis({0: sp_raw}),
                         [chan_avg],
                         inplace=False,
@@ -3030,9 +3026,7 @@ class MirParser(object):
 
             # The autos are a bit simpler than the vis/raw data -- there are no
             # flags (yet), so all we need to do is to average the data.
-            new_auto_dict[achid] = (
-                sp_auto["vis_data"].reshape((-1, chan_avg)).mean(axis=-1)
-            )
+            new_auto_dict[achid] = sp_auto.reshape((-1, chan_avg)).mean(axis=-1)
 
         return new_auto_dict
 
@@ -3105,7 +3099,7 @@ class MirParser(object):
                 # actually run this operation (have to reload the data).
                 raise ValueError(
                     "Index values do not match data keys. Data will need to be "
-                    "reloaded before continuing (with select(reset=True)."
+                    "reloaded before continuing (with select(reset=True))."
                 )
 
         sp_data = self._sp_read if (self._file_dict == {}) else self.sp_data
@@ -3135,17 +3129,20 @@ class MirParser(object):
                 self._vis_data_loaded or self._auto_data_loaded
             ):
                 warnings.warn(
-                    "Setting load_data or load_raw to true will unload "
+                    "Setting load_data or load_raw to True will unload "
                     "previously loaded data."
                 )
             self.unload_data()
+
+            # Make these dicts now so that we can update in the loop below.
+            self.vis_data = {} if load_vis else None
+            self.raw_data = {} if load_raw else None
 
             # If we're going to load the data, then we only want to load a block of
             # data at a time, otherwise we run the risk of overtaxing memory by loading
             # in the data at a resolution we can't handle. To do this, we need to break
             # up the sp_data by integration ID, which segment_by_index will do for us.
             sp_in_dict, pos_dict = self.segment_by_index(sp_data, "inhid")
-            chan_avg_arr = []
 
             for subset_sp_data, pos_arr in zip(sp_in_dict.values(), pos_dict.values()):
                 # Pluck out the relevant entries from the channel averaging array we
@@ -3167,8 +3164,9 @@ class MirParser(object):
                     # If we _only_ want the raw data, we can save a bit on memory
                     # by calling _rechunk_raw and replacing the records in-situ within
                     # data_dict, when can then be used to update raw_data.
-                    self._rechunk_raw(data_dict, temp_chan_avg, in_place=True)
-                    self.raw_data.update(data_dict)
+                    self.raw_data.update(
+                        self._rechunk_raw(data_dict, temp_chan_avg, inplace=True)
+                    )
                 else:
                     # Otherwise, if we ever want the visibility data, it's faster to
                     # allow _rechunk_raw to return "normal" data (which it converts
@@ -3192,9 +3190,12 @@ class MirParser(object):
         # Last task - update the metadata about num of channels accordingly,
         # and clobber the dataoff values.
         sp_data["nch"] = sp_data["nch"] // chan_avg_arr
-        sp_data["dataoff"] = 0
+        sp_data["fres"] *= chan_avg_arr
+        sp_data["vres"] *= chan_avg_arr
+
         if self._file_dict == {}:
-            self.sp_data["nch"] = self._sp_read["nch"][self._sp_filter]
+            for item in ["nch", "fres", "vres"]:
+                self.sp_data[item] = self._sp_read[item][self._sp_filter]
 
     @staticmethod
     def _combine_read_arr_check(arr1, arr2, index_name=None, any_match=False):
@@ -4269,8 +4270,8 @@ class MirParser(object):
             "le": np.less_equal,
             "gt": np.greater,
             "ge": np.greater_equal,
-            "btw": lambda val, lims: ((val >= lims[0]) and (val <= lims[1])),
-            "out": lambda val, lims: ((val < lims[0]) or (val > lims[1])),
+            "btw": lambda val, lims: ((val >= lims[0]) & (val <= lims[1])),
+            "out": lambda val, lims: ((val < lims[0]) | (val > lims[1])),
         }
 
         # Make sure the inputs look valid
@@ -4284,7 +4285,7 @@ class MirParser(object):
             )
 
         # Evaluate data_arr now
-        return op_dict["select_comp"](data_arr[select_field], select_val)
+        return op_dict[select_comp](data_arr[select_field], select_val)
 
     def _parse_select(
         self, select_field, select_comp, select_val, use_in, use_bl, use_sp
@@ -4353,7 +4354,7 @@ class MirParser(object):
 
         # We want select_val to be potentially iterable, so if it's a singleton
         # then take care of this now.
-        select_val.shape += (1,) if (select_val.shape == 0) else ()
+        select_val.shape += (1,) if (select_val.shape == ()) else ()
 
         if select_field in self.codes_dict.keys():
             if select_comp not in ["eq", "ne"]:
@@ -4372,7 +4373,7 @@ class MirParser(object):
             temp_vals = []
 
             for item in select_val:
-                if not np.isinstance(item, str):
+                if not isinstance(item, str):
                     raise ValueError(
                         "If select_field matches a key in codes_dict, then select_val "
                         "must either be a string or a sequence of strings."
@@ -4436,7 +4437,7 @@ class MirParser(object):
             # pairing is good or not. We can either check if a given tuple is in the
             # "allowed" set, or in the "disallowed" set -- pick which based on which
             # results in the shortest list of tuples we need to compare to.
-            flip_mask = np.mean(data_mask) > 0.5
+            flip_mask = np.mean(data_mask) >= 0.5 if (len(data_mask) > 0) else False
             if flip_mask:
                 data_mask = ~data_mask
 
@@ -4581,20 +4582,20 @@ class MirParser(object):
             for arg, name in zip(select_args, select_names):
                 if arg is not None:
                     raise ValueError(
-                        "%s must be set if seeting other selection arguments based "
-                        "on field names in the data." % name
+                        "select_field, select_comp, and select_val must all be set "
+                        "or not set when calling select."
                     )
         else:
             if reset:
                 # If doing a reset, then warn that the other arguments are going to
                 # get ignored.
-                raise warnings.warn(
+                warnings.warn(
                     "Resetting data selection, all other arguments are ignored."
                 )
             elif not (use_in is None and use_bl is None and use_sp is None):
                 # Same case for the use_in, use_bl, and use_sp arguments -- we ignore
                 # the "normal" selection commands if these are provided.
-                raise warnings.warn(
+                warnings.warn(
                     "Selecting data using use_in, use_bl and/or use_sp; "
                     "all other arguments are ignored."
                 )
@@ -4610,18 +4611,26 @@ class MirParser(object):
             elif select_comp in ["lt", "le", "gt", "ge"]:
                 # If one of the less/greater than (or equal) select comparisons, make
                 # sure that there is only a single number.
-                if np.array(select_val).size != 1 or not isinstance(
-                    np.array(select_val)[0], np.number
-                ):
+                raise_err = False
+                if np.array(select_val).size != 1:
+                    raise_err = True
+                elif not isinstance(np.array(select_val)[()], np.number):
+                    raise_err = True
+                if raise_err:
                     raise ValueError(
                         "select_val must be a single number if select_comp "
                         'is either "lt", "le", "gt", or "ge".'
                     )
             elif select_comp in ["btw", "out"]:
                 # Make sure is using between or outside, that we have two numbers
-                if (len(select_val) != 2) or not isinstance(
-                    np.array(select_val)[0], np.number
-                ):
+                raise_err = False
+                if np.array(select_val).size == 1:
+                    raise_err = True
+                elif not isinstance(np.array(select_val)[0], np.number):
+                    raise_err = True
+                elif np.array(select_val).size != 2:
+                    raise_err = True
+                if raise_err:
                     raise ValueError(
                         'If select_comp is "btw" or "out", select_val must be a '
                         "sequence if length two."
@@ -4697,7 +4706,11 @@ class MirParser(object):
 
         # Now that we've screened the data that we want, update the object appropriately
         self._update_filter(
-            use_in=use_in, use_bl=use_bl, use_sp=use_sp, update_data=update_data,
+            use_in=use_in,
+            use_bl=use_bl,
+            use_sp=use_sp,
+            update_data=update_data,
+            allow_downselect=True,
         )
 
     def _read_compass_solns(self, filename):
