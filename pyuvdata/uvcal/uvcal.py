@@ -437,7 +437,6 @@ class UVCal(UVBase):
             "Nsources", required=False, expected_type=int, description=desc
         )
 
-        # TODO add units. wavelengths??
         desc = "Range of baselines used for calibration."
         self._baseline_range = uvp.UVParameter(
             "baseline_range",
