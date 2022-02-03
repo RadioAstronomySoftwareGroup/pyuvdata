@@ -498,7 +498,7 @@ class MirParser(object):
                     if verbose:
                         print(
                             f"{item} has different keys, left is {this_attr.keys()}, "
-                            f"right is %{other_attr.keys()}."
+                            f"right is {other_attr.keys()}."
                         )
                     continue
                 # For the attributes with multiple fields to check, list them
@@ -518,14 +518,18 @@ class MirParser(object):
                         # If cross-correlation data, then there are multiple dict
                         # entries that we need to compare (defined above).
                         for subkey in comp_dict[item]:
-                            if this_attr[key][subkey].shape != (
-                                other_attr[key][subkey].shape
-                            ):
-                                item_diff = True
-                            elif not np.allclose(
-                                this_attr[key][subkey], other_attr[key][subkey]
-                            ):
-                                item_diff = True
+                            if subkey == "scale_fac":
+                                if this_attr[key][subkey] != other_attr[key][subkey]:
+                                    item_diff = True
+                            else:
+                                if this_attr[key][subkey].shape != (
+                                    other_attr[key][subkey].shape
+                                ):
+                                    item_diff = True
+                                elif not np.allclose(
+                                    this_attr[key][subkey], other_attr[key][subkey]
+                                ):
+                                    item_diff = True
                     if item_diff:
                         is_eq = False
                         if verbose:
@@ -637,7 +641,7 @@ class MirParser(object):
         if not isinstance(read_arr, np.ndarray):
             raise TypeError("read_arr must be of type ndarray.")
         if not isinstance(index_field, str):
-            raise TypeError("read_arr must be of type ndarray.")
+            raise TypeError("index_field must be of string type.")
         if index_field not in read_arr.dtype.names:
             raise ValueError(
                 "index_field %s is not a recognized field in read_arr" % index_field
@@ -1158,7 +1162,7 @@ class MirParser(object):
             # this is used in cases when combining multiple files together (via
             # concat). Here, we make a mapping of "file-based" inhid values to that
             # stored in the object.
-            idict_map = {inhid: finhid for inhid, (finhid, _, _) in idict.items()}
+            idict_map = {finhid: inhid for inhid, (finhid, _, _) in idict.items()}
 
             # Make the new dict by scaning the sch_read file.
             new_dict = self.scan_int_start(
@@ -1167,8 +1171,8 @@ class MirParser(object):
 
             # Go through the individual entries in each dict, and update them
             # with the "correct" values as determined by scanning through sch_read
-            for key in idict.keys():
-                idict[key] = new_dict[idict_map[key]]
+            for key in new_dict.keys():
+                idict[idict_map[key]] = new_dict[key]
 
         # Finally, create the internal file dict by zipping together filepaths and
         # the integration position dicts.
@@ -1709,7 +1713,7 @@ class MirParser(object):
         if len(filepath) != len(int_start_dict):
             raise ValueError(
                 "Must provide a sequence of the same length for "
-                "filepath and int_start_dict"
+                "filepath and int_start_dict."
             )
 
         # Gather the needed metadata that we'll need in order to read in the data.
@@ -1841,7 +1845,7 @@ class MirParser(object):
         if len(filepath) != len(int_start_dict):
             raise ValueError(
                 "Must provide a sequence of the same length for "
-                "filepath and int_start_dict"
+                "filepath and int_start_dict."
             )
 
         if winsel is None:
@@ -2077,7 +2081,7 @@ class MirParser(object):
         # that we can have 1 loop rather than 3 if statements).
         check_list = [
             (self._vis_data_loaded, arr_fmt % "sp", "sphid", self.vis_data),
-            (self._raw_data_loaded, arr_fmt % "sp", "sphid", self.vis_data),
+            (self._raw_data_loaded, arr_fmt % "sp", "sphid", self.raw_data),
             (self._auto_data_loaded, arr_fmt % "ac", "achid", self.auto_data),
         ]
 
@@ -2094,7 +2098,34 @@ class MirParser(object):
         return True
 
     def _downselect_data(self, select_vis=True, select_raw=True, select_auto=True):
-        """Do a thing."""
+        """
+        Downselect data attributes based on metadata..
+
+        This method will set entries in the data attributes (e.g., `vis_data`,
+        `raw_data`, and `auto_data`) based on metadata header values present
+        in `sp_data` ("sphid"; for vis/raw data) and `ac_data` ("achid"; for autos).
+        It is meant to be an alternative to running `load_data`, in situation when
+        the desired data have already been loaded from disk.
+
+        Parameters
+        ----------
+        select_vis : bool
+            If True, modify `vis_data` to contain only records where the key is matched
+            to a value of "sphid" in `sp_data`. Default is True.
+        select_raw : bool
+            If True, modify `raw_data` to contain only records where the key is matched
+            to a value of "sphid" in `sp_data`. Default is True.
+        select_auto : bool
+            If True, modify `auto_data` to contain only records where the key is matched
+            to a value of "achid" in `ac_data`. Default is True.
+
+        Raises
+        ------
+        KeyError
+            If a spectral record header ID (either "schid" or "achid") does not have
+            a corresponding key in the relevant data attribute, indicating that there
+            are records requested that are not loaded into memory.
+        """
         # TODO _downselect_data: Needs a docstring
         if self._file_dict == {}:
             # There isn't anything to do here, because we can't downselect if there
@@ -2119,10 +2150,10 @@ class MirParser(object):
                 auto_data = {
                     achid: self.auto_data[achid] for achid in self.ac_data["achid"]
                 }
-        except KeyError:
+        except KeyError as err:
             raise KeyError(
                 "Missing spectral records in data attributes. Run load_data instead."
-            )
+            ) from err
 
         # At this point, we can actually plug our values in, since we know that the
         # operation above succeeded.
@@ -2197,7 +2228,7 @@ class MirParser(object):
                         "Cannot load raw data from disk without a file to load from. "
                         "Set load_raw=False to continue."
                     )
-            elif load_vis or (load_vis is None):
+            if load_vis or (load_vis is None and (not load_raw)):
                 if self._vis_data_loaded:
                     warnings.warn(
                         "No file to load from, and vis data is already loaded, "
