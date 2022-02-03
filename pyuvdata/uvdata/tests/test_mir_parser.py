@@ -602,6 +602,605 @@ def test_select_reset(mir_data):
     assert mir_data == mir_copy
 
 
+def test_eq_errs(mir_data):
+    """Verify that the __eq__ method throws appropriate errors."""
+    with pytest.raises(ValueError) as err:
+        mir_data.__eq__(0)
+    assert str(err.value).startswith("Cannot compare MirParser with non-MirParser")
+
+
+@pytest.mark.parametrize(
+    "metadata_only,mod_attr,mod_val,exp_state",
+    [
+        [False, "auto_data", {}, False],
+        [False, "auto_data", {1: np.zeros(4), 2: np.zeros(4)}, False],
+        [True, "auto_data", {1: np.zeros(4), 2: np.zeros(4)}, True],
+        [
+            False,
+            "vis_data",
+            {
+                idx: {
+                    "vis_data": np.ones(2, dtype=np.complex64),
+                    "vis_flags": np.ones(4, dtype=bool),
+                }
+                for idx in range(1, 21)
+            },
+            False,
+        ],
+        [False, "in_data", np.array([1, 2, 3, 4]), False],
+        [True, "in_data", np.array([1, 2, 3, 4]), False],
+        [True, "abc", "def", False],
+        [False, "abc", "def", False],
+        [False, "codes_dict", {"fileer": 3}, False],
+        [True, "codes_dict", {"filever": 3}, False],
+        [False, "_has_auto", True, True],
+        [False, "_has_auto", False, False],
+        [False, "_has_auto", None, False],
+        [True, "zero_data", None, True],
+        [False, "zero_data", None, False],
+        [False, "unload_data", None, True],
+    ],
+)
+@pytest.mark.parametrize("flip", [False, True])
+def test_eq(mir_data, metadata_only, mod_attr, mod_val, exp_state, flip):
+    """Verify that __eq__ works as expected"""
+    mir_copy = mir_data.copy()
+
+    target_obj = mir_copy if flip else mir_data
+    if "zero_data" == mod_attr:
+        for attr in ["raw_data", "vis_data", "auto_data"]:
+            for key in getattr(target_obj, attr).keys():
+                if isinstance(getattr(target_obj, attr)[key], dict):
+                    for subkey in getattr(target_obj, attr)[key].keys():
+                        if subkey == "scale_fac":
+                            getattr(target_obj, attr)[key][subkey] = 0
+                        else:
+                            getattr(target_obj, attr)[key][subkey][:] = 0
+                else:
+                    getattr(target_obj, attr)[key][:] = 0
+    elif "unload_data" == mod_attr:
+        mir_data.unload_data()
+        mir_copy.unload_data()
+    else:
+        setattr(target_obj, mod_attr, mod_val)
+
+    assert mir_data.__eq__(mir_copy, metadata_only=metadata_only) == exp_state
+
+    assert mir_data.__ne__(mir_copy, metadata_only=metadata_only) != exp_state
+
+
+@pytest.mark.parametrize(
+    "read_arr,index_field,err_type,err_msg",
+    [
+        [0, 0, TypeError, "read_arr must be of type ndarray."],
+        [np.zeros(10), 0, TypeError, "index_field must be of string type."],
+        [np.array([], dtype=np.dtype([("", "i8")])), "a", ValueError, "index_field a "],
+    ],
+)
+def test_segment_by_index_errs(read_arr, index_field, err_type, err_msg):
+    """Verify that segment_by_index produces errors as expected."""
+    with pytest.raises(err_type) as err:
+        MirParser.segment_by_index(read_arr, index_field)
+    assert str(err.value).startswith(err_msg)
+
+
+@pytest.mark.parametrize(
+    "attr,index_field,index_arr",
+    [
+        ["in_data", "inhid", np.arange(1).reshape(-1, 1)],
+        ["bl_data", "inhid", np.arange(4).reshape(1, -1)],
+        ["bl_data", "blhid", np.arange(4).reshape(-1, 1)],
+        ["sp_data", "inhid", np.arange(20).reshape(1, -1)],
+        ["sp_data", "blhid", np.arange(20).reshape(4, 5)],
+        ["sp_data", "sphid", np.arange(20).reshape(-1, 1)],
+    ],
+)
+def test_segment_by_index(mir_data, attr, index_field, index_arr):
+    """
+    Verify that segment_by_index breaks apart a given array correctly based
+    on the values in the indexing field.
+    """
+    read_arr = getattr(mir_data, attr)
+    subarr_dict, posarr_dict = MirParser.segment_by_index(read_arr, index_field)
+    for key, index in zip(subarr_dict.keys(), index_arr):
+        assert np.array_equal(read_arr[index], subarr_dict[key])
+        assert np.array_equal(index, posarr_dict[key])
+        assert np.all(read_arr[index][index_field] == key)
+
+
+def test_scan_int_start_errs(mir_data):
+    """Verify scan_int_start throws errors when expected."""
+    with pytest.raises(ValueError) as err:
+        mir_data.scan_int_start(mir_data.filepath, allowed_inhid=[-1])
+    assert str(err.value).startswith("Index value inhid in sch_read does not match")
+
+
+def test_calc_int_start(mir_data):
+    """Verify that we can correctly calculate integration starting periods."""
+    true_dict = {1: (1, 1048680, 0)}
+    assert true_dict == mir_data.calc_int_start(mir_data._sp_read)
+
+    # Now see what happens if we break the ordering
+    mod_dict = {0: (0, 1048680 // 2, 0), 1: (1, 1048680 // 2, 8 + 1048680 // 2)}
+    mir_data._sp_read["inhid"] = np.mod(np.arange(20), 2)
+    assert mod_dict == mir_data.calc_int_start(mir_data._sp_read)
+
+
+def test_scan_int_start(mir_data):
+    """Verify that we can correctly scan integration starting periods."""
+    true_dict = {1: (1, 1048680, 0)}
+    assert true_dict == mir_data.scan_int_start(mir_data.filepath, allowed_inhid=[1])
+
+
+@pytest.mark.parametrize(
+    "filepath,int_start_dict,err_type,err_msg",
+    [
+        [["a"], None, ValueError, "Must either set both or neither of filepath and"],
+        [None, ["a"], ValueError, "Must either set both or neither of filepath and"],
+        [["a", "b"], ["c"], ValueError, "Both filepath and int_start_dict must"],
+    ],
+)
+def test_fix_int_start_errs(mir_data, filepath, int_start_dict, err_type, err_msg):
+    """Conirm that fix_int_start throws errors as expected."""
+    with pytest.raises(err_type) as err:
+        mir_data.fix_int_start(filepath, int_start_dict)
+    assert str(err.value).startswith(err_msg)
+
+
+def test_fix_int_start(mir_data):
+    """Verify that we can fix a "bad" integration start record."""
+    bad_dict = {mir_data.filepath: {2: (1, 120, 120)}}
+    good_dict = {mir_data.filepath: {2: (1, 1048680, 0)}}
+    mir_data.sp_data["inhid"][:] = 2
+    mir_data.sp_data["nch"][:] = 1
+
+    mir_data._file_dict = bad_dict
+    with pytest.raises(ValueError) as err:
+        mir_data.read_vis_data(
+            [mir_data.filepath],
+            [mir_data._file_dict[mir_data.filepath]],
+            mir_data.sp_data,
+            return_raw=True,
+            return_vis=False,
+        )
+    assert str(err.value).startswith("Values in int_start_dict do not match")
+    mir_data.fix_int_start()
+
+    assert good_dict == mir_data._file_dict
+
+    _ = mir_data.read_vis_data(
+        [mir_data.filepath],
+        [mir_data._file_dict[mir_data.filepath]],
+        mir_data.sp_data,
+        return_raw=True,
+        return_vis=False,
+    )
+
+    # Make sure that things work if we don't inherit stuff from object
+    check_dict = mir_data.fix_int_start([mir_data.filepath], list(bad_dict.values()))
+
+    assert good_dict == check_dict
+
+
+def test_read_packdata_mmap(mir_data):
+    """Test that reading in vis data with mmap works just as well as np.fromfile"""
+    mmap_data = mir_data.read_packdata(
+        mir_data.filepath, mir_data._file_dict[mir_data.filepath], use_mmap=True
+    )
+
+    reg_data = mir_data.read_packdata(
+        mir_data.filepath, mir_data._file_dict[mir_data.filepath], use_mmap=False
+    )
+
+    assert mmap_data.keys() == reg_data.keys()
+    for key in mmap_data.keys():
+        assert np.array_equal(mmap_data[key], reg_data[key])
+
+
+def test_read_packdata_make_packdata(mir_data):
+    """Verify that making packdata produces the same result as reading packdata"""
+    read_data = mir_data.read_packdata(
+        mir_data.filepath, mir_data._file_dict[mir_data.filepath],
+    )
+
+    make_data = mir_data.make_packdata(mir_data.sp_data, mir_data.raw_data)
+
+    assert read_data.keys() == make_data.keys()
+    for key in read_data.keys():
+        assert np.array_equal(read_data[key], make_data[key])
+
+
+def test_read_vis_data_errs(mir_data):
+    """Conirm that read_vis_data throws errors as expected."""
+    with pytest.raises(ValueError) as err:
+        mir_data.read_vis_data(["a"], ["b", "c"], mir_data.sp_data)
+    assert str(err.value).startswith(
+        "Must provide a sequence of the same length for filepath and int_start_dict."
+    )
+
+
+def test_read_auto_data_errs(mir_data):
+    """Conirm that read_auto_data throws errors as expected."""
+    with pytest.raises(ValueError) as err:
+        mir_data.read_auto_data(["a"], ["b", "c"], mir_data.ac_data)
+    assert str(err.value).startswith(
+        "Must provide a sequence of the same length for filepath and int_start_dict."
+    )
+
+
+def test_apply_tsys_errs(mir_data):
+    """
+    Test that apply_tsys throws errors as expected.
+
+    Note that we test these errors in sequence since it's a lot more efficient to do
+    these operations on the same object one after another.
+    """
+    with pytest.raises(ValueError) as err:
+        mir_data.apply_tsys()
+    assert str(err.value).startswith(
+        "Cannot apply tsys again if it has been applied already."
+    )
+
+    mir_data.apply_tsys(invert=True)
+    with pytest.raises(ValueError) as err:
+        mir_data.apply_tsys(invert=True)
+    assert str(err.value).startswith(
+        "Cannot undo tsys application if it was never applied."
+    )
+
+    mir_data.unload_data()
+    with pytest.raises(ValueError) as err:
+        mir_data.apply_tsys(invert=True)
+    assert str(err.value).startswith(
+        "Must call load_data first before applying tsys normalization."
+    )
+
+
+def test_apply_tsys(mir_data):
+    """Test that apply_tsys works on vis_data as expected."""
+    mir_copy = mir_data.copy()
+    # Calculate the scaling factors directly. The factor of 2 comes from DSB -> SSB
+    rxa_norm = mir_data.jypk * 2 * (np.prod(mir_data.eng_data["tsys"]) ** 0.5)
+    rxb_norm = mir_data.jypk * 2 * (np.prod(mir_data.eng_data["tsys_rx2"]) ** 0.5)
+    # The first 5 records should be rxa, and 5 rxb, then 5 rxa, then 5 rxb
+    norm_list = np.concatenate(
+        (
+            np.ones(5) * rxa_norm,
+            np.ones(5) * rxb_norm,
+            np.ones(5) * rxa_norm,
+            np.ones(5) * rxb_norm,
+        )
+    )
+
+    mir_data.unload_data()
+    mir_data.load_data(load_vis=True, apply_tsys=False)
+    mir_copy.unload_data()
+    mir_copy.load_data(load_vis=True, apply_tsys=True)
+    for key, norm_fac in zip(mir_data.vis_data.keys(), norm_list):
+        assert np.allclose(
+            norm_fac * mir_data.vis_data[key]["vis_data"],
+            mir_copy.vis_data[key]["vis_data"],
+        )
+        assert np.allclose(
+            mir_data.vis_data[key]["vis_flags"], mir_copy.vis_data[key]["vis_flags"]
+        )
+
+    mir_copy.apply_tsys(invert=True)
+    for key, norm_fac in zip(mir_data.vis_data.keys(), norm_list):
+        assert np.allclose(
+            mir_data.vis_data[key]["vis_data"], mir_copy.vis_data[key]["vis_data"]
+        )
+        assert np.allclose(
+            mir_data.vis_data[key]["vis_flags"], mir_copy.vis_data[key]["vis_flags"]
+        )
+
+
+def test_check_data_index(mir_data):
+    """Verify that check_data_index returns True/False as expected."""
+    assert mir_data._check_data_index()
+
+    # Now muck with the records so that this becomes False
+    for item in ["sp_data", "ac_data"]:
+        getattr(mir_data, item)[0] = -1
+        assert not mir_data._check_data_index()
+        getattr(mir_data, item)[0] = 1
+        assert mir_data._check_data_index()
+
+    for item in ["vis_data", "raw_data", "auto_data"]:
+        getattr(mir_data, item).update({-1: None})
+        assert not mir_data._check_data_index()
+        del getattr(mir_data, item)[-1]
+        assert mir_data._check_data_index()
+
+
+@pytest.mark.parametrize("select_auto", [True, False])
+@pytest.mark.parametrize("select_vis", [True, False])
+@pytest.mark.parametrize("select_raw", [True, False])
+def test_downselect_data(mir_data, select_vis, select_raw, select_auto):
+    mir_copy = mir_data.copy()
+
+    # Manually downselect the data that we need.
+    if select_vis or select_raw:
+        mir_data.sp_data = mir_data.sp_data[::2]
+    if select_auto:
+        mir_data.ac_data = mir_data.ac_data[::2]
+
+    mir_data._downselect_data(
+        select_vis=select_vis, select_raw=select_raw, select_auto=select_auto
+    )
+
+    if select_vis or select_auto or select_raw:
+        assert mir_data != mir_copy
+    else:
+        assert mir_data == mir_copy
+
+    # Verify that data indexes match metadata ones.
+    if select_vis != select_raw:
+        # Temporarily mark these as unloaded so that the changes in sp_data don't
+        # impact the unchanged data attribute.
+        mir_data._vis_data_loaded = select_vis
+        mir_data._raw_data_loaded = select_raw
+
+    assert mir_data._check_data_index()
+
+    # Put these back to True, since all data should be loaded.
+    mir_data._vis_data_loaded = mir_data._raw_data_loaded = True
+
+    # If we downselected, make sure we plug back in the original data.
+    if select_vis or select_raw:
+        mir_data.sp_data = mir_data._sp_read.copy()
+    if select_auto:
+        mir_data.ac_data = mir_data._ac_read.copy()
+
+    # Make sure that the metadata all look good.
+    assert mir_data.__eq__(mir_copy, metadata_only=True)
+
+    if select_vis or select_auto or select_raw:
+        with pytest.raises(KeyError) as err:
+            mir_data._downselect_data(
+                select_vis=select_vis, select_raw=select_raw, select_auto=select_auto
+            )
+        # No idea why the single quotes are required here. I'm just gonna go with the
+        # flow, althougn maybe this will need to get fixed later.
+        assert str(err.value).startswith(
+            "'Missing spectral records in data attributes. Run load_data instead.'"
+        )
+
+        # Any data attributes we wiped out, manually downselect the records in the
+        # copy to make sure that everything agrees as we expect.
+        if select_raw:
+            mir_copy.raw_data = {
+                key: value
+                for idx, (key, value) in enumerate(mir_copy.raw_data.items())
+                if (np.mod(idx, 2) == 0)
+            }
+        if select_auto:
+            mir_copy.auto_data = {
+                key: value
+                for idx, (key, value) in enumerate(mir_copy.auto_data.items())
+                if (np.mod(idx, 2) == 0)
+            }
+        if select_vis:
+            mir_copy.vis_data = {
+                key: value
+                for idx, (key, value) in enumerate(mir_copy.vis_data.items())
+                if (np.mod(idx, 2) == 0)
+            }
+
+    assert mir_data == mir_copy
+
+
+def test_downselect_data_no_op(mir_data):
+    """
+    Verify that running downselect with an object without a file dict does not
+    change any of the attributes of the object.
+    """
+    # Drop the file dict
+    mir_data._file_dict = {}
+
+    # Change the atributes so that normally, downselect would drop records
+    mir_data.sp_data = mir_data.sp_data[::2]
+    mir_data.ac_data = mir_data.ac_data[::2]
+
+    # Make a copy of the data
+    mir_copy = mir_data.copy()
+
+    mir_data._downselect_data(select_vis=True, select_raw=True, select_auto=True)
+
+    # Finally, check that nothing has changed.
+    assert mir_data == mir_copy
+
+
+def test_unload_data_err(mir_data):
+    """Verify that unload_data throws an error when no file_dict is found"""
+    mir_data._file_dict = {}
+
+    with pytest.raises(ValueError) as err:
+        mir_data.unload_data()
+    assert str(err.value).startswith(
+        "Cannot unload data as there is no file to load data from."
+    )
+
+
+@pytest.mark.parametrize("unload_auto", [True, False])
+@pytest.mark.parametrize("unload_vis", [True, False])
+@pytest.mark.parametrize("unload_raw", [True, False])
+def test_unload_data(mir_data, unload_vis, unload_raw, unload_auto):
+    """Verify that unload_data unloads data as expected."""
+    mir_data.unload_data(
+        unload_vis=unload_vis, unload_raw=unload_raw, unload_auto=unload_auto
+    )
+
+    assert mir_data.vis_data is None if unload_vis else mir_data.vis_data is not None
+    assert mir_data._vis_data_loaded != unload_vis
+    assert mir_data._tsys_applied != unload_vis
+
+    assert mir_data.raw_data is None if unload_raw else mir_data.raw_data is not None
+    assert mir_data._raw_data_loaded != unload_raw
+
+    assert mir_data.auto_data is None if unload_auto else mir_data.auto_data is not None
+    assert mir_data._auto_data_loaded != unload_auto
+
+
+@pytest.mark.parametrize(
+    "load_raw,load_vis,unload_raw,err_type,err_msg",
+    [
+        [True, False, True, ValueError, "Cannot load raw data from disk "],
+        [False, True, True, ValueError, "No file to load vis_data from"],
+        [False, True, False, ValueError, "No file to load vis_data from, but raw_data"],
+    ],
+)
+def test_load_data_errs(mir_data, load_raw, load_vis, unload_raw, err_type, err_msg):
+    """
+    Check that load_data throws errors as expected, specfically in the case where the
+    file_dict has been removed from the object.
+    """
+    mir_data.unload_data(unload_raw=unload_raw)
+    mir_data._file_dict = {}
+
+    with pytest.raises(err_type) as err:
+        mir_data.load_data(load_raw=load_raw, load_vis=load_vis)
+    assert str(err.value).startswith(err_msg)
+
+
+@pytest.mark.parametrize(
+    "load_vis,load_raw,downsel,conv,dropfl,warn_msg",
+    [
+        [True, False, False, False, True, "No file to load from, and vis data"],
+        [False, True, False, False, True, "No file to load from, and raw data"],
+        [False, False, True, False, True, "allow_downselect argument ignored because"],
+        [True, True, False, True, False, "Cannot load raw data AND convert"],
+        [True, False, False, True, False, "Raw data not loaded, cannot convert"],
+        [True, False, True, True, False, "Loaded raw data does not contain all "],
+        [True, False, True, False, False, "Cannot downselect cross data"],
+        [False, False, True, False, False, "Cannot downselect auto data"],
+    ],
+)
+def test_load_data_warn(mir_data, load_vis, load_raw, downsel, conv, dropfl, warn_msg):
+    """Check that load_data throws appropriate warnings."""
+    if dropfl:
+        mir_data._file_dict = {}
+
+    if conv:
+        if downsel:
+            mir_data.raw_data = {}
+        else:
+            mir_data.unload_data()
+    else:
+        if downsel:
+            if load_vis or load_raw:
+                mir_data.vis_data = mir_data.raw_data = {}
+            else:
+                mir_data.auto_data = {}
+
+    with uvtest.check_warnings(UserWarning, warn_msg):
+        mir_data.load_data(
+            load_vis=load_vis,
+            load_raw=load_raw,
+            allow_downselect=downsel,
+            allow_conversion=conv,
+        )
+
+
+@pytest.mark.parametrize("load_vis", [None, False])
+def test_load_data_defaults(mir_data, load_vis):
+    """Check that the default behavior of load_vis acts as expected."""
+    # Blow away the old data first before we attempt.
+    mir_data.unload_data()
+    mir_data.load_data(load_vis=load_vis)
+
+    if load_vis is None:
+        assert mir_data.vis_data is not None
+        assert mir_data.raw_data is None
+    else:
+        assert mir_data.vis_data is None
+        assert mir_data.raw_data is not None
+
+    assert mir_data._vis_data_loaded == (load_vis is None)
+    assert mir_data._tsys_applied == (load_vis is None)
+    assert mir_data._raw_data_loaded != (load_vis is None)
+
+    assert mir_data.auto_data is None
+    assert not mir_data._auto_data_loaded
+
+
+@pytest.mark.parametrize("drop_file_dict", [False, True])
+def test_load_data_conv(mir_data, drop_file_dict):
+    """Test that the conversion operation of load_data operates as expected."""
+    mir_copy = mir_data.copy()
+    mir_data.unload_data(unload_raw=False, unload_vis=True, unload_auto=False)
+
+    if drop_file_dict:
+        mir_data._file_dict = {}
+        mir_copy._file_dict = {}
+
+    assert mir_data.vis_data is None
+
+    mir_data.load_data(load_vis=True, allow_conversion=True)
+
+    assert mir_data.vis_data is not None
+    assert mir_copy == mir_data
+
+
+def test_update_filter_update_data(mir_data):
+    """
+    Test that _update_filter behaves as expected with update_data.
+    """
+    mir_copy = mir_data.copy()
+    # Corrupt the data, see if update_data will fix it.
+    mir_data.vis_data[1]["vis_data"][:] = 0.0
+    mir_data.raw_data[1]["raw_data"][:] = 0.0
+    mir_data.auto_data[1][:] = 0.0
+    mir_data._update_filter(update_data=True)
+    assert mir_data == mir_copy
+
+    mir_copy.unload_data()
+    mir_data._data_mucked = True
+    with uvtest.check_warnings(
+        UserWarning, "Unable to update data attributes, unloading them now."
+    ):
+        mir_data._update_filter(update_data=True)
+
+    mir_data._data_mucked = False
+    assert mir_data == mir_copy
+
+
+def test_update_filter_allow_downsel(mir_data):
+    """
+    Test that _update_filter behaves as expected wwhen allowing downselections.
+    """
+    # Mark the data so that *_data and _*_read attributes are different
+    mir_data.in_data["mjd"][:] = -1
+    mir_data.eng_data["padNumber"][:] = -1
+    mir_data.bl_data["u"][:] = -1
+    mir_data.sp_data["fsky"][:] = -1
+    mir_data.we_data["N"][:] = -1
+
+    # Drop the autos
+    mir_data._has_auto = False
+    mir_data.unload_data(unload_vis=False, unload_raw=False)
+    mir_data.ac_data = mir_data._ac_read = mir_data._ac_filter = None
+
+    mir_copy = mir_data.copy()
+    # If no filters applied, all data should be used, and allow_downselect should
+    # produce the same thing.
+    mir_data._update_filter(allow_downselect=True)
+
+    assert mir_data == mir_copy
+
+    mir_data._update_filter(
+        use_bl=np.array([True, True, False, False]), allow_downselect=True
+    )
+    mir_copy._update_filter(use_bl=np.array([True, True, False, False]))
+
+    assert mir_data != mir_copy
+    mir_data._update_filter(allow_downselect=True)
+    mir_copy._update_filter(update_data=False)
+    # If can't downselect because you are making the filter bigger, then the old
+    # metadata should get loaded, and now the two copies should be the same.
+    assert mir_data == mir_copy
+
+
 # Below are a series of checks that are designed to check to make sure that the
 # MirParser class is able to produce consistent values from an engineering data
 # set (originally stored in /data/engineering/mir_data/200724_16:35:14), to make
