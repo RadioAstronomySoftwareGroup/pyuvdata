@@ -550,7 +550,7 @@ class MirParser(object):
                 if verbose:
                     print(
                         f"{item} has different values, left is {getattr(self, item)}, "
-                        f"right is %{getattr(other, item)}."
+                        f"right is {getattr(other, item)}."
                     )
 
         return is_eq
@@ -1210,7 +1210,7 @@ class MirParser(object):
 
         if not os.path.exists(full_filepath):
             raise FileNotFoundError(
-                f"Cannot find file {full_filepath}."  # pragma: no cover
+                f"Cannot find file {full_filepath}."
                 " Set `has_auto=False` to avoid reading autocorrelations."
             )
 
@@ -2808,17 +2808,17 @@ class MirParser(object):
         if append_data and (not bypass_append_check):
             try:
                 inhid_check = self.read_in_data(filepath)["inhid"]
-                if np.any(self.in_data["inhid"], inhid_check):
+                if np.any(np.isin(self.in_data["inhid"], inhid_check)):
                     raise ValueError(
                         "Cannot append data when integration header IDs overlap."
                     )
                 blhid_check = self.read_bl_data(filepath)["blhid"]
-                if np.any(self.bl_data["blhid"], blhid_check):
+                if np.any(np.isin(self.bl_data["blhid"], blhid_check)):
                     raise ValueError(
                         "Cannot append data when baseline header IDs overlap."
                     )
                 sphid_check = self.read_sp_data(filepath)["sphid"]
-                if np.any(self.bl_data["sphid"], sphid_check):
+                if np.any(np.isin(self.sp_data["sphid"], sphid_check)):
                     raise ValueError(
                         "Cannot append data when spectral record header IDs overlap."
                     )
@@ -2843,7 +2843,7 @@ class MirParser(object):
 
         # Now handle the data -- if no data has been loaded, then it's time to bail
         if not (self._vis_data_loaded or self._raw_data_loaded):
-            warnings.warn("No data loaded, writing metadata only to disk")
+            warnings.warn("No data loaded, writing metadata only to disk.")
             return
         elif (self._raw_data_loaded and write_raw) or (not self._vis_data_loaded):
             # If we have raw_data and we prefer to use that, or if vis_data is not
@@ -3229,7 +3229,94 @@ class MirParser(object):
                 self.sp_data[item] = self._sp_read[item][self._sp_filter]
 
     @staticmethod
-    def _combine_read_arr_check(arr1, arr2, index_name=None, any_match=False):
+    def _arr_index_overlap(arr1, arr2, index_name):
+        """
+        Check for overlaping index values between two structured arrays.
+
+        This method is an internal helper function not meant to be called by users.
+        It checks for overlap between two arrays given a set of fields, the combined
+        set of which should provide a unique index value for each entry within the
+        arrays.
+
+        Parameter
+        ---------
+        arr1 : ndarray
+            Array of metadata, to be compared to `arr2`.
+        arr2 : ndarray
+            Array of metadata, to be compared to `arr1`.
+        index_name : str or tuple of str
+            Name of the field(s) which contains the unique index information.
+
+        Returns
+        -------
+        arr1_idx : list of int
+            List of index positions for `arr1` where the index field(s) have overlapping
+            values with `arr2`. The length of `arr1_idx` should be equal to that of
+            `arr2_idx`.
+        arr2_idx : list of int
+            List of index positions for `arr2` where the index field(s) have overlapping
+            values with `arr1`. The length of `arr2_idx` should be equal to that of
+            `arr1_idx`.
+
+        Raises
+        ------
+        ValueError
+            If `arr1` and `arr2` are of different dtypes, or if entries in `index_name`
+            overlap in the two arrays but `overwrite=False`. Also if `index_name` is
+            not a string, or is not a field in `arr1` or `arr2`.
+        """
+        # First up, make sure we have two ndarrays of the same dtype
+        if arr1.dtype != arr2.dtype:
+            raise ValueError("Both arrays must be of the same dtype.")
+
+        # If not using codes_read, the logic here is a bit simpler. Make sure that
+        # index_name is actually a string, since other types can produce spurious
+        # results.
+        if isinstance(index_name, str):
+            index_name = (index_name,)
+
+        if not isinstance(index_name, tuple):
+            raise ValueError("index_name must be a string or tuple of strings.")
+
+        for item in index_name:
+            # Make sure we've got a string
+            if not isinstance(item, str):
+                raise ValueError("index_name must be a string or tuple of strings.")
+            # Make sure the field name actually exists in the array
+            if item not in arr1.dtype.names:
+                raise ValueError(
+                    "index_name %s not a recognized field in either array." % index_name
+                )
+
+        # Finally, figure out where we have overlapping entries, based on the field
+        # used for indexing entries. Note that this is what intersect1d does, albeit
+        # with the limitation of only a 1D array (vs multiple keys possible here).
+        index_dict1 = {}
+        for count, item in enumerate(arr1):
+            index_dict1[tuple(item[field] for field in index_name)] = count
+
+        index_dict2 = {}
+        for count, item in enumerate(arr2):
+            index_dict2[tuple(item[field] for field in index_name)] = count
+
+        arr1_idx = []
+        arr2_idx = []
+        for key, value in index_dict1.items():
+            try:
+                # If you see a corresponding index, then we want to evaluate the
+                # values at this position. We check index_dict2 first so that if
+                # there's no match, it'll throw a KeyError before we append to
+                # the indexing list.
+                arr2_idx.append(index_dict2[key])
+                arr1_idx.append(value)
+            except KeyError:
+                # If there is no corresponding entry in arr2, nothing to check
+                pass
+
+        return arr1_idx, arr2_idx
+
+    @staticmethod
+    def _combine_read_arr_check(arr1, arr2, index_name, any_match=False):
         """
         Check if two MirParser metadata arrays have conflicting index values.
 
@@ -3246,12 +3333,12 @@ class MirParser(object):
             Array of metadata, to be compared to `arr2`.
         arr2 : ndarray
             Array of metadata, to be compared to `arr1`.
-        index_name : str
-            Name of the field which contains the unique index information (e.g., inhid
-            for `_in_read`). No default, not requird if `arr1` and `arr2` have a dtype
-            of codes_dtype. Typically, "inhid" is matched to elements in in_read and
-            eng_read, "blhid" to bl_read, "sphid" to sp_read, "achid" to ac_read, and
-            "scanNumber" to we_read.
+        index_name : str or tuple of str
+            Name of the field(s) which contains the unique index information (e.g.,
+            inhid for `_in_read`). No default. Typically, "inhid" is matched to elements
+            in in_read, "blhid" to bl_read, "sphid" to sp_read, "achid" to ac_read,
+            "scanNumber" to we_read, ("inhid", "antennaNumber") for eng_read and
+            ("v_name", "icode, "ncode").
         any_match : bool
             Nominally the method checks to see if all fields in each array match when
             overlapping indicies exist. However, if this is set to True, it will check
@@ -3264,58 +3351,17 @@ class MirParser(object):
             the index value matches has metadata which is indentical, and thus should
             be safe to merge. If True and `any=True`, then the two arrays have at
             least one entry where the index value matches and the metadata agrees.
+
+        Raises
+        ------
+        ValueError
+            If `arr1` and `arr2` are of different dtypes, or if entries in `index_name`
+            overlap in the two arrays but `overwrite=False`. Also if `index_name` is
+            not a string, or is not a field in `arr1` or `arr2`.
         """
-        # First up, make sure we have two ndarrays of the same dtype
-        if arr1.dtype != arr2.dtype:
-            raise ValueError("Both arrays must be of the same dtype.")
+        idx1, idx2 = MirParser._arr_index_overlap(arr1, arr2, index_name)
 
-        # For a codes_read array, the indexing procedure is a bit funky,
-        # so we handle this as a special case.
-        if arr1.dtype == codes_dtype:
-            # Entries should be uniquely indexed by the combination of v_name, icode,
-            # and ncode (the latter of which is _usually_ ignored anyways). The code
-            # is allowed to take on whatever value it wants (duplicate or not).
-            arr1_dict = {
-                (item["v_name"], item["icode"], item["ncode"]): item["code"]
-                for item in arr1
-            }
-            arr2_dict = {
-                (item["v_name"], item["icode"], item["ncode"]): item["code"]
-                for item in arr2
-            }
-
-            for key in arr1_dict.keys():
-                try:
-                    # Check to see that if a key (v_name, icode, ncode) exists in both
-                    # sets of codes_read, that the value (code) is the same in both.
-                    if not (arr1_dict[key] == arr2_dict[key]):
-                        return False
-                    elif any_match:
-                        return True
-                except KeyError:
-                    # If the keys don't confict, then there's no potential clash, so
-                    # just move on to the next entry.
-                    pass
-            return True
-
-        # If not using codes_read, the logic here is a bit simpler. Make sure that
-        # index_name is actually a string, since other types can produce spurious
-        # results.
-        if not isinstance(index_name, str):
-            raise ValueError("index_name must be a string.")
-
-        # Make sure the field name actually exists in the array
-        if index_name not in arr1.dtype.names:
-            raise ValueError("index_name not a recognized field in either array.")
-
-        # Finally, figure out where we have overlapping entries, based on the field
-        # used for indexing entries.
-        _, idx1, idx2 = np.intersect1d(
-            arr1[index_name], arr2[index_name], return_indices=True
-        )
-
-        # Finally, compare where we have coverlap and make sure the two arrays
-        # are the same.
+        # Compare where we have coverlap and make sure the two arrays are the same.
         if any_match:
             check_status = np.any(arr1[idx1] == arr2[idx2])
         else:
@@ -3325,7 +3371,7 @@ class MirParser(object):
 
     @staticmethod
     def _combine_read_arr(
-        arr1, arr2, index_name=None, return_indices=False, overwrite=False
+        arr1, arr2, index_name, return_indices=False, overwrite=False
     ):
         """
         Combine two MirParser metadata arrays.
@@ -3381,7 +3427,7 @@ class MirParser(object):
         else:
             # If not overwriting, check and make sure that there are no overlapping
             # entries which might clobber differing metadata.
-            if not MirParser._combine_read_arr_check(arr1, arr2, index_name=index_name):
+            if not MirParser._combine_read_arr_check(arr1, arr2, index_name):
                 raise ValueError(
                     "Arrays have overlapping indicies with different data, "
                     "cannot combine the two safely."
@@ -3391,40 +3437,13 @@ class MirParser(object):
         # because its safe to do so or because the user told us that we could). We want
         # to then pluck out the entries in arr1 that have non-overlapping index values
         # versus arr2. To do so, first we find the overlapping values.
-        if arr1.dtype == codes_dtype:
-            # For a codes_read array, the indexing procedure is a bit funky,
-            # so we handle this as a special case. Make a set of unique indexing
-            # values to compare against from arr2.
-            arr2_set = {(item["v_name"], item["icode"], item["ncode"]) for item in arr2}
-
-            # Loop through each entry in arr1 -- if we have a matching index from arr2,
-            # then grab the position within the array.
-            idx1 = np.array(
-                [
-                    idx
-                    for idx, item in enumerate(arr1)
-                    if (item["v_name"], item["icode"], item["ncode"]) in arr2_set
-                ]
-            )
-        else:
-            # If not a codes_read type array, the logic here is a bit simpler.
-            if not isinstance(index_name, str):
-                raise ValueError("index_name must be a string.")
-
-            if index_name not in arr1.dtype.names:
-                raise ValueError("index_name not a recognized field in either array.")
-
-            # Use intersect1d to find where we have overlap from arr1, and grab the
-            # array positions where said overlap occurs
-            _, idx1, _ = np.intersect1d(
-                arr1[index_name], arr2[index_name], return_indices=True
-            )
+        idx1, _ = MirParser._arr_index_overlap(arr1, arr2, index_name)
 
         # We basically want to invert our selection here, so use arange to make the
         # full list of possible position indexes to generate a list of non-overlapping
         # metadata entries.
-        arr_sel = np.isin(np.arange(len(arr1)), idx1, invert=True)
-        result = np.concatenate(arr1[arr_sel], arr2)
+        arr_sel = np.isin(np.arange(len(arr1)), idx1, invert=True, assume_unique=True)
+        result = np.sort(np.concatenate((arr1[arr_sel], arr2)), order=index_name)
 
         # If we are returning the index positions, stuff that into the result now
         if return_indices:
@@ -3490,7 +3509,7 @@ class MirParser(object):
         # conflicting indicies.
         attr_index_dict = {
             "in_data": "inhid",
-            "eng_data": "inhid",
+            "eng_data": ("inhid", "antennaNumber"),
             "bl_data": "blhid",
             "sp_data": "sphid",
             "we_data": "scanNumber",
@@ -3501,6 +3520,7 @@ class MirParser(object):
             "_in_read",
             "_eng_read",
             "_bl_read",
+            "_sp_read",
             "_we_read",
             "_codes_read",
             "_antpos_read",
@@ -3517,12 +3537,12 @@ class MirParser(object):
             )
         elif self._has_auto:
             comp_list.append("_ac_read")
-            attr_index_dict["ac_read"] = "achid"
+            attr_index_dict["ac_data"] = "achid"
 
         # First thing -- check that everything here appears to belong to the same file
         force_list = []
         for item in comp_list:
-            if not np.array_equal(getattr(self, item), getattr(self, item)):
+            if not np.array_equal(getattr(self, item), getattr(other_obj, item)):
                 force_list.append(item)
 
         # If we have evidence that these two objects belong to different files, then
@@ -3620,8 +3640,10 @@ class MirParser(object):
                 "arguments) to clear this error."
             )
 
-        # Finally, check if both have the same state for the raw data.
-        if self._auto_data_loaded != other_obj._auto_data_loaded:
+        # Finally, check if both have the same state for the auto data, if both has_auto
+        if (self._has_auto and other_obj._has_auto) and (
+            self._auto_data_loaded != other_obj._auto_data_loaded
+        ):
             raise ValueError(
                 "Cannot combine objects where one has auto data loaded and the other "
                 "does not. Run the `load_data` method on both objects (with the same "
@@ -3638,7 +3660,10 @@ class MirParser(object):
                 new_obj,
                 item,
                 MirParser._combine_read_arr(
-                    getattr(self, item), getattr(other_obj, item), index_name=index
+                    getattr(self, item),
+                    getattr(other_obj, item),
+                    index,
+                    overwrite=overwrite,
                 ),
             )
 
@@ -3651,7 +3676,7 @@ class MirParser(object):
             new_obj.raw_data.update(other_obj.raw_data)
 
         if new_obj.vis_data is not None:
-            new_obj.raw_data.update(other_obj.raw_data)
+            new_obj.vis_data.update(other_obj.vis_data)
 
         if self._has_auto != other_obj._has_auto:
             # Remember this check earlier? Now is the time to dump the auto data
@@ -3659,38 +3684,60 @@ class MirParser(object):
             new_obj.auto_data = None
             new_obj.ac_data = new_obj._ac_read = None
             new_obj._ac_filter = None
-            new_obj._has_auto = False
+            new_obj._has_auto = new_obj._auto_data_loaded = False
         elif new_obj.auto_data is not None:
             # Otherwise fold in the auto data
             new_obj.auto_data.update(other_obj.auto_data)
 
         # Finally, we need to do a special bit of handling if we "forced" the two
         # objects together. If we did, then we need to update the core attributes
-        # so that the *_data and *_read arrays all agree.
-        if comp_list != []:
+        # so that the *_data and *_read arrays all agree. If we did NOT, then we just
+        # need to make sure that the filters are correct.
+        if force_list == []:
+            new_obj._in_filter = self._in_filter | other_obj._in_filter
+            new_obj._eng_filter = self._eng_filter | other_obj._eng_filter
+            new_obj._bl_filter = self._bl_filter | other_obj._bl_filter
+            new_obj._sp_filter = self._sp_filter | other_obj._sp_filter
+            new_obj._we_filter = self._we_filter | other_obj._we_filter
+        else:
             new_obj._file_dict = {}
 
             new_obj._in_read = new_obj.in_data.copy()
-            new_obj._in_filter = np.ones(new_obj._in_read, dtype=bool)
+            new_obj._in_filter = np.ones(new_obj._in_read.shape, dtype=bool)
 
             new_obj._eng_read = new_obj.eng_data.copy()
-            new_obj._eng_filter = np.ones(new_obj._eng_read, dtype=bool)
+            new_obj._eng_filter = np.ones(new_obj._eng_read.shape, dtype=bool)
 
             new_obj._bl_read = new_obj.bl_data.copy()
-            new_obj._bl_filter = np.ones(new_obj._bl_read, dtype=bool)
+            new_obj._bl_filter = np.ones(new_obj._bl_read.shape, dtype=bool)
 
             new_obj._sp_read = new_obj.sp_data.copy()
-            new_obj._sp_filter = np.ones(new_obj._sp_read, dtype=bool)
+            new_obj._sp_filter = np.ones(new_obj._sp_read.shape, dtype=bool)
 
             new_obj._codes_read = MirParser.make_codes_read(new_obj.codes_dict)
 
             new_obj._we_read = new_obj.we_data.copy()
-            new_obj._we_filter = np.ones(new_obj._we_read, dtype=bool)
+            new_obj._we_filter = np.ones(new_obj._we_read.shape, dtype=bool)
 
             new_obj._antpos_read = new_obj.antpos_data.copy()
 
-        if not inplace:
-            return new_obj
+            if new_obj._has_auto:
+                new_obj._ac_read = new_obj.ac_data.copy()
+                new_obj._ac_filter = np.ones(new_obj._ac_read.shape, dtype=bool)
+
+        # Last but not least, update our position indexes so that we know which
+        # header IDs correspond to which array positon for our metadata.
+        new_obj._inhid_dict = {
+            inhid: idx for idx, inhid in enumerate(new_obj.in_data["inhid"])
+        }
+        new_obj._blhid_dict = {
+            blhid: idx for idx, blhid in enumerate(new_obj.bl_data["blhid"])
+        }
+        new_obj._sphid_dict = {
+            sphid: idx for idx, sphid in enumerate(new_obj.sp_data["sphid"])
+        }
+
+        return new_obj
 
     def __iadd__(self, other_obj, overwrite=False, force=False):
         """
@@ -3731,10 +3778,10 @@ class MirParser(object):
             because the two objects appear to be loaded from different files (and
             `force=False`).
         """
-        self.__add__(other_obj, overwrite=overwrite, force=force, inplace=True)
+        return self.__add__(other_obj, overwrite=overwrite, force=force, inplace=True)
 
     @staticmethod
-    def concat(obj_list, force=True):
+    def concat(obj_list, force=False):
         """
         Concat multiple MirParser objects together.
 
@@ -3788,7 +3835,8 @@ class MirParser(object):
             "_in_read",
             "_eng_read",
             "_bl_read",
-            "_sp_read" "_we_read",
+            "_sp_read",
+            "_we_read",
             "_codes_read",
         ]
 
@@ -3801,7 +3849,7 @@ class MirParser(object):
         for idx, obj1 in enumerate(obj_list):
             # Nice try, buddy - can't concat non-MirParser objects.
             if not isinstance(obj1, MirParser):
-                raise ValueError("Can only concat MirParser objects.")
+                raise TypeError("Can only concat MirParser objects.")
             # Check that the autos are either all loaded or unloaded
             if obj1._has_auto != auto_check:
                 if force:
@@ -3944,6 +3992,7 @@ class MirParser(object):
         for idx, obj1 in enumerate(obj_list):
             # If we have already disabled the warning, it means that we have already
             # detected a problem but the user set force=True.
+            print(raise_warning)
             if not raise_warning:
                 break
             else:
@@ -3954,7 +4003,7 @@ class MirParser(object):
                         if force:
                             warnings.warn(
                                 "Objects may contain overlapping data, pushing "
-                                "forward  anyways since force=False."
+                                "forward anyways since force=False."
                             )
                             raise_warning = False
                             break
@@ -4025,7 +4074,7 @@ class MirParser(object):
         sp_read_list = []
         sphid_dict_list = []
         sphid_count = 1
-        for obj in enumerate(obj_list):
+        for idx, obj in enumerate(obj_list):
             # Make a copy of the array, for updating and later concat
             temp_sp_read = obj._sp_read.copy()
 

@@ -550,3 +550,26 @@ def test_flex_pol_spw_all_flag(sma_mir_filt):
     # Since all of the y-pol data is flagged, the flex-pol data should only contain
     # xx visibilities (as recorded in flex_spw_polarization_array).t
     assert np.all(sma_mir_filt.flex_spw_polarization_array == -5)
+
+
+def test_bad_sphid(mir_data):
+    """
+    Test what bad values for sphid in sp_data result in an error.
+    """
+    mir_obj = Mir()
+    mir_data.sp_data["sphid"] = -1
+
+    with pytest.raises(KeyError) as err:
+        mir_obj._init_from_mir_parser(mir_data)
+    assert str(err.value).startswith("'Mismatch between keys in vis_data and sphid")
+
+
+def test_bad_pol_code(mir_data):
+    """
+    Test that an extra (unused) pol coode doesn't produce an error. Note that we want
+    this check because the "Unknown" pol code is something present in some data sets.
+    """
+    mir_obj = Mir()
+    mir_data.codes_dict["pol"][-999] = ("Unknown", 0)
+
+    mir_obj._init_from_mir_parser(mir_data)

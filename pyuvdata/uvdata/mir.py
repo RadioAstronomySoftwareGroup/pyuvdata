@@ -383,8 +383,8 @@ class Mir(UVData):
         if not np.all(
             np.isin(list(mir_data.vis_data.keys()), mir_data.sp_data["sphid"])
         ):
-            raise ValueError(
-                "Mismatch between keys invis_data and sphid in sp_data, which should "
+            raise KeyError(
+                "Mismatch between keys in vis_data and sphid in sp_data, which should "
                 "not happen. Please file an issue in our GitHub issue log so that we "
                 "can fix it."
             )
