@@ -18,7 +18,7 @@ dependencies:
   - setuptools_scm
   - sphinx
   - coverage
-  - pytest>=6.2.0
+  - pytest>=6.2.0,<7.0
   - pytest-cov
   - cython>=0.23
   - pip

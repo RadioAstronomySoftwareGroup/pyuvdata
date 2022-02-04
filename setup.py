@@ -109,7 +109,7 @@ test_reqs = (
     + novas_reqs
     + cst_reqs
     + [
-        "pytest>=6.2",
+        "pytest>=6.2,<7.0",
         "pytest-xdist",
         "pytest-cases>=3",
         "pytest-cov",
