@@ -1807,6 +1807,27 @@ b) FHD cal to cal fits
   >>> fhd_cal.write_calfits(os.path.join('.', 'tutorial_cal.fits'), clobber=True)
 
 
+UVCal: Initializing from a UVData object
+----------------------------------------
+The :meth:`pyuvdata.UVCal.initialize_from_uvdata` method allows you to initialize a UVCal
+object from the metadata in a UVData object. This is useful for codes that are calculating
+calibration solutions from UVData objects. There are many optional parameters to allow
+users to specify additional metadata or changes from the uvdata metadata. By default,
+this method creats a metadata only UVCal object, but it can optionally create the
+data-like arrays as well, filled with zeros.
+
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData, UVCal
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uvd_file = os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected")
+  >>> uvd = UVData.from_file(uvd_file, file_type="uvh5")
+  >>> uvc = UVCal.initialize_from_uvdata(uvd, "multiply", "redundant")
+  >>> print(uvc.ant_array)
+  [ 0  1 11 12 13 23 24 25]
+
+
 UVCal: Quick data access
 ------------------------
 Similar methods for quick data access are available for UVCal.
