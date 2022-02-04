@@ -15,6 +15,7 @@ import pytest
 import os
 from ..mir_parser import MirParser
 from ... import tests as uvtest
+import copy
 
 
 @pytest.fixture(scope="module")
@@ -782,6 +783,13 @@ def test_fix_int_start(mir_data):
     assert good_dict == check_dict
 
 
+def test_scan_auto_data_err(tmp_path):
+    """Verify that scan_auto_data throws appropriate errors."""
+    with pytest.raises(FileNotFoundError) as err:
+        MirParser.scan_auto_data(tmp_path)
+    assert str(err.value).startswith("Cannot find file")
+
+
 def test_read_packdata_mmap(mir_data):
     """Test that reading in vis data with mmap works just as well as np.fromfile"""
     mmap_data = mir_data.read_packdata(
@@ -1201,12 +1209,894 @@ def test_update_filter_allow_downsel(mir_data):
     assert mir_data == mir_copy
 
 
+def test_tofile_append_errs(mir_data, tmp_path):
+    """
+    Test that tofile throws errors as expected. Note that we kind of have to test these
+    in sequence since they require subsequent modifications to the MirParser object.
+    """
+    testfile = os.path.join(tmp_path, "test_tofile_errs.mir")
+
+    # Write the mir dataset first to file to check for errors. This first call to
+    # append should be okay because there's nothing yet to append to.
+    mir_data.tofile(testfile, append_data=True)
+
+    with pytest.raises(ValueError) as err:
+        mir_data.tofile(testfile, append_data=True)
+    assert str(err.value).startswith(
+        "Cannot append data when integration header IDs overlap."
+    )
+
+    mir_data.in_data["inhid"] = 100
+
+    with pytest.raises(ValueError) as err:
+        mir_data.tofile(testfile, append_data=True)
+    assert str(err.value).startswith(
+        "Cannot append data when baseline header IDs overlap."
+    )
+
+    mir_data.bl_data["blhid"] = 100
+
+    with pytest.raises(ValueError) as err:
+        mir_data.tofile(testfile, append_data=True)
+    assert str(err.value).startswith(
+        "Cannot append data when spectral record header IDs overlap."
+    )
+
+
+@pytest.mark.parametrize(
+    "write_raw,unload_data,warn_msg",
+    [
+        [False, False, "Writing out raw data with tsys applied."],
+        [True, True, "No data loaded, writing metadata only"],
+    ],
+)
+def test_tofile_warn(mir_data, tmp_path, write_raw, unload_data, warn_msg):
+    """Test that tofile throws errors as expected."""
+    testfile = os.path.join(
+        tmp_path, "test_tofile_warn_%s.mir" % ("meta" if unload_data else "tsysapp")
+    )
+    if unload_data:
+        mir_data.unload_data()
+
+    with uvtest.check_warnings(UserWarning, warn_msg):
+        mir_data.tofile(testfile, write_raw=write_raw)
+
+    # Drop the data and autos here to make the comparison a bit easier.
+    mir_data.unload_data()
+    mir_data._has_auto = False
+    mir_data.ac_data = mir_data._ac_read = mir_data._ac_filter = None
+
+    mir_copy = MirParser(testfile)
+    assert (
+        mir_copy._file_dict[mir_copy.filepath] == mir_data._file_dict[mir_data.filepath]
+    )
+    assert mir_copy.filepath != mir_data.filepath
+    assert mir_copy.filepath == testfile
+    mir_copy.filepath = mir_data.filepath
+    mir_copy._file_dict = mir_data._file_dict
+    assert mir_copy == mir_data
+
+
+@pytest.mark.parametrize("inplace", [True, False])
+def test_rechunk_raw(inplace):
+    """Test that rechunk_vis properly averages data"""
+    raw_data = {
+        5: {
+            "raw_data": np.arange(-16384, 16384, dtype=np.int16),
+            "scale_fac": np.int16(1),
+        }
+    }
+
+    # First up, test what should be a no-op
+    raw_copy = MirParser._rechunk_raw(raw_data, [1], inplace=inplace)
+
+    assert (raw_copy is raw_data) == inplace
+
+    assert raw_data.keys() == raw_copy.keys()
+    assert raw_data[5]["scale_fac"] == 1
+    assert np.all(raw_data[5]["raw_data"] == np.arange(-16384, 16384))
+
+    # Now let's actually do some averaging and make sure it works as expected.
+    raw_copy = MirParser._rechunk_raw(raw_data, [2], inplace=inplace)
+    assert (raw_copy is raw_data) == inplace
+    # Scale factor drops on account of having gotten rid of one sig binary digit
+    # through the averaging process
+    assert raw_copy[5]["scale_fac"] == 0
+    # This is what raw_data _should_ look like after averaging. Note two aranges used
+    # here because the spacing for real and imag is the same, but not real vs imag.
+    assert np.all(
+        raw_copy[5]["raw_data"]
+        == np.vstack(
+            (np.arange(-32766, 32768, 8), np.arange(-32764, 32768, 8))
+        ).T.flatten()
+    )
+    raw_data = raw_copy
+
+    # Finally, test that flagging works as expected
+    raw_data[5]["raw_data"][2:] = -32768  # Marks channel as flagged
+    raw_copy = MirParser._rechunk_raw(raw_data, [4096], inplace=inplace)
+    assert (raw_copy is raw_data) == inplace
+    # Scale factor should not change
+    assert raw_copy[5]["scale_fac"] == 0
+    # First channel should just contain channel 1 data, second channel should be flagged
+    assert np.all(raw_copy[5]["raw_data"] == [-32766, -32764, -32768, -32768])
+
+
+@pytest.mark.parametrize("inplace", [True, False])
+def test_rechunk_vis(inplace):
+    """Test that rechunk_raw properly averages data"""
+    # Chicago FTW!
+    vis_data = {
+        25624: {
+            "vis_data": (np.arange(1024) + np.flip(np.arange(1024) * 1j)),
+            "vis_flags": np.zeros(1024, dtype=bool),
+        }
+    }
+    check_vals = np.arange(1024) + np.flip(np.arange(1024) * 1j)
+
+    # First up, test no averaging
+    vis_copy = MirParser._rechunk_vis(vis_data, [1], inplace=inplace)
+
+    assert (vis_copy is vis_data) == inplace
+
+    assert vis_data.keys() == vis_copy.keys()
+    assert np.all(vis_data[25624]["vis_flags"] == np.zeros(1024, dtype=bool))
+    assert np.all(vis_data[25624]["vis_data"] == check_vals)
+
+    # Next, test averaging w/o flags
+    vis_copy = MirParser._rechunk_vis(vis_data, [4], inplace=inplace)
+    check_vals = np.mean(check_vals.reshape(256, 4), axis=1)
+
+    assert (vis_copy is vis_data) == inplace
+    assert vis_data.keys() == vis_copy.keys()
+    assert np.all(vis_copy[25624]["vis_flags"] == np.zeros(256, dtype=bool))
+    assert np.all(vis_copy[25624]["vis_data"] == check_vals)
+    vis_data = vis_copy
+
+    # Finally, check what happens if we flag data
+    vis_data[25624]["vis_flags"][1:] = True
+    vis_copy = MirParser._rechunk_vis(vis_data, [128], inplace=inplace)
+    assert (vis_copy is vis_data) == inplace
+    assert vis_data.keys() == vis_copy.keys()
+    assert np.all(vis_copy[25624]["vis_flags"] == [False, True])
+    assert np.all(vis_copy[25624]["vis_data"] == [check_vals[0], 0.0])
+
+
+@pytest.mark.parametrize("inplace", [True, False])
+def test_rechunk_auto(inplace):
+    auto_data = {5675309: np.arange(-1024, 1024, dtype=np.float32)}
+
+    # First up, test no averaging
+    auto_copy = MirParser._rechunk_auto(auto_data, [1], inplace=inplace)
+    assert (auto_copy is auto_data) == inplace
+    assert auto_data.keys() == auto_copy.keys()
+    assert np.all(auto_copy[5675309] == np.arange(-1024, 1024, dtype=np.float32))
+
+    # First up, test no averaging
+    auto_copy = MirParser._rechunk_auto(auto_data, [512], inplace=inplace)
+    assert (auto_copy is auto_data) == inplace
+    assert auto_data.keys() == auto_copy.keys()
+    assert np.all(auto_copy[5675309] == [-768.5, -256.5, 255.5, 767.5])
+
+
+@pytest.mark.parametrize(
+    "chan_avg,muck_data,drop_file,drop_data,err_type,err_msg",
+    [
+        [0.5, False, False, False, ValueError, "chan_avg must be of type int."],
+        [-1, False, False, False, ValueError, "chan_avg cannot be a number less than"],
+        [3, False, False, False, ValueError, "chan_avg does not go evenly into "],
+        [2, True, False, False, ValueError, "Cannot load data due to modifications"],
+        [2, False, True, False, ValueError, "Cannot unload data as there is no file"],
+        [2, False, False, True, ValueError, "Index values do not match data keys."],
+    ],
+)
+def test_rechunk_errs(
+    mir_data, chan_avg, muck_data, drop_file, drop_data, err_type, err_msg
+):
+    """Verify that rechunk throws errors as expected."""
+    mir_data._data_mucked = muck_data
+    if drop_file:
+        mir_data._file_dict = {}
+
+    if drop_data:
+        mir_data.vis_data = {}
+
+    # Rather than parameterizing this, because the underlying object isn't changed,
+    # check for the different load states here, since the error should get thrown
+    # no matter which thing you are loading.
+    check_list = []
+    if not drop_data:
+        check_list.extend([(True, True), (True, False), (False, True)])
+    if not (drop_file or muck_data):
+        # Some errors should report even if not loading data.
+        check_list.append((False, False))
+    for (load_vis, load_raw) in check_list:
+        with pytest.raises(err_type) as err:
+            mir_data.rechunk(chan_avg, load_vis=load_vis, load_raw=load_raw)
+        assert str(err.value).startswith(err_msg)
+
+
+@pytest.mark.parametrize(
+    "unload_data,load_raw,load_vis,warn_msg",
+    [
+        [False, True, False, "Setting load_data or load_raw to True will unload "],
+        [False, False, True, "Setting load_data or load_raw to True will unload "],
+        [False, True, True, "Setting load_data or load_raw to True will unload "],
+        [True, False, False, "No data loaded to average, returning."],
+    ],
+)
+def test_rechunk_warn(mir_data, unload_data, load_raw, load_vis, warn_msg):
+    """Verify that rechunk throws warnings as expected."""
+    if unload_data:
+        mir_data.unload_data()
+
+    with uvtest.check_warnings(UserWarning, warn_msg):
+        mir_data.rechunk(2, load_vis=load_vis, load_raw=load_raw)
+
+
+def test_rechunk_nop(mir_data):
+    """Test that setting chan_avg to 1 doesn't change the object."""
+    mir_copy = mir_data.copy()
+
+    mir_data.rechunk(1)
+    assert mir_data == mir_copy
+
+
+def test_redoppler_data(mir_data):
+    with pytest.raises(NotImplementedError) as err:
+        mir_data.redoppler_data()
+    assert str(err.value).startswith("redoppler_data has not yet been implemented.")
+
+
+@pytest.mark.parametrize(
+    "arr1,arr2,index_field,err_type,err_msg",
+    [
+        [np.array(0), np.array(0.0), (None,), ValueError, "Both arrays must be of the"],
+        [np.array(0), np.array(0), None, ValueError, "index_name must be a string or"],
+        [np.array(0), np.array(0), (None,), ValueError, "index_name must be a string"],
+        [
+            np.array([], dtype=np.dtype([("", "i8")])),
+            np.array([], dtype=np.dtype([("", "i8")])),
+            "test",
+            ValueError,
+            "index_name test not a recognized field in either array.",
+        ],
+    ],
+)
+def test_arr_index_overlap_errs(mir_data, arr1, arr2, index_field, err_type, err_msg):
+    """Verify that _arr_index_overlap throws errors as expected."""
+    with pytest.raises(err_type) as err:
+        mir_data._combine_read_arr_check(arr1, arr2, index_field)
+    assert str(err.value).startswith(err_msg)
+
+
+def test_arr_index_overlap(mir_data):
+    """Test that test_arr_index gives results as expected"""
+    data_arr = mir_data.sp_data.copy()
+    copy_arr = mir_data.sp_data.copy()
+
+    idx1, idx2 = mir_data._arr_index_overlap(data_arr, copy_arr, "sphid")
+    assert np.all(idx1 == np.arange(20))
+    assert np.all(idx2 == np.arange(20))
+
+    # Check that adding extra keys doesn't change the full selction here
+    idx1, idx2 = mir_data._arr_index_overlap(
+        data_arr, copy_arr, ("sphid", "blhid", "corrchunk")
+    )
+    assert np.all(idx1 == np.arange(20))
+    assert np.all(idx2 == np.arange(20))
+
+    copy_arr = copy_arr[::2]
+    idx1, idx2 = mir_data._arr_index_overlap(data_arr, copy_arr, "sphid")
+    assert np.all(idx1 == np.arange(0, 20, 2))
+    assert np.all(idx2 == np.arange(10))
+
+    data_arr = data_arr[::4]
+    idx1, idx2 = mir_data._arr_index_overlap(data_arr, copy_arr, "sphid")
+    assert np.all(idx1 == np.arange(5))
+    assert np.all(idx2 == np.arange(0, 10, 2))
+
+    # Verify that if we muck all the other fields, we still get matches.
+    for field in data_arr.dtype.names:
+        if field != "sphid":
+            # Plug in truly random data -- this should never, _ever_ match
+            data_arr[field] = np.random.rand(5) + 1.0
+            copy_arr[field] = np.random.rand(10)
+
+    idx1, idx2 = mir_data._arr_index_overlap(data_arr, copy_arr, "sphid")
+    assert np.all(idx1 == np.arange(5))
+    assert np.all(idx2 == np.arange(0, 10, 2))
+
+
+@pytest.mark.parametrize("any_match", [False, True])
+@pytest.mark.parametrize(
+    "attr,index_name",
+    [
+        ["_ac_read", "achid"],
+        ["_antpos_read", "antenna"],
+        ["_bl_read", "blhid"],
+        ["_codes_read", ("v_name", "icode", "ncode")],
+        ["_eng_read", ("inhid", "antennaNumber")],
+        ["_in_read", "inhid"],
+        ["_sp_read", "sphid"],
+        ["_we_read", "scanNumber"],
+        ["ac_data", "achid"],
+        ["antpos_data", "antenna"],
+        ["bl_data", "blhid"],
+        ["eng_data", ("inhid", "antennaNumber")],
+        ["in_data", "inhid"],
+        ["sp_data", "sphid"],
+        ["we_data", "scanNumber"],
+    ],
+)
+def test_combine_read_arr_check(attr, any_match, index_name, mir_data):
+    read_arr = getattr(mir_data, attr)
+
+    if attr in ["in_data", "_in_read", "we_data", "_we_read"]:
+        # These are length 1 arrays, which we want to tweak so that we can do the
+        # any_match comparison below.
+        read_arr = np.tile(read_arr, 2)
+        read_arr[index_name][1] = 2
+
+    copy_arr = read_arr.copy()
+
+    # These are indexing fields that we should not change
+    prot_fields = [
+        "inhid",
+        "blhid",
+        "sphid",
+        "scanNumber",
+        "antenna",
+        "antennaNumber",
+        "achid",
+        "v_name",
+        "icode",
+        "ncode",
+    ]
+
+    if any_match:
+        for field in copy_arr.dtype.names:
+            if field not in prot_fields:
+                copy_arr[field][1:] = -1
+
+        assert not MirParser._combine_read_arr_check(read_arr, copy_arr, index_name)
+
+    # Make sure the arrays are compatible
+    assert MirParser._combine_read_arr_check(
+        read_arr, copy_arr, index_name=index_name, any_match=any_match
+    )
+
+    # If we cut down the array by two, we should still get a positive result.
+    copy_arr = copy_arr[::2]
+    assert MirParser._combine_read_arr_check(
+        read_arr, copy_arr, index_name=index_name, any_match=any_match
+    )
+
+    # Now nuke the non-indexing fields any verify that the check returns False
+    for field in copy_arr.dtype.names:
+        if field not in prot_fields:
+            copy_arr[field] = -1
+
+    assert not MirParser._combine_read_arr_check(
+        read_arr, copy_arr, index_name=index_name, any_match=any_match
+    )
+
+
+def test_combine_read_arr_errs(mir_data):
+    """Verify that _combine_read_arr throws errors as expected."""
+    with pytest.raises(ValueError) as err:
+        mir_data._combine_read_arr(
+            mir_data.sp_data, mir_data.bl_data, "sphid", overwrite=True
+        )
+    assert str(err.value).startswith("Both arrays must be of the same dtype.")
+
+    mir_data.sp_data["fsky"] = 0.0
+    with pytest.raises(ValueError) as err:
+        mir_data._combine_read_arr(mir_data.sp_data, mir_data._sp_read, "sphid")
+    assert str(err.value).startswith("Arrays have overlapping indicies with different")
+
+
+@pytest.mark.parametrize("overwrite", [True, False])
+def test_combine_read_arr(mir_data, overwrite):
+    """Verify that _combine_read_arr combines arrays as expected."""
+    data_arr = mir_data.bl_data.copy()
+    copy_arr = mir_data.bl_data.copy()
+    if overwrite:
+        # Corrupt the metadata to test overwrite=True
+        for field in data_arr.dtype.names:
+            if field != "blhid":
+                data_arr[field] = np.random.rand(4)
+
+    # Verify that combining identical arrays pops out the same array.
+    assert np.all(
+        mir_data.bl_data
+        == MirParser._combine_read_arr(data_arr, copy_arr, "blhid", overwrite=overwrite)
+    )
+
+    # Now drop elements from the first array, and verify that we still get
+    # the full array back (because copy_arr is still there).
+    assert np.all(
+        mir_data.bl_data
+        == MirParser._combine_read_arr(
+            data_arr[:1], copy_arr, "blhid", overwrite=overwrite
+        )
+    )
+
+    # Okay, last test -- what happens if we _don't_ have overlap
+    new_arr, idx_arr = MirParser._combine_read_arr(
+        data_arr[::2], copy_arr[1::2], "blhid", return_indices=True
+    )
+
+    # Check that all the index values that we expect are there
+    assert np.all(idx_arr == [True, True])
+    # If overwrite, the two arrays will be different, otherwise they'll be the same
+    assert np.all(new_arr == copy_arr) != overwrite
+    # Finally, check that the order of the new array is what we expect.
+    assert np.all(new_arr["blhid"] == [1, 2, 3, 4])
+
+
+@pytest.mark.parametrize(
+    "unload_data,muck_data,force,err_type,err_msg",
+    [
+        ["auto", None, False, ValueError, "Cannot combine objects where one has auto"],
+        ["vis", None, False, ValueError, "Cannot combine objects where one has vis"],
+        ["raw", None, False, ValueError, "Cannot combine objects where one has raw"],
+        [None, "tsys", False, ValueError, "Cannot combine objects where one has tsys"],
+        [None, "in_data", False, ValueError, "Objects appear to contain overlapping"],
+        [None, "_in_read", False, ValueError, "Objects appear to come from different"],
+        [None, "all", False, TypeError, "Cannot add a MirParser object an object of "],
+        [
+            "all",
+            None,
+            True,
+            ValueError,
+            "Cannot combine objects with force=True when no vis or raw ",
+        ],
+        [
+            None,
+            "tsys",
+            True,
+            ValueError,
+            "Cannot combine objects with force=True where one object has tsys",
+        ],
+    ],
+)
+def test_add_errs(mir_data, unload_data, muck_data, force, err_type, err_msg):
+    """Verify that __add__ throws errors as expected"""
+    mir_copy = mir_data.copy()
+
+    mir_data.unload_data(
+        unload_vis=(unload_data in ["vis", "all"]),
+        unload_raw=(unload_data in ["raw", "all"]),
+        unload_auto=(unload_data in ["auto", "all"]),
+    )
+
+    if muck_data is not None:
+        if muck_data == "tsys":
+            mir_data.apply_tsys(invert=True)
+        elif muck_data == "in_data":
+            mir_data.in_data["mjd"] = 0.0
+        elif muck_data == "_in_read":
+            mir_data._in_read["mjd"] = 0.0
+        elif muck_data == "all":
+            mir_data = np.arange(100)
+
+    if force:
+        mir_data._in_read["mjd"] = 0.0
+
+    with pytest.raises(err_type) as err:
+        mir_data.__add__(mir_copy, force=force)
+    assert str(err.value).startswith(err_msg) or (muck_data == "all")
+
+    with pytest.raises(err_type) as err:
+        mir_copy.__add__(mir_data, force=force)
+    assert str(err.value).startswith(err_msg)
+
+
+def test_add_simple(mir_data):
+    """
+    Verify that the __add__ method behaves as expected under 'simple' scenarios, i.e.,
+    where overwrite or force are not neccessary.
+    """
+    mir_copy = mir_data.copy()
+    mir_orig = mir_data.copy()
+
+    # So this is a _very_ simple check, but make sure that combining two
+    # objects that have all data loaded returns an equivalent object.
+    assert mir_data == (mir_data + mir_data)
+
+    # Now try in-place adding
+    mir_data += mir_data
+    assert mir_data == mir_copy
+
+    # Alright, now try running a select and split the data into two.
+    mir_data.select("corrchunk", "eq", [0, 1, 2])
+    mir_copy.select("corrchunk", "ne", [0, 1, 2])
+
+    # Verify that we have changed some things
+    assert mir_data != mir_orig
+    assert mir_data != mir_copy
+    assert mir_orig != mir_copy
+
+    # Now combine the two, and see what comes out.
+    mir_data += mir_copy
+    assert mir_data == mir_orig
+
+    # Hey, that was fun, let's try selecting on bl next!
+    mir_data.select(reset=True)
+    mir_copy.select(reset=True)
+
+    mir_data.select("sb", "eq", "l")
+    mir_copy.select("sb", "eq", "u")
+
+    # The reset unloads the data, so fix that now
+    mir_data.load_data(load_vis=True, load_raw=True, load_auto=True, apply_tsys=True)
+    mir_copy.load_data(load_vis=True, load_raw=True, load_auto=True, apply_tsys=True)
+
+    # Verify that we have changed some things
+    assert mir_data != mir_orig
+    assert mir_data != mir_copy
+    assert mir_orig != mir_copy
+
+    # Now combine the two, and see what comes out.
+    mir_data += mir_copy
+    assert mir_data == mir_orig
+
+    # Finally, let's try something a little different. Drop autos on one object, and
+    # do a filter where the union of the two objects does NOT give you back the sum
+    # total of the other object
+    mir_data.select(reset=True)
+    mir_copy.select(reset=True)
+
+    mir_copy._has_auto = False
+    mir_copy._ac_filter = mir_copy.ac_data = mir_copy._ac_read = None
+    mir_copy.auto_data = None
+
+    mir_data.select("corrchunk", "eq", [1, 2])
+    mir_copy.select("corrchunk", "eq", [3, 4])
+    mir_data.load_data(load_vis=True, load_raw=True, load_auto=True, apply_tsys=True)
+    mir_copy.load_data(load_vis=True, load_raw=True, load_auto=True, apply_tsys=True)
+
+    with uvtest.check_warnings(
+        UserWarning, "Both objects do not have auto-correlation data."
+    ):
+        mir_data += mir_copy
+
+    # Make sure we got all the data entries
+    assert mir_data._check_data_index()
+
+    # Make sure auto properties propagated correctly.
+    assert not (mir_data._has_auto or mir_data._auto_data_loaded)
+    mir_orig._has_auto = mir_orig._auto_data_loaded = False
+    for item in ["_ac_filter", "ac_data", "_ac_read", "auto_data"]:
+        assert getattr(mir_data, item) is None
+        setattr(mir_orig, item, None)
+
+    # Finally, make sure the object isn't the same, but after a reset and reload,
+    # we get the same object back (modulo the auto-correlation data).
+    assert mir_data != mir_orig
+    mir_data.select(reset=True)
+    mir_data.load_data(load_vis=True, load_raw=True, load_auto=True, apply_tsys=True)
+    assert mir_data == mir_orig
+
+
+@pytest.mark.parametrize(
+    "muck_attr",
+    [
+        "ac_data",
+        "antpos_data",
+        "bl_data",
+        "eng_data",
+        "in_data",
+        "sp_data",
+        "we_data",
+        "all",
+        "codes",
+    ],
+)
+def test_add_overwrite(mir_data, muck_attr):
+    """Verify that the overwrite option on __add__ works as expected."""
+    mir_copy = mir_data.copy()
+
+    prot_fields = [
+        "inhid",
+        "blhid",
+        "sphid",
+        "scanNumber",
+        "antenna",
+        "antennaNumber",
+        "achid",
+        "v_name",
+        "icode",
+        "ncode",
+    ]
+    if muck_attr == "all":
+        for item in [
+            "ac_data",
+            "antpos_data",
+            "bl_data",
+            "eng_data",
+            "in_data",
+            "sp_data",
+            "we_data",
+        ]:
+            for field in getattr(mir_data, item).dtype.names:
+                if field not in prot_fields:
+                    getattr(mir_data, item)[field] = -1
+    elif muck_attr == "codes":
+        mir_data.codes_dict["filever"] = -1
+    else:
+        for field in getattr(mir_data, muck_attr).dtype.names:
+            if field not in prot_fields:
+                getattr(mir_data, muck_attr)[field] = -1
+
+    # After mucking, verfiy that at least something looks different
+    assert mir_data != mir_copy
+
+    # mir_copy contains the good data, so adding it second will overwrite the bad data.
+    with uvtest.check_warnings(
+        UserWarning, "Data in objects appears to overlap, but with differing metadata."
+    ):
+        assert mir_data.__add__(mir_copy, overwrite=True) == mir_copy
+
+    # On the other hand, if we add mir_data second, the bad values should get propagated
+    with uvtest.check_warnings(
+        UserWarning, "Data in objects appears to overlap, but with differing metadata."
+    ):
+        assert mir_copy.__add__(mir_data, overwrite=True) == mir_data
+
+
+@pytest.mark.parametrize(
+    "muck_list",
+    [
+        ["_ac_read"],
+        ["_antpos_read"],
+        ["_bl_read"],
+        ["_codes_read"],
+        ["_eng_read"],
+        ["_in_read"],
+        ["_sp_read"],
+        ["_we_read"],
+        [
+            "_ac_read",
+            "_antpos_read",
+            "_bl_read",
+            "_codes_read",
+            "_eng_read",
+            "_in_read",
+            "_sp_read",
+            "_we_read",
+        ],
+    ],
+)
+def test_add_force(mir_data, muck_list):
+    """Verify that the 'force' option on __add__ works as expected."""
+    mir_copy = mir_data.copy()
+    mir_orig = mir_data.copy()
+
+    # Confirm that the below is basically a no-op
+    with uvtest.check_warnings(None):
+        mir_data.__iadd__(mir_copy, force=True)
+    assert mir_data == mir_orig
+
+    # Now mess w/ the metadata, that will flag the data as being from a different file
+    for item in muck_list:
+        for field in getattr(mir_data, item).dtype.names:
+            getattr(mir_data, item)[field] = -1
+
+    with uvtest.check_warnings(
+        UserWarning, "Objects here do not appear to be from the same file,"
+    ):
+        mir_data = mir_data.__add__(mir_copy, force=True)
+
+    # Since we have all records in hand, what we end up with should be the same file.
+    assert mir_data._file_dict == {}
+    mir_data._file_dict = copy.deepcopy(mir_orig._file_dict)
+    assert mir_data == mir_orig
+
+    # Now actually execute an select, muck the data, and then add.
+    mir_data.select("sb", "eq", "l")
+    mir_copy.select("sb", "eq", "u")
+
+    for item in muck_list:
+        for field in getattr(mir_data, item).dtype.names:
+            getattr(mir_data, item)[field] = -1
+
+    with uvtest.check_warnings(
+        UserWarning, "Objects here do not appear to be from the same file,"
+    ):
+        mir_data = mir_data.__add__(mir_copy, force=True)
+
+    # Again, since we all records together, we should have an equivalent object
+    assert mir_data._file_dict == {}
+    mir_data._file_dict = copy.deepcopy(mir_orig._file_dict)
+    assert mir_data == mir_orig
+
+    # Finally, grab something that doesn't combine to be the same object
+    mir_data.select("sb", "eq", "u")
+    for item in muck_list:
+        for field in getattr(mir_data, item).dtype.names:
+            getattr(mir_data, item)[field] = -1
+
+    with uvtest.check_warnings(
+        UserWarning, "Objects here do not appear to be from the same file,"
+    ):
+        mir_data = mir_data.__add__(mir_copy, force=True)
+    # Again, since we all records together, we should have an equivalent object
+    assert mir_data._file_dict == {}
+    mir_data._file_dict = copy.deepcopy(mir_orig._file_dict)
+    assert mir_data != mir_orig
+
+
+@pytest.mark.parametrize(
+    "skip_muck,err_type,err_msg",
+    [
+        ["no_obj", TypeError, "Can only concat MirParser objects."],
+        ["auto", ValueError, "Cannot combine objects both with and without auto"],
+        ["nofile", ValueError, "Cannot concat objects without an associated file"],
+        ["file", ValueError, "At least one object to be concatenated has been loaded"],
+        ["ants", ValueError, "Two of the objects provided do not have the same ant"],
+        ["_in_read", ValueError, "Two of the objects provided appear to hold ident"],
+        ["_eng_read", ValueError, "Two of the objects provided appear to hold ident"],
+        ["_bl_read", ValueError, "Two of the objects provided appear to hold ident"],
+        ["_sp_read", ValueError, "Two of the objects provided appear to hold ident"],
+        ["_we_read", ValueError, "Two of the objects provided appear to hold ident"],
+        ["codes", ValueError, "codes_dict contains different keys between objects,"],
+        ["dup_in_read", ValueError, "Two of the objects appear to have overlapping"],
+        ["muck_pol", ValueError, "Cannot concat objects, differing polarization "],
+        ["muck_band", ValueError, "Cannot concat objects, differing correlator"],
+        ["muck_filever", ValueError, "Cannot concat objects, differing file"],
+        ["muck_sb", ValueError, "Cannot concat objects, sb key"],
+    ],
+)
+def test_concat_err(mir_data, skip_muck, err_type, err_msg):
+    """
+    Verify that concat throws errors as expected. So this is admittedly a long test,
+    because the error checking is sequential, and without two actual files to concat,
+    we have to make several modifications to the object arising from one.
+    """
+    mir_copy = mir_data.copy()
+
+    diff_list = {
+        "_in_read": ["inhid"],
+        "_eng_read": ["inhid"],
+        "_bl_read": ["inhid", "blhid"],
+        "_sp_read": ["inhid", "blhid", "sphid"],
+        "_we_read": ["scanNumber"],
+    }
+
+    # We want to go through the above arrays and modify them so that concat
+    # doesn't error out (unless we want it to).
+    for key, muck_list in diff_list.items():
+        if skip_muck != key:
+            for field in muck_list:
+                getattr(mir_copy, key)[field] = getattr(mir_copy, key)[field] + (
+                    np.max(getattr(mir_copy, key)[field])
+                )
+
+    if skip_muck != "file":
+        # If we don't want to have the filenames agree, change that now.
+        for idx, key in enumerate(list(mir_copy._file_dict)):
+            mir_copy._file_dict[str(idx)] = mir_copy._file_dict.pop(key)
+    if skip_muck == "no_obj":
+        # What if you try to concat w/ a non-MirParser object?
+        mir_copy = None
+    elif skip_muck == "codes":
+        # What if you make it so that the keys in codes_dict don't agree?
+        mir_copy._codes_read["v_name"][0] = b"abcdefg"
+    elif skip_muck == "ants":
+        # What if you muck the antenna positions?
+        mir_copy._antpos_read[:] = 0.0
+    elif skip_muck == "nofile":
+        # What if one object doesn't have a file_dict?
+        mir_copy._file_dict = {}
+    elif skip_muck == "auto":
+        # What if one file doesn't have autos?
+        mir_copy._has_auto = False
+    elif skip_muck == "dup_in_read":
+        # What if one object has partially overlapping data?
+        mir_copy._in_read = np.tile(mir_copy._in_read, 2)
+        mir_copy._in_read["inhid"][0] = 1
+        # Note we need this to prevent an earlier error on codes_read being identical
+        mir_copy._codes_read["code"][-1] = b"-1"
+    elif skip_muck == "muck_filever":
+        mir_copy._codes_read["code"][0] = b"-1"
+    elif skip_muck == "muck_pol":
+        # What if codes_dict has different polarization states?
+        mir_copy._codes_read["code"][mir_copy._codes_read["v_name"] == b"pol"] = [
+            b"a",
+            b"b",
+            b"c",
+            b"d",
+        ]
+    elif skip_muck == "muck_band":
+        # What if codes_dict indicates a different correlator config?
+        mir_copy._codes_read["code"][mir_copy._codes_read["v_name"] == b"band"] = [
+            b"a",
+            b"b",
+            b"c",
+            b"d",
+            b"e",
+        ]
+    elif skip_muck == "muck_sb":
+        # What if codes_dict indicates a different correlator config?
+        mir_copy._codes_read["code"][mir_copy._codes_read["v_name"] == b"sb"] = [
+            b"lsb",
+            b"usb",
+        ]
+
+    with pytest.raises(err_type) as err:
+        MirParser.concat((mir_data, mir_copy), force=False)
+    assert str(err.value).startswith(err_msg)
+
+
+def test_concat_warn(mir_data):
+    """Verify that concat throws warnings as expected."""
+    mir_copy = mir_data.copy()
+    mir_copy.unload_data()
+
+    # Providing a single object to concat should basically spit out an equivlaent
+    # object, with data unloaded.
+    with uvtest.check_warnings(None):
+        assert mir_copy == MirParser.concat((mir_data,))
+
+    # Modify _file_dict so that concat doesn't immediately balk
+    for idx, key in enumerate(list(mir_copy._file_dict)):
+        mir_copy._file_dict[str(idx)] = mir_copy._file_dict.pop(key)
+
+    with uvtest.check_warnings(
+        UserWarning, "Objects may contain the same data, pushing forward",
+    ):
+        _ = MirParser.concat((mir_data, mir_copy), force=True)
+
+    # If we want to get at some deeper warnings, we need to make our objects a little
+    # less obviously identical. Modify the index codes to allow us to move forward.
+    diff_list = {
+        "_in_read": ["inhid"],
+        "_eng_read": ["inhid"],
+        "_bl_read": ["inhid", "blhid"],
+        "_sp_read": ["inhid", "blhid", "sphid"],
+        "_we_read": ["scanNumber"],
+        "_ac_read": ["achid"],
+    }
+
+    # These two items let us check to additional errors.
+    mir_copy._has_auto = False
+    mir_copy._antpos_read["xyz_pos"] = 0.0
+
+    # We want to go through the above arrays and modify them so that concat
+    # doesn't error out.
+    for key, muck_list in diff_list.items():
+        for field in muck_list:
+            getattr(mir_copy, key)[field] = getattr(mir_copy, key)[field] + (
+                np.max(getattr(mir_copy, key)[field])
+            )
+
+    # Make it look as though our copy has two integrations, with one overlapping
+    # the other dataset.
+    mir_copy._in_read = np.tile(mir_copy._in_read, 2)
+    mir_copy._in_read["inhid"][0] = 1
+    codes_dict = copy.deepcopy(mir_copy.codes_dict)
+    for item in ["ut", "ra", "dec", "vrad"]:
+        codes_dict[item][2] = codes_dict[item][1]
+    mir_copy._codes_read = MirParser.make_codes_read(codes_dict)
+
+    # Alright, time to check our warnings!
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Some (but not all) objects have auto-correlation data",
+            "Some objects have different antenna positions than others.",
+            "Objects may contain overlapping data, pushing ",
+        ],
+    ):
+        _ = MirParser.concat((mir_data, mir_copy), force=True)
+
+
 # Below are a series of checks that are designed to check to make sure that the
 # MirParser class is able to produce consistent values from an engineering data
 # set (originally stored in /data/engineering/mir_data/200724_16:35:14), to make
-# sure that we haven't broken the ability of the reader to handle the data. Since
-# this file is the basis for the above checks, we've put this here rather than in
-# test_mir_parser.py
+# sure that we haven't broken the ability of the reader to handle the data.
 
 
 def test_mir_remember_me_record_lengths(mir_data):
