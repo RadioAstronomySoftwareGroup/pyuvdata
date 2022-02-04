@@ -20,3 +20,4 @@ dependencies:
     - git+https://github.com/HERA-Team/omnical.git
     - git+https://github.com/HERA-Team/uvtools.git
     - git+https://github.com/HERA-Team/hera_cal.git
+    - pytest-xdist
