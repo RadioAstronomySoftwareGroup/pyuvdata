@@ -2622,8 +2622,7 @@ def test_init_from_uvdata(
 
     uvc2 = uvc.copy(metadata_only=True)
 
-    uvc_new = UVCal()
-    uvc_new.initialize_from_uvdata(
+    uvc_new = UVCal.initialize_from_uvdata(
         uvd, uvc.gain_convention, uvc.cal_style, future_array_shapes=uvcal_future_shapes
     )
 
@@ -2692,8 +2691,7 @@ def test_init_from_uvdata_setfreqs(
     else:
         flex_spw_id_array = None
 
-    uvc_new = UVCal()
-    uvc_new.initialize_from_uvdata(
+    uvc_new = UVCal.initialize_from_uvdata(
         uvd,
         uvc.gain_convention,
         uvc.cal_style,
@@ -2741,9 +2739,8 @@ def test_init_from_uvdata_setfreqs_errors(uvcalibrate_data):
     # but that requirement is not enforced. Set it to None for this test
     uvc.time_range = None
 
-    uvc_new = UVCal()
     with pytest.raises(ValueError, match="Frequencies must be a 1 dimensional array"):
-        uvc_new.initialize_from_uvdata(
+        UVCal.initialize_from_uvdata(
             uvd,
             uvc.gain_convention,
             uvc.cal_style,
@@ -2754,7 +2751,7 @@ def test_init_from_uvdata_setfreqs_errors(uvcalibrate_data):
     with pytest.raises(
         ValueError, match="If frequencies is provided and flex_spw is True"
     ):
-        uvc_new.initialize_from_uvdata(
+        UVCal.initialize_from_uvdata(
             uvd,
             uvc.gain_convention,
             uvc.cal_style,
@@ -2766,14 +2763,14 @@ def test_init_from_uvdata_setfreqs_errors(uvcalibrate_data):
     with pytest.raises(
         ValueError, match="channel_width must be provided if frequencies is provided"
     ):
-        uvc_new.initialize_from_uvdata(
+        UVCal.initialize_from_uvdata(
             uvd, uvc.gain_convention, uvc.cal_style, frequencies=freqs_use[0, :],
         )
 
     with pytest.raises(
         ValueError, match="channel_width must be scalar if both future_array_shapes and"
     ):
-        uvc_new.initialize_from_uvdata(
+        UVCal.initialize_from_uvdata(
             uvd,
             uvc.gain_convention,
             uvc.cal_style,
@@ -2808,8 +2805,7 @@ def test_init_from_uvdata_settimes(
 
     uvc2.select(times=times_use)
 
-    uvc_new = UVCal()
-    uvc_new.initialize_from_uvdata(
+    uvc_new = UVCal.initialize_from_uvdata(
         uvd,
         uvc.gain_convention,
         uvc.cal_style,
@@ -2867,11 +2863,10 @@ def test_init_from_uvdata_settimes_errors(uvcalibrate_data):
 
     uvc2.select(times=times_use)
 
-    uvc_new = UVCal()
     with pytest.raises(
         ValueError, match="integation_time must be provided if times is provided"
     ):
-        uvc_new.initialize_from_uvdata(
+        UVCal.initialize_from_uvdata(
             uvd, uvc.gain_convention, uvc.cal_style, times=times_use,
         )
 
@@ -2879,7 +2874,7 @@ def test_init_from_uvdata_settimes_errors(uvcalibrate_data):
         ValueError,
         match="integration_time must be scalar if future_array_shapes is False.",
     ):
-        uvc_new.initialize_from_uvdata(
+        UVCal.initialize_from_uvdata(
             uvd,
             uvc.gain_convention,
             uvc.cal_style,
@@ -2900,8 +2895,7 @@ def test_init_from_uvdata_setjones(uvcalibrate_data):
 
     uvc2 = uvc.copy(metadata_only=True)
 
-    uvc_new = UVCal()
-    uvc_new.initialize_from_uvdata(
+    uvc_new = UVCal.initialize_from_uvdata(
         uvd, uvc.gain_convention, uvc.cal_style, jones=[-5, -6],
     )
 
@@ -2954,8 +2948,7 @@ def test_init_single_pol(uvcalibrate_data, pol):
 
     uvc2 = uvc.copy(metadata_only=True)
 
-    uvc_new = UVCal()
-    uvc_new.initialize_from_uvdata(uvd, uvc.gain_convention, uvc.cal_style)
+    uvc_new = UVCal.initialize_from_uvdata(uvd, uvc.gain_convention, uvc.cal_style)
 
     # antenna positions are different by ~6cm or less. The ones in the uvcal file
     # derive from info on our telescope object while the ones in the uvdata file
@@ -3000,8 +2993,7 @@ def test_init_from_uvdata_circular_pol(uvcalibrate_data):
 
     uvc2 = uvc.copy(metadata_only=True)
 
-    uvc_new = UVCal()
-    uvc_new.initialize_from_uvdata(uvd, uvc.gain_convention, uvc.cal_style)
+    uvc_new = UVCal.initialize_from_uvdata(uvd, uvc.gain_convention, uvc.cal_style)
 
     # antenna positions are different by ~6cm or less. The ones in the uvcal file
     # derive from info on our telescope object while the ones in the uvdata file
@@ -3072,8 +3064,7 @@ def test_init_from_uvdata_sky(
 
     uvc2 = uvc.copy(metadata_only=True)
 
-    uvc_new = UVCal()
-    uvc_new.initialize_from_uvdata(
+    uvc_new = UVCal.initialize_from_uvdata(
         uvd,
         uvc.gain_convention,
         uvc.cal_style,
@@ -3193,8 +3184,7 @@ def test_init_from_uvdata_delay(
         freq_range = None
         spw_array = None
 
-    uvc_new = UVCal()
-    uvc_new.initialize_from_uvdata(
+    uvc_new = UVCal.initialize_from_uvdata(
         uvd,
         uvc.gain_convention,
         uvc.cal_style,
@@ -3295,8 +3285,7 @@ def test_init_from_uvdata_wideband(
         freq_range = None
         spw_array = None
 
-    uvc_new = UVCal()
-    uvc_new.initialize_from_uvdata(
+    uvc_new = UVCal.initialize_from_uvdata(
         uvd,
         uvc.gain_convention,
         uvc.cal_style,
@@ -3340,18 +3329,17 @@ def test_init_from_uvdata_basic_errors(uvcalibrate_data):
     # but that requirement is not enforced. Set it to None for this test
     uvc.time_range = None
 
-    uvc_new = UVCal()
     with pytest.raises(
         ValueError, match="uvdata must be a UVData \\(or subclassed\\) object."
     ):
-        uvc_new.initialize_from_uvdata(uvc, uvc.gain_convention, uvc.cal_style)
+        UVCal.initialize_from_uvdata(uvc, uvc.gain_convention, uvc.cal_style)
 
     with pytest.raises(
         ValueError,
         match="If cal_style is 'sky', ref_antenna_name, sky_catalog and sky_field "
         "must all be provided.",
     ):
-        uvc_new.initialize_from_uvdata(uvd, uvc.gain_convention, "sky")
+        UVCal.initialize_from_uvdata(uvd, uvc.gain_convention, "sky")
 
     uvd.polarization_array = np.array([1, 2, 3, 4])
     with pytest.raises(
@@ -3359,19 +3347,18 @@ def test_init_from_uvdata_basic_errors(uvcalibrate_data):
         match="jones parameter is None and uvdata object is in "
         "psuedo-stokes polarization. Please set jones.",
     ):
-        uvc_new.initialize_from_uvdata(uvd, uvc.gain_convention, uvc.cal_style)
+        UVCal.initialize_from_uvdata(uvd, uvc.gain_convention, uvc.cal_style)
 
 
 def test_init_from_uvdata_freqrange_errors(uvcalibrate_data):
 
     uvd, uvc = uvcalibrate_data
 
-    uvc_new = UVCal()
     with pytest.raises(
         ValueError,
         match="if future_array_shapes is True, freq_range must be an array shaped like",
     ):
-        uvc_new.initialize_from_uvdata(
+        UVCal.initialize_from_uvdata(
             uvd,
             uvc.gain_convention,
             uvc.cal_style,
@@ -3384,7 +3371,7 @@ def test_init_from_uvdata_freqrange_errors(uvcalibrate_data):
         match="An spw_array must be provided for delay or wide-band cals if freq_range "
         "has multiple spectral windows",
     ):
-        uvc_new.initialize_from_uvdata(
+        UVCal.initialize_from_uvdata(
             uvd,
             uvc.gain_convention,
             uvc.cal_style,
@@ -3392,12 +3379,11 @@ def test_init_from_uvdata_freqrange_errors(uvcalibrate_data):
             freq_range=np.asarray([[1e8, 1.2e8], [1.3e8, 1.5e8]]),
         )
 
-    uvc_new = UVCal()
     with pytest.raises(
         ValueError,
         match="if future_array_shapes is False, freq_range must have 2 elements.",
     ):
-        uvc_new.initialize_from_uvdata(
+        UVCal.initialize_from_uvdata(
             uvd,
             uvc.gain_convention,
             uvc.cal_style,
@@ -3418,11 +3404,10 @@ def test_init_from_uvdata_vary_chanwidth(uvcalibrate_data):
     uvd.use_future_array_shapes()
     uvd.channel_width[-1] = uvd.channel_width[0] * 2.0
 
-    uvc_new = UVCal()
     with pytest.raises(
         ValueError, match="uvdata has varying channel widths but does not have"
     ):
-        uvc_new.initialize_from_uvdata(
+        UVCal.initialize_from_uvdata(
             uvd, uvc.gain_convention, uvc.cal_style, future_array_shapes=False
         )
 
@@ -3437,10 +3422,9 @@ def test_init_from_uvdata_vary_inttimes(uvcalibrate_data):
     # make uvdata have varying integration times
     uvd.integration_time[-1] = uvd.integration_time[0] * 2.0
 
-    uvc_new = UVCal()
     with pytest.raises(
         ValueError,
         match="uvdata integration times vary. Please specify times and "
         "integration_time",
     ):
-        uvc_new.initialize_from_uvdata(uvd, uvc.gain_convention, uvc.cal_style)
+        UVCal.initialize_from_uvdata(uvd, uvc.gain_convention, uvc.cal_style)

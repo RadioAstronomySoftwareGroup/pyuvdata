@@ -3355,8 +3355,9 @@ class UVCal(UVBase):
             setattr(other_obj, p, param)
         return other_obj
 
+    @classmethod
     def initialize_from_uvdata(
-        self,
+        cls,
         uvdata,
         gain_convention,
         cal_style,
@@ -3468,7 +3469,7 @@ class UVCal(UVBase):
             cal_sky = "sky".
         diffuse_model : str, optional
             Name of diffuse model.
-        baseline_range : array_like of float
+        baseline_range : array_like of float, optional
             Range of baselines used for calibration.
         Nsources : int, optional
             Number of sources used.
@@ -3504,21 +3505,21 @@ class UVCal(UVBase):
             raise ValueError("uvdata must be a UVData (or subclassed) object.")
 
         # re-initialize to make sure we have an empty object
-        self.__init__()
+        uvc = cls()
 
         if cal_type == "gain":
-            self._set_gain()
+            uvc._set_gain()
         elif cal_type == "delay":
-            self._set_delay()
+            uvc._set_delay()
 
         if future_array_shapes:
-            self._set_future_array_shapes()
+            uvc._set_future_array_shapes()
 
         if wide_band is not None:
-            self._set_wide_band(wide_band=wide_band)
+            uvc._set_wide_band(wide_band=wide_band)
 
-        self.cal_style = cal_style
-        self.gain_convention = gain_convention
+        uvc.cal_style = cal_style
+        uvc.gain_convention = gain_convention
 
         if cal_style == "sky" and (
             ref_antenna_name is None or sky_catalog is None or sky_field is None
@@ -3528,27 +3529,27 @@ class UVCal(UVBase):
                 "must all be provided."
             )
         if ref_antenna_name is not None:
-            self.ref_antenna_name = ref_antenna_name
+            uvc.ref_antenna_name = ref_antenna_name
         if sky_catalog is not None:
-            self.sky_catalog = sky_catalog
+            uvc.sky_catalog = sky_catalog
         if sky_field is not None:
-            self.sky_field = sky_field
+            uvc.sky_field = sky_field
         if diffuse_model is not None:
-            self.diffuse_model = diffuse_model
+            uvc.diffuse_model = diffuse_model
         if baseline_range is not None:
-            self.baseline_range = baseline_range
+            uvc.baseline_range = baseline_range
         if Nsources is not None:
-            self.Nsources = Nsources
+            uvc.Nsources = Nsources
         if observer is not None:
-            self.observer = observer
+            uvc.observer = observer
         if gain_scale is not None:
-            self.gain_scale = gain_scale
+            uvc.gain_scale = gain_scale
         if git_hash_cal is not None:
-            self.git_hash_cal = git_hash_cal
+            uvc.git_hash_cal = git_hash_cal
         if git_origin_cal is not None:
-            self.git_origin_cal = git_origin_cal
+            uvc.git_origin_cal = git_origin_cal
         if extra_keywords is not None:
-            self.extra_keywords = extra_keywords
+            uvc.extra_keywords = extra_keywords
 
         params_to_copy = [
             "telescope_name",
@@ -3560,33 +3561,33 @@ class UVCal(UVBase):
             "Nants_data",
             "x_orientation",
         ]
-        if self.cal_type != "delay" and not self.wide_band:
+        if uvc.cal_type != "delay" and not uvc.wide_band:
             if frequencies is None:
                 params_to_copy.extend(["Nfreqs", "flex_spw", "spw_array", "Nspws"])
                 if uvdata.flex_spw:
-                    self._set_flex_spw()
-                if uvdata.future_array_shapes == self.future_array_shapes:
+                    uvc._set_flex_spw()
+                if uvdata.future_array_shapes == uvc.future_array_shapes:
                     params_to_copy.extend(["freq_array"])
                 else:
-                    if self.future_array_shapes:
-                        self.freq_array = uvdata.freq_array[0, :]
+                    if uvc.future_array_shapes:
+                        uvc.freq_array = uvdata.freq_array[0, :]
                     else:
-                        self.freq_array = uvdata.freq_array[np.newaxis, :]
+                        uvc.freq_array = uvdata.freq_array[np.newaxis, :]
 
                 if (
                     uvdata.flex_spw
-                    or uvdata.future_array_shapes == self.future_array_shapes
+                    or uvdata.future_array_shapes == uvc.future_array_shapes
                 ):
                     params_to_copy.extend(["channel_width"])
                 else:
-                    if self.future_array_shapes:
-                        self.channel_width = np.full(
-                            self.freq_array.size, uvdata.channel_width, dtype=np.float64
+                    if uvc.future_array_shapes:
+                        uvc.channel_width = np.full(
+                            uvc.freq_array.size, uvdata.channel_width, dtype=np.float64
                         )
                     else:
                         uvdata_channel_widths = np.unique(uvdata.channel_width)
                         if uvdata_channel_widths.size == 1:
-                            self.channel_width = uvdata_channel_widths[0]
+                            uvc.channel_width = uvdata_channel_widths[0]
                         else:
                             raise ValueError(
                                 "uvdata has varying channel widths but does not have "
@@ -3600,34 +3601,34 @@ class UVCal(UVBase):
                     raise ValueError("Frequencies must be a 1 dimensional array")
 
                 if future_array_shapes:
-                    self.freq_array = frequencies
+                    uvc.freq_array = frequencies
                 else:
-                    self.freq_array = frequencies[np.newaxis, :]
-                self.Nfreqs = frequencies.size
+                    uvc.freq_array = frequencies[np.newaxis, :]
+                uvc.Nfreqs = frequencies.size
 
                 if flex_spw:
-                    self._set_flex_spw()
+                    uvc._set_flex_spw()
                     if flex_spw_id_array is None:
                         raise ValueError(
                             "If frequencies is provided and flex_spw is True, a "
                             "flex_spw_id_array must be provided."
                         )
-                    self.flex_spw_id_array = flex_spw_id_array
-                    self.spw_array = np.unique(self.flex_spw_id_array)
-                    self.Nspws = self.spw_array.size
+                    uvc.flex_spw_id_array = flex_spw_id_array
+                    uvc.spw_array = np.unique(uvc.flex_spw_id_array)
+                    uvc.Nspws = uvc.spw_array.size
                 else:
-                    self.spw_array = np.array([0])
-                    self.Nspws = 1
+                    uvc.spw_array = np.array([0])
+                    uvc.Nspws = 1
                 if channel_width is None:
                     raise ValueError(
                         "channel_width must be provided if frequencies is provided"
                     )
                 if future_array_shapes or flex_spw:
                     if isinstance(channel_width, (np.ndarray, list)):
-                        self.channel_width = np.asarray(channel_width)
+                        uvc.channel_width = np.asarray(channel_width)
                     else:
-                        self.channel_width = np.full(
-                            self.Nfreqs, channel_width, dtype=np.float64
+                        uvc.channel_width = np.full(
+                            uvc.Nfreqs, channel_width, dtype=np.float64
                         )
                 else:
                     if isinstance(channel_width, (np.ndarray, list)):
@@ -3635,14 +3636,14 @@ class UVCal(UVBase):
                             "channel_width must be scalar if both future_array_shapes "
                             "and flex_spw are False."
                         )
-                    self.channel_width = channel_width
+                    uvc.channel_width = channel_width
         else:
-            self.Nfreqs = 1
+            uvc.Nfreqs = 1
             if freq_range is None:
-                if self.future_array_shapes:
+                if uvc.future_array_shapes:
                     params_to_copy.extend(["spw_array", "Nspws"])
                     if uvdata.flex_spw:
-                        self.freq_range = np.zeros((uvdata.Nspws, 2), dtype=float)
+                        uvc.freq_range = np.zeros((uvdata.Nspws, 2), dtype=float)
                         for spw_ind, spw in enumerate(uvdata.spw_array):
                             if uvdata.future_array_shapes:
                                 freqs_in_spw = uvdata.freq_array[
@@ -3652,17 +3653,17 @@ class UVCal(UVBase):
                                 freqs_in_spw = uvdata.freq_array[
                                     0, np.nonzero(uvdata.flex_spw_id_array == spw)
                                 ]
-                            self.freq_range[spw_ind, :] = np.asarray(
+                            uvc.freq_range[spw_ind, :] = np.asarray(
                                 [np.min(freqs_in_spw), np.max(freqs_in_spw)]
                             )
                     else:
-                        self.freq_range = np.asarray(
+                        uvc.freq_range = np.asarray(
                             [[np.min(uvdata.freq_array), np.max(uvdata.freq_array)]]
                         )
                 else:
-                    self.Nspws = 1
-                    self.spw_array = np.asarray([0])
-                    self.freq_range = [
+                    uvc.Nspws = 1
+                    uvc.spw_array = np.asarray([0])
+                    uvc.freq_range = [
                         np.min(uvdata.freq_array),
                         np.max(uvdata.freq_array),
                     ]
@@ -3676,22 +3677,22 @@ class UVCal(UVBase):
                             "if future_array_shapes is True, freq_range must be an "
                             "array shaped like (Nspws, 2)."
                         )
-                    self.freq_range = freq_range_use
-                    self.Nspws = self.freq_range.shape[0]
-                    if self.Nspws > 1:
+                    uvc.freq_range = freq_range_use
+                    uvc.Nspws = uvc.freq_range.shape[0]
+                    if uvc.Nspws > 1:
                         if spw_array is None:
                             raise ValueError(
                                 "An spw_array must be provided for delay or wide-band "
                                 "cals if freq_range has multiple spectral windows"
                             )
-                        self.spw_array = spw_array
+                        uvc.spw_array = spw_array
                     else:
-                        self.spw_array = np.asarray([0])
+                        uvc.spw_array = np.asarray([0])
                 else:
-                    self.Nspws = 1
-                    self.spw_array = np.asarray([0])
+                    uvc.Nspws = 1
+                    uvc.spw_array = np.asarray([0])
                     if freq_range_use.size == 2:
-                        self.freq_range = np.squeeze(freq_range_use).tolist()
+                        uvc.freq_range = np.squeeze(freq_range_use).tolist()
                     else:
                         raise ValueError(
                             "if future_array_shapes is False, freq_range must have "
@@ -3699,43 +3700,43 @@ class UVCal(UVBase):
                         )
 
         for param_name in params_to_copy:
-            setattr(self, param_name, getattr(uvdata, param_name))
+            setattr(uvc, param_name, getattr(uvdata, param_name))
 
         # sort the antenna information (the order in the UVData object may be strange)
-        ant_order = np.argsort(self.antenna_numbers)
-        self.antenna_numbers = self.antenna_numbers[ant_order]
-        self.antenna_names = ((np.asarray(self.antenna_names))[ant_order]).tolist()
-        self.antenna_positions = self.antenna_positions[ant_order, :]
+        ant_order = np.argsort(uvc.antenna_numbers)
+        uvc.antenna_numbers = uvc.antenna_numbers[ant_order]
+        uvc.antenna_names = ((np.asarray(uvc.antenna_names))[ant_order]).tolist()
+        uvc.antenna_positions = uvc.antenna_positions[ant_order, :]
 
         if times is None:
             # get all unique times
-            self.time_array = np.unique(uvdata.time_array)
+            uvc.time_array = np.unique(uvdata.time_array)
             uvdata_int_times = np.unique(uvdata.integration_time)
             if uvdata_int_times.size == 1:
                 uvdata_int_times = uvdata_int_times[0]
-                if self.future_array_shapes:
-                    self.integration_time = np.full(
-                        self.time_array.size, uvdata_int_times, dtype=np.float64
+                if uvc.future_array_shapes:
+                    uvc.integration_time = np.full(
+                        uvc.time_array.size, uvdata_int_times, dtype=np.float64
                     )
                 else:
-                    self.integration_time = uvdata_int_times
+                    uvc.integration_time = uvdata_int_times
             else:
                 raise ValueError(
                     "uvdata integration times vary. Please specify times and "
                     "integration_time"
                 )
         else:
-            self.time_array = times
+            uvc.time_array = times
             if integration_time is None:
                 raise ValueError(
                     "integation_time must be provided if times is provided"
                 )
             if future_array_shapes:
                 if isinstance(integration_time, (np.ndarray, list)):
-                    self.integration_time = np.asarray(integration_time)
+                    uvc.integration_time = np.asarray(integration_time)
                 else:
-                    self.integration_time = np.full(
-                        self.time_array.size, integration_time, dtype=np.float64
+                    uvc.integration_time = np.full(
+                        uvc.time_array.size, integration_time, dtype=np.float64
                     )
             else:
                 if isinstance(integration_time, (np.ndarray, list)):
@@ -3743,56 +3744,56 @@ class UVCal(UVBase):
                         "integration_time must be scalar if future_array_shapes is "
                         "False."
                     )
-                self.integration_time = integration_time
-        self.Ntimes = self.time_array.size
-        self.set_lsts_from_time_array()
+                uvc.integration_time = integration_time
+        uvc.Ntimes = uvc.time_array.size
+        uvc.set_lsts_from_time_array()
 
         if time_range is not None:
-            self.time_range = time_range
+            uvc.time_range = time_range
 
         if jones is None:
             if np.all(uvdata.polarization_array < -4):
                 if uvdata.Npols == 1 and uvdata.polarization_array[0] > -7:
                     # single pol data, make a single pol cal object
-                    self.jones_array = uvdata.polarization_array
+                    uvc.jones_array = uvdata.polarization_array
                 else:
-                    self.jones_array = np.array([-5, -6])
+                    uvc.jones_array = np.array([-5, -6])
             elif np.all(uvdata.polarization_array < 0):
                 if uvdata.Npols == 1 and uvdata.polarization_array[0] > -3:
                     # single pol data, make a single pol cal object
-                    self.jones_array = uvdata.polarization_array
+                    uvc.jones_array = uvdata.polarization_array
                 else:
-                    self.jones_array = np.array([-1, -2])
+                    uvc.jones_array = np.array([-1, -2])
             else:
                 raise ValueError(
                     "jones parameter is None and uvdata object is in "
                     "psuedo-stokes polarization. Please set jones."
                 )
         else:
-            self.jones_array = np.asarray(jones)
-        self.Njones = self.jones_array.size
+            uvc.jones_array = np.asarray(jones)
+        uvc.Njones = uvc.jones_array.size
 
-        self.ant_array = np.union1d(uvdata.ant_1_array, uvdata.ant_2_array)
+        uvc.ant_array = np.union1d(uvdata.ant_1_array, uvdata.ant_2_array)
 
-        self.history = "Initialized from a UVData object with pyuvdata."
+        uvc.history = "Initialized from a UVData object with pyuvdata."
         if include_uvdata_history:
-            self.history += " UVData history is: " + uvdata.history
+            uvc.history += " UVData history is: " + uvdata.history
 
         if not metadata_only:
-            for param in self._required_data_params:
-                uvparam = getattr(self, "_" + param)
+            for param in uvc._required_data_params:
+                uvparam = getattr(uvc, "_" + param)
                 expected_type = uvparam.expected_type
                 # all data like params on UVCal have expected types that are tuples.
-                # since self is re-initialized at the start of this method, the user
+                # since uvc is re-initialized at the start of this method, the user
                 # can't affect this, so don't need handling for non-tuples
                 dtype_use = expected_type[0]
                 setattr(
-                    self,
-                    param,
-                    np.zeros(uvparam.expected_shape(self), dtype=dtype_use),
+                    uvc, param, np.zeros(uvparam.expected_shape(uvc), dtype=dtype_use),
                 )
 
-        self.check()
+        uvc.check()
+
+        return uvc
 
     def read_calfits(
         self,
