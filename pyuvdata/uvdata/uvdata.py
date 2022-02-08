@@ -46,29 +46,27 @@ class UVData(UVBase):
         radian_tol = 1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
 
         self._Ntimes = uvp.UVParameter(
-            "Ntimes", description="Number of times", expected_type=int
+            "Ntimes", description="Number of times.", expected_type=int
         )
         self._Nbls = uvp.UVParameter(
-            "Nbls", description="Number of baselines", expected_type=int
+            "Nbls", description="Number of baselines.", expected_type=int
         )
-        self._Nblts = uvp.UVParameter(
-            "Nblts",
-            description="Number of baseline-times "
-            "(i.e. number of spectra). Not necessarily "
-            "equal to Nbls * Ntimes",
-            expected_type=int,
+        desc = (
+            "Number of baseline-times (i.e. number of spectra). Not necessarily "
+            "equal to Nbls * Ntimes."
         )
+        self._Nblts = uvp.UVParameter("Nblts", description=desc, expected_type=int,)
         self._Nfreqs = uvp.UVParameter(
-            "Nfreqs", description="Number of frequency channels", expected_type=int
+            "Nfreqs", description="Number of frequency channels.", expected_type=int
         )
         self._Npols = uvp.UVParameter(
-            "Npols", description="Number of polarizations", expected_type=int
+            "Npols", description="Number of polarizations.", expected_type=int
         )
 
         desc = (
             "Array of the visibility data, shape: (Nblts, 1, Nfreqs, "
             "Npols) or (Nblts, Nfreqs, Npols) if future_array_shapes=True, "
-            "type = complex float, in units of self.vis_units"
+            "type = complex float, in units of self.vis_units."
         )
         # TODO: Spw axis to be collapsed in future release
         self._data_array = uvp.UVParameter(
@@ -78,7 +76,7 @@ class UVData(UVBase):
             expected_type=complex,
         )
 
-        desc = 'Visibility units, options are: "uncalib", "Jy" or "K str"'
+        desc = 'Visibility units, options are: "uncalib", "Jy" or "K str".'
         self._vis_units = uvp.UVParameter(
             "vis_units",
             description=desc,
@@ -126,7 +124,7 @@ class UVData(UVBase):
 
         self._spw_array = uvp.UVParameter(
             "spw_array",
-            description="Array of spectral window numbers, shape (Nspws)",
+            description="Array of spectral window numbers, shape (Nspws).",
             form=("Nspws",),
             expected_type=int,
         )
@@ -148,7 +146,7 @@ class UVData(UVBase):
         )
 
         desc = (
-            "Array of times, center of integration, shape (Nblts), " "units Julian Date"
+            "Array of times, center of integration, shape (Nblts), units Julian Date."
         )
         self._time_array = uvp.UVParameter(
             "time_array",
@@ -188,7 +186,7 @@ class UVData(UVBase):
 
         desc = (
             "Array of baseline numbers, shape (Nblts), "
-            "type = int; baseline = 2048 * (ant1+1) + (ant2+1) + 2^16"
+            "type = int; baseline = 2048 * (ant1+1) + (ant2+1) + 2^16."
         )
         self._baseline_array = uvp.UVParameter(
             "baseline_array", description=desc, expected_type=int, form=("Nblts",),
@@ -198,7 +196,7 @@ class UVData(UVBase):
         # to have different dimensions
         desc = (
             "Array of frequencies, center of the channel, "
-            "shape (1, Nfreqs) or (Nfreqs,) if future_array_shapes=True, units Hz"
+            "shape (1, Nfreqs) or (Nfreqs,) if future_array_shapes=True, units Hz."
         )
         # TODO: Spw axis to be collapsed in future release
         self._freq_array = uvp.UVParameter(
@@ -276,10 +274,9 @@ class UVData(UVBase):
         )
 
         desc = (
-            "Required if multi_phase_center = True. Specifies the number of sources "
-            "contained within the data set."
+            "Required if multi_phase_center = True. Specifies the number of phase "
+            "centers contained within the data set."
         )
-
         self._Nphase = uvp.UVParameter(
             "Nphase", description=desc, expected_type=int, required=False,
         )
@@ -312,14 +309,14 @@ class UVData(UVBase):
 
         self._telescope_name = uvp.UVParameter(
             "telescope_name",
-            description="Name of telescope " "(string)",
+            description="Name of telescope or array (string).",
             form="str",
             expected_type=str,
         )
 
         self._instrument = uvp.UVParameter(
             "instrument",
-            description="Receiver or backend. " "Sometimes identical to telescope_name",
+            description="Receiver or backend. Sometimes identical to telescope_name.",
             form="str",
             expected_type=str,
         )
@@ -327,7 +324,7 @@ class UVData(UVBase):
         desc = (
             "Telescope location: xyz in ITRF (earth-centered frame). "
             "Can also be accessed using telescope_location_lat_lon_alt or "
-            "telescope_location_lat_lon_alt_degrees properties"
+            "telescope_location_lat_lon_alt_degrees properties."
         )
         self._telescope_location = uvp.LocationParameter(
             "telescope_location",
@@ -338,7 +335,7 @@ class UVData(UVBase):
 
         self._history = uvp.UVParameter(
             "history",
-            description="String of history, units English",
+            description="String of history, units English.",
             form="str",
             expected_type=str,
         )
@@ -484,9 +481,9 @@ class UVData(UVBase):
         )
 
         desc = (
-            'Only relevant if phase_type = "phased". Specifies the frame the'
-            ' data and uvw_array are phased to. Options are "icrs", "gcrs", and "fk5";'
-            ' default is "icrs"'
+            'Only relevant if phase_type = "phased". Specifies the frame the '
+            'data and uvw_array are phased to. Options are "icrs", "gcrs", and "fk5"; '
+            'default is "icrs".'
         )
         self._phase_center_frame = uvp.UVParameter(
             "phase_center_frame",
@@ -526,7 +523,7 @@ class UVData(UVBase):
         desc = (
             "Number of antennas with data present (i.e. number of unique "
             "entries in ant_1_array and ant_2_array). May be smaller "
-            "than the number of antennas in the array"
+            "than the number of antennas in the array."
         )
         self._Nants_data = uvp.UVParameter(
             "Nants_data", description=desc, expected_type=int
@@ -534,7 +531,7 @@ class UVData(UVBase):
 
         desc = (
             "Number of antennas in the array. May be larger "
-            "than the number of antennas with data"
+            "than the number of antennas with data."
         )
         self._Nants_telescope = uvp.UVParameter(
             "Nants_telescope", description=desc, expected_type=int
@@ -588,7 +585,7 @@ class UVData(UVBase):
             "Orientation of the physical dipole corresponding to what is "
             "labelled as the x polarization. Options are 'east' "
             "(indicating east/west orientation) and 'north (indicating "
-            "north/south orientation)"
+            "north/south orientation)."
         )
         self._x_orientation = uvp.UVParameter(
             "x_orientation",
@@ -604,6 +601,7 @@ class UVData(UVBase):
             'the major and minor order (minor order is omitted if order is "bda"). '
             "The allowed values are: "
             + " ,".join([str(val) for val in blt_order_options])
+            + "."
         )
         self._blt_order = uvp.UVParameter(
             "blt_order",
@@ -647,35 +645,35 @@ class UVData(UVBase):
         self._gst0 = uvp.UVParameter(
             "gst0",
             required=False,
-            description="Greenwich sidereal time at " "midnight on reference date",
+            description="Greenwich sidereal time at midnight on reference date.",
             spoof_val=0.0,
             expected_type=float,
         )
         self._rdate = uvp.UVParameter(
             "rdate",
             required=False,
-            description="Date for which the GST0 or " "whatever... applies",
+            description="Date for which the GST0 applies.",
             spoof_val="",
             form="str",
         )
         self._earth_omega = uvp.UVParameter(
             "earth_omega",
             required=False,
-            description="Earth's rotation rate " "in degrees per day",
+            description="Earth's rotation rate in degrees per day.",
             spoof_val=360.985,
             expected_type=float,
         )
         self._dut1 = uvp.UVParameter(
             "dut1",
             required=False,
-            description="DUT1 (google it) AIPS 117 " "calls it UT1UTC",
+            description="DUT1 (google it) AIPS 117 calls it UT1UTC.",
             spoof_val=0.0,
             expected_type=float,
         )
         self._timesys = uvp.UVParameter(
             "timesys",
             required=False,
-            description="We only support UTC",
+            description="We only support UTC.",
             spoof_val="UTC",
             form="str",
         )
@@ -683,13 +681,13 @@ class UVData(UVBase):
         desc = (
             "FHD thing we do not understand, something about the time "
             "at which the phase center is normal to the chosen UV plane "
-            "for phasing"
+            "for phasing."
         )
         self._uvplane_reference_time = uvp.UVParameter(
             "uvplane_reference_time", required=False, description=desc, spoof_val=0
         )
 
-        desc = "Per-antenna and per-frequency equalization coefficients"
+        desc = "Per-antenna and per-frequency equalization coefficients."
         self._eq_coeffs = uvp.UVParameter(
             "eq_coeffs",
             required=False,
@@ -699,7 +697,7 @@ class UVData(UVBase):
             spoof_val=1.0,
         )
 
-        desc = "Convention for how to remove eq_coeffs from data"
+        desc = "Convention for how to remove eq_coeffs from data."
         self._eq_coeffs_convention = uvp.UVParameter(
             "eq_coeffs_convention",
             required=False,
