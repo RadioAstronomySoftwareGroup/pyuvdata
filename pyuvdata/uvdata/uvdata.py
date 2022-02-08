@@ -29,14 +29,11 @@ class UVData(UVBase):
     """
     A class for defining a radio interferometer dataset.
 
-    Currently supported file types: uvfits, miriad, fhd.
-    Provides phasing functions.
-
     Attributes
     ----------
     UVParameter objects :
-        For full list see UVData Parameters
-        (http://pyuvdata.readthedocs.io/en/latest/uvdata_parameters.html).
+        For full list see the documentation on ReadTheDocs:
+        http://pyuvdata.readthedocs.io/en/latest/.
         Some are always required, some are required for certain phase_types
         and others are always optional.
     """
