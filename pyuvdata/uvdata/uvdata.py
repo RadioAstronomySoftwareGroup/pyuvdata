@@ -36,6 +36,7 @@ class UVData(UVBase):
         http://pyuvdata.readthedocs.io/en/latest/.
         Some are always required, some are required for certain phase_types
         and others are always optional.
+
     """
 
     def __init__(self):

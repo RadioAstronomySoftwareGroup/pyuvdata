@@ -19,15 +19,14 @@ __all__ = ["UVCal"]
 
 class UVCal(UVBase):
     """
-    A class defining calibration solutions.
-
-    Currently supported file types: calfits
+    A class defining calibration solutions for interferometric data.
 
     Attributes
     ----------
-    UVParameter objects: For full list see UVCal Parameters
-        (http://pyuvdata.readthedocs.io/en/latest/uvcal_parameters.html).
-        Some are always required, some are required for certain cal_types
+    UVParameter objects :
+        For full list see the documentation on ReadTheDocs:
+        http://pyuvdata.readthedocs.io/en/latest/.
+        Some are always required, some are required for certain phase_types
         and others are always optional.
 
     """
