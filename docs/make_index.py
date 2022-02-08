@@ -46,7 +46,6 @@ def write_index_rst(readme_file=None, write_file=None):
         "   :maxdepth: 1\n\n"
         "   tutorial\n"
         "   uvdata\n"
-        "   uvcal_parameters\n"
         "   uvcal\n"
         "   uvbeam_parameters\n"
         "   uvbeam\n"

@@ -16,8 +16,9 @@ def write_uvdata_rst(write_file=None):
     out += (
         "UVData is the main user class for intereferometric data (visibilities).\n"
         "It provides import and export functionality to and from the supported file\n"
-        "formats (UVFITS, MeasurementSets, Miriad, uvh5, FHD, MIR) and can be\n"
-        "interacted with directly.\n\n"
+        "formats (UVFITS, MeasurementSets, Miriad, uvh5, FHD, MIR) as well as numerous"
+        "methods for transforming the data (phasing, averaging, selecting, sorting) "
+        "and can be interacted with directly.\n\n"
         "Attributes\n----------\n"
         "The attributes on UVData hold all of the metadata and data required to\n"
         "analyze interferometric data sets. They are implemented as properties based\n"
@@ -80,7 +81,7 @@ def write_uvdata_rst(write_file=None):
     out += "last updated: {date}".format(date=t.iso)
     if write_file is None:
         write_path = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
-        write_file = os.path.join(write_path, "uvdata_desc.rst")
+        write_file = os.path.join(write_path, "uvdata.rst")
     F = open(write_file, "w")
     F.write(out)
     print("wrote " + write_file)

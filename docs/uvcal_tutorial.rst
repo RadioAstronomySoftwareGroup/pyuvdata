@@ -2,6 +2,35 @@
 UVCal
 ------
 
+UVCal objects hold all of the metadata and data required to work with calibration
+solutions for interferometric data sets. Calibration solutions are tied to antennas
+rather than baselines. There are many different kinds of calibration solutions, UVCal
+has support for many of the most common ones, but this flexibility leads to some
+complexity in the definition of UVCal objects. The ``cal_type`` attribute on UVCal
+objects indicates whether calibration solutions are "gain" (a complex number per
+antenna, polarization and frequency) or "delay" (a real number per antenna and
+polarization) type solutions. The ``cal_style`` attribute indicates whether the solution
+came from a "sky" or "redundant" style of calibration solution. Some metadata items only
+apply to one ``cal_type`` or ``cal_style``.
+
+The antennas are described in two ways: with antenna numbers and antenna names. The
+antenna numbers should **not** be confused with indices -- they are not required to start
+at zero or to be contiguous, although it is not uncommon for some telescopes to number
+them like indices. On UVCal objects, the names and numbers are held in the
+``antenna_names`` and ``antenna_numbers`` attributes respectively. These are arranged
+in the same order so that an antenna number can be used to identify an antenna name and
+vice versa.
+Note that not all the antennas listed in ``antenna_numbers`` and ``antenna_names`` are
+guaranteed to have calibration solutions associated with them in the ``gain_array``
+(or ``delay_array`` for delay type solutions). The antenna numbers associated with each
+calibration solution is held in the ``ant_array`` attribute (which has the same length
+as the ``gain_array`` or ``delay_array`` along the antenna axis).
+
+For most users, the convenience methods for quick data access (see
+`UVCal: Quick data access`_) are the easiest way to get data for particular antennas.
+Those methods take the antenna numbers (i.e. numbers listed in ``antenna_numbers``)
+as inputs.
+
 
 UVCal: parameter shape changes
 -------------------------------
