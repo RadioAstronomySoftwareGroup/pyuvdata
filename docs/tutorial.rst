@@ -9,8 +9,10 @@ output files are written to a temporary directory created by pytest.
 
 Tutorials are available for each major user class:
 
-:doc:`uvdata_tutorial`
+.. toctree::
+    :maxdepth: 1
+    :titlesonly:
 
-:doc:`uvcal_tutorial`
-
-:doc:`uvbeam_tutorial`
+    uvdata_tutorial.rst
+    uvcal_tutorial.rst
+    uvbeam_tutorial.rst
