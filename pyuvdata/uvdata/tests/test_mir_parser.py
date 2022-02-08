@@ -1442,12 +1442,6 @@ def test_rechunk_nop(mir_data):
     assert mir_data == mir_copy
 
 
-def test_redoppler_data(mir_data):
-    with pytest.raises(NotImplementedError) as err:
-        mir_data.redoppler_data()
-    assert str(err.value).startswith("redoppler_data has not yet been implemented.")
-
-
 @pytest.mark.parametrize(
     "arr1,arr2,index_field,err_type,err_msg",
     [
@@ -2091,6 +2085,320 @@ def test_concat_warn(mir_data):
         ],
     ):
         _ = MirParser.concat((mir_data, mir_copy), force=True)
+
+
+@pytest.mark.parametrize(
+    "kern_type,tol,err_type,err_msg",
+    [
+        ["cubic", -1, ValueError, "tol must be in the range [0, 0.5]."],
+        ["abc", 0.5, ValueError, 'Kernel type of "abc" not recognized,'],
+    ],
+)
+def test_generate_chanshift_kernel_errs(mir_data, kern_type, tol, err_type, err_msg):
+    """"Verify that _generate_chanshift_kernel throws errors as expected."""
+    with pytest.raises(err_type) as err:
+        MirParser._generate_chanshift_kernel(1.5, kern_type, tol=tol)
+    assert str(err.value).startswith(err_msg)
+
+
+@pytest.mark.parametrize(
+    "kern_type,chan_shift,alpha,tol,exp_coarse,exp_kern",
+    [
+        ["nearest", 0, -0.5, 1e-3, 0, []],
+        ["linear", 0, -0.5, 1e-3, 0, []],
+        ["cubic", 0, -0.5, 1e-3, 0, []],
+        ["nearest", -1, -0.5, 1e-3, -1, []],
+        ["linear", 2, -0.5, 1e-3, 2, []],
+        ["cubic", -3, -0.5, 1e-3, -3, []],
+        ["nearest", 1.5, -0.5, 1e-3, 2, []],
+        ["linear", 2.0005, -0.5, 1e-3, 2, []],
+        ["cubic", -3.1, -0.5, 0.2, -3, []],
+        ["linear", 1.3, -0.5, 1e-3, 1, [0.7, 0.3]],
+        ["linear", -1.3, -0.5, 1e-3, -2, [0.3, 0.7]],
+        ["cubic", -3.5, 0, 1e-3, -4, [0, 0.5, 0.5, 0]],
+        ["cubic", 1.4, 0.0, 1e-3, 1, [0.0, 0.352, 0.648, 0.0]],
+        ["cubic", 1.4, -0.5, 1e-4, 1, [-0.048, 0.424, 0.696, -0.072]],
+        ["cubic", 1.4, -1.0, 0, 1, [-0.096, 0.496, 0.744, -0.144]],
+    ],
+)
+def test_generate_chanshift_kernel(
+    mir_data, kern_type, chan_shift, alpha, tol, exp_coarse, exp_kern
+):
+    """Test that _generate_chanshift_kernel produces kernels as expected."""
+    (coarse_shift, kern_size, kern) = MirParser._generate_chanshift_kernel(
+        chan_shift, kern_type, alpha_fac=alpha, tol=tol
+    )
+
+    assert coarse_shift == exp_coarse
+    assert len(exp_kern) == kern_size
+    if kern is None:
+        assert exp_kern == []
+    else:
+        assert np.allclose(exp_kern, kern)
+
+
+@pytest.mark.parametrize("check_flags", [True, False])
+@pytest.mark.parametrize("fwd_dir", [True, False])
+@pytest.mark.parametrize(
+    "inplace,return_vis", [[True, False], [False, True], [False, False]]
+)
+def test_chanshift_raw_vals(inplace, return_vis, fwd_dir, check_flags):
+    """Test that _chanshift_raw modifies spectra as expected."""
+    # Create a dataset to set against using a dummy impulse in the DC channel
+    raw_vals = []
+    raw_vals.extend([32767 if check_flags else 0] * 8)
+    raw_vals.extend([-32768 if check_flags else 32767] * 2)
+    raw_vals.extend([32767 if check_flags else 0] * 6)
+
+    raw_dict = {
+        123: {"raw_data": np.array(raw_vals, dtype=np.int16), "scale_fac": np.int16(0)}
+    }
+
+    # Test no-op
+    new_dict = MirParser._chanshift_raw(
+        raw_dict, [(0, 0, None)], inplace=inplace, return_vis=return_vis
+    )
+    if inplace:
+        assert new_dict is raw_dict
+    if return_vis:
+        new_dict = MirParser.convert_vis_to_raw(new_dict)
+
+    assert np.all(raw_vals == new_dict[123]["raw_data"])
+    assert new_dict[123]["scale_fac"] == 0
+
+    # Now try a simple one-channel shift
+    new_dict = MirParser._chanshift_raw(
+        raw_dict,
+        [(1 if fwd_dir else -1, 0, None)],
+        inplace=inplace,
+        return_vis=return_vis,
+    )
+    if inplace:
+        assert new_dict is raw_dict
+    if return_vis:
+        new_dict = MirParser.convert_vis_to_raw(new_dict)
+
+    good_slice = slice(None if fwd_dir else 2, -2 if fwd_dir else None)
+    flag_slice = slice(None if fwd_dir else -2, 2 if fwd_dir else None)
+    # Note that the shift of 2 is required since each channel has a real and imag
+    # component. The first two entries are dropped because they _should_ be flagged.
+    assert np.all(
+        raw_vals[good_slice]
+        == np.roll(new_dict[123]["raw_data"], -2 if fwd_dir else 2)[good_slice]
+    )
+    assert np.all(new_dict[123]["raw_data"][flag_slice] == -32768)
+    assert new_dict[123]["scale_fac"] == 0
+
+    # Refresh the values, in case we are doing this in-place
+    if inplace:
+        raw_dict = {
+            123: {
+                "raw_data": np.array(raw_vals, dtype=np.int16),
+                "scale_fac": np.int16(0),
+            }
+        }
+
+    # Last check, try a linear interpolation step
+    new_dict = MirParser._chanshift_raw(
+        raw_dict,
+        [(1 if fwd_dir else -2, 2, np.array([0.5, 0.5], dtype=np.float32))],
+        inplace=inplace,
+        return_vis=return_vis,
+    )
+    if inplace:
+        assert new_dict is raw_dict
+    if return_vis:
+        new_dict = MirParser.convert_vis_to_raw(new_dict)
+
+    if fwd_dir:
+        assert np.all(new_dict[123]["raw_data"][14:16] == (32767 if check_flags else 0))
+        assert np.all(
+            new_dict[123]["raw_data"][10:14] == (-32768 if check_flags else 32767)
+        )
+        assert np.all(new_dict[123]["raw_data"][4:10] == (32767 if check_flags else 0))
+        assert np.all(new_dict[123]["raw_data"][0:4] == -32768)
+    else:
+        assert np.all(new_dict[123]["raw_data"][0:4] == (32767 if check_flags else 0))
+        assert np.all(
+            new_dict[123]["raw_data"][4:8] == (-32768 if check_flags else 32767)
+        )
+        assert np.all(new_dict[123]["raw_data"][8:12] == (32767 if check_flags else 0))
+        assert np.all(new_dict[123]["raw_data"][12:16] == -32768)
+    assert new_dict[123]["scale_fac"] == (0 if check_flags else -1)
+
+
+@pytest.mark.parametrize(
+    "check_flags,flag_adj", [[False, True], [True, False], [True, True]]
+)
+@pytest.mark.parametrize("fwd_dir", [True, False])
+@pytest.mark.parametrize("inplace", [True, False])
+def test_chanshift_vis(check_flags, flag_adj, fwd_dir, inplace):
+    """Test that _chanshift_vis modifies spectra as expected."""
+    check_val = -(1 + 2j) if check_flags else (1 + 2j)
+    vis_vals = [check_val if check_flags else 0] * 4
+    vis_vals.append((3 + 4j) if check_flags else check_val)
+    vis_vals.extend([check_val if check_flags else 0] * 3)
+    flag_vals = [False] * 4
+    flag_vals.append(check_flags)
+    flag_vals.extend([False] * 3)
+
+    vis_dict = {
+        456: {
+            "vis_data": np.array(vis_vals, dtype=np.complex64),
+            "vis_flags": np.array(flag_vals, dtype=bool),
+        }
+    }
+
+    # Test no-op
+    new_dict = MirParser._chanshift_vis(
+        vis_dict, [(0, 0, None)], flag_adj=flag_adj, inplace=inplace
+    )
+
+    if inplace:
+        assert new_dict is vis_dict
+
+    assert np.all(vis_vals == new_dict[456]["vis_data"])
+    assert np.all(new_dict[456]["vis_flags"] == flag_vals)
+
+    # Now try a simple one-channel shift
+    new_dict = MirParser._chanshift_vis(
+        vis_dict, [(1 if fwd_dir else -1, 0, None)], flag_adj=flag_adj, inplace=inplace,
+    )
+
+    if inplace:
+        assert new_dict is vis_dict
+
+    good_slice = slice(None if fwd_dir else 1, -1 if fwd_dir else None)
+    flag_slice = slice(None if fwd_dir else -1, 1 if fwd_dir else None)
+
+    assert np.all(
+        vis_vals[good_slice]
+        == np.roll(new_dict[456]["vis_data"], -1 if fwd_dir else 1)[good_slice]
+    )
+    assert np.all(
+        flag_vals[good_slice]
+        == np.roll(new_dict[456]["vis_flags"], -1 if fwd_dir else 1)[good_slice]
+    )
+
+    assert np.all(new_dict[456]["vis_data"][flag_slice] == 0.0)
+    assert np.all(new_dict[456]["vis_flags"][flag_slice])
+
+    # Refresh the values, in case we are doing this in-place
+    if inplace:
+        vis_dict = {
+            456: {
+                "vis_data": np.array(vis_vals, dtype=np.complex64),
+                "vis_flags": np.array(flag_vals, dtype=bool),
+            }
+        }
+
+    # Last check, try a linear interpolation step
+    new_dict = MirParser._chanshift_vis(
+        vis_dict,
+        [(1 if fwd_dir else -2, 2, np.array([0.75, 0.25], dtype=np.float32))],
+        flag_adj=flag_adj,
+        inplace=inplace,
+    )
+    if inplace:
+        assert new_dict is vis_dict
+
+    exp_vals = np.roll(vis_vals, 2 if fwd_dir else -2)
+    exp_flags = np.roll(flag_vals, 2 if fwd_dir else -2)
+    exp_vals[None if fwd_dir else -2 : 2 if fwd_dir else None] = 0.0
+    exp_flags[None if fwd_dir else -2 : 2 if fwd_dir else None] = True
+    mod_slice = slice(4 - (-1 if fwd_dir else 2), 6 - (-1 if fwd_dir else 2))
+    if flag_adj:
+        exp_flags[mod_slice] = check_flags
+        exp_vals[mod_slice] = 0 if check_flags else [check_val * 0.75, check_val * 0.25]
+    else:
+        exp_vals[mod_slice] = [check_val * 0.25, check_val * 0.75]
+        exp_flags[mod_slice] = False
+
+    assert np.all(new_dict[456]["vis_data"] == exp_vals)
+    assert np.all(new_dict[456]["vis_flags"] == exp_flags)
+
+
+@pytest.mark.parametrize(
+    "filever,irec,err_type,err_msg",
+    [
+        ["2", 3, ValueError, "MIR file format < v4.0 detected,"],
+        ["4", 3, ValueError, "Receiver code 3 not recognized."],
+    ],
+)
+def test_redoppler_data_errs(mir_data, filever, irec, err_type, err_msg):
+    """Verift that redoppler_data throws errors as expected."""
+    mir_data.codes_dict["filever"] = filever
+    mir_data.bl_data["irec"] = irec
+
+    with pytest.raises(err_type) as err:
+        mir_data.redoppler_data()
+    assert str(err.value).startswith(err_msg)
+
+
+@pytest.mark.parametrize("plug_vals", [True, False])
+@pytest.mark.parametrize("diff_rx", [True, False])
+def test_redoppler_data(mir_data, plug_vals, diff_rx):
+    """Verify that redoppler_data behaves as expected."""
+    # We have to spoof the filever because the test file is technically v3
+    mir_data.codes_dict["filever"] = "4"
+
+    mir_copy = mir_data.copy()
+    # This first attempt should basically just be a no-op
+    mir_copy.redoppler_data()
+
+    assert mir_data == mir_copy
+
+    # Alright, let's tweak the data now to give us something to compare
+    for sphid, nch in zip(mir_data.sp_data["sphid"], mir_data.sp_data["nch"]):
+        mir_data.vis_data[sphid]["vis_data"][:] = np.arange(nch)
+        mir_data.vis_data[sphid]["vis_flags"][:] = False
+        mir_data.raw_data[sphid]["raw_data"][:] = np.arange(nch * 2)
+        mir_data.vis_data[sphid]["scale_fac"] = np.int16(0)
+
+    rxb_blhids = mir_data.bl_data["blhid"][mir_data.bl_data["ant1rx"] == 1]
+
+    freq_shift = (
+        (139.6484375e-6)
+        * (1 + (diff_rx & np.isin(mir_data.sp_data["blhid"], rxb_blhids)))
+        * (mir_data.sp_data["corrchunk"] != 0)
+    )
+
+    if plug_vals:
+        # Note we need the factor of two here now to simulate the an error
+        # that is currently present
+        # TODO: Remove this once the underlying issue is fixed.
+        mir_data.sp_data["fDDS"] = -(freq_shift / 2)
+        freq_shift = None
+
+    mir_data.redoppler_data(freq_shift=freq_shift)
+
+    # Alright, let's tweak the data now to give us something to compare
+    for sp_rec in mir_data.sp_data:
+        sphid = sp_rec["sphid"]
+        nch = sp_rec["nch"]
+        chan_shift = int(-np.sign(sp_rec["fres"]) * (sp_rec["corrchunk"] != 0))
+        chan_shift *= 2 if ((sp_rec["blhid"] in rxb_blhids) and diff_rx) else 1
+        if chan_shift == 0:
+            assert np.all(mir_data.vis_data[sphid]["vis_data"] == np.arange(nch))
+            assert np.all(mir_data.raw_data[sphid]["raw_data"] == np.arange(nch * 2))
+        elif chan_shift < 0:
+            assert np.all(
+                mir_data.vis_data[sphid]["vis_data"][:chan_shift]
+                == np.arange(-chan_shift, nch)
+            )
+            assert np.all(
+                mir_data.raw_data[sphid]["raw_data"][: chan_shift * 2]
+                == np.arange(-(2 * chan_shift), nch * 2)
+            )
+        else:
+            assert np.all(
+                mir_data.vis_data[sphid]["vis_data"][chan_shift:]
+                == np.arange((nch - chan_shift))
+            )
+            assert np.all(
+                mir_data.raw_data[sphid]["raw_data"][chan_shift * 2 :]
+                == np.arange((nch - chan_shift) * 2)
+            )
 
 
 # Below are a series of checks that are designed to check to make sure that the
