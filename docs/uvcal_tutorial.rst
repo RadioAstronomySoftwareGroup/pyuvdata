@@ -138,9 +138,12 @@ data-like arrays as well, filled with zeros.
 
 UVCal: Quick data access
 ------------------------
-Similar methods for quick data access are available for UVCal.
-Note that because UVCal has a different gain_array shape,
-the data output will have shape (Nfreqs, Ntimes).
+Method for quick data access, similar to those on :class:`pyuvdata.UVData`
+(:ref:`quick_access`), are available for :class:`pyuvdata.UVCal`.
+There are three specific methods that will return numpy arrays:
+:meth:`pyuvdata.UVCal.get_gains`, :meth:`pyuvdata.UVCal.get_flags`, and
+:meth:`pyuvdata.UVCal.get_quality`. When possible, these methods will return numpy
+MemoryView objects, which is relatively fast and adds minimal memory overhead.
 
 a) Data for a single antenna and instrumental polarization
 **********************************************************
@@ -167,6 +170,9 @@ a) Data for a single antenna and instrumental polarization
 
 UVCal: Calibrating UVData
 -------------------------
+Calibration solutions in a :class:`pyuvdata.UVCal` object can be applied to a
+:class:`pyuvdata.UVData` object using the :func:`pyuvdata.utils.uvcalibrate` function.
+
 
 a) Calibration of UVData by UVCal
 *********************************
@@ -193,8 +199,8 @@ a) Calibration of UVData by UVCal
 
 UVCal: Selecting data
 ---------------------
-The select method lets you select specific antennas (by number or name),
-frequencies (in Hz or by channel number), times or jones components
+The :meth:`pyuvdata.UVCal.select` method lets you select specific antennas
+(by number or name), frequencies (in Hz or by channel number), times or jones components
 (by number or string) to keep in the object while removing others.
 
 a) Select antennas to keep on UVCal object using the antenna number.
@@ -406,7 +412,8 @@ directly without creating a third uvcal object.
 
 d) Reading multiple files.
 **************************
-If any of the read methods (read_calfits, read_fhd_cal) are given a list of files,
+If any of the read methods (:meth:`pyuvdata.UVCal.read_calfits`,
+:meth:`pyuvdata.UVCal.read_fhd_cal`) are given a list of files,
 each file will be read in succession and added to the previous.
 
 .. code-block:: python
@@ -444,9 +451,9 @@ each file will be read in succession and added to the previous.
 
 UVCal: Changing cal_type from 'delay' to 'gain'
 -----------------------------------------------
-UVCal includes the method convert_to_gain(), which changes a UVCal object's
-cal_type parameter from 'delay' to 'gain,' and accordingly sets the object's
-gain_array to one consistent with its pre-existing delay_array.
+UVCal includes the method :meth:`pyuvdata.UVCal.convert_to_gain`, which changes a
+UVCal object's ``cal_type`` parameter from "delay" to "gain", and accordingly sets the
+object's ``gain_array`` to an array consistent with its pre-existing ``delay_array``.
 
 .. code-block:: python
 

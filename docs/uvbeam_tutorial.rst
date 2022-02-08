@@ -9,14 +9,15 @@ Reading and writing beam files using UVBeam.
 
 The text files saved out of CST beam simulations do not have much of the
 critical metadata needed for UVBeam objects. When reading in CST files, you
-can either provide the required metadata using keywords to the read_cst method
+can either provide the required metadata using keywords to the :meth:`pyuvdata.UVBeam.read` method
 and pass the raw CST files, or you can pass a settings yaml file which lists
-the raw files and provides the required metadata to the read_cst method. Both
+the raw files and provides the required metadata to the :meth:`pyuvdata.UVBeam.read` method. Both
 options are shown in the examples below. More details on creating a new yaml
 settings files can be found in :doc:`cst_settings_yaml`.
 
-UVBeam (like UVData) also supports a generic ``read`` function and a ``from_file``
-Class function.
+UVBeam (like UVData) has a generic :meth:`pyuvdata.UVBeam.read` method and a
+:meth:`pyuvdata.UVBeam.from_file` class method in addition to the file-type specific
+methods.
 
 a) Reading a CST power beam file
 ********************************
@@ -39,11 +40,13 @@ a) Reading a CST power beam file
   # You should also specify the polarization that the file represents and you can
   # set rotate_pol to generate the other polarization by rotating by 90 degrees.
   # The feed_pol defaults to 'x' and rotate_pol defaults to True.
-  >>> beam.read_cst_beam(filenames, beam_type='power', frequency=[150e6, 123e6],
-  ...                    feed_pol='x', rotate_pol=True, telescope_name='HERA',
-  ...                    feed_name='PAPER_dipole', feed_version='0.1',
-  ...                    model_name='E-field pattern - Rigging height 4.9m',
-  ...                    model_version='1.0')
+  >>> beam.read(
+  ...   filenames, beam_type='power', frequency=[150e6, 123e6],
+  ...   feed_pol='x', rotate_pol=True, telescope_name='HERA',
+  ...   feed_name='PAPER_dipole', feed_version='0.1',
+  ...   model_name='E-field pattern - Rigging height 4.9m',
+  ...   model_version='1.0'
+  ... )
   >>> print(beam.beam_type)
   power
   >>> print(beam.pixel_coordinate_system)
@@ -54,7 +57,7 @@ a) Reading a CST power beam file
   >>> # You can also use a yaml settings file.
   >>> # Note that using a yaml file requires that pyyaml is installed.
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read_cst_beam(settings_file, beam_type='power')
+  >>> beam.read(settings_file, beam_type='power')
   >>> print(beam.beam_type)
   power
   >>> print(beam.pixel_coordinate_system)
@@ -89,15 +92,9 @@ b) Reading a CST E-field beam file
 
   >>> # the same interface as for power beams, just specify beam_type = 'efield'
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read_cst_beam(settings_file, beam_type='efield')
+  >>> beam.read(settings_file, beam_type='efield')
   >>> print(beam.beam_type)
   efield
-
-  >>> # Like UVData, UVBeam has a generic `read`  method we can call.
-  >>> beam2 = UVBeam()
-  >>> beam2.read(settings_file, beam_type="efield")
-  >>> beam == beam2
-  True
 
   >>> # UVBeam also has a `from_file` class method we can call directly.
   >>> beam3 = UVBeam.from_file(settings_file, beam_type="efield")
@@ -127,13 +124,13 @@ c) Reading in the MWA full embedded element beam
   >>> beam = UVBeam()
 
   >>> mwa_beam_file = os.path.join(DATA_PATH, 'mwa_full_EE_test.h5')
-  >>> beam.read_mwa_beam(mwa_beam_file)
+  >>> beam.read(mwa_beam_file)
   >>> print(beam.beam_type)
   efield
 
   >>> delays = np.zeros((2, 16), dtype='int')
   >>> delays[:, 0] = 32
-  >>> beam.read_mwa_beam(mwa_beam_file, pixels_per_deg=1, delays=delays)
+  >>> beam.read(mwa_beam_file, pixels_per_deg=1, delays=delays)
 
 
 d) Writing a regularly gridded beam FITS file
@@ -145,7 +142,7 @@ d) Writing a regularly gridded beam FITS file
   >>> from pyuvdata.data import DATA_PATH
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read_cst_beam(settings_file, beam_type='power')
+  >>> beam.read(settings_file, beam_type='power')
   >>> write_file = os.path.join('.', 'tutorial.fits')
   >>> beam.write_beamfits(write_file, clobber=True)
 
@@ -159,7 +156,7 @@ e) Writing a HEALPix beam FITS file
   >>> from pyuvdata.data import DATA_PATH
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read_cst_beam(settings_file, beam_type='power')
+  >>> beam.read(settings_file, beam_type='power')
 
   >>> # have to specify which interpolation function to use
   >>> beam.interpolation_function = 'az_za_simple'
@@ -177,9 +174,9 @@ e) Writing a HEALPix beam FITS file
 
 UVBeam: Selecting data
 ----------------------
-The select method lets you select specific image axis indices (or pixels if
-pixel_coordinate_system is HEALPix), frequencies and feeds (or polarizations if
-beam_type is power) to keep in the object while removing others.
+The :meth:`pyuvdata.UVBeam.select` method lets you select specific image axis indices
+(or pixels if pixel_coordinate_system is HEALPix), frequencies and feeds
+(or polarizations if beam_type is power) to keep in the object while removing others.
 
 a) Selecting a range of Zenith Angles
 *************************************
@@ -192,7 +189,7 @@ a) Selecting a range of Zenith Angles
   >>> import matplotlib.pyplot as plt # doctest: +SKIP
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read_cst_beam(settings_file, beam_type='power')
+  >>> beam.read(settings_file, beam_type='power')
   >>> new_beam = beam.select(axis2_inds=np.arange(0, 20), inplace=False)
 
   >>> # plot zenith angle cut through beams
@@ -224,7 +221,7 @@ or "ee).
   >>> import pyuvdata.utils as uvutils
   >>> uvb = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> uvb.read_cst_beam(settings_file, beam_type='efield')
+  >>> uvb.read(settings_file, beam_type='efield')
 
   >>> # The feeds names can be found in the feed_array
   >>> print(uvb.feed_array)
@@ -288,11 +285,13 @@ or "ee).
   ['xx']
 
 
-UVBeam: Converting to beam types and coordinate systems
--------------------------------------------------------
+UVBeam: Interpolating to HEALPix
+--------------------------------
+Note that interpolating from one gridding format to another incurs interpolation
+errors. If the beam is going to be interpolated (e.g. to source locations) in
+downstream code we urge the user use the beam in the original format to avoid incurring
+extra interpolation errors.
 
-a) Convert a regularly gridded az_za power beam to HEALpix (leaving original intact).
-*************************************************************************************
 .. code-block:: python
 
   >>> import os
@@ -304,35 +303,7 @@ a) Convert a regularly gridded az_za power beam to HEALpix (leaving original int
   >>> from pyuvdata.data import DATA_PATH
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read_cst_beam(settings_file, beam_type='power')
-
-  >>> # have to specify which interpolation function to use
-  >>> beam.interpolation_function = 'az_za_simple'
-
-  >>> # this beam file is very large. Let's cut down the size to ease the computation
-  >>> za_max = np.deg2rad(10.0)
-  >>> za_inds_use = np.nonzero(beam.axis2_array <= za_max)[0]
-  >>> beam.select(axis2_inds=za_inds_use)
-
-  >>> hpx_beam = beam.to_healpix(inplace=False)
-  >>> hpx_obj = HEALPix(nside=hpx_beam.nside, order=hpx_beam.ordering)
-  >>> lon, lat = hpx_obj.healpix_to_lonlat(hpx_beam.pixel_array)
-  >>> plt.scatter(lon, lat, c=hpx_beam.data_array[0,0,0,0,:], norm=LogNorm()) # doctest: +SKIP
-
-b) Convert a regularly gridded az_za efield beam to HEALpix (leaving original intact).
-**************************************************************************************
-.. code-block:: python
-
-  >>> import os
-  >>> import numpy as np
-  >>> from astropy_healpix import HEALPix
-  >>> import matplotlib.pyplot as plt # doctest: +SKIP
-  >>> from matplotlib.colors import LogNorm # doctest: +SKIP
-  >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
-  >>> beam = UVBeam()
-  >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read_cst_beam(settings_file, beam_type='efield')
+  >>> beam.read(settings_file, beam_type='power')
 
   >>> # have to specify which interpolation function to use
   >>> beam.interpolation_function = 'az_za_simple'
@@ -348,7 +319,10 @@ b) Convert a regularly gridded az_za efield beam to HEALpix (leaving original in
   >>> plt.scatter(lon, lat, c=hpx_beam.data_array[0,0,0,0,:], norm=LogNorm()) # doctest: +SKIP
 
 
-c) Convert a regularly gridded efield beam to a power beam (leaving original intact).
+UVBeam: Converting from E-Field beams to Power Beams
+----------------------------------------------------
+
+a) Convert a regularly gridded efield beam to a power beam (leaving original intact).
 *************************************************************************************
 .. code-block:: python
 
@@ -359,7 +333,7 @@ c) Convert a regularly gridded efield beam to a power beam (leaving original int
   >>> from pyuvdata.data import DATA_PATH
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read_cst_beam(settings_file, beam_type='efield')
+  >>> beam.read(settings_file, beam_type='efield')
   >>> new_beam = beam.efield_to_power(inplace=False)
 
   >>> # plot zenith angle cut through the beams
@@ -371,13 +345,12 @@ c) Convert a regularly gridded efield beam to a power beam (leaving original int
   >>> plt.legend() # doctest: +SKIP
   >>> plt.show() # doctest: +SKIP
 
-d) Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
+b) Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
 **********************************************************
 .. code-block:: python
 
   >>> import os
   >>> import numpy as np
-  >>> from astropy_healpix import HEALPix
   >>> import matplotlib.pyplot as plt # doctest: +SKIP
   >>> from matplotlib.colors import LogNorm # doctest: +SKIP
   >>> from pyuvdata import UVBeam
@@ -385,7 +358,7 @@ d) Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
   >>> from pyuvdata import utils as uvutils
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read_cst_beam(settings_file, beam_type='efield')
+  >>> beam.read(settings_file, beam_type='efield')
   >>> beam.interpolation_function = 'az_za_simple'
 
   >>> # this beam file is very large. Let's cut down the size to ease the computation
@@ -393,26 +366,24 @@ d) Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
   >>> za_inds_use = np.nonzero(beam.axis2_array <= za_max)[0]
   >>> beam.select(axis2_inds=za_inds_use)
 
-  >>> pstokes_beam = beam.to_healpix(inplace=False)
-  >>> pstokes_beam.efield_to_pstokes()
-  >>> pstokes_beam.peak_normalize()
+  >>> pstokes_beam = beam.efield_to_pstokes(inplace=False)
 
   >>> # plotting pseudo-stokes I
   >>> pol_array = pstokes_beam.polarization_array
   >>> pstokes = uvutils.polstr2num('pI')
   >>> pstokes_ind = np.where(np.isin(pol_array, pstokes))[0][0]
-  >>> hpx_obj = HEALPix(nside=hpx_beam.nside, order=hpx_beam.ordering)
-  >>> lon, lat = hpx_obj.healpix_to_lonlat(hpx_beam.pixel_array)
-  >>> plt.scatter(lon, lat, c=np.abs(pstokes_beam.data_array[0, 0, pstokes_ind, 0, :]), norm=LogNorm()) # doctest: +SKIP
+  >>> azimuth, za = np.meshgrid(pstokes_beam.axis1_array, pstokes_beam.axis2_array)
+  >>> plt.scatter(azimuth, 1-za, c=np.abs(pstokes_beam.data_array[0, 0, pstokes_ind, 0, :]), norm=LogNorm()) # doctest: +SKIP
+
 
 UVBeam: Calculating beam areas
 ------------------------------
 Calculations of the beam area and beam squared area are frequently required inputs for
 Epoch of Reionization power spectrum calculations. These areas can be calculated for
-either instrumental or pseudo Stokes beams using the :meth:`~pyuvdata.UVBeam.get_beam_area`
-and :meth:`~pyuvdata.UVBeam.get_beam_sq_area` methods. Currently these methods do require
-that the beams are in Healpix coordinates (they can be converted using
-the :meth:`~pyuvdata.UVBeam.to_healpix` method).
+either instrumental or pseudo Stokes beams using the :meth:`pyuvdata.UVBeam.get_beam_area`
+and :meth:`pyuvdata.UVBeam.get_beam_sq_area` methods. Currently these methods do require
+that the beams are in Healpix coordinates in order to take advantage of equal pixel areas.
+They can be interpolated to HEALPix using the :meth:`pyuvdata.UVBeam.to_healpix` method.
 
 a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared area
 *************************************************************************************
@@ -424,7 +395,7 @@ a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared
   >>> from pyuvdata.data import DATA_PATH
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read_cst_beam(settings_file, beam_type='efield')
+  >>> beam.read(settings_file, beam_type='efield')
   >>> beam.interpolation_function = 'az_za_simple'
 
   >>> # note that the `to_healpix` method requires astropy_healpix to be installed
