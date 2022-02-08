@@ -3992,7 +3992,6 @@ class MirParser(object):
         for idx, obj1 in enumerate(obj_list):
             # If we have already disabled the warning, it means that we have already
             # detected a problem but the user set force=True.
-            print(raise_warning)
             if not raise_warning:
                 break
             else:
@@ -5124,14 +5123,468 @@ class MirParser(object):
                         # not touching the flags.
                         pass
 
-    def redoppler_data(self):
+    @staticmethod
+    def _generate_chanshift_kernel(chan_shift, kernel_type, alpha_fac=-0.5, tol=1e-3):
+        """
+        Calculate the kernel for shifting a spectrum a given number of channels.
+
+        This function will calculate the parameters required for shifting a given
+        frequency number by an arbitary amount (i.e., not necessarily an integer
+        number of channels).
+
+        chan_shift : float
+            Number of channels that the spectrum is to be shifted by, where postive
+            values indiciate that channels are moving "up" to higher index positions.
+            No default.
+        kernel_type : str
+            There are several supported interpolation schemes that can be used for
+            shifting the spectrum a given number of channels. The three supported
+            schemes are "nearest" (nearest-neighbor; choose the closest channel to the
+            one desired), "linear" (linear interpolation; interpolate between the two
+            closest channel), and "cubic" (cubic convulution; see "Cubic Convolution
+            Interpolation for Digital Image Processing" by Robert Keys for more details
+            ). Nearest neighbor is the fastest, although cubic convolution generally
+            provides the best spectral PSF.
+        alpha_fac : float
+            Only used when `kernel_type="cubic"`, adjusts the alpha parameter for
+            the cubic convolution kernel. Typical values are usually in the range of
+            -1 to -0.5, the latter of which is the default value due to the compactness
+            of the PSF using this kernel.
+        tol : float
+            If the desired frequency shift is close enough to an interger number of
+            channels, then the method will forgo any attempt and interpolation and
+            will simply return the nearest channel desired. The tolerance for choosing
+            this behavior is given by this parameter, in units of number of channels.
+            The default is 1e-3, which means that if the desired shift is within one
+            one-thousandth of an existing channel, the method will (for the frequency
+            window in question) the nearest-neighbor interpolation scheme. Must be
+            in the range [0, 0.5].
+
+        Returns
+        -------
+        coarse_shift : int
+            The "coarse" interpolation, which is the number of whole channels to shift
+            the spectrum by (in addition to the "fine" interpolation).
+        kernel_size : int
+            For the "fine" (i.e., subsample) interpolation, the size of the smoothing
+            kernel, which depends on `kernel_type` (0 for "nearest", 2 for "linear" and
+            4 for "cubic").
+        shift_kernel : ndarray
+            For the "fine" (i.e., subsample) interpolation, the smoothing kernel used
+            convolve with the array to produce the interpolated samples. Shape is
+            `(kernel_size)`, of dtype float32.
+
+        Raises
+        ------
+        ValueError
+            If tol is outside of the range [0, 0.5], or if kernel_type does not match
+            the list of supported values.
+        """
+        if (tol < 0) or (tol > 0.5):
+            raise ValueError("tol must be in the range [0, 0.5].")
+
+        coarse_shift = np.floor(chan_shift).astype(int)
+        fine_shift = chan_shift - coarse_shift
+
+        if (fine_shift < tol) or (fine_shift > (1 - tol)):
+            coarse_shift += fine_shift > tol
+            fine_shift = 0
+
+        if kernel_type == "nearest" or (fine_shift == 0):
+            # If only doing a coarse shift, or if otherwise specified, we can default
+            # to the nearest neighbor, which does not actually require convolution
+            # to complete (hence why the kernel size is zero and the kernel itself
+            # is just None).
+            shift_tuple = (coarse_shift + (fine_shift >= 0.5), 0, None)
+        elif kernel_type == "linear":
+            # Linear operation is pretty easy.
+            shift_tuple = (
+                coarse_shift,
+                2,
+                np.array([1 - fine_shift, fine_shift], dtype=np.float32,),
+            )
+        elif kernel_type == "cubic":
+            # Cubic convolution is a bit more complicated, and the exact value
+            # depends on this tuning parameter alpha, which from the literature
+            # is optimal in the range [-1, -0.5] (although other values can be used).
+            # Note that this formula comes from "Cubic Convolution Interpolation for
+            # Digital Image Processing" by Robert Keys, IEEE Trans. VOL ASSP-29 #6
+            # (Dec 1981).
+            shift_tuple = (
+                coarse_shift,
+                4,
+                np.array(
+                    [
+                        (alpha_fac * ((2 - fine_shift) ** 3))  # 2-left entry
+                        - (5 * alpha_fac * ((2 - fine_shift) ** 2))
+                        + (8 * alpha_fac * (2 - fine_shift))
+                        - (4 * alpha_fac),
+                        ((alpha_fac + 2) * ((1 - fine_shift) ** 3))  # 1-left entry
+                        - ((alpha_fac + 3) * ((1 - fine_shift) ** 2))
+                        + 1,
+                        ((alpha_fac + 2) * (fine_shift ** 3))  # 1-right entry
+                        - ((alpha_fac + 3) * (fine_shift ** 2))
+                        + 1,
+                        (alpha_fac * ((1 + fine_shift) ** 3))  # 2-right entry
+                        - (5 * alpha_fac * ((1 + fine_shift) ** 2))
+                        + (8 * alpha_fac * (1 + fine_shift))
+                        - (4 * alpha_fac),
+                    ],
+                    dtype=np.float32,
+                ),
+            )
+        else:
+            raise ValueError(
+                'Kernel type of "%s" not recognized, must be either "nearest", '
+                '"linear" or "cubic"' % kernel_type
+            )
+
+        return shift_tuple
+
+    @staticmethod
+    def _chanshift_vis(vis_dict, shift_tuple_list, flag_adj=True, inplace=False):
+        """
+        Frequency shift (i.e., "redoppler") visibility data.
+
+        Parameters
+        ----------
+        vis_dict : dict
+            A dictionary in the format of `vis_data`, where the keys are matched to
+            individual values of sphid in `sp_data`, and each entry comtains a dict
+            with two items: "vis_data", an array of np.complex64 containing the
+            visibilities, and "vis_flags", an array of bool containing the per-channel
+            flags of the spectrum (both are of length equal to `sp_data["nch"]` for the
+            corresponding value of sphid).
+        shift_tuple_list : list of tuples
+            List of the same length as `vis_dict`, each entry of which contains a three
+            element tuple matching the output of `_generate_doppler_kernel`. The first
+            entry is the whole number of channels the spectrum must be shifted by, the
+            second entry is the size of the smoothing kernel for performing the "fine"
+            (i.e., subsample) interpolation, and the third element is the smoothing
+            kernel itself.
+        flag_adj : bool
+            Option to flag channels adjacent to those that are flagged, the number of
+            which depends on the interpolation scheme (1 additional channel with linear
+            interpolation, and 3 additional channels with cubic convolution). Set to
+            True by default, which prevents the window from having an inconsistent
+            spectral PSF across the band.
+        inplace : bool
+            If True, entries in `vis_dict` will be updated with spectrally averaged
+            data. If False (default), then the method will construct a new dict that
+            will contain the spectrally averaged data.
+
+        Returns
+        -------
+        new_vis_dict : dict
+            A dict containing the spectrally averaged data, in the same format as
+            that provided in `vis_dict`.
+        """
+        new_vis_dict = vis_dict if inplace else {}
+
+        for (coarse_shift, kernel_size, shift_kernel), (sphid, sp_vis) in zip(
+            shift_tuple_list, vis_dict.items()
+        ):
+            # If there is no channel shift, and no convolution kernel, then there is
+            # literally nothing else left to do.
+            if (coarse_shift, kernel_size, shift_kernel) == (0, 0, None):
+                # There is literally nothing to do here
+                if not inplace:
+                    new_vis_dict[sphid] = copy.deepcopy(sp_vis)
+                continue
+
+            new_vis = np.empty_like(sp_vis["vis_data"])
+
+            if shift_kernel is None:
+                # If the shift kernal is None, it means that we only have a coarse
+                # channel shift to worry about, which means we can bypass the whole
+                # convolution step (and save on a fair bit of processing time).
+                new_flags = np.empty_like(sp_vis["vis_flags"])
+
+                # The indexing is a little different depending on the direction of
+                # the shift, hence the if statement here.
+                if coarse_shift < 0:
+                    new_vis[:coarse_shift] = sp_vis["vis_data"][-coarse_shift:]
+                    new_flags[:coarse_shift] = sp_vis["vis_flags"][-coarse_shift:]
+                    new_vis[coarse_shift:] = 0.0
+                    new_flags[coarse_shift:] = True
+                else:
+                    new_vis[coarse_shift:] = sp_vis["vis_data"][:-coarse_shift]
+                    new_flags[coarse_shift:] = sp_vis["vis_flags"][:-coarse_shift]
+                    new_vis[:coarse_shift] = 0.0
+                    new_flags[:coarse_shift] = True
+            else:
+                # If we have to execute a convolution, then the indexing is a bit more
+                # complicated. We use the "valid" option for convolve below, which will
+                # drop (kernal_size - 1) elements from the array, where the number of
+                # elements dropped on the left side is 1 more than it is on the right.
+                l_edge = (kernel_size // 2) + coarse_shift
+                r_edge = (1 - (kernel_size // 2)) + coarse_shift
+
+                # These clip values here are used to clip the original array to both
+                # make sure that the size matches, and to avoid doing any unneccessary
+                # work during the convolve for entries that will never get used.
+                l_clip = r_clip = None
+
+                # If l_edge falls past the "leftmost" index (i.e., 0), then we "cut"
+                # the main array to make it fit.
+                if l_edge < 0:
+                    l_clip = -l_edge
+                    l_edge = 0
+                # Same thing on the right side. Note we have to use len(new_vis) here
+                # because the slice won't work correctly if this value is 0.
+                if r_edge >= 0:
+                    r_clip = len(new_vis) - r_edge
+                    r_edge = len(new_vis)
+
+                # Grab a copy of the array to manipulate, and plug flagging values into
+                temp_vis = sp_vis["vis_data"][l_clip:r_clip].copy()
+                temp_vis[sp_vis["vis_flags"][l_clip:r_clip]] = (
+                    np.complex64(np.nan) if flag_adj else np.complex64(0.0)
+                )
+
+                # For some reason, it's about 5x faster to split this up into real
+                # and imaginary operations. The use of "valid" also speeds this up
+                # another 10-20% (no need to pad the arrays with extra zeros).
+                new_vis.real[l_edge:r_edge] = np.convolve(
+                    temp_vis.real, shift_kernel, "valid"
+                )
+                new_vis.imag[l_edge:r_edge] = np.convolve(
+                    temp_vis.imag, shift_kernel, "valid"
+                )
+
+                # Flag out the values beyond the outer bounds
+                new_vis[:l_edge] = new_vis[r_edge:] = (
+                    np.complex64(np.nan) if flag_adj else np.complex64(0.0)
+                )
+
+                # Finally, regenerate the flags array for the dict entry.
+                if flag_adj:
+                    new_flags = np.isnan(new_vis)
+                    new_vis[new_flags] = 0.0
+                else:
+                    new_flags = np.zeros_like(sp_vis["vis_flags"])
+                    new_flags[:l_edge] = new_flags[r_edge:] = True
+            # Update our dict with the new values for this sphid
+            new_vis_dict[sphid] = {"vis_data": new_vis, "vis_flags": new_flags}
+
+        return new_vis_dict
+
+    @staticmethod
+    def _chanshift_raw(
+        raw_dict, shift_tuple_list, flag_adj=True, inplace=False, return_vis=False
+    ):
+        """
+        Frequency shift (i.e., "redoppler") raw data.
+
+        Parameters
+        ----------
+        raw_dict : dict
+            A dictionary in the format of `raw_data`, where the keys are matched to
+            individual values of sphid in `sp_data`, and each entry comtains a dict
+            with two items: "scale_fac", and np.int16 which describes the common
+            exponent for the spectrum, and "raw_data", an array of np.int16 (of length
+            equal to twice that found in `sp_data["nch"]` for the corresponding value
+            of sphid) containing the compressed visibilities.  Note that entries equal
+            to -32768 aren't possible with the compression scheme used for MIR, and so
+            this value is used to mark flags.
+        shift_tuple_list : list of tuples
+            List of the same length as `vis_dict`, each entry of which contains a three
+            element tuple matching the output of `_generate_doppler_kernel`. The first
+            entry is the whole number of channels the spectrum must be shifted by, the
+            second entry is the size of the smoothing kernel for performing the "fine"
+            (i.e., subsample) interpolation, and the third element is the smoothing
+            kernel itself.
+        flag_adj : bool
+            Option to flag channels adjacent to those that are flagged, the number of
+            which depends on the interpolation scheme (1 additional channel with linear
+            interpolation, and 3 additional channels with cubic convolution). Set to
+            True by default, which prevents the window from having an inconsistent
+            spectral PSF across the band.
+        inplace : bool
+            If True, entries in `raw_dict` will be updated with spectrally averaged
+            data. If False (default), then the method will construct a new dict that
+            will contain the spectrally averaged data.
+        return_vis : bool
+            If True, return data in the "normal" visibility format, where each
+            spectral record has a key of "sphid" and a value being a dict of
+            "vis_data" (the visibility data, dtype=np.complex64) and "vis_flags"
+            (the flagging inforformation, dtype=bool). This option is ignored if
+            `inplace=True`.
+
+        Returns
+        -------
+        data_dict : dict
+            A dict containing the spectrally averaged data, in the same format as
+            that provided in `raw_dict` (unless `return_vis=True`).
+        """
+        # If inplace, point our new dict to the old one, otherwise create
+        # an ampty dict to plug values into.
+        data_dict = raw_dict if inplace else {}
+        return_vis = (not inplace) and return_vis
+
+        for shift_tuple, (sphid, sp_raw) in zip(shift_tuple_list, raw_dict.items()):
+            # If we are not actually shifting the data (which is what the tuple
+            # (0,0,0,None) signifies), then we can bypass most of the rest of the
+            # code and simply return a copy of the data if needed.
+            if shift_tuple == (0, 0, None):
+                if not inplace:
+                    data_dict[sphid] = (
+                        MirParser.convert_raw_to_vis({0: sp_raw})[0]
+                        if return_vis
+                        else copy.deepcopy(sp_raw)
+                    )
+                continue
+
+            # If we are _not_ skipping the spectral averaging, then it turns out to
+            # be faster to convert the raw data to "regular" data, doppler-shift it,
+            # and then convert it back to the raw format. Note that we set up a
+            # "dummy" dict here with an sphid of 0 to make it easy to retrieve that
+            # entry after the sequence of calls.
+            if return_vis:
+                data_dict[sphid] = MirParser._chanshift_vis(
+                    MirParser.convert_raw_to_vis({0: sp_raw}),
+                    [shift_tuple],
+                    flag_adj=flag_adj,
+                    inplace=False,
+                )[0]
+            else:
+                data_dict[sphid] = MirParser.convert_vis_to_raw(
+                    MirParser._chanshift_vis(
+                        MirParser.convert_raw_to_vis({0: sp_raw}),
+                        [shift_tuple],
+                        flag_adj=flag_adj,
+                        inplace=False,
+                    )
+                )[0]
+
+        # Finally, return the dict containing the raw data.
+        return data_dict
+
+    def redoppler_data(
+        self,
+        freq_shift=None,
+        kernel_type="cubic",
+        tol=1e-3,
+        flag_adj=True,
+        fix_freq=None,
+    ):
         """
         Re-doppler the data.
 
         Note that this function may be moved out into utils module once UVData objects
-        are capable of carrying Doppler tracking-related information. Also, this
-        function is stubbed out for now awaiting an upstream fix to the MIR data
-        structure.
+        are capable of carrying Doppler tracking-related information.
+
+        Parameters
+        ----------
+        freq_shift : ndarray
+            Amount to shift each spectral window by in frequency space. Shape is the
+            same as the attribute `sp_data`, of dtype float32, in units of GHz. If no
+            argument is provided (or if set to None), then the method will assume you
+            want to redoppler to the topocentric rest frame, using the information
+            stored in the MirParser object. Note that if supplying a value `delta_nu`,
+            the center of the spectra will be shifted to `old_center + delta_nu`.
+        kernel_type : str
+            The `redoppler_data` method allows for several interpolation schemes for
+            adjusting the frequencies of the individual channels. The three supported
+            schemes are "nearest" (nearest-neighbor; choose the closest channel to the
+            one desired), "linear" (linear interpolation; interpolate between the two
+            closest channel), and "cubic" (cubic convulution; see "Cubic Convolution
+            Interpolation for Digital Image Processing" by Robert Keys for more details
+            ). Nearest neighbor is the fastest, although cubic convolution generally
+            provides the best spectral PSF.
+        tol : float
+            If the desired frequency shift is close enough to an interger number of
+            channels, then the method will forgo any attempt and interpolation and
+            will simply return the nearest channel desired. The tolerance for choosing
+            this behavior is given by this parameter, in units of number of channels.
+            The default is 1e-3, which means that if the desired shift is within one
+            one-thousandth of an existing channel, the method will (for the frequency
+            window in question) the nearest-neighbor interpolation scheme.
+        flag_adj : bool
+            Option to flag channels adjacent to those that are flagged, the number of
+            which depends on the interpolation scheme (1 additional channel with linear
+            interpolation, and 3 additional channels with cubic convolution). Set to
+            True by default, which prevents the window from having an inconsistent
+            spectral PSF across the band.
+        fix_freq : bool
+            Only used if `freq_shift` is left unset (or otherwise set to None). Some
+            versions of MIR data have frequency information incorrectly stored. If set
+            to True, this metadata will be fixed before doppler-shifting the data. By
+            default, the method will apply this correction if the version of the MIR
+            data format is known to have the defective metadata.
+
+        Raises
+        ------
+        ValueError
+            If tol is outside of the range [0, 0.5], or if kernel_type does not match
+            the list of supported values. Also if providing no argument to freq_shift,
+            but doppler-tracking information cannot be determined (either because
+            it's the wrong file version or because the receiver code isn't recognized).
         """
-        # TODO redoppler_data: Make this work
-        raise NotImplementedError("redoppler_data has not yet been implemented.")
+        if freq_shift is None:
+            if self.codes_dict["filever"] in ("2", "3"):
+                raise ValueError(
+                    "MIR file format < v4.0 detected, no doppler tracking information "
+                    "is stored in the file headers."
+                )
+            # Grab the metadata from the sp data structure, flipping the sign since
+            # we want to shift the spectrum back to the listed sky frequency.
+            freq_shift = -self.sp_data["fDDS"]
+
+            # If we need to "fix" the values, do it now.
+            if (fix_freq is None and (self.codes_dict["filever"] == "4")) or fix_freq:
+                # Figure out which receiver this is.
+                rx_code = np.median(self.bl_data["irec"][self.bl_data["ant1rx"] == 0])
+                rx_name = self.codes_dict["rec"][rx_code][0]
+                if rx_name not in ("230", "345"):
+                    raise ValueError("Receiver code %i not recognized." % rx_code)
+
+                freq_shift *= 2 if (rx_name == "230") else 3
+                # We have to do a bit of special handling for the so-called "RxB"
+                # data, which doesn't actually have the fDDS values stored. The correct
+                # value though just turns out to be the the RxA value multipled by
+                # the ratio of the two gunn frequencies.
+                rxa_blhids = self.bl_data["blhid"][
+                    (self.bl_data["ant1rx"] == 0) & (self.bl_data["ant2rx"] == 0)
+                ]
+                rxb_blhids = self.bl_data["blhid"][
+                    (self.bl_data["ant1rx"] == 1) & (self.bl_data["ant2rx"] == 1)
+                ]
+                sp_rxa = np.isin(self.sp_data["blhid"], rxa_blhids)
+                sp_rxb = np.isin(self.sp_data["blhid"], rxb_blhids)
+                freq_scale = np.median(self.sp_data["gunnLO"][sp_rxb]) / np.median(
+                    self.sp_data["gunnLO"][sp_rxa]
+                )
+                freq_shift[sp_rxb] *= freq_scale
+
+                # Finally, we want to just ignore the pseudo-cont values
+                freq_shift[self.sp_data["corrchunk"] == 0] = 0.0
+
+        # Convert frequency shift into number of channels to shift. Note that the
+        # negative sign here is to flip conventions (i.e., shifting "up" the center of
+        # the band requires shifting "down" by a certain number of frequency channels).
+        chan_shift_arr = -freq_shift / (self.sp_data["fres"] / 1000)
+
+        # We need to generate a set of tuples, which will be used by the lower level
+        # re-doppler routines for figuring out
+        shift_dict = {}
+        shift_tuple_list = []
+        for chan_shift in chan_shift_arr:
+            try:
+                shift_tuple_list.append(shift_dict[chan_shift])
+            except KeyError:
+                shift_tuple = self._generate_chanshift_kernel(
+                    chan_shift, kernel_type, tol=tol
+                )
+                shift_dict[chan_shift] = shift_tuple
+                shift_tuple_list.append(shift_tuple)
+
+        # Okay, now we have all of the metadata, so do the thing.
+        if self._raw_data_loaded:
+            self.raw_data = self._chanshift_raw(
+                self.raw_data, shift_tuple_list, inplace=True, flag_adj=flag_adj
+            )
+        if self._vis_data_loaded:
+            self.vis_data = self._chanshift_vis(
+                self.vis_data, shift_tuple_list, inplace=True, flag_adj=flag_adj
+            )
