@@ -10253,7 +10253,6 @@ class UVData(UVBase):
         self,
         filelist,
         use_model=False,
-        axis=None,
         read_data=True,
         background_lsts=True,
         run_check=True,
@@ -10276,13 +10275,6 @@ class UVData(UVBase):
             Option to read in the model visibilities rather than the dirty
             visibilities (the default is False, meaning the dirty visibilities
             will be read).
-        axis : str
-            Axis to concatenate files along. This enables fast concatenation
-            along the specified axis without the normal checking that all other
-            metadata agrees. This method does not guarantee correct resulting
-            objects. Please see the docstring for fast_concat for details.
-            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-            multiple data sets are passed.
         read_data : bool
             Read in the visibility, nsample and flag data. If set to False, only
             the metadata will be read in. Setting read_data to False results in
@@ -10435,7 +10427,6 @@ class UVData(UVBase):
     def read_miriad(
         self,
         filepath,
-        axis=None,
         antenna_nums=None,
         ant_str=None,
         bls=None,
@@ -10462,13 +10453,6 @@ class UVData(UVBase):
         ----------
         filepath : str
             The miriad root directory to read from.
-        axis : str
-            Axis to concatenate files along. This enables fast concatenation
-            along the specified axis without the normal checking that all other
-            metadata agrees. This method does not guarantee correct resulting
-            objects. Please see the docstring for fast_concat for details.
-            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-            multiple files are passed.
         antenna_nums : array_like of int, optional
             The antennas numbers to read into the object.
         bls : list of tuple, optional
@@ -10594,7 +10578,6 @@ class UVData(UVBase):
     def read_ms(
         self,
         filepath,
-        axis=None,
         data_column="DATA",
         pol_order="AIPS",
         background_lsts=True,
@@ -10616,13 +10599,6 @@ class UVData(UVBase):
         ----------
         filepath : str
             The measurement set root directory to read from.
-        axis : str
-            Axis to concatenate files along. This enables fast concatenation
-            along the specified axis without the normal checking that all other
-            metadata agrees. This method does not guarantee correct resulting
-            objects. Please see the docstring for fast_concat for details.
-            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-            multiple files are passed.
         data_column : str
             name of CASA data column to read into data_array. Options are:
             'DATA', 'MODEL', or 'CORRECTED_DATA'
@@ -10720,7 +10696,6 @@ class UVData(UVBase):
     def read_mwa_corr_fits(
         self,
         filelist,
-        axis=None,
         use_aoflagger_flags=None,
         use_cotter_flags=None,
         remove_dig_gains=True,
@@ -10764,13 +10739,6 @@ class UVData(UVBase):
         filelist : list of str
             The list of MWA correlator files to read from. Must include at
             least one fits file and only one metafits file per data set.
-        axis : str
-            Axis to concatenate files along. This enables fast concatenation
-            along the specified axis without the normal checking that all other
-            metadata agrees. This method does not guarantee correct resulting
-            objects. Please see the docstring for fast_concat for details.
-            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-            multiple files are passed.
         use_aoflagger_flags : bool
             Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
             flag files are submitted.
@@ -10936,7 +10904,6 @@ class UVData(UVBase):
     def read_uvfits(
         self,
         filename,
-        axis=None,
         antenna_nums=None,
         antenna_names=None,
         ant_str=None,
@@ -10968,13 +10935,6 @@ class UVData(UVBase):
         ----------
         filename : str
             The uvfits file to read from.
-        axis : str
-            Axis to concatenate files along. This enables fast concatenation
-            along the specified axis without the normal checking that all other
-            metadata agrees. This method does not guarantee correct resulting
-            objects. Please see the docstring for fast_concat for details.
-            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-            multiple files are passed.
         antenna_nums : array_like of int, optional
             The antennas numbers to include when reading data into the object
             (antenna positions and names for the removed antennas will be retained
@@ -11134,7 +11094,6 @@ class UVData(UVBase):
     def read_uvh5(
         self,
         filename,
-        axis=None,
         antenna_nums=None,
         antenna_names=None,
         ant_str=None,
@@ -11168,13 +11127,6 @@ class UVData(UVBase):
         ----------
         filename : str
              The UVH5 file to read from.
-        axis : str
-            Axis to concatenate files along. This enables fast concatenation
-            along the specified axis without the normal checking that all other
-            metadata agrees. This method does not guarantee correct resulting
-            objects. Please see the docstring for fast_concat for details.
-            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-            multiple files are passed.
         antenna_nums : array_like of int, optional
             The antennas numbers to include when reading data into the object
             (antenna positions and names for the removed antennas will be retained
