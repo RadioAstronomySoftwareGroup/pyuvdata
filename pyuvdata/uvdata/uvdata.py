@@ -11703,6 +11703,12 @@ class UVData(UVBase):
             attribute to define the polarization per spectral window. Only applicable
             for MIR and MS filetypes, otherwise this argument is ignored. Default is
             True.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is True.
 
         Raises
         ------
@@ -11714,12 +11720,6 @@ class UVData(UVBase):
             If the data are multi source or have multiple
             spectral windows.
             If phase_center_radec is not None and is not length 2.
-        check_autos : bool
-            Check whether any auto-correlations have non-zero imaginary values in
-            data_array (which should not mathematically exist). Default is True.
-        fix_autos : bool
-            If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is True.
 
         """
         if isinstance(filename, (list, tuple, np.ndarray)):

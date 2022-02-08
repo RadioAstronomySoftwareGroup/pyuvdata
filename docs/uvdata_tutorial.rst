@@ -83,8 +83,8 @@ that code that calls it will continue to function.
 UVData: File conversion
 -----------------------
 Converting between tested data formats.
-Note that it is possible to create a new ``UVData`` object
-with the class method ``from_file`` as well.
+Note that it is possible to create a new :class:`pyuvdata.UVData` object
+with the class method :meth:`pyuvdata.UVData.from_file` as well.
 
 a) miriad -> uvfits
 *******************
@@ -311,10 +311,12 @@ A small suite of functions are available to quickly access the underlying numpy
 arrays of data, flags, and nsamples. Although the user can perform this indexing
 by hand, several convenience functions exist to easily extract specific subsets
 corresponding to antenna-pair and/or polarization combinations. There are three
-specific methods that will return numpy arrays: ``get_data``, ``get_flags``, and
-``get_nsamples``. When possible, these methods will return numpy MemoryView
+specific methods that will return numpy arrays: :meth:`pyuvdata.UVData.get_data`,
+:meth:`pyuvdata.UVData.get_flags`, and :meth:`pyuvdata.UVData.get_nsamples`.
+When possible, these methods will return numpy MemoryView
 objects, which is relatively fast and adds minimal memory overhead. There are
-also corresponding methods ``set_data``, ``set_flags``, and ``set_nsamples``
+also corresponding methods :meth:`pyuvdata.UVData.set_data`,
+:meth:`pyuvdata.UVData.set_flags`, and :meth:`pyuvdata.UVData.set_nsamples`
 which will overwrite sections of these datasets with user-provided data.
 
 a) Data for single antenna pair / polarization combination.
@@ -398,8 +400,9 @@ d) Data for single polarization, all baselines.
 e) Update data arrays in place for UVData
 *****************************************
 There are methods on UVData objects which allow for updating the data, flags, or
-nsamples arrays in place. We show how to use the `set_data` method below, and
-note there are analogous `set_flags` and `set_nsamples` arrays.
+nsamples arrays in place. We show how to use the :meth:`pyuvdata.UVData.set_data`
+method below, and note there are analogous :meth:`pyuvdata.UVData.set_flags`
+and :meth:`pyuvdata.UVData.set_nsamples` methods.
 .. code-block:: python
 
   >>> import os
@@ -583,14 +586,16 @@ pyuvdata has methods to average (downsample) in time and frequency and also to
 upsample in time (useful to get all baselines on the shortest time integration
 for a data set that has had baseline dependent time averaging applied).
 
-Use the ``downsample_in_time``, ``upsample_in_time`` and ``resample_in_time`` methods to
-average (downsample) and upsample in time or to do both at once on data
+Use the :meth:`pyuvdata.UVData.downsample_in_time`,
+:meth:`pyuvdata.UVData.upsample_in_time` and :meth:`pyuvdata.UVData.resample_in_time`
+methods to average (downsample) and upsample in time or to do both at once on data
 that have had baseline dependent averaging (BDA) applied to put all the baselines
 on the same time integrations. Resampling in time is done on phased data by default,
 drift mode data are phased, resampled, and then unphased. Set ``allow_drift=True``
 to do resampling without phasing.
 
-Use the ``frequency_average`` method to average along the frequency axis.
+Use the :meth:`pyuvdata.UVData.frequency_average` method to average along the frequency
+axis.
 
 a) Averaging (Downsampling) in time
 ***********************************
@@ -775,14 +780,13 @@ a) Getting antenna positions in topocentric frame in units of meters
 
 UVData: Selecting data
 ----------------------
-The select method lets you select specific antennas (by number or name),
+The :meth:`pyuvdata.UVData.select` method lets you select specific antennas (by number or name),
 antenna pairs, frequencies (in Hz or by channel number), times (or time range),
 local sidereal time (LST) (or LST range), or polarizations to keep in the object
 while removing others.
 
-Note: The same select interface is now supported on the read for uvfits, uvh5
-and miriad files (see :ref:`large_files`), so you need not
-read in the entire file before doing the select.
+Note: The same select interface is now supported on the read for many file types
+(see :ref:`large_files`), so you need not read in the entire file before doing the select.
 
 a) Select 3 antennas to keep using the antenna number.
 ******************************************************
@@ -953,8 +957,8 @@ the physical orientation of the dipole can also be used (e.g. "nn" or "ee).
 f) Select antenna pairs and polarizations using ant_str argument
 ****************************************************************
 
-Basic options are 'auto', 'cross', or 'all'. 'auto' returns just the
-autocorrelations (all pols), while 'cross' returns just the cross-correlations
+Basic options are "auto", "cross", or "all". "auto" returns just the
+autocorrelations (all pols), while "cross" returns just the cross-correlations
 (all pols).  The ant_str can also contain:
 
 1. Individual antenna number(s):
@@ -1162,7 +1166,7 @@ h) Select data and return new object (leaving original intact).
 
 UVData: Combining and concatenating data
 ----------------------------------------
-The :meth:`~pyuvdata.UVData.__add__` method lets you combine UVData objects along
+The :meth:`pyuvdata.UVData.__add__` method lets you combine UVData objects along
 the baseline-time, frequency, and/or polarization axis.
 
 a) Combine frequencies.
@@ -1234,7 +1238,7 @@ directly without creating a third uvdata object.
 
 d) Reading multiple files.
 **************************
-If the ``read`` method is given a list of files
+If the :meth:`pyuvdata.UVData.read` method is given a list of files
 (or list of lists for FHD or MWA correlator files), each file will be read in succession
 and combined with the previous file(s).
 
@@ -1259,8 +1263,9 @@ and combined with the previous file(s).
 
 e) Fast concatenation
 *********************
-As an alternative to the ``__add__`` operation, the ``fast_concat`` method can
-be used. The user specifies a UVData object to combine with the existing one,
+As an alternative to the :meth:`pyuvdata.UVData.__add__` method,
+the :meth:`pyuvdata.UVData.fast_concat` method can be used.
+The user specifies a UVData object to combine with the existing one,
 along with the axis along which they should be combined. Fast concatenation can
 be invoked implicitly when reading in multiple files as above by passing the
 ``axis`` keyword argument. This will use the ``fast_concat`` method instead of
@@ -1274,8 +1279,9 @@ data will also *not* be reordered or sorted as part of the concatenation, and so
 this must be done manually by the user if a reordering is desired
 (see :ref:`sorting_data`).
 
-The ``fast_concat`` method is significantly faster than ``__add__``, especially
-for large UVData objects. Preliminary benchmarking shows that reading in
+The :meth:`pyuvdata.UVData.fast_concat` method is significantly faster than
+:meth:`pyuvdata.UVData.__add__`, especially for large UVData objects.
+Preliminary benchmarking shows that reading in
 time-ordered visibilities from disk using the ``axis`` keyword argument can
 improve throughput by nearly an order of magnitude for 100 HERA data files
 stored in the uvh5 format.
@@ -1302,8 +1308,8 @@ stored in the uvh5 format.
 
 UVData: Summing and differencing visibilities
 ---------------------------------------------
-Simple summing and differencing of visibilities can be done with the ``sum_vis``
-and ``diff_vis`` methods.
+Simple summing and differencing of visibilities can be done with the :meth:`pyuvdata.UVData.sum_vis`
+and :meth:`pyuvdata.UVData.diff_vis` methods.
 
 .. code-block:: python
 
@@ -1369,9 +1375,9 @@ Measurement set (ms) files do not support reading only the metadata
 
 b) Reading only parts of uvfits, uvh5 or miriad data
 ****************************************************
-The same options that are available for the select function can also be passed to
-the read method to do the select on the read, saving memory and time if only a
-portion of the data are needed.
+The same options that are available for the :meth:`pyuvdata.UVData.select` method can
+also be passed to the :meth:`pyuvdata.UVData.read`` method to do the select on the read,
+saving memory and time if only a portion of the data are needed.
 
 Note that these keywords can be used for any file type, but for FHD,
 MWA correlator FITS files, and
@@ -1475,7 +1481,7 @@ support comparisons between UVData objects and software access patterns.
 a) Conjugating baselines
 ************************
 
-The :meth:`~pyuvdata.UVData.conjugate_bls` method will conjugate baselines to conform to
+The :meth:`pyuvdata.UVData.conjugate_bls` method will conjugate baselines to conform to
 various conventions (``'ant1<ant2'``, ``'ant2<ant1'``, ``'u<0'``, ``'u>0'``, ``'v<0'``,
 ``'v>0'``) or it can just conjugate a set of specific baseline-time indices.
 
@@ -1499,7 +1505,7 @@ various conventions (``'ant1<ant2'``, ``'ant2<ant1'``, ``'u<0'``, ``'u>0'``, ``'
 b) Sorting along the baseline-time axis
 ***************************************
 
-The :meth:`~pyuvdata.UVData.reorder_blts` method will reorder the baseline-time axis by
+The :meth:`pyuvdata.UVData.reorder_blts` method will reorder the baseline-time axis by
 sorting by ``'time'``, ``'baseline'``, ``'ant1'`` or ``'ant2'`` or according to an order
 preferred for data that have baseline dependent averaging ``'bda'``. A user can also
 just specify a desired order by passing an array of baseline-time indices. There is also
@@ -1587,7 +1593,7 @@ number or in an order specified by passing an array of spectral window or channe
 c) Sorting along the polarization axis
 **************************************
 
-The :meth:`~pyuvdata.UVData.reorder_pols` method will reorder the polarization axis
+The :meth:`pyuvdata.UVData.reorder_pols` method will reorder the polarization axis
 either following the ``'AIPS'`` or ``'CASA'`` convention, or by an explicit index
 ordering set by the user.
 
@@ -1612,7 +1618,7 @@ UVData: Working with Redundant Baselines
 
 a) Finding Redundant Baselines
 ******************************
-The method :meth:`~pyuvdata.UVData.get_redundancies` provides options for finding
+The method :meth:`pyuvdata.UVData.get_redundancies` provides options for finding
 redundant groups of baselines in an array, either by antenna positions or uvw
 coordinates. Baselines are considered redundant if they are within a specified tolerance
 distance (default is 1 meter).
@@ -1634,11 +1640,11 @@ object (except for antenna pairs with no associated data).
 
 There are also utility functions to get redundant groups from either a list of baselines
 vectors and corresponding baseline indices
-(:func:`~pyuvdata.utils.get_baseline_redundancies`)
+(:func:`pyuvdata.utils.get_baseline_redundancies`)
 or antenna positions and antenna indices
-(:func:`~pyuvdata.utils.get_antenna_redundancies`). Note that using these utility
+(:func:`pyuvdata.utils.get_antenna_redundancies`). Note that using these utility
 functions for the baselines on an object is less memory efficient than using
-:meth:`~pyuvdata.UVData.get_redundancies` because the latter only uses the first time in
+:meth:`pyuvdata.UVData.get_redundancies` because the latter only uses the first time in
 the baseline array.
 
 
@@ -1682,7 +1688,7 @@ b) Compressing/inflating on Redundant Baselines
 ***********************************************
 Since redundant baselines should have similar visibilities, some level of data
 compression can be achieved by only keeping one out of a set of redundant baselines.
-The :meth:`~pyuvdata.UVData.compress_by_redundancy` method will find groups of baselines that are
+The :meth:`pyuvdata.UVData.compress_by_redundancy` method will find groups of baselines that are
 redundant to a given tolerance and either average over them or select a single
 baseline from the redundant group. If the data are identical between redundant
 baselines (e.g. if they are from a noiseless simulation) the "select" method
@@ -1691,7 +1697,7 @@ are combined with a weighted average using the ``nsample_array`` as weights
 and the final ``nsample_array`` will be a sum of the ``nsample_array`` of the
 combined baselines (so it can be larger than 1).
 
-This action is (almost) inverted by the :meth:`~pyuvdata.UVData.inflate_by_redundancy`
+This action is (almost) inverted by the :meth:`pyuvdata.UVData.inflate_by_redundancy`
 method, which finds all possible baselines from the antenna positions and fills
 in the full data array based on redundancy.
 
