@@ -177,7 +177,7 @@ jobs:
           command: |
             source activate ${ENV_NAME}
             cd docs
-            python -m pytest -n auto --doctest-glob="*.rst"
+            python -m pytest -n 2 --doctest-glob="*.rst"
             cd ..
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
