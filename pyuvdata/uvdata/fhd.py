@@ -6,7 +6,7 @@
 import os
 import numpy as np
 import warnings
-from scipy.io.idl import readsav
+from scipy.io import readsav
 from astropy import constants as const
 
 from .uvdata import UVData
