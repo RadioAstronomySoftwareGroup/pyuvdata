@@ -109,9 +109,9 @@ test_reqs = (
     + novas_reqs
     + cst_reqs
     + [
-        "pytest>=6.2,<7.0",
+        "pytest>=6.2",
         "pytest-xdist",
-        "pytest-cases>=3",
+        "pytest-cases>=3.6.9",
         "pytest-cov",
         "cython",
         "coverage",

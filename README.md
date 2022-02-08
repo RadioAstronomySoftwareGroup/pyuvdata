@@ -202,8 +202,8 @@ To compile the binary extension modules such that you can successfully run
 If you want to do development on pyuvdata, in addition to the other dependencies
 you will need the following packages:
 
-* pytest >= 6.2,<7.0
-* pytest-cases >= 3
+* pytest >= 6.2
+* pytest-cases >= 3.6.9
 * pytest-xdist
 * pytest-cov
 * cython >=0.23  (This is necessary for coverage reporting of cython extensions)
