@@ -4,6 +4,7 @@
 Format the UVBeam object parameters into a sphinx rst file.
 
 """
+import io
 import os
 import inspect
 from pyuvdata import UVBeam
@@ -19,10 +20,13 @@ def write_uvbeam_rst(write_file=None):
         "formats (beamFITS, CST, MWA primary beam) as well as methods for\n"
         "transforming the data (interpolating/regridding, selecting, converting\n"
         "types) and can be interacted with directly.\n\n"
+        "Note that there are some tricks that can help with reading in CST beam\n"
+        "simulation files in `CST Settings Files`_.\n\n"
         "Attributes\n----------\n"
         "The attributes on UVBeam hold all of the metadata and data required to\n"
-        "describe primary beam models. They are implemented as properties based\n"
-        "on :class:`pyuvdata.UVParameter` objects.\n\n"
+        "describe primary beam models. Under the hood, the attributes are implemented\n"
+        "as properties based on :class:`pyuvdata.parameter.UVParameter` objects but\n"
+        "this is fairly transparent to users.\n\n"
         "UVBeam objects can be initialized from a file using the\n"
         ":meth:`pyuvdata.UVBeam.from_file` class method\n"
         "(as ``beam = UVBeam.from_file(<filename>)``) or be initialized as an empty\n"
@@ -61,6 +65,11 @@ def write_uvbeam_rst(write_file=None):
         out += "\n"
 
     out += "Methods\n-------\n.. autoclass:: pyuvdata.UVBeam\n  :members:\n\n"
+
+    with io.open("cst_settings_yaml.rst", "r", encoding="utf-8") as cst_settings_file:
+        cst_setting_text = cst_settings_file.read()
+
+    out += cst_setting_text + "\n\n"
 
     t = Time.now()
     t.format = "iso"

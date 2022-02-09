@@ -1,5 +1,5 @@
 CST Settings Files
-==================
+------------------
 
 The text files saved out of CST beam simulations do not have much of the
 critical metadata needed for UVBeam objects. This required metadata can be set
@@ -11,7 +11,7 @@ ensure the metadata is preserved. Note that reading a yaml settings file into
 UVBeam requires that pyyaml is installed.
 
 Required Fields
----------------
+***************
 
 The following are the required fields in a CST yaml settings file. The lists of
 frequencies specifies the frequency in each filename, so the lists must be in
@@ -28,7 +28,7 @@ the same order (as must the feed_pol if it is a list):
 - feed_pol (str) or (list(str))
 
 Optional Fields
----------------
+***************
 
 The following are optional fields:
 
@@ -40,7 +40,7 @@ The following are optional fields:
   is written to a beamfits file).
 
 Example Settings File
----------------------
+*********************
 
 An example settings yaml file for a HERA Vivaldi feed simulation is shown below.
 In this example, 'software', 'layout', and 'port_num' are extra fields that will
