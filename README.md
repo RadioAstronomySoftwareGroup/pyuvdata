@@ -239,9 +239,10 @@ UVBeam Parameters and UVFlag Parameters pages on [ReadTheDocs](https://pyuvdata.
 # Maintainers
 pyuvdata is maintained by the RASG Managers, which currently include:
 
- - Adam Beardsley (Arizona State University)
+ - Adam Beardsley (Winona State University)
  - Bryna Hazelton (University of Washington)
  - Daniel Jacobs (Arizona State University)
+ - Matt Kolopanis (Arizona State University)
  - Paul La Plante (University of California, Berkeley)
  - Jonathan Pober (Brown University)
 

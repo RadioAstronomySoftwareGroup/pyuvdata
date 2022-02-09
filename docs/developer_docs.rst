@@ -39,6 +39,9 @@ generally do not need to interact with these classes, but developers may need to
 .. autoclass:: pyuvdata.uvdata.fhd.FHD
   :members:
 
+.. autoclass:: pyuvdata.uvdata.mir.Mir
+  :members:
+
 .. autoclass:: pyuvdata.uvdata.miriad.Miriad
   :members:
 
@@ -70,6 +73,13 @@ generally do not need to interact with these classes, but developers may need to
   :members:
 
 
+Mir Parser
+----------
+.. automodule:: pyuvdata.uvdata.mir_parser
+  :members:
+
+
+
 Functions
 ----------
 
@@ -87,7 +97,7 @@ Functions
 
 
 aipy extracts
-_____________
+-------------
 
 .. automodule:: pyuvdata.uvdata.aipy_extracts
   :members:
