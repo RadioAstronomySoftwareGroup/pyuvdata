@@ -26,7 +26,7 @@ class UVCal(UVBase):
     UVParameter objects :
         For full list see the documentation on ReadTheDocs:
         http://pyuvdata.readthedocs.io/en/latest/.
-        Some are always required, some are required for certain phase_types
+        Some are always required, some are required for certain cal_types and cal_styles
         and others are always optional.
 
     """

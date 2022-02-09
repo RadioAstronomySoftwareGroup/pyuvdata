@@ -47,7 +47,6 @@ def write_index_rst(readme_file=None, write_file=None):
         "   tutorial\n"
         "   uvdata\n"
         "   uvcal\n"
-        "   uvbeam_parameters\n"
         "   uvbeam\n"
         "   uvflag_parameters\n"
         "   uvflag\n"
