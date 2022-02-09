@@ -3334,6 +3334,11 @@ def test_init_from_uvdata_basic_errors(uvcalibrate_data):
     ):
         UVCal.initialize_from_uvdata(uvc, uvc.gain_convention, uvc.cal_style)
 
+    with pytest.raises(ValueError, match="cal_type must be either 'gain' or 'delay'."):
+        UVCal.initialize_from_uvdata(
+            uvd, uvc.gain_convention, uvc.cal_style, cal_type="unknown"
+        )
+
     with pytest.raises(
         ValueError,
         match="If cal_style is 'sky', ref_antenna_name, sky_catalog and sky_field "
