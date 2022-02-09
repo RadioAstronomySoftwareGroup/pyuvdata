@@ -16,9 +16,9 @@ def write_uvdata_rst(write_file=None):
     out += (
         "UVData is the main user class for intereferometric data (visibilities).\n"
         "It provides import and export functionality to and from the supported file\n"
-        "formats (UVFITS, MeasurementSets, Miriad, uvh5, FHD, MIR) as well as numerous"
-        "methods for transforming the data (phasing, averaging, selecting, sorting) "
-        "and can be interacted with directly.\n\n"
+        "formats (UVFITS, MeasurementSets, Miriad, uvh5, FHD, MIR) as well as\n"
+        "numerous methods for transforming the data (phasing, averaging, selecting,\n"
+        "sorting) and can be interacted with directly.\n\n"
         "Attributes\n----------\n"
         "The attributes on UVData hold all of the metadata and data required to\n"
         "analyze interferometric data sets. Under the hood, the attributes are\n"
