@@ -1394,7 +1394,7 @@ class UVCal(UVBase):
         Returns
         -------
         complex ndarray
-            Gain solution of shape (Nfreqs, Ntimes, NJones) or (Nfreqs, Ntimes)
+            Gain solution of shape (Nfreqs, Ntimes, Njones) or (Nfreqs, Ntimes)
             if jpol is set or if squeeze_pol is True and Njones = 1.
         """
         if self.cal_type != "gain":
@@ -1447,7 +1447,7 @@ class UVCal(UVBase):
         Returns
         -------
         float ndarray
-            Qualities of shape (Nfreqs, Ntimes, NJones) or (Nfreqs, Ntimes)
+            Qualities of shape (Nfreqs, Ntimes, Njones) or (Nfreqs, Ntimes)
             if jpol is not None or if squeeze_pol is True and Njones = 1.
         """
         return self._slice_array(
@@ -2745,7 +2745,7 @@ class UVCal(UVBase):
                             np.ix_(ants_t2o, [0], freqs_t2o, times_t2o, jones_t2o)
                         ] = other.input_flag_array
 
-        # Update N parameters (e.g. NJones)
+        # Update N parameters (e.g. Njones)
         this.Njones = this.jones_array.shape[0]
         this.Ntimes = this.time_array.shape[0]
         if this.cal_type == "gain":
@@ -3504,8 +3504,10 @@ class UVCal(UVBase):
         if not issubclass(type(uvdata), UVData):
             raise ValueError("uvdata must be a UVData (or subclassed) object.")
 
-        # re-initialize to make sure we have an empty object
         uvc = cls()
+
+        if cal_type not in ["delay", "gain"]:
+            raise ValueError("cal_type must be either 'gain' or 'delay'.")
 
         if cal_type == "gain":
             uvc._set_gain()

@@ -95,10 +95,12 @@ def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
 
     # there is a loss in precision for float auto scale values in the
     # settings file vs the cal file
-    assert (
-        fhd_cal.extra_keywords["autoscal".upper()]
-        != fhd_cal2.extra_keywords["autoscal".upper()]
+    # first check that they are similar (extract from the string they are packed in)
+    assert np.allclose(
+        np.asarray(fhd_cal.extra_keywords["AUTOSCAL"][1:-1].split(", "), dtype=float),
+        np.asarray(fhd_cal2.extra_keywords["AUTOSCAL"][1:-1].split(", "), dtype=float),
     )
+    # replace the strings to prevent errors
     fhd_cal.extra_keywords["autoscal".upper()] = fhd_cal2.extra_keywords[
         "autoscal".upper()
     ]
