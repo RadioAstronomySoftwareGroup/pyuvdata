@@ -25,8 +25,9 @@ class UVBeam(UVBase):
 
     Attributes
     ----------
-    UVParameter objects: For full list see UVBeam Parameters
-        (http://pyuvdata.readthedocs.io/en/latest/uvbeam_parameters.html).
+    UVParameter objects :
+        For full list see the documentation on ReadTheDocs:
+        http://pyuvdata.readthedocs.io/en/latest/.
         Some are always required, some are required for certain beam_types,
         antenna_types and pixel_coordinate_systems and others are always optional.
 

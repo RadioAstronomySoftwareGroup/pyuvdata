@@ -2,6 +2,12 @@
 UVBeam
 ------
 
+UVBeam objects hold all of the metadata and data required to work with primary beam
+models for radio telescopes. UVBeam supports both E-field and power beams
+(labelled by the ``beam_type`` attribute) in a few different coordinate and gridding
+systems (e.g. regular azimuth/zenith angle grids, zenith-based HEALPix grids, labelled
+by the ``pixel_coordinate_system`` attribute).
+
 
 UVBeam: Reading/writing
 -----------------------
