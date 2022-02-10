@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.2.7] - 2022-02-09
+
 ### Added
 - The `UVCal.initialize_from_uvdata` method to initialize a UVCal object using metadata
 from a UVData object.
