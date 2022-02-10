@@ -239,50 +239,67 @@ class UVH5(UVData):
             if bool(header["multi_phase_center"][()]):
                 self._set_phased()
                 self._set_multi_phase_center(preserve_phase_center_info=False)
-        if "Nphase" in header:
-            self.Nphase = int(header["Nphase"][()])
 
         self.phase_type = bytes(header["phase_type"][()]).decode("utf8")
         self.object_name = bytes(header["object_name"][()]).decode("utf8")
-        # Here is where we start handing phase center information.  If we have a multi
-        # phase center dataset, this information is going to be handled a bit
-        # differently, since all of these entries are expected to be required arrays.
+
+        # Here is where we start handing phase center information.  If we have a
+        # multi phase center dataset, we need to get different header items
         if self.multi_phase_center:
+            self.Nphase = int(header["Nphase"][()])
             self.phase_center_id_array = header["phase_center_id_array"][:]
 
-        # check for phasing information
-        if self.phase_type == "phased":
-            self.phase_center_ra = float(header["phase_center_ra"][()])
-            self.phase_center_dec = float(header["phase_center_dec"][()])
+            # Here is where we collect the other source/phasing info
+            self.phase_center_catalog = {}
+            key_list = list(header["phase_center_catalog"].keys())
+            if isinstance(header["phase_center_catalog"][key_list[0]], np.bytes_):
+                # This is the old way this was written
+                for key in header["phase_center_catalog"].keys():
+                    self.phase_center_catalog[key] = json.loads(
+                        bytes(header["phase_center_catalog"][key][()]).decode("utf8")
+                    )
+            else:
+                # This is the new, correct way
+                for pc, pc_dict in header["phase_center_catalog"].items():
+                    self.phase_center_catalog[pc] = {}
+                    for key, dset in pc_dict.items():
+                        if issubclass(dset.dtype.type, np.bytes_):
+                            self.phase_center_catalog[pc][key] = bytes(dset[()]).decode(
+                                "utf8"
+                            )
+                        elif dset.shape is None:
+                            self.phase_center_catalog[pc][key] = None
+                        else:
+                            self.phase_center_catalog[pc][key] = dset[()]
+        else:
+            # check for older phasing information
+            if "phase_center_ra" in header:
+                self.phase_center_ra = float(header["phase_center_ra"][()])
+            if "phase_center_dec" in header:
+                self.phase_center_dec = float(header["phase_center_dec"][()])
+            if "phase_center_frame" in header:
+                self.phase_center_frame = bytes(
+                    header["phase_center_frame"][()]
+                ).decode("utf8")
             if "phase_center_epoch" in header:
                 self.phase_center_epoch = float(header["phase_center_epoch"][()])
-            self._set_phased()
-            if "phase_center_app_ra" in header and "phase_center_app_dec" in header:
-                self.phase_center_app_ra = header["phase_center_app_ra"][:]
-                self.phase_center_app_dec = header["phase_center_app_dec"][:]
-            if "phase_center_frame_pa" in header:
-                self.phase_center_frame_pa = header["phase_center_frame_pa"][:]
-        else:
-            if self.phase_type != "drift":
-                warnings.warn(
-                    "Unknown phase types are no longer supported, marking this "
-                    'object as phase_type="drift" by default. If this was a phased '
-                    "object, you can set the phase type correctly by running the "
-                    "_set_phased() method."
-                )
-            self._set_drift()
+            if self.phase_type == "phased":
+                self._set_phased()
+            else:
+                if self.phase_type != "drift":
+                    warnings.warn(
+                        "Unknown phase types are no longer supported, marking this "
+                        'object as phase_type="drift" by default. If this was a phased '
+                        "object, you can set the phase type correctly by running the "
+                        "_set_phased() method."
+                    )
+                self._set_drift()
 
-        # Here is where we collect the other optional source/phasing info
-        if "phase_center_catalog" in header:
-            self.phase_center_catalog = {}
-            for key in header["phase_center_catalog"].keys():
-                self.phase_center_catalog[key] = json.loads(
-                    bytes(header["phase_center_catalog"][key][()]).decode("utf8")
-                )
-        if "phase_center_frame" in header:
-            self.phase_center_frame = bytes(header["phase_center_frame"][()]).decode(
-                "utf8"
-            )
+        if "phase_center_app_ra" in header and "phase_center_app_dec" in header:
+            self.phase_center_app_ra = header["phase_center_app_ra"][:]
+            self.phase_center_app_dec = header["phase_center_app_dec"][:]
+        if "phase_center_frame_pa" in header:
+            self.phase_center_frame_pa = header["phase_center_frame_pa"][:]
 
         # get antenna arrays
         # cast to native python int type
@@ -1045,20 +1062,36 @@ class UVH5(UVData):
 
         # write out phasing information
         header["phase_type"] = np.string_(self.phase_type)
-        if self.phase_center_ra is not None:
-            header["phase_center_ra"] = self.phase_center_ra
-        if self.phase_center_app_ra is not None:
+        if self.phase_type == "phased":
             header["phase_center_app_ra"] = self.phase_center_app_ra
-        if self.phase_center_dec is not None:
-            header["phase_center_dec"] = self.phase_center_dec
-        if self.phase_center_app_dec is not None:
             header["phase_center_app_dec"] = self.phase_center_app_dec
-        if self.phase_center_frame_pa is not None:
             header["phase_center_frame_pa"] = self.phase_center_frame_pa
-        if self.phase_center_epoch is not None:
-            header["phase_center_epoch"] = self.phase_center_epoch
-        if self.phase_center_frame is not None:
-            header["phase_center_frame"] = np.string_(self.phase_center_frame)
+
+        # Write out the catalog, if available
+        if self.phase_center_catalog:
+            header["phase_center_id_array"] = self.phase_center_id_array
+            header["Nphase"] = self.Nphase
+            # this is a dict of dicts. Top level key is the phase_center_id,
+            # next level keys give details for each phase center.
+            pc_group = header.create_group("phase_center_catalog")
+            for pc, pc_dict in self.phase_center_catalog.items():
+                this_group = pc_group.create_group(pc)
+                for key, value in pc_dict.items():
+                    if isinstance(value, str):
+                        this_group[key] = np.bytes_(value)
+                    elif value is None:
+                        this_group[key] = h5py.Empty("f")
+                    else:
+                        this_group[key] = value
+        else:
+            if self.phase_center_ra is not None:
+                header["phase_center_ra"] = self.phase_center_ra
+            if self.phase_center_dec is not None:
+                header["phase_center_dec"] = self.phase_center_dec
+            if self.phase_center_epoch is not None:
+                header["phase_center_epoch"] = self.phase_center_epoch
+            if self.phase_center_frame is not None:
+                header["phase_center_frame"] = np.string_(self.phase_center_frame)
 
         # write out optional parameters
         if self.dut1 is not None:
@@ -1087,17 +1120,6 @@ class UVH5(UVData):
             header["flex_spw_id_array"] = self.flex_spw_id_array
         if self.flex_spw_polarization_array is not None:
             header["flex_spw_polarization_array"] = self.flex_spw_polarization_array
-        if self.phase_center_id_array is not None:
-            header["phase_center_id_array"] = self.phase_center_id_array
-        if self.Nphase is not None:
-            header["Nphase"] = self.Nphase
-
-        # Write out the catalog, if available
-        if self.phase_center_catalog:
-            phase_dict = header.create_group("phase_center_catalog")
-            for k in self.phase_center_catalog.keys():
-                # Dictionary entries can be written out as JSON-formatted strings.
-                phase_dict[k] = np.string_(json.dumps(self.phase_center_catalog[k]))
 
         # write out extra keywords if it exists and has elements
         if self.extra_keywords:
