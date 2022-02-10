@@ -1948,13 +1948,7 @@ def test_uvh5_read_header_special_cases(casa_uvfits, tmp_path):
     # make input and output values match now
     uv_in.history = uv_out.history
     uv_in._set_drift()
-    uv_in.phase_center_ra = None
-    uv_in.phase_center_dec = None
-    uv_in.phase_center_epoch = None
     uv_in.vis_units = "uncalib"
-    uv_in.phase_center_app_ra = None
-    uv_in.phase_center_app_dec = None
-    uv_in.phase_center_frame_pa = None
 
     # make sure filenames are what we expect
     assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
@@ -3262,6 +3256,7 @@ def test_fix_phase(tmp_path):
     # First test the case where we are using the old phase method with the uvws
     # calculated from the antenna positions
     uv_in_bad_ant.phase(phase_ra, phase_dec, use_old_proj=True, use_ant_pos=True)
+    uv_in_bad_ant.check()
     uv_in_bad_ant.write_uvh5(
         writepath, clobber=True, run_check=False, check_extra=False
     )
