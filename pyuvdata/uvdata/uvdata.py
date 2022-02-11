@@ -5690,6 +5690,8 @@ class UVData(UVBase):
             self.data_array *= phs
 
         self.phase_center_frame = phase_frame
+        # make sure apparent coords are properly set.
+        self._set_app_coords_helper()
         self._set_phased()
 
     def phase_to_time(
