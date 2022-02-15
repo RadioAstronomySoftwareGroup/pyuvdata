@@ -1662,6 +1662,7 @@ class UVBeam(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        check_azza_domain=True,
     ):
         """
         Interpolate beam to given frequency, az & za locations or Healpix pixel centers.
@@ -1715,7 +1716,10 @@ class UVBeam(UVBase):
         run_check_acceptability : bool
             Only used if new_object is True. Option to check acceptable range
             of the values of required parameters on the new object.
-
+        check_azza_domain : bool
+            Check the input az/za for whether they lie inside the domain defined by
+            the data.
+        
         Returns
         -------
         array_like of float or complex or a UVBeam object
@@ -1799,7 +1803,8 @@ class UVBeam(UVBase):
         if interp_func == "_interp_az_za_rect_spline":
             extra_keyword_dict["reuse_spline"] = reuse_spline
             extra_keyword_dict["spline_opts"] = spline_opts
-
+            extra_keyword_dict["check_azza_domain"] = check_azza_domain
+            
         interp_data, interp_basis_vector, interp_bandpass = getattr(self, interp_func)(
             az_array_use,
             za_array_use,
