@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Parameter `check_azza_domain` in `UVBeam.interp()`, which can turn off the (relatively
   expensive) check on input az/za values.
+
 ## [2.2.7] - 2022-02-09
 
 ### Added
