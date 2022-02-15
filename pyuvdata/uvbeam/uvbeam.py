@@ -1184,92 +1184,81 @@ class UVBeam(UVBase):
 
         return tuple(interp_arrays)
 
-    def _interp_az_za_rect_spline(
-        self,
-        az_array,
-        za_array,
-        freq_array,
-        freq_interp_kind="linear",
-        freq_interp_tol=1.0,
-        polarizations=None,
-        reuse_spline=False,
-        spline_opts=None,
-    ):
-        """
-        Interpolate in az_za coordinate system with a simple spline.
-
-        Parameters
-        ----------
-        az_array : array_like of floats
-            Azimuth values to interpolate to in radians, specifying the azimuth
-            positions for every interpolation point (same length as `za_array`).
-        za_array : array_like of floats
-            Zenith values to interpolate to in radians, specifying the zenith
-            positions for every interpolation point (same length as `az_array`).
-        freq_array : array_like of floats
-            Frequency values to interpolate to.
-        freq_interp_kind : str
-            Interpolation method to use frequency.
-            See scipy.interpolate.interp1d for details.
-        polarizations : list of str
-            polarizations to interpolate if beam_type is 'power'.
-            Default is all polarizations in self.polarization_array.
-        reuse_spline : bool
-            Save the interpolation functions for reuse.
-        spline_opts : dict
-            Options (kx, ky, s) for numpy.RectBivariateSpline.
-
-        Returns
-        -------
-        interp_data : array_like of float or complex
-            The array of interpolated data values,
-            shape: (Naxes_vec, Nspws, Nfeeds or Npols, Nfreqs, az_array.size)
-        interp_basis_vector : array_like of float
-            The array of interpolated basis vectors,
-            shape: (Naxes_vec, Ncomponents_vec, az_array.size)
-        interp_bandpass : array_like of float
-            The interpolated bandpass. shape: (Nspws, freq_array.size)
-
-        """
-        if self.pixel_coordinate_system != "az_za":
-            raise ValueError('pixel_coordinate_system must be "az_za"')
-
-        if freq_array is not None:
-            assert isinstance(freq_array, np.ndarray)
-            input_data_array, interp_bandpass = self._interp_freq(
-                freq_array, kind=freq_interp_kind, tol=freq_interp_tol
-            )
-            input_nfreqs = freq_array.size
+    @staticmethod
+    def _get_lambda(real_lut, imag_lut=None):
+        # Returns function objects for interpolation reuse
+        if imag_lut is None:
+            return lambda za, az: real_lut(za, az, grid=False)
         else:
-            input_data_array = self.data_array
-            input_nfreqs = self.Nfreqs
-            freq_array = self.freq_array[0]
-            interp_bandpass = self.bandpass_array[0]
+            return lambda za, az: (
+                real_lut(za, az, grid=False) + 1j * imag_lut(za, az, grid=False)
+            )
+            
+    def _get_rect_spline(self, data_use: np.ndarray, theta_use: np.ndarray, phi_use: np.ndarray, freq: float, spw_indx: int, pol_indx: int, axis_indx: int, store=False, spline_opts = None) -> interpolate.RectBivariateSpline:
+        key = (spw_indx, freq, pol_indx, axis_indx)
+        
+        if store and not hasattr(self, "saved_interp_functions"):
+            self.saved_interp_functions = {}
+            
+        # Exit early if it's already saved.
+        if store and key in self.saved_interp_functions:
+            return self.saved_interp_functions[key]
+        
+                
+        theta_use = theta_use[:, 0]
+        phi_use = phi_use[0, :]
+        data_use = data_use[axis_indx, spw_indx, pol_indx, :]
+        spline_opts = spline_opts or {}
+        
+        if np.iscomplexobj(data_use):
+            # interpolate real and imaginary parts separately
+            real_lut = interpolate.RectBivariateSpline(
+                theta_use, phi_use, data_use.real, **spline_opts,
+            )
+            imag_lut = interpolate.RectBivariateSpline(
+                theta_use, phi_use, data_use.imag, **spline_opts,
+            )
+            lut = self._get_lambda(real_lut, imag_lut)
+        else:
+            lut = interpolate.RectBivariateSpline(
+                theta_use, phi_use, data_use, **spline_opts,
+            )
+            lut = self._get_lambda(lut)
 
-        if az_array is None or za_array is None:
-            return input_data_array, self.basis_vector_array, interp_bandpass
+        if store:
+            self.saved_interp_functions[key] = lut
 
-        assert isinstance(az_array, np.ndarray)
-        assert isinstance(za_array, np.ndarray)
-        assert az_array.ndim == 1
-        assert az_array.shape == za_array.shape
+        return lut
 
-        npoints = az_array.size
-
+    def _get_max_axis_diff(self) -> float:
         axis1_diff = np.diff(self.axis1_array)[0]
         axis2_diff = np.diff(self.axis2_array)[0]
-        max_axis_diff = np.max([axis1_diff, axis2_diff])
+        return np.max([axis1_diff, axis2_diff])
+    
+    def _get_pol_inds(self, polarizations) -> np.ndarray:
+        if polarizations is None:
+            return np.arange(self.Npols if self.beam_type=='power' else self.Nfeeds)
+    
+        if self.beam_type != 'power':
+            raise ValueError("You can only set polarizations if beam_type='power'.")
 
+        # get requested polarization indices
+        pol_inds = np.zeros(len(polarizations), dtype=int)
+        for i, p in enumerate(polarizations):
+            pol = uvutils.polstr2num(p, x_orientation=self.x_orientation)
+            if pol not in self.polarization_array:
+                raise ValueError(
+                    f"Requested polarization {pol} not found "
+                    "in self.polarization_array"
+                )
+            pol_inds[i] = np.where(self.polarization_array == pol)[0][0]
+        return pol_inds
+            
+    def _get_theta_phi_interp(self, input_data_array):
+        axis1_diff = np.diff(self.axis1_array)[0]
         phi_length = np.abs(self.axis1_array[0] - self.axis1_array[-1]) + axis1_diff
 
         phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
-
-        assert input_data_array.shape[3] == input_nfreqs
-
-        if np.iscomplexobj(input_data_array):
-            data_type = np.complex128
-        else:
-            data_type = np.float64
 
         if np.isclose(phi_length, 2 * np.pi, atol=axis1_diff):
             # phi wraps around, extend array in each direction to improve interpolation
@@ -1299,125 +1288,179 @@ class UVBeam(UVBase):
             phi_use = phi_vals
             theta_use = theta_vals
             data_use = input_data_array
+            
+        return theta_use, phi_use, data_use
+    
+    def _get_angular_interpolators(
+        self,
+        input_data_array,
+        freq_array,
+        store=False,
+        spline_opts=None,
+        polarizations=None,
+    ):
+        if self.pixel_coordinate_system != "az_za":
+            raise ValueError('pixel_coordinate_system must be "az_za"')
 
-        if self.basis_vector_array is not None:
-            if np.any(self.basis_vector_array[0, 1, :] > 0) or np.any(
-                self.basis_vector_array[1, 0, :] > 0
-            ):
-                # Input basis vectors are not aligned to the native theta/phi
-                # coordinate system
-                raise NotImplementedError(
-                    "interpolation for input basis "
-                    "vectors that are not aligned to the "
-                    "native theta/phi coordinate system "
-                    "is not yet supported"
-                )
-            else:
-                # The basis vector array comes in defined at the rectangular grid.
-                # Redefine it for the interpolation points
-                interp_basis_vector = np.zeros(
-                    [self.Naxes_vec, self.Ncomponents_vec, npoints]
-                )
-                interp_basis_vector[0, 0, :] = np.ones(npoints)  # theta hat
-                interp_basis_vector[1, 1, :] = np.ones(npoints)  # phi hat
-        else:
-            interp_basis_vector = None
+        theta_use, phi_use, data_use = self._get_theta_phi_interp(input_data_array)
+        
 
-        def get_lambda(real_lut, imag_lut=None):
-            # Returns function objects for interpolation reuse
-            if imag_lut is None:
-                return lambda za, az: real_lut(za, az, grid=False)
-            else:
-                return lambda za, az: (
-                    real_lut(za, az, grid=False) + 1j * imag_lut(za, az, grid=False)
-                )
+        if self.basis_vector_array is not None and (
+            np.any(self.basis_vector_array[0, 1, :] > 0)
+            or np.any(self.basis_vector_array[1, 0, :] > 0)
+        ):
+            # Input basis vectors are not aligned to the native theta/phi
+            # coordinate system
+            raise NotImplementedError(
+                "interpolation for input basis "
+                "vectors that are not aligned to the "
+                "native theta/phi coordinate system "
+                "is not yet supported"
+            )
 
         # Npols is only defined for power beams.  For E-field beams need Nfeeds.
+        pol_inds = self._get_pol_inds(polarizations)
+
+        for index1 in range(self.Nspws):
+            for index3, freq in enumerate(freq_array):
+                for index0 in range(self.Naxes_vec):        
+                    for pol_return_ind, index2 in enumerate(pol_inds):
+                        yield (index0, index1, pol_return_ind, index3), (theta_use, phi_use), self._get_rect_spline(
+                            data_use=data_use[:, :, :, index3], 
+                            theta_use=theta_use, 
+                            phi_use=phi_use, 
+                            freq=freq, 
+                            spw_indx=index1, 
+                            pol_indx=index2, 
+                            axis_indx=index0, 
+                            store=store, 
+                            spline_opts = spline_opts
+                        )
+    
+    def _interp_az_za_rect_spline(
+        self,
+        az_array,
+        za_array,
+        freq_array,
+        freq_interp_kind="linear",
+        freq_interp_tol=1.0,
+        polarizations=None,
+        reuse_spline=False,
+        spline_opts=None,
+        check_azza_domain: bool = True,
+    ):
+        """
+        Interpolate in az_za coordinate system with a simple spline.
+
+        Parameters
+        ----------
+        az_array : array_like of floats
+            Azimuth values to interpolate to in radians, specifying the azimuth
+            positions for every interpolation point (same length as `za_array`).
+        za_array : array_like of floats
+            Zenith values to interpolate to in radians, specifying the zenith
+            positions for every interpolation point (same length as `az_array`).
+        freq_array : array_like of floats
+            Frequency values to interpolate to.
+        freq_interp_kind : str
+            Interpolation method to use frequency.
+            See scipy.interpolate.interp1d for details.
+        polarizations : list of str
+            polarizations to interpolate if beam_type is 'power'.
+            Default is all polarizations in self.polarization_array.
+        reuse_spline : bool
+            Save the interpolation functions for reuse.
+        spline_opts : dict
+            Options (kx, ky, s) for numpy.RectBivariateSpline.
+        check_azza_domain : bool
+            Whether to explicitly check whether the given az_array/za_array lie 
+            within the domain defined by the beam data.
+            
+        Returns
+        -------
+        interp_data : array_like of float or complex
+            The array of interpolated data values,
+            shape: (Naxes_vec, Nspws, Nfeeds or Npols, Nfreqs, az_array.size)
+        interp_basis_vector : array_like of float
+            The array of interpolated basis vectors,
+            shape: (Naxes_vec, Ncomponents_vec, az_array.size)
+        interp_bandpass : array_like of float
+            The interpolated bandpass. shape: (Nspws, freq_array.size)
+
+        """
+        if freq_array is not None:
+            assert isinstance(freq_array, np.ndarray)
+            input_data_array, interp_bandpass = self._interp_freq(
+                freq_array, kind=freq_interp_kind, tol=freq_interp_tol
+            )
+            input_nfreqs = freq_array.size
+        else:
+            input_data_array = self.data_array
+            input_nfreqs = self.Nfreqs
+            freq_array = self.freq_array[0]
+            interp_bandpass = self.bandpass_array[0]
+            
+        assert input_data_array.shape[3] == input_nfreqs
+        
+        if az_array is None or za_array is None:
+            return input_data_array, self.basis_vector_array, interp_bandpass
+        
+        assert isinstance(az_array, np.ndarray)
+        assert isinstance(za_array, np.ndarray)
+        assert az_array.ndim == 1
+        assert az_array.shape == za_array.shape
+
+        npoints = az_array.size
+
+        max_axis_diff = self._get_max_axis_diff()
+
+
+        if self.basis_vector_array is None:
+            interp_basis_vector = None
+        else:
+            # The basis vector array comes in defined at the rectangular grid.
+            # Redefine it for the interpolation points
+            interp_basis_vector = np.zeros(
+                [self.Naxes_vec, self.Ncomponents_vec, npoints]
+            )
+            interp_basis_vector[0, 0, :] = np.ones(npoints)  # theta hat
+            interp_basis_vector[1, 1, :] = np.ones(npoints)  # phi hat
+
         if self.beam_type == "power":
             # get requested polarization indices
-            if polarizations is None:
-                Npol_feeds = self.Npols
-                pol_inds = np.arange(Npol_feeds)
-            else:
-                pols = [
-                    uvutils.polstr2num(p, x_orientation=self.x_orientation)
-                    for p in polarizations
-                ]
-                pol_inds = []
-                for pol in pols:
-                    if pol not in self.polarization_array:
-                        raise ValueError(
-                            "Requested polarization {} not found "
-                            "in self.polarization_array".format(pol)
-                        )
-                    pol_inds.append(np.where(self.polarization_array == pol)[0][0])
-                pol_inds = np.asarray(pol_inds)
-                Npol_feeds = len(pol_inds)
-
+            Npol_feeds = self.Npols if polarizations is None else len(polarizations)
         else:
             Npol_feeds = self.Nfeeds
-            pol_inds = np.arange(Npol_feeds)
+
+        input_nfreqs = freq_array.size if freq_array is not None else self.Nfreqs
 
         data_shape = (self.Naxes_vec, self.Nspws, Npol_feeds, input_nfreqs, npoints)
-        interp_data = np.zeros(data_shape, dtype=data_type)
+        interp_data = np.zeros(data_shape, dtype='complex128' if np.iscomplexobj(self.data_array) else 'float64')
 
-        if spline_opts is None or not isinstance(spline_opts, dict):
-            spline_opts = {}
-        if reuse_spline and not hasattr(self, "saved_interp_functions"):
-            int_dict = {}
-            self.saved_interp_functions = int_dict
-        for index1 in range(self.Nspws):
-            for index3 in range(input_nfreqs):
-                freq = freq_array[index3]
-                for index0 in range(self.Naxes_vec):
-                    for pol_return_ind, index2 in enumerate(pol_inds):
-                        do_interp = True
-                        key = (index1, freq, index2, index0)
-                        if reuse_spline:
-                            if key in self.saved_interp_functions.keys():
-                                do_interp = False
-                                lut = self.saved_interp_functions[key]
-
-                        if do_interp:
-                            if np.iscomplexobj(data_use):
-                                # interpolate real and imaginary parts separately
-                                real_lut = interpolate.RectBivariateSpline(
-                                    theta_use[:, 0],
-                                    phi_use[0, :],
-                                    data_use[index0, index1, index2, index3, :].real,
-                                    **spline_opts,
-                                )
-                                imag_lut = interpolate.RectBivariateSpline(
-                                    theta_use[:, 0],
-                                    phi_use[0, :],
-                                    data_use[index0, index1, index2, index3, :].imag,
-                                    **spline_opts,
-                                )
-                                lut = get_lambda(real_lut, imag_lut)
-                            else:
-                                lut = interpolate.RectBivariateSpline(
-                                    theta_use[:, 0],
-                                    phi_use[0, :],
-                                    data_use[index0, index1, index2, index3, :],
-                                    **spline_opts,
-                                )
-                                lut = get_lambda(lut)
-                            if reuse_spline:
-                                self.saved_interp_functions[key] = lut
-                        if index0 == 0 and index1 == 0 and index2 == 0 and index3 == 0:
-                            for point_i in range(npoints):
-                                pix_dists = np.sqrt(
-                                    (theta_use - za_array[point_i]) ** 2.0
-                                    + (phi_use - az_array[point_i]) ** 2.0
-                                )
-                                if np.min(pix_dists) > (max_axis_diff * 2.0):
-                                    raise ValueError(
-                                        "at least one interpolation location "
-                                        "is outside of the UVBeam pixel coverage."
-                                    )
-                        interp_data[index0, index1, pol_return_ind, index3, :] = lut(
-                            za_array, az_array
+        for j, (indices, (theta_use, phi_use), spline) in enumerate(
+            self._get_angular_interpolators(
+                input_data_array,
+                freq_array,
+                polarizations=polarizations,
+                store=reuse_spline,
+                spline_opts=spline_opts
+            )
+        ):
+            if j==0 and check_azza_domain:
+                for point_i in range(npoints):
+                    pix_dists = (
+                        (theta_use - za_array[point_i]) ** 2.0
+                        + (phi_use - az_array[point_i]) ** 2.0
+                    )
+                    if np.min(pix_dists) > (max_axis_diff * 2.0)**2:
+                        raise ValueError(
+                            "at least one interpolation location "
+                            "is outside of the UVBeam pixel coverage."
                         )
+
+            interp_data[indices[0], indices[1], indices[2], indices[3]] = spline(
+                za_array, az_array
+            )
 
         return interp_data, interp_basis_vector, interp_bandpass
 
