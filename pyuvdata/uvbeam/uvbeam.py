@@ -1682,6 +1682,8 @@ class UVBeam(UVBase):
         check_azza_domain : bool
             Whether to check the domain of az/za to ensure that they are covered by the
             intrinsic data array. Checking them can be quite computationally expensive.
+            Conversely, if the passed az/za are outside of the domain, they will be
+            silently extrapolated and the behavior is not well-defined.
 
         Returns
         -------
