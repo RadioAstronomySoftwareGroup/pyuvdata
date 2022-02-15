@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- The `UVBeam._get_angular_interpolators` generator, which yields the interpolation 
+  functions for the `az_za_simple` method directly, to be used without checks.
+- The `check_azza_domain` parameter to `UVBeam.interp()`, which can turn off checks of the 
+  az/za interpolation domain. This check can be a bottleneck.
 ## [2.2.7] - 2022-02-09
 
 ### Added
