@@ -1194,6 +1194,7 @@ class UVBeam(UVBase):
         polarizations=None,
         reuse_spline=False,
         spline_opts=None,
+        check_azza_domain: bool = True,
     ):
         """
         Interpolate in az_za coordinate system with a simple spline.
@@ -1218,7 +1219,10 @@ class UVBeam(UVBase):
             Save the interpolation functions for reuse.
         spline_opts : dict
             Options (kx, ky, s) for numpy.RectBivariateSpline.
-
+        check_azza_domain : bool
+            Whether to check the domain of az/za to ensure that they are covered by the
+            intrinsic data array. Checking them can be quite computationally expensive.
+            
         Returns
         -------
         interp_data : array_like of float or complex
@@ -1358,6 +1362,18 @@ class UVBeam(UVBase):
             Npol_feeds = self.Nfeeds
             pol_inds = np.arange(Npol_feeds)
 
+        if check_azza_domain:
+            for point_i in range(npoints):
+                pix_dists = np.sqrt(
+                    (theta_use - za_array[point_i]) ** 2.0
+                    + (phi_use - az_array[point_i]) ** 2.0
+                )
+                if np.min(pix_dists) > (max_axis_diff * 2.0):
+                    raise ValueError(
+                        "at least one interpolation location "
+                        "is outside of the UVBeam pixel coverage."
+                    )
+
         data_shape = (self.Naxes_vec, self.Nspws, Npol_feeds, input_nfreqs, npoints)
         interp_data = np.zeros(data_shape, dtype=data_type)
 
@@ -1404,17 +1420,7 @@ class UVBeam(UVBase):
                                 lut = get_lambda(lut)
                             if reuse_spline:
                                 self.saved_interp_functions[key] = lut
-                        if index0 == 0 and index1 == 0 and index2 == 0 and index3 == 0:
-                            for point_i in range(npoints):
-                                pix_dists = np.sqrt(
-                                    (theta_use - za_array[point_i]) ** 2.0
-                                    + (phi_use - az_array[point_i]) ** 2.0
-                                )
-                                if np.min(pix_dists) > (max_axis_diff * 2.0):
-                                    raise ValueError(
-                                        "at least one interpolation location "
-                                        "is outside of the UVBeam pixel coverage."
-                                    )
+
                         interp_data[index0, index1, pol_return_ind, index3, :] = lut(
                             za_array, az_array
                         )
@@ -1619,6 +1625,7 @@ class UVBeam(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        check_azza_domain: bool = True,
     ):
         """
         Interpolate beam to given frequency, az & za locations or Healpix pixel centers.
@@ -1672,6 +1679,9 @@ class UVBeam(UVBase):
         run_check_acceptability : bool
             Only used if new_object is True. Option to check acceptable range
             of the values of required parameters on the new object.
+        check_azza_domain : bool
+            Whether to check the domain of az/za to ensure that they are covered by the
+            intrinsic data array. Checking them can be quite computationally expensive.
 
         Returns
         -------
@@ -1756,6 +1766,8 @@ class UVBeam(UVBase):
         if interp_func == "_interp_az_za_rect_spline":
             extra_keyword_dict["reuse_spline"] = reuse_spline
             extra_keyword_dict["spline_opts"] = spline_opts
+            extra_keyword_dict["check_azza_domain"] = check_azza_domain
+            
 
         interp_data, interp_basis_vector, interp_bandpass = getattr(self, interp_func)(
             az_array_use,
