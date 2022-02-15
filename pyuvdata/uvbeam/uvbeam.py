@@ -1222,7 +1222,7 @@ class UVBeam(UVBase):
         check_azza_domain : bool
             Whether to check the domain of az/za to ensure that they are covered by the
             intrinsic data array. Checking them can be quite computationally expensive.
-            
+
         Returns
         -------
         interp_data : array_like of float or complex
@@ -1767,7 +1767,6 @@ class UVBeam(UVBase):
             extra_keyword_dict["reuse_spline"] = reuse_spline
             extra_keyword_dict["spline_opts"] = spline_opts
             extra_keyword_dict["check_azza_domain"] = check_azza_domain
-            
 
         interp_data, interp_basis_vector, interp_bandpass = getattr(self, interp_func)(
             az_array_use,
