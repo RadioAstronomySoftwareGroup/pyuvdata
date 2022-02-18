@@ -799,7 +799,7 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
 
     """
     if Nants_telescope is not None and Nants_telescope > 2048:
-        raise Exception(
+        raise ValueError(
             "cannot convert ant1, ant2 to a baseline index "
             "with Nants={Nants}>2048.".format(Nants=Nants_telescope)
         )
