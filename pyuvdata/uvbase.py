@@ -182,8 +182,8 @@ class UVBase(object):
         ]
         param_list = []
         for a in attribute_list:
-            attr = getattr(self, a)
             if uvparams_only:
+                attr = getattr(self, a)
                 if isinstance(attr, uvp.UVParameter):
                     param_list.append(a)
             else:
