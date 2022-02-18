@@ -2008,8 +2008,12 @@ def calc_uvw(
             raise ValueError("Must include telescope_lon if use_ant_pos=True.")
 
         ant_dict = {ant_num: idx for idx, ant_num in enumerate(antenna_numbers)}
-        ant_1_index = np.array([ant_dict[idx] for idx in ant_1_array], dtype=int)
-        ant_2_index = np.array([ant_dict[idx] for idx in ant_2_array], dtype=int)
+        ant_1_index = np.array(
+            [ant_dict[ant_num] for ant_num in ant_1_array], dtype=int
+        )
+        ant_2_index = np.array(
+            [ant_dict[ant_num] for ant_num in ant_2_array], dtype=int
+        )
 
         N_ants = antenna_positions.shape[0]
         # Use the app_ra, app_dec, and lst_array arrays to figure out how many unique
