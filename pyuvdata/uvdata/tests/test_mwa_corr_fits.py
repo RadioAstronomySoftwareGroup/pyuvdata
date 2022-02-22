@@ -104,7 +104,7 @@ def test_read_mwa_write_uvfits(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:antnums_to_baseline")
-@pytest.mark.filterwarnings("ignore:Found antenna numbers > 256 in this data")
+@pytest.mark.filterwarnings("ignore:Found antenna numbers > 255 in this data")
 def test_read_mwax_write_uvfits(tmp_path):
     """
     MWAX correlator fits to uvfits loopback test.

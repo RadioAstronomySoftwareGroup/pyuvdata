@@ -764,6 +764,10 @@ def baseline_to_antnums(baseline, Nants_telescope):
         raise Exception(
             "error Nants={Nants}>2048 not supported".format(Nants=Nants_telescope)
         )
+    if np.any(np.asarray(baseline) < 0):
+        raise Exception("negative baseline numbers are not supported")
+    if np.any(np.asarray(baseline) > 4259839):
+        raise Exception("baseline numbers > 4259839 are not supported")
 
     return_array = isinstance(baseline, (np.ndarray, list, tuple))
     ant1, ant2 = _utils.baseline_to_antnums(
@@ -802,6 +806,16 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
         raise ValueError(
             "cannot convert ant1, ant2 to a baseline index "
             "with Nants={Nants}>2048.".format(Nants=Nants_telescope)
+        )
+    if np.any(np.concatenate((np.unique(ant1), np.unique(ant2))) >= 2048):
+        raise ValueError(
+            "cannot convert ant1, ant2 to a baseline index "
+            "with antenna numbers greater than 2047."
+        )
+    if np.any(np.concatenate((np.unique(ant1), np.unique(ant2))) < 0):
+        raise ValueError(
+            "cannot convert ant1, ant2 to a baseline index "
+            "with antenna numbers less than zero."
         )
 
     return_array = isinstance(ant1, (np.ndarray, list, tuple))

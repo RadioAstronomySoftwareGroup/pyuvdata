@@ -658,9 +658,9 @@ def test_readwriteread_large_antnums(tmp_path, casa_uvfits):
         [
             "The uvw_array does not match the expected values given the antenna "
             "positions",
-            "Found antenna numbers > 256 in this data set. This is permitted by "
+            "Found antenna numbers > 255 in this data set. This is permitted by "
             "UVFITS ",
-            "antnums_to_baseline: found antenna numbers > 256, using 2048 baseline",
+            "antnums_to_baseline: found antenna numbers > 255, using 2048 baseline",
         ],
     ):
         uv_in.write_uvfits(write_file)
@@ -937,24 +937,24 @@ def test_roundtrip_blt_order(casa_uvfits, tmp_path):
 @pytest.mark.parametrize(
     "select_kwargs",
     [
-        {"antenna_nums": np.array([0, 19, 11, 24, 3, 23, 1, 20, 21])},
+        {"antenna_nums": np.array([1, 20, 12, 25, 4, 24, 2, 21, 22])},
         {"freq_chans": np.arange(12, 22)},
         {"freq_chans": [0]},
         {"polarizations": [-1, -2]},
         {"time_inds": np.array([0, 1])},
         {"lst_inds": np.array([0, 1])},
         {
-            "antenna_nums": np.array([0, 19, 11, 24, 3, 23, 1, 20, 21]),
+            "antenna_nums": np.array([1, 20, 12, 25, 4, 24, 2, 21, 22]),
             "freq_chans": np.arange(12, 22),
             "polarizations": [-1, -2],
         },
         {
-            "antenna_nums": np.array([0, 1]),
+            "antenna_nums": np.array([1, 2]),
             "freq_chans": np.arange(12, 22),
             "polarizations": [-1, -2],
         },
         {
-            "antenna_nums": np.array([0, 1, 2, 3, 6, 7, 8, 11, 14, 18, 19, 20, 21, 22]),
+            "antenna_nums": np.array([1, 2, 3, 4, 7, 8, 9, 12, 15, 19, 20, 21, 22, 23]),
             "freq_chans": np.arange(12, 64),
             "polarizations": [-1, -2],
         },
