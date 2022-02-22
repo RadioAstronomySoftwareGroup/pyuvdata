@@ -98,11 +98,13 @@ class UVFITS(UVData):
 
         # if antenna arrays are present, use them. otherwise use baseline array
         if "ANTENNA1" in vis_hdu.data.parnames and "ANTENNA2" in vis_hdu.data.parnames:
-            # Note: uvfits antennas are 1 indexed,
-            # need to subtract one to get to 0-indexed
-            self.ant_1_array = np.int32(vis_hdu.data.par("ANTENNA1")) - 1
-            self.ant_2_array = np.int32(vis_hdu.data.par("ANTENNA2")) - 1
-            subarray = np.int32(vis_hdu.data.par("SUBARRAY")) - 1
+            # Note: we no longer subtract 1 from the antenna arrays
+            # The antanna arrays are not indices but rather are numbers
+            # that correspond to particular antennas
+            self.ant_1_array = np.int32(vis_hdu.data.par("ANTENNA1"))
+            self.ant_2_array = np.int32(vis_hdu.data.par("ANTENNA2"))
+            # for instruments with a single subarray, the subarray should be set to 1s
+            subarray = np.int32(vis_hdu.data.par("SUBARRAY"))
             # error on files with multiple subarrays
             if len(set(subarray)) > 1:
                 raise ValueError(
@@ -745,8 +747,10 @@ class UVFITS(UVData):
                 )
                 self.antenna_names.append(ant_name_str)
 
-            # subtract one to get to 0-indexed values rather than 1-indexed values
-            self.antenna_numbers = ant_hdu.data.field("NOSTA") - 1
+            # Note: we no longer subtract one to get to 0-indexed values
+            # rather than 1-indexed values. Antenna numbers are not indices
+            # but are unique to each antenna.
+            self.antenna_numbers = ant_hdu.data.field("NOSTA")
 
             self.Nants_telescope = len(self.antenna_numbers)
 
@@ -1116,8 +1120,9 @@ class UVFITS(UVData):
             self.ant_1_array, self.ant_2_array, attempt256=True
         )
         # Set up dictionaries for populating hdu
-        # Note that uvfits antenna arrays are 1-indexed so we add 1
-        # to our 0-indexed arrays
+        # Antenna arrays are populated with actual antenna numbers,
+        # that is, numbers that are unique to each antenna.
+        # We no longer add 1 to the arrays as the arrays are not indices.
 
         group_parameter_dict = {
             "UU      ": uvw_array_sec[:, 0],
@@ -1128,8 +1133,8 @@ class UVFITS(UVData):
             "BASELINE": baselines_use,
             "SOURCE  ": None,
             "FREQSEL ": np.ones_like(self.time_array, dtype=np.float32),
-            "ANTENNA1": self.ant_1_array + 1,
-            "ANTENNA2": self.ant_2_array + 1,
+            "ANTENNA1": self.ant_1_array,
+            "ANTENNA2": self.ant_2_array,
             "SUBARRAY": np.ones_like(self.ant_1_array),
             "INTTIM  ": int_time_array,
         }
@@ -1194,7 +1199,7 @@ class UVFITS(UVData):
             parnames_use.append("BASELINE")
         else:
             warnings.warn(
-                "Found antenna numbers > 256 in this data set. This is permitted by "
+                "Found antenna numbers > 255 in this data set. This is permitted by "
                 "UVFITS standards, but may cause the `importuvfits` utility within "
                 "CASA to crash. If attempting to use this data set in CASA, consider "
                 "using the measurement set writer method (`write_ms`) instead."
@@ -1340,8 +1345,7 @@ class UVFITS(UVData):
         )
         col2 = fits.Column(name="STABXYZ", format="3D", array=rot_ecef_positions)
         # col3 = fits.Column(name="ORBPARAM", format="0D", array=Norb)
-        # convert to 1-indexed from 0-indexed indicies
-        col4 = fits.Column(name="NOSTA", format="1J", array=self.antenna_numbers + 1)
+        col4 = fits.Column(name="NOSTA", format="1J", array=self.antenna_numbers)
         col5 = fits.Column(name="MNTSTA", format="1J", array=mntsta)
         col6 = fits.Column(name="STAXOF", format="1E", array=staxof)
         col7 = fits.Column(name="POLTYA", format="1A", array=poltya)

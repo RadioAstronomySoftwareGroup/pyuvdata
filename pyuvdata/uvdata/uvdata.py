@@ -178,7 +178,11 @@ class UVData(UVBase):
             "the antenna_numbers attribute. Shape (Nblts), type = int."
         )
         self._ant_1_array = uvp.UVParameter(
-            "ant_1_array", description=desc, expected_type=int, form=("Nblts",)
+            "ant_1_array",
+            description=desc,
+            expected_type=int,
+            form=("Nblts",),
+            acceptable_range=(0, 2047),
         )
 
         desc = (
@@ -186,7 +190,11 @@ class UVData(UVBase):
             "the antenna_numbers attribute. Shape (Nblts), type = int."
         )
         self._ant_2_array = uvp.UVParameter(
-            "ant_2_array", description=desc, expected_type=int, form=("Nblts",)
+            "ant_2_array",
+            description=desc,
+            expected_type=int,
+            form=("Nblts",),
+            acceptable_range=(0, 2047),
         )
 
         desc = (
@@ -198,6 +206,7 @@ class UVData(UVBase):
             description=desc,
             expected_type=int,
             form=("Nblts",),
+            acceptable_range=(0, 4259839),
         )
 
         # this dimensionality of freq_array does not allow for different spws

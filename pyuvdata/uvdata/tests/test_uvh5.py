@@ -477,7 +477,7 @@ def test_uvh5_partial_read_antennas(casa_uvfits, future_shapes, tmp_path):
     uvh5_uv.read(testfile)
 
     # select on antennas
-    ants_to_keep = np.array([0, 19, 11, 24, 3, 23, 1, 20, 21])
+    ants_to_keep = np.array([1, 20, 12, 25, 4, 24, 2, 21, 22])
     uvh5_uv.read(testfile, antenna_nums=ants_to_keep)
     uvh5_uv2.read(testfile)
     uvh5_uv2.select(antenna_nums=ants_to_keep)
@@ -640,7 +640,7 @@ def test_uvh5_partial_read_multi1(casa_uvfits, future_shapes, tmp_path):
 
     # now test selecting on multiple axes
     # read frequencies first
-    ants_to_keep = np.array([0, 19, 11, 24, 3, 23, 1, 20, 21])
+    ants_to_keep = np.array([1, 20, 12, 25, 4, 24, 2, 21, 22])
     chans_to_keep = np.arange(12, 22)
     pols_to_keep = [-1, -2]
     uvh5_uv.read(
@@ -707,7 +707,7 @@ def test_uvh5_partial_read_multi2(casa_uvfits, future_shapes, tmp_path):
 
     # now test selecting on multiple axes
     # read baselines first
-    ants_to_keep = np.array([0, 1])
+    ants_to_keep = np.array([1, 2])
     chans_to_keep = np.arange(12, 22)
     pols_to_keep = [-1, -2]
     uvh5_uv.read(
@@ -773,7 +773,7 @@ def test_uvh5_partial_read_multi3(casa_uvfits, future_shapes, tmp_path):
 
     # now test selecting on multiple axes
     # read polarizations first
-    ants_to_keep = np.array([0, 1, 2, 3, 6, 7, 8, 11, 14, 18, 19, 20, 21, 22])
+    ants_to_keep = np.array([1, 2, 3, 4, 7, 8, 9, 12, 15, 19, 20, 21, 22, 23])
     chans_to_keep = np.arange(12, 64)
     pols_to_keep = [-1, -2]
     uvh5_uv.read(
@@ -839,7 +839,7 @@ def test_uvh5_read_multdim_index(tmp_path, future_shapes, casa_uvfits):
 
     # check that non sliceable multidim index is caught
     # and does not fail
-    ants_to_keep = np.array([0, 19, 11, 24, 3, 23, 1, 20, 21])
+    ants_to_keep = np.array([1, 20, 12, 25, 4, 24, 2, 21, 22])
     chans_to_keep = [15, 17, 20]
     uvh5_uv = UVData()
     uvh5_uv.read(

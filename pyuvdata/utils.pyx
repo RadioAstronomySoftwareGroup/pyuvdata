@@ -73,8 +73,8 @@ cdef inline void _bl_to_ant_256(
   cdef Py_ssize_t i
 
   for i in range(nbls):
-    _ants[1, i] = (_bl[i]) % 256 - 1
-    _ants[0, i] = (_bl[i] - (_ants[1, i] + 1)) // 256 - 1
+    _ants[1, i] = (_bl[i]) % 256
+    _ants[0, i] = (_bl[i] - (_ants[1, i])) // 256
   return
 
 @cython.boundscheck(False)
@@ -86,8 +86,8 @@ cdef inline void _bl_to_ant_2048(
 ):
   cdef Py_ssize_t i
   for i in range(nbls):
-    _ants[1, i] = (_bl[i] - 2 ** 16) % 2048 - 1
-    _ants[0, i] = (_bl[i] - 2 ** 16 - (_ants[1, i] + 1)) // 2048 - 1
+    _ants[1, i] = (_bl[i] - 2 ** 16) % 2048
+    _ants[0, i] = (_bl[i] - 2 ** 16 - (_ants[1, i])) // 2048
   return
 
 
@@ -97,7 +97,7 @@ cpdef numpy.ndarray[dtype=numpy.int64_t, ndim=2] baseline_to_antnums(
     numpy.int64_t[::1] _bl
 ):
   cdef int _min = arraymin(_bl)
-  cdef bint use2048 = _min > 2 ** 16
+  cdef bint use2048 = _min >= 2 ** 16
   cdef long nbls = _bl.shape[0]
   cdef int ndim = 2
   cdef numpy.npy_intp * dims = [2, <numpy.npy_intp> nbls]
@@ -121,7 +121,7 @@ cdef inline void _antnum_to_bl_2048(
   cdef Py_ssize_t i
 
   for i in range(nbls):
-    baselines[i] = 2048 * (ant1[i] + 1) + (ant2[i] + 1) + 2 ** 16
+    baselines[i] = 2048 * (ant1[i]) + (ant2[i]) + 2 ** 16
   return
 
 @cython.boundscheck(False)
@@ -136,7 +136,7 @@ cdef inline void _antnum_to_bl_256(
   # make views as c-contiguous arrays of a known dtype
   # effectivly turns the numpy array into a c-array
   for i in range(nbls):
-    baselines[i] = 256 * (ant1[i] + 1) + (ant2[i] + 1)
+    baselines[i] = 256 * (ant1[i]) + (ant2[i])
   return
 
 cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
@@ -150,18 +150,19 @@ cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
   cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] baseline = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_INT64, 0)
   cdef numpy.int64_t[::1] _bl = baseline
   cdef bint less255
-
+  # to ensure baseline numbers are unambiguous,
+  # use the 2048 calculation for antennas >= 256
   if attempt256:
-    less255 = max(
+    less256 = max(
       arraymax(ant1),
       arraymax(ant2),
-    ) < 255
-    if less255:
+    ) < 256
+    if less256:
       _antnum_to_bl_256(ant1, ant2, _bl, nbls)
 
     else:
       message = (
-        "antnums_to_baseline: found antenna numbers > 256, using "
+        "antnums_to_baseline: found antenna numbers > 255, using "
         "2048 baseline indexing. Beware compatibility "
         "with CASA etc"
       )

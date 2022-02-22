@@ -34,11 +34,12 @@ which also has the same length (the length of the baseline-time axis on the ``da
 
 There is also a ``baseline_array`` attribute with baseline numbers defined from the
 ``ant_1_array`` and ``ant_2_array`` as
-:math:`baseline = 2048 \times (antenna_1+1) + (antenna_2+1) + 2^{16}`.
+:math:`baseline = 2048 \times (antenna_1) + (antenna_2) + 2^{16}`.
 This gives a unique baseline number for each antenna pair and can be a useful way to
 identify visibilities associated with particular baselines. The ``baseline_array``
 attribute has the same length as the ``ant_1_array`` and ``ant_2_array`` (the length of
-the baseline-time axis on the ``data_array``).
+the baseline-time axis on the ``data_array``). Note: earlier versions of pyuvdata added 1
+to the antenna arrays before calculating the baseline numbers. Reference issues here?
 
 For most users, the convenience methods for quick data access (see :ref:`quick_access`)
 are the easiest way to get data for particular sets of baselines. Those methods take

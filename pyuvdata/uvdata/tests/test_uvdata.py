@@ -763,14 +763,19 @@ def test_converttofiletype(casa_uvfits):
 
 def test_baseline_to_antnums(uvdata_baseline):
     """Test baseline to antnum conversion for 256 & larger conventions."""
-    assert uvdata_baseline.uv_object.baseline_to_antnums(67585) == (0, 0)
+    assert uvdata_baseline.uv_object.baseline_to_antnums(65536) == (0, 0)
     with pytest.raises(Exception) as cm:
-        uvdata_baseline.uv_object2.baseline_to_antnums(67585)
+        uvdata_baseline.uv_object2.baseline_to_antnums(65536)
     assert str(cm.value).startswith(
         "error Nants={Nants}>2048"
         " not supported".format(Nants=uvdata_baseline.uv_object2.Nants_telescope)
     )
-
+    with pytest.raises(Exception) as cm:
+        uvdata_baseline.uv_object.baseline_to_antnums(-10)
+    assert str(cm.value).startswith("negative baseline numbers are not supported")
+    with pytest.raises(Exception) as cm:
+        uvdata_baseline.uv_object.baseline_to_antnums(5000000)
+    assert str(cm.value).startswith("baseline numbers > 4259839 are not supported")
     ant_pairs = [(10, 20), (280, 310)]
     for pair in ant_pairs:
         if np.max(np.array(pair)) < 255:
@@ -792,7 +797,7 @@ def test_baseline_to_antnums_vectorized(uvdata_baseline):
     ant_1 = [10, 280]
     ant_2 = [20, 310]
     baseline_array = uvdata_baseline.uv_object.antnums_to_baseline(ant_1, ant_2)
-    assert np.array_equal(baseline_array, [88085, 641335])
+    assert np.array_equal(baseline_array, [86036, 639286])
     ant_1_out, ant_2_out = uvdata_baseline.uv_object.baseline_to_antnums(
         baseline_array.tolist()
     )
@@ -802,19 +807,31 @@ def test_baseline_to_antnums_vectorized(uvdata_baseline):
 
 def test_antnums_to_baselines(uvdata_baseline):
     """Test antums to baseline conversion for 256 & larger conventions."""
-    assert uvdata_baseline.uv_object.antnums_to_baseline(0, 0) == 67585
-    assert uvdata_baseline.uv_object.antnums_to_baseline(257, 256) == 594177
-    assert uvdata_baseline.uv_object.baseline_to_antnums(594177) == (257, 256)
+    assert uvdata_baseline.uv_object.antnums_to_baseline(0, 0) == 65536
+    assert uvdata_baseline.uv_object.antnums_to_baseline(257, 256) == 592128
+    assert uvdata_baseline.uv_object.baseline_to_antnums(592128) == (257, 256)
     # Check attempt256
-    assert uvdata_baseline.uv_object.antnums_to_baseline(0, 0, attempt256=True) == 257
-    assert uvdata_baseline.uv_object.antnums_to_baseline(257, 256) == 594177
-    with uvtest.check_warnings(UserWarning, "found antenna numbers > 256"):
-        uvdata_baseline.uv_object.antnums_to_baseline(257, 256, attempt256=True)
+    assert uvdata_baseline.uv_object.antnums_to_baseline(0, 0, attempt256=True) == 0
+    with uvtest.check_warnings(UserWarning, "found antenna numbers > 255"):
+        uvdata_baseline.uv_object.antnums_to_baseline(256, 255, attempt256=True)
     with pytest.raises(
-        ValueError,
+        ValueError, 
         match="cannot convert ant1, ant2 to a baseline index with Nants=2049>2048",
     ):
         uvdata_baseline.uv_object2.antnums_to_baseline(0, 0)
+    # check for out of range antenna numbers
+    with pytest.raises(
+        ValueError,
+        match="cannot convert ant1, ant2 to a baseline index "
+        "with antenna numbers greater than 2047.",
+    ):
+        uvdata_baseline.uv_object.antnums_to_baseline(2048, 2049)
+    with pytest.raises(
+        ValueError,
+        match="cannot convert ant1, ant2 to a baseline index "
+        "with antenna numbers less than zero.",
+    ):
+        uvdata_baseline.uv_object.antnums_to_baseline(-10, 2047)
     # check a len-1 array returns as an array
     ant1 = np.array([1])
     ant2 = np.array([2])
@@ -1451,7 +1468,7 @@ def test_select_antennas(casa_uvfits):
     unique_ants = np.unique(
         uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist()
     )
-    ants_to_keep = np.array([0, 19, 11, 24, 3, 23, 1, 20, 21])
+    ants_to_keep = np.array([1, 20, 12, 25, 4, 24, 2, 21, 22])
 
     blts_select = [
         (a1 in ants_to_keep) & (a2 in ants_to_keep)
@@ -1563,8 +1580,8 @@ def sort_bl(p):
 def test_select_bls(casa_uvfits):
     uv_object = casa_uvfits
     old_history = uv_object.history
-    first_ants = [6, 2, 7, 2, 21, 27, 8]
-    second_ants = [0, 20, 8, 1, 2, 3, 22]
+    first_ants = [7, 3, 8, 3, 22, 28, 9]
+    second_ants = [1, 21, 9, 2, 3, 4, 23]
     new_unique_ants = np.unique(first_ants + second_ants)
     ant_pairs_to_keep = list(zip(first_ants, second_ants))
     sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
@@ -1629,8 +1646,8 @@ def test_select_bls(casa_uvfits):
     )
 
     # check select with polarizations
-    first_ants = [6, 2, 7, 2, 21, 27, 8]
-    second_ants = [0, 20, 8, 1, 2, 3, 22]
+    first_ants = [7, 3, 8, 3, 22, 28, 9]
+    second_ants = [1, 21, 9, 2, 3, 4, 23]
     pols = ["RR", "RR", "RR", "RR", "RR", "RR", "RR"]
     new_unique_ants = np.unique(first_ants + second_ants)
     bls_to_keep = list(zip(first_ants, second_ants, pols))
@@ -1669,8 +1686,8 @@ def test_select_bls(casa_uvfits):
     )
 
     # check that you can use numpy integers with out errors:
-    first_ants = list(map(np.int32, [6, 2, 7, 2, 21, 27, 8]))
-    second_ants = list(map(np.int32, [0, 20, 8, 1, 2, 3, 22]))
+    first_ants = list(map(np.int32, [7, 3, 8, 3, 22, 28, 9]))
+    second_ants = list(map(np.int32, [1, 21, 9, 2, 3, 4, 23]))
     ant_pairs_to_keep = list(zip(first_ants, second_ants))
 
     uv_object2 = uv_object.select(bls=ant_pairs_to_keep, inplace=False)
@@ -1697,15 +1714,15 @@ def test_select_bls(casa_uvfits):
     )
 
     # check that you can specify a single pair without errors
-    uv_object2.select(bls=(0, 6))
+    uv_object2.select(bls=(1, 7))
     sorted_pairs_object2 = [
         sort_bl(p) for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array)
     ]
-    assert list(set(sorted_pairs_object2)) == [(0, 6)]
+    assert list(set(sorted_pairs_object2)) == [(1, 7)]
 
     # check for errors associated with antenna pairs not included in data and bad inputs
     with pytest.raises(ValueError) as cm:
-        uv_object.select(bls=list(zip(first_ants, second_ants)) + [0, 6])
+        uv_object.select(bls=list(zip(first_ants, second_ants)) + [1, 7])
     assert str(cm.value).startswith("bls must be a list of tuples of antenna numbers")
 
     with pytest.raises(ValueError) as cm:
@@ -1718,7 +1735,7 @@ def test_select_bls(casa_uvfits):
         "Antenna number 5 is not present in the " "ant_1_array or ant_2_array"
     )
     with pytest.raises(ValueError) as cm:
-        uv_object.select(bls=(0, 5))
+        uv_object.select(bls=(1, 5))
     assert str(cm.value).startswith(
         "Antenna number 5 is not present in the " "ant_1_array or ant_2_array"
     )
@@ -1726,12 +1743,12 @@ def test_select_bls(casa_uvfits):
         uv_object.select(bls=(27, 27))
     assert str(cm.value).startswith("Antenna pair (27, 27) does not have any data")
     with pytest.raises(ValueError) as cm:
-        uv_object.select(bls=(6, 0, "RR"), polarizations="RR")
+        uv_object.select(bls=(7, 1, "RR"), polarizations="RR")
     assert str(cm.value).startswith(
         "Cannot provide length-3 tuples and also " "specify polarizations."
     )
     with pytest.raises(ValueError) as cm:
-        uv_object.select(bls=(6, 0, 8))
+        uv_object.select(bls=(7, 1, 7))
     assert str(cm.value).startswith(
         "The third element in each bl must be a " "polarization string"
     )
@@ -2445,9 +2462,9 @@ def test_select(casa_uvfits, future_shapes):
                          1242, 702, 567, 557, 1032, 1352, 504, 545, 422, 179, 780,
                          280, 890, 774, 884])
     # fmt: on
-    ants_to_keep = np.array([11, 6, 20, 26, 2, 27, 7, 14])
+    ants_to_keep = np.array([12, 7, 21, 27, 3, 28, 8, 15])
 
-    ant_pairs_to_keep = [(2, 11), (20, 26), (6, 7), (3, 27), (14, 6)]
+    ant_pairs_to_keep = [(3, 12), (21, 27), (7, 8), (4, 28), (15, 7)]
     sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
 
     if future_shapes:
@@ -2549,9 +2566,9 @@ def test_select_with_lst(casa_uvfits, future_shapes):
                          1242, 702, 567, 557, 1032, 1352, 504, 545, 422, 179, 780,
                          280, 890, 774, 884])
     # fmt: on
-    ants_to_keep = np.array([11, 6, 20, 26, 2, 27, 7, 14])
+    ants_to_keep = np.array([12, 7, 21, 27, 3, 28, 8, 15])
 
-    ant_pairs_to_keep = [(2, 11), (20, 26), (6, 7), (3, 27), (14, 6)]
+    ant_pairs_to_keep = [(3, 12), (21, 27), (7, 8), (4, 28), (15, 7)]
     sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
 
     if future_shapes:
@@ -5526,13 +5543,13 @@ def test_parse_ants(casa_uvfits, hera_uvh5_xx):
     pytest.raises(ValueError, uv.parse_ants, ant_str)
 
     # Single antenna number
-    ant_str = "0"
+    ant_str = "1"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     # fmt: off
-    ant_pairs_expected = [(0, 1), (0, 2), (0, 3), (0, 6), (0, 7), (0, 8),
-                          (0, 11), (0, 14), (0, 18), (0, 19), (0, 20),
-                          (0, 21), (0, 22), (0, 23), (0, 24), (0, 26),
-                          (0, 27)]
+    ant_pairs_expected = [(1, 2), (1, 3), (1, 4), (1, 7), (1, 8), (1, 9),
+                          (1, 12), (1, 15), (1, 19), (1, 20), (1, 21),
+                          (1, 22), (1, 23), (1, 24), (1, 25), (1, 27),
+                          (1, 28)]
     # fmt: on
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert isinstance(polarizations, type(None))
@@ -5564,17 +5581,16 @@ def test_parse_ants(casa_uvfits, hera_uvh5_xx):
     assert isinstance(polarizations, type(None))
 
     # Multiple antenna numbers as list
-    ant_str = "22,26"
+    ant_str = "22,27"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     # fmt: off
-    ant_pairs_expected = [(0, 22), (0, 26), (1, 22), (1, 26), (2, 22), (2, 26),
-                          (3, 22), (3, 26), (6, 22), (6, 26), (7, 22),
-                          (7, 26), (8, 22), (8, 26), (11, 22), (11, 26),
-                          (14, 22), (14, 26), (18, 22), (18, 26),
-                          (19, 22), (19, 26), (20, 22), (20, 26),
-                          (21, 22), (21, 26), (22, 23), (22, 24),
-                          (22, 26), (22, 27), (23, 26), (24, 26),
-                          (26, 27)]
+    ant_pairs_expected = [(1, 22), (2, 22), (3, 22), (4, 22), (7, 22), (8, 22),
+                          (9, 22), (12, 22), (15, 22), (19, 22), (20, 22),
+                          (21, 22), (22, 23), (22, 24), (22, 25), (22, 27),
+                          (22, 28), (1, 27), (2, 27), (3, 27), (4, 27),
+                          (7, 27), (8, 27), (9, 27), (12, 27), (15, 27),
+                          (19, 27), (20, 27), (21, 27), (23, 27),
+                          (24, 27), (25, 27), (27, 28)]
     # fmt: on
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert isinstance(polarizations, type(None))
@@ -5620,46 +5636,46 @@ def test_parse_ants(casa_uvfits, hera_uvh5_xx):
     assert Counter(polarizations) == Counter(pols_expected)
 
     # Multiple baselines as list
-    ant_str = "1_2,1_3,1_11"
+    ant_str = "1_2,1_3,1_12"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(1, 2), (1, 3), (1, 11)]
+    ant_pairs_expected = [(1, 2), (1, 3), (1, 12)]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert isinstance(polarizations, type(None))
 
     # Multiples baselines with polarizations as list
-    ant_str = "1r_2l,1l_3l,1r_11r"
+    ant_str = "1r_2l,1l_3l,1r_12r"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(1, 2), (1, 3), (1, 11)]
+    ant_pairs_expected = [(1, 2), (1, 3), (1, 12)]
     pols_expected = [-1, -2, -3]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert Counter(polarizations) == Counter(pols_expected)
 
     # Specific baselines with parenthesis
-    ant_str = "(1,3)_11"
+    ant_str = "(1,3)_12"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(1, 11), (3, 11)]
+    ant_pairs_expected = [(1, 12), (3, 12)]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert isinstance(polarizations, type(None))
 
     # Specific baselines with parenthesis
-    ant_str = "1_(3,11)"
+    ant_str = "1_(3,12)"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(1, 3), (1, 11)]
+    ant_pairs_expected = [(1, 3), (1, 12)]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert isinstance(polarizations, type(None))
 
     # Antenna numbers with polarizations
-    ant_str = "(1l,2r)_(3l,6r)"
+    ant_str = "(1l,2r)_(3l,7r)"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(1, 3), (1, 6), (2, 3), (2, 6)]
+    ant_pairs_expected = [(1, 3), (1, 7), (2, 3), (2, 7)]
     pols_expected = [-1, -2, -3, -4]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert Counter(polarizations) == Counter(pols_expected)
 
     # Antenna numbers with - for avoidance
-    ant_str = "1_(-3,11)"
+    ant_str = "1_(-3,12)"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(1, 11)]
+    ant_pairs_expected = [(1, 12)]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert isinstance(polarizations, type(None))
 
@@ -5667,22 +5683,22 @@ def test_parse_ants(casa_uvfits, hera_uvh5_xx):
     ant_str = "1,-3"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     ant_pairs_expected = [
-        (0, 1),
         (1, 2),
-        (1, 6),
+        (1, 4),
         (1, 7),
         (1, 8),
-        (1, 11),
-        (1, 14),
-        (1, 18),
+        (1, 9),
+        (1, 12),
+        (1, 15),
         (1, 19),
         (1, 20),
         (1, 21),
         (1, 22),
         (1, 23),
         (1, 24),
-        (1, 26),
+        (1, 25),
         (1, 27),
+        (1, 28),
     ]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert isinstance(polarizations, type(None))
@@ -5694,17 +5710,17 @@ def test_parse_ants(casa_uvfits, hera_uvh5_xx):
     assert isinstance(polarizations, type(None))
 
     # Antenna numbers with polarizations and - for avoidance
-    ant_str = "1l_(-3r,11l)"
+    ant_str = "1l_(-3r,12l)"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(1, 11)]
+    ant_pairs_expected = [(1, 12)]
     pols_expected = [-2]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert Counter(polarizations) == Counter(pols_expected)
 
     # Antenna numbers and pseudo-Stokes parameters
-    ant_str = "(1l,2r)_(3l,6r),pI,pq"
+    ant_str = "(1l,2r)_(3l,7r),pI,pq"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_pairs_expected = [(1, 3), (1, 6), (2, 3), (2, 6)]
+    ant_pairs_expected = [(1, 3), (1, 7), (2, 3), (2, 7)]
     pols_expected = [2, 1, -1, -2, -3, -4]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert Counter(polarizations) == Counter(pols_expected)
@@ -5813,25 +5829,25 @@ def test_select_with_ant_str(casa_uvfits, hera_uvh5_xx):
     # All baselines in data are cross correlations
 
     # Single antenna number
-    ant_str = "0"
+    ant_str = "1"
     ant_pairs = [
-        (0, 1),
-        (0, 2),
-        (0, 3),
-        (0, 6),
-        (0, 7),
-        (0, 8),
-        (0, 11),
-        (0, 14),
-        (0, 18),
-        (0, 19),
-        (0, 20),
-        (0, 21),
-        (0, 22),
-        (0, 23),
-        (0, 24),
-        (0, 26),
-        (0, 27),
+        (1, 2),
+        (1, 3),
+        (1, 4),
+        (1, 7),
+        (1, 8),
+        (1, 9),
+        (1, 12),
+        (1, 15),
+        (1, 19),
+        (1, 20),
+        (1, 21),
+        (1, 22),
+        (1, 23),
+        (1, 24),
+        (1, 25),
+        (1, 27),
+        (1, 28),
     ]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
@@ -5851,41 +5867,41 @@ def test_select_with_ant_str(casa_uvfits, hera_uvh5_xx):
         uv.select(ant_str=ant_str, inplace=inplace)
 
     # Multiple antenna numbers as list
-    ant_str = "22,26"
+    ant_str = "23,27"
     ant_pairs = [
-        (0, 22),
-        (0, 26),
-        (1, 22),
-        (1, 26),
-        (2, 22),
-        (2, 26),
-        (3, 22),
-        (3, 26),
-        (6, 22),
-        (6, 26),
-        (7, 22),
-        (7, 26),
-        (8, 22),
-        (8, 26),
-        (11, 22),
-        (11, 26),
-        (14, 22),
-        (14, 26),
-        (18, 22),
-        (18, 26),
-        (19, 22),
-        (19, 26),
-        (20, 22),
-        (20, 26),
-        (21, 22),
-        (21, 26),
+        (1, 23),
+        (1, 27),
+        (2, 23),
+        (2, 27),
+        (3, 23),
+        (3, 27),
+        (4, 23),
+        (4, 27),
+        (7, 23),
+        (7, 27),
+        (8, 23),
+        (8, 27),
+        (9, 23),
+        (9, 27),
+        (12, 23),
+        (12, 27),
+        (15, 23),
+        (15, 27),
+        (19, 23),
+        (19, 27),
+        (20, 23),
+        (20, 27),
+        (21, 23),
+        (21, 27),
         (22, 23),
-        (22, 24),
-        (22, 26),
         (22, 27),
-        (23, 26),
-        (24, 26),
-        (26, 27),
+        (23, 24),
+        (23, 25),
+        (23, 27),
+        (23, 28),
+        (24, 27),
+        (25, 27),
+        (27, 28),
     ]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
@@ -5965,44 +5981,44 @@ def test_select_with_ant_str(casa_uvfits, hera_uvh5_xx):
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
 
     # Multiples baselines with polarizations as list
-    ant_str = "1r_2l,1l_3l,1r_11r"
-    ant_pairs = [(1, 2), (1, 3), (1, 11)]
+    ant_str = "1r_2l,1l_3l,1r_12r"
+    ant_pairs = [(1, 2), (1, 3), (1, 12)]
     pols = ["rr", "ll", "rl"]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(pols)
 
     # Specific baselines with parenthesis
-    ant_str = "(1,3)_11"
-    ant_pairs = [(1, 11), (3, 11)]
+    ant_str = "(1,3)_12"
+    ant_pairs = [(1, 12), (3, 12)]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
 
     # Specific baselines with parenthesis
-    ant_str = "1_(3,11)"
-    ant_pairs = [(1, 3), (1, 11)]
+    ant_str = "1_(3,12)"
+    ant_pairs = [(1, 3), (1, 12)]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
 
     # Antenna numbers with polarizations
-    ant_str = "(1l,2r)_(3l,6r)"
-    ant_pairs = [(1, 3), (1, 6), (2, 3), (2, 6)]
+    ant_str = "(1l,2r)_(3l,7r)"
+    ant_pairs = [(1, 3), (1, 7), (2, 3), (2, 7)]
     pols = ["rr", "ll", "rl", "lr"]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(pols)
 
     # Antenna numbers with - for avoidance
-    ant_str = "1_(-3,11)"
-    ant_pairs = [(1, 11)]
+    ant_str = "1_(-3,12)"
+    ant_pairs = [(1, 12)]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
 
-    ant_str = "(-1,3)_11"
-    ant_pairs = [(3, 11)]
+    ant_str = "(-1,3)_12"
+    ant_pairs = [(3, 12)]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
@@ -6010,22 +6026,22 @@ def test_select_with_ant_str(casa_uvfits, hera_uvh5_xx):
     # Remove specific antenna number
     ant_str = "1,-3"
     ant_pairs = [
-        (0, 1),
         (1, 2),
-        (1, 6),
+        (1, 4),
         (1, 7),
         (1, 8),
-        (1, 11),
-        (1, 14),
-        (1, 18),
+        (1, 9),
+        (1, 12),
+        (1, 15),
         (1, 19),
         (1, 20),
         (1, 21),
         (1, 22),
         (1, 23),
         (1, 24),
-        (1, 26),
+        (1, 25),
         (1, 27),
+        (1, 28),
     ]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
@@ -6034,30 +6050,30 @@ def test_select_with_ant_str(casa_uvfits, hera_uvh5_xx):
     # Remove specific baseline
     ant_str = "1,-1_3"
     ant_pairs = [
-        (0, 1),
         (1, 2),
-        (1, 6),
+        (1, 4),
         (1, 7),
         (1, 8),
-        (1, 11),
-        (1, 14),
-        (1, 18),
+        (1, 9),
+        (1, 12),
+        (1, 15),
         (1, 19),
         (1, 20),
         (1, 21),
         (1, 22),
         (1, 23),
         (1, 24),
-        (1, 26),
+        (1, 25),
         (1, 27),
+        (1, 28),
     ]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
 
     # Antenna numbers with polarizations and - for avoidance
-    ant_str = "1l_(-3r,11l)"
-    ant_pairs = [(1, 11)]
+    ant_str = "1l_(-3r,12l)"
+    ant_pairs = [(1, 12)]
     pols = ["ll"]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
@@ -8841,7 +8857,7 @@ def test_frequency_average(casa_uvfits, future_shapes):
     assert np.max(np.abs(uvobj.eq_coeffs - expected_coeffs)) == 0
 
     # no flagging, so the following is true
-    expected_data = uvobj2.get_data(0, 1, squeeze="none")
+    expected_data = uvobj2.get_data(1, 2, squeeze="none")
     if future_shapes:
         reshape_tuple = (
             expected_data.shape[0],
@@ -8860,7 +8876,7 @@ def test_frequency_average(casa_uvfits, future_shapes):
             uvobj2.Npols,
         )
         expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
-    assert np.allclose(uvobj.get_data(0, 1, squeeze="none"), expected_data)
+    assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
 
     assert np.nonzero(uvobj.flag_array)[0].size == 0
 
@@ -8907,7 +8923,7 @@ def test_frequency_average_uneven(casa_uvfits, future_shapes):
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
     # no flagging, so the following is true
-    expected_data = uvobj2.get_data(0, 1, squeeze="none")
+    expected_data = uvobj2.get_data(1, 2, squeeze="none")
     if future_shapes:
         expected_data = expected_data[:, 0 : ((uvobj2.Nfreqs // 7) * 7), :]
         reshape_tuple = (
@@ -8927,7 +8943,7 @@ def test_frequency_average_uneven(casa_uvfits, future_shapes):
             uvobj2.Npols,
         )
         expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
-    assert np.allclose(uvobj.get_data(0, 1, squeeze="none"), expected_data)
+    assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
 
     assert np.nonzero(uvobj.flag_array)[0].size == 0
 
@@ -8946,7 +8962,7 @@ def test_frequency_average_flagging(casa_uvfits, future_shapes):
     assert np.nonzero(uvobj.flag_array)[0].size == 0
 
     # apply some flagging for testing
-    inds01 = uvobj.antpair2ind(0, 1)
+    inds01 = uvobj.antpair2ind(1, 2)
     if future_shapes:
         uvobj.flag_array[inds01[0], 0:2, :] = True
     else:
@@ -8967,7 +8983,7 @@ def test_frequency_average_flagging(casa_uvfits, future_shapes):
         )
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
-    expected_data = uvobj2.get_data(0, 1, squeeze="none")
+    expected_data = uvobj2.get_data(1, 2, squeeze="none")
     if future_shapes:
         reshape_tuple = (
             expected_data.shape[0],
@@ -8985,7 +9001,7 @@ def test_frequency_average_flagging(casa_uvfits, future_shapes):
             uvobj2.Npols,
         )
         expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
-    assert np.allclose(uvobj.get_data(0, 1, squeeze="none"), expected_data)
+    assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
 
     if future_shapes:
         assert np.sum(uvobj.flag_array[inds01[0], 0, :]) == 4
@@ -9007,7 +9023,7 @@ def test_frequency_average_flagging_partial(casa_uvfits):
     assert np.nonzero(uvobj.flag_array)[0].size == 0
 
     # apply some flagging for testing
-    inds01 = uvobj.antpair2ind(0, 1)
+    inds01 = uvobj.antpair2ind(1, 2)
     uvobj.flag_array[inds01[0], :, 0, :] = True
     assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols
 
@@ -9021,7 +9037,7 @@ def test_frequency_average_flagging_partial(casa_uvfits):
     )
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
-    expected_data = uvobj2.get_data(0, 1, squeeze="none")
+    expected_data = uvobj2.get_data(1, 2, squeeze="none")
     # TODO: Spw axis to be collapsed in future release
     reshape_tuple = (
         expected_data.shape[0],
@@ -9032,7 +9048,7 @@ def test_frequency_average_flagging_partial(casa_uvfits):
     )
     expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
     expected_data[0, :, 0, :] = uvobj2.data_array[inds01[0], :, 1, :]
-    assert np.allclose(uvobj.get_data(0, 1, squeeze="none"), expected_data)
+    assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
 
     # check that there's no flagging
     assert np.nonzero(uvobj.flag_array)[0].size == 0
@@ -9050,7 +9066,7 @@ def test_frequency_average_flagging_full_and_partial(casa_uvfits):
     assert np.nonzero(uvobj.flag_array)[0].size == 0
 
     # apply some flagging for testing
-    inds01 = uvobj.antpair2ind(0, 1)
+    inds01 = uvobj.antpair2ind(1, 2)
     uvobj.flag_array[inds01[0], :, 0:3, :] = True
     assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols * 3
 
@@ -9064,7 +9080,7 @@ def test_frequency_average_flagging_full_and_partial(casa_uvfits):
     )
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
-    expected_data = uvobj2.get_data(0, 1, squeeze="none")
+    expected_data = uvobj2.get_data(1, 2, squeeze="none")
     # TODO: Spw axis to be collapsed in future release
     reshape_tuple = (
         expected_data.shape[0],
@@ -9077,7 +9093,7 @@ def test_frequency_average_flagging_full_and_partial(casa_uvfits):
 
     expected_data[0, :, 1, :] = uvobj2.data_array[inds01[0], :, 3, :]
 
-    assert np.allclose(uvobj.get_data(0, 1, squeeze="none"), expected_data)
+    assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
     assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols
 
 
@@ -9091,7 +9107,7 @@ def test_frequency_average_flagging_partial_twostage(casa_uvfits):
     assert np.nonzero(uvobj.flag_array)[0].size == 0
 
     # apply some flagging for testing
-    inds01 = uvobj.antpair2ind(0, 1)
+    inds01 = uvobj.antpair2ind(1, 2)
     uvobj.flag_array[inds01[0], :, 0, :] = True
     assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols
 
@@ -9133,7 +9149,7 @@ def test_frequency_average_summing_corr_mode(casa_uvfits, future_shapes):
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
     # no flagging, so the following is true
-    expected_data = uvobj2.get_data(0, 1, squeeze="none")
+    expected_data = uvobj2.get_data(1, 2, squeeze="none")
     if future_shapes:
         reshape_tuple = (
             expected_data.shape[0],
@@ -9151,7 +9167,7 @@ def test_frequency_average_summing_corr_mode(casa_uvfits, future_shapes):
             uvobj2.Npols,
         )
         expected_data = expected_data.reshape(reshape_tuple).sum(axis=3)
-    assert np.allclose(uvobj.get_data(0, 1, squeeze="none"), expected_data)
+    assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
 
     assert np.nonzero(uvobj.flag_array)[0].size == 0
     assert not isinstance(uvobj.data_array, np.ma.MaskedArray)
@@ -9177,7 +9193,7 @@ def test_frequency_average_propagate_flags(casa_uvfits, future_shapes):
     assert np.nonzero(uvobj.flag_array)[0].size == 0
 
     # apply some flagging for testing
-    inds01 = uvobj.antpair2ind(0, 1)
+    inds01 = uvobj.antpair2ind(1, 2)
     if future_shapes:
         uvobj.flag_array[inds01[0], 0:3, :] = True
     else:
@@ -9199,7 +9215,7 @@ def test_frequency_average_propagate_flags(casa_uvfits, future_shapes):
         )
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
-    expected_data = uvobj2.get_data(0, 1, squeeze="none")
+    expected_data = uvobj2.get_data(1, 2, squeeze="none")
     if future_shapes:
         reshape_tuple = (
             expected_data.shape[0],
@@ -9222,7 +9238,7 @@ def test_frequency_average_propagate_flags(casa_uvfits, future_shapes):
 
         expected_data[0, :, 1, :] = uvobj2.data_array[inds01[0], :, 3, :]
 
-    assert np.allclose(uvobj.get_data(0, 1, squeeze="none"), expected_data)
+    assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
     # Twice as many flags should exist compared to test of previous name.
     assert np.nonzero(uvobj.flag_array)[0].size == 2 * uvobj.Npols
 
@@ -9264,7 +9280,7 @@ def test_frequency_average_nsample_precision(casa_uvfits):
     assert np.max(np.abs(uvobj.eq_coeffs - expected_coeffs)) == 0
 
     # no flagging, so the following is true
-    expected_data = uvobj2.get_data(0, 1, squeeze="none")
+    expected_data = uvobj2.get_data(1, 2, squeeze="none")
     # TODO: Spw axis to be collapsed in future release
     reshape_tuple = (
         expected_data.shape[0],
@@ -9274,7 +9290,7 @@ def test_frequency_average_nsample_precision(casa_uvfits):
         uvobj2.Npols,
     )
     expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
-    assert np.allclose(uvobj.get_data(0, 1, squeeze="none"), expected_data)
+    assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
 
     assert np.nonzero(uvobj.flag_array)[0].size == 0
 
