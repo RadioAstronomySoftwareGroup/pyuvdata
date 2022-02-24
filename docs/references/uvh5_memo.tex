@@ -249,24 +249,28 @@ interoperability between different HDF5 implementations.
 \item \textbf{antenna\_diameters}: \textit{float} An array of the diameters of
   the antennas in meters. This is a one-dimensional array of size
   (Nants\_telescope). (\textit{Nants\_telescope})
+\item \textbf{phase\_center\_catalog}: A series of nested datasets, similar to
+a dict in python. The top level keys are strings giving the phase center
+catalog names. The next level keys must include:
+	\begin{itemize}
+	\item \textbf{cat\_id}: \textit{int} The phase center catalog ID number,
+	which is used to identify which baseline times are phased to which
+	phase center via the phase\_center\_id\_array.
+	\item \textbf{cat\_type}: \textit{string} One of four allowed values:
+	\textbf{(1)} sidereal, \textbf{(2)} ephem, \textbf{(3)} driftscan,
+	\textbf{(4)} unprojected.
+  	Sidereal means a phase center that is fixed in RA and Dec.
+	Ephem means a phaphase center that has an RA and Dec that
+	moves with time.
+	Driftscan means a phase center with a fixed azimuth and
+	elevation (note that this includes w-projection, even at zenith).
+	Unprojected means no phasing, including w-projection, has been applied.
+  
+  
 \item \textbf{uvplane\_reference\_time}: \textit{int} The time at which the
   phase center is normal to the chosen UV plane for phasing. Used for
   interoperability with the FHD
   package\footnote{\url{https://github.com/EoRImaging/FHD}}.
-\item \textbf{phase\_center\_ra}: \textit{float} The right ascension of the
-  phase center of the observation in radians. Required if phase\_type is
-  ``phased''. (\textit{phase\_center\_ra})
-\item \textbf{phase\_center\_dec}: \textit{float} The declination of the phase
-  center of the observation in radians. Required if phase\_type is
-  ``phased''. (\textit{phase\_center\_dec}).
-\item \textbf{phase\_center\_epoch}: \textit{float} The epoch year of the phase
-  applied to the data (\textit{e.g.}, 2000.). Required if phase\_type is
-  ``phased''. (\textit{phase\_center\_epoch})
-\item \textbf{phase\_center\_frame}: \textit{string} The frame the data and
-  uvw\_array are phased to. Options are ``gcrs'' and ``icrs'', with default
-  ``icrs''. These frames are defined as
-  \href{https://docs.astropy.org/en/stable/coordinates/index.html}{coordinate
-    systems in astropy}. (\textit{phase\_center\_frame})
 \item \textbf{lst\_array}: \textit{float} An array corresponding to the local
   sidereal time of the center of each observation in the data in units of
   radians. If it is not specified, it is calculated from the latitude/longitude
@@ -402,6 +406,25 @@ It is strongly encouraged that independent UVH5 writers conform to the latest
 version (Version 1.0 at time of writing), while readers are encouraged to
 support backwards compatibility as much as possible. If readers cannot support
 all revisions, reading more recent versions should be prioritized.
+
+
+
+\item \textbf{phase\_center\_ra}: \textit{float} The right ascension of the
+  phase center of the observation in radians. Required if phase\_type is
+  ``phased''. (\textit{phase\_center\_ra})
+\item \textbf{phase\_center\_dec}: \textit{float} The declination of the phase
+  center of the observation in radians. Required if phase\_type is
+  ``phased''. (\textit{phase\_center\_dec}).
+\item \textbf{phase\_center\_epoch}: \textit{float} The epoch year of the phase
+  applied to the data (\textit{e.g.}, 2000.). Required if phase\_type is
+  ``phased''. (\textit{phase\_center\_epoch})
+\item \textbf{phase\_center\_frame}: \textit{string} The frame the data and
+  uvw\_array are phased to. Options are ``gcrs'' and ``icrs'', with default
+  ``icrs''. These frames are defined as
+  \href{https://docs.astropy.org/en/stable/coordinates/index.html}{coordinate
+    systems in astropy}. (\textit{phase\_center\_frame})
+
+
 
 \subsection{\texttt{version} dataset}
 When present, the version information is stored in the Header as a string-based
