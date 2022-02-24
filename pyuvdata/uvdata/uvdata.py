@@ -5504,6 +5504,7 @@ class UVData(UVBase):
                     self._clear_unused_phase_centers()
             # All done w/ the new phase method
             return
+        # use the old method
         warnings.warn(
             "The original `phase` method is deprecated, and will be removed in "
             "pyuvdata v3.0 (although `fix_phase` will remain for longer). "
@@ -5691,8 +5692,8 @@ class UVData(UVBase):
 
         self.phase_center_frame = phase_frame
         # make sure apparent coords are properly set.
-        self._set_app_coords_helper()
         self._set_phased()
+        self._set_app_coords_helper()
 
     def phase_to_time(
         self,
@@ -10916,7 +10917,7 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        fix_old_proj=None,
+        fix_old_proj=False,
         fix_use_ant_pos=True,
         check_autos=True,
         fix_autos=True,

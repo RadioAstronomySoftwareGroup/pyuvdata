@@ -3295,6 +3295,12 @@ def test_fix_phase(tmp_path):
     uv_out.data_array = uv_in.data_array
     assert uv_in == uv_out
 
+    # remove app coords to trigger warning below
+    with h5py.File(writepath, "r+") as h5f:
+        del h5f["Header/phase_center_app_dec"]
+        del h5f["Header/phase_center_app_ra"]
+        del h5f["Header/phase_center_frame_pa"]
+
     # Finally, make sure we throw an error if old data is detected _but_ we don't
     # attempt to fix it.
     with uvtest.check_warnings(
