@@ -1038,16 +1038,10 @@ def test_unphase_drift_data_error(uv1_2_set_uvws, sma_mir, future_shapes):
         uv_drift.use_future_array_shapes()
         sma_mir.use_future_array_shapes()
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="The data is already drift scanning;"):
         uv_drift.unphase_to_drift()
-    assert str(cm.value).startswith("The data is already drift scanning;")
 
-    # Test to make sure we get the right errors when usng the old proj method
     uv_phase.phase(0.0, 0.0, use_old_proj=True)
-    with pytest.raises(AttributeError) as cm:
-        uv_phase.unphase_to_drift()
-    assert str(cm.value).startswith("Object missing phase_center_ra_app or")
-
     # Now make sure the old proj method works with unphasing
     uv_phase.unphase_to_drift(use_old_proj=True)
     assert uv_drift == uv_phase
@@ -1223,6 +1217,9 @@ def test_phasing_fix_old_proj(hera_uvh5, future_shapes):
     # Finally, make sure that the fix_old_proj switch works correctly
     hera_copy = hera_uvh5.copy()
     hera_uvh5.phase(0, 0, use_old_proj=True, use_ant_pos=False)
+    hera_uvh5.phase_center_app_ra = None
+    hera_uvh5.phase_center_app_dec = None
+    hera_uvh5.phase_center_frame_pa = None
     hera_uvh5.phase(0, 0, use_ant_pos=False)
     hera_copy.phase(0, 0)
 
