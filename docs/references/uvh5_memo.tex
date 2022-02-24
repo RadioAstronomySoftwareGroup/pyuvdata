@@ -260,12 +260,13 @@ catalog names. The next level keys must include:
 	\textbf{(1)} sidereal, \textbf{(2)} ephem, \textbf{(3)} driftscan,
 	\textbf{(4)} unprojected.
   	Sidereal means a phase center that is fixed in RA and Dec.
-	Ephem means a phaphase center that has an RA and Dec that
+	Ephem means a phase center that has an RA and Dec that
 	moves with time.
 	Driftscan means a phase center with a fixed azimuth and
 	elevation (note that this includes w-projection, even at zenith).
 	Unprojected means no phasing, including w-projection, has been applied.
   
+	\end{itemize}
   
 \item \textbf{uvplane\_reference\_time}: \textit{int} The time at which the
   phase center is normal to the chosen UV plane for phasing. Used for
@@ -408,7 +409,8 @@ support backwards compatibility as much as possible. If readers cannot support
 all revisions, reading more recent versions should be prioritized.
 
 
-
+The following are now deprecated:
+\begin{itemize}
 \item \textbf{phase\_center\_ra}: \textit{float} The right ascension of the
   phase center of the observation in radians. Required if phase\_type is
   ``phased''. (\textit{phase\_center\_ra})
@@ -423,7 +425,7 @@ all revisions, reading more recent versions should be prioritized.
   ``icrs''. These frames are defined as
   \href{https://docs.astropy.org/en/stable/coordinates/index.html}{coordinate
     systems in astropy}. (\textit{phase\_center\_frame})
-
+\end{itemize}
 
 
 \subsection{\texttt{version} dataset}
