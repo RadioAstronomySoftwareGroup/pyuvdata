@@ -4937,6 +4937,9 @@ class UVData(UVBase):
         self.phase_center_ra = None
         self.phase_center_dec = None
         self.phase_center_epoch = None
+        self.phase_center_app_ra = None
+        self.phase_center_app_dec = None
+        self.phase_center_frame_pa = None
         self._set_drift()
 
     def _phase_dict_helper(
