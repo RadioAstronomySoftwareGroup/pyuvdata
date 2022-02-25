@@ -864,6 +864,25 @@ def test_apply_tsys_errs(mir_data):
     )
 
 
+def test_apply_tsys_warn(mir_data):
+    """Verify that apply_tsys throws warnings when tsys values aren't found."""
+    mir_data.eng_data["antennaNumber"][:] = -1
+    mir_data._tsys_applied = False
+
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            ("No tsys for blhid %i found (1-4 baseline, inhid 1)." % idx)
+            for idx in range(1, 5)
+        ],
+    ):
+        mir_data.apply_tsys()
+
+    assert np.all(
+        [np.all(data_dict["vis_flags"]) for data_dict in mir_data.vis_data.values()]
+    )
+
+
 def test_apply_tsys(mir_data):
     """Test that apply_tsys works on vis_data as expected."""
     mir_copy = mir_data.copy()

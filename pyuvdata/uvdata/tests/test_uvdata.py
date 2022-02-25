@@ -4016,10 +4016,18 @@ def test_check_flex_spw_contiguous(sma_mir):
     Verify that check_flex_spw_contiguous works as expected (throws an error if
     windows are not contiguous, otherwise no error raised).
     """
-    sma_mir._check_flex_spw_contiguous()
+    assert sma_mir._check_flex_spw_contiguous()
     sma_mir.flex_spw_id_array[0] = 1
     with pytest.raises(ValueError, match="Channels from different spectral windows"):
         sma_mir._check_flex_spw_contiguous()
+
+
+def test_check_flex_spw_contiguous_no_flex_spw(hera_uvh5):
+    """
+    Verify that with a non-flex-spw dataset, the _check_flex_spw_contiguous
+    check returns as True.
+    """
+    assert hera_uvh5._check_flex_spw_contiguous()
 
 
 @pytest.mark.parametrize(
