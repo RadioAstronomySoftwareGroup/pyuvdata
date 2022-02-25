@@ -10340,6 +10340,7 @@ class UVData(UVBase):
         allow_flex_pol=True,
         check_autos=True,
         fix_autos=True,
+        rechunk=None,
     ):
         """
         Read in data from an SMA MIR file.
@@ -10409,6 +10410,7 @@ class UVData(UVBase):
             allow_flex_pol=allow_flex_pol,
             check_autos=check_autos,
             fix_autos=fix_autos,
+            rechunk=rechunk,
         )
         self._convert_from_filetype(mir_obj)
         del mir_obj
@@ -11369,6 +11371,7 @@ class UVData(UVBase):
         isb=None,
         corrchunk=None,
         pseudo_cont=False,
+        rechunk=None,
     ):
         """
         Read a generic file into a UVData object.
@@ -11938,6 +11941,7 @@ class UVData(UVBase):
                             allow_flex_pol=allow_flex_pol,
                             check_autos=check_autos,
                             fix_autos=fix_autos,
+                            rechunk=rechunk,
                         )
                         uv_list.append(uv2)
                     except KeyError as err:
@@ -12144,6 +12148,7 @@ class UVData(UVBase):
                     allow_flex_pol=allow_flex_pol,
                     check_autos=check_autos,
                     fix_autos=fix_autos,
+                    rechunk=rechunk,
                 )
                 select = False
 
@@ -12415,6 +12420,7 @@ class UVData(UVBase):
         isb=None,
         corrchunk=None,
         pseudo_cont=False,
+        rechunk=None,
     ):
         """
         Initialize a new UVData object by reading the input file.
@@ -12858,6 +12864,7 @@ class UVData(UVBase):
             isb=isb,
             corrchunk=corrchunk,
             pseudo_cont=pseudo_cont,
+            rechunk=rechunk,
         )
         return uvd
 
