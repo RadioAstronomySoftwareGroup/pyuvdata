@@ -2035,18 +2035,24 @@ class MirParser(object):
 
         # now create a per-blhid SEFD dictionary based on antenna pair, integration
         # timestep, and receiver pairing.
-        normal_dict = {
-            blhid: (2.0 * self.jypk)
-            * (tsys_dict[(idx, jdx, kdx)] * tsys_dict[(idx, ldx, mdx)])
-            for blhid, idx, jdx, kdx, ldx, mdx in zip(
-                self.bl_data["blhid"],
-                self.bl_data["inhid"],
-                self.bl_data["iant1"],
-                self.bl_data["ant1rx"],
-                self.bl_data["iant2"],
-                self.bl_data["ant2rx"],
-            )
-        }
+        normal_dict = {}
+        for blhid, idx, jdx, kdx, ldx, mdx in zip(
+            self.bl_data["blhid"],
+            self.bl_data["inhid"],
+            self.bl_data["iant1"],
+            self.bl_data["ant1rx"],
+            self.bl_data["iant2"],
+            self.bl_data["ant2rx"],
+        ):
+            try:
+                normal_dict[blhid] = (2.0 * self.jypk) * (
+                    tsys_dict[(idx, jdx, kdx)] * tsys_dict[(idx, ldx, mdx)]
+                )
+            except KeyError:
+                warnings.warn(
+                    "No tsys for blhid %i found (%i-%i baseline, inhid %i). "
+                    "Baseline record will be flagged." % (blhid, jdx, ldx, idx,)
+                )
 
         if invert:
             for key, value in normal_dict.items():
@@ -2055,7 +2061,10 @@ class MirParser(object):
         # Finally, multiply the individual spectral records by the SEFD values
         # that are in the dictionary.
         for sphid, blhid in zip(self.sp_data["sphid"], self.sp_data["blhid"]):
-            self.vis_data[sphid]["vis_data"] *= normal_dict[blhid]
+            try:
+                self.vis_data[sphid]["vis_data"] *= normal_dict[blhid]
+            except KeyError:
+                self.vis_data[sphid]["vis_flags"][:] = True
 
         self._tsys_applied = not invert
 
@@ -2967,8 +2976,7 @@ class MirParser(object):
             If True, return data in the "normal" visibility format, where each
             spectral record has a key of "sphid" and a value being a dict of
             "vis_data" (the visibility data, dtype=np.complex64) and "vis_flags"
-            (the flagging inforformation, dtype=bool). This option is ignored if
-            `inplace=True`.
+            (the flagging inforformation, dtype=bool).
 
         Returns
         -------
@@ -2979,13 +2987,12 @@ class MirParser(object):
         # If inplace, point our new dict to the old one, otherwise create
         # an ampty dict to plug values into.
         data_dict = raw_dict if inplace else {}
-        return_vis = (not inplace) and return_vis
 
         for chan_avg, (sphid, sp_raw) in zip(chan_avg_arr, raw_dict.items()):
             # If the number of channels to average is 1, then we just need to make
             # a deep copy of the old data and plug it in to the new dict.
             if chan_avg == 1:
-                if not inplace:
+                if (not inplace) or return_vis:
                     data_dict[sphid] = (
                         MirParser.convert_raw_to_vis({0: sp_raw})[0]
                         if return_vis
@@ -3000,16 +3007,14 @@ class MirParser(object):
             # entry after the sequence of calls.
             if return_vis:
                 data_dict[sphid] = MirParser._rechunk_vis(
-                    MirParser.convert_raw_to_vis({0: sp_raw}),
-                    [chan_avg],
-                    inplace=False,
+                    MirParser.convert_raw_to_vis({0: sp_raw}), [chan_avg], inplace=True,
                 )[0]
             else:
                 data_dict[sphid] = MirParser.convert_vis_to_raw(
                     MirParser._rechunk_vis(
                         MirParser.convert_raw_to_vis({0: sp_raw}),
                         [chan_avg],
-                        inplace=False,
+                        inplace=True,
                     )
                 )[0]
 
@@ -3062,7 +3067,7 @@ class MirParser(object):
         return new_auto_dict
 
     def rechunk(
-        self, chan_avg, load_vis=False, load_raw=False, use_mmap=True,
+        self, chan_avg, load_vis=False, load_raw=False, use_mmap=True, _load_all=None,
     ):
         """
         Rechunk a MirParser object.
@@ -3175,36 +3180,37 @@ class MirParser(object):
             # up the sp_data by integration ID, which segment_by_index will do for us.
             sp_in_dict, pos_dict = self.segment_by_index(sp_data, "inhid")
 
-            for subset_sp_data, pos_arr in zip(sp_in_dict.values(), pos_dict.values()):
+            for sub_sp_data, pos_arr in zip(sp_in_dict.values(), pos_dict.values()):
                 # Pluck out the relevant entries from the channel averaging array we
                 # calculated earlier.
                 temp_chan_avg = chan_avg_arr[pos_arr]
 
                 # We only want to load one set of data, and for the moment, we can
-                # save some work by _just_ loading the raw data.
+                # save some work by _just_ loading the raw data (and leaving it
+                # as read-only if we are grabbing the data from mmap).
                 (data_dict,) = self.read_vis_data(
                     list(self._file_dict.keys()),
                     list(self._file_dict.values()),
-                    subset_sp_data,
+                    sub_sp_data,
                     return_vis=False,
                     return_raw=True,
                     use_mmap=use_mmap,
+                    read_only=use_mmap,
                 )
 
                 if load_raw and not load_vis:
                     # If we _only_ want the raw data, we can save a bit on memory
-                    # by calling _rechunk_raw and replacing the records in-situ within
-                    # data_dict, when can then be used to update raw_data.
+                    # by calling _rechunk_raw and replacing the records in-situ.
                     self.raw_data.update(
                         self._rechunk_raw(data_dict, temp_chan_avg, inplace=True)
                     )
                 else:
-                    # Otherwise, if we ever want the visibility data, it's faster to
-                    # allow _rechunk_raw to return "normal" data (which it converts
-                    # records to for the rechunk), and then deal with the conversion
-                    # to raw data later if needed.
+                    # Otherwise, it's faster to allow _rechunk_raw to return floats,
+                    # and then convert to raw later if needed.
                     self.vis_data.update(
-                        self._rechunk_raw(data_dict, temp_chan_avg, return_vis=True)
+                        self._rechunk_raw(
+                            data_dict, temp_chan_avg, return_vis=True, inplace=True,
+                        )
                     )
 
                 # Delete data_dict, just to break any potential references and allow
