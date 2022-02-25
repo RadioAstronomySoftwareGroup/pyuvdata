@@ -462,7 +462,6 @@ def test_flex_pol_roundtrip(sma_mir_filt, filetype, future_shapes, tmp_path):
 
 def test_flex_pol_select(sma_mir_filt):
     """Test select operations on flex-pol UVData objects"""
-
     sma_mir_filt._make_flex_pol(raise_error=True)
     with pytest.raises(
         ValueError, match="No data matching this polarization and frequency"
@@ -491,6 +490,22 @@ def test_flex_pol_select(sma_mir_filt):
         UserWarning, match="Selected polarization values are not evenly spaced"
     ):
         sma_mir_filt2.select(polarizations=["xx", "xy", "yx"])
+
+
+def test_flex_pol_select_warning(sma_mir_filt):
+    """
+    Check that selecting flex-pol datasets with uneven pol spacing throws a warning.
+    """
+    sma_mir_filt._make_flex_pol(raise_error=True)
+    sma_mir_filt.flex_spw_id_array = np.arange(8) // 2
+    sma_mir_filt.spw_array = np.arange(4)
+    sma_mir_filt.flex_spw_polarization_array = np.array([-8, -8, -6, -5])
+    sma_mir_filt.Nspws = 4
+
+    with uvtest.check_warnings(
+        UserWarning, "Selected polarization values are not evenly spaced."
+    ):
+        sma_mir_filt.select(polarizations=[-8, -6, -5])
 
 
 @pytest.mark.parametrize(
@@ -573,3 +588,13 @@ def test_bad_pol_code(mir_data):
     mir_data.codes_dict["pol"][-999] = ("Unknown", 0)
 
     mir_obj._init_from_mir_parser(mir_data)
+
+
+def test_rechunk_on_read():
+    """Test that rechunking on read works as expected."""
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    uv_data = UVData.from_file(testfile, rechunk=16384)
+
+    # Do some basic checks to make sure that this loaded correctly.
+    assert uv_data.freq_array.size == 8
+    assert np.all(uv_data.channel_width == 2.288e09)
