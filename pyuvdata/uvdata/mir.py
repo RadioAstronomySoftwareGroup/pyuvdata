@@ -40,6 +40,7 @@ class Mir(UVData):
         allow_flex_pol=True,
         check_autos=True,
         fix_autos=False,
+        rechunk=None,
     ):
         """
         Read in data from an SMA MIR file, and map to the UVData model.
@@ -120,6 +121,10 @@ class Mir(UVData):
             use_sp *= mir_data._sp_read["corrchunk"] != 0
 
         mir_data._update_filter(use_in=use_in, use_bl=use_bl, use_sp=use_sp)
+
+        if rechunk is not None:
+            mir_data.rechunk(rechunk, load_vis=True)
+            mir_data.apply_tsys()
 
         self._init_from_mir_parser(mir_data, allow_flex_pol=allow_flex_pol)
 
