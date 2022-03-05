@@ -1297,12 +1297,14 @@ class MWACorrFITS(UVData):
                     # get number of fine channels in each coarse channel
                     if num_fine_chans == 0:
                         if mwax:
-                            num_fine_chans = head0["NFINECHS"]
+                            # number of fine channels is multiplied by 4 (pols)
+                            # and by 2 (real and imaginary parts)
+                            num_fine_chans = int(headstart["NAXIS1"] / 8)
                         else:
                             num_fine_chans = headstart["NAXIS2"]
                     else:
                         if mwax:
-                            if num_fine_chans != head0["NFINECHS"]:
+                            if num_fine_chans != int(headstart["NAXIS1"] / 8):
                                 raise ValueError(
                                     "files submitted have different numbers \
                                     of fine channels"
@@ -1329,12 +1331,15 @@ class MWACorrFITS(UVData):
                         file_dict["data"].append(filename)
 
                     # save bscale keyword
-                    if "SCALEFAC" not in self.extra_keywords.keys():
-                        if "BSCALE" in head0.keys():
-                            self.extra_keywords["SCALEFAC"] = head0["BSCALE"]
-                        else:
-                            # correlator did a divide by 4 before october 2014
-                            self.extra_keywords["SCALEFAC"] = 0.25
+                    # look for bscale in the first hdu, as some data does not
+                    # record it in the zeroth hdu
+                    if not mwax:
+                        if "SCALEFAC" not in self.extra_keywords.keys():
+                            if "BSCALE" in headstart.keys():
+                                self.extra_keywords["SCALEFAC"] = headstart["BSCALE"]
+                            else:
+                                # correlator did a divide by 4 before october 2014
+                                self.extra_keywords["SCALEFAC"] = 0.25
 
             # look for flag files
             elif filename.lower().endswith(".mwaf"):
