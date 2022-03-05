@@ -115,12 +115,10 @@ def test_read_mwax_write_uvfits(tmp_path):
     # spoof testfile to contain 2 times and 2 freqs
     spoof_file = str(tmp_path / "mwax_spoof_ch137_000.fits")
     with fits.open(filelist[12]) as mini1:
-        mini1[0].header["NFINECHS"] = 2
         mini1[1].data = np.repeat(mini1[1].data, 2, axis=1)
         mini1[2].data = np.repeat(mini1[2].data, 2, axis=1)
         extra_dat = np.copy(mini1[1].data)
         extra_samps = np.copy(mini1[2].data)
-        # mini1.append(fits.HDUList([mini1[1], mini1[2]]))
         mini1.append(fits.ImageHDU(extra_dat))
         mini1.append(fits.ImageHDU(extra_samps))
         mini1[3].header["TIME"] = 1636374472
@@ -422,7 +420,6 @@ def test_fine_channels_mwax(tmp_path):
     with fits.open(filelist[12]) as mini:
         mini[1].data = np.repeat(mini[1].data, 2, axis=1)
         mini[2].data = np.repeat(mini[2].data, 2, axis=1)
-        mini[0].header["NFINECHS"] = 2
         mini.writeto(bad_fine)
     with pytest.raises(ValueError) as cm:
         mwax_uv.read([bad_fine, filelist[12]])
@@ -1079,3 +1076,30 @@ def test_deprecated_keywords():
         uv.read(
             filelist[0:2], use_cotter_flags=False, flag_small_sig_ants=True,
         )
+
+
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
+def test_bscale(tmp_path):
+    """Test that bscale is saved correctly"""
+    # some data does not have bscale in the zeroth hdu
+    bscale = str(tmp_path / "bscale_01_00.fits")
+    with fits.open(filelist[1], do_not_scale_image_data=True) as mini:
+        mini[0].header.remove("BSCALE")
+        mini.writeto(bscale)
+    uv1 = UVData()
+    uv2 = UVData()
+    uv3 = UVData()
+    uv4 = UVData()
+    # check when bscale is not in zeroth hdu but is in first
+    uv1.read([filelist[0], bscale])
+    assert uv1.extra_keywords["SCALEFAC"] == 0.5
+    # check when bscale is in both zeroth and first hdu
+    uv2.read(filelist[0:2])
+    assert uv2.extra_keywords["SCALEFAC"] == 0.5
+    # check pre-October 2014 data
+    uv3.read(filelist[8:10])
+    assert uv3.extra_keywords["SCALEFAC"] == 0.25
+    # check mwax data
+    uv4.read(filelist[11:13])
+    assert "SCALEFAC" not in uv4.extra_keywords.keys()
