@@ -1080,6 +1080,7 @@ def test_deprecated_keywords():
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 @pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 def test_bscale(tmp_path):
     """Test that bscale is saved correctly"""
     # some data does not have bscale in the zeroth hdu

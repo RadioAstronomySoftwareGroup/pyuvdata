@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- `mwa_corr_fits` handing of the `BSCALE` keyword in gpubox files.
+
 ## [2.2.8] - 2022-2-15
 
 ### Added
