@@ -383,6 +383,228 @@ ac_read_dtype = np.dtype(
 antpos_dtype = np.dtype([("antenna", np.int16), ("xyz_pos", np.float64, 3)])
 
 
+metafile_dict = {
+    "in": {"filetype": "in_read", "dtype": in_dtype, "index": "inhid"},
+    "nl": {"filetype": "bl_read", "dtype": bl_dtype, "index": "blhid"},
+    "sp": {"filetype": "sp_read", "dtype": sp_dtype, "index": "sphid"},
+    "we": {"filetype": "sp_read", "dtype": sp_dtype, "index": ("scanNumber",)},
+    "eng": {
+        "filetype": "eng_read",
+        "dtype": eng_dtype,
+        "index": ("sphid", "antennaNumber"),
+    },
+}
+
+
+class MirMetaData(object):
+    """Class for working with sets of metadata for Mir datasets."""
+
+    def __init__(self, metafile_type, filepath=None):
+        self._filetype = metafile_dict[metafile_type]["filetype"]
+        self._dtype = metafile_dict[metafile_type]["dtype"]
+        self._index = metafile_dict[metafile_type]["index"]
+
+        self._filepath = None
+        self._mask = None
+
+        if filepath is not None:
+            self.fromfile(filepath)
+
+    def where(
+        self, select_field, select_comp, select_val, apply_mask=True, return_index=False
+    ):
+        """
+        Parse a select command into a set of boolean masks.
+
+        This is an internal helper function built as part of the low-level API, and not
+        meant to be used by general users. This method will produce a masking screen
+        based on the arguments provided to determine which data should be selected,
+        and is called by the method `MirParser.select`.
+
+        Parameters
+        ----------
+        select_field : str
+            Field in the `data_arr` to use in evaluating whether to select data.
+        select_comp : str
+            Specifies the type of comparison to do between the value supplied in
+            `select_val` and the metadata. No default, allowed values include:
+            "eq" (equal to, matching any in `select_val`),
+            "ne" (not equal to, not matching any in `select_val`),
+            "lt" (less than `select_val`),
+            "le" (less than or equal to `select_val`),
+            "gt" (greater than `select_val`),
+            "ge" (greater than or equal to `select_val`),
+            "btw" (between the range given by two values in `select_val`),
+            "out" (outside of the range give by two values in `select_val`).
+        select_val : number of str, or sequence of number or str
+            Value(s) to compare data in `select_field` against. If `select_comp` is
+            "lt", "le", "gt", "ge", then this must be either a single number
+            or string. If `select_comp` is "btw" or "out", then this must be a list
+            of length 2. If `select_comp` is "eq" or "ne", then this can be either a
+            single value or a sequence of values.
+        data_arr : ndarray
+            Structured array to evaluate, which should have the field `select_field`
+            within it. Must simply contain named fields.
+
+        Returns
+        -------
+        data_mask : ndarray of bool
+            Boolean array marking whether `select_field` in `data_arr` meets the
+            condition set by `select_comp` and `select_val`.
+
+        Raises
+        ------
+        ValueError
+            If `select_comp` is not one of the permitted strings, or if `select_field`
+            is not one of the fields within `data_arr`.
+        """
+        # Create a simple dict to match operation keywords to a function.
+        op_dict = {
+            "eq": lambda val, comp: np.isin(val, comp),
+            "ne": lambda val, comp: np.isin(val, comp, invert=True),
+            "lt": np.less,
+            "le": np.less_equal,
+            "gt": np.greater,
+            "ge": np.greater_equal,
+            "btw": lambda val, lims: ((val >= lims[0]) & (val <= lims[1])),
+            "out": lambda val, lims: ((val < lims[0]) | (val > lims[1])),
+        }
+
+        # Make sure the inputs look valid
+        if select_comp not in op_dict.keys():
+            raise ValueError(
+                "select_comp must be one of: %s" % ", ".join(op_dict.keys())
+            )
+        if select_field not in self.data.dtype.names:
+            raise KeyError(
+                "select_field %s not found in structured array." % select_field
+            )
+
+        # Evaluate data_arr now
+        data_mask = op_dict[select_comp](self.data[select_field], select_val)
+
+        if apply_mask:
+            data_mask &= self._mask
+
+        if return_index:
+            if isinstance(self._index, tuple):
+                np.vstack([self.data[idx][data_mask] for idx in self._index])
+            else:
+                return self.data[self._index][data_mask]
+        else:
+            return data_mask
+
+    def get(self, field_name, index=None, where=None):
+        # Check to make sure that both index and where argumnets aren't set, since
+        # they are not compatible wit one another.
+        if (index is not None) and (where is not None):
+            raise ValueError("Cannot select both by index and where condition.")
+
+        # If we are accessing direct index values of this array, then ust he
+        # pos_dict attribute to figure out which elements of the array that we need.
+        if index is not None:
+            return self.data[field_name][[self._pos_dict[idx] for idx in index]]
+
+        # Otherwise, if we are going through where statements, then use the where
+        # method to build a mask that we can use to select the data on.
+        if where is not None:
+            sel_mask = self._mask.copy()
+            for item in where:
+                sel_mask &= self.where(*item)
+
+            return self.data[field_name][sel_mask]
+
+        # Finally, if no arguments are provided, then just give the whole array, masked
+        # by the primary filter.
+        return self.data[field_name]
+
+    def set_val(self, field_name, value, index=None, where=None):
+        # Check to make sure that both index and where argumnets aren't set, since
+        # they are not compatible wit one another.
+        if (index is not None) and (where is not None):
+            raise ValueError("Cannot select both by index and where condition.")
+
+        # If we are accessing direct index values of this array, then ust he
+        # pos_dict attribute to figure out which elements of the array that we need.
+        if index is not None:
+            self.data[field_name][[self._pos_dict[idx] for idx in index]] = value
+            return
+
+        # Otherwise, if we are going through where statements, then use the where
+        # method to build a mask that we can use to select the data on.
+        if where is not None:
+            sel_mask = self._mask.copy()
+            for item in where:
+                sel_mask |= self.where(*item)
+
+            self.data[field_name][sel_mask] = value
+            return
+
+        self.data[field_name][:] = value
+
+    def generate_pos_dict(self):
+        if isinstance(self._index, tuple):
+            pos_dict = {jdx: idx for idx, jdx in enumerate(self._data[self._index])}
+        else:
+            pos_dict = {
+                tup: idx
+                for idx, tup in enumerate(
+                    zip([self._data[field] for field in self._index])
+                )
+            }
+
+        return pos_dict
+
+    def fromfile(self, filepath):
+        self.data = np.fromfile(os.path.join(filepath, self.filetype), dtype=self.dtype)
+        self._filepath = os.path.abspath(filepath)
+        self._mask = np.ones(self.data.shape[0], dtype=bool)
+        self._pos_dict = self.generzte_pos_dict()
+
+    def tofile(self, filepath, append_data=False, update_filepath=False):
+        if not os.path.isdir(filepath):
+            os.makedirs(filepath)
+
+        filepath = os.path.abspath(filepath)
+
+        with open(
+            os.path.join(filepath, self._filetype), "ab" if append_data else "wb+"
+        ) as file:
+            self.data[self._mask].tofile(file)
+
+        if update_filepath:
+            self.fromfile(filepath)
+
+    def update_fields(self, update_dict):
+        for field, data_dict in update_dict:
+            self.data[field] = [data_dict[val] for val in self.data[field]]
+
+    def __setitem__(self, item, val):
+        self.data[item][self._mask] = val
+
+    def __getitem__(self, item):
+        return self.data[item][self._mask]
+
+    def generate_new_index(self, index_start):
+        if isinstance(self._index, tuple):
+            raise ValueError(
+                "Cannot generate a new index for a table with non-unique keys."
+            )
+
+        end_pos = index_start + np.sum(self._mask)
+
+        index_dict = {
+            self._index: {
+                old_key: new_key
+                for old_key, new_key in zip(
+                    self.data[self._index][self._mask], np.arange(index_start, end_pos),
+                )
+            }
+        }
+
+        return index_dict, end_pos
+
+
 class MirParser(object):
     """
     General class for reading Mir datasets.
@@ -2068,6 +2290,25 @@ class MirParser(object):
 
         self._tsys_applied = not invert
 
+    def apply_flags(self):
+        """
+        Apply online flags to the visibilities.
+
+        Applies flagging as recorded by the online system, which are applied on
+        a per-spectral record basis. Users should be aware that this method will only
+        modify data in vis_data, and not the "raw" values stored in raw_data.
+
+        Raises
+        ------
+        ValueError
+            If vis_data are not loaded.
+        """
+        if not self._vis_data_loaded:
+            raise ValueError("Cannot apply flags if vis_data are not loaded.")
+
+        for sphid, flagval in zip(self.sp_data["sphid"], self.sp_data["flags"]):
+            self.vis_data[sphid]["vis_flags"][:] = bool(flagval)
+
     def _check_data_index(self):
         """
         Check that data attribute indexes match metadata.
@@ -3066,9 +3307,7 @@ class MirParser(object):
 
         return new_auto_dict
 
-    def rechunk(
-        self, chan_avg, load_vis=False, load_raw=False, use_mmap=True, _load_all=None,
-    ):
+    def rechunk(self, chan_avg, load_vis=False, load_raw=False, use_mmap=True):
         """
         Rechunk a MirParser object.
 

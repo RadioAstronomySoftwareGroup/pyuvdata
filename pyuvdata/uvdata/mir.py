@@ -125,6 +125,7 @@ class Mir(UVData):
         if rechunk is not None:
             mir_data.rechunk(rechunk, load_vis=True)
             mir_data.apply_tsys()
+            mir_data.apply_flags()
 
         self._init_from_mir_parser(mir_data, allow_flex_pol=allow_flex_pol)
 
@@ -384,6 +385,7 @@ class Mir(UVData):
         vis_flags = np.ones((Nblts, Npols, Nfreqs), dtype=bool)
         if not mir_data._vis_data_loaded:
             mir_data.load_data(load_vis=True, apply_tsys=True)
+            mir_data.apply_flags()
 
         if not np.all(
             np.isin(list(mir_data.vis_data.keys()), mir_data.sp_data["sphid"])
