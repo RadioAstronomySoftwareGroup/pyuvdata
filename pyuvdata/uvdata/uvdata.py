@@ -9926,15 +9926,19 @@ class UVData(UVBase):
         Downselect or average to only have one baseline per redundant group.
 
         Either select the first baseline in the redundant group or average over
-        the baselines in the redundant group.
-
-        Uses utility functions to find redundant baselines to the given tolerance,
-        then select on those.
+        the baselines in the redundant group. When averaging, only unflagged data are
+        averaged and the nsample_array reflects the amount of unflagged data that was
+        averaged over. In the case that all the data for a particular visibility to be
+        averaged is flagged, all the flagged data is averaged (with an nsample value
+        that represents all the data) but the flag array is set to True for that
+        visibility.
 
         Parameters
         ----------
         tol : float
             Redundancy tolerance in meters, default is 1.0 corresponding to 1 meter.
+            This specifies what tolerance to use when identifying baselines as
+            redundant.
         method : str
             Options are "select", which just keeps the first baseline in each
             redundant group or "average" which averages over the baselines in each
