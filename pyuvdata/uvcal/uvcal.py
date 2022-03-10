@@ -154,8 +154,8 @@ class UVCal(UVBase):
             "future_array_shapes is True. If it is True several other parameters are "
             "affected: future_array_shapes is also True; the data-like arrays have a "
             "spw axis that is Nspws long rather than a frequency axis that is Nfreqs "
-            "long; the `freq_range` parameter is required and the `freq_array` "
-            "parameter is not required."
+            "long; the `freq_range` parameter is required and the `freq_array` and "
+            "`channel_width` parameters are not required."
         )
         self._wide_band = uvp.UVParameter(
             "wide_band",
@@ -192,6 +192,7 @@ class UVCal(UVBase):
             "future_array_shapes=False, then it is a "
             "single value of type = float, otherwise it is an array of shape "
             "(Nfreqs,), type = float."
+            "Not required if future_array_shapes=True and wide_band=True."
         )
         self._channel_width = uvp.UVParameter(
             "channel_width",
@@ -570,6 +571,9 @@ class UVCal(UVBase):
         by the file-reading methods to indicate that an object has multiple spectral
         windows concatenated together across the frequency axis.
         """
+        assert (
+            not self.wide_band
+        ), "Cannot set objects wide_band objects to have flexible spectral windows."
         # Mark once-optional arrays as now required
         self.flex_spw = True
         self._flex_spw_id_array.required = True
@@ -591,6 +595,9 @@ class UVCal(UVBase):
             assert (
                 self.future_array_shapes
             ), "future_array_shapes must be True to set wide_band to True."
+            assert (
+                not self.flex_spw
+            ), "Cannot set objects with flexible spectral windows to wide_band."
         elif self.future_array_shapes:
             assert self.cal_type != "delay", (
                 "delay objects cannot have wide_band=False if future_array_shapes is "
@@ -1580,13 +1587,13 @@ class UVCal(UVBase):
             sorting of spectral windows.
         channel_order : str or array_like of int
             A string describing the desired order of frequency channels within a
-            spectral window. Allowed strings include `freq`, which will sort channels
-            within a spectral window by frequency. A '-' can be optionally prepended
-            to signify descending order instead of the default ascending order.
-            Alternatively, one can supply an index array of length Nfreqs that
-            specifies the new order. Default is to apply no sorting of channels
-            within a single spectral window. Note that proving an array_like of ints
-            will cause the values given to `spw_order` and `select_spw` to be ignored.
+            spectral window. Allowed strings are "freq" and "-freq", which will sort
+            channels within a spectral window by ascending or descending frequency
+            respectively.  Alternatively, one can supply an index array of length
+            Nfreqs that specifies the new order. Default is to apply no sorting of
+            channels within a single spectral window. Note that proving an array_like
+            of ints will cause the values given to `spw_order` and `select_spw` to be
+            ignored.
         select_spw : int or array_like of int
             An int or array_like of ints which specifies which spectral windows to
             apply sorting. Note that setting this argument will cause the value
@@ -1610,26 +1617,52 @@ class UVCal(UVBase):
             )
             return
 
-        index_array = uvutils._sort_freq_helper(
-            self.Nfreqs,
-            self.freq_array,
-            self.Nspws,
-            self.spw_array,
-            self.flex_spw,
-            self.flex_spw_id_array,
-            self.future_array_shapes,
-            spw_order,
-            channel_order,
-            select_spw,
-        )
+        if self.wide_band:
+            # we have an spw axis, not a frequency axis
+            if channel_order is not None or select_spw is not None:
+                warnings.warn(
+                    "channel_order and select_spws are ignored for wide-band "
+                    "calibration solutions"
+                )
+                flip_spws = spw_order[0] == "-"
 
-        if index_array is None:
-            # This only happens if no sorting is needed
-            return
+            if "number" in spw_order:
+                index_array = np.argsort(self.spw_array)
+            elif "freq" in spw_order:
+                mean_freq = np.mean(self.freq_range, axis=1)
+                index_array = np.argsort(mean_freq)
+            else:
+                index_array = np.asarray(
+                    [np.nonzero(self.spw_array == spw)[0][0] for spw in spw_order]
+                )
+            if flip_spws:
+                index_array = np.flip(index_array)
+
+        else:
+            index_array = uvutils._sort_freq_helper(
+                self.Nfreqs,
+                self.freq_array,
+                self.Nspws,
+                self.spw_array,
+                self.flex_spw,
+                self.flex_spw_id_array,
+                self.future_array_shapes,
+                spw_order,
+                channel_order,
+                select_spw,
+            )
+
+            if index_array is None:
+                # This only happens if no sorting is needed
+                return
 
         # update all the relevant arrays
         if self.future_array_shapes:
-            self.freq_array = self.freq_array[index_array]
+            if self.wide_band:
+                self.spw_array = self.spw_array[index_array]
+                self.freq_range = self.freq_range[index_array]
+            else:
+                self.freq_array = self.freq_array[index_array]
             for param_name in self._data_params:
                 param = getattr(self, param_name)
                 if param is not None:
@@ -1649,6 +1682,16 @@ class UVCal(UVBase):
                             ]
                         else:
                             setattr(self, param_name, param[:, :, index_array])
+        if self.flex_spw:
+            self.flex_spw_id_array = self.flex_spw_id_array[index_array]
+            self.channel_width = self.channel_width[index_array]
+            # Reorder the spw-axis items based on their first appearance in the data
+            unique_index = np.sort(
+                np.unique(self.flex_spw_id_array, return_index=True)[1]
+            )
+            self.spw_array = self.flex_spw_id_array[unique_index]
+        elif self.future_array_shapes and not self.wide_band:
+            self.channel_width = self.channel_width[index_array]
 
         if run_check:
             self.check(

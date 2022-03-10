@@ -1699,7 +1699,6 @@ def test_reorder_ants(
     calobj2.reorder_antennas("number")
     sorted_nums = [int(name[3:]) for name in sorted_names]
     index_array = [np.nonzero(calobj2.ant_array == ant)[0][0] for ant in sorted_nums]
-    print(index_array)
     calobj2.reorder_antennas(index_array)
     assert calobj2 == calobj
 
@@ -1735,6 +1734,8 @@ def test_reorder_freqs(
     caltype,
     metadata_only,
     gain_data,
+    multi_spw_gain,
+    multi_spw_delay,
     delay_data_inputflag,
     delay_data_inputflag_future,
 ):
@@ -1764,6 +1765,37 @@ def test_reorder_freqs(
         calobj2.reorder_freqs(channel_order="-freq")
         ant_num_diff = np.diff(calobj2.freq_array)
         assert np.all(ant_num_diff < 0)
+
+
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_reorder_freqs_multi_spw(
+    caltype, multi_spw_gain, multi_spw_delay,
+):
+    if caltype == "gain":
+        calobj = multi_spw_gain
+    else:
+        calobj = multi_spw_delay
+
+    if not calobj.future_array_shapes:
+        calobj.use_future_array_shapes()
+
+    if caltype == "delay":
+        with uvtest.check_warnings(
+            UserWarning,
+            match="channel_order and select_spws are ignored for wide-band "
+            "calibration solutions",
+        ):
+            calobj.reorder_freqs(spw_order="-number", channel_order="freq")
+    else:
+        calobj.reorder_freqs(spw_order="-number", channel_order="freq")
+        for spw in calobj.spw_array:
+            ant_num_diff = np.diff(
+                calobj.freq_array[np.nonzero(calobj.flex_spw_id_array == spw)[0]]
+            )
+            assert np.all(ant_num_diff > 0)
+
+    spw_diff = np.diff(calobj.spw_array)
+    assert np.all(spw_diff < 0)
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
