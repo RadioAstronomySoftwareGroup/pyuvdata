@@ -1651,8 +1651,14 @@ def test_add_antennas(
 
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
+@pytest.mark.parametrize("metadata_only", [True, False])
 def test_reorder_ants(
-    future_shapes, caltype, gain_data, delay_data_inputflag, delay_data_inputflag_future
+    future_shapes,
+    caltype,
+    metadata_only,
+    gain_data,
+    delay_data_inputflag,
+    delay_data_inputflag_future,
 ):
     if caltype == "gain":
         calobj = gain_data
@@ -1664,7 +1670,9 @@ def test_reorder_ants(
         else:
             calobj = delay_data_inputflag
 
-    calobj2 = calobj.copy()
+    calobj2 = calobj.copy(metadata_only=metadata_only)
+    if metadata_only:
+        calobj = calobj2.copy()
 
     # this is a no-op because it's already sorted this way
     calobj2.reorder_antennas("number")
@@ -1687,8 +1695,75 @@ def test_reorder_ants(
 
     assert np.all(sorted_names == name_array)
 
-    calobj.reorder_antennas("-number")
+    # test sorting with an integer array. First resort back to by number
+    calobj2.reorder_antennas("number")
+    sorted_nums = [int(name[3:]) for name in sorted_names]
+    index_array = [np.nonzero(calobj2.ant_array == ant)[0][0] for ant in sorted_nums]
+    print(index_array)
+    calobj2.reorder_antennas(index_array)
     assert calobj2 == calobj
+
+
+def test_reorder_ants_errors(gain_data):
+    with pytest.raises(
+        ValueError,
+        match="order must be one of 'number', 'name', '-number', '-name' or an "
+        "index array of length Nants_data",
+    ):
+        gain_data.reorder_antennas("foo")
+
+    with pytest.raises(
+        ValueError,
+        match="If order is an index array, it must contain integers and be length "
+        "Nants_data.",
+    ):
+        gain_data.reorder_antennas(gain_data.antenna_numbers.astype(float))
+
+    with pytest.raises(
+        ValueError,
+        match="If order is an index array, it must contain integers and be length "
+        "Nants_data.",
+    ):
+        gain_data.reorder_antennas(gain_data.antenna_numbers[:8])
+
+
+@pytest.mark.parametrize("future_shapes", [True, False])
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+@pytest.mark.parametrize("metadata_only", [True, False])
+def test_reorder_freqs(
+    future_shapes,
+    caltype,
+    metadata_only,
+    gain_data,
+    delay_data_inputflag,
+    delay_data_inputflag_future,
+):
+    if caltype == "gain":
+        calobj = gain_data
+        if future_shapes:
+            calobj.use_future_array_shapes()
+    else:
+        if future_shapes:
+            calobj = delay_data_inputflag_future
+        else:
+            calobj = delay_data_inputflag
+
+    calobj2 = calobj.copy(metadata_only=metadata_only)
+    if metadata_only:
+        calobj = calobj2.copy()
+
+    if future_shapes and caltype == "delay":
+        with uvtest.check_warnings(
+            UserWarning,
+            match="Cannot reorder the frequency/spw axis with only one frequency and "
+            "spw. Returning the object unchanged.",
+        ):
+            calobj2.reorder_freqs(channel_order="-freq")
+        assert calobj == calobj2
+    else:
+        calobj2.reorder_freqs(channel_order="-freq")
+        ant_num_diff = np.diff(calobj2.freq_array)
+        assert np.all(ant_num_diff < 0)
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
