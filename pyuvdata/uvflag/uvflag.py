@@ -914,7 +914,7 @@ class UVFlag(UVBase):
             indicators 'l' and 'r' or 'x' and 'y'.  Minus signs can also be used
             in front of an antenna number or baseline to exclude it from being
             output in ant_pairs_nums. If ant_str has a minus sign as the first
-            character, 'all,' will be appended to the beginning of the string.
+            character, 'all,' will be added to the beginning of the string.
             See the tutorial for examples of valid strings and their behavior.
         print_toggle : bool
             Boolean for printing parsed baselines for a visual user check.

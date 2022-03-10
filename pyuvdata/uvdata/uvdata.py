@@ -4104,7 +4104,7 @@ class UVData(UVBase):
         strict_uvw_antpos_check=False,
     ):
         """
-        Rearrange polarizations in the event they are not uvfits compatible.
+        Arrange polarization axis according to desired order.
 
         Parameters
         ----------
@@ -4437,7 +4437,7 @@ class UVData(UVBase):
         spw_order : str or array_like of int
             A string describing the desired order of spectral windows along the
             frequecy axis. Allowed strings include `number` (sort on spectral window
-            number) and `freq` (sort on median frequency). A '-' can be appended
+            number) and `freq` (sort on median frequency). A '-' can be prepended
             to signify descending order instead of the default ascending order,
             e.g., if you have SPW #1 and 2, and wanted them ordered as [2, 1],
             you would specify `-number`. Alternatively, one can supply an array
@@ -4447,7 +4447,7 @@ class UVData(UVBase):
         channel_order : str or array_like of int
             A string describing the desired order of frequency channels within a
             spectral window. Allowed strings include `freq`, which will sort channels
-            within a spectral window by frequency. A '-' can be optionally appended
+            within a spectral window by frequency. A '-' can be optionally prepended
             to signify descending order instead of the default ascending order.
             Alternatively, one can supply an index array of length Nfreqs that
             specifies the new order. Default is to apply no sorting of channels
@@ -7983,7 +7983,7 @@ class UVData(UVBase):
             indicators 'l' and 'r' or 'x' and 'y'.  Minus signs can also be used
             in front of an antenna number or baseline to exclude it from being
             output in ant_pairs_nums. If ant_str has a minus sign as the first
-            character, 'all,' will be appended to the beginning of the string.
+            character, 'all,' will be added to the beginning of the string.
             See the tutorial for examples of valid strings and their behavior.
         print_toggle : bool
             Boolean for printing parsed baselines for a visual user check.

@@ -1468,6 +1468,84 @@ class UVCal(UVBase):
             self._parse_key(ant, jpol=jpol), self.quality_array, squeeze_pol=squeeze_pol
         )
 
+    def reorder_antennas(
+        self,
+        order="number",
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """
+        Arrange the antenna axis according to desired order.
+
+        Parameters
+        ----------
+        order: str or array like of int
+            If a string, allowed values are "name" and "number" to sort on the antenna
+            name or number respectively. A '-' can be prepended to signify descending
+            order instead of the default ascending order (e.g. "-number"). An array of
+            integers of length Nants can also be supplied to sort in any desired order.
+
+        Returns
+        -------
+        None
+
+        """
+        if isinstance(order, (np.ndarray, list, tuple)):
+            order = np.array(order)
+            if order.size != self.Nants_data or order.dtype not in [
+                int,
+                np.int_,
+                np.int32,
+                np.int64,
+            ]:
+                raise ValueError(
+                    "If order is an index array, it must "
+                    "contain integers and be length Nants_data."
+                )
+            index_array = order
+        else:
+            if order not in ["number", "name", "-number", "-name"]:
+                raise ValueError(
+                    "order must be one of 'number', 'name', '-number', '-name' or an "
+                    "index array of length Nants_data"
+                )
+
+            if "number" in order:
+                index_array = np.argsort(self.ant_array)
+            elif "name" in order:
+                temp = np.asarray(self.antenna_names)
+                dtype_use = temp.dtype
+                name_array = np.zeros_like(self.ant_array, dtype=dtype_use)
+                # there has to be a better way to do this without a loop...
+                for ind, ant in enumerate(self.ant_array):
+                    name_array[ind] = self.antenna_names[
+                        np.nonzero(self.antenna_numbers == ant)[0][0]
+                    ]
+                index_array = np.argsort(name_array)
+
+            if order[0] == "-":
+                index_array = np.flip(index_array)
+
+        if np.all(index_array[1:] > index_array[:-1]):
+            # Nothing to do - the data are already sorted!
+            return
+
+        # update all the relevant arrays
+        self.ant_array = self.ant_array[index_array]
+        for param_name in self._data_params:
+            if param_name == "total_quality_array":
+                continue
+            param = getattr(self, param_name)
+            if param is not None:
+                setattr(self, param_name, param[index_array])
+
+        if run_check:
+            self.check(
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+            )
+
     def convert_to_gain(
         self,
         freq_array=None,
