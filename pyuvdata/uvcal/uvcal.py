@@ -1484,11 +1484,19 @@ class UVCal(UVBase):
             If a string, allowed values are "name" and "number" to sort on the antenna
             name or number respectively. A '-' can be prepended to signify descending
             order instead of the default ascending order (e.g. "-number"). An array of
-            integers of length Nants can also be supplied to sort in any desired order.
+            integers of length Nants representing indexes along the existing `ant_array`
+            can also be supplied to sort in any desired order (note these are indices
+            into the `ant_array` not antenna numbers).
 
         Returns
         -------
         None
+
+        Raises
+        ------
+        ValueError
+            Raised if order is not an allowed string or is an array that is not integers
+            or is not length Nants_data.
 
         """
         if isinstance(order, (np.ndarray, list, tuple)):
@@ -1539,6 +1547,108 @@ class UVCal(UVBase):
             param = getattr(self, param_name)
             if param is not None:
                 setattr(self, param_name, param[index_array])
+
+        if run_check:
+            self.check(
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+            )
+
+    def reorder_freqs(
+        self,
+        spw_order=None,
+        channel_order=None,
+        select_spw=None,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """
+        Arrange the frequency axis according to desired order.
+
+        Parameters
+        ----------
+        spw_order : str or array_like of int
+            A string describing the desired order of spectral windows along the
+            frequecy axis. Allowed strings include `number` (sort on spectral window
+            number) and `freq` (sort on median frequency). A '-' can be prepended
+            to signify descending order instead of the default ascending order,
+            e.g., if you have SPW #1 and 2, and wanted them ordered as [2, 1],
+            you would specify `-number`. Alternatively, one can supply an array
+            of length Nspws that specifies the new order, with values matched to
+            the specral window number given in `spw_array`. Default is to apply no
+            sorting of spectral windows.
+        channel_order : str or array_like of int
+            A string describing the desired order of frequency channels within a
+            spectral window. Allowed strings include `freq`, which will sort channels
+            within a spectral window by frequency. A '-' can be optionally prepended
+            to signify descending order instead of the default ascending order.
+            Alternatively, one can supply an index array of length Nfreqs that
+            specifies the new order. Default is to apply no sorting of channels
+            within a single spectral window. Note that proving an array_like of ints
+            will cause the values given to `spw_order` and `select_spw` to be ignored.
+        select_spw : int or array_like of int
+            An int or array_like of ints which specifies which spectral windows to
+            apply sorting. Note that setting this argument will cause the value
+            given to `spw_order` to be ignored.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            Raised if select_spw contains values not in spw_array, or if channel_order
+            is not the same length as freq_array.
+
+        """
+        if self.Nspws == 1 and self.Nfreqs == 1:
+            warnings.warn(
+                "Cannot reorder the frequency/spw axis with only one frequency and "
+                "spw. Returning the object unchanged."
+            )
+            return
+
+        index_array = uvutils._sort_freq_helper(
+            self.Nfreqs,
+            self.freq_array,
+            self.Nspws,
+            self.spw_array,
+            self.flex_spw,
+            self.flex_spw_id_array,
+            self.future_array_shapes,
+            spw_order,
+            channel_order,
+            select_spw,
+        )
+
+        if index_array is None:
+            # This only happens if no sorting is needed
+            return
+
+        # update all the relevant arrays
+        if self.future_array_shapes:
+            self.freq_array = self.freq_array[index_array]
+            for param_name in self._data_params:
+                param = getattr(self, param_name)
+                if param is not None:
+                    if param_name == "total_quality_array":
+                        self.total_quality_array = self.total_quality_array[index_array]
+                    else:
+                        setattr(self, param_name, param[:, index_array])
+        else:
+            self.freq_array = self.freq_array[:, index_array]
+            if self.cal_type != "delay":
+                for param_name in self._data_params:
+                    param = getattr(self, param_name)
+                    if param is not None:
+                        if param_name == "total_quality_array":
+                            self.total_quality_array = self.total_quality_array[
+                                :, index_array
+                            ]
+                        else:
+                            setattr(self, param_name, param[:, :, index_array])
 
         if run_check:
             self.check(

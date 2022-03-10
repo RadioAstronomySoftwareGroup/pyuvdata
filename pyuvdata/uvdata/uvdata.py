@@ -4476,130 +4476,28 @@ class UVData(UVBase):
         Raises
         ------
         UserWarning
-            Raised if providing arguments to select_spw and freq_screen (the latter
+            Raised if providing arguments to select_spw and channel_order (the latter
             overrides the former).
         ValueError
-            Raised if select_spw contains values not in spw_array, or if freq_screen
+            Raised if select_spw contains values not in spw_array, or if channel_order
             is not the same length as freq_array.
 
         """
-        if (spw_order is None) and (channel_order is None):
-            warnings.warn(
-                "Not specifying either spw_order or channel_order causes "
-                "no sorting actions to be applied. Returning object unchanged."
-            )
-            return
+        index_array = uvutils._sort_freq_helper(
+            self.Nfreqs,
+            self.freq_array,
+            self.Nspws,
+            self.spw_array,
+            self.flex_spw,
+            self.flex_spw_id_array,
+            self.future_array_shapes,
+            spw_order,
+            channel_order,
+            select_spw,
+        )
 
-        # Check to see if there are arguments we should be ignoring
-        if isinstance(channel_order, (np.ndarray, list, tuple)):
-            if select_spw is not None:
-                warnings.warn(
-                    "The select_spw argument is ignored when providing an "
-                    "array_like of int for channel_order"
-                )
-            if spw_order is not None:
-                warnings.warn(
-                    "The spw_order argument is ignored when providing an "
-                    "array_like of int for channel_order"
-                )
-            if not np.all(np.sort(channel_order) == np.arange(self.Nfreqs)):
-                raise ValueError(
-                    "Index array for channel_order must contain all indicies for "
-                    "the frequency axis, without duplicates."
-                )
-            index_array = channel_order
-        else:
-            index_array = np.arange(self.Nfreqs)
-            # Multipy by 1.0 here to make a cheap copy of the array to manipulate
-            temp_freqs = 1.0 * (
-                self.freq_array if self.future_array_shapes else self.freq_array[0, :]
-            )
-            # Same trick for ints -- add 0 to make a cheap copy
-            temp_spws = 0 + (
-                self.flex_spw_id_array
-                if self.flex_spw
-                else (np.zeros(self.Nfreqs) + self.spw_array)
-            )
-
-            # Check whether or not we need to sort the channels in individual windows
-            sort_spw = {idx: channel_order is not None for idx in self.spw_array}
-            if select_spw is not None:
-                if spw_order is not None:
-                    warnings.warn(
-                        "The spw_order argument is ignored when providing an "
-                        "argument for select_spw"
-                    )
-                if channel_order is None:
-                    warnings.warn(
-                        "Specifying select_spw without providing channel_order causes "
-                        "no sorting actions to be applied. Returning object unchanged."
-                    )
-                    return
-                if isinstance(select_spw, (np.ndarray, list, tuple)):
-                    sort_spw = {idx: idx in select_spw for idx in self.spw_array}
-                else:
-                    sort_spw = {idx: idx == select_spw for idx in self.spw_array}
-            elif spw_order is not None:
-                if isinstance(spw_order, (np.ndarray, list, tuple)):
-                    if not np.all(np.sort(spw_order) == np.sort(self.spw_array)):
-                        raise ValueError(
-                            "Index array for spw_order must contain all indicies for "
-                            "the frequency axis, without duplicates."
-                        )
-                elif spw_order not in ["number", "freq", "-number", "-freq", None]:
-                    raise ValueError(
-                        "spw_order can only be one of 'number', '-number', "
-                        "'freq', '-freq', or None"
-                    )
-                elif self.Nspws > 1:
-                    # Only need to do this step if we actually have multiple spws.
-
-                    # If the string starts with a '-', then we will flip the order at
-                    # the end of the operation
-                    flip_spws = spw_order[0] == "-"
-
-                    if "number" in spw_order:
-                        spw_order = np.sort(self.spw_array)
-                    elif "freq" in spw_order:
-                        spw_order = self.spw_array[
-                            np.argsort(
-                                [
-                                    np.median(temp_freqs[temp_spws == idx])
-                                    for idx in self.spw_array
-                                ]
-                            )
-                        ]
-                    if flip_spws:
-                        spw_order = np.flip(spw_order)
-                else:
-                    spw_order = self.spw_array
-                # Now that we know the spw order, we can apply the first sort
-                index_array = np.concatenate(
-                    [index_array[temp_spws == idx] for idx in spw_order]
-                )
-                temp_freqs = temp_freqs[index_array]
-                temp_spws = temp_spws[index_array]
-            # Spectral windows are assumed sorted at this point
-            if channel_order is not None:
-                if channel_order not in ["freq", "-freq"]:
-                    raise ValueError(
-                        "channel_order can only be one of 'freq' or '-freq'"
-                    )
-                for idx in self.spw_array:
-                    if sort_spw[idx]:
-                        select_mask = temp_spws == idx
-                        subsort_order = index_array[select_mask]
-                        subsort_order = subsort_order[
-                            np.argsort(temp_freqs[select_mask])
-                        ]
-                        index_array[select_mask] = (
-                            np.flip(subsort_order)
-                            if channel_order[0] == "-"
-                            else subsort_order
-                        )
-
-        if np.all(index_array[1:] > index_array[:-1]):
-            # Nothing to do - the data are already sorted!
+        if index_array is None:
+            # This only happens if no sorting is needed
             return
 
         # Now update all of the arrays.
