@@ -1650,6 +1650,48 @@ def test_add_antennas(
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_reorder_ants(
+    future_shapes, caltype, gain_data, delay_data_inputflag, delay_data_inputflag_future
+):
+    if caltype == "gain":
+        calobj = gain_data
+        if future_shapes:
+            calobj.use_future_array_shapes()
+    else:
+        if future_shapes:
+            calobj = delay_data_inputflag_future
+        else:
+            calobj = delay_data_inputflag
+
+    calobj2 = calobj.copy()
+
+    # this is a no-op because it's already sorted this way
+    calobj2.reorder_antennas("number")
+    ant_num_diff = np.diff(calobj2.ant_array)
+    assert np.all(ant_num_diff > 0)
+
+    calobj2.reorder_antennas("-number")
+    ant_num_diff = np.diff(calobj2.ant_array)
+    assert np.all(ant_num_diff < 0)
+
+    sorted_names = np.sort(calobj.antenna_names)
+    calobj.reorder_antennas("name")
+    temp = np.asarray(calobj.antenna_names)
+    dtype_use = temp.dtype
+    name_array = np.zeros_like(calobj.ant_array, dtype=dtype_use)
+    for ind, ant in enumerate(calobj.ant_array):
+        name_array[ind] = calobj.antenna_names[
+            np.nonzero(calobj.antenna_numbers == ant)[0][0]
+        ]
+
+    assert np.all(sorted_names == name_array)
+
+    calobj.reorder_antennas("-number")
+    assert calobj2 == calobj
+
+
+@pytest.mark.parametrize("future_shapes", [True, False])
 def test_add_antennas_multispw(future_shapes, multi_spw_gain):
     """Test adding antennas between two UVCal objects"""
     calobj = multi_spw_gain
