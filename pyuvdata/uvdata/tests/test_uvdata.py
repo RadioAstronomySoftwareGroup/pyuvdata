@@ -3214,15 +3214,20 @@ def test_reorder_freqs_flipped(sma_mir, future_shapes):
     assert np.all(np.flip(sma_mir.data_array, axis=-2) == sma_mir_copy.data_array)
 
 
-def test_reorder_freqs_eq_coeffs(sma_mir):
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_reorder_freqs_eq_coeffs(casa_uvfits):
     # No test datasets to examine this with, so let's generate some mock data,
     # with a pre-determined order that we can flip
-    sma_mir.reorder_freqs(spw_order="-number", channel_order="-freq")
-    sma_mir.eq_coeffs = np.tile(
-        np.arange(sma_mir.Nfreqs, dtype=float), (sma_mir.Nants_telescope, 1)
+    casa_uvfits.use_future_array_shapes()
+    casa_uvfits.reorder_freqs(channel_order="-freq")
+    casa_uvfits.eq_coeffs = np.tile(
+        np.arange(casa_uvfits.Nfreqs, dtype=float), (casa_uvfits.Nants_telescope, 1)
     )
-    sma_mir.reorder_freqs(spw_order="number", channel_order="freq")
-    assert np.all(np.diff(sma_mir.eq_coeffs, axis=1) == -1)
+    # modify the channel widths so we can check them too
+    casa_uvfits.channel_width += np.arange(casa_uvfits.Nfreqs, dtype=float)
+    casa_uvfits.reorder_freqs(channel_order="freq")
+    assert np.all(np.diff(casa_uvfits.eq_coeffs, axis=1) == -1)
+    assert np.all(np.diff(casa_uvfits.channel_width) == -1)
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")

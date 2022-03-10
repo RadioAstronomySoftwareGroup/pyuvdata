@@ -4446,11 +4446,10 @@ class UVData(UVBase):
             sorting of spectral windows.
         channel_order : str or array_like of int
             A string describing the desired order of frequency channels within a
-            spectral window. Allowed strings include `freq`, which will sort channels
-            within a spectral window by frequency. A '-' can be optionally prepended
-            to signify descending order instead of the default ascending order.
-            Alternatively, one can supply an index array of length Nfreqs that
-            specifies the new order. Default is to apply no sorting of channels
+            spectral window. Allowed strings are "freq" and "-freq", which will sort
+            channels within a spectral window by ascending or descending frequency
+            respectively. Alternatively, one can supply an index array of length Nfreqs
+            that specifies the new order. Default is to apply no sorting of channels
             within a single spectral window. Note that proving an array_like of ints
             will cause the values given to `spw_order` and `select_spw` to be ignored.
         select_spw : int or array_like of int
@@ -4521,6 +4520,8 @@ class UVData(UVBase):
                 np.unique(self.flex_spw_id_array, return_index=True)[1]
             )
             self.spw_array = self.flex_spw_id_array[unique_index]
+        elif self.future_array_shapes:
+            self.channel_width = self.channel_width[index_array]
 
         if self.eq_coeffs is not None:
             self.eq_coeffs = self.eq_coeffs[:, index_array]
