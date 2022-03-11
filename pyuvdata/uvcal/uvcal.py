@@ -1508,12 +1508,9 @@ class UVCal(UVBase):
         """
         if isinstance(order, (np.ndarray, list, tuple)):
             order = np.array(order)
-            if order.size != self.Nants_data or order.dtype not in [
-                int,
-                np.int_,
-                np.int32,
-                np.int64,
-            ]:
+            if not order.size == self.Nants_data or not np.all(
+                np.sort(order) == np.arange(self.Nants_data)
+            ):
                 raise ValueError(
                     "If order is an index array, it must contain all indicies for the"
                     "ant_array, without duplicates."
@@ -1632,6 +1629,13 @@ class UVCal(UVBase):
                 mean_freq = np.mean(self.freq_range, axis=1)
                 index_array = np.argsort(mean_freq)
             else:
+                if not spw_order.size == self.Nspws or not np.all(
+                    np.sort(spw_order) == np.sort(self.spw_array)
+                ):
+                    raise ValueError(
+                        "If spw_order is an array, it must contain all spw numbers in "
+                        "the spw_array, without duplicates."
+                    )
                 index_array = np.asarray(
                     [np.nonzero(self.spw_array == spw)[0][0] for spw in spw_order]
                 )
@@ -1692,6 +1696,92 @@ class UVCal(UVBase):
             self.spw_array = self.flex_spw_id_array[unique_index]
         elif self.future_array_shapes and not self.wide_band:
             self.channel_width = self.channel_width[index_array]
+
+        if run_check:
+            self.check(
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+            )
+
+    def reorder_times(
+        self,
+        order="time",
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """
+        Arrange the antenna axis according to desired order.
+
+        Parameters
+        ----------
+        order: str or array like of int
+            If a string, allowed value is "time" or "-time" to sort on the time in
+            ascending or descending order respectively. An array of integers of length
+            Ntimes representing indexes along the existing `time_array` can also be
+            supplied to sort in any desired order.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            Raised if order is not an allowed string or is an array that is not integers
+            or is not length Nants_data.
+
+        """
+        if isinstance(order, (np.ndarray, list, tuple)):
+            order = np.array(order)
+            if not order.size == self.Ntimes or not np.all(
+                np.sort(order) == np.arange(self.Ntimes)
+            ):
+                raise ValueError(
+                    "If order is an array, it must contain all indicies for "
+                    "the time axis, without duplicates."
+                )
+            index_array = order
+        else:
+            if order not in ["time", "-time"]:
+                raise ValueError(
+                    "order must be one of 'time', '-time'or an "
+                    "index array of length Ntimes"
+                )
+
+            index_array = np.argsort(self.time_array)
+
+            if order[0] == "-":
+                index_array = np.flip(index_array)
+
+        if np.all(index_array[1:] > index_array[:-1]):
+            # Nothing to do - the data are already sorted!
+            return
+
+        # update all the relevant arrays
+        self.time_array = self.time_array[index_array]
+        self.lst_array = self.lst_array[index_array]
+        if self.future_array_shapes:
+            self.integration_time = self.integration_time[index_array]
+            for param_name in self._data_params:
+                param = getattr(self, param_name)
+                if param is not None:
+                    if param_name == "total_quality_array":
+                        self.total_quality_array = self.total_quality_array[
+                            :, index_array
+                        ]
+                    else:
+                        setattr(self, param_name, param[:, :, index_array])
+        else:
+            for param_name in self._data_params:
+                param = getattr(self, param_name)
+                if param is not None:
+                    if param_name == "total_quality_array":
+                        self.total_quality_array = self.total_quality_array[
+                            :, :, index_array
+                        ]
+                    else:
+                        setattr(self, param_name, param[:, :, :, index_array])
 
         if run_check:
             self.check(

@@ -644,7 +644,9 @@ def _sort_freq_helper(
                 "The spw_order argument is ignored when providing an "
                 "array_like of int for channel_order"
             )
-        if not np.all(np.sort(channel_order) == np.arange(Nfreqs)):
+        if not channel_order.size == Nfreqs or not np.all(
+            np.sort(channel_order) == np.arange(Nfreqs)
+        ):
             raise ValueError(
                 "Index array for channel_order must contain all indicies for "
                 "the frequency axis, without duplicates."
@@ -679,7 +681,9 @@ def _sort_freq_helper(
                 sort_spw = {idx: idx == select_spw for idx in spw_array}
         elif spw_order is not None:
             if isinstance(spw_order, (np.ndarray, list, tuple)):
-                if not np.all(np.sort(spw_order) == np.sort(spw_array)):
+                if not spw_order.size == Nspws or not np.all(
+                    np.sort(spw_order) == np.sort(spw_array)
+                ):
                     raise ValueError(
                         "Index array for spw_order must contain all indicies for "
                         "the frequency axis, without duplicates."

@@ -1798,6 +1798,61 @@ def test_reorder_freqs_multi_spw(caltype, multi_spw_gain, multi_spw_delay):
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+@pytest.mark.parametrize("metadata_only", [True, False])
+def test_reorder_times(
+    future_shapes,
+    caltype,
+    metadata_only,
+    gain_data,
+    delay_data_inputflag,
+    delay_data_inputflag_future,
+):
+    if caltype == "gain":
+        calobj = gain_data
+        if future_shapes:
+            calobj.use_future_array_shapes()
+    else:
+        if future_shapes:
+            calobj = delay_data_inputflag_future
+        else:
+            calobj = delay_data_inputflag
+
+    calobj2 = calobj.copy(metadata_only=metadata_only)
+    if metadata_only:
+        calobj = calobj2.copy()
+
+    calobj2.reorder_times(order="-time")
+    time_diff = np.diff(calobj2.time_array)
+    assert np.all(time_diff < 0)
+
+    calobj.reorder_times(order=np.flip(np.arange(calobj.Ntimes)))
+    assert calobj == calobj2
+
+
+def test_reorder_times_errors(gain_data):
+    with pytest.raises(
+        ValueError,
+        match="order must be one of 'time', '-time'or an index array of length Ntimes",
+    ):
+        gain_data.reorder_times(order="foo")
+
+    with pytest.raises(
+        ValueError,
+        match="If order is an array, it must contain all indicies for the time axis, "
+        "without duplicates.",
+    ):
+        gain_data.reorder_times(order=np.arange(gain_data.Ntimes) * 2)
+
+    with pytest.raises(
+        ValueError,
+        match="If order is an array, it must contain all indicies for the time axis, "
+        "without duplicates.",
+    ):
+        gain_data.reorder_times(order=np.arange(7))
+
+
+@pytest.mark.parametrize("future_shapes", [True, False])
 def test_add_antennas_multispw(future_shapes, multi_spw_gain):
     """Test adding antennas between two UVCal objects"""
     calobj = multi_spw_gain
