@@ -949,8 +949,8 @@ def jstr2num(jstr, x_orientation=None):
 
     Parameters
     ----------
-    jstr : str
-        antenna (jones) polarization string
+    jstr : str or array_like of str
+        antenna (jones) polarization string(s) to convert.
     x_orientation : str, optional
         Orientation of the physical dipole corresponding to what is
         labelled as the x polarization ("east" or "north") to allow for
@@ -959,8 +959,8 @@ def jstr2num(jstr, x_orientation=None):
 
     Returns
     -------
-    int
-        antenna (jones) polarization number corresponding to string
+    int or list of int
+        antenna (jones) polarization number(s) corresponding to the input string(s)
 
     Raises
     ------
@@ -1001,8 +1001,8 @@ def jnum2str(jnum, x_orientation=None):
 
     Parameters
     ----------
-    num : int
-        antenna (jones) polarization number
+    num : int or array_like of int
+        antenna (jones) polarization number(s) to convert to strings
     x_orientation : str, optional
         Orientation of the physical dipole corresponding to what is
         labelled as the x polarization ("east" or "north") to convert to
@@ -1010,8 +1010,8 @@ def jnum2str(jnum, x_orientation=None):
 
     Returns
     -------
-    str
-        antenna (jones) polarization string corresponding to number
+    str or list of str
+        antenna (jones) polarization string(s) corresponding to number
 
     Raises
     ------
