@@ -1833,7 +1833,7 @@ def test_reorder_times(
 def test_reorder_times_errors(gain_data):
     with pytest.raises(
         ValueError,
-        match="order must be one of 'time', '-time'or an index array of length Ntimes",
+        match="order must be one of 'time', '-time' or an index array of length Ntimes",
     ):
         gain_data.reorder_times(order="foo")
 
@@ -1850,6 +1850,90 @@ def test_reorder_times_errors(gain_data):
         "without duplicates.",
     ):
         gain_data.reorder_times(order=np.arange(7))
+
+
+@pytest.mark.parametrize("future_shapes", [True, False])
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+@pytest.mark.parametrize("metadata_only", [True, False])
+def test_reorder_jones(
+    future_shapes,
+    caltype,
+    metadata_only,
+    gain_data,
+    delay_data_inputflag,
+    delay_data_inputflag_future,
+):
+    if caltype == "gain":
+        calobj = gain_data
+        if future_shapes:
+            calobj.use_future_array_shapes()
+    else:
+        if future_shapes:
+            calobj = delay_data_inputflag_future
+        else:
+            calobj = delay_data_inputflag
+
+    # all the input objects have a Njones=1. make copies and add them to get to 4
+    calobj2 = calobj.copy(metadata_only=metadata_only)
+    for jpol in [-6, -7, -8]:
+        calobj3 = calobj.copy(metadata_only=metadata_only)
+        calobj3.jones_array[0] = jpol
+        calobj2 += calobj3
+
+    calobj = calobj2.copy()
+
+    # this is a no-op because it's already sorted this way
+    calobj2.reorder_jones("number")
+    jnum_diff = np.diff(calobj2.jones_array)
+    assert np.all(jnum_diff > 0)
+
+    calobj2.reorder_jones("-number")
+    jnum_diff = np.diff(calobj2.jones_array)
+    assert np.all(jnum_diff < 0)
+
+    calobj2.reorder_jones("name")
+    name_array = np.asarray(
+        uvutils.jnum2str(calobj2.jones_array, x_orientation=calobj2.x_orientation)
+    )
+    sorted_names = np.sort(name_array)
+    assert np.all(sorted_names == name_array)
+
+    # test sorting with an index array. Sort back to number first so indexing works
+    print(sorted_names)
+    sorted_nums = uvutils.jstr2num(sorted_names, x_orientation=calobj.x_orientation)
+    index_array = [np.nonzero(calobj.jones_array == num)[0][0] for num in sorted_nums]
+    calobj.reorder_jones(index_array)
+    assert calobj2 == calobj
+
+
+def test_reorder_jones_errors(gain_data):
+    # all the input objects have a Njones=1. make copies and add them to get to 4
+    calobj = gain_data.copy()
+    for jpol in [-6, -7, -8]:
+        calobj2 = gain_data.copy()
+        calobj2.jones_array[0] = jpol
+        calobj += calobj2
+
+    with pytest.raises(
+        ValueError,
+        match="order must be one of 'number', 'name', '-number', '-name' or an "
+        "index array of length Njones",
+    ):
+        calobj.reorder_jones(order="foo")
+
+    with pytest.raises(
+        ValueError,
+        match="If order is an array, it must contain all indicies for "
+        "the jones axis, without duplicates.",
+    ):
+        calobj.reorder_jones(order=np.arange(gain_data.Njones) * 2)
+
+    with pytest.raises(
+        ValueError,
+        match="If order is an array, it must contain all indicies for "
+        "the jones axis, without duplicates.",
+    ):
+        calobj.reorder_jones(order=np.arange(2))
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])

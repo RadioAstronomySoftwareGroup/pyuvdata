@@ -1502,8 +1502,8 @@ class UVCal(UVBase):
         Raises
         ------
         ValueError
-            Raised if order is not an allowed string or is an array that is not integers
-            or is not length Nants_data.
+            Raised if order is not an allowed string or is an array that does not
+            contain all the required numbers.
 
         """
         if isinstance(order, (np.ndarray, list, tuple)):
@@ -1711,7 +1711,7 @@ class UVCal(UVBase):
         run_check_acceptability=True,
     ):
         """
-        Arrange the antenna axis according to desired order.
+        Arrange the time axis according to desired order.
 
         Parameters
         ----------
@@ -1728,8 +1728,8 @@ class UVCal(UVBase):
         Raises
         ------
         ValueError
-            Raised if order is not an allowed string or is an array that is not integers
-            or is not length Nants_data.
+            Raised if order is not an allowed string or is an array that does not
+            contain all the required indices.
 
         """
         if isinstance(order, (np.ndarray, list, tuple)):
@@ -1745,7 +1745,7 @@ class UVCal(UVBase):
         else:
             if order not in ["time", "-time"]:
                 raise ValueError(
-                    "order must be one of 'time', '-time'or an "
+                    "order must be one of 'time', '-time' or an "
                     "index array of length Ntimes"
                 )
 
@@ -1782,6 +1782,97 @@ class UVCal(UVBase):
                         ]
                     else:
                         setattr(self, param_name, param[:, :, :, index_array])
+
+        if run_check:
+            self.check(
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+            )
+
+    def reorder_jones(
+        self,
+        order="time",
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """
+        Arrange the jones element axis according to desired order.
+
+        Parameters
+        ----------
+        order: str or array like of int
+            If a string, allowed values are "name" and "number" to sort on the jones
+            element name or number respectively. A '-' can be prepended to signify
+            descending order instead of the default ascending order (e.g. "-number").
+            An array of integers of length Njones representing indexes along the
+            existing `jones_array` can also be supplied to sort in any desired order.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            Raised if order is not an allowed string or is an array that does not
+            contain all the required indices.
+
+        """
+        if isinstance(order, (np.ndarray, list, tuple)):
+            order = np.array(order)
+            if not order.size == self.Njones or not np.all(
+                np.sort(order) == np.arange(self.Njones)
+            ):
+                raise ValueError(
+                    "If order is an array, it must contain all indicies for "
+                    "the jones axis, without duplicates."
+                )
+            index_array = order
+        else:
+            if order not in ["number", "name", "-number", "-name"]:
+                raise ValueError(
+                    "order must be one of 'number', 'name', '-number', '-name' or an "
+                    "index array of length Njones"
+                )
+
+            if "number" in order:
+                index_array = np.argsort(self.jones_array)
+            elif "name" in order:
+                name_array = np.asarray(
+                    uvutils.jnum2str(self.jones_array, x_orientation=self.x_orientation)
+                )
+                index_array = np.argsort(name_array)
+
+            if order[0] == "-":
+                index_array = np.flip(index_array)
+
+        if np.all(index_array[1:] > index_array[:-1]):
+            # Nothing to do - the data are already sorted!
+            return
+
+        # update all the relevant arrays
+        self.jones_array = self.jones_array[index_array]
+        if self.future_array_shapes:
+            for param_name in self._data_params:
+                param = getattr(self, param_name)
+                if param is not None:
+                    if param_name == "total_quality_array":
+                        self.total_quality_array = self.total_quality_array[
+                            :, :, index_array
+                        ]
+                    else:
+                        setattr(self, param_name, param[:, :, :, index_array])
+        else:
+            for param_name in self._data_params:
+                param = getattr(self, param_name)
+                if param is not None:
+                    if param_name == "total_quality_array":
+                        self.total_quality_array = self.total_quality_array[
+                            :, :, :, index_array
+                        ]
+                    else:
+                        setattr(self, param_name, param[:, :, :, :, index_array])
 
         if run_check:
             self.check(
