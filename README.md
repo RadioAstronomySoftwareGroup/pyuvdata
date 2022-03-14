@@ -204,13 +204,16 @@ you will need the following packages:
 
 * pytest >= 6.2
 * pytest-cases >= 3.6.9
-* pytest-xdist
 * pytest-cov
 * cython >=0.23  (This is necessary for coverage reporting of cython extensions)
 * coverage
 * pre-commit
 * sphinx
 * pypandoc
+
+One other package, pytest-xdist, is not required, but can be used to speed up running
+the test suite by running tests in parallel. To use it call pytest with the
+```-n auto``` option.
 
 One way to ensure you have all the needed packages is to use the included `environment.yaml` file to create a new environment that will
 contain all the optional dependencies along with dependencies required for
