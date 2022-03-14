@@ -56,7 +56,7 @@ jobs:
         run: |
           mkdir -p empty
           cd empty
-          pytest --pyargs pyuvdata -c ../setup.cfg --cov=pyuvdata --cov-config=../.coveragerc --cov-report xml:../coverage.xml
+          pytest --pyargs pyuvdata -n auto --dist=loadfile --cov=pyuvdata --cov-config=../.coveragerc --cov-report xml:../coverage.xml
           cd ..
 
       - name: Upload Coverage
