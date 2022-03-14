@@ -644,6 +644,7 @@ def _sort_freq_helper(
                 "The spw_order argument is ignored when providing an "
                 "array_like of int for channel_order"
             )
+        channel_order = np.asarray(channel_order)
         if not channel_order.size == Nfreqs or not np.all(
             np.sort(channel_order) == np.arange(Nfreqs)
         ):
@@ -681,6 +682,7 @@ def _sort_freq_helper(
                 sort_spw = {idx: idx == select_spw for idx in spw_array}
         elif spw_order is not None:
             if isinstance(spw_order, (np.ndarray, list, tuple)):
+                spw_order = np.asarray(spw_order)
                 if not spw_order.size == Nspws or not np.all(
                     np.sort(spw_order) == np.sort(spw_array)
                 ):
