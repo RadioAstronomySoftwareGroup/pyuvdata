@@ -1623,12 +1623,7 @@ class UVCal(UVBase):
                 )
             flip_spws = spw_order[0] == "-"
 
-            if "number" in spw_order:
-                index_array = np.argsort(self.spw_array)
-            elif "freq" in spw_order:
-                mean_freq = np.mean(self.freq_range, axis=1)
-                index_array = np.argsort(mean_freq)
-            else:
+            if isinstance(spw_order, (np.ndarray, list, tuple)):
                 spw_order = np.asarray(spw_order)
                 if not spw_order.size == self.Nspws or not np.all(
                     np.sort(spw_order) == np.sort(self.spw_array)
@@ -1640,6 +1635,18 @@ class UVCal(UVBase):
                 index_array = np.asarray(
                     [np.nonzero(self.spw_array == spw)[0][0] for spw in spw_order]
                 )
+            else:
+                if spw_order not in ["number", "freq", "-number", "-freq", None]:
+                    raise ValueError(
+                        "spw_order can only be one of 'number', '-number', "
+                        "'freq', '-freq', None or an integer array of length Nspws"
+                    )
+                if "number" in spw_order:
+                    index_array = np.argsort(self.spw_array)
+                elif "freq" in spw_order:
+                    mean_freq = np.mean(self.freq_range, axis=1)
+                    index_array = np.argsort(mean_freq)
+
             if flip_spws:
                 index_array = np.flip(index_array)
 
