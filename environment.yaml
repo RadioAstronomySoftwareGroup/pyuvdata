@@ -3,27 +3,26 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python>3.6
   - astropy>=4.2.1
   - astropy-healpix
   - astroquery>=0.4.4
+  - coverage
+  - cython>=0.23
   - h5py>=3.0
   - numpy>=1.18
+  - pip
   - pre-commit
   - pyerfa>=2.0
   - pypandoc
+  - pytest>=6.2.0
+  - pytest-cases>=3.6.9
+  - pytest-cov
+  - pytest-xdist
   - python-casacore>=3.1.0
   - pyyaml
   - scipy
   - setuptools_scm
   - sphinx
-  - coverage
-  - pytest>=6.2.0
-  - pytest-cov
-  - cython>=0.23
-  - pip
   - pip:
-      - pytest-cases>=3.6.9
-      - pytest-xdist
       - novas
       - novas_de405
