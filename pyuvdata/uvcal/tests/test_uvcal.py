@@ -1795,10 +1795,6 @@ def test_reorder_freqs_multi_spw(caltype, multi_spw_gain, multi_spw_delay):
 
     calobj2 = calobj.copy()
 
-    # this should be a no-op
-    calobj.reorder_freqs(spw_order="number", channel_order="freq")
-    assert calobj2 == calobj
-
     if caltype == "delay":
         with uvtest.check_warnings(
             UserWarning,
@@ -1807,6 +1803,10 @@ def test_reorder_freqs_multi_spw(caltype, multi_spw_gain, multi_spw_delay):
         ):
             calobj.reorder_freqs(spw_order="-number", channel_order="freq")
     else:
+        # this should be a no-op
+        calobj.reorder_freqs(spw_order="number", channel_order="freq")
+        assert calobj2 == calobj
+
         calobj.reorder_freqs(spw_order="-number", channel_order="freq")
         for spw in calobj.spw_array:
             ant_num_diff = np.diff(
@@ -1823,6 +1823,52 @@ def test_reorder_freqs_multi_spw(caltype, multi_spw_gain, multi_spw_delay):
     calobj.reorder_freqs(spw_order="freq")
     spw_diff = np.diff(calobj.spw_array)
     assert np.all(spw_diff > 0)
+
+
+def test_reorder_freqs_errors(gain_data, multi_spw_delay):
+    with pytest.raises(
+        ValueError,
+        match="spw_order can only be one of 'number', '-number', "
+        "'freq', '-freq', None or an integer array of length Nspws",
+    ):
+        gain_data.reorder_freqs(spw_order="foo")
+
+    with pytest.raises(
+        ValueError,
+        match="spw_order can only be one of 'number', '-number', "
+        "'freq', '-freq', None or an integer array of length Nspws",
+    ):
+        multi_spw_delay.reorder_freqs(spw_order="foo")
+
+    with pytest.raises(
+        ValueError,
+        match="If spw_order is an array, it must contain all spw numbers in "
+        "the spw_array, without duplicates.",
+    ):
+        multi_spw_delay.reorder_freqs(spw_order=[0, 1])
+
+    with pytest.raises(
+        ValueError,
+        match="channel_order can only be one of 'freq' or '-freq' or an index "
+        "array of length Nfreqs",
+    ):
+        gain_data.reorder_freqs(channel_order="foo")
+
+    with pytest.raises(
+        ValueError,
+        match="Index array for channel_order must contain all indicies for "
+        "the frequency axis, without duplicates.",
+    ):
+        gain_data.reorder_freqs(
+            channel_order=np.arange(gain_data.Nfreqs, dtype=float) * 2
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="Index array for channel_order must contain all indicies for "
+        "the frequency axis, without duplicates.",
+    ):
+        gain_data.reorder_freqs(channel_order=np.arange(3))
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
