@@ -389,8 +389,16 @@ def uv_phase_comp_main():
     file2 = os.path.join(DATA_PATH, "1133866760_rephase.uvfits")
     uvd1 = UVData()
     uvd2 = UVData()
-    uvd1.read_uvfits(file1, fix_old_proj=True)
-    uvd2.read_uvfits(file2, fix_old_proj=True)
+    # These files came from an external source, don't want to rewrite them, so use
+    # checkwarnings to capture the warning about non-real autos
+    with uvtest.check_warnings(
+        UserWarning,
+        nwarnings=2,
+        match="Fixing auto-correlations to be be real-only, after some imaginary "
+        "values were detected in data_array.",
+    ):
+        uvd1.read_uvfits(file1, fix_old_proj=True)
+        uvd2.read_uvfits(file2, fix_old_proj=True)
 
     yield uvd1, uvd2
 
