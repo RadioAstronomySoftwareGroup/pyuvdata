@@ -1629,6 +1629,7 @@ class UVCal(UVBase):
                 mean_freq = np.mean(self.freq_range, axis=1)
                 index_array = np.argsort(mean_freq)
             else:
+                spw_order = np.asarray(spw_order)
                 if not spw_order.size == self.Nspws or not np.all(
                     np.sort(spw_order) == np.sort(self.spw_array)
                 ):
