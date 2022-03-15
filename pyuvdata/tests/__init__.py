@@ -141,7 +141,10 @@ class WarningsChecker(warnings.catch_warnings):
         return self
 
     def __exit__(
-        self, exc_type=None, exc_val=None, exc_tb=None,
+        self,
+        exc_type=None,
+        exc_val=None,
+        exc_tb=None,
     ):
         if not self._entered:
             __tracebackhide__ = True

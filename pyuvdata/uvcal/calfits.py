@@ -125,8 +125,8 @@ class CALFITS(UVCal):
                         "does not support variable integration times."
                     )
                 median_int_time = np.median(self.integration_time)
-                if np.isclose(time_spacing[0], median_int_time / (24.0 * 60.0 ** 2)):
-                    time_spacing = median_int_time / (24.0 * 60.0 ** 2)
+                if np.isclose(time_spacing[0], median_int_time / (24.0 * 60.0**2)):
+                    time_spacing = median_int_time / (24.0 * 60.0**2)
                 else:
                     rounded_spacing = np.around(
                         time_spacing,
@@ -140,9 +140,9 @@ class CALFITS(UVCal):
                     time_spacing = rounded_spacing[0]
             else:
                 if np.isclose(
-                    time_spacing[0], self.integration_time / (24.0 * 60.0 ** 2)
+                    time_spacing[0], self.integration_time / (24.0 * 60.0**2)
                 ):
-                    time_spacing = self.integration_time / (24.0 * 60.0 ** 2)
+                    time_spacing = self.integration_time / (24.0 * 60.0**2)
                 else:
                     rounded_spacing = np.around(
                         time_spacing,
@@ -156,9 +156,9 @@ class CALFITS(UVCal):
                     time_spacing = rounded_spacing[0]
         else:
             if self.future_array_shapes:
-                time_spacing = self.integration_time[0] / (24.0 * 60.0 ** 2)
+                time_spacing = self.integration_time[0] / (24.0 * 60.0**2)
             else:
-                time_spacing = self.integration_time / (24.0 * 60.0 ** 2)
+                time_spacing = self.integration_time / (24.0 * 60.0**2)
 
         if self.Njones > 1:
             if not uvutils._test_array_constant_spacing(self._jones_array):

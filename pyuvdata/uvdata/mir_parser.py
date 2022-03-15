@@ -468,16 +468,16 @@ class MirParser(object):
                 # common problem with metadata of MIR autos not
                 # being correctly recorded.
                 if data_offset == 0:
-                    if (file_size % (4 * (2 ** 14) * nchunks * 2 + 20)) != 0:
+                    if (file_size % (4 * (2**14) * nchunks * 2 + 20)) != 0:
                         nchunks = int(auto_vals["nChunks"][0])
-                        if (file_size % (4 * (2 ** 14) * nchunks * 2 + 20)) != 0:
+                        if (file_size % (4 * (2**14) * nchunks * 2 + 20)) != 0:
                             raise IndexError(
                                 "Could not determine auto-correlation record size!"
                             )
                     # How big the record is for each data set
-                    last_offset = 4 * (2 ** 14) * int(nchunks) * 2
+                    last_offset = 4 * (2**14) * int(nchunks) * 2
                     ac_data = np.zeros(
-                        file_size // ((4 * (2 ** 14) * int(nchunks) * 2 + 20)),
+                        file_size // ((4 * (2**14) * int(nchunks) * 2 + 20)),
                         dtype=ac_read_dtype,
                     )
                 ac_data[marker] = (
@@ -636,11 +636,11 @@ class MirParser(object):
         # TODO: Allow this to be flexible if dealing w/ spectrally averaged data
         # (although it's only use currently is in its unaveraged formal for
         # normaliztion of the crosses)
-        auto_data = np.empty((len(ac_data), len(winsel), 2, 2 ** 14), dtype=np.float32)
+        auto_data = np.empty((len(ac_data), len(winsel), 2, 2**14), dtype=np.float32)
         dataoff = ac_data["dataoff"]
         datasize = ac_data["datasize"]
         del_offset = np.insert(np.diff(dataoff) - datasize[0:-1], 0, dataoff[0])
-        nvals = ac_data["nchunks"] * 2 * (2 ** 14)
+        nvals = ac_data["nchunks"] * 2 * (2**14)
         nchunks = ac_data["nchunks"]
 
         with open(os.path.join(filepath, "autoCorrelations"), "rb") as auto_file:
@@ -650,7 +650,7 @@ class MirParser(object):
                     dtype=np.float32,
                     count=nvals[idx],
                     offset=20 + del_offset[idx],
-                ).reshape((nchunks[idx], 2, 2 ** 14))[winsel, :, :]
+                ).reshape((nchunks[idx], 2, 2**14))[winsel, :, :]
 
         return auto_data
 
@@ -911,7 +911,7 @@ class MirParser(object):
         # which techically has a different keyword under which the system temperatures
         # are stored.
         tsys_dict = {
-            (idx, jdx, 0): tsys ** 0.5
+            (idx, jdx, 0): tsys**0.5
             for idx, jdx, tsys in zip(
                 self.eng_data["inhid"],
                 self.eng_data["antennaNumber"],
@@ -920,7 +920,7 @@ class MirParser(object):
         }
         tsys_dict.update(
             {
-                (idx, jdx, 1): tsys ** 0.5
+                (idx, jdx, 1): tsys**0.5
                 for idx, jdx, tsys in zip(
                     self.eng_data["inhid"],
                     self.eng_data["antennaNumber"],
@@ -950,7 +950,12 @@ class MirParser(object):
             self.vis_data[idx] *= normal_dict[blhid]
 
     def from_file(
-        self, filepath, has_auto=False, load_vis=False, load_raw=False, load_auto=False,
+        self,
+        filepath,
+        has_auto=False,
+        load_vis=False,
+        load_raw=False,
+        load_auto=False,
     ):
         """
         Read in all files from a mir data set into predefined numpy datatypes.

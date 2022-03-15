@@ -591,7 +591,10 @@ class UVBeam(UVBase):
             "input files."
         )
         self._filename = uvp.UVParameter(
-            "filename", required=False, description=desc, expected_type=str,
+            "filename",
+            required=False,
+            description=desc,
+            expected_type=str,
         )
 
         super(UVBeam, self).__init__()
@@ -832,7 +835,7 @@ class UVBeam(UVBase):
             feed_pol_order.append((1, 1))
 
         if calc_cross_pols:
-            beam_object.Npols = beam_object.Nfeeds ** 2
+            beam_object.Npols = beam_object.Nfeeds**2
             # to get here we have Nfeeds > 1
             feed_pol_order.extend([(0, 1), (1, 0)])
         else:
@@ -1095,7 +1098,7 @@ class UVBeam(UVBase):
         history_update_string = (
             " Converted from efield to pseudo-stokes power using pyuvdata."
         )
-        beam_object.Npols = beam_object.Nfeeds ** 2
+        beam_object.Npols = beam_object.Nfeeds**2
         beam_object.history = beam_object.history + history_update_string
         beam_object.Nfeeds = None
         beam_object.feed_array = None
@@ -1481,7 +1484,7 @@ class UVBeam(UVBase):
         if self.pixel_coordinate_system != "healpix":
             raise ValueError('pixel_coordinate_system must be "healpix"')
 
-        if not self.Npixels == 12 * self.nside ** 2:
+        if not self.Npixels == 12 * self.nside**2:
             raise ValueError(
                 "simple healpix interpolation requires full sky healpix maps."
             )
@@ -1550,8 +1553,8 @@ class UVBeam(UVBase):
             if np.any(self.basis_vector_array[0, 1, :] > 0) or np.any(
                 self.basis_vector_array[1, 0, :] > 0
             ):
-                """ Input basis vectors are not aligned to the native theta/phi
-                coordinate system """
+                """Input basis vectors are not aligned to the native theta/phi
+                coordinate system"""
                 raise NotImplementedError(
                     "interpolation for input basis "
                     "vectors that are not aligned to the "
@@ -1559,8 +1562,8 @@ class UVBeam(UVBase):
                     "is not yet supported"
                 )
             else:
-                """ The basis vector array comes in defined at the rectangular grid.
-                Redefine it for the interpolation points """
+                """The basis vector array comes in defined at the rectangular grid.
+                Redefine it for the interpolation points"""
                 interp_basis_vector = np.zeros(
                     [self.Naxes_vec, self.Ncomponents_vec, npoints]
                 )
@@ -2049,7 +2052,7 @@ class UVBeam(UVBase):
         beam = self._get_beam(pol)
 
         # get integral
-        omega = np.sum(beam, axis=-1) * np.pi / (3.0 * nside ** 2)
+        omega = np.sum(beam, axis=-1) * np.pi / (3.0 * nside**2)
 
         return omega
 
@@ -2091,7 +2094,7 @@ class UVBeam(UVBase):
         beam = self._get_beam(pol)
 
         # get integral
-        omega = np.sum(beam ** 2, axis=-1) * np.pi / (3.0 * nside ** 2)
+        omega = np.sum(beam**2, axis=-1) * np.pi / (3.0 * nside**2)
 
         return omega
 
@@ -3781,7 +3784,9 @@ class UVBeam(UVBase):
                 beam_list = [self] + beam_list
                 while len(beam_list) > 1:
                     for beam1, beam2 in zip(beam_list[0::2], beam_list[1::2]):
-                        beam1.__iadd__(beam2,)
+                        beam1.__iadd__(
+                            beam2,
+                        )
                     beam_list = beam_list[0::2]
                 # Because self was at the beginning of the list,
                 # everything is merged into it at the end of this loop

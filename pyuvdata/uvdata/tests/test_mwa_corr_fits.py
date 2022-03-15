@@ -781,7 +781,10 @@ def test_aoflagger_flags():
     ]
     with uvtest.check_warnings(UserWarning, messages):
         uv.read_mwa_corr_fits(
-            files, flag_init=False, remove_flagged_ants=False, correct_cable_len=False,
+            files,
+            flag_init=False,
+            remove_flagged_ants=False,
+            correct_cable_len=False,
         )
 
     with fits.open(filelist[3]) as aoflags:
@@ -913,7 +916,9 @@ def test_start_flag_int_time(tmp_path):
         meta[0].header["GOODTIME"] = 1447698337.25
         meta.writeto(new_meta)
     uv.read(
-        [new_meta, filelist[1]], flag_init=True, start_flag="goodtime",
+        [new_meta, filelist[1]],
+        flag_init=True,
+        start_flag="goodtime",
     )
     # first integration time should be flagged
     # data only has one integration time, so all data should be flagged
@@ -1018,11 +1023,13 @@ def test_remove_flagged_ants(tmp_path):
     """Test remove_flagged_ants."""
     uv1 = UVData()
     uv1.read(
-        filelist[8:10], remove_flagged_ants=True,
+        filelist[8:10],
+        remove_flagged_ants=True,
     )
     uv2 = UVData()
     uv2.read(
-        filelist[8:10], remove_flagged_ants=False,
+        filelist[8:10],
+        remove_flagged_ants=False,
     )
     good_ants = np.delete(np.unique(uv2.ant_1_array), 76)
 
@@ -1042,7 +1049,9 @@ def test_small_sigs(tmp_path):
         mini.writeto(small_sigs)
     uv1 = UVData()
     uv1.read(
-        [small_sigs, filelist[9]], correct_van_vleck=True, flag_small_auto_ants=True,
+        [small_sigs, filelist[9]],
+        correct_van_vleck=True,
+        flag_small_auto_ants=True,
     )
     messages = [
         "values are being corrected with the van vleck integral",
@@ -1071,10 +1080,13 @@ def test_deprecated_keywords():
     messages.append("some coarse channel files were not submitted")
     messages.append("cable length correction is now defaulted to True")
     with uvtest.check_warnings(
-        [DeprecationWarning, DeprecationWarning, UserWarning, UserWarning], messages,
+        [DeprecationWarning, DeprecationWarning, UserWarning, UserWarning],
+        messages,
     ):
         uv.read(
-            filelist[0:2], use_cotter_flags=False, flag_small_sig_ants=True,
+            filelist[0:2],
+            use_cotter_flags=False,
+            flag_small_sig_ants=True,
         )
 
 

@@ -42,7 +42,10 @@ class UVFITS(UVData):
     ]
 
     def _get_parameter_data(
-        self, vis_hdu, run_check_acceptability, background_lsts=True,
+        self,
+        vis_hdu,
+        run_check_acceptability,
+        background_lsts=True,
     ):
         """
         Read just the random parameters portion of the uvfits file ("metadata").
@@ -757,7 +760,9 @@ class UVFITS(UVData):
 
             # Now read in the random parameter info
             self._get_parameter_data(
-                vis_hdu, run_check_acceptability, background_lsts=background_lsts,
+                vis_hdu,
+                run_check_acceptability,
+                background_lsts=background_lsts,
             )
             # If we find the source attribute in the FITS random paramter list,
             # the multi_phase_center attribute will be set to True, and we should also
@@ -1082,7 +1087,8 @@ class UVFITS(UVData):
         # So conjugate the visibilities and flip the uvws:
         data_array = np.reshape(np.conj(self.data_array), uvfits_data_shape)
         weights_array = np.reshape(
-            self.nsample_array * np.where(self.flag_array, -1, 1), uvfits_data_shape,
+            self.nsample_array * np.where(self.flag_array, -1, 1),
+            uvfits_data_shape,
         )
         data_array = data_array[:, :, :, :, :, pol_indexing, :]
         weights_array = weights_array[:, :, :, :, :, pol_indexing, :]

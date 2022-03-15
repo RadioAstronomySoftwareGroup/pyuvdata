@@ -501,7 +501,8 @@ def test_ms_multi_spw_data_variation(mir_uv, tmp_path):
     assert str(cm.value).startswith("Column EXPOSURE appears to vary on between")
 
     with uvtest.check_warnings(
-        UserWarning, match="Column EXPOSURE appears to vary on between windows, ",
+        UserWarning,
+        match="Column EXPOSURE appears to vary on between windows, ",
     ):
         ms_uv.read_ms(testfile, raise_error=False)
 

@@ -64,7 +64,7 @@ def test_write_inttime_equal_timediff(future_shapes, gain_data, delay_data, tmp_
 
     time_diffs = np.diff(cal_in.time_array)
 
-    gain_data.integration_time = np.mean(time_diffs) * (24.0 * 60.0 ** 2)
+    gain_data.integration_time = np.mean(time_diffs) * (24.0 * 60.0**2)
 
     if future_shapes:
         cal_in.use_future_array_shapes()
@@ -360,7 +360,8 @@ def test_extra_keywords_errors(gain_data, tmp_path, ex_val, error_msg):
     val = ex_val[keyword]
     cal_in.extra_keywords[keyword] = val
     with uvtest.check_warnings(
-        UserWarning, match=f"{keyword} in extra_keywords is a list, array or dict",
+        UserWarning,
+        match=f"{keyword} in extra_keywords is a list, array or dict",
     ):
         cal_in.check()
     with pytest.raises(TypeError, match=error_msg):

@@ -261,7 +261,8 @@ def test_location_acceptable_none():
 def test_non_builtin_expected_type():
     with pytest.raises(ValueError) as cm:
         uvp.UVParameter(
-            "_test", expected_type="integer",
+            "_test",
+            expected_type="integer",
         )
     assert str(cm.value).startswith("Input expected_type is a string with value")
 

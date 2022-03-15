@@ -679,7 +679,9 @@ def test_spatial_interpolation_samepoints(
         ValueError, match="interpolation_function must be set on object first"
     ):
         uvbeam.interp(
-            az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals,
+            az_array=az_orig_vals,
+            za_array=za_orig_vals,
+            freq_array=freq_orig_vals,
         )
 
     uvbeam.interpolation_function = "az_za_simple"
@@ -918,7 +920,8 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
         "is outside of the UVBeam pixel coverage.",
     ):
         uvbeam.interp(
-            az_array=az_interp_vals, za_array=za_interp_vals + np.pi / 2,
+            az_array=az_interp_vals,
+            za_array=za_interp_vals + np.pi / 2,
         )
 
     # test no errors only frequency interpolation
@@ -930,7 +933,9 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
         match="Requested polarization 1 not found in self.polarization_array",
     ):
         uvbeam.interp(
-            az_array=az_interp_vals, za_array=za_interp_vals, polarizations=["pI"],
+            az_array=az_interp_vals,
+            za_array=za_interp_vals,
+            polarizations=["pI"],
         )
 
 
@@ -1101,7 +1106,8 @@ def test_healpix_interpolation(cst_efield_2freq):
         "native theta/phi coordinate system is not yet supported",
     ):
         efield_beam.interp(
-            az_array=az_orig_vals, za_array=za_orig_vals,
+            az_array=az_orig_vals,
+            za_array=za_orig_vals,
         )
 
     # now convert to power beam
@@ -2160,7 +2166,7 @@ def test_select_healpix_pixels(
     beam_healpix2.write_beamfits(write_file_beamfits, clobber=True)
 
     # check for errors associated with pixels not included in data
-    pixel_select = 12 * beam_healpix.nside ** 2 + 10
+    pixel_select = 12 * beam_healpix.nside**2 + 10
     with pytest.raises(
         ValueError,
         match="Pixel {p} is not present in the pixel_array".format(p=pixel_select),
@@ -2543,7 +2549,8 @@ def test_generic_read_cst():
 
 
 @pytest.mark.parametrize(
-    "filename", [cst_yaml_file, mwa_beam_file, casa_beamfits],
+    "filename",
+    [cst_yaml_file, mwa_beam_file, casa_beamfits],
 )
 def test_generic_read(filename):
     """Test generic read can infer the file types correctly."""
@@ -2645,13 +2652,15 @@ def test_generic_read_all_bad_files(tmp_path):
     uvb3 = UVBeam()
     filenames = [fname1, fname2]
     with uvtest.check_warnings(
-        UserWarning, "ALL FILES FAILED ON READ",
+        UserWarning,
+        "ALL FILES FAILED ON READ",
     ):
         uvb3.read(filenames, skip_bad_files=True)
 
 
 @pytest.mark.parametrize(
-    "filename", [cst_yaml_file, mwa_beam_file, casa_beamfits],
+    "filename",
+    [cst_yaml_file, mwa_beam_file, casa_beamfits],
 )
 def test_from_file(filename):
     """Test from file produces same the results as reading explicitly."""

@@ -2,7 +2,7 @@ exclude: '(^docs/conf.py|^user_data/External_tables/|^docs/references/|^pyuvdata
 
 repos:
     - repo: https://github.com/pre-commit/pre-commit-hooks
-      rev: v2.5.0
+      rev: v4.1.0
       hooks:
           - id: trailing-whitespace
           - id: check-added-large-files
@@ -16,7 +16,7 @@ repos:
           - id: mixed-line-ending
             args: ['--fix=no']
     -   repo: https://gitlab.com/pycqa/flake8
-        rev: '3.7.9'
+        rev: '3.9.2'
         hooks:
         -   id: flake8
             additional_dependencies:
@@ -28,6 +28,6 @@ repos:
               - pep8-naming
 
     - repo: https://github.com/psf/black
-      rev: 19.10b0
+      rev: 22.1.0
       hooks:
           - id: black

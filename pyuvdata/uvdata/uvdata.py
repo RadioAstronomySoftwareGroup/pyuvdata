@@ -56,7 +56,11 @@ class UVData(UVBase):
             "Number of baseline-times (i.e. number of spectra). Not necessarily "
             "equal to Nbls * Ntimes."
         )
-        self._Nblts = uvp.UVParameter("Nblts", description=desc, expected_type=int,)
+        self._Nblts = uvp.UVParameter(
+            "Nblts",
+            description=desc,
+            expected_type=int,
+        )
         self._Nfreqs = uvp.UVParameter(
             "Nfreqs", description="Number of frequency channels.", expected_type=int
         )
@@ -190,7 +194,10 @@ class UVData(UVBase):
             "type = int; baseline = 2048 * (ant1+1) + (ant2+1) + 2^16."
         )
         self._baseline_array = uvp.UVParameter(
-            "baseline_array", description=desc, expected_type=int, form=("Nblts",),
+            "baseline_array",
+            description=desc,
+            expected_type=int,
+            form=("Nblts",),
         )
 
         # this dimensionality of freq_array does not allow for different spws
@@ -254,7 +261,10 @@ class UVData(UVBase):
             "(Nfreqs), type = float."
         )
         self._channel_width = uvp.UVParameter(
-            "channel_width", description=desc, expected_type=float, tols=1e-3,
+            "channel_width",
+            description=desc,
+            expected_type=float,
+            tols=1e-3,
         )  # 1 mHz
 
         desc = (
@@ -262,7 +272,10 @@ class UVData(UVBase):
             'multi_phase_center = True, set to "multi".'
         )
         self._object_name = uvp.UVParameter(
-            "object_name", description=desc, form="str", expected_type=str,
+            "object_name",
+            description=desc,
+            form="str",
+            expected_type=str,
         )
 
         # --- multi phase center handling ---
@@ -271,7 +284,10 @@ class UVData(UVBase):
             "contains multiple sources within it."
         )
         self._multi_phase_center = uvp.UVParameter(
-            "multi_phase_center", description=desc, expected_type=bool, value=False,
+            "multi_phase_center",
+            description=desc,
+            expected_type=bool,
+            value=False,
         )
 
         desc = (
@@ -279,7 +295,10 @@ class UVData(UVBase):
             "centers contained within the data set."
         )
         self._Nphase = uvp.UVParameter(
-            "Nphase", description=desc, expected_type=int, required=False,
+            "Nphase",
+            description=desc,
+            expected_type=int,
+            required=False,
         )
 
         desc = (
@@ -350,7 +369,10 @@ class UVData(UVBase):
             "varying widths."
         )
         self._flex_spw = uvp.UVParameter(
-            "flex_spw", description=desc, expected_type=bool, value=False,
+            "flex_spw",
+            description=desc,
+            expected_type=bool,
+            value=False,
         )
 
         desc = (
@@ -383,7 +405,10 @@ class UVData(UVBase):
 
         desc = "Flag indicating that this object is using the future array shapes."
         self._future_array_shapes = uvp.UVParameter(
-            "future_array_shapes", description=desc, expected_type=bool, value=False,
+            "future_array_shapes",
+            description=desc,
+            expected_type=bool,
+            value=False,
         )
 
         # --- phasing information ---
@@ -406,7 +431,10 @@ class UVData(UVBase):
             "applied to the data (eg 2000.)"
         )
         self._phase_center_epoch = uvp.UVParameter(
-            "phase_center_epoch", required=False, description=desc, expected_type=float,
+            "phase_center_epoch",
+            required=False,
+            description=desc,
+            expected_type=float,
         )
 
         desc = (
@@ -712,7 +740,10 @@ class UVData(UVBase):
             "input files."
         )
         self._filename = uvp.UVParameter(
-            "filename", required=False, description=desc, expected_type=str,
+            "filename",
+            required=False,
+            description=desc,
+            expected_type=str,
         )
 
         super(UVData, self).__init__()
@@ -2174,7 +2205,10 @@ class UVData(UVBase):
                         # trigger this else statement
                         # assign float64 as the type of the array
                         array_val = (
-                            np.zeros(self_shape, dtype=np.float64,)
+                            np.zeros(
+                                self_shape,
+                                dtype=np.float64,
+                            )
                             + telescope_param.value
                         )
                         params_set.append(self_param.name)
@@ -2218,7 +2252,10 @@ class UVData(UVBase):
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
         unique_times, inverse_inds = np.unique(self.time_array, return_inverse=True)
         unique_lst_array = uvutils.get_lst_for_time(
-            unique_times, latitude, longitude, altitude,
+            unique_times,
+            latitude,
+            longitude,
+            altitude,
         )
         self.lst_array = unique_lst_array[inverse_inds]
         return
@@ -2730,7 +2767,8 @@ class UVData(UVBase):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 temp_obj.set_uvws_from_antenna_positions(
-                    allow_phasing=True, output_phase_frame=output_phase_frame,
+                    allow_phasing=True,
+                    output_phase_frame=output_phase_frame,
                 )
 
             if not np.allclose(temp_obj.uvw_array, self.uvw_array, atol=1):
@@ -4754,7 +4792,10 @@ class UVData(UVBase):
                 )
 
     def unphase_to_drift(
-        self, phase_frame=None, use_ant_pos=True, use_old_proj=False,
+        self,
+        phase_frame=None,
+        use_ant_pos=True,
+        use_old_proj=False,
     ):
         """
         Convert from a phased dataset to a drift dataset.
@@ -5938,7 +5979,8 @@ class UVData(UVBase):
                 phase_center_dec = self.phase_center_dec
                 phase_center_epoch = self.phase_center_epoch
                 self.unphase_to_drift(
-                    phase_frame=orig_phase_frame, use_old_proj=True,
+                    phase_frame=orig_phase_frame,
+                    use_old_proj=True,
                 )
             else:
                 raise ValueError(
@@ -5964,10 +6006,12 @@ class UVData(UVBase):
         # ant1_index and ant2_index arrays will preserve the order of blts
         ant_sort = np.argsort(self.antenna_numbers)
         ant1_index = np.searchsorted(
-            self.antenna_numbers[ant_sort], self.ant_1_array[unique_inds],
+            self.antenna_numbers[ant_sort],
+            self.ant_1_array[unique_inds],
         )
         ant2_index = np.searchsorted(
-            self.antenna_numbers[ant_sort], self.ant_2_array[unique_inds],
+            self.antenna_numbers[ant_sort],
+            self.ant_2_array[unique_inds],
         )
         _uvw_array = np.zeros((bls.size, 3))
         _uvw_array = (
@@ -5985,7 +6029,8 @@ class UVData(UVBase):
             )
 
     def fix_phase(
-        self, use_ant_pos=True,
+        self,
+        use_ant_pos=True,
     ):
         """
         Fix the data to be consistent with the new phasing method.
@@ -6009,7 +6054,8 @@ class UVData(UVBase):
         # phasing method, and the delta_w values already get correctly corrected for.
         if use_ant_pos:
             self.set_uvws_from_antenna_positions(
-                allow_phasing=True, use_old_proj=False,
+                allow_phasing=True,
+                use_old_proj=False,
             )
         elif self.multi_phase_center:
             raise ValueError(
@@ -6674,7 +6720,8 @@ class UVData(UVBase):
             for name in this.phase_center_catalog.keys():
                 if name in other.phase_center_catalog.keys():
                     this._update_phase_center_id(
-                        name, new_cat_id=other.phase_center_catalog[name]["cat_id"],
+                        name,
+                        new_cat_id=other.phase_center_catalog[name]["cat_id"],
                     )
             # Finally, add those other objects not found in this
             for name in other.phase_center_catalog.keys():
@@ -7517,25 +7564,29 @@ class UVData(UVBase):
             if not self.metadata_only:
                 if this.future_array_shapes:
                     this.data_array = np.concatenate(
-                        [this.data_array] + [obj.data_array for obj in other], axis=1,
+                        [this.data_array] + [obj.data_array for obj in other],
+                        axis=1,
                     )
                     this.nsample_array = np.concatenate(
                         [this.nsample_array] + [obj.nsample_array for obj in other],
                         axis=1,
                     )
                     this.flag_array = np.concatenate(
-                        [this.flag_array] + [obj.flag_array for obj in other], axis=1,
+                        [this.flag_array] + [obj.flag_array for obj in other],
+                        axis=1,
                     )
                 else:
                     this.data_array = np.concatenate(
-                        [this.data_array] + [obj.data_array for obj in other], axis=2,
+                        [this.data_array] + [obj.data_array for obj in other],
+                        axis=2,
                     )
                     this.nsample_array = np.concatenate(
                         [this.nsample_array] + [obj.nsample_array for obj in other],
                         axis=2,
                     )
                     this.flag_array = np.concatenate(
-                        [this.flag_array] + [obj.flag_array for obj in other], axis=2,
+                        [this.flag_array] + [obj.flag_array for obj in other],
+                        axis=2,
                     )
         elif axis == "polarization":
             this.polarization_array = np.concatenate(
@@ -7552,25 +7603,29 @@ class UVData(UVBase):
             if not self.metadata_only:
                 if this.future_array_shapes:
                     this.data_array = np.concatenate(
-                        [this.data_array] + [obj.data_array for obj in other], axis=2,
+                        [this.data_array] + [obj.data_array for obj in other],
+                        axis=2,
                     )
                     this.nsample_array = np.concatenate(
                         [this.nsample_array] + [obj.nsample_array for obj in other],
                         axis=2,
                     )
                     this.flag_array = np.concatenate(
-                        [this.flag_array] + [obj.flag_array for obj in other], axis=2,
+                        [this.flag_array] + [obj.flag_array for obj in other],
+                        axis=2,
                     )
                 else:
                     this.data_array = np.concatenate(
-                        [this.data_array] + [obj.data_array for obj in other], axis=3,
+                        [this.data_array] + [obj.data_array for obj in other],
+                        axis=3,
                     )
                     this.nsample_array = np.concatenate(
                         [this.nsample_array] + [obj.nsample_array for obj in other],
                         axis=3,
                     )
                     this.flag_array = np.concatenate(
-                        [this.flag_array] + [obj.flag_array for obj in other], axis=3,
+                        [this.flag_array] + [obj.flag_array for obj in other],
+                        axis=3,
                     )
         elif axis == "blt":
             this.Nblts = sum([this.Nblts] + [obj.Nblts for obj in other])
@@ -7600,13 +7655,16 @@ class UVData(UVBase):
             )
             if not self.metadata_only:
                 this.data_array = np.concatenate(
-                    [this.data_array] + [obj.data_array for obj in other], axis=0,
+                    [this.data_array] + [obj.data_array for obj in other],
+                    axis=0,
                 )
                 this.nsample_array = np.concatenate(
-                    [this.nsample_array] + [obj.nsample_array for obj in other], axis=0,
+                    [this.nsample_array] + [obj.nsample_array for obj in other],
+                    axis=0,
                 )
                 this.flag_array = np.concatenate(
-                    [this.flag_array] + [obj.flag_array for obj in other], axis=0,
+                    [this.flag_array] + [obj.flag_array for obj in other],
+                    axis=0,
                 )
             if this.phase_type == "phased":
                 this.phase_center_app_ra = np.concatenate(
@@ -8126,7 +8184,14 @@ class UVData(UVBase):
 
         if bls is not None:
             if isinstance(bls, list) and all(
-                isinstance(bl_ind, (int, np.integer,),) for bl_ind in bls
+                isinstance(
+                    bl_ind,
+                    (
+                        int,
+                        np.integer,
+                    ),
+                )
+                for bl_ind in bls
             ):
                 for bl_ind in bls:
                     if not (bl_ind in self.baseline_array):
@@ -8143,8 +8208,26 @@ class UVData(UVBase):
                     "(optionally with polarization) or a list of baseline numbers."
                 )
             if not all(
-                [isinstance(item[0], (int, np.integer,),) for item in bls]
-                + [isinstance(item[1], (int, np.integer,),) for item in bls]
+                [
+                    isinstance(
+                        item[0],
+                        (
+                            int,
+                            np.integer,
+                        ),
+                    )
+                    for item in bls
+                ]
+                + [
+                    isinstance(
+                        item[1],
+                        (
+                            int,
+                            np.integer,
+                        ),
+                    )
+                    for item in bls
+                ]
             ):
                 raise ValueError(
                     "bls must be a list of tuples of antenna numbers "
@@ -8500,7 +8583,8 @@ class UVData(UVBase):
                     freq_inds = np.array(freq_inds)
                     freq_inds = freq_inds[
                         np.isin(
-                            self.flex_spw_id_array[freq_inds], self.spw_array[spw_inds],
+                            self.flex_spw_id_array[freq_inds],
+                            self.spw_array[spw_inds],
                         )
                     ]
 
@@ -9001,10 +9085,12 @@ class UVData(UVBase):
         else:
             if self.future_array_shapes:
                 temp_data = np.zeros(
-                    (temp_Nblts, self.Nfreqs, self.Npols), dtype=self.data_array.dtype,
+                    (temp_Nblts, self.Nfreqs, self.Npols),
+                    dtype=self.data_array.dtype,
                 )
                 temp_flag = np.zeros(
-                    (temp_Nblts, self.Nfreqs, self.Npols), dtype=self.flag_array.dtype,
+                    (temp_Nblts, self.Nfreqs, self.Npols),
+                    dtype=self.flag_array.dtype,
                 )
                 temp_nsample = np.zeros(
                     (temp_Nblts, self.Nfreqs, self.Npols),
@@ -9313,10 +9399,12 @@ class UVData(UVBase):
         else:
             if self.future_array_shapes:
                 temp_data = np.zeros(
-                    (temp_Nblts, self.Nfreqs, self.Npols), dtype=self.data_array.dtype,
+                    (temp_Nblts, self.Nfreqs, self.Npols),
+                    dtype=self.data_array.dtype,
                 )
                 temp_flag = np.zeros(
-                    (temp_Nblts, self.Nfreqs, self.Npols), dtype=self.flag_array.dtype,
+                    (temp_Nblts, self.Nfreqs, self.Npols),
+                    dtype=self.flag_array.dtype,
                 )
                 temp_nsample = np.zeros(
                     (temp_Nblts, self.Nfreqs, self.Npols),
@@ -10045,7 +10133,10 @@ class UVData(UVBase):
                             )
                         )
                         flags_to_avg = np.concatenate(
-                            (self.flag_array[regular_inds], self.flag_array[conj_inds],)
+                            (
+                                self.flag_array[regular_inds],
+                                self.flag_array[conj_inds],
+                            )
                         )
                         # if all data is flagged, average it all as if it were not
                         if np.all(flags_to_avg):
@@ -12231,7 +12322,8 @@ class UVData(UVBase):
                 if self.phase_type != "drift":
                     warnings.warn("Unphasing this UVData object to drift")
                     self.unphase_to_drift(
-                        phase_frame=orig_phase_frame, use_ant_pos=phase_use_ant_pos,
+                        phase_frame=orig_phase_frame,
+                        use_ant_pos=phase_use_ant_pos,
                     )
 
             if phase_center_radec is not None:
@@ -12808,7 +12900,8 @@ class UVData(UVBase):
         del miriad_obj
 
     def write_mir(
-        self, filepath,
+        self,
+        filepath,
     ):
         """
         Write the data to a mir file.
@@ -12830,7 +12923,9 @@ class UVData(UVBase):
             raise ValueError("Cannot write out metadata only objects to a mir file.")
 
         mir_obj = self._convert_to_filetype("mir")
-        mir_obj.write_mir(filepath,)
+        mir_obj.write_mir(
+            filepath,
+        )
         del mir_obj
 
     def write_ms(

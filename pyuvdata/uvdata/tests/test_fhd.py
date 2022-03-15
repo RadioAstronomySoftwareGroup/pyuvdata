@@ -65,7 +65,8 @@ def test_read_fhd_write_read_uvfits(fhd_data, tmp_path):
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(
-        outfile, spoof_nonessential=True,
+        outfile,
+        spoof_nonessential=True,
     )
     uvfits_uv.read_uvfits(outfile)
 
@@ -206,7 +207,8 @@ def test_read_fhd_write_read_uvfits_variant_flag(tmp_path):
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(
-        outfile, spoof_nonessential=True,
+        outfile,
+        spoof_nonessential=True,
     )
     uvfits_uv.read_uvfits(outfile)
 
@@ -235,7 +237,8 @@ def test_read_fhd_write_read_uvfits_fix_layout(tmp_path):
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
 
     fhd_uv.write_uvfits(
-        outfile, spoof_nonessential=True,
+        outfile,
+        spoof_nonessential=True,
     )
     uvfits_uv.read_uvfits(outfile)
 
@@ -275,7 +278,8 @@ def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc(tmp_path):
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(
-        outfile, spoof_nonessential=True,
+        outfile,
+        spoof_nonessential=True,
     )
     uvfits_uv.read_uvfits(outfile)
 
@@ -314,7 +318,8 @@ def test_read_fhd_write_read_uvfits_bad_obs_loc(tmp_path):
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(
-        outfile, spoof_nonessential=True,
+        outfile,
+        spoof_nonessential=True,
     )
     uvfits_uv.read_uvfits(outfile)
 
@@ -344,7 +349,8 @@ def test_read_fhd_write_read_uvfits_altered_layout(tmp_path):
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(
-        outfile, spoof_nonessential=True,
+        outfile,
+        spoof_nonessential=True,
     )
     uvfits_uv.read_uvfits(outfile)
 
@@ -379,7 +385,8 @@ def test_read_fhd_write_read_uvfits_no_settings(tmp_path):
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(
-        outfile, spoof_nonessential=True,
+        outfile,
+        spoof_nonessential=True,
     )
     uvfits_uv.read_uvfits(outfile)
 
@@ -406,7 +413,8 @@ def test_break_read_fhd():
 
     # No data files
     with pytest.raises(
-        ValueError, match="No data files included in file list and read_data is True.",
+        ValueError,
+        match="No data files included in file list and read_data is True.",
     ):
         fhd_uv.read(["foo.sav"])
 
@@ -487,7 +495,8 @@ def test_read_fhd_model(tmp_path, fhd_model):
 
     outfile = str(tmp_path / "outtest_FHD_1061316296_model.uvfits")
     fhd_uv.write_uvfits(
-        outfile, spoof_nonessential=True,
+        outfile,
+        spoof_nonessential=True,
     )
     uvfits_uv.read_uvfits(outfile)
 
@@ -558,7 +567,8 @@ def test_single_time():
 
     fhd_uv = UVData()
     with uvtest.check_warnings(
-        UserWarning, "Telescope gaussian is not in known_telescopes.",
+        UserWarning,
+        "Telescope gaussian is not in known_telescopes.",
     ):
         fhd_uv.read(single_time_filelist)
 
@@ -566,7 +576,7 @@ def test_single_time():
 
 
 def test_conjugation():
-    """ test uvfits vs fhd conjugation """
+    """test uvfits vs fhd conjugation"""
     uvfits_file = os.path.join(DATA_PATH, "ref_1.1_uniform.uvfits")
     fhd_filelist = glob.glob(os.path.join(DATA_PATH, "refsim1.1_fhd/*"))
 
@@ -575,7 +585,8 @@ def test_conjugation():
 
     fhd_uv = UVData()
     with uvtest.check_warnings(
-        UserWarning, "Telescope gaussian is not in known_telescopes.",
+        UserWarning,
+        "Telescope gaussian is not in known_telescopes.",
     ):
         fhd_uv.read(fhd_filelist)
 
