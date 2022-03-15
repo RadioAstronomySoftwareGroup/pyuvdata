@@ -2,38 +2,6 @@ version: 2.1
 orbs:
   codecov: codecov/codecov@1.0.2 # to get this to work, had to opt-in to using third party orbs in Organization Security settings.
 jobs:
-  linter:
-    parameters:
-      python_version:
-        type: string
-      env_name:
-        type: string
-    docker:
-      - image: continuumio/miniconda3:latest
-    environment:
-      PYTHON: << parameters.python_version >>
-      ENV_NAME: << parameters.env_name >>
-      OS: "linux"
-      # Circleci builds fail on forks because the version gets munged. (see #1029)
-      SETUPTOOLS_SCM_PRETEND_VERSION: "0.0.1"
-    steps:
-      - checkout
-      - restore_cache:
-          key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_linting.yml" }}
-      - run:
-          name: configure conda environment
-          command: ./ci/install_conda.sh
-      - run:
-          name: linting for PEP8 and PEP257 (with numpy style) compliance
-          command: |
-            source activate ${ENV_NAME}
-            pre-commit install
-            pre-commit run -a
-      - save_cache:
-          key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_linting.yml" }}
-          paths:
-            - "/opt/conda/envs/${ENV_NAME}/"
-
   pyuvdata:
     parameters:
       python_version:
