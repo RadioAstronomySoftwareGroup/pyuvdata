@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Reordering methods for UVCal: `reorder_antennas`, `reorder_freqs`, `reorder_times`
+and `reorder_jones`.
 
 ## Changed
 - Updated the astropy requirement to >= 5.0.4
