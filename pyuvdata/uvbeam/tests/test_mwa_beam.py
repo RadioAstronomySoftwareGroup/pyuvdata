@@ -90,8 +90,8 @@ def test_p1sin_array():
     theta_arr = np.deg2rad(np.arange(0, n_theta) / pixels_per_deg)
     (P_sin, P1) = P1sin_array(nmax, theta_arr)
 
-    P_sin_orig = np.zeros((nmax ** 2 + 2 * nmax, np.size(theta_arr)))
-    P1_orig = np.zeros((nmax ** 2 + 2 * nmax, np.size(theta_arr)))
+    P_sin_orig = np.zeros((nmax**2 + 2 * nmax, np.size(theta_arr)))
+    P1_orig = np.zeros((nmax**2 + 2 * nmax, np.size(theta_arr)))
     for theta_i, theta in enumerate(theta_arr):
         P_sin_temp, P1_temp = P1sin(nmax, theta)
         P_sin_orig[:, theta_i] = P_sin_temp

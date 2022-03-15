@@ -156,7 +156,8 @@ def test_check_flag_array(uvdata_obj):
     uvf.flag_array = np.ones((uvf.flag_array.shape), dtype=int)
 
     with pytest.raises(
-        ValueError, match="UVParameter _flag_array is not the appropriate type.",
+        ValueError,
+        match="UVParameter _flag_array is not the appropriate type.",
     ):
         uvf.check()
 
@@ -1979,7 +1980,8 @@ def test_missing_nants_telescope(tmp_path):
     with h5py.File(testfile, "r+") as f:
         del f["/Header/Nants_telescope"]
     with uvtest.check_warnings(
-        UserWarning, match="Nants_telescope not available in file",
+        UserWarning,
+        match="Nants_telescope not available in file",
     ):
         uvf = UVFlag(testfile)
     uvf2 = UVFlag(test_f_file)
@@ -2958,7 +2960,8 @@ def test_select_parse_ants(uvf_from_data, uvf_mode):
     assert np.array_equiv(
         np.unique(uvf.baseline_array),
         uvutils.antnums_to_baseline(
-            *np.transpose([(88, 97), (97, 104), (97, 105)]), uvf.Nants_telescope,
+            *np.transpose([(88, 97), (97, 104), (97, 105)]),
+            uvf.Nants_telescope,
         ),
     )
 
@@ -3006,7 +3009,8 @@ def test_get_ants_error(uvf_from_waterfall):
     uvf = uvf_from_waterfall
 
     with pytest.raises(
-        ValueError, match="A waterfall type UVFlag object has no sense of antennas.",
+        ValueError,
+        match="A waterfall type UVFlag object has no sense of antennas.",
     ):
         uvf.get_ants()
 

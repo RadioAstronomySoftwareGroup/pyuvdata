@@ -59,7 +59,7 @@ def sighat_vector(x):
     yy = np.arange(7)[:, np.newaxis]
     z = (2 * yy + 1) * erf((yy + 0.5) / (x * np.sqrt(2)))
     z = z.sum(axis=0)
-    sighat = np.sqrt(7 ** 2 - z)
+    sighat = np.sqrt(7**2 - z)
     return sighat
 
 
@@ -82,8 +82,8 @@ def sighat_vector_prime(x):
     z = (
         (2 * yy + 1)
         * (yy + 0.5)
-        * np.exp(-((yy + 0.5) ** 2) / (2 * (x ** 2)))
-        / (np.sqrt(2 * np.pi) * (x ** 2))
+        * np.exp(-((yy + 0.5) ** 2) / (2 * (x**2)))
+        / (np.sqrt(2 * np.pi) * (x**2))
     )
     sighat_prime = z.sum(axis=0)
     sighat_prime /= sighat_vector(x)
@@ -282,7 +282,12 @@ def van_vleck_crosses_cheby(
     """
     kap = np.array([khat[broad_inds].real, khat[broad_inds].imag])
     _corr_fits.van_vleck_cheby(
-        kap, rho_coeff, sv_inds_right1, sv_inds_right2, ds1, ds2,
+        kap,
+        rho_coeff,
+        sv_inds_right1,
+        sv_inds_right2,
+        ds1,
+        ds2,
     )
     khat[broad_inds] = (kap[0, :] + 1j * kap[1, :]) * (
         sig1[broad_inds] * sig2[broad_inds]
@@ -327,7 +332,9 @@ class MWACorrFITS(UVData):
         )
         # from MWA_Tools/CONV2UVFITS/convutils.h
         cable_len_diffs = _corr_fits.get_cable_len_diffs(
-            ant_1_inds, ant_2_inds, cable_lens,
+            ant_1_inds,
+            ant_2_inds,
+            cable_lens,
         )
         self.data_array *= np.exp(
             -1j
@@ -405,7 +412,10 @@ class MWACorrFITS(UVData):
         self.flag_array = (
             self.flag_array
             if (shape == reshape)
-            else np.reshape(self.flag_array, reshape,)
+            else np.reshape(
+                self.flag_array,
+                reshape,
+            )
         )
 
         bad_chan_inds = []
@@ -433,7 +443,10 @@ class MWACorrFITS(UVData):
         self.flag_array = (
             self.flag_array
             if (shape == reshape)
-            else np.reshape(self.flag_array, shape,)
+            else np.reshape(
+                self.flag_array,
+                shape,
+            )
         )
 
     def _read_fits_file(
@@ -542,7 +555,10 @@ class MWACorrFITS(UVData):
         )
         # reorder pols here to avoid memory spike from self.reorder_pols
         np.take(
-            coarse_chan_data, pol_index_array, axis=-1, out=coarse_chan_data,
+            coarse_chan_data,
+            pol_index_array,
+            axis=-1,
+            out=coarse_chan_data,
         )
         # make a mask where data actually is so coarse channels that
         # are split into two files don't overwrite eachother
@@ -580,11 +596,17 @@ class MWACorrFITS(UVData):
         self.flag_array[
             blt_ind:, freq_ind : freq_ind + num_fine_chans, :
         ] = np.logical_or(
-            self.flag_array[blt_ind:, freq_ind : freq_ind + num_fine_chans, :], flags,
+            self.flag_array[blt_ind:, freq_ind : freq_ind + num_fine_chans, :],
+            flags,
         )
 
     def van_vleck_correction(
-        self, ant_1_inds, ant_2_inds, flagged_ant_inds, cheby_approx, data_array_dtype,
+        self,
+        ant_1_inds,
+        ant_2_inds,
+        flagged_ant_inds,
+        cheby_approx,
+        data_array_dtype,
     ):
         """
         Apply a van vleck correction to the data array.
@@ -696,7 +718,8 @@ class MWACorrFITS(UVData):
                 (sig1_pol, sig2_pol) = pol_dict[i][0]
                 # broadcast in_inds
                 broad_inds = np.logical_and(
-                    in_inds[sig1_inds, pol1, :], in_inds[sig2_inds, pol2, :],
+                    in_inds[sig1_inds, pol1, :],
+                    in_inds[sig2_inds, pol2, :],
                 )
                 # broadcast indices and distances for bilinear interpolation
                 sv_inds_right1 = sv_inds_right[sig1_inds, pol1, :][broad_inds]
@@ -843,7 +866,10 @@ class MWACorrFITS(UVData):
         # auto_flags = self.flag_array[auto_inds, :, 0:2]
         autos = autos.reshape(self.Ntimes, self.Nants_data, self.Nfreqs, 2)
         # find autos below threshold
-        small_auto_flags = np.logical_and(autos != 0, autos <= threshold,)
+        small_auto_flags = np.logical_and(
+            autos != 0,
+            autos <= threshold,
+        )
         if flag_small_auto_ants:
             # find antenna indices for small sig ants and add to flagged_ant_inds
             ant_inds = np.unique(np.nonzero(small_auto_flags)[1])
@@ -1663,11 +1689,16 @@ class MWACorrFITS(UVData):
                 # of the python which interacts with the C/Cython code.
                 # generate a mapping index array
                 map_inds = np.zeros(
-                    (self.Nbls * self.Npols), dtype=np.int32, order="C",
+                    (self.Nbls * self.Npols),
+                    dtype=np.int32,
+                    order="C",
                 )
                 # generate a conjugation array
                 conj = np.full(
-                    (self.Nbls * self.Npols), False, dtype=np.bool_, order="C",
+                    (self.Nbls * self.Npols),
+                    False,
+                    dtype=np.bool_,
+                    order="C",
                 )
 
                 _corr_fits.generate_map(corr_ants_to_pfb_inputs, map_inds, conj)
@@ -1676,7 +1707,8 @@ class MWACorrFITS(UVData):
                 conj = None
             # create arrays for data, nsamples, and flags
             self.data_array = np.zeros(
-                (self.Nblts, self.Nfreqs, self.Npols), dtype=data_array_dtype,
+                (self.Nblts, self.Nfreqs, self.Npols),
+                dtype=data_array_dtype,
             )
             self.nsample_array = np.zeros(
                 (self.Ntimes, self.Nbls, self.Nfreqs, self.Npols),

@@ -618,7 +618,7 @@ def test_check_strict_uvw(casa_uvfits):
 def test_check_autos_only(hera_uvh5_xx):
     """
     Check case where all data is autocorrelations
-   """
+    """
     uvobj = hera_uvh5_xx
 
     uvobj.select(blt_inds=np.where(uvobj.ant_1_array == uvobj.ant_2_array)[0])
@@ -658,7 +658,8 @@ def test_check_flag_array(casa_uvfits):
     uvobj.flag_array = np.ones((uvobj.flag_array.shape), dtype=int)
 
     with pytest.raises(
-        ValueError, match="UVParameter _flag_array is not the appropriate type.",
+        ValueError,
+        match="UVParameter _flag_array is not the appropriate type.",
     ):
         uvobj.check()
 
@@ -1234,7 +1235,9 @@ def test_old_phasing(future_shapes):
     )
     uvd1_drift_antpos = uvd1.copy()
     uvd1_drift_antpos.unphase_to_drift(
-        phase_frame="gcrs", use_ant_pos=True, use_old_proj=True,
+        phase_frame="gcrs",
+        use_ant_pos=True,
+        use_old_proj=True,
     )
 
     uvd2_drift = uvd2.copy()
@@ -1243,7 +1246,9 @@ def test_old_phasing(future_shapes):
     )
     uvd2_drift_antpos = uvd2.copy()
     uvd2_drift_antpos.unphase_to_drift(
-        phase_frame="gcrs", use_ant_pos=True, use_old_proj=True,
+        phase_frame="gcrs",
+        use_ant_pos=True,
+        use_old_proj=True,
     )
 
     # the tolerances here are empirical -- based on what was seen in the
@@ -3103,7 +3108,8 @@ def test_reorder_freqs_errs(sma_mir, arg_dict, msg):
     """
     with pytest.raises(ValueError) as cm:
         sma_mir.reorder_freqs(
-            spw_order=arg_dict.get("spord"), channel_order=arg_dict.get("chord"),
+            spw_order=arg_dict.get("spord"),
+            channel_order=arg_dict.get("chord"),
         )
     assert str(cm.value).startswith(msg)
 
@@ -3161,10 +3167,14 @@ def test_reorder_freqs_equal(sma_mir, future_shapes, sel_spw, spord, chord):
 
     # Make sure that arrays and ints work for select_spw
     sma_mir.reorder_freqs(
-        select_spw=sel_spw[0], spw_order=spord[0], channel_order=chord[0],
+        select_spw=sel_spw[0],
+        spw_order=spord[0],
+        channel_order=chord[0],
     )
     sma_mir_copy.reorder_freqs(
-        select_spw=sel_spw[1], spw_order=spord[1], channel_order=chord[1],
+        select_spw=sel_spw[1],
+        spw_order=spord[1],
+        channel_order=chord[1],
     )
     assert sma_mir == sma_mir_copy
 
@@ -4181,7 +4191,9 @@ def test_add_this_rephase_new_phase_center(
 
     # phase each half to different spots
     uv_raw_1.phase(
-        ra=0, dec=0, use_ant_pos=True,
+        ra=0,
+        dec=0,
+        use_ant_pos=True,
     )
     uv_raw_2.phase(
         ra=phase_center_radec[0], dec=phase_center_radec[1], use_ant_pos=True
@@ -4196,7 +4208,8 @@ def test_add_this_rephase_new_phase_center(
     }
     func_kwargs.update(extra_kwargs)
     with uvtest.check_warnings(
-        UserWarning, "Phasing this UVData object to phase_center_radec",
+        UserWarning,
+        "Phasing this UVData object to phase_center_radec",
     ):
         uv_out = getattr(uv_raw_1, test_func)(uv_raw_2, **func_kwargs)
 
@@ -4223,14 +4236,20 @@ def test_add_other_rephase_new_phase_center(
 
     # phase each half to different spots
     uv_raw_1.phase(
-        ra=phase_center_radec[0], dec=phase_center_radec[1], use_ant_pos=True,
+        ra=phase_center_radec[0],
+        dec=phase_center_radec[1],
+        use_ant_pos=True,
     )
     uv_raw_2.phase(
-        ra=0, dec=0, use_ant_pos=True,
+        ra=0,
+        dec=0,
+        use_ant_pos=True,
     )
     # phase original to phase_center_radec
     uv_raw.phase(
-        ra=phase_center_radec[0], dec=phase_center_radec[1], use_ant_pos=True,
+        ra=phase_center_radec[0],
+        dec=phase_center_radec[1],
+        use_ant_pos=True,
     )
 
     func_kwargs = {
@@ -6181,7 +6200,8 @@ def test_set_uvws_from_antenna_pos_old(uv_phase_comp):
         ],
     ):
         uv_object.set_uvws_from_antenna_positions(
-            allow_phasing=True, use_old_proj=True,
+            allow_phasing=True,
+            use_old_proj=True,
         )
     max_diff = np.amax(np.absolute(np.subtract(orig_uvw_array, uv_object.uvw_array)))
     assert np.isclose(max_diff, 0.0, atol=2)
@@ -6412,7 +6432,8 @@ def test_redundancy_contract_expand(
                         # TODO: Spw axis to be collapsed in future release
                         uv2_blts = np.nonzero(uv2.baseline_array == bl)[0]
                         assert np.allclose(
-                            uv2.data_array[uv2_blts], uv0.data_array[orig_blts],
+                            uv2.data_array[uv2_blts],
+                            uv0.data_array[orig_blts],
                         )
                         uv3.data_array[blts] = uv2.data_array[uv2_blts]
                         if flagging_level == "some":
@@ -7980,7 +8001,9 @@ def test_downsample_in_time_drift_no_phasing(hera_uvh5):
 
     # try again with allow_drift=False
     uv_object.downsample_in_time(
-        min_int_time=min_integration_time, blt_order="baseline", allow_drift=False,
+        min_int_time=min_integration_time,
+        blt_order="baseline",
+        allow_drift=False,
     )
 
     # Should have half the size of the data array and all the new integration time
@@ -8134,7 +8157,8 @@ def test_downsample_in_time_errors(hera_uvh5):
     times_01 = uv_object.get_times(0, 1)
     assert np.unique(np.diff(times_01)).size > 1
     with uvtest.check_warnings(
-        UserWarning, "There is a gap in the times of baseline",
+        UserWarning,
+        "There is a gap in the times of baseline",
     ):
         uv_object.downsample_in_time(min_int_time=min_integration_time)
 
@@ -8324,7 +8348,8 @@ def test_downsample_in_time_varying_integration_time_warning(hera_uvh5):
     uv_object.integration_time[inds01[-2:]] += initial_int_time
     min_integration_time = 2 * np.amin(uv_object.integration_time)
     with uvtest.check_warnings(
-        UserWarning, "The time difference between integrations is different than",
+        UserWarning,
+        "The time difference between integrations is different than",
     ):
         uv_object.downsample_in_time(min_int_time=min_integration_time)
 
@@ -8378,12 +8403,14 @@ def test_upsample_downsample_in_time(hera_uvh5):
         UserWarning, "All values in the integration_time array are already longer"
     ):
         uv_object.upsample_in_time(
-            max_integration_time - small_number, blt_order="baseline",
+            max_integration_time - small_number,
+            blt_order="baseline",
         )
     assert uv_object.Nblts == new_Nblts
 
     uv_object.downsample_in_time(
-        min_int_time=np.amin(uv_object2.integration_time), blt_order="baseline",
+        min_int_time=np.amin(uv_object2.integration_time),
+        blt_order="baseline",
     )
 
     # increase tolerance on LST if iers.conf.auto_max_age is set to None, as we
@@ -8454,7 +8481,8 @@ def test_upsample_downsample_in_time_odd_resample(hera_uvh5, future_shapes):
     assert np.amax(uv_object.integration_time) <= max_integration_time
 
     uv_object.downsample_in_time(
-        np.amin(uv_object2.integration_time), blt_order="baseline",
+        np.amin(uv_object2.integration_time),
+        blt_order="baseline",
     )
 
     # increase tolerance on LST if iers.conf.auto_max_age is set to None, as we
@@ -8500,7 +8528,8 @@ def test_upsample_downsample_in_time_metadata_only(hera_uvh5):
     assert np.amax(uv_object.integration_time) <= max_integration_time
 
     uv_object.downsample_in_time(
-        np.amin(uv_object2.integration_time), blt_order="baseline",
+        np.amin(uv_object2.integration_time),
+        blt_order="baseline",
     )
 
     # increase tolerance on LST if iers.conf.auto_max_age is set to None, as we
@@ -8769,7 +8798,8 @@ def test_frequency_average(casa_uvfits, future_shapes):
     uvobj2 = uvobj.copy()
 
     eq_coeffs = np.tile(
-        np.arange(uvobj.Nfreqs, dtype=np.float64), (uvobj.Nants_telescope, 1),
+        np.arange(uvobj.Nfreqs, dtype=np.float64),
+        (uvobj.Nants_telescope, 1),
     )
     uvobj.eq_coeffs = eq_coeffs
     uvobj.check()
@@ -8793,7 +8823,9 @@ def test_frequency_average(casa_uvfits, future_shapes):
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
     expected_coeffs = eq_coeffs.reshape(
-        uvobj2.Nants_telescope, int(uvobj2.Nfreqs / 2), 2,
+        uvobj2.Nants_telescope,
+        int(uvobj2.Nfreqs / 2),
+        2,
     ).mean(axis=2)
     assert np.max(np.abs(uvobj.eq_coeffs - expected_coeffs)) == 0
 
@@ -9190,7 +9222,8 @@ def test_frequency_average_nsample_precision(casa_uvfits):
     uvobj = casa_uvfits
     uvobj2 = uvobj.copy()
     eq_coeffs = np.tile(
-        np.arange(uvobj.Nfreqs, dtype=np.float64), (uvobj.Nants_telescope, 1),
+        np.arange(uvobj.Nfreqs, dtype=np.float64),
+        (uvobj.Nants_telescope, 1),
     )
     uvobj.eq_coeffs = eq_coeffs
     uvobj.check()
@@ -9213,7 +9246,9 @@ def test_frequency_average_nsample_precision(casa_uvfits):
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
     expected_coeffs = eq_coeffs.reshape(
-        uvobj2.Nants_telescope, int(uvobj2.Nfreqs / 2), 2,
+        uvobj2.Nants_telescope,
+        int(uvobj2.Nfreqs / 2),
+        2,
     ).mean(axis=2)
     assert np.max(np.abs(uvobj.eq_coeffs - expected_coeffs)) == 0
 
@@ -9396,7 +9431,8 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     # Test when the corrupted file is at the beggining, skip_bad_files=True
     fileList = [testfile, uvh5_file]
     with uvtest.check_warnings(
-        UserWarning, match=["Failed to read"],
+        UserWarning,
+        match=["Failed to read"],
     ):
         uv.read(fileList, skip_bad_files=True)
     assert uv == uvTrue
@@ -9404,7 +9440,8 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     # Test when the corrupted file is at the end of a list
     fileList = [uvh5_file, testfile]
     with uvtest.check_warnings(
-        UserWarning, match=["Failed to read"],
+        UserWarning,
+        match=["Failed to read"],
     ):
         uv.read(fileList, skip_bad_files=True)
     # Check that the uncorrupted file was still read in
@@ -9663,7 +9700,9 @@ def test_print_object_standard(sma_mir, hera_uvh5):
 
     # Make sure we can specify the object name and get the same result
     table_str = sma_mir.print_phase_center_info(
-        print_table=False, return_str=True, cat_name="3c84",
+        print_table=False,
+        return_str=True,
+        cat_name="3c84",
     )
     assert table_str == check_str
 
@@ -9893,7 +9932,8 @@ def test_add_phase_center_no_multi_phase(hera_uvh5):
     object where multi_phase_center=False.
     """
     with pytest.raises(
-        ValueError, match="Cannot add a source if multi_phase_center != True.",
+        ValueError,
+        match="Cannot add a source if multi_phase_center != True.",
     ):
         hera_uvh5._add_phase_center("unphased", cat_type="unphased")
 
@@ -9904,7 +9944,8 @@ def test_remove_phase_center_no_multi_phase(hera_uvh5):
     object where multi_phase_center=False.
     """
     with pytest.raises(
-        ValueError, match="Cannot remove a phase center if multi_phase_center != True",
+        ValueError,
+        match="Cannot remove a phase center if multi_phase_center != True",
     ):
         hera_uvh5._remove_phase_center("zenith")
 
@@ -9915,7 +9956,8 @@ def test_clear_phase_centers_no_multi_phase(hera_uvh5):
     an object where multi_phase_center=False.
     """
     with pytest.raises(
-        ValueError, match="Cannot remove a phase center if multi_phase_center != True",
+        ValueError,
+        match="Cannot remove a phase center if multi_phase_center != True",
     ):
         hera_uvh5._clear_unused_phase_centers()
 
@@ -10503,7 +10545,20 @@ def test_phase_dict_helper_jpl_lookup_append(sma_mir):
     # Now see what happens if we attempt to lookup something that JPL actually knows
     obs_time = np.array(2456789.0)
     phase_dict = sma_mir._phase_dict_helper(
-        0, 0, None, None, None, None, 0, 0, 0, 0, "Mars", True, None, obs_time,
+        0,
+        0,
+        None,
+        None,
+        None,
+        None,
+        0,
+        0,
+        0,
+        0,
+        "Mars",
+        True,
+        None,
+        obs_time,
     )
 
     cat_id = sma_mir._add_phase_center(
@@ -10529,7 +10584,20 @@ def test_phase_dict_helper_jpl_lookup_append(sma_mir):
     # coordinates and expand the existing ephem
     obs_time += 1
     phase_dict = sma_mir._phase_dict_helper(
-        0, 0, None, None, None, None, 0, 0, 0, 0, "Mars", True, None, obs_time,
+        0,
+        0,
+        None,
+        None,
+        None,
+        None,
+        0,
+        0,
+        0,
+        0,
+        "Mars",
+        True,
+        None,
+        obs_time,
     )
 
     # Previously, everything else will have had a single point, but the new ephem (which
@@ -10626,7 +10694,8 @@ def test_multi_file_ignore_name(hera_uvh5_split, future_shapes):
 
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize(
-    "add_method", [["__add__", {}], ["fast_concat", {"axis": "blt"}]],
+    "add_method",
+    [["__add__", {}], ["fast_concat", {"axis": "blt"}]],
 )
 def test_multi_phase_add_ops(hera_uvh5_split, future_shapes, add_method):
     """
@@ -10670,8 +10739,7 @@ def test_multi_phase_add_ops(hera_uvh5_split, future_shapes, add_method):
     ],
 )
 def test_multi_phase_add_errs(hera_uvh5_split, mpc1, mpc2, msg):
-    """
-    """
+    """ """
     uv1, uv2, _ = hera_uvh5_split
     if mpc1:
         uv1._set_multi_phase_center(preserve_phase_center_info=True)
@@ -10784,7 +10852,7 @@ def test_multi_phase_add(hera_uvh5_split, mpc1, mpc2, catid, future_shapes):
 
 
 def test_multi_phase_on_read(hera_uvh5):
-    """"
+    """ "
     Verify that we can create a multi-phase-ctr object on read that matches what
     one would expect when running some of the various helper functions for converting
     a single phase center object into a multi-phase one.

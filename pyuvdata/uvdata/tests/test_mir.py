@@ -74,7 +74,10 @@ def test_read_mir_write_uvfits(sma_mir, tmp_path, future_shapes):
     assert np.all(
         [
             idx == spw_dict[jdx]
-            for idx, jdx in zip(sma_mir.flex_spw_id_array, uvfits_uv.flex_spw_id_array,)
+            for idx, jdx in zip(
+                sma_mir.flex_spw_id_array,
+                uvfits_uv.flex_spw_id_array,
+            )
         ]
     )
 

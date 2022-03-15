@@ -843,7 +843,9 @@ def test_uvh5_read_multdim_index(tmp_path, future_shapes, casa_uvfits):
     chans_to_keep = [15, 17, 20]
     uvh5_uv = UVData()
     uvh5_uv.read(
-        testfile, antenna_nums=ants_to_keep, freq_chans=chans_to_keep,
+        testfile,
+        antenna_nums=ants_to_keep,
+        freq_chans=chans_to_keep,
     )
 
     # clean up
@@ -1531,7 +1533,8 @@ def test_uvh5_partial_write_irregular_multi3(uv_partial_write, future_shapes, tm
                     blt_idx, :, :, pol_idx
                 ]
     with uvtest.check_warnings(
-        UserWarning, "Selected polarization values are not evenly spaced",
+        UserWarning,
+        "Selected polarization values are not evenly spaced",
     ):
         partial_uvh5.write_uvh5_part(
             partial_testfile,
@@ -2031,7 +2034,9 @@ def test_uvh5_write_ints(uv_uvh5, future_shapes, tmp_path):
     uv_out = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
     uv_in.write_uvh5(
-        testfile, clobber=True, data_write_dtype=uvh5._hera_corr_dtype,
+        testfile,
+        clobber=True,
+        data_write_dtype=uvh5._hera_corr_dtype,
     )
 
     # read it back in to make sure data is the same
@@ -2138,7 +2143,8 @@ def test_uvh5_partial_read_ints_times():
     uvh5_uv.read_uvh5(uvh5_file, read_data=False)
     unique_times = np.unique(uvh5_uv.time_array)
     uvh5_uv.read(
-        uvh5_file, time_range=[unique_times[0], unique_times[1]],
+        uvh5_file,
+        time_range=[unique_times[0], unique_times[1]],
     )
     uvh5_uv2.read(uvh5_file)
     uvh5_uv2.select(times=unique_times[0:2])
@@ -2170,7 +2176,9 @@ def test_uvh5_partial_read_ints_multi1():
     )
     uvh5_uv2.read(uvh5_file)
     uvh5_uv2.select(
-        antenna_nums=ants_to_keep, freq_chans=chans_to_keep, polarizations=pols_to_keep,
+        antenna_nums=ants_to_keep,
+        freq_chans=chans_to_keep,
+        polarizations=pols_to_keep,
     )
     assert uvh5_uv == uvh5_uv2
 
@@ -2200,7 +2208,9 @@ def test_uvh5_partial_read_ints_multi2():
     )
     uvh5_uv2.read(uvh5_file)
     uvh5_uv2.select(
-        antenna_nums=ants_to_keep, freq_chans=chans_to_keep, polarizations=pols_to_keep,
+        antenna_nums=ants_to_keep,
+        freq_chans=chans_to_keep,
+        polarizations=pols_to_keep,
     )
     assert uvh5_uv == uvh5_uv2
 
@@ -2230,7 +2240,9 @@ def test_uvh5_partial_read_ints_multi3():
     )
     uvh5_uv2.read(uvh5_file)
     uvh5_uv2.select(
-        antenna_nums=ants_to_keep, freq_chans=chans_to_keep, polarizations=pols_to_keep,
+        antenna_nums=ants_to_keep,
+        freq_chans=chans_to_keep,
+        polarizations=pols_to_keep,
     )
     assert uvh5_uv == uvh5_uv2
 
@@ -2252,7 +2264,9 @@ def test_uvh5_partial_write_ints_antpairs(uv_uvh5, tmp_path):
     # initialize file on disk
     partial_testfile = str(tmp_path / "outtest_partial.uvh5")
     partial_uvh5.initialize_uvh5_file(
-        partial_testfile, clobber=True, data_write_dtype=uvh5._hera_corr_dtype,
+        partial_testfile,
+        clobber=True,
+        data_write_dtype=uvh5._hera_corr_dtype,
     )
 
     # write to file by iterating over antpairpol
@@ -2761,7 +2775,8 @@ def test_uvh5_partial_write_ints_irregular_multi1(uv_uvh5, future_shapes, tmp_pa
                     blt_idx, :, freq_idx, :
                 ]
     with uvtest.check_warnings(
-        UserWarning, "Selected frequencies are not evenly spaced",
+        UserWarning,
+        "Selected frequencies are not evenly spaced",
     ):
         partial_uvh5.write_uvh5_part(
             partial_testfile,
@@ -2964,7 +2979,8 @@ def test_uvh5_partial_write_ints_irregular_multi3(uv_uvh5, future_shapes, tmp_pa
                     blt_idx, :, :, pol_idx
                 ]
     with uvtest.check_warnings(
-        UserWarning, "Selected polarization values are not evenly spaced",
+        UserWarning,
+        "Selected polarization values are not evenly spaced",
     ):
         partial_uvh5.write_uvh5_part(
             partial_testfile,

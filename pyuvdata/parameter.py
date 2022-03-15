@@ -141,7 +141,8 @@ class UVParameter(object):
             self.strict_type = True
         else:
             self.expected_type = _get_generic_type(
-                expected_type, strict_type_check=strict_type_check,
+                expected_type,
+                strict_type_check=strict_type_check,
             )
             self.strict_type = strict_type_check
         self.acceptable_vals = acceptable_vals

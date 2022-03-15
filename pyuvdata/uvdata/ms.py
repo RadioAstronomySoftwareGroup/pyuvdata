@@ -131,11 +131,13 @@ class MS(UVData):
         # based on a test ALMA dataset and comparison with what gets generated with
         # a dataset that comes through importuvfits.
         ms_desc["FLAG"].update(
-            dataManagerType="TiledShapeStMan", dataManagerGroup="TiledFlag",
+            dataManagerType="TiledShapeStMan",
+            dataManagerGroup="TiledFlag",
         )
 
         ms_desc["UVW"].update(
-            dataManagerType="TiledColumnStMan", dataManagerGroup="TiledUVW",
+            dataManagerType="TiledColumnStMan",
+            dataManagerGroup="TiledUVW",
         )
         # TODO: Can stuff UVFLAG objects into this
         ms_desc["FLAG_CATEGORY"].update(
@@ -144,10 +146,12 @@ class MS(UVData):
             keywords={"CATEGORY": np.array("baddata")},
         )
         ms_desc["WEIGHT"].update(
-            dataManagerType="TiledShapeStMan", dataManagerGroup="TiledWgt",
+            dataManagerType="TiledShapeStMan",
+            dataManagerGroup="TiledWgt",
         )
         ms_desc["SIGMA"].update(
-            dataManagerType="TiledShapeStMan", dataManagerGroup="TiledSigma",
+            dataManagerType="TiledShapeStMan",
+            dataManagerGroup="TiledSigma",
         )
 
         # The ALMA default for the next set of columns from the MAIN table use the
@@ -176,7 +180,8 @@ class MS(UVData):
         ]
         for key in incremental_list:
             ms_desc[key].update(
-                dataManagerType="IncrementalStMan", dataManagerGroup=key,
+                dataManagerType="IncrementalStMan",
+                dataManagerGroup=key,
             )
 
         # TODO: Verify that the casacore defaults for coldesc are satisfactory for
@@ -343,7 +348,8 @@ class MS(UVData):
         else:
             nfeeds_table *= self.Nspws
             spectral_window_id_table = np.repeat(
-                np.arange(self.Nspws), np.max(self.antenna_numbers) + 1,
+                np.arange(self.Nspws),
+                np.max(self.antenna_numbers) + 1,
             )
             antenna_id_table = np.tile(antenna_id_table, self.Nspws)
             # we want "x" or "y", *not* "e" or "n", so as not to confuse CASA
@@ -466,7 +472,9 @@ class MS(UVData):
                 phasedir = np.array([[cat_dict["cat_lon"], cat_dict["cat_lat"]]])
                 sou_id = cat_dict["cat_id"]
                 ref_dir = self._parse_pyuvdata_frame_ref(
-                    cat_dict["cat_frame"], cat_dict["cat_epoch"], raise_error=var_ref,
+                    cat_dict["cat_frame"],
+                    cat_dict["cat_epoch"],
+                    raise_error=var_ref,
                 )
             else:
                 phasedir = np.array([[self.phase_center_ra, self.phase_center_dec]])
@@ -817,7 +825,9 @@ class MS(UVData):
 
                 pol_table.addrows()
                 pol_table.putcell(
-                    "CORR_TYPE", idx, np.array([POL_AIPS2CASA_DICT[spw_pol]]),
+                    "CORR_TYPE",
+                    idx,
+                    np.array([POL_AIPS2CASA_DICT[spw_pol]]),
                 )
                 pol_table.putcell("CORR_PRODUCT", idx, pol_tuples)
                 pol_table.putcell("NUM_CORR", idx, self.Npols)
@@ -1212,12 +1222,14 @@ class MS(UVData):
 
                 # Record which SPW/"Data Description" this data is matched to
                 data_desc_array[last_row : last_row + (Nrecs * self.Nspws)] = np.repeat(
-                    np.arange(self.Nspws), Nrecs,
+                    np.arange(self.Nspws),
+                    Nrecs,
                 )
 
                 # Record index positions
                 blt_map_array[last_row : last_row + (Nrecs * self.Nspws)] = np.tile(
-                    np.where(scan_screen)[0], self.Nspws,
+                    np.where(scan_screen)[0],
+                    self.Nspws,
                 )
 
                 # Extract out the relevant data out of our data-like arrays that
@@ -1721,7 +1733,8 @@ class MS(UVData):
                 data_dict[key]["POL_IDX"] = np.array([0])
             pol_list = np.array([0])
             flex_pol = np.array(
-                [spw_dict[key]["POL"] for key in sorted(spw_dict.keys())], dtype=int,
+                [spw_dict[key]["POL"] for key in sorted(spw_dict.keys())],
+                dtype=int,
             )
 
         # We have all of the meta-information linked the various data desc IDs,

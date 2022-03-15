@@ -326,7 +326,10 @@ class UVH5(UVData):
                 ) = self.telescope_location_lat_lon_alt_degrees
 
                 lst_array = uvutils.get_lst_for_time(
-                    self.time_array, latitude, longitude, altitude,
+                    self.time_array,
+                    latitude,
+                    longitude,
+                    altitude,
                 )
 
                 if not np.all(

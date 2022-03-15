@@ -84,7 +84,10 @@ def test_time_precision(tmp_path):
     latitude, longitude, altitude = uvd2.telescope_location_lat_lon_alt_degrees
     unique_times, inverse_inds = np.unique(uvd2.time_array, return_inverse=True)
     unique_lst_array = uvutils.get_lst_for_time(
-        unique_times, latitude, longitude, altitude,
+        unique_times,
+        latitude,
+        longitude,
+        altitude,
     )
 
     calc_lst_array = unique_lst_array[inverse_inds]
@@ -1334,7 +1337,8 @@ def test_multi_phase_on_read(casa_uvfits, tmp_path):
         ],
     ):
         uv1.read(
-            np.array([testfile1, testfile2]), phase_center_radec=phase_center_radec,
+            np.array([testfile1, testfile2]),
+            phase_center_radec=phase_center_radec,
         )
 
     # Check history is correct, before replacing and doing a full object check

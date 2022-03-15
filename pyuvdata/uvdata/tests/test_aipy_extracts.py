@@ -248,7 +248,8 @@ def test_init_from_uv_exclude(tmp_path, exclude):
 
 
 @pytest.mark.parametrize(
-    "var_dict", [{}, {"latitud": 0.0}, {"longitu": 0.0}, {"history": "abc"}],
+    "var_dict",
+    [{}, {"latitud": 0.0}, {"longitu": 0.0}, {"history": "abc"}],
 )
 def test_init_from_uv_override(tmp_path, var_dict):
     infile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
@@ -343,7 +344,17 @@ def test_add_to_header(tmp_path):
         [-1, "auto", (0, 1, 2, 3, 4, 5), 114],
         [-1, "(0,1)_(2,3)", (0, 1, 2, 3), 76],
         [-1, "(0,-1)_(-2,3)", (0, 1, 2, 3, 4, 5), 342],
-        [-1, "(0x,1x)_(2y,3y)", (0, 1, 2, 3,), 76],
+        [
+            -1,
+            "(0x,1x)_(2y,3y)",
+            (
+                0,
+                1,
+                2,
+                3,
+            ),
+            76,
+        ],
         [-1, "4,5,", (0, 1, 2, 3, 4, 5), 209],
         ["xx", -1, (), 0],
         ["xy", -1, (0, 1, 2, 3, 4, 5), 399],

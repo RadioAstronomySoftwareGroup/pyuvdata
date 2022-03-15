@@ -22,7 +22,7 @@ ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
 
 class UVTest(UVBase):
     def __init__(self):
-        """ UVBase test object. """
+        """UVBase test object."""
         # add some test UVParameters to the class
 
         self._int1 = uvp.UVParameter(

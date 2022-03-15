@@ -54,8 +54,8 @@ def P1sin(nmax, theta):
 
     """
     # initialize for nmax, we have 2(1+...+nmax)+nmax=nmax^2+2*nmax long array
-    P_sin = np.zeros((nmax ** 2 + 2 * nmax))
-    P1 = np.zeros((nmax ** 2 + 2 * nmax))
+    P_sin = np.zeros((nmax**2 + 2 * nmax))
+    P1 = np.zeros((nmax**2 + 2 * nmax))
 
     # theta arguments
     cos_th = np.cos(theta)
@@ -109,7 +109,7 @@ def P1sin(nmax, theta):
 
         # accumulate Psin and P1 for the m values
         ind_start = (n - 1) ** 2 + 2 * (n - 1)  # start index to populate
-        ind_stop = n ** 2 + 2 * n  # stop index to populate
+        ind_stop = n**2 + 2 * n  # stop index to populate
         # assign
         P_sin[np.arange(ind_start, ind_stop)] = np.append(
             np.flipud(Pm_sin[1::, 0]), Pm_sin
@@ -154,8 +154,8 @@ def P1sin_array(nmax, theta):
     sin_theta[(theta == 0) | (theta == np.pi)] = np.NaN
 
     # create at forehand
-    P_sin = np.zeros((nmax ** 2 + 2 * nmax, np.size(theta)))
-    P1 = np.zeros((nmax ** 2 + 2 * nmax, np.size(theta)))
+    P_sin = np.zeros((nmax**2 + 2 * nmax, np.size(theta)))
+    P1 = np.zeros((nmax**2 + 2 * nmax, np.size(theta)))
     for n in range(1, nmax + 1):
         # legendre P_{n}^{abs(m)=0...n} (cos_th)
         orders = np.arange(0, n + 1)
@@ -175,7 +175,7 @@ def P1sin_array(nmax, theta):
         # start index to populate
         ind_start = (n - 1) ** 2 + 2 * (n - 1)
         # stop index to populate
-        ind_stop = n ** 2 + 2 * n
+        ind_stop = n**2 + 2 * n
         # assign
         P_sin[np.arange(ind_start, ind_stop), :] = np.vstack(
             [np.flipud(Pm_sin[1::, :]), Pm_sin]

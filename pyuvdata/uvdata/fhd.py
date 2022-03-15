@@ -208,7 +208,8 @@ def get_fhd_layout_info(
     # use the longitude from the layout file because that's how the antenna
     # positions were calculated
     latitude, longitude, altitude = uvutils.LatLonAlt_from_XYZ(
-        arr_center, check_acceptability=run_check_acceptability,
+        arr_center,
+        check_acceptability=run_check_acceptability,
     )
     antenna_positions = uvutils.ECEF_from_rotECEF(rot_ecef_positions, longitude)
 
