@@ -2077,26 +2077,8 @@ class UVFlag(UVBase):
                     "(optionally with polarization)."
                 )
             if not all(
-                [
-                    isinstance(
-                        item[0],
-                        (
-                            int,
-                            np.integer,
-                        ),
-                    )
-                    for item in bls
-                ]
-                + [
-                    isinstance(
-                        item[1],
-                        (
-                            int,
-                            np.integer,
-                        ),
-                    )
-                    for item in bls
-                ]
+                [isinstance(item[0], (int, np.integer)) for item in bls]
+                + [isinstance(item[1], (int, np.integer)) for item in bls]
             ):
                 raise ValueError(
                     "bls must be a list of tuples of integer antenna numbers "

@@ -8184,14 +8184,7 @@ class UVData(UVBase):
 
         if bls is not None:
             if isinstance(bls, list) and all(
-                isinstance(
-                    bl_ind,
-                    (
-                        int,
-                        np.integer,
-                    ),
-                )
-                for bl_ind in bls
+                isinstance(bl_ind, (int, np.integer)) for bl_ind in bls
             ):
                 for bl_ind in bls:
                     if not (bl_ind in self.baseline_array):
@@ -8208,26 +8201,8 @@ class UVData(UVBase):
                     "(optionally with polarization) or a list of baseline numbers."
                 )
             if not all(
-                [
-                    isinstance(
-                        item[0],
-                        (
-                            int,
-                            np.integer,
-                        ),
-                    )
-                    for item in bls
-                ]
-                + [
-                    isinstance(
-                        item[1],
-                        (
-                            int,
-                            np.integer,
-                        ),
-                    )
-                    for item in bls
-                ]
+                [isinstance(item[0], (int, np.integer)) for item in bls]
+                + [isinstance(item[1], (int, np.integer)) for item in bls]
             ):
                 raise ValueError(
                     "bls must be a list of tuples of antenna numbers "
