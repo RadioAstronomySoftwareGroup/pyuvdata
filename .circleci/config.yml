@@ -156,9 +156,6 @@ workflows:
   version: 2
   build_and_test:
     jobs:
-      - linter:
-          python_version: "3.8"
-          env_name: "pyuvdata_linting"
       - pyuvdata:
           name: pyuvdata_3.7
           python_version: "3.7"
