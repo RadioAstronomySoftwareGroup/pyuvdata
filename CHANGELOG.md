@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - `mwa_corr_fits` handing of the `BSCALE` keyword in gpubox files.
+- Testing of piping keywords through `read` by `test_mwa_corr_fits`.
+- Incorrect piping of `flag_dc_offset` keyword.
 
 ## [2.2.8] - 2022-2-15
 
