@@ -12196,7 +12196,7 @@ class UVData(UVBase):
                     edge_width=edge_width,
                     start_flag=start_flag,
                     end_flag=end_flag,
-                    flag_dc_offset=True,
+                    flag_dc_offset=flag_dc_offset,
                     remove_flagged_ants=remove_flagged_ants,
                     phase_to_pointing_center=phase_to_pointing_center,
                     read_data=read_data,
