@@ -83,7 +83,7 @@ def test_read_mwa_write_uvfits(tmp_path):
         "some coarse channel files were not submitted",
     ]
     with uvtest.check_warnings(UserWarning, messages):
-        mwa_uv.read_mwa_corr_fits(
+        mwa_uv.read(
             filelist[0:2], correct_cable_len=True, phase_to_pointing_center=True
         )
 
@@ -133,7 +133,7 @@ def test_read_mwax_write_uvfits(tmp_path):
         "some coarse channel files were not submitted",
     ]
     with uvtest.check_warnings(UserWarning, messages):
-        mwax_uv.read_mwa_corr_fits(
+        mwax_uv.read(
             [spoof_file, filelist[11]],
             correct_cable_len=True,
             phase_to_pointing_center=True,
@@ -164,7 +164,7 @@ def test_mwax_metafits_keys(tmp_path):
 def test_select_on_read():
     mwa_uv = UVData()
     mwa_uv2 = UVData()
-    mwa_uv.read_mwa_corr_fits(filelist[0:2], correct_cable_len=True)
+    mwa_uv.read(filelist[0:2], correct_cable_len=True)
     unique_times = np.unique(mwa_uv.time_array)
     select_times = unique_times[
         np.where(
@@ -362,7 +362,7 @@ def test_ppds(tmp_path):
     """Test handling of ppds files"""
     # turnaround test with just ppds file given
     mwa_uv = UVData()
-    mwa_uv.read_mwa_corr_fits(
+    mwa_uv.read(
         [filelist[1], filelist[7]], phase_to_pointing_center=True, flag_init=False
     )
     testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
@@ -386,7 +386,7 @@ def test_ppds(tmp_path):
 
     # check that extra keywords are added when both ppds file and metafits file given
     mwa_uv = UVData()
-    mwa_uv.read_mwa_corr_fits([filelist[0], filelist[1], filelist[7]])
+    mwa_uv.read([filelist[0], filelist[1], filelist[7]])
     assert "MWAVER" in mwa_uv.extra_keywords and "MWADATE" in mwa_uv.extra_keywords
 
 
@@ -510,7 +510,7 @@ def test_flag_nsample_basic():
     Test that the flag(without flag_int) and nsample arrays correctly reflect data.
     """
     uv = UVData()
-    uv.read_mwa_corr_fits(
+    uv.read(
         filelist[0:3],
         flag_init=False,
         propagate_coarse_flags=False,
@@ -641,7 +641,7 @@ def test_read_metadata_only(tmp_path):
         "some coarse channel files were not submitted",
     ]
     with uvtest.check_warnings(UserWarning, messages):
-        uvd.read_mwa_corr_fits(
+        uvd.read(
             filelist[0:2],
             correct_cable_len=True,
             phase_to_pointing_center=True,
@@ -693,12 +693,12 @@ def test_invalid_precision_errors():
 
     # raise errors by passing bogus precision values
     with pytest.raises(ValueError, match="data_array_dtype must be np.complex64"):
-        uv.read_mwa_corr_fits(filelist[0:2], data_array_dtype=np.float64)
+        uv.read(filelist[0:2], data_array_dtype=np.float64)
 
     with pytest.raises(
         ValueError, match="nsample_array_dtype must be one of: np.float64"
     ):
-        uv.read_mwa_corr_fits(filelist[0:2], nsample_array_dtype=np.complex128)
+        uv.read(filelist[0:2], nsample_array_dtype=np.complex128)
 
     return
 
@@ -780,7 +780,7 @@ def test_aoflagger_flags():
         "coarse channel, start time, and end time flagging will default",
     ]
     with uvtest.check_warnings(UserWarning, messages):
-        uv.read_mwa_corr_fits(
+        uv.read(
             files,
             flag_init=False,
             remove_flagged_ants=False,
@@ -811,7 +811,7 @@ def test_aoflagger_flags_multiple(tmp_path):
     files.append(mod_mini_6)
 
     uv = UVData()
-    uv.read_mwa_corr_fits(files, flag_init=False, remove_flagged_ants=False)
+    uv.read(files, flag_init=False, remove_flagged_ants=False)
 
     with fits.open(filelist[3]) as aoflags:
         flags1 = aoflags[1].data.field("FLAGS")
@@ -848,7 +848,7 @@ def test_propagate_coarse_flags():
     Test that the flag(without flag_int) and nsample arrays correctly reflect data.
     """
     uv = UVData()
-    uv.read_mwa_corr_fits(filelist[0:3], flag_init=False, propagate_coarse_flags=True)
+    uv.read(filelist[0:3], flag_init=False, propagate_coarse_flags=True)
     assert np.all(uv.flag_array)
 
 
@@ -857,7 +857,7 @@ def test_propagate_coarse_flags():
 def test_start_flag(tmp_path):
     """Test the default value of start_flag."""
     uv1 = UVData()
-    uv1.read_mwa_corr_fits(
+    uv1.read(
         filelist[0:2],
         flag_init=True,
         start_flag="goodtime",
@@ -874,7 +874,7 @@ def test_start_flag(tmp_path):
         mini[1].header["time"] = 1447698334
         mini.writeto(mod_mini)
     uv2 = UVData()
-    uv2.read_mwa_corr_fits(
+    uv2.read(
         [filelist[0], mod_mini],
         flag_init=True,
         start_flag="goodtime",
