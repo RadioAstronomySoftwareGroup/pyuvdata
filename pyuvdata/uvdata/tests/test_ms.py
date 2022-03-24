@@ -362,7 +362,7 @@ def test_bad_col_name():
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
 
     with pytest.raises(ValueError, match="Invalid data_column value supplied"):
-        uvobj.read_ms(testfile, data_column="FOO")
+        uvobj.read(testfile, data_column="FOO")
 
 
 @pytest.mark.parametrize("check_warning", [True, False])
@@ -497,14 +497,14 @@ def test_ms_multi_spw_data_variation(mir_uv, tmp_path):
     tb_main.close()
 
     with pytest.raises(ValueError) as cm:
-        ms_uv.read_ms(testfile)
+        ms_uv.read(testfile)
     assert str(cm.value).startswith("Column EXPOSURE appears to vary on between")
 
     with uvtest.check_warnings(
         UserWarning,
         match="Column EXPOSURE appears to vary on between windows, ",
     ):
-        ms_uv.read_ms(testfile, raise_error=False)
+        ms_uv.read(testfile, raise_error=False)
 
     # Check that the values do indeed match the first entry in the catalog
     assert np.all(ms_uv.integration_time == np.array([1.0]))
@@ -557,10 +557,10 @@ def test_ms_single_chan(mir_uv, future_shapes, tmp_path):
     mir_uv._set_app_coords_helper()
 
     with pytest.raises(ValueError) as cm:
-        ms_uv.read_ms(testfile)
+        ms_uv.read(testfile)
     assert str(cm.value).startswith("No valid data available in the MS file.")
 
-    ms_uv.read_ms(testfile, ignore_single_chan=False, read_weights=False)
+    ms_uv.read(testfile, ignore_single_chan=False, read_weights=False)
 
     # Easiest way to check that everything worked is to just check for equality, but
     # the MS file is single-spw, single-field, so we have a few things we need to fix
@@ -678,7 +678,7 @@ def test_ms_extra_data_descrip(mir_uv, tmp_path):
         tb_dd.putcell(col, tb_dd.nrows() - 1, tb_dd.getcell(col, 0))
     tb_dd.close()
 
-    ms_uv.read_ms(testfile, ignore_single_chan=False, read_weights=False)
+    ms_uv.read(testfile, ignore_single_chan=False, read_weights=False)
 
     # There are some minor differences between the values stored by MIR and that
     # calculated by UVData. Since MS format requires these to be calculated on the fly,
@@ -724,12 +724,12 @@ def test_ms_weights(mir_uv, tmp_path):
     tb_main.removecols("WEIGHT_SPECTRUM")
     tb_main.close()
 
-    ms_uv.read_ms(testfile)
+    ms_uv.read(testfile)
 
     # Check that the values do indeed match expected (median) value
     assert np.all(ms_uv.nsample_array == np.median(mir_uv.nsample_array))
 
-    ms_uv.read_ms(testfile, read_weights=False)
+    ms_uv.read(testfile, read_weights=False)
     # Check that the values do indeed match expected (median) value
     assert np.all(ms_uv.nsample_array == 1.0)
 
@@ -779,7 +779,7 @@ def test_ms_reader_errs(mir_uv, tmp_path, badcol, badval, errtype, msg):
         tb_main.close()
 
     with pytest.raises(errtype) as cm:
-        ms_uv.read_ms(testfile, data_column=data_col)
+        ms_uv.read(testfile, data_column=data_col, file_type="ms")
     assert str(cm.value).startswith(msg)
 
 
