@@ -59,6 +59,10 @@ napoleon_use_param = False
 # set this to handle returns section more uniformly
 napoleon_use_rtype = False
 
+# use this to create custom sections
+# currently used for the UVData.read method
+napoleon_custom_sections = [("File-type Specific Parameters", "params_style")]
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 

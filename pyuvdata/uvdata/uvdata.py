@@ -10549,14 +10549,14 @@ class UVData(UVBase):
         data_column="DATA",
         pol_order="AIPS",
         background_lsts=True,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        strict_uvw_antpos_check=False,
         ignore_single_chan=True,
         raise_error=True,
         read_weights=True,
         allow_flex_pol=True,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
         check_autos=True,
         fix_autos=True,
     ):
@@ -10575,20 +10575,6 @@ class UVData(UVBase):
             'CASA' or 'AIPS'.
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run).
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done).
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
         ignore_single_chan : bool
             Some measurement sets (e.g., those from ALMA) use single channel spectral
             windows for recording pseudo-continuum channels or storing other metadata
@@ -10614,6 +10600,20 @@ class UVData(UVBase):
             "flexible polarization", which compresses the polarization-axis of various
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window.  Default is True.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done).
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
         check_autos : bool
             Check whether any auto-correlations have non-zero imaginary values in
             data_array (which should not mathematically exist). Default is True.
@@ -10647,14 +10647,14 @@ class UVData(UVBase):
             data_column=data_column,
             pol_order=pol_order,
             background_lsts=background_lsts,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            strict_uvw_antpos_check=strict_uvw_antpos_check,
             ignore_single_chan=ignore_single_chan,
             raise_error=raise_error,
             read_weights=read_weights,
             allow_flex_pol=allow_flex_pol,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
             check_autos=check_autos,
             fix_autos=fix_autos,
         )
@@ -11268,6 +11268,11 @@ class UVData(UVBase):
         filename,
         axis=None,
         file_type=None,
+        read_data=True,
+        skip_bad_files=False,
+        background_lsts=True,
+        ignore_name=False,
+        # phasing parameters
         allow_rephase=True,
         phase_center_radec=None,
         unphase_to_drift=False,
@@ -11275,6 +11280,10 @@ class UVData(UVBase):
         phase_epoch=None,
         orig_phase_frame=None,
         phase_use_ant_pos=True,
+        fix_old_proj=None,
+        fix_use_ant_pos=True,
+        make_multi_phase=False,
+        # select parameters
         antenna_nums=None,
         antenna_names=None,
         ant_str=None,
@@ -11282,18 +11291,40 @@ class UVData(UVBase):
         frequencies=None,
         freq_chans=None,
         times=None,
+        time_range=None,
+        lsts=None,
+        lst_range=None,
         polarizations=None,
         blt_inds=None,
-        time_range=None,
         keep_all_metadata=True,
-        read_data=True,
+        # checking parameters
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
+        check_autos=True,
+        fix_autos=True,
+        # start file-type specific parameters
+        # miriad
         phase_type=None,
         correct_lat_lon=True,
+        calc_lst=True,
+        # FHD
         use_model=False,
+        # MS
         data_column="DATA",
         pol_order="AIPS",
+        ignore_single_chan=True,
+        raise_error=True,
+        read_weights=True,
+        # MS & MIR
+        allow_flex_pol=True,
+        # uvh5
+        multidim_index=False,
+        # uvh5 & mwa_corr_fits
         data_array_dtype=np.complex128,
         nsample_array_dtype=np.float32,
+        # mwa_corr_fits
         use_aoflagger_flags=None,
         use_cotter_flags=None,
         remove_dig_gains=True,
@@ -11311,28 +11342,12 @@ class UVData(UVBase):
         flag_dc_offset=True,
         remove_flagged_ants=True,
         phase_to_pointing_center=False,
-        skip_bad_files=False,
-        multidim_index=False,
-        background_lsts=True,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        strict_uvw_antpos_check=False,
+        # MIR
         isource=None,
         irec=None,
         isb=None,
         corrchunk=None,
         pseudo_cont=False,
-        lsts=None,
-        lst_range=None,
-        calc_lst=True,
-        fix_old_proj=None,
-        fix_use_ant_pos=True,
-        make_multi_phase=False,
-        ignore_name=False,
-        allow_flex_pol=True,
-        check_autos=True,
-        fix_autos=True,
     ):
         """
         Read a generic file into a UVData object.
@@ -11356,6 +11371,25 @@ class UVData(UVBase):
             objects. Please see the docstring for fast_concat for details.
             Allowed values are: 'blt', 'freq', 'polarization'. Only used if
             multiple files are passed.
+        read_data : bool
+            Read in the data. Only used if file_type is 'uvfits',
+            'miriad' or 'uvh5'. If set to False, only the metadata will be
+            read in. Setting read_data to False results in a metdata only
+            object.
+        skip_bad_files : bool
+            Option when reading multiple files to catch read errors such that
+            the read continues even if one or more files are corrupted. Files
+            that produce errors will be printed. Default is False (files will
+            not be skipped).
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
+        ignore_name : bool
+            Only relevant when reading in multiple files, which are concatenated into a
+            single UVData object. Option to ignore the name of the phase center when
+            combining multiple files, which would otherwise result in an error being
+            raised because of attributes not matching. Doing so effectively adopts the
+            name found in the first file read in. Default is False.
+
         allow_rephase :  bool
             Allow rephasing of phased file data so that data from files with
             different phasing can be combined.
@@ -11371,6 +11405,13 @@ class UVData(UVBase):
             'gcrs' accounts for precession & nutation,
             'icrs' accounts for precession, nutation & abberation.
             Only used if `phase_center_radec` is set.
+        phase_epoch : astropy.time.Time object or str
+            The epoch to use for phasing. Either an astropy Time object or the
+            string "J2000" (which is the default).
+            Note that the epoch is only used to evaluate the ra & dec values,
+            if the epoch is not J2000, the ra & dec values are interpreted
+            as FK5 ra/dec values and transformed to J2000, the data are then
+            phased to the J2000 ra/dec values.
         orig_phase_frame : str
             The original phase frame of the data (if it is already phased). Used
             for unphasing, only if `unphase_to_drift` or `phase_center_radec`
@@ -11380,6 +11421,22 @@ class UVData(UVBase):
             If True, calculate the phased or unphased uvws directly from the
             antenna positions rather than from the existing uvws.
             Only used if `unphase_to_drift` or `phase_center_radec` are set.
+        fix_old_proj : bool
+            Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
+            method was used prior to writing the data, which had errors of the order of
+            one part in 1e4 - 1e5. See the phasing memo for more details. Default is
+            False, unless reading a UVH5 file that is missing the `phase_center_app_ra`
+            and `phase_center_app_dec` attributes (as these were introduced at the same
+            time as the new `phase` method), in which case the default is True.
+        fix_use_ant_pos : bool
+            If setting `fix_old_proj` to True, use the antenna positions to derive the
+            correct uvw-coordinates rather than using the baseline vectors. Default is
+            True.
+        make_multi_phase : bool
+            Option to make the output a multi phase center dataset, capable of holding
+            data on multiple phase centers. By default, this is only done if reading
+            in a file with multiple sources.
+
         antenna_nums : array_like of int, optional
             The antennas numbers to include when reading data into the object
             (antenna positions and names for the removed antennas will be retained
@@ -11390,14 +11447,6 @@ class UVData(UVBase):
             (antenna positions and names for the removed antennas will be retained
             unless `keep_all_metadata` is False). This cannot be provided if
             `antenna_nums` is also provided.
-        bls : list of tuple, optional
-            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
-            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
-            to include when reading data into the object. For length-2 tuples,
-            the ordering of the numbers within the tuple does not matter. For
-            length-3 tuples, the polarization string is in the order of the two
-            antennas. If length-3 tuples are provided, `polarizations` must be
-            None.
         ant_str : str, optional
             A string containing information about what antenna numbers
             and polarizations to include when reading data into the object.
@@ -11410,6 +11459,14 @@ class UVData(UVBase):
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
             if it is a ValueError will be raised.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
+            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
+            to include when reading data into the object. For length-2 tuples,
+            the ordering of the numbers within the tuple does not matter. For
+            length-3 tuples, the polarization string is in the order of the two
+            antennas. If length-3 tuples are provided, `polarizations` must be
+            None.
         frequencies : array_like of float, optional
             The frequencies to include when reading data into the object, each
             value passed here should exist in the freq_array.
@@ -11425,6 +11482,17 @@ class UVData(UVBase):
             the object, must be length 2. Some of the times in the file should
             fall between the first and last elements.
             Cannot be used with `times`.
+        lsts : array_like of float, optional
+            The local sidereal times (LSTs) to keep in the object, each value
+            passed here should exist in the lst_array. Cannot be used with
+            `times`, `time_range`, or `lst_range`.
+        lst_range : array_like of float, optional
+            The local sidereal time (LST) range in radians to keep in the
+            object, must be of length 2. Some of the LSTs in the object should
+            fall between the first and last elements. If the second value is
+            smaller than the first, the LSTs are treated as having phase-wrapped
+            around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            the larger value, through 0, and end at the smaller value.
         polarizations : array_like of int, optional
             The polarizations numbers to include when reading data into the
             object, each value passed here should exist in the polarization_array.
@@ -11434,11 +11502,31 @@ class UVData(UVBase):
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
-        read_data : bool
-            Read in the data. Only used if file_type is 'uvfits',
-            'miriad' or 'uvh5'. If set to False, only the metadata will be
-            read in. Setting read_data to False results in a metdata only
-            object.
+
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is True.
+
+        File-type Specific Parameters
+        -----------------------------
         phase_type : str, optional
             Option to specify the phasing status of the data. Only used if
             file_type is 'miriad'. Options are 'drift', 'phased' or None.
@@ -11448,16 +11536,59 @@ class UVData(UVBase):
         correct_lat_lon : bool
             Option to update the latitude and longitude from the known_telescopes
             list if the altitude is missing. Only used if file_type is 'miriad'.
+        calc_lst : bool
+            Recalculate the LST values that are present within the file, useful in
+            cases where the "online" calculate values have precision or value errors.
+            Default is True. Only applies to MIRIAD files.
+
         use_model : bool
             Option to read in the model visibilities rather than the dirty
             visibilities (the default is False, meaning the dirty visibilities
             will be read). Only used if file_type is 'fhd'.
+
         data_column : str
             name of CASA data column to read into data_array. Options are:
             'DATA', 'MODEL', or 'CORRECTED_DATA'. Only used if file_type is 'ms'.
         pol_order : str
             Option to specify polarizations order convention, options are
             'CASA' or 'AIPS'. Only used if file_type is 'ms'.
+        ignore_single_chan : bool
+            Option to ignore single channel spectral windows in measurement sets to
+            limit object size. Some measurement sets (e.g., those from ALMA) use single
+            channel spectral windows for recording pseudo-continuum channels or storing
+            other metadata in the track when the telescopes are not on source. Because
+            of the way the object is strutured (where all spectral windows are assumed
+            to be simultaneously recorded), this can significantly inflate the size and
+            memory footprint of UVData objects. By default, single channel windows are
+            ignored to avoid this issue, they can be included by setting this parameter
+            to True. Only used if file_type is 'ms'.
+        raise_error : bool
+            The measurement set format allows for different spectral windows and
+            polarizations to have different metdata for the same time-baseline
+            combination, but UVData objects do not. If detected, by default the reader
+            will throw an error. However, if set to False, the reader will simply give
+            a warning, and will use the first value read in the file as the "correct"
+            metadata in the UVData object. Only used if file_type is 'ms'.
+        read_weights : bool
+            Read in the weights from the MS file. If false, the method
+            will set the `nsamples_array` to the same uniform value (namely 1.0).
+            Only used if file_type is 'ms'.
+
+        allow_flex_pol : bool
+            If only one polarization per spectral window is read (and the polarization
+            differs from window to window), allow for the `UVData` object to use
+            "flexible polarization", which compresses the polarization-axis of various
+            attributes to be of length 1, sets the `flex_spw_polarization_array`
+            attribute to define the polarization per spectral window. Only applicable
+            for MIR and MS filetypes, otherwise this argument is ignored. Default is
+            True.
+
+        multidim_index : bool
+            [Only for HDF5] If True, attempt to index the HDF5 dataset
+            simultaneously along all data axes. Otherwise index one axis at-a-time.
+            This only works if data selection is sliceable along all but one axis.
+            If indices are not well-matched to data chunks, this can be slow.
+
         data_array_dtype : numpy dtype
             Datatype to store the output data_array as. Must be either
             np.complex64 (single-precision real and imaginary) or np.complex128 (double-
@@ -11471,6 +11602,7 @@ class UVData(UVBase):
             cases where no sampling or averaging of baselines will occur,
             because round-off errors can be quite large (~1e-3). Only used if
             file_type is 'mwa_corr_fits'.
+
         use_aoflagger_flags : bool
             Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
             flag files are submitted.
@@ -11539,33 +11671,7 @@ class UVData(UVBase):
         phase_to_pointing_center : bool
             Flag to phase to the pointing center. Only used if file_type is
             'mwa_corr_fits'. Cannot be set if phase_center_radec is not None.
-        skip_bad_files : bool
-            Option when reading multiple files to catch read errors such that
-            the read continues even if one or more files are corrupted. Files
-            that produce errors will be printed. Default is False (files will
-            not be skipped).
-        multidim_index : bool
-            [Only for HDF5] If True, attempt to index the HDF5 dataset
-            simultaneously along all data axes. Otherwise index one axis at-a-time.
-            This only works if data selection is sliceable along all but one axis.
-            If indices are not well-matched to data chunks, this can be slow.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run). Ignored if read_data is False.
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-            Ignored if read_data is False.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done). Ignored if read_data is False.
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
+
         isource : int
             Source code for MIR dataset
         irec : int
@@ -11575,57 +11681,7 @@ class UVData(UVBase):
         corrchunk : int
             Correlator chunk code for MIR dataset
         pseudo_cont : boolean
-            Read in only pseudo-continuuum values in MIR dataset. Default is false.
-        lsts : array_like of float, optional
-            The local sidereal times (LSTs) to keep in the object, each value
-            passed here should exist in the lst_array. Cannot be used with
-            `times`, `time_range`, or `lst_range`.
-        lst_range : array_like of float, optional
-            The local sidereal time (LST) range in radians to keep in the
-            object, must be of length 2. Some of the LSTs in the object should
-            fall between the first and last elements. If the second value is
-            smaller than the first, the LSTs are treated as having phase-wrapped
-            around LST = 2*pi = 0, and the LSTs kept on the object will run from
-            the larger value, through 0, and end at the smaller value.
-        calc_lst : bool
-            Recalculate the LST values that are present within the file, useful in
-            cases where the "online" calculate values have precision or value errors.
-            Default is True. Only applies to MIRIAD files.
-        fix_old_proj : bool
-            Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
-            method was used prior to writing the data, which had errors of the order of
-            one part in 1e4 - 1e5. See the phasing memo for more details. Default is
-            False, unless reading a UVH5 file that is missing the `phase_center_app_ra`
-            and `phase_center_app_dec` attributes (as these were introduced at the same
-            time as the new `phase` method), in which case the default is True.
-        fix_use_ant_pos : bool
-            If setting `fix_old_proj` to True, use the antenna positions to derive the
-            correct uvw-coordinates rather than using the baseline vectors. Default is
-            True.
-        make_multi_phase : bool
-            Option to make the output a multi phase center dataset, capable of holding
-            data on multiple phase centers. By default, this is only done if reading
-            in a file with multiple sources.
-        ignore_name : bool
-            Only relevant when reading in multiple files, which are concatenated into a
-            single UVData object. Option to ignore the name of the phase center when
-            combining multiple files, which would otherwise result in an error being
-            raised because of attributes not matching. Doing so effectively adopts the
-            name found in the first file read in. Default is False.
-        allow_flex_pol : bool
-            If only one polarization per spectral window is read (and the polarization
-            differs from window to window), allow for the `UVData` object to use
-            "flexible polarization", which compresses the polarization-axis of various
-            attributes to be of length 1, sets the `flex_spw_polarization_array`
-            attribute to define the polarization per spectral window. Only applicable
-            for MIR and MS filetypes, otherwise this argument is ignored. Default is
-            True.
-        check_autos : bool
-            Check whether any auto-correlations have non-zero imaginary values in
-            data_array (which should not mathematically exist). Default is True.
-        fix_autos : bool
-            If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is True.
+            Read in only pseudo-continuuum values in MIR dataset.
 
         Raises
         ------
@@ -12134,11 +12190,14 @@ class UVData(UVBase):
                     data_column=data_column,
                     pol_order=pol_order,
                     background_lsts=background_lsts,
+                    ignore_single_chan=ignore_single_chan,
+                    raise_error=raise_error,
+                    read_weights=read_weights,
+                    allow_flex_pol=allow_flex_pol,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
-                    allow_flex_pol=allow_flex_pol,
                     check_autos=check_autos,
                     fix_autos=fix_autos,
                 )
@@ -12244,6 +12303,11 @@ class UVData(UVBase):
         filename,
         axis=None,
         file_type=None,
+        read_data=True,
+        skip_bad_files=False,
+        background_lsts=True,
+        ignore_name=False,
+        # phasing parameters
         allow_rephase=True,
         phase_center_radec=None,
         unphase_to_drift=False,
@@ -12251,6 +12315,10 @@ class UVData(UVBase):
         phase_epoch=None,
         orig_phase_frame=None,
         phase_use_ant_pos=True,
+        fix_old_proj=None,
+        fix_use_ant_pos=True,
+        make_multi_phase=False,
+        # select parameters
         antenna_nums=None,
         antenna_names=None,
         ant_str=None,
@@ -12258,18 +12326,40 @@ class UVData(UVBase):
         frequencies=None,
         freq_chans=None,
         times=None,
+        time_range=None,
+        lsts=None,
+        lst_range=None,
         polarizations=None,
         blt_inds=None,
-        time_range=None,
         keep_all_metadata=True,
-        read_data=True,
+        # checking parameters
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        strict_uvw_antpos_check=False,
+        check_autos=True,
+        fix_autos=True,
+        # start file-type specific parameters
+        # miriad
         phase_type=None,
         correct_lat_lon=True,
+        calc_lst=True,
+        # FHD
         use_model=False,
+        # MS
         data_column="DATA",
         pol_order="AIPS",
+        ignore_single_chan=True,
+        raise_error=True,
+        read_weights=True,
+        # MS & MIR
+        allow_flex_pol=True,
+        # uvh5
+        multidim_index=False,
+        # uvh5 & mwa_corr_fits
         data_array_dtype=np.complex128,
         nsample_array_dtype=np.float32,
+        # mwa_corr_fits
         use_aoflagger_flags=None,
         use_cotter_flags=None,
         remove_dig_gains=True,
@@ -12287,28 +12377,12 @@ class UVData(UVBase):
         flag_dc_offset=True,
         remove_flagged_ants=True,
         phase_to_pointing_center=False,
-        skip_bad_files=False,
-        multidim_index=False,
-        background_lsts=True,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        strict_uvw_antpos_check=False,
+        # MIR
         isource=None,
         irec=None,
         isb=None,
         corrchunk=None,
         pseudo_cont=False,
-        lsts=None,
-        lst_range=None,
-        calc_lst=True,
-        fix_old_proj=None,
-        fix_use_ant_pos=True,
-        make_multi_phase=False,
-        ignore_name=False,
-        allow_flex_pol=True,
-        check_autos=True,
-        fix_autos=True,
     ):
         """
         Initialize a new UVData object by reading the input file.
@@ -12332,6 +12406,25 @@ class UVData(UVBase):
             objects. Please see the docstring for fast_concat for details.
             Allowed values are: 'blt', 'freq', 'polarization'. Only used if
             multiple files are passed.
+        read_data : bool
+            Read in the data. Only used if file_type is 'uvfits',
+            'miriad' or 'uvh5'. If set to False, only the metadata will be
+            read in. Setting read_data to False results in a metdata only
+            object.
+        skip_bad_files : bool
+            Option when reading multiple files to catch read errors such that
+            the read continues even if one or more files are corrupted. Files
+            that produce errors will be printed. Default is False (files will
+            not be skipped).
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
+        ignore_name : bool
+            Only relevant when reading in multiple files, which are concatenated into a
+            single UVData object. Option to ignore the name of the phase center when
+            combining multiple files, which would otherwise result in an error being
+            raised because of attributes not matching. Doing so effectively adopts the
+            name found in the first file read in. Default is False.
+
         allow_rephase :  bool
             Allow rephasing of phased file data so that data from files with
             different phasing can be combined.
@@ -12347,6 +12440,13 @@ class UVData(UVBase):
             'gcrs' accounts for precession & nutation,
             'icrs' accounts for precession, nutation & abberation.
             Only used if `phase_center_radec` is set.
+        phase_epoch : astropy.time.Time object or str
+            The epoch to use for phasing. Either an astropy Time object or the
+            string "J2000" (which is the default).
+            Note that the epoch is only used to evaluate the ra & dec values,
+            if the epoch is not J2000, the ra & dec values are interpreted
+            as FK5 ra/dec values and transformed to J2000, the data are then
+            phased to the J2000 ra/dec values.
         orig_phase_frame : str
             The original phase frame of the data (if it is already phased). Used
             for unphasing, only if `unphase_to_drift` or `phase_center_radec`
@@ -12356,6 +12456,22 @@ class UVData(UVBase):
             If True, calculate the phased or unphased uvws directly from the
             antenna positions rather than from the existing uvws.
             Only used if `unphase_to_drift` or `phase_center_radec` are set.
+        fix_old_proj : bool
+            Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
+            method was used prior to writing the data, which had errors of the order of
+            one part in 1e4 - 1e5. See the phasing memo for more details. Default is
+            False, unless reading a UVH5 file that is missing the `phase_center_app_ra`
+            and `phase_center_app_dec` attributes (as these were introduced at the same
+            time as the new `phase` method), in which case the default is True.
+        fix_use_ant_pos : bool
+            If setting `fix_old_proj` to True, use the antenna positions to derive the
+            correct uvw-coordinates rather than using the baseline vectors. Default is
+            True.
+        make_multi_phase : bool
+            Option to make the output a multi phase center dataset, capable of holding
+            data on multiple phase centers. By default, this is only done if reading
+            in a file with multiple sources.
+
         antenna_nums : array_like of int, optional
             The antennas numbers to include when reading data into the object
             (antenna positions and names for the removed antennas will be retained
@@ -12366,14 +12482,6 @@ class UVData(UVBase):
             (antenna positions and names for the removed antennas will be retained
             unless `keep_all_metadata` is False). This cannot be provided if
             `antenna_nums` is also provided.
-        bls : list of tuple, optional
-            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
-            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
-            to include when reading data into the object. For length-2 tuples,
-            the ordering of the numbers within the tuple does not matter. For
-            length-3 tuples, the polarization string is in the order of the two
-            antennas. If length-3 tuples are provided, `polarizations` must be
-            None.
         ant_str : str, optional
             A string containing information about what antenna numbers
             and polarizations to include when reading data into the object.
@@ -12386,6 +12494,14 @@ class UVData(UVBase):
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
             if it is a ValueError will be raised.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
+            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
+            to include when reading data into the object. For length-2 tuples,
+            the ordering of the numbers within the tuple does not matter. For
+            length-3 tuples, the polarization string is in the order of the two
+            antennas. If length-3 tuples are provided, `polarizations` must be
+            None.
         frequencies : array_like of float, optional
             The frequencies to include when reading data into the object, each
             value passed here should exist in the freq_array.
@@ -12401,6 +12517,17 @@ class UVData(UVBase):
             the object, must be length 2. Some of the times in the file should
             fall between the first and last elements.
             Cannot be used with `times`.
+        lsts : array_like of float, optional
+            The local sidereal times (LSTs) to keep in the object, each value
+            passed here should exist in the lst_array. Cannot be used with
+            `times`, `time_range`, or `lst_range`.
+        lst_range : array_like of float, optional
+            The local sidereal time (LST) range in radians to keep in the
+            object, must be of length 2. Some of the LSTs in the object should
+            fall between the first and last elements. If the second value is
+            smaller than the first, the LSTs are treated as having phase-wrapped
+            around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            the larger value, through 0, and end at the smaller value.
         polarizations : array_like of int, optional
             The polarizations numbers to include when reading data into the
             object, each value passed here should exist in the polarization_array.
@@ -12410,11 +12537,31 @@ class UVData(UVBase):
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
-        read_data : bool
-            Read in the data. Only used if file_type is 'uvfits',
-            'miriad' or 'uvh5'. If set to False, only the metadata will be
-            read in. Setting read_data to False results in a metdata only
-            object.
+
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is True.
+
+        File-type Specific Parameters
+        -----------------------------
         phase_type : str, optional
             Option to specify the phasing status of the data. Only used if
             file_type is 'miriad'. Options are 'drift', 'phased' or None.
@@ -12424,16 +12571,59 @@ class UVData(UVBase):
         correct_lat_lon : bool
             Option to update the latitude and longitude from the known_telescopes
             list if the altitude is missing. Only used if file_type is 'miriad'.
+        calc_lst : bool
+            Recalculate the LST values that are present within the file, useful in
+            cases where the "online" calculate values have precision or value errors.
+            Default is True. Only applies to MIRIAD files.
+
         use_model : bool
             Option to read in the model visibilities rather than the dirty
             visibilities (the default is False, meaning the dirty visibilities
             will be read). Only used if file_type is 'fhd'.
+
         data_column : str
             name of CASA data column to read into data_array. Options are:
             'DATA', 'MODEL', or 'CORRECTED_DATA'. Only used if file_type is 'ms'.
         pol_order : str
             Option to specify polarizations order convention, options are
             'CASA' or 'AIPS'. Only used if file_type is 'ms'.
+        ignore_single_chan : bool
+            Option to ignore single channel spectral windows in measurement sets to
+            limit object size. Some measurement sets (e.g., those from ALMA) use single
+            channel spectral windows for recording pseudo-continuum channels or storing
+            other metadata in the track when the telescopes are not on source. Because
+            of the way the object is strutured (where all spectral windows are assumed
+            to be simultaneously recorded), this can significantly inflate the size and
+            memory footprint of UVData objects. By default, single channel windows are
+            ignored to avoid this issue, they can be included by setting this parameter
+            to True. Only used if file_type is 'ms'.
+        raise_error : bool
+            The measurement set format allows for different spectral windows and
+            polarizations to have different metdata for the same time-baseline
+            combination, but UVData objects do not. If detected, by default the reader
+            will throw an error. However, if set to False, the reader will simply give
+            a warning, and will use the first value read in the file as the "correct"
+            metadata in the UVData object. Only used if file_type is 'ms'.
+        read_weights : bool
+            Read in the weights from the MS file. If false, the method
+            will set the `nsamples_array` to the same uniform value (namely 1.0).
+            Only used if file_type is 'ms'.
+
+        allow_flex_pol : bool
+            If only one polarization per spectral window is read (and the polarization
+            differs from window to window), allow for the `UVData` object to use
+            "flexible polarization", which compresses the polarization-axis of various
+            attributes to be of length 1, sets the `flex_spw_polarization_array`
+            attribute to define the polarization per spectral window. Only applicable
+            for MIR and MS filetypes, otherwise this argument is ignored. Default is
+            True.
+
+        multidim_index : bool
+            [Only for HDF5] If True, attempt to index the HDF5 dataset
+            simultaneously along all data axes. Otherwise index one axis at-a-time.
+            This only works if data selection is sliceable along all but one axis.
+            If indices are not well-matched to data chunks, this can be slow.
+
         data_array_dtype : numpy dtype
             Datatype to store the output data_array as. Must be either
             np.complex64 (single-precision real and imaginary) or np.complex128 (double-
@@ -12447,9 +12637,10 @@ class UVData(UVBase):
             cases where no sampling or averaging of baselines will occur,
             because round-off errors can be quite large (~1e-3). Only used if
             file_type is 'mwa_corr_fits'.
+
         use_aoflagger_flags : bool
-            Only used if file_type is 'mwa_corr_fits'. Option to use aoflagger mwaf
-            flag files. Defaults to true if aoflagger flag files are submitted.
+            Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
+            flag files are submitted.
         use_cotter_flags : bool
             Being replaced by use_aoflagger_flags and will be removed in v2.4.
         remove_dig_gains : bool
@@ -12515,33 +12706,7 @@ class UVData(UVBase):
         phase_to_pointing_center : bool
             Flag to phase to the pointing center. Only used if file_type is
             'mwa_corr_fits'. Cannot be set if phase_center_radec is not None.
-        skip_bad_files : bool
-            Option when reading multiple files to catch read errors such that
-            the read continues even if one or more files are corrupted. Files
-            that produce errors will be printed. Default is False (files will
-            not be skipped).
-        multidim_index : bool
-            [Only for HDF5] If True, attempt to index the HDF5 dataset
-            simultaneously along all data axes. Otherwise index one axis at-a-time.
-            This only works if data selection is sliceable along all but one axis.
-            If indices are not well-matched to data chunks, this can be slow.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run). Ignored if read_data is False.
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-            Ignored if read_data is False.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done). Ignored if read_data is False.
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
+
         isource : int
             Source code for MIR dataset
         irec : int
@@ -12551,57 +12716,7 @@ class UVData(UVBase):
         corrchunk : int
             Correlator chunk code for MIR dataset
         pseudo_cont : boolean
-            Read in only pseudo-continuuum values in MIR dataset. Default is false.
-        lsts : array_like of float, optional
-            The local sidereal times (LSTs) to keep in the object, each value
-            passed here should exist in the lst_array. Cannot be used with
-            `times`, `time_range`, or `lst_range`.
-        lst_range : array_like of float, optional
-            The local sidereal time (LST) range in radians to keep in the
-            object, must be of length 2. Some of the LSTs in the object should
-            fall between the first and last elements. If the second value is
-            smaller than the first, the LSTs are treated as having phase-wrapped
-            around LST = 2*pi = 0, and the LSTs kept on the object will run from
-            the larger value, through 0, and end at the smaller value.
-        calc_lst : bool
-            Recalculate the LST values that are present within the file, useful in
-            cases where the "online" calculate values have precision or value errors.
-            Default is True. Only applies to MIRIAD files.
-        fix_old_proj : bool
-            Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
-            method was used prior to writing the data, which had errors of the order of
-            one part in 1e4 - 1e5. See the phasing memo for more details. Default is
-            False, unless reading a UVH5 file that is missing the `phase_center_app_ra`
-            and `phase_center_app_dec` attributes (as these were introduced at the same
-            time as the new `phase` method), in which case the default is True.
-        fix_use_ant_pos : bool
-            If setting `fix_old_proj` to True, use the antenna positions to derive the
-            correct uvw-coordinates rather than using the baseline vectors. Default is
-            True.
-        make_multi_phase : bool
-            Option to make the output a multi phase center dataset, capable of holding
-            data on multiple phase centers. By default, this is only done if reading
-            in a file with multiple sources.
-        ignore_name : bool
-            Only relevant when reading in multiple files, which are concatenated into a
-            single UVData object. Option to ignore the name of the phase center when
-            combining multiple files, which would otherwise result in an error being
-            raised because of attributes not matching. Doing so effectively adopts the
-            name found in the first file read in. Default is False.
-        allow_flex_pol : bool
-            If only one polarization per spectral window is read (and the polarization
-            differs from window to window), allow for the `UVData` object to use
-            "flexible polarization", which compresses the polarization-axis of various
-            attributes to be of length 1, sets the `flex_spw_polarization_array`
-            attribute to define the polarization per spectral window. Only applicable
-            for MIR and MS filetypes, otherwise this argument is ignored. Default is
-            True.
-        check_autos : bool
-            Check whether any auto-correlations have non-zero imaginary values in
-            data_array (which should not mathematically exist). Default is True.
-        fix_autos : bool
-            If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is True.
+            Read in only pseudo-continuuum values in MIR dataset.
 
         Raises
         ------
@@ -12620,6 +12735,11 @@ class UVData(UVBase):
             filename,
             axis=axis,
             file_type=file_type,
+            read_data=read_data,
+            skip_bad_files=skip_bad_files,
+            background_lsts=background_lsts,
+            ignore_name=ignore_name,
+            # phasing parameters
             allow_rephase=allow_rephase,
             phase_center_radec=phase_center_radec,
             unphase_to_drift=unphase_to_drift,
@@ -12627,6 +12747,10 @@ class UVData(UVBase):
             phase_epoch=phase_epoch,
             orig_phase_frame=orig_phase_frame,
             phase_use_ant_pos=phase_use_ant_pos,
+            fix_old_proj=fix_old_proj,
+            fix_use_ant_pos=fix_use_ant_pos,
+            make_multi_phase=make_multi_phase,
+            # select parameters
             antenna_nums=antenna_nums,
             antenna_names=antenna_names,
             ant_str=ant_str,
@@ -12634,18 +12758,40 @@ class UVData(UVBase):
             frequencies=frequencies,
             freq_chans=freq_chans,
             times=times,
+            time_range=time_range,
+            lsts=lsts,
+            lst_range=lst_range,
             polarizations=polarizations,
             blt_inds=blt_inds,
-            time_range=time_range,
             keep_all_metadata=keep_all_metadata,
-            read_data=read_data,
+            # checking parameters
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            strict_uvw_antpos_check=strict_uvw_antpos_check,
+            check_autos=check_autos,
+            fix_autos=fix_autos,
+            # start file-type specific parameters
+            # miriad
             phase_type=phase_type,
             correct_lat_lon=correct_lat_lon,
+            calc_lst=calc_lst,
+            # FHD
             use_model=use_model,
+            # MS
             data_column=data_column,
             pol_order=pol_order,
+            ignore_single_chan=ignore_single_chan,
+            raise_error=raise_error,
+            read_weights=read_weights,
+            # MS & MIR
+            allow_flex_pol=allow_flex_pol,
+            # uvh5
+            multidim_index=multidim_index,
+            # uvh5 & mwa_corr_fits
             data_array_dtype=data_array_dtype,
             nsample_array_dtype=nsample_array_dtype,
+            # mwa_corr_fits
             use_aoflagger_flags=use_aoflagger_flags,
             use_cotter_flags=use_cotter_flags,
             remove_dig_gains=remove_dig_gains,
@@ -12663,28 +12809,12 @@ class UVData(UVBase):
             flag_dc_offset=flag_dc_offset,
             remove_flagged_ants=remove_flagged_ants,
             phase_to_pointing_center=phase_to_pointing_center,
-            skip_bad_files=skip_bad_files,
-            multidim_index=multidim_index,
-            background_lsts=background_lsts,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            strict_uvw_antpos_check=strict_uvw_antpos_check,
+            # MIR
             isource=isource,
             irec=irec,
             isb=isb,
             corrchunk=corrchunk,
             pseudo_cont=pseudo_cont,
-            lsts=lsts,
-            lst_range=lst_range,
-            calc_lst=calc_lst,
-            fix_old_proj=fix_old_proj,
-            fix_use_ant_pos=fix_use_ant_pos,
-            make_multi_phase=make_multi_phase,
-            ignore_name=ignore_name,
-            allow_flex_pol=allow_flex_pol,
-            check_autos=check_autos,
-            fix_autos=fix_autos,
         )
         return uvd
 
