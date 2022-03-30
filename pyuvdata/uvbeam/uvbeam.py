@@ -80,16 +80,22 @@ class UVBeam(UVBase):
         )
 
         desc = (
-            "Number of basis vectors specified at each pixel, options "
-            'are 2 or 3 (or 1 if beam_type is "power")'
+            "Number of basis vectors used to represent the antenna response in each "
+            "pixel. These need not align with the pixel coordinate system or even be "
+            "orthogonal. The mapping of these basis vectors to directions aligned with"
+            "the pixel coordinate system is contained in the `basis_vector_array`. "
+            "The allowed values for this parameter are 2 or 3 (or 1 if beam_type is "
+            "'power')."
         )
         self._Naxes_vec = uvp.UVParameter(
             "Naxes_vec", description=desc, expected_type=int, acceptable_vals=[2, 3]
         )
 
         desc = (
-            "Number of basis vectors components specified at each pixel, options "
-            "are 2 or 3.  Only required for E-field beams."
+            "Number of orthogonal components required to map each basis vector to "
+            "vectors aligned with the pixel coordinate system. This can be equal to or "
+            "smaller than `Naxes_vec`. The allowed values for this parameter are 2 or "
+            "3. Only required for E-field beams."
         )
         self._Ncomponents_vec = uvp.UVParameter(
             "Ncomponents_vec",
@@ -212,11 +218,13 @@ class UVBeam(UVBase):
         )
 
         desc = (
-            "Beam basis vector components -- directions for which the "
-            "electric field values are recorded in the pixel coordinate system. "
+            "Beam basis vector components, essentially the mapping between the "
+            "directions that the electrical field values are recorded in to the "
+            "directions aligned with the pixel coordinate system (or azimuth/zenith "
+            "angle for HEALPix beams)."
             'Not required if beam_type is "power". The shape depends on the '
             'pixel_coordinate_system, if it is "healpix", the shape is: '
-            "(Naxes_vec, Ncomponents_vec, Npixels), otherwise it is "
+            "(Naxes_vec, Ncomponents_vec=2, Npixels), otherwise it is "
             "(Naxes_vec, Ncomponents_vec, Naxes2, Naxes1)"
         )
         self._basis_vector_array = uvp.UVParameter(
