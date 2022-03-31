@@ -19,7 +19,7 @@ which is the number of orthogonal unit vectors aligned with the pixel coordinate
 parameters for common beam pixel and E-field coordinate systems include:
 
 - pixels in regularly gridded azimuth and zenith angle, E-field in components aligned
-  azimuth and zenith angle in each pixel
+  with azimuth and zenith angle in each pixel
 
   - ``Naxis_vec = 2``
   - ``Ncomponents_vec = 2``
@@ -35,10 +35,11 @@ parameters for common beam pixel and E-field coordinate systems include:
 
   - ``Naxis_vec = 3``
   - ``Ncomponents_vec = 2``
-  - ``basis_vector_array`` contains the mapping from (x,y,z) to (azimuth, zenith_angle).
-    The details of this mapping depend on the choice of how the axes are labeled. UVBeam
-    uses azimuth running from East to North. If x aligns with East, y aligns with North
-    and z points to the zenith:
+  - ``basis_vector_array`` contains the mapping from (x, y, z) to (azimuth, zenith_angle)
+    for the E-field (which is always orthogonal to the radial vector pointing to the
+    pixel). The details of this mapping depend on the choice of how the (x, y, z) axes
+    are labeled. UVBeam uses azimuth running from East to North. If +x points to East,
+    +y points to North and +z points to the zenith:
 
     - ``basis_vector_array[0, 0, az, za] = sin(az)``
     - ``basis_vector_array[0, 1, az, za] = cos(az)``
