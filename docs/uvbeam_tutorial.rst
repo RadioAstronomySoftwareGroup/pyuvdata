@@ -8,6 +8,57 @@ models for radio telescopes. UVBeam supports both E-field and power beams
 systems (e.g. regular azimuth/zenith angle grids, zenith-based HEALPix grids, labelled
 by the ``pixel_coordinate_system`` attribute).
 
+For E-field beams, UVBeam supports specifying the E-field components in two or three
+directions which may not align with the pixel coordinate system (or even be orthogonal).
+The mapping between the E-field component vectors and unit vectors aligned with the
+pixel coordinate system is defined per pixel in the ``basis_vector_array``. That array
+has an axis of length ``Naxes_vec`` which is the number of E-field components used to
+specify the antenna response in each pixel, and an axis of length ``Ncomponents_vec``
+which is the number of orthogonal unit vectors aligned with the pixel coordinate system
+(in addition to the pixel coordinate system axis or axes). Some examples of these
+parameters for common beam pixel and E-field coordinate systems include:
+
+- pixels in regularly gridded azimuth and zenith angle, E-field in components aligned
+  azimuth and zenith angle in each pixel
+
+  - ``Naxis_vec = 2``
+  - ``Ncomponents_vec = 2``
+  - ``basis_vector_array`` only contains ``1`` and ``0`` values, with ``1`` on the
+    diagonal for each pixel.
+
+    - ``basis_vector_array[0, 0, :, :] = 1``
+    - ``basis_vector_array[0, 1, :, :] = 0``
+    - ``basis_vector_array[1, 0, :, :] = 0``
+    - ``basis_vector_array[1, 1, :, :] = 1``
+
+- pixels in regularly gridded azimuth and zenith angle, Efield in (x,y,z) components.
+
+  - ``Naxis_vec = 3``
+  - ``Ncomponents_vec = 2``
+  - ``basis_vector_array`` contains the mapping from (x,y,z) to (azimuth, zenith_angle).
+    The details of this mapping depend on the choice of how the axes are labeled. UVBeam
+    uses azimuth running from East to North. If x aligns with East, y aligns with North
+    and z points to the zenith:
+
+    - ``basis_vector_array[0, 0, az, za] = sin(az)``
+    - ``basis_vector_array[0, 1, az, za] = cos(az)``
+    - ``basis_vector_array[0, 2, az, za] = 0``
+    - ``basis_vector_array[1, 0, az, za] = cos(za)cos(az)``
+    - ``basis_vector_array[1, 1, az, za] = cos(za)sin(az)``
+    - ``basis_vector_array[1, 2, az, za] = sin(za)``
+
+- pixels in an azimuth and zenith angle Healpix map (with zenith at the north pole) with
+  E-field in components aligned with azimuth and zenith angle in each pixel.
+
+  - ``Naxis_vec = 2``
+  - ``Ncomponents_vec = 2``
+  - ``basis_vector_array`` only contains ``1`` and ``0`` values, with ``1`` on the
+    diagonal for each pixel.
+
+    - ``basis_vector_array[0, 0, :] = 1``
+    - ``basis_vector_array[0, 1, :] = 0``
+    - ``basis_vector_array[1, 0, :] = 0``
+    - ``basis_vector_array[1, 1, :] = 1``
 
 UVBeam: Reading/writing
 -----------------------

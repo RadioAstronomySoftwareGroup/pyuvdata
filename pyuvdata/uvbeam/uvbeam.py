@@ -224,7 +224,7 @@ class UVBeam(UVBase):
             "angle for HEALPix beams)."
             'Not required if beam_type is "power". The shape depends on the '
             'pixel_coordinate_system, if it is "healpix", the shape is: '
-            "(Naxes_vec, Ncomponents_vec=2, Npixels), otherwise it is "
+            "(Naxes_vec, Ncomponents_vec, Npixels), otherwise it is "
             "(Naxes_vec, Ncomponents_vec, Naxes2, Naxes1)"
         )
         self._basis_vector_array = uvp.UVParameter(
@@ -233,7 +233,7 @@ class UVBeam(UVBase):
             required=False,
             expected_type=float,
             form=("Naxes_vec", "Ncomponents_vec", "Naxes2", "Naxes1"),
-            acceptable_range=(0, 1),
+            acceptable_range=(-1, 1),
             tols=1e-3,
         )
 
