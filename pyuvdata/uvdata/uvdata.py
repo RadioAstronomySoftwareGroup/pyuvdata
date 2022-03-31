@@ -11323,7 +11323,6 @@ class UVData(UVBase):
         multidim_index=False,
         # uvh5 & mwa_corr_fits
         data_array_dtype=np.complex128,
-        nsample_array_dtype=np.float32,
         # mwa_corr_fits
         use_aoflagger_flags=None,
         use_cotter_flags=None,
@@ -11342,6 +11341,7 @@ class UVData(UVBase):
         flag_dc_offset=True,
         remove_flagged_ants=True,
         phase_to_pointing_center=False,
+        nsample_array_dtype=np.float32,
         # MIR
         isource=None,
         irec=None,
@@ -11351,6 +11351,12 @@ class UVData(UVBase):
     ):
         """
         Read a generic file into a UVData object.
+
+        This method supports a number of different types of files.
+        Universal parameters (required and optional) are listed directly below,
+        followed by parameters used by all file types related to phasing, selecting on
+        read (partial read) and checking. Each file type also has its own set of
+        optional parameters that are listed at the end of this docstring.
 
         Parameters
         ----------
@@ -11372,10 +11378,9 @@ class UVData(UVBase):
             Allowed values are: 'blt', 'freq', 'polarization'. Only used if
             multiple files are passed.
         read_data : bool
-            Read in the data. Only used if file_type is 'uvfits',
-            'miriad' or 'uvh5'. If set to False, only the metadata will be
-            read in. Setting read_data to False results in a metdata only
-            object.
+            Read in the data. Not used if file_type is 'ms' or 'mir'.
+            If set to False, only the metadata will be read in. Setting read_data to
+            False results in a metdata only object.
         skip_bad_files : bool
             Option when reading multiple files to catch read errors such that
             the read continues even if one or more files are corrupted. Files
@@ -11390,6 +11395,8 @@ class UVData(UVBase):
             raised because of attributes not matching. Doing so effectively adopts the
             name found in the first file read in. Default is False.
 
+        Phase Parameters
+        ----------------
         allow_rephase :  bool
             Allow rephasing of phased file data so that data from files with
             different phasing can be combined.
@@ -11437,6 +11444,8 @@ class UVData(UVBase):
             data on multiple phase centers. By default, this is only done if reading
             in a file with multiple sources.
 
+        Select Parameters
+        -----------------
         antenna_nums : array_like of int, optional
             The antennas numbers to include when reading data into the object
             (antenna positions and names for the removed antennas will be retained
@@ -11503,6 +11512,8 @@ class UVData(UVBase):
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
 
+        Check Parameters
+        ----------------
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -11525,33 +11536,36 @@ class UVData(UVBase):
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
 
-        File-type Specific Parameters
-        -----------------------------
+        Miriad Parameters
+        -----------------
         phase_type : str, optional
-            Option to specify the phasing status of the data. Only used if
-            file_type is 'miriad'. Options are 'drift', 'phased' or None.
-            'drift' means the data are zenith drift data, 'phased' means the
-            data are phased to a single RA/Dec. Default is None
+            Option to specify the phasing status of the data. Options are 'drift',
+            'phased' or None. 'drift' means the data are zenith drift data,
+            'phased' means the data are phased to a single RA/Dec. Default is None
             meaning it will be guessed at based on the file contents.
         correct_lat_lon : bool
             Option to update the latitude and longitude from the known_telescopes
-            list if the altitude is missing. Only used if file_type is 'miriad'.
+            list if the altitude is missing.
         calc_lst : bool
             Recalculate the LST values that are present within the file, useful in
             cases where the "online" calculate values have precision or value errors.
-            Default is True. Only applies to MIRIAD files.
+            Default is True.
 
+        FHD Parameters
+        --------------
         use_model : bool
             Option to read in the model visibilities rather than the dirty
             visibilities (the default is False, meaning the dirty visibilities
-            will be read). Only used if file_type is 'fhd'.
+            will be read).
 
+        MS Parameters
+        -------------
         data_column : str
             name of CASA data column to read into data_array. Options are:
-            'DATA', 'MODEL', or 'CORRECTED_DATA'. Only used if file_type is 'ms'.
+            'DATA', 'MODEL', or 'CORRECTED_DATA'.
         pol_order : str
             Option to specify polarizations order convention, options are
-            'CASA' or 'AIPS'. Only used if file_type is 'ms'.
+            'CASA' or 'AIPS'.
         ignore_single_chan : bool
             Option to ignore single channel spectral windows in measurement sets to
             limit object size. Some measurement sets (e.g., those from ALMA) use single
@@ -11561,92 +11575,76 @@ class UVData(UVBase):
             to be simultaneously recorded), this can significantly inflate the size and
             memory footprint of UVData objects. By default, single channel windows are
             ignored to avoid this issue, they can be included by setting this parameter
-            to True. Only used if file_type is 'ms'.
+            to True.
         raise_error : bool
             The measurement set format allows for different spectral windows and
             polarizations to have different metdata for the same time-baseline
             combination, but UVData objects do not. If detected, by default the reader
             will throw an error. However, if set to False, the reader will simply give
             a warning, and will use the first value read in the file as the "correct"
-            metadata in the UVData object. Only used if file_type is 'ms'.
+            metadata in the UVData object.
         read_weights : bool
             Read in the weights from the MS file. If false, the method
             will set the `nsamples_array` to the same uniform value (namely 1.0).
-            Only used if file_type is 'ms'.
-
         allow_flex_pol : bool
             If only one polarization per spectral window is read (and the polarization
             differs from window to window), allow for the `UVData` object to use
             "flexible polarization", which compresses the polarization-axis of various
             attributes to be of length 1, sets the `flex_spw_polarization_array`
-            attribute to define the polarization per spectral window. Only applicable
-            for MIR and MS filetypes, otherwise this argument is ignored. Default is
-            True.
+            attribute to define the polarization per spectral window. Default is True.
 
+        UVH5 Parameters
+        ---------------
         multidim_index : bool
-            [Only for HDF5] If True, attempt to index the HDF5 dataset
-            simultaneously along all data axes. Otherwise index one axis at-a-time.
-            This only works if data selection is sliceable along all but one axis.
-            If indices are not well-matched to data chunks, this can be slow.
-
+            If True, attempt to index the HDF5 dataset simultaneously along all data
+            axes. Otherwise index one axis at-a-time. This only works if data selection
+            is sliceable along all but one axis. If indices are not well-matched to
+            data chunks, this can be slow.
         data_array_dtype : numpy dtype
             Datatype to store the output data_array as. Must be either
             np.complex64 (single-precision real and imaginary) or np.complex128 (double-
             precision real and imaginary). Only used if the datatype of the visibility
-            data on-disk is not 'c8' or 'c16'. Only used if file_type is 'uvh5' or
-            'mwa_corr_fits'.
-        nsample_array_dtype : numpy dtype
-            Datatype to store the output nsample_array as. Must be either
-            np.float64 (double-precision), np.float32 (single-precision), or
-            np.float16 (half-precision). Half-precision is only recommended for
-            cases where no sampling or averaging of baselines will occur,
-            because round-off errors can be quite large (~1e-3). Only used if
-            file_type is 'mwa_corr_fits'.
+            data on-disk is not 'c8' or 'c16'.
 
+        MWA FITS Parameters
+        -------------------
         use_aoflagger_flags : bool
             Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
             flag files are submitted.
         use_cotter_flags : bool
             Being replaced by use_aoflagger_flags and will be removed in v2.4.
         remove_dig_gains : bool
-            Only used if file_type is 'mwa_corr_fits'. Option to divide out digital
-            gains.
+            Option to divide out digital gains.
         remove_coarse_band : bool
-            Only used if file_type is 'mwa_corr_fits'. Option to divide out coarse
-            band shape.
+            Option to divide out coarse band shape.
         correct_cable_len : bool
-            Flag to apply cable length correction. Only used if file_type is
-            'mwa_corr_fits'.
+            Flag to apply cable length correction.
         correct_van_vleck : bool
-            Flag to apply a van vleck correction. Only used if file_type is
-            'mwa_corr_fits'.
+            Flag to apply a van vleck correction.
         cheby_approx : bool
-            Only used if file_type is 'mwa_corr_fits' and correct_van_vleck is True.
             Option to implement the van vleck correction with a chebyshev polynomial
             approximation. Set to False to run the integral version of the correction.
+            Only used if correct_van_vleck is True.
         flag_small_auto_ants : bool
-            Only used if correct_van_vleck is True. Option to completely flag any
-            antenna for which the autocorrelation falls below a threshold found by
-            the Van Vleck correction to indicate bad data. Specifically, the
-            threshold used is 0.5 * integration_time * channel_width. If set to False,
-            only the times and frequencies at which the auto is below the
-            threshold will be flagged for the antenna. Only used if file_type is
-            'mwa_corr_fits'.
+            Option to completely flag any antenna for which the autocorrelation falls
+            below a threshold found by the Van Vleck correction to indicate bad data.
+            Specifically, the threshold used is 0.5 * integration_time * channel_width.
+            If set to False, only the times and frequencies at which the auto is below
+            the threshold will be flagged for the antenna.
+            Only used if correct_van_vleck is True.
         flag_small_sig_ants : bool
-            Being replaced by flag_small_auto_ants and will be removed in v2.4.
+            Deprecated, replaced by flag_small_auto_ants and will be removed in v2.4.
         propogate_coarse_flags : bool
             Option to propogate flags for missing coarse channel integrations
-            across frequency. Only used if file_type is 'mwa_corr_fits'.
+            across frequency.
         flag_init: bool
-            Only used if file_type is 'mwa_corr_fits'. Set to True in order to
-            do routine flagging of coarse channel edges, start or end
-            integrations, or the center fine channel of each coarse
-            channel. See associated keywords.
+            Set to True in order to do routine flagging of coarse channel edges, start
+            or end integrations, or the center fine channel of each coarse
+            channel. See associated keywords below.
         edge_width: float
-            Only used if file_type is 'mwa_corr_fits' and flag_init is True. Set
-            to the width to flag on the edge of each coarse channel, in hz.
-            Errors if not equal to integer multiple of channel_width. Set to 0
-            for no edge flagging.
+            Only used if flag_init is True. Set to the width to flag on the edge of
+            each coarse channel, in hz. Errors if not equal to integer multiple of
+            channel_width. Set to 0 for no edge flagging.
         start_flag: float or str
             Only used if flag_init is True. The number of seconds to flag at the
             beginning of the observation. Set to 0 for no flagging. Default is
@@ -11655,33 +11653,48 @@ class UVData(UVBase):
             float or 'goodtime'. Errors if float input is not equal to an
             integer multiple of the integration time.
         end_flag: floats
-            Only used if file_type is 'mwa_corr_fits' and flag_init is True. Set
-            to the number of seconds to flag at the end of the observation. Set
-            to 0 for no flagging. Errors if not an integer multiple of the
-            integration time.
+            Only used if flag_init is True. Set to the number of seconds to flag at the
+            end of the observation. Set to 0 for no flagging. Errors if not an integer
+            multiple of the integration time.
         flag_dc_offset: bool
-            Only used if file_type is 'mwa_corr_fits' and flag_init is True. Set
-            to True to flag the center fine channel of each coarse channel. Only
-            used if file_type is 'mwa_corr_fits'.
+            Only used if flag_init is True. Set to True to flag the center fine channel
+            of each coarse channel.
         remove_flagged_ants : bool
             Option to perform a select to remove antennas flagged in the metafits
             file. If correct_van_vleck and flag_small_auto_ants are both True then
             antennas flagged by the Van Vleck correction are also removed.
-            Only used if file_type is 'mwa_corr_fits'.
         phase_to_pointing_center : bool
-            Flag to phase to the pointing center. Only used if file_type is
-            'mwa_corr_fits'. Cannot be set if phase_center_radec is not None.
+            Flag to phase to the pointing center.  Cannot be set if phase_center_radec
+            is set to a value.
+        data_array_dtype : numpy dtype
+            Datatype to store the output data_array as. Must be either
+            np.complex64 (single-precision real and imaginary) or np.complex128 (double-
+            precision real and imaginary).
+        nsample_array_dtype : numpy dtype
+            Datatype to store the output nsample_array as. Must be either
+            np.float64 (double-precision), np.float32 (single-precision), or
+            np.float16 (half-precision). Half-precision is only recommended for
+            cases where no sampling or averaging of baselines will occur,
+            because round-off errors can be quite large (~1e-3).
 
+        MIR Parameters
+        --------------
         isource : int
-            Source code for MIR dataset
+            Source code for MIR dataset.
         irec : int
-            Receiver code for MIR dataset
+            Receiver code for MIR dataset.
         isb : int
-            Sideband code for MIR dataset
+            Sideband code for MIR dataset.
         corrchunk : int
-            Correlator chunk code for MIR dataset
+            Correlator chunk code for MIR dataset.
         pseudo_cont : boolean
             Read in only pseudo-continuuum values in MIR dataset.
+        allow_flex_pol : bool
+            If only one polarization per spectral window is read (and the polarization
+            differs from window to window), allow for the `UVData` object to use
+            "flexible polarization", which compresses the polarization-axis of various
+            attributes to be of length 1, sets the `flex_spw_polarization_array`
+            attribute to define the polarization per spectral window. Default is True.
 
         Raises
         ------
@@ -11690,8 +11703,6 @@ class UVData(UVBase):
             If incompatible select keywords are set (e.g. `ant_str` with other
             antenna selectors, `times` and `time_range`) or select keywords
             exclude all data or if keywords are set to the wrong type.
-            If the data are multi source or have multiple
-            spectral windows.
             If phase_center_radec is not None and is not length 2.
 
         """
@@ -12358,7 +12369,6 @@ class UVData(UVBase):
         multidim_index=False,
         # uvh5 & mwa_corr_fits
         data_array_dtype=np.complex128,
-        nsample_array_dtype=np.float32,
         # mwa_corr_fits
         use_aoflagger_flags=None,
         use_cotter_flags=None,
@@ -12377,6 +12387,7 @@ class UVData(UVBase):
         flag_dc_offset=True,
         remove_flagged_ants=True,
         phase_to_pointing_center=False,
+        nsample_array_dtype=np.float32,
         # MIR
         isource=None,
         irec=None,
@@ -12386,6 +12397,12 @@ class UVData(UVBase):
     ):
         """
         Initialize a new UVData object by reading the input file.
+
+        This method supports a number of different types of files.
+        Universal parameters (required and optional) are listed directly below,
+        followed by parameters used by all file types related to phasing, selecting on
+        read (partial read) and checking. Each file type also has its own set of
+        optional parameters that are listed at the end of this docstring.
 
         Parameters
         ----------
@@ -12407,10 +12424,9 @@ class UVData(UVBase):
             Allowed values are: 'blt', 'freq', 'polarization'. Only used if
             multiple files are passed.
         read_data : bool
-            Read in the data. Only used if file_type is 'uvfits',
-            'miriad' or 'uvh5'. If set to False, only the metadata will be
-            read in. Setting read_data to False results in a metdata only
-            object.
+            Read in the data. Not used if file_type is 'ms' or 'mir'.
+            If set to False, only the metadata will be read in. Setting read_data to
+            False results in a metdata only object.
         skip_bad_files : bool
             Option when reading multiple files to catch read errors such that
             the read continues even if one or more files are corrupted. Files
@@ -12425,6 +12441,8 @@ class UVData(UVBase):
             raised because of attributes not matching. Doing so effectively adopts the
             name found in the first file read in. Default is False.
 
+        Phase Parameters
+        ----------------
         allow_rephase :  bool
             Allow rephasing of phased file data so that data from files with
             different phasing can be combined.
@@ -12472,6 +12490,8 @@ class UVData(UVBase):
             data on multiple phase centers. By default, this is only done if reading
             in a file with multiple sources.
 
+        Select Parameters
+        -----------------
         antenna_nums : array_like of int, optional
             The antennas numbers to include when reading data into the object
             (antenna positions and names for the removed antennas will be retained
@@ -12538,6 +12558,8 @@ class UVData(UVBase):
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
 
+        Check Parameters
+        ----------------
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -12560,33 +12582,36 @@ class UVData(UVBase):
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
 
-        File-type Specific Parameters
-        -----------------------------
+        Miriad Parameters
+        -----------------
         phase_type : str, optional
-            Option to specify the phasing status of the data. Only used if
-            file_type is 'miriad'. Options are 'drift', 'phased' or None.
-            'drift' means the data are zenith drift data, 'phased' means the
-            data are phased to a single RA/Dec. Default is None
+            Option to specify the phasing status of the data. Options are 'drift',
+            'phased' or None. 'drift' means the data are zenith drift data,
+            'phased' means the data are phased to a single RA/Dec. Default is None
             meaning it will be guessed at based on the file contents.
         correct_lat_lon : bool
             Option to update the latitude and longitude from the known_telescopes
-            list if the altitude is missing. Only used if file_type is 'miriad'.
+            list if the altitude is missing.
         calc_lst : bool
             Recalculate the LST values that are present within the file, useful in
             cases where the "online" calculate values have precision or value errors.
-            Default is True. Only applies to MIRIAD files.
+            Default is True.
 
+        FHD Parameters
+        --------------
         use_model : bool
             Option to read in the model visibilities rather than the dirty
             visibilities (the default is False, meaning the dirty visibilities
-            will be read). Only used if file_type is 'fhd'.
+            will be read).
 
+        MS Parameters
+        -------------
         data_column : str
             name of CASA data column to read into data_array. Options are:
-            'DATA', 'MODEL', or 'CORRECTED_DATA'. Only used if file_type is 'ms'.
+            'DATA', 'MODEL', or 'CORRECTED_DATA'.
         pol_order : str
             Option to specify polarizations order convention, options are
-            'CASA' or 'AIPS'. Only used if file_type is 'ms'.
+            'CASA' or 'AIPS'.
         ignore_single_chan : bool
             Option to ignore single channel spectral windows in measurement sets to
             limit object size. Some measurement sets (e.g., those from ALMA) use single
@@ -12596,92 +12621,76 @@ class UVData(UVBase):
             to be simultaneously recorded), this can significantly inflate the size and
             memory footprint of UVData objects. By default, single channel windows are
             ignored to avoid this issue, they can be included by setting this parameter
-            to True. Only used if file_type is 'ms'.
+            to True.
         raise_error : bool
             The measurement set format allows for different spectral windows and
             polarizations to have different metdata for the same time-baseline
             combination, but UVData objects do not. If detected, by default the reader
             will throw an error. However, if set to False, the reader will simply give
             a warning, and will use the first value read in the file as the "correct"
-            metadata in the UVData object. Only used if file_type is 'ms'.
+            metadata in the UVData object.
         read_weights : bool
             Read in the weights from the MS file. If false, the method
             will set the `nsamples_array` to the same uniform value (namely 1.0).
-            Only used if file_type is 'ms'.
-
         allow_flex_pol : bool
             If only one polarization per spectral window is read (and the polarization
             differs from window to window), allow for the `UVData` object to use
             "flexible polarization", which compresses the polarization-axis of various
             attributes to be of length 1, sets the `flex_spw_polarization_array`
-            attribute to define the polarization per spectral window. Only applicable
-            for MIR and MS filetypes, otherwise this argument is ignored. Default is
-            True.
+            attribute to define the polarization per spectral window. Default is True.
 
+        UVH5 Parameters
+        ---------------
         multidim_index : bool
-            [Only for HDF5] If True, attempt to index the HDF5 dataset
-            simultaneously along all data axes. Otherwise index one axis at-a-time.
-            This only works if data selection is sliceable along all but one axis.
-            If indices are not well-matched to data chunks, this can be slow.
-
+            If True, attempt to index the HDF5 dataset simultaneously along all data
+            axes. Otherwise index one axis at-a-time. This only works if data selection
+            is sliceable along all but one axis. If indices are not well-matched to
+            data chunks, this can be slow.
         data_array_dtype : numpy dtype
             Datatype to store the output data_array as. Must be either
             np.complex64 (single-precision real and imaginary) or np.complex128 (double-
             precision real and imaginary). Only used if the datatype of the visibility
-            data on-disk is not 'c8' or 'c16'. Only used if file_type is 'uvh5' or
-            'mwa_corr_fits'.
-        nsample_array_dtype : numpy dtype
-            Datatype to store the output nsample_array as. Must be either
-            np.float64 (double-precision), np.float32 (single-precision), or
-            np.float16 (half-precision). Half-precision is only recommended for
-            cases where no sampling or averaging of baselines will occur,
-            because round-off errors can be quite large (~1e-3). Only used if
-            file_type is 'mwa_corr_fits'.
+            data on-disk is not 'c8' or 'c16'.
 
+        MWA FITS Parameters
+        -------------------
         use_aoflagger_flags : bool
             Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
             flag files are submitted.
         use_cotter_flags : bool
             Being replaced by use_aoflagger_flags and will be removed in v2.4.
         remove_dig_gains : bool
-            Only used if file_type is 'mwa_corr_fits'. Option to divide out digital
-            gains.
+            Option to divide out digital gains.
         remove_coarse_band : bool
-            Only used if file_type is 'mwa_corr_fits'. Option to divide out coarse
-            band shape.
+            Option to divide out coarse band shape.
         correct_cable_len : bool
-            Flag to apply cable length correction. Only used if file_type is
-            'mwa_corr_fits'.
+            Flag to apply cable length correction.
         correct_van_vleck : bool
-            Flag to apply a van vleck correction. Only used if file_type is
-            'mwa_corr_fits'.
+            Flag to apply a van vleck correction.
         cheby_approx : bool
-            Only used if file_type is 'mwa_corr_fits' and correct_van_vleck is True.
             Option to implement the van vleck correction with a chebyshev polynomial
             approximation. Set to False to run the integral version of the correction.
+            Only used if correct_van_vleck is True.
         flag_small_auto_ants : bool
-            Only used if correct_van_vleck is True. Option to completely flag any
-            antenna for which the autocorrelation falls below a threshold found by
-            the Van Vleck correction to indicate bad data. Specifically, the
-            threshold used is 0.5 * integration_time * channel_width. If set to False,
-            only the times and frequencies at which the auto is below the
-            threshold will be flagged for the antenna. Only used if file_type is
-            'mwa_corr_fits'.
+            Option to completely flag any antenna for which the autocorrelation falls
+            below a threshold found by the Van Vleck correction to indicate bad data.
+            Specifically, the threshold used is 0.5 * integration_time * channel_width.
+            If set to False, only the times and frequencies at which the auto is below
+            the threshold will be flagged for the antenna.
+            Only used if correct_van_vleck is True.
         flag_small_sig_ants : bool
-            Being replaced by flag_small_auto_ants and will be removed in v2.4.
+            Deprecated, replaced by flag_small_auto_ants and will be removed in v2.4.
         propogate_coarse_flags : bool
             Option to propogate flags for missing coarse channel integrations
-            across frequency. Only used if file_type is 'mwa_corr_fits'.
+            across frequency.
         flag_init: bool
-            Only used if file_type is 'mwa_corr_fits'. Set to True in order to
-            do routine flagging of coarse channel edges, start or end
-            integrations, or the center fine channel of each coarse
-            channel. See associated keywords.
+            Set to True in order to do routine flagging of coarse channel edges, start
+            or end integrations, or the center fine channel of each coarse
+            channel. See associated keywords below.
         edge_width: float
-            Only used if file_type is 'mwa_corr_fits' and flag_init is True. Set
-            to the width to flag on the edge of each coarse channel, in hz.
-            Errors if not equal to integer multiple of channel_width. Set to 0
-            for no edge flagging.
+            Only used if flag_init is True. Set to the width to flag on the edge of
+            each coarse channel, in hz. Errors if not equal to integer multiple of
+            channel_width. Set to 0 for no edge flagging.
         start_flag: float or str
             Only used if flag_init is True. The number of seconds to flag at the
             beginning of the observation. Set to 0 for no flagging. Default is
@@ -12690,33 +12699,48 @@ class UVData(UVBase):
             float or 'goodtime'. Errors if float input is not equal to an
             integer multiple of the integration time.
         end_flag: floats
-            Only used if file_type is 'mwa_corr_fits' and flag_init is True. Set
-            to the number of seconds to flag at the end of the observation. Set
-            to 0 for no flagging. Errors if not an integer multiple of the
-            integration time.
+            Only used if flag_init is True. Set to the number of seconds to flag at the
+            end of the observation. Set to 0 for no flagging. Errors if not an integer
+            multiple of the integration time.
         flag_dc_offset: bool
-            Only used if file_type is 'mwa_corr_fits' and flag_init is True. Set
-            to True to flag the center fine channel of each coarse channel. Only
-            used if file_type is 'mwa_corr_fits'.
+            Only used if flag_init is True. Set to True to flag the center fine channel
+            of each coarse channel.
         remove_flagged_ants : bool
             Option to perform a select to remove antennas flagged in the metafits
             file. If correct_van_vleck and flag_small_auto_ants are both True then
             antennas flagged by the Van Vleck correction are also removed.
-            Only used if file_type is 'mwa_corr_fits'.
         phase_to_pointing_center : bool
-            Flag to phase to the pointing center. Only used if file_type is
-            'mwa_corr_fits'. Cannot be set if phase_center_radec is not None.
+            Flag to phase to the pointing center.  Cannot be set if phase_center_radec
+            is set to a value.
+        data_array_dtype : numpy dtype
+            Datatype to store the output data_array as. Must be either
+            np.complex64 (single-precision real and imaginary) or np.complex128 (double-
+            precision real and imaginary).
+        nsample_array_dtype : numpy dtype
+            Datatype to store the output nsample_array as. Must be either
+            np.float64 (double-precision), np.float32 (single-precision), or
+            np.float16 (half-precision). Half-precision is only recommended for
+            cases where no sampling or averaging of baselines will occur,
+            because round-off errors can be quite large (~1e-3).
 
+        MIR Parameters
+        --------------
         isource : int
-            Source code for MIR dataset
+            Source code for MIR dataset.
         irec : int
-            Receiver code for MIR dataset
+            Receiver code for MIR dataset.
         isb : int
-            Sideband code for MIR dataset
+            Sideband code for MIR dataset.
         corrchunk : int
-            Correlator chunk code for MIR dataset
+            Correlator chunk code for MIR dataset.
         pseudo_cont : boolean
             Read in only pseudo-continuuum values in MIR dataset.
+        allow_flex_pol : bool
+            If only one polarization per spectral window is read (and the polarization
+            differs from window to window), allow for the `UVData` object to use
+            "flexible polarization", which compresses the polarization-axis of various
+            attributes to be of length 1, sets the `flex_spw_polarization_array`
+            attribute to define the polarization per spectral window. Default is True.
 
         Raises
         ------
@@ -12725,8 +12749,6 @@ class UVData(UVBase):
             If incompatible select keywords are set (e.g. `ant_str` with other
             antenna selectors, `times` and `time_range`) or select keywords
             exclude all data or if keywords are set to the wrong type.
-            If the data are multi source or have multiple
-            spectral windows.
             If phase_center_radec is not None and is not length 2.
 
         """
