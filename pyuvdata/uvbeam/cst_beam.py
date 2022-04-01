@@ -70,6 +70,8 @@ class CSTBeam(UVBeam):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        check_auto_power=True,
+        fix_auto_power=True,
     ):
         """
         Read in data from a cst file.
@@ -123,6 +125,12 @@ class CSTBeam(UVBeam):
         run_check_acceptability : bool
             Option to check acceptable range of the values of
             required parameters after reading in the file.
+        check_auto_power : bool
+            For power beams, check whether the auto polarization beams have non-zero
+            imaginary values in the data_array (which should not mathematically exist).
+        fix_auto_power : bool
+            For power beams, if auto polarization beams with imaginary values are found,
+            fix those values so that they are real-only in data_array.
 
         """
         # update filename attribute
@@ -351,5 +359,8 @@ class CSTBeam(UVBeam):
 
         if run_check:
             self.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                check_auto_power=check_auto_power,
+                fix_auto_power=fix_auto_power,
             )
