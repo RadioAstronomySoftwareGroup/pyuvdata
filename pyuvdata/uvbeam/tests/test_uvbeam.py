@@ -1547,14 +1547,10 @@ def test_select_feeds(cst_efield_1freq):
 @pytest.mark.parametrize(
     "pols_to_keep", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]])
 )
-def test_select_polarizations(pols_to_keep, cst_power_1freq):
-    power_beam = cst_power_1freq
-
-    # generate more polarizations for testing by copying and adding several times
-    while power_beam.Npols < 4:
-        new_beam = power_beam.copy()
-        new_beam.polarization_array = power_beam.polarization_array - power_beam.Npols
-        power_beam += new_beam
+def test_select_polarizations(pols_to_keep, cst_efield_1freq):
+    # generate more polarizations for testing by using efield and keeping cross-pols
+    power_beam = cst_efield_1freq
+    power_beam.efield_to_power()
 
     # add optional parameters for testing purposes
     power_beam.extra_keywords = {"KEY1": "test_keyword"}
@@ -1602,14 +1598,10 @@ def test_select_polarizations(pols_to_keep, cst_power_1freq):
     )
 
 
-def test_select_polarizations_errors(cst_power_1freq):
-    power_beam = cst_power_1freq
-
-    # generate more polarizations for testing by copying and adding several times
-    while power_beam.Npols < 4:
-        new_beam = power_beam.copy()
-        new_beam.polarization_array = power_beam.polarization_array - power_beam.Npols
-        power_beam += new_beam
+def test_select_polarizations_errors(cst_efield_1freq):
+    # generate more polarizations for testing by using efield and keeping cross-pols
+    power_beam = cst_efield_1freq
+    power_beam.efield_to_power()
 
     # check for errors associated with polarizations not included in data
     with pytest.raises(
@@ -1632,6 +1624,18 @@ def test_select_polarizations_errors(cst_power_1freq):
     # check for error with selecting on feeds on power beams
     with pytest.raises(ValueError, match="feeds cannot be used with power beams"):
         power_beam.select(feeds=["x"])
+
+    # check for error with complex auto pols
+    power_beam.data_array[:, :, 0] = power_beam.data_array[:, :, 2]
+    with uvtest.check_warnings(
+        UserWarning,
+        match="Polarization select should result in a real array but the "
+        "imaginary part is not zero.",
+    ):
+        with pytest.raises(
+            ValueError, match="UVParameter _data_array is not the appropriate type"
+        ):
+            power_beam.select(polarizations=[-5, -6])
 
 
 def test_select(cst_power_1freq, cst_efield_1freq):
@@ -1883,7 +1887,7 @@ def test_add(cst_power_1freq, cst_efield_1freq):
     assert beam1 == power_beam
 
     # Add feeds
-    efield_beam = cst_efield_1freq
+    efield_beam = cst_efield_1freq.copy()
 
     # generate more frequencies for testing by copying and adding
     new_beam = efield_beam.copy()
@@ -1991,6 +1995,10 @@ def test_add(cst_power_1freq, cst_efield_1freq):
     assert beam1, beam_ref
 
     # Check warnings
+    # generate more polarizations for testing by using efield and keeping cross-pols
+    power_beam = cst_efield_1freq.copy()
+    power_beam.efield_to_power()
+
     # generate more frequencies for testing by copying and adding several times
     while power_beam.Nfreqs < 8:
         new_beam = power_beam.copy()
@@ -2003,12 +2011,6 @@ def test_add(cst_power_1freq, cst_efield_1freq):
         UserWarning, "Combined frequencies are not evenly spaced"
     ):
         beam1.__add__(beam2)
-
-    # generate more polarizations for testing by copying and adding several times
-    while power_beam.Npols < 4:
-        new_beam = power_beam.copy()
-        new_beam.polarization_array = power_beam.polarization_array - power_beam.Npols
-        power_beam += new_beam
 
     power_beam.receiver_temperature_array = np.ones((1, 8))
     beam1 = power_beam.select(
