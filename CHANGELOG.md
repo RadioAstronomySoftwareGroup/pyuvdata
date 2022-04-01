@@ -5,17 +5,27 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added new functionality to `UVBeam.check` to verify that power beams for the auto
+polarizations (and pstokes) are real-only, along with an option to force them to be
+real-only if non-zero imaginary components are detected.
 - Coarse band correction for mwax to `mwa_corr_fits`
 - Reordering methods for UVCal: `reorder_antennas`, `reorder_freqs`, `reorder_times`
 and `reorder_jones`.
 
 ### Changed
+- Methods that ensure that attributes are set up properly on `UVBeam` are now called in
+the `UVBeam.check` method, making it easier to fill in UVBeam objects from scratch.
 - The `spw_order` parameter for the `UVData.reorder_freqs` method now accepts an index
 array rather than an array of spw numbers, making it match the other reorder methods.
 - Updated the astropy requirement to >= 5.0.4
 - Dropped support for python 3.7
 
 ### Fixed
+- A bug in `UVBeam.select` where after selecting down to only auto polarization power
+beams the `UVBeam.data_array` remained complex instead of real.
+- A bug in `UVBeam.__add__` where adding an object with cross pol power beams to an
+object with only auto pol power beams could result in loss of the imaginary part of the
+cross pol power beams.
 - Testing of piping keywords through `read` by `test_mwa_corr_fits`.
 - Incorrect piping of `flag_dc_offset` keyword.
 - `mwa_corr_fits` handing of the `BSCALE` keyword in gpubox files.
