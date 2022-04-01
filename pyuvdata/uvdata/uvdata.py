@@ -2598,7 +2598,7 @@ class UVData(UVBase):
 
         # Only these pols have "true" auto-correlations, that we'd expect
         # to be real only. Select on only them
-        auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pQ", "pV"]
+        auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pU", "pV"]
         pol_screen = np.array(
             [
                 uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
@@ -2814,7 +2814,7 @@ class UVData(UVBase):
                 # Verify here that the autos do not have any imaginary components
                 # Only these pols have "true" auto-correlations, that we'd expect
                 # to be real only. Select on only them
-                auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pQ", "pV"]
+                auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pU", "pV"]
                 pol_screen = np.array(
                     [
                         uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list

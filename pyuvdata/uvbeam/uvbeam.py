@@ -470,13 +470,13 @@ class UVBeam(UVBase):
         desc = (
             'Required if antenna_type = "phased_array". Matrix of complex '
             "element couplings, units: dB, "
-            "shape: (Nelements, Nelements, Nfeed, Nfeed, Nspws, Nfreqs)"
+            "shape: (Nelements, Nelements, Nfeeds, Nfeeds, Nspws, Nfreqs)"
         )
         self._coupling_matrix = uvp.UVParameter(
             "coupling_matrix",
             required=False,
             description=desc,
-            form=("Nelements", "Nelements", "Nfeed", "Nfeed", "Nspws", "Nfreqs"),
+            form=("Nelements", "Nelements", "Nfeeds", "Nfeeds", "Nspws", "Nfreqs"),
             expected_type=complex,
         )
 
@@ -700,7 +700,7 @@ class UVBeam(UVBase):
         # If cross pols are included, the power beam is complex. Otherwise it's real
         self._data_array.expected_type = float
         for pol in self.polarization_array:
-            if pol in [3, 4, -3, -4, -7, -8]:
+            if pol in [-3, -4, -7, -8]:
                 self._data_array.expected_type = complex
 
         # call set_cs_params to fix data_array form
@@ -742,8 +742,16 @@ class UVBeam(UVBase):
 
         """
         # first make sure the required parameters and forms are set properly
-        # for the pixel_coordinate_system
-        self._set_cs_params()
+        # _set_cs_params is called by _set_efield/_set_power
+        if self.beam_type == "efield":
+            self._set_efield()
+        elif self.beam_type == "power":
+            self._set_power()
+
+        if self.antenna_type == "simple":
+            self._set_simple()
+        elif self.antenna_type == "phased_array":
+            self._set_phased_array()
 
         # first run the basic check from UVBase
         super(UVBeam, self).check(
@@ -1090,6 +1098,11 @@ class UVBeam(UVBase):
                 power_data[:, :, pol_i, fq_i, :] = self._construct_mueller(
                     jones, pol_i, pol_i
                 )
+        assert not np.any(np.iscomplex(power_data)), (
+            "The calculated pstokes beams are complex but should be real. This is a "
+            "bug, please report it in our issue log"
+        )
+        power_data = np.abs(power_data)
 
         if self.pixel_coordinate_system != "healpix":
             power_data = power_data.reshape(power_data.shape[:-1] + (Naxes2, Naxes1))
@@ -2457,6 +2470,7 @@ class UVBeam(UVBase):
             data_zero_pad = np.zeros(data_pad_dims)
 
             if this.beam_type == "power":
+                initial_pol_array = this.polarization_array.copy()
                 this.polarization_array = np.concatenate(
                     [this.polarization_array, other.polarization_array[pnew_inds]]
                 )
@@ -2479,6 +2493,15 @@ class UVBeam(UVBase):
             pol_t2o = np.nonzero(
                 np.in1d(this.polarization_array, other.polarization_array)
             )[0]
+
+            if len(pnew_inds) > 0:
+                # if this does not have cross pols but other does promote to complex
+                cross_pols = [-3, -4, -7, -8]
+                if (
+                    np.intersect1d(other.polarization_array, cross_pols).size > 0
+                    and np.intersect1d(initial_pol_array, cross_pols).size == 0
+                ):
+                    this.data_array = np.asarray(this.data_array, dtype=complex)
         else:
             this.Nfeeds = this.feed_array.shape[0]
             pol_t2o = np.nonzero(np.in1d(this.feed_array, other.feed_array))[0]
@@ -2890,9 +2913,12 @@ class UVBeam(UVBase):
                         " polarization_array".format(p=p)
                     )
 
+            initial_pols = beam_object.polarization_array.copy()
+            final_pols = beam_object.polarization_array[pol_inds]
+
             pol_inds = sorted(set(pol_inds))
             beam_object.Npols = len(pol_inds)
-            beam_object.polarization_array = beam_object.polarization_array[pol_inds]
+            beam_object.polarization_array = final_pols
 
             if len(pol_inds) > 2:
                 pol_separation = (
@@ -2909,6 +2935,21 @@ class UVBeam(UVBase):
                 beam_object.data_array = beam_object.data_array[:, :, pol_inds, :, :]
             else:
                 beam_object.data_array = beam_object.data_array[:, :, pol_inds, :, :, :]
+
+            cross_pols = [-3, -4, -7, -8]
+            if (
+                np.intersect1d(initial_pols, cross_pols).size > 0
+                and np.intersect1d(final_pols, cross_pols).size == 0
+            ):
+                # selecting from object with cross-pols down to non-cross pols so
+                # data_array should become real
+                if np.any(np.iscomplex(beam_object.data_array)):
+                    warnings.warn(
+                        "Polarization select should result in a real array but the "
+                        "imaginary part is not zero."
+                    )
+                else:
+                    beam_object.data_array = np.abs(beam_object.data_array)
 
         history_update_string += " using pyuvdata."
         beam_object.history = beam_object.history + history_update_string
