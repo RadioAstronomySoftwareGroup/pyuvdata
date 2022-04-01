@@ -726,7 +726,39 @@ class UVBeam(UVBase):
         self._gain_array.required = True
         self._coupling_matrix.required = True
 
-    def check(self, check_extra=True, run_check_acceptability=True):
+    def _fix_auto_power(self):
+        """Remove imaginary component of auto polarization power beams."""
+        if self.beam_type != "power" or self.polarization_array is None:
+            warnings.warn(
+                "Cannot use _fix_autos if beam_type is not 'power', or "
+                "polarization_array is None. Leaving data_array untouched."
+            )
+            return
+
+        auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pU", "pV"]
+        pol_screen = np.array(
+            [
+                uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
+                for pol in self.polarization_array
+            ]
+        )
+
+        # Set any auto pol beams to be real-only by taking the absolute value
+        if np.all(pol_screen):
+            # If we only have auto pol beams the data_array should be float not complex
+            self.data_array = np.abs(self.data_array)
+        elif np.any(pol_screen):
+            self.data_array[:, :, pol_screen] = np.abs(
+                self.data_array[:, :, pol_screen]
+            )
+
+    def check(
+        self,
+        check_extra=True,
+        run_check_acceptability=True,
+        check_auto_power=False,
+        fix_auto_power=False,
+    ):
         """
         Check that all required parameters are set reasonably.
 
@@ -739,6 +771,12 @@ class UVBeam(UVBase):
             Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check if values in required parameters are acceptable.
+        check_auto_power : bool
+            For power beams, check whether the auto polarization beams have non-zero
+            imaginary values in the data_array (which should not mathematically exist).
+        fix_auto_power : bool
+            For power beams, if auto polarization beams with imaginary values are found,
+            fix those values so that they are real-only in data_array.
 
         """
         # first make sure the required parameters and forms are set properly
@@ -752,6 +790,37 @@ class UVBeam(UVBase):
             self._set_simple()
         elif self.antenna_type == "phased_array":
             self._set_phased_array()
+
+        if (
+            self.beam_type == "power"
+            and run_check_acceptability
+            and check_auto_power
+            and self.polarization_array is not None
+        ):
+            # Verify here that the auto polarization power beams do not have any
+            # imaginary components
+            auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pU", "pV"]
+            pol_screen = np.array(
+                [
+                    uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
+                    for pol in self.polarization_array
+                ]
+            )
+            if np.any(pol_screen) and np.any(
+                np.iscomplex(self.data_array[:, :, pol_screen])
+            ):
+                if fix_auto_power:
+                    warnings.warn(
+                        "Fixing auto polarization power beams to be be real-only, "
+                        "after some imaginary values were detected in data_array."
+                    )
+                    self._fix_auto_power()
+                else:
+                    raise ValueError(
+                        "Some auto polarization power beams have non-real values in "
+                        "data_array. You can attempt to fix this by setting "
+                        "fix_auto_power=True."
+                    )
 
         # first run the basic check from UVBase
         super(UVBeam, self).check(
@@ -2981,7 +3050,13 @@ class UVBeam(UVBase):
         return other_obj
 
     def read_beamfits(
-        self, filename, run_check=True, check_extra=True, run_check_acceptability=True
+        self,
+        filename,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        check_auto_power=True,
+        fix_auto_power=True,
     ):
         """
         Read in data from a beamfits file.
@@ -2998,6 +3073,12 @@ class UVBeam(UVBase):
         run_check_acceptabilit : bool
             Option to check acceptable range of the values of
             required parameters after reading in the file.
+        check_auto_power : bool
+            For power beams, check whether the auto polarization beams have non-zero
+            imaginary values in the data_array (which should not mathematically exist).
+        fix_auto_power : bool
+            For power beams, if auto polarization beams with imaginary values are found,
+            fix those values so that they are real-only in data_array.
 
         """
         from . import beamfits
@@ -3008,6 +3089,8 @@ class UVBeam(UVBase):
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
+                check_auto_power=check_auto_power,
+                fix_auto_power=fix_auto_power,
             )
             if len(filename) > 1:
                 for f in filename[1:]:
@@ -3017,6 +3100,8 @@ class UVBeam(UVBase):
                         run_check=run_check,
                         check_extra=check_extra,
                         run_check_acceptability=run_check_acceptability,
+                        check_auto_power=check_auto_power,
+                        fix_auto_power=fix_auto_power,
                     )
                     self += beam2
                 del beam2
@@ -3027,6 +3112,8 @@ class UVBeam(UVBase):
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
+                check_auto_power=check_auto_power,
+                fix_auto_power=fix_auto_power,
             )
             self._convert_from_filetype(beamfits_obj)
             del beamfits_obj
@@ -3092,6 +3179,8 @@ class UVBeam(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        check_auto_power=True,
+        fix_auto_power=True,
     ):
         """
         Read in data from a cst file.
@@ -3174,6 +3263,12 @@ class UVBeam(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of
             required parameters after reading in the file.
+        check_auto_power : bool
+            For power beams, check whether the auto polarization beams have non-zero
+            imaginary values in the data_array (which should not mathematically exist).
+        fix_auto_power : bool
+            For power beams, if auto polarization beams with imaginary values are found,
+            fix those values so that they are real-only in data_array.
 
         """
         from . import cst_beam
@@ -3379,6 +3474,8 @@ class UVBeam(UVBase):
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
+                check_auto_power=check_auto_power,
+                fix_auto_power=fix_auto_power,
             )
             for file_i, f in enumerate(cst_filename[1:]):
                 if isinstance(f, (list, tuple)):
@@ -3413,6 +3510,8 @@ class UVBeam(UVBase):
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
+                    check_auto_power=check_auto_power,
+                    fix_auto_power=fix_auto_power,
                 )
                 self += beam2
             if len(cst_filename) > 1:
@@ -3443,6 +3542,8 @@ class UVBeam(UVBase):
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
+                check_auto_power=check_auto_power,
+                fix_auto_power=fix_auto_power,
             )
             self._convert_from_filetype(cst_beam_obj)
             del cst_beam_obj
@@ -3463,6 +3564,8 @@ class UVBeam(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        check_auto_power=True,
+        fix_auto_power=True,
     ):
         """
         Read in the full embedded element MWA beam.
@@ -3498,6 +3601,12 @@ class UVBeam(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of
             required parameters after reading in the file.
+        check_auto_power : bool
+            For power beams, check whether the auto polarization beams have non-zero
+            imaginary values in the data_array (which should not mathematically exist).
+        fix_auto_power : bool
+            For power beams, if auto polarization beams with imaginary values are found,
+            fix those values so that they are real-only in data_array.
 
         """
         from . import mwa_beam
@@ -3512,6 +3621,8 @@ class UVBeam(UVBase):
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
+            check_auto_power=check_auto_power,
+            fix_auto_power=fix_auto_power,
         )
         self._convert_from_filetype(mwabeam_obj)
         del mwabeam_obj
@@ -3545,6 +3656,8 @@ class UVBeam(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        check_auto_power=True,
+        fix_auto_power=True,
     ):
         """
         Read a generic file into a UVBeam object.
@@ -3669,6 +3782,12 @@ class UVBeam(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
+        check_auto_power : bool
+            For power beams, check whether the auto polarization beams have non-zero
+            imaginary values in the data_array (which should not mathematically exist).
+        fix_auto_power : bool
+            For power beams, if auto polarization beams with imaginary values are found,
+            fix those values so that they are real-only in data_array.
 
         Raises
         ------
@@ -3723,6 +3842,8 @@ class UVBeam(UVBase):
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
+                check_auto_power=check_auto_power,
+                fix_auto_power=fix_auto_power,
             )
         else:
             if multi:
@@ -3763,6 +3884,8 @@ class UVBeam(UVBase):
                             run_check=run_check,
                             check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability,
+                            check_auto_power=check_auto_power,
+                            fix_auto_power=fix_auto_power,
                         )
                         unread = False
                     except ValueError as err:
@@ -3808,6 +3931,8 @@ class UVBeam(UVBase):
                                 run_check=run_check,
                                 check_extra=check_extra,
                                 run_check_acceptability=run_check_acceptability,
+                                check_auto_power=check_auto_power,
+                                fix_auto_power=fix_auto_power,
                             )
                             beam_list.append(beam2)
                         except ValueError as err:
@@ -3850,6 +3975,8 @@ class UVBeam(UVBase):
                         run_check=run_check,
                         check_extra=check_extra,
                         run_check_acceptability=run_check_acceptability,
+                        check_auto_power=check_auto_power,
+                        fix_auto_power=fix_auto_power,
                     )
                 elif file_type == "beamfits":
 
@@ -3858,6 +3985,8 @@ class UVBeam(UVBase):
                         run_check=run_check,
                         check_extra=check_extra,
                         run_check_acceptability=run_check_acceptability,
+                        check_auto_power=check_auto_power,
+                        fix_auto_power=fix_auto_power,
                     )
 
     @classmethod
@@ -3890,6 +4019,8 @@ class UVBeam(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        check_auto_power=True,
+        fix_auto_power=True,
     ):
         """
         Initialize a new UVBeam object by reading the input file(s).
@@ -4014,6 +4145,12 @@ class UVBeam(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
+        check_auto_power : bool
+            For power beams, check whether the auto polarization beams have non-zero
+            imaginary values in the data_array (which should not mathematically exist).
+        fix_auto_power : bool
+            For power beams, if auto polarization beams with imaginary values are found,
+            fix those values so that they are real-only in data_array.
 
         Raises
         ------
@@ -4049,6 +4186,8 @@ class UVBeam(UVBase):
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
+            check_auto_power=check_auto_power,
+            fix_auto_power=fix_auto_power,
         )
         return uvbeam
 
@@ -4058,6 +4197,8 @@ class UVBeam(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        check_auto_power=True,
+        fix_auto_power=False,
         clobber=False,
     ):
         """
@@ -4076,6 +4217,12 @@ class UVBeam(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of
             required parameters before writing the file.
+        check_auto_power : bool
+            For power beams, check whether the auto polarization beams have non-zero
+            imaginary values in the data_array (which should not mathematically exist).
+        fix_auto_power : bool
+            For power beams, if auto polarization beams with imaginary values are found,
+            fix those values so that they are real-only in data_array.
         clobber : bool
             Option to overwrite the filename if the file already exists.
 
@@ -4086,6 +4233,8 @@ class UVBeam(UVBase):
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
+            check_auto_power=check_auto_power,
+            fix_auto_power=fix_auto_power,
             clobber=clobber,
         )
         del beamfits_obj

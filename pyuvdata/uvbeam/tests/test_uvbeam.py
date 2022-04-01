@@ -261,6 +261,43 @@ def test_errors():
         beam_obj._convert_to_filetype("foo")
 
 
+def test_check_auto_power(cst_efield_2freq_cut):
+    power_beam = cst_efield_2freq_cut.copy()
+    power_beam.efield_to_power()
+
+    power_beam.data_array[:, :, 0] += power_beam.data_array[:, :, 2]
+    with pytest.raises(
+        ValueError,
+        match="Some auto polarization power beams have non-real values in "
+        "data_array. You can attempt to fix this by setting fix_auto_power=True.",
+    ):
+        power_beam.check(check_auto_power=True)
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match="Fixing auto polarization power beams to be be real-only, "
+        "after some imaginary values were detected in data_array.",
+    ):
+        power_beam.check(check_auto_power=True, fix_auto_power=True)
+    power_beam.check(check_auto_power=True)
+
+    power_beam2 = power_beam.select(polarizations=[-5, -7], inplace=False)
+    power_beam2.polarization_array = [-5, -6]
+    with uvtest.check_warnings(
+        UserWarning,
+        match="Fixing auto polarization power beams to be be real-only, "
+        "after some imaginary values were detected in data_array.",
+    ):
+        power_beam2.check(check_auto_power=True, fix_auto_power=True)
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match="Cannot use _fix_autos if beam_type is not 'power', or "
+        "polarization_array is None. Leaving data_array untouched.",
+    ):
+        cst_efield_2freq_cut._fix_auto_power()
+
+
 def test_peak_normalize(cst_efield_2freq, cst_power_2freq):
     efield_beam = cst_efield_2freq
 
