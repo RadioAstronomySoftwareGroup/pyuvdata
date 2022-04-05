@@ -41,12 +41,12 @@ parameters for common beam pixel and E-field coordinate systems include:
     are labeled. UVBeam uses azimuth running from East to North. If +x points to East,
     +y points to North and +z points to the zenith:
 
-    - ``basis_vector_array[0, 0, az, za] = sin(az)``
+    - ``basis_vector_array[0, 0, az, za] = -sin(az)``
     - ``basis_vector_array[0, 1, az, za] = cos(az)``
     - ``basis_vector_array[0, 2, az, za] = 0``
     - ``basis_vector_array[1, 0, az, za] = cos(za)cos(az)``
     - ``basis_vector_array[1, 1, az, za] = cos(za)sin(az)``
-    - ``basis_vector_array[1, 2, az, za] = sin(za)``
+    - ``basis_vector_array[1, 2, az, za] = -sin(za)``
 
 - pixels in an azimuth and zenith angle Healpix map (with zenith at the north pole) with
   E-field in components aligned with azimuth and zenith angle in each pixel.
