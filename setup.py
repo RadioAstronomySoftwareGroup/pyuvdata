@@ -135,7 +135,7 @@ setup_args = {
     "use_scm_version": {"local_scheme": branch_scheme},
     "include_package_data": True,
     "install_requires": [
-        "astropy>=4.2.1",
+        "astropy>=5.0.4",
         "h5py>=3.0",
         "numpy>=1.18",
         "pyerfa>=2.0",
