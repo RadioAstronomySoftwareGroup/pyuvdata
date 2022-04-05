@@ -157,16 +157,16 @@ workflows:
   build_and_test:
     jobs:
       - pyuvdata:
-          name: pyuvdata_3.7
-          python_version: "3.7"
-          env_name: "pyuvdata_tests"
-      - pyuvdata:
           name: pyuvdata_3.8
           python_version: "3.8"
           env_name: "pyuvdata_tests"
       - pyuvdata:
           name: pyuvdata_3.9
           python_version: "3.9"
+          env_name: "pyuvdata_tests"
+      - pyuvdata:
+          name: pyuvdata_3.10
+          python_version: "3.10"
           env_name: "pyuvdata_tests"
       - pyuvdata:
           name: pyuvdata_min_deps

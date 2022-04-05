@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - astropy
+  - astropy>=5.0.4
   - numpy
   - scipy
   - h5py>=3.0

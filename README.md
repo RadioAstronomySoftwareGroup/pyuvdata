@@ -141,7 +141,7 @@ Note that as of v2.2, `pyuvdata` is only supported on python 3.7+.
 
 Required:
 
-* astropy >= 4.2.1
+* astropy >= 5.0.4
 * h5py >= 3.0
 * numpy >= 1.18
 * pyerfa >= 2.0

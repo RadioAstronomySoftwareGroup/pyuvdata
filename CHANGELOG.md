@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+
+## Changed
+- Updated the astropy requirement to >= 5.0.4
+- Dropped support for python 3.7
+
 ### Fixed
 - Testing of piping keywords through `read` by `test_mwa_corr_fits`.
 - Incorrect piping of `flag_dc_offset` keyword.
