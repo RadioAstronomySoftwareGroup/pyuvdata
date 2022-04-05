@@ -11283,7 +11283,7 @@ class UVData(UVBase):
         fix_old_proj=None,
         fix_use_ant_pos=True,
         make_multi_phase=False,
-        # select parameters
+        # selecting parameters
         antenna_nums=None,
         antenna_names=None,
         ant_str=None,
@@ -11304,7 +11304,7 @@ class UVData(UVBase):
         strict_uvw_antpos_check=False,
         check_autos=True,
         fix_autos=True,
-        # start file-type specific parameters
+        # file-type specific parameters
         # miriad
         phase_type=None,
         correct_lat_lon=True,
@@ -11363,8 +11363,8 @@ class UVData(UVBase):
         filename : str or array_like of str
             The file(s) or list(s) (or array(s)) of files to read from.
         file_type : str
-            One of ['uvfits', 'miriad', 'fhd', 'ms', 'uvh5'] or None.
-            If None, the code attempts to guess what the file type is.
+            One of ['uvfits', 'miriad', 'ms', 'uvh5', 'fhd', 'mwa_corr_fits', 'mir']
+            or None. If None, the code attempts to guess what the file type is.
             For miriad and ms types, this is based on the standard directory
             structure. For FHD, uvfits and uvh5 files it's based on file
             extensions (FHD: .sav, .txt; uvfits: .uvfits; uvh5: .uvh5).
@@ -11395,8 +11395,8 @@ class UVData(UVBase):
             raised because of attributes not matching. Doing so effectively adopts the
             name found in the first file read in. Default is False.
 
-        Phase Parameters
-        ----------------
+        Phasing
+        -------
         allow_rephase :  bool
             Allow rephasing of phased file data so that data from files with
             different phasing can be combined.
@@ -11444,8 +11444,8 @@ class UVData(UVBase):
             data on multiple phase centers. By default, this is only done if reading
             in a file with multiple sources.
 
-        Select Parameters
-        -----------------
+        Selecting
+        ---------
         antenna_nums : array_like of int, optional
             The antennas numbers to include when reading data into the object
             (antenna positions and names for the removed antennas will be retained
@@ -11512,8 +11512,8 @@ class UVData(UVBase):
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
 
-        Check Parameters
-        ----------------
+        Checking
+        --------
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -11536,8 +11536,8 @@ class UVData(UVBase):
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
 
-        Miriad Parameters
-        -----------------
+        Miriad
+        ------
         phase_type : str, optional
             Option to specify the phasing status of the data. Options are 'drift',
             'phased' or None. 'drift' means the data are zenith drift data,
@@ -11551,15 +11551,15 @@ class UVData(UVBase):
             cases where the "online" calculate values have precision or value errors.
             Default is True.
 
-        FHD Parameters
-        --------------
+        FHD
+        ---
         use_model : bool
             Option to read in the model visibilities rather than the dirty
             visibilities (the default is False, meaning the dirty visibilities
             will be read).
 
-        MS Parameters
-        -------------
+        MS
+        --
         data_column : str
             name of CASA data column to read into data_array. Options are:
             'DATA', 'MODEL', or 'CORRECTED_DATA'.
@@ -11593,8 +11593,8 @@ class UVData(UVBase):
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window. Default is True.
 
-        UVH5 Parameters
-        ---------------
+        UVH5
+        ----
         multidim_index : bool
             If True, attempt to index the HDF5 dataset simultaneously along all data
             axes. Otherwise index one axis at-a-time. This only works if data selection
@@ -11606,8 +11606,8 @@ class UVData(UVBase):
             precision real and imaginary). Only used if the datatype of the visibility
             data on-disk is not 'c8' or 'c16'.
 
-        MWA FITS Parameters
-        -------------------
+        MWA FITS
+        --------
         use_aoflagger_flags : bool
             Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
             flag files are submitted.
@@ -11677,8 +11677,8 @@ class UVData(UVBase):
             cases where no sampling or averaging of baselines will occur,
             because round-off errors can be quite large (~1e-3).
 
-        MIR Parameters
-        --------------
+        MIR
+        ---
         isource : int
             Source code for MIR dataset.
         irec : int
@@ -12329,7 +12329,7 @@ class UVData(UVBase):
         fix_old_proj=None,
         fix_use_ant_pos=True,
         make_multi_phase=False,
-        # select parameters
+        # selecting parameters
         antenna_nums=None,
         antenna_names=None,
         ant_str=None,
@@ -12350,7 +12350,7 @@ class UVData(UVBase):
         strict_uvw_antpos_check=False,
         check_autos=True,
         fix_autos=True,
-        # start file-type specific parameters
+        # file-type specific parameters
         # miriad
         phase_type=None,
         correct_lat_lon=True,
@@ -12409,8 +12409,8 @@ class UVData(UVBase):
         filename : str or array_like of str
             The file(s) or list(s) (or array(s)) of files to read from.
         file_type : str
-            One of ['uvfits', 'miriad', 'fhd', 'ms', 'uvh5'] or None.
-            If None, the code attempts to guess what the file type is.
+            One of ['uvfits', 'miriad', 'ms', 'uvh5', 'fhd', 'mwa_corr_fits', 'mir']
+            or None. If None, the code attempts to guess what the file type is.
             For miriad and ms types, this is based on the standard directory
             structure. For FHD, uvfits and uvh5 files it's based on file
             extensions (FHD: .sav, .txt; uvfits: .uvfits; uvh5: .uvh5).
@@ -12441,8 +12441,8 @@ class UVData(UVBase):
             raised because of attributes not matching. Doing so effectively adopts the
             name found in the first file read in. Default is False.
 
-        Phase Parameters
-        ----------------
+        Phasing
+        -------
         allow_rephase :  bool
             Allow rephasing of phased file data so that data from files with
             different phasing can be combined.
@@ -12490,8 +12490,8 @@ class UVData(UVBase):
             data on multiple phase centers. By default, this is only done if reading
             in a file with multiple sources.
 
-        Select Parameters
-        -----------------
+        Selecting
+        ---------
         antenna_nums : array_like of int, optional
             The antennas numbers to include when reading data into the object
             (antenna positions and names for the removed antennas will be retained
@@ -12558,8 +12558,8 @@ class UVData(UVBase):
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
 
-        Check Parameters
-        ----------------
+        Checking
+        --------
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -12582,8 +12582,8 @@ class UVData(UVBase):
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
 
-        Miriad Parameters
-        -----------------
+        Miriad
+        ------
         phase_type : str, optional
             Option to specify the phasing status of the data. Options are 'drift',
             'phased' or None. 'drift' means the data are zenith drift data,
@@ -12597,15 +12597,15 @@ class UVData(UVBase):
             cases where the "online" calculate values have precision or value errors.
             Default is True.
 
-        FHD Parameters
-        --------------
+        FHD
+        ---
         use_model : bool
             Option to read in the model visibilities rather than the dirty
             visibilities (the default is False, meaning the dirty visibilities
             will be read).
 
-        MS Parameters
-        -------------
+        MS
+        --
         data_column : str
             name of CASA data column to read into data_array. Options are:
             'DATA', 'MODEL', or 'CORRECTED_DATA'.
@@ -12639,8 +12639,8 @@ class UVData(UVBase):
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window. Default is True.
 
-        UVH5 Parameters
-        ---------------
+        UVH5
+        ----
         multidim_index : bool
             If True, attempt to index the HDF5 dataset simultaneously along all data
             axes. Otherwise index one axis at-a-time. This only works if data selection
@@ -12652,8 +12652,8 @@ class UVData(UVBase):
             precision real and imaginary). Only used if the datatype of the visibility
             data on-disk is not 'c8' or 'c16'.
 
-        MWA FITS Parameters
-        -------------------
+        MWA FITS
+        --------
         use_aoflagger_flags : bool
             Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
             flag files are submitted.
@@ -12723,8 +12723,8 @@ class UVData(UVBase):
             cases where no sampling or averaging of baselines will occur,
             because round-off errors can be quite large (~1e-3).
 
-        MIR Parameters
-        --------------
+        MIR
+        ---
         isource : int
             Source code for MIR dataset.
         irec : int

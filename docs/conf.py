@@ -15,10 +15,7 @@
 import sys
 import os
 
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 from sphinx.util.docutils import SphinxDirective
 from docutils import nodes, statemachine
@@ -62,15 +59,15 @@ napoleon_use_rtype = False
 # use this to create custom sections
 # currently used for the UVData.read method
 napoleon_custom_sections = [
-    ("Phase Parameters", "params_style"),
-    ("Select Parameters", "params_style"),
-    ("Check Parameters", "params_style"),
-    ("Miriad Parameters", "params_style"),
-    ("FHD Parameters", "params_style"),
-    ("MS Parameters", "params_style"),
-    ("UVH5 Parameters", "params_style"),
-    ("MWA FITS Parameters", "params_style"),
-    ("MIR Parameters", "params_style"),
+    ("Phasing", "params_style"),
+    ("Selecting", "params_style"),
+    ("Checking", "params_style"),
+    ("Miriad", "params_style"),
+    ("FHD", "params_style"),
+    ("MS", "params_style"),
+    ("UVH5", "params_style"),
+    ("MWA FITS", "params_style"),
+    ("MIR", "params_style"),
 ]
 
 # Add any paths that contain templates here, relative to this directory.
