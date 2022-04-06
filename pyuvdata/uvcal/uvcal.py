@@ -1621,7 +1621,7 @@ class UVCal(UVBase):
                     "channel_order and select_spws are ignored for wide-band "
                     "calibration solutions"
                 )
-                flip_spws = spw_order[0] == "-"
+            flip_spws = spw_order[0] == "-"
 
             if "number" in spw_order:
                 index_array = np.argsort(self.spw_array)
