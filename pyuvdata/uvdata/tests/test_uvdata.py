@@ -4057,8 +4057,10 @@ def test_flex_spw_add_concat(sma_mir, future_shapes, add_method, screen1, screen
         sma_mir.select(freq_chans=np.where(np.logical_or(screen1, screen2)))
 
     # Make sure the two datasets are in the same frequency order
-    uv_recomb.reorder_freqs(spw_order=sma_mir.spw_array, channel_order="freq")
-    sma_mir.reorder_freqs(spw_order=sma_mir.spw_array, channel_order="freq")
+    uv_recomb.reorder_freqs(
+        spw_order=np.argsort(uv_recomb.spw_array), channel_order="freq"
+    )
+    sma_mir.reorder_freqs(spw_order=np.argsort(sma_mir.spw_array), channel_order="freq")
 
     # Check the history first
     assert uv_recomb.history.startswith(sma_mir.history)
