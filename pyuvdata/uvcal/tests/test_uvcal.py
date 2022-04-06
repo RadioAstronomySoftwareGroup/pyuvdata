@@ -1709,21 +1709,21 @@ def test_reorder_ants_errors(gain_data):
         match="order must be one of 'number', 'name', '-number', '-name' or an "
         "index array of length Nants_data",
     ):
-        gain_data.reorder_antennas("foo")
+        gain_data.reorder_antennas(order="foo")
 
     with pytest.raises(
         ValueError,
-        match="If order is an index array, it must contain integers and be length "
-        "Nants_data.",
+        match="If order is an index array, it must contain all indicies for the"
+        "ant_array, without duplicates.",
     ):
-        gain_data.reorder_antennas(gain_data.antenna_numbers.astype(float))
+        gain_data.reorder_antennas(order=gain_data.antenna_numbers.astype(float))
 
     with pytest.raises(
         ValueError,
-        match="If order is an index array, it must contain integers and be length "
-        "Nants_data.",
+        match="If order is an index array, it must contain all indicies for the"
+        "ant_array, without duplicates.",
     ):
-        gain_data.reorder_antennas(gain_data.antenna_numbers[:8])
+        gain_data.reorder_antennas(order=gain_data.antenna_numbers[:8])
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
@@ -1734,8 +1734,6 @@ def test_reorder_freqs(
     caltype,
     metadata_only,
     gain_data,
-    multi_spw_gain,
-    multi_spw_delay,
     delay_data_inputflag,
     delay_data_inputflag_future,
 ):
@@ -1763,14 +1761,15 @@ def test_reorder_freqs(
         assert calobj == calobj2
     else:
         calobj2.reorder_freqs(channel_order="-freq")
-        ant_num_diff = np.diff(calobj2.freq_array)
-        assert np.all(ant_num_diff < 0)
+        freq_diff = np.diff(calobj2.freq_array)
+        assert np.all(freq_diff < 0)
+
+        calobj.reorder_freqs(channel_order=np.flip(np.arange(calobj.Nfreqs)))
+        assert calobj == calobj2
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_reorder_freqs_multi_spw(
-    caltype, multi_spw_gain, multi_spw_delay,
-):
+def test_reorder_freqs_multi_spw(caltype, multi_spw_gain, multi_spw_delay):
     if caltype == "gain":
         calobj = multi_spw_gain
     else:

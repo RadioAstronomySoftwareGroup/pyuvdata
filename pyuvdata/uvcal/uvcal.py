@@ -1515,8 +1515,8 @@ class UVCal(UVBase):
                 np.int64,
             ]:
                 raise ValueError(
-                    "If order is an index array, it must "
-                    "contain integers and be length Nants_data."
+                    "If order is an index array, it must contain all indicies for the"
+                    "ant_array, without duplicates."
                 )
             index_array = order
         else:
