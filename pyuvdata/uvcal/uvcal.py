@@ -1578,10 +1578,10 @@ class UVCal(UVBase):
             number) and `freq` (sort on median frequency). A '-' can be prepended
             to signify descending order instead of the default ascending order,
             e.g., if you have SPW #1 and 2, and wanted them ordered as [2, 1],
-            you would specify `-number`. Alternatively, one can supply an array
-            of length Nspws that specifies the new order, with values matched to
-            the specral window number given in `spw_array`. Default is to apply no
-            sorting of spectral windows.
+            you would specify `-number`. Alternatively, one can supply an index array
+            of length Nspws that specifies how to shuffle the spws (this is not the
+            desired final spw order). Default is to apply nos orting of spectral
+            windows.
         channel_order : str or array_like of int
             A string describing the desired order of frequency channels within a
             spectral window. Allowed strings are "freq" and "-freq", which will sort
@@ -1626,20 +1626,23 @@ class UVCal(UVBase):
             if isinstance(spw_order, (np.ndarray, list, tuple)):
                 spw_order = np.asarray(spw_order)
                 if not spw_order.size == self.Nspws or not np.all(
-                    np.sort(spw_order) == np.sort(self.spw_array)
+                    np.sort(spw_order) == np.arange(self.Nspws)
                 ):
                     raise ValueError(
-                        "If spw_order is an array, it must contain all spw numbers in "
+                        "If spw_order is an array, it must contain all indicies for "
                         "the spw_array, without duplicates."
                     )
                 index_array = np.asarray(
-                    [np.nonzero(self.spw_array == spw)[0][0] for spw in spw_order]
+                    [
+                        np.nonzero(self.spw_array == spw)[0][0]
+                        for spw in self.spw_array[spw_order]
+                    ]
                 )
             else:
                 if spw_order not in ["number", "freq", "-number", "-freq", None]:
                     raise ValueError(
                         "spw_order can only be one of 'number', '-number', "
-                        "'freq', '-freq', None or an integer array of length Nspws"
+                        "'freq', '-freq', None or an index array of length Nspws"
                     )
                 if "number" in spw_order:
                     index_array = np.argsort(self.spw_array)

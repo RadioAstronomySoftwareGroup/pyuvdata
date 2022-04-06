@@ -1817,7 +1817,7 @@ def test_reorder_freqs_multi_spw(caltype, multi_spw_gain, multi_spw_delay):
     spw_diff = np.diff(calobj.spw_array)
     assert np.all(spw_diff < 0)
 
-    calobj2.reorder_freqs(spw_order=np.flip(calobj2.spw_array))
+    calobj2.reorder_freqs(spw_order=np.flip(np.arange(calobj2.Nspws)))
     assert calobj2 == calobj
 
     calobj.reorder_freqs(spw_order="freq")
@@ -1829,20 +1829,20 @@ def test_reorder_freqs_errors(gain_data, multi_spw_delay):
     with pytest.raises(
         ValueError,
         match="spw_order can only be one of 'number', '-number', "
-        "'freq', '-freq', None or an integer array of length Nspws",
+        "'freq', '-freq', None or an index array of length Nspws",
     ):
         gain_data.reorder_freqs(spw_order="foo")
 
     with pytest.raises(
         ValueError,
         match="spw_order can only be one of 'number', '-number', "
-        "'freq', '-freq', None or an integer array of length Nspws",
+        "'freq', '-freq', None or an index array of length Nspws",
     ):
         multi_spw_delay.reorder_freqs(spw_order="foo")
 
     with pytest.raises(
         ValueError,
-        match="If spw_order is an array, it must contain all spw numbers in "
+        match="If spw_order is an array, it must contain all indicies for "
         "the spw_array, without duplicates.",
     ):
         multi_spw_delay.reorder_freqs(spw_order=[0, 1])

@@ -4440,10 +4440,10 @@ class UVData(UVBase):
             number) and `freq` (sort on median frequency). A '-' can be prepended
             to signify descending order instead of the default ascending order,
             e.g., if you have SPW #1 and 2, and wanted them ordered as [2, 1],
-            you would specify `-number`. Alternatively, one can supply an array
-            of length Nspws that specifies the new order, with values matched to
-            the specral window number given in `spw_array`. Default is to apply no
-            sorting of spectral windows.
+            you would specify `-number`. Alternatively, one can supply an index array
+            of length Nspws that specifies how to shuffle the spws (this is not the
+            desired final spw order). Default is to apply no sorting of spectral
+            windows.
         channel_order : str or array_like of int
             A string describing the desired order of frequency channels within a
             spectral window. Allowed strings are "freq" and "-freq", which will sort

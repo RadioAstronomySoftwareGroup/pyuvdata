@@ -9,6 +9,8 @@ All notable changes to this project will be documented in this file.
 and `reorder_jones`.
 
 ## Changed
+- The `spw_order` parameter for the `UVData.reorder_freqs` method now accepts an index
+array rather than an array of spw numbers, making it match the other reorder methods.
 - Updated the astropy requirement to >= 5.0.4
 - Dropped support for python 3.7
 

@@ -591,10 +591,9 @@ def _sort_freq_helper(
         number) and `freq` (sort on median frequency). A '-' can be prepended
         to signify descending order instead of the default ascending order,
         e.g., if you have SPW #1 and 2, and wanted them ordered as [2, 1],
-        you would specify `-number`. Alternatively, one can supply an array
-        of length Nspws that specifies the new order, with values matched to
-        the specral window number given in `spw_array`. Default is to apply no
-        sorting of spectral windows.
+        you would specify `-number`. Alternatively, one can supply an index array
+        of length Nspws that specifies how to shuffle the spws (this is not the desired
+        final spw order).  Default is to apply no sorting of spectral windows.
     channel_order : str or array_like of int
         A string describing the desired order of frequency channels within a
         spectral window. Allowed strings include `freq`, which will sort channels
@@ -684,16 +683,16 @@ def _sort_freq_helper(
             if isinstance(spw_order, (np.ndarray, list, tuple)):
                 spw_order = np.asarray(spw_order)
                 if not spw_order.size == Nspws or not np.all(
-                    np.sort(spw_order) == np.sort(spw_array)
+                    np.sort(spw_order) == np.arange(Nspws)
                 ):
                     raise ValueError(
                         "Index array for spw_order must contain all indicies for "
-                        "the frequency axis, without duplicates."
+                        "the spw_array, without duplicates."
                     )
             elif spw_order not in ["number", "freq", "-number", "-freq", None]:
                 raise ValueError(
                     "spw_order can only be one of 'number', '-number', "
-                    "'freq', '-freq', or None"
+                    "'freq', '-freq', None or an index array of length Nspws"
                 )
             elif Nspws > 1:
                 # Only need to do this step if we actually have multiple spws.
@@ -703,30 +702,28 @@ def _sort_freq_helper(
                 flip_spws = spw_order[0] == "-"
 
                 if "number" in spw_order:
-                    spw_order = np.sort(spw_array)
+                    spw_order = np.argsort(spw_array)
                 elif "freq" in spw_order:
-                    spw_order = spw_array[
-                        np.argsort(
-                            [
-                                np.median(temp_freqs[temp_spws == idx])
-                                for idx in spw_array
-                            ]
-                        )
-                    ]
+                    spw_order = np.argsort(
+                        [np.median(temp_freqs[temp_spws == idx]) for idx in spw_array]
+                    )
                 if flip_spws:
                     spw_order = np.flip(spw_order)
             else:
-                spw_order = spw_array
+                spw_order = np.arange(Nspws)
             # Now that we know the spw order, we can apply the first sort
             index_array = np.concatenate(
-                [index_array[temp_spws == idx] for idx in spw_order]
+                [index_array[temp_spws == spw] for spw in spw_array[spw_order]]
             )
             temp_freqs = temp_freqs[index_array]
             temp_spws = temp_spws[index_array]
         # Spectral windows are assumed sorted at this point
         if channel_order is not None:
             if channel_order not in ["freq", "-freq"]:
-                raise ValueError("channel_order can only be one of 'freq' or '-freq'")
+                raise ValueError(
+                    "channel_order can only be one of 'freq' or '-freq' or an index "
+                    "array of length Nfreqs"
+                )
             for idx in spw_array:
                 if sort_spw[idx]:
                     select_mask = temp_spws == idx
