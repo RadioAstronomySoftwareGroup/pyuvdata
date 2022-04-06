@@ -1739,6 +1739,13 @@ def test_reorder_freqs(
 ):
     if caltype == "gain":
         calobj = gain_data
+        # add total_quality_array
+        calobj.total_quality_array = np.tile(
+            np.arange(calobj.Nfreqs, dtype=float)[
+                np.newaxis, :, np.newaxis, np.newaxis
+            ],
+            (1, 1, calobj.Ntimes, calobj.Njones),
+        )
         if future_shapes:
             calobj.use_future_array_shapes()
     else:
@@ -1764,6 +1771,14 @@ def test_reorder_freqs(
         freq_diff = np.diff(calobj2.freq_array)
         assert np.all(freq_diff < 0)
 
+        if caltype == "gain" and not metadata_only:
+            # check total quality array
+            if future_shapes:
+                total_quality_diff = np.diff(calobj2.total_quality_array, axis=0)
+            else:
+                total_quality_diff = np.diff(calobj2.total_quality_array, axis=1)
+            assert np.all(total_quality_diff < 0)
+
         calobj.reorder_freqs(channel_order=np.flip(np.arange(calobj.Nfreqs)))
         assert calobj == calobj2
 
@@ -1777,6 +1792,12 @@ def test_reorder_freqs_multi_spw(caltype, multi_spw_gain, multi_spw_delay):
 
     if not calobj.future_array_shapes:
         calobj.use_future_array_shapes()
+
+    calobj2 = calobj.copy()
+
+    # this should be a no-op
+    calobj.reorder_freqs(spw_order="number", channel_order="freq")
+    assert calobj2 == calobj
 
     if caltype == "delay":
         with uvtest.check_warnings(
@@ -1796,6 +1817,13 @@ def test_reorder_freqs_multi_spw(caltype, multi_spw_gain, multi_spw_delay):
     spw_diff = np.diff(calobj.spw_array)
     assert np.all(spw_diff < 0)
 
+    calobj2.reorder_freqs(spw_order=np.flip(calobj2.spw_array))
+    assert calobj2 == calobj
+
+    calobj.reorder_freqs(spw_order="freq")
+    spw_diff = np.diff(calobj.spw_array)
+    assert np.all(spw_diff > 0)
+
 
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
@@ -1810,6 +1838,13 @@ def test_reorder_times(
 ):
     if caltype == "gain":
         calobj = gain_data
+        # add total_quality_array
+        calobj.total_quality_array = np.tile(
+            np.arange(calobj.Ntimes, dtype=float)[
+                np.newaxis, np.newaxis, :, np.newaxis
+            ],
+            (1, calobj.Nfreqs, 1, calobj.Njones),
+        )
         if future_shapes:
             calobj.use_future_array_shapes()
     else:
@@ -1822,9 +1857,21 @@ def test_reorder_times(
     if metadata_only:
         calobj = calobj2.copy()
 
+    # this should be a no-op
+    calobj.reorder_times(order="time")
+    assert calobj == calobj2
+
     calobj2.reorder_times(order="-time")
     time_diff = np.diff(calobj2.time_array)
     assert np.all(time_diff < 0)
+
+    if caltype == "gain" and not metadata_only:
+        # check total quality array
+        if future_shapes:
+            total_quality_diff = np.diff(calobj2.total_quality_array, axis=1)
+        else:
+            total_quality_diff = np.diff(calobj2.total_quality_array, axis=2)
+        assert np.all(total_quality_diff < 0)
 
     calobj.reorder_times(order=np.flip(np.arange(calobj.Ntimes)))
     assert calobj == calobj2
@@ -1880,16 +1927,40 @@ def test_reorder_jones(
         calobj3.jones_array[0] = jpol
         calobj2 += calobj3
 
+    if caltype == "gain" and not metadata_only:
+        # add total_quality_array
+        if future_shapes:
+            calobj2.total_quality_array = np.tile(
+                np.arange(calobj2.Njones, dtype=float)[np.newaxis, np.newaxis, :],
+                (calobj2.Nfreqs, calobj2.Ntimes, 1),
+            )
+        else:
+            calobj2.total_quality_array = np.tile(
+                np.arange(calobj2.Njones, dtype=float)[
+                    np.newaxis, np.newaxis, np.newaxis, :
+                ],
+                (1, calobj2.Nfreqs, calobj2.Ntimes, 1),
+            )
+
     calobj = calobj2.copy()
 
     # this is a no-op because it's already sorted this way
+    calobj2.reorder_jones("-number")
+    jnum_diff = np.diff(calobj2.jones_array)
+    assert np.all(jnum_diff < 0)
+
     calobj2.reorder_jones("number")
     jnum_diff = np.diff(calobj2.jones_array)
     assert np.all(jnum_diff > 0)
 
-    calobj2.reorder_jones("-number")
-    jnum_diff = np.diff(calobj2.jones_array)
-    assert np.all(jnum_diff < 0)
+    if caltype == "gain" and not metadata_only:
+        assert calobj2.total_quality_array is not None
+        # check total quality array
+        if future_shapes:
+            total_quality_diff = np.diff(calobj2.total_quality_array, axis=2)
+        else:
+            total_quality_diff = np.diff(calobj2.total_quality_array, axis=3)
+        assert np.all(total_quality_diff < 0)
 
     calobj2.reorder_jones("name")
     name_array = np.asarray(
@@ -1899,7 +1970,6 @@ def test_reorder_jones(
     assert np.all(sorted_names == name_array)
 
     # test sorting with an index array. Sort back to number first so indexing works
-    print(sorted_names)
     sorted_nums = uvutils.jstr2num(sorted_names, x_orientation=calobj.x_orientation)
     index_array = [np.nonzero(calobj.jones_array == num)[0][0] for num in sorted_nums]
     calobj.reorder_jones(index_array)
