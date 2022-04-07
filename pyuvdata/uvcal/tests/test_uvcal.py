@@ -1675,7 +1675,7 @@ def test_reorder_ants(
         calobj = calobj2.copy()
 
     # this is a no-op because it's already sorted this way
-    calobj2.reorder_antennas("number")
+    calobj2.reorder_antennas()
     ant_num_diff = np.diff(calobj2.ant_array)
     assert np.all(ant_num_diff > 0)
 
@@ -1904,7 +1904,7 @@ def test_reorder_times(
         calobj = calobj2.copy()
 
     # this should be a no-op
-    calobj.reorder_times(order="time")
+    calobj.reorder_times()
     assert calobj == calobj2
 
     calobj2.reorder_times(order="-time")
@@ -2008,7 +2008,8 @@ def test_reorder_jones(
             total_quality_diff = np.diff(calobj2.total_quality_array, axis=3)
         assert np.all(total_quality_diff < 0)
 
-    calobj2.reorder_jones("name")
+    # the default order is "name"
+    calobj2.reorder_jones()
     name_array = np.asarray(
         uvutils.jnum2str(calobj2.jones_array, x_orientation=calobj2.x_orientation)
     )
