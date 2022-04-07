@@ -1548,7 +1548,8 @@ c) Sorting along the frequency axis
 The :meth:`pyuvdata.UVData.reorder_freqs` method will reorder the frequency axis by
 sorting by spectral windows or channels (or even just the channels within specific
 spectral windows). Spectral windows or channels can be sorted by ascending or descending
-number or in an order specified by passing an array of spectral window or channel numbers.
+number or in an order specified by passing an index array for spectral window or
+channels.
 
 .. code-block:: python
 
