@@ -254,18 +254,37 @@ a dict in python. The top level keys are strings giving the phase center
 catalog names. The next level keys must include:
 	\begin{itemize}
 	\item \textbf{cat\_id}: \textit{int} The phase center catalog ID number,
-	which is used to identify which baseline times are phased to which
-	phase center via the phase\_center\_id\_array.
+	  which is used to identify which baseline times are phased to which
+	  phase center via the phase\_center\_id\_array.
 	\item \textbf{cat\_type}: \textit{string} One of four allowed values:
-	\textbf{(1)} sidereal, \textbf{(2)} ephem, \textbf{(3)} driftscan,
-	\textbf{(4)} unprojected.
-  	Sidereal means a phase center that is fixed in RA and Dec.
-	Ephem means a phase center that has an RA and Dec that
-	moves with time.
-	Driftscan means a phase center with a fixed azimuth and
-	elevation (note that this includes w-projection, even at zenith).
-	Unprojected means no phasing, including w-projection, has been applied.
-  
+	  \textbf{(1)} sidereal, \textbf{(2)} ephem, \textbf{(3)} driftscan,
+	  \textbf{(4)} unprojected.
+  	  Sidereal means a phase center that is fixed in RA and Dec.
+	  Ephem means a phase center that has an RA and Dec that
+	  moves with time.
+	  Driftscan means a phase center with a fixed azimuth and
+	  elevation (note that this includes w-projection, even at zenith).
+	  Unprojected means no phasing, including w-projection, has been applied.
+  	\item \textbf{cat\_lon}: \textit{float or ndarray of float (ephem only)}
+	  The longitudinal coordinate of the phase center. This is commonly RA,
+	  but can also be galactic longitude is azimuth for driftscan phase centers.
+	  For ephem phase centers this is an array of length Npts (the number of
+	  ephemeris data points).
+  	\item \textbf{cat\_lat}: \textit{float or ndarray of float (ephem only)}
+	  The latitudinal coordinate of the phase center. This is commonly Dec,
+	  but is elevation (altitude) for driftscan phase centers. For ephem phase centers
+	  this is an array of length Npts (the number of ephemeris data points).
+	\item \textbf{cat\_frame}: \textit{string} The coordinate frame that the
+	  phase center coordinates are defined in. It must be an astropy
+	  supported frame (e.g. fk4, fk5, icrs, gcrs, cirs, galactic).
+	\item \textbf{cat\_epoch}: \textit{float} The epoch in years for the phase
+	  center coordinate. For most frames this is the Julian epoch
+	  (e.g. 2000.0 for j2000) but for the FK4 frame this will be treated as the
+	  Bessel-Newcomb epoch (e.g. 1950.0 for B1950). This parameter is
+	  not used for frames without an epoch (e.g. ICRS) unless the there
+	  is proper motion (specified in the \cat_\pm_\ra and \cat_\pm_\dec keys).
+
+
 	\end{itemize}
   
 \item \textbf{uvplane\_reference\_time}: \textit{int} The time at which the
