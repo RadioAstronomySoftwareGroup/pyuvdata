@@ -1802,7 +1802,7 @@ class UVCal(UVBase):
 
     def reorder_jones(
         self,
-        order="time",
+        order="name",
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
