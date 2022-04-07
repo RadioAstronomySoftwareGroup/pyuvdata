@@ -269,7 +269,7 @@ def test_check_auto_power(cst_efield_2freq_cut):
     with pytest.raises(
         ValueError,
         match="Some auto polarization power beams have non-real values in "
-        "data_array. You can attempt to fix this by setting fix_auto_power=True.",
+        "data_array.",
     ):
         power_beam.check(check_auto_power=True)
 
