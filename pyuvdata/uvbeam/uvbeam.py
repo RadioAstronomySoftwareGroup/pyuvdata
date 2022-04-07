@@ -782,17 +782,19 @@ class UVBeam(UVBase):
         if np.any(pol_screen) and np.any(
             np.iscomplex(self.data_array[:, :, pol_screen])
         ):
+            max_imag = np.max(np.abs(np.imag(self.data_array[:, :, pol_screen])))
             if fix_auto_power:
                 warnings.warn(
                     "Fixing auto polarization power beams to be be real-only, "
-                    "after some imaginary values were detected in data_array."
+                    "after some imaginary values were detected in data_array. "
+                    f"Largest imaginary component was {max_imag}."
                 )
                 self._fix_auto_power()
             else:
                 raise ValueError(
                     "Some auto polarization power beams have non-real values in "
-                    "data_array. You can attempt to fix this by setting "
-                    "fix_auto_power=True."
+                    f"data_array. Largest imaginary component was {max_imag}. "
+                    "You can attempt to fix this by setting fix_auto_power=True."
                 )
 
     def check(
