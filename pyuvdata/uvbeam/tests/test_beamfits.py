@@ -56,6 +56,7 @@ def hera_beam_casa():
     return beam_in
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto polarization power beams")
 def test_read_cst_write_read_fits_efield(cst_efield_1freq, tmp_path):
     beam_in = cst_efield_1freq.copy()
     assert beam_in.filename == ["HERA_NicCST_150MHz.txt"]
@@ -89,6 +90,7 @@ def test_read_cst_write_read_fits_efield(cst_efield_1freq, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto polarization power beams")
 def test_read_cst_write_read_fits_power(cst_power_1freq, tmp_path):
     # redo for power beam
     beam_in = cst_power_1freq
@@ -118,6 +120,7 @@ def test_read_cst_write_read_fits_power(cst_power_1freq, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto polarization power beams")
 def test_read_cst_write_read_fits_intensity(cst_power_1freq, tmp_path):
     # set up power beam
     beam_in = cst_power_1freq
@@ -147,6 +150,7 @@ def test_read_cst_write_read_fits_intensity(cst_power_1freq, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto polarization power beams")
 def test_read_cst_write_read_fits_no_coordsys(cst_power_1freq, tmp_path):
     # set up power beam
     beam_in = cst_power_1freq
@@ -176,6 +180,7 @@ def test_read_cst_write_read_fits_no_coordsys(cst_power_1freq, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto polarization power beams")
 def test_read_cst_write_read_fits_change_freq_units(cst_power_1freq, tmp_path):
     # set up power beam
     beam_in = cst_power_1freq

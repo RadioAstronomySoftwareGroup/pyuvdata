@@ -1588,6 +1588,7 @@ def test_select_feeds(cst_efield_1freq):
         efield_beam.check()
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto polarization power beams")
 @pytest.mark.parametrize(
     "pols_to_keep", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]])
 )
@@ -1642,6 +1643,7 @@ def test_select_polarizations(pols_to_keep, cst_efield_1freq):
     )
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto polarization power beams")
 def test_select_polarizations_errors(cst_efield_1freq):
     # generate more polarizations for testing by using efield and keeping cross-pols
     power_beam = cst_efield_1freq
@@ -1821,6 +1823,7 @@ def test_select(cst_power_1freq, cst_efield_1freq):
     )
 
 
+@pytest.mark.filterwarnings("ignore:Fixing auto polarization power beams")
 def test_add(cst_power_1freq, cst_efield_1freq):
     power_beam = cst_power_1freq
 
