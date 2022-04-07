@@ -292,6 +292,13 @@ def test_check_auto_power(cst_efield_2freq_cut):
 
     with uvtest.check_warnings(
         UserWarning,
+        match="Cannot use _check_auto_power if beam_type is not 'power', or "
+        "polarization_array is None.",
+    ):
+        cst_efield_2freq_cut._check_auto_power()
+
+    with uvtest.check_warnings(
+        UserWarning,
         match="Cannot use _fix_autos if beam_type is not 'power', or "
         "polarization_array is None. Leaving data_array untouched.",
     ):
