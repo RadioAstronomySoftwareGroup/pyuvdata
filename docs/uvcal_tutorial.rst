@@ -104,7 +104,7 @@ a) Reading a cal fits gain calibration file.
   >>> print(cal.cal_type)
   gain
 
-  >>> # number of antenna polarizations and polarization type.
+  >>> # number of calibration jones components and component type.
   >>> print((cal.Njones, cal.jones_array))
   (1, array([-5]))
 
@@ -477,6 +477,143 @@ each file will be read in succession and added to the previous.
   ...                           'fhd_cal_data/set2/1061316296_settings.txt']]
   >>> fhd_cal.read_fhd_cal(cal_testfiles, obs_testfiles, settings_file=settings_testfiles)
   diffuse_model parameter value is a string, values are different
+
+UVCal: Sorting data along various axes
+---------------------------------------
+Methods exist for sorting data along all the data axes to support comparisons between
+UVCal objects and software access patterns.
+
+a) Sorting along the antenna axis
+The :meth:`pyuvdata.UVCal.reorder_antennas` method will reorder the antenna axis by
+sorting by antenna names or numbers, in ascending or descending order, or in an order
+specified by passing an index array.
+
+*********************************
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVCal
+  >>> from pyuvdata.data import DATA_PATH
+  >>> cal = UVCal()
+  >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
+  >>> cal.read_calfits(filename)
+  >>> # Default is to order by antenna number
+  >>> cal.reorder_antennas()
+  >>> print(np.min(np.diff(cal.ant_array)) >= 0)
+  True
+
+  >>> # Prepend a ``-`` to the sort string to sort in descending order.
+  >>> cal.reorder_antennas('-number')
+  >>> print(np.min(np.diff(cal.ant_array)) <= 0)
+  True
+
+b) Sorting along the frequency axis
+***********************************
+
+The :meth:`pyuvdata.UVCal.reorder_freqs` method will reorder the frequency axis by
+sorting by spectral windows or channels (or even just the channels within specific
+spectral windows). Spectral windows or channels can be sorted by ascending or descending
+number or in an order specified by passing an index array for spectral window or
+channels.
+
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVCal
+  >>> from pyuvdata.data import DATA_PATH
+  >>> cal = UVCal()
+  >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
+  >>> cal.read_calfits(filename)
+  >>> # First create a multi-spectral window UVCal object:
+  >>> cal._set_flex_spw()
+  >>> cal.channel_width = np.zeros(cal.Nfreqs, dtype=np.float64) + cal.channel_width
+  >>> cal.Nspws = 2
+  >>> cal.flex_spw_id_array = np.concatenate((np.ones(cal.Nfreqs // 2, dtype=int), np.full(cal.Nfreqs // 2, 2, dtype=int)))
+  >>> cal.spw_array = np.array([1, 2])
+  >>> spw2_inds = np.nonzero(cal.flex_spw_id_array == 2)[0]
+  >>> spw2_chan_width = cal.channel_width[0] * 2
+  >>> cal.freq_array[0, spw2_inds] = cal.freq_array[0, spw2_inds[0]] + spw2_chan_width * np.arange(spw2_inds.size)
+  >>> cal.channel_width[spw2_inds] = spw2_chan_width
+
+  >>> # Sort by spectral window number and by frequency within the spectral window
+  >>> # Now the spectral windows are in ascending order and the frequencies in each window
+  >>> # are in ascending order.
+  >>> cal.reorder_freqs(spw_order="number", channel_order="freq")
+  >>> print(cal.spw_array)
+  [1 2]
+
+  >>> print(np.min(np.diff(cal.freq_array[0, np.nonzero(cal.flex_spw_id_array == 1)])) >= 0)
+  True
+
+  >>> # Prepend a ``-`` to the sort string to sort in descending order.
+  >>> # Now the spectral windows are in descending order but the frequencies in each window
+  >>> # are in ascending order.
+  >>> cal.reorder_freqs(spw_order="-number", channel_order="freq")
+  >>> print(cal.spw_array)
+  [2 1]
+
+  >>> print(np.min(np.diff(cal.freq_array[0, np.nonzero(cal.flex_spw_id_array == 1)])) >= 0)
+  True
+
+  >>> # Use the ``select_spw`` keyword to sort only one spectral window.
+  >>> # Now the frequencies in spectral window 1 are in descending order but the frequencies
+  >>> # in spectral window 2 are in ascending order
+  >>> cal.reorder_freqs(select_spw=1, channel_order="-freq")
+  >>> print(np.min(np.diff(cal.freq_array[0, np.nonzero(cal.flex_spw_id_array == 1)])) <= 0)
+  True
+
+  >>> print(np.min(np.diff(cal.freq_array[0, np.nonzero(cal.flex_spw_id_array == 2)])) >= 0)
+  True
+
+c) Sorting along the time axis
+******************************
+
+The :meth:`pyuvdata.UVCal.reorder_times` method will reorder the time axis by
+sorting by time (ascending or descending) or in an order specified by passing an index
+array for the time axis.
+
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVCal
+  >>> from pyuvdata.data import DATA_PATH
+  >>> cal = UVCal()
+  >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
+  >>> cal.read_calfits(filename)
+
+  >>> # Default is to order by ascending time
+  >>> cal.reorder_times()
+  >>> print(np.min(np.diff(cal.time_array)) >= 0)
+  True
+
+  >>> # Prepend a ``-`` to the sort string to sort in descending order.
+  >>> cal.reorder_times('-time')
+  >>> print(np.min(np.diff(cal.time_array)) <= 0)
+  True
+
+d) Sorting along the Jones component axis
+*****************************************
+
+The :meth:`pyuvdata.UVCal.reorder_jones` method will reorder the Jones component axis
+by the Jones component number or name, or by an explicit index ordering set by the user.
+
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVCal
+  >>> from pyuvdata.data import DATA_PATH
+  >>> cal = UVCal()
+  >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
+  >>> cal.read_calfits(filename)
+  >>> # Default is to order by Jones component name
+  >>> cal.reorder_jones()
+  >>> print(cal.jones_array)
+  [-5 -6]
+
 
 UVCal: Changing cal_type from 'delay' to 'gain'
 -----------------------------------------------
