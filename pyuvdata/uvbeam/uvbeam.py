@@ -752,6 +752,49 @@ class UVBeam(UVBase):
                 self.data_array[:, :, pol_screen]
             )
 
+    def _check_auto_power(self, fix_auto_power=False):
+        """
+        Check for complex auto polarization power beams.
+
+        Parameters
+        ----------
+        fix_auto_power : bool
+            If auto polarization power beams with imaginary values are found,
+            fix those values so that they are real-only in data_array.
+
+        """
+        if self.beam_type != "power" or self.polarization_array is None:
+            warnings.warn(
+                "Cannot use _check_auto_power if beam_type is not 'power', or "
+                "polarization_array is None."
+            )
+            return
+
+        # Verify here that the auto polarization power beams do not have any
+        # imaginary components
+        auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pU", "pV"]
+        pol_screen = np.array(
+            [
+                uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
+                for pol in self.polarization_array
+            ]
+        )
+        if np.any(pol_screen) and np.any(
+            np.iscomplex(self.data_array[:, :, pol_screen])
+        ):
+            if fix_auto_power:
+                warnings.warn(
+                    "Fixing auto polarization power beams to be be real-only, "
+                    "after some imaginary values were detected in data_array."
+                )
+                self._fix_auto_power()
+            else:
+                raise ValueError(
+                    "Some auto polarization power beams have non-real values in "
+                    "data_array. You can attempt to fix this by setting "
+                    "fix_auto_power=True."
+                )
+
     def check(
         self,
         check_extra=True,
@@ -776,7 +819,8 @@ class UVBeam(UVBase):
             imaginary values in the data_array (which should not mathematically exist).
         fix_auto_power : bool
             For power beams, if auto polarization beams with imaginary values are found,
-            fix those values so that they are real-only in data_array.
+            fix those values so that they are real-only in data_array. Ignored if
+            check_auto_power is False.
 
         """
         # first make sure the required parameters and forms are set properly
@@ -797,30 +841,7 @@ class UVBeam(UVBase):
             and check_auto_power
             and self.polarization_array is not None
         ):
-            # Verify here that the auto polarization power beams do not have any
-            # imaginary components
-            auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pU", "pV"]
-            pol_screen = np.array(
-                [
-                    uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
-                    for pol in self.polarization_array
-                ]
-            )
-            if np.any(pol_screen) and np.any(
-                np.iscomplex(self.data_array[:, :, pol_screen])
-            ):
-                if fix_auto_power:
-                    warnings.warn(
-                        "Fixing auto polarization power beams to be be real-only, "
-                        "after some imaginary values were detected in data_array."
-                    )
-                    self._fix_auto_power()
-                else:
-                    raise ValueError(
-                        "Some auto polarization power beams have non-real values in "
-                        "data_array. You can attempt to fix this by setting "
-                        "fix_auto_power=True."
-                    )
+            self._check_auto_power(fix_auto_power=fix_auto_power)
 
         # first run the basic check from UVBase
         super(UVBeam, self).check(
@@ -1009,6 +1030,11 @@ class UVBeam(UVBase):
         if not keep_basis_vector:
             beam_object.basis_vector_array = None
             beam_object.Ncomponents_vec = None
+
+        if calc_cross_pols:
+            # Sometimes the auto pol beams can have a small complex part due to
+            # numerical precision errors. Fix that (with warnings).
+            beam_object._check_auto_power(fix_auto_power=True)
 
         history_update_string = " Converted from efield to power using pyuvdata."
 
