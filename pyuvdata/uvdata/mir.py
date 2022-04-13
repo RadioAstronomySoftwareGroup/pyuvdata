@@ -383,6 +383,7 @@ class Mir(UVData):
         # blt, pol, freq).
         vis_data = np.zeros((Nblts, Npols, Nfreqs), dtype=np.complex64)
         vis_flags = np.ones((Nblts, Npols, Nfreqs), dtype=bool)
+        vis_weights = np.zeros((Nblts, Npols, Nfreqs), dtype=np.float32)
         if not mir_data._vis_data_loaded:
             mir_data.load_data(load_vis=True, apply_tsys=True)
             mir_data.apply_flags()
@@ -405,6 +406,13 @@ class Mir(UVData):
             vis_flags[(blt_idx, spdx["pol_idx"], spdx["ch_slice"])] = vis_rec[
                 "vis_flags"
             ]
+            # The "wt" column is calcualted as (T_DSB ** 2)/(integ time), but we want
+            # units of Jy**-2. To do this, we just need to multiply by the forward gain
+            # of the antenna squared and the channel width. The factor of 2**-2 (0.25)
+            # arises because we need to convert T_DSB**2 to T_SSB**2.
+            vis_weights[(blt_idx, spdx["pol_idx"], spdx["ch_slice"])] = (
+                ((130.0 * 0.5) ** 2.0) * sp_rec["wt"] * np.abs(sp_rec["fres"])
+            )
 
         # Drop the data from the MirParser object once we have it loaded up.
         mir_data.unload_data()
@@ -640,7 +648,7 @@ class Mir(UVData):
         # expects.
         self.data_array = np.transpose(vis_data, (0, 2, 1))[:, np.newaxis, :, :]
         self.flag_array = np.transpose(vis_flags, (0, 2, 1))[:, np.newaxis, :, :]
-        self.nsample_array = np.ones(self.data_array.shape, dtype=np.float32)
+        self.nsample_array = np.transpose(vis_weights, (0, 2, 1))[:, np.newaxis, :, :]
 
     def write_mir(self, filename):
         """
