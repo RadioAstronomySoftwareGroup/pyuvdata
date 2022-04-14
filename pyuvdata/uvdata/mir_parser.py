@@ -602,7 +602,8 @@ class MirMetaData(object):
             self._index: {
                 old_key: new_key
                 for old_key, new_key in zip(
-                    self.data[self._index][self._mask], np.arange(index_start, end_pos),
+                    self.data[self._index][self._mask],
+                    np.arange(index_start, end_pos),
                 )
             }
         }
@@ -2258,8 +2259,11 @@ class MirParser(object):
                 for achid, dataoff, nvals in zip(achid_arr, dataoff_arr, nvals_arr):
                     deloff = dataoff - lastpos
                     auto_data[achid] = np.fromfile(
-                        auto_file, dtype=np.float32, count=nvals, offset=deloff,
-                    ).reshape((-1, 2, 2 ** 14))[winsel]
+                        auto_file,
+                        dtype=np.float32,
+                        count=nvals,
+                        offset=deloff,
+                    ).reshape((-1, 2, 2**14))[winsel]
                     lastpos = dataoff + (4 * nvals)
 
         return auto_data
@@ -2403,7 +2407,7 @@ class MirParser(object):
         # which techically has a different keyword under which the system temperatures
         # are stored.
         tsys_dict = {
-            (idx, jdx, 0): tsys ** 0.5
+            (idx, jdx, 0): tsys**0.5
             for idx, jdx, tsys in zip(
                 self.eng_data["inhid"],
                 self.eng_data["antennaNumber"],
@@ -2412,7 +2416,7 @@ class MirParser(object):
         }
         tsys_dict.update(
             {
-                (idx, jdx, 1): tsys ** 0.5
+                (idx, jdx, 1): tsys**0.5
                 for idx, jdx, tsys in zip(
                     self.eng_data["inhid"],
                     self.eng_data["antennaNumber"],
@@ -2439,7 +2443,13 @@ class MirParser(object):
             except KeyError:
                 warnings.warn(
                     "No tsys for blhid %i found (%i-%i baseline, inhid %i). "
-                    "Baseline record will be flagged." % (blhid, jdx, ldx, idx,)
+                    "Baseline record will be flagged."
+                    % (
+                        blhid,
+                        jdx,
+                        ldx,
+                        idx,
+                    )
                 )
 
         if invert:
@@ -2760,7 +2770,9 @@ class MirParser(object):
             # have only the spectral records that we want. Unload them now, except
             # for vis_data if we just generated that from raw_data.
             self.unload_data(
-                unload_vis=(not allow_conversion), unload_raw=True, unload_auto=True,
+                unload_vis=(not allow_conversion),
+                unload_raw=True,
+                unload_auto=True,
             )
 
         # At this point, we've unloaded any data we can't carry forward, so if we still
@@ -2934,13 +2946,17 @@ class MirParser(object):
         # Check for bl records that have no good sp records
         # Filter out de-selected bl records
         bl_filter[bl_filter] = np.isin(
-            bl_blhid[bl_filter], np.unique(sp_blhid[sp_filter]), assume_unique=True,
+            bl_blhid[bl_filter],
+            np.unique(sp_blhid[sp_filter]),
+            assume_unique=True,
         )
 
         # Check for in records that have no good bl records
         # Filter out de-selected in records
         in_filter[in_filter] = np.isin(
-            in_inhid[in_filter], np.unique(bl_inhid[bl_filter]), assume_unique=True,
+            in_inhid[in_filter],
+            np.unique(bl_inhid[bl_filter]),
+            assume_unique=True,
         )
 
         in_inhid = in_inhid[in_filter]
@@ -3037,7 +3053,12 @@ class MirParser(object):
             self._data_mucked = False
 
     def fromfile(
-        self, filepath, has_auto=False, load_vis=False, load_raw=False, load_auto=False,
+        self,
+        filepath,
+        has_auto=False,
+        load_vis=False,
+        load_raw=False,
+        load_auto=False,
     ):
         """
         Read in all files from a mir data set into predefined numpy datatypes.
@@ -3280,7 +3301,10 @@ class MirParser(object):
         # Finally, we can package up the raw data (using make_packdata) in order to
         # write the raw-format data to disk.
         self.write_rawdata(
-            filepath, raw_dict, self.sp_data, append_data=append_data,
+            filepath,
+            raw_dict,
+            self.sp_data,
+            append_data=append_data,
         )
 
     @staticmethod
@@ -3414,7 +3438,9 @@ class MirParser(object):
             # entry after the sequence of calls.
             if return_vis:
                 data_dict[sphid] = MirParser._rechunk_vis(
-                    MirParser.convert_raw_to_vis({0: sp_raw}), [chan_avg], inplace=True,
+                    MirParser.convert_raw_to_vis({0: sp_raw}),
+                    [chan_avg],
+                    inplace=True,
                 )[0]
             else:
                 data_dict[sphid] = MirParser.convert_vis_to_raw(
@@ -3614,7 +3640,10 @@ class MirParser(object):
                     # and then convert to raw later if needed.
                     self.vis_data.update(
                         self._rechunk_raw(
-                            data_dict, temp_chan_avg, return_vis=True, inplace=True,
+                            data_dict,
+                            temp_chan_avg,
+                            return_vis=True,
+                            inplace=True,
                         )
                     )
 
@@ -4408,7 +4437,10 @@ class MirParser(object):
             else:
                 for obj2 in obj_list[:idx]:
                     if MirParser._combine_read_arr_check(
-                        obj1._in_read, obj2._in_read, "inhid", any_match=True,
+                        obj1._in_read,
+                        obj2._in_read,
+                        "inhid",
+                        any_match=True,
                     ):
                         if force:
                             warnings.warn(
@@ -4902,17 +4934,26 @@ class MirParser(object):
         if select_field in self.in_data.dtype.names:
             # If this is a field in in_data, then we just need to update use_in
             use_in[self._in_filter] = self._parse_select_compare(
-                select_field, select_comp, select_val, self.in_data,
+                select_field,
+                select_comp,
+                select_val,
+                self.in_data,
             )
         elif select_field in self.bl_data.dtype.names:
             # Same story for bl_data and use_bl
             use_bl[self._bl_filter] = self._parse_select_compare(
-                select_field, select_comp, select_val, self.bl_data,
+                select_field,
+                select_comp,
+                select_val,
+                self.bl_data,
             )
         elif select_field in self.sp_data.dtype.names:
             # And ditto for sp_data and use_sp
             use_sp[self._sp_filter] = self._parse_select_compare(
-                select_field, select_comp, select_val, self.sp_data,
+                select_field,
+                select_comp,
+                select_val,
+                self.sp_data,
             )
         elif select_field in self.eng_data.dtype.names:
             # We have to handle the engineering data a little differently, because most
@@ -4920,7 +4961,10 @@ class MirParser(object):
             # per antenna. So first up, we need to check and see which data is about
             # to be discarded by our selection
             data_mask = self._parse_select_compare(
-                select_field, select_comp, select_val, self.eng_data,
+                select_field,
+                select_comp,
+                select_val,
+                self.eng_data,
             )
 
             # Need to run through the data tuple-by-tuple to see if a given ant-time
@@ -4946,7 +4990,9 @@ class MirParser(object):
             use_bl[self._bl_filter] = [
                 ((inhid, ant1) in check_items or (inhid, ant2) in check_items)
                 for inhid, ant1, ant2 in zip(
-                    self.bl_data["inhid"], self.bl_data["iant1"], self.bl_data["iant2"],
+                    self.bl_data["inhid"],
+                    self.bl_data["iant1"],
+                    self.bl_data["iant2"],
                 )
             ]
 
@@ -5612,7 +5658,10 @@ class MirParser(object):
             shift_tuple = (
                 coarse_shift,
                 2,
-                np.array([1 - fine_shift, fine_shift], dtype=np.float32,),
+                np.array(
+                    [1 - fine_shift, fine_shift],
+                    dtype=np.float32,
+                ),
             )
         elif kernel_type == "cubic":
             # Cubic convolution is a bit more complicated, and the exact value
@@ -5633,8 +5682,8 @@ class MirParser(object):
                         ((alpha_fac + 2) * ((1 - fine_shift) ** 3))  # 1-left entry
                         - ((alpha_fac + 3) * ((1 - fine_shift) ** 2))
                         + 1,
-                        ((alpha_fac + 2) * (fine_shift ** 3))  # 1-right entry
-                        - ((alpha_fac + 3) * (fine_shift ** 2))
+                        ((alpha_fac + 2) * (fine_shift**3))  # 1-right entry
+                        - ((alpha_fac + 3) * (fine_shift**2))
                         + 1,
                         (alpha_fac * ((1 + fine_shift) ** 3))  # 2-right entry
                         - (5 * alpha_fac * ((1 + fine_shift) ** 2))

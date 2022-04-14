@@ -37,7 +37,8 @@ def compass_soln_file(tmp_path_factory):
         bp_soln = np.arange(16 * 16384) + (np.flip(np.arange(16 * 16384)) * 1j)
 
         file["bandpassArr"] = np.reshape(
-            np.concatenate((bp_soln, np.conj(np.reciprocal(bp_soln)))), (2, 16, 16384),
+            np.concatenate((bp_soln, np.conj(np.reciprocal(bp_soln)))),
+            (2, 16, 16384),
         ).astype(np.complex64)
 
         # This number is pulled from the test mir_data object, in in_data["mjd"].
@@ -398,7 +399,8 @@ def test_compare_rechunk(mir_data, load_scheme):
             mir_data._sp_read[item] = mir_data.sp_data[item]
     else:
         mir_data.unload_data(
-            unload_vis=(load_scheme == "raw"), unload_raw=(load_scheme == "vis"),
+            unload_vis=(load_scheme == "raw"),
+            unload_raw=(load_scheme == "vis"),
         )
         with uvtest.check_warnings(
             UserWarning, "Setting load_data or load_raw to True will unload"
@@ -515,7 +517,10 @@ def test_select_errs(mir_data, field, comp, value, use_in, err_type, err_msg):
     """Verify that select throws errors as expected."""
     with pytest.raises(err_type) as err:
         mir_data.select(
-            select_field=field, select_comp=comp, select_val=value, use_in=use_in,
+            select_field=field,
+            select_comp=comp,
+            select_val=value,
+            use_in=use_in,
         )
 
     assert str(err.value).startswith(err_msg)
@@ -808,7 +813,8 @@ def test_read_packdata_mmap(mir_data):
 def test_read_packdata_make_packdata(mir_data):
     """Verify that making packdata produces the same result as reading packdata"""
     read_data = mir_data.read_packdata(
-        mir_data.filepath, mir_data._file_dict[mir_data.filepath],
+        mir_data.filepath,
+        mir_data._file_dict[mir_data.filepath],
     )
 
     make_data = mir_data.make_packdata(mir_data.sp_data, mir_data.raw_data)
@@ -2058,7 +2064,8 @@ def test_concat_warn(mir_data):
         mir_copy._file_dict[str(idx)] = mir_copy._file_dict.pop(key)
 
     with uvtest.check_warnings(
-        UserWarning, "Objects may contain the same data, pushing forward",
+        UserWarning,
+        "Objects may contain the same data, pushing forward",
     ):
         _ = MirParser.concat((mir_data, mir_copy), force=True)
 
@@ -2114,7 +2121,7 @@ def test_concat_warn(mir_data):
     ],
 )
 def test_generate_chanshift_kernel_errs(mir_data, kern_type, tol, err_type, err_msg):
-    """"Verify that _generate_chanshift_kernel throws errors as expected."""
+    """ "Verify that _generate_chanshift_kernel throws errors as expected."""
     with pytest.raises(err_type) as err:
         MirParser._generate_chanshift_kernel(1.5, kern_type, tol=tol)
     assert str(err.value).startswith(err_msg)
@@ -2281,7 +2288,10 @@ def test_chanshift_vis(check_flags, flag_adj, fwd_dir, inplace):
 
     # Now try a simple one-channel shift
     new_dict = MirParser._chanshift_vis(
-        vis_dict, [(1 if fwd_dir else -1, 0, None)], flag_adj=flag_adj, inplace=inplace,
+        vis_dict,
+        [(1 if fwd_dir else -1, 0, None)],
+        flag_adj=flag_adj,
+        inplace=inplace,
     )
 
     if inplace:
