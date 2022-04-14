@@ -384,14 +384,14 @@ antpos_dtype = np.dtype([("antenna", np.int16), ("xyz_pos", np.float64, 3)])
 
 
 metafile_dict = {
-    "in": {"filetype": "in_read", "dtype": in_dtype, "index": "inhid"},
-    "nl": {"filetype": "bl_read", "dtype": bl_dtype, "index": "blhid"},
-    "sp": {"filetype": "sp_read", "dtype": sp_dtype, "index": "sphid"},
+    "in": {"filetype": "in_read", "dtype": in_dtype, "index": ("inhid",)},
+    "nl": {"filetype": "bl_read", "dtype": bl_dtype, "index": ("blhid",)},
+    "sp": {"filetype": "sp_read", "dtype": sp_dtype, "index": ("sphid",)},
     "we": {"filetype": "sp_read", "dtype": sp_dtype, "index": ("scanNumber",)},
     "eng": {
         "filetype": "eng_read",
         "dtype": eng_dtype,
-        "index": ("sphid", "antennaNumber"),
+        "index": ("inhid", "antennaNumber"),
     },
 }
 
@@ -404,7 +404,7 @@ class MirMetaData(object):
         self._dtype = metafile_dict[metafile_type]["dtype"]
         self._index = metafile_dict[metafile_type]["index"]
 
-        self._filepath = None
+        self._filepath = (None,)
         self._mask = None
 
         if filepath is not None:
@@ -494,10 +494,12 @@ class MirMetaData(object):
         else:
             return data_mask
 
-    def get(self, field_name, index=None, where=None):
+    def get_value(self, field_name, mask=None, index=None, where=None):
         # Check to make sure that both index and where argumnets aren't set, since
         # they are not compatible wit one another.
-        if (index is not None) and (where is not None):
+        if mask is not None and not ((index is None) and (where is None)):
+            raise ValueError("Cannot set mask if where or index arguments are passed.")
+        elif not ((index is None) or (where is None)):
             raise ValueError("Cannot select both by index and where condition.")
 
         # If we are accessing direct index values of this array, then ust he
@@ -516,12 +518,15 @@ class MirMetaData(object):
 
         # Finally, if no arguments are provided, then just give the whole array, masked
         # by the primary filter.
-        return self.data[field_name]
+        return self.data[field_name][... if (mask is None) else mask]
 
-    def set_val(self, field_name, value, index=None, where=None):
+    def set_value(self, field_name, value, mask=None, index=None, where=None):
         # Check to make sure that both index and where argumnets aren't set, since
         # they are not compatible wit one another.
-        if (index is not None) and (where is not None):
+
+        if mask is not None and not ((index is None) and (where is None)):
+            raise ValueError("Cannot set mask if where or index arguments are passed.")
+        elif not ((index is None) or (where is None)):
             raise ValueError("Cannot select both by index and where condition.")
 
         # If we are accessing direct index values of this array, then ust he
@@ -540,7 +545,7 @@ class MirMetaData(object):
             self.data[field_name][sel_mask] = value
             return
 
-        self.data[field_name][:] = value
+        self.data[field_name][... if mask is None else mask] = value
 
     def generate_pos_dict(self):
         if isinstance(self._index, tuple):
@@ -559,7 +564,7 @@ class MirMetaData(object):
         self.data = np.fromfile(os.path.join(filepath, self.filetype), dtype=self.dtype)
         self._filepath = os.path.abspath(filepath)
         self._mask = np.ones(self.data.shape[0], dtype=bool)
-        self._pos_dict = self.generzte_pos_dict()
+        self._pos_dict = self.generate_pos_dict()
 
     def tofile(self, filepath, append_data=False, update_filepath=False):
         if not os.path.isdir(filepath):
@@ -579,11 +584,11 @@ class MirMetaData(object):
         for field, data_dict in update_dict:
             self.data[field] = [data_dict[val] for val in self.data[field]]
 
-    def __setitem__(self, item, val):
-        self.data[item][self._mask] = val
+    def __setitem__(self, item, value):
+        self.set_value(item, value, mask=self._mask)
 
     def __getitem__(self, item):
-        return self.data[item][self._mask]
+        return self.get_value(item, mask=self._mask)
 
     def generate_new_index(self, index_start):
         if isinstance(self._index, tuple):
@@ -603,6 +608,167 @@ class MirMetaData(object):
         }
 
         return index_dict, end_pos
+
+    def _check_index_overlap(self, other):
+        """
+        Check for overlaping index values between two structured arrays.
+
+        This method is an internal helper function not meant to be called by users.
+        It checks for overlap between two arrays given a set of fields, the combined
+        set of which should provide a unique index value for each entry within the
+        arrays.
+
+        Parameter
+        ---------
+        arr1 : ndarray
+            Array of metadata, to be compared to `arr2`.
+        arr2 : ndarray
+            Array of metadata, to be compared to `arr1`.
+        index_name : str or tuple of str
+            Name of the field(s) which contains the unique index information.
+
+        Returns
+        -------
+        arr1_idx : list of int
+            List of index positions for `arr1` where the index field(s) have overlapping
+            values with `arr2`. The length of `arr1_idx` should be equal to that of
+            `arr2_idx`.
+        arr2_idx : list of int
+            List of index positions for `arr2` where the index field(s) have overlapping
+            values with `arr1`. The length of `arr2_idx` should be equal to that of
+            `arr1_idx`.
+
+        Raises
+        ------
+        ValueError
+            If `arr1` and `arr2` are of different dtypes, or if entries in `index_name`
+            overlap in the two arrays but `overwrite=False`. Also if `index_name` is
+            not a string, or is not a field in `arr1` or `arr2`.
+        """
+        # First up, make sure we have two objects of the same dtype
+        if type(self) != type(other):
+            raise ValueError("Both objects must be of the same type.")
+
+        # Finally, figure out where we have overlapping entries, based on the field
+        # used for indexing entries. Note that this is what intersect1d does, albeit
+        # with the limitation of only a 1D array (vs multiple keys possible here).
+        index_dict1 = {}
+        for count, item in enumerate(self.data):
+            index_dict1[tuple(item[field] for field in self._index)] = count
+
+        index_dict2 = {}
+        for count, item in enumerate(other.data):
+            index_dict2[tuple(item[field] for field in other._index)] = count
+
+        obj1_idx = []
+        obj2_idx = []
+        for key, value in index_dict1.items():
+            try:
+                # If you see a corresponding index, then we want to evaluate the
+                # values at this position. We check index_dict2 first so that if
+                # there's no match, it'll throw a KeyError before we append to
+                # the indexing list.
+                obj2_idx.append(index_dict2[key])
+                obj1_idx.append(value)
+            except KeyError:
+                # If there is no corresponding entry in arr2, nothing to check
+                pass
+
+        return obj1_idx, obj2_idx
+
+    def _add_check(self, other, any_match=False):
+        """
+        Check if two MirParser metadata arrays have conflicting index values.
+
+        This method is an internal helper function not meant to be called by users.
+        It checks two arrays of metadata of one of the custom dtypes used by MirParser
+        (for the attributes `in_data`, `bl_data`, `sp_data`, `eng_data`, `we_data`,
+        and `_codes_read`) to make sure that if they contain identical index values,
+        both arrays contain identical metadata. Used in checking if two arrays can
+        be combined without conflict (via the method `_combine_read_arr`).
+
+        Parameter
+        ---------
+        other : MirMetaData
+            Array of metadata, to be compared to this object.
+        any_match : bool
+            Nominally the method checks to see if all fields in each object match when
+            overlapping indicies exist. However, if this is set to True, it will check
+            instead if any elements with overlapping indicies have metadata that agree.
+
+        Returns
+        -------
+        check_status : bool
+            If True, and `any_match=False`, any entries between the two arrays where
+            the index value matches has metadata which is indentical, and thus should
+            be safe to merge. If True and `any=True`, then the two arrays have at
+            least one entry where the index value matches and the metadata agrees.
+
+        Raises
+        ------
+        ValueError
+            If `arr1` and `arr2` are of different dtypes, or if entries in `index_name`
+            overlap in the two arrays but `overwrite=False`. Also if `index_name` is
+            not a string, or is not a field in `arr1` or `arr2`.
+        """
+        idx1, idx2 = MirParser._check_index_overlap(self, other)
+
+        # Compare where we have coverlap and make sure the two arrays are the same.
+        if any_match:
+            check_status = np.any(self.data[idx1] == other.data[idx2])
+        else:
+            check_status = np.array_equal(self.data[idx1], other.data[idx2])
+
+        return check_status
+
+    def __add__(self, other, inplace=False, merge_data=False):
+        """
+        Combine two MirMetaData objects.
+
+        Thing.
+        """
+        pass
+
+    def __iadd__(self, other, overwrite=False):
+        """
+        In-place addition of two MirMetaData objects.
+
+        Thing.
+        """
+        pass
+
+    def copy(self, metadata_only=False):
+        """
+        Make and return a copy of the MirMetaData object.
+
+        Thing.
+        """
+        # Initialize a new object of the given type
+        copy_obj = type(self)()
+
+        # include all attributes, not just UVParameter ones.
+        for attr in vars(self).keys():
+            setattr(copy_obj, attr, copy.deepcopy(getattr(self, attr)))
+
+        return copy_obj
+
+    def __eq__(self, other, verbose=True, ignore_params=False):
+        """
+        Compare MirMetaData objects for equality.
+
+        This is a thing.
+        """
+
+    def __ne__(self, other, verbose=True, ignore_params=False):
+        """
+        Compare MirMetaData objects for inequality.
+
+        This is a thing.
+        """
+        return not self.__eq__(other, verbose=verbose)
+
+
+########################################################################################
 
 
 class MirParser(object):
