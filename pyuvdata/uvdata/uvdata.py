@@ -779,7 +779,9 @@ class UVData(UVBase):
             expected_type=str,
         )
 
-        super(UVData, self).__init__()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            super(UVData, self).__init__()
 
     def _set_flex_spw(self):
         """
@@ -1010,22 +1012,24 @@ class UVData(UVBase):
             this_dict = self.phase_center_catalog
         else:
             this_dict = {}
-            is_phased = self.phase_type == "phased"
-            this_dict = {
-                0: {
-                    "cat_name": cat_name,
-                    "cat_type": "sidereal" if is_phased else "unprojected",
-                    "cat_lon": self.phase_center_ra if is_phased else 0.0,
-                    "cat_lat": self.phase_center_dec if is_phased else np.pi / 2.0,
-                    "cat_frame": self.phase_center_frame if is_phased else "altaz",
-                    "cat_epoch": self.phase_center_epoch if is_phased else None,
-                    "cat_times": None,
-                    "cat_pm_ra": None,
-                    "cat_pm_dec": None,
-                    "cat_dist": None,
-                    "cat_vrad": None,
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                is_phased = self.phase_type == "phased"
+                this_dict = {
+                    0: {
+                        "cat_name": cat_name,
+                        "cat_type": "sidereal" if is_phased else "unprojected",
+                        "cat_lon": self.phase_center_ra if is_phased else 0.0,
+                        "cat_lat": self.phase_center_dec if is_phased else np.pi / 2.0,
+                        "cat_frame": self.phase_center_frame if is_phased else "altaz",
+                        "cat_epoch": self.phase_center_epoch if is_phased else None,
+                        "cat_times": None,
+                        "cat_pm_ra": None,
+                        "cat_pm_dec": None,
+                        "cat_dist": None,
+                        "cat_vrad": None,
+                    }
                 }
-            }
 
         tol_dict = {
             "cat_type": None,
@@ -1055,7 +1059,9 @@ class UVData(UVBase):
                     for key, cat_dict in self.phase_center_catalog.items()
                 }
         else:
-            name_dict = {0: self.object_name}
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                name_dict = {0: self.object_name}
 
         for cat_id, name in name_dict.items():
             cat_diffs = 0
@@ -1470,7 +1476,9 @@ class UVData(UVBase):
             blt_mask = np.isin(self.phase_center_id_array, nophase_list)
         else:
             # If not multi phase center, we just need to check the phase type
-            blt_mask = np.repeat(self.phase_type == "drift", self.Nblts)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                blt_mask = np.repeat(self.phase_type == "drift", self.Nblts)
 
         return blt_mask
 
@@ -2161,11 +2169,13 @@ class UVData(UVBase):
 
         # All multi phase center objects have phase_type="phased", even if they are
         # unprojected.
-        if self.phase_type == "phased":
-            cat_type = "sidereal"
-        else:
-            self._set_phased()
-            cat_type = "unprojected"
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            if self.phase_type == "phased":
+                cat_type = "sidereal"
+            else:
+                self._set_phased()
+                cat_type = "unprojected"
 
         self.multi_phase_center = True
 
@@ -2176,31 +2186,42 @@ class UVData(UVBase):
 
         self.Nphase = 0
         self.phase_center_catalog = {}
-        cat_name = self.object_name
-        self.object_name = "multi"
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            cat_name = self.object_name
+            self.object_name = "multi"
 
-        if preserve_phase_center_info:
-            cat_id = self._add_phase_center(
-                cat_name,
-                cat_type=cat_type,
-                cat_lon=self.phase_center_ra,
-                cat_lat=self.phase_center_dec,
-                cat_frame=self.phase_center_frame,
-                cat_epoch=self.phase_center_epoch,
-            )
-            self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
+            if preserve_phase_center_info:
+                cat_id = self._add_phase_center(
+                    cat_name,
+                    cat_type=cat_type,
+                    cat_lon=self.phase_center_ra,
+                    cat_lat=self.phase_center_dec,
+                    cat_frame=self.phase_center_frame,
+                    cat_epoch=self.phase_center_epoch,
+                )
+                self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
 
-        self.phase_center_ra = 0.0
-        self.phase_center_dec = 0.0
-        if self.phase_center_frame is None:
-            self.phase_center_frame = "icrs"
-        if self.phase_center_epoch is None:
-            self.phase_center_epoch = 2000.0
+            self.phase_center_ra = 0.0
+            self.phase_center_dec = 0.0
+            if self.phase_center_frame is None:
+                self.phase_center_frame = "icrs"
+            if self.phase_center_epoch is None:
+                self.phase_center_epoch = 2000.0
 
         if (cat_type == "unprojected") and preserve_phase_center_info:
             # If moving from unprojected, then we'll fill in app_ra and app_dec in
             # the way that we normally would if this were an "unprojected" object.
             self._set_app_coords_helper()
+
+    def use_future_phase_info(self):
+        """
+        Convert to future phase representation (phase_center_catalog).
+
+        This method will preserve the existing phase information, just change to
+        representing it in the phase_center_catalog.
+        """
+        self._set_multi_phase_center(preserve_phase_center_info=True)
 
     def _set_drift(self):
         """
@@ -2210,7 +2231,9 @@ class UVData(UVBase):
         by phasing methods and file-reading methods to indicate the object has a
         `phase_type` of "drift" and define which metadata are required.
         """
-        self.phase_type = "drift"
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            self.phase_type = "drift"
         self._phase_center_frame.required = False
         self._phase_center_ra.required = False
         self._phase_center_dec.required = False
@@ -2226,7 +2249,9 @@ class UVData(UVBase):
         by phasing methods and file-reading methods to indicate the object has a
         `phase_type` of "phased" and define which metadata are required.
         """
-        self.phase_type = "phased"
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            self.phase_type = "phased"
         self._phase_center_frame.required = True
         self._phase_center_ra.required = True
         self._phase_center_dec.required = True
@@ -2260,6 +2285,58 @@ class UVData(UVBase):
             getattr(self, "_" + param_name).required = not metadata_only
 
         return metadata_only
+
+    def __getattribute__(self, __name):
+        """Issue deprecation warnings for old phasing attributes."""
+        old_phase_attrs = [
+            "phase_type",
+            "phase_center_ra",
+            "phase_center_dec",
+            "phase_center_frame",
+            "phase_center_epoch",
+            "object_name",
+        ]
+        if __name in old_phase_attrs:
+            warnings.warn(
+                "The older phase attributes, including "
+                + ", ".join(old_phase_attrs)
+                + ", are deprecated in favor of representing phasing using the "
+                "phase_center_catalog. To convert to the new representation, use the "
+                "use_future_phase_info method."
+            )
+
+        return super().__getattribute__(__name)
+
+    def __eq__(self, other, check_extra=True, allowed_failures=("filename",)):
+        """
+        Check for equality.
+
+        This only exists to catch warnings about the old phase attributes.
+
+        Parameters
+        ----------
+        other : class
+            Other class instance to check
+        check_extra : bool
+            Option to specify whether to include all parameters, or just the
+            required ones. Default is True.
+        allowed_failures : iterable of str, optional
+            List or tuple of parameter names that are allowed to fail while
+            still passing an overall equality check. These should only include
+            optional parameters. By default, the `filename` parameter will be
+            ignored.
+
+        Returns
+        -------
+        bool
+            Whether the two instances are equivalent.
+
+        """
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            return super().__eq__(
+                other, check_extra=check_extra, allowed_failures=allowed_failures
+            )
 
     def _set_future_array_shapes(self):
         """
@@ -2466,10 +2543,12 @@ class UVData(UVBase):
             position angle between `phase_center_frame` and the apparent coordinate
             system. Useful for reading in data formats that do not calculate a PA.
         """
-        if self.phase_type != "phased":
-            # Uhhh... what do you want me to do? If the dataset isn't phased, there
-            # isn't an apparent position to calculate. Time to bail, I guess...
-            return
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            if self.phase_type != "phased":
+                # Uhhh... what do you want me to do? If the dataset isn't phased, there
+                # isn't an apparent position to calculate. Time to bail, I guess...
+                return
         if pa_only:
             app_ra = self.phase_center_app_ra
             app_dec = self.phase_center_app_dec
@@ -2503,30 +2582,52 @@ class UVData(UVBase):
                     telescope_loc=self.telescope_location_lat_lon_alt,
                     coord_type=cat_type,
                 )
+
         else:
             # So this is actually the easier of the two cases -- just use the object
             # properties to fill in the relevant data
-            app_ra, app_dec = uvutils.calc_app_coords(
-                self.phase_center_ra,
-                self.phase_center_dec,
-                self.phase_center_frame,
-                coord_epoch=self.phase_center_epoch,
-                time_array=self.time_array,
-                lst_array=self.lst_array,
-                telescope_loc=self.telescope_location_lat_lon_alt,
-                coord_type="sidereal",
-            )
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                app_ra, app_dec = uvutils.calc_app_coords(
+                    self.phase_center_ra,
+                    self.phase_center_dec,
+                    self.phase_center_frame,
+                    coord_epoch=self.phase_center_epoch,
+                    time_array=self.time_array,
+                    lst_array=self.lst_array,
+                    telescope_loc=self.telescope_location_lat_lon_alt,
+                    coord_type="sidereal",
+                )
 
-        # Now that we have the apparent coordinates sorted out, we can figure out what
-        # it is we want to do with the position angle
-        frame_pa = uvutils.calc_frame_pos_angle(
-            self.time_array,
-            app_ra,
-            app_dec,
-            self.telescope_location_lat_lon_alt,
-            self.phase_center_frame,
-            ref_epoch=self.phase_center_epoch,
-        )
+        # Now that we have the apparent coordinates sorted out, we can figure
+        # out what it is we want to do with the position angle
+        if self.multi_phase_center:
+            frame_pa = np.zeros(self.Nblts, dtype=float)
+            for cat_id in self.phase_center_catalog.keys():
+                temp_dict = self.phase_center_catalog[cat_id]
+                select_mask = self.phase_center_id_array == cat_id
+                frame = temp_dict.get("cat_frame")
+                epoch = temp_dict.get("cat_epoch")
+                if not frame == "altaz":
+                    frame_pa[select_mask] = uvutils.calc_frame_pos_angle(
+                        self.time_array[select_mask],
+                        app_ra[select_mask],
+                        app_dec[select_mask],
+                        self.telescope_location_lat_lon_alt,
+                        frame,
+                        ref_epoch=epoch,
+                    )
+        else:
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                frame_pa = uvutils.calc_frame_pos_angle(
+                    self.time_array,
+                    app_ra,
+                    app_dec,
+                    self.telescope_location_lat_lon_alt,
+                    self.phase_center_frame,
+                    ref_epoch=self.phase_center_epoch,
+                )
         self.phase_center_app_ra = app_ra
         self.phase_center_app_dec = app_dec
         self.phase_center_frame_pa = frame_pa
@@ -3164,18 +3265,20 @@ class UVData(UVBase):
         """
         # first run the basic check from UVBase
         # set the phase type based on object's value
-        if self.phase_type == "phased":
-            self._set_phased()
-        elif self.phase_type == "drift":
-            self._set_drift()
-        else:
-            raise ValueError('Phase type must be either "phased" or "drift"')
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            if self.phase_type == "phased":
+                self._set_phased()
+            elif self.phase_type == "drift":
+                self._set_drift()
+            else:
+                raise ValueError('Phase type must be either "phased" or "drift"')
 
-        logger.debug("Doing UVBase check...")
-        super(UVData, self).check(
-            check_extra=check_extra, run_check_acceptability=run_check_acceptability
-        )
-        logger.debug("... Done UVBase Check")
+            logger.debug("Doing UVBase check...")
+            super(UVData, self).check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )
+            logger.debug("... Done UVBase Check")
 
         # Check internal consistency of numbers which don't explicitly correspond
         # to the shape of another array.
@@ -3257,10 +3360,12 @@ class UVData(UVBase):
             temp_obj = self.copy(metadata_only=True)
             logger.info("Temp Obj")
 
-            if temp_obj.phase_center_frame is not None:
-                output_phase_frame = temp_obj.phase_center_frame
-            else:
-                output_phase_frame = "icrs"
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                if temp_obj.phase_center_frame is not None:
+                    output_phase_frame = temp_obj.phase_center_frame
+                else:
+                    output_phase_frame = "icrs"
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -3430,27 +3535,29 @@ class UVData(UVBase):
         UVData
             Copy of self.
         """
-        if not metadata_only:
-            return super(UVData, self).copy()
-        else:
-            uv = UVData()
-            # include all attributes, not just UVParameter ones.
-            for attr in self.__iter__(uvparams_only=False):
-                # skip properties
-                if isinstance(getattr(type(self), attr, None), property):
-                    continue
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            if not metadata_only:
+                return super(UVData, self).copy()
+            else:
+                uv = UVData()
+                # include all attributes, not just UVParameter ones.
+                for attr in self.__iter__(uvparams_only=False):
+                    # skip properties
+                    if isinstance(getattr(type(self), attr, None), property):
+                        continue
 
-                # skip data like parameters
-                # parameter names have a leading underscore we want to ignore
-                if attr.lstrip("_") in self._data_params:
-                    continue
-                setattr(uv, attr, copy.deepcopy(getattr(self, attr)))
+                    # skip data like parameters
+                    # parameter names have a leading underscore we want to ignore
+                    if attr.lstrip("_") in self._data_params:
+                        continue
+                    setattr(uv, attr, copy.deepcopy(getattr(self, attr)))
 
-            if uv.future_array_shapes:
-                for param_name in uv._data_params:
-                    getattr(uv, "_" + param_name).form = ("Nblts", "Nfreqs", "Npols")
+        if uv.future_array_shapes:
+            for param_name in uv._data_params:
+                getattr(uv, "_" + param_name).form = ("Nblts", "Nfreqs", "Npols")
 
-            return uv
+        return uv
 
     def baseline_to_antnums(self, baseline):
         """
@@ -5274,12 +5381,14 @@ class UVData(UVBase):
         ValueError
             If the phase_type is not 'phased'
         """
-        if self.phase_type == "phased":
-            pass
-        else:
-            raise ValueError(
-                "The data is already drift scanning; can only unphase phased data."
-            )
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            if self.phase_type == "phased":
+                pass
+            else:
+                raise ValueError(
+                    "The data is already drift scanning; can only unphase phased data."
+                )
 
         if not use_old_proj:
             telescope_location = self.telescope_location_lat_lon_alt
@@ -5337,17 +5446,21 @@ class UVData(UVBase):
             )
 
         if phase_frame is None:
-            if self.phase_center_frame is not None:
-                phase_frame = self.phase_center_frame
-            else:
-                phase_frame = "icrs"
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                if self.phase_center_frame is not None:
+                    phase_frame = self.phase_center_frame
+                else:
+                    phase_frame = "icrs"
 
-        icrs_coord = SkyCoord(
-            ra=self.phase_center_ra,
-            dec=self.phase_center_dec,
-            unit="radian",
-            frame="icrs",
-        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            icrs_coord = SkyCoord(
+                ra=self.phase_center_ra,
+                dec=self.phase_center_dec,
+                unit="radian",
+                frame="icrs",
+            )
         if phase_frame == "icrs":
             frame_phase_center = icrs_coord
         else:
@@ -5494,7 +5607,9 @@ class UVData(UVBase):
                 for pc_id, pc_dict in self.phase_center_catalog.items()
             }
         else:
-            name_dict = {self.object_name: 0}
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                name_dict = {self.object_name: 0}
 
         if lookup_name and self.multi_phase_center:
             if len(self._look_for_name(cat_name)) > 1:
@@ -5833,11 +5948,17 @@ class UVData(UVBase):
                 "method, please set use_old_proj=False."
             )
 
-        if not allow_rephase and (self.phase_type == "phased"):
-            raise ValueError(
-                "The data is already phased; set allow_rephase"
-                " to True to unphase and rephase."
-            )
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            input_phase_type = self.phase_type
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            if not allow_rephase and (input_phase_type == "phased"):
+                raise ValueError(
+                    "The data is already phased; set allow_rephase"
+                    " to True to unphase and rephase."
+                )
 
         # Right up front, we're gonna split off the piece of the code that
         # does the phasing using the "new" method, since its a lot more flexible
@@ -5907,19 +6028,21 @@ class UVData(UVBase):
                 telescope_loc=self.telescope_location_lat_lon_alt,
             )
 
-            # Now calculate position angles. If this is a single phase center data set,
-            # the ref frame is always equal to the source coordinate frame. In a multi
-            # phase center data set, those two components are allowed to be decoupled.
+            # Now calculate position angles.
             new_frame_pa = uvutils.calc_frame_pos_angle(
                 time_array,
                 new_app_ra,
                 new_app_dec,
                 self.telescope_location_lat_lon_alt,
-                self.phase_center_frame if self.multi_phase_center else phase_frame,
-                ref_epoch=self.phase_center_epoch if self.multi_phase_center else epoch,
+                phase_frame,
+                ref_epoch=epoch,
             )
 
             # Now its time to do some rotations and calculate the new coordinates
+            if input_phase_type == "drift":
+                from_enu = True
+            else:
+                from_enu = False
             new_uvw = uvutils.calc_uvw(
                 app_ra=new_app_ra,
                 app_dec=new_app_dec,
@@ -5936,7 +6059,7 @@ class UVData(UVBase):
                 old_frame_pa=old_frame_pa,
                 telescope_lat=self.telescope_location_lat_lon_alt[0],
                 telescope_lon=self.telescope_location_lat_lon_alt[1],
-                from_enu=(self.phase_type == "drift"),
+                from_enu=from_enu,
             )
 
             # With all operations complete, we now start manipulating the UVData object
@@ -5989,16 +6112,24 @@ class UVData(UVBase):
                 self._set_phased()
 
                 # Update the phase center properties
-                self.phase_center_ra = phase_dict["cat_lon"]
-                self.phase_center_dec = phase_dict["cat_lat"]
-                self.phase_center_epoch = phase_dict["cat_epoch"]
-                self.phase_center_frame = phase_dict["cat_frame"]
-                if cat_name is not None:
-                    self.object_name = cat_name
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", message="The older phase attributes"
+                    )
+                    self.phase_center_ra = phase_dict["cat_lon"]
+                    self.phase_center_dec = phase_dict["cat_lat"]
+                    self.phase_center_epoch = phase_dict["cat_epoch"]
+                    self.phase_center_frame = phase_dict["cat_frame"]
+                    if cat_name is not None:
+                        self.object_name = cat_name
             else:
-                self.phase_center_ra = 0.0
-                self.phase_center_dec = 0.0
-                self.phase_center_epoch = 2000.0
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", message="The older phase attributes"
+                    )
+                    self.phase_center_ra = 0.0
+                    self.phase_center_dec = 0.0
+                    self.phase_center_epoch = 2000.0
                 if cleanup_old_sources:
                     self._clear_unused_phase_centers()
             # All done w/ the new phase method
@@ -6014,32 +6145,34 @@ class UVData(UVBase):
             "corrections before using the new version of the phase method.",
             DeprecationWarning,
         )
-        if self.phase_type == "drift":
-            pass
-        elif self.phase_type == "phased":
-            # To get to this point, allow_rephase has to be true
-            if not np.isclose(
-                self.phase_center_ra,
-                ra,
-                rtol=self._phase_center_ra.tols[0],
-                atol=self._phase_center_ra.tols[1],
-            ) or not np.isclose(
-                self.phase_center_dec,
-                dec,
-                rtol=self._phase_center_dec.tols[0],
-                atol=self._phase_center_dec.tols[1],
-            ):
-                self.unphase_to_drift(
-                    phase_frame=orig_phase_frame,
-                    use_ant_pos=use_ant_pos,
-                    use_old_proj=True,
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            if input_phase_type == "drift":
+                pass
+            elif input_phase_type == "phased":
+                # To get to this point, allow_rephase has to be true
+                if not np.isclose(
+                    self.phase_center_ra,
+                    ra,
+                    rtol=self._phase_center_ra.tols[0],
+                    atol=self._phase_center_ra.tols[1],
+                ) or not np.isclose(
+                    self.phase_center_dec,
+                    dec,
+                    rtol=self._phase_center_dec.tols[0],
+                    atol=self._phase_center_dec.tols[1],
+                ):
+                    self.unphase_to_drift(
+                        phase_frame=orig_phase_frame,
+                        use_ant_pos=use_ant_pos,
+                        use_old_proj=True,
+                    )
+            else:
+                raise ValueError(
+                    "The phasing type of the data is unknown. "
+                    'Set the phase_type to "drift" or "phased" to '
+                    "reflect the phasing status of the data"
                 )
-        else:
-            raise ValueError(
-                "The phasing type of the data is unknown. "
-                'Set the phase_type to "drift" or "phased" to '
-                "reflect the phasing status of the data"
-            )
 
         if phase_frame not in ["icrs", "gcrs"]:
             raise ValueError("phase_frame can only be set to icrs or gcrs.")
@@ -6054,9 +6187,11 @@ class UVData(UVBase):
             # convert to icrs (i.e. J2000) to write to object
             icrs_coord = phase_center_coord.transform_to("icrs")
 
-        self.phase_center_ra = icrs_coord.ra.radian
-        self.phase_center_dec = icrs_coord.dec.radian
-        self.phase_center_epoch = 2000.0
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            self.phase_center_ra = icrs_coord.ra.radian
+            self.phase_center_dec = icrs_coord.dec.radian
+            self.phase_center_epoch = 2000.0
         self.phase_center_app_ra = None
         self.phase_center_app_dec = None
         self.phase_center_frame_pa = None
@@ -6189,7 +6324,9 @@ class UVData(UVBase):
                 phs = np.exp(-1j * 2 * np.pi * w_lambda[:, None, :, None])
             self.data_array *= phs
 
-        self.phase_center_frame = phase_frame
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            self.phase_center_frame = phase_frame
         # make sure apparent coords are properly set.
         self._set_phased()
         self._set_app_coords_helper()
@@ -6331,40 +6468,43 @@ class UVData(UVBase):
         if not use_old_proj and not (
             self.phase_center_app_ra is None or self.phase_center_app_dec is None
         ):
-            if (self.phase_type == "phased") and (
-                not (allow_phasing) and require_phasing
-            ):
-                raise ValueError(
-                    "UVW recalculation requires either unprojected data or the ability "
-                    "to rephase data. Use unphase_to_drift or set allow_phasing=True."
-                )
-
-            telescope_location = self.telescope_location_lat_lon_alt
-            new_uvw = uvutils.calc_uvw(
-                app_ra=self.phase_center_app_ra,
-                app_dec=self.phase_center_app_dec,
-                frame_pa=self.phase_center_frame_pa,
-                lst_array=self.lst_array,
-                use_ant_pos=True,
-                antenna_positions=self.antenna_positions,
-                antenna_numbers=self.antenna_numbers,
-                ant_1_array=self.ant_1_array,
-                ant_2_array=self.ant_2_array,
-                telescope_lat=telescope_location[0],
-                telescope_lon=telescope_location[1],
-                from_enu=(self.phase_type != "phased"),
-                to_enu=(self.phase_type != "phased"),
-            )
-            if self.phase_type == "phased":
-                if allow_phasing:
-                    old_w_vals = self.uvw_array[:, 2].copy()
-                    old_w_vals[self._check_for_unprojected()] = 0.0
-                    self._apply_w_proj(new_uvw[:, 2], old_w_vals)
-                else:
-                    warnings.warn(
-                        "Recalculating uvw_array without adjusting visibility phases "
-                        "-- this can introduce significant errors if used incorrectly."
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                if (self.phase_type == "phased") and (
+                    not (allow_phasing) and require_phasing
+                ):
+                    raise ValueError(
+                        "UVW recalculation requires either unprojected data or the ability "
+                        "to rephase data. Use unphase_to_drift or set allow_phasing=True."
                     )
+
+                telescope_location = self.telescope_location_lat_lon_alt
+                new_uvw = uvutils.calc_uvw(
+                    app_ra=self.phase_center_app_ra,
+                    app_dec=self.phase_center_app_dec,
+                    frame_pa=self.phase_center_frame_pa,
+                    lst_array=self.lst_array,
+                    use_ant_pos=True,
+                    antenna_positions=self.antenna_positions,
+                    antenna_numbers=self.antenna_numbers,
+                    ant_1_array=self.ant_1_array,
+                    ant_2_array=self.ant_2_array,
+                    telescope_lat=telescope_location[0],
+                    telescope_lon=telescope_location[1],
+                    from_enu=(self.phase_type != "phased"),
+                    to_enu=(self.phase_type != "phased"),
+                )
+                if self.phase_type == "phased":
+                    if allow_phasing:
+                        old_w_vals = self.uvw_array[:, 2].copy()
+                        old_w_vals[self._check_for_unprojected()] = 0.0
+                        self._apply_w_proj(new_uvw[:, 2], old_w_vals)
+                    else:
+                        warnings.warn(
+                            "Recalculating uvw_array without adjusting visibility phases "
+                            "-- this can introduce significant errors if used incorrectly."
+                        )
+
             # If the data are phased, we've already adjusted the phases. Now we just
             # need to update the uvw's and we are home free.
             self.uvw_array = new_uvw
@@ -6377,38 +6517,42 @@ class UVData(UVBase):
                 "calculation  method, please set use_old_proj=False."
             )
 
-        phase_type = self.phase_type
-        if phase_type == "phased":
-            if allow_phasing:
-                if not self.metadata_only:
-                    warnings.warn(
-                        "Data will be unphased and rephased "
-                        "to calculate UVWs, which might introduce small "
-                        "inaccuracies to the data."
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            phase_type = self.phase_type
+            if phase_type == "phased":
+                if allow_phasing:
+                    if not self.metadata_only:
+                        warnings.warn(
+                            "Data will be unphased and rephased "
+                            "to calculate UVWs, which might introduce small "
+                            "inaccuracies to the data."
+                        )
+                    if orig_phase_frame not in [None, "icrs", "gcrs"]:
+                        raise ValueError(
+                            "Invalid parameter orig_phase_frame. "
+                            'Options are "icrs", "gcrs", or None.'
+                        )
+                    if output_phase_frame not in ["icrs", "gcrs"]:
+                        raise ValueError(
+                            "Invalid parameter output_phase_frame. "
+                            'Options are "icrs" or "gcrs".'
+                        )
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings("ignore", message="The older phase attributes")
+                        phase_center_ra = self.phase_center_ra
+                        phase_center_dec = self.phase_center_dec
+                        phase_center_epoch = self.phase_center_epoch
+                    self.unphase_to_drift(
+                        phase_frame=orig_phase_frame,
+                        use_old_proj=True,
                     )
-                if orig_phase_frame not in [None, "icrs", "gcrs"]:
+                else:
                     raise ValueError(
-                        "Invalid parameter orig_phase_frame. "
-                        'Options are "icrs", "gcrs", or None.'
+                        "UVW calculation requires unprojected data. "
+                        "Use unphase_to_drift or set "
+                        "allow_phasing=True."
                     )
-                if output_phase_frame not in ["icrs", "gcrs"]:
-                    raise ValueError(
-                        "Invalid parameter output_phase_frame. "
-                        'Options are "icrs" or "gcrs".'
-                    )
-                phase_center_ra = self.phase_center_ra
-                phase_center_dec = self.phase_center_dec
-                phase_center_epoch = self.phase_center_epoch
-                self.unphase_to_drift(
-                    phase_frame=orig_phase_frame,
-                    use_old_proj=True,
-                )
-            else:
-                raise ValueError(
-                    "UVW calculation requires unprojected data. "
-                    "Use unphase_to_drift or set "
-                    "allow_phasing=True."
-                )
         antenna_locs_ENU, _ = self.get_ENU_antpos(center=False)
         # this code used to loop through every bl in the unique,
         # find the index into self.antenna_array of ant1 and ant2
@@ -6440,14 +6584,16 @@ class UVData(UVBase):
             - antenna_locs_ENU[ant_sort][ant1_index, :]
         )
         self.uvw_array = _uvw_array[reverse_inds]
-        if phase_type == "phased":
-            self.phase(
-                phase_center_ra,
-                phase_center_dec,
-                phase_center_epoch,
-                phase_frame=output_phase_frame,
-                use_old_proj=use_old_proj,
-            )
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            if phase_type == "phased":
+                self.phase(
+                    phase_center_ra,
+                    phase_center_dec,
+                    phase_center_epoch,
+                    phase_frame=output_phase_frame,
+                    use_old_proj=use_old_proj,
+                )
 
     def fix_phase(
         self,
@@ -6489,18 +6635,20 @@ class UVData(UVBase):
                 "using the old method -- caution is advised."
             )
             # Record the old values
-            phase_center_ra = self.phase_center_ra
-            phase_center_dec = self.phase_center_dec
-            phase_center_frame = self.phase_center_frame
-            phase_center_epoch = self.phase_center_epoch
-            cat_name = self.object_name
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                phase_center_ra = self.phase_center_ra
+                phase_center_dec = self.phase_center_dec
+                phase_center_frame = self.phase_center_frame
+                phase_center_epoch = self.phase_center_epoch
+                cat_name = self.object_name
 
-            # Bring the UVWs back to ENU/unprojected
-            self.unphase_to_drift(
-                phase_frame=self.phase_center_frame,
-                use_ant_pos=False,
-                use_old_proj=True,
-            )
+                # Bring the UVWs back to ENU/unprojected
+                self.unphase_to_drift(
+                    phase_frame=self.phase_center_frame,
+                    use_ant_pos=False,
+                    use_old_proj=True,
+                )
 
             # Check for any autos, since their uvws get potentially corrupted
             # by the above operation
@@ -6655,17 +6803,19 @@ class UVData(UVBase):
             )
 
         if unphase_to_drift:
-            if this.phase_type != "drift":
-                warnings.warn("Unphasing this UVData object to drift")
-                this.unphase_to_drift(
-                    phase_frame=orig_phase_frame, use_ant_pos=use_ant_pos
-                )
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                if this.phase_type != "drift":
+                    warnings.warn("Unphasing this UVData object to drift")
+                    this.unphase_to_drift(
+                        phase_frame=orig_phase_frame, use_ant_pos=use_ant_pos
+                    )
 
-            if other.phase_type != "drift":
-                warnings.warn("Unphasing other UVData object to drift")
-                other.unphase_to_drift(
-                    phase_frame=orig_phase_frame, use_ant_pos=use_ant_pos
-                )
+                if other.phase_type != "drift":
+                    warnings.warn("Unphasing other UVData object to drift")
+                    other.unphase_to_drift(
+                        phase_frame=orig_phase_frame, use_ant_pos=use_ant_pos
+                    )
 
         if phase_center_radec is not None:
             if np.array(phase_center_radec).size != 2:
@@ -6674,56 +6824,58 @@ class UVData(UVBase):
             # If this object is not phased or is not phased close to
             # phase_center_radec, (re)phase it.
             # Close is defined using the phase_center_ra/dec tolerances.
-            if this.phase_type == "drift" or (
-                not np.isclose(
-                    this.phase_center_ra,
-                    phase_center_radec[0],
-                    rtol=this._phase_center_ra.tols[0],
-                    atol=this._phase_center_ra.tols[1],
-                )
-                or not np.isclose(
-                    this.phase_center_dec,
-                    phase_center_radec[1],
-                    rtol=this._phase_center_dec.tols[0],
-                    atol=this._phase_center_dec.tols[1],
-                )
-            ):
-                warnings.warn("Phasing this UVData object to phase_center_radec")
-                this.phase(
-                    phase_center_radec[0],
-                    phase_center_radec[1],
-                    phase_frame=phase_frame,
-                    orig_phase_frame=orig_phase_frame,
-                    use_ant_pos=use_ant_pos,
-                    allow_rephase=True,
-                )
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                if this.phase_type == "drift" or (
+                    not np.isclose(
+                        this.phase_center_ra,
+                        phase_center_radec[0],
+                        rtol=this._phase_center_ra.tols[0],
+                        atol=this._phase_center_ra.tols[1],
+                    )
+                    or not np.isclose(
+                        this.phase_center_dec,
+                        phase_center_radec[1],
+                        rtol=this._phase_center_dec.tols[0],
+                        atol=this._phase_center_dec.tols[1],
+                    )
+                ):
+                    warnings.warn("Phasing this UVData object to phase_center_radec")
+                    this.phase(
+                        phase_center_radec[0],
+                        phase_center_radec[1],
+                        phase_frame=phase_frame,
+                        orig_phase_frame=orig_phase_frame,
+                        use_ant_pos=use_ant_pos,
+                        allow_rephase=True,
+                    )
 
-            # If other object is not phased or is not phased close to
-            # phase_center_radec, (re)phase it.
-            # Close is defined using the phase_center_ra/dec tolerances.
-            if other.phase_type == "drift" or (
-                not np.isclose(
-                    other.phase_center_ra,
-                    phase_center_radec[0],
-                    rtol=other._phase_center_ra.tols[0],
-                    atol=other._phase_center_ra.tols[1],
-                )
-                or not np.isclose(
-                    other.phase_center_dec,
-                    phase_center_radec[1],
-                    rtol=other._phase_center_dec.tols[0],
-                    atol=other._phase_center_dec.tols[1],
-                )
-            ):
-                warnings.warn("Phasing other UVData object to phase_center_radec")
-                other.phase(
-                    phase_center_radec[0],
-                    phase_center_radec[1],
-                    phase_frame=phase_frame,
-                    orig_phase_frame=orig_phase_frame,
-                    use_ant_pos=use_ant_pos,
-                    allow_rephase=True,
-                )
+                # If other object is not phased or is not phased close to
+                # phase_center_radec, (re)phase it.
+                # Close is defined using the phase_center_ra/dec tolerances.
+                if other.phase_type == "drift" or (
+                    not np.isclose(
+                        other.phase_center_ra,
+                        phase_center_radec[0],
+                        rtol=other._phase_center_ra.tols[0],
+                        atol=other._phase_center_ra.tols[1],
+                    )
+                    or not np.isclose(
+                        other.phase_center_dec,
+                        phase_center_radec[1],
+                        rtol=other._phase_center_dec.tols[0],
+                        atol=other._phase_center_dec.tols[1],
+                    )
+                ):
+                    warnings.warn("Phasing other UVData object to phase_center_radec")
+                    other.phase(
+                        phase_center_radec[0],
+                        phase_center_radec[1],
+                        phase_frame=phase_frame,
+                        orig_phase_frame=orig_phase_frame,
+                        use_ant_pos=use_ant_pos,
+                        allow_rephase=True,
+                    )
 
         # Define parameters that must be the same to add objects
         # But phase_center should be the same, even if in drift (empty parameters)
@@ -6749,9 +6901,11 @@ class UVData(UVBase):
             # then we can skip the step of checking the ra and dec, otherwise we need to
             # check it
             multi_obj_check = make_multi_phase or this.multi_phase_center
-            if not ((this.object_name != other.object_name) and multi_obj_check):
-                compatibility_params.append("_phase_center_ra")
-                compatibility_params.append("_phase_center_dec")
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                if not ((this.object_name != other.object_name) and multi_obj_check):
+                    compatibility_params.append("_phase_center_ra")
+                    compatibility_params.append("_phase_center_dec")
 
             # Also, if we are not supposed to ignore the name, then make sure that its
             # one of the parameters we check for compatibility.
@@ -7021,76 +7175,82 @@ class UVData(UVBase):
             pnew_inds = []
 
         # Actually check compatibility parameters
-        for cp in compatibility_params:
-            if cp == "_integration_time":
-                # only check that overlapping blt indices match
-                params_match = np.allclose(
-                    this.integration_time[this_blts_ind],
-                    other.integration_time[other_blts_ind],
-                    rtol=this._integration_time.tols[0],
-                    atol=this._integration_time.tols[1],
-                )
-            elif cp == "_uvw_array":
-                # only check that overlapping blt indices match
-                params_match = np.allclose(
-                    this.uvw_array[this_blts_ind, :],
-                    other.uvw_array[other_blts_ind, :],
-                    rtol=this._uvw_array.tols[0],
-                    atol=this._uvw_array.tols[1],
-                )
-            elif cp == "_lst_array":
-                # only check that overlapping blt indices match
-                params_match = np.allclose(
-                    this.lst_array[this_blts_ind],
-                    other.lst_array[other_blts_ind],
-                    rtol=this._lst_array.tols[0],
-                    atol=this._lst_array.tols[1],
-                )
-            elif cp == "_channel_width" and this.future_array_shapes or this.flex_spw:
-                # only check that overlapping freq indices match
-                params_match = np.allclose(
-                    this.channel_width[this_freq_ind],
-                    other.channel_width[other_freq_ind],
-                    rtol=this._channel_width.tols[0],
-                    atol=this._channel_width.tols[1],
-                )
-            elif (cp == "_phase_center_app_ra") and (this.phase_type == "phased"):
-                # only check that overlapping blt indices match
-                params_match = np.allclose(
-                    this.phase_center_app_ra[this_blts_ind],
-                    other.phase_center_app_ra[other_blts_ind],
-                    rtol=this._phase_center_app_ra.tols[0],
-                    atol=this._phase_center_app_ra.tols[1],
-                )
-            elif (cp == "_phase_center_app_dec") and (this.phase_type == "phased"):
-                # only check that overlapping blt indices match
-                params_match = np.allclose(
-                    this.phase_center_app_dec[this_blts_ind],
-                    other.phase_center_app_dec[other_blts_ind],
-                    rtol=this._phase_center_app_dec.tols[0],
-                    atol=this._phase_center_app_dec.tols[1],
-                )
-            elif (cp == "_phase_center_frame_pa") and (this.phase_type == "phased"):
-                # only check that overlapping blt indices match
-                params_match = np.allclose(
-                    this.phase_center_frame_pa[this_blts_ind],
-                    other.phase_center_frame_pa[other_blts_ind],
-                    rtol=this._phase_center_frame_pa.tols[0],
-                    atol=this._phase_center_frame_pa.tols[1],
-                )
-            else:
-                params_match = getattr(this, cp) == getattr(other, cp)
-            if not params_match:
-                msg = (
-                    "UVParameter " + cp[1:] + " does not match. Cannot combine objects."
-                )
-                if cp[1:] == "object_name":
-                    msg += (
-                        " This can potentially be remedied by setting "
-                        "ignore_name=True, or by allowing the creation of a "
-                        "mutli-phase-ctr dataset (by setting make_multi_phase=True)."
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            for cp in compatibility_params:
+                if cp == "_integration_time":
+                    # only check that overlapping blt indices match
+                    params_match = np.allclose(
+                        this.integration_time[this_blts_ind],
+                        other.integration_time[other_blts_ind],
+                        rtol=this._integration_time.tols[0],
+                        atol=this._integration_time.tols[1],
                     )
-                raise ValueError(msg)
+                elif cp == "_uvw_array":
+                    # only check that overlapping blt indices match
+                    params_match = np.allclose(
+                        this.uvw_array[this_blts_ind, :],
+                        other.uvw_array[other_blts_ind, :],
+                        rtol=this._uvw_array.tols[0],
+                        atol=this._uvw_array.tols[1],
+                    )
+                elif cp == "_lst_array":
+                    # only check that overlapping blt indices match
+                    params_match = np.allclose(
+                        this.lst_array[this_blts_ind],
+                        other.lst_array[other_blts_ind],
+                        rtol=this._lst_array.tols[0],
+                        atol=this._lst_array.tols[1],
+                    )
+                elif (
+                    cp == "_channel_width" and this.future_array_shapes or this.flex_spw
+                ):
+                    # only check that overlapping freq indices match
+                    params_match = np.allclose(
+                        this.channel_width[this_freq_ind],
+                        other.channel_width[other_freq_ind],
+                        rtol=this._channel_width.tols[0],
+                        atol=this._channel_width.tols[1],
+                    )
+                elif (cp == "_phase_center_app_ra") and (this.phase_type == "phased"):
+                    # only check that overlapping blt indices match
+                    params_match = np.allclose(
+                        this.phase_center_app_ra[this_blts_ind],
+                        other.phase_center_app_ra[other_blts_ind],
+                        rtol=this._phase_center_app_ra.tols[0],
+                        atol=this._phase_center_app_ra.tols[1],
+                    )
+                elif (cp == "_phase_center_app_dec") and (this.phase_type == "phased"):
+                    # only check that overlapping blt indices match
+                    params_match = np.allclose(
+                        this.phase_center_app_dec[this_blts_ind],
+                        other.phase_center_app_dec[other_blts_ind],
+                        rtol=this._phase_center_app_dec.tols[0],
+                        atol=this._phase_center_app_dec.tols[1],
+                    )
+                elif (cp == "_phase_center_frame_pa") and (this.phase_type == "phased"):
+                    # only check that overlapping blt indices match
+                    params_match = np.allclose(
+                        this.phase_center_frame_pa[this_blts_ind],
+                        other.phase_center_frame_pa[other_blts_ind],
+                        rtol=this._phase_center_frame_pa.tols[0],
+                        atol=this._phase_center_frame_pa.tols[1],
+                    )
+                else:
+                    params_match = getattr(this, cp) == getattr(other, cp)
+                if not params_match:
+                    msg = (
+                        "UVParameter " + cp[1:] + " does not match. "
+                        "Cannot combine objects."
+                    )
+                    if cp[1:] == "object_name":
+                        msg += (
+                            " This can potentially be remedied by setting "
+                            "ignore_name=True, or by allowing the creation of a "
+                            "mutli-phase-ctr dataset (by setting "
+                            "make_multi_phase=True)."
+                        )
+                    raise ValueError(msg)
 
         # Begin manipulating the objects.
         # First, handle the internal source catalogs, since merging them is kind of a
@@ -7132,14 +7292,16 @@ class UVData(UVBase):
         elif this.multi_phase_center:
             # If other is not multi phase center, then we'll go ahead and add the object
             # information here.
-            other_cat_id = this._add_phase_center(
-                other.object_name,
-                cat_type="sidereal",
-                cat_lon=other.phase_center_ra,
-                cat_lat=other.phase_center_dec,
-                cat_frame=other.phase_center_frame,
-                cat_epoch=other.phase_center_epoch,
-            )
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                other_cat_id = this._add_phase_center(
+                    other.object_name,
+                    cat_type="sidereal",
+                    cat_lon=other.phase_center_ra,
+                    cat_lat=other.phase_center_dec,
+                    cat_frame=other.phase_center_frame,
+                    cat_epoch=other.phase_center_epoch,
+                )
 
         # Next, we want to make sure that the ordering of the _overlapping_ data is
         # the same, so that things can get plugged together in a sensible way.
@@ -7214,16 +7376,24 @@ class UVData(UVBase):
             this.baseline_array = np.concatenate(
                 [this.baseline_array, other.baseline_array[bnew_inds]]
             )[blt_order]
-            if this.phase_type == "phased":
-                this.phase_center_app_ra = np.concatenate(
-                    [this.phase_center_app_ra, other.phase_center_app_ra[bnew_inds]]
-                )[blt_order]
-                this.phase_center_app_dec = np.concatenate(
-                    [this.phase_center_app_dec, other.phase_center_app_dec[bnew_inds]]
-                )[blt_order]
-                this.phase_center_frame_pa = np.concatenate(
-                    [this.phase_center_frame_pa, other.phase_center_frame_pa[bnew_inds]]
-                )[blt_order]
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                if this.phase_type == "phased":
+                    this.phase_center_app_ra = np.concatenate(
+                        [this.phase_center_app_ra, other.phase_center_app_ra[bnew_inds]]
+                    )[blt_order]
+                    this.phase_center_app_dec = np.concatenate(
+                        [
+                            this.phase_center_app_dec,
+                            other.phase_center_app_dec[bnew_inds],
+                        ]
+                    )[blt_order]
+                    this.phase_center_frame_pa = np.concatenate(
+                        [
+                            this.phase_center_frame_pa,
+                            other.phase_center_frame_pa[bnew_inds],
+                        ]
+                    )[blt_order]
             if this.multi_phase_center:
                 if other.multi_phase_center:
                     this.phase_center_id_array = np.concatenate(
@@ -7752,18 +7922,20 @@ class UVData(UVBase):
             )
 
         if unphase_to_drift:
-            if this.phase_type != "drift":
-                warnings.warn("Unphasing this UVData object to drift")
-                this.unphase_to_drift(
-                    phase_frame=orig_phase_frame, use_ant_pos=use_ant_pos
-                )
-
-            for obj in other:
-                if obj.phase_type != "drift":
-                    warnings.warn("Unphasing other UVData object to drift")
-                    obj.unphase_to_drift(
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                if this.phase_type != "drift":
+                    warnings.warn("Unphasing this UVData object to drift")
+                    this.unphase_to_drift(
                         phase_frame=orig_phase_frame, use_ant_pos=use_ant_pos
                     )
+
+                for obj in other:
+                    if obj.phase_type != "drift":
+                        warnings.warn("Unphasing other UVData object to drift")
+                        obj.unphase_to_drift(
+                            phase_frame=orig_phase_frame, use_ant_pos=use_ant_pos
+                        )
 
         if phase_center_radec is not None:
             if np.array(phase_center_radec).size != 2:
@@ -7772,50 +7944,24 @@ class UVData(UVBase):
             # If this object is not phased or is not phased close to
             # phase_center_radec, (re)phase it.
             # Close is defined using the phase_center_ra/dec tolerances.
-            if this.phase_type == "drift" or (
-                not np.isclose(
-                    this.phase_center_ra,
-                    phase_center_radec[0],
-                    rtol=this._phase_center_ra.tols[0],
-                    atol=this._phase_center_ra.tols[1],
-                )
-                or not np.isclose(
-                    this.phase_center_dec,
-                    phase_center_radec[1],
-                    rtol=this._phase_center_dec.tols[0],
-                    atol=this._phase_center_dec.tols[1],
-                )
-            ):
-                warnings.warn("Phasing this UVData object to phase_center_radec")
-                this.phase(
-                    phase_center_radec[0],
-                    phase_center_radec[1],
-                    phase_frame=phase_frame,
-                    orig_phase_frame=orig_phase_frame,
-                    use_ant_pos=use_ant_pos,
-                    allow_rephase=True,
-                )
-
-            # If other object is not phased or is not phased close to
-            # phase_center_radec, (re)phase it.
-            # Close is defined using the phase_center_ra/dec tolerances.
-            for obj in other:
-                if obj.phase_type == "drift" or (
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                if this.phase_type == "drift" or (
                     not np.isclose(
-                        obj.phase_center_ra,
+                        this.phase_center_ra,
                         phase_center_radec[0],
-                        rtol=obj._phase_center_ra.tols[0],
-                        atol=obj._phase_center_ra.tols[1],
+                        rtol=this._phase_center_ra.tols[0],
+                        atol=this._phase_center_ra.tols[1],
                     )
                     or not np.isclose(
-                        obj.phase_center_dec,
+                        this.phase_center_dec,
                         phase_center_radec[1],
-                        rtol=obj._phase_center_dec.tols[0],
-                        atol=obj._phase_center_dec.tols[1],
+                        rtol=this._phase_center_dec.tols[0],
+                        atol=this._phase_center_dec.tols[1],
                     )
                 ):
-                    warnings.warn("Phasing other UVData object to phase_center_radec")
-                    obj.phase(
+                    warnings.warn("Phasing this UVData object to phase_center_radec")
+                    this.phase(
                         phase_center_radec[0],
                         phase_center_radec[1],
                         phase_frame=phase_frame,
@@ -7823,6 +7969,36 @@ class UVData(UVBase):
                         use_ant_pos=use_ant_pos,
                         allow_rephase=True,
                     )
+
+                # If other object is not phased or is not phased close to
+                # phase_center_radec, (re)phase it.
+                # Close is defined using the phase_center_ra/dec tolerances.
+                for obj in other:
+                    if obj.phase_type == "drift" or (
+                        not np.isclose(
+                            obj.phase_center_ra,
+                            phase_center_radec[0],
+                            rtol=obj._phase_center_ra.tols[0],
+                            atol=obj._phase_center_ra.tols[1],
+                        )
+                        or not np.isclose(
+                            obj.phase_center_dec,
+                            phase_center_radec[1],
+                            rtol=obj._phase_center_dec.tols[0],
+                            atol=obj._phase_center_dec.tols[1],
+                        )
+                    ):
+                        warnings.warn(
+                            "Phasing other UVData object to phase_center_radec"
+                        )
+                        obj.phase(
+                            phase_center_radec[0],
+                            phase_center_radec[1],
+                            phase_frame=phase_frame,
+                            orig_phase_frame=orig_phase_frame,
+                            use_ant_pos=use_ant_pos,
+                            allow_rephase=True,
+                        )
 
         allowed_axes = ["blt", "freq", "polarization"]
         if axis not in allowed_axes:
@@ -8065,19 +8241,21 @@ class UVData(UVBase):
                     [this.flag_array] + [obj.flag_array for obj in other],
                     axis=0,
                 )
-            if this.phase_type == "phased":
-                this.phase_center_app_ra = np.concatenate(
-                    [this.phase_center_app_ra]
-                    + [obj.phase_center_app_ra for obj in other]
-                )
-                this.phase_center_app_dec = np.concatenate(
-                    [this.phase_center_app_dec]
-                    + [obj.phase_center_app_dec for obj in other]
-                )
-                this.phase_center_frame_pa = np.concatenate(
-                    [this.phase_center_frame_pa]
-                    + [obj.phase_center_frame_pa for obj in other]
-                )
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                if this.phase_type == "phased":
+                    this.phase_center_app_ra = np.concatenate(
+                        [this.phase_center_app_ra]
+                        + [obj.phase_center_app_ra for obj in other]
+                    )
+                    this.phase_center_app_dec = np.concatenate(
+                        [this.phase_center_app_dec]
+                        + [obj.phase_center_app_dec for obj in other]
+                    )
+                    this.phase_center_frame_pa = np.concatenate(
+                        [this.phase_center_frame_pa]
+                        + [obj.phase_center_frame_pa for obj in other]
+                    )
             if this.multi_phase_center:
                 this.phase_center_id_array = np.concatenate(
                     [this.phase_center_id_array]
@@ -8199,7 +8377,9 @@ class UVData(UVBase):
                 "methods to convert them."
             )
 
-        compatibility_params = list(this.__iter__())
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            compatibility_params = list(this.__iter__())
         remove_params = ["_history", "_data_array", "_object_name", "_extra_keywords"]
 
         # Add underscores to override_params to match list from __iter__()
@@ -8246,8 +8426,10 @@ class UVData(UVBase):
         )
 
         # Merge object_name if different.
-        if this.object_name != other.object_name:
-            this.object_name = this.object_name + "-" + other.object_name
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            if this.object_name != other.object_name:
+                this.object_name = this.object_name + "-" + other.object_name
 
         # Do the summing / differencing
         if difference:
@@ -9029,31 +9211,33 @@ class UVData(UVBase):
             if ind_arr is None:
                 continue
 
-            for param in self:
-                # For each attribute, if the value is None, then bail, otherwise attempt
-                # to figure out along which axis ind_arr will apply.
-                attr = getattr(self, param)
-                if attr.value is not None:
-                    try:
-                        sel_axis = attr.form.index(key)
-                    except (AttributeError, ValueError):
-                        # If form is not a tuple/list (and therefore not array-like),
-                        # it'll throw an AttributeError, and if key is not found in the
-                        # tuple/list, it'll throw a ValueError. In both cases, skip!
-                        continue
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                for param in self:
+                    # For each attribute, if the value is None, then bail, otherwise attempt
+                    # to figure out along which axis ind_arr will apply.
+                    attr = getattr(self, param)
+                    if attr.value is not None:
+                        try:
+                            sel_axis = attr.form.index(key)
+                        except (AttributeError, ValueError):
+                            # If form is not a tuple/list (and therefore not array-like),
+                            # it'll throw an AttributeError, and if key is not found in the
+                            # tuple/list, it'll throw a ValueError. In both cases, skip!
+                            continue
 
-                    if isinstance(attr.value, np.ndarray):
-                        # If we're working with an ndarray, use take to slice along
-                        # the axis that we want to grab from.
-                        attr.value = attr.value.take(ind_arr, axis=sel_axis)
-                    elif isinstance(attr.value, list):
-                        # If this is a list, it _should_ always have 1-dimension.
-                        assert sel_axis == 0, (
-                            "Something is wrong, sel_axis != 0 when selecting on a "
-                            "list, which should not be possible. Please file an issue "
-                            "in our GitHub issue log so that we can fix it."
-                        )
-                        attr.value = [attr.value[idx] for idx in ind_arr]
+                        if isinstance(attr.value, np.ndarray):
+                            # If we're working with an ndarray, use take to slice along
+                            # the axis that we want to grab from.
+                            attr.value = attr.value.take(ind_arr, axis=sel_axis)
+                        elif isinstance(attr.value, list):
+                            # If this is a list, it _should_ always have 1-dimension.
+                            assert sel_axis == 0, (
+                                "Something is wrong, sel_axis != 0 when selecting on a "
+                                "list, which should not be possible. Please file an issue "
+                                "in our GitHub issue log so that we can fix it."
+                            )
+                            attr.value = [attr.value[idx] for idx in ind_arr]
 
             if key == "Nblts":
                 # Process post blt-specific selection actions, including counting
@@ -9398,7 +9582,9 @@ class UVData(UVBase):
             )
             return
 
-        input_phase_type = self.phase_type
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            input_phase_type = self.phase_type
         if input_phase_type == "drift":
             if allow_drift:
                 print(
@@ -9723,7 +9909,9 @@ class UVData(UVBase):
 
         temp_Nblts = n_new_samples
 
-        input_phase_type = self.phase_type
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            input_phase_type = self.phase_type
         if input_phase_type == "drift":
             if allow_drift:
                 print(
@@ -10639,9 +10827,11 @@ class UVData(UVBase):
         other : object that inherits from UVData
             File type specific object to convert to UVData
         """
-        for p in other:
-            param = getattr(other, p)
-            setattr(self, p, param)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            for p in other:
+                param = getattr(other, p)
+                setattr(self, p, param)
 
     def _convert_to_filetype(self, filetype):
         """
@@ -10686,9 +10876,12 @@ class UVData(UVBase):
             other_obj = ms.MS()
         else:
             raise ValueError("filetype must be uvfits, mir, miriad, ms, fhd, or uvh5")
-        for p in self:
-            param = getattr(self, p)
-            setattr(other_obj, p, param)
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            for p in self:
+                param = getattr(self, p)
+                setattr(other_obj, p, param)
         return other_obj
 
     def read_fhd(
@@ -12340,18 +12533,20 @@ class UVData(UVBase):
                     file_num += 1
                     if skip_bad_files is False:
                         raise
-            if (
-                allow_rephase
-                and phase_center_radec is None
-                and not unphase_to_drift
-                and self.phase_type == "phased"
-                and not self.multi_phase_center
-                and not make_multi_phase
-            ):
-                # set the phase center to be the phase center of the first file
-                phase_center_radec = [self.phase_center_ra, self.phase_center_dec]
-                phase_frame = self.phase_center_frame
-                phase_epoch = self.phase_center_epoch
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                if (
+                    allow_rephase
+                    and phase_center_radec is None
+                    and not unphase_to_drift
+                    and self.phase_type == "phased"
+                    and not self.multi_phase_center
+                    and not make_multi_phase
+                ):
+                    # set the phase center to be the phase center of the first file
+                    phase_center_radec = [self.phase_center_ra, self.phase_center_dec]
+                    phase_frame = self.phase_center_frame
+                    phase_epoch = self.phase_center_epoch
 
             uv_list = []
             if len(filename) > file_num + 1:
@@ -12756,12 +12951,16 @@ class UVData(UVBase):
                 self._set_multi_phase_center(preserve_phase_center_info=True)
 
             if unphase_to_drift:
-                if self.phase_type != "drift":
-                    warnings.warn("Unphasing this UVData object to drift")
-                    self.unphase_to_drift(
-                        phase_frame=orig_phase_frame,
-                        use_ant_pos=phase_use_ant_pos,
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", message="The older phase attributes"
                     )
+                    if self.phase_type != "drift":
+                        warnings.warn("Unphasing this UVData object to drift")
+                        self.unphase_to_drift(
+                            phase_frame=orig_phase_frame,
+                            use_ant_pos=phase_use_ant_pos,
+                        )
 
             if phase_center_radec is not None:
                 if np.array(phase_center_radec).size != 2:
@@ -12770,32 +12969,38 @@ class UVData(UVBase):
                 # If this object is not phased or is not phased close to
                 # phase_center_radec, (re)phase it.
                 # Close is defined using the phase_center_ra/dec tolerances.
-                if self.phase_type == "drift" or (
-                    not np.isclose(
-                        self.phase_center_ra,
-                        phase_center_radec[0],
-                        rtol=self._phase_center_ra.tols[0],
-                        atol=self._phase_center_ra.tols[1],
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", message="The older phase attributes"
                     )
-                    or not np.isclose(
-                        self.phase_center_dec,
-                        phase_center_radec[1],
-                        rtol=self._phase_center_dec.tols[0],
-                        atol=self._phase_center_dec.tols[1],
-                    )
-                    or (self.phase_center_frame != phase_frame)
-                    or (self.phase_center_epoch != phase_epoch)
-                ):
-                    warnings.warn("Phasing this UVData object to phase_center_radec")
-                    self.phase(
-                        phase_center_radec[0],
-                        phase_center_radec[1],
-                        epoch=phase_epoch,
-                        phase_frame=phase_frame,
-                        orig_phase_frame=orig_phase_frame,
-                        use_ant_pos=phase_use_ant_pos,
-                        allow_rephase=True,
-                    )
+                    if self.phase_type == "drift" or (
+                        not np.isclose(
+                            self.phase_center_ra,
+                            phase_center_radec[0],
+                            rtol=self._phase_center_ra.tols[0],
+                            atol=self._phase_center_ra.tols[1],
+                        )
+                        or not np.isclose(
+                            self.phase_center_dec,
+                            phase_center_radec[1],
+                            rtol=self._phase_center_dec.tols[0],
+                            atol=self._phase_center_dec.tols[1],
+                        )
+                        or (self.phase_center_frame != phase_frame)
+                        or (self.phase_center_epoch != phase_epoch)
+                    ):
+                        warnings.warn(
+                            "Phasing this UVData object to phase_center_radec"
+                        )
+                        self.phase(
+                            phase_center_radec[0],
+                            phase_center_radec[1],
+                            epoch=phase_epoch,
+                            phase_frame=phase_frame,
+                            orig_phase_frame=orig_phase_frame,
+                            use_ant_pos=phase_use_ant_pos,
+                            allow_rephase=True,
+                        )
 
     @classmethod
     def from_file(

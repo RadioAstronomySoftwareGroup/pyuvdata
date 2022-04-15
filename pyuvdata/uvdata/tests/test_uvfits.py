@@ -200,6 +200,7 @@ def test_source_group_params(casa_uvfits, tmp_path):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 def test_source_frame_defaults(casa_uvfits, tmp_path):
     # make a file with a single source to test that it works
     uv_in = casa_uvfits
@@ -1310,6 +1311,7 @@ def test_multi_unphase_on_read(casa_uvfits, tmp_path):
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 def test_multi_phase_on_read(casa_uvfits, tmp_path):
     uv_full = casa_uvfits
     uv_full2 = UVData()

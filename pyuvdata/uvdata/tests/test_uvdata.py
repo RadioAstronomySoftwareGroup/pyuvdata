@@ -402,6 +402,7 @@ def dummy_phase_dict():
     return dummy_dict
 
 
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 def test_parameter_iter(uvdata_props):
     """Test expected parameters."""
     all_params = []
@@ -413,6 +414,7 @@ def test_parameter_iter(uvdata_props):
         )
 
 
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 def test_required_parameter_iter(uvdata_props):
     """Test expected required parameters."""
     # at first it's a metadata_only object, so need to modify required_parameters
@@ -440,6 +442,7 @@ def test_required_parameter_iter(uvdata_props):
         )
 
 
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 def test_extra_parameter_iter(uvdata_props):
     """Test expected optional parameters."""
     extra = []
@@ -449,6 +452,7 @@ def test_extra_parameter_iter(uvdata_props):
         assert a in extra, "expected attribute " + a + " not returned in extra iterator"
 
 
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 def test_unexpected_parameters(uvdata_props):
     """Test for extra parameters."""
     expected_parameters = (
@@ -461,6 +465,7 @@ def test_unexpected_parameters(uvdata_props):
         )
 
 
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 def test_unexpected_attributes(uvdata_props):
     """Test for extra attributes."""
     expected_attributes = (
@@ -475,6 +480,7 @@ def test_unexpected_attributes(uvdata_props):
         )
 
 
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 def test_properties(uvdata_props):
     """Test that properties can be get and set properly."""
     prop_dict = dict(
@@ -1101,6 +1107,7 @@ def test_unphasing(uv_phase_comp, future_shapes, use_ant_pos1, use_ant_pos2):
     assert np.allclose(uvd1.uvw_array, uvd2.uvw_array, atol=1e-12)
 
 
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("use_ant_pos", [True, False])
 @pytest.mark.parametrize("unphase_first", [True, False])
@@ -1194,6 +1201,7 @@ def test_phasing_multi_phase_errs(sma_mir, arg_dict, err_type, msg):
 # method, so we'll just filter out those warnings now.
 @pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_old_phasing(future_shapes):
     """Use MWA files phased to 2 different places to test phasing."""
@@ -1398,12 +1406,8 @@ def test_select_blts(paper_uvh5, future_shapes):
     uv_object3.nsample_array = None
     assert uv_object3.metadata_only is True
     uv_object4 = uv_object3.select(blt_inds=blt_inds, inplace=False)
-    for param in uv_object4:
-        param_name = getattr(uv_object4, param).name
-        if param_name not in ["data_array", "flag_array", "nsample_array"]:
-            assert getattr(uv_object4, param) == getattr(uv_object2, param)
-        else:
-            assert getattr(uv_object4, param_name) is None
+    uv_object5 = uv_object2.copy(metadata_only=True)
+    assert uv_object4 == uv_object5
 
     # also check with inplace=True
     uv_object3.select(blt_inds=blt_inds)
@@ -3239,6 +3243,7 @@ def test_reorder_freqs_eq_coeffs(casa_uvfits):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_sum_vis(casa_uvfits, future_shapes):
     # check sum_vis
@@ -4166,6 +4171,7 @@ def test_add_error_drift_and_rephase(casa_uvfits, test_func, extra_kwargs):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 @pytest.mark.parametrize(
     "test_func,extra_kwargs", [("__add__", {}), ("fast_concat", {"axis": "blt"})]
 )
@@ -4189,6 +4195,7 @@ def test_add_this_phased_unphase_to_drift(uv_phase_time_split, test_func, extra_
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 @pytest.mark.parametrize(
     "test_func,extra_kwargs", [("__add__", {}), ("fast_concat", {"axis": "blt"})]
 )
@@ -4216,6 +4223,7 @@ def test_add_other_phased_unphase_to_drift(
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 @pytest.mark.parametrize(
     "test_func,extra_kwargs", [("__add__", {}), ("fast_concat", {"axis": "blt"})]
 )
@@ -4261,6 +4269,7 @@ def test_add_this_rephase_new_phase_center(
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 @pytest.mark.parametrize(
     "test_func,extra_kwargs", [("__add__", {}), ("fast_concat", {"axis": "blt"})]
 )
@@ -9672,6 +9681,7 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 def test_unknown_phase():
     """
     Test to see that unknown phase types now throw an error
@@ -9684,6 +9694,7 @@ def test_unknown_phase():
         uv.check()
 
 
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 def test_set_phased():
     """
     Test the deprecation warnings in set_phased et al.
@@ -9698,6 +9709,7 @@ def test_set_phased():
     assert uv._phase_center_frame_pa.required
 
 
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 def test_set_drift():
     """
     Test parameter settings with _set_drift
@@ -9733,6 +9745,7 @@ def test_parse_ants_x_orientation_kwarg(hera_uvh5):
     assert np.array_equal(pols, pols2)
 
 
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 def test_rephase_to_time():
     uvfits_file = os.path.join(DATA_PATH, "1061316296.uvfits")
     uvd = UVData()

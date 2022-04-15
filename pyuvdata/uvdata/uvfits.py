@@ -107,11 +107,7 @@ class UVFITS(UVData):
                 bl_input_array
             )
 
-        # check for multi source files. NOW SUPPORTED, W00T!
-        if "SOURCE" in vis_hdu.data.parnames:
-            # Preserve the source info just in case the AIPS SU table is missing, and
-            # we need to revert things back.
-            self._set_multi_phase_center(preserve_phase_center_info=True)
+        if self.multi_phase_center:
             source = vis_hdu.data.par("SOURCE")
             self.phase_center_id_array = source.astype(int)
 
@@ -523,23 +519,45 @@ class UVFITS(UVData):
 
             # First get everything we can out of the header.
             self._set_phased()
+
+            # check for multi source files. NOW SUPPORTED, W00T!
+            if "SOURCE" in vis_hdu.data.parnames:
+                if "AIPS SU" in hdunames.keys():
+                    self._set_multi_phase_center()
+                else:
+                    warnings.warn(
+                        "UVFITS file is missing AIPS SU table, which is required when "
+                        "SOURCE is one of the `random paramters` in the main binary "
+                        "table. Bypassing for now, but note that this file _may_ not "
+                        "work correctly in UVFITS-based programs (e.g., AIPS, CASA)."
+                    )
+
             # check if we have an spw dimension
             if vis_hdr["NAXIS"] == 7:
                 self.Nspws = vis_hdr.pop("NAXIS5")
                 self.spw_array = (
                     uvutils._fits_gethduaxis(vis_hdu, 5).astype(np.int64) - 1
                 )
-
-                # the axis number for phase center depends on if the spw exists
-                self.phase_center_ra_degrees = float(vis_hdr.pop("CRVAL6"))
-                self.phase_center_dec_degrees = float(vis_hdr.pop("CRVAL7"))
+                if not self.multi_phase_center:
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings(
+                            "ignore", message="The older phase attributes"
+                        )
+                        # the axis number for phase center depends on if the spw exists
+                        self.phase_center_ra_degrees = float(vis_hdr.pop("CRVAL6"))
+                        self.phase_center_dec_degrees = float(vis_hdr.pop("CRVAL7"))
             else:
                 self.Nspws = 1
                 self.spw_array = np.array([np.int64(0)])
 
-                # the axis number for phase center depends on if the spw exists
-                self.phase_center_ra_degrees = float(vis_hdr.pop("CRVAL5"))
-                self.phase_center_dec_degrees = float(vis_hdr.pop("CRVAL6"))
+                if not self.multi_phase_center:
+                    # the axis number for phase center depends on if the spw exists
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings(
+                            "ignore", message="The older phase attributes"
+                        )
+                        self.phase_center_ra_degrees = float(vis_hdr.pop("CRVAL5"))
+                        self.phase_center_dec_degrees = float(vis_hdr.pop("CRVAL6"))
 
             # get shapes
             self.Npols = vis_hdr.pop("NAXIS3")
@@ -584,7 +602,6 @@ class UVFITS(UVData):
 
             self.polarization_array = np.int32(uvutils._fits_gethduaxis(vis_hdu, 3))
             # other info -- not required but frequently used
-            self.object_name = vis_hdr.pop("OBJECT", None)
             self.telescope_name = vis_hdr.pop("TELESCOP", None)
             self.instrument = vis_hdr.pop("INSTRUME", None)
             latitude_degrees = vis_hdr.pop("LAT", None)
@@ -608,35 +625,53 @@ class UVFITS(UVData):
             if self.vis_units == "UNCALIB":
                 self.vis_units = "uncalib"
 
-            self.phase_center_epoch = vis_hdr.pop("EPOCH", None)
+            if not self.multi_phase_center:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", message="The older phase attributes"
+                    )
+                    self.phase_center_epoch = vis_hdr.pop("EPOCH", None)
+                    self.object_name = vis_hdr.pop("OBJECT", None)
 
-            # PHSFRAME is not a standard UVFITS keyword, but was used by older
-            # versions of pyuvdata. To ensure backwards compatibility, we look
-            # for it first to determine the coordinate frame for the data
-            self.phase_center_frame = vis_hdr.pop("PHSFRAME", None)
-            # If we don't find the special keyword PHSFRAME, try for the more
-            # FITS-standard RADESYS
-            if self.phase_center_frame is None:
-                self.phase_center_frame = vis_hdr.pop("RADESYS", None)
-            # If we still don't find anything, try the two 'special' variant names
-            # for the coordinate frame that seem to have been documented
-            if self.phase_center_frame is None:
-                self.phase_center_frame = vis_hdr.pop("RADESYSA", None)
-            if self.phase_center_frame is None:
-                self.phase_center_frame = vis_hdr.pop("RADESYSa", None)
+                    # PHSFRAME is not a standard UVFITS keyword, but was used by older
+                    # versions of pyuvdata. To ensure backwards compatibility, we look
+                    # for it first to determine the coordinate frame for the data
+                    self.phase_center_frame = vis_hdr.pop("PHSFRAME", None)
+                    # If we don't find the special keyword PHSFRAME, try for the more
+                    # FITS-standard RADESYS
+                    if self.phase_center_frame is None:
+                        self.phase_center_frame = vis_hdr.pop("RADESYS", None)
+                    # If we still don't find anything, try the two 'special' variant
+                    # names for the coordinate frame that seem to have been documented
+                    if self.phase_center_frame is None:
+                        self.phase_center_frame = vis_hdr.pop("RADESYSA", None)
+                    if self.phase_center_frame is None:
+                        self.phase_center_frame = vis_hdr.pop("RADESYSa", None)
 
-            # If we _still_ can't find anything, take a guess based on the value
-            # listed in the EPOCH. The behavior listed here is based off of the
-            # AIPS task REGRD (http://www.aips.nrao.edu/cgi-bin/ZXHLP2.PL?REGRD)
-            if self.phase_center_frame is None:
-                if self.phase_center_epoch is None:
-                    self.phase_center_frame = "icrs"
-                else:
-                    frame = "fk4" if (self.phase_center_epoch == 1950.0) else "fk5"
-                    self.phase_center_frame = frame
+                    # If we _still_ can't find anything, take a guess based on the value
+                    # listed in the EPOCH. The behavior listed here is based off of the
+                    # AIPS task REGRD (http://www.aips.nrao.edu/cgi-bin/ZXHLP2.PL?REGRD)
+                    if self.phase_center_frame is None:
+                        if self.phase_center_epoch is None:
+                            self.phase_center_frame = "icrs"
+                        else:
+                            if self.phase_center_epoch == 1950.0:
+                                frame = "fk4"
+                            else:
+                                frame = "fk5"
+                            self.phase_center_frame = frame
 
             self.extra_keywords = uvutils._get_fits_extra_keywords(
-                vis_hdr, keywords_to_skip=["DATE-OBS"]
+                vis_hdr,
+                keywords_to_skip=[
+                    "DATE-OBS",
+                    "EPOCH",
+                    "OBJECT",
+                    "PHSFRAME",
+                    "RADESYS",
+                    "RADESYSA",
+                    "RADESYSa",
+                ],
             )
 
             # Next read the antenna table
@@ -788,10 +823,6 @@ class UVFITS(UVData):
                         "sources do not match the number of unique source IDs in the "
                         "primary data header."
                     )  # pragma: no cover
-
-                # Reset the catalog, since it has some dummy information stored within
-                # it (that was pulled off the primary table)
-                self._remove_phase_center(list(self.phase_center_catalog)[0])
 
                 # Set up these arrays so we can assign values to them
                 self.phase_center_app_ra = np.zeros(self.Nblts)
@@ -949,24 +980,26 @@ class UVFITS(UVData):
                 DeprecationWarning,
             )
 
-        if self.phase_type == "phased":
-            pass
-        elif self.phase_type == "drift":
-            if force_phase:
-                print(
-                    "The data are in drift mode and do not have a "
-                    "defined phase center. Phasing to zenith of the first "
-                    "timestamp."
-                )
-                phase_time = Time(self.time_array[0], format="jd")
-                self.phase_to_time(phase_time)
-            else:
-                raise ValueError(
-                    "The data are in drift mode. "
-                    "Set force_phase to true to phase the data "
-                    "to zenith of the first timestamp before "
-                    "writing a uvfits file."
-                )
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            if self.phase_type == "phased":
+                pass
+            elif self.phase_type == "drift":
+                if force_phase:
+                    print(
+                        "The data are in drift mode and do not have a "
+                        "defined phase center. Phasing to zenith of the first "
+                        "timestamp."
+                    )
+                    phase_time = Time(self.time_array[0], format="jd")
+                    self.phase_to_time(phase_time)
+                else:
+                    raise ValueError(
+                        "The data are in drift mode. "
+                        "Set force_phase to true to phase the data "
+                        "to zenith of the first timestamp before "
+                        "writing a uvfits file."
+                    )
 
         if self.flex_spw:
             # If we have a 'flexible' spectral window, we will need to evaluate the
@@ -1247,23 +1280,29 @@ class UVFITS(UVData):
         hdu.header["BSCALE  "] = 1.0
         hdu.header["BZERO   "] = 0.0
 
-        name = "MULTI" if self.multi_phase_center else self.object_name
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            name = "MULTI" if self.multi_phase_center else self.object_name
         hdu.header["OBJECT  "] = name
         hdu.header["TELESCOP"] = self.telescope_name
         hdu.header["LAT     "] = self.telescope_location_lat_lon_alt_degrees[0]
         hdu.header["LON     "] = self.telescope_location_lat_lon_alt_degrees[1]
         hdu.header["ALT     "] = self.telescope_location_lat_lon_alt[2]
         hdu.header["INSTRUME"] = self.instrument
-        if self.phase_center_epoch is not None:
-            hdu.header["EPOCH   "] = float(self.phase_center_epoch)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            if self.phase_center_epoch is not None:
+                hdu.header["EPOCH   "] = float(self.phase_center_epoch)
         # TODO: This is a keyword that should at some point get added for velocity
         # reference stuff, although for right now pyuvdata doesn't do any sort of
         # handling of this, so stub this out for now.
         # hdu.header["SPECSYS "] = "TOPOCENT"
 
-        if self.phase_center_frame is not None:
-            # Previous versions of pyuvdata wrote this header as PHSFRAME
-            hdu.header["RADESYS"] = self.phase_center_frame
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            if self.phase_center_frame is not None:
+                # Previous versions of pyuvdata wrote this header as PHSFRAME
+                hdu.header["RADESYS"] = self.phase_center_frame
 
         if self.x_orientation is not None:
             hdu.header["XORIENT"] = self.x_orientation

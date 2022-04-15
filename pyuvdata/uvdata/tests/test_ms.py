@@ -227,6 +227,7 @@ def test_extra_pol_setup(tmp_path):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
     """
     Test that a uvdata object instantiated from an ms file created with CASA's
@@ -348,6 +349,7 @@ def test_read_ms_write_miriad(nrao_uv, tmp_path):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:The older phase attributes")
 @pytest.mark.parametrize("axis", [None, "freq"])
 def test_multi_files(casa_uvfits, axis):
     """
@@ -632,6 +634,12 @@ def test_ms_single_chan(mir_uv, future_shapes, tmp_path):
 
     # First, make the date multi-phase-ctr
     ms_uv._set_multi_phase_center(preserve_phase_center_info=True)
+    cat_id = list(mir_uv.phase_center_catalog.keys())[0]
+    cat_name = mir_uv.phase_center_catalog[cat_id]["cat_name"]
+    ms_uv._update_phase_center_id(list(ms_uv.phase_center_catalog.keys())[0], cat_id)
+    ms_uv.phase_center_catalog[cat_id]["cat_name"] = cat_name
+    ms_uv.phase_center_catalog[cat_id]["info_source"] = "file"
+    ms_uv.phase_center_frame = "icrs"
 
     # Next, turn on flex-spw
     ms_uv._set_flex_spw()
@@ -743,6 +751,13 @@ def test_ms_extra_data_descrip(mir_uv, tmp_path):
     tb_dd.close()
 
     ms_uv.read(testfile, ignore_single_chan=False)
+    ms_uv._set_multi_phase_center(preserve_phase_center_info=True)
+    cat_id = list(mir_uv.phase_center_catalog.keys())[0]
+    cat_name = mir_uv.phase_center_catalog[cat_id]["cat_name"]
+    ms_uv._update_phase_center_id(list(ms_uv.phase_center_catalog.keys())[0], cat_id)
+    ms_uv.phase_center_catalog[cat_id]["cat_name"] = cat_name
+    ms_uv.phase_center_catalog[cat_id]["info_source"] = "file"
+    ms_uv.phase_center_frame = "icrs"
 
     # There are some minor differences between the values stored by MIR and that
     # calculated by UVData. Since MS format requires these to be calculated on the fly,

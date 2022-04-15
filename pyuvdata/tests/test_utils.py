@@ -3157,7 +3157,7 @@ def test_uvcalibrate_dterm_handling(uvcalibrate_data):
         uvutils.uvcalibrate(uvd, uvc, Dterm_cal=True)
 
     # d-term not implemented error
-    uvcDterm = copy.deepcopy(uvc)
+    uvcDterm = uvc.copy()
     uvcDterm.jones_array = np.array([-7, -8])
     uvcDterm = uvc + uvcDterm
     with pytest.raises(
@@ -3411,7 +3411,7 @@ def test_uvcalibrate_time_types(uvcalibrate_data, len_time_range):
 def test_uvcalibrate_extra_cal_times(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
-    uvc2 = copy.deepcopy(uvc)
+    uvc2 = uvc.copy()
     uvc2.time_array = uvc.time_array + 1
     uvc_use = uvc + uvc2
 
@@ -3447,7 +3447,7 @@ def test_uvcalibrate_freq_mismatch(uvcalibrate_data):
 def test_uvcalibrate_extra_cal_freqs(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
-    uvc2 = copy.deepcopy(uvc)
+    uvc2 = uvc.copy()
     uvc2.freq_array = uvc.freq_array + np.max(uvc.freq_array)
     uvc_use = uvc + uvc2
 
@@ -3582,7 +3582,7 @@ def test_apply_uvflag(uvdata_future_shapes, uvflag_future_shapes):
     assert np.all(uvdf.flag_array[uvdf.antpair2ind(9, 10)][:2])
 
     # test inplace
-    uvdf = copy.deepcopy(uvd)
+    uvdf = uvd.copy()
     uvutils.apply_uvflag(uvdf, uvf, inplace=True)
     assert np.all(uvdf.flag_array[uvdf.antpair2ind(9, 10)][:2])
 
@@ -3594,8 +3594,8 @@ def test_apply_uvflag(uvdata_future_shapes, uvflag_future_shapes):
     assert not np.any(uvdf.flag_array[uvdf.antpair2ind(uvf.get_antpairs()[-1])])
 
     # test force polarization
-    uvdf = copy.deepcopy(uvd)
-    uvdf2 = copy.deepcopy(uvd)
+    uvdf = uvd.copy()
+    uvdf2 = uvd.copy()
     uvdf2.polarization_array[0] = -6
     uvdf += uvdf2
     uvdf = uvutils.apply_uvflag(uvdf, uvf, inplace=False, force_pol=True)
@@ -3610,7 +3610,7 @@ def test_apply_uvflag(uvdata_future_shapes, uvflag_future_shapes):
     assert not np.any(uvdf.flag_array[uvdf.antpair2ind(9, 20)])
 
     # convert uvf to waterfall and test
-    uvfw = copy.deepcopy(uvf)
+    uvfw = uvf.copy()
     uvfw.to_waterfall(method="or")
     uvdf = uvutils.apply_uvflag(uvd, uvfw, inplace=False)
     assert np.all(uvdf.flag_array[uvdf.antpair2ind(9, 10)][:2])
@@ -3618,14 +3618,14 @@ def test_apply_uvflag(uvdata_future_shapes, uvflag_future_shapes):
     assert np.all(uvdf.flag_array[uvdf.antpair2ind(20, 22)][:2])
 
     # test mode exception
-    uvfm = copy.deepcopy(uvf)
+    uvfm = uvf.copy()
     uvfm.mode = "metric"
     with pytest.raises(ValueError) as cm:
         uvutils.apply_uvflag(uvd, uvfm)
     assert "UVFlag must be flag mode" in str(cm.value)
 
     # test polarization exception
-    uvd2 = copy.deepcopy(uvd)
+    uvd2 = uvd.copy()
     uvd2.polarization_array[0] = -6
     uvf2 = UVFlag(uvd)
     uvf2.to_flag()
@@ -3643,7 +3643,7 @@ def test_apply_uvflag(uvdata_future_shapes, uvflag_future_shapes):
         uvutils.apply_uvflag(uvd, uvf2)
     assert "UVFlag and UVData have mismatched frequency arrays" in str(cm.value)
 
-    uvf2 = copy.deepcopy(uvf)
+    uvf2 = uvf.copy()
     uvf2.freq_array += 1.0
     with pytest.raises(ValueError) as cm:
         uvutils.apply_uvflag(uvd, uvf2)
@@ -3654,7 +3654,7 @@ def test_apply_uvflag(uvdata_future_shapes, uvflag_future_shapes):
         uvutils.apply_uvflag(uvd, uvf2)
     assert "UVFlag and UVData have mismatched time arrays" in str(cm.value)
 
-    uvf2 = copy.deepcopy(uvf)
+    uvf2 = uvf.copy()
     uvf2.time_array += 1.0
     with pytest.raises(ValueError) as cm:
         uvutils.apply_uvflag(uvd, uvf2)

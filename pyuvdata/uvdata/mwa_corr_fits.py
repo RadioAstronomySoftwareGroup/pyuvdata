@@ -1431,7 +1431,9 @@ class MWACorrFITS(UVData):
         # first set parameters that are always true
         self.Nspws = 1
         self.spw_array = np.array([0])
-        self.phase_type = "drift"
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            self.phase_type = "drift"
         self.vis_units = "uncalib"
         self.Npols = 4
         self.xorientation = "east"
