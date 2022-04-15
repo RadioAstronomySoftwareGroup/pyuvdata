@@ -596,10 +596,13 @@ class Mir(UVData):
         # entry for UVData, then grab ra/dec/position data.
         self.phase_center_id_array = phase_center_id_array
 
-        self.phase_center_ra = 0.0  # This is ignored w/ mutli-phase-ctr data sets
-        self.phase_center_dec = 0.0  # This is ignored w/ mutli-phase-ctr data sets
-        self.phase_center_epoch = 2000.0  # This is ignored w/ mutli-phase-ctr data sets
-        self.phase_center_frame = "icrs"
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            # These are all ignored w/ mutli-phase-ctr data sets
+            self.phase_center_ra = 0.0
+            self.phase_center_dec = 0.0
+            self.phase_center_epoch = 2000.0
+            self.phase_center_frame = "icrs"
 
         # Fill in the apparent coord calculations
         self.phase_center_app_ra = app_ra

@@ -406,17 +406,23 @@ class MS(UVData):
         n_poly = 0
 
         var_ref = False
-        coord_frame = self.phase_center_frame
-        coord_epoch = self.phase_center_epoch
-        if self.multi_phase_center:
-            for key in self.phase_center_catalog.keys():
-                sou_frame = self.phase_center_catalog[key]["cat_frame"]
-                sou_epoch = self.phase_center_catalog[key]["cat_epoch"]
+        if not self.multi_phase_center:
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                sou_frame = self.phase_center_frame
+                sou_epoch = self.phase_center_epoch
+        else:
+            for ind, phase_dict in enumerate(self.phase_center_catalog.values()):
+                if ind == 0:
+                    sou_frame = phase_dict["cat_frame"]
+                    sou_epoch = phase_dict["cat_epoch"]
+                    continue
 
-                if (coord_frame != sou_frame) or (coord_epoch != sou_epoch):
+                if (sou_frame != phase_dict["cat_frame"]) or (
+                    sou_epoch != phase_dict["cat_epoch"]
+                ):
                     var_ref = True
-                    coord_frame = self.phase_center_frame
-                    coord_epoch = self.phase_center_epoch
+                    break
 
         if var_ref:
             var_ref_dict = {
@@ -442,22 +448,21 @@ class MS(UVData):
                 field_table.addcols(fieldcoldesc)
                 field_table.getcolkeyword(key, "MEASINFO")
 
-        if coord_frame is not None:
-            ref_frame = self._parse_pyuvdata_frame_ref(coord_frame, coord_epoch)
-            for col in ["PHASE_DIR", "DELAY_DIR", "REFERENCE_DIR"]:
-                meas_info_dict = field_table.getcolkeyword(col, "MEASINFO")
-                meas_info_dict["Ref"] = ref_frame
-                if var_ref:
-                    rev_ref_dict = {value: key for key, value in var_ref_dict.items()}
-                    meas_info_dict["TabRefTypes"] = [
-                        rev_ref_dict[key] for key in sorted(rev_ref_dict.keys())
-                    ]
-                    meas_info_dict["TabRefCodes"] = np.arange(
-                        len(rev_ref_dict.keys()), dtype=np.int32
-                    )
-                    meas_info_dict["VarRefCol"] = col_ref_dict[col]
+        ref_frame = self._parse_pyuvdata_frame_ref(sou_frame, sou_epoch)
+        for col in ["PHASE_DIR", "DELAY_DIR", "REFERENCE_DIR"]:
+            meas_info_dict = field_table.getcolkeyword(col, "MEASINFO")
+            meas_info_dict["Ref"] = ref_frame
+            if var_ref:
+                rev_ref_dict = {value: key for key, value in var_ref_dict.items()}
+                meas_info_dict["TabRefTypes"] = [
+                    rev_ref_dict[key] for key in sorted(rev_ref_dict.keys())
+                ]
+                meas_info_dict["TabRefCodes"] = np.arange(
+                    len(rev_ref_dict.keys()), dtype=np.int32
+                )
+                meas_info_dict["VarRefCol"] = col_ref_dict[col]
 
-                field_table.putcolkeyword(col, "MEASINFO", meas_info_dict)
+            field_table.putcolkeyword(col, "MEASINFO", meas_info_dict)
 
         if self.multi_phase_center:
             sou_id_list = list(self.phase_center_catalog)
@@ -475,9 +480,13 @@ class MS(UVData):
                     raise_error=var_ref,
                 )
             else:
-                phasedir = np.array([[self.phase_center_ra, self.phase_center_dec]])
-                sou_name = self.object_name
-                assert self.phase_center_epoch == 2000.0
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", message="The older phase attributes"
+                    )
+                    phasedir = np.array([[self.phase_center_ra, self.phase_center_dec]])
+                    sou_name = self.object_name
+                    assert self.phase_center_epoch == 2000.0
 
             field_table.addrows()
 
@@ -535,11 +544,15 @@ class MS(UVData):
                     pm_dec = 0.0
                 sou_name = self.phase_center_catalog[sou_id]["cat_name"]
             else:
-                sou_ra = self.phase_center_ra
-                sou_dec = self.phase_center_dec
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", message="The older phase attributes"
+                    )
+                    sou_ra = self.phase_center_ra
+                    sou_dec = self.phase_center_dec
+                    sou_name = self.object_name
                 pm_ra = 0.0
                 pm_dec = 0.0
-                sou_name = self.object_name
 
             sou_dir = np.array([sou_ra, sou_dec])
             pm_dir = np.array([pm_ra, pm_dec])
@@ -2198,21 +2211,25 @@ class MS(UVData):
 
         if "Ref" in measinfo_keyword.keys():
             frame_tuple = self._parse_casa_frame_ref(measinfo_keyword["Ref"])
-            self.phase_center_frame = frame_tuple[0]
-            self.phase_center_epoch = frame_tuple[1]
+            phase_center_frame = frame_tuple[0]
+            phase_center_epoch = frame_tuple[1]
         else:
             warnings.warn("Coordinate reference frame not detected, defaulting to ICRS")
-            self.phase_center_frame = "icrs"
-            self.phase_center_epoch = 2000.0
+            phase_center_frame = "icrs"
+            phase_center_epoch = 2000.0
 
         # If only dealing with a single target, assume we don't want to make a
         # multi-phase-center data set.
         if (len(field_list) == 1) and (ref_dir_dict is None):
             radec_center = tb_field.getcell("PHASE_DIR", field_list[0])[0]
-            self.phase_center_ra = float(radec_center[0])
-            self.phase_center_dec = float(radec_center[1])
-            self.phase_center_id_array = None
-            self.object_name = tb_field.getcol("NAME")[0]
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                self.phase_center_ra = float(radec_center[0])
+                self.phase_center_dec = float(radec_center[1])
+                self.phase_center_id_array = None
+                self.object_name = tb_field.getcol("NAME")[0]
+                self.phase_center_frame = phase_center_frame
+                self.phase_center_epoch = phase_center_epoch
         else:
             self._set_multi_phase_center()
             field_id_dict = {field_idx: field_idx for field_idx in field_list}
@@ -2250,7 +2267,7 @@ class MS(UVData):
                         ref_dir_dict[tb_field.getcell(ref_dir_colname, field_list[0])]
                     )
                 else:
-                    frame_tuple = (self.phase_center_frame, self.phase_center_epoch)
+                    frame_tuple = (phase_center_frame, phase_center_epoch)
 
                 self._add_phase_center(
                     field_name,

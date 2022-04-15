@@ -1476,7 +1476,7 @@ def test_set_telescope_params(uvdata_obj):
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_add(future_shapes):
     uv1 = UVFlag(test_f_file, use_future_array_shapes=future_shapes)
-    uv2 = copy.deepcopy(uv1)
+    uv2 = copy.copy(uv1)
     uv2.time_array += 1  # Add a day
     uv3 = uv1 + uv2
     assert np.array_equal(
@@ -1526,7 +1526,7 @@ def test_add_add_version_str():
 
     assert pyuvdata_version_str not in uv1.history
 
-    uv2 = copy.deepcopy(uv1)
+    uv2 = uv1.copy()
     uv2.time_array += 1  # Add a day
     uv3 = uv1 + uv2
     assert pyuvdata_version_str in uv3.history
@@ -1534,7 +1534,7 @@ def test_add_add_version_str():
 
 def test_add_baseline():
     uv1 = UVFlag(test_f_file)
-    uv2 = copy.deepcopy(uv1)
+    uv2 = uv1.copy()
     uv2.baseline_array += 100  # Arbitrary
     uv3 = uv1.__add__(uv2, axis="baseline")
     assert np.array_equal(
@@ -1568,7 +1568,7 @@ def test_add_antenna():
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
     uv1 = UVFlag(uvc)
-    uv2 = copy.deepcopy(uv1)
+    uv2 = uv1.copy()
     uv2.ant_array += 100  # Arbitrary
     uv2.antenna_numbers += 100
     uv2.antenna_names = np.array([name + "_new" for name in uv2.antenna_names])
@@ -1604,7 +1604,7 @@ def test_add_antenna():
 @pytest.mark.parametrize("no_cw2", [True, False])
 def test_add_frequency(no_cw1, no_cw2):
     uv1 = UVFlag(test_f_file)
-    uv2 = copy.deepcopy(uv1)
+    uv2 = uv1.copy()
     if no_cw1:
         uv1.channel_width = None
     if no_cw2:
@@ -1656,7 +1656,7 @@ def test_add_frequency_with_weights_square():
     uvf1 = UVFlag(test_f_file)
     uvf1.weights_array = 2 * np.ones_like(uvf1.weights_array)
     uvf1.to_waterfall(return_weights_square=True)
-    uvf2 = copy.deepcopy(uvf1)
+    uvf2 = uvf1.copy()
     uvf2.freq_array += 1e4
     uvf3 = uvf1.__add__(uvf2, axis="frequency")
     assert np.array_equal(
@@ -1669,7 +1669,7 @@ def test_add_frequency_mix_weights_square():
     # Same test as above, checking some error handling
     uvf1 = UVFlag(test_f_file)
     uvf1.weights_array = 2 * np.ones_like(uvf1.weights_array)
-    uvf2 = copy.deepcopy(uvf1)
+    uvf2 = uvf1.copy()
     uvf1.to_waterfall(return_weights_square=True)
     uvf2.to_waterfall(return_weights_square=False)
     uvf2.freq_array += 1e4
@@ -1682,7 +1682,7 @@ def test_add_frequency_mix_weights_square():
 
 def test_add_pol():
     uv1 = UVFlag(test_f_file)
-    uv2 = copy.deepcopy(uv1)
+    uv2 = uv1.copy()
     uv2.polarization_array += 1  # Arbitrary
     uv3 = uv1.__add__(uv2, axis="polarization")
     assert np.array_equal(uv1.freq_array, uv3.freq_array)
@@ -1711,7 +1711,7 @@ def test_add_pol():
 def test_add_flag(uvdata_obj):
     uv = uvdata_obj
     uv1 = UVFlag(uv, mode="flag")
-    uv2 = copy.deepcopy(uv1)
+    uv2 = uv1.copy()
     uv2.time_array += 1  # Add a day
     uv3 = uv1 + uv2
     assert np.array_equal(
@@ -1779,8 +1779,8 @@ def test_add_errors(uvdata_obj):
 
 def test_inplace_add():
     uv1a = UVFlag(test_f_file)
-    uv1b = copy.deepcopy(uv1a)
-    uv2 = copy.deepcopy(uv1a)
+    uv1b = uv1a.copy()
+    uv2 = uv1a.copy()
     uv2.time_array += 1
     uv1a += uv2
     assert uv1a.__eq__(uv1b + uv2)
@@ -2272,7 +2272,7 @@ def test_to_baseline_from_antenna(
     else:
         or_flags = np.transpose(or_flags, [2, 0, 1, 3])
 
-    uv2 = copy.deepcopy(uv)
+    uv2 = uv.copy()
     uvf2 = uvf.copy()
 
     # hack in the exact times so we can compare some values later
@@ -2391,7 +2391,7 @@ def test_to_baseline_force_pol_npol_gt_1(uvdata_obj):
     uvf.flag_array[0, 10, 0] = True  # Flag time0, chan10
     uvf.flag_array[1, 15, 0] = True  # Flag time1, chan15
 
-    uv2 = copy.deepcopy(uv)
+    uv2 = uv.copy()
     uv2.polarization_array[0] = -6
     uv += uv2
     uvf.to_baseline(uv, force_pol=True)
@@ -3231,7 +3231,7 @@ def test_select_antenna_nums(input_uvf, uvf_mode, dimension, future_shapes):
     elif dimension == 3:
         ants_to_keep = np.atleast_3d(ants_to_keep)
 
-    uvf2 = copy.deepcopy(uvf)
+    uvf2 = uvf.copy()
     uvf2.select(antenna_nums=ants_to_keep)
     # make 1-D for the remaining iterators in tests
     ants_to_keep = ants_to_keep.squeeze()
@@ -3314,7 +3314,7 @@ def test_select_bls(input_uvf, uvf_mode):
         ]
         Nblts_selected = np.sum(blts_select)
 
-        uvf2 = copy.deepcopy(uvf)
+        uvf2 = uvf.copy()
         uvf2.select(bls=ant_pairs_to_keep)
         sorted_pairs_object2 = [
             sort_bl(p) for p in zip(uvf2.ant_1_array, uvf2.ant_2_array)
@@ -3356,7 +3356,7 @@ def test_select_bls(input_uvf, uvf_mode):
         ]
         Nblts_selected = np.sum(blts_select)
 
-        uvf2 = copy.deepcopy(uvf)
+        uvf2 = uvf.copy()
 
         uvf2.select(bls=ant_pairs_to_keep)
         sorted_pairs_object2 = [
@@ -3452,7 +3452,7 @@ def test_select_times(input_uvf, uvf_mode, future_shapes):
 
     Nblts_selected = np.sum([t in times_to_keep for t in uvf.time_array])
 
-    uvf2 = copy.deepcopy(uvf)
+    uvf2 = uvf.copy()
     uvf2.select(times=times_to_keep)
 
     assert len(times_to_keep) == uvf2.Ntimes
@@ -3471,7 +3471,7 @@ def test_select_times(input_uvf, uvf_mode, future_shapes):
         uvf2.history,
     )
     # check that it also works with higher dimension array
-    uvf2 = copy.deepcopy(uvf)
+    uvf2 = uvf.copy()
     uvf2.select(times=times_to_keep[np.newaxis, :])
 
     assert len(times_to_keep) == uvf2.Ntimes
@@ -3512,7 +3512,7 @@ def test_select_frequencies(input_uvf, uvf_mode, future_shapes):
         uvf.freq_array.squeeze(), size=uvf.Nfreqs // 10, replace=False
     )
 
-    uvf2 = copy.deepcopy(uvf)
+    uvf2 = uvf.copy()
     uvf2.select(frequencies=freqs_to_keep)
 
     assert len(freqs_to_keep) == uvf2.Nfreqs
@@ -3527,7 +3527,7 @@ def test_select_frequencies(input_uvf, uvf_mode, future_shapes):
     )
 
     # check that it also works with higher dimension array
-    uvf2 = copy.deepcopy(uvf)
+    uvf2 = uvf.copy()
     uvf2.select(frequencies=freqs_to_keep[np.newaxis, :])
 
     assert len(freqs_to_keep) == uvf2.Nfreqs
@@ -3542,7 +3542,7 @@ def test_select_frequencies(input_uvf, uvf_mode, future_shapes):
     )
 
     # check that selecting one frequency works
-    uvf2 = copy.deepcopy(uvf)
+    uvf2 = uvf.copy()
     uvf2.select(frequencies=freqs_to_keep[0])
     assert 1 == uvf2.Nfreqs
     assert freqs_to_keep[0] in uvf2.freq_array
@@ -3578,7 +3578,7 @@ def test_select_freq_chans(input_uvf, uvf_mode):
     c1, c2 = np.sort(chans)
     chans_to_keep = np.arange(c1, c2)
 
-    uvf2 = copy.deepcopy(uvf)
+    uvf2 = uvf.copy()
     uvf2.select(freq_chans=chans_to_keep)
 
     assert len(chans_to_keep) == uvf2.Nfreqs
@@ -3600,7 +3600,7 @@ def test_select_freq_chans(input_uvf, uvf_mode):
     )
 
     # check that it also works with higher dimension array
-    uvf2 = copy.deepcopy(uvf)
+    uvf2 = uvf.copy()
     uvf2.select(freq_chans=chans_to_keep[np.newaxis, :])
 
     assert len(chans_to_keep) == uvf2.Nfreqs
@@ -3633,7 +3633,7 @@ def test_select_freq_chans(input_uvf, uvf_mode):
 
     all_chans_to_keep = np.arange(c1, c2)
 
-    uvf2 = copy.deepcopy(uvf)
+    uvf2 = uvf.copy()
     uvf2.select(frequencies=freqs_to_keep, freq_chans=chans_to_keep)
 
     assert len(all_chans_to_keep) == uvf2.Nfreqs
@@ -3665,7 +3665,7 @@ def test_select_polarizations(uvf_mode, pols_to_keep, input_uvf, future_shapes):
     old_history = uvf.history
 
     uvf.x_orientation = "north"
-    uvf2 = copy.deepcopy(uvf)
+    uvf2 = uvf.copy()
     uvf2.select(polarizations=pols_to_keep)
 
     if isinstance(pols_to_keep[0], list):
@@ -3791,7 +3791,7 @@ def test_select(input_uvf, uvf_mode):
             [bi & ti for (bi, ti) in zip(blts_blt_select, blts_time_select)]
         )
 
-    uvf2 = copy.deepcopy(uvf)
+    uvf2 = uvf.copy()
     uvf2.select(
         blt_inds=blt_inds,
         antenna_nums=ants_to_keep,

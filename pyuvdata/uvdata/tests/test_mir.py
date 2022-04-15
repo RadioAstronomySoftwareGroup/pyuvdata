@@ -154,7 +154,15 @@ def test_read_mir_write_ms(sma_mir, tmp_path, future_shapes):
         sma_mir.use_future_array_shapes()
 
     sma_mir.write_ms(testfile, clobber=True)
-    ms_uv.read(testfile)
+    ms_uv.read(testfile, make_multi_phase=True)
+
+    # fix up the phase center info to match the mir dataset
+    cat_id = list(sma_mir.phase_center_catalog.keys())[0]
+    cat_name = sma_mir.phase_center_catalog[cat_id]["cat_name"]
+    ms_uv._update_phase_center_id(list(ms_uv.phase_center_catalog.keys())[0], cat_id)
+    ms_uv.phase_center_catalog[cat_id]["cat_name"] = cat_name
+    ms_uv.phase_center_catalog[cat_id]["info_source"] = "file"
+    ms_uv.phase_center_frame = "icrs"
 
     # Single integration with 1 phase center = single scan number
     # output in the MS
@@ -334,7 +342,15 @@ def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
 
     # Write out our modified data set
     mir_uv.write_ms(testfile, clobber=True)
-    ms_uv = UVData.from_file(testfile)
+    ms_uv = UVData.from_file(testfile, make_multi_phase=True)
+
+    # fix up the phase center info to match the mir dataset
+    cat_id = list(mir_uv.phase_center_catalog.keys())[0]
+    cat_name = mir_uv.phase_center_catalog[cat_id]["cat_name"]
+    ms_uv._update_phase_center_id(list(ms_uv.phase_center_catalog.keys())[0], cat_id)
+    ms_uv.phase_center_catalog[cat_id]["cat_name"] = cat_name
+    ms_uv.phase_center_catalog[cat_id]["info_source"] = "file"
+    ms_uv.phase_center_frame = "icrs"
 
     # There are some minor differences between the values stored by MIR and that
     # calculated by UVData. Since MS format requires these to be calculated on the

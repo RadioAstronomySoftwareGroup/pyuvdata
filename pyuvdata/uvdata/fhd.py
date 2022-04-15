@@ -557,18 +557,20 @@ class FHD(UVData):
         # At least for the MWA, obs.ORIG_PHASERA and obs.ORIG_PHASEDEC specify
         # the field the telescope was nominally pointing at
         # (May need to be revisited, but probably isn't too important)
-        self.object_name = (
-            "Field RA(deg): "
-            + str(obs["ORIG_PHASERA"][0])
-            + ", Dec:"
-            + str(obs["ORIG_PHASEDEC"][0])
-        )
-        # For the MWA, this can sometimes be converted to EoR fields
-        if self.telescope_name.lower() == "mwa":
-            if np.isclose(obs["ORIG_PHASERA"][0], 0) and np.isclose(
-                obs["ORIG_PHASEDEC"][0], -27
-            ):
-                self.object_name = "EoR 0 Field"
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            self.object_name = (
+                "Field RA(deg): "
+                + str(obs["ORIG_PHASERA"][0])
+                + ", Dec:"
+                + str(obs["ORIG_PHASEDEC"][0])
+            )
+            # For the MWA, this can sometimes be converted to EoR fields
+            if self.telescope_name.lower() == "mwa":
+                if np.isclose(obs["ORIG_PHASERA"][0], 0) and np.isclose(
+                    obs["ORIG_PHASEDEC"][0], -27
+                ):
+                    self.object_name = "EoR 0 Field"
 
         self.instrument = self.telescope_name
         latitude = np.deg2rad(float(obs["LAT"][0]))
@@ -628,11 +630,13 @@ class FHD(UVData):
             )
 
         self._set_phased()
-        self.phase_center_ra_degrees = float(obs["OBSRA"][0])
-        self.phase_center_dec_degrees = float(obs["OBSDEC"][0])
-        self.phase_center_frame = astrometry["RADECSYS"][0].decode().lower()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            self.phase_center_ra_degrees = float(obs["OBSRA"][0])
+            self.phase_center_dec_degrees = float(obs["OBSDEC"][0])
+            self.phase_center_frame = astrometry["RADECSYS"][0].decode().lower()
 
-        self.phase_center_epoch = astrometry["EQUINOX"][0]
+            self.phase_center_epoch = astrometry["EQUINOX"][0]
         self._set_app_coords_helper()
         # Note that FHD antenna arrays are 1-indexed so we subtract 1
         # to get 0-indexed arrays

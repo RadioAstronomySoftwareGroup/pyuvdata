@@ -298,19 +298,9 @@ def test_read_carma_miriad_write_ms(tmp_path):
     # Final equality check
     assert uv_in.__eq__(uv_out, allowed_failures=["filename"])
 
-    # Last but not least, change the coord system so that the catalog frames are the
-    # same as phase_center_frame
-    uv_in.phase_center_frame = "fk5"
-    uv_in._set_app_coords_helper()
-
     # Check to make sure we raise an error if overwritting a file w/o clobber enabled
     with pytest.raises(OSError, match="File exists; skipping"):
         uv_in.write_ms(testfile, clobber=False)
-
-    # Do one last read/write/check for equality
-    uv_in.write_ms(testfile, clobber=True)
-    uv_out.read(testfile)
-    assert uv_in.__eq__(uv_out, allowed_failures=["filename"])
 
 
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")

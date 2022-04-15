@@ -338,17 +338,19 @@ class UVH5(UVData):
                 ).decode("utf8")
             if "phase_center_epoch" in header:
                 self.phase_center_epoch = float(header["phase_center_epoch"][()])
-            if self.phase_type == "phased":
-                self._set_phased()
-            else:
-                if self.phase_type != "drift":
-                    warnings.warn(
-                        "Unknown phase types are no longer supported, marking this "
-                        'object as phase_type="drift" by default. If this was a phased '
-                        "object, you can set the phase type correctly by running the "
-                        "_set_phased() method."
-                    )
-                self._set_drift()
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                if self.phase_type == "phased":
+                    self._set_phased()
+                else:
+                    if self.phase_type != "drift":
+                        warnings.warn(
+                            "Unknown phase types are no longer supported, marking this "
+                            'object as phase_type="drift" by default. If this was a phased '
+                            "object, you can set the phase type correctly by running the "
+                            "_set_phased() method."
+                        )
+                    self._set_drift()
 
         if "phase_center_app_ra" in header and "phase_center_app_dec" in header:
             self.phase_center_app_ra = header["phase_center_app_ra"][:]
@@ -792,28 +794,30 @@ class UVH5(UVData):
             self._set_future_array_shapes()
 
         # Finally, backfill the apparent coords if they aren't in the original datafile
-        if self.phase_type == "phased":
-            add_app_coords = (
-                self.phase_center_app_ra is None
-                or (self.phase_center_app_dec is None)
-                or (self.phase_center_frame_pa is None)
-            )
-            if add_app_coords:
-                self._set_app_coords_helper()
-
-            # Default behavior for UVH5 is to fix phasing if the problem is detected,
-            # since the absence of the app coord attributes is the most clear indicator
-            # of the old phasing algorithm being used. Double-check the multi-phase-ctr
-            # attribute just to be extra safe.
-            if (fix_old_proj) or (fix_old_proj is None and add_app_coords):
-                self.fix_phase(use_ant_pos=fix_use_ant_pos)
-            elif add_app_coords:
-                warnings.warn(
-                    "This data appears to have been phased-up using the old `phase` "
-                    "method, which is incompatible with the current sent of methods. "
-                    "Please run the `fix_phase` method (or set fix_old_proj=True when "
-                    "loading the dataset) to address this issue."
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            if self.phase_type == "phased":
+                add_app_coords = (
+                    self.phase_center_app_ra is None
+                    or (self.phase_center_app_dec is None)
+                    or (self.phase_center_frame_pa is None)
                 )
+                if add_app_coords:
+                    self._set_app_coords_helper()
+
+                # Default behavior for UVH5 is to fix phasing if the problem is detected,
+                # since the absence of the app coord attributes is the most clear indicator
+                # of the old phasing algorithm being used. Double-check the multi-phase-ctr
+                # attribute just to be extra safe.
+                if (fix_old_proj) or (fix_old_proj is None and add_app_coords):
+                    self.fix_phase(use_ant_pos=fix_use_ant_pos)
+                elif add_app_coords:
+                    warnings.warn(
+                        "This data appears to have been phased-up using the old `phase` "
+                        "method, which is incompatible with the current sent of methods. "
+                        "Please run the `fix_phase` method (or set fix_old_proj=True when "
+                        "loading the dataset) to address this issue."
+                    )
 
         # check if object has all required UVParameters set
         if run_check:
@@ -1156,21 +1160,23 @@ class UVH5(UVData):
             header["phase_center_app_dec"] = self.phase_center_app_dec
             header["phase_center_frame_pa"] = self.phase_center_frame_pa
         else:
-            header["phase_type"] = np.string_(self.phase_type)
-            if self.phase_type == "phased":
-                header["phase_center_app_ra"] = self.phase_center_app_ra
-                header["phase_center_app_dec"] = self.phase_center_app_dec
-                header["phase_center_frame_pa"] = self.phase_center_frame_pa
-            if self.phase_center_ra is not None:
-                header["phase_center_ra"] = self.phase_center_ra
-            if self.phase_center_dec is not None:
-                header["phase_center_dec"] = self.phase_center_dec
-            if self.phase_center_epoch is not None:
-                header["phase_center_epoch"] = self.phase_center_epoch
-            if self.phase_center_frame is not None:
-                header["phase_center_frame"] = np.string_(self.phase_center_frame)
-            if self.object_name is not None:
-                header["object_name"] = np.string_(self.object_name)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The older phase attributes")
+                header["phase_type"] = np.string_(self.phase_type)
+                if self.phase_type == "phased":
+                    header["phase_center_app_ra"] = self.phase_center_app_ra
+                    header["phase_center_app_dec"] = self.phase_center_app_dec
+                    header["phase_center_frame_pa"] = self.phase_center_frame_pa
+                if self.phase_center_ra is not None:
+                    header["phase_center_ra"] = self.phase_center_ra
+                if self.phase_center_dec is not None:
+                    header["phase_center_dec"] = self.phase_center_dec
+                if self.phase_center_epoch is not None:
+                    header["phase_center_epoch"] = self.phase_center_epoch
+                if self.phase_center_frame is not None:
+                    header["phase_center_frame"] = np.string_(self.phase_center_frame)
+                if self.object_name is not None:
+                    header["object_name"] = np.string_(self.object_name)
 
         # write out optional parameters
         if self.dut1 is not None:
