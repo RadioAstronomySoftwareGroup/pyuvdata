@@ -729,7 +729,7 @@ class UVFITS(UVData):
             # stuff in columns
             ant_names = ant_hdu.data.field("ANNAME").tolist()
             self.antenna_names = []
-            for ant_ind, name in enumerate(ant_names):
+            for name in ant_names:
                 # Sometimes CASA writes antnames as bytes not strings.
                 # If the ant name is shorter than 8 characters, the trailing
                 # characters may be non-ascii.

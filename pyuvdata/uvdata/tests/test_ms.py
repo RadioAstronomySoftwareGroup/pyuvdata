@@ -209,6 +209,16 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
     # doesn't have them
     assert uvfits_uv != ms_uv
     uvfits_uv.integration_time = ms_uv.integration_time
+
+    # The uvfits was written by CASA, which adds one to all the antenna numbers relative
+    # to the measurement set. Adjust those:
+    uvfits_uv.antenna_numbers = uvfits_uv.antenna_numbers - 1
+    uvfits_uv.ant_1_array = uvfits_uv.ant_1_array - 1
+    uvfits_uv.ant_2_array = uvfits_uv.ant_2_array - 1
+    uvfits_uv.baseline_array = uvfits_uv.antnums_to_baseline(
+        uvfits_uv.ant_1_array, uvfits_uv.ant_2_array
+    )
+
     # they are equal if only required parameters are checked:
     # scan numbers only defined for the MS
     assert uvfits_uv.__eq__(ms_uv, check_extra=False, allowed_failures=allowed_failures)
@@ -326,7 +336,16 @@ def test_multi_files(casa_uvfits, axis):
     # and the ms sets default antenna diameters even though the uvfits file
     # doesn't have them
     assert uv_multi != uv_full
-    # they are equal if only required parameters are checked:
+    # The uvfits was written by CASA, which adds one to all the antenna numbers relative
+    # to the measurement set. Adjust those:
+    uv_full.antenna_numbers = uv_full.antenna_numbers - 1
+    uv_full.ant_1_array = uv_full.ant_1_array - 1
+    uv_full.ant_2_array = uv_full.ant_2_array - 1
+    uv_full.baseline_array = uv_full.antnums_to_baseline(
+        uv_full.ant_1_array, uv_full.ant_2_array
+    )
+
+    # now they are equal if only required parameters are checked:
     assert uv_multi.__eq__(uv_full, check_extra=False)
 
     # set those parameters to none to check that the rest of the objects match
