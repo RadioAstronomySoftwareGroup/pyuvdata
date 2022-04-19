@@ -856,6 +856,30 @@ class UVFlag(UVBase):
         assert self.type == "baseline", 'Must be "baseline" type UVFlag object.'
         return uvutils.baseline_to_antnums(baseline, self.Nants_telescope)
 
+    def antnums_to_baseline(self, ant1, ant2, attempt256=False):
+        """
+        Get the baseline number corresponding to two given antenna numbers.
+
+        Parameters
+        ----------
+        ant1 : int or array_like of int
+            first antenna number
+        ant2 : int or array_like of int
+            second antenna number
+        attempt256 : bool
+            Option to try to use the older 256 standard used in many uvfits files
+            (will use 2048 standard if there are more than 256 antennas).
+
+        Returns
+        -------
+        int or array of int
+            baseline number corresponding to the two antenna numbers.
+        """
+        assert self.type == "baseline", 'Must be "baseline" type UVFlag object.'
+        return uvutils.antnums_to_baseline(
+            ant1, ant2, self.Nants_telescope, attempt256=attempt256
+        )
+
     def get_baseline_nums(self):
         """Return numpy array of unique baseline numbers in data."""
         assert self.type == "baseline", 'Must be "baseline" type UVFlag object.'
@@ -2676,20 +2700,19 @@ class UVFlag(UVBase):
 
                 if self.type == "baseline":
 
-                    self.baseline_array = header["baseline_array"][()]
+                    self.ant_1_array = header["ant_1_array"][()]
+                    self.ant_2_array = header["ant_2_array"][()]
+
+                    self.baseline_array = self.antnums_to_baseline(
+                        self.ant_1_array, self.ant_2_array
+                    )
 
                     if "Nblts" in header.keys():
                         self.Nblts = int(header["Nblts"][()])
                     else:
                         self.Nblts = len(self.baseline_array)
 
-                    if "Nbls" in header.keys():
-                        self.Nbls = int(header["Nbls"][()])
-                    else:
-                        self.Nbls = np.unique(self.baseline_array).size
-
-                    self.ant_1_array = header["ant_1_array"][()]
-                    self.ant_2_array = header["ant_2_array"][()]
+                    self.Nbls = np.unique(self.baseline_array).size
 
                     try:
                         self.Nants_telescope = int(header["Nants_telescope"][()])
@@ -2813,8 +2836,6 @@ class UVFlag(UVBase):
             header["label"] = np.string_(self.label)
 
             if self.type == "baseline":
-                header["baseline_array"] = self.baseline_array
-                header["Nbls"] = self.Nbls
                 header["Nblts"] = self.Nblts
                 header["ant_1_array"] = self.ant_1_array
                 header["ant_2_array"] = self.ant_2_array
