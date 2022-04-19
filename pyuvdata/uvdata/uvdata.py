@@ -8064,8 +8064,9 @@ class UVData(UVBase):
 
         if antenna_nums is not None:
             antenna_nums = uvutils._get_iterable(antenna_nums)
-            if np.array(antenna_nums).ndim > 1:
-                antenna_nums = np.array(antenna_nums).flatten()
+            antenna_nums = np.asarray(antenna_nums)
+            if antenna_nums.ndim > 1:
+                antenna_nums = antenna_nums.flatten()
             if n_selects > 0:
                 history_update_string += ", antennas"
             else:
@@ -8078,8 +8079,8 @@ class UVData(UVBase):
             )
             if not np.all(ant_check):
                 raise ValueError(
-                    "Antenna number % i is not present in the ant_1_array or "
-                    "ant_2_array" % antenna_nums[~ant_check][0]
+                    f"Antenna number {antenna_nums[~ant_check]} is not present in the "
+                    "ant_1_array or ant_2_array"
                 )
             ant_blt_inds = np.where(
                 np.logical_and(

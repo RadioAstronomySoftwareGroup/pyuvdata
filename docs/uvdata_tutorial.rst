@@ -449,7 +449,7 @@ g) Convenience functions to ask what antennas, baselines, and pols are in the da
 
   >>> # Get all unique antennas in data
   >>> print(uvd.get_ants())
-  [ 0  1  2  3  6  7  8 11 14 18 19 20 21 22 23 24 26 27]
+  [ 1  2  3  4  7  8  9 12 15 19 20 21 22 23 24 25 27 28]
 
   >>> # Get all baseline nums in data, print first 10.
   >>> print(uvd.get_baseline_nums()[0:10])
@@ -457,11 +457,11 @@ g) Convenience functions to ask what antennas, baselines, and pols are in the da
 
   >>> # Get all (ordered) antenna pairs in data (same info as baseline_nums), print first 10.
   >>> print(uvd.get_antpairs()[0:10])
-  [(0, 1), (0, 2), (0, 3), (0, 6), (0, 7), (0, 8), (0, 11), (0, 14), (0, 18), (0, 19)]
+  [(1, 2), (1, 3), (1, 4), (1, 7), (1, 8), (1, 9), (1, 12), (1, 15), (1, 19), (1, 20)]
 
   >>> # Get all antenna pairs and polarizations, i.e. keys produced in UVData.antpairpol_iter(), print first 5.
   >>> print(uvd.get_antpairpols()[0:5])
-  [(0, 1, 'rr'), (0, 1, 'll'), (0, 1, 'rl'), (0, 1, 'lr'), (0, 2, 'rr')]
+  [(1, 2, 'rr'), (1, 2, 'll'), (1, 2, 'rl'), (1, 2, 'lr'), (1, 3, 'rr')]
 
 h) Quick access to file attributes of a UV* object (UVData, UVCal, UVBeam)
 **************************************************************************
@@ -734,7 +734,7 @@ entire file to plot one waterfall.
   64
   >>> bl = uvd.antnums_to_baseline(1, 2)
   >>> print(bl)
-  69635
+  67586
   >>> bl_ind = np.where(uvd.baseline_array == bl)[0]
 
   >>> # Amplitude waterfall for all spectral channels and 0th polarization
@@ -803,12 +803,12 @@ a) Select 3 antennas to keep using the antenna number.
 
   >>> # print all the antennas numbers with data in the original file
   >>> print(np.unique(uvd.ant_1_array.tolist() + uvd.ant_2_array.tolist()))
-  [ 0  1  2  3  6  7  8 11 14 18 19 20 21 22 23 24 26 27]
-  >>> uvd.select(antenna_nums=[0, 11, 20])
+  [ 1  2  3  4  7  8  9 12 15 19 20 21 22 23 24 25 27 28]
+  >>> uvd.select(antenna_nums=[1, 12, 21])
 
   >>> # print all the antennas numbers with data after the select
   >>> print(np.unique(uvd.ant_1_array.tolist() + uvd.ant_2_array.tolist()))
-  [ 0 11 20]
+  [ 1 12 21]
 
 b) Select 3 antennas to keep using the antenna names, also select 5 frequencies to keep.
 ****************************************************************************************
@@ -855,12 +855,12 @@ c) Select a few antenna pairs to keep
   >>> # print how many antenna pairs with data in the original file
   >>> print(len(set(zip(uvd.ant_1_array, uvd.ant_2_array))))
   153
-  >>> uvd.select(bls=[(0, 2), (6, 0), (0, 21)])
+  >>> uvd.select(bls=[(1, 2), (7, 1), (1, 21)])
 
   >>> # note that order of the values in the pair does not matter
   >>> # print all the antenna pairs after the select
   >>> print(sorted(set(zip(uvd.ant_1_array, uvd.ant_2_array))))
-  [(0, 2), (0, 6), (0, 21)]
+  [(1, 2), (1, 7), (1, 21)]
 
 d) Select antenna pairs using baseline numbers
 **********************************************
@@ -885,7 +885,7 @@ d) Select antenna pairs using baseline numbers
   >>> print(np.unique(uvd.baseline_array))
   [73736 73753 81945]
   >>> print(list(set(zip(uvd.ant_1_array, uvd.ant_2_array))))
-  [(3, 24), (3, 7), (7, 24)]
+  [(8, 25), (4, 25), (4, 8)]
 
 e) Select polarizations
 ***********************
@@ -1010,11 +1010,11 @@ ___________________________
   153
 
   >>> # Apply select to UVData object
-  >>> uvd.select(ant_str='(1,2)_(3,6)')
+  >>> uvd.select(ant_str='(1,2)_(3,7)')
 
   >>> # Print the antennas pairs with data after the select
   >>> print(uvd.get_antpairs())
-  [(1, 3), (1, 6), (2, 3), (2, 6)]
+  [(1, 3), (1, 7), (2, 3), (2, 7)]
 
 3. Antenna number(s) and polarization(s):
 __________________________________________
@@ -1045,11 +1045,11 @@ all antenna pairs kept in the object will retain data for each specified polariz
   (153, ['rr', 'll', 'rl', 'lr'])
 
   >>> # Apply select to UVData object
-  >>> uvd.select(ant_str='1r_2l,1l_3l,1r_6r')
+  >>> uvd.select(ant_str='1r_2l,1l_3l,1r_7r')
 
   >>> # Print all the antennas numbers and polarizations with data after the select
   >>> print((uvd.get_antpairs(), uvd.get_pols()))
-  ([(1, 2), (1, 3), (1, 6)], ['rr', 'll', 'rl'])
+  ([(1, 2), (1, 3), (1, 7)], ['rr', 'll', 'rl'])
 
 4. Stokes parameter(s):
 ________________________
@@ -1155,15 +1155,15 @@ h) Select data and return new object (leaving original intact).
   >>> uvd = UVData()
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> uvd.read(filename)
-  >>> uvd2 = uvd.select(antenna_nums=[0, 11, 20], inplace=False)
+  >>> uvd2 = uvd.select(antenna_nums=[1, 12, 21], inplace=False)
 
   >>> # print all the antennas numbers with data in the original file
   >>> print(np.unique(uvd.ant_1_array.tolist() + uvd.ant_2_array.tolist()))
-  [ 0  1  2  3  6  7  8 11 14 18 19 20 21 22 23 24 26 27]
+  [ 1  2  3  4  7  8  9 12 15 19 20 21 22 23 24 25 27 28]
 
   >>> # print all the antennas numbers with data after the select
   >>> print(np.unique(uvd2.ant_1_array.tolist() + uvd2.ant_2_array.tolist()))
-  [ 0 11 20]
+  [ 1 12 21]
 
 UVData: Combining and concatenating data
 ----------------------------------------
