@@ -4798,12 +4798,18 @@ def test_key2inds(casa_uvfits):
     assert np.array_equal(np.array([1]), indp[0])
 
     # Test invalid keys
-    pytest.raises(KeyError, uv._key2inds, "I")  # pol str not in data
-    pytest.raises(KeyError, uv._key2inds, -8)  # pol num not in data
-    pytest.raises(KeyError, uv._key2inds, 6)  # bl num not in data
-    pytest.raises(KeyError, uv._key2inds, (1, 1))  # ant pair not in data
-    pytest.raises(KeyError, uv._key2inds, (1, 1, "rr"))  # ant pair not in data
-    pytest.raises(KeyError, uv._key2inds, (0, 1, "xx"))  # pol not in data
+    with pytest.raises(KeyError, match="Polarization I not found in data."):
+        uv._key2inds("I")  # pol str not in data
+    with pytest.raises(KeyError, match="Polarization -8 not found in data."):
+        uv._key2inds(-8)  # pol num not in data
+    with pytest.raises(KeyError, match="Baseline 6 not found in data."):
+        uv._key2inds(6)  # bl num not in data
+    with pytest.raises(KeyError, match=r"Antenna pair \(1, 1\) not found in data"):
+        uv._key2inds((1, 1))  # ant pair not in data
+    with pytest.raises(KeyError, match=r"Antenna pair \(1, 1\) not found in data"):
+        uv._key2inds((1, 1, "rr"))  # ant pair not in data
+    with pytest.raises(KeyError, match="Polarization xx not found in data."):
+        uv._key2inds((1, 2, "xx"))  # pol not in data
 
     # Test autos are handled correctly
     uv.ant_2_array[0] = uv.ant_1_array[0]
@@ -4876,7 +4882,10 @@ def test_key2inds_conj_all_pols_missing_data(casa_uvfits):
     ant1 = uv.ant_1_array[0]
     ant2 = uv.ant_2_array[0]
 
-    pytest.raises(KeyError, uv._key2inds, (ant2, ant1))
+    with pytest.raises(
+        KeyError, match=r"Baseline \(8, 4\) not found for polarization array in data."
+    ):
+        uv._key2inds((ant2, ant1))
 
 
 def test_key2inds_conj_all_pols_bls(casa_uvfits):
@@ -4904,7 +4913,10 @@ def test_key2inds_conj_all_pols_missing_data_bls(casa_uvfits):
     ant2 = uv.ant_2_array[0]
     bl = uvutils.antnums_to_baseline(ant2, ant1, uv.Nants_telescope)
 
-    pytest.raises(KeyError, uv._key2inds, bl)
+    with pytest.raises(
+        KeyError, match="Baseline 81924 not found for polarization array in data."
+    ):
+        uv._key2inds(bl)
 
 
 def test_smart_slicing_err(casa_uvfits):
