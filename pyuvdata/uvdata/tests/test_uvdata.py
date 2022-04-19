@@ -1560,13 +1560,21 @@ def test_select_antennas(casa_uvfits):
 
     # check for errors associated with antennas not included in data, bad names
     # or providing numbers and names
-    pytest.raises(
-        ValueError, uv_object.select, antenna_nums=np.max(unique_ants) + np.arange(1, 3)
-    )
-    pytest.raises(ValueError, uv_object.select, antenna_names="test1")
-    pytest.raises(
-        ValueError, uv_object.select, antenna_nums=ants_to_keep, antenna_names=ant_names
-    )
+    with pytest.raises(ValueError, match=r"Antenna number \[29 30\] is not present"):
+        uv_object.select(antenna_nums=np.max(unique_ants) + np.arange(1, 3))
+
+    # check the same thing with passing a list
+    with pytest.raises(ValueError, match=r"Antenna number \[29 30\] is not present"):
+        uv_object.select(antenna_nums=(np.max(unique_ants) + np.arange(1, 3)).tolist())
+
+    with pytest.raises(
+        ValueError, match="Antenna name test1 is not present in the antenna_names"
+    ):
+        uv_object.select(antenna_names="test1")
+    with pytest.raises(
+        ValueError, match="Only one of antenna_nums and antenna_names can be provided."
+    ):
+        uv_object.select(antenna_nums=ants_to_keep, antenna_names=ant_names)
 
 
 def sort_bl(p):
