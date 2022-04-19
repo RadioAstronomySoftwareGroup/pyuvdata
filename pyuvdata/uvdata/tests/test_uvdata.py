@@ -531,10 +531,16 @@ def test_metadata_only_property(casa_uvfits):
     uvobj = casa_uvfits
     uvobj.data_array = None
     assert uvobj.metadata_only is False
-    pytest.raises(ValueError, uvobj.check)
+    with pytest.raises(
+        ValueError, match="Required UVParameter _data_array has not been set."
+    ):
+        uvobj.check()
     uvobj.flag_array = None
     assert uvobj.metadata_only is False
-    pytest.raises(ValueError, uvobj.check)
+    with pytest.raises(
+        ValueError, match="Required UVParameter _data_array has not been set."
+    ):
+        uvobj.check()
     uvobj.nsample_array = None
     assert uvobj.metadata_only is True
 
@@ -1452,12 +1458,14 @@ def test_select_blts(paper_uvh5, future_shapes):
     assert uv_object3 == uv_object4
 
     # check for errors associated with out of bounds indices
-    pytest.raises(ValueError, uv_object.select, blt_inds=np.arange(-10, -5))
-    pytest.raises(
-        ValueError,
-        uv_object.select,
-        blt_inds=np.arange(uv_object.Nblts + 1, uv_object.Nblts + 10),
-    )
+    with pytest.raises(ValueError, match="blt_inds contains indices that are negative"):
+        uv_object.select(blt_inds=np.arange(-10, -5))
+    with pytest.raises(
+        ValueError, match="blt_inds contains indices that are too large"
+    ):
+        uv_object.select(
+            blt_inds=np.arange(uv_object.Nblts + 1, uv_object.Nblts + 10),
+        )
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -1813,11 +1821,11 @@ def test_select_times(casa_uvfits, future_shapes):
     )
 
     # check for errors associated with times not included in data
-    pytest.raises(
-        ValueError,
-        uv_object.select,
-        times=[np.min(unique_times) - uv_object.integration_time[0]],
-    )
+    t_use = np.min(unique_times) - uv_object.integration_time[0]
+    with pytest.raises(
+        ValueError, match=f"Time {t_use} is not present in the time_array"
+    ):
+        uv_object.select(times=[t_use])
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -2545,7 +2553,10 @@ def test_select(casa_uvfits, future_shapes):
     )
 
     # test that a ValueError is raised if the selection eliminates all blts
-    pytest.raises(ValueError, uv_object.select, times=unique_times[0], antenna_nums=1)
+    with pytest.raises(
+        ValueError, match="No baseline-times were found that match criteria"
+    ):
+        uv_object.select(times=unique_times[0], antenna_nums=1)
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -2649,7 +2660,10 @@ def test_select_with_lst(casa_uvfits, future_shapes):
     )
 
     # test that a ValueError is raised if the selection eliminates all blts
-    pytest.raises(ValueError, uv_object.select, lsts=unique_lsts[0], antenna_nums=1)
+    with pytest.raises(
+        ValueError, match="No baseline-times were found that match criteria"
+    ):
+        uv_object.select(lsts=unique_lsts[0], antenna_nums=1)
 
     return
 
@@ -2966,7 +2980,11 @@ def test_reorder_pols(casa_uvfits, future_shapes):
     assert uv1 == uv2
 
     # check error on unknown order
-    pytest.raises(ValueError, uv2.reorder_pols, {"order": "foo"})
+    with pytest.raises(
+        ValueError,
+        match="order must be one of: 'AIPS', 'CASA', or an index array of length Npols",
+    ):
+        uv2.reorder_pols({"order": "foo"})
 
     # check error if order is an array of the wrong length
     with pytest.raises(ValueError) as cm:
@@ -4563,7 +4581,11 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv2.select(
         times=times[len(times) // 2 :], polarizations=uv2.polarization_array[2:4]
     )
-    pytest.raises(ValueError, uv1.fast_concat, uv2, "blt", inplace=True)
+    with pytest.raises(
+        ValueError,
+        match="UVParameter polarization_array does not match. Cannot combine objects.",
+    ):
+        uv1.fast_concat(uv2, "blt", inplace=True)
 
     # Another combo
     uv1 = uv_full.copy()
@@ -4571,7 +4593,11 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx, future_shapes):
     times = np.unique(uv_full.time_array)
     uv1.select(times=times[0 : len(times) // 2], freq_chans=np.arange(0, 32))
     uv2.select(times=times[len(times) // 2 :], freq_chans=np.arange(32, 64))
-    pytest.raises(ValueError, uv1.fast_concat, uv2, "blt", inplace=True)
+    with pytest.raises(
+        ValueError,
+        match="UVParameter freq_array does not match. Cannot combine objects.",
+    ):
+        uv1.fast_concat(uv2, "blt", inplace=True)
 
     # Add without inplace
     uv1 = uv_full.copy()
@@ -4924,15 +4950,18 @@ def test_smart_slicing_err(casa_uvfits):
     Test that smart_slicing throws an error when using an invald squeeze
     """
     # Test invalid squeeze
-    pytest.raises(
+    with pytest.raises(
         ValueError,
-        casa_uvfits._smart_slicing,
-        casa_uvfits.data_array,
-        [0, 4, 5],
-        [],
-        ([0, 1], []),
-        squeeze="notasqueeze",
-    )
+        match='"notasqueeze" is not a valid option for squeeze.Only "default", "none", '
+        'or "full" are allowed.',
+    ):
+        casa_uvfits._smart_slicing(
+            casa_uvfits.data_array,
+            [0, 4, 5],
+            [],
+            ([0, 1], []),
+            squeeze="notasqueeze",
+        )
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -5489,7 +5518,10 @@ def test_telescope_loc_xyz_check(paper_uvh5, tmp_path):
     uv.read(fname, run_check=False)
 
     # try to read without checks: assert it fails
-    pytest.raises(ValueError, uv.read, fname)
+    with pytest.raises(
+        ValueError, match="UVParameter _telescope_location has unacceptable values."
+    ):
+        uv.read(fname)
 
 
 def test_get_pols(casa_uvfits):
@@ -5526,7 +5558,11 @@ def test_get_feedpols(casa_uvfits):
 
     # Test break when pseudo-Stokes visibilities are present
     uv.polarization_array[0] = 1  # pseudo-Stokes I
-    pytest.raises(ValueError, uv.get_feedpols)
+    with pytest.raises(
+        ValueError,
+        match="Pseudo-Stokes visibilities cannot be interpreted as feed polarizations",
+    ):
+        uv.get_feedpols()
 
 
 def test_parse_ants(casa_uvfits, hera_uvh5_xx):
@@ -5560,7 +5596,8 @@ def test_parse_ants(casa_uvfits, hera_uvh5_xx):
 
     # Unparsible string
     ant_str = "none"
-    pytest.raises(ValueError, uv.parse_ants, ant_str)
+    with pytest.raises(ValueError, match="Unparsible argument none"):
+        uv.parse_ants(ant_str)
 
     # Single antenna number
     ant_str = "1"
@@ -6970,8 +7007,16 @@ def test_overlapping_data_add(casa_uvfits, tmp_path, future_shapes):
     # with data to be overwritten come second)
     uvfull = uv1 + uv2
     uvfull += uv3
-    pytest.raises(ValueError, uv4.__iadd__, uvfull)
-    pytest.raises(ValueError, uv4.__add__, uv4, uvfull)
+    with pytest.raises(
+        ValueError,
+        match="To combine these data, please run the add operation again, but with "
+        "the object whose data is to be overwritten as the first object",
+    ):
+        uv4.__iadd__(uvfull)
+    with pytest.raises(
+        ValueError, match="These objects have overlapping data and cannot be combined."
+    ):
+        uv4.__add__(uv4, uvfull)
 
     # write individual objects out, and make sure that we can read in the list
     uv1_out = str(tmp_path / "uv1.uvfits")
