@@ -907,28 +907,22 @@ def test_extra_keywords(casa_uvfits, tmp_path, kwd_names, kwd_values):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_roundtrip_blt_order(casa_uvfits, tmp_path):
+@pytest.mark.parametrize("order", ["time", "bda"])
+def test_roundtrip_blt_order(casa_uvfits, order, tmp_path):
     uv_in = casa_uvfits
     uv_out = UVData()
-    write_file = str(tmp_path / "outtest_casa.uvfits")
+    write_file = str(tmp_path / "blt_order_test.uvfits")
 
-    uv_in.reorder_blts()
+    uv_in.reorder_blts(order)
 
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file)
 
     # make sure filenames are what we expect
     assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
-    assert uv_out.filename == ["outtest_casa.uvfits"]
+    assert uv_out.filename == ["blt_order_test.uvfits"]
     uv_in.filename = uv_out.filename
 
-    assert uv_in == uv_out
-
-    # test with bda as well (single entry in tuple)
-    uv_in.reorder_blts(order="bda")
-
-    uv_in.write_uvfits(write_file)
-    uv_out.read(write_file)
     assert uv_in == uv_out
 
 
