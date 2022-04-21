@@ -240,9 +240,6 @@ class UVH5(UVData):
                 self._set_phased()
                 self._set_multi_phase_center(preserve_phase_center_info=False)
 
-        self.phase_type = bytes(header["phase_type"][()]).decode("utf8")
-        self.object_name = bytes(header["object_name"][()]).decode("utf8")
-
         # Here is where we start handing phase center information.  If we have a
         # multi phase center dataset, we need to get different header items
         if self.multi_phase_center:
@@ -273,6 +270,9 @@ class UVH5(UVData):
                             self.phase_center_catalog[pc][key] = dset[()]
         else:
             # check for older phasing information
+            self.phase_type = bytes(header["phase_type"][()]).decode("utf8")
+            if "object_name" in header:
+                self.object_name = bytes(header["object_name"][()]).decode("utf8")
             if "phase_center_ra" in header:
                 self.phase_center_ra = float(header["phase_center_ra"][()])
             if "phase_center_dec" in header:
@@ -741,7 +741,7 @@ class UVH5(UVData):
 
             # Default behavior for UVH5 is to fix phasing if the problem is detected,
             # since the absence of the app coord attributes is the most clear indicator
-            # of the old phasing algorithm being used. Double-check the mutli-phase-ctr
+            # of the old phasing algorithm being used. Double-check the multi-phase-ctr
             # attribute just to be extra safe.
             if (fix_old_proj) or (fix_old_proj is None and add_app_coords):
                 self.fix_phase(use_ant_pos=fix_use_ant_pos)
@@ -963,6 +963,11 @@ class UVH5(UVData):
                         strict_uvw_antpos_check=strict_uvw_antpos_check,
                     )
 
+                # For now, always use current shapes when data is read in, even if the
+                # file has the future shapes. This will change soon!
+                if self.future_array_shapes:
+                    self.use_current_array_shapes()
+
                 return
 
             # Now read in the data
@@ -1031,7 +1036,6 @@ class UVH5(UVData):
         header["altitude"] = self.telescope_location_lat_lon_alt_degrees[2]
         header["telescope_name"] = np.string_(self.telescope_name)
         header["instrument"] = np.string_(self.instrument)
-        header["object_name"] = np.string_(self.object_name)
 
         # write out required UVParameters
         header["Nants_data"] = self.Nants_data
@@ -1061,12 +1065,6 @@ class UVH5(UVData):
         header["antenna_names"] = np.asarray(self.antenna_names, dtype="bytes")
 
         # write out phasing information
-        header["phase_type"] = np.string_(self.phase_type)
-        if self.phase_type == "phased":
-            header["phase_center_app_ra"] = self.phase_center_app_ra
-            header["phase_center_app_dec"] = self.phase_center_app_dec
-            header["phase_center_frame_pa"] = self.phase_center_frame_pa
-
         # Write out the catalog, if available
         if self.phase_center_catalog:
             header["phase_center_id_array"] = self.phase_center_id_array
@@ -1083,7 +1081,15 @@ class UVH5(UVData):
                         this_group[key] = h5py.Empty("f")
                     else:
                         this_group[key] = value
+            header["phase_center_app_ra"] = self.phase_center_app_ra
+            header["phase_center_app_dec"] = self.phase_center_app_dec
+            header["phase_center_frame_pa"] = self.phase_center_frame_pa
         else:
+            header["phase_type"] = np.string_(self.phase_type)
+            if self.phase_type == "phased":
+                header["phase_center_app_ra"] = self.phase_center_app_ra
+                header["phase_center_app_dec"] = self.phase_center_app_dec
+                header["phase_center_frame_pa"] = self.phase_center_frame_pa
             if self.phase_center_ra is not None:
                 header["phase_center_ra"] = self.phase_center_ra
             if self.phase_center_dec is not None:
@@ -1092,6 +1098,8 @@ class UVH5(UVData):
                 header["phase_center_epoch"] = self.phase_center_epoch
             if self.phase_center_frame is not None:
                 header["phase_center_frame"] = np.string_(self.phase_center_frame)
+            if self.object_name is not None:
+                header["object_name"] = np.string_(self.object_name)
 
         # write out optional parameters
         if self.dut1 is not None:
@@ -1243,14 +1251,11 @@ class UVH5(UVData):
                 raise IOError("File exists; skipping")
 
         revert_fas = False
-        if self.multi_phase_center:
-            # We force using future array shapes here multi_phase_center is v1.1, but
-            # future_array_shapes is v1.0 (but a UVData object can have the
-            # multi_phase_center enabled, but not use future_array_shapes). We capture
-            # the current state so that it can be reverted later if needed.
-            if not self.future_array_shapes:
-                revert_fas = True
-                self.use_future_array_shapes()
+        if not self.future_array_shapes:
+            # We force using future array shapes here to always write version 1.* files.
+            # We capture the current state so that it can be reverted later if needed.
+            revert_fas = True
+            self.use_future_array_shapes()
 
         # open file for writing
         with h5py.File(filename, "w") as f:

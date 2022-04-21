@@ -3477,7 +3477,7 @@ def calc_app_coords(
         )
     elif coord_type == "unphased":
         # This is the easiest one - this is just supposed to be ENU, so set the
-        # apparent coords to the current lst and telescope_lon.
+        # apparent coords to the current lst and telescope_lat.
         unique_app_ra = unique_lst.copy()
         unique_app_dec = np.zeros_like(unique_app_ra) + site_loc.lat.rad
     else:
