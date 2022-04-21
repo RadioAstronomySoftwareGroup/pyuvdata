@@ -1793,6 +1793,9 @@ def test_initialize_uvh5_file(uv_partial_write, future_shapes, tmp_path):
 
     # read it in and make sure that the metadata matches the original
     partial_uvh5.read(partial_testfile, read_data=False)
+    if future_shapes:
+        # by default, current shapes are used. Change to the future ones.
+        partial_uvh5.use_future_array_shapes()
 
     # make sure filenames are what we expect
     assert partial_uvh5.filename == ["outtest_partial.uvh5"]
