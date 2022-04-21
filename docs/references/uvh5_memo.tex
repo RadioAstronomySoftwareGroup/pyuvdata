@@ -121,16 +121,8 @@ interoperability between different HDF5 implementations.
   for known telescopes in pyuvdata. (\textit{telescope\_name})
 \item \textbf{instrument}: \textit{string} The name of the instrument, typically
   the telescope name. (\textit{instrument})
-\item \textbf{object\_name}: \textit{string} The name of the object tracked by
-  the telescope. For a drift-scan antenna, this is typically
-  ``zenith''. (\textit{object\_name})
 \item \textbf{history}: \textit{string} The history of the data
   file. (\textit{history})
-\item \textbf{phase\_type}: \textit{string} The phase type of the
-  observation. Should be ``phased'' or ``drift''. Note that ``drift'' in this
-  context more accurately means ``unphased'', in that baselines are computing
-  using ENU coordinates, without any $w$-projection. Any other value is treated as
-  an unrecognized type. (\textit{phase\_type})
 \item \textbf{Nants\_data}: \textit{int} The number of antennas that data in the
   file corresponds to. May be smaller than the number of antennas in the
   array. (\textit{Nants\_data})
@@ -212,6 +204,88 @@ interoperability between different HDF5 implementations.
   ECEF. The conversion between LLA and ECEF is given by WGS84. This is a
   two-dimensional array of size (Nants\_telescope,
   3). (\textit{antenna\_positions})
+\item \textbf{phase\_center\_catalog}: A series of nested datasets, similar to
+a dict in python. The top level keys are strings giving the phase center
+catalog names. The next level keys must include:
+	\begin{itemize}
+	\item \textbf{cat\_id}: \textit{int} The phase center catalog ID number,
+	  which is used to identify which baseline-times are phased to which
+	  phase center via the phase\_center\_id\_array.
+	\item \textbf{cat\_type}: \textit{string} One of four allowed values:
+	  \textbf{(1)} sidereal, \textbf{(2)} ephem, \textbf{(3)} driftscan,
+	  \textbf{(4)} unprojected.
+  	  Sidereal means a phase center that is fixed in RA and Dec.
+	  Ephem means a phase center that has an RA and Dec that
+	  moves with time.
+	  Driftscan means a phase center with a fixed azimuth and
+	  elevation (note that this includes w-projection, even at zenith).
+	  Unprojected means no phasing, including w-projection, has been applied.
+  	\item \textbf{cat\_lon}: \textit{float} 
+	  The longitudinal coordinate of the phase center, either a single value or a
+	  one dimensional array of length Npts (the number of ephemeris data points)
+	  for ephem type phase centers.
+	  This is commonly RA, but can also be galactic longitude. It is azimuth for
+	  driftscan phase centers.
+  	\item \textbf{cat\_lat}: \textit{float}
+	  The latitudinal coordinate of the phase center, either a single value or a
+	  one dimensional array of length Npts (the number of ephemeris data points)
+	  for ephem type phase centers.
+	  This is commonly Dec, but can also be galactic latitude. It is elevation (altitude)
+	  for driftscan phase centers.
+	\item \textbf{cat\_frame}: \textit{string} The coordinate frame that the
+	  phase center coordinates are defined in. It must be an astropy
+	  supported frame (e.g. fk4, fk5, icrs, gcrs, cirs, galactic).
+	\end{itemize}
+And may include:
+	\begin{itemize}
+	\item \textbf{cat\_epoch}: \textit{float} The epoch in years for the phase
+	  center coordinate. For most frames this is the Julian epoch
+	  (e.g. 2000.0 for j2000) but for the FK4 frame this will be treated as the
+	  Bessel-Newcomb epoch (e.g. 1950.0 for B1950). This parameter is
+	  not used for frames without an epoch (e.g. ICRS) unless the there
+	  is proper motion (specified in the cat\_pm\_ra and cat\_pm\_dec keys).
+	\item \textbf{cat\_times}: \textit{float}
+	  Time in Julian Date for ephemeris points, a one dimensional array of
+	  length Npts (the number of ephemeris data points).
+	  Only used for ephem type phase centers.
+	\item \textbf{cat\_pm\_ra}: \textit{float} (sidereal only)
+	  Proper motion in RA in milliarcseconds per year for the source.
+	\item \textbf{cat\_pm\_dec}: \textit{float} (sidereal only)
+	  Proper motion in Dec in milliarcseconds per year for the source
+	\item \textbf{cat\_dist}: \textit{float}
+	  Distance to the source in parsec (useful if parallax is important), either a
+	  single value or a one dimensional array of length Npts
+	  (the number of ephemeris data points) for ephem type phase centers.
+	\item \textbf{cat\_vrad}: \textit{float }
+	  Radial velocity of the source in km/sec, either a single value or a
+	  one dimensional array of length Npts (the number of ephemeris data points)
+	  for ephem type phase centers.
+	\item \textbf{info\_source}: \textit{string} Information about provenance of the source details.
+	\end{itemize}
+  (\textit{phase\_center\_catalog})
+\item \textbf{phase\_center\_id\_array}: \textit{int}
+A one dimensional array of length Nblts containing the cat\_id from the phase\_center\_catalog
+that each baseline-time is phased to. (\textit{phase\_center\_id\_array})
+\item \textbf{phase\_center\_app\_ra}: \textit{float}
+Apparent right ascension of the phase center in the topocentric frame of the observatory, in radians.
+This is a one-dimensional array of size Nblts. In the event that there are multiple phase centers,
+the phase\_center\_id\_array can be used to identify which phase center is used for this
+calculation. For unprojected phase types, this is just the LST. (\textit{phase\_center\_app\_ra})
+\item \textbf{phase\_center\_app\_dec}: \textit{float}
+Apparent declination of the phase center in the topocentric frame of the observatory, in radians.
+This is a one-dimensional array of size Nblts. In the event that there are multiple phase centers,
+the phase\_center\_id\_array can be used to identify which phase center is used for this
+calculation. For unprojected phase types, this is just the telescope latitude.
+(\textit{phase\_center\_app\_ra})
+\item \textbf{phase\_center\_frame\_pa}: \textit{float}
+Position angle between the hour circle (which is a great circle that goes through the target
+postion and both poles) in the apparent/topocentric frame, and the frame given in the
+phase\_center\_catalog under the cat\_frame dataset. This is a one dimensional array
+of length Nblts. In the event that there are multiple phase centers with different frames,
+the phase\_center\_id\_array can be used to identify which frame is used for each
+baseline-time in this calculation. This is set to zero for unprojected phase types.
+(\textit{phase\_center\_frame\_pa})
+
 \item \textbf{version}: \textit{string} The version of the HDF5 file. The latest
   version (and the one described in this memo) is Version 1.0. Note it should be
   a string, such as \verb+`1.0'+. See Sec.~\ref{sec:version_history} for the
@@ -249,44 +323,8 @@ interoperability between different HDF5 implementations.
 \item \textbf{antenna\_diameters}: \textit{float} An array of the diameters of
   the antennas in meters. This is a one-dimensional array of size
   (Nants\_telescope). (\textit{Nants\_telescope})
-\item \textbf{phase\_center\_catalog}: A series of nested datasets, similar to
-a dict in python. The top level keys are strings giving the phase center
-catalog names. The next level keys must include:
-	\begin{itemize}
-	\item \textbf{cat\_id}: \textit{int} The phase center catalog ID number,
-	  which is used to identify which baseline times are phased to which
-	  phase center via the phase\_center\_id\_array.
-	\item \textbf{cat\_type}: \textit{string} One of four allowed values:
-	  \textbf{(1)} sidereal, \textbf{(2)} ephem, \textbf{(3)} driftscan,
-	  \textbf{(4)} unprojected.
-  	  Sidereal means a phase center that is fixed in RA and Dec.
-	  Ephem means a phase center that has an RA and Dec that
-	  moves with time.
-	  Driftscan means a phase center with a fixed azimuth and
-	  elevation (note that this includes w-projection, even at zenith).
-	  Unprojected means no phasing, including w-projection, has been applied.
-  	\item \textbf{cat\_lon}: \textit{float or ndarray of float (ephem only)}
-	  The longitudinal coordinate of the phase center. This is commonly RA,
-	  but can also be galactic longitude is azimuth for driftscan phase centers.
-	  For ephem phase centers this is an array of length Npts (the number of
-	  ephemeris data points).
-  	\item \textbf{cat\_lat}: \textit{float or ndarray of float (ephem only)}
-	  The latitudinal coordinate of the phase center. This is commonly Dec,
-	  but is elevation (altitude) for driftscan phase centers. For ephem phase centers
-	  this is an array of length Npts (the number of ephemeris data points).
-	\item \textbf{cat\_frame}: \textit{string} The coordinate frame that the
-	  phase center coordinates are defined in. It must be an astropy
-	  supported frame (e.g. fk4, fk5, icrs, gcrs, cirs, galactic).
-	\item \textbf{cat\_epoch}: \textit{float} The epoch in years for the phase
-	  center coordinate. For most frames this is the Julian epoch
-	  (e.g. 2000.0 for j2000) but for the FK4 frame this will be treated as the
-	  Bessel-Newcomb epoch (e.g. 1950.0 for B1950). This parameter is
-	  not used for frames without an epoch (e.g. ICRS) unless the there
-	  is proper motion (specified in the \cat_\pm_\ra and \cat_\pm_\dec keys).
 
 
-	\end{itemize}
-  
 \item \textbf{uvplane\_reference\_time}: \textit{int} The time at which the
   phase center is normal to the chosen UV plane for phasing. Used for
   interoperability with the FHD
@@ -423,28 +461,9 @@ compatible, and be able to read any valid UVH5 file written. Those interested in
 writing fully compatible readers/writers may look there for further details.
 
 It is strongly encouraged that independent UVH5 writers conform to the latest
-version (Version 1.0 at time of writing), while readers are encouraged to
+version (Version 1.1 at time of writing), while readers are encouraged to
 support backwards compatibility as much as possible. If readers cannot support
 all revisions, reading more recent versions should be prioritized.
-
-
-The following are now deprecated:
-\begin{itemize}
-\item \textbf{phase\_center\_ra}: \textit{float} The right ascension of the
-  phase center of the observation in radians. Required if phase\_type is
-  ``phased''. (\textit{phase\_center\_ra})
-\item \textbf{phase\_center\_dec}: \textit{float} The declination of the phase
-  center of the observation in radians. Required if phase\_type is
-  ``phased''. (\textit{phase\_center\_dec}).
-\item \textbf{phase\_center\_epoch}: \textit{float} The epoch year of the phase
-  applied to the data (\textit{e.g.}, 2000.). Required if phase\_type is
-  ``phased''. (\textit{phase\_center\_epoch})
-\item \textbf{phase\_center\_frame}: \textit{string} The frame the data and
-  uvw\_array are phased to. Options are ``gcrs'' and ``icrs'', with default
-  ``icrs''. These frames are defined as
-  \href{https://docs.astropy.org/en/stable/coordinates/index.html}{coordinate
-    systems in astropy}. (\textit{phase\_center\_frame})
-\end{itemize}
 
 
 \subsection{\texttt{version} dataset}
@@ -452,6 +471,40 @@ When present, the version information is stored in the Header as a string-based
 dataset with the key \verb+version+. Note that files have not always contained
 this dataset, but as much as possible, new files written should contain this
 dataset to clarify.
+
+\subsection{Version 1.0}
+Historically, only a single phase center was supported and only sidereal or
+unprojected (zenith drift without w projection) phasing types were supported.
+When multiple phase center phasing was added, along with support for more
+types of phase centers, the phase\_center\_app\_ra, phase\_center\_app\_dec,
+phase\_center\_frame\_pa and phase\_center\_catalog were added and the
+following header items were removed:
+
+\begin{itemize}
+    \item \textbf{phase\_center\_ra}: \textit{float} The right ascension of the
+      phase center of the observation in radians. Required if phase\_type is
+      ``phased''. (\textit{phase\_center\_ra})
+    \item \textbf{phase\_center\_dec}: \textit{float} The declination of the phase
+      center of the observation in radians. Required if phase\_type is
+      ``phased''. (\textit{phase\_center\_dec}).
+    \item \textbf{phase\_center\_epoch}: \textit{float} The epoch year of the phase
+      applied to the data (\textit{e.g.}, 2000.). Required if phase\_type is
+      ``phased''. (\textit{phase\_center\_epoch})
+    \item \textbf{phase\_center\_frame}: \textit{string} The frame the data and
+      uvw\_array are phased to. Options are ``gcrs'' and ``icrs'', with default
+      ``icrs''. These frames are defined as
+      \href{https://docs.astropy.org/en/stable/coordinates/index.html}{coordinate
+        systems in astropy}. (\textit{phase\_center\_frame})
+    \item \textbf{object\_name}: \textit{string} The name of the object tracked by
+      the telescope. For a drift-scan antenna, this is typically
+      ``zenith''. (\textit{object\_name})
+    \item \textbf{phase\_type}: \textit{string} The phase type of the
+      observation. Should be ``phased'' or ``drift''. Note that ``drift'' in this
+      context more accurately means ``unphased'', in that baselines are computing
+      using ENU coordinates, without any $w$-projection. Any other value is treated as
+      an unrecognized type. (\textit{phase\_type})
+\end{itemize}
+
 
 \subsection{Version 0.x/0.1}
 Historically, UVH5 files written by \verb+pyuvdata+ and the HERA correlator did
