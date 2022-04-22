@@ -19,6 +19,8 @@ from pyuvdata import UVData, UVCal
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
+from ssl import SSLError
+from requests import RequestException
 
 # needed for multifile read error test
 from pyuvdata.uvdata.tests.test_mwa_corr_fits import filelist as mwa_corr_files
@@ -10428,7 +10430,10 @@ def test_phase_dict_helper_errs(sma_mir, arg_dict, dummy_phase_dict, msg):
     for key in dummy_phase_dict.keys():
         if key not in arg_dict.keys():
             arg_dict[key] = dummy_phase_dict[key]
-    with pytest.raises(ValueError) as cm:
+
+    # We have to handle this piece a bit carefully, since some queries fail due to
+    # intermittent failures connecting to the JPL-Horizons service.
+    with pytest.raises(Exception) as cm:
         sma_mir._phase_dict_helper(
             arg_dict["cat_lon"],
             arg_dict["cat_lat"],
@@ -10445,6 +10450,11 @@ def test_phase_dict_helper_errs(sma_mir, arg_dict, dummy_phase_dict, msg):
             arg_dict.get("sel_mask"),
             arg_dict.get("time_arr"),
         )
+
+    if issubclass(cm.type, RequestException) or issubclass(cm.type, SSLError):
+        pytest.skip("SSL/Connection error w/ JPL Horizons")
+
+    assert issubclass(cm.type, ValueError)
     assert str(cm.value).startswith(msg)
 
 
@@ -10544,22 +10554,28 @@ def test_phase_dict_helper_jpl_lookup_append(sma_mir):
     pytest.importorskip("astroquery")
     # Now see what happens if we attempt to lookup something that JPL actually knows
     obs_time = np.array(2456789.0)
-    phase_dict = sma_mir._phase_dict_helper(
-        0,
-        0,
-        None,
-        None,
-        None,
-        None,
-        0,
-        0,
-        0,
-        0,
-        "Mars",
-        True,
-        None,
-        obs_time,
-    )
+
+    # Handle this part with care, since we don't want the test to fail if we are unable
+    # to reach the JPL-Horizons service.
+    try:
+        phase_dict = sma_mir._phase_dict_helper(
+            0,
+            0,
+            None,
+            None,
+            None,
+            None,
+            0,
+            0,
+            0,
+            0,
+            "Mars",
+            True,
+            None,
+            obs_time,
+        )
+    except (SSLError, RequestException) as err:
+        pytest.skip("SSL/Connection error w/ JPL Horizons: " + str(err))
 
     cat_id = sma_mir._add_phase_center(
         phase_dict["cat_name"],
@@ -10583,22 +10599,27 @@ def test_phase_dict_helper_jpl_lookup_append(sma_mir):
     # Tick the obs_time up by a day, see if the software will fetch additional
     # coordinates and expand the existing ephem
     obs_time += 1
-    phase_dict = sma_mir._phase_dict_helper(
-        0,
-        0,
-        None,
-        None,
-        None,
-        None,
-        0,
-        0,
-        0,
-        0,
-        "Mars",
-        True,
-        None,
-        obs_time,
-    )
+
+    # Again, just skip if we are unable to reach the JPL-Horizons
+    try:
+        phase_dict = sma_mir._phase_dict_helper(
+            0,
+            0,
+            None,
+            None,
+            None,
+            None,
+            0,
+            0,
+            0,
+            0,
+            "Mars",
+            True,
+            None,
+            obs_time,
+        )
+    except (SSLError, RequestException) as err:
+        pytest.skip("SSL/Connection error w/ JPL Horizons: " + str(err))
 
     # Previously, everything else will have had a single point, but the new ephem (which
     # covers 36 hours at 3 hour intervals) should have a lucky total of 13 points.

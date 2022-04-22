@@ -17,7 +17,8 @@ from pyuvdata import UVData, UVFlag, UVCal
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
-
+from ssl import SSLError
+from requests import RequestException
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
 ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
@@ -1098,7 +1099,9 @@ def test_lookup_jplhorizons_arg_errs(arg_dict, msg):
     for key in arg_dict.keys():
         default_args[key] = arg_dict[key]
 
-    with pytest.raises(ValueError) as cm:
+    # We have to handle this piece a bit carefully, since some queries fail due to
+    # intermittent failures connecting to the JPL-Horizons service.
+    with pytest.raises(Exception) as cm:
         uvutils.lookup_jplhorizons(
             default_args["targ_name"],
             default_args["time_array"],
@@ -1106,6 +1109,11 @@ def test_lookup_jplhorizons_arg_errs(arg_dict, msg):
             high_cadence=default_args["high_cadence"],
             force_indv_lookup=default_args["force_lookup"],
         )
+
+    if issubclass(cm.type, RequestException) or issubclass(cm.type, SSLError):
+        pytest.skip("SSL/Connection error w/ JPL Horizons")
+
+    assert issubclass(cm.type, ValueError)
     assert str(cm.value).startswith(msg)
 
 
@@ -1318,13 +1326,17 @@ def test_jphl_lookup():
     """
     pytest.importorskip("astroquery")
 
-    [
-        ephem_times,
-        ephem_ra,
-        ephem_dec,
-        ephem_dist,
-        ephem_vel,
-    ] = uvutils.lookup_jplhorizons("Sun", 2456789.0)
+    # If we can't connect to JPL-Horizons, then skip this test and don't outright fail.
+    try:
+        [
+            ephem_times,
+            ephem_ra,
+            ephem_dec,
+            ephem_dist,
+            ephem_vel,
+        ] = uvutils.lookup_jplhorizons("Sun", 2456789.0)
+    except (SSLError, RequestException) as err:
+        pytest.skip("SSL/Connection error w/ JPL Horizons: " + str(err))
 
     assert np.all(np.equal(ephem_times, 2456789.0))
     assert np.allclose(ephem_ra, 0.8393066751804976)
