@@ -19,8 +19,6 @@ from pyuvdata import UVData, UVCal
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
-from ssl import SSLError
-from requests import RequestException
 
 # needed for multifile read error test
 from pyuvdata.uvdata.tests.test_mwa_corr_fits import filelist as mwa_corr_files
@@ -10427,6 +10425,10 @@ def test_phase_dict_helper_errs(sma_mir, arg_dict, dummy_phase_dict, msg):
     source information.
     """
     pytest.importorskip("astroquery")
+
+    from ssl import SSLError
+    from requests import RequestException
+
     for key in dummy_phase_dict.keys():
         if key not in arg_dict.keys():
             arg_dict[key] = dummy_phase_dict[key]
@@ -10552,6 +10554,10 @@ def test_phase_dict_helper_jpl_lookup_append(sma_mir):
     an old ephem does not cover the newly requested time range
     """
     pytest.importorskip("astroquery")
+
+    from ssl import SSLError
+    from requests import RequestException
+
     # Now see what happens if we attempt to lookup something that JPL actually knows
     obs_time = np.array(2456789.0)
 

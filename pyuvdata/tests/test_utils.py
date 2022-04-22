@@ -17,8 +17,6 @@ from pyuvdata import UVData, UVFlag, UVCal
 import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
 from pyuvdata.data import DATA_PATH
-from ssl import SSLError
-from requests import RequestException
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
 ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
@@ -1088,6 +1086,10 @@ def test_lookup_jplhorizons_arg_errs(arg_dict, msg):
     """
     # Don't do this test if we don't have astroquery loaded
     pytest.importorskip("astroquery")
+
+    from ssl import SSLError
+    from requests import RequestException
+
     default_args = {
         "targ_name": "Mars",
         "time_array": np.array([0.0, 1000.0]) + 2456789.0,
@@ -1325,6 +1327,9 @@ def test_jphl_lookup():
     slam JPL w/ coordinate requests.
     """
     pytest.importorskip("astroquery")
+
+    from ssl import SSLError
+    from requests import RequestException
 
     # If we can't connect to JPL-Horizons, then skip this test and don't outright fail.
     try:
