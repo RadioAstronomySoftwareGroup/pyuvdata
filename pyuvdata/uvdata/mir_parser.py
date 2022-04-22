@@ -399,16 +399,134 @@ metafile_dict = {
 class MirMetaData(object):
     """Class for working with sets of metadata for Mir datasets."""
 
-    def __init__(self, metafile_type, filepath=None):
-        self._filetype = metafile_dict[metafile_type]["filetype"]
-        self._dtype = metafile_dict[metafile_type]["dtype"]
-        self._index = metafile_dict[metafile_type]["index"]
+    def __init__(self, filetype, dtype, index_name, filepath=None):
+        self._filetype = filetype
+        self._dtype = dtype
+        self._index = index_name
 
-        self._filepath = (None,)
+        self._data = None
         self._mask = None
+        self._filepath = None
+        self._pos_dict = None
+        self._stored_values = {}
 
         if filepath is not None:
             self.fromfile(filepath)
+
+    def __iter__(self):
+        """
+        Iterate over MirMetaData attributes.
+
+        Yields
+        ------
+        attr : MirParser attribute
+            Attribute of the MirParser object.
+        """
+        attribute_list = list(vars(self).keys())
+
+        for attribute in attribute_list:
+            yield attribute
+
+    def copy(self):
+        """
+        Make and return a copy of the MirMetaData object.
+
+        Thing.
+        """
+        # Initialize a new object of the given type
+        copy_obj = type(self)()
+
+        for attr in self:
+            setattr(copy_obj, attr, copy.deepcopy(getattr(self, attr)))
+
+        return copy_obj
+
+    def __eq__(self, other, verbose=True, ignore_params=False):
+        """
+        Compare MirMetaData objects for equality.
+
+        This is a thing.
+        """
+        if not isinstance(other, self.__class__):
+            raise ValueError(
+                "Cannot compare MirParser with non-MirParser class objects."
+            )
+
+        # I say these objects are the same -- prove me wrong!
+        is_eq = True
+
+        # First up, check the list of attributes between the two objects
+        this_attr = list(self)
+        other_attr = list(other)
+
+        if ignore_params is not None:
+            for item in ignore_params:
+                if item in this_attr:
+                    this_attr.remove(item)
+                if item in other_attr:
+                    other_attr.remove(item)
+
+        # Go through and drop any attributes that both objects do not have (and set
+        # is_eq to False if any such attributes found).
+        for item in this_attr.union(other_attr):
+            target = None
+            if item not in this_attr:
+                other_attr.remove(item)
+                target = "right"
+            elif item not in other_attr:
+                this_attr.remove(item)
+                target = "left"
+            if target is not None:
+                is_eq = False
+                if verbose:
+                    print("%s does not exist in %s." % (item, target))
+
+        # At this point we _only_ have attributes present in both lists
+        for item in this_attr:
+            this_attr = getattr(self, item)
+            other_attr = getattr(other, item)
+            # Make sure the attributes are of the same type to help ensure
+            # we can actually compare the two without error.
+            if not isinstance(this_attr, type(other_attr)):
+                is_eq = False
+                if verbose:
+                    print(
+                        "%s is of different types, left is %s, right is %s."
+                        % (item, type(this_attr), type(other_attr))
+                    )
+                continue
+
+            # If both are NoneType, we actually have nothing to do here
+            if this_attr is None:
+                continue
+
+            item_diff = False
+            # Now go through and compare the attribute values
+
+            if isinstance(getattr(self, item), np.ndarray):
+                # Need to handle ndarrays a bit special here
+                if not np.array_equal(getattr(self, item), getattr(other, item)):
+                    item_diff = True
+            elif getattr(self, item) != getattr(other, item):
+                item_diff = True
+
+            if item_diff:
+                is_eq = False
+                if verbose:
+                    print(
+                        f"{item} has different values, left is {getattr(self, item)}, "
+                        f"right is {getattr(other, item)}."
+                    )
+
+        return is_eq
+
+    def __ne__(self, other, verbose=True, ignore_params=False):
+        """
+        Compare MirMetaData objects for inequality.
+
+        This is a thing.
+        """
+        return not self.__eq__(other, verbose=verbose, ignore_params=ignore_params)
 
     def where(
         self, select_field, select_comp, select_val, apply_mask=True, return_index=False
@@ -475,22 +593,22 @@ class MirMetaData(object):
             raise ValueError(
                 "select_comp must be one of: %s" % ", ".join(op_dict.keys())
             )
-        if select_field not in self.data.dtype.names:
+        if select_field not in self._data.dtype.names:
             raise KeyError(
                 "select_field %s not found in structured array." % select_field
             )
 
         # Evaluate data_arr now
-        data_mask = op_dict[select_comp](self.data[select_field], select_val)
+        data_mask = op_dict[select_comp](self._data[select_field], select_val)
 
         if apply_mask:
             data_mask &= self._mask
 
         if return_index:
             if isinstance(self._index, tuple):
-                np.vstack([self.data[idx][data_mask] for idx in self._index])
+                np.vstack([self._data[idx][data_mask] for idx in self._index])
             else:
-                return self.data[self._index][data_mask]
+                return self._data[self._index][data_mask]
         else:
             return data_mask
 
@@ -514,11 +632,11 @@ class MirMetaData(object):
             for item in where:
                 sel_mask &= self.where(*item)
 
-            return self.data[field_name][sel_mask]
+            return self._data[field_name][sel_mask]
 
         # Finally, if no arguments are provided, then just give the whole array, masked
         # by the primary filter.
-        return self.data[field_name][... if (mask is None) else mask]
+        return self._data[field_name][... if (mask is None) else mask]
 
     def set_value(self, field_name, value, mask=None, index=None, where=None):
         # Check to make sure that both index and where argumnets aren't set, since
@@ -529,10 +647,15 @@ class MirMetaData(object):
         elif not ((index is None) or (where is None)):
             raise ValueError("Cannot select both by index and where condition.")
 
+        # Make a copy of any changed variables, that we can revert if we ever
+        # happen to need to do so.
+        if field_name not in self._stored_values:
+            self._stored_values[field_name] = self._data[field_name].copy()
+
         # If we are accessing direct index values of this array, then ust he
         # pos_dict attribute to figure out which elements of the array that we need.
         if index is not None:
-            self.data[field_name][[self._pos_dict[idx] for idx in index]] = value
+            self._data[field_name][[self._pos_dict[idx] for idx in index]] = value
             return
 
         # Otherwise, if we are going through where statements, then use the where
@@ -545,9 +668,26 @@ class MirMetaData(object):
             self.data[field_name][sel_mask] = value
             return
 
-        self.data[field_name][... if mask is None else mask] = value
+        self._data[field_name][... if mask is None else mask] = value
 
-    def generate_pos_dict(self):
+    def reset_values(self, field_name=None):
+        if field_name in self._stored_values:
+            update_list = [field_name]
+        elif field_name is None:
+            update_list = list(self._stored_values.keys())
+        else:
+            raise ValueError("No stored values for field %s." % field_name)
+
+        for field_name in update_list:
+            self._data[field_name] = self._stored_values.pop(field_name)
+
+    def __setitem__(self, item, value):
+        self.set_value(item, value, mask=self._mask)
+
+    def __getitem__(self, item):
+        return self.get_value(item, mask=self._mask)
+
+    def _generate_pos_dict(self):
         if isinstance(self._index, tuple):
             pos_dict = {jdx: idx for idx, jdx in enumerate(self._data[self._index])}
         else:
@@ -561,48 +701,75 @@ class MirMetaData(object):
         return pos_dict
 
     def fromfile(self, filepath):
-        self.data = np.fromfile(os.path.join(filepath, self.filetype), dtype=self.dtype)
+        self._data = np.fromfile(
+            os.path.join(filepath, self._filetype), dtype=self._dtype
+        )
         self._filepath = os.path.abspath(filepath)
-        self._mask = np.ones(self.data.shape[0], dtype=bool)
-        self._pos_dict = self.generate_pos_dict()
+        self._mask = np.ones(self._data.shape[0], dtype=bool)
+        self._pos_dict = self._generate_pos_dict()
 
-    def tofile(self, filepath, append_data=False, update_filepath=False):
+    def tofile(
+        self,
+        filepath,
+        overwrite=False,
+        append_data=False,
+        check_index=False,
+        update_self=False,
+    ):
         if not os.path.isdir(filepath):
             os.makedirs(filepath)
 
-        filepath = os.path.abspath(filepath)
+        filepath = os.path.join(os.path.abspath(filepath), self._filetype)
 
-        with open(
-            os.path.join(filepath, self._filetype), "ab" if append_data else "wb+"
-        ) as file:
+        if (not append_data) and check_index:
+            warnings.warn("Ignoring check_index since no appending is being performed")
+
+        if os.path.exists(filepath):
+            if not (append_data or overwrite):
+                raise FileExistsError(
+                    "File already exists, must set overwrite or append_data to True, "
+                    "or delete the file %s in order to proceed." % filepath
+                )
+            if append_data and check_index:
+                copy_obj = type(self)()
+                copy_obj.fromfile(filepath)
+                idx1, idx2 = self._check_index_overlap(copy_obj)
+                if len(idx1) == 0:
+                    # Nothing further to check, you can proceed at this point without
+                    # needing to worry about the append mucking the index values
+                    pass
+                elif self._add_check(copy_obj, any_match=True):
+                    # Here we have a tricky situation - there _is_ overlap, but the
+                    # overlapping data appears identical. In that case, we craft a new
+                    # object that merges the data.
+                    # TODO: Fill in logic here
+                    pass
+                else:
+                    pass
+
+        with open(filepath, "ab" if append_data else "wb+") as file:
             self.data[self._mask].tofile(file)
 
-        if update_filepath:
+        if update_self:
             self.fromfile(filepath)
 
     def update_fields(self, update_dict):
         for field, data_dict in update_dict:
-            self.data[field] = [data_dict[val] for val in self.data[field]]
+            self._data[field] = [data_dict[val] for val in self._data[field]]
 
-    def __setitem__(self, item, value):
-        self.set_value(item, value, mask=self._mask)
-
-    def __getitem__(self, item):
-        return self.get_value(item, mask=self._mask)
-
-    def generate_new_index(self, index_start):
-        if isinstance(self._index, tuple):
+    def _generate_new_index(self, index_start=1):
+        if len(self._index) != 1:
             raise ValueError(
-                "Cannot generate a new index for a table with non-unique keys."
+                "Cannot generate a new index for a table with multiple keys."
             )
 
         end_pos = index_start + np.sum(self._mask)
 
         index_dict = {
-            self._index: {
+            self._index[0]: {
                 old_key: new_key
                 for old_key, new_key in zip(
-                    self.data[self._index][self._mask],
+                    self._data[self._index[0]][self._mask],
                     np.arange(index_start, end_pos),
                 )
             }
@@ -654,11 +821,11 @@ class MirMetaData(object):
         # used for indexing entries. Note that this is what intersect1d does, albeit
         # with the limitation of only a 1D array (vs multiple keys possible here).
         index_dict1 = {}
-        for count, item in enumerate(self.data):
+        for count, item in enumerate(self._data):
             index_dict1[tuple(item[field] for field in self._index)] = count
 
         index_dict2 = {}
-        for count, item in enumerate(other.data):
+        for count, item in enumerate(other._data):
             index_dict2[tuple(item[field] for field in other._index)] = count
 
         obj1_idx = []
@@ -691,7 +858,7 @@ class MirMetaData(object):
         Parameter
         ---------
         other : MirMetaData
-            Array of metadata, to be compared to this object.
+            MirMetaData object to be compared to this object.
         any_match : bool
             Nominally the method checks to see if all fields in each object match when
             overlapping indicies exist. However, if this is set to True, it will check
@@ -716,57 +883,30 @@ class MirMetaData(object):
 
         # Compare where we have coverlap and make sure the two arrays are the same.
         if any_match:
-            check_status = np.any(self.data[idx1] == other.data[idx2])
+            check_status = np.any(self._data[idx1] == other._data[idx2])
         else:
-            check_status = np.array_equal(self.data[idx1], other.data[idx2])
+            check_status = np.array_equal(self._data[idx1], other._data[idx2])
 
         return check_status
 
-    def __add__(self, other, inplace=False, merge_data=False):
+    def __add__(
+        self, other, inplace=False, merge_data=False, force=False, overwrite=False
+    ):
         """
         Combine two MirMetaData objects.
 
         Thing.
         """
-        pass
 
-    def __iadd__(self, other, overwrite=False):
+    def __iadd__(self, other, merge_data=False, force=False, overwrite=False):
         """
         In-place addition of two MirMetaData objects.
 
         Thing.
         """
-        pass
-
-    def copy(self, metadata_only=False):
-        """
-        Make and return a copy of the MirMetaData object.
-
-        Thing.
-        """
-        # Initialize a new object of the given type
-        copy_obj = type(self)()
-
-        # include all attributes, not just UVParameter ones.
-        for attr in vars(self).keys():
-            setattr(copy_obj, attr, copy.deepcopy(getattr(self, attr)))
-
-        return copy_obj
-
-    def __eq__(self, other, verbose=True, ignore_params=False):
-        """
-        Compare MirMetaData objects for equality.
-
-        This is a thing.
-        """
-
-    def __ne__(self, other, verbose=True, ignore_params=False):
-        """
-        Compare MirMetaData objects for inequality.
-
-        This is a thing.
-        """
-        return not self.__eq__(other, verbose=verbose)
+        self.__add__(
+            other, inplace=True, merge_data=merge_data, force=force, overwrite=overwrite
+        )
 
 
 ########################################################################################
