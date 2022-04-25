@@ -5,10 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Coarse band correction for mwax to `mwa_corr_fits`
 - Reordering methods for UVCal: `reorder_antennas`, `reorder_freqs`, `reorder_times`
 and `reorder_jones`.
 
-## Changed
+### Changed
 - The `spw_order` parameter for the `UVData.reorder_freqs` method now accepts an index
 array rather than an array of spw numbers, making it match the other reorder methods.
 - Updated the astropy requirement to >= 5.0.4
