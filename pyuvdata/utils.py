@@ -1977,7 +1977,7 @@ def calc_uvw(
     from_enu : boolean
         Set to True if uvw_array is expressed in ENU coordinates. Default is False.
     to_enu : boolean
-        Set to True if you would like the output expressed in EN coordinates. Default
+        Set to True if you would like the output expressed in ENU coordinates. Default
         is False.
 
     Returns
@@ -2048,7 +2048,7 @@ def calc_uvw(
         # GHA -> Hour Angle as measured at Greenwich (because antenna coords are
         # centered such that x-plane intersects the meridian at longitude 0).
         if to_enu:
-            # Unphased coordinates appear to be stored in ENU coordinates -- that's
+            # Unprojected coordinates appear to be stored in ENU coordinates -- that's
             # equivalent to calculating uvw's based on zenith. We can use that to our
             # advantage and spoof the gha and dec based on telescope lon and lat
             unique_gha = np.zeros(1) - telescope_lon
@@ -2088,19 +2088,19 @@ def calc_uvw(
             if to_enu:
                 # Well this was pointless... returning your uvws unharmed
                 return uvw_array
-            # Unphased coordinates appear to be stored in ENU coordinates -- that's
+            # Unprojected coordinates appear to be stored in ENU coordinates -- that's
             # equivalent to calculating uvw's based on zenith. We can use that to our
             # advantage and spoof old_app_ra and old_app_dec based on lst_array and
             # telescope_lat
             if telescope_lat is None:
                 raise ValueError(
                     "Must include telescope_lat if moving between "
-                    'ENU (i.e., "unphased") and uvw coordinates!'
+                    "ENU (i.e., 'unprojected') and uvw coordinates!"
                 )
             if lst_array is None:
                 raise ValueError(
-                    'Must include lst_array if moving between ENU (i.e., "unphased") '
-                    "and uvw coordinates!"
+                    "Must include lst_array if moving between ENU "
+                    "(i.e., 'unprojected') and uvw coordinates!"
                 )
         else:
             if (old_frame_pa is None) and not (frame_pa is None or to_enu):
@@ -3339,7 +3339,7 @@ def calc_app_coords(
                 "sidereal" (fixed RA/Dec),
                 "ephem" (RA/Dec that moves with time),
                 "driftscan" (fixed az/el position),
-                "unphased" (alias for "driftscan" with (Az, Alt) = (0 deg, 90 deg)).
+                "unprojected" (alias for "driftscan" with (Az, Alt) = (0 deg, 90 deg)).
     time_array : float or ndarray of float or Time object
         Times for which the apparent coordinates were calculated, in UTC JD. If more
         than a single element, must be the same shape as lon_coord and lat_coord if
@@ -3400,7 +3400,15 @@ def calc_app_coords(
     else:
         unique_time_array, unique_mask = np.unique(time_array, return_index=True)
 
-    if coord_type in ["driftscan", "unphased"]:
+    if coord_type == "unphased":
+        warnings.warn(
+            "The `unphased` catalog type has been renamed to `unprojected`. Using "
+            "unprojected for now, this warning will become an error in version 2.4",
+            DeprecationWarning,
+        )
+        coord_type = "unprojected"
+
+    if coord_type in ["driftscan", "unprojected"]:
         if lst_array is None:
             unique_lst = get_lst_for_time(
                 unique_time_array,
@@ -3475,7 +3483,7 @@ def calc_app_coords(
             pm_ra=pm_ra,
             pm_dec=pm_dec,
         )
-    elif coord_type == "unphased":
+    elif coord_type == "unprojected":
         # This is the easiest one - this is just supposed to be ENU, so set the
         # apparent coords to the current lst and telescope_lat.
         unique_app_ra = unique_lst.copy()

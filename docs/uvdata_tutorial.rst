@@ -532,10 +532,10 @@ b) Data with a multiple phase centers enabled.
   >>> # For a multi phase center dataset, we can get information on the sources in the
   >>> # data set by using the `print_phase_center_info` command.
   >>> uvd.print_phase_center_info()
-     ID     Cat Entry       Type      Az/Lon/RA    El/Lat/Dec  Frame
-      #          Name                       deg           deg
-  -------------------------------------------------------------------
-      0        zenith   unphased     0:00:00.00  +90:00:00.00  altaz
+     ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame
+      #          Name                          deg           deg
+  ----------------------------------------------------------------------
+      0        zenith   unprojected     0:00:00.00  +90:00:00.00  altaz
 
 
   >>> # With multi-phase-ctr data sets, one needs to supply a unique name for each
@@ -544,10 +544,10 @@ b) Data with a multiple phase centers enabled.
   >>> # sidereal coordinate frame (e.g., ICRS, FK5, etc)
   >>> uvd.phase(5.23368, 0.710940, epoch="J2000", cat_name='target1', cat_type="sidereal")
   >>> uvd.print_phase_center_info()
-     ID     Cat Entry       Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch
-      #          Name                    hours           deg
-  ---------------------------------------------------------------------------
-      1       target1   sidereal   19:59:28.27  +40:44:01.90   icrs  J2000.0
+     ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch
+      #          Name                       hours           deg
+  ------------------------------------------------------------------------------
+      1       target1      sidereal   19:59:28.27  +40:44:01.90   icrs  J2000.0
 
 
   >>> # And with multi-phase-ctr data sets, you can also use "ephem" objects, which
@@ -555,10 +555,10 @@ b) Data with a multiple phase centers enabled.
   >>> # option which, if set to true, will allow you to search JPL-Horizons for coords
   >>> uvd.phase(0, 0, epoch="J2000", cat_name="Sun", lookup_name=True)
   >>> uvd.print_phase_center_info()
-     ID     Cat Entry       Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
-      #          Name                    hours           deg                  Start-MJD    End-MJD       pc    km/s
-  ------------------------------------------------------------------------------------------------------------------
-      0           Sun      ephem    6:19:28.68  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
+     ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
+      #          Name                       hours           deg                  Start-MJD    End-MJD       pc    km/s
+  ---------------------------------------------------------------------------------------------------------------------
+      0           Sun         ephem    6:19:28.68  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
 
 
   >>> # Finally, we can use a selection mask to only phase part of the data at a time,
@@ -574,11 +574,11 @@ b) Data with a multiple phase centers enabled.
   >>> # Now when using `print_phase_center_info`, we'll see that there are multiple
   >>> # phase centers present in the data
   >>> uvd.print_phase_center_info()
-     ID     Cat Entry       Type      Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
-      #          Name                       deg           deg                  Start-MJD    End-MJD       pc    km/s
-  -------------------------------------------------------------------------------------------------------------------
-      0           Sun      ephem    94:52:10.21  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
-      1        zenith  driftscan     0:00:00.00  +90:00:00.00  altaz  J2000.0
+     ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
+      #          Name                          deg           deg                  Start-MJD    End-MJD       pc    km/s
+  ----------------------------------------------------------------------------------------------------------------------
+      0           Sun         ephem    94:52:10.21  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
+      1        zenith     driftscan     0:00:00.00  +90:00:00.00  altaz  J2000.0
 
 
 UVData: Averaging and Resampling
