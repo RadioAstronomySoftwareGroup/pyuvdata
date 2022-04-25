@@ -1501,20 +1501,26 @@ def test_calc_app_driftscan(astrometry_args):
     assert np.all(astrometry_args["drift_coord"].separation(check_coord).uarcsec < 1.0)
 
 
-def test_calc_app_unphased(astrometry_args):
+def test_calc_app_unprojected(astrometry_args):
     """
     Tests that we can calculate app coords for unphased objects
     """
-    # Finally, check unphased, which is forced to point toward zenith (unlike driftscan,
-    # which is allowed to point at any az/el position)
-    check_ra, check_dec = uvutils.calc_app_coords(
-        None,
-        None,
-        coord_type="unphased",
-        telescope_loc=astrometry_args["telescope_loc"],
-        time_array=astrometry_args["time_array"],
-        lst_array=astrometry_args["lst_array"],
-    )
+    # Finally, check unprojected, which is forced to point toward zenith (unlike
+    # driftscan, which is allowed to point at any az/el position)
+    # use "unphased" to check for deprecation warning
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The `unphased` catalog type has been renamed to `unprojected`. Using "
+        "unprojected for now, this warning will become an error in version 2.4",
+    ):
+        check_ra, check_dec = uvutils.calc_app_coords(
+            None,
+            None,
+            coord_type="unphased",
+            telescope_loc=astrometry_args["telescope_loc"],
+            time_array=astrometry_args["time_array"],
+            lst_array=astrometry_args["lst_array"],
+        )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
 
     assert np.all(astrometry_args["drift_coord"].separation(check_coord).uarcsec < 1.0)

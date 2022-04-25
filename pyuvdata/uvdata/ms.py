@@ -1116,10 +1116,12 @@ class MS(UVData):
             else:
                 raise IOError("File exists; skipping")
 
-        # CASA does not have a way to handle "unphased" data in the way that UVData
+        # CASA does not have a way to handle "unprojected" data in the way that UVData
         # objects can, so we need to check here whether or not any such data exists
         # (and if need be, fix it).
-        if np.any(self._check_for_unphased()):
+        # TODO: I thought CASA could handle driftscan data. Are we sure it can't handle
+        # unprojected data? Maybe update the print and error messages below...
+        if np.any(self._check_for_unprojected()):
             if force_phase:
                 print(
                     "The data are in drift mode and do not have a "
@@ -1129,7 +1131,7 @@ class MS(UVData):
                 phase_time = Time(self.time_array[0], format="jd")
                 self.phase_to_time(
                     phase_time,
-                    select_mask=self._check_for_unphased()
+                    select_mask=self._check_for_unprojected()
                     if self.multi_phase_center
                     else None,
                 )

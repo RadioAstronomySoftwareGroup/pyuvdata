@@ -1046,9 +1046,10 @@ def test_unphase_drift_data_error(uv1_2_set_uvws, sma_mir, future_shapes):
     uv_phase.unphase_to_drift(use_old_proj=True)
     assert uv_drift == uv_phase
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="Multi phase center data sets are not compatible"
+    ):
         sma_mir.unphase_to_drift(use_old_proj=True)
-    assert str(cm.value).startswith("Multi phase center data sets are not compatible")
 
     # Check to make sure that wa can unphase w/o an error getting thrown. The new
     # unphase method does not throw an error when being called twice
@@ -6249,7 +6250,10 @@ def test_select_with_ant_str_errors(casa_uvfits, kwargs, message):
 @pytest.mark.parametrize(
     "arg_dict,msg",
     [
-        [{"out": "icrs", "oldproj": True}, "UVW calculation requires unphased data."],
+        [
+            {"out": "icrs", "oldproj": True},
+            "UVW calculation requires unprojected data.",
+        ],
         [{"out": "icrs", "oldproj": False}, "UVW recalculation requires either"],
         [
             {"allow": True, "orig": "gcrs", "out": "xyz", "oldproj": True},
@@ -6266,14 +6270,13 @@ def test_set_uvws_from_antenna_pos_errs(casa_uvfits, arg_dict, msg):
     Verify that set_uvws_from_antenna_pos throws appropriate errors when being
     provided with bad combinations are arguments.
     """
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=msg):
         casa_uvfits.set_uvws_from_antenna_positions(
             allow_phasing=arg_dict.get("allow"),
             orig_phase_frame=arg_dict.get("orig"),
             output_phase_frame=arg_dict.get("out"),
             use_old_proj=arg_dict.get("oldproj"),
         )
-    assert str(cm.value).startswith(msg)
 
 
 @pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
@@ -9787,10 +9790,10 @@ def test_print_object_standard(sma_mir, hera_uvh5):
     Check that the 'standard' mode of print_object works.
     """
     check_str = (
-        "   ID     Cat Entry       Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"
-        "    #          Name                    hours           deg                 \n"
-        "---------------------------------------------------------------------------\n"
-        "    1          3c84   sidereal    3:19:48.16  +41:30:42.11    fk5  J2000.0 \n"
+        "   ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"  # noqa
+        "    #          Name                       hours           deg                 \n"  # noqa
+        "------------------------------------------------------------------------------\n"  # noqa
+        "    1          3c84      sidereal    3:19:48.16  +41:30:42.11    fk5  J2000.0 \n"  # noqa
     )
 
     table_str = sma_mir.print_phase_center_info(print_table=False, return_str=True)
@@ -9816,10 +9819,10 @@ def test_print_object_dms(sma_mir):
     Test that forcing DMS format works as expected.
     """
     check_str = (
-        "   ID     Cat Entry       Type      Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"
-        "    #          Name                       deg           deg                 \n"
-        "----------------------------------------------------------------------------\n"
-        "    1          3c84   sidereal    49:57:02.40  +41:30:42.11    fk5  J2000.0 \n"
+        "   ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"  # noqa
+        "    #          Name                          deg           deg                 \n"  # noqa
+        "-------------------------------------------------------------------------------\n"  # noqa
+        "    1          3c84      sidereal    49:57:02.40  +41:30:42.11    fk5  J2000.0 \n"  # noqa
     )
 
     # And likewise when forcing the degree format
@@ -9848,13 +9851,13 @@ def test_print_object_full(sma_mir):
         force_update=True,
     )
     check_str = (
-        "   ID     Cat Entry       Type     Az/Lon/RA"
+        "   ID     Cat Entry          Type     Az/Lon/RA"
         "    El/Lat/Dec  Frame    Epoch   PM-Ra  PM-Dec     Dist   V_rad \n"
-        "    #          Name                    hours"
+        "    #          Name                       hours"
         "           deg                  mas/yr  mas/yr       pc    km/s \n"
-        "--------------------------------------------"
+        "-----------------------------------------------"
         "----------------------------------------------------------------\n"
-        "    1          3c84   sidereal   20:10:49.01"
+        "    1          3c84      sidereal   20:10:49.01"
         "  -57:17:44.81    fk5  J2000.0       0       0  0.0e+00       0 \n"
     )
     table_str = sma_mir.print_phase_center_info(print_table=False, return_str=True)
@@ -9876,13 +9879,13 @@ def test_print_object_ephem(sma_mir):
         force_update=True,
     )
     check_str = (
-        "   ID     Cat Entry       Type     Az/Lon/RA"
+        "   ID     Cat Entry          Type     Az/Lon/RA"
         "    El/Lat/Dec  Frame        Ephem Range    \n"
-        "    #          Name                    hours"
+        "    #          Name                       hours"
         "           deg         Start-MJD    End-MJD \n"
-        "---------------------------------------------"
+        "------------------------------------------------"
         "-------------------------------------------\n"
-        "    1          3c84      ephem    0:00:00.00"
+        "    1          3c84         ephem    0:00:00.00"
         "  + 0:00:00.00   icrs   56788.50   56788.50 \n"
     )
     table_str = sma_mir.print_phase_center_info(print_table=False, return_str=True)
@@ -9897,22 +9900,22 @@ def test_print_object_driftscan(sma_mir):
     # we expect
     _ = sma_mir._add_phase_center("3c84", cat_type="driftscan", force_update=True)
     check_str = (
-        "   ID     Cat Entry       Type      Az/Lon/RA    El/Lat/Dec  Frame \n"
-        "    #          Name                       deg           deg        \n"
-        "-------------------------------------------------------------------\n"
-        "    1          3c84  driftscan     0:00:00.00  +90:00:00.00  altaz \n"
+        "   ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame \n"
+        "    #          Name                          deg           deg        \n"
+        "----------------------------------------------------------------------\n"
+        "    1          3c84     driftscan     0:00:00.00  +90:00:00.00  altaz \n"
     )
     table_str = sma_mir.print_phase_center_info(print_table=False, return_str=True)
     assert table_str == check_str
 
 
-def test_print_object_unphased(sma_mir):
-    _ = sma_mir._add_phase_center("3c84", cat_type="unphased", force_update=True)
+def test_print_object_unprojected(sma_mir):
+    _ = sma_mir._add_phase_center("3c84", cat_type="unprojected", force_update=True)
     check_str = (
-        "   ID     Cat Entry       Type      Az/Lon/RA    El/Lat/Dec  Frame \n"
-        "    #          Name                       deg           deg        \n"
-        "-------------------------------------------------------------------\n"
-        "    1          3c84   unphased     0:00:00.00  +90:00:00.00  altaz \n"
+        "   ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame \n"
+        "    #          Name                          deg           deg        \n"
+        "----------------------------------------------------------------------\n"
+        "    1          3c84   unprojected     0:00:00.00  +90:00:00.00  altaz \n"
     )
     table_str = sma_mir.print_phase_center_info(print_table=False, return_str=True)
     assert table_str == check_str
@@ -9943,14 +9946,16 @@ def test_print_object_multi(carma_miriad):
     """
     pytest.importorskip("pyuvdata._miriad")
 
-    _ = carma_miriad._add_phase_center("NOISE", cat_type="unphased", force_update=True)
+    _ = carma_miriad._add_phase_center(
+        "NOISE", cat_type="unprojected", force_update=True
+    )
     check_str = (
-        "   ID     Cat Entry       Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"
-        "    #          Name                    hours           deg                 \n"
-        "---------------------------------------------------------------------------\n"
-        "    0         NOISE   unphased    0:00:00.00  +90:00:00.00  altaz          \n"
-        "    1         3C273   sidereal   12:29:06.70  + 2:03:08.60    fk5  J2000.0 \n"
-        "    2      1159+292   sidereal   11:59:31.83  +29:14:43.83    fk5  J2000.0 \n"
+        "   ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"  # noqa
+        "    #          Name                       hours           deg                 \n"  # noqa
+        "------------------------------------------------------------------------------\n"  # noqa
+        "    0         NOISE   unprojected    0:00:00.00  +90:00:00.00  altaz          \n"  # noqa
+        "    1         3C273      sidereal   12:29:06.70  + 2:03:08.60    fk5  J2000.0 \n"  # noqa
+        "    2      1159+292      sidereal   11:59:31.83  +29:14:43.83    fk5  J2000.0 \n"  # noqa
     )
     table_str = carma_miriad.print_phase_center_info(
         print_table=False, return_str=True, hms_format=True
@@ -9963,18 +9968,18 @@ def test_print_object_multi(carma_miriad):
     (
         ["zenith", None, {}, 0, 4],
         ["zenith", "driftscan", {}, 0, 1],
-        ["zenith", "unphased", {}, 0, 0],
-        ["unphased", "unphased", {}, None, 0],
-        ["unphased", "unphased", {"ignore_name": True}, 0, 0],
-        ["zenith", "unphased", {"lat": 1.0}, 0, 1],
-        ["zenith", "unphased", {"lon": 1.0}, 0, 1],
-        ["zenith", "unphased", {"frame": 1.0}, 0, 1],
-        ["zenith", "unphased", {"epoch": 1.0}, 0, 1],
-        ["zenith", "unphased", {"times": 1.0}, 0, 1],
-        ["zenith", "unphased", {"pm_ra": 1.0}, 0, 1],
-        ["zenith", "unphased", {"pm_dec": 1.0}, 0, 1],
-        ["zenith", "unphased", {"dist": 1.0}, 0, 1],
-        ["zenith", "unphased", {"vrad": 1.0}, 0, 1],
+        ["zenith", "unprojected", {}, 0, 0],
+        ["unprojected", "unprojected", {}, None, 0],
+        ["unprojected", "unprojected", {"ignore_name": True}, 0, 0],
+        ["zenith", "unprojected", {"lat": 1.0}, 0, 1],
+        ["zenith", "unprojected", {"lon": 1.0}, 0, 1],
+        ["zenith", "unprojected", {"frame": 1.0}, 0, 1],
+        ["zenith", "unprojected", {"epoch": 1.0}, 0, 1],
+        ["zenith", "unprojected", {"times": 1.0}, 0, 1],
+        ["zenith", "unprojected", {"pm_ra": 1.0}, 0, 1],
+        ["zenith", "unprojected", {"pm_dec": 1.0}, 0, 1],
+        ["zenith", "unprojected", {"dist": 1.0}, 0, 1],
+        ["zenith", "unprojected", {"vrad": 1.0}, 0, 1],
     ),
 )
 def test_look_in_catalog(hera_uvh5, name, stype, arg_dict, exp_id, exp_diffs):
@@ -10033,7 +10038,7 @@ def test_add_phase_center_no_multi_phase(hera_uvh5):
         ValueError,
         match="Cannot add a source if multi_phase_center != True.",
     ):
-        hera_uvh5._add_phase_center("unphased", cat_type="unphased")
+        hera_uvh5._add_phase_center("unprojected", cat_type="unprojected")
 
 
 def test_remove_phase_center_no_multi_phase(hera_uvh5):
@@ -10092,7 +10097,7 @@ def test_rename_phase_centers_no_multi_phase(hera_uvh5):
     with pytest.raises(
         ValueError, match="Cannot rename a phase center if multi_phase_center != True."
     ):
-        hera_uvh5.rename_phase_center("zenith", "unphased")
+        hera_uvh5.rename_phase_center("zenith", "unprojected")
 
 
 def test_update_id_no_multi_phase(hera_uvh5):
@@ -10111,13 +10116,28 @@ def test_update_id_no_multi_phase(hera_uvh5):
     "name,stype,arg_dict,msg",
     (
         [-1, "drift", {}, "cat_name must be a string."],
-        ["unphased", "drift", {}, "The name unphased is reserved."],
-        ["unphased", "drift", {}, "The name unphased is reserved."],
-        ["zenith", "drift", {}, "Only sidereal, ephem, driftscan or unphased may"],
+        ["unprojected", "drift", {}, "The name unprojected is reserved."],
+        ["unprojected", "drift", {}, "The name unprojected is reserved."],
+        ["zenith", "drift", {}, "Only sidereal, ephem, driftscan or unprojected may"],
         ["zenith", "driftscan", {"pm_ra": 0, "pm_dec": 0}, "Non-zero proper motion"],
-        ["unphased", "unphased", {"lon": 1}, "Catalog entries that are unphased"],
-        ["unphased", "unphased", {"lat": 1}, "Catalog entries that are unphased"],
-        ["unphased", "unphased", {"frame": "fk5"}, "cat_frame must be either None"],
+        [
+            "unprojected",
+            "unprojected",
+            {"lon": 1},
+            "Catalog entries that are unprojected",
+        ],
+        [
+            "unprojected",
+            "unprojected",
+            {"lat": 1},
+            "Catalog entries that are unprojected",
+        ],
+        [
+            "unprojected",
+            "unprojected",
+            {"frame": "fk5"},
+            "cat_frame must be either None",
+        ],
         ["test", "ephem", {}, "cat_times cannot be None for ephem object."],
         [
             "test",
@@ -10137,11 +10157,11 @@ def test_update_id_no_multi_phase(hera_uvh5):
             {"lat": 0, "lon": 0, "frame": "fk4", "epoch": "B1950.0"},
             "Cannot add different source with an non-unique name.",
         ],
-        ["unphased", "unphased", {"id": 1}, "Provided cat_id belongs to another"],
+        ["unprojected", "unprojected", {"id": 1}, "Provided cat_id belongs to another"],
     ),
 )
 def test_add_phase_center_arg_errs(sma_mir, name, stype, arg_dict, msg):
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=msg):
         sma_mir._add_phase_center(
             name,
             cat_type=stype,
@@ -10157,7 +10177,6 @@ def test_add_phase_center_arg_errs(sma_mir, name, stype, arg_dict, msg):
             force_update=arg_dict.get("force"),
             cat_id=arg_dict.get("id"),
         )
-    assert str(cm.value).startswith(msg)
 
 
 def test_add_phase_center_known_source(sma_mir):
@@ -10175,6 +10194,29 @@ def test_add_phase_center_known_source(sma_mir):
     )
 
     assert return_id == 1
+
+
+def test_unphased_deprecation(sma_mir):
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        "The `unphased` catalog type has been renamed to `unprojected`. Using "
+        "unprojected for now, this warning will become an error in version 2.4",
+    ):
+        new_id = sma_mir._add_phase_center(
+            "unphased",
+            cat_type="unphased",
+        )
+    assert new_id == 0
+    assert sma_mir.phase_center_catalog["unprojected"]["cat_type"] == "unprojected"
+
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        "The `unphased` catalog type has been renamed to `unprojected`. Using "
+        "unprojected for now, this warning will become an error in version 2.4",
+    ):
+        lookup_id, _ = sma_mir._look_in_catalog("unphased")
+
+    assert new_id == lookup_id
 
 
 def test_remove_phase_center_arg_errs(sma_mir):
@@ -10207,7 +10249,7 @@ def test_clear_unused_phase_centers_no_op(sma_mir):
     (
         ["abc", "xyz", ValueError, "No entry by the name abc in the catalog."],
         ["3C273", -2, TypeError, "Value provided to new_name must be a string"],
-        ["3C273", "unphased", ValueError, "The name unphased is reserved."],
+        ["3C273", "unprojected", ValueError, "The name unprojected is reserved."],
         ["3C273", "NOISE", ValueError, "Must include a unique name for new_name"],
     ),
 )
@@ -10217,9 +10259,8 @@ def test_rename_phase_center_bad_args(carma_miriad, name1, name2, err_type, msg)
     bad arguments to the method.
     """
     pytest.importorskip("pyuvdata._miriad")
-    with pytest.raises(err_type) as cm:
+    with pytest.raises(err_type, match=msg):
         carma_miriad.rename_phase_center(name1, name2)
-    assert str(cm.value).startswith(msg)
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
@@ -10228,7 +10269,7 @@ def test_rename_phase_center_bad_args(carma_miriad, name1, name2, err_type, msg)
     (
         ["abc", "xyz", 1, ValueError, "No entry by the name abc in the catalog."],
         ["3C273", -2, 1, TypeError, "Value provided to new_name must be a string"],
-        ["3C273", "unphased", 1, ValueError, "The name unphased is reserved."],
+        ["3C273", "unprojected", 1, ValueError, "The name unprojected is reserved."],
         ["3C273", "3C273", 1, ValueError, "The name 3C273 is already found"],
         ["3C273", "3c273", 1.5, IndexError, "select_mask must be an array-like,"],
         ["3C273", "3c273", 1, ValueError, "Data selected with select_mask includes"],
@@ -10238,9 +10279,8 @@ def test_split_phase_center_bad_args(carma_miriad, name1, name2, mask, err_type,
     """
     Verify that split_phase_center will throw an error if supplied with bad args
     """
-    with pytest.raises(err_type) as cm:
+    with pytest.raises(err_type, match=msg):
         carma_miriad.split_phase_center(name1, name2, mask)
-    assert str(cm.value).startswith(msg)
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
@@ -10257,9 +10297,8 @@ def test_merge_phase_centers_bad_args(carma_miriad, name1, name2, err_type, msg)
     Verify that merge_phase_centers will throw an error if supplied with bad args
     """
     pytest.importorskip("pyuvdata._miriad")
-    with pytest.raises(err_type) as cm:
+    with pytest.raises(err_type, match=msg):
         carma_miriad.merge_phase_centers(name1, name2)
-    assert str(cm.value).startswith(msg)
 
 
 @pytest.mark.parametrize(
@@ -10273,9 +10312,8 @@ def test_update_id_bad_args(sma_mir, name, cat_id, res_id, err_type, msg):
     """
     Verify that _update_phase_center_id throws errors when supplied with bad args
     """
-    with pytest.raises(err_type) as cm:
+    with pytest.raises(err_type, match=msg):
         sma_mir._update_phase_center_id(name, new_cat_id=cat_id, reserved_ids=res_id)
-    assert str(cm.value).startswith(msg)
 
 
 def test_add_clear_phase_center(sma_mir):
@@ -10447,9 +10485,8 @@ def test_split_phase_center_downselect(hera_uvh5):
     ],
 )
 def test_apply_w_arg_errs(hera_uvh5, val1, val2, val3, err_type, msg):
-    with pytest.raises(err_type) as cm:
+    with pytest.raises(err_type, match=msg):
         hera_uvh5._apply_w_proj(val1, val2, val3)
-    assert str(cm.value).startswith(msg)
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])

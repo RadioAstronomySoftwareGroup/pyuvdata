@@ -317,7 +317,7 @@ class UVData(UVBase):
             'each dictionary must contain the key "cat_type", which can be either '
             '"sidereal" (fixed position in RA/Dec), "ephem" (position in RA/Dec which'
             'moves with time), "driftscan" (fixed postion in Az/El, NOT the same as '
-            '`phase_type`="drift") and "unphased" (baseline coordinates in ENU, but '
+            '`phase_type`="drift") and "unprojected" (baseline coordinates in ENU, but '
             'data are not phased, similar to `phase_type`="drift"). Other typical '
             'keyworks include "cat_lon" (longitude coord, e.g. RA), "cat_lat" '
             '(latitude coord, e.g. Dec.), "cat_frame" (coordinate frame, e.g. '
@@ -862,17 +862,17 @@ class UVData(UVBase):
                 "sidereal" (fixed RA/Dec),
                 "ephem" (RA/Dec that moves with time),
                 "driftscan" (fixed az/el position),
-                "unphased" (no w-projection, equivalent to `phase_type` == "drift").
+                "unprojected" (no w-projection, equivalent to `phase_type` == "drift").
         cat_lon : float or ndarray
             Value of the longitudinal coordinate (e.g., RA, Az, l) of the phase center.
-            No default, not used when `cat_type="unphased"`. Expected to be a float for
-            sidereal and driftscan phase centers, and an ndarray of floats of shape
-            (Npts,) for ephem phase centers.
+            No default unless `cat_type="unprojected"`, in which case the default is
+            zero. Expected to be a float for sidereal and driftscan phase centers, and
+            an ndarray of floats of shape (Npts,) for ephem phase centers.
         cat_lat : float or ndarray
             Value of the latitudinal coordinate (e.g., Dec, El, b) of the phase center.
-            No default, not used when `cat_type="unphased"`. Expected to be a float for
-            sidereal and driftscan phase centers, and an ndarray of floats of shape
-            (Npts,) for ephem phase centers.
+            No default unless `cat_type="unprojected"`, in which case the default is
+            pi/2. Expected to be a float for sidereal and driftscan phase centers, and
+            an ndarray of floats of shape (Npts,) for ephem phase centers.
         cat_frame : str
             Coordinate frame that cat_lon and cat_lat are given in. Only used for
             sidereal and ephem phase centers. Can be any of the several supported frames
@@ -922,9 +922,19 @@ class UVData(UVBase):
         cat_id = None
         cat_diffs = 0
 
+        if cat_type == "unphased" or cat_name == "unphased":
+            warnings.warn(
+                "The `unphased` catalog type has been renamed to `unprojected`. Using "
+                "unprojected for now, this warning will become an error in version 2.4",
+                DeprecationWarning,
+            )
+            cat_type = "unprojected"
+            if cat_name == "unphased":
+                cat_name = "unprojected"
+
         # Emulate the defaults that are set if None is detected for
-        # unphased and driftscan types.
-        if (cat_type == "unphased") or (cat_type == "driftscan"):
+        # unprojected and driftscan types.
+        if cat_type in ["unprojected", "driftscan"]:
             if cat_lon is None:
                 cat_lon = 0.0
             if cat_lat is None:
@@ -952,7 +962,7 @@ class UVData(UVBase):
             check_dict = {}
             is_phased = self.phase_type == "phased"
             check_dict[self.object_name] = {
-                "cat_type": "sidereal" if is_phased else "unphased",
+                "cat_type": "sidereal" if is_phased else "unprojected",
                 "cat_lon": self.phase_center_ra if is_phased else 0.0,
                 "cat_lat": self.phase_center_dec if is_phased else np.pi / 2.0,
                 "cat_frame": self.phase_center_frame if is_phased else "altaz",
@@ -1048,17 +1058,17 @@ class UVData(UVBase):
                 "sidereal" (fixed RA/Dec),
                 "ephem" (RA/Dec that moves with time),
                 "driftscan" (fixed az/el position),
-                "unphased" (no w-projection, equivalent to `phase_type` == "drift").
+                "unprojected" (no w-projection, equivalent to `phase_type` == "drift").
         cat_lon : float or ndarray
             Value of the longitudinal coordinate (e.g., RA, Az, l) of the phase center.
-            No default, not used when `cat_type="unphased"`. Expected to be a float for
-            sidereal and driftscan phase centers, and an ndarray of floats of shape
-            (Npts,) for ephem phase centers.
+            No default unless `cat_type="unprojected"`, in which case the default is
+            zero. Expected to be a float for sidereal and driftscan phase centers, and
+            an ndarray of floats of shape (Npts,) for ephem phase centers.
         cat_lat : float or ndarray
             Value of the latitudinal coordinate (e.g., Dec, El, b) of the phase center.
-            No default, not used when `cat_type="unphased"`. Expected to be a float for
-            sidereal and driftscan phase centers, and an ndarray of floats of shape
-            (Npts,) for ephem phase centers.
+            No default unless `cat_type="unprojected"`, in which case the default is
+            pi/2. Expected to be a float for sidereal and driftscan phase centers, and
+            an ndarray of floats of shape (Npts,) for ephem phase centers.
         cat_frame : str
             Coordinate frame that cat_lon and cat_lat are given in. Only used
             for sidereal and ephem targets. Can be any of the several supported frames
@@ -1122,20 +1132,30 @@ class UVData(UVBase):
         if not isinstance(cat_name, str):
             raise ValueError("cat_name must be a string.")
 
-        # The catalog name "unphased" is used internally whenever we have to make a
-        # block of data as unphased in a data set. To avoid naming collisions, check
+        if cat_type == "unphased":
+            warnings.warn(
+                "The `unphased` catalog type has been renamed to `unprojected`. Using "
+                "unprojected for now, this warning will become an error in version 2.4",
+                DeprecationWarning,
+            )
+            cat_type = "unprojected"
+            if cat_name == "unphased":
+                cat_name = "unprojected"
+
+        # The catalog name "unprojected" is used internally whenever we have to make a
+        # block of data as unprojected in a data set. To avoid naming collisions, check
         # that someone hasn't tried to use it for any other purpose.
-        if (cat_name == "unphased") and (cat_type != "unphased"):
+        if (cat_name == "unprojected") and (cat_type != "unprojected"):
             raise ValueError(
-                "The name unphased is reserved. Please choose another value for "
+                "The name unprojected is reserved. Please choose another value for "
                 "cat_name."
             )
 
         # We currently only have 4 supported types -- make sure the user supplied
         # one of those
-        if cat_type not in ["sidereal", "ephem", "driftscan", "unphased"]:
+        if cat_type not in ["sidereal", "ephem", "driftscan", "unprojected"]:
             raise ValueError(
-                "Only sidereal, ephem, driftscan or unphased may be used "
+                "Only sidereal, ephem, driftscan or unprojected may be used "
                 "for cat_type."
             )
 
@@ -1146,8 +1166,8 @@ class UVData(UVBase):
                 "cat_pm_ra and cat_pm_dec."
             )
 
-        # If left unset, unphased and driftscan defaulted to Az, El = (0, 90)
-        if (cat_type == "unphased") or (cat_type == "driftscan"):
+        # If left unset, unprojected and driftscan defaulted to Az, El = (0, 90)
+        if cat_type in ["unprojected", "driftscan"]:
             if cat_lon is None:
                 cat_lon = 0.0
             if cat_lat is None:
@@ -1169,20 +1189,20 @@ class UVData(UVBase):
 
         if (cat_frame is None) and (cat_type in ["sidereal", "ephem"]):
             raise ValueError("cat_frame cannot be None for sidereal phase centers.")
-        elif (cat_frame != "altaz") and (cat_type in ["driftscan", "unphased"]):
+        elif (cat_frame != "altaz") and (cat_type in ["driftscan", "unprojected"]):
             raise ValueError(
                 "cat_frame must be either None or 'altaz' when the cat type "
-                "is either driftscan or unphased."
+                "is either driftscan or unprojected."
             )
 
-        if (cat_type == "unphased") and (cat_lon != 0.0):
+        if (cat_type == "unprojected") and (cat_lon != 0.0):
             raise ValueError(
-                "Catalog entries that are unphased must have cat_lon set to either "
+                "Catalog entries that are unprojected must have cat_lon set to either "
                 "0 or None."
             )
-        if (cat_type == "unphased") and (cat_lat != (np.pi / 2)):
+        if (cat_type == "unprojected") and (cat_lat != (np.pi / 2)):
             raise ValueError(
-                "Catalog entries that are unphased must have cat_lat set to either "
+                "Catalog entries that are unprojected must have cat_lat set to either "
                 "pi/2 or None."
             )
 
@@ -1362,27 +1382,27 @@ class UVData(UVBase):
         for defunct_name in defunct_list:
             self._remove_phase_center(defunct_name)
 
-    def _check_for_unphased(self):
+    def _check_for_unprojected(self):
         """
-        Check which Nblts are unphased in a multi phase center dataset.
+        Check which Nblts are unprojected in a multi phase center dataset.
 
         This convenience method returns back a boolean mask to identify which data
-        along the Blt axis contains unphased objects (which is only applicable when
+        along the Blt axis contains unprojected objects (which is only applicable when
         multi_phase_center=True)
 
         Returns
         -------
         blt_mask : ndarray of bool
-            A boolean mask for identifying which elements contain unphased objects
+            A boolean mask for identifying which elements contain unprojected objects
         """
         if self.multi_phase_center:
-            # Check and see if we have any unphased objects, in which case
+            # Check and see if we have any unprojected objects, in which case
             # their w-values should be zeroed out.
             nophase_dict = {
                 self.phase_center_catalog[name]["cat_id"]: self.phase_center_catalog[
                     name
                 ]["cat_type"]
-                == "unphased"
+                == "unprojected"
                 for name in self.phase_center_catalog.keys()
             }
 
@@ -1413,7 +1433,7 @@ class UVData(UVBase):
             If attempting to run the method on a non multi phase center data set, if
             `old_name` is not found as a key in `phase_center_catalog`, if `new_name`
             already exists as a key in `phase_center_catalog`, or if attempting to
-            name a source "unphased" (which is reserved).
+            name a source "unprojected" (which is reserved).
         TypeError
             If `new_name` is not actually a string.
         """
@@ -1433,11 +1453,11 @@ class UVData(UVBase):
                 "Must include a unique name for new_name, %s is already present "
                 "in phase_center_catalog." % new_name
             )
-        if (new_name == "unphased") and (
-            self.phase_center_catalog[old_name]["cat_type"] != "unphased"
+        if (new_name == "unprojected") and (
+            self.phase_center_catalog[old_name]["cat_type"] != "unprojected"
         ):
             raise ValueError(
-                "The name unphased is reserved. Please choose another value for "
+                "The name unprojected is reserved. Please choose another value for "
                 "new_name."
             )
 
@@ -1476,9 +1496,9 @@ class UVData(UVBase):
             If attempting to run the method on a non multi phase center data set, if
             `old_name` is not found as a key in `phase_center_catalog`, if `new_name`
             already exists as a key in `phase_center_catalog`, or if attempting to
-            name a source "unphased" (which is reserved). Also raised if `select_mask`
-            contains data that doesn't belong to `cat_name`, unless setting
-            `downselect` to True.
+            name a source "unprojected" (which is reserved). Also raised if
+            `select_mask` contains data that doesn't belong to `cat_name`, unless
+            setting `downselect` to True.
         IndexError
             If select_mask is not a valid indexing array.
         UserWarning
@@ -1499,11 +1519,11 @@ class UVData(UVBase):
                 "The name %s is already found in the catalog, choose another name "
                 "for new_name." % new_name
             )
-        if (new_name == "unphased") and (
-            self.phase_center_catalog[cat_name]["cat_type"] != "unphased"
+        if (new_name == "unprojected") and (
+            self.phase_center_catalog[cat_name]["cat_type"] != "unprojected"
         ):
             raise ValueError(
-                "The name unphased is reserved. Please choose another value for "
+                "The name unprojected is reserved. Please choose another value for "
                 "new_name."
             )
 
@@ -1734,7 +1754,7 @@ class UVData(UVBase):
             }
         )
         col_list.append(
-            {"hdr": ("Type", ""), "fmt": "%9s", "field": " %9s ", "name": "cat_type"}
+            {"hdr": ("Type", ""), "fmt": "%12s", "field": " %12s ", "name": "cat_type"}
         )
 
         if any_lon:
@@ -1975,12 +1995,12 @@ class UVData(UVBase):
             return
 
         # All multi phase center objects have phase_type="phased", even if they are
-        # unphased.
+        # unprojected.
         if self.phase_type == "phased":
             cat_type = "sidereal"
         else:
             self._set_phased()
-            cat_type = "unphased"
+            cat_type = "unprojected"
 
         self.multi_phase_center = True
 
@@ -2017,9 +2037,9 @@ class UVData(UVBase):
         if self.phase_center_epoch is None:
             self.phase_center_epoch = 2000.0
 
-        if (cat_type == "unphased") and preserve_phase_center_info:
-            # If moving from unphased, then we'll fill in app_ra and app_dec in
-            # the way that we normally would if this were an "unphased" object.
+        if (cat_type == "unprojected") and preserve_phase_center_info:
+            # If moving from unprojected, then we'll fill in app_ra and app_dec in
+            # the way that we normally would if this were an "unprojected" object.
             self._set_app_coords_helper()
 
     def _set_drift(self):
@@ -4765,9 +4785,9 @@ class UVData(UVBase):
 
             telescope_location = self.telescope_location_lat_lon_alt
 
-            # Check and see if we have any unphased objects, in which case
+            # Check and see if we have any unprojected objects, in which case
             # their w-values should be zeroed out.
-            select_mask = ~self._check_for_unphased()
+            select_mask = ~self._check_for_unprojected()
 
             new_uvw = uvutils.calc_uvw(
                 lst_array=self.lst_array,
@@ -4791,7 +4811,7 @@ class UVData(UVBase):
             # remove/update phase center
             if self.multi_phase_center:
                 self.phase_center_id_array[:] = self._add_phase_center(
-                    "unphased", "unphased"
+                    "unprojected", "unprojected"
                 )
                 self.phase_center_app_ra = self.lst_array.copy()
                 self.phase_center_app_dec[:] = (
@@ -5181,7 +5201,14 @@ class UVData(UVBase):
         fix_old_proj=True,
     ):
         """
-        Phase a drift scan dataset to a single ra/dec at a particular epoch.
+        Phase data to a new direction, supports sidereal, ephemeris and drift types.
+
+        Can be used to phase all or a subset of the baseline-times. Types of phase
+        centers (`cat_type`) that are supported include:
+
+            - sidereal (fixed RA/Dec)
+            - ephem (RA/Dec that moves with time)
+            - driftscan (fixed az/el position)
 
         See the phasing memo under docs/references for more documentation.
 
@@ -5355,11 +5382,11 @@ class UVData(UVBase):
             ant_1_array = self.ant_1_array
             ant_2_array = self.ant_2_array
             old_w_vals = self.uvw_array[:, 2].copy()
-            old_w_vals[self._check_for_unphased()] = 0.0
+            old_w_vals[self._check_for_unprojected()] = 0.0
             old_app_ra = self.phase_center_app_ra
             old_app_dec = self.phase_center_app_dec
             old_frame_pa = self.phase_center_frame_pa
-            # Check and see if we have any unphased objects, in which case
+            # Check and see if we have any unprojected objects, in which case
             # their w-values should be zeroed out.
 
             if select_mask is not None:
@@ -5464,8 +5491,8 @@ class UVData(UVBase):
 
             # Now its time to update the raw data. This will return empty if
             # metadata_only is set to True. Note that cat_type is only allowed
-            # to be unphased if this is a multi_phase_center data set.
-            new_w_vals = 0.0 if (cat_type == "unphased") else new_uvw[:, 2]
+            # to be unprojected if this is a multi_phase_center data set.
+            new_w_vals = 0.0 if (cat_type == "unprojected") else new_uvw[:, 2]
             self._apply_w_proj(new_w_vals, old_w_vals, select_mask=select_mask)
 
             # Finally, we now take it upon ourselves to update some metadata. What we
@@ -5839,7 +5866,7 @@ class UVData(UVBase):
                 not (allow_phasing) and require_phasing
             ):
                 raise ValueError(
-                    "UVW recalculation requires either unphased data or the ability "
+                    "UVW recalculation requires either unprojected data or the ability "
                     "to rephase data. Use unphase_to_drift or set allow_phasing=True."
                 )
 
@@ -5862,7 +5889,7 @@ class UVData(UVBase):
             if self.phase_type == "phased":
                 if allow_phasing:
                     old_w_vals = self.uvw_array[:, 2].copy()
-                    old_w_vals[self._check_for_unphased()] = 0.0
+                    old_w_vals[self._check_for_unprojected()] = 0.0
                     self._apply_w_proj(new_uvw[:, 2], old_w_vals)
                 else:
                     warnings.warn(
@@ -5909,7 +5936,7 @@ class UVData(UVBase):
                 )
             else:
                 raise ValueError(
-                    "UVW calculation requires unphased data. "
+                    "UVW calculation requires unprojected data. "
                     "Use unphase_to_drift or set "
                     "allow_phasing=True."
                 )
@@ -6004,7 +6031,7 @@ class UVData(UVBase):
             phase_center_epoch = self.phase_center_epoch
             cat_name = self.object_name
 
-            # Bring the UVWs back to ENU/unphased
+            # Bring the UVWs back to ENU/unprojected
             self.unphase_to_drift(
                 phase_frame=self.phase_center_frame,
                 use_ant_pos=False,
@@ -6073,7 +6100,7 @@ class UVData(UVBase):
             are set. Defaults to using the 'phase_center_frame' attribute or
             'icrs' if that attribute is None.
         use_ant_pos : bool
-            If True, calculate the phased or unphased uvws directly from the
+            If True, calculate the uvws directly from the
             antenna positions rather than from the existing uvws.
             Only used if `unphase_to_drift` or `phase_center_radec` are set.
         verbose_history : bool
@@ -7110,7 +7137,7 @@ class UVData(UVBase):
             are set. Defaults to using the 'phase_center_frame' attribute or
             'icrs' if that attribute is None.
         use_ant_pos : bool
-            If True, calculate the phased or unphased uvws directly from the
+            If True, calculate the uvws directly from the
             antenna positions rather than from the existing uvws.
             Only used if `unphase_to_drift` or `phase_center_radec` are set.
         run_check : bool
@@ -7221,7 +7248,7 @@ class UVData(UVBase):
             are set. Defaults to using the 'phase_center_frame' attribute or
             'icrs' if that attribute is None.
         use_ant_pos : bool
-            If True, calculate the phased or unphased uvws directly from the
+            If True, calculate the uvws directly from the
             antenna positions rather than from the existing uvws.
             Only used if `unphase_to_drift` or `phase_center_radec` are set.
         verbose_history : bool
@@ -11455,7 +11482,7 @@ class UVData(UVBase):
             are set. Defaults to using the 'phase_center_frame' attribute or
             'icrs' if that attribute is None.
         phase_use_ant_pos : bool
-            If True, calculate the phased or unphased uvws directly from the
+            If True, calculate the uvws directly from the
             antenna positions rather than from the existing uvws.
             Only used if `unphase_to_drift` or `phase_center_radec` are set.
         fix_old_proj : bool
@@ -12504,7 +12531,7 @@ class UVData(UVBase):
             are set. Defaults to using the 'phase_center_frame' attribute or
             'icrs' if that attribute is None.
         phase_use_ant_pos : bool
-            If True, calculate the phased or unphased uvws directly from the
+            If True, calculate the uvws directly from the
             antenna positions rather than from the existing uvws.
             Only used if `unphase_to_drift` or `phase_center_radec` are set.
         fix_old_proj : bool
