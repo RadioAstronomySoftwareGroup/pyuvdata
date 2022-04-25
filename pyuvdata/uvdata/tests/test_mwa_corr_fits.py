@@ -770,6 +770,97 @@ def test_remove_coarse_band(tmp_path):
     assert uv1 == uv2
 
 
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
+def test_remove_coarse_band_mwax_40(tmp_path):
+    """Test coarse band removal for a 40 kHz mwax file."""
+    # generate a spoof file with 32 channels
+    cb_spoof = str(tmp_path / "mwax_cb_spoof40_ch137_000.fits")
+    meta_spoof = str(tmp_path / "mwax_cb_spoof40.metafits")
+
+    with fits.open(filelist[12]) as mini1:
+        mini1[1].data = np.repeat(mini1[1].data, 32, axis=1)
+        mini1.writeto(cb_spoof)
+
+    with fits.open(filelist[11]) as meta:
+        meta[0].header["FINECHAN"] = 80
+        meta.writeto(meta_spoof)
+
+    uv1 = UVData()
+    uv1.read([filelist[11], cb_spoof])
+
+    uv2 = UVData()
+    uv2.read([filelist[11], cb_spoof], remove_coarse_band=False)
+
+    with h5py.File(DATA_PATH + "/mwa_config_data/mwax_pfb_bandpass_40kHz.h5", "r") as f:
+        cb_array = f["coarse_band"][:]
+
+    uv2.data_array /= cb_array[:, np.newaxis]
+
+    uv2.history = uv1.history
+
+    assert "Divided out pfb coarse channel bandpass" in uv1.history
+    assert uv1 == uv2
+
+
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
+def test_remove_coarse_band_mwax_80(tmp_path):
+    """Test coarse band removal for an 80 kHz mwax file."""
+    # generate a spoof file with 16 channels
+    cb_spoof = str(tmp_path / "mwax_cb_spoof80_ch137_000.fits")
+    meta_spoof = str(tmp_path / "mwax_cb_spoof80.metafits")
+
+    with fits.open(filelist[12]) as mini1:
+        mini1[1].data = np.repeat(mini1[1].data, 16, axis=1)
+        mini1.writeto(cb_spoof)
+
+    with fits.open(filelist[11]) as meta:
+        meta[0].header["FINECHAN"] = 80
+        meta.writeto(meta_spoof)
+
+    uv1 = UVData()
+    uv1.read([meta_spoof, cb_spoof])
+
+    uv2 = UVData()
+    uv2.read([meta_spoof, cb_spoof], remove_coarse_band=False)
+
+    with h5py.File(DATA_PATH + "/mwa_config_data/mwax_pfb_bandpass_80kHz.h5", "r") as f:
+        cb_array = f["coarse_band"][:]
+
+    uv2.data_array /= cb_array[:, np.newaxis]
+
+    uv2.history = uv1.history
+
+    assert "Divided out pfb coarse channel bandpass" in uv1.history
+    assert uv1 == uv2
+
+
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
+def test_remove_coarse_band_mwax_warning(tmp_path):
+    """Test coarse band removal for a file we don't have a passband for."""
+    # generate a spoof file with 16 channels
+    cb_spoof = str(tmp_path / "mwax_cb_spoof160_ch137_000.fits")
+    meta_spoof = str(tmp_path / "mwax_cb_spoof160.metafits")
+
+    with fits.open(filelist[12]) as mini1:
+        mini1[1].data = np.repeat(mini1[1].data, 8, axis=1)
+        mini1.writeto(cb_spoof)
+
+    with fits.open(filelist[11]) as meta:
+        meta[0].header["FINECHAN"] = 160
+        meta.writeto(meta_spoof)
+
+    uv = UVData()
+    with pytest.raises(ValueError) as cm:
+        uv.read([meta_spoof, cb_spoof], flag_init=False)
+    assert str(cm.value).startswith("mwax passband shapes are only available")
+
+
 def test_aoflagger_flags():
     """Test using aoflagger flags"""
     uv = UVData()

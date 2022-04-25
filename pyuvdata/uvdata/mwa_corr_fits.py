@@ -898,7 +898,7 @@ class MWACorrFITS(UVData):
             )
         return flagged_ant_inds
 
-    def _get_pfb_shape(self, avg_factor):
+    def _get_pfb_shape(self, avg_factor, mwax):
         """
         Get pfb shape from file and apply appropriate averaging.
 
@@ -912,12 +912,29 @@ class MWACorrFITS(UVData):
         cb_array : numpy array of type float
             Array corresponding to pfb shape for a coarse band.
         """
-        with h5py.File(
-            DATA_PATH + "/mwa_config_data/MWA_rev_cb_10khz_doubles.h5", "r"
-        ) as f:
-            cb = f["coarse_band"][:]
-        cb_array = cb.reshape(int(128 / avg_factor), int(avg_factor))
-        cb_array = np.average(cb_array, axis=1)
+        if mwax:
+            if self.channel_width[0] == 40000:
+                with h5py.File(
+                    DATA_PATH + "/mwa_config_data/mwax_pfb_bandpass_40kHz.h5", "r"
+                ) as f:
+                    cb_array = f["coarse_band"][:]
+            elif self.channel_width[0] == 80000:
+                with h5py.File(
+                    DATA_PATH + "/mwa_config_data/mwax_pfb_bandpass_80kHz.h5", "r"
+                ) as f:
+                    cb_array = f["coarse_band"][:]
+            else:
+                raise ValueError(
+                    "mwax passband shapes are only available for 40 kHz and 80 kHz data; \
+                        resubmit with correct_coarse_band=False"
+                )
+        else:
+            with h5py.File(
+                DATA_PATH + "/mwa_config_data/MWA_rev_cb_10khz_doubles.h5", "r"
+            ) as f:
+                cb = f["coarse_band"][:]
+            cb_array = cb.reshape(int(128 / avg_factor), int(avg_factor))
+            cb_array = np.average(cb_array, axis=1)
 
         return cb_array
 
@@ -983,6 +1000,7 @@ class MWACorrFITS(UVData):
 
     def _apply_corrections(
         self,
+        mwax,
         ant_1_inds,
         ant_2_inds,
         avg_factor,
@@ -1062,7 +1080,7 @@ class MWACorrFITS(UVData):
         # get pfb response shape
         if remove_coarse_band:
             self.history += " Divided out pfb coarse channel bandpass."
-            cb_array = self._get_pfb_shape(avg_factor)
+            cb_array = self._get_pfb_shape(avg_factor, mwax)
         else:
             cb_array = None
 
@@ -1088,7 +1106,7 @@ class MWACorrFITS(UVData):
         filelist,
         use_aoflagger_flags=None,
         remove_dig_gains=True,
-        remove_coarse_band=None,
+        remove_coarse_band=True,
         correct_cable_len=None,
         correct_van_vleck=False,
         cheby_approx=True,
@@ -1783,14 +1801,9 @@ class MWACorrFITS(UVData):
                 )
 
             # apply corrections
-            # we don't yet have a coarse band shape for mwax
-            if remove_coarse_band is None:
-                if not mwax:
-                    remove_coarse_band = True
-                else:
-                    remove_coarse_band = False
             if np.any([correct_van_vleck, remove_coarse_band, remove_dig_gains]):
                 flagged_ant_inds = self._apply_corrections(
+                    mwax,
                     ant_1_inds,
                     ant_2_inds,
                     avg_factor,
