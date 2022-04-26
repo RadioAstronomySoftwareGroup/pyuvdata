@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- New uvh5 version 1.1 definition in memo and code to use the future phasing info
+(i.e. the phase_center_catalog) rather than the older parameters.
 - Added the `normalize_by_autos` method to `UVData`, which allows one to normalize
 cross-correlations (i.e., covert values from arbitrary scale to correlation coefficients)
 if auto-correlations are present in the data.
@@ -26,6 +28,9 @@ real-only if non-zero imaginary components are detected.
 and `reorder_jones`.
 
 ### Changed
+- Always write out uvh5 version 1.0 or greater files (which use the future array shapes) with `UVData.write_uvh5`.
+- Use "unprojected" rather than "unphased" for the cat_type in the phase_center_catalog
+to describe zenith driftscan data that have no w-projections applied.
 - The `MirParser` class has been significantly overhauled, which significantly reduces
 memory usage and improves processing speed.
 - Updated minimum dependency versions: numpy>=1.19, scipy>=1.3, optional dependencies:
@@ -43,6 +48,8 @@ array rather than an array of spw numbers, making it match the other reorder met
 - Dropped support for python 3.7
 
 ### Fixed
+- Store the phase_center_catalog as a set of nested datasets in uvh5 files rather than
+as a json blob.
 - A bug in `UVData.__add__` where flexible spectral window datasets were not combined
 correctly if they contained overlapping frequencies in different spectral windows.
 - A bug in `UVData.print_phase_center_info` that occasionally resulted in incorrect values being reported for RA/Az/Longitudinal coordinates.
@@ -55,6 +62,9 @@ cross pol power beams.
 - Testing of piping keywords through `read` by `test_mwa_corr_fits`.
 - Incorrect piping of `flag_dc_offset` keyword.
 - `mwa_corr_fits` handing of the `BSCALE` keyword in gpubox files.
+
+### Deprecated
+- The "unphased" cat_type in phase_center_catalog.
 
 ## [2.2.8] - 2022-2-15
 
