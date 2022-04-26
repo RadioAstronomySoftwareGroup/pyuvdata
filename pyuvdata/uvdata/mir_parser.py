@@ -383,30 +383,16 @@ ac_read_dtype = np.dtype(
 antpos_dtype = np.dtype([("antenna", np.int16), ("xyz_pos", np.float64, 3)])
 
 
-metafile_dict = {
-    "in": {"filetype": "in_read", "dtype": in_dtype, "index": ("inhid",)},
-    "nl": {"filetype": "bl_read", "dtype": bl_dtype, "index": ("blhid",)},
-    "sp": {"filetype": "sp_read", "dtype": sp_dtype, "index": ("sphid",)},
-    "we": {"filetype": "sp_read", "dtype": sp_dtype, "index": ("scanNumber",)},
-    "eng": {
-        "filetype": "eng_read",
-        "dtype": eng_dtype,
-        "index": ("inhid", "antennaNumber"),
-    },
-}
-
-
 class MirMetaData(object):
     """Class for working with sets of metadata for Mir datasets."""
 
     def __init__(self, filetype, dtype, index_name, filepath=None):
         self._filetype = filetype
-        self._dtype = dtype
+        self.dtype = dtype
         self._index = index_name
 
         self._data = None
         self._mask = None
-        self._filepath = None
         self._pos_dict = None
         self._stored_values = {}
 
@@ -688,8 +674,8 @@ class MirMetaData(object):
         return self.get_value(item, mask=self._mask)
 
     def _generate_pos_dict(self):
-        if isinstance(self._index, tuple):
-            pos_dict = {jdx: idx for idx, jdx in enumerate(self._data[self._index])}
+        if len(self._index) == 1:
+            pos_dict = {jdx: idx for idx, jdx in enumerate(self._data[self._index[0]])}
         else:
             pos_dict = {
                 tup: idx
@@ -704,9 +690,12 @@ class MirMetaData(object):
         self._data = np.fromfile(
             os.path.join(filepath, self._filetype), dtype=self._dtype
         )
-        self._filepath = os.path.abspath(filepath)
         self._mask = np.ones(self._data.shape[0], dtype=bool)
         self._pos_dict = self._generate_pos_dict()
+
+    def _writefile(self, filepath, append_data, datamask=...):
+        with open(filepath, "ab" if append_data else "wb+") as file:
+            self._data[datamask].tofile(file)
 
     def tofile(
         self,
@@ -720,6 +709,7 @@ class MirMetaData(object):
             os.makedirs(filepath)
 
         filepath = os.path.join(os.path.abspath(filepath), self._filetype)
+        datamask = np.where(self._mask)[0]
 
         if (not append_data) and check_index:
             warnings.warn("Ignoring check_index since no appending is being performed")
@@ -747,104 +737,66 @@ class MirMetaData(object):
                 else:
                     pass
 
-        with open(filepath, "ab" if append_data else "wb+") as file:
-            self.data[self._mask].tofile(file)
+        self._writefile(filepath, append_data, datamask)
 
         if update_self:
             self.fromfile(filepath)
 
-    def update_fields(self, update_dict):
+    def update_fields(self, update_dict, raise_err=False):
         for field, data_dict in update_dict:
-            self._data[field] = [data_dict[val] for val in self._data[field]]
+            if isinstance(field, tuple):
+                has_match = True
+                for item in field:
+                    has_match &= item in self.dtype.fields
+                if not has_match:
+                    if raise_err:
+                        raise ValueError(
+                            "Field group %s not found in this object." % str(field)
+                        )
+                    break
+                # Put tuple-handling code here
+                pass
+            elif isinstance(field, str):
+                if field in self.dtype.fields:
+                    self._data[field] = [data_dict[val] for val in self._data[field]]
+                elif raise_err:
+                    raise ValueError("Field %s not found in this object." % field)
 
-    def _generate_new_index(self, index_start=1):
+    def _update_index(self, update_dict):
+        for old_idx, new_idx in update_dict.items():
+            pass
+
+    def _generate_new_index(self, other):
+        # First up, make sure we have two objects of the same dtype
+        if type(self) != type(other):
+            raise ValueError("Both objects must be of the same type.")
+
+        # Make sure our object only has a single field as an index.
         if len(self._index) != 1:
             raise ValueError(
                 "Cannot generate a new index for a table with multiple keys."
             )
 
-        end_pos = index_start + np.sum(self._mask)
+        index_start = np.max(other._data[other._index[0]]) + 1
 
         index_dict = {
             self._index[0]: {
                 old_key: new_key
                 for old_key, new_key in zip(
                     self._data[self._index[0]][self._mask],
-                    np.arange(index_start, end_pos),
+                    np.arange(index_start, index_start + len(self._data)),
                 )
             }
         }
 
-        return index_dict, end_pos
+        return index_dict
 
-    def _check_index_overlap(self, other):
-        """
-        Check for overlaping index values between two structured arrays.
+    def _sort_by_index(self):
+        sort_idx = np.lexsort((self._data[key] for key in self._index))
+        self._data = self.data[sort_idx]
+        self._mask = self._mask[sort_idx]
 
-        This method is an internal helper function not meant to be called by users.
-        It checks for overlap between two arrays given a set of fields, the combined
-        set of which should provide a unique index value for each entry within the
-        arrays.
-
-        Parameter
-        ---------
-        arr1 : ndarray
-            Array of metadata, to be compared to `arr2`.
-        arr2 : ndarray
-            Array of metadata, to be compared to `arr1`.
-        index_name : str or tuple of str
-            Name of the field(s) which contains the unique index information.
-
-        Returns
-        -------
-        arr1_idx : list of int
-            List of index positions for `arr1` where the index field(s) have overlapping
-            values with `arr2`. The length of `arr1_idx` should be equal to that of
-            `arr2_idx`.
-        arr2_idx : list of int
-            List of index positions for `arr2` where the index field(s) have overlapping
-            values with `arr1`. The length of `arr2_idx` should be equal to that of
-            `arr1_idx`.
-
-        Raises
-        ------
-        ValueError
-            If `arr1` and `arr2` are of different dtypes, or if entries in `index_name`
-            overlap in the two arrays but `overwrite=False`. Also if `index_name` is
-            not a string, or is not a field in `arr1` or `arr2`.
-        """
-        # First up, make sure we have two objects of the same dtype
-        if type(self) != type(other):
-            raise ValueError("Both objects must be of the same type.")
-
-        # Finally, figure out where we have overlapping entries, based on the field
-        # used for indexing entries. Note that this is what intersect1d does, albeit
-        # with the limitation of only a 1D array (vs multiple keys possible here).
-        index_dict1 = {}
-        for count, item in enumerate(self._data):
-            index_dict1[tuple(item[field] for field in self._index)] = count
-
-        index_dict2 = {}
-        for count, item in enumerate(other._data):
-            index_dict2[tuple(item[field] for field in other._index)] = count
-
-        obj1_idx = []
-        obj2_idx = []
-        for key, value in index_dict1.items():
-            try:
-                # If you see a corresponding index, then we want to evaluate the
-                # values at this position. We check index_dict2 first so that if
-                # there's no match, it'll throw a KeyError before we append to
-                # the indexing list.
-                obj2_idx.append(index_dict2[key])
-                obj1_idx.append(value)
-            except KeyError:
-                # If there is no corresponding entry in arr2, nothing to check
-                pass
-
-        return obj1_idx, obj2_idx
-
-    def _add_check(self, other, any_match=False):
+    def _add_check(self, other, merge=None, overwrite=None, discard_flagged=False):
         """
         Check if two MirParser metadata arrays have conflicting index values.
 
@@ -859,10 +811,6 @@ class MirMetaData(object):
         ---------
         other : MirMetaData
             MirMetaData object to be compared to this object.
-        any_match : bool
-            Nominally the method checks to see if all fields in each object match when
-            overlapping indicies exist. However, if this is set to True, it will check
-            instead if any elements with overlapping indicies have metadata that agree.
 
         Returns
         -------
@@ -879,34 +827,242 @@ class MirMetaData(object):
             overlap in the two arrays but `overwrite=False`. Also if `index_name` is
             not a string, or is not a field in `arr1` or `arr2`.
         """
-        idx1, idx2 = MirParser._check_index_overlap(self, other)
+        # First up, make sure we have two objects of the same dtype
+        if type(self) != type(other):
+            raise ValueError("Both objects must be of the same type.")
 
-        # Compare where we have coverlap and make sure the two arrays are the same.
-        if any_match:
-            check_status = np.any(self._data[idx1] == other._data[idx2])
-        else:
-            check_status = np.array_equal(self._data[idx1], other._data[idx2])
+        index_dict1 = self._pos_dict.copy()
+        index_dict2 = other._pos_dict.copy()
 
-        return check_status
+        obj1_overlap = []
+        obj2_overlap = []
+
+        for key in list(index_dict1):
+            try:
+                # If you see a corresponding index, then we want to evaluate the
+                # values at this position. We check index_dict2 first so that if
+                # there's no match, it'll throw a KeyError before we append to
+                # the indexing list.
+                obj2_overlap.append(index_dict2.pop(key))
+                obj1_overlap.append(index_dict1.pop(key))
+            except KeyError:
+                # If there is no corresponding entry in obj2, nothing to check
+                pass
+
+        obj1_overlap = np.array(obj1_overlap)
+        obj2_overlap = np.array(obj2_overlap)
+        good_pos1 = list(index_dict1.values())
+        good_pos2 = list(index_dict2.values())
+
+        # Deal w/ flagged data first, if need be
+        if discard_flagged:
+            good_pos1 = [val for val in good_pos1 if self._mask[val]]
+            good_pos2 = [val for val in good_pos2 if other._mask[val]]
+            for idx in reversed(range(len(obj1_overlap))):
+                pos1 = obj1_overlap[idx]
+                pos2 = obj2_overlap[idx]
+                if not (self._mask[pos1] and other._mask[pos2]):
+                    if self._mask[pos1]:
+                        good_pos1.append(pos1)
+                    if self._mask[pos2]:
+                        good_pos2.append(pos2)
+                    obj1_overlap.remove(pos1)
+                    obj2_overlap.remove(pos2)
+
+        # If we can't merge, then error now
+        if merge and (len(good_pos1) and len(good_pos2)):
+            raise ValueError("This is an error")
+        elif not (merge or merge is None):
+            if len(obj1_overlap) or len(obj2_overlap):
+                raise ValueError("This is an error")
+            else:
+                return good_pos1, good_pos2
+
+        # So if we are allowed to merge
+        if len(obj1_overlap) or len(obj2_overlap):
+            comp_mask = self.data[obj1_overlap] == other.data[obj2_overlap]
+            flag_mask1 = self._mask[obj1_overlap]
+            flag_mask2 = other._mask[obj2_overlap]
+            for idx in reversed(range(len(obj1_overlap))):
+                pos1 = obj1_overlap[idx]
+                pos2 = obj2_overlap[idx]
+                if (comp_mask[idx] or overwrite) or (
+                    overwrite is None and not flag_mask1[idx]
+                ):
+                    good_pos2.append(pos2)
+                    obj1_overlap.remove(pos1)
+                    obj2_overlap.remove(pos2)
+                elif overwrite is None and (flag_mask1[idx] and not flag_mask2[idx]):
+                    good_pos1.append(pos1)
+                    obj1_overlap.remove(pos1)
+                    obj2_overlap.remove(pos2)
+
+        # Alright, if you've gotten to this point and you still have unresolved overlap
+        # entries, then we have a problem -- time to raise an error.
+        if len(obj1_overlap) or len(obj1_overlap):
+            raise ValueError(
+                "Cannot combine objects, as both contain identical index values with "
+                "different metadata but overlapping index markers. You can bypass this "
+                "error by setting overwrite=True."
+            )
+
+        return sorted(good_pos1), sorted(good_pos2)
 
     def __add__(
-        self, other, inplace=False, merge_data=False, force=False, overwrite=False
+        self,
+        other,
+        inplace=False,
+        merge=None,
+        overwrite=None,
+        discard_flagged=True,
     ):
         """
         Combine two MirMetaData objects.
 
         Thing.
         """
+        idx1, idx2 = self._add_check(
+            other, merge=merge, overwrite=overwrite, discard_flagged=discard_flagged
+        )
 
-    def __iadd__(self, other, merge_data=False, force=False, overwrite=False):
+        # At this point, we should be able to combine the two objects
+        new_obj = self if inplace else self.copy()
+
+        new_obj._data = np.concatenate((new_obj._data[idx1], other._data[idx2]))
+        new_obj._mask = np.ones(new_obj._data.shape[0], dtype=bool)
+        new_obj._pos_dict = new_obj._generate_pos_dict()
+        new_obj._stored_values = {}
+
+        return new_obj
+
+    def __iadd__(self, other, merge=True, overwrite=None, discard_flagged=True):
         """
         In-place addition of two MirMetaData objects.
 
         Thing.
         """
-        self.__add__(
-            other, inplace=True, merge_data=merge_data, force=force, overwrite=overwrite
+        return self.__add__(
+            other,
+            inplace=True,
+            merge=merge,
+            overwrite=overwrite,
+            discard_flagged=discard_flagged,
         )
+
+
+class MirInData(MirMetaData):
+    def __init__(self, filepath=None):
+        super().__init__("in_read", in_dtype, ("inhid",), filepath)
+
+
+class MirBlData(MirMetaData):
+    def __init__(self, filepath=None):
+        super().__init__("bl_read", bl_dtype, ("blhid",), filepath)
+
+
+class MirSpData(MirMetaData):
+    def __init__(self, filepath=None):
+        super().__init__("sp_read", sp_dtype, ("sphid",), filepath)
+
+
+class MirWeData(MirMetaData):
+    def __init__(self, filepath=None):
+        super().__init__("we_read", we_dtype, ("scanNumber",), filepath)
+
+
+class MirEngData(MirMetaData):
+    def __init__(self, filepath=None):
+        super().__init__("eng_read", eng_dtype, ("antennaNumber", "inhid"), filepath)
+
+
+class MirAntposData(MirMetaData):
+    def __init__(self, filepath=None):
+        super().__init__("antennas", antpos_dtype, ("antenna"), filepath)
+
+    def fromfile(self, filepath):
+        with open(os.path.join(filepath, "antennas"), "r") as antennas_file:
+            temp_list = [
+                item for line in antennas_file.readlines() for item in line.split()
+            ]
+        self._data = np.empty(len(temp_list) // 4, dtype=antpos_dtype)
+        self._data["antenna"] = np.int16(temp_list[0::4])
+        self._data["xyz_pos"] = np.array(
+            [temp_list[1::4], temp_list[2::4], temp_list[3::4]], dtype=np.float64
+        ).T
+
+        self._mask = np.ones(self._data.shape[0], dtype=bool)
+        self._pos_dict = self._generate_pos_dict()
+
+    def _writefile(self, filepath, append_data, datamask=...):
+        # We need a special version of this for the antenna positions file since that's
+        # the only one that's a text file vs a binary file.
+        with open(filepath, "a" if append_data else "w+") as file:
+            for antpos in self._data[datamask]:
+                file.write(
+                    "%i %.17e %.17e %.17e\n"
+                    % (
+                        antpos["antenna"],
+                        antpos["xyz_pos"][0],
+                        antpos["xyz_pos"][1],
+                        antpos["xyz_pos"][2],
+                    )
+                )
+
+
+class MirCodesData(MirMetaData):
+    def __init__(self, filepath=None):
+        super().__init__("codes_read", codes_dtype, ("icode", "v_name"), filepath)
+        self._mutable_codes = [
+            "ref_time",
+            "ut",
+            "vrad",
+            "source",
+            "stype",
+            "svtype",
+            "project",
+            "ra",
+            "dec",
+        ]
+
+        self._codes_index_dict = {
+            "project": "iproject",
+            "ref_time": "iref_time",
+            "source": "isource",
+            "ra": "ira",
+            "dec": "idec",
+            "vrad": "ivrad",
+            "gq": "igq",
+            "pq": "ipq",
+            "tel1": "iant1",
+            "tel2": "iant2",
+            "ipol": "pol",
+            "pstate": "ipstate",
+            "sb": "isb",
+            "band": "iband",
+            "ddsmode": "iddsmode",
+        }
+
+    def _generate_new_index(self, other):
+        # First up, make sure we have two objects of the same dtype
+        if type(self) != type(other):
+            raise ValueError("Both objects must be of the same type.")
+
+        index_dict = {}
+
+        for idx, tup in enumerate(zip(self._data["icode"], self._data["v_name"])):
+            try:
+                other_idx = other._pos_dict[tup]
+                if other._data["code"][other_idx] == self._data["code"][idx]:
+                    pass
+            except KeyError:
+                # If we don't have a match, then we need to make sure that the code in
+                # question isn't _supposed_ to change between codes_read files.
+                if tup[1] not in self._mutable_codes:
+                    raise ValueError("This is an error")
+            else:
+                pass
+
+        return index_dict
 
 
 ########################################################################################
@@ -941,11 +1097,11 @@ class MirParser(object):
             Attribute of the MirParser object.
         """
         attribute_list = [
-            a
-            for a in dir(self)
-            if not a.startswith("__")
-            and not callable(getattr(self, a))
-            and not (metadata_only and a in ["vis_data", "raw_data", "auto_data"])
+            attr
+            for attr in dir(self)
+            if not attr.startswith("__")
+            and not callable(getattr(self, attr))
+            and not (metadata_only and attr in ["vis_data", "raw_data", "auto_data"])
         ]
 
         for attribute in attribute_list:
