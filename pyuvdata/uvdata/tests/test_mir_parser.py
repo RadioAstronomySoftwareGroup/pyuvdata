@@ -2697,7 +2697,9 @@ def test_mir_remember_me_sp_read(mir_data):
 
     assert np.all(mir_data._sp_read["correlator"] == 1)
 
-    assert np.all(mir_data._sp_read["spareint2"] == 0)
+    assert np.all(mir_data._sp_read["iddsmode"] == 0)
+
+    assert np.all(mir_data._sp_read["spareshort"] == 0)
 
     assert np.all(mir_data._sp_read["spareint3"] == 0)
 
