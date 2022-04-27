@@ -308,7 +308,9 @@ sp_dtype = np.dtype(
         # Correlator number (0 = ASIC; 1 = SWARM)
         ("correlator", np.int32),
         # Spare value, always 0
-        ("spareint2", np.int32),
+        ("iddsmode", np.int16),
+        # Spare value, always 0
+        ("spareshort", np.int16),
         # Spare value, always 0
         ("spareint3", np.int32),
         # Spare value, always 0
@@ -742,11 +744,13 @@ class MirMetaData(object):
         if update_self:
             self.fromfile(filepath)
 
-    def update_fields(self, update_dict, raise_err=False):
+    def _update_fields(self, update_dict, raise_err=False):
         for field, data_dict in update_dict:
             if isinstance(field, tuple):
                 has_match = True
                 for item in field:
+                    if not isinstance(item, str):
+                        raise ValueError("This is an error.")
                     has_match &= item in self.dtype.fields
                 if not has_match:
                     if raise_err:
@@ -754,17 +758,27 @@ class MirMetaData(object):
                             "Field group %s not found in this object." % str(field)
                         )
                     break
-                # Put tuple-handling code here
-                pass
+                arr_data = [self._data[subfield] for subfield in field]
+                for idx, val in enumerate(zip(*arr_data)):
+                    try:
+                        for subarr, temp_data in zip(arr_data, data_dict[val]):
+                            subarr[idx] = temp_data
+                    except KeyError:
+                        # If no matching key, then there is no update to perform
+                        pass
             elif isinstance(field, str):
                 if field in self.dtype.fields:
-                    self._data[field] = [data_dict[val] for val in self._data[field]]
+                    arr_data = self._data[field]
+                    for idx, val in enumerate(arr_data):
+                        try:
+                            arr_data[idx] = data_dict[val]
+                        except KeyError:
+                            # If no matching key, then there is no update to perform
+                            pass
                 elif raise_err:
                     raise ValueError("Field %s not found in this object." % field)
-
-    def _update_index(self, update_dict):
-        for old_idx, new_idx in update_dict.items():
-            pass
+            else:
+                raise ValueError("This is an error")
 
     def _generate_new_index(self, other):
         # First up, make sure we have two objects of the same dtype
@@ -783,7 +797,7 @@ class MirMetaData(object):
             self._index[0]: {
                 old_key: new_key
                 for old_key, new_key in zip(
-                    self._data[self._index[0]][self._mask],
+                    self._data[self._index[0]],
                     np.arange(index_start, index_start + len(self._data)),
                 )
             }
@@ -914,7 +928,7 @@ class MirMetaData(object):
         inplace=False,
         merge=None,
         overwrite=None,
-        discard_flagged=True,
+        discard_flagged=False,
     ):
         """
         Combine two MirMetaData objects.
@@ -929,8 +943,14 @@ class MirMetaData(object):
         new_obj = self if inplace else self.copy()
 
         new_obj._data = np.concatenate((new_obj._data[idx1], other._data[idx2]))
-        new_obj._mask = np.ones(new_obj._data.shape[0], dtype=bool)
+        new_obj._mask = np.concatenate((new_obj._mask[idx1], other._mask[idx2]))
+
+        # Get the new index values
+        new_obj._sort_by_index()
         new_obj._pos_dict = new_obj._generate_pos_dict()
+
+        # Finally, clear out any sorted values, since there's no longer a good way to
+        # carry them forward.
         new_obj._stored_values = {}
 
         return new_obj
@@ -963,6 +983,28 @@ class MirBlData(MirMetaData):
 class MirSpData(MirMetaData):
     def __init__(self, filepath=None):
         super().__init__("sp_read", sp_dtype, ("sphid",), filepath)
+
+    def _recalc_dataoff(self):
+        offset_dict = {}
+        inhid_arr = self["inhid"]
+
+        # Each channel is 4 bytes in length (int16 real + int16 imag), plus
+        # each spectral record has an int16 up front as the common exponent
+        record_size_arr = (4 * self["nch"].astype(int)) + 2
+
+        # Create an array to plug values into
+        offset_arr = np.zeros(inhid_arr.shape, dtype=int)
+        for idx, (inhid, record_size) in enumerate(zip(inhid_arr, record_size_arr)):
+            try:
+                temp_val = offset_dict[inhid]
+                offset_arr[idx] = temp_val
+                offset_dict[inhid] = record_size + temp_val
+            except KeyError:
+                offset_arr[idx] = 0
+                offset_dict[inhid] = record_size
+
+        # Finally, update the attribute with the newly calculated values
+        self["dataoff"] = offset_arr
 
 
 class MirWeData(MirMetaData):
@@ -1013,15 +1055,24 @@ class MirCodesData(MirMetaData):
     def __init__(self, filepath=None):
         super().__init__("codes_read", codes_dtype, ("icode", "v_name"), filepath)
         self._mutable_codes = [
+            "project",
             "ref_time",
             "ut",
             "vrad",
             "source",
             "stype",
             "svtype",
-            "project",
             "ra",
             "dec",
+            "ddsmode",
+        ]
+
+        # These are codes that _cannot_ change between objects, otherwise it breaks
+        # some of the underlying logic of some code, and could mean that the files
+        # may have different metadata fields populated.
+        self._immutable_codes = [
+            "filever",
+            "pol",
         ]
 
         self._codes_index_dict = {
@@ -1048,19 +1099,55 @@ class MirCodesData(MirMetaData):
             raise ValueError("Both objects must be of the same type.")
 
         index_dict = {}
+        other_dict = other._pos_dict.copy()
+        other_dict.update(
+            {
+                tup: idx
+                for idx, tup in enumerate(zip(other_dict["code"], other_dict["v_name"]))
+            }
+        )
 
-        for idx, tup in enumerate(zip(self._data["icode"], self._data["v_name"])):
+        last_idx_dict = {}
+        for idx, data in enumerate(self._data):
             try:
-                other_idx = other._pos_dict[tup]
-                if other._data["code"][other_idx] == self._data["code"][idx]:
-                    pass
+                other_idx = other_dict[(data["icode"], data["v_name"])]
+                if other._data[other_idx] == data:
+                    # Nothing more to do, since we have a complete match
+                    continue
             except KeyError:
-                # If we don't have a match, then we need to make sure that the code in
-                # question isn't _supposed_ to change between codes_read files.
-                if tup[1] not in self._mutable_codes:
-                    raise ValueError("This is an error")
-            else:
                 pass
+
+            try:
+                other_idx = other_dict[(data["code"], data["v_name"])]
+                index_dict[tuple(data)] = tuple(other._data[other_idx])
+            except KeyError:
+                last_idx = last_idx_dict.get(data["v_name"], 0)
+                try:
+                    while True:
+                        last_idx += 1
+                        _ = other_dict[(last_idx, data["v_name"])]
+                except KeyError:
+                    new_data = data.copy()
+                    new_data["icode"] = last_idx
+                    index_dict[tuple(data)] = tuple(new_data)
+                # Finally, update what the new index value was so that we can skip
+                # trying to find the "last" index in the list next cycle.
+                last_idx_dict[data["v_name"]] = last_idx
+
+            # One last thing, let's check that the variable name we're updating isn't
+            # supposed to be consistent between tracks. Note that this is down here
+            # instead of above to avoid having to duplicate this code in two separate
+            # try/except statements above
+            if data["v_name"] not in self._mutable_codes:
+                if data["v_name"] in self._immutable_codes:
+                    raise ValueError(
+                        "The codes for %s in codes_read cannot change between "
+                        "objects if they are to be combined." % data["v_name"]
+                    )
+                warnings.warn(
+                    "Codes for %s not in the recognized list of mutable codes. "
+                    "Moving ahead anyways since it is not forbidden." % data["v_name"]
+                )
 
         return index_dict
 
