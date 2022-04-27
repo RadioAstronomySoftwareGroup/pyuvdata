@@ -856,9 +856,8 @@ def test_remove_coarse_band_mwax_warning(tmp_path):
         meta.writeto(meta_spoof)
 
     uv = UVData()
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="mwax passband shapes are only available"):
         uv.read([meta_spoof, cb_spoof], flag_init=False)
-    assert str(cm.value).startswith("mwax passband shapes are only available")
 
 
 def test_aoflagger_flags():
