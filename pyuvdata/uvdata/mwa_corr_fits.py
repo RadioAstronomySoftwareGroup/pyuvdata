@@ -925,11 +925,10 @@ class MWACorrFITS(UVData):
                     cb_array = f["coarse_band"][:]
             else:
                 raise ValueError(
-                    "mwax passband shapes are only available for 40 kHz and 80 kHz \
-                        fine channel widths. To request a passband for a different \
-                            fine channel width create an issue on the pyuvdata \
-                                repository. To run without a passband, resubmit \
-                                    with correct_coarse_band=False"
+                    "mwax passband shapes are only available for 40 kHz and 80 kHz"
+                    "fine channel widths. To request a passband for a different fine "
+                    "channel width create an issue on the pyuvdata repository. To run "
+                    "without a passband, resubmit with correct_coarse_band=False"
                 )
         else:
             with h5py.File(
