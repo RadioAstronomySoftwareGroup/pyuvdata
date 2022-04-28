@@ -2426,7 +2426,7 @@ class UVBeam(UVBase):
                     + [len(pix_new_inds)]
                     + list(this.data_array.shape[data_pix_axis + 1 :])
                 )
-                data_zero_pad = np.zeros(data_pad_dims)
+                data_zero_pad = np.zeros(data_pad_dims, dtype=this.data_array.dtype)
 
                 this.pixel_array = np.concatenate(
                     [this.pixel_array, other.pixel_array[pix_new_inds]]
@@ -2459,7 +2459,7 @@ class UVBeam(UVBase):
                     + [len(ax1_new_inds)]
                     + list(this.data_array.shape[data_ax1_axis + 1 :])
                 )
-                data_zero_pad = np.zeros(data_pad_dims)
+                data_zero_pad = np.zeros(data_pad_dims, dtype=this.data_array.dtype)
 
                 this.axis1_array = np.concatenate(
                     [this.axis1_array, other.axis1_array[ax1_new_inds]]
@@ -2491,7 +2491,7 @@ class UVBeam(UVBase):
                     + [len(ax2_new_inds)]
                     + list(this.data_array.shape[data_ax2_axis + 1 :])
                 )
-                data_zero_pad = np.zeros(data_pad_dims)
+                data_zero_pad = np.zeros(data_pad_dims, dtype=this.data_array.dtype)
 
                 this.axis2_array = np.concatenate(
                     [this.axis2_array, other.axis2_array[ax2_new_inds]]
@@ -2524,7 +2524,7 @@ class UVBeam(UVBase):
                 + [len(fnew_inds)]
                 + list(this.data_array.shape[faxis + 1 :])
             )
-            data_zero_pad = np.zeros(data_pad_dims)
+            data_zero_pad = np.zeros(data_pad_dims, dtype=this.data_array.dtype)
 
             this.freq_array = np.concatenate(
                 [this.freq_array, other.freq_array[:, fnew_inds]], axis=1
@@ -2564,7 +2564,7 @@ class UVBeam(UVBase):
                 + [len(pnew_inds)]
                 + list(this.data_array.shape[paxis + 1 :])
             )
-            data_zero_pad = np.zeros(data_pad_dims)
+            data_zero_pad = np.zeros(data_pad_dims, dtype=this.data_array.dtype)
 
             if this.beam_type == "power":
                 initial_pol_array = this.polarization_array.copy()
@@ -2598,7 +2598,11 @@ class UVBeam(UVBase):
                     np.intersect1d(other.polarization_array, cross_pols).size > 0
                     and np.intersect1d(initial_pol_array, cross_pols).size == 0
                 ):
-                    this.data_array = np.asarray(this.data_array, dtype=complex)
+                    if this.data_array.dtype == np.float32:
+                        dtype_use = np.complex64
+                    else:
+                        dtype_use = complex
+                    this.data_array = np.asarray(this.data_array, dtype=dtype_use)
         else:
             this.Nfeeds = this.feed_array.shape[0]
             pol_t2o = np.nonzero(np.in1d(this.feed_array, other.feed_array))[0]
