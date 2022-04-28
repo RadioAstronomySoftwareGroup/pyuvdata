@@ -129,6 +129,90 @@ def uvbeam_data():
     return
 
 
+@pytest.fixture(scope="function")
+def power_beam_for_adding(cst_power_1freq):
+    power_beam = cst_power_1freq
+
+    # generate more frequencies for testing by copying and adding
+    new_beam = power_beam.copy()
+    new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
+    power_beam += new_beam
+
+    # add optional parameters for testing purposes
+    power_beam.extra_keywords = {"KEY1": "test_keyword"}
+    power_beam.reference_impedance = 340.0
+    power_beam.receiver_temperature_array = np.random.normal(
+        50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs)
+    )
+    power_beam.loss_array = np.random.normal(
+        50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs)
+    )
+    power_beam.mismatch_array = np.random.normal(
+        0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs)
+    )
+    power_beam.s_parameters = np.random.normal(
+        0.0, 0.3, size=(4, power_beam.Nspws, power_beam.Nfreqs)
+    )
+
+    yield power_beam
+
+    del power_beam
+
+    return
+
+
+@pytest.fixture(scope="function")
+def efield_beam_for_adding(cst_efield_1freq):
+    # Add feeds
+    efield_beam = cst_efield_1freq
+
+    # generate more frequencies for testing by copying and adding
+    new_beam = efield_beam.copy()
+    new_beam.freq_array = efield_beam.freq_array + efield_beam.Nfreqs * 1e6
+    efield_beam += new_beam
+
+    # add optional parameters for testing purposes
+    efield_beam.extra_keywords = {"KEY1": "test_keyword"}
+    efield_beam.reference_impedance = 340.0
+    efield_beam.receiver_temperature_array = np.random.normal(
+        50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs)
+    )
+    efield_beam.loss_array = np.random.normal(
+        50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs)
+    )
+    efield_beam.mismatch_array = np.random.normal(
+        0.0, 1.0, size=(efield_beam.Nspws, efield_beam.Nfreqs)
+    )
+    efield_beam.s_parameters = np.random.normal(
+        0.0, 0.3, size=(4, efield_beam.Nspws, efield_beam.Nfreqs)
+    )
+
+    yield efield_beam
+
+    del efield_beam
+
+    return
+
+
+@pytest.fixture(scope="function")
+def cross_power_beam_for_adding(efield_beam_for_adding):
+    # generate more polarizations for testing by using efield and keeping cross-pols
+    power_beam = efield_beam_for_adding
+    power_beam.efield_to_power()
+
+    # generate more frequencies for testing by copying and adding several times
+    while power_beam.Nfreqs < 8:
+        new_beam = power_beam.copy()
+        new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
+        power_beam += new_beam
+
+    yield power_beam
+
+    del power_beam
+
+    return
+
+
 def test_parameter_iter(uvbeam_data):
     """Test expected parameters."""
     all_params = []
@@ -1823,30 +1907,8 @@ def test_select(cst_power_1freq, cst_efield_1freq):
     )
 
 
-@pytest.mark.filterwarnings("ignore:Fixing auto polarization power beams")
-def test_add(cst_power_1freq, cst_efield_1freq):
-    power_beam = cst_power_1freq
-
-    # generate more frequencies for testing by copying and adding
-    new_beam = power_beam.copy()
-    new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
-    power_beam += new_beam
-
-    # add optional parameters for testing purposes
-    power_beam.extra_keywords = {"KEY1": "test_keyword"}
-    power_beam.reference_impedance = 340.0
-    power_beam.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.loss_array = np.random.normal(
-        50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, power_beam.Nspws, power_beam.Nfreqs)
-    )
+def test_add_axis1(power_beam_for_adding):
+    power_beam = power_beam_for_adding
 
     # Add along first image axis
     beam1 = power_beam.select(axis1_inds=np.arange(0, 180), inplace=False)
@@ -1870,6 +1932,10 @@ def test_add(cst_power_1freq, cst_efield_1freq):
     beam1.history = power_beam.history
     assert beam1 == power_beam
 
+
+def test_add_axis2(power_beam_for_adding):
+    power_beam = power_beam_for_adding
+
     # Add along second image axis
     beam1 = power_beam.select(axis2_inds=np.arange(0, 90), inplace=False)
     beam2 = power_beam.select(axis2_inds=np.arange(90, 181), inplace=False)
@@ -1892,6 +1958,10 @@ def test_add(cst_power_1freq, cst_efield_1freq):
     beam1.history = power_beam.history
     assert beam1 == power_beam
 
+
+def test_add_frequencies(power_beam_for_adding):
+    power_beam = power_beam_for_adding
+
     # Add frequencies
     beam1 = power_beam.select(freq_chans=0, inplace=False)
     beam2 = power_beam.select(freq_chans=1, inplace=False)
@@ -1913,6 +1983,10 @@ def test_add(cst_power_1freq, cst_efield_1freq):
     beam1.history = power_beam.history
     assert beam1 == power_beam
 
+
+def test_add_pols(power_beam_for_adding):
+    power_beam = power_beam_for_adding
+
     # Add polarizations
     beam1 = power_beam.select(polarizations=-5, inplace=False)
     beam2 = power_beam.select(polarizations=-6, inplace=False)
@@ -1933,29 +2007,9 @@ def test_add(cst_power_1freq, cst_efield_1freq):
     beam1.history = power_beam.history
     assert beam1 == power_beam
 
-    # Add feeds
-    efield_beam = cst_efield_1freq.copy()
 
-    # generate more frequencies for testing by copying and adding
-    new_beam = efield_beam.copy()
-    new_beam.freq_array = efield_beam.freq_array + efield_beam.Nfreqs * 1e6
-    efield_beam += new_beam
-
-    # add optional parameters for testing purposes
-    efield_beam.extra_keywords = {"KEY1": "test_keyword"}
-    efield_beam.reference_impedance = 340.0
-    efield_beam.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs)
-    )
-    efield_beam.loss_array = np.random.normal(
-        50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs)
-    )
-    efield_beam.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(efield_beam.Nspws, efield_beam.Nfreqs)
-    )
-    efield_beam.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, efield_beam.Nspws, efield_beam.Nfreqs)
-    )
+def test_add_feeds(efield_beam_for_adding):
+    efield_beam = efield_beam_for_adding
 
     beam1 = efield_beam.select(feeds=efield_beam.feed_array[0], inplace=False)
     beam2 = efield_beam.select(feeds=efield_beam.feed_array[1], inplace=False)
@@ -1975,6 +2029,10 @@ def test_add(cst_power_1freq, cst_efield_1freq):
     beam1 += beam2
     beam1.history = efield_beam.history
     assert beam1, efield_beam
+
+
+def test_add_multi_power(power_beam_for_adding):
+    power_beam = power_beam_for_adding
 
     # Add multiple axes
     beam_ref = power_beam.copy()
@@ -2001,6 +2059,10 @@ def test_add(cst_power_1freq, cst_efield_1freq):
     beam_ref.data_array[:, :, 1, :, :, : power_beam.Naxes1 // 2] = 0.0
     beam1.history = power_beam.history
     assert beam1 == beam_ref
+
+
+def test_add_multi_efield(efield_beam_for_adding):
+    efield_beam = efield_beam_for_adding
 
     # Another combo with efield
     beam_ref = efield_beam.copy()
@@ -2041,16 +2103,9 @@ def test_add(cst_power_1freq, cst_efield_1freq):
     beam1.history = efield_beam.history
     assert beam1, beam_ref
 
-    # Check warnings
-    # generate more polarizations for testing by using efield and keeping cross-pols
-    power_beam = cst_efield_1freq.copy()
-    power_beam.efield_to_power()
 
-    # generate more frequencies for testing by copying and adding several times
-    while power_beam.Nfreqs < 8:
-        new_beam = power_beam.copy()
-        new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
-        power_beam += new_beam
+def test_add_warnings(cross_power_beam_for_adding):
+    power_beam = cross_power_beam_for_adding
 
     beam1 = power_beam.select(freq_chans=np.arange(0, 4), inplace=False)
     beam2 = power_beam.select(freq_chans=np.arange(5, 8), inplace=False)
@@ -2087,13 +2142,20 @@ def test_add(cst_power_1freq, cst_efield_1freq):
 
     assert beam1.receiver_temperature_array is None
 
-    # Combining histories
+
+@pytest.mark.parametrize("use_double", [True, False])
+def test_add_cross_power(cross_power_beam_for_adding, use_double):
+    power_beam = cross_power_beam_for_adding
     beam1 = power_beam.select(
         polarizations=power_beam.polarization_array[0:2], inplace=False
     )
     beam2 = power_beam.select(
         polarizations=power_beam.polarization_array[2:4], inplace=False
     )
+    if not use_double:
+        beam1.data_array = beam1.data_array.astype(np.float32)
+        beam2.data_array = beam2.data_array.astype(np.complex64)
+
     beam2.history += " testing the history. Read/written with pyuvdata"
     new_beam = beam1 + beam2
     assert uvutils._check_histories(
@@ -2113,8 +2175,10 @@ def test_add(cst_power_1freq, cst_efield_1freq):
         new_beam.history,
     )
 
-    # ------------------------
-    # Test failure modes of add function
+
+def test_add_errors(power_beam_for_adding, efield_beam_for_adding):
+    power_beam = power_beam_for_adding
+    efield_beam = efield_beam_for_adding
 
     # Wrong class
     beam1 = power_beam.copy()
