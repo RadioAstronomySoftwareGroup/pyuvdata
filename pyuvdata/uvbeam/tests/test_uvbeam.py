@@ -7,6 +7,7 @@
 """
 import os
 import copy
+import warnings
 
 import numpy as np
 from astropy import units
@@ -194,12 +195,18 @@ def efield_beam_for_adding(cst_efield_1freq):
     return
 
 
-@pytest.mark.filterwarnings("Fixing auto polarization power beams to be be real-only")
 @pytest.fixture(scope="function")
 def cross_power_beam_for_adding(efield_beam_for_adding):
     # generate more polarizations for testing by using efield and keeping cross-pols
     power_beam = efield_beam_for_adding
-    power_beam.efield_to_power()
+
+    # Filter the warning that sometimes happens. Needs to be done this way rather than
+    # with uvtest.check_warnings because the warning is not raised on all os types
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", message="Fixing auto polarization power beams"
+        )
+        power_beam.efield_to_power()
 
     # generate more frequencies for testing by copying and adding several times
     while power_beam.Nfreqs < 8:
