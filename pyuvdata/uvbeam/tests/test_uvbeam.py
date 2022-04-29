@@ -194,6 +194,7 @@ def efield_beam_for_adding(cst_efield_1freq):
     return
 
 
+@pytest.mark.filterwarnings("Fixing auto polarization power beams to be be real-only")
 @pytest.fixture(scope="function")
 def cross_power_beam_for_adding(efield_beam_for_adding):
     # generate more polarizations for testing by using efield and keeping cross-pols
