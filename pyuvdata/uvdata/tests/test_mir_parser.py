@@ -1538,14 +1538,14 @@ def test_arr_index_overlap(mir_data):
         ["_eng_read", ("inhid", "antennaNumber")],
         ["_in_read", "inhid"],
         ["_sp_read", "sphid"],
-        ["_we_read", "scanNumber"],
+        ["_we_read", "ints"],
         ["ac_data", "achid"],
         ["antpos_data", "antenna"],
         ["bl_data", "blhid"],
         ["eng_data", ("inhid", "antennaNumber")],
         ["in_data", "inhid"],
         ["sp_data", "sphid"],
-        ["we_data", "scanNumber"],
+        ["we_data", "ints"],
     ],
 )
 def test_combine_read_arr_check(attr, any_match, index_name, mir_data):
@@ -1564,7 +1564,7 @@ def test_combine_read_arr_check(attr, any_match, index_name, mir_data):
         "inhid",
         "blhid",
         "sphid",
-        "scanNumber",
+        "ints",
         "antenna",
         "antennaNumber",
         "achid",
@@ -1821,7 +1821,7 @@ def test_add_overwrite(mir_data, muck_attr):
         "inhid",
         "blhid",
         "sphid",
-        "scanNumber",
+        "ints",
         "antenna",
         "antennaNumber",
         "achid",
@@ -1981,7 +1981,7 @@ def test_concat_err(mir_data, skip_muck, err_type, err_msg):
         "_eng_read": ["inhid"],
         "_bl_read": ["inhid", "blhid"],
         "_sp_read": ["inhid", "blhid", "sphid"],
-        "_we_read": ["scanNumber"],
+        "_we_read": ["ints"],
     }
 
     # We want to go through the above arrays and modify them so that concat
@@ -2076,7 +2076,7 @@ def test_concat_warn(mir_data):
         "_eng_read": ["inhid"],
         "_bl_read": ["inhid", "blhid"],
         "_sp_read": ["inhid", "blhid", "sphid"],
-        "_we_read": ["scanNumber"],
+        "_we_read": ["ints"],
         "_ac_read": ["achid"],
     }
 

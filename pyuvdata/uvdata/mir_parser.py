@@ -347,7 +347,7 @@ codes_dtype = np.dtype(
 we_dtype = np.dtype(
     [
         # Scan number (should be equal to inhid)
-        ("scanNumber", np.int32),
+        ("ints", np.int32),
         # Per-antenna flags, w/ bitwise flagging conditions
         ("flags", np.int32, 11),
         # Refractivity (N = (n - 1) * 1e6)
@@ -395,7 +395,7 @@ class MirMetaData(object):
 
         self._data = None
         self._mask = None
-        self._pos_dict = None
+        self._header_key_pos_dict = None
         self._stored_values = {}
 
         if filepath is not None:
@@ -424,12 +424,24 @@ class MirMetaData(object):
         # Initialize a new object of the given type
         copy_obj = type(self)()
 
+        deepcopy_list = [
+            "__stored_values",
+        ]
+
         for attr in self:
-            setattr(copy_obj, attr, copy.deepcopy(getattr(self, attr)))
+            if attr in deepcopy_list:
+                copy_attr = copy.deepcopy(getattr(self, attr))
+            else:
+                try:
+                    copy_attr = getattr(self, attr).copy()
+                except AttributeError:
+                    copy_attr = copy.deepcopy(getattr(self, attr))
+
+            setattr(copy_obj, attr, copy_attr)
 
         return copy_obj
 
-    def __eq__(self, other, verbose=True, ignore_params=False):
+    def __eq__(self, other, verbose=False, ignore_params=None):
         """
         Compare MirMetaData objects for equality.
 
@@ -508,7 +520,7 @@ class MirMetaData(object):
 
         return is_eq
 
-    def __ne__(self, other, verbose=True, ignore_params=False):
+    def __ne__(self, other, verbose=False, ignore_params=None):
         """
         Compare MirMetaData objects for inequality.
 
@@ -517,7 +529,13 @@ class MirMetaData(object):
         return not self.__eq__(other, verbose=verbose, ignore_params=ignore_params)
 
     def where(
-        self, select_field, select_comp, select_val, apply_mask=True, return_index=False
+        self,
+        select_field,
+        select_comp,
+        select_val,
+        mask=None,
+        return_index=False,
+        return_dict=False,
     ):
         """
         Parse a select command into a set of boolean masks.
@@ -589,36 +607,60 @@ class MirMetaData(object):
         # Evaluate data_arr now
         data_mask = op_dict[select_comp](self._data[select_field], select_val)
 
-        if apply_mask:
-            data_mask &= self._mask
+        # Apply the mask now, default to object's mask if there is no argument
+        # being supplied to the mask argument.
+        data_mask &= self._mask if mask is None else mask
 
         if return_index:
-            if isinstance(self._index, tuple):
-                np.vstack([self._data[idx][data_mask] for idx in self._index])
-            else:
-                return self._data[self._index][data_mask]
+            return list(zip(*[self._data[index][data_mask] for index in self._index]))
+        elif return_dict:
+            return {index: self._data[index][data_mask] for index in self._index}
         else:
             return data_mask
 
-    def get_value(self, field_name, mask=None, index=None, where=None):
-        # Check to make sure that both index and where argumnets aren't set, since
-        # they are not compatible wit one another.
-        if mask is not None and not ((index is None) and (where is None)):
-            raise ValueError("Cannot set mask if where or index arguments are passed.")
-        elif not ((index is None) or (where is None)):
-            raise ValueError("Cannot select both by index and where condition.")
+    def get_value(self, field_name, mask=None, index=None, header_key=None, where=None):
+        # Check to make sure we aren't providing too many arguments here.
+        if (index is None) + (header_key is None) + (index is None) < 2:
+            raise ValueError(
+                "Only of of index, header_key, and where arguments can be set."
+            )
+        if not (index is None and header_key is None) and mask is not None:
+            raise ValueError(
+                "Cannot set an argument for mask when using index or header_key args."
+            )
 
-        # If we are accessing direct index values of this array, then ust he
+        # If we are accessing direct index values of this array, then use the
         # pos_dict attribute to figure out which elements of the array that we need.
-        if index is not None:
-            return self.data[field_name][[self._pos_dict[idx] for idx in index]]
+        if index is not None or header_key is not None:
+            idx_arr = index
+            if header_key is not None:
+                idx_arr = [self._header_key_pos_dict[key] for key in header_key]
+
+            return self._data[field_name][idx_arr]
 
         # Otherwise, if we are going through where statements, then use the where
         # method to build a mask that we can use to select the data on.
         if where is not None:
-            sel_mask = self._mask.copy()
+            # Check to make sure that where matches what we expect - want to both
+            # accept a tuple and sequence of tuples, so force it to be the latter.
+            try:
+                if not (isinstance(where[0], tuple) or isinstance(where[0], list)):
+                    where = [where]
+            except TypeError:
+                raise ValueError(
+                    "Argument for where must be either a 3-element tuple, or sequence "
+                    "of 3-element tuples."
+                )
+
+            # Now actually start going through the where statements.
+            sel_mask = np.ones_like(self._mask)
             for item in where:
-                sel_mask &= self.where(*item)
+                if len(item) != 3:
+                    raise ValueError(
+                        "Argument for where must be either a 3-element tuple, or "
+                        "sequence of 3-element tuples."
+                    )
+                sel_mask |= self.where(*item, mask=mask)
 
             return self._data[field_name][sel_mask]
 
@@ -626,14 +668,18 @@ class MirMetaData(object):
         # by the primary filter.
         return self._data[field_name][... if (mask is None) else mask]
 
-    def set_value(self, field_name, value, mask=None, index=None, where=None):
-        # Check to make sure that both index and where argumnets aren't set, since
-        # they are not compatible wit one another.
-
-        if mask is not None and not ((index is None) and (where is None)):
-            raise ValueError("Cannot set mask if where or index arguments are passed.")
-        elif not ((index is None) or (where is None)):
-            raise ValueError("Cannot select both by index and where condition.")
+    def set_value(
+        self, field_name, value, mask=None, index=None, header_key=None, where=None
+    ):
+        # Check to make sure we aren't providing too many arguments here.
+        if (index is None) + (header_key is None) + (index is None) < 2:
+            raise ValueError(
+                "Only of of index, header_key, and where arguments can be set."
+            )
+        if not (index is None and header_key is None) and mask is not None:
+            raise ValueError(
+                "Cannot set an argument for mask when using index or header_key args."
+            )
 
         # Make a copy of any changed variables, that we can revert if we ever
         # happen to need to do so.
@@ -642,18 +688,39 @@ class MirMetaData(object):
 
         # If we are accessing direct index values of this array, then ust he
         # pos_dict attribute to figure out which elements of the array that we need.
-        if index is not None:
-            self._data[field_name][[self._pos_dict[idx] for idx in index]] = value
+        if index is not None or header_key is not None:
+            idx_arr = index
+            if header_key is not None:
+                idx_arr = [self._header_key_pos_dict[key] for key in header_key]
+
+            self._data[field_name][idx_arr] = value
             return
 
         # Otherwise, if we are going through where statements, then use the where
         # method to build a mask that we can use to select the data on.
         if where is not None:
-            sel_mask = self._mask.copy()
-            for item in where:
-                sel_mask |= self.where(*item)
+            # Check to make sure that where matches what we expect - want to both
+            # accept a tuple and sequence of tuples, so force it to be the latter.
+            try:
+                if not (isinstance(where[0], tuple) or isinstance(where[0], list)):
+                    where = [where]
+            except TypeError:
+                raise ValueError(
+                    "Argument for where must be either a 3-element tuple, or sequence "
+                    "of 3-element tuples."
+                )
 
-            self.data[field_name][sel_mask] = value
+            # Now actually start going through the where statements.
+            sel_mask = np.ones_like(self._mask)
+            for item in where:
+                if len(item) != 3:
+                    raise ValueError(
+                        "Argument for where must be either a 3-element tuple, or "
+                        "sequence of 3-element tuples."
+                    )
+                sel_mask |= self.where(*item, mask=mask)
+
+            self._data[field_name][sel_mask] = value
             return
 
         self._data[field_name][... if mask is None else mask] = value
@@ -675,7 +742,7 @@ class MirMetaData(object):
     def __getitem__(self, item):
         return self.get_value(item, mask=self._mask)
 
-    def _generate_pos_dict(self):
+    def _generate_header_key_pos_dict(self):
         if len(self._index) == 1:
             pos_dict = {jdx: idx for idx, jdx in enumerate(self._data[self._index[0]])}
         else:
@@ -690,10 +757,10 @@ class MirMetaData(object):
 
     def fromfile(self, filepath):
         self._data = np.fromfile(
-            os.path.join(filepath, self._filetype), dtype=self._dtype
+            os.path.join(filepath, self._filetype), dtype=self.dtype
         )
         self._mask = np.ones(self._data.shape[0], dtype=bool)
-        self._pos_dict = self._generate_pos_dict()
+        self._header_key_pos_dict = self._generate_header_key_pos_dict()
 
     def _writefile(self, filepath, append_data, datamask=...):
         with open(filepath, "ab" if append_data else "wb+") as file:
@@ -806,8 +873,8 @@ class MirMetaData(object):
         return index_dict
 
     def _sort_by_index(self):
-        sort_idx = np.lexsort((self._data[key] for key in self._index))
-        self._data = self.data[sort_idx]
+        sort_idx = np.lexsort([self._data[key] for key in self._index])
+        self._data = self._data[sort_idx]
         self._mask = self._mask[sort_idx]
 
     def _add_check(self, other, merge=None, overwrite=None, discard_flagged=False):
@@ -845,82 +912,106 @@ class MirMetaData(object):
         if type(self) != type(other):
             raise ValueError("Both objects must be of the same type.")
 
-        index_dict1 = self._pos_dict.copy()
-        index_dict2 = other._pos_dict.copy()
+        if merge and discard_flagged:
+            raise ValueError("Error")
 
-        obj1_overlap = []
-        obj2_overlap = []
+        index_dict1 = self._header_key_pos_dict.copy()
+        index_dict2 = other._header_key_pos_dict.copy()
 
-        for key in list(index_dict1):
-            try:
-                # If you see a corresponding index, then we want to evaluate the
-                # values at this position. We check index_dict2 first so that if
-                # there's no match, it'll throw a KeyError before we append to
-                # the indexing list.
-                obj2_overlap.append(index_dict2.pop(key))
-                obj1_overlap.append(index_dict1.pop(key))
-            except KeyError:
-                # If there is no corresponding entry in obj2, nothing to check
-                pass
+        # Do a quick check here if the dicts are the same. If so, there's a fair bit of
+        # optimization that we can leverage further down.
+        same_dict = index_dict1 == index_dict2
 
-        obj1_overlap = np.array(obj1_overlap)
-        obj2_overlap = np.array(obj2_overlap)
-        good_pos1 = list(index_dict1.values())
-        good_pos2 = list(index_dict2.values())
+        if merge and not same_dict:
+            raise ValueError("Error")
 
         # Deal w/ flagged data first, if need be
-        if discard_flagged:
-            good_pos1 = [val for val in good_pos1 if self._mask[val]]
-            good_pos2 = [val for val in good_pos2 if other._mask[val]]
-            for idx in reversed(range(len(obj1_overlap))):
-                pos1 = obj1_overlap[idx]
-                pos2 = obj2_overlap[idx]
-                if not (self._mask[pos1] and other._mask[pos2]):
-                    if self._mask[pos1]:
-                        good_pos1.append(pos1)
-                    if self._mask[pos2]:
-                        good_pos2.append(pos2)
-                    obj1_overlap.remove(pos1)
-                    obj2_overlap.remove(pos2)
+        if discard_flagged and not (np.all(self._mask) and np.all(other._mask)):
+            # If nothing is flagged, then we can skip this, otherwise we need to
+            # go through entry by entry for the two dicts. Make same_dict as False
+            # now since they're no longer equal to the original dicts.
+            same_dict = False
+            for key, value in index_dict1.items():
+                if not self._mask[value]:
+                    _ = index_dict1.pop(key)
+            for key, value in index_dict2.items():
+                if not self._mask[value]:
+                    _ = index_dict2.pop(key)
+
+        key_overlap = (
+            list(index_dict1)
+            if same_dict
+            else [key for key in index_dict1 if key in index_dict2]
+        )
 
         # If we can't merge, then error now
-        if merge and (len(good_pos1) and len(good_pos2)):
+        if len(key_overlap) and not (merge or merge is None):
             raise ValueError("This is an error")
-        elif not (merge or merge is None):
-            if len(obj1_overlap) or len(obj2_overlap):
-                raise ValueError("This is an error")
-            else:
-                return good_pos1, good_pos2
 
-        # So if we are allowed to merge
-        if len(obj1_overlap) or len(obj2_overlap):
-            comp_mask = self.data[obj1_overlap] == other.data[obj2_overlap]
-            flag_mask1 = self._mask[obj1_overlap]
-            flag_mask2 = other._mask[obj2_overlap]
-            for idx in reversed(range(len(obj1_overlap))):
-                pos1 = obj1_overlap[idx]
-                pos2 = obj2_overlap[idx]
-                if (comp_mask[idx] or overwrite) or (
-                    overwrite is None and not flag_mask1[idx]
-                ):
-                    good_pos2.append(pos2)
-                    obj1_overlap.remove(pos1)
-                    obj2_overlap.remove(pos2)
-                elif overwrite is None and (flag_mask1[idx] and not flag_mask2[idx]):
-                    good_pos1.append(pos1)
-                    obj1_overlap.remove(pos1)
-                    obj2_overlap.remove(pos2)
+        idx_count = len(index_dict1) + len(index_dict2)
+
+        # Assume that if key_overlap has entries, we are allowed to merge
+        if overwrite:
+            # If we can overwrite, then nothing else matters -- drop the index
+            # positions from this object and move on.
+            _ = [index_dict1.pop(key) for key in key_overlap]
+        elif len(key_overlap):
+            # Check array index positions for arr1 first, see if everything is flagged
+            arr1_idx = ... if same_dict else [index_dict1[key] for key in key_overlap]
+            arr2_idx = ... if same_dict else [index_dict2[key] for key in key_overlap]
+            arr1_mask = self._mask[arr1_idx]
+            arr2_mask = other._mask[arr2_idx]
+
+            if (overwrite is None) and not np.any(arr1_mask & arr2_mask):
+                # If at each position at least one object is flagged, then drop the key
+                # flagged from that object (dropping it from self if both objects have
+                # that index flagged).
+                for key, arr1_good in zip(key_overlap, arr1_mask):
+                    _ = index_dict2.pop(key) if arr1_good else index_dict1.pop(key)
+            else:
+                # If the previous check fails, we have to do some heavier lifting.
+                # Check all of the entries to see if the values are identical for
+                # the overlapping keys.
+                comp_mask = self._data[arr1_idx] == other._data[arr2_idx]
+
+                if np.all(comp_mask):
+                    # If all values are the same, then we can just delete all the
+                    # overlapping keys from this object.
+                    _ = [index_dict1.pop(key) for key in key_overlap]
+                elif overwrite is not None:
+                    # If you can't overwrite, then we have a problem -- this will
+                    # trigger a fail down below, since there are unremoved keys
+                    # not dealt with in key_overlap.
+                    pass
+                else:
+                    # Finally, we are in a mixed state where we have to evaluate
+                    # the entries on a case-by-case basis, and pass forward _some_
+                    # keys from this object, and _some_ keys from the othe object
+                    # from the conflicted list.
+                    for key, comp, mask1, mask2 in zip(
+                        key_overlap, comp_mask, arr1_mask, arr2_mask
+                    ):
+                        if comp or (not mask1):
+                            # If equal values OR this obj's record is flagged
+                            del index_dict1[key]
+                        elif not mask2:
+                            # elif the other obj's record is flag
+                            del index_dict2[key]
+                        else:
+                            # If neither of the above, break the loop, which will
+                            # result in an error below.
+                            break
 
         # Alright, if you've gotten to this point and you still have unresolved overlap
         # entries, then we have a problem -- time to raise an error.
-        if len(obj1_overlap) or len(obj1_overlap):
+        if (idx_count - (len(index_dict1) + len(index_dict2))) != len(key_overlap):
             raise ValueError(
-                "Cannot combine objects, as both contain identical index values with "
-                "different metadata but overlapping index markers. You can bypass this "
-                "error by setting overwrite=True."
+                "Cannot combine objects, as both contain overlapping index markers "
+                "with different metadata. You can bypass this error by setting "
+                "overwrite=True."
             )
 
-        return sorted(good_pos1), sorted(good_pos2)
+        return list(index_dict1.values()), list(index_dict2.values())
 
     def __add__(
         self,
@@ -947,7 +1038,7 @@ class MirMetaData(object):
 
         # Get the new index values
         new_obj._sort_by_index()
-        new_obj._pos_dict = new_obj._generate_pos_dict()
+        new_obj._header_key_pos_dict = new_obj._generate_header_key_pos_dict()
 
         # Finally, clear out any sorted values, since there's no longer a good way to
         # carry them forward.
@@ -973,6 +1064,14 @@ class MirMetaData(object):
 class MirInData(MirMetaData):
     def __init__(self, filepath=None):
         super().__init__("in_read", in_dtype, ("inhid",), filepath)
+
+    def _generate_new_index(self, other):
+        index_dict = super()._generate_new_index(other)
+
+        # Some of the per-integration index fields have aliases that also _should_
+        # be updated, so we'll link them to the same update dict as inhid.
+        if "inhid" in index_dict:
+            index_dict["ints"] = index_dict["inhid"]
 
 
 class MirBlData(MirMetaData):
@@ -1009,7 +1108,7 @@ class MirSpData(MirMetaData):
 
 class MirWeData(MirMetaData):
     def __init__(self, filepath=None):
-        super().__init__("we_read", we_dtype, ("scanNumber",), filepath)
+        super().__init__("we_read", we_dtype, ("ints",), filepath)
 
 
 class MirEngData(MirMetaData):
@@ -1033,7 +1132,7 @@ class MirAntposData(MirMetaData):
         ).T
 
         self._mask = np.ones(self._data.shape[0], dtype=bool)
-        self._pos_dict = self._generate_pos_dict()
+        self._header_key_pos_dict = self._generate_header_key_pos_dict()
 
     def _writefile(self, filepath, append_data, datamask=...):
         # We need a special version of this for the antenna positions file since that's
@@ -1099,7 +1198,7 @@ class MirCodesData(MirMetaData):
             raise ValueError("Both objects must be of the same type.")
 
         index_dict = {}
-        other_dict = other._pos_dict.copy()
+        other_dict = other._header_key_pos_dict.copy()
         other_dict.update(
             {
                 tup: idx
@@ -1137,7 +1236,7 @@ class MirCodesData(MirMetaData):
             # One last thing, let's check that the variable name we're updating isn't
             # supposed to be consistent between tracks. Note that this is down here
             # instead of above to avoid having to duplicate this code in two separate
-            # try/except statements above
+            # try/except statements.
             if data["v_name"] not in self._mutable_codes:
                 if data["v_name"] in self._immutable_codes:
                     raise ValueError(
@@ -1150,6 +1249,56 @@ class MirCodesData(MirMetaData):
                 )
 
         return index_dict
+
+    def where(
+        self,
+        select_field,
+        select_comp,
+        select_val,
+        mask=None,
+        return_index=False,
+        return_dict=False,
+    ):
+        if select_field in self.dtype.fields:
+            return super().where(
+                select_field, select_comp, select_val, mask, return_index, return_dict
+            )
+
+        if select_field not in self._codes_index_dict:
+            raise ValueError(
+                "select_field must either be one of the native fields inside of the "
+                'codes_read array ("v_name", "code", "icode", "ncode") or one of the '
+                "indexing codes (%s)." % ", ".join(list(self._codes_index_dict.keys()))
+            )
+
+        if isinstance(select_field, str):
+            select_field = select_field.encode()
+        elif not isinstance(select_field, bytes):
+            try:
+                select_field = list(select_field)
+            except TypeError:
+                raise ValueError(
+                    "select_field must be given as a string or sequence "
+                    "of strings when using an indexing code."
+                )
+            for idx, item in enumerate(select_field):
+                if isinstance(item, str):
+                    select_field[idx] = item.encode()
+                elif not isinstance(item, bytes):
+                    raise ValueError(
+                        "select_field must be given as a string or sequence "
+                        "of strings when using an indexing code."
+                    )
+
+        data_mask = np.logical_and(
+            super().where("v_name", "eq", select_field.encode(), mask, False, False),
+            super().where("code", select_comp, select_val, mask, False, False),
+        )
+
+        if return_index:
+            return list(self._data["icode"][data_mask])
+        elif return_dict:
+            return {select_field: self._data["icode"][data_mask]}
 
 
 ########################################################################################
@@ -1305,7 +1454,7 @@ class MirParser(object):
                     if item_diff:
                         is_eq = False
                         if verbose:
-                            print(f"{item} has the same keys, but different values")
+                            print(f"{item} has the same keys, but different values.")
                         break
                 # Nothing to do further here with dicts
                 continue
@@ -3348,7 +3497,7 @@ class MirParser(object):
 
         # Filter out the last three data products, based on the above
         eng_filter = np.isin(self._eng_read["inhid"], in_inhid)
-        we_filter = np.isin(self._we_read["scanNumber"], in_inhid)
+        we_filter = np.isin(self._we_read["ints"], in_inhid)
         ac_filter = (
             np.isin(self._ac_read["inhid"], in_inhid) if self._has_auto else None
         )
@@ -4160,7 +4309,7 @@ class MirParser(object):
             Name of the field(s) which contains the unique index information (e.g.,
             inhid for `_in_read`). No default. Typically, "inhid" is matched to elements
             in in_read, "blhid" to bl_read, "sphid" to sp_read, "achid" to ac_read,
-            "scanNumber" to we_read, ("inhid", "antennaNumber") for eng_read and
+            "ints" to we_read, ("inhid", "antennaNumber") for eng_read and
             ("v_name", "icode, "ncode").
         any_match : bool
             Nominally the method checks to see if all fields in each array match when
@@ -4216,7 +4365,7 @@ class MirParser(object):
             for `_in_read`). No default, not requird if `arr1` and `arr2` have a dtype
             of codes_dtype. Typically, "inhid" is matched to elements in in_read and
             eng_read, "blhid" to bl_read, "sphid" to sp_read, "achid" to ac_read, and
-            "scanNumber" to we_read.
+            "ints" to we_read.
         return_indices : bool
             If set to True, return which index values of `arr1` were merged into the
             final metadata array.
@@ -4335,7 +4484,7 @@ class MirParser(object):
             "eng_data": ("inhid", "antennaNumber"),
             "bl_data": "blhid",
             "sp_data": "sphid",
-            "we_data": "scanNumber",
+            "we_data": "ints",
             "antpos_data": "antenna",
         }
 
@@ -4979,9 +5128,7 @@ class MirParser(object):
 
             # Update index values
             inhid_dict = inhid_dict_list[idx]
-            temp_we_read["scanNumber"] = [
-                inhid_dict[idx] for idx in temp_we_read["scanNumber"]
-            ]
+            temp_we_read["ints"] = [inhid_dict[idx] for idx in temp_we_read["ints"]]
             # Hold on to array for later concat
             we_read_list.append(temp_we_read)
 
