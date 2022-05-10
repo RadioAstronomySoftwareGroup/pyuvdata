@@ -2845,15 +2845,29 @@ class UVData(UVBase):
                     else:
                         auto_imag = np.any(auto_imag[:, :, :, pol_screen])
                 if auto_imag:
+                    if np.all(pol_screen):
+                        max_imag = np.max(np.abs(np.imag(self.data_array[autos])))
+                    else:
+                        auto_data = self.data_array[autos]
+                        if self.future_array_shapes:
+                            max_imag = np.max(
+                                np.abs(np.imag(auto_data[:, :, pol_screen]))
+                            )
+                        else:
+                            max_imag = np.max(
+                                np.abs(np.imag(auto_data[:, :, :, pol_screen]))
+                            )
                     if fix_autos:
                         warnings.warn(
                             "Fixing auto-correlations to be be real-only, after some "
-                            "imaginary values were detected in data_array."
+                            "imaginary values were detected in data_array. "
+                            f"Largest imaginary component was {max_imag}."
                         )
                         self._fix_autos()
                     else:
                         raise ValueError(
                             "Some auto-correlations have non-real values in data_array."
+                            f" Largest imaginary component was {max_imag}."
                             " You can attempt to fix this by setting fix_autos=True."
                         )
             if np.any(
