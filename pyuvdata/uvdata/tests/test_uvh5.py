@@ -6,6 +6,7 @@
 
 """
 import os
+import json
 
 import h5py
 import numpy as np
@@ -116,6 +117,33 @@ def initialize_with_zeros_ints(uvd, filename):
         flags_dset = flags  # noqa
         nsample_dset = nsamples  # noqa
     return
+
+
+def make_old_shapes(filename):
+    """Modify the file to have the old shapes
+
+    (it always writes them with the future shapes)
+    """
+    with h5py.File(filename, "r+") as h5f:
+        freq_array = h5f["Header/freq_array"][()]
+        del h5f["Header/freq_array"]
+        h5f["Header/freq_array"] = freq_array[np.newaxis, :]
+
+        channel_width = h5f["Header/channel_width"][()]
+        del h5f["Header/channel_width"]
+        h5f["Header/channel_width"] = channel_width[0]
+
+        data_array = h5f["Data/visdata"][()]
+        del h5f["Data/visdata"]
+        h5f["Data/visdata"] = data_array[:, np.newaxis, :, :]
+
+        flag_array = h5f["Data/flags"][()]
+        del h5f["Data/flags"]
+        h5f["Data/flags"] = flag_array[:, np.newaxis, :, :]
+
+        nsamples = h5f["Data/nsamples"][()]
+        del h5f["Data/nsamples"]
+        h5f["Data/nsamples"] = nsamples[:, np.newaxis, :, :]
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -460,14 +488,12 @@ def test_uvh5_read_multiple_files_axis(casa_uvfits, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_uvh5_partial_read_antennas(casa_uvfits, future_shapes, tmp_path):
+def test_uvh5_partial_read_antennas(casa_uvfits, tmp_path):
     """
     Test reading in only certain antennas from disk.
     """
     uv_in = casa_uvfits
-    if future_shapes:
-        uv_in.use_future_array_shapes()
+    uv_in.use_future_array_shapes()
 
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
@@ -491,14 +517,12 @@ def test_uvh5_partial_read_antennas(casa_uvfits, future_shapes, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_uvh5_partial_read_freqs(casa_uvfits, future_shapes, tmp_path):
+def test_uvh5_partial_read_freqs(casa_uvfits, tmp_path):
     """
     Test reading in only certain frequencies from disk.
     """
     uv_in = casa_uvfits
-    if future_shapes:
-        uv_in.use_future_array_shapes()
+    uv_in.use_future_array_shapes()
 
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
@@ -506,6 +530,7 @@ def test_uvh5_partial_read_freqs(casa_uvfits, future_shapes, tmp_path):
     # change telescope name to avoid errors
     uv_in.telescope_name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
+
     uvh5_uv.read(testfile)
 
     # select on frequency channels
@@ -523,14 +548,12 @@ def test_uvh5_partial_read_freqs(casa_uvfits, future_shapes, tmp_path):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Selected polarization values are not evenly spaced")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_uvh5_partial_read_pols(casa_uvfits, future_shapes, tmp_path):
+def test_uvh5_partial_read_pols(casa_uvfits, tmp_path):
     """
     Test reading in only certain polarizations from disk.
     """
     uv_in = casa_uvfits
-    if future_shapes:
-        uv_in.use_future_array_shapes()
+    uv_in.use_future_array_shapes()
 
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
@@ -559,14 +582,12 @@ def test_uvh5_partial_read_pols(casa_uvfits, future_shapes, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_uvh5_partial_read_times(casa_uvfits, future_shapes, tmp_path):
+def test_uvh5_partial_read_times(casa_uvfits, tmp_path):
     """
     Test reading in only certain times from disk.
     """
     uv_in = casa_uvfits
-    if future_shapes:
-        uv_in.use_future_array_shapes()
+    uv_in.use_future_array_shapes()
 
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
@@ -590,14 +611,12 @@ def test_uvh5_partial_read_times(casa_uvfits, future_shapes, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_uvh5_partial_read_lsts(casa_uvfits, future_shapes, tmp_path):
+def test_uvh5_partial_read_lsts(casa_uvfits, tmp_path):
     """
     Test reading in only certain lsts from disk.
     """
     uv_in = casa_uvfits
-    if future_shapes:
-        uv_in.use_future_array_shapes()
+    uv_in.use_future_array_shapes()
 
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
@@ -637,6 +656,10 @@ def test_uvh5_partial_read_multi1(casa_uvfits, future_shapes, tmp_path):
     # change telescope name to avoid errors
     uv_in.telescope_name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
+
+    if not future_shapes:
+        make_old_shapes(testfile)
+
     uvh5_uv.read(testfile)
 
     # now test selecting on multiple axes
@@ -704,6 +727,10 @@ def test_uvh5_partial_read_multi2(casa_uvfits, future_shapes, tmp_path):
     # change telescope name to avoid errors
     uv_in.telescope_name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
+
+    if not future_shapes:
+        make_old_shapes(testfile)
+
     uvh5_uv.read(testfile)
 
     # now test selecting on multiple axes
@@ -770,6 +797,10 @@ def test_uvh5_partial_read_multi3(casa_uvfits, future_shapes, tmp_path):
     # change telescope name to avoid errors
     uv_in.telescope_name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
+
+    if not future_shapes:
+        make_old_shapes(testfile)
+
     uvh5_uv.read(testfile)
 
     # now test selecting on multiple axes
@@ -3327,6 +3358,25 @@ def test_cast_to_multiphase(uv_uvh5, tmp_path):
     test_uvh5.read(testfile)
 
     assert test_uvh5 == uv_uvh5
+
+
+@pytest.mark.filterwarnings("ignore:LST values stored ")
+def test_old_phase_center_catalog_format(sma_mir, tmp_path):
+    testfile = os.path.join(tmp_path, "outtest_old_pc_catalog.uvh5")
+    sma_mir.write_uvh5(testfile)
+
+    with h5py.File(testfile, "r+") as h5f:
+        del h5f["/Header/phase_center_catalog"]
+        header = h5f["/Header"]
+
+        phase_dict = header.create_group("phase_center_catalog")
+        for k in sma_mir.phase_center_catalog.keys():
+            # Dictionary entries used to be written out as JSON-formatted strings.
+            phase_dict[k] = np.string_(json.dumps(sma_mir.phase_center_catalog[k]))
+
+    uvd = UVData.from_file(testfile)
+    uvd.history = sma_mir.history
+    assert uvd == sma_mir
 
 
 def test_none_extra_keywords(uv_uvh5, tmp_path):
