@@ -249,13 +249,7 @@ class UVH5(UVData):
             # Here is where we collect the other source/phasing info
             self.phase_center_catalog = {}
             key_list = list(header["phase_center_catalog"].keys())
-            if isinstance(header["phase_center_catalog"][key_list[0]], np.bytes_):
-                # This is the old way this was written
-                for key in header["phase_center_catalog"].keys():
-                    self.phase_center_catalog[key] = json.loads(
-                        bytes(header["phase_center_catalog"][key][()]).decode("utf8")
-                    )
-            else:
+            if isinstance(header["phase_center_catalog"][key_list[0]], h5py.Group):
                 # This is the new, correct way
                 for pc, pc_dict in header["phase_center_catalog"].items():
                     self.phase_center_catalog[pc] = {}
@@ -268,6 +262,12 @@ class UVH5(UVData):
                             self.phase_center_catalog[pc][key] = None
                         else:
                             self.phase_center_catalog[pc][key] = dset[()]
+            else:
+                # This is the old way this was written
+                for key in header["phase_center_catalog"].keys():
+                    self.phase_center_catalog[key] = json.loads(
+                        bytes(header["phase_center_catalog"][key][()]).decode("utf8")
+                    )
         else:
             # check for older phasing information
             self.phase_type = bytes(header["phase_type"][()]).decode("utf8")
@@ -613,7 +613,6 @@ class UVH5(UVData):
                     visdata = uvutils._index_dset(visdata_dset, inds)
                 flags = uvutils._index_dset(flags_dset, inds)
                 nsamples = uvutils._index_dset(nsamples_dset, inds)
-
                 # down select on other dimensions if necessary
                 # use indices not slices here: generally not the bottleneck
                 if not multidim_index and freq_frac < 1:

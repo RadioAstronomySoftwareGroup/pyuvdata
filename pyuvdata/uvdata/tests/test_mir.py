@@ -205,7 +205,7 @@ def test_read_mir_write_uvh5(sma_mir, tmp_path):
     """
     Mir to uvfits loopback test.
 
-    Read in Mir files, write out as uvfits, read back in and check for
+    Read in Mir files, write out as uvh5, read back in and check for
     object equality.
     """
     testfile = os.path.join(tmp_path, "outtest_mir.uvh5")
