@@ -367,10 +367,10 @@ we_dtype = np.dtype(
     ]
 ).newbyteorder("little")
 
-# ac_read is _not_ something that is actually read in, but is instead a "helper"
+# ac_read is _not_ something that is typically read in, but is instead a "helper"
 # data structure for recording some of the metadata associated with the auto
 # correlations. Because of this, the dtype below may change.
-ac_read_dtype = np.dtype(
+ac_dtype = np.dtype(
     [
         ("inhid", np.int32),
         ("achid", np.int32),
@@ -385,17 +385,67 @@ ac_read_dtype = np.dtype(
 antpos_dtype = np.dtype([("antenna", np.int16), ("xyz_pos", np.float64, 3)])
 
 
-class MirMetaData(object):
-    """Class for working with sets of metadata for Mir datasets."""
+class MirMetaError(Exception):
+    """
+    Class for particular errors within MirMetaData objects.
 
-    def __init__(self, filetype, dtype, index_name, filepath=None):
+    This class is used to flag errors within MirMetaData objects, usually relating to
+    particular indexing fields not being found, or clashes between the indexes of two
+    objects. It is used in practice as a unique identifier for these errors, so that
+    they can be caught and handled within methods of the MirParser class.
+    """
+
+    pass
+
+
+class MirMetaData(object):
+    """
+    Class for metadata within Mir datasets.
+
+    This class is used as the parent class for the different types of metadata tables
+    that exist within a Mir dataset. The object is built around a complex ndarray, which
+    typically contains dozens of fields with different metadata stored. The object also
+    contains a mask, which is useful for marking specific header entries as being in
+    use (particularly when one has multiple MirMetaData objects together, like in the
+    MirParser object).
+    """
+
+    def __init__(
+        self,
+        filetype,
+        dtype,
+        header_key_name,
+        pseudo_header_key_names=None,
+        filepath=None,
+    ):
+        """
+        Initialize a MirMetaData object.
+
+        Parameters
+        ----------
+        filetype : str
+            Name corresponding to a filetype in a Mir data set that the object is
+            populated by (where the full path is filepath + "/" + filetype).
+        dtype : dtype
+            Numpy-based description of the binary data stored in the file.
+        header_key : str or None
+            Field inside of `dtype` which contains a unique indexing key for the
+            metadata in the file. Typically used to reference values between MirMetaData
+            objects. If set to `None`, no field is used for indexing.
+        pseudo_index : list of str or None
+            Required if `index_name` is `None`, used to identify a group of fields,
+            which when taken in combination, can be used as a unique identifier.
+        filepath : str
+            Optional argument specifying the path to the Mir data folder.
+        """
         self._filetype = filetype
         self.dtype = dtype
-        self._index = index_name
+        self._header_key = header_key_name
+        self._pseudo_header_key = pseudo_header_key_names
 
         self._data = None
         self._mask = None
-        self._header_key_pos_dict = None
+        self._header_key_index_dict = None
         self._stored_values = {}
 
         if filepath is not None:
@@ -407,28 +457,36 @@ class MirMetaData(object):
 
         Yields
         ------
-        attr : MirParser attribute
-            Attribute of the MirParser object.
+        data_slice : ndarray
+            Value(s) at a given position in the .
         """
-        attribute_list = list(vars(self).keys())
+        for idx in np.where(self._mask)[0]:
+            yield self._data[idx]
 
-        for attribute in attribute_list:
-            yield attribute
-
-    def copy(self):
+    def copy(self, skip_data=False):
         """
         Make and return a copy of the MirMetaData object.
 
-        Thing.
+        Parameters
+        ----------
+        skip_data : bool
+            If set to True, forgo copying the data-related attributes. Default is False.
+
+        Returns
+        -------
+        new_obj : MirMetaData object
+            Copy of the originial object.
         """
         # Initialize a new object of the given type
         copy_obj = type(self)()
 
-        deepcopy_list = [
-            "__stored_values",
-        ]
+        deepcopy_list = ["_stored_values"]
+        data_list = ["_stored_values", "_data", "_mask", "_header_key_index_dict"]
 
-        for attr in self:
+        for attr in vars(self):
+            if skip_data and attr in data_list:
+                continue
+
             if attr in deepcopy_list:
                 copy_attr = copy.deepcopy(getattr(self, attr))
             else:
@@ -441,92 +499,107 @@ class MirMetaData(object):
 
         return copy_obj
 
-    def __eq__(self, other, verbose=False, ignore_params=None):
+    def __len__(self):
+        """
+        Calculate the number entries in the data table.
+
+        Returns
+        -------
+        len : int
+            Number of unique entries contained within the meta data.
+        """
+        return self._data.size
+
+    def __eq__(self, other, verbose=False, ignore_params=None, ignore_mask=True):
         """
         Compare MirMetaData objects for equality.
 
-        This is a thing.
+        Parameters
+        ----------
+        other : MirMetaData object
+            Object of the same type to compare to.
+        verbose : bool
+            Whether to print out the differences between the two objects, if any are
+            found. Default is False.
+        ignore_params : list of str or None
+            Optional argument, which can be used to specify whether to ignore certain
+            attributes when comparing objects. By default, no attributes are ignored.
+        ignore_mask : bool
+            Whether or not to ignore the internal mask when performing the comparison.
+            If set to True, will only compare those entries where the mask is set to
+            True. Default is False.
+
+        Returns
+        -------
+        is_eq : bool
+            Value describing whether or not the two objects contain the same data.
         """
         if not isinstance(other, self.__class__):
-            raise ValueError(
-                "Cannot compare MirParser with non-MirParser class objects."
-            )
+            raise ValueError("Cannot compare MirMetaData with non-MirMetaData objects.")
 
-        # I say these objects are the same -- prove me wrong!
-        is_eq = True
+        # This _should_ be impossible unless the user mucked with the dtype, but
+        # for safety sake, check now.
+        if self.dtype != other.dtype:
+            raise ValueError("Cannot compare MirMetaData with different dtypes.")
 
-        # First up, check the list of attributes between the two objects
-        this_attr = list(self)
-        other_attr = list(other)
+        if ignore_mask and (len(self) != len(other)):
+            if verbose:
+                print("Objects are of different lengths.")
+            return False
+        elif not (np.array_equal(self._mask, other._mask) or ignore_mask):
+            if verbose:
+                print("Objects have different masks.")
+            return False
 
+        # Figure out which fields inside the data array we need to compare.
+        comp_fields = list(self.dtype.fields)
         if ignore_params is not None:
             for item in ignore_params:
-                if item in this_attr:
-                    this_attr.remove(item)
-                if item in other_attr:
-                    other_attr.remove(item)
+                try:
+                    comp_fields.remove(item)
+                except ValueError:
+                    pass
 
-        # Go through and drop any attributes that both objects do not have (and set
-        # is_eq to False if any such attributes found).
-        for item in this_attr.union(other_attr):
-            target = None
-            if item not in this_attr:
-                other_attr.remove(item)
-                target = "right"
-            elif item not in other_attr:
-                this_attr.remove(item)
-                target = "left"
-            if target is not None:
-                is_eq = False
-                if verbose:
-                    print("%s does not exist in %s." % (item, target))
+        # At this point we are ready to do our field-by-field comparison.
+        # I say these objects are the same -- prove me wrong!
+        is_eq = True
+        for item in comp_fields:
+            left_vals = self[item] if ignore_mask else self._data[item]
+            right_vals = other[item] if ignore_mask else other._data[item]
 
-        # At this point we _only_ have attributes present in both lists
-        for item in this_attr:
-            this_attr = getattr(self, item)
-            other_attr = getattr(other, item)
-            # Make sure the attributes are of the same type to help ensure
-            # we can actually compare the two without error.
-            if not isinstance(this_attr, type(other_attr)):
+            if not np.array_equal(left_vals, right_vals):
                 is_eq = False
                 if verbose:
                     print(
-                        "%s is of different types, left is %s, right is %s."
-                        % (item, type(this_attr), type(other_attr))
-                    )
-                continue
-
-            # If both are NoneType, we actually have nothing to do here
-            if this_attr is None:
-                continue
-
-            item_diff = False
-            # Now go through and compare the attribute values
-
-            if isinstance(getattr(self, item), np.ndarray):
-                # Need to handle ndarrays a bit special here
-                if not np.array_equal(getattr(self, item), getattr(other, item)):
-                    item_diff = True
-            elif getattr(self, item) != getattr(other, item):
-                item_diff = True
-
-            if item_diff:
-                is_eq = False
-                if verbose:
-                    print(
-                        f"{item} has different values, left is {getattr(self, item)}, "
-                        f"right is {getattr(other, item)}."
+                        "%s is different, left is %s, right is %s."
+                        % (item, left_vals, right_vals)
                     )
 
         return is_eq
 
-    def __ne__(self, other, verbose=False, ignore_params=None):
+    def __ne__(self, other, verbose=False, ignore_params=None, ignore_mask=True):
         """
         Compare MirMetaData objects for inequality.
 
-        This is a thing.
+        Parameters
+        ----------
+        other : MirMetaData object
+            Object of the same type to compare to.
+        verbose : bool
+            Whether to print out the differences between the two objects, if any are
+            found. Default is False.
+        ignore_params : list of str
+            Optional argument, which can be used to specify whether to ignore certain
+            attributes when comparing objects. By default, no attributes are ignored.
+
+        Returns
+        -------
+        is_ne : bool
+            Value describing whether the two objects do not contain the same data.
         """
-        return not self.__eq__(other, verbose=verbose, ignore_params=ignore_params)
+        return not self.__eq__(
+            other, verbose=verbose, ignore_params=ignore_params, ignore_mask=ignore_mask
+        )
 
     def where(
         self,
@@ -534,21 +607,18 @@ class MirMetaData(object):
         select_comp,
         select_val,
         mask=None,
-        return_index=False,
-        return_dict=False,
+        return_header_keys=False,
     ):
         """
-        Parse a select command into a set of boolean masks.
+        Find where metadata match a given set of selection criteria.
 
-        This is an internal helper function built as part of the low-level API, and not
-        meant to be used by general users. This method will produce a masking screen
-        based on the arguments provided to determine which data should be selected,
-        and is called by the method `MirParser.select`.
+        This method will produce a masking screen based on the arguments provided to
+        determine which entries matche a given set of conditions.
 
         Parameters
         ----------
         select_field : str
-            Field in the `data_arr` to use in evaluating whether to select data.
+            Field in the metadata to evaluate.
         select_comp : str
             Specifies the type of comparison to do between the value supplied in
             `select_val` and the metadata. No default, allowed values include:
@@ -566,15 +636,23 @@ class MirMetaData(object):
             or string. If `select_comp` is "btw" or "out", then this must be a list
             of length 2. If `select_comp` is "eq" or "ne", then this can be either a
             single value or a sequence of values.
-        data_arr : ndarray
-            Structured array to evaluate, which should have the field `select_field`
-            within it. Must simply contain named fields.
+        mask : ndarray of bool
+            Optional argument, of the same length as the MirMetaData object, which is
+            applied to the output of the selection parsing through an elemenent-wise
+            "and" operation. Useful for combining multiple calls to `where` together.
+        return_header_keys : bool
+            If set to True, return a list of the header key values where matching
+            entries are found. Default is False, which will return an ndarray of type
+            bool, and length equal to that of the MirMetaData object.
 
         Returns
         -------
-        data_mask : ndarray of bool
-            Boolean array marking whether `select_field` in `data_arr` meets the
-            condition set by `select_comp` and `select_val`.
+        return_arr : ndarray of bool or list
+            If `return_header_keys=False`, boolean array marking whether `select_field`
+            meets the condition set by `select_comp` and `select_val`. If
+            `return_header_keys=True`, then instead of a boolean array, a list of ints
+            (or tuples of ints if the MetaDataObject has only a pseudo header key)
+            corresponding to the header key values.
 
         Raises
         ------
@@ -582,10 +660,15 @@ class MirMetaData(object):
             If `select_comp` is not one of the permitted strings, or if `select_field`
             is not one of the fields within `data_arr`.
         """
+        if select_field not in self._data.dtype.names:
+            raise MirMetaError(
+                "select_field %s not found in structured array." % select_field
+            )
+
         # Create a simple dict to match operation keywords to a function.
         op_dict = {
-            "eq": lambda val, comp: np.isin(val, comp),
-            "ne": lambda val, comp: np.isin(val, comp, invert=True),
+            "eq": np.equal,
+            "ne": np.not_equal,
             "lt": np.less,
             "le": np.less_equal,
             "gt": np.greater,
@@ -594,58 +677,149 @@ class MirMetaData(object):
             "out": lambda val, lims: ((val < lims[0]) | (val > lims[1])),
         }
 
+        if type(select_val) in [list, set, tuple, bytes, np.ndarray]:
+            op_dict["eq"] = lambda val, comp: np.isin(val, comp)
+            op_dict["ne"] = lambda val, comp: np.isin(val, comp, invert=True)
+
         # Make sure the inputs look valid
-        if select_comp not in op_dict.keys():
-            raise ValueError(
-                "select_comp must be one of: %s" % ", ".join(op_dict.keys())
-            )
-        if select_field not in self._data.dtype.names:
-            raise KeyError(
-                "select_field %s not found in structured array." % select_field
-            )
+        if select_comp not in op_dict:
+            raise ValueError("select_comp must be one of: %s" % ", ".join(op_dict))
 
         # Evaluate data_arr now
         data_mask = op_dict[select_comp](self._data[select_field], select_val)
 
-        # Apply the mask now, default to object's mask if there is no argument
-        # being supplied to the mask argument.
-        data_mask &= self._mask if mask is None else mask
+        # Trap a corner-case here (most commonly w/ we-read), where some attributes
+        # are multi-dim arrays rather than singleton values per index position.
+        while data_mask.ndim > 1:
+            data_mask = np.any(data_mask, axis=-1)
 
-        if return_index:
-            return list(zip(*[self._data[index][data_mask] for index in self._index]))
-        elif return_dict:
-            return {index: self._data[index][data_mask] for index in self._index}
-        else:
-            return data_mask
+        # Apply the mask now if an argument has been supplied for it.
+        if mask is not None:
+            data_mask &= mask
 
-    def get_value(self, field_name, mask=None, index=None, header_key=None, where=None):
+        if return_header_keys and self._header_key is None:
+            return list(
+                zip(*[self._data[key][data_mask] for key in self._pseudo_header_key])
+            )
+        elif return_header_keys:
+            return self._data[self._header_key][data_mask]
+
+        return data_mask
+
+    def _index_query(
+        self,
+        use_mask=None,
+        where=None,
+        and_where_args=True,
+        header_key=None,
+        index=None,
+    ):
+        """
+        Find array index positions where selection criteria are met.
+
+        This is an internal helper function used by several methods of the MirMetaData
+        class, and is not designed for users, but instead is part of the developer API.
+        This function will report back the index positions in the `_data` attribute
+        where the given selection criteria are met.
+
+        Parameters
+        ----------
+        use_mask : bool
+            If True, consider only data where the internal mask is marked True. Default
+            is True, unless an argument is supplied to `index` or `header_key`, in
+            which case the default is False.
+        where : tuple or sequence of tuples
+            Optional argument, each tuple is used to call the `where` method to identify
+            which index positions match the given criteria. Can be supplied as a
+            sequence of tuples rather than a single tuple, but each much be of length
+            3, where the first argument is the `select_field` argument, the second is
+            the `select_comp` argument, and the last is the `select_val` argument. See
+            the documentation of `where` for more details.
+        and_where_args : bool
+            If set to True, then the individual calls to the `where` method will be
+            combined via an element-wise "and" operator, such that the returned array
+            will report the positions where all criterea are met. If False, results
+            are instead combined via an element-wise "or" operator. Default is True.
+            If supplied, the argument for `mask` will be combined with the output from
+            the calls to `where` with the same logic.
+        index : sequence of ints
+            Index positions of the array. Note that this is typicaly what you are
+            calling this method for, but is included as an argument to simplify
+            argument processing for various calls.
+        header_key : sequence of ints or tuples
+            Header key values to get the index position for, which are always recorded
+            as ints. If the object has no header key, but instead a pseudo header key,
+            a sequence of tuples (matching the pseudo keys) should be supplied.
+
+        Returns
+        -------
+        index_arr : ndarray
+            Array that can be used to access specific index positions, supplied as an
+            ndarray of dtype int of variable length if supplying arguments to either
+            `header_key` or `index`, otherwise of dtype bool and length matching that
+            of the object.
+
+        Raises
+        ------
+        ValueError
+            If attempting to supply arguments to two or more of `index`, `header_key`,
+            or `where`; or when attempting to supply a mask when supplying an argument
+            to either `index` or `header_key`; or when the length of the mask does not
+            match that of the object itself. Also raised if the argument supplied to
+            `where` is not a 3-element tuple or seqeuence of 3-element tuples.
+        MirMetaError
+            If supplying an argument to `where`, and the selected field matches does
+            not match for any of the supplied arguments.
+        """
         # Check to make sure we aren't providing too many arguments here.
-        if (index is None) + (header_key is None) + (index is None) < 2:
+        arg_check = (index is None) + (header_key is None) + (where is None)
+
+        if arg_check < 2:
             raise ValueError(
                 "Only of of index, header_key, and where arguments can be set."
             )
-        if not (index is None and header_key is None) and mask is not None:
+        elif arg_check == 3:
+            return self._mask.copy() if (use_mask or (use_mask is None)) else ...
+        elif where is not None:
+            use_mask = True if (use_mask is None) else use_mask
+        elif use_mask:
             raise ValueError(
-                "Cannot set an argument for mask when using index or header_key args."
+                "Cannot set an argument for mask when setting index or header_key."
             )
 
-        # If we are accessing direct index values of this array, then use the
-        # pos_dict attribute to figure out which elements of the array that we need.
-        if index is not None or header_key is not None:
-            idx_arr = index
-            if header_key is not None:
-                idx_arr = [self._header_key_pos_dict[key] for key in header_key]
+        if index is not None:
+            # This is the dead-simple case - return just the input.
+            return index
+        elif header_key is not None:
+            # This is a little trickier - use the pos dict to determine which entries
+            # it is that we are trying to grab.
+            if isinstance(header_key, int) or issubclass(type(header_key), np.integer):
+                return self._header_key_index_dict[header_key]
+            else:
+                return np.array(
+                    [self._header_key_index_dict[key] for key in header_key], dtype=int
+                )
 
-            return self._data[field_name][idx_arr]
+        # At this point, we expect to hand back a boolean mask, so either instantiate
+        # it or make a copy of the supplied mask argument.
+        mask = (
+            self._mask.copy() if use_mask else np.full(len(self), bool(and_where_args))
+        )
 
-        # Otherwise, if we are going through where statements, then use the where
-        # method to build a mask that we can use to select the data on.
         if where is not None:
-            # Check to make sure that where matches what we expect - want to both
-            # accept a tuple and sequence of tuples, so force it to be the latter.
+            # Otherwise, if we are going through where statements, then use the where
+            # method to build a mask that we can use to select the data on. Check to
+            # make sure that where matches what we expect - want to both accept a tuple
+            # and sequence of tuples, so force it to be the latter.
             try:
-                if not (isinstance(where[0], tuple) or isinstance(where[0], list)):
+                if not (isinstance(where[0], (tuple, list))):
+                    # If where is not indexable, it'll raise a TypeError here.
                     where = [where]
+                for item in where:
+                    # Note we raise a TypeError in this loop to trap an identical bug,
+                    # namely that the user has not provided a valid argument for where.
+                    if len(item) != 3:
+                        raise TypeError
             except TypeError:
                 raise ValueError(
                     "Argument for where must be either a 3-element tuple, or sequence "
@@ -653,260 +827,839 @@ class MirMetaData(object):
                 )
 
             # Now actually start going through the where statements.
-            sel_mask = np.ones_like(self._mask)
+            where_success = False
             for item in where:
-                if len(item) != 3:
-                    raise ValueError(
-                        "Argument for where must be either a 3-element tuple, or "
-                        "sequence of 3-element tuples."
-                    )
-                sel_mask |= self.where(*item, mask=mask)
+                try:
+                    if and_where_args:
+                        mask &= self.where(*item)
+                    else:
+                        mask |= self.where(*item)
+                    where_success = True
+                except MirMetaError:
+                    pass
 
-            return self._data[field_name][sel_mask]
+        # If we had NO success with where, then we should raise an error now.
+        if not where_success:
+            raise MirMetaError(
+                "Argument for where has no match(es) for select_field for this "
+                "MirMetaData object. Must be one of %s." % ", ".join(self.dtype.fields)
+            )
 
-        # Finally, if no arguments are provided, then just give the whole array, masked
-        # by the primary filter.
-        return self._data[field_name][... if (mask is None) else mask]
+        return mask
+
+    def get_value(
+        self,
+        field_name,
+        use_mask=None,
+        where=None,
+        and_where_args=True,
+        header_key=None,
+        index=None,
+        return_tuples=False,
+    ):
+        """
+        Get values from a particular field or set of fields of the metadata.
+
+        This function allows one to get the values for a particular field or set of
+        fields within the metadata. Selection criteria can optionally be specified for
+        gathering only a subset of the metadata for the field(s).
+
+        Parameters
+        ----------
+        field_name : str or list of strs
+            Fields from which to extract data. Can either be given as either an str or
+            list of strs. Each str must match a field name, as list in the `dtype`
+            attribute of the object.
+        use_mask : bool
+            If True, consider only data where the internal mask is marked True. Default
+            is True, unless an argument is supplied to `index` or `header_key`, in
+            which case the default is False.
+        where : tuple of sequence of tuples
+            Optional argument, each tuple is used to call the `where` method to identify
+            which index positions match the given criteria. Can be supplied as a
+            sequence of tuples rather than a single tuple, but each much be of length
+            3, where the first argument is the `select_field` argument, the second is
+            the `select_comp` argument, and the last is the `select_val` argument. See
+            the documentation of `where` for more details. Cannot be specified with
+            `index` or `header_key`.
+        and_where_args : bool
+            If set to True, then the individual calls to the `where` method will be
+            combined via an element-wise "and" operator, such that the returned array
+            will report the positions where all criterea are met. If False, results
+            are instead combined via an element-wise "or" operator. Default is True.
+            If supplied, the argument for `mask` will be combined with the output from
+            the calls to `where` with the same logic.
+        index : sequence of int
+            Optional argument, specifies the index positions at which to extract data
+            from the meta data. Cannot be specified with `header_key` or `where`.
+        header_key : sequence of ints or tuples
+            Optional argument, values to match against the header key field, in order to
+            determine which entries of the array to extract. For example, if the header
+            key field "a" has the values [2, 4, 6, 8], setting this argument to [2, 8]
+            will grab the values of `field_name` in the metadata array at the index
+            positions [0, 3]. Cannot be specified with `index` or `where`.
+        return_tuples : bool
+            If set to True, return a list of tuples containing the value of each field
+            (in the order provided in `field_name`). If False, return an ndarray or
+            list of ndarrays, where each array contains the set of values matching the
+            specified selection criteria.
+
+        Returns
+        -------
+        value_arr : ndarray or list of ndarrays or tuples
+            Values for the specified field name where the selection criteria match.
+            If `return_tuples=False`, then this will be an ndarray (of varying dtype) if
+            a single field name was supplied, otherwise a list of ndarrays will be
+            returned. If `return_tuples=True`, then a tuple containing the set of all
+            fields at each index position will be provided.
+
+        Raises
+        ------
+        ValueError
+            If field_name is not a list, set, tuple, or str.
+        """
+        idx_arr = self._index_query(use_mask, where, and_where_args, header_key, index)
+
+        if isinstance(field_name, (list, set, tuple)):
+            metadata = []
+            for item in field_name:
+                if isinstance(item, str):
+                    metadata.append(self._data[item][idx_arr])
+                else:
+                    raise ValueError("field_name must either be a str or list of str.")
+        else:
+            metadata = self._data[field_name][idx_arr]
+
+        if return_tuples:
+            return list(zip(*metadata) if isinstance(metadata, list) else zip(metadata))
+        else:
+            return metadata
+
+    def __getitem__(self, item):
+        """
+        Get values for a particular field using get_value.
+
+        Parameters
+        ----------
+        field_name : str
+            Fields from which to extract data. Must match a field name, as list in the
+            `dtype` attribute of the object.
+
+        Returns
+        -------
+        value_arr : ndarray or list of ndarrays or tuples
+            Values for the specified field name where the selection criteria match.
+            If `return_tuples=False`, then this will be an ndarray (of varying dtype) if
+            a single field name was supplied, otherwise a list of ndarrays will be
+            returned. If `return_tuples=True`, then a tuple containing the set of all
+            fields at each index position will be provided.
+        """
+        return self.get_value(item)
 
     def set_value(
-        self, field_name, value, mask=None, index=None, header_key=None, where=None
+        self,
+        field_name,
+        value,
+        use_mask=None,
+        where=None,
+        and_where_args=True,
+        header_key=None,
+        index=None,
     ):
-        # Check to make sure we aren't providing too many arguments here.
-        if (index is None) + (header_key is None) + (index is None) < 2:
-            raise ValueError(
-                "Only of of index, header_key, and where arguments can be set."
+        """
+        Set values from a particular field of the metadata.
+
+        Allows one to set the values of specific field within the metadata, optionally
+        based on a set of selection criteria.
+
+        Parameters
+        ----------
+        field_name : str
+            Fields from which to extract data. Must match a field name, as list in the
+            `dtype` attribute of the object.
+        value : ndarray
+            Values to set the field in question to, where the provided selection
+            criteria match. Shape of the array must be broadcastable to either the shape
+            of the internal mask or to the shape of the `index` or `header_key`
+            arguments.
+        use_mask : bool
+            If True, consider only data where the internal mask is marked True. Default
+            is True, unless an argument is supplied to `index` or `header_key`, in
+            which case the default is False.
+        where : tuple of sequence of tuples
+            Optional argument, each tuple is used to call the `where` method to identify
+            which index positions match the given criteria. Can be supplied as a
+            sequence of tuples rather than a single tuple, but each much be of length
+            3, where the first argument is the `select_field` argument, the second is
+            the `select_comp` argument, and the last is the `select_val` argument. See
+            the documentation of `where` for more details. Cannot be specified with
+            `index` or `header_key`.
+        and_where_args : bool
+            If set to True, then the individual calls to the `where` method will be
+            combined via an element-wise "and" operator, such that the returned array
+            will report the positions where all criterea are met. If False, results
+            are instead combined via an element-wise "or" operator. Default is True.
+            If supplied, the argument for `mask` will be combined with the output from
+            the calls to `where` with the same logic.
+        header_key : sequence of ints or tuples
+            Optional argument, values to match against the header key field, in order to
+            determine which entries of the array to extract. For example, if the header
+            key field "a" has the values [2, 4, 6, 8], setting this argument to [2, 8]
+            will set the values of `field_name` in the metadata array at the index
+            positions [0, 3]. Cannot be specified with `index` or `where`.
+        index : sequence of int
+            Optional argument, specifies the index positions at which to set the values
+            of the metadata. Cannot be specified with `header_key` or `where`.
+
+        Raises
+        ------
+        UserWarning
+            If attempting to set the field "dataoff", which is typically only used for
+            internal indexing purposes, and is generally not modified. Also raised if
+            modifying one of the known (pseudo) header keys.
+        """
+        if field_name == "dataoff":
+            warnings.warn(
+                'Values in "dataoff" are typically only used for internal indexing, '
+                "and should generally not be set by users. If you have set this in "
+                "error, you can undo this by using the reset method."
             )
-        if not (index is None and header_key is None) and mask is not None:
-            raise ValueError(
-                "Cannot set an argument for mask when using index or header_key args."
+        elif field_name in [
+            "inhid",
+            "blhid",
+            "sphid",
+            "ints",
+            "v_name",
+            "icode",
+            "antennaNumber",
+            "antenna",
+            "achid",
+        ]:
+            warnings.warn(
+                "Changing fields that tie to header keys can result in unpredicable "
+                "behavior, and extreme care should be taken in directly modifying "
+                "them. If you have set this in error, you can undo this by using the "
+                "reset method."
             )
+
+        idx_arr = self._index_query(use_mask, where, and_where_args, header_key, index)
 
         # Make a copy of any changed variables, that we can revert if we ever
         # happen to need to do so.
         if field_name not in self._stored_values:
             self._stored_values[field_name] = self._data[field_name].copy()
 
-        # If we are accessing direct index values of this array, then ust he
-        # pos_dict attribute to figure out which elements of the array that we need.
-        if index is not None or header_key is not None:
-            idx_arr = index
-            if header_key is not None:
-                idx_arr = [self._header_key_pos_dict[key] for key in header_key]
-
-            self._data[field_name][idx_arr] = value
-            return
-
-        # Otherwise, if we are going through where statements, then use the where
-        # method to build a mask that we can use to select the data on.
-        if where is not None:
-            # Check to make sure that where matches what we expect - want to both
-            # accept a tuple and sequence of tuples, so force it to be the latter.
-            try:
-                if not (isinstance(where[0], tuple) or isinstance(where[0], list)):
-                    where = [where]
-            except TypeError:
-                raise ValueError(
-                    "Argument for where must be either a 3-element tuple, or sequence "
-                    "of 3-element tuples."
-                )
-
-            # Now actually start going through the where statements.
-            sel_mask = np.ones_like(self._mask)
-            for item in where:
-                if len(item) != 3:
-                    raise ValueError(
-                        "Argument for where must be either a 3-element tuple, or "
-                        "sequence of 3-element tuples."
-                    )
-                sel_mask |= self.where(*item, mask=mask)
-
-            self._data[field_name][sel_mask] = value
-            return
-
-        self._data[field_name][... if mask is None else mask] = value
-
-    def reset_values(self, field_name=None):
-        if field_name in self._stored_values:
-            update_list = [field_name]
-        elif field_name is None:
-            update_list = list(self._stored_values.keys())
-        else:
-            raise ValueError("No stored values for field %s." % field_name)
-
-        for field_name in update_list:
-            self._data[field_name] = self._stored_values.pop(field_name)
+        self._data[field_name][idx_arr] = value
 
     def __setitem__(self, item, value):
-        self.set_value(item, value, mask=self._mask)
+        """
+        Set values for a particular field using set_value.
 
-    def __getitem__(self, item):
-        return self.get_value(item, mask=self._mask)
+        field_name : str
+            Fields from which to extract data. Must match a field name, as list in the
+            `dtype` attribute of the object.
+        value : ndarray
+            Values to set the field in question to, where the provided selection
+            criteria match. Shape of the array must be broadcastable to either the shape
+            of the internal mask or to the shape of the `index` or `header_key`
+            arguments.
+        """
+        self.set_value(item, value)
 
-    def _generate_header_key_pos_dict(self):
-        if len(self._index) == 1:
-            pos_dict = {jdx: idx for idx, jdx in enumerate(self._data[self._index[0]])}
-        else:
-            pos_dict = {
-                tup: idx
-                for idx, tup in enumerate(
-                    zip([self._data[field] for field in self._index])
-                )
-            }
-
-        return pos_dict
-
-    def fromfile(self, filepath):
-        self._data = np.fromfile(
-            os.path.join(filepath, self._filetype), dtype=self.dtype
-        )
-        self._mask = np.ones(self._data.shape[0], dtype=bool)
-        self._header_key_pos_dict = self._generate_header_key_pos_dict()
-
-    def _writefile(self, filepath, append_data, datamask=...):
-        with open(filepath, "ab" if append_data else "wb+") as file:
-            self._data[datamask].tofile(file)
-
-    def tofile(
+    def _generate_mask(
         self,
-        filepath,
-        overwrite=False,
-        append_data=False,
-        check_index=False,
-        update_self=False,
+        where=None,
+        and_where_args=True,
+        header_key=None,
+        index=None,
     ):
-        if not os.path.isdir(filepath):
-            os.makedirs(filepath)
+        """
+        Generate a boolean mask based on selection criteria.
 
-        filepath = os.path.join(os.path.abspath(filepath), self._filetype)
-        datamask = np.where(self._mask)[0]
+        Note that this is an internal helper function which is not for general user use,
+        but instead is part of the low-level API for the MirMetaData object. Generates
+        a boolean mask to based on the selection criteria (where the array is set to
+        True when the selection criteria are met).
 
-        if (not append_data) and check_index:
-            warnings.warn("Ignoring check_index since no appending is being performed")
+        Parameters
+        ----------
+        where : tuple of sequence of tuples
+            Optional argument, each tuple is used to call the `where` method to identify
+            which index positions match the given criteria. Can be supplied as a
+            sequence of tuples rather than a single tuple, but each much be of length
+            3, where the first argument is the `select_field` argument, the second is
+            the `select_comp` argument, and the last is the `select_val` argument. See
+            the documentation of `where` for more details. Cannot be specified with
+            `index` or `header_key`.
+        and_where_args : bool
+            If set to True, then the individual calls to the `where` method will be
+            combined via an element-wise "and" operator, such that the returned array
+            will report the positions where all criterea are met. If False, results
+            are instead combined via an element-wise "or" operator. Default is True.
+            If supplied, the argument for `mask` will be combined with the output from
+            the calls to `where` with the same logic.
+        header_key : sequence of ints or tuples
+            Optional argument, values to match against the header key field, in order to
+            determine which entries of the array to extract. For example, if the header
+            key field "a" has the values [2, 4, 6, 8], setting this argument to [2, 8]
+            will mask at the index positions [0, 3] to True. Cannot be specified with
+            `index` or `where`.
+        index : sequence of int
+            Optional argument, specifies the index positions at which to set the mask to
+            True. Cannot be specified with `header_key` or `where`.
 
-        if os.path.exists(filepath):
-            if not (append_data or overwrite):
-                raise FileExistsError(
-                    "File already exists, must set overwrite or append_data to True, "
-                    "or delete the file %s in order to proceed." % filepath
-                )
-            if append_data and check_index:
-                copy_obj = type(self)()
-                copy_obj.fromfile(filepath)
-                idx1, idx2 = self._check_index_overlap(copy_obj)
-                if len(idx1) == 0:
-                    # Nothing further to check, you can proceed at this point without
-                    # needing to worry about the append mucking the index values
-                    pass
-                elif self._add_check(copy_obj, any_match=True):
-                    # Here we have a tricky situation - there _is_ overlap, but the
-                    # overlapping data appears identical. In that case, we craft a new
-                    # object that merges the data.
-                    # TODO: Fill in logic here
-                    pass
-                else:
-                    pass
+        Returns
+        -------
+        mask_arr : ndarray of bool
+            Array of boolean values, with length equal to that of the object itself.
+        """
+        idx_arr = self._index_query(False, where, and_where_args, header_key, index)
+        new_mask = np.zeros(len(self), dtype=bool)
 
-        self._writefile(filepath, append_data, datamask)
+        new_mask[idx_arr] = True
+        return new_mask
 
-        if update_self:
-            self.fromfile(filepath)
+    def get_mask(
+        self,
+        where=None,
+        and_where_args=True,
+        header_key=None,
+        index=None,
+    ):
+        """
+        Get value of the mask at a set of locations..
 
-    def _update_fields(self, update_dict, raise_err=False):
-        for field, data_dict in update_dict:
-            if isinstance(field, tuple):
-                has_match = True
-                for item in field:
-                    if not isinstance(item, str):
-                        raise ValueError("This is an error.")
-                    has_match &= item in self.dtype.fields
-                if not has_match:
-                    if raise_err:
-                        raise ValueError(
-                            "Field group %s not found in this object." % str(field)
-                        )
-                    break
-                arr_data = [self._data[subfield] for subfield in field]
-                for idx, val in enumerate(zip(*arr_data)):
-                    try:
-                        for subarr, temp_data in zip(arr_data, data_dict[val]):
-                            subarr[idx] = temp_data
-                    except KeyError:
-                        # If no matching key, then there is no update to perform
-                        pass
-            elif isinstance(field, str):
-                if field in self.dtype.fields:
-                    arr_data = self._data[field]
-                    for idx, val in enumerate(arr_data):
-                        try:
-                            arr_data[idx] = data_dict[val]
-                        except KeyError:
-                            # If no matching key, then there is no update to perform
-                            pass
-                elif raise_err:
-                    raise ValueError("Field %s not found in this object." % field)
-            else:
-                raise ValueError("This is an error")
+        This function allows one to get the value(s) of the internal mask. Selection
+        criteria can optionally be specified for accessing the mask at a specific set
+        of positions.
 
-    def _generate_new_index(self, other):
+        Parameters
+        ----------
+        where : tuple of sequence of tuples
+            Optional argument, each tuple is used to call the `where` method to identify
+            which index positions match the given criteria. Can be supplied as a
+            sequence of tuples rather than a single tuple, but each much be of length
+            3, where the first argument is the `select_field` argument, the second is
+            the `select_comp` argument, and the last is the `select_val` argument. See
+            the documentation of `where` for more details. Cannot be specified with
+            `index` or `header_key`.
+        and_where_args : bool
+            If set to True, then the individual calls to the `where` method will be
+            combined via an element-wise "and" operator, such that the returned array
+            will report the positions where all criterea are met. If False, results
+            are instead combined via an element-wise "or" operator. Default is True.
+            If supplied, the argument for `mask` will be combined with the output from
+            the calls to `where` with the same logic.
+        header_key : sequence of ints or tuples
+            Optional argument, values to match against the header key field, in order to
+            determine which entries of the array to extract. For example, if the header
+            key field "a" has the values [2, 4, 6, 8], setting this argument to [2, 8]
+            will grab the values internal mask at the index positions [0, 3]. Cannot be
+            specified with `index` or `where`.
+        index : sequence of int
+            Optional argument, specifies the index positions at which to extract data
+            from the meta data. Cannot be specified with `header_key` or `where`.
+
+        Returns
+        -------
+        mask_arr : ndarray of bool
+            Values for mask where the selection criteria match.
+        """
+        idx_arr = self._index_query(False, where, and_where_args, header_key, index)
+        return self._mask[idx_arr]
+
+    def set_mask(
+        self,
+        mask=None,
+        where=None,
+        and_where_args=True,
+        header_key=None,
+        index=None,
+        reset=False,
+        and_mask=True,
+    ):
+        """
+        Set the internal object mask.
+
+        This function updates the internal mask based on the supplied selection
+        criteria. This internal mask is primarily used to identify which rows of data
+        are "active", and will affect what some methods return to the user.
+
+        Parameters
+        ----------
+        mask : ndarray of bool
+            Optional argument, of the same length as the MirMetaData object, where True
+            marks which index postions to set. Setting this will cause any arguments
+            passed to `where`, `header_key`, and `index` to be ignored.
+        where : tuple of sequence of tuples
+            Optional argument, each tuple is used to call the `where` method to identify
+            which index positions match the given criteria. Can be supplied as a
+            sequence of tuples rather than a single tuple, but each much be of length
+            3, where the first argument is the `select_field` argument, the second is
+            the `select_comp` argument, and the last is the `select_val` argument. See
+            the documentation of `where` for more details. Cannot be specified with
+            `index` or `header_key`.
+        and_where_args : bool
+            If set to True, then the individual calls to the `where` method will be
+            combined via an element-wise "and" operator, such that the returned array
+            will report the positions where all criterea are met. If False, results
+            are instead combined via an element-wise "or" operator. Default is True.
+            If supplied, the argument for `mask` will be combined with the output from
+            the calls to `where` with the same logic.
+        header_key : sequence of ints or tuples
+            Optional argument, values to match against the header key field, in order to
+            determine which entries of the array to extract. For example, if the header
+            key field "hid" has the values [2, 4, 6, 8], setting this argument to [2, 8]
+            will set the mask at index positions [0, 3] to True. Cannot be specified
+            with `index` or `where`.
+        index : sequence of int
+            Optional argument, specifies the index positions at which to set the mask to
+            True. Cannot be specified with `header_key` or `where`.
+        reset : bool
+            If set to True, reset all values of the mask to True before updating the
+            mask. Default is False.
+        and_mask : bool
+            If set to True, then the mask generated by the selection criteria above will
+            be combined with the existing internal mask using an element-wise "and"
+            operation. If set to False, the two will instead be combined with an
+            element-wise "or" operation. Default is True (i.e., and the masks together).
+        """
+        if mask is None:
+            mask = self._generate_mask(
+                where=where,
+                and_where_args=and_where_args,
+                header_key=header_key,
+                index=index,
+            )
+
+        if reset:
+            self._mask[:] = True
+        elif np.array_equal(self._mask, mask):
+            return False
+
+        if and_mask:
+            self._mask &= mask
+        else:
+            self._mask |= mask
+        return True
+
+    def get_header_keys(
+        self,
+        use_mask=None,
+        where=None,
+        and_where_args=True,
+        index=None,
+        force_list=False,
+    ):
+        """
+        Get the header keys based on selection criteria.
+
+        This function allows one to lookup (pseudo) header keys that match a given
+        set of criteria. Header keys are most commonly used to cross-link various
+        metadata objects.
+
+        Parameters
+        ----------
+        use_mask : bool
+            If True, consider only data where the internal mask is marked True. Default
+            is True, unless an argument is supplied to `index` or `header_key`, in
+            which case the default is False.
+        where : tuple of sequence of tuples
+            Optional argument, each tuple is used to call the `where` method to identify
+            which index positions match the given criteria. Can be supplied as a
+            sequence of tuples rather than a single tuple, but each much be of length
+            3, where the first argument is the `select_field` argument, the second is
+            the `select_comp` argument, and the last is the `select_val` argument. See
+            the documentation of `where` for more details. Cannot be specified with
+            `index` or `header_key`.
+        and_where_args : bool
+            If set to True, then the individual calls to the `where` method will be
+            combined via an element-wise "and" operator, such that the returned array
+            will report the positions where all criterea are met. If False, results
+            are instead combined via an element-wise "or" operator. Default is True.
+            If supplied, the argument for `mask` will be combined with the output from
+            the calls to `where` with the same logic.
+        index : sequence of int
+            Optional argument, specifies the index positions at which to extract data
+            from the meta data. Cannot be specified with `header_key` or `where`.
+        force_list : False
+            Normally the header keys are returned as an interable (ndarray in there
+            is a header key, otherwise a list of tuples), but if set to True, the output
+            will instead be a list of ndarray for each one of the fields within the set
+            of (pseudo) header keys.
+
+        Return
+        ------
+        header_key : ndarray or list
+            If `force_list=False`, then if the object has a normal header key, an
+            ndarray is returned with all keys that match the selection criteria,
+            otherwise  a list of tuples is returned. If `force_list=True` or list of
+            ndarrays is returned -- one for each field in the (pseudo) header keys.
+        """
+        if self._header_key is None:
+            key = self._pseudo_header_key
+        else:
+            key = [self._header_key] if force_list else self._header_key
+
+        return self.get_value(
+            key,
+            use_mask=use_mask,
+            where=where,
+            and_where_args=and_where_args,
+            index=index,
+            return_tuples=(self._header_key is None) and (not force_list),
+        )
+
+    def _generate_header_key_index_dict(self):
+        """
+        Generate a dictionary to map header keys to index positions.
+
+        Note that this is an internal helper function, not intended for general users
+        but instead is part of the developer API. Generates a dictionary that can be
+        used for mapping header key values to index positions inside the data array.
+
+        Returns
+        -------
+        header_key_index_dict : dict
+            Dict with keys of header key values (or tuples of values, if using a
+            pseudo-index), and values relating to the index position within the `_data`
+            attribute of the object.
+        """
+        return {
+            item: idx for idx, item in enumerate(self.get_header_keys(use_mask=False))
+        }
+
+    def _generate_new_header_keys(self, other):
+        """
+        Create an updated set of header keys for a MirMetaData object.
+
+        Note that this function is not meant to be called by users, but instead is
+        part of the low-level API for the object. This function allows for one to
+        create an updated set of header keys, such that their values do not conflict
+        with another MirMetaData object -- useful for situations where you would like
+        to combine the two objects together in some fashion.
+
+        Parameters
+        ----------
+        other : MirMetaData object
+            Object of identical type, whose header key values are used for calculating
+            what the new header key values should be.
+
+        Returns
+        -------
+        update_dict : dict
+            Dictionary of header key values, where the keys are the old set and the
+            values are the new set to be implemented. Note that if the object does not
+            have a header key, this will return an empty dict.
+
+        Raises
+        ------
+        ValueError
+            If the two objects are not of the same type.
+        """
         # First up, make sure we have two objects of the same dtype
         if type(self) != type(other):
             raise ValueError("Both objects must be of the same type.")
 
-        # Make sure our object only has a single field as an index.
-        if len(self._index) != 1:
-            raise ValueError(
-                "Cannot generate a new index for a table with multiple keys."
-            )
+        # If no data are loaded, or if there is no header key, then this is basically
+        # a no-op -- hand back an empty dictionary in this case.
+        if (self._header_key is None) or (self._data is None):
+            return {}
 
-        index_start = np.max(other._data[other._index[0]]) + 1
+        idx_start = np.max(other._data[other._header_key]) + 1
+        idx_stop = idx_start + len(self)
 
         index_dict = {
-            self._index[0]: {
+            self._header_key: {
                 old_key: new_key
                 for old_key, new_key in zip(
-                    self._data[self._index[0]],
-                    np.arange(index_start, index_start + len(self._data)),
+                    self.get_header_keys(use_mask=False),
+                    range(idx_start, idx_stop),
                 )
             }
         }
 
         return index_dict
 
-    def _sort_by_index(self):
-        sort_idx = np.lexsort([self._data[key] for key in self._index])
-        self._data = self._data[sort_idx]
-        self._mask = self._mask[sort_idx]
+    def _sort_by_header_key(self):
+        """
+        Sort data array by header key values.
+
+        Note that this function is not designed to be called by users, but instead is
+        part of the low-level API for the object. Calling this function will sort the
+        metadaata in the `_data` attribute by the (pseudo) header key, and will
+        regenerate the header key index dict accordingly. This function is most
+        most commonly used after combining two objects to guarantee that the data are
+        in the expected order.
+        """
+        sort_idx = np.lexsort(self.get_header_keys(use_mask=False, force_list=True))
+
+        # Check and see if the data are already sorted (and skip the work if so).
+        if not np.all(sort_idx[1:] > sort_idx[:-1]):
+            self._data = self._data[sort_idx]
+            self._mask = self._mask[sort_idx]
+
+        self._header_key_index_dict = self._generate_header_key_index_dict()
+
+    def group_by(self, group_fields, use_mask=True, return_index=False):
+        """
+        Create groups of index positions based on particular field(s) in the metadata.
+
+        This method is a convenience function for creating groups of data based on a
+        particular set of metadata.
+
+        Parameters
+        ----------
+        group_fields : str or list of str
+            Field or list of fields to group the data by. Must be one of the fields
+            within the dtype of this object.
+        use_mask : bool
+            If True, consider only data where the internal mask is marked True.
+        return_index : bool
+            If False, return the header key values (or pseudo-key tuples) for each
+            element of the group. If True, return instead the index position of the
+            grouped data (if applicable). Note that the index positions are reported
+            after the mask is applied, such that the highest index position will be
+            equal to the sum of the mask values minus 1. Default is False.
+
+        Returns
+        -------
+        group_dict : dict
+            A dictionary containing the unique groupings of data depending on the input
+            to `group_fields`. If a single str is provided, then the keys of the dict
+            will be the unique values of the field, otherwise the keys will be tuples
+            of the unique sets of metadata values for the grouping fields. The values
+            are is either an ndarray of index positions (if `return_index=True`), an
+            ndarray of header key values (if `return_index=True` and the objet has a
+            valid  header key), or a list of tuples (if `return_index=True` and the
+            object only has a pseudo-index), which correspond to the metadata entries
+            that match the unique key.
+        """
+        # Make this a list just to make it easier to program against.
+        if isinstance(group_fields, str):
+            group_fields = [group_fields]
+
+        # Get the data we want to group by and then use lexsort to arrange the data
+        # in order. This turns out to make extracting the index positions much faster.
+        group_data = self.get_value(group_fields, use_mask=use_mask)
+        index_arr = np.lexsort(group_data)
+        group_data = [data[index_arr] for data in group_data]
+
+        # If we have no data, then bail.
+        if len(index_arr) == 0:
+            return {}
+
+        # Otherwise, if we don't want the index array, fill in the header keys now.
+        if not return_index:
+            if use_mask and not np.all(self._mask):
+                index_arr = np.where(self._mask)[0][index_arr]
+
+            index_arr = self.get_header_keys(index=index_arr)
+
+        # Otherwise, check element-wise for differences, since that will tell us the
+        # boundaries for each "group" of data.
+        diff_idx = group_data[0][1:] != group_data[0][:-1]
+        for data in group_data[1:]:
+            diff_idx |= data[1:] != data[:-1]
+
+        # Need the start position for the first group, and we add 1 to the rest of the
+        # index values since the start positions are all offset by 1 thanks to the way
+        # that we slicd things above.
+        diff_idx = [0] + list(np.where(diff_idx)[0] + 1)
+
+        # Figure out how to "name" the groups, based on how many fields we considered.
+        if len(group_fields) == 1:
+            group_names = list(group_data[0][diff_idx])
+        else:
+            group_names = list(zip(*[data[diff_idx] for data in group_data]))
+
+        # In order to cleanly slice the data, we record the last good index position,
+        # which will mark the beginning of the slice, with each subsequent list value
+        # marking the end of the slice (and in the next iteration, the start).
+        last_idx = diff_idx.pop(0)
+        diff_idx.append(len(group_data[0]))
+
+        # Finally, group together the data.
+        group_dict = {}
+        for idx, group in zip(diff_idx, group_names):
+            group_dict[group] = index_arr[last_idx:idx]
+            last_idx = idx
+
+        return group_dict
+
+    def reset_values(self, field_name=None):
+        """
+        Reset metadata fields to their original values.
+
+        Restores the original values for metadata that has been changed, when it has
+        been modified by set_value or __set_item__.
+
+        Parameters
+        ----------
+        field_name : str or list of str
+            Optional argument, specifies which fields should be restored. Can be either
+            a single field (str) or multiple fields (list of str). Default is to restore
+            all values which have been changed.
+
+        Raises
+        ------
+        ValueError
+            If the specified field name(s) do not have a backup copy found in the
+            internal backup dictionary.
+        """
+        if field_name is None:
+            field_name = list(self._stored_values)
+        else:
+            if isinstance(field_name, str):
+                field_name = [field_name]
+            for item in field_name:
+                if item not in self._stored_values:
+                    raise ValueError("No stored values for field %s." % item)
+
+        for item in field_name:
+            self._data[item] = self._stored_values.pop(item)
+
+    def reset(self):
+        """
+        Reset a MirMeteData object.
+
+        Restores the object to a "pristine" state, similar to when it was first loaded.
+        Any changed fields are restored, and the mask is reset (selection criteria are
+        unapplied).
+        """
+        self.reset_values()
+        self.set_mask(reset=True)
+        self._header_key_index_dict = self._generate_header_key_index_dict()
+
+    def _update_fields(self, update_dict, raise_err=False):
+        """
+        Update fields within a MirMetaData object.
+
+        Note that this is not a function designed to be called by users, but instead is
+        part of the low-level API for the object. This function will take a so-called
+        "update dictionary", which provides a way to map an existing set of values
+        for a given field to an updated one. This function is most typically called
+        when adding two different MirParser objects together, where multiple fields used
+        as header keys (or other types of indexes) generally need to be updated prior
+        to the add operation.
+
+        Parameters
+        ----------
+        update_dict : dict
+            Dictionary containing the set of updates to be applied. The keys specify
+            the field name to be updated, and can either be given as a str (if a single
+            field is to be updated) or as a tuple of str (if a series of fields are to
+            be updated). The values of this dict are themselves dict, which map the
+            existing values (keys) to the updated values (value). Note that if multiple
+            fields were selected, both key and value for this lower-level dict should
+            be tuples themselves of the same length.
+        raise_err : bool
+            If set to True, then if the field names in `update_dict` have no match
+            in this object, an error is raised. Default is False, which means that
+            if no match is found for a particular entry, the method quitely moves on
+            to the next item.
+
+        Raises
+        ------
+        ValueError
+            If the keys of `update_dict` are not str or tuples of str, or if no matching
+            field names are found and `raise_err` is set to True.
+        """
+        for field, data_dict in update_dict.items():
+            if not isinstance(field, (str, tuple)):
+                raise ValueError(
+                    "update_dict must have keys that are type str or tuples of str."
+                )
+
+            # Check if we have a tuple, since it changes the logic a bit
+            is_tuple = isinstance(field, tuple)
+            # Check if we have a match for the field name
+            has_match = True
+            for item in field if is_tuple else [field]:
+                has_match &= item in self.dtype.fields
+
+            # If no match, and we want to raise an error, do so now.
+            if not has_match:
+                if raise_err:
+                    raise ValueError("Field group %s not found in this object." % field)
+                # Otherwise, just move along.
+                continue
+
+            # Get the existing metadata now, returned as tuples to make it easy
+            # to use the update_dict
+            iter_data = self.get_value(field, return_tuples=is_tuple, use_mask=False)
+
+            # Note that with a complex dtype, passing _data a str will return a
+            # reference to the array we want, so we can update in situ.
+            arr_data = (
+                [self._data[item] for item in field] if is_tuple else self._data[field]
+            )
+
+            # Now go through each value (or tuple of values) and plug in updates.
+            for idx, old_vals in enumerate(iter_data):
+                try:
+                    if not is_tuple:
+                        arr_data[idx] = data_dict[old_vals]
+                    else:
+                        for subarr, new_val in zip(arr_data, data_dict[old_vals]):
+                            subarr[idx] = new_val
+                except KeyError:
+                    # If no matching key, then there is no update to perform
+                    continue
 
     def _add_check(self, other, merge=None, overwrite=None, discard_flagged=False):
         """
-        Check if two MirParser metadata arrays have conflicting index values.
+        Check if two MirMetaData objects conflicting header key values.
 
         This method is an internal helper function not meant to be called by users.
-        It checks two arrays of metadata of one of the custom dtypes used by MirParser
-        (for the attributes `in_data`, `bl_data`, `sp_data`, `eng_data`, `we_data`,
-        and `_codes_read`) to make sure that if they contain identical index values,
-        both arrays contain identical metadata. Used in checking if two arrays can
-        be combined without conflict (via the method `_combine_read_arr`).
+        It checks if the header keys for two objects have overlapping values, and if so,
+        what subset of each object's data to use when potentially combining the two.
 
         Parameter
         ---------
         other : MirMetaData
             MirMetaData object to be compared to this object.
+        merge : bool
+            If set to True, assumes that the two objects are to be "merged", which in
+            this context means that they contain identical metadata, with just different
+            selection masks applied.If set to False, assume that the objects contain
+            unique data sets with unique header keys. By default, the method assumes
+            that each object could contain a subset of the other (i.e., a partial
+            merge).
+        overwrite : bool
+            If set to True, then when merging two objects (partial or whole), where
+            the two objects have identical header keys, the method will assume metadata
+            from `other` will be used to overwrite the metadata of this object,
+            bypassing certain checks. If set to False, the method will assume no changes
+            in metadata are allowed. The default is to assume that entries where the
+            internal mask are set to False are allowed to be overwritten.
+        discard_flagged : bool
+            If set to True, exclude from consideration entries where the internal mask
+            has been set to False. Default is False. Note that this cannot be used if
+            setting `merge=True`.
 
         Returns
         -------
-        check_status : bool
-            If True, and `any_match=False`, any entries between the two arrays where
-            the index value matches has metadata which is indentical, and thus should
-            be safe to merge. If True and `any=True`, then the two arrays have at
-            least one entry where the index value matches and the metadata agrees.
+        obj_idx1 : list of int
+            Index positions denote which indicies of metadata would be utilized from
+            this object if an __add__ operation were to be performed. Note that the
+            header keys for this set of index positions will be completely disjoint
+            from that of `obj_idx2` and `other`.
+        obj_idx2 : list of int
+            Index positions denote which indicies of metadata would be utilized from
+            `other` if an __add__ operation were to be performed. Note that the
+            header keys for this set of index positions will be completely disjoint
+            from that of `obj_idx1` and this object.
 
         Raises
         ------
+        MirMetaError
+            If there is overlap between header keys, but merging is not permitted, or
+            if merging fails because of differences between metadata values.
         ValueError
-            If `arr1` and `arr2` are of different dtypes, or if entries in `index_name`
-            overlap in the two arrays but `overwrite=False`. Also if `index_name` is
-            not a string, or is not a field in `arr1` or `arr2`.
+            If `other` is a different class than this object, or if attempting to set
+            both `merge` and `discard_flagged` to True, or if setting `merge=True`,
+            but the header keys (and their respective index positions) are different.
         """
         # First up, make sure we have two objects of the same dtype
         if type(self) != type(other):
@@ -915,15 +1668,17 @@ class MirMetaData(object):
         if merge and discard_flagged:
             raise ValueError("Error")
 
-        index_dict1 = self._header_key_pos_dict.copy()
-        index_dict2 = other._header_key_pos_dict.copy()
+        index_dict1 = self._header_key_index_dict.copy()
+        index_dict2 = other._header_key_index_dict.copy()
 
         # Do a quick check here if the dicts are the same. If so, there's a fair bit of
         # optimization that we can leverage further down.
         same_dict = index_dict1 == index_dict2
 
         if merge and not same_dict:
-            raise ValueError("Error")
+            raise ValueError(
+                "Cannot set merge=True if header keys for the objects differ."
+            )
 
         # Deal w/ flagged data first, if need be
         if discard_flagged and not (np.all(self._mask) and np.all(other._mask)):
@@ -938,16 +1693,20 @@ class MirMetaData(object):
                 if not self._mask[value]:
                     _ = index_dict2.pop(key)
 
-        key_overlap = (
-            list(index_dict1)
-            if same_dict
-            else [key for key in index_dict1 if key in index_dict2]
-        )
+        # See if we have any overlapping keys
+        if same_dict:
+            key_overlap = list(index_dict1)
+        else:
+            key_overlap = [key for key in index_dict1 if key in index_dict2]
 
         # If we can't merge, then error now
         if len(key_overlap) and not (merge or merge is None):
-            raise ValueError("This is an error")
+            raise MirMetaError(
+                "Cannot add objects together if merge=False, since the two "
+                "contain overlapping header keys."
+            )
 
+        # Count the sum total number of entries we have
         idx_count = len(index_dict1) + len(index_dict2)
 
         # Assume that if key_overlap has entries, we are allowed to merge
@@ -1002,10 +1761,10 @@ class MirMetaData(object):
                             # result in an error below.
                             break
 
-        # Alright, if you've gotten to this point and you still have unresolved overlap
+        # If you've gotten to this point and you still have unresolved overlap
         # entries, then we have a problem -- time to raise an error.
         if (idx_count - (len(index_dict1) + len(index_dict2))) != len(key_overlap):
-            raise ValueError(
+            raise MirMetaError(
                 "Cannot combine objects, as both contain overlapping index markers "
                 "with different metadata. You can bypass this error by setting "
                 "overwrite=True."
@@ -1024,21 +1783,67 @@ class MirMetaData(object):
         """
         Combine two MirMetaData objects.
 
-        Thing.
+        Parameters
+        ----------
+        other : MirMetaData object
+            Object to combine with this. Must be of the same type.
+        inplace : bool
+            If set to True, replace this object with the one resulting from the
+            addition operation. Default is False.
+        merge : bool
+            If set to True, then the two objects are assumed to have identical metadata,
+            with potentially different selection masks applied. If the underlying data
+            or header key differences are detected, an error is raised. If set to False,
+            the objects are contain unique data sets with unique header keys. If
+            overlapping header keys are detected, an error is raised. By default, the
+            method assumes that each object could contain a subset of the other, and
+            will allow a partial merge where header keys overlap.
+        overwrite : bool
+            If set to True, then when merging two objects (partial or whole), where
+            the two objects have identical header keys, data from `other` will overwrite
+            that from this object. If set to False, no overwriting is allowed, and an
+            error will be thrown if differing metadata are detected. The default is to
+            allow metadata to be overwritten only where internal mask are set to False.
+        discard_flagged : bool
+            If set to True, exclude from metadata where the internal mask has been set
+            to False. Default is False. Note that this cannot be used if setting
+            `merge=True`.
+
+        Returns
+        -------
+        new_obj : MirMetaData object
+            The resultant combination of the two objects.
+
+        Raises
+        ------
+        ValueError
+            If attempting to combine this object with another of a different type.
         """
-        idx1, idx2 = self._add_check(
-            other, merge=merge, overwrite=overwrite, discard_flagged=discard_flagged
-        )
+        # First up, make sure we have two objects of the same dtype
+        if type(self) != type(other):
+            raise ValueError("Both objects must be of the same type.")
+
+        if other._data is None:
+            # If no data is loaded, then this is just a no-op
+            return self if inplace else self.copy()
+        elif self._data is not None:
+            idx1, idx2 = self._add_check(
+                other, merge=merge, overwrite=overwrite, discard_flagged=discard_flagged
+            )
 
         # At this point, we should be able to combine the two objects
         new_obj = self if inplace else self.copy()
 
-        new_obj._data = np.concatenate((new_obj._data[idx1], other._data[idx2]))
-        new_obj._mask = np.concatenate((new_obj._mask[idx1], other._mask[idx2]))
+        if self._data is None:
+            new_obj._data = other._data.copy()
+            new_obj._mask = other._mask.copy()
+        else:
+            new_obj._data = np.concatenate((new_obj._data[idx1], other._data[idx2]))
+            new_obj._mask = np.concatenate((new_obj._mask[idx1], other._mask[idx2]))
 
-        # Get the new index values
-        new_obj._sort_by_index()
-        new_obj._header_key_pos_dict = new_obj._generate_header_key_pos_dict()
+        # Make sure the data is sorted corectly, generate the header key -> index
+        # position dictionary.
+        new_obj._sort_by_header_key()
 
         # Finally, clear out any sorted values, since there's no longer a good way to
         # carry them forward.
@@ -1050,7 +1855,33 @@ class MirMetaData(object):
         """
         In-place addition of two MirMetaData objects.
 
-        Thing.
+        Parameters
+        ----------
+        other : MirMetaData object
+            Object to combine with this. Must be of the same type.
+        merge : bool
+            If set to True, then the two objects are assumed to have identical metadata,
+            with potentially different selection masks applied. If the underlying data
+            or header key differences are detected, an error is raised. If set to False,
+            the objects are contain unique data sets with unique header keys. If
+            overlapping header keys are detected, an error is raised. By default, the
+            method assumes that each object could contain a subset of the other, and
+            will allow a partial merge where header keys overlap.
+        overwrite : bool
+            If set to True, then when merging two objects (partial or whole), where
+            the two objects have identical header keys, data from `other` will overwrite
+            that from this object. If set to False, no overwriting is allowed, and an
+            error will be thrown if differing metadata are detected. The default is to
+            allow metadata to be overwritten only where internal mask are set to False.
+        discard_flagged : bool
+            If set to True, exclude from metadata where the internal mask has been set
+            to False. Default is False. Note that this cannot be used if setting
+            `merge=True`.
+
+        Returns
+        -------
+        new_obj : MirMetaData object
+            The resultant combination of the two objects.
         """
         return self.__add__(
             other,
@@ -1060,67 +1891,387 @@ class MirMetaData(object):
             discard_flagged=discard_flagged,
         )
 
+    def fromfile(self, filepath):
+        """
+        Read in data for a MirMetaData object from disk.
+
+        Parameters
+        ----------
+        filepath : str
+            Path of the folder containing the metadata in question.
+        """
+        self._data = np.fromfile(
+            os.path.join(filepath, self._filetype), dtype=self.dtype
+        )
+        self._mask = np.ones(len(self), dtype=bool)
+
+        # Make sure that the ordering is what we expect, and build the header key
+        # to index position dict.
+        self._sort_by_header_key()
+
+    def _writefile(self, filepath, append_data, datamask=...):
+        """
+        Write _data attribute to disk.
+
+        This function is part of the low-level API, which is called when calling the
+        `tofile` method. It is broken out separately here to enable subclasses to
+        differently specify how data are written out (namely binary vs text).
+
+        Parameters
+        ----------
+        filepath : str
+            Path of the folder to write the metadata into.
+        append_data : bool
+            If set to True, will append to an existing file, otherwise the method will
+            overwrite any previously written data.
+        datamask : ndarray of bool
+            Mask for selecting which data to write to disk. Default is the entire
+            array of metadata.
+        """
+        with open(filepath, "ab" if append_data else "wb+") as file:
+            self._data[datamask].tofile(file)
+
+    def tofile(
+        self,
+        filepath,
+        overwrite=False,
+        append_data=False,
+        check_index=False,
+    ):
+        """
+        Write a metadata file to disk.
+
+        This function is part of the low-level API, which is called when calling the
+        `tofile` method. It is broken out separately here to enable subclasses to
+        differently specify how data are written out (namely binary vs text).
+
+        Parameters
+        ----------
+        filepath : str
+            Path of the folder to write the metadata into.
+        overwrite : bool
+            If set to True, will allow the method to overwrite a previously written
+            dataset. If set to False and said file exists, the method will throw an
+            error. Default is False.
+        append_data : bool
+            If set to True, will append data to an existing file. Default is False.
+        check_index : bool
+            Only applicable if `append_data=True`. If set to True and data are being
+            appended to an existing file, the method will check to make sure that there
+            are no header key conflicts with the data being being written to disk, since
+            this can cause the file to become unusable. Default is False.
+        """
+        if not os.path.isdir(filepath):
+            os.makedirs(filepath)
+
+        filepath = os.path.join(os.path.abspath(filepath), self._filetype)
+
+        if os.path.exists(filepath):
+            if not (append_data or overwrite):
+                raise FileExistsError(
+                    "File already exists, must set overwrite or append_data to True, "
+                    "or delete the file %s in order to proceed." % filepath
+                )
+        else:
+            # Just set these now to forgo the potential check below.
+            append_data = False
+
+        if append_data and check_index:
+            copy_obj = self.copy(skip_data=True)
+            copy_obj.fromfile(filepath)
+            try:
+                idx_arr, _ = self._add_check(
+                    copy_obj,
+                    discard_flagged=True,
+                    overwrite=False,
+                )
+            except MirMetaError:
+                # If we get this error, it means our (partial) merge has failed.
+                # Time to bail.
+                raise ValueError(
+                    "Conflicting header keys detected with data on disk. Cannot "
+                    "append data from this object to specified file."
+                )
+
+            if len(idx_arr) == 0:
+                # There's literally nothing to do here, so bail.
+                return
+
+            # Generate a mask based on the unique data entries.
+            datamask = self._generate_mask(index=idx_arr)
+        else:
+            # If we haven't done so yet, create the data mask now.
+            datamask = ... if np.all(self._mask) else self._mask
+
+        self._writefile(filepath, append_data, datamask)
+
 
 class MirInData(MirMetaData):
+    """
+    Class for per-integration metadata in Mir datasets.
+
+    This class is a container for per-integration metadata, using the header key
+    "inhid". When reading from/writing to disk, the object looks for a file named
+    "in_read", which is where the online system records this information.
+    """
+
     def __init__(self, filepath=None):
-        super().__init__("in_read", in_dtype, ("inhid",), filepath)
+        """
+        Initialize a MirInData object.
 
-    def _generate_new_index(self, other):
-        index_dict = super()._generate_new_index(other)
-
-        # Some of the per-integration index fields have aliases that also _should_
-        # be updated, so we'll link them to the same update dict as inhid.
-        if "inhid" in index_dict:
-            index_dict["ints"] = index_dict["inhid"]
+        Parameters
+        ----------
+        filepath : str
+            Optional argument specifying the path to the Mir data folder.
+        """
+        super().__init__("in_read", in_dtype, "inhid", None, filepath)
 
 
 class MirBlData(MirMetaData):
+    """
+    Class for per-baseline metadata in Mir datasets.
+
+    This class is a container for per-baseline metadata, using the header key
+    "blhid". When reading from/writing to disk, the object looks for a file named
+    "bl_read", which is where the online system records this information. Note that
+    "per-baseine" here means per-integration, per-sideband, per-receiver/polarization.
+    """
+
     def __init__(self, filepath=None):
-        super().__init__("bl_read", bl_dtype, ("blhid",), filepath)
+        """
+        Initialize a MirBlData object.
+
+        Parameters
+        ----------
+        filepath : str
+            Optional argument specifying the path to the Mir data folder.
+        """
+        super().__init__("bl_read", bl_dtype, "blhid", None, filepath)
 
 
 class MirSpData(MirMetaData):
+    """
+    Class for per-spectral window metadata in Mir datasets.
+
+    This class is a container for per-spectral window metadata, using the header key
+    "sphid". When reading from/writing to disk, the object looks for a file named
+    "sp_read", which is where the online system records this information. Note that
+    "per-spectral window" here means per-integration, per-baseline, per-spectral
+    band number.
+    """
+
     def __init__(self, filepath=None):
-        super().__init__("sp_read", sp_dtype, ("sphid",), filepath)
+        """
+        Initialize a MirSpData object.
 
-    def _recalc_dataoff(self):
-        offset_dict = {}
-        inhid_arr = self["inhid"]
+        Parameters
+        ----------
+        filepath : str
+            Optional argument specifying the path to the Mir data folder.
+        """
+        super().__init__("sp_read", sp_dtype, "sphid", None, filepath)
 
+    def _recalc_dataoff(self, use_mask=True):
+        """
+        Calculate the offsets of each spectral record for packed data.
+
+        This is an internal helper function not meant to be called by users, but
+        instead is part of the low-level API. This function is used to calculate the
+        relative offset of the spectral record inside of a per-integration "packed
+        data array", which is what is recorded to disk. This method is primarily used
+        when writing visibility to disk, since the packing of the data (and by
+        extension, it's indexing) depends heavily on what records have been recorded to
+        disk. Note that operation _will_ modify the "dataoff" field inside of the
+        metadata, so care should be taken when calling it.
+
+        Parameters
+        ----------
+        use_mask : bool
+            If set to True, evaluate/calculate for only those records where the internal
+            mask is set to True. If set to False, use all records in the object,
+            regardless of mask status. Default is True.
+        """
         # Each channel is 4 bytes in length (int16 real + int16 imag), plus
         # each spectral record has an int16 up front as the common exponent
-        record_size_arr = (4 * self["nch"].astype(int)) + 2
+        record_size_arr = (4 * self.get_value("nch", use_mask=use_mask).astype(int)) + 2
 
         # Create an array to plug values into
-        offset_arr = np.zeros(inhid_arr.shape, dtype=int)
-        for idx, (inhid, record_size) in enumerate(zip(inhid_arr, record_size_arr)):
-            try:
-                temp_val = offset_dict[inhid]
-                offset_arr[idx] = temp_val
-                offset_dict[inhid] = record_size + temp_val
-            except KeyError:
-                offset_arr[idx] = 0
-                offset_dict[inhid] = record_size
+        offset_arr = np.zeros_like(record_size_arr)
+        for index_arr in self.group_by(
+            "inhid", use_mask=use_mask, return_index=True
+        ).values():
+            temp_recsize = record_size_arr[index_arr]
+            offset_arr[index_arr] = np.cumsum(temp_recsize) - temp_recsize
 
-        # Finally, update the attribute with the newly calculated values
-        self["dataoff"] = offset_arr
+        # Finally, update the attribute with the newly calculated values. Filter out
+        # the warning since we don't need to raise this if using the internal method.
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message='Values in "dataoff" are typically only used for'
+            )
+            self.set_value("dataoff", offset_arr, use_mask=use_mask)
+
+    def _generate_dataoff_dict(self, use_mask=True):
+        """
+        Generate a set of dicts for indexing of data.
+
+        This is an internal helper function not meant to be called by users, but
+        instead is part of the low-level API. This function is used to calculate
+        internal indexing values for use in unpacking the raw data on disk, recorded
+        under the filename "sch_read".
+
+        Parameters
+        ----------
+        use_mask : bool
+            If set to True, evaluate/calculate for only those records where the internal
+            mask is set to True. If set to False, use all records in the object,
+            regardless of mask status. Default is True.
+
+        Returns
+        -------
+        int_start_dict : dict
+            Dictionary with information about individual integrations, where the key
+            is matched to a integration header key ("inhid"), and the value is itself
+            a 3-element dictionary containing the keys "inhid" (header key as recorded
+            on disk, which is not _neccessarily_ the same as in the object),
+            "record_size" (in bytes), and "record_start" (start position of the packed
+            data relative to the start of the file, in bytes), with all values recorded
+            as ints.
+        sp_dict : dict
+            Dictionary containing per-spectral record indexing information. The keys
+            are values of "inhid", and the values are themselves dicts whose keys are
+            values of the spectral window header key ("sphid"), the whole group of which
+            are matched to a particular "inhid" value. The values of this "lower" dict
+            is yet another dict, containing three keys: "start_idx" (starting position
+            of the spectral record in the packed data, in number of 2-byte ints),
+            "end_idx" (ending position of the spectral record), and "chan_avg" (number
+            of channels we need average the spectrum over; default is 1).
+        """
+        int_dict = {}
+        sp_dict = {}
+
+        # Group together the spectral records by inhid to begin the process of
+        # building out sp_dict.
+        sp_in_groups = self.group_by("inhid", use_mask=use_mask, return_index=True)
+        sphid_arr = self.get_header_keys(use_mask=use_mask)
+
+        # Calculate the individual record sizes here. Each record contains 1 int16
+        # (common exponent) + 2 * nch values.
+        rec_size_arr = 1 + (2 * self.get_value("nch", use_mask=use_mask).astype(int))
+
+        # Divide by 2 here since we're going from bytes to number of int16s
+        dataoff_arr = self.get_value("dataoff", use_mask=use_mask) // 2
+
+        # Begin putting together dicts now.
+        record_start = 0
+        for inhid in sorted(sp_in_groups):
+            # Extract out the relevant spectral record group.
+            sp_idx = sp_in_groups[inhid]
+
+            # We captured index values above, so now we need to grab header keys
+            # and record start/size information at each index position.
+            sphid_subarr = sphid_arr[sp_idx]
+            sidx_arr = dataoff_arr[sp_idx]
+            rec_size_subarr = rec_size_arr[sp_idx]
+            eidx_arr = sidx_arr + rec_size_subarr
+
+            # Plug in the start/end index positions for each spectral record.
+            sp_dict[inhid] = {
+                sphid: {"start_idx": sidx, "end_idx": eidx, "chan_avg": 1}
+                for sphid, sidx, eidx in zip(sphid_subarr, sidx_arr, eidx_arr)
+            }
+
+            # Record size for int_dict is recorded in bytes, hence the x2 here
+            record_size = np.sum(rec_size_subarr) * 2
+            int_dict[inhid] = {
+                "inhid": inhid,
+                "record_size": record_size,
+                "record_start": record_start,
+            }
+            # Note the +8 here accounts for 2 int32s that are used to mark the inhid
+            # and record size within the sch_read file itself.
+            record_start += record_size + 8
+
+        return int_dict, sp_dict
 
 
 class MirWeData(MirMetaData):
+    """
+    Class for per-integration weather metadata in Mir datasets.
+
+    This class is a container for per-integration weather metadata, using the header key
+    "ints". When reading from/writing to disk, the object looks for a file named
+    "we_read", which is where the online system records this information.
+    """
+
     def __init__(self, filepath=None):
-        super().__init__("we_read", we_dtype, ("ints",), filepath)
+        """
+        Initialize a MirWeData object.
+
+        Parameters
+        ----------
+        filepath : str
+            Optional argument specifying the path to the Mir data folder.
+        """
+        super().__init__("we_read", we_dtype, "ints", None, filepath)
 
 
 class MirEngData(MirMetaData):
+    """
+    Class for per-antenna metadata in Mir datasets.
+
+    This class is a container for per-antenna, per-integration metadata. When reading
+    from/writing to disk, the object looks for a file named "eng_read", which is where
+    the online system records this information. This object does not have a unique
+    header key, but instead has a pseudo key made up of the integration header ID
+    number ("inhid") and the antenna number ("antennaNumber"), which should be unique
+    for each entry.
+    """
+
     def __init__(self, filepath=None):
-        super().__init__("eng_read", eng_dtype, ("antennaNumber", "inhid"), filepath)
+        """
+        Initialize a MirEngData object.
+
+        Parameters
+        ----------
+        filepath : str
+            Optional argument specifying the path to the Mir data folder.
+        """
+        super().__init__(
+            "eng_read", eng_dtype, None, ("antennaNumber", "inhid"), filepath
+        )
 
 
 class MirAntposData(MirMetaData):
+    """
+    Class for antenna position information in Mir datasets.
+
+    This class is a container for antenna positions, which are recorded as a text file
+    within a Mir dataset named "antennas". It has a header key of "antenna", which is
+    paired to the antenna number in other metadata objects (e.g., "antennaNumber",
+    "iant1", "iant2").
+    """
+
     def __init__(self, filepath=None):
-        super().__init__("antennas", antpos_dtype, ("antenna"), filepath)
+        """
+        Initialize a MirAntposData object.
+
+        Parameters
+        ----------
+        filepath : str
+            Optional argument specifying the path to the Mir data folder.
+        """
+        super().__init__("antennas", antpos_dtype, "antenna", None, filepath)
 
     def fromfile(self, filepath):
+        """
+        Read in data for a MirAntposData object from disk.
+
+        Parameters
+        ----------
+        filepath : str
+            Path of the folder containing the metadata in question.
+        """
         with open(os.path.join(filepath, "antennas"), "r") as antennas_file:
             temp_list = [
                 item for line in antennas_file.readlines() for item in line.split()
@@ -1131,10 +2282,28 @@ class MirAntposData(MirMetaData):
             [temp_list[1::4], temp_list[2::4], temp_list[3::4]], dtype=np.float64
         ).T
 
-        self._mask = np.ones(self._data.shape[0], dtype=bool)
-        self._header_key_pos_dict = self._generate_header_key_pos_dict()
+        self._mask = np.ones(len(self), dtype=bool)
+        self._header_key_index_dict = self._generate_header_key_index_dict()
 
     def _writefile(self, filepath, append_data, datamask=...):
+        """
+        Write _data attribute to disk.
+
+        This function is part of the low-level API, which is called when calling the
+        `tofile` method. It is broken out separately here to enable subclasses to
+        differently specify how data are written out (namely binary vs text).
+
+        Parameters
+        ----------
+        filepath : str
+            Path of the folder to write the metadata into.
+        append_data : bool
+            If set to True, will append to an existing file, otherwise the method will
+            overwrite any previously written data.
+        datamask : ndarray of bool
+            Mask for selecting which data to write to disk. Default is the entire
+            array of metadata.
+        """
         # We need a special version of this for the antenna positions file since that's
         # the only one that's a text file vs a binary file.
         with open(filepath, "a" if append_data else "w+") as file:
@@ -1151,8 +2320,36 @@ class MirAntposData(MirMetaData):
 
 
 class MirCodesData(MirMetaData):
+    """
+    Class for per-track metadata in Mir datasets.
+
+    This class is a container for various metadata, which typically vary per-integration
+    or not at all. When reading from/writing to disk, the object looks for a file named
+    "codes_read", which is where the online system records this information. This object
+    does not have a unique header key, but instead has a pseudo key made up of the
+    variable name ("v_name") and the indexing code ("icode").
+
+    The main feature of block of metadata is two-fold. First, it enables one to match
+    strings (for example, like that used for source names) to indexing values that are
+    used by other metadata types (e.g., isource in "in_read"). Second, it enables one
+    to record arbitrary strings that can be used to describe various properties of the
+    whole dataset (e.g., "filever", which denotes the version).
+
+    This object has several methods that are partially inherited from the MirMetaData
+    class, but are modified accordingly to enable better flexibility when attempting to
+    process these string "codes".
+    """
+
     def __init__(self, filepath=None):
-        super().__init__("codes_read", codes_dtype, ("icode", "v_name"), filepath)
+        """
+        Initialize a MirCodesData object.
+
+        Parameters
+        ----------
+        filepath : str
+            Optional argument specifying the path to the Mir data folder.
+        """
+        super().__init__("codes_read", codes_dtype, None, ("icode", "v_name"), filepath)
         self._mutable_codes = [
             "project",
             "ref_time",
@@ -1164,6 +2361,10 @@ class MirCodesData(MirMetaData):
             "ra",
             "dec",
             "ddsmode",
+            "sb",
+            "tel1",
+            "tel2",
+            "band",
         ]
 
         # These are codes that _cannot_ change between objects, otherwise it breaks
@@ -1174,9 +2375,12 @@ class MirCodesData(MirMetaData):
             "pol",
         ]
 
+        # These are v_names that match to particular indexing fields in other metadata
+        # files (with the values matching said fields).
         self._codes_index_dict = {
             "project": "iproject",
             "ref_time": "iref_time",
+            "ut": "iut",
             "source": "isource",
             "ra": "ira",
             "dec": "idec",
@@ -1192,63 +2396,17 @@ class MirCodesData(MirMetaData):
             "ddsmode": "iddsmode",
         }
 
-    def _generate_new_index(self, other):
-        # First up, make sure we have two objects of the same dtype
-        if type(self) != type(other):
-            raise ValueError("Both objects must be of the same type.")
+    def get_code_names(self):
+        """
+        Produce a list of code types (v_names) found in the metadata.
 
-        index_dict = {}
-        other_dict = other._header_key_pos_dict.copy()
-        other_dict.update(
-            {
-                tup: idx
-                for idx, tup in enumerate(zip(other_dict["code"], other_dict["v_name"]))
-            }
-        )
-
-        last_idx_dict = {}
-        for idx, data in enumerate(self._data):
-            try:
-                other_idx = other_dict[(data["icode"], data["v_name"])]
-                if other._data[other_idx] == data:
-                    # Nothing more to do, since we have a complete match
-                    continue
-            except KeyError:
-                pass
-
-            try:
-                other_idx = other_dict[(data["code"], data["v_name"])]
-                index_dict[tuple(data)] = tuple(other._data[other_idx])
-            except KeyError:
-                last_idx = last_idx_dict.get(data["v_name"], 0)
-                try:
-                    while True:
-                        last_idx += 1
-                        _ = other_dict[(last_idx, data["v_name"])]
-                except KeyError:
-                    new_data = data.copy()
-                    new_data["icode"] = last_idx
-                    index_dict[tuple(data)] = tuple(new_data)
-                # Finally, update what the new index value was so that we can skip
-                # trying to find the "last" index in the list next cycle.
-                last_idx_dict[data["v_name"]] = last_idx
-
-            # One last thing, let's check that the variable name we're updating isn't
-            # supposed to be consistent between tracks. Note that this is down here
-            # instead of above to avoid having to duplicate this code in two separate
-            # try/except statements.
-            if data["v_name"] not in self._mutable_codes:
-                if data["v_name"] in self._immutable_codes:
-                    raise ValueError(
-                        "The codes for %s in codes_read cannot change between "
-                        "objects if they are to be combined." % data["v_name"]
-                    )
-                warnings.warn(
-                    "Codes for %s not in the recognized list of mutable codes. "
-                    "Moving ahead anyways since it is not forbidden." % data["v_name"]
-                )
-
-        return index_dict
+        Returns
+        -------
+        code_list : list of str
+            A list of all the unique code types, as recorded in the "v_name" field
+            of the metadata.
+        """
+        return [item.decode() for item in set(self.get_value("v_name"))]
 
     def where(
         self,
@@ -1256,49 +2414,396 @@ class MirCodesData(MirMetaData):
         select_comp,
         select_val,
         mask=None,
-        return_index=False,
-        return_dict=False,
+        return_header_keys=None,
     ):
+        """
+        Find where metadata match a given set of selection criteria.
+
+        This method will produce a masking screen based on the arguments provided to
+        determine which entries matche a given set of conditions.
+
+        Parameters
+        ----------
+        select_field : str
+            Field or code type ("v_name") in the metadata to evaluate.
+        select_comp : str
+            Specifies the type of comparison to do between the value supplied in
+            `select_val` and the metadata. No default, allowed values include:
+            "eq" (equal to, matching any in `select_val`),
+            "ne" (not equal to, not matching any in `select_val`),
+            "lt" (less than `select_val`),
+            "le" (less than or equal to `select_val`),
+            "gt" (greater than `select_val`),
+            "ge" (greater than or equal to `select_val`),
+            "btw" (between the range given by two values in `select_val`),
+            "out" (outside of the range give by two values in `select_val`).
+        select_val : number of str, or sequence of number or str
+            Value(s) to compare data in `select_field` against. If `select_comp` is
+            "lt", "le", "gt", "ge", then this must be either a single number
+            or string. If `select_comp` is "btw" or "out", then this must be a list
+            of length 2. If `select_comp` is "eq" or "ne", then this can be either a
+            single value or a sequence of values.
+        mask : ndarray of bool
+            Optional argument, of the same length as the MirMetaData object, which is
+            applied to the output of the selection parsing through an elemenent-wise
+            "and" operation. Useful for combining multiple calls to `where` together.
+        return_header_keys : bool
+            If set to True, return a list of the header key values where matching
+            entries are found. Default is False if supplying a field name for
+            `select_field`, and True if supplying a code type for `select_field`.
+
+        Returns
+        -------
+        return_arr : ndarray of bool or list
+            If `return_header_keys=False`, boolean array marking whether `select_field`
+            meets the condition set by `select_comp` and `select_val`. If
+            `return_header_keys=True`, then instead of a boolean array, a list of ints
+            (or tuples of ints if the MetaDataObject has only a pseudo header key)
+            corresponding to the header key values. Note that if a code type was
+            supplied for `select_field` and `return_header_keys` was not set to False,
+            then the function will return a list of the matching index codes ("icode")
+            for the given code type.
+
+        Raises
+        ------
+        ValueError
+            If `select_comp` is not one of the permitted strings, or if `select_field`
+            is not one of the fields within the metadata, or a valid code type. Also
+            raised if setting `select_comp` to anything but "eq" or "ne" when selecting
+            on a code type (other operations not allowed since they are nonsensical for
+            strings).
+        MirMetaError
+            If `select_field` does not match the metadata field types or any of the
+            indexing codes.
+        """
         if select_field in self.dtype.fields:
             return super().where(
-                select_field, select_comp, select_val, mask, return_index, return_dict
+                select_field, select_comp, select_val, mask, return_header_keys
             )
 
         if select_field not in self._codes_index_dict:
-            raise ValueError(
+            raise MirMetaError(
                 "select_field must either be one of the native fields inside of the "
                 'codes_read array ("v_name", "code", "icode", "ncode") or one of the '
-                "indexing codes (%s)." % ", ".join(list(self._codes_index_dict.keys()))
+                "indexing codes (%s)." % ", ".join(list(self._codes_index_dict))
             )
 
         if isinstance(select_field, str):
             select_field = select_field.encode()
         elif not isinstance(select_field, bytes):
+            raise ValueError(
+                "select_field must be a string when selecting on a code type."
+            )
+
+        if select_comp not in ["eq", "ne"]:
+            raise ValueError(
+                'select_comp must be "eq" or "ne" when select_field is a code type.'
+            )
+
+        # Convert select_val into a bytes object or sequence of bytes objects, since
+        # that's how they are read from disk.
+        if isinstance(select_val, str):
+            select_val = select_val.encode()
+        elif not isinstance(select_val, bytes):
             try:
-                select_field = list(select_field)
+                select_val = list(select_val)
+                for idx, item in enumerate(select_val):
+                    if isinstance(item, str):
+                        select_val[idx] = item.encode()
+                    elif not isinstance(item, bytes):
+                        select_val[idx] = str(item).encode()
             except TypeError:
-                raise ValueError(
-                    "select_field must be given as a string or sequence "
-                    "of strings when using an indexing code."
-                )
-            for idx, item in enumerate(select_field):
-                if isinstance(item, str):
-                    select_field[idx] = item.encode()
-                elif not isinstance(item, bytes):
-                    raise ValueError(
-                        "select_field must be given as a string or sequence "
-                        "of strings when using an indexing code."
-                    )
+                # Assume at this point that we are working with a single non-string
+                # entry (that we need to convert into)
+                select_val = str(select_val).encode()
 
         data_mask = np.logical_and(
-            super().where("v_name", "eq", select_field.encode(), mask, False, False),
-            super().where("code", select_comp, select_val, mask, False, False),
+            super().where("v_name", "eq", select_field, mask, False),
+            super().where("code", select_comp, select_val, mask, False),
         )
 
-        if return_index:
-            return list(self._data["icode"][data_mask])
-        elif return_dict:
-            return {select_field: self._data["icode"][data_mask]}
+        if return_header_keys or (return_header_keys is None):
+            return list(self.get_value("icode")[data_mask])
+        else:
+            return data_mask
+
+    def get_codes(self, code_name, return_dict=None):
+        if code_name not in self.get_code_names():
+            raise MirMetaError(
+                "%s does not match any code or field in the metadata" % code_name
+            )
+
+        mask = self.where("v_name", "eq", code_name.encode(), return_header_keys=False)
+        codes = [item.decode() for item in self.get_value("code", use_mask=False)[mask]]
+        index = list(self.get_value("icode", use_mask=False)[mask])
+        if return_dict is None:
+            return_dict = (np.sum(mask) != 1) or (code_name in self._codes_index_dict)
+
+        if return_dict:
+            return {key: value for key, value in zip(codes + index, index + codes)}
+        else:
+            return codes
+
+    def __getitem__(self, item):
+        """
+        Get values for a particular field using get_value.
+
+        Parameters
+        ----------
+        field_name : str
+            Fields from which to extract data. Must match a field name in the data, or
+            a value for "v_name" within the metadata.
+
+        Returns
+        -------
+        value_arr : ndarray or list of ndarrays or str or dict.
+            If `field_name` is one or more of "v_name", "code", "icode", or "ncode",
+            then this will be an ndarray if a single field name was selected, or list
+            of ndarray if multiple fields were selected. If giving a string which
+            matches an entry for "v_name", then the behavior is slightly different:
+            if a single entry is found (and "v_name" is not attached to a code that
+            is indexed in other metadata), then a str is returned that is the code
+            value for that entry. Otherwise, a dictionary mapping the indexing codes
+            (type int) and code string (type str) to one another.
+        """
+        if item in self.dtype.fields:
+            return super().__getitem__(item)
+        else:
+            return self.get_codes(item)
+
+    def _generate_new_header_keys(self, other):
+        """
+        Create an updated set of pseudo header keys for a MirCodesData object.
+
+        Note that this function is not meant to be called by users, but instead is
+        part of the low-level API for the object. This function allows for one to
+        create an updated set of pseudo header keys via an updae to the indexing codes,
+        such that their values do not conflict with another MirCodesData object --
+        useful for situations where you would like to combine the two datasets together.
+
+        Parameters
+        ----------
+        other : MirCodesData object
+            Object of identical type, whose header key values are used for calculating
+            what the new header key values should be.
+
+        Returns
+        -------
+        update_dict : dict
+            Dictionary of pseudo header key tuples index code values, where the keys
+            are the old set and the values are the new set to be implemented. Note that,
+            if applicable, this dict will also contain entries that match to other
+            indexing fields (e.g., if the "source" codes were updated, the update
+            dictionary will also contain an entry for "isource", which can be used to
+            update values in the per-integration record metadata).
+
+        Raises
+        ------
+        ValueError
+            If the two objects are not of the same type.
+        """
+        # First up, make sure we have two objects of the same dtype
+        if type(self) != type(other):
+            raise ValueError("Both objects must be of the same type.")
+
+        index_dict = {}
+
+        this_vnames = self.get_code_names()
+        other_vnames = other.get_code_names()
+
+        # These are codes that are (annoyingly) tied together, where one index value
+        # is used to reference multiple code types.
+        skip_codes = {
+            "stype": (self["stype"], other["stype"]),
+            "svtype": (self["svtype"], other["svtype"]),
+        }
+
+        # If the two lists form the "skipped" codes are the same, then we can save
+        # ourselves a bit of work later on, so check this now.
+        same_skip = np.all([item == jtem for item, jtem in skip_codes.values()])
+
+        for vname in this_vnames:
+            # Don't worry about the "skipped" codes.
+            if vname in skip_codes:
+                continue
+
+            # If the codes are identical, then also skip processing
+            if vname in other_vnames:
+                if (self[vname] == other[vname]) and (same_skip or (vname != "source")):
+                    continue
+
+            if vname in self._immutable_codes:
+                # If the codes are supposed to be identical, then we should have bailed
+                # by this point. Raise an error.
+                raise ValueError(
+                    "The codes for %s in codes_read cannot change between "
+                    "objects if they are to be combined." % vname
+                )
+            elif vname in other_vnames:
+                if not (vname in self._mutable_codes):
+                    # If the code is not recognized as a mutable code, but not forbidden
+                    # from changing, then just raise a warning and proceed.
+                    warnings.warn(
+                        "Codes for %s not in the recognized list of mutable codes. "
+                        "Moving ahead anyways since it is not forbidden." % vname
+                    )
+                temp_dict = {}
+
+                # This will return a dict that maps code string -> indexing value and
+                # indexing value -> code string for a given code type.
+                this_dict = self[vname]
+                other_dict = other[vname]
+
+                # Start the process of reindexing the "icode" values
+                last_idx = 1
+                for key, value in this_dict.items():
+                    if not isinstance(key, str):
+                        # The dict contains both strings and ints, but we just want
+                        # to deal with the strings in this process.
+                        continue
+                    try:
+                        # See if we can find this code string in the other dict.
+                        other_value = other_dict[key]
+
+                        # We need to handle a special case here, due to the source
+                        # index being applied across multiple codes.
+                        if vname == "source":
+                            for dict1, dict2 in skip_codes.values():
+                                if dict1[value] != dict2[other_value]:
+                                    raise KeyError()
+
+                        # If the keys match, no need to do anything further.
+                        if value == other_value:
+                            continue
+                        # Here we have to handle to case that the code string _is_
+                        # found in the other dict, but not with the same index value.
+                        temp_dict[value] = other_dict[key]
+                    except KeyError:
+                        # If the code is _not_ found in the other dict, then we just
+                        # want to pick and indexing code that won't cause a conflict.
+                        # Loop through and pick the first positive unassigned value.
+                        while last_idx in other_dict:
+                            last_idx += 1
+                        temp_dict[value] = last_idx
+                        last_idx += 1
+
+                # Store the results in our update dictionary.
+                index_dict[vname] = temp_dict
+                if vname == "source":
+                    for item in skip_codes:
+                        index_dict[item] = temp_dict
+
+        # We now have a list of updates we want to make, but we need to parse the dict
+        # in such a way that it can be used by _update_fields. The icode_dict will
+        # record entries for this object, while index_dict entries will be modified
+        # to match what we want for the other metadata objects.
+        icode_dict = {}
+        for key in list(index_dict):
+            # Remove the item from the dict temporarily.
+            temp_dict = index_dict.pop(key)
+            if key in self._codes_index_dict:
+                # If used as an indexing field, then put the name of the aliased field
+                # in as the key, and match it to our existing dict.
+                index_dict[self._codes_index_dict[key]] = temp_dict
+
+            # All v_names are in bytes, so convert from str now.
+            key = key.encode()
+            for old_idx, new_idx in temp_dict.items():
+                # Use the tuple of (v_name, old_icode) to map to the new tuple
+                # (v_name, new_icode), which _update_fields will handle properly.
+                icode_dict[(key, old_idx)] = (key, new_idx)
+
+        # If there are any codes to update, then merge it into the main dict.
+        if len(icode_dict) > 0:
+            index_dict[("v_name", "icode")] = icode_dict
+
+        return index_dict
+
+
+class MirAcData(MirMetaData):
+    """
+    Class for per-track metadata in Mir datasets.
+
+    This class is a container for per-auto correlation metadata using the header key
+    "achid". At present, this class is a "synthetic" metadata object, in that it does
+    not match to a natively written file on disk, as recorded by the online system
+    (although it will read and write to the filename "ac_read"). As such, this class
+    should be considered a "work in progress", whose functionality may evolve
+    considerably in future releases.
+    """
+
+    def __init__(self, filepath=None):
+        """
+        Initialize a MirAcData object.
+
+        Parameters
+        ----------
+        filepath : str
+            Optional argument specifying the path to the Mir data folder.
+        """
+        super().__init__("ac_read", ac_dtype, "achid", filepath)
+
+    def fromfile(self, filepath, nchunks=8):
+        """
+        Read in data for a MirAntposData object from disk.
+
+        Parameters
+        ----------
+        filepath : str
+            Path of the folder containing the metadata in question.
+        """
+        old_ac_file = os.path.join(filepath, "autoCorrelations")
+        new_ac_file = os.path.join(filepath, "ac_read")
+        if os.path.exists(old_ac_file) and not os.path.exists(new_ac_file):
+            file_size = os.path.getsize(old_ac_file)
+            with open(old_ac_file, "rb") as auto_file:
+                data_offset = 0
+                last_offset = 0
+                acfile_dtype = np.dtype(
+                    [
+                        ("antenna", np.int32),
+                        ("nChunks", np.int32),
+                        ("scan", np.int32),
+                        ("dhrs", np.float64),
+                    ]
+                )
+                marker = 0
+                while data_offset < file_size:
+                    auto_vals = np.fromfile(
+                        auto_file, dtype=acfile_dtype, count=1, offset=last_offset
+                    )
+                    # This bit of code is to trap an unfortunately
+                    # common problem with metadata of MIR autos not
+                    # being correctly recorded.
+                    if data_offset == 0:
+                        if (file_size % (4 * (2**14) * nchunks * 2 + 20)) != 0:
+                            nchunks = int(auto_vals["nChunks"][0])
+                            if (file_size % (4 * (2**14) * nchunks * 2 + 20)) != 0:
+                                raise IndexError(
+                                    "Could not determine auto-correlation record size!"
+                                )
+                        # How big the record is for each data set
+                        last_offset = 4 * (2**14) * int(nchunks) * 2
+                        ac_data = np.zeros(
+                            file_size // ((4 * (2**14) * int(nchunks) * 2 + 20)),
+                            dtype=ac_dtype,
+                        )
+                    ac_data[marker] = (
+                        auto_vals["scan"][0],
+                        marker + 1,
+                        auto_vals["antenna"][0],
+                        nchunks,
+                        last_offset,
+                        data_offset,
+                        auto_vals["dhrs"][0],
+                    )
+                    data_offset += last_offset + 20
+                    marker += 1
+            self._data = ac_data
+            self._mask = np.ones(len(self), dtype=bool)
+            self._sort_by_header_key()
+        else:
+            super().fromfile(filepath)
 
 
 ########################################################################################
@@ -1317,6 +2822,80 @@ class MirParser(object):
     metadata first to check whether or not to load additional data into memory.
     """
 
+    def __init__(
+        self,
+        filepath=None,
+        has_auto=False,
+        load_vis=False,
+        load_raw=False,
+        load_auto=False,
+    ):
+        """
+        Initialize a MirParser object.
+
+        The full dataset can be quite large, as such the default behavior of
+        this function is only to load the metadata. Use the keyword params to
+        load other data into memory.
+
+        Parameters
+        ----------
+        filepath : str
+            filepath is the path to the folder containing the mir data set.
+        has_auto : bool
+            flag to read auto-correlation data, default is False.
+        load_vis : bool
+            flag to load visibilities into memory, default is False.
+        load_raw : bool
+            flag to load raw data into memory, default is False.
+        load_auto : bool
+            flag to load auto-correlations into memory, default is False.
+        """
+        self.in_data = MirInData()
+        self.bl_data = MirBlData()
+        self.sp_data = MirSpData()
+        self.we_data = MirWeData()
+        self.eng_data = MirEngData()
+        self.codes_data = MirCodesData()
+        self.antpos_data = MirAntposData()
+        self.ac_data = MirAcData()
+
+        self._metadata_attrs = {
+            "in_data": self.in_data,
+            "bl_data": self.bl_data,
+            "sp_data": self.sp_data,
+            "eng_data": self.eng_data,
+            "we_data": self.we_data,
+            "codes_data": self.codes_data,
+            "antpos_data": self.antpos_data,
+        }
+
+        self.filepath = ""
+        self._file_dict = {}
+        self._sp_dict = {}
+
+        self.raw_data = None
+        self.vis_data = None
+        self.auto_data = None
+        self._has_auto = False
+        self._tsys_applied = False
+
+        # This value is the forward gain of the antenna (in units of Jy/K), which is
+        # multiplied against the system temperatures in order to produce values in units
+        # of Jy (technically this is the SEFD, which when multiplied against correlator
+        # coefficients produces visibilities in units of Jy). Default is 130.0, which
+        # is the estiamted value for SMA.
+        self.jypk = 130.0
+
+        # On init, if a filepath is provided, then fill in the object
+        if filepath is not None:
+            self.fromfile(
+                filepath,
+                has_auto=has_auto,
+                load_vis=load_vis,
+                load_raw=load_raw,
+                load_auto=load_auto,
+            )
+
     def __iter__(self, metadata_only=False):
         """
         Iterate over all MirParser attributes.
@@ -1332,15 +2911,9 @@ class MirParser(object):
         attr : MirParser attribute
             Attribute of the MirParser object.
         """
-        attribute_list = [
-            attr
-            for attr in dir(self)
-            if not attr.startswith("__")
-            and not callable(getattr(self, attr))
-            and not (metadata_only and attr in ["vis_data", "raw_data", "auto_data"])
-        ]
-
-        for attribute in attribute_list:
+        for attribute in vars(self):
+            if (attribute in ["vis_data", "raw_data", "auto_data"]) and metadata_only:
+                continue
             yield attribute
 
     def __eq__(self, other, verbose=True, metadata_only=False):
@@ -1364,9 +2937,7 @@ class MirParser(object):
             Whether or not the two objects are equal.
         """
         if not isinstance(other, self.__class__):
-            raise ValueError(
-                "Cannot compare MirParser with non-MirParser class objects."
-            )
+            raise ValueError("Cannot compare MirParser with %s." % type(other).__name__)
 
         # I say these objects are the same -- prove me wrong!
         is_eq = True
@@ -1428,7 +2999,7 @@ class MirParser(object):
                     "raw_data": ["raw_data", "scale_fac"],
                     "vis_data": ["vis_data", "vis_flags"],
                 }
-                for key in this_attr.keys():
+                for key in this_attr:
                     # auto_data entries are just ndarrays, which we can compare directly
                     if item == "auto_data":
                         if this_attr[key].shape != other_attr[key].shape:
@@ -1513,463 +3084,16 @@ class MirParser(object):
         MirParser
             Copy of self.
         """
-        mp = MirParser()
+        new_obj = MirParser()
 
         # include all attributes, not just UVParameter ones.
         for attr in self.__iter__(metadata_only=metadata_only):
-            # skip properties
-            if not isinstance(getattr(type(self), attr, None), property):
-                setattr(mp, attr, copy.deepcopy(getattr(self, attr)))
+            setattr(new_obj, attr, copy.deepcopy(getattr(self, attr)))
 
-        return mp
+        for item in self._metadata_attrs:
+            new_obj._metadata_attrs[item] = getattr(new_obj, item)
 
-    @staticmethod
-    def segment_by_index(read_arr, index_field):
-        """
-        Break an array into multiple subarrays based on an index value.
-
-        This function will break an array into subarrays, based on the indexing field
-        provided. Useful in functions that require grouping of data. Note that the
-        ordering of subarray will match that of read_arr (in terms of first appearance
-        of each value of the index field), but ordering within subarrays may be
-        different.
-
-        Parameters
-        ----------
-        read_arr : ndarray
-            Structured ndarray to be broken into segments.
-        index_field : str
-            Field within `read_arr` to group data by.
-
-        Returns
-        -------
-        subarr_dict : dict
-            Dict with keys of unique entries of `index_field`, and values which are
-            ndarrays containing all elements of `read_arr` where the index field is
-            equal to the key.
-        pos_dict : dict
-            Similar to `subarr_dict`, unique entries of `index_field` make up the keys
-            of this dict, with values corresponding to and ndarray of dtype=int which
-            reports the position within `read_arr` where each subarray value comes from.
-
-        Raises
-        ------
-        TypeError
-            If `read_arr` is not an ndarray, or if `index_field` is not a string.
-        ValueError
-            If `index_field` is not a field within `read_arr`.
-        """
-        if not isinstance(read_arr, np.ndarray):
-            raise TypeError("read_arr must be of type ndarray.")
-        if not isinstance(index_field, str):
-            raise TypeError("index_field must be of string type.")
-        if index_field not in read_arr.dtype.names:
-            raise ValueError(
-                "index_field %s is not a recognized field in read_arr" % index_field
-            )
-
-        subarr_dict = {}
-        pos_dict = {}
-        for pos, (indv_rec, idx) in enumerate(zip(read_arr, read_arr[index_field])):
-            try:
-                subarr_dict[idx].append(indv_rec)
-                pos_dict[idx].append(pos)
-            except KeyError:
-                subarr_dict[idx] = [indv_rec]
-                pos_dict[idx] = [pos]
-
-        # We want structured arrays rather than a list of "singleton" structures, so
-        # use concat here to restore our broken-up entries into arrays again.
-        subarr_dict = {
-            key: np.concatenate([value]) for key, value in subarr_dict.items()
-        }
-
-        # Same thing with position arrays
-        pos_dict = {
-            key: np.concatenate([value], dtype=int) for key, value in pos_dict.items()
-        }
-
-        return subarr_dict, pos_dict
-
-    @staticmethod
-    def read_in_data(filepath):
-        """
-        Read "in_read" mir file into memory (@staticmethod).
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-
-        Returns
-        -------
-        ndarray
-            Numpy ndarray of custom dtype of in_dtype.
-        """
-        return np.fromfile(os.path.join(filepath, "in_read"), dtype=in_dtype)
-
-    @staticmethod
-    def write_in_data(filepath, in_data, append_data=False):
-        """
-        Write "in_read" mir file to disk (@staticmethod).
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-        in_data : ndarray of type in_dtype
-            Array of entries in the format matching what is returned by read_in_data.
-        """
-        if not os.path.isdir(filepath):
-            os.makedirs(filepath)
-
-        with open(
-            os.path.join(filepath, "in_read"), "ab" if append_data else "wb+"
-        ) as file:
-            in_data.tofile(file)
-
-    @staticmethod
-    def read_eng_data(filepath):
-        """
-        Read "eng_read" mir file into memory (@staticmethod).
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-
-        Returns
-        -------
-        ndarray
-            Numpy ndarray of custom dtype of eng_dtype.
-        """
-        return np.fromfile(os.path.join(filepath, "eng_read"), dtype=eng_dtype)
-
-    @staticmethod
-    def write_eng_data(filepath, eng_data, append_data=False):
-        """
-        Write "in_read" mir file to disk (@staticmethod).
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-        eng_data : ndarray of type eng_dtype
-            Array of entries in the format matching what is returned by read_eng_data.
-        """
-        if not os.path.isdir(filepath):
-            os.makedirs(filepath)
-
-        with open(
-            os.path.join(filepath, "eng_read"), "ab" if append_data else "wb+"
-        ) as file:
-            eng_data.tofile(file)
-
-    @staticmethod
-    def read_bl_data(filepath):
-        """
-        Read "bl_read" mir file into memory (@staticmethod).
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-
-        Returns
-        -------
-        ndarray
-            Numpy ndarray of custom dtype of bl_dtype.
-        """
-        return np.fromfile(os.path.join(filepath, "bl_read"), dtype=bl_dtype)
-
-    @staticmethod
-    def write_bl_data(filepath, bl_data, append_data=False):
-        """
-        Write "bl_read" mir file to disk (@staticmethod).
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-        bl_data : ndarray of type bl_dtype
-            Array of entries in the format matching what is returned by read_bl_data.
-        """
-        if not os.path.isdir(filepath):
-            os.makedirs(filepath)
-
-        with open(
-            os.path.join(filepath, "bl_read"), "ab" if append_data else "wb+"
-        ) as file:
-            bl_data.tofile(file)
-
-    @staticmethod
-    def read_sp_data(filepath):
-        """
-        Read "sp_read" mir file into memory (@staticmethod).
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-
-        Returns
-        -------
-        ndarray
-            Numpy ndarray of custom dtype of sp_dtype.
-        """
-        return np.fromfile(os.path.join(filepath, "sp_read"), dtype=sp_dtype)
-
-    @staticmethod
-    def write_sp_data(filepath, sp_data, append_data=False, recalc_dataoff=True):
-        """
-        Write "sp_read" mir file to disk (@staticmethod).
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-        sp_data : ndarray of type bl_dtype
-            Array of entries in the format matching what is returned by read_sp_data.
-        """
-        if not os.path.isdir(filepath):
-            os.makedirs(filepath)
-
-        if recalc_dataoff:
-            # Make a copy of sp_data so as to not affect the original data
-            sp_data = sp_data.copy()
-            offset_dict = {}
-            inhid_arr = sp_data["inhid"]
-
-            # Each channel is 4 bytes in length (int16 real + int16 imag), plus
-            # each spectral record has an int16 up front as the common exponent
-            record_size_arr = (4 * sp_data["nch"].astype(int)) + 2
-
-            # Note that this will pass a reference to the array in the structured
-            # array sp_data, so updating offset_arr will also update sp_data.
-            offset_arr = sp_data["dataoff"]
-            for idx, (inhid, record_size) in enumerate(zip(inhid_arr, record_size_arr)):
-                try:
-                    temp_val = offset_dict[inhid]
-                    offset_arr[idx] = temp_val
-                    offset_dict[inhid] = record_size + temp_val
-                except KeyError:
-                    offset_arr[idx] = 0
-                    offset_dict[inhid] = record_size
-
-        with open(
-            os.path.join(filepath, "sp_read"), "ab" if append_data else "wb+"
-        ) as file:
-            sp_data.tofile(file)
-
-    @staticmethod
-    def read_codes_data(filepath):
-        """
-        Read "codes_read" mir file into memory (@staticmethod).
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-
-        Returns
-        -------
-        ndarray
-            Numpy ndarray of custom dtype of codes_dtype.
-        """
-        return np.fromfile(os.path.join(filepath, "codes_read"), dtype=codes_dtype)
-
-    @staticmethod
-    def write_codes_data(filepath, codes_data, append_data=False):
-        """
-        Write "codes_read" mir file to disk (@staticmethod).
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-        codes_data : ndarray of type codes_dtype
-            Array of entries in the format matching what is returned by read_codes_data.
-        """
-        if not os.path.isdir(filepath):
-            os.makedirs(filepath)
-
-        with open(
-            os.path.join(filepath, "codes_read"), "ab" if append_data else "wb+"
-        ) as file:
-            codes_data.tofile(file)
-
-    @staticmethod
-    def read_we_data(filepath):
-        """
-        Read "we_read" mir file into memory (@staticmethod).
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-
-        Returns
-        -------
-        ndarray
-            Numpy ndarray of custom dtype of we_dtype.
-        """
-        return np.fromfile(os.path.join(filepath, "we_read"), dtype=we_dtype)
-
-    @staticmethod
-    def write_we_data(filepath, we_data, append_data=False):
-        """
-        Write "we_read" mir file to disk (@staticmethod).
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-        we_data : ndarray of type we_dtype
-            Array of entries in the format matching what is returned by read_we_data.
-        """
-        if not os.path.isdir(filepath):
-            os.makedirs(filepath)
-
-        with open(
-            os.path.join(filepath, "we_read"), "ab" if append_data else "wb+"
-        ) as file:
-            we_data.tofile(file)
-
-    @staticmethod
-    def read_antennas(filepath):
-        """
-        Read "antennas" mir file into memory (@staticmethod).
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-
-        Returns
-        -------
-        antpos_data : ndarray
-            Numpy ndarray of custom dtype of antpos_dtype.
-        """
-        with open(os.path.join(filepath, "antennas"), "r") as antennas_file:
-            temp_list = [
-                item for line in antennas_file.readlines() for item in line.split()
-            ]
-        antpos_data = np.empty(len(temp_list) // 4, dtype=antpos_dtype)
-        antpos_data["antenna"] = np.int16(temp_list[0::4])
-        antpos_data["xyz_pos"] = np.array(
-            [temp_list[1::4], temp_list[2::4], temp_list[3::4]], dtype=np.float64
-        ).T
-
-        return antpos_data
-
-    @staticmethod
-    def write_antennas(filepath, antpos_data):
-        """
-        Write "codes_read" mir file to disk (@staticmethod).
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-        codes_data : ndarray of type codes_dtype
-            Array of entries in the format matching what is returned by read_codes_data.
-        """
-        if not os.path.isdir(filepath):
-            os.makedirs(filepath)
-
-        with open(os.path.join(filepath, "antennas"), "w+") as file:
-            for antpos in antpos_data:
-                file.write(
-                    "%i %.17e %.17e %.17e\n"
-                    % (
-                        antpos["antenna"],
-                        antpos["xyz_pos"][0],
-                        antpos["xyz_pos"][1],
-                        antpos["xyz_pos"][2],
-                    )
-                )
-
-    @staticmethod
-    def calc_int_start(sp_data):
-        """
-        Calculate the integration size records based on spectral record metadata.
-
-        This is the "faster" equivalent to scan_int_start, which simply reads through
-        spectral records to estimate where in the file each integration record starts.
-        It can be significantly faster (by factors of 1000) than scan_int_start,
-        although in some corner cases, if the data are not ordered by inhid in sch_read,
-        can produce inaccurate results. This should never happen with data recorded
-        from the telescope.
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-        sp_data : ndarray
-            Metadata from the individual spectral records of the MIR data set, of the
-            custom dtype `sp_dtype`.
-
-        Returns
-        -------
-        int_start_dict : dict
-            Dictionary containing the indexes from sch_read, where keys match to the
-            inhid indexes, and the values contain a two-element tuple, with the length
-            of the packdata array (in bytes) the relative offset (also in bytes) of
-            the record within the sch_read file.
-        """
-        # Grab the individual inhid values out of the spectral records.
-        inhid_arr = sp_data["inhid"]
-
-        # We need to calculate the size (in bytes) of each spectral record here.
-        # Each channel contains two int16 values (real + imag), with each record
-        # containing one additional int16 value (the common scale factor/exponent),
-        # and each int16 value takes up 2 bytes of space. Note cast to int here is
-        # to avoid overflow issues (since nch is int16).
-        size_arr = ((2 * sp_data["nch"].astype(int)) + 1) * 2
-
-        # If the data are NOT in inhid order, then we need to actually get the data
-        # sorted now. Note that this check takes about 0.1% of the sort time, so better
-        # to do this check here rather than forcing a sort regardless of order.
-        if np.any(inhid_arr[:-1] > inhid_arr[1:]):
-            sort_idx = np.argsort(inhid_arr)
-            inhid_arr = inhid_arr[sort_idx]
-            size_arr = size_arr[sort_idx]
-
-        # Calculate where the inhid changes, since it marks the "boundaries" of the
-        # inhid record. Note that this records where the block ends, but the +1 will
-        # shift this to where the block _begins_ (and also is more compatible with
-        # how slices operate). We concat the first and last index positions to complete
-        # the list of all start/stop positions of each block.
-        arr_bounds = np.concatenate(
-            ([0], 1 + np.where(inhid_arr[:-1] != inhid_arr[1:])[0], [len(inhid_arr)])
-        )
-
-        # Use the above to just grab the unique inhid values
-        inhid_arr = inhid_arr[arr_bounds[:-1]]
-
-        # And we can use cumsum to quickly calculate how big each record is. Note that
-        # this ends up being _much_faster than summing on a per-inhid basis, so long
-        # as there is >1 unique inhid value (most datasets have O(10^3)).
-        size_arr = np.cumsum(size_arr)[arr_bounds[1:] - 1]
-
-        # We need to get a per-record size, so subtract off the "starting point" of
-        # the prior integration record.
-        size_arr[1:] -= size_arr[:-1]
-
-        # Create a dict to plug values into
-        int_start_dict = {}
-        # Record where in the file we expect to be (in bytes from start)
-        marker = 0
-        for inhid, record_size in zip(inhid_arr, size_arr):
-            # Plug in the entry into the dict
-            int_start_dict[inhid] = (inhid, record_size, marker)
-
-            # Shift the marker by the record size. Note the extra 8 bytes come from
-            # the fact that sch_read has the inhid and number of bytes recorded as
-            # int32 values, which are each 4 bytes in size.
-            marker += record_size + 8
-
-        return int_start_dict
+        return new_obj
 
     @staticmethod
     def scan_int_start(filepath, allowed_inhid=None):
@@ -2066,7 +3190,7 @@ class MirParser(object):
 
         # If arguments aren't provided, then grab the relevant data from the object
         if filepath is None:
-            filepath = list(self._file_dict.keys())
+            filepath = list(self._file_dict)
 
             # Note that we want the deep copy here to avoid potentially corrupting
             # the object-based values _before_ we finish readign in the new values
@@ -2083,17 +3207,15 @@ class MirParser(object):
             # this is used in cases when combining multiple files together (via
             # concat). Here, we make a mapping of "file-based" inhid values to that
             # stored in the object.
-            idict_map = {finhid: inhid for inhid, (finhid, _, _) in idict.items()}
+            imap = {finhid: inhid for inhid, (finhid, _, _) in idict.items()}
 
             # Make the new dict by scaning the sch_read file.
-            new_dict = self.scan_int_start(
-                filepath=ifile, allowed_inhid=list(idict_map.keys())
-            )
+            new_dict = self.scan_int_start(filepath=ifile, allowed_inhid=list(imap))
 
             # Go through the individual entries in each dict, and update them
             # with the "correct" values as determined by scanning through sch_read
-            for key in new_dict.keys():
-                idict[idict_map[key]] = new_dict[key]
+            for key in new_dict:
+                idict[imap[key]] = new_dict[key]
 
         # Finally, create the internal file dict by zipping together filepaths and
         # the integration position dicts.
@@ -2110,79 +3232,7 @@ class MirParser(object):
             self._file_dict = file_dict
 
     @staticmethod
-    def scan_auto_data(filepath, nchunks=8):
-        """
-        Read "autoCorrelations" mir file into memory (@staticmethod).
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-        nchunks : int, optional
-            Specify the number of chunks recorded into the autocorrelations
-            (default is 8)
-
-        Returns
-        -------
-        ac_data : ndarray
-            Numpy ndarray of custom type ac_read_dtype.
-        """
-        full_filepath = os.path.join(filepath, "autoCorrelations")
-
-        if not os.path.exists(full_filepath):
-            raise FileNotFoundError(
-                f"Cannot find file {full_filepath}."
-                " Set `has_auto=False` to avoid reading autocorrelations."
-            )
-
-        file_size = os.path.getsize(full_filepath)
-        with open(full_filepath, "rb") as auto_file:
-            data_offset = 0
-            last_offset = 0
-            acfile_dtype = np.dtype(
-                [
-                    ("antenna", np.int32),
-                    ("nChunks", np.int32),
-                    ("scan", np.int32),
-                    ("dhrs", np.float64),
-                ]
-            )
-            marker = 0
-            while data_offset < file_size:
-                auto_vals = np.fromfile(
-                    auto_file, dtype=acfile_dtype, count=1, offset=last_offset
-                )
-                # This bit of code is to trap an unfortunately
-                # common problem with metadata of MIR autos not
-                # being correctly recorded.
-                if data_offset == 0:
-                    if (file_size % (4 * (2**14) * nchunks * 2 + 20)) != 0:
-                        nchunks = int(auto_vals["nChunks"][0])
-                        if (file_size % (4 * (2**14) * nchunks * 2 + 20)) != 0:
-                            raise IndexError(
-                                "Could not determine auto-correlation record size!"
-                            )
-                    # How big the record is for each data set
-                    last_offset = 4 * (2**14) * int(nchunks) * 2
-                    ac_data = np.zeros(
-                        file_size // ((4 * (2**14) * int(nchunks) * 2 + 20)),
-                        dtype=ac_read_dtype,
-                    )
-                ac_data[marker] = (
-                    auto_vals["scan"][0],
-                    marker + 1,
-                    auto_vals["antenna"][0],
-                    nchunks,
-                    last_offset,
-                    data_offset,
-                    auto_vals["dhrs"][0],
-                )
-                data_offset += last_offset + 20
-                marker += 1
-        return ac_data
-
-    @staticmethod
-    def read_packdata(filepath, int_start_dict, use_mmap=False):
+    def read_packdata(file_dict, inhid_arr, use_mmap=False):
         """
         Read "sch_read" mir file into memory (@staticmethod).
 
@@ -2203,17 +3253,18 @@ class MirParser(object):
             Dictionary of the data, where the keys are inhid and the values are
             the 'raw' block of values recorded in "sch_read" for that inhid.
         """
-        full_filepath = os.path.join(filepath, "sch_read")
         int_data_dict = {}
         int_dtype_dict = {}
 
         # We want to create a unique dtype for records of different sizes. This will
         # make it easier/faster to read in a sequence of integrations of the same size.
-        size_list = np.unique(
-            [int_start_dict[ind_key][1] for ind_key in int_start_dict.keys()]
-        )
+        size_set = {
+            rec_dict["record_size"]
+            for idict in file_dict.values()
+            for rec_dict in idict.values()
+        }
 
-        for int_size in size_list:
+        for int_size in size_set:
             int_dtype_dict[int_size] = np.dtype(
                 [
                     ("inhid", np.int32),
@@ -2222,98 +3273,109 @@ class MirParser(object):
                 ]
             ).newbyteorder("little")
 
-        # Initialize a few values before we start running through the data.
-        inhid_list = []
-        last_offset = last_size = num_vals = del_offset = 0
-        key_list = sorted(int_start_dict.keys())
-
+        key_set = set(inhid_arr)
+        key_check = key_set.copy()
         # We add an extra key here, None, which cannot match any of the values in
         # int_start_dict (since inhid is type int). This basically tricks the loop
         # below into spitting out the last integration
-        key_list.append(None)
+        key_set.add(None)
+        for filename, int_start_dict in file_dict.items():
+            # Initialize a few values before we start running through the data.
+            inhid_list = []
+            last_offset = last_size = num_vals = del_offset = 0
 
-        # Read list is basically storing all of the individual reads that we need to
-        # execute in order to grab all of the data that we need. Note that each entry
-        # here is going to correspond to a call to either np.fromfile or np.memmap.
-        read_list = []
+            # Read list is basically storing all of the individual reads that we need to
+            # execute in order to grab all of the data we need. Note that each entry
+            # here is going to correspond to a call to either np.fromfile or np.memmap.
+            read_list = []
 
-        for ind_key in key_list:
-            if ind_key is None:
-                # This basically helps flush out the last read/integration in this loop
-                int_size = int_start = 0
-            else:
-                (_, int_size, int_start) = int_start_dict[ind_key]
-            if (int_size != last_size) or (
-                last_offset + (8 + last_size) * num_vals != int_start
-            ):
-                # Numpy's fromfile works fastest when reading multiple instances
-                # of the same dtype. As long as the record sizes are the same, we
-                # can tie mutiple file reads together into one call. The dtype
-                # depends on the record size, which is why we have to dump the
-                # data when last_size changes.
-                if num_vals != 0 and last_size != 0:
-                    read_list.append(
-                        {
-                            "inhid_list": inhid_list,
-                            "int_dtype_dict": int_dtype_dict[last_size],
-                            "num_vals": num_vals,
-                            "del_offset": del_offset,
-                            "start_offset": last_offset,
-                        }
-                    )
-                # Capture the difference between the last integration and this
-                # integration that we're going to drop into the next read.
-                del_offset = int_start - (last_offset + (num_vals * last_size))
-                # Starting positino for a sequence of integrations
-                last_offset = int_start
-                # Size of record (make sure all records are the same size in 1 read)
-                last_size = int_size
-                # Number of integraions in the read
-                num_vals = 0
-                # Tally all the inhids in the read
-                inhid_list = []
-            num_vals += 1
-            inhid_list.append(ind_key)
+            for ind_key in key_set:
+                if ind_key is None:
+                    # This helps flush out the last read/integration in this loop
+                    int_size = int_start = 0
+                else:
+                    try:
+                        rec_dict = int_start_dict[ind_key]
+                        key_check.remove(ind_key)
+                    except KeyError:
+                        continue
+                    int_size = rec_dict["record_size"]
+                    int_start = rec_dict["record_start"]
+                if (int_size != last_size) or (
+                    last_offset + (8 + last_size) * num_vals != int_start
+                ):
+                    # Numpy's fromfile works fastest when reading multiple instances
+                    # of the same dtype. As long as the record sizes are the same, we
+                    # can tie mutiple file reads together into one call. The dtype
+                    # depends on the record size, which is why we have to dump the
+                    # data when last_size changes.
+                    if num_vals != 0 and last_size != 0:
+                        read_list.append(
+                            {
+                                "inhid_list": inhid_list,
+                                "int_dtype_dict": int_dtype_dict[last_size],
+                                "num_vals": num_vals,
+                                "del_offset": del_offset,
+                                "start_offset": last_offset,
+                            }
+                        )
+                    # Capture the difference between the last integration and this
+                    # integration that we're going to drop into the next read.
+                    del_offset = int_start - (last_offset + (num_vals * last_size))
+                    # Starting positino for a sequence of integrations
+                    last_offset = int_start
+                    # Size of record (make sure all records are the same size in 1 read)
+                    last_size = int_size
+                    # Number of integraions in the read
+                    num_vals = 0
+                    # Tally all the inhids in the read
+                    inhid_list = []
+                num_vals += 1
+                inhid_list.append(ind_key)
 
-        # Time to actually read in the data
-        if use_mmap:
-            # memmap is a little special, in that it wants the _absolute_ offset rather
-            # than the relative offset that np.fromfile uses (if passing a file object
-            # rather than a string with the path toward the file).
-            for read_dict in read_list:
-                int_data_dict.update(
-                    zip(
-                        read_dict["inhid_list"],
-                        np.memmap(
-                            filename=full_filepath,
-                            dtype=read_dict["int_dtype_dict"],
-                            mode="r",
-                            offset=read_dict["start_offset"],
-                            shape=(read_dict["num_vals"],),
-                        ),
-                    )
-                )
-        else:
-            with open(full_filepath, "rb") as visibilities_file:
-                # Note that we do one open here to avoid the overheads associated with
-                # opening and closing the file each integration.
+            if len(key_check) != 0:
+                raise ValueError("inhid_arr contains keys not found in file_dict.")
+
+            full_filename = os.path.join(filename, "sch_read")
+            # Time to actually read in the data
+            if use_mmap:
+                # memmap is a little special, in that it wants the _absolute_ offset
+                # rather than the relative offset that np.fromfile uses (if passing a
+                # file object rather than a string with the path toward the file).
                 for read_dict in read_list:
                     int_data_dict.update(
                         zip(
                             read_dict["inhid_list"],
-                            np.fromfile(
-                                visibilities_file,
+                            np.memmap(
+                                filename=full_filename,
                                 dtype=read_dict["int_dtype_dict"],
-                                count=read_dict["num_vals"],
-                                offset=read_dict["del_offset"],
+                                mode="r",
+                                offset=read_dict["start_offset"],
+                                shape=(read_dict["num_vals"],),
                             ),
                         )
                     )
+            else:
+                with open(full_filename, "rb") as visibilities_file:
+                    # Note that we do one open here to avoid the overheads associated
+                    # with opening and closing the file each integration.
+                    for read_dict in read_list:
+                        int_data_dict.update(
+                            zip(
+                                read_dict["inhid_list"],
+                                np.fromfile(
+                                    visibilities_file,
+                                    dtype=read_dict["int_dtype_dict"],
+                                    count=read_dict["num_vals"],
+                                    offset=read_dict["del_offset"],
+                                ),
+                            )
+                        )
 
         return int_data_dict
 
     @staticmethod
-    def make_packdata(sp_data, raw_data):
+    def make_packdata(int_start_dict, sp_dict, raw_data):
         """
         Write packdata from raw_data.
 
@@ -2345,107 +3407,48 @@ class MirParser(object):
             of the packed data (in bytes), and "packdata", which is the packed raw
             data.
         """
-        # Before we start, grab some relevant metadata
-        inhid_arr = sp_data["inhid"]
-        sphid_arr = sp_data["sphid"]
-
-        # Each channel containts two int16 values (real + imag), plus each
-        # spectral record has an int16 up front as the common exponent
-        record_size_arr = (2 * sp_data["nch"].astype(int)) + 1
-
-        # We need to run through the spectral records and see:
-        # a) Which sphids match to which inhids,
-        # b) Where each spectral record fits inside the "packed" data array, and
-        # c) The total size of the packed data array for each integration
-        inhid_offset_dict = {}
-        inhid_sphid_dict = {}
-        for inhid, sphid, record_size in zip(inhid_arr, sphid_arr, record_size_arr):
-            try:
-                # We assign here to avoid having to do this lookup twice
-                temp_val = inhid_offset_dict[inhid]
-                # By keeping a running tally of the integration size, we can also
-                # figure out where each spectral record fits into the paced data
-                inhid_offset_dict[inhid] = record_size + temp_val
-                inhid_sphid_dict[inhid][sphid] = (temp_val, (record_size + temp_val))
-            except KeyError:
-                # If no key is found, it means we're processing this inhid for the
-                # first time, so plug in a record accordingly.
-                inhid_offset_dict[inhid] = record_size
-                inhid_sphid_dict[inhid] = {sphid: (0, record_size)}
-
         # Figure out all of the unique dtypes we need for constructing the individual
         # packed datasets (where we need a different dtype based on the number of
         # individual visibilities we're packing in).
         int_dtype_dict = {}
-
-        for int_size in np.unique(list(inhid_offset_dict.values())):
+        for int_size in {idict["record_size"] for idict in int_start_dict.values()}:
             int_dtype_dict[int_size] = np.dtype(
                 [
                     ("inhid", np.int32),
                     ("nbyt", np.int32),
-                    ("packdata", np.int16, int_size),
+                    ("packdata", np.int16, int_size // 2),
                 ]
             ).newbyteorder("little")
 
         # Now we start the heavy lifting -- start looping through the individual
         # integrations and pack them together.
         int_data_dict = {}
-        for inhid, int_size in inhid_offset_dict.items():
+        for inhid, int_subdict in int_start_dict.items():
             # Make an empty packdata dtype, which we will fill with new values
-            packdata = np.empty((), dtype=int_dtype_dict[int_size])
+            int_data = np.empty((), dtype=int_dtype_dict[int_subdict["record_size"]])
 
             # Convenience dict which contains the sphids as keys and start/stop of
             # the slice for each spectral record as values for each integrtation.
-            datapos_dict = inhid_sphid_dict[inhid]
+            datapos_dict = sp_dict[inhid]
 
             # Plug in the "easy" parts of packdata
-            packdata["inhid"] = inhid
-            packdata["nbyt"] = int_size * 2
+            int_data["inhid"] = inhid
+            int_data["nbyt"] = int_subdict["record_size"]
 
             # Now step through all of the spectral records and plug it in to the
             # main packdata array. In testing, this worked out to be a good degree
             # faster than running np.concat.
-            for sphid, (ch_start, ch_stop) in datapos_dict.items():
+            packdata = int_data["packdata"]
+            for sphid, sp_subdict in datapos_dict.items():
                 sp_raw = raw_data[sphid]
-                packdata["packdata"][ch_start] = sp_raw["scale_fac"]
-                packdata["packdata"][(ch_start + 1) : ch_stop] = sp_raw["raw_data"]
+                start_idx = sp_subdict["start_idx"]
+                end_idx = sp_subdict["end_idx"]
+                packdata[start_idx] = sp_raw["scale_fac"]
+                packdata[(start_idx + 1) : end_idx] = sp_raw["raw_data"]
 
-            int_data_dict[inhid] = packdata
+            int_data_dict[inhid] = int_data
 
         return int_data_dict
-
-    @staticmethod
-    def write_rawdata(filepath, raw_dict, sp_data, append_data=False):
-        """
-        Write packed data to disk.
-
-        Parameters
-        ----------
-        filepath : str
-            String  describing the folder in which the data should be written.
-        int_data_dict : dict
-            Dict containing packed data
-        append_data : bool
-            Option whether to append to an existing file, if one already exists, or to
-            overwrite any existing data. Default is False (overwrite existing data).
-        """
-        if not os.path.isdir(filepath):
-            os.makedirs(filepath)
-
-        # In order to write to disk, we need to create an intermediate product known
-        # as "packed data", which is written on a per-integration basis. These create
-        # duplicate copies of the data which can cause the memory footprint to balloon,
-        # So we want to just create one packdata entry at a time. To do that, we
-        # actually need to sgement sp_data by the integration ID.
-        sp_in_dict, _ = MirParser.segment_by_index(sp_data, "inhid")
-
-        # We can now open the file once, and write each array upon construction
-        with open(
-            os.path.join(filepath, "sch_read"), "ab+" if append_data else "wb+"
-        ) as file:
-            for key in sorted(sp_in_dict.keys()):
-                packdata = MirParser.make_packdata(sp_in_dict[key], raw_dict)[key]
-                packdata.tofile(file)
 
     @staticmethod
     def convert_raw_to_vis(raw_dict):
@@ -2533,9 +3536,15 @@ class MirParser(object):
         # fast as possible. Strangely enough, frexp is _way_ faster than ldexp.
         # Note that we only want to calculate a common exponent based on the unflagged
         # spectral channels.
+        # Note that the minimum max value here is set to the relative double precision
+        # limit, in part because it's the limit of what one might trust for the
+        # correlator coefficients, and it's well below the nominal sensitivity limit
+        # of any real telescope (femtoJanskys FTW!).
         scale_fac = np.frexp(
             [
-                np.abs(sp_vis["vis_data"].view(dtype=np.float32)).max(initial=1e-45)
+                np.abs(sp_vis["vis_data"].view(dtype=np.float32)).max(
+                    initial=2.220446049250313e-16
+                )
                 for sp_vis in vis_dict.values()
             ]
         )[1].astype(np.int16) - np.int16(15)
@@ -2567,34 +3576,16 @@ class MirParser(object):
 
         return raw_dict
 
-    @staticmethod
-    def read_vis_data(
-        filepath,
-        int_start_dict,
-        sp_data,
-        return_vis=True,
-        return_raw=False,
-        use_mmap=True,
-        read_only=False,
-    ):
+    def read_vis_data(self, return_vis=True, use_mmap=True, read_only=False):
         """
-        Read "sch_read" mir file into a list of ndarrays. (@staticmethod).
+        Read "sch_read" mir file into a list of ndarrays.
 
         Parameters
         ----------
-        filepath : str or sequence of str
-            Path to the folder(s) containing the mir data set.
-        int_start_dict: dict or sequence of dict
-            Dictionary returned from scan_int_start, which records position and
-            record size for each integration
-        sp_data : ndarray of sp_data_type
-            Array from the file "sp_read", returned by `read_sp_data`.
         return_vis : bool
             If set to True, will return a dictionary containing the visibilities read
-            in the "normal" format. Default is True.
-        return_vis : bool
-            If set to True, will return a dictionary containing the visibilities read
-            in the "raw" format. Default is False.
+            in the "normal" format. If set to False, will return a dictionary containing
+            the visibilities read in the "raw" format. Default is True.
         use_mmap : bool
             If False, then each integration record needs to be read in before it can
             be parsed on a per-spectral record basis (which can be slow if only reading
@@ -2603,75 +3594,47 @@ class MirParser(object):
             There is usually no performance penalty to doing this, although reading in
             data is slow, you may try seeing this to False and seeing if performance
             improves.
+        read_only : bool
+            Only applicable if `return_vis=False` and `use_mmap=True`. If set to True,
+            will return back data arrays which are read-only. Default is False.
 
         Returns
         -------
-        raw_data : dict
+        data_dict : dict
             A dictionary, whose the keys are matched to individual values of sphid in
-            `sp_data`, and each entry comtains a dict with two items: "scale_fac",
-            and np.int16 which describes the common exponent for the spectrum, and
+            `sp_data`, and each entry comtains a dict with two items. If
+            `return_vis=False` then a "raw data" dict is passed, with keys "scale_fac",
+            an np.int16 which describes the common exponent for the spectrum, and
             "raw_data", an array of np.int16 (of length equal to twice that found in
             `sp_data["nch"]` for the corresponding value of sphid) containing the
             compressed visibilities.  Note that entries equal to -32768 aren't possible
             with the compression scheme used for MIR, and so this value is used to mark
-            flags. Only returned in return_raw=True.
-        vis_dict : dict
-            A dictionary in the format of `vis_data`, where the keys are matched to
-            individual values of sphid in `sp_data`, and each entry comtains a dict
-            with two items: "vis_data", an array of np.complex64 containing the
-            visibilities, and "vis_flags", an array of bool containing the per-channel
-            flags of the spectrum (both are of length equal to `sp_data["nch"]` for the
-            corresponding value of sphid). Only returned in return_vis=True.
+            flags. If `return_vis=True`, then a "vis data" dict is passed, with keys
+            "vis_data", an array of np.complex64 containing the visibilities, and
+            "vis_flags", an array of bool containing the per-channel flags of the
+            spectrum (both are of length equal to `sp_data["nch"]` for the
+            corresponding value of sphid).
         """
-        # If filepath is just a str, make it a list so we can iterate over it
-        if isinstance(filepath, str):
-            filepath = [filepath]
-
-        # Same thing for int_start_dict (if it's just a single dict)
-        if isinstance(int_start_dict, dict):
-            int_start_dict = [int_start_dict]
-
-        if len(filepath) != len(int_start_dict):
-            raise ValueError(
-                "Must provide a sequence of the same length for "
-                "filepath and int_start_dict."
-            )
-
-        # Gather the needed metadata that we'll need in order to read in the data.
-        inhid_arr = sp_data["inhid"]
-        sphid_arr = sp_data["sphid"]
-        # Cast to int64 here to avoid overflow issues (since nch is int16)
-        nch_arr = sp_data["nch"].astype(np.int64)
-        # The divide by two here is because each value is int16 (2 bytes), whereas
-        # dataoff records of "offset" in number of bytes.
-        dataoff_arr = sp_data["dataoff"] // 2
-
-        unique_inhid = np.unique(inhid_arr)
+        group_dict = self.sp_data.group_by("inhid")
+        unique_inhid = list(group_dict)
 
         # Begin the process of reading the data in, stuffing the "packdata" arrays
         # (to be converted into "raw" data) into the dict below.
-        int_data_dict = {}
+        packdata_dict = {}
+        packdata_dict.update(
+            MirParser.read_packdata(self._file_dict, unique_inhid, use_mmap=use_mmap)
+        )
         check_dict = {}
-        for file, startdict in zip(filepath, int_start_dict):
-            int_data_dict.update(
-                MirParser.read_packdata(
-                    file,
-                    {
-                        idx: startdict[idx]
-                        for idx in np.intersect1d(unique_inhid, list(startdict.keys()))
-                    },
-                    use_mmap=use_mmap,
-                )
-            )
-            check_dict.update(startdict)
+        for int_start_dict in self._file_dict.values():
+            check_dict.update(int_start_dict)
 
         # With the packdata in hand, start parsing the individual spectral records.
-        raw_dict = {}
+        data_dict = {}
         for inhid in unique_inhid:
             # There is very little to check in the packdata records, so make sure
             # that this entry corresponds to the inhid and size we expect.
-            if (int_data_dict[inhid]["inhid"] != check_dict[inhid][0]) or (
-                int_data_dict[inhid]["nbyt"] != check_dict[inhid][1]
+            if (packdata_dict[inhid]["inhid"] != check_dict[inhid]["inhid"]) or (
+                packdata_dict[inhid]["nbyt"] != check_dict[inhid]["record_size"]
             ):
                 raise ValueError(
                     "Values in int_start_dict do not match that recorded inside "
@@ -2681,72 +3644,122 @@ class MirParser(object):
 
             # Pop here let's us delete this at the end (and hopefully let garbage
             # collection do it's job correctly).
-            packdata = int_data_dict.pop(inhid)["packdata"]
-
-            # Select out the right subset of metadata
-            data_mask = inhid_arr == inhid
-            dataoff_subarr = dataoff_arr[data_mask]
-            nch_subarr = nch_arr[data_mask]
-            sphid_subarr = sphid_arr[data_mask]
-
-            # Dataoff marks the starting position of the record
-            start_idx = dataoff_subarr
-            # Each record has a real & imag value per channel, plus one common exponent
-            end_idx = start_idx + (nch_subarr * 2) + 1
+            packdata = packdata_dict.pop(inhid)["packdata"]
+            sphid_subarr = group_dict[inhid]
+            dataoff_subdict = self._sp_dict[inhid]
 
             # We copy here if we want the raw values AND we've used memmap, since
             # otherwise the resultant entries in raw_data will be memmap arrays, which
             # will be read only (and we want attributes to be modifiable.)
-            raw_dict.update(
-                {
-                    shpid: {
-                        "scale_fac": (
-                            packdata[idx].copy()
-                            if ((return_raw and use_mmap) and not read_only)
-                            else packdata[idx]
-                        ),
-                        "raw_data": (
-                            packdata[idx + 1 : jdx].copy()
-                            if ((return_raw and use_mmap) and not read_only)
-                            else packdata[idx + 1 : jdx]
-                        ),
-                    }
-                    for shpid, idx, jdx in zip(sphid_subarr, start_idx, end_idx)
+            chan_avg_arr = np.zeros(len(sphid_subarr), dtype=int)
+            temp_dict = {}
+            for idx, sphid in enumerate(sphid_subarr):
+                dataoff = dataoff_subdict[sphid]
+                start_idx = dataoff["start_idx"]
+                end_idx = dataoff["end_idx"]
+                chan_avg_arr[idx] = dataoff["chan_avg"]
+                temp_dict[sphid] = {
+                    "scale_fac": packdata[start_idx],
+                    "raw_data": packdata[start_idx + 1 : end_idx],
                 }
-            )
+
+            if np.all(chan_avg_arr == 1):
+                if return_vis:
+                    temp_dict = self.convert_raw_to_vis(temp_dict)
+                elif not read_only:
+                    for sp_data in temp_dict.values():
+                        sp_data["raw_data"] = sp_data["raw_data"].copy()
+            else:
+                self._rechunk_raw(
+                    temp_dict, chan_avg_arr, inplace=True, return_vis=return_vis
+                )
+
+            data_dict.update(temp_dict)
+
             # Do the del here to break the reference to the "old" data so that
             # subsequent assignments don't cause issues for raw_dict.
             del packdata
 
         # Figure out which results we need to pass back
-        results = ()
+        return data_dict
 
-        if return_raw:
-            results += (raw_dict,)
-
-        if return_vis:
-            results += (MirParser.convert_raw_to_vis(raw_dict),)
-
-        return results
-
-    @staticmethod
-    def read_auto_data(filepath, int_start_dict, ac_data, winsel=None):
+    def write_vis_data(self, filepath, append_data=False, raise_err=True):
         """
-        Read "autoCorrelations" mir file into memory (@staticmethod).
+        Write visibility data to disk.
+
+        Parameters
+        ----------
+        filepath : str
+            String  describing the folder in which the data should be written.
+        append_data : bool
+            Option whether to append to an existing file, if one already exists, or to
+            overwrite any existing data. Default is False (overwrite existing data).
+        raise_err : bool
+            If set to True and data are not loaded, raise a ValueError. If False, raise
+            a warning instead. Default is True.
+
+        Raises
+        ------
+        ValueError
+            If data are not loaded, and `raise_err=True`.
+        UserWarning
+            If data are not laoded, and `raise_err=False`. Also raised if tsys
+            corrections have been applied to the data prior to being written out.
+        """
+        if (self.raw_data is None) and (self.vis_data is None):
+            if raise_err:
+                raise ValueError("Cannot write data if not already loaded.")
+            else:
+                warnings.warn("No data loaded, writing metadata only to disk.")
+                return
+
+        if (self.vis_data is not None) and self._tsys_applied:
+            # If using vis_data, we want to alert the user if tsys corrections are
+            # applied, so that we mitigat ethe chance of a double-correction.
+            if self._tsys_applied:
+                warnings.warn(
+                    "Writing out raw data with tsys applied. Be aware that you will "
+                    "need to use set apply_tsys=True when calling load_data."
+                    "Otherwise, call apply_tsys(invert=True) prior to writing out "
+                    "the data set."
+                )
+
+        if not os.path.isdir(filepath):
+            os.makedirs(filepath)
+
+        # In order to write to disk, we need to create an intermediate product known
+        # as "packed data", which is written on a per-integration basis. These create
+        # duplicate copies of the data which can cause the memory footprint to balloon,
+        # So we want to just create one packdata entry at a time. To do that, we
+        # actually need to sgement sp_data by the integration ID.
+        int_start_dict, sp_dict = self.sp_data._generate_dataoff_dict()
+
+        # We can now open the file once, and write each array upon construction
+        with open(
+            os.path.join(filepath, "sch_read"), "ab+" if append_data else "wb+"
+        ) as file:
+            for inhid in sorted(int_start_dict):
+                if self.vis_data is None:
+                    raw_dict = self.raw_data
+                else:
+                    raw_dict = self.convert_vis_to_raw(
+                        {sphid: self.vis_data[sphid] for sphid in sp_dict[inhid]}
+                    )
+
+                packdata = self.make_packdata(
+                    {inhid: int_start_dict[inhid]}, {inhid: sp_dict[inhid]}, raw_dict
+                )
+                packdata[inhid].tofile(file)
+
+    def read_auto_data(self, winsel=None):
+        """
+        Read "autoCorrelations" mir file into memory.
 
         Note that this returns as an array, since there isn't any unique index for the
         autocorrelations file.
 
         Parameters
         ----------
-        filepath : str or sequence of str
-            Path to the folder containing the mir data set.
-        int_start_dict : dict or sequence of dict
-            Dictionary (or sequence of dictonaries) which stores the integration file
-            positions, the keys of which are used for determining which values on the
-            integration header number (inhid) match which file.
-        ac_data : arr of dtype ac_read_dtype
-            Structure from returned from scan_auto_data.
         winsel : list of int (optional)
             List of spectral windows to include.
 
@@ -2757,20 +3770,8 @@ class MirParser(object):
             values contain the spectrum of individual auto-correlation records, of
             type np.float32.
         """
-        if isinstance(filepath, str):
-            filepath = [filepath]
-
-        if isinstance(int_start_dict, dict):
-            int_start_dict = [int_start_dict]
-
-        if len(filepath) != len(int_start_dict):
-            raise ValueError(
-                "Must provide a sequence of the same length for "
-                "filepath and int_start_dict."
-            )
-
         if winsel is None:
-            winsel = np.arange(0, ac_data["nchunks"][0])
+            winsel = np.arange(0, np.max(self.ac_data["nchunks"]))
 
         # The current generation correlator always produces 2**14 == 16384 channels per
         # spectral window.
@@ -2778,13 +3779,13 @@ class MirParser(object):
         # (although this is presently blocked by the way the _old_ rechunker behaves)
         auto_data = {}
 
-        for file, startdict in zip(filepath, int_start_dict):
+        for file, startdict in self._file_dict.items():
             # Select out the appropriate records for this file
-            ac_mask = np.isin(ac_data["inhid"], list(startdict.keys()))
+            ac_mask = np.isin(self.ac_data["inhid"], list(startdict))
 
-            dataoff_arr = ac_data["dataoff"][ac_mask]
-            nvals_arr = ac_data["datasize"][ac_mask].astype(np.int64) // 4
-            achid_arr = ac_data["achid"][ac_mask]
+            dataoff_arr = self.ac_data["dataoff"][ac_mask]
+            nvals_arr = self.ac_data["datasize"][ac_mask].astype(np.int64) // 4
+            achid_arr = self.ac_data["achid"][ac_mask]
             with open(os.path.join(file, "autoCorrelations"), "rb") as auto_file:
                 # Start scanning through the file now.
                 lastpos = 0
@@ -2799,105 +3800,6 @@ class MirParser(object):
                     lastpos = dataoff + (4 * nvals)
 
         return auto_data
-
-    @staticmethod
-    def make_codes_dict(codes_read):
-        """
-        Make a dictionary from codes_read.
-
-        Generates a dictionary based on a codes_read array.
-
-        Parameters
-        ----------
-        codes_read : ndarray of dtype codes_dtype
-            Array from the file "codes_read", returned by `read_codes_data`.
-
-        Returns
-        -------
-        codes_dict : dict
-            Dictionary whose keys match the value of "v_name" in `codes_read`, with
-            values made up of a dictionary with keys corresponding to "icode" and values
-            of a tuple made of of ("code", "ncode") from each element of `codes_read`.
-        """
-        codes_dict = {}
-
-        # These are entries that are supposed to change over the course of the track,
-        # but _may_ not if there is only a single entry. For sake of consistency, we
-        # force these to behave like v_names that have multiple entries
-        code_diff_allowed = [
-            "ref_time",
-            "ut",
-            "vrad",
-            "source",
-            "stype",
-            "svtype",
-            "project",
-            "ra",
-            "dec",
-        ]
-
-        for item in codes_read:
-            v_name = item["v_name"].decode("UTF-8")
-            try:
-                codes_dict[v_name][0].append(item["code"].decode("UTF-8"))
-                codes_dict[v_name][1].append(int(item["icode"]))
-                codes_dict[v_name][2].append(int(item["ncode"]))
-            except KeyError:
-                codes_dict[v_name] = [
-                    [item["code"].decode("UTF-8")],
-                    [int(item["icode"])],
-                    [int(item["ncode"])],
-                ]
-
-        for key in codes_dict.keys():
-            if (
-                len(codes_dict[key][0]) == 1
-                and (key not in code_diff_allowed)
-                and (codes_dict[key][1] == [0] and codes_dict[key][2] == [1])
-            ):
-                codes_dict[key] = codes_dict[key][0][0]
-            else:
-                codes_dict[key] = {
-                    idx: (code, ncode)
-                    for code, idx, ncode in zip(
-                        codes_dict[key][0], codes_dict[key][1], codes_dict[key][2]
-                    )
-                }
-
-        return codes_dict
-
-    @staticmethod
-    def make_codes_read(codes_dict):
-        """
-        Make from codes_read array from a dictionary.
-
-        Generates an array of dtype codes_dtype, based on a dictionary. Note that the
-        format should match that output by `make_codes_dict`.
-
-        Parameters
-        ----------
-        codes_dict : dict
-            Dictionary whose keys match the value of "v_name" in `codes_read`, with
-            values made up of a dictionary with keys corresponding to "icode" and values
-            of a tuple made of of ("code", "ncode") from each element of `codes_read`.
-
-        Returns
-        -------
-        codes_read : ndarray of dtype codes_dtype
-            Array of dtype codes_dtype, with an entry corresponding to each unique
-            entry in `codes_dict`.
-        """
-        codes_tuples = []
-        for key, value in codes_dict.items():
-            if isinstance(value, dict):
-                for subkey, subval in value.items():
-                    codes_tuples.append((key, subkey, subval[0], subval[1]))
-            else:
-                codes_tuples.append((key, 0, value, 1))
-
-        codes_read = np.array(codes_tuples, dtype=codes_dtype)
-
-        return codes_read
 
     def apply_tsys(self, invert=False, force=False):
         """
@@ -2917,7 +3819,7 @@ class MirParser(object):
             applied yet, if `invert=True`), and will throw an error if that is the case.
             If set to True, this check will be bypassed. Default is False.
         """
-        if not self._vis_data_loaded:
+        if self.vis_data is None:
             raise ValueError(
                 "Must call load_data first before applying tsys normalization."
             )
@@ -3011,7 +3913,7 @@ class MirParser(object):
         ValueError
             If vis_data are not loaded.
         """
-        if not self._vis_data_loaded:
+        if self.vis_data is None:
             raise ValueError("Cannot apply flags if vis_data are not loaded.")
 
         for sphid, flagval in zip(self.sp_data["sphid"], self.sp_data["flags"]):
@@ -3030,32 +3932,29 @@ class MirParser(object):
         check : bool
             If True, the index values all match up with keys in data data attributes.
         """
-        # Note that we have to modify out checking here if _file_dict is empty, since
-        # it means that all spectral records have to be loaded already, even if not
-        # selected.
-        arr_fmt = "_%s_read" if (self._file_dict == {}) else "%s_data"
-
         # Set this list up here to make the code that follows a bit more generic (so
         # that we can have 1 loop rather than 3 if statements).
         check_list = [
-            (self._vis_data_loaded, arr_fmt % "sp", "sphid", self.vis_data),
-            (self._raw_data_loaded, arr_fmt % "sp", "sphid", self.raw_data),
-            (self._auto_data_loaded, arr_fmt % "ac", "achid", self.auto_data),
+            (self.sp_data["sphid"], self.vis_data),
+            (self.sp_data["sphid"], self.raw_data),
         ]
 
+        if self._has_auto:
+            check_list.append((self.ac_data["achid"], self.auto_data))
+
         # Run our check
-        for (load_state, idx_attr, idx_field, data_arr) in check_list:
-            if not load_state:
+        for (idx_arr, data_arr) in check_list:
+            if data_arr is None:
                 # If not loaded, move along
                 continue
-            if sorted(getattr(self, idx_attr)[idx_field]) != sorted(data_arr.keys()):
+            if sorted(idx_arr) != sorted(data_arr):
                 # If we have a mismatch, we can leave ASAP
                 return False
 
         # If you got to this point, it means that we've got agreement!
         return True
 
-    def _downselect_data(self, select_vis=True, select_raw=True, select_auto=True):
+    def _downselect_data(self, select_vis=False, select_raw=False, select_auto=False):
         """
         Downselect data attributes based on metadata..
 
@@ -3084,42 +3983,36 @@ class MirParser(object):
             a corresponding key in the relevant data attribute, indicating that there
             are records requested that are not loaded into memory.
         """
-        # TODO _downselect_data: Needs a docstring
-        if self._file_dict == {}:
-            # There isn't anything to do here, because we can't downselect if there
-            # isn't an associated file object. Bail at this point.
-            return
-
         try:
             # Check that vis_data has all entries we need for processing the data
-            if self._vis_data_loaded and select_vis:
+            if select_vis:
                 vis_data = {
                     sphid: self.vis_data[sphid] for sphid in self.sp_data["sphid"]
                 }
 
             # Now check raw_data
-            if self._raw_data_loaded and select_raw:
+            if select_raw:
                 raw_data = {
                     sphid: self.raw_data[sphid] for sphid in self.sp_data["sphid"]
                 }
 
             # Now check auto_data
-            if self._auto_data_loaded and select_auto:
+            if select_auto:
                 auto_data = {
                     achid: self.auto_data[achid] for achid in self.ac_data["achid"]
                 }
-        except KeyError as err:
-            raise KeyError(
+        except (TypeError, KeyError):
+            raise MirMetaError(
                 "Missing spectral records in data attributes. Run load_data instead."
-            ) from err
+            )
 
         # At this point, we can actually plug our values in, since we know that the
         # operation above succeeded.
-        if self._vis_data_loaded and select_vis:
+        if select_vis and self.vis_data is not None:
             self.vis_data = vis_data
-        if self._raw_data_loaded and select_raw:
+        if select_raw and self.raw_data is not None:
             self.raw_data = raw_data
-        if self._auto_data_loaded and select_auto:
+        if select_auto and self.auto_data is not None:
             self.auto_data = auto_data
 
     def load_data(
@@ -3128,25 +4021,45 @@ class MirParser(object):
         load_raw=None,
         load_auto=None,
         apply_tsys=True,
-        use_mmap=True,
-        read_only=False,
         allow_downselect=None,
         allow_conversion=None,
+        use_mmap=True,
+        read_only=False,
     ):
         """
         Load visibility data into MirParser class.
 
+        Method for loading the visibility data into the object. Can either load the
+        compressed "raw data" (which is about half the size in memory, but carries
+        overheads in various function calls _except_ for writing to disk) or the
+        uncompressed "vis data" (floating point values).
+
+        Note that this function will only load either  vis data or raw data, not
+        both. If told to load both, then the method will default to loading only the
+        vis data.
+
         Parameters
         ----------
         load_vis : bool
-            Load the visibility data (floats) into object (deault is True).
+            Load the visibility data (floats) into object. Default is True if
+            `load_raw` is unset or otherwise set to False.
         load_raw : bool
-            Load the raw visibility data (ints) into object (default is False).
+            Load the raw visibility data (ints) into object. Default is False, unless
+            `load_vis` is set to False, in which case it defaults to True.
         load_auto: bool
-            Load the autos (floats) into object (default is False).
+            Load the autos (floats) into object. Default is False.
         apply_tsys : bool
-            If load_vis is set to true, apply tsys corrections to the data (default
-            is True).
+            Apply tsys corrections to the data. Only applicable if loading vis data.
+            Default is True.
+        allow_downselect : bool
+            If data has been previously loaded, and all spectral records are currently
+            contained in `vis_data`, `raw_data`, and/or `auto_data` (if `load_vis`,
+            `load_raw`, and/or `load_auto` are True, respectively), then down-select
+            from the currently loaded data rather than reading the data from disk.
+        allow_conversion : bool
+            Allow the method to convert previously loaded raw_data into "normal"
+            visibility data. Default is True if the raw data is loaded and
+            `load_vis=True`.
         use_mmap : bool
             If False, then each integration record needs to be read in before it can
             be parsed on a per-spectral record basis (which can be slow if only reading
@@ -3155,203 +4068,91 @@ class MirParser(object):
             There is usually no performance penalty to doing this, although reading in
             data is slow, you may try seeing this to False and seeing if performance
             improves.
-        allow_downselect : bool
-            If data has been previously loaded, and all spectral records are currently
-            contained in `vis_data`, `raw_data`, and/or `auto_data` (if `load_vis`,
-            `load_raw`, and/or `load_auto` are True, respectively), then down-select
-            from the currently loaded data rather than reading the data from disk.
-        allow_conversion : bool
-            Allow the method to convert previously loaded raw_data into "normal"
-            visibility data.
+        read_only : bool
+            Only applicable if `return_vis=False` and `use_mmap=True`. If set to True,
+            will return back data arrays which are read-only. Default is False.
 
         Raises
         ------
         UserWarning
-            If there is no file to load data from.
+            If attempting to set both `load_vis` and `load_raw` to True. Also if the
+            method is about to attempt to convert previously loaded data.
         """
-        if self._file_dict == {}:
-            # If there is no file_dict, that _usually_ means that we added two
-            # MirParser objects together that did not belong to the same file
-            # with force=True, which breaks the underlying connection to the
-            # data on disk. If this is the case, we want to tread a bit carefully,
-            # and not actually unload any data if at all possible.
-            if load_raw or (load_raw is None and not (load_vis or load_vis is None)):
-                if self._raw_data_loaded:
-                    warnings.warn(
-                        "No file to load from, and raw data is already loaded, "
-                        "skipping raw data load."
-                    )
-                else:
-                    raise ValueError(
-                        "Cannot load raw data from disk without a file to load from. "
-                        "Set load_raw=False to continue."
-                    )
-            if load_vis or (load_vis is None and (not load_raw)):
-                if self._vis_data_loaded:
-                    warnings.warn(
-                        "No file to load from, and vis data is already loaded, "
-                        "skipping vis data load."
-                    )
-                elif not self._raw_data_loaded:
-                    raise ValueError(
-                        "No file to load vis_data from, cannot run load_data."
-                    )
-                elif allow_conversion:
-                    # Use update here to prevent wiping out other data stored in memory
-                    self.vis_data = self.convert_raw_to_vis(
-                        {
-                            sphid: self.raw_data[sphid]
-                            for sphid in self._sp_read["sphid"]
-                        }
-                    )
-                    self._vis_data_loaded = True
-                    if apply_tsys:
-                        # Note that this online looks at sp_data["sphid"] to determine
-                        # which records to update, which by the logic above are the
-                        # only ones that we have converted from raw to vis.
-                        self.apply_tsys()
-                else:
-                    raise ValueError(
-                        "No file to load vis_data from, but raw_data is loaded. "
-                        "Set allow_conversion=True to load in vis_data."
-                    )
-            if allow_downselect:
-                warnings.warn(
-                    "allow_downselect argument ignored because no file to load from."
-                )
-            return
+        # Figure out what exactly we're going to load here.
+        if load_vis is None and not load_raw:
+            load_vis = True
+        if load_raw is None:
+            load_raw = not load_vis
+        if load_auto is None:
+            load_auto = self._has_auto
+
+        if load_raw and load_vis:
+            warnings.warn(
+                "Cannot load raw and vis data simultaneously, loading vis data only."
+            )
+            load_raw = False
 
         # Last chance before we load data -- see if we already have raw_data in hand,
         # and just need to convert it. If allow_conversion is None, we should decide
         # first whether or not to attempt this.
         if allow_conversion or (allow_conversion is None):
-            if not (load_vis or (load_vis is None)) or (
-                load_raw and (load_vis is None)
-            ):
-                # Literally nothing to do here because we don't want the vis_data
-                allow_conversion = False
-            elif load_raw:
-                # We can't do conversion if we need to load up the autos/raw from disk.
-                if allow_conversion:
-                    warnings.warn("Cannot load raw data AND convert, moving on.")
-                allow_conversion = False
-            elif not self._raw_data_loaded:
-                # Also can't convert data if no raw data was loaded to begin with.
-                if allow_conversion:
-                    warnings.warn(
-                        "Raw data not loaded, cannot convert, attempting alternatives."
-                    )
-                allow_conversion = False
-            elif not np.all(np.isin(self.sp_data["sphid"], list(self.raw_data.keys()))):
-                if allow_conversion:
-                    warnings.warn(
-                        "Loaded raw data does not contain all spectral records, "
-                        "skipping conversion."
-                    )
-                allow_conversion = False
+            if load_vis and (self.raw_data is not None):
+                allow_conversion = np.all(
+                    np.isin(self.sp_data["sphid"], list(self.raw_data))
+                )
             else:
-                allow_conversion = True
+                allow_conversion = False
 
         if allow_conversion:
+            warnings.warn(
+                "Converting previously loaded data since allow_conversion=True."
+            )
             self.vis_data = self.convert_raw_to_vis(self.raw_data)
-            self._vis_data_loaded = True
             self._tsys_applied = False
             # If we need to apply tsys, do that now.
             if apply_tsys:
                 self.apply_tsys()
 
+        # Unload anything that we don't want to load at this point.
+        self.unload_data(
+            unload_vis=not load_vis,
+            unload_raw=not load_raw,
+            unload_auto=not load_auto,
+        )
+
         # If we are potentially downselecting data (typically used when calling select),
         # make sure that we actually have all the data we need loaded.
         if allow_downselect or (allow_downselect is None):
-            data_list = []
-            # We group both types of cross-correlation data here (raw + normal). Mostly
-            # we do this because the heavy
-            if (load_vis or (load_vis is None)) or (load_raw or (load_raw is None)):
-                data_list.append("cross")
-
-            if load_auto or (load_auto is None):
-                data_list.append("auto")
-
-            # Anything we aren't downselecting we should be unloading at this point
-            self.unload_data(
-                unload_vis=(not (load_vis or (load_vis is None))),
-                unload_raw=(not (load_raw or (load_raw is None))),
-                unload_auto=(not (load_auto or (load_auto is None))),
-            )
-
-            for data in data_list:
+            if load_vis or load_raw:
                 try:
-                    self._downselect_data(
-                        select_vis=data == "cross",
-                        select_raw=data == "cross",
-                        select_auto=data == "auto",
-                    )
-                except KeyError:
-                    # If we can't downselect, then we have to unload the data.
-                    self.unload_data(
-                        unload_vis=data == "cross",
-                        unload_raw=data == "cross",
-                        unload_auto=data == "auto",
-                    )
-                    if allow_downselect is not None:
-                        warnings.warn(
-                            "Cannot downselect %s data, attempting alternatives." % data
-                        )
-        else:
-            # If we can't downselect, then we don't trust that the data attributes
-            # have only the spectral records that we want. Unload them now, except
-            # for vis_data if we just generated that from raw_data.
-            self.unload_data(
-                unload_vis=(not allow_conversion),
-                unload_raw=True,
-                unload_auto=True,
-            )
+                    self._downselect_data(select_vis=True, select_raw=True)
+                    load_vis = False
+                    load_raw = False
+                except MirMetaError:
+                    if allow_downselect:
+                        warnings.warn("Cannot downselect cross-correlation data.")
 
-        # At this point, we've unloaded any data we can't carry forward, so if we still
-        # need to load stuff from the file, we can handle this now.
-        if (load_vis is None) and (load_raw is None):
-            # If letting us choose between vis_data and raw_data, give preference
-            # to vis_data. Note we only have to load the data if it hasn't been loaded.
-            load_vis = not self._vis_data_loaded
+            if load_auto:
+                try:
+                    self._downselect_data(select_auto=True)
+                    load_auto = False
+                except MirMetaError:
+                    if allow_downselect:
+                        warnings.warn("Cannot downselect auto-correlation data.")
 
-        if load_raw is None:
-            # Load raw_data only if won't have loaded vis_data, or otherwise
-            # if we already have the raw_data loaded into memory.
-            load_raw = not (
-                (load_vis or self._vis_data_loaded) or self._raw_data_loaded
-            )
-        elif load_vis is None:
-            # Load vis_data only if won't have loaded raw_data, or otherwise
-            # if we already have the vis_data loaded into memory.
-            load_vis = not (
-                (load_raw or self._raw_data_loaded) or self._vis_data_loaded
-            )
-
-        # Finally, if we can't downselect, load the data in now using the information
-        # stored in _file_dict.
+        # Finally, if we didn't downselect or convert, load the data from disk now.
         if load_vis or load_raw:
-            vis_tuple = self.read_vis_data(
-                list(self._file_dict.keys()),
-                list(self._file_dict.values()),
-                self.sp_data,
-                return_vis=load_vis,
-                return_raw=load_raw,
-                use_mmap=use_mmap,
-                read_only=read_only,
+            setattr(
+                self,
+                "vis_data" if load_vis else "raw_data",
+                self.read_vis_data(
+                    return_vis=load_vis,
+                    use_mmap=use_mmap,
+                    read_only=read_only,
+                ),
             )
 
-            # Because the read_vis_data returns a tuple of varying length depending on
-            # return_vis and return_raw, we want to parse that here.
-            if load_vis and load_raw:
-                self.raw_data, self.vis_data = vis_tuple
-            elif load_vis:
-                (self.vis_data,) = vis_tuple
-            elif load_raw:
-                (self.raw_data,) = vis_tuple
-
-            # Finally, mark whether or not we loaded these asttributes
             if load_vis:
-                self._vis_data_loaded = True
                 # Since we've loaded in "fresh" data, we mark that tsys has
                 # not yet been applied (otherwise apply_tsys can thrown an error).
                 self._tsys_applied = False
@@ -3359,26 +4160,22 @@ class MirParser(object):
                 # Apply tsys if needed.
                 if apply_tsys and load_vis:
                     self.apply_tsys()
-            if load_raw:
-                self._raw_data_loaded = True
 
         # We wrap the auto data here in a somewhat special way because of some issues
         # with the existing online code and how it writes out data. At some point
         # we will fix this, but for now, we triage the autos here. Note that if we
         # already have the auto_data loaded, we can bypass this step.
-        if load_auto and self._has_auto and (not self._auto_data_loaded):
+        if load_auto:
+            # If there is no auto data to actually load, raise an error now.
+            if not self._has_auto:
+                raise ValueError("This object has no auto-correlation data to load.")
+
             # Have to do this because of a strange bug in data recording where
             # we record more autos worth of spectral windows than we actually
             # have online.
             winsel = np.unique(self.sp_data["corrchunk"])
             winsel = winsel[winsel != 0].astype(int) - 1
-            self.auto_data = self.read_auto_data(
-                list(self._file_dict.keys()),
-                list(self._file_dict.values()),
-                self.ac_data,
-                winsel=winsel,
-            )
-            self._auto_data_loaded = True
+            self.auto_data = self.read_auto_data(winsel=winsel)
 
     def unload_data(self, unload_vis=True, unload_raw=True, unload_auto=True):
         """
@@ -3387,9 +4184,6 @@ class MirParser(object):
         Unloads the data-related attributes from memory, if they are loaded. Because
         these attributes can be formidible in size, this operation will substantially
         reduce the memory footprint of the MirParser object.
-
-        Note that you cannot use this operation if adding together to MirParser
-        ojbects with force=True.
 
         Parameters
         ----------
@@ -3402,52 +4196,26 @@ class MirParser(object):
         unload_auto : bool
             Unload the auto-correlations stored in the `auto_data` attribute, if loaded.
             Default is True.
-
-        Raises
-        ------
-        ValueError
-            If attempting to unload data if there is no file to load visibility data
-            from.
         """
-        if self._file_dict == {}:
-            raise ValueError(
-                "Cannot unload data as there is no file to load data from."
-            )
-
         if unload_vis:
             self.vis_data = None
-            self._vis_data_loaded = False
             self._tsys_applied = False
         if unload_raw:
             self.raw_data = None
-            self._raw_data_loaded = False
         if unload_auto:
             self.auto_data = None
-            self._auto_data_loaded = False
 
-    def _update_filter(
-        self,
-        use_in=None,
-        use_bl=None,
-        use_sp=None,
-        update_data=None,
-        allow_downselect=False,
-    ):
+    def _update_filter(self, update_data=None):
         """
         Update MirClass internal filters for the data.
 
-        Expands the internal 'use_in', 'use_bl', and 'use_sp' arrays to
-        construct filters for the individual structures/data.
+        Note that this is an internal helper function which is not for general user use,
+        but instead is part of the low-level API for the MirParser object. Updates
+        the masks of the various MirMetaData objects so that only records with entries
+        across _all_ the metadata objects are included. Typically used after issuing
+        a `select` command to propagate masks to objects that did not immediately have
+        matching selection criteria based on what the user provided.
 
-        use_in : bool
-            Boolean array of shape (N_in, ), where `N_in = len(self.in_data)`, which
-            marks with integration records to include.
-        use_bl : bool
-            Boolean array of shape (N_bl, ), where `N_bl = len(self.bl_data)`, which
-            marks with baseline records to include.
-        use_sp : bool
-            Boolean array of shape (N_sp, ), where `N_bl = len(self.sp_data)`, which
-            marks with baseline records to include.
         update_data : bool
             If set to True, will read in data from disk after selecting records. If
             set to False, data attributes (e.g., `vis_data`, `raw_data`, `auto_data`)
@@ -3455,134 +4223,114 @@ class MirParser(object):
             on what had been previously.  Default is to downselect the data from that
             previously unloaded if possible, otherwise unload the data.
         """
-        in_filter = np.zeros(len(self._in_read), dtype=bool)
-        bl_filter = np.zeros(len(self._bl_read), dtype=bool)
-        sp_filter = np.zeros(len(self._sp_read), dtype=bool)
-
-        in_filter[use_in] = True
-        bl_filter[use_bl] = True
-        sp_filter[use_sp] = True
-
-        in_inhid = self._in_read["inhid"]
-        bl_inhid = self._bl_read["inhid"]
-        bl_blhid = self._bl_read["blhid"]
-        sp_blhid = self._sp_read["blhid"]
-        sp_sphid = self._sp_read["sphid"]
-
-        # Filter out de-selected bl records
-        bl_filter[bl_filter] = np.isin(bl_inhid[bl_filter], in_inhid[in_filter])
-
-        # Filter out de-selected sp records
-        sp_filter[sp_filter] = np.isin(sp_blhid[sp_filter], bl_blhid[bl_filter])
-
-        # Check for bl records that have no good sp records
-        # Filter out de-selected bl records
-        bl_filter[bl_filter] = np.isin(
-            bl_blhid[bl_filter],
-            np.unique(sp_blhid[sp_filter]),
-            assume_unique=True,
-        )
-
-        # Check for in records that have no good bl records
-        # Filter out de-selected in records
-        in_filter[in_filter] = np.isin(
-            in_inhid[in_filter],
-            np.unique(bl_inhid[bl_filter]),
-            assume_unique=True,
-        )
-
-        in_inhid = in_inhid[in_filter]
-        bl_blhid = bl_blhid[bl_filter]
-        sp_sphid = sp_sphid[sp_filter]
-
-        # Filter out the last three data products, based on the above
-        eng_filter = np.isin(self._eng_read["inhid"], in_inhid)
-        we_filter = np.isin(self._we_read["ints"], in_inhid)
-        ac_filter = (
-            np.isin(self._ac_read["inhid"], in_inhid) if self._has_auto else None
-        )
-
-        if allow_downselect:
-            try:
-                # If we are downselecting, we want to make sure that we are definitely
-                # selecting a subset of the prior data, which we can check by
-                # looking at the filters that already exist in the data.
-                assert np.all(self._in_filter[in_filter])
-                assert np.all(self._eng_filter[eng_filter])
-                assert np.all(self._bl_filter[bl_filter])
-                assert np.all(self._sp_filter[sp_filter])
-                assert np.all(self._we_filter[we_filter])
-                if self._has_auto:
-                    assert np.all(self._ac_filter[ac_filter])
-
-                # Note that this final check is for making sure that we can downselect
-                # the data itself, ensuring _downselect_data works below without error.
-                assert self._check_data_index()
-            except AssertionError:
-                allow_downselect = False
-
-        if allow_downselect:
-            # If we are allowing the data to be downselected, then we just want to
-            # select from the already loaded data vales. Note that we skip codes
-            # and ant positions since those are assumed to be constant over the track.
-            self.in_data = self.in_data[in_filter[self._in_filter]]
-            self.eng_data = self.eng_data[eng_filter[self._eng_filter]]
-            self.bl_data = self.bl_data[bl_filter[self._bl_filter]]
-            self.sp_data = self.sp_data[sp_filter[self._sp_filter]]
-            self.we_data = self.we_data[we_filter[self._we_filter]]
-            if self._has_auto:
-                self.ac_data = self.ac_data[ac_filter[self._ac_filter]]
-            else:
-                self.ac_data = None
-        else:
-            self.in_data = self._in_read[in_filter]
-            self.eng_data = self._eng_read[eng_filter]
-            self.bl_data = self._bl_read[bl_filter]
-            self.sp_data = self._sp_read[sp_filter]
-            self.we_data = self._we_read[we_filter]
-            if self._has_auto:
-                self.ac_data = self._ac_read[ac_filter]
-            else:
-                self.ac_data = None
-
-            # Also "refresh" the codes_dict and antpos values, just in case
-            # the user changed them under the hood.
-            self.codes_dict = self.make_codes_dict(self._codes_read)
-            self.antpos_data = self._antpos_read.copy()
-
-        # Now go through and update the filters
-        self._in_filter = in_filter
-        self._eng_filter = eng_filter
-        self._bl_filter = bl_filter
-        self._sp_filter = sp_filter
-        self._we_filter = we_filter
-        self._ac_filter = ac_filter
-
-        # Craft some dictionaries so you know what list position matches
-        # to each index entry. This helps avoid ordering issues.
-        self._inhid_dict = {inhid: idx for idx, inhid in enumerate(in_inhid)}
-        self._blhid_dict = {blhid: idx for idx, blhid in enumerate(bl_blhid)}
-        self._sphid_dict = {sphid: idx for idx, sphid in enumerate(sp_sphid)}
-
-        if (update_data is None) or (update_data and allow_downselect):
-            try:
-                self._downselect_data()
-            except KeyError:
-                self.unload_data()
-        elif update_data and not self._data_mucked:
-            self.load_data(
-                load_vis=self._vis_data_loaded,
-                load_raw=self._raw_data_loaded,
-                load_auto=self._auto_data_loaded,
-                apply_tsys=self._tsys_applied,
-                allow_downselect=False,
-                allow_conversion=False,
+        mask_update = False
+        # Start by cascading the filters up -- from largest metadata tables to the
+        # smallest. First up, spec win -> baseline
+        if not np.all(self.sp_data.get_mask()):
+            mask_update |= self.bl_data.set_mask(
+                where=("blhid", "eq", self.sp_data["blhid"])
             )
-        else:
-            if update_data:
-                warnings.warn("Unable to update data attributes, unloading them now.")
-            self.unload_data()
-            self._data_mucked = False
+
+        # Next, ant -> baseline. Note that this requires a little extra special
+        # handling, since eng_data doesn't have a unique key set to index on.
+        if not np.all(self.eng_data.get_mask()):
+            bl_eng_mask = np.logical_and(
+                self.eng_data.get_mask(
+                    header_key=self.bl_data.get_value(
+                        ["iant1", "inhid"], return_tuples=True, use_mask=False
+                    )
+                ),
+                self.eng_data.get_mask(
+                    header_key=self.bl_data.get_value(
+                        ["iant2", "inhid"], return_tuples=True, use_mask=False
+                    )
+                ),
+            )
+            mask_update |= self.bl_data.set_mask(mask=bl_eng_mask)
+
+        # Now baseline -> int
+        if not np.all(self.bl_data.get_mask()):
+            mask_update |= self.in_data.set_mask(
+                where=("inhid", "eq", self.bl_data["inhid"])
+            )
+
+        # And weather scan -> int
+        if not np.all(self.we_data.get_mask()):
+            mask_update |= self.in_data.set_mask(
+                where=("ints", "eq", self.we_data["ints"])
+            )
+
+        if mask_update or not np.all(self.in_data.get_mask()):
+            # We now cascade the masks downward. First up, int -> weather scan
+            mask_update |= self.we_data.set_mask(
+                where=("ints", "eq", self.in_data["ints"])
+            )
+
+            # Next, do int -> baseline
+            mask_update |= self.bl_data.set_mask(
+                where=("inhid", "eq", self.in_data["inhid"])
+            )
+
+        if mask_update or not np.all(self.bl_data.get_mask()):
+            # Now do baseline -> antennas. Again special handling required because of
+            # the lack of a unique index key for this table.
+            mask_update |= self.eng_data.set_mask(
+                header_key=set(
+                    self.bl_data.get_value(["iant1", "inhid"], return_tuples=True)
+                    + self.bl_data.get_value(["iant2", "inhid"], return_tuples=True)
+                )
+            )
+            # Finally, do baseline -> spec win
+            mask_update |= self.sp_data.set_mask(
+                where=("blhid", "eq", self.bl_data["blhid"])
+            )
+
+            if update_data or ((update_data is None) and mask_update):
+                try:
+                    self._downselect_data()
+                except MirMetaError:
+                    self.unload_data()
+                    if update_data:
+                        self.load_data(
+                            load_vis=self.vis_data is not None,
+                            load_raw=self.raw_data is not None,
+                            load_auto=self.auto_data is not None,
+                            apply_tsys=self._tsys_applied,
+                            allow_downselect=False,
+                            allow_conversion=False,
+                        )
+                    else:
+                        warnings.warn(
+                            "Unable to update data attributes, unloading them now."
+                        )
+
+    def _clear_auto(self):
+        self._has_auto = False
+        try:
+            del self._metadata_attrs["ac_read"]
+            self.ac_data = MirAcData()
+            self.auto_data = None
+
+        except KeyError:
+            pass
+
+    def reset(self):
+        """
+        Reset a MirParser object to its original state.
+
+        This method will in effect revert the object to a "pristine" state. Visibility
+        data will be unloaded, changed metadata will be restored, and any rechunking
+        settings will be removed (so that data will be loaded at full spectral
+        resolution).
+        """
+        for item in self._metadata_attrs:
+            self._metadata_attrs[item].reset()
+
+        for int_dict in self._sp_dict.values():
+            for sp_dict in int_dict.values():
+                sp_dict["chan_avg"] = 1
+
+        self.unload_data()
 
     def fromfile(
         self,
@@ -3616,110 +4364,44 @@ class MirParser(object):
         # in to the various attributes of the MirParser object. Note that "_read"
         # objects contain the whole data set, while "_data" contains that after
         # filtering (more on that below).
-        self._in_read = self.read_in_data(filepath)  # Per integration records
-        self._eng_read = self.read_eng_data(filepath)  # Per antenna-int records
-        self._bl_read = self.read_bl_data(filepath)  # Per baaseline-int records
-        self._sp_read = self.read_sp_data(filepath)  # Per spectral win-bl-int records
-        self._codes_read = self.read_codes_data(filepath)  # Metadata for the track
-        self._we_read = self.read_we_data(filepath)  # Per-int weather data
-        self._antpos_read = self.read_antennas(filepath)  # Antenna positions
+
+        if has_auto:
+            self._metadata_attrs["ac_data"] = self.ac_data
+            self._has_auto = True
+        else:
+            self._clear_auto()
+            load_auto = False
+
+        for attr in self._metadata_attrs.values():
+            attr.fromfile(filepath)
 
         # This indexes the "main" file that contains all the visibilities, to make
         # it faster to read in the data.
-        self._file_dict = {
-            os.path.abspath(filepath): self.calc_int_start(self._sp_read)
-        }
-        self.filepath = filepath
+        int_dict, self._sp_dict = self.sp_data._generate_dataoff_dict()
+        self._file_dict = {os.path.abspath(filepath): int_dict}
 
-        self._has_auto = has_auto
-        if self._has_auto:
-            # If the data has auto correlations, then scan the auto file, pull out
-            # the metadata, and get the data index locatinos for faster reads.
-            self._ac_read = self.scan_auto_data(filepath)
-        else:
-            self._ac_read = None
+        self.filepath = filepath
 
         # Raw data aren't loaded on start, because the datasets can be huge
         # You can force this after creating the object with load_data().
-        # Calling to unload_data will set all the relevant fields  we need.
+        # Calling to unload_data will set all the relevant fields to None.
         self.unload_data(unload_vis=True, unload_raw=True, unload_auto=True)
 
-        # _data_mucked records if we've done something where the loaded data may not
-        # match the metadata sorted in the *_read attributes, and thus some care is
-        # required before loading up data from disk. This is normally unset by
-        # running select(reset=True).
-        self._data_mucked = False
-
-        # This value is the forward gain of the antenna (in units of Jy/K), which is
-        # multiplied against the system temperatures in order to produce values in units
-        # of Jy (technically this is the SEFD, which when multiplied against correlator
-        # coefficients produces visibilities in units of Jy). Default is 130.0, which
-        # is the estiamted value for SMA.
-        self.jypk = 130.0
-
-        # _update_filter will assign all of the *_filter attributes, as well as the
-        # user-facing *_data attributes on call, in addition to the various *hid_dict's
-        # that map ID number to array index position.
-        self._update_filter()
-
-        # If requested, now we load out the visibilities.
-        self.load_data(
-            load_vis=load_vis,
-            load_raw=load_raw,
-            load_auto=(load_auto and self._has_auto),
-        )
-
-    def __init__(
-        self,
-        filepath=None,
-        has_auto=False,
-        load_vis=False,
-        load_raw=False,
-        load_auto=False,
-    ):
-        """
-        Read in all files from a mir data set into predefined numpy datatypes.
-
-        The full dataset can be quite large, as such the default behavior of
-        this function is only to load the metadata. Use the keyword params to
-        load other data into memory.
-
-        Parameters
-        ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-        has_auto : bool
-            flag to read auto-correlation data, default is False.
-        load_vis : bool
-            flag to load visibilities into memory, default is False.
-        load_raw : bool
-            flag to load raw data into memory, default is False.
-        load_auto : bool
-            flag to load auto-correlations into memory, default is False.
-        """
-        # On init, if a filepath is provided, then fill in the object
-        if filepath is not None:
-            self.fromfile(
-                filepath,
-                has_auto=has_auto,
-                load_vis=load_vis,
-                load_raw=load_raw,
-                load_auto=load_auto,
-            )
+        # If requested, now we load up the visibilities.
+        self.load_data(load_vis=load_vis, load_raw=load_raw, load_auto=load_auto)
 
     def tofile(
         self,
         filepath,
-        write_raw=True,
+        overwrite=True,
         load_data=False,
         append_data=False,
-        append_codes=False,
-        bypass_append_check=False,
+        check_index=True,
     ):
         """
-        Write a MirParser object to disk in MIR format.
+        Write a MirParser object to disk in Mir format.
 
-        Writes out a MirParser object to disk, in the binary MIR format. This method
+        Writes out a MirParser object to disk, in the binary Mir format. This method
         can worth with either a full dataset, or partial datasets appended together
         multiple times.
 
@@ -3727,13 +4409,6 @@ class MirParser(object):
         ----------
         filepath : str
             Path of the directory to write out the data set.
-        write_raw : bool
-            If set to True (default), the method will attempt to write out the data
-            stored in the `raw_data` attribute, and if this attribute is unpopulated,
-            will then revert to using `vis_data` instead. If set to False, the
-            preference order is swapped -- `vis_data` will be used first, but if not
-            populated, `raw_data` will be used instead. This option has no effect if
-            using a metadata-only MirParser object.
         load_data : bool
             If set to True, load the raw visibility data. Default is False, which will
             forgo loading data. Note that if no data are loaded, then the method
@@ -3771,73 +4446,23 @@ class MirParser(object):
         if load_data:
             self.load_data(load_vis=False, load_raw=True, load_auto=False)
 
-        # If appending, we want to make sure that there are no clashes between the
-        # header IDs we are about to write to disk, and the ones that already exist
-        # on disk.
-        if append_data and (not bypass_append_check):
-            try:
-                inhid_check = self.read_in_data(filepath)["inhid"]
-                if np.any(np.isin(self.in_data["inhid"], inhid_check)):
-                    raise ValueError(
-                        "Cannot append data when integration header IDs overlap."
-                    )
-                blhid_check = self.read_bl_data(filepath)["blhid"]
-                if np.any(np.isin(self.bl_data["blhid"], blhid_check)):
-                    raise ValueError(
-                        "Cannot append data when baseline header IDs overlap."
-                    )
-                sphid_check = self.read_sp_data(filepath)["sphid"]
-                if np.any(np.isin(self.sp_data["sphid"], sphid_check)):
-                    raise ValueError(
-                        "Cannot append data when spectral record header IDs overlap."
-                    )
-            except FileNotFoundError:
-                # If there's no file, then we have nothing to worry about.
-                pass
+        # Write out the various metadata fields
+        for attr in self._metadata_attrs:
+            if attr == "sp_data":
+                mir_meta_obj = self._metadata_attrs[attr].copy()
+                mir_meta_obj._recalc_dataoff()
+            else:
+                mir_meta_obj = self._metadata_attrs[attr]
 
-        # Start out by writing the metadata out to file the various files
-        self.write_in_data(filepath, self.in_data, append_data=append_data)
-        self.write_eng_data(filepath, self.eng_data, append_data=append_data)
-        self.write_bl_data(filepath, self.bl_data, append_data=append_data)
-        self.write_sp_data(filepath, self.sp_data, append_data=append_data)
-        # Note that the handling of codes a bit special, on account of the fact that
-        # they should not change over the course of a single track.
-        self.write_codes_data(
-            filepath,
-            self.make_codes_read(self.codes_dict),
-            append_data=(append_data and append_codes),
-        )
-        self.write_we_data(filepath, self.we_data, append_data=append_data)
-        self.write_antennas(filepath, self.antpos_data)
+            mir_meta_obj.tofile(
+                filepath,
+                overwrite=overwrite,
+                append_data=append_data,
+                check_index=check_index,
+            )
 
-        # Now handle the data -- if no data has been loaded, then it's time to bail
-        if not (self._vis_data_loaded or self._raw_data_loaded):
-            warnings.warn("No data loaded, writing metadata only to disk.")
-            return
-        elif (self._raw_data_loaded and write_raw) or (not self._vis_data_loaded):
-            # If we have raw_data and we prefer to use that, or if vis_data is not
-            # loaded, then we can just grab the raw data dict directly from the object.
-            raw_dict = self.raw_data
-        else:
-            # Otherwise, if using vis_data, we need to convert that to the raw format
-            # before we write the data to disk.
-            if self._tsys_applied:
-                warnings.warn(
-                    "Writing out raw data with tsys applied. Be aware that you will "
-                    "need to use set apply_tsys=True when calling load_data."
-                    "Otherwise, call apply_tsys(invert=True) prior to writing out "
-                    "the data set."
-                )
-            raw_dict = self.convert_vis_to_raw(self.vis_data)
-
-        # Finally, we can package up the raw data (using make_packdata) in order to
-        # write the raw-format data to disk.
-        self.write_rawdata(
-            filepath,
-            raw_dict,
-            self.sp_data,
-            append_data=append_data,
-        )
+        # Finally, we can package up the data in order to write it to disk.
+        self.write_vis_data(filepath, append_data=append_data, raise_err=False)
 
     @staticmethod
     def _rechunk_vis(vis_dict, chan_avg_arr, inplace=False):
@@ -4031,14 +4656,14 @@ class MirParser(object):
 
         return new_auto_dict
 
-    def rechunk(self, chan_avg, load_vis=False, load_raw=False, use_mmap=True):
+    def rechunk(self, chan_avg):
         """
         Rechunk a MirParser object.
 
-        Spectrally average a MIR dataset. This command attempts to emulate the old
+        Spectrally average a Mir dataset. This command attempts to emulate the old
         "SMARechunker" program within the MirParser object. Users should be aware
-        that running this operation modifies the metadata in such a way that new data
-        will not be able to be loaded until running `select(reset=True)`.
+        that running this operation modifies the metadata in such a way that all data
+        loaded will be rechunked in the same manner, until you run the `reset` method.
 
         Note that this command will only process data from the "normal" spectral
         windows, and not the pseudo-continuum data (which will remain untouched).
@@ -4047,23 +4672,6 @@ class MirParser(object):
         ----------
         chan_avg : int
             Number of contiguous spectral channels to average over.
-        load_vis : bool
-            If set to True, "normal" visibility data will be loaded and specrally
-            averaged on the fly. Useful for when attempting to read in large datasets.
-            Default is False, which results in only previously loaded data being
-            processed.
-        load_raw : bool
-            Similar to `load_raw`, if set to True, the raw visibility data will be
-            loaded from disk and spectrally averaged on the fly. Default is False,
-            which results in only previously loaded data being processed.
-        use_mmap : bool
-            If False, then each integration record needs to be read in before it can
-            be parsed on a per-spectral record basis (which can be slow if only reading
-            a small subset of the data). Default is True, which will leverage mmap to
-            access data on disk (that does not require reading in the whole record).
-            There is usually no performance penalty to doing this, although reading in
-            data is slow, you may try seeing this to False and seeing if performance
-            improves.
         """
         # Start of by doing some argument checking.
         arg_dict = {"chan_avg": chan_avg}
@@ -4073,384 +4681,94 @@ class MirParser(object):
             elif value < 1:
                 raise ValueError("%s cannot be a number less than one." % key)
 
-        if load_vis or load_raw:
-            if self._data_mucked:
-                raise ValueError(
-                    "Cannot load data due to modifications of metadata records. "
-                    "Run select(reset=True) in order to clear this issue, or "
-                    "set load_data and load_raw to False."
-                )
-            elif self._file_dict == {}:
-                raise ValueError(
-                    "Cannot unload data as there is no file to load data from."
-                )
-        else:
-            if chan_avg == 1:
-                # This is a no-op, so we can actually bail at this point.
-                return
-            if (not (self._vis_data_loaded or self._raw_data_loaded)) and (
-                not self._auto_data_loaded
-            ):
-                warnings.warn("No data loaded to average, returning.")
-                return
-            if not self._check_data_index():
-                # If the above returns False, then we have a problem, and can't
-                # actually run this operation (have to reload the data).
-                raise ValueError(
-                    "Index values do not match data keys. Data will need to be "
-                    "reloaded before continuing (with select(reset=True))."
-                )
+        if chan_avg == 1:
+            # This is a no-op, so we can actually bail at this point.
+            return
 
-        sp_data = self._sp_read if (self._file_dict == {}) else self.sp_data
-        chan_avg_arr = np.where(sp_data["corrchunk"] == 0, 1, chan_avg)
+        if not self._check_data_index():
+            # If the above returns False, then we have a problem, and can't
+            # actually run this operation (have to reload the data).
+            raise ValueError(
+                "Index values do not match data keys. Data will need to be "
+                "reloaded before continuing using `select(reset=True)`."
+            )
 
-        if np.any(np.mod(sp_data["nch"], chan_avg_arr) != 0):
+        # Eventually, we can make this handling more sophisticated, but for now, just
+        # make it so that we average every window aside from the pseudo continuum
+        # (win #0) by the same value.
+        band_arr = self.sp_data.get_value("corrchunk", use_mask=False)
+        nchan_arr = self.sp_data.get_value("nch", use_mask=False)
+        fres_arr = self.sp_data.get_value("fres", use_mask=False)
+        vres_arr = self.sp_data.get_value("vres", use_mask=False)
+
+        # Last task - update the metadata about num of channels accordingly,
+        # and clobber the dataoff values.
+        chanavg_dict = {band: chan_avg for band in np.unique(band_arr)}
+        chanavg_dict[0] = 1
+        chan_avg_arr = [chanavg_dict[band] for band in band_arr]
+        if np.any(np.mod(nchan_arr, chan_avg_arr) != 0):
             raise ValueError(
                 "chan_avg does not go evenly into the number of channels in each "
                 "spectral window (typically chan_avg should be set to a power of 2)."
             )
 
-        # Note we are about to modify the data AND metadata, so mark this
-        # object as mucked to prevent us from trusting the metadata.
-        self._data_mucked = True
+        self.sp_data.set_value("nch", nchan_arr // chan_avg_arr, use_mask=False)
+        self.sp_data.set_value("fres", fres_arr * chan_avg_arr, use_mask=False)
+        self.sp_data.set_value("vres", vres_arr * chan_avg_arr, use_mask=False)
 
-        if not (load_vis or load_raw):
-            # If no associated file dict, then we need to deal with _all_ the spectral
-            # records in _sp_read, not just the ones in sp_data.
-            if self._vis_data_loaded:
-                self._rechunk_vis(self.vis_data, chan_avg_arr, inplace=True)
-            if self._raw_data_loaded:
-                self._rechunk_raw(self.raw_data, chan_avg_arr, inplace=True)
-            if self._auto_data_loaded:
-                self._rechunk_auto(self.auto_data, chan_avg_arr, inplace=True)
-        else:
-            if self._raw_data_loaded or (
-                self._vis_data_loaded or self._auto_data_loaded
-            ):
-                warnings.warn(
-                    "Setting load_data or load_raw to True will unload "
-                    "previously loaded data."
-                )
-            self.unload_data()
+        for int_dict in self._sp_dict.values():
+            for sphid in int_dict:
+                int_dict[sphid]["chan_avg"] *= chanavg_dict[
+                    self.sp_data.get_value("corrchunk", header_key=sphid)
+                ]
 
-            # Make these dicts now so that we can update in the loop below.
-            self.vis_data = {} if load_vis else None
-            self.raw_data = {} if load_raw else None
+        chan_avg_arr = [chanavg_dict[band] for band in self.sp_data["corrchunk"]]
 
-            # If we're going to load the data, then we only want to load a block of
-            # data at a time, otherwise we run the risk of overtaxing memory by loading
-            # in the data at a resolution we can't handle. To do this, we need to break
-            # up the sp_data by integration ID, which segment_by_index will do for us.
-            sp_in_dict, pos_dict = self.segment_by_index(sp_data, "inhid")
+        # Average down the data here.
+        if self.vis_data is not None:
+            self._rechunk_vis(self.vis_data, chan_avg_arr, inplace=True)
+        if self.raw_data is not None:
+            self._rechunk_raw(self.raw_data, chan_avg_arr, inplace=True)
+        if self.auto_data is not None:
+            self._rechunk_auto(self.auto_data, chan_avg_arr, inplace=True)
 
-            for sub_sp_data, pos_arr in zip(sp_in_dict.values(), pos_dict.values()):
-                # Pluck out the relevant entries from the channel averaging array we
-                # calculated earlier.
-                temp_chan_avg = chan_avg_arr[pos_arr]
-
-                # We only want to load one set of data, and for the moment, we can
-                # save some work by _just_ loading the raw data (and leaving it
-                # as read-only if we are grabbing the data from mmap).
-                (data_dict,) = self.read_vis_data(
-                    list(self._file_dict.keys()),
-                    list(self._file_dict.values()),
-                    sub_sp_data,
-                    return_vis=False,
-                    return_raw=True,
-                    use_mmap=use_mmap,
-                    read_only=use_mmap,
-                )
-
-                if load_raw and not load_vis:
-                    # If we _only_ want the raw data, we can save a bit on memory
-                    # by calling _rechunk_raw and replacing the records in-situ.
-                    self.raw_data.update(
-                        self._rechunk_raw(data_dict, temp_chan_avg, inplace=True)
-                    )
-                else:
-                    # Otherwise, it's faster to allow _rechunk_raw to return floats,
-                    # and then convert to raw later if needed.
-                    self.vis_data.update(
-                        self._rechunk_raw(
-                            data_dict,
-                            temp_chan_avg,
-                            return_vis=True,
-                            inplace=True,
-                        )
-                    )
-
-                # Delete data_dict, just to break any potential references and allow
-                # cache to clear.
-                del data_dict
-
-            if load_vis and load_raw:
-                # If we want vis and raw, make the raw copy now based on vis.
-                self.raw_data = self.convert_vis_to_raw(self.vis_data)
-
-            self._vis_data_loaded = load_vis
-            self._raw_data_loaded = load_raw
-
-        # Last task - update the metadata about num of channels accordingly,
-        # and clobber the dataoff values.
-        sp_data["nch"] = sp_data["nch"] // chan_avg_arr
-        sp_data["fres"] *= chan_avg_arr
-        sp_data["vres"] *= chan_avg_arr
-
-        if self._file_dict == {}:
-            for item in ["nch", "fres", "vres"]:
-                self.sp_data[item] = self._sp_read[item][self._sp_filter]
-
-    @staticmethod
-    def _arr_index_overlap(arr1, arr2, index_name):
-        """
-        Check for overlaping index values between two structured arrays.
-
-        This method is an internal helper function not meant to be called by users.
-        It checks for overlap between two arrays given a set of fields, the combined
-        set of which should provide a unique index value for each entry within the
-        arrays.
-
-        Parameter
-        ---------
-        arr1 : ndarray
-            Array of metadata, to be compared to `arr2`.
-        arr2 : ndarray
-            Array of metadata, to be compared to `arr1`.
-        index_name : str or tuple of str
-            Name of the field(s) which contains the unique index information.
-
-        Returns
-        -------
-        arr1_idx : list of int
-            List of index positions for `arr1` where the index field(s) have overlapping
-            values with `arr2`. The length of `arr1_idx` should be equal to that of
-            `arr2_idx`.
-        arr2_idx : list of int
-            List of index positions for `arr2` where the index field(s) have overlapping
-            values with `arr1`. The length of `arr2_idx` should be equal to that of
-            `arr1_idx`.
-
-        Raises
-        ------
-        ValueError
-            If `arr1` and `arr2` are of different dtypes, or if entries in `index_name`
-            overlap in the two arrays but `overwrite=False`. Also if `index_name` is
-            not a string, or is not a field in `arr1` or `arr2`.
-        """
-        # First up, make sure we have two ndarrays of the same dtype
-        if arr1.dtype != arr2.dtype:
-            raise ValueError("Both arrays must be of the same dtype.")
-
-        # If not using codes_read, the logic here is a bit simpler. Make sure that
-        # index_name is actually a string, since other types can produce spurious
-        # results.
-        if isinstance(index_name, str):
-            index_name = (index_name,)
-
-        if not isinstance(index_name, tuple):
-            raise ValueError("index_name must be a string or tuple of strings.")
-
-        for item in index_name:
-            # Make sure we've got a string
-            if not isinstance(item, str):
-                raise ValueError("index_name must be a string or tuple of strings.")
-            # Make sure the field name actually exists in the array
-            if item not in arr1.dtype.names:
-                raise ValueError(
-                    "index_name %s not a recognized field in either array." % index_name
-                )
-
-        # Finally, figure out where we have overlapping entries, based on the field
-        # used for indexing entries. Note that this is what intersect1d does, albeit
-        # with the limitation of only a 1D array (vs multiple keys possible here).
-        index_dict1 = {}
-        for count, item in enumerate(arr1):
-            index_dict1[tuple(item[field] for field in index_name)] = count
-
-        index_dict2 = {}
-        for count, item in enumerate(arr2):
-            index_dict2[tuple(item[field] for field in index_name)] = count
-
-        arr1_idx = []
-        arr2_idx = []
-        for key, value in index_dict1.items():
-            try:
-                # If you see a corresponding index, then we want to evaluate the
-                # values at this position. We check index_dict2 first so that if
-                # there's no match, it'll throw a KeyError before we append to
-                # the indexing list.
-                arr2_idx.append(index_dict2[key])
-                arr1_idx.append(value)
-            except KeyError:
-                # If there is no corresponding entry in arr2, nothing to check
-                pass
-
-        return arr1_idx, arr2_idx
-
-    @staticmethod
-    def _combine_read_arr_check(arr1, arr2, index_name, any_match=False):
-        """
-        Check if two MirParser metadata arrays have conflicting index values.
-
-        This method is an internal helper function not meant to be called by users.
-        It checks two arrays of metadata of one of the custom dtypes used by MirParser
-        (for the attributes `in_data`, `bl_data`, `sp_data`, `eng_data`, `we_data`,
-        and `_codes_read`) to make sure that if they contain identical index values,
-        both arrays contain identical metadata. Used in checking if two arrays can
-        be combined without conflict (via the method `_combine_read_arr`).
-
-        Parameter
-        ---------
-        arr1 : ndarray
-            Array of metadata, to be compared to `arr2`.
-        arr2 : ndarray
-            Array of metadata, to be compared to `arr1`.
-        index_name : str or tuple of str
-            Name of the field(s) which contains the unique index information (e.g.,
-            inhid for `_in_read`). No default. Typically, "inhid" is matched to elements
-            in in_read, "blhid" to bl_read, "sphid" to sp_read, "achid" to ac_read,
-            "ints" to we_read, ("inhid", "antennaNumber") for eng_read and
-            ("v_name", "icode, "ncode").
-        any_match : bool
-            Nominally the method checks to see if all fields in each array match when
-            overlapping indicies exist. However, if this is set to True, it will check
-            instead if any elements with overlapping indicies have metadata that agree.
-
-        Returns
-        -------
-        check_status : bool
-            If True, and `any_match=False`, any entries between the two arrays where
-            the index value matches has metadata which is indentical, and thus should
-            be safe to merge. If True and `any=True`, then the two arrays have at
-            least one entry where the index value matches and the metadata agrees.
-
-        Raises
-        ------
-        ValueError
-            If `arr1` and `arr2` are of different dtypes, or if entries in `index_name`
-            overlap in the two arrays but `overwrite=False`. Also if `index_name` is
-            not a string, or is not a field in `arr1` or `arr2`.
-        """
-        idx1, idx2 = MirParser._arr_index_overlap(arr1, arr2, index_name)
-
-        # Compare where we have coverlap and make sure the two arrays are the same.
-        if any_match:
-            check_status = np.any(arr1[idx1] == arr2[idx2])
-        else:
-            check_status = np.array_equal(arr1[idx1], arr2[idx2])
-
-        return check_status
-
-    @staticmethod
-    def _combine_read_arr(
-        arr1, arr2, index_name, return_indices=False, overwrite=False
-    ):
-        """
-        Combine two MirParser metadata arrays.
-
-        This method is an internal helper function not meant to be called by users.
-        It combines two arrays of metadata of one of the custom dtypes used by MirParser
-        into a single array.
-
-        Parameters
-        ----------
-        arr1 : ndarray
-            Array of metadata, to be combined with `arr2`.
-        arr2 : ndarray
-            Array of metadata, to be combined with `arr1`. Note that if `arr1` and
-            `arr2` have overlapping index values, entries in `arr2` will overwrite
-            those in `arr1`.
-        index_name : str
-            Name of the field which contains the unique index information (e.g., inhid
-            for `_in_read`). No default, not requird if `arr1` and `arr2` have a dtype
-            of codes_dtype. Typically, "inhid" is matched to elements in in_read and
-            eng_read, "blhid" to bl_read, "sphid" to sp_read, "achid" to ac_read, and
-            "ints" to we_read.
-        return_indices : bool
-            If set to True, return which index values of `arr1` were merged into the
-            final metadata array.
-        overwrite : bool
-            If `arr1` and `arr2` have overlapping index values, then an error will be
-            thrown in the metadata for those entries is not the same. However, if
-            set to True, then these differences will be ignored, and values of `arr2`
-            will overwrite conflicting entries in `arr1` in the final array.
-
-        Returns
-        -------
-        comb_arr : ndarray
-            Array of the combined values of `arr1` and `arr2`, of the same dtype as
-            both of these arrays.
-        arr1_index : ndarray
-            Array of index positions of `arr1` which were used in `comb_arr` (i.e., not
-            overwritten or otherwise dropped). Returned only if `return_indices=True`.
-
-        Raises
-        ------
-        ValueError
-            If `arr1` and `arr2` are of different dtypes, or if entries in `index_name`
-            overlap in the two arrays but `overwrite=False`. Also if `index_name` is
-            not a string, or is not a field in `arr1` or `arr2`.
-        """
-        if overwrite:
-            # If we are overwriting, then make sure that the two arrays are of the
-            # same dtype before continuing.
-            if arr1.dtype != arr2.dtype:
-                raise ValueError("Both arrays must be of the same dtype.")
-        else:
-            # If not overwriting, check and make sure that there are no overlapping
-            # entries which might clobber differing metadata.
-            if not MirParser._combine_read_arr_check(arr1, arr2, index_name):
-                raise ValueError(
-                    "Arrays have overlapping indicies with different data, "
-                    "cannot combine the two safely."
-                )
-
-        # At this point, we are assuming we are safe to overwrite entries (either
-        # because its safe to do so or because the user told us that we could). We want
-        # to then pluck out the entries in arr1 that have non-overlapping index values
-        # versus arr2. To do so, first we find the overlapping values.
-        idx1, _ = MirParser._arr_index_overlap(arr1, arr2, index_name)
-
-        # We basically want to invert our selection here, so use arange to make the
-        # full list of possible position indexes to generate a list of non-overlapping
-        # metadata entries.
-        arr_sel = np.isin(np.arange(len(arr1)), idx1, invert=True, assume_unique=True)
-        result = np.sort(np.concatenate((arr1[arr_sel], arr2)), order=index_name)
-
-        # If we are returning the index positions, stuff that into the result now
-        if return_indices:
-            result = (result, arr_sel)
-
-        return result
-
-    def __add__(self, other_obj, overwrite=False, force=False, inplace=False):
+    def __add__(self, other, merge=None, overwrite=None, force=False, inplace=False):
         """
         Add two MirParser objects.
 
-        Combine two MirParser objects together, nominally under the assumption that
-        they have been read in by the same file. If two objects are read in from
-        _different_ files, then users may find the `concat` method more appropriate
-        to use.
+        This method allows for combining MirParser objects under two different
+        scenarios. In the first, which we call a "merge", two objects are instantiated
+        from the same file, but may have different data loaded due to, for example,
+        different calls to `select` being run. In the second scenarion, which we call
+        a "concatenation", objects are instantiated from different files, which need
+        to be recombined (e.g., a single track is broken in half due to an
+        intervening observation/system hiccup/etc.).
 
-        Note that while some metadata checking is performed to verify that the objects
+        Note that while some checking is performed to check if the metadata objects
         look identical, no checking is done on the `vis_data`, `raw_data`, and
-        `auto_data` attributes (other than that they exist).
+        `auto_data` attributes (other than that they exist). If either object does not
+        have data loaded, then the resultant object will also have no data loaded.
 
         Parameters
         ----------
-        other_obj : MirParser object
+        other : MirParser object
             Other MirParser object to combine with this data set.
         overwrite : bool
-            If set to True, metadata from `other_obj` will overwrite that present in
+            If set to True, metadata from `other` will overwrite that present in
             this object, even if they differ. Default is False.
+        merge : bool
+            If set to True, assume that the objects originate from the amd file, and
+            combine them together accordingly. If set to False, assume the two objects
+            originate from _different_ files, and concatenate them together. By default,
+            the method will check the internal file dictionary to see if it appears the
+            two objects come from the same file(s), automatically choosing between
+            merging or concatenating.
         force : bool
-            Normally, if attempting to combine MirParser objects that were created from
-            different files, the method will throw an error. This is done because it
-            partially breaks the normal operating mode of MirParser, where data can
-            be loaded up from disk on-the-fly on an as-needed basis. If set to True,
-            different objects can be combined, although the ability to read on demand
-            will be disabled for the resultant object (i.e., only data loaded into
-            memory will be available). Default is False.
+            If set to True, bypass certain checks to force the method to combine the
+            two objects. Note that this option should be used with care, as it can
+            result in objects with duplicate data (which may affect downstream
+            processing), or loss of support for handling auto-correlations within
+            the object. Default is False.
         inplace : bool
             If set to True, replace this object with the one resulting from the
             addition operation. Default is False.
@@ -4467,255 +4785,236 @@ class MirParser(object):
             If attemting to add a MirParser object with any other type of object.
         ValueError
             If the objects cannot be combined, either because of differing metadata (if
-            `overwrite=False`), different data being loaded (raw vs vis vs auto), or
-            because the two objects appear to be loaded from different files (and
-            `force=False`).
+            `overwrite=False`), or because the two objects appear to be loaded from
+            the same files but have different internal mappings (usually caused by the
+            MirParser object being added to another object, prior to the addition).
+            Also raised if metadata differ between objects and overwrite=False.
+        UserWarning
+            If duplicate metadata was found but force=True, or if identical timestamps
+            were found between the two datasets when concatenating data.
         """
-        if not isinstance(other_obj, MirParser):
+        if not isinstance(other, MirParser):
             raise TypeError(
                 "Cannot add a MirParser object an object of a different type."
             )
 
-        # First check that the metadata are compatible. First up, if we are _not_
-        # permitted to adjust HID numbers in the file, make sure that we don't have
-        # conflicting indicies.
-        attr_index_dict = {
-            "in_data": "inhid",
-            "eng_data": ("inhid", "antennaNumber"),
-            "bl_data": "blhid",
-            "sp_data": "sphid",
-            "we_data": "ints",
-            "antpos_data": "antenna",
-        }
-
-        comp_list = [
-            "_in_read",
-            "_eng_read",
-            "_bl_read",
-            "_sp_read",
-            "_we_read",
-            "_codes_read",
-            "_antpos_read",
-            "_file_dict",
-        ]
-
-        # Check and see if both objects have autos, and if so, add that to the list of
-        # metadata to check.
-        if self._has_auto != other_obj._has_auto:
-            # Deal with this after we check other metadata, but warn the user now.
-            warnings.warn(
-                "Both objects do not have auto-correlation data. Will unload from "
-                "the final object."
+        if (self._has_auto != other._has_auto) and not force:
+            raise ValueError(
+                "Cannot combine two MirParser objects if one has auto-correlation data "
+                "and the other does not. You can bypass this error by setting "
+                "force=True."
             )
-        elif self._has_auto:
-            comp_list.append("_ac_read")
-            attr_index_dict["ac_data"] = "achid"
+        if (self.jypk != other.jypk) and not overwrite:
+            raise ValueError(
+                "Cannot combine objects where the jypk value is different. Set "
+                "overwrite=True to bypass this error, which will use the value "
+                "of the right object in the add sequence."
+            )
 
-        # First thing -- check that everything here appears to belong to the same file
-        force_list = []
-        for item in comp_list:
-            if not np.array_equal(getattr(self, item), getattr(other_obj, item)):
-                force_list.append(item)
-
-        # If we have evidence that these two objects belong to different files, then
-        # we can proceed in a few different ways.
-        if force_list != []:
-            force_list = ", ".join(force_list)
-            if force:
-                # If we are forcing the two objects together, it'll basically sever our
-                # link to the underlying file, so we need to make sure that the data
-                # are actually loaded here, and if using vis_data, that both have
-                # tsys actually applied.
-                if not (
-                    (self._vis_data_loaded and other_obj._vis_data_loaded)
-                    or (self._raw_data_loaded and other_obj._raw_data_loaded)
-                ):
+        same_filedict = self._file_dict == other._file_dict
+        if np.any([file in self._file_dict for file in other._file_dict]):
+            if same_filedict:
+                if not (merge or (merge is None)):
                     raise ValueError(
-                        "Cannot combine objects with force=True when no vis or raw "
-                        "data gave been loaded. Run the `load_data` method on both "
-                        "objects (with the same arguments) to clear this error."
-                    )
-                elif self._tsys_applied != other_obj._tsys_applied:
-                    raise ValueError(
-                        "Cannot combine objects with force=True where one object "
-                        "has tsys correction applied and the other does not. Run "
-                        "load_data(apply_tsys=True) on both objects to correct this."
-                    )
-                else:
-                    warnings.warn(
-                        "Objects here do not appear to be from the same file, but "
-                        "proceeding ahead since force=True (%s clashes)." % force_list
+                        "Must set merge=True in order to combine objects created from "
+                        "the same set of files."
                     )
             else:
-                # If these are different files, then the user should be using concat
-                # instead. You can of course bypass this with force=True.
                 raise ValueError(
-                    "Objects appear to come from different files, based on "
-                    "differences in %s. You can use the `concat` method to combine "
-                    "data from different files, or if you can set force=True to "
-                    "forgo this check." % force_list
+                    "These two objects were created from an overlapping set of files, "
+                    "but contain different indexing information. Cannot combine."
+                )
+        elif merge:
+            raise ValueError(
+                "Cannot merge objects that originate from different files, you must "
+                "set merge=False."
+            )
+
+        if merge or (same_filedict and (merge is None)):
+            # First up, check to see that the metadata appear identical, modulo data
+            # that has been flagged/deselected.
+            metadata_dict = self._metadata_attrs.copy()
+            bad_attr = []
+            for item in metadata_dict:
+                try:
+                    metadata_dict[item] = getattr(self, item).__add__(
+                        getattr(self, item),
+                        merge=merge,
+                        overwrite=overwrite,
+                    )
+                except MirMetaError:
+                    # MirMetaError is a unique error thrown when there are conflicting
+                    # header keys that do not contain identical metadata.
+                    bad_attr.append(item)
+
+            # If we failed to add any objects, raise an error now.
+            if len(bad_attr) != 0:
+                raise ValueError(
+                    "Cannot merge objects due to conflicts in %s. This can be bypassed "
+                    "by setting overwrite=True, which will force the metadata from the "
+                    "righthand object in the add sequence to overwrite that from the "
+                    "left." % bad_attr
                 )
 
-        # Okay, so now we know that either the files are the same or otherwise we don't
-        # care. Now more on to the data arrays.
-        overwrite_list = []
-        for item, index in attr_index_dict.items():
-            if not MirParser._combine_read_arr_check(
-                getattr(self, item), getattr(other_obj, item), index_name=index
-            ):
-                overwrite_list.append(item)
+            # At this point, we know that we can merge the two objects, so begin the
+            # heavy lifting of combining the two objects. Overwrite the new objects
+            # with those from other wherever appropriate.
+            new_obj = self if inplace else self.copy()
+            new_obj.filepath = other.filepath
+            new_obj.jypk = other.jypk
 
-        # Since codes_dict is a dict (as the name implies), we handle it specially
-        # outside of the above loop.
-        if self.codes_dict != other_obj.codes_dict:
-            overwrite_list.append("codes_dict")
+            new_obj._metadata_attrs = metadata_dict
+            for item in metadata_dict:
+                setattr(new_obj, item, metadata_dict[item])
 
-        # Alert the user if we are about to overwrite any data, or raise an error if
-        # we aren't allowed to do so.
-        if overwrite_list != []:
-            overwrite_list = ", ".join(overwrite_list)
-            if overwrite:
-                warnings.warn(
-                    "Data in objects appears to overlap, but with differing metadata. "
-                    "Proceeding since overwrite=True (%s overlaps)." % overwrite_list
-                )
+            # If the data are in a mixed state, we just want to unloaded it all.
+            # Otherwise merge the two. Note that deepcopy for dicts is not particularly
+            # fast, although most of the overhead here is trapped up in copying the
+            # multitude of ndarrays.
+            if (self._tsys_applied != other._tsys_applied) or (self.jypk != other.jypk):
+                new_obj.jypk = other.jypk
+                new_obj.vis_data = None
+                new_obj._tsys_applied = False
+            elif self.vis_data is None or other.vis_data is None:
+                new_obj.vis_data = None
+                new_obj._tsys_applied = False
             else:
-                raise ValueError(
-                    "Objects appear to contain overlapping data, where the metadata "
-                    "differs in %s. This can be corrected by calling `load_data` on "
-                    "the individual objects to reload the metadata, or by setting "
-                    "overwrite=True, which will pull metadata from the second object "
-                    "in the add sequence." % overwrite_list
-                )
+                new_obj.vis_data.update(copy.deepcopy(other.vis_data))
 
-        # One final check - see if we have the smae type of data loaded or not.
-        if self._vis_data_loaded != other_obj._vis_data_loaded:
-            raise ValueError(
-                "Cannot combine objects where one has vis data loaded and the other "
-                "does not. Run the `load_data` method on both objects (with the same "
-                "arguments) to clear this error."
-            )
-        elif self._vis_data_loaded:
-            # Does the data have the same normalization? If not, raise an error.
-            if self._tsys_applied != other_obj._tsys_applied:
-                raise ValueError(
-                    "Cannot combine objects where one has tsys normalization applied "
-                    "and the other does not. Run the `load_data` method on both "
-                    "objects (with the same arguments) to clear this error."
-                )
+            if self.raw_data is None or other.raw_data is None:
+                new_obj.raw_data = None
+            else:
+                new_obj.raw_data.update(copy.deepcopy(other.raw_data))
 
-        # Check if both have the same state for the raw data.
-        if self._raw_data_loaded != other_obj._raw_data_loaded:
-            raise ValueError(
-                "Cannot combine objects where one has raw data loaded and the other "
-                "does not. Run the `load_data` method on both objects (with the same "
-                "arguments) to clear this error."
-            )
+            if self.auto_data is None or other.auto_data is None:
+                new_obj.raw_data = None
+            else:
+                new_obj.auto_data.update(copy.deepcopy(other.auto_data))
 
-        # Finally, check if both have the same state for the auto data, if both has_auto
-        if (self._has_auto and other_obj._has_auto) and (
-            self._auto_data_loaded != other_obj._auto_data_loaded
-        ):
-            raise ValueError(
-                "Cannot combine objects where one has auto data loaded and the other "
-                "does not. Run the `load_data` method on both objects (with the same "
-                "arguments) to clear this error."
-            )
-
-        # Now that we know we are good to go, begin by either making a copy of
-        # or pointing to the original object in question.
-        new_obj = self if inplace else self.copy()
-
-        # Next merge the metadata
-        for item, index in attr_index_dict.items():
-            setattr(
-                new_obj,
-                item,
-                MirParser._combine_read_arr(
-                    getattr(self, item),
-                    getattr(other_obj, item),
-                    index,
-                    overwrite=overwrite,
-                ),
-            )
-
-        # Again. handle the codes dict special here.
-        new_obj.codes_dict.update(other_obj.codes_dict)
-
-        # Finally, since the various data arrays are stored as dicts, we can just
-        # update them here.
-        if new_obj.raw_data is not None:
-            new_obj.raw_data.update(other_obj.raw_data)
-
-        if new_obj.vis_data is not None:
-            new_obj.vis_data.update(other_obj.vis_data)
-
-        if self._has_auto != other_obj._has_auto:
-            # Remember this check earlier? Now is the time to dump the auto data
-            # if both objects didn't have it.
-            new_obj.auto_data = None
-            new_obj.ac_data = new_obj._ac_read = None
-            new_obj._ac_filter = None
-            new_obj._has_auto = new_obj._auto_data_loaded = False
-        elif new_obj.auto_data is not None:
-            # Otherwise fold in the auto data
-            new_obj.auto_data.update(other_obj.auto_data)
-
-        # Finally, we need to do a special bit of handling if we "forced" the two
-        # objects together. If we did, then we need to update the core attributes
-        # so that the *_data and *_read arrays all agree. If we did NOT, then we just
-        # need to make sure that the filters are correct.
-        if force_list == []:
-            new_obj._in_filter = self._in_filter | other_obj._in_filter
-            new_obj._eng_filter = self._eng_filter | other_obj._eng_filter
-            new_obj._bl_filter = self._bl_filter | other_obj._bl_filter
-            new_obj._sp_filter = self._sp_filter | other_obj._sp_filter
-            new_obj._we_filter = self._we_filter | other_obj._we_filter
+            new_obj._sp_dict.update(copy.deepcopy(other._sp_dict))
         else:
-            new_obj._file_dict = {}
+            # What if we are NOT going to merge the two files? Then we want to verify
+            # that we actually have two unique datasets. We do that by checking the
+            # metadata objects and checking for any matches.
+            bad_attr = []
+            update_dict = {}
+            for item in self._metadata_attrs:
+                this_attr = self._metadata_attrs[item]
+                other_attr = other._metadata_attrs[item]
+                if this_attr == other_attr:
+                    bad_attr.append(item)
+                    if not force:
+                        continue
+                update_dict.update(other_attr._generate_new_header_keys(this_attr))
 
-            new_obj._in_read = new_obj.in_data.copy()
-            new_obj._in_filter = np.ones(new_obj._in_read.shape, dtype=bool)
+            if len(bad_attr) != 0:
+                if not force:
+                    raise ValueError(
+                        "Duplicate metadata found for the following attributes: "
+                        "%s. You can bypass this error by setting force=True, though "
+                        " be advised that doing so may result in duplicate data being "
+                        "exported downstream." % ", ".join(bad_attr)
+                    )
+                warnings.warn(
+                    "Duplicate metadata found for the following attributes: "
+                    "%s. Proceeding anyways since force=True." % ", ".join(bad_attr)
+                )
 
-            new_obj._eng_read = new_obj.eng_data.copy()
-            new_obj._eng_filter = np.ones(new_obj._eng_read.shape, dtype=bool)
+            # Final check - see if the MJDs line up exactly, since that _shouldn't_
+            # happen if these are unique sets of data.
+            if np.any(
+                np.isin(
+                    self.in_data.get_value("mjd", use_mask=False),
+                    other.in_data.get_value("mjd", use_mask=False),
+                )
+            ):
+                warnings.warn(
+                    "These two objects contain data taken at the exact same time, "
+                    "which could mean that combining the two will result in duplicate "
+                    "data being potentially exported."
+                )
 
-            new_obj._bl_read = new_obj.bl_data.copy()
-            new_obj._bl_filter = np.ones(new_obj._bl_read.shape, dtype=bool)
+            # If you have arrived here, you are at the point of no return. Start by
+            # creating a copy of the other object, that we can make udpates to.
+            new_obj = self if inplace else self.copy()
+            new_obj.jypk = other.jypk
+            new_obj.filepath += ";" + other.filepath
 
-            new_obj._sp_read = new_obj.sp_data.copy()
-            new_obj._sp_filter = np.ones(new_obj._sp_read.shape, dtype=bool)
+            # Start combining the metadata
+            for item in other._metadata_attrs:
+                # Make a copy of the metadata from other so that we can update the
+                # individual fields. This will generally force the header key values
+                # for the other object to come _after_ this object. This is useful in
+                # case of sequential adds.
+                attr = other._metadata_attrs[item].copy()
+                attr._update_fields(update_dict)
+                new_obj._metadata_attrs[item] += attr
 
-            new_obj._codes_read = MirParser.make_codes_read(new_obj.codes_dict)
+            # The metadata is done, now we need to update the dicts that contain the
+            # actual data itself, since their indexed to particular header keys. For
+            # each attribute, we want to grab both the relevant dict AND the header
+            # key field that is uses, so we know which upadte dict to use.
+            data_updates = []
+            # First check the visibility data.
+            if (self._tsys_applied != other._tsys_applied) or (self.jypk != other.jypk):
+                new_obj.vis_data = None
+                new_obj._tsys_applied = False
+            elif self.vis_data is None or other.vis_data is None:
+                new_obj.vis_data = None
+                new_obj._tsys_applied = False
+            else:
+                data_updates.append((update_dict["sphid"], "vis_data"))
 
-            new_obj._we_read = new_obj.we_data.copy()
-            new_obj._we_filter = np.ones(new_obj._we_read.shape, dtype=bool)
+            # Now check the raw data
+            if self.raw_data is None or other.raw_data is None:
+                new_obj.raw_data = None
+            else:
+                data_updates.append((update_dict["sphid"], "raw_data"))
 
-            new_obj._antpos_read = new_obj.antpos_data.copy()
+            # Now check the autos.
+            if self.auto_data is None or other.auto_data is None:
+                new_obj.auto_data = None
+            else:
+                data_updates.append((update_dict["achid"], "auto_data"))
 
-            if new_obj._has_auto:
-                new_obj._ac_read = new_obj.ac_data.copy()
-                new_obj._ac_filter = np.ones(new_obj._ac_read.shape, dtype=bool)
+            # Once we know which data attributes must be updated, run through and
+            # perform updates for each one.
+            for hid_dict, data_name in data_updates:
+                new_data = getattr(new_obj, data_name)
+                other_data = copy.deepcopy(getattr(other, data_name))
+                for hid in other_data:
+                    new_data[hid_dict[hid]] = other_data[hid]
 
-        # Last but not least, update our position indexes so that we know which
-        # header IDs correspond to which array positon for our metadata.
-        new_obj._inhid_dict = {
-            inhid: idx for idx, inhid in enumerate(new_obj.in_data["inhid"])
-        }
-        new_obj._blhid_dict = {
-            blhid: idx for idx, blhid in enumerate(new_obj.bl_data["blhid"])
-        }
-        new_obj._sphid_dict = {
-            sphid: idx for idx, sphid in enumerate(new_obj.sp_data["sphid"])
-        }
+            # From the primary update dict, grab the two that we need for data indexing
+            inhid_dict = update_dict["inhid"]
+            sphid_dict = update_dict["sphid"]
+
+            # Now deal with packdata integration dict
+            for filename, int_start_dict in other._file_dict.items():
+                temp_dict = {}
+                for inhid, idict in int_start_dict.items():
+                    temp_dict[inhid_dict[inhid]] = idict.copy()
+                new_obj._file_dict[filename] = temp_dict
+
+            # Finally, deal with the sp_dict
+            for inhid, int_dict in other._sp_dict.items():
+                temp_dict = {}
+                for sphid, idict in int_dict.items():
+                    temp_dict[sphid_dict[sphid]] = idict.copy()
+                new_obj._sp_dict[inhid_dict[inhid]] = temp_dict
+
+        # Finaly, if we have discrepant _has_auto states, we force the resultant object
+        # to unload any potential auto metadata.
+        if self._has_auto != other._has_auto:
+            new_obj._clear_auto()
 
         return new_obj
 
-    def __iadd__(self, other_obj, overwrite=False, force=False):
+    def __iadd__(self, other, merge=None, overwrite=False, force=False):
         """
-        Add two MirParser objects in place.
+        Add two MirMetaData objects in place.
 
-        Combine two MirParser objects together, nominally under the assumption that
+        Combine two MirMetaData objects together, nominally under the assumption that
         they have been read in by the same file. If two objects are read in from
         _different_ files, then users may find the `concat` method more appropriate
         to use.
@@ -4731,14 +5030,8 @@ class MirParser(object):
         overwrite : bool
             If set to True, metadata from `other_obj` will overwrite that present in
             this object, even if they differ. Default is False.
-        force : bool
-            Normally, if attempting to combine MirParser objects that were created from
-            different files, the method will throw an error. This is done because it
-            partially breaks the normal operating mode of MirParser, where data can
-            be loaded up from disk on-the-fly on an as-needed basis. If set to True,
-            different objects can be combined, although the ability to read on demand
-            will be disabled for the resultant object (i.e., only data loaded into
-            memory will be available). Default is False.
+        merge : bool
+            TODO
 
         Raises
         ------
@@ -4750,870 +5043,64 @@ class MirParser(object):
             because the two objects appear to be loaded from different files (and
             `force=False`).
         """
-        return self.__add__(other_obj, overwrite=overwrite, force=force, inplace=True)
-
-    @staticmethod
-    def concat(obj_list, force=False):
-        """
-        Concat multiple MirParser objects together.
-
-        Concatenates together multiple MirParser objects (loaded from different files
-        on disk) into a single object. Note that this method will only work if they are
-        compatible, which means that the following criterion are met: data are taken in
-        the same polarization mode, data are taken with the same correlator
-        configuration (i.e., number of bands), and data are recorded with the same MIR
-        file verison, that the antenna postiions record in each are the same, and the
-        `_has_auto` flag has been set the same for all objects.
-
-        Note that this method is intended for combining _different_ files together, and
-        will normally throw an error if it appears as though two objects contain the
-        same data. Users desiring to add together two datasets loaded from the same
-        file (with, for example, different `select` commands run on each) should look
-        to the `__add__` method instead.
-
-        Users should be aware that this method will return an object where no data
-        are loaded and any selection criterion have been reset (i.e., what you get
-        when running `select(reset=True)`).
-
-        Parameters
-        ----------
-        obj_list : list of MirParser objects
-            List of MirParser objects to be combined.
-        force : bool
-            Normally, if one of the objects looks like it has some of the same data as
-            another in the list to be concatenated, an error will be thrown. This is
-            to prevent the same visibilities from being loaded into the same data file
-            twice, which can have undesirable effects downstream. If set to True, this
-            check will result in a warning instead of an error (if at all possible).
-            Users should use this option with caution. Default is False.
-
-        Returns
-        -------
-        new_obj : MirParser object
-            A concatenated data set in a single MirParser object.
-
-        Raises
-        ------
-        ValueError
-            If objects appear to contain the same data or have differing values for the
-            antenna positions or the `_has_data` flag (if `force=False`). Also if two
-            objects point to the same file on disk from which data are loaded, of if
-            two objects are otherwise not compatible for being concatenated (different
-            file verison, polarization state, or correlator config).
-        """
-        # These are items that should be different in at least _some_ way, which
-        # we can use np.array_equal to check between objects that this is the case.
-        diff_list = [
-            "_in_read",
-            "_eng_read",
-            "_bl_read",
-            "_sp_read",
-            "_we_read",
-            "_codes_read",
-        ]
-
-        # Store some check values here, so that we can take appropriate action later.
-        auto_check = obj_list[0]._has_auto
-        antpos_check = False
-        # raise_warning just makes it so that we sound the alarm once on a given
-        # problem. No sense in flooding the channel w/ warning messages.
-        raise_warning = True
-        for idx, obj1 in enumerate(obj_list):
-            # Nice try, buddy - can't concat non-MirParser objects.
-            if not isinstance(obj1, MirParser):
-                raise TypeError("Can only concat MirParser objects.")
-            # Check that the autos are either all loaded or unloaded
-            if obj1._has_auto != auto_check:
-                if force:
-                    auto_check = False
-                else:
-                    raise ValueError(
-                        "Cannot combine objects both with and without auto-correlation "
-                        "data. When reading data from file, must keep _has_auto set "
-                        "consistently between file reads. You can bypass this error "
-                        "(and unload all auto-correlation data) by setting force=True."
-                    )
-            # Make sure that this object actually points to a file on disk (otherwise
-            # it's gonna break a lot of functionality in MirParser).
-            if obj1._file_dict == {}:
-                raise ValueError(
-                    "Cannot concat objects without an associated file (this is caused "
-                    "by adding objects together with force=True)."
-                )
-            # Time to do some inter-object comparisons.
-            for obj2 in obj_list[:idx]:
-                # Make sure that objects don't point to the same file on disk.
-                # No double-loading of data allowed!
-                for key in obj1._file_dict.keys():
-                    if key in obj2._file_dict.keys():
-                        raise ValueError(
-                            "At least one object to be concatenated has been loaded "
-                            "from the same file as another (index position %d). "
-                            "Remove it from the list to continue." % idx
-                        )
-                # Check that the antenna positions agree
-                if not np.array_equal(obj1._antpos_read, obj2._antpos_read):
-                    if not force:
-                        raise ValueError(
-                            "Two of the objects provided do not have the same antenna "
-                            "positions. You can bypass this error by setting "
-                            "force=True (use with caution!)."
-                        )
-                    else:
-                        antpos_check = True
-                # Check that our diff_list actually looks different between objects
-                for item in diff_list:
-                    if np.array_equal(getattr(obj1, item), getattr(obj2, item)):
-                        if not force:
-                            raise ValueError(
-                                "Two of the objects provided appear to hold identical "
-                                "data. Verify that you don't have two objects that are "
-                                "loaded from the same file. You can bypass this error "
-                                "by setting force=True (use with caution!)."
-                            )
-                        elif raise_warning:
-                            warnings.warn(
-                                "Objects may contain the same data, pushing forward "
-                                "anyways since force=False."
-                            )
-                            raise_warning = False
-
-        # So at this point, we've checked to see that the list of objects either aren't
-        # totally identical (or have forced the user to set force=True). Check real
-        # quick that this isn't a single object (the path for which is much simpler)
-        if len(obj_list) == 1:
-            new_obj = obj_list[0].copy()
-            new_obj.unload_data()
-            return new_obj
-
-        # Check if we have to effectively dump the auto data (and warn the user)
-        for idx, obj1 in enumerate(obj_list):
-            if auto_check != obj1._has_auto:
-                warnings.warn(
-                    "Some (but not all) objects have auto-correlation data -- ignoring "
-                    "this data and setting _has_data=False on the returned object."
-                )
-                break
-
-        # Also if forced, warn the user that we're about to adopt a single set of
-        # antenna positions, even though the list has different ones.
-        if antpos_check:
-            warnings.warn(
-                "Some objects have different antenna positions than others. Taking "
-                "antenna positions from first object in the list and discarding the "
-                "rest."
-            )
-
-        # Next item -- move on and check that the codes_read entries actually look
-        # sensible. The list below entails the codes that are allowed to be different,
-        # otherwise the entries need to be identical (note that this is a hard failure
-        # at the moment since differences can signal truly incompatible data).
-        code_diff_allowed = [
-            "ref_time",
-            "ut",
-            "vrad",
-            "source",
-            "stype",
-            "svtype",
-            "project",
-            "ra",
-            "dec",
-        ]
-        # We're going to convert codes_read to a codes_dict for both convenience here
-        # and also for later use when we combine the objects.
-        codes_dict_list = []
-        for idx, obj1 in enumerate(obj_list):
-            obj1_codes = MirParser.make_codes_dict(obj1._codes_read)
-            codes_dict_list.append(obj1_codes)
-            for jdx, obj2 in enumerate(obj_list[:idx]):
-                obj2_codes = codes_dict_list[jdx]
-
-                # Check to make sure they objects have the same set of keys
-                if list(obj1_codes.keys()) != list(obj2_codes.keys()):
-                    raise ValueError(
-                        "codes_dict contains different keys between objects, "
-                        "data are not compatible."
-                    )
-                for key in obj1_codes.keys():
-                    if key in code_diff_allowed:
-                        continue
-                    if obj1_codes[key] != obj2_codes[key]:
-                        # Okay, so now we have a problem - something that shouldn't
-                        # differ between the files does. Most probable explanations are
-                        # filever, polarization, and band, so check those first in
-                        # order to give a move informative error message (otherwise
-                        # just report the offending key)
-                        err_msg = "Cannot concat objects, "
-                        if key == "filever":
-                            err_msg += "differing file versions detected."
-                        elif key == "pol":
-                            err_msg += (
-                                "differing polarization states detected (polarized"
-                                "and non-polarized records present)."
-                            )
-                        elif key == "band":
-                            err_msg += "differing correlator configurations detected "
-                            "(different number of spectral bands per object)."
-                        else:
-                            err_msg += "%s key in codes_dict differs." % key
-                        raise ValueError(err_msg)
-
-        # Finally, if we haven't raised a warning yet, check and see if there are _any_
-        # identical entries in in_read, since it contains information that should always
-        # be unique to every observation.
-        for idx, obj1 in enumerate(obj_list):
-            # If we have already disabled the warning, it means that we have already
-            # detected a problem but the user set force=True.
-            if not raise_warning:
-                break
-            else:
-                for obj2 in obj_list[:idx]:
-                    if MirParser._combine_read_arr_check(
-                        obj1._in_read,
-                        obj2._in_read,
-                        "inhid",
-                        any_match=True,
-                    ):
-                        if force:
-                            warnings.warn(
-                                "Objects may contain overlapping data, pushing "
-                                "forward anyways since force=False."
-                            )
-                            raise_warning = False
-                            break
-                        else:
-                            raise ValueError(
-                                "Two of the objects appear to have overlapping data. "
-                                "Verify that you don't have two objects that are "
-                                "loaded from the same file. You can bypass this error "
-                                "by setting force=True (use with caution!)."
-                            )
-
-        # Alright, at this point we have checked everything that we needed to check,
-        # and so now we want to actually start the process of merging all the data.
-        # Start with in_read, since we need to cascade the inhid changes downward.
-        in_read_list = []
-        inhid_dict_list = []
-        inhid_count = 1
-        for obj in obj_list:
-            # Make a copy of the array, for updating and later concat
-            temp_in_read = obj._in_read.copy()
-
-            # Map out the old index values to the new one
-            old_inhid = temp_in_read["inhid"]
-            new_inhid = np.arange(inhid_count, inhid_count + len(temp_in_read))
-
-            # Up the count so that the next set of index values are unique.
-            inhid_count += len(temp_in_read)
-
-            # Make a dict so that we can map inhid values later
-            inhid_dict_list.append(
-                {oldid: newid for oldid, newid in zip(old_inhid, new_inhid)}
-            )
-            # Plug in the new index values
-            temp_in_read["inhid"] = new_inhid
-            temp_in_read["ints"] = new_inhid
-
-            # Save this array for later when we construct the final object.
-            in_read_list.append(temp_in_read)
-
-        bl_read_list = []
-        blhid_dict_list = []
-        blhid_count = 1
-        for idx, obj in enumerate(obj_list):
-            # Make a copy of the array, for updating and later concat
-            temp_bl_read = obj._bl_read.copy()
-
-            # Map out the old index values to the new one
-            old_blhid = temp_bl_read["blhid"]
-            new_blhid = np.arange(blhid_count, blhid_count + len(temp_bl_read))
-
-            # Up the count so that the next set of index values are unique.
-            blhid_count += len(temp_bl_read)
-
-            # Make a dict so that we can map blhid values later
-            blhid_dict_list.append(
-                {oldid: newid for oldid, newid in zip(old_blhid, new_blhid)}
-            )
-            # Plug in the new index values
-            temp_bl_read["blhid"] = new_blhid
-
-            # We've got the blhid index remade, now propagate changes to inhid.
-            inhid_dict = inhid_dict_list[idx]
-            temp_bl_read["inhid"] = [inhid_dict[idx] for idx in temp_bl_read["inhid"]]
-
-            # Finally, add the updated array to the list.
-            bl_read_list.append(temp_bl_read)
-
-        sp_read_list = []
-        sphid_dict_list = []
-        sphid_count = 1
-        for idx, obj in enumerate(obj_list):
-            # Make a copy of the array, for updating and later concat
-            temp_sp_read = obj._sp_read.copy()
-
-            # Map out the old index values to the new one
-            old_sphid = temp_sp_read["sphid"]
-            new_sphid = np.arange(sphid_count, sphid_count + len(temp_sp_read))
-
-            # Up the count so that the next set of index values are unique.
-            sphid_count += len(temp_sp_read)
-
-            # Make a dict so that we can map sphid values later
-            sphid_dict_list.append(
-                {oldid: newid for oldid, newid in zip(old_sphid, new_sphid)}
-            )
-            # Plug in the new index values
-            temp_sp_read["sphid"] = new_sphid
-
-            # We've got the sphid index remade, now propagate changes to inhid/blhid.
-            inhid_dict = inhid_dict_list[idx]
-            blhid_dict = blhid_dict_list[idx]
-            temp_sp_read["inhid"] = [inhid_dict[idx] for idx in temp_sp_read["inhid"]]
-            temp_sp_read["blhid"] = [blhid_dict[idx] for idx in temp_sp_read["blhid"]]
-
-            # Finally, add the updated array to the list.
-            sp_read_list.append(temp_sp_read)
-
-        # If we have autos, now is the time to update the spectral records
-        if auto_check:
-            ac_read_list = []
-            achid_dict_list = []
-            achid_count = 1
-            for idx, obj in enumerate(obj_list):
-                # Make a copy of the array, for updating and later concat
-                temp_ac_read = obj._ac_read.copy()
-
-                # Map out the old index values to the new one
-                old_achid = temp_ac_read["achid"]
-                new_achid = np.arange(achid_count, achid_count + len(temp_ac_read))
-
-                # Up the count so that the next set of index values are unique.
-                achid_count += len(temp_ac_read)
-
-                # Make a dict so that we can map achid values later
-                achid_dict_list.append(
-                    {oldid: newid for oldid, newid in zip(old_achid, new_achid)}
-                )
-                # Plug in the new index values
-                temp_ac_read["achid"] = new_achid
-
-                # We've got the achid index remade, now propagate changes to inhid.
-                inhid_dict = inhid_dict_list[idx]
-                temp_ac_read["inhid"] = [
-                    inhid_dict[idx] for idx in temp_ac_read["inhid"]
-                ]
-
-                # Finally, add the updated array to the list.
-                ac_read_list.append(temp_ac_read)
-
-        # Now that the "primary" data structures are fixed, we'll move on to the
-        # data that only requires updating inhids, namely eng_read and we_read ()
-        eng_read_list = []
-        for idx, obj in enumerate(obj_list):
-            # Make a copy of the array for update
-            temp_eng_read = obj._eng_read.copy()
-
-            # Update index values
-            inhid_dict = inhid_dict_list[idx]
-            temp_eng_read["inhid"] = [inhid_dict[idx] for idx in temp_eng_read["inhid"]]
-            temp_eng_read["inhid"] = temp_eng_read["ints"]
-            # Hold on to array for later concat
-            eng_read_list.append(temp_eng_read)
-
-        we_read_list = []
-        for idx, obj in enumerate(obj_list):
-            # Make a copy of the array for update
-            temp_we_read = obj._we_read.copy()
-
-            # Update index values
-            inhid_dict = inhid_dict_list[idx]
-            temp_we_read["ints"] = [inhid_dict[idx] for idx in temp_we_read["ints"]]
-            # Hold on to array for later concat
-            we_read_list.append(temp_we_read)
-
-        # Last, but not least, we need to deal with codes_read dicts and combine them
-        # together, specifically the entries in code_diff_allowed.
-        project_count = ref_time_count = source_count = 0
-        ref_time_dict = {}
-        source_dict = {}
-        for idx, temp_codes in enumerate(codes_dict_list):
-            # Codes should all match to entries in in_read, so grab that and the
-            # inhid dict in case we need to make some updates.
-            inhid_dict = inhid_dict_list[idx]
-            in_read = in_read_list[idx]
-            # First up, deal with the codes that should match to inhid, so handling
-            # them is very easy, and doesn't require any updates to in_read.
-            for item in ["ut", "ra", "dec", "vrad"]:
-                sub_codes = temp_codes[item]
-                sub_codes = {
-                    inhid_dict[key]: sub_codes[key] for key in sub_codes.keys()
-                }
-                temp_codes[item] = sub_codes
-
-            # Next up, deal with the project codes, which just requires entering them
-            # in squence.
-            project_map = {}
-            for key in temp_codes["project"].keys():
-                project_count += 1
-                project_map[key] = project_count
-
-            temp_codes["project"] = {
-                project_map[key]: value for key, value in temp_codes["project"].items()
-            }
-            # Update in_read with the new index codes for project
-            in_read["iproject"] = [project_map[key] for key in in_read["iproject"]]
-
-            # Next up, go through ref_times. These _can_ be identical across files,
-            # so we want to check for uniqueness here
-            ref_time_map = {}
-            for key, value in temp_codes["ref_time"].items():
-                try:
-                    ref_time_map[key] = ref_time_dict[value]
-                except KeyError:
-                    ref_time_count += 1
-                    ref_time_dict[value] = ref_time_map[key] = ref_time_count
-
-            temp_codes["ref_time"] = {
-                ref_time_map[key]: value
-                for key, value in temp_codes["ref_time"].items()
-            }
-            # Update in_read with the new index codes for ref_time
-            in_read["iref_time"] = [ref_time_map[key] for key in in_read["iref_time"]]
-
-            # Okay, the final tricky bit -- deal with the source information, which
-            # is _technically_ shared across three codes. If source is the same, all
-            # three _should_ be the same, but we want to make sure. Note that all
-            # three codes here by design share the same icode for the same source,
-            # and therefore the same key in codes_dict.
-            source_map = {}
-            for key in temp_codes["source"].keys():
-                temp_key = (
-                    temp_codes["source"][key],
-                    temp_codes["stype"][key],
-                    temp_codes["svtype"][key],
-                )
-                try:
-                    source_map[key] = source_dict[temp_key]
-                except KeyError:
-                    source_count += 1
-                    source_map[key] = source_dict[temp_key] = source_count
-
-            for item in ["source", "stype", "svtype"]:
-                temp_codes[item] = {
-                    source_map[key]: value for key, value in temp_codes[item].items()
-                }
-
-            # Update in_read with the new index codes for source
-            in_read["isource"] = [source_map[key] for key in in_read["isource"]]
-
-            if idx == 0:
-                codes_dict = temp_codes
-            else:
-                for key in code_diff_allowed:
-                    codes_dict[key].update(temp_codes[key])
-
-        # And with that, we now have everything we need -- all that's left is some
-        # concats and variable assignments. Note that "_read" objects contain the
-        # whole data set, while "_data" contains that after filtering/selecting.
-
-        # Spin up a new object to start plugging things into.
-        new_obj = MirParser()
-        new_obj._in_read = np.concatenate(in_read_list)  # Per integration records
-        new_obj._eng_read = np.concatenate(eng_read_list)  # Per antenna-int records
-        new_obj._bl_read = np.concatenate(bl_read_list)  # Per baaseline-int records
-        new_obj._sp_read = np.concatenate(sp_read_list)  # Per spectral win-bl-int recs
-        new_obj._we_read = np.concatenate(we_read_list)  # Per-int weather data
-
-        # We just spent a lot of time making the codes_dict correct, so here we now
-        # have to convert that back into the codes_read format.
-        new_obj._codes_read = MirParser.make_codes_read(codes_dict)
-
-        # Antenna positions we handle special, since there can be only one. Adopt the
-        # values found in the first object in the list.
-        new_obj._antpos_read = obj_list[0]._antpos_read
-
-        # Pull together all of the _file_dicts that were contained here
-        new_obj._file_dict = {
-            key: value for obj in obj_list for key, value in obj._file_dict.items()
-        }
-
-        # Keep a "user-facing" record of which files this object contains
-        new_obj.filepath = ";".join([obj.filepath for obj in obj_list])
-
-        # Now we finally get to use the auto-check value we set earlier!
-        new_obj._has_auto = auto_check
-        if auto_check:
-            new_obj._ac_read = np.concatenate(ac_read_list)
-        else:
-            new_obj._ac_read = None
-
-        # Raw data aren't loaded with a concat operation, and metadata should
-        # not be mucked (since there's no metadata in *_data yet).
-        new_obj.unload_data(unload_vis=True, unload_raw=True, unload_auto=True)
-        new_obj._data_mucked = False
-
-        # This value is the forward gain of the antenna (in units of Jy/K).
-        # Default is 130.0, which is the estimated value for SMA.
-        new_obj.jypk = 130.0
-
-        # _update_filter will assign all of the *_filter attributes, as well as the
-        # user-facing *_data attributes on call, in addition to the various *hid_dict's
-        # that map ID number to array index position. Note that we can do this slightly
-        # quicker here if we wanted to, but it's nice not to have to duplicate a bunch
-        # of code further on down.
-        new_obj._update_filter()
-
-        # And viola! New object ready for the user to interface with!
-        return new_obj
-
-    @staticmethod
-    def _parse_select_compare(select_field, select_comp, select_val, data_arr):
-        """
-        Parse a select command into a set of boolean masks.
-
-        This is an internal helper function built as part of the low-level API, and not
-        meant to be used by general users. This method will produce a masking screen
-        based on the arguments provided to determine which data should be selected,
-        and is called by the method `MirParser.select`.
-
-        Parameters
-        ----------
-        select_field : str
-            Field in the `data_arr` to use in evaluating whether to select data.
-        select_comp : str
-            Specifies the type of comparison to do between the value supplied in
-            `select_val` and the metadata. No default, allowed values include:
-            "eq" (equal to, matching any in `select_val`),
-            "ne" (not equal to, not matching any in `select_val`),
-            "lt" (less than `select_val`),
-            "le" (less than or equal to `select_val`),
-            "gt" (greater than `select_val`),
-            "ge" (greater than or equal to `select_val`),
-            "btw" (between the range given by two values in `select_val`),
-            "out" (outside of the range give by two values in `select_val`).
-        select_val : number of str, or sequence of number or str
-            Value(s) to compare data in `select_field` against. If `select_comp` is
-            "lt", "le", "gt", "ge", then this must be either a single number
-            or string. If `select_comp` is "btw" or "out", then this must be a list
-            of length 2. If `select_comp` is "eq" or "ne", then this can be either a
-            single value or a sequence of values.
-        data_arr : ndarray
-            Structured array to evaluate, which should have the field `select_field`
-            within it. Must simply contain named fields.
-
-        Returns
-        -------
-        data_mask : ndarray of bool
-            Boolean array marking whether `select_field` in `data_arr` meets the
-            condition set by `select_comp` and `select_val`.
-
-        Raises
-        ------
-        ValueError
-            If `select_comp` is not one of the permitted strings, or if `select_field`
-            is not one of the fields within `data_arr`.
-        """
-        # Create a simple dict to match operation keywords to a function.
-        op_dict = {
-            "eq": lambda val, comp: np.isin(val, comp),
-            "ne": lambda val, comp: np.isin(val, comp, invert=True),
-            "lt": np.less,
-            "le": np.less_equal,
-            "gt": np.greater,
-            "ge": np.greater_equal,
-            "btw": lambda val, lims: ((val >= lims[0]) & (val <= lims[1])),
-            "out": lambda val, lims: ((val < lims[0]) | (val > lims[1])),
-        }
-
-        # Make sure the inputs look valid
-        if select_comp not in op_dict.keys():
-            raise ValueError(
-                "select_comp must be one of: %s" % ", ".join(op_dict.keys())
-            )
-        if select_field not in data_arr.dtype.names:
-            raise ValueError(
-                "select_field %s not found in structured array." % select_field
-            )
-
-        # Evaluate data_arr now
-        return op_dict[select_comp](data_arr[select_field], select_val)
-
-    def _parse_select(
-        self, select_field, select_comp, select_val, use_in, use_bl, use_sp
-    ):
-        """
-        Parse a select command into a set of boolean masks.
-
-        This is an internal helper function built as part of the low-level API, and not
-        meant to be used by general users. This method will produce a masking screen
-        based on the arguments provided to determine which data should be selected,
-        and is called by the method `MirParser.select`.
-
-        Parameters
-        ----------
-        select_field : str
-            Field in the MirParser metadata to use in evaluating whether to select
-            data. This must match one of the dtype fields given in the the attributes
-            `in_data`, `bl_data`, `sp_data`, `we_data`, `eng_data`, or the keys of
-            `codes_dict`.
-        select_comp : str
-            Specifies the type of comparison to do between the value supplied in
-            `select_val` and the metadata. No default, allowed values include:
-            "eq" (equal to, matching any in `select_val`),
-            "ne" (not equal to, not matching any in `select_val`),
-            "lt" (less than `select_val`),
-            "le" (less than or equal to `select_val`),
-            "gt" (greater than `select_val`),
-            "ge" (greater than or equal to `select_val`),
-            "btw" (between the range given by two values in `select_val`),
-            "out" (outside of the range give by two values in `select_val`).
-        select_val : number of str, or sequence of number or str
-            Value(s) to compare data in `select_field` against. If `select_comp` is
-            "lt", "le", "gt", "ge", then this must be either a single number
-            or string. If `select_comp` is "btw" or "out", then this must be a list
-            of length 2. If `select_comp` is "eq" or "ne", then this can be either a
-            single value or a sequence of values.
-        use_in : ndarray of bool
-            Boolean array of the same length as the attribute `_in_read`, which marks
-            which data is "good" (i.e., should be selected). Note that this array
-            is modified in-situ (rather than being returned).
-        use_bl : ndarray of bool
-            Boolean array of the same length as the attribute `_bl_read`, which marks
-            which data is "good" (i.e., should be selected). Note that this array
-            is modified in-situ (rather than being returned).
-        use_sp : ndarray of bool
-            Boolean array of the same length as the attribute `_sp_read`, which marks
-            which data is "good" (i.e., should be selected). Note that this array
-            is modified in-situ (rather than being returned).
-
-        Raises
-        ------
-        ValueError
-            When `select_field` matches a key in the attribute `codes_dict`, if either
-            `select_comp` is anything but "eq" or "ne", or `select_val` is not either
-            a string or sequence of strings. Also if `select_field` matches not fields
-            in any of the dtypes for the attributes `in_data`, `bl_data`, `sp_data`,
-            `eng_data`, or `we_data`.
-        NotImplementedError
-            When `select_field` matches a field in `we_data` (cannot currently select
-            on this field due to the fact that it contains both per-antenna and
-            per-integration data inter-mingled).
-        """
-        # We are going to convert select_val to an ndarray here, because it can handle
-        # all of the accepted data types, and provides some nice convenience funcs.
-        select_val = np.array(select_val)
-
-        # We want select_val to be potentially iterable, so if it's a singleton
-        # then take care of this now.
-        select_val.shape += (1,) if (select_val.shape == ()) else ()
-
-        if select_field in self.codes_dict.keys():
-            if select_comp not in ["eq", "ne"]:
-                raise ValueError(
-                    'select_comp must be either "eq" or "ne" if matching a field'
-                    "found in the attribute codes_dict."
-                )
-
-            # Create a temporary dict to map strings to index codes (i.e, icodes)
-            temp_codes = {
-                code_str: icode
-                for icode, (code_str, _) in self.codes_dict[select_field].items()
-            }
-
-            # Create a dummy array to plug our icodes into
-            temp_vals = []
-
-            for item in select_val:
-                if not isinstance(item, str):
-                    raise ValueError(
-                        "If select_field matches a key in codes_dict, then select_val "
-                        "must either be a string or a sequence of strings."
-                    )
-                try:
-                    # Find which icode matches the string that's been provided.
-                    temp_vals.append(temp_codes[item])
-                except KeyError:
-                    # If we don't find any enties, that's fine, just skip this one.
-                    pass
-
-            # Now that we've converted all of the strings into a list of codes, convert
-            # select_val back into an ndarray so that it behaves like we expect.
-            select_val = np.array(temp_vals)
-
-            # All of the fields connected to codes_dict just have an "i" up front.
-            select_field = "i" + select_field
-
-        elif select_field == "ant":
-            # Ant is a funny (and annoying) keyword, because it can refer to either
-            # ant1 or ant2, and we want to capture the case for both. Rather than
-            # handing this with a special call to _parse_select_compare, we can just
-            # change the select field to antennaNumber, which will match what is in
-            # eng_data (which is already handled correctly).
-            select_field = "antennaNumber"
-        elif select_field in ["ant1", "ant2"]:
-            # Final special case -- these technically have an "i" in front of then,
-            # for iant1 and iant2, which _usually_ means its supposed to match an
-            # entry in codes_read, but in this case is not. In any case, just
-            # manually plug in the i here.
-            select_field = "i" + select_field
-
-        # Now is the time to get to the business of actually figuring out which data
-        # we need to grab. The exact action will depend on which data structure
-        # we need to select on.
-        if select_field in self.in_data.dtype.names:
-            # If this is a field in in_data, then we just need to update use_in
-            use_in[self._in_filter] = self._parse_select_compare(
-                select_field,
-                select_comp,
-                select_val,
-                self.in_data,
-            )
-        elif select_field in self.bl_data.dtype.names:
-            # Same story for bl_data and use_bl
-            use_bl[self._bl_filter] = self._parse_select_compare(
-                select_field,
-                select_comp,
-                select_val,
-                self.bl_data,
-            )
-        elif select_field in self.sp_data.dtype.names:
-            # And ditto for sp_data and use_sp
-            use_sp[self._sp_filter] = self._parse_select_compare(
-                select_field,
-                select_comp,
-                select_val,
-                self.sp_data,
-            )
-        elif select_field in self.eng_data.dtype.names:
-            # We have to handle the engineering data a little differently, because most
-            # of the other metadata is per-baseline, but the eng data is all recorded
-            # per antenna. So first up, we need to check and see which data is about
-            # to be discarded by our selection
-            data_mask = self._parse_select_compare(
-                select_field,
-                select_comp,
-                select_val,
-                self.eng_data,
-            )
-
-            # Need to run through the data tuple-by-tuple to see if a given ant-time
-            # pairing is good or not. We can either check if a given tuple is in the
-            # "allowed" set, or in the "disallowed" set -- pick which based on which
-            # results in the shortest list of tuples we need to compare to.
-            flip_mask = np.mean(data_mask) >= 0.5 if (len(data_mask) > 0) else False
-            if flip_mask:
-                data_mask = ~data_mask
-
-            # Create the list of allowed/disallowed tuples to check against
-            check_items = [
-                (inhid, ant)
-                for inhid, ant in zip(
-                    self.eng_data["inhid"][data_mask],
-                    self.eng_data["antennaNumber"][data_mask],
-                )
-            ]
-
-            # Finally, evaluate entry-by-entry that each baseline is "allowed" or
-            # "disallowed" based on the antennas in the baseline pairing and the
-            # value in the integration index header number.
-            use_bl[self._bl_filter] = [
-                ((inhid, ant1) in check_items or (inhid, ant2) in check_items)
-                for inhid, ant1, ant2 in zip(
-                    self.bl_data["inhid"],
-                    self.bl_data["iant1"],
-                    self.bl_data["iant2"],
-                )
-            ]
-
-            # We want use_bl to return a boolean mask where True means that the data
-            # are good, so if we "flipped" the mask earlier, we have the inverse of
-            # that -- fix this now.
-            if flip_mask:
-                use_bl[self._bl_filter] = ~use_bl[self._bl_filter]
-        elif select_field in self.we_data.dtype.names:
-            # We currently are not parsing on the weather data, since it contains
-            # both array-wide and per-antenna information. Pass on this for now.
-            raise NotImplementedError(
-                "Selecting based on we_read data not yet supported."
-            )
-        else:
-            # If we didn't recognize the field in any dtype, throw an error now.
-            raise ValueError(
-                "Field name %s not recognized in any data structure." % select_field
-            )
+        return self.__add__(other, overwrite=overwrite, merge=merge, inplace=True)
 
     def select(
         self,
-        select_field=None,
-        select_comp=None,
-        select_val=None,
-        use_in=None,
-        use_bl=None,
-        use_sp=None,
+        where=None,
+        and_where_args=True,
+        and_mask=True,
         update_data=None,
         reset=False,
     ):
         """
-        Select a subset of data inside a MIR-formated file.
+        Select a subset of data inside a Mir-formated file.
 
-        This routine allows for one to select a subset of data within a MIR file, base
-        on various metadata. The select command is designed to be _reasonably_ flexible,
-        although is limited to running a single evaluation at a time. Users should be
-        aware that the command is case sensitive, and uses "strict" agreement (i.e.,
-        it does not mimic the behavior is `np.isclose`) with metadata values.
+        This routine allows for one to select a subset of data within a Mir dataset,
+        based on various metadata. The select command is designed to be flexible,
+        allowing for both multiple simultaneous selections and serial calls. Users
+        should be aware that the command is case sensitive, and uses "strict" agreement
+        (i.e., it does not mimic the behavior is `np.isclose`) with metadata values.
+        By default, multiple selection criteria are combined together via an "and"
+        operation; for example, if you wanted to select only data from Antenna 1 while
+        on 3c84, you would set `where=(("source", "eq", "3c84"), ("ant", "eq", 1))`.
 
-        The select command will automatically translate between the `codes_read` file
+        The select command will automatically translate information in `codes_data`, the
         and the various indexing keys, e.g., it will convert an allowed value for
         "source" (found in`codes_read`) into allowed values for "isource" (found in
-        `in_read`). Multiple calls to select work by effectingly "AND"-ing the flags,
-        e.g., running select for Antenna 1 and then Antenna 2 will result in only the
-        1-2 baseline to appear.
+        `in_read`).
 
         Parameters
         ----------
-        select_field : str
-            Field in the MirParser metadata to use in evaluating whether to select
-            data. This must match one of the dtype fields given in the the attributes
-            `in_data`, `bl_data`, `sp_data`, `we_data`, `eng_data`, or the keys of
-            `codes_dict`.
-        select_comp : str
-            Specifies the type of comparison to do between the value supplied in
-            `select_val` and the metadata. No default, allowed values include:
-            "eq" (equal to, matching any in `select_val`),
-            "ne" (not equal to, not matching any in `select_val`),
-            "lt" (less than `select_val`),
-            "le" (less than or equal to `select_val`),
-            "gt" (greater than `select_val`),
-            "ge" (greater than or equal to `select_val`),
-            "btw" (between the range given by two values in `select_val`),
-            "out" (outside of the range give by two values in `select_val`).
-            Note that this argument is ignored if resetting flags or supplying
-            arguments to `use_in`, `use_bl`, or `use_sp`.
-        select_val : str or number, or list of str or number.
-            Value(s) to compare data in `select_field` against. If `select_comp` is
-            "lt", "le", "gt", "ge", then this must be either a single number
-            or string. If `select_comp` is "btw" or "out", then this must be a list
-            of length 2. If `select_comp` is "eq" or "ne", then this can be either a
-            single value or a sequence of values.
-        use_in : slice-like
-            Specify which elements of the attribute `in_data` to keep by supplying
-            either a simple slice, or an array-like of bools or ints that can be used
-            as a complex slice (i.e., the argument can be used as an index to get
-            specific entries in `in_data` array). Good for performing complex selections
-            on a per-integration basis.
-        use_bl : slice-like
-            Specify which elements of the attribute `bl_data` to keep by supplying
-            either a simple slice, or an array-like of bools or ints that can be used
-            as a complex slice (i.e., the argument can be used as an index to get
-            specific entries in `bl_data` array). Good for performing complex selections
-            on a per-baseline basis.
-        use_sp : slice-like
-            Specify which elements of the attribute `sp_data` to keep by supplying
-            either a simple slice, or an array-like of bools or ints that can be used
-            as a complex slice (i.e., the argument can be used as an index to get
-            specific entries in `sp_data` array). Good for performing complex selections
-            on a per-spectral record basis.
+        where : tuple or list of tuples
+            Optional argument, where tuple is used to identify a matching subset of
+            data. Each tuple must be 3 elements in length. The first element should
+            match one of the field names inside one of the metadata attributes (e.g.,
+            "ant1", "mjd", "source", "fsky"). The second element specifies the
+            comparison operator, which is used to compare the metadata field against
+            the third element in the tuple. Allowed comparisons include:
+            "eq" (equal to, matching any in the third element),
+            "ne" (not equal to, not matching any in third element),
+            "lt" (less than the third element),
+            "le" (less than or equal to the third element),
+            "gt" (greater than the third element),
+            "ge" (greater than or equal to the third element),
+            "btw" (between the range given by two values in the third element),
+            "out" (outside of the range give by two values in the third element).
+            Multiple tuples to where can be supplied, where the results of each
+            selection are combined based on the value of `and_where_args`.
+        and_where_args : bool
+            If set to True, then the individual calls to the `where` method will be
+            combined via an element-wise "and" operator, such that the returned array
+            will report the positions where all criterea are met. If False, results
+            are instead combined via an element-wise "or" operator. Default is True.
+            If supplied, the argument for `mask` will be combined with the output from
+            the calls to `where` with the same logic.
+        and_mask : bool
+            If set to True, then the mask generated by the selection criteria above will
+            be combined with the existing mask values using an element-wise "and"
+            operation. If set to False, the two will instead be combined with an
+            element-wise "or" operation. Default is True.
         update_data : bool
             Whether or not to update the visibility values (as recorded in the
             attributes `vis_data` and `raw_data`). If set to True, it will force data
@@ -5622,162 +5109,82 @@ class MirParser(object):
             not loaded, otherwise to downselect from the existing data in the object
             if all records are present (and otherwise unload the data).
         reset : bool
-            If set to true, undoes any previous filters, so that all records are once
-            again visible. Note that this will also unload the data. Default is False.
-
-        Raises
-        ------
-        UserWarning
-            If an argument is supplied for `select_field`, `select_comp`, or
-            `select_val` of `reset=True`, or `use_in`, `use_bl`, or `use_sp` are set.
-        ValueError
-            If `select_field` is not a string, if `select_comp` is not one of the
-            permitted values, or if `select_val` does not match the expected size
-            given the argument supplied to `select_comp`.
-        IndexError
-            If the arguments supplied to `use_in`, `use_bl`, or `use_sp` are not able
-            to correctly index the attributes `in_data`, `bl_data`, or `sp_data`,
-            respectively.
+            If set to True, undoes any previous filters, so that all records are once
+            again visible.Default is False.
         """
-        # Make sure that the input arguments look alright before proceeding to
-        # the heavy lifting of select.
-        if select_field is None or select_comp is None or select_val is None:
-            # Make sure the arguments below are either all filled or none are filled
-            select_args = [select_field, select_comp, select_val]
-            select_names = ["select_field", "select_comp", "select_val"]
-            for arg, name in zip(select_args, select_names):
-                if arg is not None:
-                    raise ValueError(
-                        "select_field, select_comp, and select_val must all be set "
-                        "or not set when calling select."
-                    )
-        else:
-            if reset:
-                # If doing a reset, then warn that the other arguments are going to
-                # get ignored.
-                warnings.warn(
-                    "Resetting data selection, all other arguments are ignored."
-                )
-            elif not (use_in is None and use_bl is None and use_sp is None):
-                # Same case for the use_in, use_bl, and use_sp arguments -- we ignore
-                # the "normal" selection commands if these are provided.
-                warnings.warn(
-                    "Selecting data using use_in, use_bl and/or use_sp; "
-                    "all other arguments are ignored."
-                )
-            elif not isinstance(select_field, str):
-                # Make sure select_field is a string (since all dtype fields are one)
-                raise ValueError("select_field must be a string.")
-            elif select_comp not in ["eq", "ne", "lt", "le", "gt", "ge", "btw", "out"]:
-                # Make sure we can interpret select_comp
-                raise ValueError(
-                    'select_comp must be one of "eq", "ne", "lt", '
-                    '"le", "gt", "ge", "btw", or "out".'
-                )
-            elif select_comp in ["lt", "le", "gt", "ge"]:
-                # If one of the less/greater than (or equal) select comparisons, make
-                # sure that there is only a single number.
-                raise_err = False
-                if np.array(select_val).size != 1:
-                    raise_err = True
-                elif not isinstance(np.array(select_val)[()], np.number):
-                    raise_err = True
-                if raise_err:
-                    raise ValueError(
-                        "select_val must be a single number if select_comp "
-                        'is either "lt", "le", "gt", or "ge".'
-                    )
-            elif select_comp in ["btw", "out"]:
-                # Make sure is using between or outside, that we have two numbers
-                raise_err = False
-                if np.array(select_val).size == 1:
-                    raise_err = True
-                elif not isinstance(np.array(select_val)[0], np.number):
-                    raise_err = True
-                elif np.array(select_val).size != 2:
-                    raise_err = True
-                if raise_err:
-                    raise ValueError(
-                        'If select_comp is "btw" or "out", select_val must be a '
-                        "sequence if length two."
-                    )
-                # If the range is flipped, fix that now.
-                if select_val[0] > select_val[1]:
-                    select_val = [select_val[1], select_val[0]]
+        # This dict records some common field aliases that users might specify, that
+        # map to specific fields in the metadata.
+        alias_dict = {
+            "ant": "antennaNumber",
+            "antenna": "antennaNumber",
+            "ant1": "tel1",
+            "ant2": "tel2",
+        }
 
-        # If all we need to do is reset, then do that now and bail.
-        if reset:
-            self._update_filter(update_data=False)
-            return
+        # Make sure that where is a list, to make arg parsing more uniform downsteam
+        if not isinstance(where, list) and where is not None:
+            where = [where]
 
-        # If directly supplying slices upon which to select the data, deal with
-        # those now. Note that these are slices on *_data instead of *_read
-        # (the latter of which contains all of the metadata, not just that selected).
-        if not ((use_in is None) and (use_bl is None) and (use_sp is None)):
-            # We need to pass to update_filter a set of boolean masks of the same
-            # length as the *_read attributes, so we need to convert use_in, use_bl,
-            # and use_sp (which don't need to be bool arrays) into the right form.
-            # We use this dict just to make bookkeeping simpler.
-            filt_dict = {
-                "use_in": (use_in, self._in_filter),
-                "use_bl": (use_bl, self._bl_filter),
-                "use_sp": (use_sp, self._sp_filter),
-            }
+        # If supplying where arguments, we want to condition them properly so that
+        # they will result in a successful search, if at all possible.
+        if where is not None:
+            for idx in range(len(where)):
+                query = where[idx]
+                # Substitute alias names
+                if query[0] in alias_dict:
+                    query = (alias_dict[query[0]], *query[1:])
+                    where[idx] = query
+
+                # The codes data is different than other metadata, in that it maps
+                # arbitary strings to integer values under specific header names. If
+                # we have an argument that matches once of these, we want to substitute
+                # the string and field name for the appropriate integrer (and associated
+                # indexing field name).
+                try:
+                    index_vals = self.codes_data.where(*query)
+                    if query[0] in self.codes_data._codes_index_dict:
+                        where[idx] = (
+                            self.codes_data._codes_index_dict[query[0]],
+                            "eq",
+                            index_vals,
+                        )
+                except MirMetaError:
+                    # This error gets thrown if no variable name matching the first arg
+                    # in the where tuple matches. In this case, we just trust that the
+                    # field name belongs one of the other metadata tables.
+                    pass
+
+        # We have 5 objects to perform a search across, which link to each other in
+        # different ways. We create this dict to start rather than populating the
+        # objects since we don't want to change anything until we know that the where
+        # statements all parse successfully.
+        search_dict = {
+            "in_data": None,
+            "bl_data": None,
+            "sp_data": None,
+            "eng_data": None,
+            "we_data": None,
+        }
+
+        for attr in search_dict:
             try:
-                # Note arg_filter come from args, obj_filter come from MirParser attrs
-                for key, (arg_filter, obj_filter) in filt_dict.items():
-                    if arg_filter is None:
-                        use_filt = None
-                    else:
-                        temp_filt = np.zeros(np.sum(obj_filter), dtype=bool)
-                        temp_filt[arg_filter] = True
-                        use_filt = obj_filter.copy()
-                        use_filt[use_filt] = temp_filt
-                    filt_dict[key] = use_filt
-            except IndexError:
-                raise IndexError(
-                    "use_in, use_bl, and use_sp must be set such that they can be "
-                    "used to index in_data, bl_data, and sp_data, respectively."
+                # Attempt to generate a mask based on the supplied search criteria
+                search_dict[attr] = self._metadata_attrs[attr]._generate_mask(
+                    where=where, and_where_args=and_where_args
                 )
+            except MirMetaError:
+                # If not of the field indentified in the sequence of tuples were found
+                # in the attribute, it'll throw the above error. That just means we
+                # aren't searching on anything relevant to this attr, so move along.
+                pass
 
-            # Now that we have made our masks, update the data accordingly
-            self._update_filter(
-                use_in=filt_dict["use_in"],
-                use_bl=filt_dict["use_bl"],
-                use_sp=filt_dict["use_sp"],
-                update_data=update_data,
+        for attr, mask in search_dict.items():
+            self._metadata_attrs[attr].set_mask(
+                mask=mask, reset=reset, and_mask=and_mask
             )
-            return
-
-        # If select_field is None at this point, then we have a great big no-op.
-        # Just let the user know before we exit.
-        if select_field is None:
-            warnings.warn(
-                "No arguments supplied to select_field to filter on. Returning "
-                "the MirParser object unchanged."
-            )
-            return
-
-        # If we are at this point, use_* arguments are all none, so fill them in based
-        # on what the filter attributes say they should be.
-        use_in = self._in_filter.copy()
-        use_bl = self._bl_filter.copy()
-        use_sp = self._sp_filter.copy()
-
-        # Note that the call to _parse_select here will modify use_in, use_bl, and
-        # use_sp in situ.
-        self._parse_select(
-            select_field, select_comp, select_val, use_in, use_bl, use_sp
-        )
 
         # Now that we've screened the data that we want, update the object appropriately
-        self._update_filter(
-            use_in=use_in,
-            use_bl=use_bl,
-            use_sp=use_sp,
-            update_data=update_data,
-            allow_downselect=True,
-        )
+        self._update_filter(update_data=update_data)
 
     def _read_compass_solns(self, filename):
         """
@@ -5810,7 +5217,7 @@ class MirParser(object):
         # When we read in the COMPASS solutions, we will need to map some per-blhid
         # values to per-sphid values, so create an indexing array that we can do this
         # with conveniently.
-        sp_bl_map = [self._blhid_dict[blhid] for blhid in self.sp_data["blhid"]]
+        sp_bl_map = self.bl_data._index_query(header_key=self.sp_data["blhid"])
 
         # COMPASS stores its solns in a multi-dimensional array that needs to be
         # split apart in order to match for MirParser format. We can match each sphid
@@ -5821,12 +5228,12 @@ class MirParser(object):
         for sphid, inhid, ant1, rx1, ant2, rx2, sb, chunk in zip(
             self.sp_data["sphid"],
             self.sp_data["inhid"],
-            self.bl_data["iant1"][sp_bl_map],
-            self.bl_data["ant1rx"][sp_bl_map],
-            self.bl_data["iant2"][sp_bl_map],
-            self.bl_data["ant2rx"][sp_bl_map],
-            self.bl_data["isb"][sp_bl_map],
-            self.sp_data["corrchunk"],
+            self.bl_data.get_value("iant1", index=sp_bl_map),
+            self.bl_data.get_value("ant1rx", index=sp_bl_map),
+            self.bl_data.get_value("iant2", index=sp_bl_map),
+            self.bl_data.get_value("ant2rx", index=sp_bl_map),
+            self.bl_data.get_value("isb", index=sp_bl_map),
+            self.sp_data.get_value("corrchunk", index=sp_bl_map),
         ):
             sphid_dict[(inhid, ant1, rx1, ant2, rx2, sb, chunk)] = sphid
 
@@ -5968,7 +5375,7 @@ class MirParser(object):
         # TODO _apply_compass_solns: Actually test that this works.
 
         # If the data isn't loaded, there really isn't anything to do.
-        if not self._vis_data_loaded:
+        if self.vis_data is None:
             raise ValueError(
                 "Visibility data must be loaded in order to apply COMPASS solns. Run "
                 "`load_data(load_vis=True)` to fix this issue."
@@ -5976,16 +5383,16 @@ class MirParser(object):
 
         # Before we do anything else, we want to be able to map certain entires that
         # are per-blhid to be per-sphid.
-        sp_bl_map = [self._blhid_dict[blhid] for blhid in self.sp_data["blhid"]]
+        sp_bl_map = self.bl_data._index_query(header_key=self.sp_data["blhid"])
 
         # Now grab all of the metadata we want for processing the spectral records
         sphid_arr = self.sp_data["sphid"]  # Spectral window header ID
-        ant1_arr = self.bl_data["iant1"][sp_bl_map]  # Ant 1 Number
-        rx1_arr = self.bl_data["ant1rx"][sp_bl_map]  # Pol for Ant 1 | 0 : X/L , 1: Y/R
-        ant2_arr = self.bl_data["iant2"][sp_bl_map]  # Ant 2 Number
-        rx2_arr = self.bl_data["ant2rx"][sp_bl_map]  # Pol for Ant 2 | 0 : X/L , 1: Y/R
+        ant1_arr = self.bl_data.get_value("iant1", index=sp_bl_map)  # Ant 1 Number
+        rx1_arr = self.bl_data.get_value("ant1rx", index=sp_bl_map)  # Pol | 0:X/L 1:Y/R
+        ant2_arr = self.bl_data.get_value("iant2", index=sp_bl_map)  # Ant 2 Number
+        rx2_arr = self.bl_data.get_value("ant2rx", index=sp_bl_map)  # Pol | 0:X/L 1:Y/R
         chunk_arr = self.sp_data["corrchunk"]  # Correlator window number
-        sb_arr = self.bl_data["isb"][sp_bl_map]  # Sidebad ID | 0 : LSB, 1 : USB
+        sb_arr = self.bl_data.get_value("isb", index=sp_bl_map)  # Sidebad | 0:LSB 1:USB
 
         # In case we need it for "dummy" gains solutions, tabulate how many channels
         # there are in each spectral window, remembering that spectral windows can
@@ -6512,7 +5919,7 @@ class MirParser(object):
             it's the wrong file version or because the receiver code isn't recognized).
         """
         if freq_shift is None:
-            if self.codes_dict["filever"] in ("2", "3"):
+            if self.codes_data["filever"] in [["2"], ["3"]]:
                 raise ValueError(
                     "MIR file format < v4.0 detected, no doppler tracking information "
                     "is stored in the file headers."
@@ -6522,10 +5929,10 @@ class MirParser(object):
             freq_shift = -self.sp_data["fDDS"]
 
             # If we need to "fix" the values, do it now.
-            if (fix_freq is None and (self.codes_dict["filever"] == "4")) or fix_freq:
+            if (fix_freq is None and (self.codes_data["filever"] == ["4"])) or fix_freq:
                 # Figure out which receiver this is.
                 rx_code = np.median(self.bl_data["irec"][self.bl_data["ant1rx"] == 0])
-                rx_name = self.codes_dict["rec"][rx_code][0]
+                rx_name = self.codes_data["rec"][rx_code]
                 if rx_name not in ("230", "345"):
                     raise ValueError("Receiver code %i not recognized." % rx_code)
 
@@ -6570,11 +5977,11 @@ class MirParser(object):
                 shift_tuple_list.append(shift_tuple)
 
         # Okay, now we have all of the metadata, so do the thing.
-        if self._raw_data_loaded:
+        if self.raw_data is not None:
             self.raw_data = self._chanshift_raw(
                 self.raw_data, shift_tuple_list, inplace=True, flag_adj=flag_adj
             )
-        if self._vis_data_loaded:
+        if self.vis_data is not None:
             self.vis_data = self._chanshift_vis(
                 self.vis_data, shift_tuple_list, inplace=True, flag_adj=flag_adj
             )

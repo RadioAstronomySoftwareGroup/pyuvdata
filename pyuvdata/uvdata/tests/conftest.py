@@ -123,7 +123,6 @@ def mir_data_main():
     mir_data = MirParser(
         testfile,
         load_vis=True,
-        load_raw=True,
         load_auto=True,
         has_auto=True,
     )

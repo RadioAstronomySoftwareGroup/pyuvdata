@@ -93,39 +93,30 @@ class Mir(UVData):
         # Use the mir_parser to read in metadata, which can be used to select data.
         mir_data = mir_parser.MirParser(filepath)
 
-        # Create filters of appropriate size
-        use_in = np.ones(len(mir_data._in_read), dtype=bool)
-        use_bl = np.ones(len(mir_data._bl_read), dtype=bool)
-        use_sp = np.ones(len(mir_data._sp_read), dtype=bool)
-
         if isource is not None:
-            use_in *= np.isin(mir_data._in_read["isource"], isource)
-            if not np.any(use_in):
+            mir_data.select(where=("isource", "eq", isource))
+            if not np.any(mir_data.in_data.get_mask()):
                 raise ValueError("No valid sources selected!")
 
         if irec is not None:
-            use_bl *= np.isin(mir_data._bl_read["irec"], irec)
-            if not np.any(use_bl):
+            mir_data.select(where=("irec", "eq", irec))
+            if not np.any(mir_data.in_data.get_mask()):
                 raise ValueError("No valid receivers selected!")
 
         if isb is not None:
-            use_bl *= np.isin(mir_data._bl_read["isb"], isb)
-            if not np.any(use_bl):
+            mir_data.select(where=("isb", "eq", isb))
+            if not np.any(mir_data.in_data.get_mask()):
                 raise ValueError("No valid sidebands selected!")
 
         if corrchunk is not None:
-            use_sp *= np.isin(mir_data._sp_read["corrchunk"], corrchunk)
-            if not np.any(use_sp):
+            mir_data.select(where=("corrchunk", "eq", corrchunk))
+            if not np.any(mir_data.in_data.get_mask()):
                 raise ValueError("No valid spectral bands selected!")
         elif not pseudo_cont:
-            use_sp *= mir_data._sp_read["corrchunk"] != 0
-
-        mir_data._update_filter(use_in=use_in, use_bl=use_bl, use_sp=use_sp)
+            mir_data.select(where=("corrchunk", "ne", 0))
 
         if rechunk is not None:
-            mir_data.rechunk(rechunk, load_vis=True)
-            mir_data.apply_tsys()
-            mir_data.apply_flags()
+            mir_data.rechunk(rechunk)
 
         self._init_from_mir_parser(mir_data, allow_flex_pol=allow_flex_pol)
 
@@ -137,7 +128,9 @@ class Mir(UVData):
                 allow_flip_conj=True,
             )
 
-    def _init_from_mir_parser(self, mir_data, allow_flex_pol=True):
+    def _init_from_mir_parser(
+        self, mir_data: mir_parser.MirParser, allow_flex_pol=True
+    ):
         """
         Convert a MirParser object into a UVData object.
 
@@ -162,28 +155,24 @@ class Mir(UVData):
 
         # Create a simple list for broadcasting values stored on a
         # per-intergration basis in MIR into the (tasty) per-blt records in UVDATA.
-        bl_in_maparr = np.array(
-            [mir_data._inhid_dict[idx] for idx in mir_data.bl_data["inhid"]]
-        )
+        bl_in_idx = mir_data.in_data._index_query(header_key=mir_data.bl_data["inhid"])
 
         # Create a simple array/list for broadcasting values stored on a
         # per-blt basis into per-spw records, and per-time into per-blt records
-        sp_bl_maparr = np.array(
-            [mir_data._blhid_dict[idx] for idx in mir_data.sp_data["blhid"]]
-        )
+        sp_bl_idx = mir_data.bl_data._index_query(header_key=mir_data.sp_data["blhid"])
+
+        ant1_rxa_mask = mir_data.bl_data.get_value("ant1rx", index=sp_bl_idx) == 0
+        ant2_rxa_mask = mir_data.bl_data.get_value("ant2rx", index=sp_bl_idx) == 0
 
         if len(np.unique(mir_data.bl_data["ipol"])) == 1 and (
-            len(mir_data.codes_dict["pol"]) == 4
+            len(mir_data.codes_data["pol"]) == (2 * 4)
         ):
             # If only one pol is found, and the polarization dictionary has only four
-            # codes, then we actually need to verify this is a single pol observation,
-            # since the current system has a quirk that it marks both X- and Y-pol
-            # receivers with the same code.
+            # codes + four unique index codes, then we actually need to verify this is
+            # a single pol observation, since the current system has a quirk that it
+            # marks both X- and Y-pol receivers as the same polarization.
             pol_dict = {}
-            pol_arr = np.zeros_like(mir_data.bl_data["ipol"][sp_bl_maparr])
-
-            ant1_rxa_mask = mir_data.bl_data["ant1rx"][sp_bl_maparr] == 0
-            ant2_rxa_mask = mir_data.bl_data["ant2rx"][sp_bl_maparr] == 0
+            pol_arr = np.zeros_like(sp_bl_idx)
 
             pol_arr[np.logical_and(ant1_rxa_mask, ant2_rxa_mask)] = 0
             pol_arr[np.logical_and(~ant1_rxa_mask, ~ant2_rxa_mask)] = 1
@@ -192,7 +181,7 @@ class Mir(UVData):
         else:
             # If this has multiple ipol codes, then we don't need to worry about the
             # single-code ambiguity.
-            pol_arr = mir_data.bl_data["ipol"][sp_bl_maparr]
+            pol_arr = mir_data.bl_data.get_value("ipol", index=sp_bl_idx)
 
         # Construct and indexing list, that we'll use later to figure out what data
         # goes where, based on spw, sideband, and pol code.
@@ -200,7 +189,7 @@ class Mir(UVData):
             (winid, sbid, polid)
             for winid, sbid, polid in zip(
                 mir_data.sp_data["corrchunk"],
-                mir_data.bl_data["isb"][sp_bl_maparr],
+                mir_data.bl_data.get_value("isb", index=sp_bl_idx),
                 pol_arr,
             )
         ]
@@ -213,14 +202,8 @@ class Mir(UVData):
             # If dual-pol, then we need to check if the tunings are split, because
             # the two polarizations will effectively be concat'd across the freq
             # axis instead of the pol axis.
-            rxa_mask = np.logical_and(
-                mir_data.bl_data["ant1rx"][sp_bl_maparr] == 0,
-                mir_data.bl_data["ant2rx"][sp_bl_maparr] == 0,
-            )
-            rxb_mask = np.logical_and(
-                mir_data.bl_data["ant1rx"][sp_bl_maparr] == 1,
-                mir_data.bl_data["ant2rx"][sp_bl_maparr] == 1,
-            )
+            rxa_mask = ant1_rxa_mask & ant2_rxa_mask
+            rxb_mask = ~(ant1_rxa_mask | ant2_rxa_mask)
 
             if np.any(rxa_mask) and np.any(rxb_mask):
                 # If we have both VV and HH data, check to see that the tunings of the
@@ -231,13 +214,16 @@ class Mir(UVData):
 
         # Map MIR pol code to pyuvdata/AIPS polarization number
         pol_code_dict = {}
-        for key, (code, _) in mir_data.codes_dict["pol"].items():
+        icode_dict = mir_data.codes_data["pol"]
+        for code in mir_data.codes_data.get_codes("pol", return_dict=False):
+            if issubclass(type(code), np.integer):
+                continue
             # There are pol modes/codes that are support in MIR that are not in AIPS
             # or CASA, although they are rarely used, so we can skip over translating
             # them in the try/except loop here (if present in he data, it will throw
             # an error further downstream).
             try:
-                pol_code_dict[key] = uvutils.POL_STR2NUM_DICT[code.lower()]
+                pol_code_dict[icode_dict[code]] = uvutils.POL_STR2NUM_DICT[code.lower()]
             except KeyError:
                 pass
         if pol_split_tuning and allow_flex_pol:
@@ -257,11 +243,7 @@ class Mir(UVData):
         # Create a list of baseline-time combinations in the data
         blt_list = [
             (intid, ant1, ant2)
-            for intid, ant1, ant2 in zip(
-                mir_data.bl_data["inhid"],
-                mir_data.bl_data["iant1"],
-                mir_data.bl_data["iant2"],
-            )
+            for intid, ant1, ant2 in zip(*mir_data.bl_data[["inhid", "iant1", "iant2"]])
         ]
 
         # Use the list above to create a dict that maps baseline-time combo
@@ -384,7 +366,7 @@ class Mir(UVData):
         vis_data = np.zeros((Nblts, Npols, Nfreqs), dtype=np.complex64)
         vis_flags = np.ones((Nblts, Npols, Nfreqs), dtype=bool)
         vis_weights = np.zeros((Nblts, Npols, Nfreqs), dtype=np.float32)
-        if not mir_data._vis_data_loaded:
+        if mir_data.vis_data is None:
             mir_data.load_data(load_vis=True, apply_tsys=True)
             mir_data.apply_flags()
 
@@ -521,7 +503,7 @@ class Mir(UVData):
             # Evaluate each spectral records metadata individually, and create a simple
             # dict that contains the metadata we want to check.
             temp_dict = {item: bl_rec[item] for item in bl_to_blt}
-            in_rec = mir_data.in_data[bl_in_maparr[idx]]
+            in_rec = mir_data.in_data._data[bl_in_idx[idx]]
 
             # Update the dict with the per-inhid data as well.
             temp_dict.update({item: in_rec[item] for item in in_to_blt})
@@ -602,7 +584,7 @@ class Mir(UVData):
             source_dec = np.mean(mir_data.in_data["decr"][source_mask]).astype(float)
             source_epoch = np.mean(mir_data.in_data["epoch"][source_mask]).astype(float)
             self._add_phase_center(
-                mir_data.codes_dict["source"][sou_id][0],
+                mir_data.codes_data["source"][sou_id],
                 cat_type="sidereal",
                 cat_lon=source_ra,
                 cat_lat=source_dec,
