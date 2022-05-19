@@ -298,10 +298,10 @@ def test_read_mir_sideband_select(sma_mir, pseudo_cont):
     sma_mir.history = ""
 
     mir_lsb = UVData()
-    mir_lsb.read(testfile, isb=[0], pseudo_cont=pseudo_cont)
+    mir_lsb.read(testfile, isb=0, pseudo_cont=pseudo_cont)
 
     mir_usb = UVData()
-    mir_usb.read(testfile, isb=[1], pseudo_cont=pseudo_cont)
+    mir_usb.read(testfile, isb=1, pseudo_cont=pseudo_cont)
 
     mir_recomb = mir_lsb + mir_usb
     # Re-order here so that we can more easily compare the two
@@ -324,8 +324,8 @@ def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
 
     # Read in the raw data so that we can manipulate it, and make it look like the
     # test data set was recorded with split-tuning
-    mir_data.sp_data["gunnLO"][np.isin(mir_data.sp_data["blhid"], [1, 3])] += 30.0
-    mir_data.sp_data["gunnLO"][np.isin(mir_data.sp_data["fsky"], [1, 3])] += 30.0
+    mir_data.sp_data._data["gunnLO"][np.isin(mir_data.sp_data["blhid"], [1, 3])] += 30.0
+    mir_data.sp_data._data["fsky"][np.isin(mir_data.sp_data["blhid"], [1, 3])] += 30.0
 
     # Spin up a Mir object, which can be covered into a UVData object,
     # with flex-pol enabled.
@@ -376,8 +376,8 @@ def test_inconsistent_sp_records(mir_data, sma_mir):
     """
     Test that the MIR object does the right thing w/ inconsistent meta-data.
     """
-    mir_data._update_filter(use_sp=(mir_data._sp_read["iband"] != 0))
-    mir_data.sp_data["ipq"][1] = 0
+    mir_data.select(where=("iband", "ne", 0))
+    mir_data.sp_data._data["ipq"][1] = 0
     mir_data.load_data()
 
     with uvtest.check_warnings(UserWarning, "Per-spectral window metadata differ."):
@@ -393,8 +393,8 @@ def test_inconsistent_bl_records(mir_data, sma_mir):
     """
     Test that the MIR object does the right thing w/ inconsistent meta-data.
     """
-    mir_data._update_filter(use_sp=(mir_data._sp_read["iband"] != 0))
-    mir_data.bl_data["u"][0] = 0.0
+    mir_data.select(where=("iband", "ne", 0))
+    mir_data.bl_data._data["u"][0] = 0.0
     mir_data.load_data()
     with uvtest.check_warnings(UserWarning, "Per-baseline metadata differ."):
         mir_uv = UVData()
@@ -410,8 +410,8 @@ def test_multi_ipol(mir_data, sma_mir):
     Test that the MIR object does the right thing when different polarization types
     are recorded in the pol code.
     """
-    mir_data._update_filter(use_sp=(mir_data._sp_read["iband"] != 0))
-    mir_data.bl_data["ipol"][:] = mir_data.bl_data["ant1rx"]
+    mir_data.select(where=("iband", "ne", 0))
+    mir_data.bl_data._data["ipol"][:] = mir_data.bl_data["ant1rx"]
     mir_data.load_data()
 
     mir_uv = UVData()
@@ -572,7 +572,10 @@ def test_bad_sphid(mir_data):
     Test what bad values for sphid in sp_data result in an error.
     """
     mir_obj = Mir()
-    mir_data.sp_data["sphid"] = -1
+    with uvtest.check_warnings(
+        UserWarning, "Changing fields that tie to header keys can"
+    ):
+        mir_data.sp_data["sphid"] = -1
 
     with pytest.raises(KeyError) as err:
         mir_obj._init_from_mir_parser(mir_data)
@@ -585,7 +588,11 @@ def test_bad_pol_code(mir_data):
     this check because the "Unknown" pol code is something present in some data sets.
     """
     mir_obj = Mir()
-    mir_data.codes_dict["pol"][-999] = ("Unknown", 0)
+    mir_data.codes_data._data = np.resize(
+        mir_data.codes_data._data, len(mir_data.codes_data) + 1
+    )
+    mir_data.codes_data._data[-1] = ("pol", -999, "Unknown", 0)
+    mir_data.codes_data._mask = np.ones(len(mir_data.codes_data), dtype=bool)
 
     mir_obj._init_from_mir_parser(mir_data)
 
