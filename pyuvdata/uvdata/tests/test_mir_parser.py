@@ -423,7 +423,7 @@ def test_scan_int_start_errs(mir_data):
 
 def test_scan_int_start(mir_data):
     """Verify that we can correctly scan integration starting periods."""
-    true_dict = {1: (1, 1048680, 0)}
+    true_dict = {1: {"inhid": 1, "record_size": 1048680, "record_start": 0}}
     assert true_dict == mir_data.scan_int_start(mir_data.filepath, allowed_inhid=[1])
 
 
