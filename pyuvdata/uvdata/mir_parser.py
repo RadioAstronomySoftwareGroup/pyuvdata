@@ -534,21 +534,33 @@ class MirMetaData(object):
         is_eq : bool
             Value describing whether or not the two objects contain the same data.
         """
+        # Grab the name of the class to make the output a bit more human parsable
+        name = type(self).__name__
+
         if not isinstance(other, self.__class__):
-            raise ValueError("Cannot compare MirMetaData with non-MirMetaData objects.")
+            raise ValueError("Cannot compare %s with non-%s objects." % name)
 
         # This _should_ be impossible unless the user mucked with the dtype, but
         # for safety sake, check now.
         if self.dtype != other.dtype:
-            raise ValueError("Cannot compare MirMetaData with different dtypes.")
+            raise ValueError("Cannot compare %s with different dtypes." % name)
+
+        if (self._data is None or self._mask is None) or (
+            other._data is None or other._mask is None
+        ):
+            is_eq = (self._data is None) == (other._data is None)
+            is_eq &= (self._mask is None) == (other._mask is None)
+            if verbose and not is_eq:
+                print("%s objects are not both initialized (one is empty)." % name)
+            return is_eq
 
         if ignore_mask and (len(self) != len(other)):
             if verbose:
-                print("Objects are of different lengths.")
+                print("%s objects are of different lengths." % name)
             return False
         elif not (np.array_equal(self._mask, other._mask) or ignore_mask):
             if verbose:
-                print("Objects have different masks.")
+                print("%s objects have different masks." % name)
             return False
 
         # Figure out which fields inside the data array we need to compare.
@@ -571,8 +583,8 @@ class MirMetaData(object):
                 is_eq = False
                 if verbose:
                     print(
-                        "%s is different, left is %s, right is %s."
-                        % (item, left_vals, right_vals)
+                        "%s of %s is different, left is %s, right is %s."
+                        % (item, name, left_vals, right_vals)
                     )
 
         return is_eq
@@ -683,7 +695,7 @@ class MirMetaData(object):
 
         # Make sure the inputs look valid
         if select_comp not in op_dict:
-            raise ValueError("select_comp must be one of: %s" % ", ".join(op_dict))
+            raise ValueError('select_comp must be one of: "%s"' % '", "'.join(op_dict))
 
         # Evaluate data_arr now
         data_mask = op_dict[select_comp](self._data[select_field], select_val)
@@ -1640,16 +1652,24 @@ class MirMetaData(object):
 
         Returns
         -------
-        obj_idx1 : list of int
+        this_idx : list of int
             Index positions denote which indicies of metadata would be utilized from
             this object if an __add__ operation were to be performed. Note that the
             header keys for this set of index positions will be completely disjoint
-            from that of `obj_idx2` and `other`.
-        obj_idx2 : list of int
+            from that of `other_idx` and `other`.
+        other_idx : list of int
             Index positions denote which indicies of metadata would be utilized from
             `other` if an __add__ operation were to be performed. Note that the
             header keys for this set of index positions will be completely disjoint
-            from that of `obj_idx1` and this object.
+            from that of `this_idx` and this object.
+        this_mask : ndarray of bool
+            Mask values for the index values in `this_idx`. Note that in the case of
+            overlappping keys between this object and `other`, the maskes are "or'd"
+            together.
+        other_mask : ndarraay of bool
+            Mask values for the index values in `other_idx`. Note that in the case of
+            overlappping keys between this object and `other`, the maskes are "or'd"
+            together.
 
         Raises
         ------
@@ -1666,19 +1686,20 @@ class MirMetaData(object):
             raise ValueError("Both objects must be of the same type.")
 
         if merge and discard_flagged:
-            raise ValueError("Error")
+            raise ValueError("Cannot both merge and discard flagged data.")
 
+        # Grab copies of the metadata we need for various operations
         index_dict1 = self._header_key_index_dict.copy()
         index_dict2 = other._header_key_index_dict.copy()
+        this_mask = self._mask.copy()
+        other_mask = other._mask.copy()
 
         # Do a quick check here if the dicts are the same. If so, there's a fair bit of
         # optimization that we can leverage further down.
         same_dict = index_dict1 == index_dict2
 
         if merge and not same_dict:
-            raise ValueError(
-                "Cannot set merge=True if header keys for the objects differ."
-            )
+            raise ValueError("Cannot merge if header keys for the objects differ.")
 
         # Deal w/ flagged data first, if need be
         if discard_flagged and not (np.all(self._mask) and np.all(other._mask)):
@@ -1705,6 +1726,15 @@ class MirMetaData(object):
                 "Cannot add objects together if merge=False, since the two "
                 "contain overlapping header keys."
             )
+
+        # Go through the overlaping keys and see if we have any mismatches in mask
+        # state. If we do, then we "or" the mask elements together, which always
+        # results in a return value of True.
+        if len(key_overlap):
+            idx1 = [index_dict1[key] for key in key_overlap]
+            idx2 = [index_dict2[key] for key in key_overlap]
+            this_mask[idx1] |= other_mask[idx2]
+            other_mask[idx2] = this_mask[idx1]
 
         # Count the sum total number of entries we have
         idx_count = len(index_dict1) + len(index_dict2)
@@ -1770,7 +1800,10 @@ class MirMetaData(object):
                 "overwrite=True."
             )
 
-        return list(index_dict1.values()), list(index_dict2.values())
+        this_idx = list(index_dict1.values())
+        other_idx = list(index_dict2.values())
+
+        return this_idx, other_idx, this_mask[this_idx], other_mask[other_idx]
 
     def __add__(
         self,
@@ -1782,6 +1815,13 @@ class MirMetaData(object):
     ):
         """
         Combine two MirMetaData objects.
+
+        Note that when overlapping keys are detected (and are able to be reconciled),
+        the method will "or" the two internal masks together, such that the sum of the
+        two objects will contain the combination of any selection criteria that went
+        into each object individually. This is particularly useful for when subsets of
+        data have been split off from one another, and you wish to recombine them
+        further downstream.
 
         Parameters
         ----------
@@ -1827,7 +1867,7 @@ class MirMetaData(object):
             # If no data is loaded, then this is just a no-op
             return self if inplace else self.copy()
         elif self._data is not None:
-            idx1, idx2 = self._add_check(
+            idx1, idx2, mask1, mask2 = self._add_check(
                 other, merge=merge, overwrite=overwrite, discard_flagged=discard_flagged
             )
 
@@ -1839,7 +1879,7 @@ class MirMetaData(object):
             new_obj._mask = other._mask.copy()
         else:
             new_obj._data = np.concatenate((new_obj._data[idx1], other._data[idx2]))
-            new_obj._mask = np.concatenate((new_obj._mask[idx1], other._mask[idx2]))
+            new_obj._mask = np.concatenate((mask1, mask2))
 
         # Make sure the data is sorted corectly, generate the header key -> index
         # position dictionary.
@@ -1964,9 +2004,9 @@ class MirMetaData(object):
         if not os.path.isdir(filepath):
             os.makedirs(filepath)
 
-        filepath = os.path.join(os.path.abspath(filepath), self._filetype)
+        writepath = os.path.join(os.path.abspath(filepath), self._filetype)
 
-        if os.path.exists(filepath):
+        if os.path.exists(writepath):
             if not (append_data or overwrite):
                 raise FileExistsError(
                     "File already exists, must set overwrite or append_data to True, "
@@ -1980,11 +2020,11 @@ class MirMetaData(object):
             copy_obj = self.copy(skip_data=True)
             copy_obj.fromfile(filepath)
             try:
-                idx_arr, _ = self._add_check(
+                idx_arr = self._add_check(
                     copy_obj,
                     discard_flagged=True,
                     overwrite=False,
-                )
+                )[0]
             except MirMetaError:
                 # If we get this error, it means our (partial) merge has failed.
                 # Time to bail.
@@ -2003,7 +2043,7 @@ class MirMetaData(object):
             # If we haven't done so yet, create the data mask now.
             datamask = ... if np.all(self._mask) else self._mask
 
-        self._writefile(filepath, append_data, datamask)
+        self._writefile(writepath, append_data, datamask)
 
 
 class MirInData(MirMetaData):
@@ -2943,28 +2983,33 @@ class MirParser(object):
         is_eq = True
 
         # First up, check the list of attributes between the two objects
-        this_attr = set(self.__iter__(metadata_only=metadata_only))
-        other_attr = set(other.__iter__(metadata_only=metadata_only))
+        this_attr_set = set(vars(self))
+        other_attr_set = set(vars(other))
 
         # Go through and drop any attributes that both objects do not have (and set
         # is_eq to False if any such attributes found).
-        for item in this_attr.union(other_attr):
+        for item in this_attr_set.union(other_attr_set):
             target = None
-            if item not in this_attr:
-                other_attr.remove(item)
+            if item not in this_attr_set:
+                other_attr_set.remove(item)
                 target = "right"
-            elif item not in other_attr:
-                this_attr.remove(item)
+            elif item not in other_attr_set:
+                this_attr_set.remove(item)
                 target = "left"
             if target is not None:
                 is_eq = False
                 if verbose:
                     print("%s does not exist in %s." % (item, target))
 
+        if metadata_only:
+            for item in ["vis_data", "raw_data", "auto_data"]:
+                this_attr_set.remove(item)
+
         # At this point we _only_ have attributes present in both lists
-        for item in this_attr:
+        for item in this_attr_set:
             this_attr = getattr(self, item)
             other_attr = getattr(other, item)
+
             # Make sure the attributes are of the same type to help ensure
             # we can actually compare the two without error.
             if not isinstance(this_attr, type(other_attr)):
@@ -2975,14 +3020,10 @@ class MirParser(object):
                         % (item, type(this_attr), type(other_attr))
                     )
                 continue
-
-            # If both are NoneType, we actually have nothing to do here
-            if this_attr is None:
-                continue
-
-            item_diff = False
-            # Now go through and compare the attribute values
-            if item in ["auto_data", "raw_data", "vis_data"]:
+            elif this_attr is None:
+                # If both are NoneType, we actually have nothing to do here
+                pass
+            elif item in ["auto_data", "raw_data", "vis_data"]:
                 # Data-related attributes are a bit special, in that they are dicts
                 # of dicts (note this may change at some point).
                 if this_attr.keys() != other_attr.keys():
@@ -2993,6 +3034,7 @@ class MirParser(object):
                             f"right is {other_attr.keys()}."
                         )
                     continue
+
                 # For the attributes with multiple fields to check, list them
                 # here for convenience.
                 comp_dict = {
@@ -3000,50 +3042,44 @@ class MirParser(object):
                     "vis_data": ["vis_data", "vis_flags"],
                 }
                 for key in this_attr:
+                    this_item = this_attr[key]
+                    othr_item = other_attr[key]
+
+                    item_same = False
                     # auto_data entries are just ndarrays, which we can compare directly
                     if item == "auto_data":
-                        if this_attr[key].shape != other_attr[key].shape:
-                            item_diff = True
-                        elif not np.allclose(this_attr[key], other_attr[key]):
-                            item_diff = True
+                        if this_item.shape == othr_item.shape:
+                            item_same = np.allclose(this_item, othr_item)
                     else:
                         # If cross-correlation data, then there are multiple dict
                         # entries that we need to compare (defined above).
                         for subkey in comp_dict[item]:
                             if subkey == "scale_fac":
-                                if this_attr[key][subkey] != other_attr[key][subkey]:
-                                    item_diff = True
+                                item_same = this_item[subkey] == othr_item[subkey]
                             else:
-                                if this_attr[key][subkey].shape != (
-                                    other_attr[key][subkey].shape
-                                ):
-                                    item_diff = True
-                                elif not np.allclose(
-                                    this_attr[key][subkey], other_attr[key][subkey]
-                                ):
-                                    item_diff = True
-                    if item_diff:
+                                if this_item[subkey].shape == othr_item[subkey].shape:
+                                    item_same = np.allclose(
+                                        this_item[subkey], othr_item[subkey]
+                                    )
+                    if not item_same:
                         is_eq = False
                         if verbose:
-                            print(f"{item} has the same keys, but different values.")
+                            print("%s has the same keys, but different values." % item)
                         break
-                # Nothing to do further here with dicts
-                continue
-
-            if isinstance(getattr(self, item), np.ndarray):
-                # Need to handle ndarrays a bit special here
-                if not np.array_equal(getattr(self, item), getattr(other, item)):
-                    item_diff = True
-            elif getattr(self, item) != getattr(other, item):
-                item_diff = True
-
-            if item_diff:
-                is_eq = False
-                if verbose:
-                    print(
-                        f"{item} has different values, left is {getattr(self, item)}, "
-                        f"right is {getattr(other, item)}."
-                    )
+                # We are done processing the data dicts at this point, so we can skip
+                # the item_same evauation below.
+            elif issubclass(type(this_attr), MirMetaData):
+                is_eq &= this_attr.__eq__(other_attr, verbose=verbose)
+            else:
+                # We don't have special handling for this attribute at this point, so
+                # we just use the generic __ne__ method.
+                if this_attr != other_attr:
+                    is_eq = False
+                    if verbose:
+                        print(
+                            f"{item} has different values, left is {this_attr}, "
+                            f"right is {other_attr}."
+                        )
 
         return is_eq
 
@@ -3136,11 +3172,11 @@ class MirParser(object):
                             "be incomplete, or sch_read may have become corrupted in "
                             "some way."
                         )
-                int_start_dict[int_vals["inhid"]] = (
-                    int_vals["inhid"],
-                    int_vals["nbyt"],
-                    data_offset,
-                )
+                int_start_dict[int_vals["inhid"]] = {
+                    "inhid": int_vals["inhid"],
+                    "record_size": int_vals["nbyt"],
+                    "record_start": data_offset,
+                }
                 last_offset = int_vals["nbyt"].astype(int)
                 data_offset += last_offset + 8
 
@@ -3207,7 +3243,7 @@ class MirParser(object):
             # this is used in cases when combining multiple files together (via
             # concat). Here, we make a mapping of "file-based" inhid values to that
             # stored in the object.
-            imap = {finhid: inhid for inhid, (finhid, _, _) in idict.items()}
+            imap = {val["inhid"]: inhid for inhid, val in idict.items()}
 
             # Make the new dict by scaning the sch_read file.
             new_dict = self.scan_int_start(filepath=ifile, allowed_inhid=list(imap))
@@ -3954,7 +3990,7 @@ class MirParser(object):
         # If you got to this point, it means that we've got agreement!
         return True
 
-    def _downselect_data(self, select_vis=False, select_raw=False, select_auto=False):
+    def _downselect_data(self, select_vis=None, select_raw=None, select_auto=None):
         """
         Downselect data attributes based on metadata..
 
@@ -3968,13 +4004,16 @@ class MirParser(object):
         ----------
         select_vis : bool
             If True, modify `vis_data` to contain only records where the key is matched
-            to a value of "sphid" in `sp_data`. Default is True.
+            to a value of "sphid" in `sp_data`. Default is True if data are loaded,
+            otherwise False.
         select_raw : bool
             If True, modify `raw_data` to contain only records where the key is matched
-            to a value of "sphid" in `sp_data`. Default is True.
+            to a value of "sphid" in `sp_data`. Default is True if data are loaded,
+            otherwise False.
         select_auto : bool
             If True, modify `auto_data` to contain only records where the key is matched
-            to a value of "achid" in `ac_data`. Default is True.
+            to a value of "achid" in `ac_data`. Default is True if data are loaded,
+            otherwise False.
 
         Raises
         ------
@@ -3983,6 +4022,12 @@ class MirParser(object):
             a corresponding key in the relevant data attribute, indicating that there
             are records requested that are not loaded into memory.
         """
+        select_vis = (self.vis_data is not None) if (select_vis is None) else select_vis
+        select_raw = (self.raw_data is not None) if (select_raw is None) else select_raw
+        select_auto = (
+            (self.auto_data is not None) if (select_auto is None) else select_auto
+        )
+
         try:
             # Check that vis_data has all entries we need for processing the data
             if select_vis:
@@ -4285,32 +4330,31 @@ class MirParser(object):
                 where=("blhid", "eq", self.bl_data["blhid"])
             )
 
-            if update_data or ((update_data is None) and mask_update):
-                try:
-                    self._downselect_data()
-                except MirMetaError:
+        if update_data or (update_data is None):
+            try:
+                self._downselect_data()
+            except MirMetaError:
+                if update_data:
+                    self.load_data(
+                        load_vis=self.vis_data is not None,
+                        load_raw=self.raw_data is not None,
+                        load_auto=self.auto_data is not None,
+                        apply_tsys=self._tsys_applied,
+                        allow_downselect=False,
+                        allow_conversion=False,
+                    )
+                else:
                     self.unload_data()
-                    if update_data:
-                        self.load_data(
-                            load_vis=self.vis_data is not None,
-                            load_raw=self.raw_data is not None,
-                            load_auto=self.auto_data is not None,
-                            apply_tsys=self._tsys_applied,
-                            allow_downselect=False,
-                            allow_conversion=False,
-                        )
-                    else:
-                        warnings.warn(
-                            "Unable to update data attributes, unloading them now."
-                        )
+                    warnings.warn(
+                        "Unable to update data attributes, unloading them now."
+                    )
 
     def _clear_auto(self):
         self._has_auto = False
+        self.auto_data = None
+        self.ac_data = MirAcData()
         try:
-            del self._metadata_attrs["ac_read"]
-            self.ac_data = MirAcData()
-            self.auto_data = None
-
+            del self._metadata_attrs["ac_data"]
         except KeyError:
             pass
 
@@ -4838,7 +4882,7 @@ class MirParser(object):
             for item in metadata_dict:
                 try:
                     metadata_dict[item] = getattr(self, item).__add__(
-                        getattr(self, item),
+                        getattr(other, item),
                         merge=merge,
                         overwrite=overwrite,
                     )
@@ -5006,6 +5050,10 @@ class MirParser(object):
         # Finaly, if we have discrepant _has_auto states, we force the resultant object
         # to unload any potential auto metadata.
         if self._has_auto != other._has_auto:
+            warnings.warn(
+                "Both objects do not have auto-correlation data. Since force=True, "
+                "dropping auto-correlation data and metadata from the combined object."
+            )
             new_obj._clear_auto()
 
         return new_obj
@@ -5043,7 +5091,9 @@ class MirParser(object):
             because the two objects appear to be loaded from different files (and
             `force=False`).
         """
-        return self.__add__(other, overwrite=overwrite, merge=merge, inplace=True)
+        return self.__add__(
+            other, merge=merge, overwrite=overwrite, force=force, inplace=True
+        )
 
     def select(
         self,
@@ -5233,7 +5283,7 @@ class MirParser(object):
             self.bl_data.get_value("iant2", index=sp_bl_map),
             self.bl_data.get_value("ant2rx", index=sp_bl_map),
             self.bl_data.get_value("isb", index=sp_bl_map),
-            self.sp_data.get_value("corrchunk", index=sp_bl_map),
+            self.sp_data["corrchunk"],
         ):
             sphid_dict[(inhid, ant1, rx1, ant2, rx2, sb, chunk)] = sphid
 
