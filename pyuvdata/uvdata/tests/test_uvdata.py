@@ -1150,7 +1150,7 @@ def test_phasing(uv_phase_comp, future_shapes, unphase_first, use_ant_pos):
 )
 def test_phasing_non_multi_phase_errs(hera_uvh5, arg_dict, set_phased, err_type, msg):
     """
-    Test expected phasing errors related to mutli-phase-ctr data sets
+    Test expected phasing errors related to multi-phase-ctr data sets
     """
     if set_phased:
         hera_uvh5._set_phased()
@@ -1185,7 +1185,7 @@ def test_phasing_non_multi_phase_errs(hera_uvh5, arg_dict, set_phased, err_type,
     ],
 )
 def test_phasing_multi_phase_errs(sma_mir, arg_dict, err_type, msg):
-    # Now do a few things that aren't allowed w/ a mutli-phase-ctr data set
+    # Now do a few things that aren't allowed w/ a multi-phase-ctr data set
     with pytest.raises(err_type) as cm:
         sma_mir.phase(
             0,
@@ -11130,8 +11130,9 @@ def test_multi_phase_on_read(hera_uvh5):
     assert uv_object == hera_uvh5
 
 
+@pytest.mark.parametrize("cat_type", ["sidereal", "ephem", "driftscan"])
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_multi_phase_downselect(hera_uvh5_split, future_shapes):
+def test_multi_phase_downselect(hera_uvh5_split, cat_type, future_shapes):
     """
     Verify that we can create the same UVData object if we phase then downselect
     vs downselect and phase when working with a multi-phase-ctr object.
@@ -11146,18 +11147,46 @@ def test_multi_phase_downselect(hera_uvh5_split, future_shapes):
     uv2._set_multi_phase_center(preserve_phase_center_info=True)
     uvfull._set_multi_phase_center(preserve_phase_center_info=True)
 
-    # Give it a new name, and then rephase half of the "full" object
-    uv1.phase(3.6, -0.5, cat_name="target1")
-    uv1.reorder_blts()
-    uv2.phase(-0.5, 3.6, cat_name="target2")
-    uv2.reorder_blts()
-
-    # Separately phase both halves of the full data set
+    # get the halves of the full data set
     half_mask = np.arange(uvfull.Nblts) < (uvfull.Nblts * 0.5)
     unique_times = np.unique(uvfull.time_array)
 
-    uvfull.phase(-0.5, 3.6, cat_name="target2", select_mask=~half_mask)
-    uvfull.phase(3.6, -0.5, cat_name="target1", select_mask=half_mask)
+    # Give it a new name, and then rephase half of the "full" object
+    if cat_type == "sidereal":
+        uv1.phase(3.6, -0.5, cat_name="target1")
+        uv2.phase(-0.5, 3.6, cat_name="target2")
+        uvfull.phase(-0.5, 3.6, cat_name="target2", select_mask=~half_mask)
+        uvfull.phase(3.6, -0.5, cat_name="target1", select_mask=half_mask)
+    elif cat_type == "ephem":
+        uv1.phase(0, 0, epoch="J2000", cat_name="Mars")
+        uv2.phase(0, 0, epoch="J2000", cat_name="Jupiter")
+        uvfull.phase(0, 0, cat_name="Jupiter", select_mask=~half_mask)
+        uvfull.phase(0, 0, cat_name="Mars", select_mask=half_mask)
+    elif cat_type == "driftscan":
+        uv1.phase(3.6, -0.5, cat_type="driftscan", phase_frame=None, cat_name="azel1")
+        uv2.phase(
+            -0.5, 3.6, cat_type="driftscan", phase_frame="altaz", cat_name="azel2"
+        )
+        uvfull.phase(
+            -0.5,
+            3.6,
+            cat_type="driftscan",
+            cat_name="azel2",
+            phase_frame=None,
+            select_mask=~half_mask,
+        )
+        uvfull.phase(
+            3.6,
+            -0.5,
+            cat_type="driftscan",
+            cat_name="azel1",
+            phase_frame="altaz",
+            select_mask=half_mask,
+        )
+
+    uv1.reorder_blts()
+    uv2.reorder_blts()
+
     for mask, uvdata in zip([np.arange(10), np.arange(10, 20)], [uv1, uv2]):
         uvtemp = uvfull.select(times=unique_times[mask], inplace=False)
         uvtemp.reorder_blts()
