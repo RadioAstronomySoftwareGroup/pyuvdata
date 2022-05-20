@@ -11164,6 +11164,9 @@ def test_multi_phase_downselect(hera_uvh5_split, cat_type, future_shapes):
     Verify that we can create the same UVData object if we phase then downselect
     vs downselect and phase when working with a multi-phase-ctr object.
     """
+    if cat_type == "ephem":
+        pytest.importorskip("astroquery")
+
     uv1, uv2, uvfull = hera_uvh5_split
     if future_shapes:
         uv1.use_future_array_shapes()
