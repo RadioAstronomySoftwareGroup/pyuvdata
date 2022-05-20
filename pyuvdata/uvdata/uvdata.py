@@ -1724,7 +1724,7 @@ class UVData(UVBase):
         ignore_name=False,
     ):
         """
-        Merge two differently named objects into one within a mutli-phase-ctr data set.
+        Merge two differently named objects into one within a multi-phase-ctr data set.
 
         Recombines two different objects into a single catalog entry -- useful if
         having previously used `split_phase_center` or when multiple objects with
@@ -1827,7 +1827,7 @@ class UVData(UVBase):
         print_table=True,
     ):
         """
-        Print out the details of objects in a mutli-phase-ctr data set.
+        Print out the details of objects in a multi-phase-ctr data set.
 
         Prints out an ASCII table that contains the details of the
         `phase_center_catalog` attribute, which acts as the internal source catalog
@@ -2302,7 +2302,8 @@ class UVData(UVBase):
                 + ", ".join(old_phase_attrs)
                 + ", are deprecated in favor of representing phasing using the "
                 "phase_center_catalog. To convert to the new representation, use the "
-                "use_future_phase_info method."
+                "use_future_phase_info method. These attributes will be removed in "
+                "version 3.0"
             )
 
         return super().__getattribute__(__name)
@@ -5618,7 +5619,7 @@ class UVData(UVBase):
                     "Set lookup_name=False in order to continue."
                 )
 
-        # We only want to use the JPL-Horizons service if using a non-mutli-phase-ctr
+        # We only want to use the JPL-Horizons service if using a non-multi-phase-ctr
         # instance of a UVData object.
         if lookup_name and (cat_name not in name_dict) and self.multi_phase_center:
             if (cat_type is None) or (cat_type == "ephem"):
@@ -6029,14 +6030,17 @@ class UVData(UVBase):
             )
 
             # Now calculate position angles.
-            new_frame_pa = uvutils.calc_frame_pos_angle(
-                time_array,
-                new_app_ra,
-                new_app_dec,
-                self.telescope_location_lat_lon_alt,
-                phase_frame,
-                ref_epoch=epoch,
-            )
+            if not phase_frame == "altaz":
+                new_frame_pa = uvutils.calc_frame_pos_angle(
+                    time_array,
+                    new_app_ra,
+                    new_app_dec,
+                    self.telescope_location_lat_lon_alt,
+                    phase_frame,
+                    ref_epoch=epoch,
+                )
+            else:
+                new_frame_pa = np.zeros(time_array.shape, dtype=float)
 
             # Now its time to do some rotations and calculate the new coordinates
             if input_phase_type == "drift":
@@ -6510,7 +6514,7 @@ class UVData(UVBase):
             self.uvw_array = new_uvw
             return
 
-        # mutli-phase-ctr datasets should never use the 'old' uvw calculation method
+        # multi-phase-ctr datasets should never use the 'old' uvw calculation method
         if self.multi_phase_center:
             raise NotImplementedError(
                 "Multi phase center data sets are not compatible with the old uvw "
@@ -6897,7 +6901,7 @@ class UVData(UVBase):
 
         multi_obj_check = False
         if this.multi_phase_center == other.multi_phase_center:
-            # If the names are different and we are making a mutli-phase-ctr data set,
+            # If the names are different and we are making a multi-phase-ctr data set,
             # then we can skip the step of checking the ra and dec, otherwise we need to
             # check it
             multi_obj_check = make_multi_phase or this.multi_phase_center
@@ -7247,7 +7251,7 @@ class UVData(UVBase):
                         msg += (
                             " This can potentially be remedied by setting "
                             "ignore_name=True, or by allowing the creation of a "
-                            "mutli-phase-ctr dataset (by setting "
+                            "multi-phase-ctr dataset (by setting "
                             "make_multi_phase=True)."
                         )
                     raise ValueError(msg)
