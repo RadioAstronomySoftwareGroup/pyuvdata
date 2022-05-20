@@ -670,7 +670,8 @@ def test_ms_single_chan(mir_uv, future_shapes, tmp_path):
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
-def test_ms_scannumber_multiphasecenter(tmp_path):
+@pytest.mark.parametrize("multi_frame", [True, False])
+def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
     """
     Make sure that single channel writing/reading work as expected
     """
@@ -709,6 +710,17 @@ def test_ms_scannumber_multiphasecenter(tmp_path):
     # the MS format requires recalculating apparent coords after read in, we'll
     # calculate them here just to verify that everything matches.
     miriad_uv._set_app_coords_helper()
+
+    if multi_frame:
+        ra_use = miriad_uv.phase_center_catalog["NOISE"]["cat_lon"]
+        dec_use = miriad_uv.phase_center_catalog["NOISE"]["cat_lat"]
+        miriad_uv.phase(
+            ra_use,
+            dec_use,
+            cat_name="NOISE",
+            phase_frame="icrs",
+            select_mask=miriad_uv.phase_center_id_array == 0,
+        )
     miriad_uv.write_ms(testfile, clobber=True)
 
     # Check on the scan number grouping based on consecutive integrations per phase
