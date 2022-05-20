@@ -537,7 +537,9 @@ def test_apply_tsys_errs(mir_data):
 
 def test_apply_tsys_warn(mir_data):
     """Verify that apply_tsys throws warnings when tsys values aren't found."""
-    mir_data.eng_data["antennaNumber"] = -1
+    with uvtest.check_warnings(UserWarning, "Changing fields that tie to header keys"):
+        mir_data.eng_data["antennaNumber"] = -1
+
     mir_data._tsys_applied = False
 
     with uvtest.check_warnings(
@@ -746,7 +748,7 @@ def test_update_filter_update_data(mir_data):
     mir_copy = mir_data.copy()
 
     # Manually unload the data, see if update_data will fix it.
-    mir_data.raw_data = {}
+    mir_data.vis_data = {}
     mir_data.auto_data = {}
     mir_data._update_filter(update_data=True)
     assert mir_data == mir_copy
