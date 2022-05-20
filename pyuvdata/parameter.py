@@ -67,6 +67,78 @@ def _get_generic_type(expected_type, strict_type_check=False):
     return expected_type
 
 
+def _param_dict_equal(this_dict, other_dict):
+    """
+    Test if dicts are equal for parameter equality.
+
+    Helper function pulled out to allow recursion for nested dicts
+    """
+    try:
+        # Try a naive comparison first
+        # this will fail if keys are the same
+        # but cases differ.
+        # so only look for exact equality
+        # then default to the long test below.
+        if this_dict == other_dict:
+            return True, ""
+    except (ValueError, TypeError):
+        pass
+        # this dict may contain arrays or Nones
+        # we will need to check each item individually
+
+    # check to see if they are equal other than
+    # upper/lower case keys
+    this_lower = {
+        (k.lower() if isinstance(k, str) else k): v for k, v in this_dict.items()
+    }
+    other_lower = {
+        (k.lower() if isinstance(k, str) else k): v for k, v in other_dict.items()
+    }
+    if set(this_lower.keys()) != set(other_lower.keys()):
+        message_str = ", keys are not the same."
+        return False, message_str
+    else:
+        # need to check if values are close,
+        # not just equal
+        for key in this_lower.keys():
+            if isinstance(this_lower[key], dict):
+                # nested dict, use recursion
+                subdict_equal, subdict_message = _param_dict_equal(
+                    this_lower[key], other_lower[key]
+                )
+                if subdict_equal:
+                    continue
+                else:
+                    message_str = f", key {key} is a dict" + subdict_message
+                    return False, message_str
+
+            # this is not a dict, use other methods
+            if this_lower[key] is None or other_lower[key] is None:
+                if this_lower[key] is None and other_lower[key] is None:
+                    continue
+                else:
+                    message_str = f", key {key} is not equal"
+                    return False, message_str
+
+            try:
+                if np.allclose(this_lower[key], other_lower[key]):
+                    continue
+                else:
+                    message_str = f", key {key} is not equal"
+                    return False, message_str
+            except (TypeError):
+                # this isn't a type that can be
+                # handled by np.isclose,
+                # test for equality
+                if this_lower[key] == other_lower[key]:
+                    continue
+                else:
+                    message_str = f", key {key} is not equal"
+                    return False, message_str
+
+    return True, ""
+
+
 class UVParameter(object):
     """
     Data and metadata objects for interferometric data sets.
@@ -343,69 +415,17 @@ class UVParameter(object):
                             return False
                     except (TypeError):
                         if isinstance(self.value, dict):
-                            try:
-                                # Try a naive comparison first
-                                # this will fail if keys are the same
-                                # but cases differ.
-                                # so only look for exact equality
-                                # then default to the long test below.
-                                if self.value == other.value:
-                                    return True
-                            except ValueError:
-                                pass
-                                # this dict probably contains arrays
-                                # we will need to check each item individually
-
-                            # check to see if they are equal other than
-                            # upper/lower case keys
-                            self_lower = {
-                                (k.lower() if isinstance(k, str) else k): v
-                                for k, v in self.value.items()
-                            }
-                            other_lower = {
-                                (k.lower() if isinstance(k, str) else k): v
-                                for k, v in other.value.items()
-                            }
                             message_str = f"{self.name} parameter is a dict"
-                            self_key_set = set(self_lower.keys())
-                            other_key_set = set(other_lower.keys())
-                            if self_key_set != other_key_set:
-                                message_str += ", keys are not the same.\n"
-                                self_only = self_key_set - other_key_set
-                                other_only = other_key_set - self_key_set
-                                if len(self_only) > 0:
-                                    message_str += (
-                                        f" keys only on left are: {self_only}\n"
-                                    )
-                                if len(other_only) > 0:
-                                    message_str += (
-                                        f" keys only on right are: {self_only}\n"
-                                    )
+                            dict_equal, dict_message_str = _param_dict_equal(
+                                self.value, other.value
+                            )
+
+                            if dict_equal:
+                                return True
+                            else:
+                                message_str += dict_message_str
                                 print(message_str)
                                 return False
-                            else:
-                                # need to check if values are close,
-                                # not just equal
-                                values_close = True
-                                for key in self_lower.keys():
-                                    try:
-                                        if not np.allclose(
-                                            self_lower[key], other_lower[key]
-                                        ):
-                                            message_str += f", key {key} is not equal"
-                                            values_close = False
-                                    except (TypeError):
-                                        # this isn't a type that can be
-                                        # handled by np.isclose,
-                                        # test for equality
-                                        if self_lower[key] != other_lower[key]:
-                                            message_str += f", key {key} is not equal"
-                                            values_close = False
-                                if values_close is False:
-                                    print(message_str)
-                                    return False
-                                else:
-                                    return True
                         else:
                             if self.value != other.value:
                                 print(

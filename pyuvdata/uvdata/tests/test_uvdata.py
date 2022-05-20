@@ -684,6 +684,26 @@ def test_future_array_shape(casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_future_phase_info(casa_uvfits):
+    """Convert to future phase_info and check. Convert back and test for equality."""
+    uvobj = casa_uvfits
+    uvobj2 = casa_uvfits.copy()
+    uvobj.use_future_phase_info()
+    uvobj.check()
+
+    # check no-op
+    uvobj3 = uvobj2.copy()
+    uvobj2.use_old_phase_info()
+
+    assert uvobj3 == uvobj2
+
+    uvobj.use_old_phase_info()
+    uvobj.check()
+
+    assert uvobj == uvobj2
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_nants_data_telescope_larger(casa_uvfits):
     uvobj = casa_uvfits
     # make sure it's okay for Nants_telescope to be strictly greater than Nants_data
@@ -1186,7 +1206,7 @@ def test_phasing_non_multi_phase_errs(hera_uvh5, arg_dict, set_phased, err_type,
 )
 def test_phasing_multi_phase_errs(sma_mir, arg_dict, err_type, msg):
     # Now do a few things that aren't allowed w/ a multi-phase-ctr data set
-    with pytest.raises(err_type) as cm:
+    with pytest.raises(err_type, match=msg):
         sma_mir.phase(
             0,
             0,
@@ -1194,7 +1214,6 @@ def test_phasing_multi_phase_errs(sma_mir, arg_dict, err_type, msg):
             use_old_proj=arg_dict.get("oldproj"),
             select_mask=arg_dict.get("mask"),
         )
-    assert str(cm.value).startswith(msg)
 
 
 # We're using the old phase method here since these values were all derived using that
@@ -10464,7 +10483,7 @@ def test_update_id(sma_mir):
 )
 def test_split_phase_center_warnings(sma_mir, name1, name2, select_mask, msg):
     # Now let's select no data at all
-    with uvtest.check_warnings(UserWarning, msg):
+    with uvtest.check_warnings(UserWarning, match=msg):
         sma_mir.split_phase_center(name1, name2, select_mask)
 
 
@@ -10488,6 +10507,14 @@ def test_split_phase_center(hera_uvh5):
     temp_cat = hera_uvh5.phase_center_catalog.copy()
     temp_cat[cat_id1[0]]["cat_name"] = "zenith2"
     assert temp_cat[cat_id1[0]] == temp_cat[cat_id2[0]]
+
+    # check error with trying to use old phase attributes
+    with pytest.raises(
+        ValueError,
+        match="Cannot use older phase representation if there are multiple phase "
+        "centers.",
+    ):
+        hera_uvh5.use_old_phase_info()
 
 
 def test_split_phase_center_downselect(hera_uvh5):
@@ -11158,28 +11185,28 @@ def test_multi_phase_downselect(hera_uvh5_split, cat_type, future_shapes):
         uvfull.phase(-0.5, 3.6, cat_name="target2", select_mask=~half_mask)
         uvfull.phase(3.6, -0.5, cat_name="target1", select_mask=half_mask)
     elif cat_type == "ephem":
-        uv1.phase(0, 0, epoch="J2000", cat_name="Mars")
-        uv2.phase(0, 0, epoch="J2000", cat_name="Jupiter")
-        uvfull.phase(0, 0, cat_name="Jupiter", select_mask=~half_mask)
-        uvfull.phase(0, 0, cat_name="Mars", select_mask=half_mask)
-    elif cat_type == "driftscan":
-        uv1.phase(3.6, -0.5, cat_type="driftscan", phase_frame=None, cat_name="azel1")
-        uv2.phase(
-            -0.5, 3.6, cat_type="driftscan", phase_frame="altaz", cat_name="azel2"
+        uv1.phase(0, 0, epoch="J2000", lookup_name="Mars", cat_name="Mars")
+        uv2.phase(0, 0, epoch="J2000", lookup_name="Jupiter", cat_name="Jupiter")
+        uvfull.phase(
+            0, 0, lookup_name="Jupiter", cat_name="Jupiter", select_mask=~half_mask
         )
+        uvfull.phase(0, 0, lookup_name="Mars", cat_name="Mars", select_mask=half_mask)
+    elif cat_type == "driftscan":
+        uv1.phase(3.6, -0.5, cat_type=cat_type, phase_frame=None, cat_name="drift1")
+        uv2.phase(-0.5, 3.6, cat_type=cat_type, phase_frame="altaz", cat_name="drift2")
         uvfull.phase(
             -0.5,
             3.6,
-            cat_type="driftscan",
-            cat_name="azel2",
+            cat_type=cat_type,
+            cat_name="drift2",
             phase_frame=None,
             select_mask=~half_mask,
         )
         uvfull.phase(
             3.6,
             -0.5,
-            cat_type="driftscan",
-            cat_name="azel1",
+            cat_type=cat_type,
+            cat_name="drift1",
             phase_frame="altaz",
             select_mask=half_mask,
         )
@@ -11197,6 +11224,14 @@ def test_multi_phase_downselect(hera_uvh5_split, cat_type, future_shapes):
         assert uvtemp.history in uvdata.history
         uvtemp.history = uvdata.history
         assert uvtemp == uvdata
+
+    if cat_type != "sidereal":
+        # check error with trying to use old phase attributes
+        with pytest.raises(
+            ValueError,
+            match="Cannot use older phase representation for non-sidereal cat_types.",
+        ):
+            uv1.use_old_phase_info()
 
 
 @pytest.mark.filterwarnings("ignore:Unknown phase types are no longer supported")

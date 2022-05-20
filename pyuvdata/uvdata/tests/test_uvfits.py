@@ -201,7 +201,8 @@ def test_source_group_params(casa_uvfits, tmp_path):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The older phase attributes")
-def test_source_frame_defaults(casa_uvfits, tmp_path):
+@pytest.mark.parametrize("frame", ["icrs", "fk4"])
+def test_source_frame_defaults(casa_uvfits, tmp_path, frame):
     # make a file with a single source to test that it works
     uv_in = casa_uvfits
     # Writing a source table to UVFITS makes pyuvdata think that the data are
@@ -256,7 +257,10 @@ def test_source_frame_defaults(casa_uvfits, tmp_path):
         vis_hdu = fits.GroupsHDU(vis_hdu)
         vis_hdu.header = vis_hdr
         del vis_hdu.header["RADESYS"]
-        del vis_hdu.header["EPOCH"]
+        if frame == "icrs":
+            del vis_hdu.header["EPOCH"]
+        elif frame == "fk4":
+            vis_hdu.header["EPOCH"] = 1950.0
         ant_hdu = hdu_list[hdunames["AIPS AN"]]
 
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
@@ -265,7 +269,7 @@ def test_source_frame_defaults(casa_uvfits, tmp_path):
 
     uv_out = UVData()
     uv_out.read(write_file2)
-    assert uv_out.phase_center_frame == "icrs"
+    assert uv_out.phase_center_frame == frame
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")

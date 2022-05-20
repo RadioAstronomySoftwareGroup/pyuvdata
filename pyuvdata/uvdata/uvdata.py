@@ -552,7 +552,7 @@ class UVData(UVBase):
             required=False,
             description=desc,
             expected_type=str,
-            acceptable_vals=["icrs", "gcrs", "fk5"],
+            acceptable_vals=["icrs", "gcrs", "fk5", "fk4"],
         )
 
         desc = (
@@ -2179,7 +2179,7 @@ class UVData(UVBase):
 
         self.multi_phase_center = True
 
-        # Mark once-option arrays as now required
+        # Mark once-optional attributes as now required
         self._phase_center_id_array.required = True
         self._Nphase.required = True
         self._phase_center_catalog.required = True
@@ -2222,6 +2222,54 @@ class UVData(UVBase):
         representing it in the phase_center_catalog.
         """
         self._set_multi_phase_center(preserve_phase_center_info=True)
+
+    def use_old_phase_info(self):
+        """
+        Convert to older phase representation (not phase_center_catalog).
+
+        Only possible if there's only one phase center. This method will preserve the
+        existing phase information, just change to representing it with the older phase
+        attributes.
+
+        Raises
+        ------
+        ValueError
+            if there are multiple phase centers or if the cat_type is ephem or driftscan
+        """
+        # If you don't have multi_phase_center set, don't do anything
+        if not self.multi_phase_center:
+            return
+
+        if self.Nphase > 1:
+            raise ValueError(
+                "Cannot use older phase representation if there are multiple "
+                "phase centers."
+            )
+
+        cat_name = list(self.phase_center_catalog.keys())[0]
+        if self.phase_center_catalog[cat_name]["cat_type"] != "sidereal":
+            raise ValueError(
+                "Cannot use older phase representation for non-sidereal cat_types."
+            )
+
+        self.multi_phase_center = False
+
+        # Mark multi phase attributes as not required
+        self._phase_center_id_array.required = False
+        self._Nphase.required = False
+        self._phase_center_catalog.required = False
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The older phase attributes")
+            self.object_name = cat_name
+            self.phase_center_ra = self.phase_center_catalog[cat_name]["cat_lon"]
+            self.phase_center_dec = self.phase_center_catalog[cat_name]["cat_lat"]
+            self.phase_center_frame = self.phase_center_catalog[cat_name]["cat_frame"]
+            self.phase_center_epoch = self.phase_center_catalog[cat_name]["cat_epoch"]
+
+        self.phase_center_id_array = None
+        self.Nphase = None
+        self.phase_center_catalog = None
 
     def _set_drift(self):
         """
