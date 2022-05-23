@@ -9,11 +9,12 @@ data in pyuvdata. Tests in this module are specific to the way that MIR is read 
 python, not neccessarily how pyuvdata (by way of the UVData class) interacts with that
 data.
 """
+from types import NoneType
 import numpy as np
 import h5py
 import pytest
 import os
-from ..mir_parser import MirParser, MirMetaError
+from ..mir_parser import MirParser, MirMetaData, MirMetaError
 from ... import tests as uvtest
 
 
@@ -54,6 +55,262 @@ def compass_soln_file(tmp_path_factory):
         )
 
     yield filename
+
+
+@pytest.fixture(scope="function")
+def mir_in_data(mir_data_main):
+    yield mir_data_main.in_data.copy()
+
+
+@pytest.fixture(scope="function")
+def mir_sp_data(mir_data_main):
+    yield mir_data_main.sp_data.copy()
+
+
+@pytest.fixture(scope="function")
+def mir_codes_data(mir_data_main):
+    yield mir_data_main.codes_data.copy()
+
+
+def test_mir_meta_init(mir_data):
+    """
+    Test that the initialization of MirMetaData objects behave as expected. This
+    includes subtypes that are part of the MirParser class.
+    """
+    attr_list = list(mir_data._metadata_attrs.keys())
+    # Drop "ac_data", since it's a synthetic table
+    attr_list.remove("ac_data")
+
+    for item in attr_list:
+        # antpos_data is a little special, since it's a text file, so we can't use the
+        # generic read function for MirMetaData here.
+        attr = getattr(mir_data, item)
+        if item != "antpos_data":
+            new_attr = MirMetaData(
+                attr._filetype,
+                attr.dtype,
+                attr._header_key,
+                attr._pseudo_header_key,
+                mir_data.filepath,
+            )
+            assert attr == new_attr
+
+        new_attr = type(attr)(mir_data.filepath)
+        assert attr == new_attr
+
+
+def test_mir_meta_iter(mir_data):
+    """
+    Test that MirMetaData objects iterate as expected, which is that they should yield
+    the full group for each index position (similar to ndarray).
+    """
+    # Test the unflagged case
+    in_data = mir_data.in_data
+    for idx, item in enumerate(in_data):
+        assert in_data._data[idx] == item
+
+    # Now the flagged case
+    in_data._mask[1::2] = False
+    for idx, item in enumerate(in_data):
+        assert in_data._data[2 * idx] == item
+
+
+def test_mir_meta_copy(mir_in_data):
+    """
+    Verify that the copy operation of MirMetaData produces a duplicate dataset that is
+    NOT a reference to the same data in memory.
+    """
+    other = mir_in_data.copy()
+    for item in vars(other):
+        this_attr = getattr(mir_in_data, item)
+        other_attr = getattr(other, item)
+
+        # Nones str, and tuple can be duplicates, since they're both immutable.
+        if not isinstance(this_attr, (NoneType, str, tuple)):
+            assert this_attr is not other_attr
+
+        assert np.all(this_attr == other_attr)
+
+
+@pytest.mark.parametrize(
+    "comp_obj,err_msg",
+    [
+        [0, "Both objects must be MirMetaData (sub-) types."],
+        [MirMetaData(0, 0, 0), "Cannot compare MirInData with different dtypes."],
+    ],
+)
+def test_mir_meta_eq_errs(mir_in_data, comp_obj, err_msg):
+    with pytest.raises(ValueError) as err:
+        mir_in_data.__eq__(comp_obj)
+    assert str(err.value).startswith(err_msg)
+
+
+@pytest.mark.parametrize("verbose", [True, False])
+@pytest.mark.parametrize("result", [True, False])
+def test_mir_meta_eq(mir_sp_data, result, verbose):
+    copy_data = mir_sp_data.copy()
+    print(type(copy_data))
+    comp_func = getattr(copy_data, "__eq__") if result else getattr(copy_data, "__ne__")
+
+    assert comp_func(mir_sp_data, verbose=verbose) == result
+
+    # Now muck a single field
+    copy_data._data["corrchunk"][::2] = -1
+    assert comp_func(mir_sp_data, verbose=verbose) != result
+    assert (
+        comp_func(mir_sp_data, verbose=verbose, ignore_params=["corrchunk"]) == result
+    )
+
+    # Muck the param list to make sure things work okay
+    assert (
+        comp_func(mir_sp_data, verbose=verbose, ignore_params=["mjd", "corrchunk"])
+        == result
+    )
+
+    # Make sure that mask diffs are also handled correctly.
+    copy_data._mask[::2] = False
+    assert comp_func(mir_sp_data, verbose=verbose, ignore_mask=False) != result
+
+    # Now flag both datasets at the offending position
+    mir_sp_data._mask[::2] = False
+    assert comp_func(mir_sp_data, verbose=verbose, ignore_mask=False) == result
+
+    # Check that diff data sizes are handled correctly
+    copy_data._data = np.concatenate((copy_data._data, copy_data._data))
+    assert comp_func(mir_sp_data, verbose=verbose) != result
+
+    # Test the masks w/ a None
+    copy_data._mask = None
+    assert comp_func(mir_sp_data, verbose=verbose, ignore_mask=False) != result
+
+
+@pytest.mark.parametrize(
+    "field,op,err_type,err_msg",
+    [
+        ["blah", "eq", MirMetaError, "select_field blah not found"],
+        ["inhid", "blah", ValueError, "select_comp must be one of"],
+    ],
+)
+def test_mir_meta_where_errs(mir_in_data, field, op, err_type, err_msg):
+    with pytest.raises(err_type) as err:
+        mir_in_data.where(field, op, [1])
+    assert str(err.value).startswith(err_msg)
+
+
+def test_mir_meta_where():
+    pass
+
+
+def test_mir_meta_index_query_errs():
+    pass
+
+
+def test_mir_meta_index_query():
+    pass
+
+
+def test_mir_meta_get_value():
+    pass
+
+
+def test_mir_meta_set_value():
+    pass
+
+
+def test_mir_meta_generate_mask():
+    pass
+
+
+def test_mir_meta_set_mask():
+    pass
+
+
+def test_mir_meta_get_mask():
+    pass
+
+
+def test_mir_meta_get_header_keys():
+    pass
+
+
+def test_mir_meta_generate_header_key_index_dict():
+    pass
+
+
+def test_mir_meta_generate_new_header_keys():
+    pass
+
+
+def test_mir_meta_sort_by_header_key():
+    pass
+
+
+def test_mir_meta_group_by():
+    pass
+
+
+def test_mir_meta_reset_values():
+    pass
+
+
+def test_mir_meta_reset():
+    pass
+
+
+def test_mir_meta_update_fields():
+    pass
+
+
+def test_mir_meta_add_check_errs():
+    pass
+
+
+def test_mir_meta_add_check():
+    pass
+
+
+def test_mir_meta_add():
+    pass
+
+
+def test_mir_meta_fromfile():
+    pass
+
+
+def test_mir_meta_tofile():
+    pass
+
+
+def test_mir_sp_recalc_dataoff():
+    pass
+
+
+def test_mir_sp_generate_dataoff_dict():
+    pass
+
+
+def test_mir_codes_get_code_names():
+    pass
+
+
+def test_mir_codes_where():
+    pass
+
+
+def test_mir_codes_get_item():
+    pass
+
+
+def test_mir_codes_generate_new_header_keys_errs():
+    pass
+
+
+def test_mir_codes_generate_new_header_keys():
+    pass
+
+
+def test_mir_ac_fromfile():
+    pass
 
 
 def test_mir_parser_index_uniqueness(mir_data):
@@ -1099,6 +1356,10 @@ def test_add_overwrite(mir_data, muck_attr):
     assert mir_copy.__add__(mir_data, overwrite=True) == mir_data
 
 
+def test_add_concat(mir_data):
+    pass
+
+
 @pytest.mark.parametrize(
     "kern_type,tol,err_type,err_msg",
     [
@@ -1106,7 +1367,7 @@ def test_add_overwrite(mir_data, muck_attr):
         ["abc", 0.5, ValueError, 'Kernel type of "abc" not recognized,'],
     ],
 )
-def test_generate_chanshift_kernel_errs(mir_data, kern_type, tol, err_type, err_msg):
+def test_generate_chanshift_kernel_errs(kern_type, tol, err_type, err_msg):
     """ "Verify that _generate_chanshift_kernel throws errors as expected."""
     with pytest.raises(err_type) as err:
         MirParser._generate_chanshift_kernel(1.5, kern_type, tol=tol)

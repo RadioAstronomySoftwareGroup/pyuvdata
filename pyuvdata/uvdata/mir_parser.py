@@ -537,8 +537,8 @@ class MirMetaData(object):
         # Grab the name of the class to make the output a bit more human parsable
         name = type(self).__name__
 
-        if not isinstance(other, self.__class__):
-            raise ValueError("Cannot compare %s with non-%s objects." % name)
+        if not issubclass(other.__class__, MirMetaData):
+            raise ValueError("Both objects must be MirMetaData (sub-) types.")
 
         # This _should_ be impossible unless the user mucked with the dtype, but
         # for safety sake, check now.
@@ -576,8 +576,8 @@ class MirMetaData(object):
         # I say these objects are the same -- prove me wrong!
         is_eq = True
         for item in comp_fields:
-            left_vals = self[item] if ignore_mask else self._data[item]
-            right_vals = other[item] if ignore_mask else other._data[item]
+            left_vals = self._data[item] if ignore_mask else self[item]
+            right_vals = other._data[item] if ignore_mask else other[item]
 
             if not np.array_equal(left_vals, right_vals):
                 is_eq = False
@@ -2301,7 +2301,11 @@ class MirAntposData(MirMetaData):
         filepath : str
             Optional argument specifying the path to the Mir data folder.
         """
-        super().__init__("antennas", antpos_dtype, "antenna", None, filepath)
+        super().__init__("antennas", antpos_dtype, "antenna", None, None)
+
+        if filepath is not None:
+            print("hi there!")
+            self.fromfile(filepath)
 
     def fromfile(self, filepath):
         """
