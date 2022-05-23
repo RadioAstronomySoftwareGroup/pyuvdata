@@ -9,7 +9,6 @@ data in pyuvdata. Tests in this module are specific to the way that MIR is read 
 python, not neccessarily how pyuvdata (by way of the UVData class) interacts with that
 data.
 """
-from types import NoneType
 import numpy as np
 import h5py
 import pytest
@@ -126,7 +125,7 @@ def test_mir_meta_copy(mir_in_data):
         other_attr = getattr(other, item)
 
         # Nones str, and tuple can be duplicates, since they're both immutable.
-        if not isinstance(this_attr, (NoneType, str, tuple)):
+        if not (isinstance(this_attr, (str, tuple)) or this_attr is None):
             assert this_attr is not other_attr
 
         assert np.all(this_attr == other_attr)
@@ -197,8 +196,27 @@ def test_mir_meta_where_errs(mir_in_data, field, op, err_type, err_msg):
     assert str(err.value).startswith(err_msg)
 
 
-def test_mir_meta_where():
-    pass
+@pytest.mark.parametrize("return_keys", [True, False])
+@pytest.mark.parametrize(
+    "tup,goodidx,headkeys",
+    [
+        [("corrchunk", "eq", 0), np.arange(0, 20, 5), np.arange(0, 20, 5) + 1],
+        [("blhid", "ne", 4), np.arange(0, 15), np.arange(0, 15) + 1],
+        [("inhid", "btw", [0, 2]), np.arange(20), np.arange(20) + 1],
+        [("fres", "out", [-1, 1]), np.arange(0, 20, 5), np.arange(0, 20, 5) + 1],
+        [("ipq", "lt", [10]), np.arange(20), np.arange(20) + 1],
+        [("nch", "le", 4), np.arange(0, 20, 5), np.arange(0, 20, 5) + 1],
+        [("dataoff", "gt", 0.0), np.arange(1, 20), np.arange(1, 20) + 1],
+        [("wt", "ge", 0.0), np.arange(20), np.arange(20) + 1],
+    ],
+)
+def test_mir_meta_where(mir_sp_data, tup, goodidx, headkeys, return_keys):
+    where_arr = mir_sp_data.where(*tup, return_header_keys=return_keys)
+    print(tup)
+    print(where_arr)
+    print(headkeys)
+    print(goodidx)
+    assert np.all(where_arr == headkeys) if return_keys else np.all(where_arr[goodidx])
 
 
 def test_mir_meta_index_query_errs():
