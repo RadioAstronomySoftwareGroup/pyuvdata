@@ -3668,13 +3668,16 @@ class MirParser(object):
         for int_start_dict in self._file_dict.values():
             check_dict.update(int_start_dict)
 
+        print(packdata_dict)
+        print(check_dict)
+        print(group_dict)
+        print(self.sp_data._mask)
+
         # With the packdata in hand, start parsing the individual spectral records.
         data_dict = {}
         for inhid in unique_inhid:
             # There is very little to check in the packdata records, so make sure
             # that this entry corresponds to the inhid and size we expect.
-            print(packdata_dict)
-            print(check_dict)
             if (packdata_dict[inhid]["inhid"] != check_dict[inhid]["inhid"]) or (
                 packdata_dict[inhid]["nbyt"] != check_dict[inhid]["record_size"]
             ):
