@@ -3671,7 +3671,7 @@ class MirParser(object):
         print(packdata_dict)
         print(check_dict)
         print(group_dict)
-        print(self.sp_data._mask)
+        print(self._file_dict)
 
         # With the packdata in hand, start parsing the individual spectral records.
         data_dict = {}
