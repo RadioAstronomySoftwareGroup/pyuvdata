@@ -3673,6 +3673,8 @@ class MirParser(object):
         for inhid in unique_inhid:
             # There is very little to check in the packdata records, so make sure
             # that this entry corresponds to the inhid and size we expect.
+            print(packdata_dict)
+            print(check_dict)
             if (packdata_dict[inhid]["inhid"] != check_dict[inhid]["inhid"]) or (
                 packdata_dict[inhid]["nbyt"] != check_dict[inhid]["record_size"]
             ):
