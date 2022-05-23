@@ -3313,12 +3313,12 @@ class MirParser(object):
                 ]
             ).newbyteorder("little")
 
-        key_set = set(inhid_arr)
+        key_set = sorted(inhid_arr)
         key_check = key_set.copy()
         # We add an extra key here, None, which cannot match any of the values in
         # int_start_dict (since inhid is type int). This basically tricks the loop
         # below into spitting out the last integration
-        key_set.add(None)
+        key_set.append(None)
         for filename, int_start_dict in file_dict.items():
             # Initialize a few values before we start running through the data.
             inhid_list = []
@@ -3373,9 +3373,6 @@ class MirParser(object):
                 num_vals += 1
                 inhid_list.append(ind_key)
 
-            if len(key_check) != 0:
-                raise ValueError("inhid_arr contains keys not found in file_dict.")
-
             full_filename = os.path.join(filename, "sch_read")
             # Time to actually read in the data
             if use_mmap:
@@ -3411,6 +3408,9 @@ class MirParser(object):
                                 ),
                             )
                         )
+
+        if len(key_check) != 0:
+            raise ValueError("inhid_arr contains keys not found in file_dict.")
 
         return int_data_dict
 
@@ -3667,11 +3667,6 @@ class MirParser(object):
         check_dict = {}
         for int_start_dict in self._file_dict.values():
             check_dict.update(int_start_dict)
-
-        print(packdata_dict)
-        print(check_dict)
-        print(group_dict)
-        print(self._file_dict)
 
         # With the packdata in hand, start parsing the individual spectral records.
         data_dict = {}
