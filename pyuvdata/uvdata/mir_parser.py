@@ -788,7 +788,7 @@ class MirMetaData(object):
 
         if arg_check < 2:
             raise ValueError(
-                "Only of of index, header_key, and where arguments can be set."
+                "Only one of index, header_key, and where arguments can be set."
             )
         elif arg_check == 3:
             return self._mask.copy() if (use_mask or (use_mask is None)) else ...
@@ -796,7 +796,7 @@ class MirMetaData(object):
             use_mask = True if (use_mask is None) else use_mask
         elif use_mask:
             raise ValueError(
-                "Cannot set an argument for mask when setting index or header_key."
+                "Cannot set use_mask=True when setting index or header_key."
             )
 
         if index is not None:
@@ -1246,14 +1246,14 @@ class MirMetaData(object):
 
         if reset:
             self._mask[:] = True
-        elif np.array_equal(self._mask, mask):
-            return False
 
-        if and_mask:
-            self._mask &= mask
+        mask = (self._mask & mask) if and_mask else (self._mask | mask)
+
+        if np.array_equal(self._mask, mask):
+            return False
         else:
-            self._mask |= mask
-        return True
+            self._mask = mask
+            return True
 
     def get_header_keys(
         self,

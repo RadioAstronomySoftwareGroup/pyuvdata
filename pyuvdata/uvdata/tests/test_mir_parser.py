@@ -62,8 +62,18 @@ def mir_in_data(mir_data_main):
 
 
 @pytest.fixture(scope="function")
+def mir_bl_data(mir_data_main):
+    yield mir_data_main.bl_data.copy()
+
+
+@pytest.fixture(scope="function")
 def mir_sp_data(mir_data_main):
     yield mir_data_main.sp_data.copy()
+
+
+@pytest.fixture(scope="function")
+def mir_eng_data(mir_data_main):
+    yield mir_data_main.eng_data.copy()
 
 
 @pytest.fixture(scope="function")
@@ -212,67 +222,304 @@ def test_mir_meta_where_errs(mir_in_data, field, op, err_type, err_msg):
 )
 def test_mir_meta_where(mir_sp_data, tup, goodidx, headkeys, return_keys):
     where_arr = mir_sp_data.where(*tup, return_header_keys=return_keys)
-    print(tup)
-    print(where_arr)
-    print(headkeys)
-    print(goodidx)
     assert np.all(where_arr == headkeys) if return_keys else np.all(where_arr[goodidx])
 
 
-def test_mir_meta_index_query_errs():
-    pass
+def test_mir_meta_where_mask(mir_sp_data):
+    where_arr = mir_sp_data.where("inhid", "eq", 1)
+    assert np.all(where_arr)
+
+    mask = np.ones_like(mir_sp_data._mask)
+    mask[::2] = False
+    where_arr = mir_sp_data.where("inhid", "eq", 1, mask=mask)
+    assert not np.any(where_arr[::2])
+    assert np.all(where_arr[1::2])
 
 
-def test_mir_meta_index_query():
-    pass
+def test_mir_meta_where_multidim(mir_data):
+    we_mask = mir_data.we_data.where("flags", "eq", 0)
+    assert len(we_mask) == len(mir_data.we_data)
+    assert we_mask.ndim == 1
+    assert np.all(we_mask)
 
 
-def test_mir_meta_get_value():
-    pass
+def test_mir_meta_where_pseudo_key(mir_data):
+    eng_keys = mir_data.eng_data.where("tsys", "gt", 0, return_header_keys=True)
+    assert isinstance(eng_keys, list)
+    for key in eng_keys:
+        assert isinstance(key, tuple)
+        assert key in mir_data.eng_data._header_key_index_dict
 
 
-def test_mir_meta_set_value():
-    pass
+@pytest.mark.parametrize(
+    "kwargs,err_type,err_msg",
+    [
+        [{"index": 0, "where": 0}, ValueError, "Only one of index, header_key"],
+        [{"index": 0, "use_mask": True}, ValueError, "Cannot set use_mask=True"],
+        [{"where": 0}, ValueError, "Argument for where must be either"],
+        [{"where": [(0,)]}, ValueError, "Argument for where must be either"],
+        [{"where": ("a", "eq", -1)}, MirMetaError, "Argument for where has no match"],
+    ],
+)
+def test_mir_meta_index_query_errs(mir_in_data, kwargs, err_type, err_msg):
+    with pytest.raises(err_type) as err:
+        mir_in_data._index_query(**kwargs)
+    assert str(err.value).startswith(err_msg)
 
 
-def test_mir_meta_generate_mask():
-    pass
+@pytest.mark.parametrize(
+    "arg,output",
+    [
+        [{"index": [2, 4, 6]}, [2, 4, 6]],
+        [{"header_key": [2, 4, 6]}, [1, 3, 5]],
+        [{"where": ("inhid", "eq", -1)}, [False] * 20],
+        [{"where": ("inhid", "eq", -1), "and_where_args": False}, [True] * 20],
+        [{"where": [("inhid", "eq", 1), ("a", "eq", 1)]}, [True] * 20],
+    ],
+)
+def test_mir_meta_index_query(mir_sp_data, arg, output):
+    assert np.all(output == mir_sp_data._index_query(**arg))
 
 
-def test_mir_meta_set_mask():
-    pass
+@pytest.mark.parametrize(
+    "field_name,err_type,err_msg",
+    [
+        [[0, 1], ValueError, "field_name must either be a str or list of str."],
+    ],
+)
+def test_mir_meta_get_value_errs(mir_in_data, field_name, err_type, err_msg):
+    with pytest.raises(err_type) as err:
+        mir_in_data.get_value(field_name)
+    assert str(err.value).startswith(err_msg)
 
 
-def test_mir_meta_get_mask():
-    pass
+@pytest.mark.parametrize(
+    "field_name,arg,output",
+    [
+        ["inhid", {}, [1] * 20],
+        ["corrchunk", {"index": [0, 5, 10, 15]}, [0] * 4],
+        ["blhid", {"where": ("blhid", "eq", 2)}, [2] * 5],
+        [["blhid", "sphid"], {"index": [1, 4]}, [[1, 1], [2, 5]]],
+        [["igq", "sphid"], {"index": [0, 3], "return_tuples": True}, [(0, 1), (0, 4)]],
+    ],
+)
+def test_mir_meta_get_value(mir_sp_data, field_name, arg, output):
+    assert np.all(
+        np.array(output) == np.array(mir_sp_data.get_value(field_name, **arg))
+    )
 
 
-def test_mir_meta_get_header_keys():
-    pass
+@pytest.mark.parametrize(
+    "field_name,msg",
+    [
+        ["dataoff", 'Values in "dataoff" are typically only used'],
+        ["inhid", "Changing fields that tie to header keys can result in"],
+        ["blhid", "Changing fields that tie to header keys can result in"],
+        ["sphid", "Changing fields that tie to header keys can result in"],
+    ],
+)
+def test_mir_meta_set_value_warns(mir_sp_data, field_name, msg):
+    with uvtest.check_warnings(UserWarning, msg):
+        mir_sp_data.set_value(field_name, 1)
 
 
-def test_mir_meta_generate_header_key_index_dict():
-    pass
+@pytest.mark.parametrize(
+    "field_name,arg,set_value,output",
+    [
+        ["iant1", {}, 9, [9] * 4],
+        ["iant1", {}, [1, 2, 3, 4], [1, 2, 3, 4]],
+        ["iant2", {"index": 2}, 9, [4, 4, 9, 4]],
+        ["iant2", {"header_key": 4}, 9, [4, 4, 4, 9]],
+        ["iant2", {"header_key": 4}, 9, [4, 4, 4, 9]],
+        ["u", {"where": ("u", "ne", 0)}, 0, [0, 0, 0, 0]],
+    ],
+)
+def test_mir_meta_set_value(mir_bl_data, field_name, arg, set_value, output):
+    mir_bl_copy = mir_bl_data.copy()
+    mir_bl_data.set_value(field_name, set_value, **arg)
+    assert np.all(mir_bl_data._data[field_name] == output)
+    assert np.all(
+        mir_bl_data._stored_values[field_name] == mir_bl_copy._data[field_name]
+    )
 
 
-def test_mir_meta_generate_new_header_keys():
-    pass
+@pytest.mark.parametrize(
+    "arg,output",
+    [
+        [{}, True],
+        [{"where": ("u", "ne", 0)}, True],
+        [{"index": [1, 3]}, [False, True, False, True]],
+        [{"header_key": [3, 4, 3]}, [False, False, True, True]],  # Guilty spark
+    ],
+)
+def test_mir_meta_generate_mask(mir_bl_data, arg, output):
+    assert np.all(mir_bl_data._generate_mask(**arg) == output)
 
 
-def test_mir_meta_sort_by_header_key():
-    pass
+@pytest.mark.parametrize(
+    "arg,output",
+    [
+        [{"reset": True}, True],
+        [{"where": (("u", "eq", 0), ("u", "ne", 0))}, False],
+        [
+            {"where": (("u", "eq", 0), ("u", "ne", 0)), "and_where_args": False},
+            [True, False, False, True],
+        ],
+        [{"where": ("u", "ne", 0), "and_mask": False}, True],
+        [{"index": [1, 3], "reset": True}, [False, True, False, True]],
+        [{"header_key": [3, 4, 3]}, [False, False, False, True]],
+        [{"mask": [True, False, True, False]}, [True, False, False, False]],
+    ],
+)
+def test_mir_meta_set_mask(mir_bl_data, arg, output):
+    # Set the mask apriori to give us something to compare with.
+    mir_bl_data._mask[:] = [True, False, False, True]
+
+    check = mir_bl_data.set_mask(**arg)
+    assert np.all(mir_bl_data._mask == output)
+    assert ("reset" in arg) or (
+        check == np.any(mir_bl_data._mask != [True, False, False, True])
+    )
 
 
-def test_mir_meta_group_by():
-    pass
+@pytest.mark.parametrize(
+    "arg,output",
+    [
+        [{}, [True, False, False, True]],
+        [{"where": ("u", "ne", 0)}, [True, False, False, True]],
+        [{"index": [1, 3]}, [False, True]],
+        [{"header_key": [3, 4, 3]}, [False, True, False]],
+    ],
+)
+def test_mir_meta_get_mask(mir_bl_data, arg, output):
+    mir_bl_data._mask[:] = [True, False, False, True]
+    assert np.all(mir_bl_data.get_mask(**arg) == output)
 
 
-def test_mir_meta_reset_values():
-    pass
+@pytest.mark.parametrize(
+    "arg,output",
+    [
+        [{}, [1, 2, 3, 4]],
+        [{"where": ("u", "ne", 0)}, [1, 2, 3, 4]],
+        [{"index": [1, 3]}, [2, 4]],
+        [{"index": [1, 3], "force_list": True}, [[2, 4]]],
+    ],
+)
+def test_mir_meta_get_header_keys(mir_bl_data, arg, output):
+    assert np.all(np.array(mir_bl_data.get_header_keys(**arg)) == np.array(output))
 
 
-def test_mir_meta_reset():
-    pass
+def test_mir_meta_get_header_pseudo_keys(mir_eng_data):
+    assert mir_eng_data.get_header_keys() == [(1, 1), (4, 1)]
+
+
+def test_mir_meta_generate_header_key_index_dict(mir_sp_data):
+    key_dict = mir_sp_data._generate_header_key_index_dict()
+    for key, value in key_dict.items():
+        assert key == (value + 1)
+
+    mir_sp_data._data["sphid"] = np.flip(mir_sp_data._data["sphid"])
+    key_dict = mir_sp_data._generate_header_key_index_dict()
+    for key, value in key_dict.items():
+        assert (20 - key) == value
+
+
+def test_mir_meta_generate_new_header_keys_err(mir_in_data):
+    with pytest.raises(ValueError) as err:
+        mir_in_data._generate_new_header_keys(0)
+    assert str(err.value).startswith("Both objects must be of the same type.")
+
+
+def test_mir_meta_generate_new_header_keys_noop(mir_eng_data):
+    assert mir_eng_data._generate_new_header_keys(mir_eng_data) == {}
+
+
+def test_mir_meta_generate_new_header_keys(mir_bl_data):
+    update_dict = mir_bl_data._generate_new_header_keys(mir_bl_data)
+    assert update_dict == {"blhid": {1: 5, 2: 6, 3: 7, 4: 8}}
+
+
+def test_mir_meta_sort_by_header_key(mir_bl_data):
+    mir_bl_copy = mir_bl_data.copy()
+    mir_bl_data._sort_by_header_key()
+    assert mir_bl_copy == mir_bl_data
+
+    mir_bl_data._data["blhid"] = np.flip(mir_bl_data._data["blhid"])
+    mir_bl_data._sort_by_header_key()
+    assert mir_bl_copy != mir_bl_data
+    assert mir_bl_copy._header_key_index_dict == mir_bl_data._header_key_index_dict
+    assert np.all(mir_bl_copy._data["blhid"] == mir_bl_copy._data["blhid"])
+
+
+@pytest.mark.parametrize(
+    "fields,args,mask_data,comp_dict",
+    [
+        ["inhid", {}, True, {}],
+        ["inhid", {"use_mask": False}, True, {1: list(range(1, 21))}],
+        ["inhid", {}, False, {1: list(range(1, 21))}],
+        ["inhid", {"return_index": True}, False, {1: list(range(20))}],
+        [
+            ["inhid", "corrchunk"],
+            {"return_index": True},
+            False,
+            {
+                (1, 0): [0, 5, 10, 15],
+                (1, 1): [1, 6, 11, 16],
+                (1, 2): [2, 7, 12, 17],
+                (1, 3): [3, 8, 13, 18],
+                (1, 4): [4, 9, 14, 19],
+            },
+        ],
+    ],
+)
+def test_mir_meta_group_by(mir_sp_data, fields, args, mask_data, comp_dict):
+    if mask_data:
+        mir_sp_data._mask[:] = False
+
+    group_dict = mir_sp_data.group_by(fields, **args)
+
+    assert group_dict.keys() == comp_dict.keys()
+
+    for key in group_dict:
+        assert np.all(group_dict[key] == comp_dict[key])
+
+
+def test_mir_meta_reset_values_errs(mir_in_data):
+    with pytest.raises(ValueError) as err:
+        mir_in_data.reset_values("foo")
+    assert str(err.value).startswith("No stored values for field foo.")
+
+
+@pytest.mark.parametrize("list_args", [True, False])
+def test_mir_meta_reset_values(mir_sp_data, list_args):
+    mir_sp_copy = mir_sp_data.copy()
+    mir_sp_data["fsky"] = 0
+    mir_sp_data["vres"] = 0
+
+    assert mir_sp_data != mir_sp_copy
+    assert np.all(mir_sp_data["fsky"] != mir_sp_copy["fsky"])
+    assert np.all(mir_sp_data["vres"] != mir_sp_copy["vres"])
+
+    if list_args:
+        for item in ["fsky", "vres"]:
+            mir_sp_data.reset_values(item)
+    else:
+        mir_sp_data.reset_values()
+
+    assert mir_sp_data == mir_sp_copy
+    assert mir_sp_data._stored_values == {}
+
+
+def test_mir_meta_reset(mir_sp_data):
+    mir_sp_copy = mir_sp_data.copy()
+    mir_sp_data["fsky"] = 0
+    mir_sp_data["wt"] = 0
+    mir_sp_data._mask[:] = False
+
+    assert mir_sp_data != mir_sp_copy
+
+    mir_sp_data.reset()
+    assert mir_sp_data == mir_sp_copy
 
 
 def test_mir_meta_update_fields():
