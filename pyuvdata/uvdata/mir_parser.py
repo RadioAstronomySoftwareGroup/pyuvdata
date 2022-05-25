@@ -339,6 +339,10 @@ sp_dtype = np.dtype(
 # the track, although a few commonly used codes due vary integration by integration.
 
 codes_dtype = np.dtype(
+    [("v_name", "U12"), ("icode", np.int16), ("code", "U26"), ("ncode", np.int16)]
+).newbyteorder("little")
+
+codes_binary_dtype = np.dtype(
     [("v_name", "S12"), ("icode", np.int16), ("code", "S26"), ("ncode", np.int16)]
 ).newbyteorder("little")
 
@@ -415,6 +419,7 @@ class MirMetaData(object):
         filetype,
         dtype,
         header_key_name,
+        binary_dtype=None,
         pseudo_header_key_names=None,
         filepath=None,
     ):
@@ -440,6 +445,7 @@ class MirMetaData(object):
         """
         self._filetype = filetype
         self.dtype = dtype
+        self._binary_dtype = binary_dtype
         self._header_key = header_key_name
         self._pseudo_header_key = pseudo_header_key_names
 
@@ -689,7 +695,7 @@ class MirMetaData(object):
             "out": lambda val, lims: ((val < lims[0]) | (val > lims[1])),
         }
 
-        if type(select_val) in [list, set, tuple, bytes, np.ndarray]:
+        if isinstance(select_val, (list, set, tuple, str, np.ndarray, np.str_)):
             op_dict["eq"] = lambda val, comp: np.isin(val, comp)
             op_dict["ne"] = lambda val, comp: np.isin(val, comp, invert=True)
 
@@ -1941,9 +1947,16 @@ class MirMetaData(object):
         filepath : str
             Path of the folder containing the metadata in question.
         """
-        self._data = np.fromfile(
-            os.path.join(filepath, self._filetype), dtype=self.dtype
-        )
+        if self._binary_dtype is None:
+            self._data = np.fromfile(
+                os.path.join(filepath, self._filetype),
+                dtype=self.dtype,
+            )
+        else:
+            self._data = np.fromfile(
+                os.path.join(filepath, self._filetype), dtype=self._binary_dtype
+            ).astype(self.dtype)
+
         self._mask = np.ones(len(self), dtype=bool)
 
         # Make sure that the ordering is what we expect, and build the header key
@@ -1970,7 +1983,10 @@ class MirMetaData(object):
             array of metadata.
         """
         with open(filepath, "ab" if append_data else "wb+") as file:
-            self._data[datamask].tofile(file)
+            if self._binary_dtype is None:
+                self._data[datamask].tofile(file)
+            else:
+                self._data[datamask].astype(self._binary_dtype).tofile(file)
 
     def tofile(
         self,
@@ -2065,7 +2081,7 @@ class MirInData(MirMetaData):
         filepath : str
             Optional argument specifying the path to the Mir data folder.
         """
-        super().__init__("in_read", in_dtype, "inhid", None, filepath)
+        super().__init__("in_read", in_dtype, "inhid", None, None, filepath)
 
 
 class MirBlData(MirMetaData):
@@ -2087,7 +2103,7 @@ class MirBlData(MirMetaData):
         filepath : str
             Optional argument specifying the path to the Mir data folder.
         """
-        super().__init__("bl_read", bl_dtype, "blhid", None, filepath)
+        super().__init__("bl_read", bl_dtype, "blhid", None, None, filepath)
 
 
 class MirSpData(MirMetaData):
@@ -2110,7 +2126,7 @@ class MirSpData(MirMetaData):
         filepath : str
             Optional argument specifying the path to the Mir data folder.
         """
-        super().__init__("sp_read", sp_dtype, "sphid", None, filepath)
+        super().__init__("sp_read", sp_dtype, "sphid", None, None, filepath)
 
     def _recalc_dataoff(self, use_mask=True):
         """
@@ -2254,7 +2270,7 @@ class MirWeData(MirMetaData):
         filepath : str
             Optional argument specifying the path to the Mir data folder.
         """
-        super().__init__("we_read", we_dtype, "ints", None, filepath)
+        super().__init__("we_read", we_dtype, "ints", None, None, filepath)
 
 
 class MirEngData(MirMetaData):
@@ -2279,7 +2295,7 @@ class MirEngData(MirMetaData):
             Optional argument specifying the path to the Mir data folder.
         """
         super().__init__(
-            "eng_read", eng_dtype, None, ("antennaNumber", "inhid"), filepath
+            "eng_read", eng_dtype, None, None, ("antennaNumber", "inhid"), filepath
         )
 
 
@@ -2302,10 +2318,9 @@ class MirAntposData(MirMetaData):
         filepath : str
             Optional argument specifying the path to the Mir data folder.
         """
-        super().__init__("antennas", antpos_dtype, "antenna", None, None)
+        super().__init__("antennas", antpos_dtype, "antenna", None, None, None)
 
         if filepath is not None:
-            print("hi there!")
             self.fromfile(filepath)
 
     def fromfile(self, filepath):
@@ -2394,7 +2409,15 @@ class MirCodesData(MirMetaData):
         filepath : str
             Optional argument specifying the path to the Mir data folder.
         """
-        super().__init__("codes_read", codes_dtype, None, ("icode", "v_name"), filepath)
+        super().__init__(
+            "codes_read",
+            codes_dtype,
+            None,
+            codes_binary_dtype,
+            ("icode", "v_name"),
+            filepath,
+        )
+
         self._mutable_codes = [
             "project",
             "ref_time",
@@ -2429,12 +2452,14 @@ class MirCodesData(MirMetaData):
             "source": "isource",
             "ra": "ira",
             "dec": "idec",
+            "stype": "isource",
+            "svtype": "isource",
             "vrad": "ivrad",
             "gq": "igq",
             "pq": "ipq",
             "tel1": "iant1",
             "tel2": "iant2",
-            "ipol": "pol",
+            "pol": "ipol",
             "pstate": "ipstate",
             "sb": "isb",
             "band": "iband",
@@ -2451,7 +2476,7 @@ class MirCodesData(MirMetaData):
             A list of all the unique code types, as recorded in the "v_name" field
             of the metadata.
         """
-        return [item.decode() for item in set(self.get_value("v_name"))]
+        return sorted(set(self.get_value("v_name")))
 
     def where(
         self,
@@ -2533,13 +2558,6 @@ class MirCodesData(MirMetaData):
                 "indexing codes (%s)." % ", ".join(list(self._codes_index_dict))
             )
 
-        if isinstance(select_field, str):
-            select_field = select_field.encode()
-        elif not isinstance(select_field, bytes):
-            raise ValueError(
-                "select_field must be a string when selecting on a code type."
-            )
-
         if select_comp not in ["eq", "ne"]:
             raise ValueError(
                 'select_comp must be "eq" or "ne" when select_field is a code type.'
@@ -2547,20 +2565,16 @@ class MirCodesData(MirMetaData):
 
         # Convert select_val into a bytes object or sequence of bytes objects, since
         # that's how they are read from disk.
-        if isinstance(select_val, str):
-            select_val = select_val.encode()
-        elif not isinstance(select_val, bytes):
+        if not isinstance(select_val, str):
             try:
                 select_val = list(select_val)
                 for idx, item in enumerate(select_val):
-                    if isinstance(item, str):
-                        select_val[idx] = item.encode()
-                    elif not isinstance(item, bytes):
-                        select_val[idx] = str(item).encode()
+                    if not isinstance(item, str):
+                        select_val[idx] = str(item)
             except TypeError:
                 # Assume at this point that we are working with a single non-string
                 # entry (that we need to convert into)
-                select_val = str(select_val).encode()
+                select_val = str(select_val)
 
         data_mask = np.logical_and(
             super().where("v_name", "eq", select_field, mask, False),
@@ -2575,11 +2589,11 @@ class MirCodesData(MirMetaData):
     def get_codes(self, code_name, return_dict=None):
         if code_name not in self.get_code_names():
             raise MirMetaError(
-                "%s does not match any code or field in the metadata" % code_name
+                "%s does not match any code or field in the metadata." % code_name
             )
 
-        mask = self.where("v_name", "eq", code_name.encode(), return_header_keys=False)
-        codes = [item.decode() for item in self.get_value("code", use_mask=False)[mask]]
+        mask = self.where("v_name", "eq", code_name, return_header_keys=False)
+        codes = list(self.get_value("code", use_mask=False)[mask])
         index = list(self.get_value("icode", use_mask=False)[mask])
         if return_dict is None:
             return_dict = (np.sum(mask) != 1) or (code_name in self._codes_index_dict)
@@ -2714,29 +2728,33 @@ class MirCodesData(MirMetaData):
                         # index being applied across multiple codes.
                         if vname == "source":
                             for dict1, dict2 in skip_codes.values():
+                                print(value)
+                                print(other_value)
+                                print(dict1)
+                                print(dict2)
                                 if dict1[value] != dict2[other_value]:
                                     raise KeyError()
 
-                        # If the keys match, no need to do anything further.
-                        if value == other_value:
-                            continue
-                        # Here we have to handle to case that the code string _is_
-                        # found in the other dict, but not with the same index value.
-                        temp_dict[value] = other_dict[key]
+                        if value != other_value:
+                            # Here we have to handle to case that the code string _is_
+                            # found in the other dict, but not with the same index.
+                            temp_dict[value] = other_dict[key]
                     except KeyError:
                         # If the code is _not_ found in the other dict, then we just
                         # want to pick and indexing code that won't cause a conflict.
                         # Loop through and pick the first positive unassigned value.
-                        while last_idx in other_dict:
+                        if value in other_dict:
+                            while last_idx in other_dict:
+                                last_idx += 1
+                            temp_dict[value] = last_idx
                             last_idx += 1
-                        temp_dict[value] = last_idx
-                        last_idx += 1
 
                 # Store the results in our update dictionary.
-                index_dict[vname] = temp_dict
-                if vname == "source":
-                    for item in skip_codes:
-                        index_dict[item] = temp_dict
+                if len(temp_dict):
+                    index_dict[vname] = temp_dict
+                    if vname == "source":
+                        for item in skip_codes:
+                            index_dict[item] = temp_dict
 
         # We now have a list of updates we want to make, but we need to parse the dict
         # in such a way that it can be used by _update_fields. The icode_dict will
@@ -2751,8 +2769,6 @@ class MirCodesData(MirMetaData):
                 # in as the key, and match it to our existing dict.
                 index_dict[self._codes_index_dict[key]] = temp_dict
 
-            # All v_names are in bytes, so convert from str now.
-            key = key.encode()
             for old_idx, new_idx in temp_dict.items():
                 # Use the tuple of (v_name, old_icode) to map to the new tuple
                 # (v_name, new_icode), which _update_fields will handle properly.
@@ -2786,7 +2802,7 @@ class MirAcData(MirMetaData):
         filepath : str
             Optional argument specifying the path to the Mir data folder.
         """
-        super().__init__("ac_read", ac_dtype, "achid", filepath)
+        super().__init__("ac_read", ac_dtype, "achid", None, None, filepath)
 
     def fromfile(self, filepath, nchunks=8):
         """
