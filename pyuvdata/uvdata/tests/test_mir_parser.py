@@ -99,6 +99,7 @@ def test_mir_meta_init(mir_data):
                 attr._filetype,
                 attr.dtype,
                 attr._header_key,
+                attr._binary_dtype,
                 attr._pseudo_header_key,
                 mir_data.filepath,
             )
@@ -779,24 +780,164 @@ def test_mir_sp_generate_dataoff_dict(mir_sp_data, use_mask, mod_mask):
     assert list(mir_sp_data.get_value("sphid", use_mask=use_mask)) == list(sp_dict)
 
 
-def test_mir_codes_get_code_names():
-    pass
+def test_mir_codes_get_code_names(mir_codes_data):
+    assert sorted(mir_codes_data.get_code_names()) == sorted(
+        [
+            "aq",
+            "band",
+            "blcd",
+            "bq",
+            "cocd",
+            "cq",
+            "dec",
+            "filever",
+            "gq",
+            "ifc",
+            "offtype",
+            "oq",
+            "pol",
+            "pos",
+            "pq",
+            "project",
+            "pstate",
+            "ra",
+            "rec",
+            "ref_time",
+            "sb",
+            "source",
+            "stype",
+            "svtype",
+            "taper",
+            "tel1",
+            "tel2",
+            "tq",
+            "trans",
+            "ut",
+            "vctype",
+            "vrad",
+        ]
+    )
 
 
-def test_mir_codes_where():
-    pass
+@pytest.mark.parametrize(
+    "args,kwargs,err_type,err_msg",
+    [
+        [(0, 0, 0), {}, MirMetaError, "select_field must either be one of the native"],
+        [("source", "gt", 0), {}, ValueError, 'select_comp must be "eq" or "ne" when'],
+    ],
+)
+def test_mir_codes_where_errs(mir_codes_data, args, kwargs, err_type, err_msg):
+    with pytest.raises(err_type) as err:
+        mir_codes_data.where(*args, **kwargs)
+    assert str(err.value).startswith(err_msg)
 
 
-def test_mir_codes_get_item():
-    pass
+@pytest.mark.parametrize(
+    "args,kwargs,output",
+    [
+        [("source", "eq", "3c84"), {}, [1]],
+        [("pol", "ne", ["hh", "vv"]), {}, [2, 3]],
+        [("tel1", "eq", [1, 5, 8]), {}, [1, 5, 8]],
+        [
+            ("vrad", "eq", "         0.0"),
+            {"return_header_keys": False},
+            (98 * [False]) + [True],
+        ],
+    ],
+)
+def test_mir_codes_where(mir_codes_data, args, kwargs, output):
+    assert np.all(output == mir_codes_data.where(*args, **kwargs))
 
 
-def test_mir_codes_generate_new_header_keys_errs():
-    pass
+def test_mir_codes_get_item_err(mir_codes_data):
+    with pytest.raises(MirMetaError) as err:
+        mir_codes_data["foo"]
+    assert str(err.value).startswith("foo does not match any code or field")
 
 
-def test_mir_codes_generate_new_header_keys():
-    pass
+@pytest.mark.parametrize(
+    "vname,output",
+    [
+        ["filever", ["3"]],
+        ["source", {1: "3c84", "3c84": 1}],
+        ["sb", {"l": 0, "u": 1, 0: "l", 1: "u"}],
+        ["ut", {"Jul 24 2020  4:34:39.00PM": 1, 1: "Jul 24 2020  4:34:39.00PM"}],
+    ],
+)
+def test_mir_codes_get_item(mir_codes_data, vname, output):
+    assert output == mir_codes_data[vname]
+
+
+@pytest.mark.parametrize("name", ["v_name", "icode", "code", "ncode"])
+def test_mir_codes_get_item_dtype(mir_codes_data, name):
+    assert np.all(mir_codes_data[name] == mir_codes_data._data[name])
+
+
+def test_mir_codes_generate_new_header_keys_errs_and_warns(mir_codes_data):
+    # This _could_ be parameterized, although each test is so customized that
+    # it's easier to code this as a single passthrough.
+    with pytest.raises(ValueError) as err:
+        mir_codes_data._generate_new_header_keys(0)
+    assert str(err.value).startswith("Both objects must be of the same type.")
+
+    mir_codes_copy = mir_codes_data.copy()
+    mir_codes_copy.set_value("code", "1", where=("v_name", "eq", "filever"))
+    with pytest.raises(ValueError) as err:
+        mir_codes_data._generate_new_header_keys(mir_codes_copy)
+    assert str(err.value).startswith("The codes for filever in codes_read")
+    mir_codes_copy.set_value("code", "3", where=("v_name", "eq", "filever"))
+
+    mir_codes_copy.set_value("code", ["3", "4", "5"], where=("v_name", "eq", "aq"))
+    with uvtest.check_warnings(UserWarning, "Codes for aq not in the recognized list"):
+        check_dict = mir_codes_data._generate_new_header_keys(mir_codes_copy)
+
+    assert list(check_dict) == [("v_name", "icode")]
+    check_dict = check_dict[("v_name", "icode")]
+    assert check_dict == {
+        ("aq", 0): ("aq", 3),
+        ("aq", 1): ("aq", 4),
+        ("aq", 2): ("aq", 5),
+    }
+
+
+@pytest.mark.parametrize(
+    "code_row,update_dict",
+    [
+        [("source", 1, "3c84", 0), {}],
+        [
+            ("source", 1, "3c279", 0),
+            {
+                "isource": {1: 2},
+                ("v_name", "icode"): {
+                    ("source", 1): ("source", 2),
+                    ("stype", 1): ("stype", 2),
+                    ("svtype", 1): ("svtype", 2),
+                },
+            },
+        ],
+        [
+            ("stype", 1, "ephem", 0),
+            {
+                "isource": {1: 2},
+                ("v_name", "icode"): {
+                    ("source", 1): ("source", 2),
+                    ("stype", 1): ("stype", 2),
+                    ("svtype", 1): ("svtype", 2),
+                },
+            },
+        ],
+        [
+            ("project", 2, "retune", 0),
+            {"iproject": {2: 1}, ("v_name", "icode"): {("project", 2): ("project", 1)}},
+        ],
+        [("project", 2, "doathing", 0), {}],
+    ],
+)
+def test_mir_codes_generate_new_header_keys(mir_codes_data, code_row, update_dict):
+    mir_codes_copy = mir_codes_data.copy()
+    mir_codes_copy._data[mir_codes_data.where("v_name", "eq", code_row[0])] = code_row
+
+    assert update_dict == mir_codes_copy._generate_new_header_keys(mir_codes_data)
 
 
 def test_mir_ac_fromfile_errs(mir_data):
@@ -1833,7 +1974,7 @@ def test_add_overwrite(mir_data, muck_attr):
                 if field not in prot_fields:
                     getattr(mir_data, item)[field] = -1
     elif muck_attr == "codes":
-        mir_data.codes_data.set_value("code", "1", where=("v_name", "eq", b"filever"))
+        mir_data.codes_data.set_value("code", "1", where=("v_name", "eq", "filever"))
     else:
         for field in getattr(mir_data, muck_attr).dtype.names:
             if field not in prot_fields:
@@ -2096,7 +2237,7 @@ def test_chanshift_vis(check_flags, flag_adj, fwd_dir, inplace):
 )
 def test_redoppler_data_errs(mir_data, filever, irec, err_type, err_msg):
     """Verift that redoppler_data throws errors as expected."""
-    mir_data.codes_data.set_value("code", filever, where=("v_name", "eq", b"filever"))
+    mir_data.codes_data.set_value("code", filever, where=("v_name", "eq", "filever"))
     mir_data.bl_data["irec"] = irec
 
     with pytest.raises(err_type) as err:
@@ -2110,7 +2251,7 @@ def test_redoppler_data_errs(mir_data, filever, irec, err_type, err_msg):
 def test_redoppler_data(mir_data, plug_vals, diff_rx, use_raw):
     """Verify that redoppler_data behaves as expected."""
     # We have to spoof the filever because the test file is technically v3
-    mir_data.codes_data.set_value("code", "4", where=("v_name", "eq", b"filever"))
+    mir_data.codes_data.set_value("code", "4", where=("v_name", "eq", "filever"))
 
     if use_raw:
         mir_data.raw_data = mir_data.convert_vis_to_raw(mir_data.vis_data)
