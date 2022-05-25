@@ -1707,10 +1707,11 @@ class MirMetaData(object):
             # go through entry by entry for the two dicts. Make same_dict as False
             # now since they're no longer equal to the original dicts.
             same_dict = False
-            for key, value in index_dict1.items():
+            # Note we call list here to instantiate a separate copy
+            for key, value in list(index_dict1.items()):
                 if not self._mask[value]:
                     _ = index_dict1.pop(key)
-            for key, value in index_dict2.items():
+            for key, value in list(index_dict2.items()):
                 if not self._mask[value]:
                     _ = index_dict2.pop(key)
 
@@ -1775,7 +1776,7 @@ class MirMetaData(object):
                 else:
                     # Finally, we are in a mixed state where we have to evaluate
                     # the entries on a case-by-case basis, and pass forward _some_
-                    # keys from this object, and _some_ keys from the othe object
+                    # keys from this object, and _some_ keys from the other object
                     # from the conflicted list.
                     for key, comp, mask1, mask2 in zip(
                         key_overlap, comp_mask, arr1_mask, arr2_mask
@@ -1891,7 +1892,7 @@ class MirMetaData(object):
 
         return new_obj
 
-    def __iadd__(self, other, merge=True, overwrite=None, discard_flagged=True):
+    def __iadd__(self, other, merge=None, overwrite=None, discard_flagged=False):
         """
         In-place addition of two MirMetaData objects.
 
@@ -2797,7 +2798,7 @@ class MirAcData(MirMetaData):
             Path of the folder containing the metadata in question.
         """
         old_ac_file = os.path.join(filepath, "autoCorrelations")
-        new_ac_file = os.path.join(filepath, "ac_read")
+        new_ac_file = os.path.join(filepath, self._filetype)
         if os.path.exists(old_ac_file) and not os.path.exists(new_ac_file):
             file_size = os.path.getsize(old_ac_file)
             with open(old_ac_file, "rb") as auto_file:

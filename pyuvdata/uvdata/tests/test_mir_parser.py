@@ -522,36 +522,261 @@ def test_mir_meta_reset(mir_sp_data):
     assert mir_sp_data == mir_sp_copy
 
 
-def test_mir_meta_update_fields():
-    pass
+@pytest.mark.parametrize(
+    "update_dict,err_type,err_msg",
+    [
+        [{1: {1: 1}}, ValueError, "update_dict must have keys that are type str"],
+        [{"foo": {1: 2}}, ValueError, "Field group foo not found in this object."],
+    ],
+)
+def test_mir_meta_update_fields_errs(mir_in_data, update_dict, err_type, err_msg):
+    with pytest.raises(err_type) as err:
+        mir_in_data._update_fields(update_dict, raise_err=True)
+    assert str(err.value).startswith(err_msg)
 
 
-def test_mir_meta_add_check_errs():
-    pass
+def test_mir_meta_update_fields(mir_bl_data):
+    mir_bl_copy = mir_bl_data.copy()
+    update_dict = {
+        "foo": {1: 1},
+        "inhid": {1: 10},
+        "blhid": {1: 0},
+        ("iant1", "iant2"): {(1, 4): (4, 1)},
+    }
+
+    mir_bl_data._update_fields(update_dict)
+    assert mir_bl_data != mir_bl_copy
+    assert np.all(mir_bl_data["inhid"] == [10, 10, 10, 10])
+    assert np.all(mir_bl_data["blhid"] == [0, 2, 3, 4])
+    assert np.all(mir_bl_data["iant1"] == [4, 4, 4, 4])
+    assert np.all(mir_bl_data["iant2"] == [1, 1, 1, 1])
 
 
-def test_mir_meta_add_check():
-    pass
+def test_mir_meta_tofile_errs(mir_sp_data, tmp_path):
+    filepath = os.path.join(tmp_path, "meta_tofile_errs")
+    mir_sp_data.tofile(filepath)
+    mir_sp_data["gunnLO"] = 0.0
+
+    with pytest.raises(FileExistsError) as err:
+        mir_sp_data.tofile(filepath)
+    assert str(err.value).startswith("File already exists, must set overwrite")
+
+    with pytest.raises(ValueError) as err:
+        mir_sp_data.tofile(filepath, append_data=True, check_index=True)
+    assert str(err.value).startswith("Conflicting header keys detected")
 
 
-def test_mir_meta_add():
-    pass
+def test_mir_meta_tofile_append(mir_sp_data, tmp_path):
+    filepath = os.path.join(tmp_path, "meta_tofile_append")
+    new_obj = type(mir_sp_data)()
+
+    mir_sp_data.tofile(filepath)
+    # Test the no-op
+    mir_sp_data.tofile(filepath, append_data=True, check_index=True)
+    new_obj.fromfile(filepath)
+    assert mir_sp_data == new_obj
+
+    # Now try writing two separate halves of the data one at a time.
+    mir_sp_data._mask[::2] = False
+    mir_sp_data.tofile(filepath, overwrite=True)
+    mir_sp_data._mask[::2] = True
+    mir_sp_data._mask[1::2] = False
+    mir_sp_data.tofile(filepath, append_data=True, check_index=True)
+    new_obj.fromfile(filepath)
+    assert mir_sp_data == new_obj
 
 
-def test_mir_meta_fromfile():
-    pass
+@pytest.mark.parametrize(
+    "cmd,args,err_type,err_msg",
+    [
+        ["int_other", {}, ValueError, "Both objects must be of the same type."],
+        ["", {"merge": True, "discard_flagged": True}, ValueError, "Cannot both merge"],
+        ["muck_key", {"merge": True}, ValueError, "Cannot merge if header keys"],
+        ["muck_data", {}, MirMetaError, "Cannot combine objects, as both contain"],
+        ["", {"merge": False}, MirMetaError, "Cannot add objects together if merge="],
+    ],
+)
+def test_mir_meta_add_check_errs(mir_sp_data, cmd, args, err_type, err_msg):
+    if cmd == "int_other":
+        other = 0
+    else:
+        other = mir_sp_data.copy()
+        if cmd == "muck_key":
+            other._header_key_index_dict[-1] = -1
+        elif cmd == "muck_data":
+            other["gunnLO"] = -1.0
+
+    with pytest.raises(err_type) as err:
+        mir_sp_data._add_check(other, **args)
+    assert str(err.value).startswith(err_msg)
 
 
-def test_mir_meta_tofile():
-    pass
+@pytest.mark.parametrize(
+    "cmd,args,comp_results",
+    [
+        [["noop"], {"merge": True}, [[], [0, 1, 2, 3], [], [True] * 4]],
+        [["combmod"], {}, [[0], [1, 2, 3], [True], [True] * 3]],
+        [["maskmod"], {}, [[0, 1], [2, 3], [True] * 2, [True] * 2]],
+        [["maskmod"], {"overwrite": True}, [[], [0, 1, 2, 3], [], [True] * 4]],
+        [["flipmod"], {"overwrite": True}, [[], [0, 1, 2, 3], [], [True] * 4]],
+    ],
+)
+def test_mir_meta_add_check_merge(mir_bl_data, args, cmd, comp_results):
+    mir_bl_copy = mir_bl_data.copy()
+    # Use this as a way to mark the copy as altered
+    if "combmod" in cmd:
+        print("hi")
+        mir_bl_copy._data["u"][0] = 0.0
+        mir_bl_copy._mask[0] = False
+        mir_bl_data._data["u"][2] = 0.0
+        mir_bl_data._mask[2] = False
+    elif "noop" in cmd:
+        pass
+    elif "flipmod" in cmd:
+        mir_bl_data["u"] = 0.0
+    else:
+        mir_bl_copy["u"] = 0.0
+
+    if "maskmod" in cmd:
+        mir_bl_copy._mask[0:2] = False
+        mir_bl_data._mask[2:4] = False
+
+    result_tuple = mir_bl_data._add_check(mir_bl_copy, **args)
+    print(result_tuple)
+    print(comp_results)
+    for item, jtem in zip(result_tuple, comp_results):
+        assert np.array_equal(item, jtem)
 
 
-def test_mir_sp_recalc_dataoff():
-    pass
+@pytest.mark.parametrize(
+    "cmd,comp_results",
+    [
+        [["partial"], [[0, 1, 2, 3], [2, 3], [True] * 4, [False] * 2]],
+        [["partial", "flip"], [[2, 3], [0, 1, 2, 3], [False] * 2, [True] * 4]],
+        [["full"], [[0, 1, 2, 3], [0, 1, 2, 3], [True] * 4, [False] * 4]],
+        [["full", "flip"], [[0, 1, 2, 3], [0, 1, 2, 3], [False] * 4, [True] * 4]],
+    ],
+)
+def test_mir_meta_add_check_concat(mir_bl_data, cmd, comp_results):
+    mir_bl_copy = mir_bl_data.copy()
+    # Use this as a way to mark the copy as altered
+    if "partial" in cmd:
+        mir_bl_copy._data["blhid"][2:4] = [7, 8]
+    elif "full" in cmd:
+        mir_bl_copy._data["blhid"][:] = [5, 6, 7, 8]
+
+    mir_bl_copy._header_key_index_dict = mir_bl_copy._generate_header_key_index_dict()
+    mir_bl_copy._mask[:] = False
+
+    if "flip" in cmd:
+        result_tuple = mir_bl_copy._add_check(mir_bl_data)
+    else:
+        result_tuple = mir_bl_data._add_check(mir_bl_copy)
+
+    print(result_tuple)
+    print(comp_results)
+
+    for item, jtem in zip(result_tuple, comp_results):
+        assert np.array_equal(item, jtem)
 
 
-def test_mir_sp_generate_dataoff_dict():
-    pass
+def test_mir_meta_add_errs(mir_in_data):
+    with pytest.raises(ValueError) as err:
+        mir_in_data += 0
+    assert str(err.value).startswith("Both objects must be of the same type.")
+
+
+@pytest.mark.parametrize("this_none", [True, False])
+@pytest.mark.parametrize("other_none", [True, False])
+@pytest.mark.parametrize("method", ["__add__", "__iadd__"])
+def test_mir_meta_add_none(mir_in_data, this_none, other_none, method):
+    this = mir_in_data.copy(skip_data=this_none)
+    other = mir_in_data.copy(skip_data=other_none)
+
+    result = getattr(this, method)(other)
+
+    if this_none and other_none:
+        assert (this == result) and (other == result)
+    else:
+        assert mir_in_data == result
+
+
+@pytest.mark.parametrize("method", ["__add__", "__iadd__"])
+def test_mir_meta_add_concat(mir_bl_data, method):
+    mir_bl_copy = mir_bl_data.copy()
+    mir_bl_copy._data["blhid"] = [1, 3, 5, 7]
+    mir_bl_copy._data["u"] = [11, 13, 15, 17]
+    mir_bl_copy._mask[:] = [True, True, False, True]
+    mir_bl_copy._header_key_index_dict = mir_bl_copy._generate_header_key_index_dict()
+
+    mir_bl_data._data["blhid"] = [2, 4, 6, 8]
+    mir_bl_data._data["u"] = [12, 14, 16, 18]
+    mir_bl_data._mask[:] = [True, False, True, True]
+    mir_bl_data._header_key_index_dict = mir_bl_data._generate_header_key_index_dict()
+
+    result = getattr(mir_bl_data, method)(mir_bl_copy)
+    if method == "__iadd__":
+        assert mir_bl_data is result
+
+    assert np.all(result._data["u"] == np.arange(11, 19))
+    assert np.all(result._mask[:3])
+    assert np.all(~result._mask[3:-3])
+    assert np.all(result._mask[-3:])
+
+
+def test_mir_sp_recalc_dataoff(mir_sp_data):
+    dataoff_arr = mir_sp_data["dataoff"].copy()
+
+    # Now update one mask position, a pseudo-cont record
+    pseudo_rec_size = 18
+    mir_sp_data._mask[0] = False
+    mir_sp_data._recalc_dataoff()
+    assert np.all(mir_sp_data["dataoff"] == (dataoff_arr[1:] - pseudo_rec_size))
+
+    # Now flag all the pseudo-cont records
+    mir_sp_data._mask[[0, 5, 10, 15]] = False
+    mir_sp_data._recalc_dataoff()
+    assert np.all(
+        mir_sp_data["dataoff"]
+        == np.concatenate(
+            (
+                dataoff_arr[1:5] - (1 * pseudo_rec_size),
+                dataoff_arr[6:10] - (2 * pseudo_rec_size),
+                dataoff_arr[11:15] - (3 * pseudo_rec_size),
+                dataoff_arr[16:20] - (4 * pseudo_rec_size),
+            )
+        )
+    )
+
+    # Finally, ignore the mask when doing dataof and make sure it returns whats expected
+    mir_sp_data._recalc_dataoff(use_mask=False)
+    assert np.all(mir_sp_data._data["dataoff"] == dataoff_arr)
+
+
+@pytest.mark.parametrize("use_mask", [True, False])
+@pytest.mark.parametrize("mod_mask", [True, False])
+def test_mir_sp_generate_dataoff_dict(mir_sp_data, use_mask, mod_mask):
+    if mod_mask:
+        mir_sp_data._mask[::2] = False
+
+    dataoff_arr = mir_sp_data.get_value("dataoff", use_mask=use_mask).astype(int) // 2
+    rec_size_arr = (mir_sp_data.get_value("nch", use_mask=use_mask).astype(int) * 2) + 1
+    int_dict, sp_dict = mir_sp_data._generate_dataoff_dict(use_mask=use_mask)
+    assert int_dict == {
+        1: {
+            "inhid": 1,
+            "record_size": 1048680 // (1 + (use_mask and mod_mask)),
+            "record_start": 0,
+        }
+    }
+    for key in int_dict:
+        sp_dict = sp_dict[key]
+        for value, dataoff, recsize in zip(sp_dict.values(), dataoff_arr, rec_size_arr):
+            assert value["start_idx"] == dataoff
+            assert value["end_idx"] == dataoff + recsize
+            assert value["chan_avg"] == 1
+
+    assert list(mir_sp_data.get_value("sphid", use_mask=use_mask)) == list(sp_dict)
 
 
 def test_mir_codes_get_code_names():
@@ -574,8 +799,10 @@ def test_mir_codes_generate_new_header_keys():
     pass
 
 
-def test_mir_ac_fromfile():
-    pass
+def test_mir_ac_fromfile_errs(mir_data):
+    with pytest.raises(IndexError) as err:
+        mir_data.ac_data.fromfile(mir_data.filepath, nchunks=-1)
+    assert str(err.value).startswith("Could not determine auto-correlation record")
 
 
 def test_mir_parser_index_uniqueness(mir_data):
@@ -665,6 +892,7 @@ def test_mir_parser_unload_data(mir_data):
         "in_data",
         "sp_data",
         "we_data",
+        "ac_data",
     ],
 )
 def test_mir_write_item(mir_data, attr, tmp_path):
