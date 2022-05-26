@@ -291,7 +291,7 @@ class UVFITS(UVData):
         else:
             # do select operations on everything except data_array, flag_array
             # and nsample_array
-            self._select_metadata(
+            self._select_by_index(
                 blt_inds, freq_inds, pol_inds, history_update_string, keep_all_metadata
             )
 

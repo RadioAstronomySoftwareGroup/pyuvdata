@@ -1843,7 +1843,8 @@ class UVData(UVBase):
                 if temp_val is None:
                     temp_str = ""
                 elif col["name"] == "cat_lon":
-                    temp_val = np.median(temp_val)
+                    # Force the longitude component to be a positive value
+                    temp_val = np.mod(np.median(temp_val), 2 * np.pi)
                     temp_val /= 15.0 if hms_format else 1.0
                     coord_tuple = (
                         np.mod(temp_val * r2d, 360.0),
@@ -8506,7 +8507,7 @@ class UVData(UVBase):
 
         return blt_inds, freq_inds, pol_inds, history_update_string
 
-    def _select_metadata(
+    def _select_by_index(
         self,
         blt_inds,
         freq_inds,
@@ -8530,68 +8531,55 @@ class UVData(UVBase):
         keep_all_metadata : bool
             Option to keep metadata for antennas that are no longer in the dataset.
         """
-        if blt_inds is not None:
-            self.Nblts = len(blt_inds)
-            self.baseline_array = self.baseline_array[blt_inds]
-            self.Nbls = len(np.unique(self.baseline_array))
-            self.time_array = self.time_array[blt_inds]
-            self.integration_time = self.integration_time[blt_inds]
-            self.lst_array = self.lst_array[blt_inds]
-            self.uvw_array = self.uvw_array[blt_inds, :]
+        ind_dict = {"Nblts": blt_inds, "Nfreqs": freq_inds, "Npols": pol_inds}
 
-            self.ant_1_array = self.ant_1_array[blt_inds]
-            self.ant_2_array = self.ant_2_array[blt_inds]
-            self.Nants_data = self._calc_nants_data()
+        while len(ind_dict):
+            key = next(iter(ind_dict))
+            ind_arr = ind_dict.pop(key)
 
-            if self.phase_center_app_ra is not None:
-                self.phase_center_app_ra = self.phase_center_app_ra[blt_inds]
-            if self.phase_center_app_dec is not None:
-                self.phase_center_app_dec = self.phase_center_app_dec[blt_inds]
-            if self.phase_center_frame_pa is not None:
-                self.phase_center_frame_pa = self.phase_center_frame_pa[blt_inds]
-            if self.multi_phase_center:
-                self.phase_center_id_array = self.phase_center_id_array[blt_inds]
+            if ind_arr is None:
+                continue
 
-            self.Ntimes = len(np.unique(self.time_array))
-            if not keep_all_metadata:
-                ants_to_keep = set(np.unique(self.ant_1_array)).union(
-                    np.unique(self.ant_2_array)
-                )
+            for param in self:
+                attr = getattr(self, param)
+                if attr.value is not None:
+                    try:
+                        sel_axis = attr.form.index(key)
+                    except (AttributeError, ValueError):
+                        continue
 
-                inds_to_keep = [
-                    self.antenna_numbers.tolist().index(ant) for ant in ants_to_keep
-                ]
-                self.antenna_names = [self.antenna_names[ind] for ind in inds_to_keep]
-                self.antenna_numbers = self.antenna_numbers[inds_to_keep]
-                self.antenna_positions = self.antenna_positions[inds_to_keep, :]
-                if self.antenna_diameters is not None:
-                    self.antenna_diameters = self.antenna_diameters[inds_to_keep]
-                self.Nants_telescope = int(len(ants_to_keep))
+                    if isinstance(attr.value, np.ndarray):
+                        attr.value = attr.value.take(ind_arr, axis=sel_axis)
+                    elif isinstance(attr.value, list):
+                        attr.value = [attr.value[idx] for idx in ind_arr]
 
-        if freq_inds is not None:
-            self.Nfreqs = len(freq_inds)
-            if self.future_array_shapes:
-                self.freq_array = self.freq_array[freq_inds]
-            else:
-                self.freq_array = self.freq_array[:, freq_inds]
-            if self.flex_spw or self.future_array_shapes:
-                self.channel_width = self.channel_width[freq_inds]
-            if self.flex_spw:
-                self.flex_spw_id_array = self.flex_spw_id_array[freq_inds]
-                # Use the spw ID array to check and see which SPWs are left
-                spw_screen = np.isin(self.spw_array, self.flex_spw_id_array)
-                self.spw_array = self.spw_array[spw_screen]
-                self.Nspws = len(self.spw_array)
-                if self.flex_spw_polarization_array is not None:
-                    self.flex_spw_polarization_array = self.flex_spw_polarization_array[
-                        spw_screen
-                    ]
+            if key == "Nblts":
+                self.Nblts = len(ind_arr)
+                self.Nbls = len(np.unique(self.baseline_array))
+                self.Ntimes = len(np.unique(self.time_array))
+                self.Nants_data = self._calc_nants_data()
 
-        if pol_inds is not None:
-            self.Npols = len(pol_inds)
-            self.polarization_array = self.polarization_array[pol_inds]
+                if not keep_all_metadata:
+                    ind_dict["Nants_telescope"] = np.where(
+                        np.isin(
+                            self.antenna_numbers,
+                            list(set(self.ant_1_array).union(self.ant_2_array)),
+                        )
+                    )[0]
+            elif key == "Nfreqs":
+                self.Nfreqs = len(ind_arr)
+                if self.flex_spw:
+                    ind_dict["Nspws"] = np.where(
+                        np.isin(self.spw_array, self.flex_spw_id_array)
+                    )[0]
+            elif key == "Npols":
+                self.Npols = len(ind_arr)
+            elif key == "Nspws":
+                self.Nspws = len(ind_arr)
+            elif key == "Nants_telescope":
+                self.Nants_telescope = len(ind_arr)
 
-        self.history = self.history + history_update_string
+        self.history += history_update_string
 
     def select(
         self,
@@ -8722,16 +8710,16 @@ class UVData(UVBase):
 
         """
         if inplace:
-            uv_object = self
+            uv_obj = self
         else:
-            uv_object = self.copy()
+            uv_obj = self.copy()
 
         (
             blt_inds,
             freq_inds,
             pol_inds,
             history_update_string,
-        ) = uv_object._select_preprocess(
+        ) = uv_obj._select_preprocess(
             antenna_nums,
             antenna_names,
             ant_str,
@@ -8746,64 +8734,26 @@ class UVData(UVBase):
             blt_inds,
         )
 
-        # do select operations on everything except data_array, flag_array
-        # and nsample_array
-        uv_object._select_metadata(
+        uv_obj._select_by_index(
             blt_inds, freq_inds, pol_inds, history_update_string, keep_all_metadata
         )
 
-        if self.metadata_only:
-            if not inplace:
-                return uv_object
-            else:
-                return
-
-        if blt_inds is not None:
-            for param_name, param in zip(
-                self._data_params, uv_object.data_like_parameters
-            ):
-                setattr(uv_object, param_name, param[blt_inds])
-
-        if freq_inds is not None:
-            if self.future_array_shapes:
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
-                ):
-                    setattr(uv_object, param_name, param[:, freq_inds, :])
-            else:
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
-                ):
-                    setattr(uv_object, param_name, param[:, :, freq_inds, :])
-
-        if pol_inds is not None:
-            if self.future_array_shapes:
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
-                ):
-                    setattr(uv_object, param_name, param[:, :, pol_inds])
-            else:
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
-                ):
-                    setattr(uv_object, param_name, param[:, :, :, pol_inds])
-
         # If we have a flex-pol data set, but we only have one pol, then this doesn't
         # need to be flex-pol anymore, and we can drop it here
-        if self.flex_spw_polarization_array is not None:
-            if len(np.unique(self.flex_spw_polarization_array)) == 1:
-                uv_object.remove_flex_pol()
+        if uv_obj.flex_spw_polarization_array is not None:
+            if len(np.unique(uv_obj.flex_spw_polarization_array)) == 1:
+                uv_obj.remove_flex_pol()
 
         # check if object is uv_object-consistent
         if run_check:
-            uv_object.check(
+            uv_obj.check(
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
         if not inplace:
-            return uv_object
+            return uv_obj
 
     def _harmonize_resample_arrays(
         self,
