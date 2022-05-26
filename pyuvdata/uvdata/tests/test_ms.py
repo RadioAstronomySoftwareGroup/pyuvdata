@@ -729,8 +729,9 @@ def test_ms_extra_data_descrip(mir_uv, tmp_path):
     assert ms_uv == mir_uv
 
 
+@pytest.mark.parametrize("onewin", [True, False])
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
-def test_ms_weights(mir_uv, tmp_path):
+def test_ms_weights(mir_uv, tmp_path, onewin):
     """
     Test that the MS writer/reader appropriately handles data when the
     WEIGHT_SPECTRUM column is missing or bypassed.
@@ -739,6 +740,8 @@ def test_ms_weights(mir_uv, tmp_path):
 
     ms_uv = UVData()
     testfile = os.path.join(tmp_path, "out_ms_weights.ms")
+    if onewin:
+        mir_uv.select(freq_chans=np.arange(16384))
 
     mir_uv.nsample_array[0, 0, :, :] = np.tile(
         np.arange(mir_uv.Nfreqs / mir_uv.Nspws), (mir_uv.Npols, mir_uv.Nspws)
