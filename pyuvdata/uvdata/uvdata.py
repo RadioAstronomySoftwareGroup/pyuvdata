@@ -2009,11 +2009,6 @@ class UVData(UVBase):
         self._Nphase.required = True
         self._phase_center_catalog.required = True
 
-        # This should technically be required for any phased data set, but for now,
-        # we are only gonna make it mandatory for mutli-phase-ctr data sets.
-        self._phase_center_app_ra.required = True
-        self._phase_center_app_dec.required = True
-        self._phase_center_frame_pa.required = True
         self.Nphase = 0
         self.phase_center_catalog = {}
         cat_name = self.object_name
@@ -4768,21 +4763,6 @@ class UVData(UVBase):
             )
 
         if not use_old_proj:
-            # Check to make sure that these attributes are actually filled. Otherwise,
-            # you probably want to use the old phase method.
-            if (
-                (not use_ant_pos)
-                and (self.phase_center_app_ra is None)
-                or (self.phase_center_app_dec is None)
-            ):
-                raise AttributeError(
-                    "Object missing phase_center_ra_app or phase_center_dec_app, "
-                    "which implies that the data were phased using the 'old' "
-                    "method for phasing (which is not compatible with the new "
-                    "version of the code). Please run unphase_to_drift with "
-                    "use_old_proj=True to continue."
-                )
-
             telescope_location = self.telescope_location_lat_lon_alt
 
             # Check and see if we have any unprojected objects, in which case
@@ -5198,7 +5178,7 @@ class UVData(UVBase):
         select_mask=None,
         cleanup_old_sources=True,
         use_old_proj=False,
-        fix_old_proj=True,
+        fix_old_proj=None,
     ):
         """
         Phase data to a new direction, supports sidereal, ephemeris and drift types.
@@ -5282,15 +5262,24 @@ class UVData(UVBase):
             which involved using astropy to move antenna positions (in ITRF) into
             the requested reference frame (either GCRS or ICRS). Default is False.
         fix_old_proj : bool
-            If True, the method will convert a data set with coordinates calculated
-            using the "old" method, correct them, and then produce new coordinates
-            using the "new" method.
+            Deprecated and has no effect. Detection of old phasing is really only
+            possible for uvh5 files, and those are now fixed on read by default. If the
+            object is known to have been phased with the old phasing, use the
+            `fix_phase` method to correct the phasing.
 
         Raises
         ------
         ValueError
             If the phase_type is 'phased' and allow_rephase is False
         """
+        if fix_old_proj is not None:
+            warnings.warn(
+                "The `fix_old_proj` parameter is deprecated and will be removed in "
+                "version 2.4. If the object is known to have been phased with the old "
+                "phasing, use the `fix_phase` method to correct the phasing.",
+                DeprecationWarning,
+            )
+
         # Non-multi phase center datasets don't (yet) have a way of recording the
         # 'extra' source properties, or selection mask, so make sure that these aren't
         # using any of those if looking at a single object.
@@ -5344,37 +5333,6 @@ class UVData(UVBase):
         # and because I think at some point, everything outside of this loop
         # can be deprecated
         if not use_old_proj:
-            needs_fix = (
-                (not use_ant_pos)
-                and (self.phase_type == "phased")
-                and (
-                    self.phase_center_app_ra is None
-                    or self.phase_center_app_dec is None
-                )
-            )
-            if needs_fix:
-                if fix_old_proj:
-                    # So to fix the 'old' projection, we use the unphase_to_drift
-                    # method with the 'old' projection to bring the data set back
-                    # to ENU, and then we can move from there. Of course, none of
-                    # this is actually neccessary if calculating the coordinates
-                    # from antenna positions, so you do you, puvudataset.
-                    self.unphase_to_drift(
-                        phase_frame=orig_phase_frame,
-                        use_old_proj=True,
-                        use_ant_pos=use_ant_pos,
-                    )
-                else:
-                    raise AttributeError(
-                        "Data missing phase_center_ra_app or phase_center_dec_app, "
-                        "which implies that the data were phased using the 'old' "
-                        "method for phasing (which is not compatible with the new "
-                        "version of the code). You can fix this by calling the "
-                        "phase method with fix_old_proj=True, or can otherwise "
-                        "proceed by using the 'old' projection method by setting "
-                        "use_old_proj=True."
-                    )
-
             # Grab all the meta-data we need for the rotations
             time_array = self.time_array
             lst_array = self.lst_array
@@ -5540,7 +5498,7 @@ class UVData(UVBase):
             "pyuvdata v3.0 (although `fix_phase` will remain for longer). "
             "Note that the old and new phase methods are NOT compatible with one "
             "another, so if you have phased using the old method, you should call "
-            "the phase method with fix_old_proj=True, or otherwise can use the "
+            "the `fix_phase` method or otherwise can use the "
             "unphase_to_drift method with use_old_proj=True to undo the old "
             "corrections before using the new version of the phase method.",
             DeprecationWarning,

@@ -1158,7 +1158,6 @@ def test_phasing(uv_phase_comp, future_shapes, unphase_first, use_ant_pos):
         [{"vrad": 1}, False, ValueError, "Non-zero values of vrad not supported"],
         [{"type": "ephem"}, False, ValueError, "Only sidereal sources are supported"],
         [{"name": "abc", "lookup": True}, False, ValueError, "Object name lookup is"],
-        [{"fix": False, "usepos": False}, True, AttributeError, "Data missing phase_"],
     ],
 )
 def test_phasing_non_multi_phase_errs(hera_uvh5, arg_dict, set_phased, err_type, msg):
@@ -1208,29 +1207,6 @@ def test_phasing_multi_phase_errs(sma_mir, arg_dict, err_type, msg):
             select_mask=arg_dict.get("mask"),
         )
     assert str(cm.value).startswith(msg)
-
-
-@pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_phasing_fix_old_proj(hera_uvh5, future_shapes):
-    if future_shapes:
-        hera_uvh5.use_future_array_shapes()
-    # Finally, make sure that the fix_old_proj switch works correctly
-    hera_copy = hera_uvh5.copy()
-    hera_uvh5.phase(0, 0, use_old_proj=True, use_ant_pos=False)
-    hera_uvh5.phase_center_app_ra = None
-    hera_uvh5.phase_center_app_dec = None
-    hera_uvh5.phase_center_frame_pa = None
-    hera_uvh5.phase(0, 0, use_ant_pos=False)
-    hera_copy.phase(0, 0)
-
-    # The fix introduces small errors on the order of 0.1 deg, when not using antenna
-    # positions, hence the special handling here
-    assert np.allclose(hera_copy.data_array, hera_uvh5.data_array, rtol=3e-4)
-
-    # Once data are verified, make sure that everything else looks okay
-    hera_uvh5.data_array = hera_copy.data_array
-    assert hera_uvh5 == hera_copy
 
 
 # We're using the old phase method here since these values were all derived using that
@@ -10805,7 +10781,11 @@ def test_fix_phase(hera_uvh5, future_shapes, use_ant_pos):
     phase_dec = uv_in.telescope_location_lat_lon_alt[0] * 0.333
 
     # Do the improved phasing on the dat set.
-    uv_in.phase(phase_ra, phase_dec)
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The `fix_old_proj` parameter is deprecated and will be removed",
+    ):
+        uv_in.phase(phase_ra, phase_dec, fix_old_proj=True)
 
     # First test the case where we are using the old phase method with the uvws
     # calculated from the antenna positions. Using fix phase here should be "perfect",
