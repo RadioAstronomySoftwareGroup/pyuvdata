@@ -1583,6 +1583,7 @@ class MirMetaData(object):
             If the keys of `update_dict` are not str or tuples of str, or if no matching
             field names are found and `raise_err` is set to True.
         """
+        rebuild_index = False
         for field, data_dict in update_dict.items():
             if not isinstance(field, (str, tuple)):
                 raise ValueError(
@@ -1602,6 +1603,10 @@ class MirMetaData(object):
                     raise ValueError("Field group %s not found in this object." % field)
                 # Otherwise, just move along.
                 continue
+
+            # Check if we are modifying an index field, which will force us to reindex
+            rebuild_index |= np.any(np.isin(field, self._header_key))
+            rebuild_index |= np.any(np.isin(field, self._pseudo_header_key))
 
             # Get the existing metadata now, returned as tuples to make it easy
             # to use the update_dict
@@ -1624,6 +1629,11 @@ class MirMetaData(object):
                 except KeyError:
                     # If no matching key, then there is no update to perform
                     continue
+
+        # If we have messed with an indexing field, then sort the metadata and
+        # rebuild in header pos dict that we use elsewhere.
+        if rebuild_index:
+            self._sort_by_header_key()
 
     def _add_check(self, other, merge=None, overwrite=None, discard_flagged=False):
         """
@@ -2728,10 +2738,6 @@ class MirCodesData(MirMetaData):
                         # index being applied across multiple codes.
                         if vname == "source":
                             for dict1, dict2 in skip_codes.values():
-                                print(value)
-                                print(other_value)
-                                print(dict1)
-                                print(dict2)
                                 if dict1[value] != dict2[other_value]:
                                     raise KeyError()
 
@@ -2957,26 +2963,6 @@ class MirParser(object):
                 load_auto=load_auto,
             )
 
-    def __iter__(self, metadata_only=False):
-        """
-        Iterate over all MirParser attributes.
-
-        Parameters
-        ----------
-        metadata_only : bool
-            If true, data-related attributes ("vis_data","raw_data", and "auto_data")
-            will be excluded from the yielded iterable.
-
-        Yields
-        ------
-        attr : MirParser attribute
-            Attribute of the MirParser object.
-        """
-        for attribute in vars(self):
-            if (attribute in ["vis_data", "raw_data", "auto_data"]) and metadata_only:
-                continue
-            yield attribute
-
     def __eq__(self, other, verbose=True, metadata_only=False):
         """
         Compare MirParser attributes for equality.
@@ -3144,8 +3130,9 @@ class MirParser(object):
         new_obj = MirParser()
 
         # include all attributes, not just UVParameter ones.
-        for attr in self.__iter__(metadata_only=metadata_only):
-            setattr(new_obj, attr, copy.deepcopy(getattr(self, attr)))
+        for attr in vars(self):
+            if not (metadata_only and attr in ["vis_data", "raw_data", "auto_data"]):
+                setattr(new_obj, attr, copy.deepcopy(getattr(self, attr)))
 
         for item in self._metadata_attrs:
             new_obj._metadata_attrs[item] = getattr(new_obj, item)
@@ -4158,6 +4145,10 @@ class MirParser(object):
             )
             load_raw = False
 
+        # If there is no auto data to actually load, raise an error now.
+        if load_auto and not self._has_auto:
+            raise ValueError("This object has no auto-correlation data to load.")
+
         # Last chance before we load data -- see if we already have raw_data in hand,
         # and just need to convert it. If allow_conversion is None, we should decide
         # first whether or not to attempt this.
@@ -4191,7 +4182,9 @@ class MirParser(object):
         if allow_downselect or (allow_downselect is None):
             if load_vis or load_raw:
                 try:
-                    self._downselect_data(select_vis=True, select_raw=True)
+                    self._downselect_data(
+                        select_vis=load_vis, select_raw=load_raw, select_auto=False
+                    )
                     load_vis = False
                     load_raw = False
                 except MirMetaError:
@@ -4200,7 +4193,9 @@ class MirParser(object):
 
             if load_auto:
                 try:
-                    self._downselect_data(select_auto=True)
+                    self._downselect_data(
+                        select_vis=False, select_raw=False, select_auto=True
+                    )
                     load_auto = False
                 except MirMetaError:
                     if allow_downselect:
@@ -4232,10 +4227,6 @@ class MirParser(object):
         # we will fix this, but for now, we triage the autos here. Note that if we
         # already have the auto_data loaded, we can bypass this step.
         if load_auto:
-            # If there is no auto data to actually load, raise an error now.
-            if not self._has_auto:
-                raise ValueError("This object has no auto-correlation data to load.")
-
             # Have to do this because of a strange bug in data recording where
             # we record more autos worth of spectral windows than we actually
             # have online.
@@ -4932,31 +4923,10 @@ class MirParser(object):
             for item in metadata_dict:
                 setattr(new_obj, item, metadata_dict[item])
 
-            # If the data are in a mixed state, we just want to unloaded it all.
-            # Otherwise merge the two. Note that deepcopy for dicts is not particularly
-            # fast, although most of the overhead here is trapped up in copying the
-            # multitude of ndarrays.
-            if (self._tsys_applied != other._tsys_applied) or (self.jypk != other.jypk):
-                new_obj.jypk = other.jypk
-                new_obj.vis_data = None
-                new_obj._tsys_applied = False
-            elif self.vis_data is None or other.vis_data is None:
-                new_obj.vis_data = None
-                new_obj._tsys_applied = False
-            else:
-                new_obj.vis_data.update(copy.deepcopy(other.vis_data))
+            other_vis = other.vis_data
+            other_raw = other.raw_data
+            other_auto = other.auto_data
 
-            if self.raw_data is None or other.raw_data is None:
-                new_obj.raw_data = None
-            else:
-                new_obj.raw_data.update(copy.deepcopy(other.raw_data))
-
-            if self.auto_data is None or other.auto_data is None:
-                new_obj.raw_data = None
-            else:
-                new_obj.auto_data.update(copy.deepcopy(other.auto_data))
-
-            new_obj._sp_dict.update(copy.deepcopy(other._sp_dict))
         else:
             # What if we are NOT going to merge the two files? Then we want to verify
             # that we actually have two unique datasets. We do that by checking the
@@ -4972,6 +4942,13 @@ class MirParser(object):
                         continue
                 update_dict.update(other_attr._generate_new_header_keys(this_attr))
 
+            if "antpos_data" in bad_attr:
+                bad_attr.remove("antpos_data")
+            elif not overwrite:
+                raise ValueError(
+                    "Antenna positions differ between objects, cannot combine. You can "
+                    "bypass this error by setting overwrite=True."
+                )
             if len(bad_attr) != 0:
                 if not force:
                     raise ValueError(
@@ -5007,66 +4984,79 @@ class MirParser(object):
 
             # Start combining the metadata
             for item in other._metadata_attrs:
+                if (item == "ac_data") and (self._has_auto != other._has_auto):
+                    # If we've reached this point, it's because force=True, so just
+                    # skip setting this attribute.
+                    continue
                 # Make a copy of the metadata from other so that we can update the
                 # individual fields. This will generally force the header key values
                 # for the other object to come _after_ this object. This is useful in
                 # case of sequential adds.
                 attr = other._metadata_attrs[item].copy()
                 attr._update_fields(update_dict)
-                new_obj._metadata_attrs[item] += attr
+                new_obj._metadata_attrs[item].__iadd__(attr, overwrite=overwrite)
 
             # The metadata is done, now we need to update the dicts that contain the
             # actual data itself, since their indexed to particular header keys. For
             # each attribute, we want to grab both the relevant dict AND the header
             # key field that is uses, so we know which upadte dict to use.
-            data_updates = []
-            # First check the visibility data.
-            if (self._tsys_applied != other._tsys_applied) or (self.jypk != other.jypk):
-                new_obj.vis_data = None
-                new_obj._tsys_applied = False
-            elif self.vis_data is None or other.vis_data is None:
-                new_obj.vis_data = None
-                new_obj._tsys_applied = False
-            else:
-                data_updates.append((update_dict["sphid"], "vis_data"))
+            other_vis = {} if (other.vis_data is None) else other.vis_data.copy()
+            other_raw = {} if (other.raw_data is None) else other.raw_data.copy()
+            other_auto = {} if (other.auto_data is None) else other.auto_data.copy()
 
-            # Now check the raw data
-            if self.raw_data is None or other.raw_data is None:
-                new_obj.raw_data = None
-            else:
-                data_updates.append((update_dict["sphid"], "raw_data"))
+            for hid, data_dict in zip(
+                ["sphid", "sphid", "achid"], [other_vis, other_raw, other_auto]
+            ):
+                try:
+                    key_dict = update_dict[hid]
+                except KeyError:
+                    continue
 
-            # Now check the autos.
-            if self.auto_data is None or other.auto_data is None:
-                new_obj.auto_data = None
-            else:
-                data_updates.append((update_dict["achid"], "auto_data"))
-
-            # Once we know which data attributes must be updated, run through and
-            # perform updates for each one.
-            for hid_dict, data_name in data_updates:
-                new_data = getattr(new_obj, data_name)
-                other_data = copy.deepcopy(getattr(other, data_name))
-                for hid in other_data:
-                    new_data[hid_dict[hid]] = other_data[hid]
+                data_dict.update(
+                    {
+                        key_dict[key]: data_dict.pop(key)
+                        for key in set(data_dict).intersection(key_dict)
+                    }
+                )
 
             # From the primary update dict, grab the two that we need for data indexing
-            inhid_dict = update_dict["inhid"]
-            sphid_dict = update_dict["sphid"]
+            inhid_dict = update_dict.get("inhid", {})
+            sphid_dict = update_dict.get("sphid", {})
 
             # Now deal with packdata integration dict
             for filename, int_start_dict in other._file_dict.items():
-                temp_dict = {}
-                for inhid, idict in int_start_dict.items():
-                    temp_dict[inhid_dict[inhid]] = idict.copy()
-                new_obj._file_dict[filename] = temp_dict
+                new_obj._file_dict[filename] = {
+                    inhid_dict.get(inhid, inhid): idict.copy()
+                    for inhid, idict in int_start_dict.items()
+                }
 
             # Finally, deal with the sp_dict
             for inhid, int_dict in other._sp_dict.items():
-                temp_dict = {}
-                for sphid, idict in int_dict.items():
-                    temp_dict[sphid_dict[sphid]] = idict.copy()
-                new_obj._sp_dict[inhid_dict[inhid]] = temp_dict
+                new_obj._sp_dict[inhid_dict.get(inhid, inhid)] = {
+                    sphid_dict.get(sphid, sphid): idict.copy()
+                    for sphid, idict in int_dict.items()
+                }
+
+        # If the data are in a mixed state, we just want to unloaded it all.
+        # Otherwise merge the two. Note that deepcopy for dicts is not particularly
+        # fast, although most of the overhead here is trapped up in copying the
+        # multitude of ndarrays.
+        if (
+            (self._tsys_applied != other._tsys_applied)
+            or (self.jypk != other.jypk)
+            or (self.vis_data is None or other.vis_data is None)
+        ):
+            new_obj.vis_data = None
+            new_obj._tsys_applied = False
+        else:
+            new_obj.vis_data.update(copy.deepcopy(other_vis))
+
+        if self.raw_data is None or other.raw_data is None:
+            new_obj.raw_data = None
+        else:
+            new_obj.raw_data.update(copy.deepcopy(other_raw))
+
+        new_obj._sp_dict.update(copy.deepcopy(other._sp_dict))
 
         # Finaly, if we have discrepant _has_auto states, we force the resultant object
         # to unload any potential auto metadata.
@@ -5076,6 +5066,10 @@ class MirParser(object):
                 "dropping auto-correlation data and metadata from the combined object."
             )
             new_obj._clear_auto()
+        elif self.auto_data is None or other.auto_data is None:
+            new_obj.auto_data = None
+        else:
+            new_obj.auto_data.update(copy.deepcopy(other_auto))
 
         return new_obj
 
