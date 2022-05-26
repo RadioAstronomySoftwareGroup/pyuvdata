@@ -2459,6 +2459,9 @@ def test_select(casa_uvfits, future_shapes):
     # now test selecting along all axes at once
     uv_object = casa_uvfits
 
+    # Set the scan numbers so that we can check to make sure they are selected correctly
+    uv_object._set_scan_numbers()
+
     if future_shapes:
         uv_object.use_future_array_shapes()
 
@@ -6691,6 +6694,10 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method, casa_uvf
         with uvtest.check_warnings(
             UserWarning,
             [
+                "The uvw_array does not match the expected values given the antenna "
+                "positions."
+            ]
+            + [
                 "Index baseline in the redundant group does not have all the "
                 "times, compressed object will be missing those times."
             ]
@@ -9831,8 +9838,8 @@ def test_print_object_full(sma_mir):
     _ = sma_mir._add_phase_center(
         "3c84",
         cat_type="sidereal",
-        cat_lat=sma_mir.phase_center_catalog["3c84"]["cat_lat"],
-        cat_lon=sma_mir.phase_center_catalog["3c84"]["cat_lon"],
+        cat_lat=-1.0,
+        cat_lon=-1.0,
         cat_dist=0.0,
         cat_vrad=0.0,
         cat_pm_ra=0.0,
@@ -9848,8 +9855,8 @@ def test_print_object_full(sma_mir):
         "           deg                  mas/yr  mas/yr       pc    km/s \n"
         "--------------------------------------------"
         "----------------------------------------------------------------\n"
-        "    1          3c84   sidereal    3:19:48.16"
-        "  +41:30:42.11    fk5  J2000.0       0       0  0.0e+00       0 \n"
+        "    1          3c84   sidereal   20:10:49.01"
+        "  -57:17:44.81    fk5  J2000.0       0       0  0.0e+00       0 \n"
     )
     table_str = sma_mir.print_phase_center_info(print_table=False, return_str=True)
     assert table_str == check_str
