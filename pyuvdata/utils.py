@@ -405,7 +405,6 @@ def _check_flex_spw_contiguous(spw_array, flex_spw_id_array):
             "frequency axis. Most file formats do not support such "
             "non-grouping of data."
         )
-    return True
 
 
 def _check_freq_spacing(

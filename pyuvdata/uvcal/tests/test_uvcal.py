@@ -572,7 +572,7 @@ def test_flexible_spw(gain_data):
     calobj = gain_data
 
     # check that this check passes on non-flex_spw objects
-    assert calobj._check_flex_spw_contiguous()
+    calobj._check_flex_spw_contiguous()
 
     # first just make one spw and check that object still passes check
     calobj._set_flex_spw()

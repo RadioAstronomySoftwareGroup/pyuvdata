@@ -2386,11 +2386,6 @@ class UVData(UVBase):
         """
         if self.flex_spw:
             uvutils._check_flex_spw_contiguous(self.spw_array, self.flex_spw_id_array)
-        else:
-            # If this isn't a flex_spw data set, then there is only 1 spectral window,
-            # which means that the check always passes
-            pass
-        return True
 
     def _check_freq_spacing(self, raise_errors=True):
         """
@@ -8516,7 +8511,7 @@ class UVData(UVBase):
         keep_all_metadata=True,
     ):
         """
-        Perform select on everything except the data-sized arrays.
+        Perform select based on indexing arrays.
 
         Parameters
         ----------
@@ -8531,35 +8526,54 @@ class UVData(UVBase):
         keep_all_metadata : bool
             Option to keep metadata for antennas that are no longer in the dataset.
         """
+        # Create a dictionary that we can loop over an update if need be
         ind_dict = {"Nblts": blt_inds, "Nfreqs": freq_inds, "Npols": pol_inds}
 
+        # During each loop interval, we pop off an element of this dict, so continue
+        # until the dict is empty.
         while len(ind_dict):
+            # This is an easy way to grab the first key in the dict
             key = next(iter(ind_dict))
+            # Grab the corresponding index array
             ind_arr = ind_dict.pop(key)
 
+            # If nothing to select on, bail!
             if ind_arr is None:
                 continue
 
             for param in self:
+                # For each attribute, if the value is None, then bail, otherwise attempt
+                # to figure out along which axis ind_arr will apply.
                 attr = getattr(self, param)
                 if attr.value is not None:
                     try:
                         sel_axis = attr.form.index(key)
                     except (AttributeError, ValueError):
+                        # If form is not a tuple/list (and therefore not array-like),
+                        # it'll throw an AttributeError, and if key is not found in the
+                        # tuple/list, it'll throw a ValueError. In both cases, skip!
                         continue
 
                     if isinstance(attr.value, np.ndarray):
+                        # If we're working with an ndarray, use take to slice along
+                        # the axis that we want to grab from.
                         attr.value = attr.value.take(ind_arr, axis=sel_axis)
                     elif isinstance(attr.value, list):
+                        # If this is a list, it _should_ always have 1-dimension.
+                        assert sel_axis == 0
                         attr.value = [attr.value[idx] for idx in ind_arr]
 
             if key == "Nblts":
+                # Process post blt-specific selection actions, including counting
+                # unique times antennas/baselines in the data.
                 self.Nblts = len(ind_arr)
                 self.Nbls = len(np.unique(self.baseline_array))
                 self.Ntimes = len(np.unique(self.time_array))
                 self.Nants_data = self._calc_nants_data()
 
                 if not keep_all_metadata:
+                    # If we are dropping metadata and selecting on blts, then add
+                    # evaluate the antenna axis of all parameters
                     ind_dict["Nants_telescope"] = np.where(
                         np.isin(
                             self.antenna_numbers,
@@ -8567,18 +8581,24 @@ class UVData(UVBase):
                         )
                     )[0]
             elif key == "Nfreqs":
+                # Process post freq-specific selection actions
                 self.Nfreqs = len(ind_arr)
                 if self.flex_spw:
+                    # If we are dropping channels, then evaluate the spw axis
                     ind_dict["Nspws"] = np.where(
                         np.isin(self.spw_array, self.flex_spw_id_array)
                     )[0]
             elif key == "Npols":
+                # Count the number of unique pols after pol-based selection
                 self.Npols = len(ind_arr)
             elif key == "Nspws":
+                # Count the number of unique pols after spw-based selection
                 self.Nspws = len(ind_arr)
             elif key == "Nants_telescope":
+                # Count the number of unique ants after ant-based selection
                 self.Nants_telescope = len(ind_arr)
 
+        # Update the history string
         self.history += history_update_string
 
     def select(
@@ -8714,6 +8734,7 @@ class UVData(UVBase):
         else:
             uv_obj = self.copy()
 
+        # Figure out which index positions we want to hold on to.
         (
             blt_inds,
             freq_inds,
@@ -8734,6 +8755,7 @@ class UVData(UVBase):
             blt_inds,
         )
 
+        # Call the low-level selection method.
         uv_obj._select_by_index(
             blt_inds, freq_inds, pol_inds, history_update_string, keep_all_metadata
         )
