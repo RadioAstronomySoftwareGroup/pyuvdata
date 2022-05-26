@@ -13,6 +13,8 @@ import numpy as np
 import h5py
 import pytest
 import os
+
+from pytest_cases import parametrize
 from ..mir_parser import MirParser, MirMetaData, MirMetaError
 from ... import tests as uvtest
 
@@ -456,6 +458,7 @@ def test_mir_meta_sort_by_header_key(mir_bl_data):
     "fields,args,mask_data,comp_dict",
     [
         ["inhid", {}, True, {}],
+        ["inhid", {}, None, {1: list(range(1, 11))}],
         ["inhid", {"use_mask": False}, True, {1: list(range(1, 21))}],
         ["inhid", {}, False, {1: list(range(1, 21))}],
         ["inhid", {"return_index": True}, False, {1: list(range(20))}],
@@ -476,6 +479,8 @@ def test_mir_meta_sort_by_header_key(mir_bl_data):
 def test_mir_meta_group_by(mir_sp_data, fields, args, mask_data, comp_dict):
     if mask_data:
         mir_sp_data._mask[:] = False
+    elif mask_data is None:
+        mir_sp_data._mask[10:] = False
 
     group_dict = mir_sp_data.group_by(fields, **args)
 
@@ -631,11 +636,9 @@ def test_mir_meta_add_check_merge(mir_bl_data, args, cmd, comp_results):
         mir_bl_copy._mask[0] = False
         mir_bl_data._data["u"][2] = 0.0
         mir_bl_data._mask[2] = False
-    elif "noop" in cmd:
-        pass
     elif "flipmod" in cmd:
         mir_bl_data["u"] = 0.0
-    else:
+    elif "noop" not in cmd:
         mir_bl_copy["u"] = 0.0
 
     if "maskmod" in cmd:
@@ -1050,6 +1053,32 @@ def test_mir_write_item(mir_data, attr, tmp_path):
     assert orig_attr == check_attr
 
 
+def test_mir_write_vis_data_err(mir_data, tmp_path):
+    mir_data.unload_data()
+    with pytest.raises(ValueError) as err:
+        mir_data.write_vis_data(tmp_path)
+    assert str(err.value).startswith("Cannot write data if not already loaded.")
+
+
+@pytest.mark.parametrize(
+    "winsel,is_eq",
+    [
+        [None, True],
+        [list(range(8)), True],
+        [list(range(4)), False],
+        [[1], False],
+    ],
+)
+def test_mir_read_auto_data(mir_data, winsel, is_eq):
+    auto_data1 = mir_data.read_auto_data()
+    auto_data2 = mir_data.read_auto_data(winsel=winsel)
+
+    assert auto_data1.keys() == auto_data2.keys()
+
+    for key in auto_data1:
+        assert np.array_equal(auto_data1[key], auto_data2[key], equal_nan=True) == is_eq
+
+
 def test_mir_raw_data(mir_data, tmp_path):
     """
     Test reading and writing of raw data.
@@ -1069,7 +1098,7 @@ def test_mir_raw_data(mir_data, tmp_path):
             assert np.array_equal(raw_data[key][subkey], mir_data.raw_data[key][subkey])
 
 
-@pytest.mark.parametrize("data_type", ["none", "raw", "vis"])
+@pytest.mark.parametrize("data_type", ["none", "raw", "vis", "load"])
 def test_mir_write_full(mir_data, tmp_path, data_type):
     """
     Mir write dataset tester.
@@ -1078,7 +1107,7 @@ def test_mir_write_full(mir_data, tmp_path, data_type):
     """
     # We want to clear our the auto data here, since we can't _yet_ write that out
     mir_data.unload_data()
-    if data_type != "none":
+    if data_type in ["vis", "raw"]:
         mir_data.load_data(load_vis=(data_type == "vis"), apply_tsys=False)
 
     mir_data._clear_auto()
@@ -1090,12 +1119,12 @@ def test_mir_write_full(mir_data, tmp_path, data_type):
         None if (data_type != "none") else UserWarning,
         None if (data_type != "none") else "No data loaded, writing metadata only",
     ):
-        mir_data.tofile(filepath)
+        mir_data.tofile(filepath, load_data=(data_type == "load"))
 
     # Read in test dataset.
     mir_copy = MirParser(filepath)
     if data_type != "none":
-        mir_copy.load_data(load_raw=(data_type == "raw"), apply_tsys=False)
+        mir_copy.load_data(load_raw=(data_type in ["raw", "load"]), apply_tsys=False)
 
     # The objects won't be equal off the bat - a couple of things to handle first.
     assert mir_data != mir_copy
@@ -1214,6 +1243,7 @@ def test_compass_error(mir_data, compass_soln_file):
         ["ant1", "ne", 8, np.arange(1, 21)],
         ["ant1rx", "eq", 0, [1, 2, 3, 4, 5, 11, 12, 13, 14, 15]],
         ["corrchunk", "ne", [1, 2, 3, 4], np.arange(1, 21, 5)],
+        ["N", "lt", 0.0, []],
     ],
 )
 def test_select(mir_data, field, comp, value, vis_keys):
@@ -1368,6 +1398,12 @@ def test_fix_int_start(mir_data):
     assert good_dict == check_dict
 
 
+def test_read_packdata_err(mir_data):
+    with pytest.raises(ValueError) as err:
+        mir_data.read_packdata(mir_data._file_dict, [1, 2])
+    assert str(err.value).startswith("inhid_arr contains keys not found in file_dict.")
+
+
 def test_read_packdata_mmap(mir_data):
     """Test that reading in vis data with mmap works just as well as np.fromfile"""
     mmap_data = mir_data.read_packdata(
@@ -1486,6 +1522,21 @@ def test_apply_tsys(mir_data):
         )
 
 
+def test_apply_flags_err(mir_data):
+    mir_data.unload_data()
+    with pytest.raises(ValueError) as err:
+        mir_data.apply_flags()
+    assert str(err.value).startswith("Cannot apply flags if vis_data are not loaded.")
+
+
+@pytest.mark.parametrize("sphid_arr", [[1], list(range(1, 21)), [10, 15]])
+def test_apply_flags(mir_data, sphid_arr):
+    mir_data.sp_data.set_value("flags", 1, header_key=sphid_arr)
+    mir_data.apply_flags()
+    for key, value in mir_data.vis_data.items():
+        assert np.all(value["vis_flags"]) == (key in sphid_arr)
+
+
 def test_check_data_index(mir_data):
     """Verify that check_data_index returns True/False as expected."""
     # Spoof this for the sake of this test
@@ -1597,6 +1648,35 @@ def test_unload_data(mir_data, unload_vis, unload_raw, unload_auto):
     assert mir_data.auto_data is None if unload_auto else mir_data.auto_data is not None
 
 
+def test_load_data_err(mir_data):
+    mir_data._clear_auto()
+
+    with pytest.raises(ValueError) as err:
+        mir_data.load_data(load_auto=True)
+    assert str(err.value).startswith("This object has no auto-correlation data to")
+
+
+@pytest.mark.parametrize(
+    "optype,kwargs,warn_msg",
+    [
+        ["", {"load_vis": True, "load_raw": True}, "Cannot load raw and vis data"],
+        ["load_raw", {"load_vis": True}, "Converting previously loaded data since"],
+        ["muck_vis", {"allow_downselect": True}, "Cannot downselect cross-correlation"],
+        ["muck_auto", {"allow_downselect": True}, "Cannot downselect auto-correlation"],
+    ],
+)
+def test_load_data_warn(mir_data, optype, kwargs, warn_msg):
+    if optype == "load_raw":
+        mir_data.load_data(load_raw=True, load_vis=False, load_auto=False)
+    elif optype == "muck_vis":
+        mir_data.vis_data = {}
+    elif optype == "muck_auto":
+        mir_data.auto_data = {}
+
+    with uvtest.check_warnings(UserWarning, warn_msg):
+        mir_data.load_data(**kwargs)
+
+
 @pytest.mark.parametrize("load_vis", [None, False])
 def test_load_data_defaults(mir_data, load_vis):
     """Check that the default behavior of load_vis acts as expected."""
@@ -1641,8 +1721,32 @@ def test_update_filter_update_data(mir_data):
     # Manually unload the data, see if update_data will fix it.
     mir_data.vis_data = {}
     mir_data.auto_data = {}
+
     mir_data._update_filter(update_data=True)
     assert mir_data == mir_copy
+
+    # Now see what happens if we don't explicitly allow for data to be updated.
+    mir_data.vis_data = {}
+    mir_data.auto_data = {}
+    with uvtest.check_warnings(UserWarning, "Unable to update data attributes,"):
+        mir_data._update_filter()
+
+    assert mir_data.vis_data is None
+    assert mir_data.auto_data is None
+
+
+def test_reset(mir_data):
+    mir_copy = mir_data.copy()
+    mir_copy.rechunk(8)
+
+    assert mir_data != mir_copy
+
+    mir_copy.reset()
+    mir_data.unload_data()
+    assert mir_data == mir_copy
+
+    for item in mir_data._metadata_attrs.values():
+        assert item._stored_values == {}
 
 
 @pytest.mark.parametrize(
@@ -1810,44 +1914,81 @@ def test_rechunk_nop(mir_data):
     assert mir_data == mir_copy
 
 
+def test_rechunk_on_the_fly(mir_data):
+    # Unload the autos for this test, since we do not _yet_ have support for on-the-fly
+    # rechunking of that data.
+    mir_data.unload_data(unload_vis=False, unload_auto=True)
+
+    mir_data.rechunk(8)
+    mir_copy = mir_data.copy()
+
+    mir_copy.unload_data()
+    mir_copy.load_data(load_vis=True, load_auto=False)
+
+    assert mir_data == mir_copy
+
+
+def test_rechunk_raw_vs_vis(mir_data):
+    mir_copy = mir_data.copy()
+    mir_copy.load_data(load_raw=True)
+
+    # This will just rechunk the raw data
+    mir_copy.rechunk(8)
+
+    # This will rechunk the vis data
+    mir_data.rechunk(8)
+
+    # This will convert raw to vis in the copy
+    with uvtest.check_warnings(UserWarning, "Converting previously loaded data"):
+        mir_copy.load_data(allow_conversion=True, load_vis=True)
+
+    assert mir_copy == mir_data
+
+
 @pytest.mark.parametrize(
-    "unload_data,muck_data,force,err_type,err_msg",
+    "muck_data,kwargs,err_type,err_msg",
     [
-        [None, "in_data", False, ValueError, "Cannot merge objects due to conflicts"],
-        [None, "all", False, TypeError, "Cannot add a MirParser object an object of "],
+        [["in_data"], {}, ValueError, "Cannot merge objects due to conflicts"],
+        [["file"], {}, ValueError, "Duplicate metadata found for the following"],
+        [["auto"], {}, ValueError, "Cannot combine two MirParser objects if one "],
+        [["jypk"], {}, ValueError, "Cannot combine objects where the jypk value"],
+        [["all"], {}, TypeError, "Cannot add a MirParser object an object of "],
+        [[], {"merge": False}, ValueError, "Must set merge=True in order to"],
+        [["int_start"], {"merge": True}, ValueError, "These two objects were"],
+        [["file"], {"merge": True}, ValueError, "Cannot merge objects that"],
+        [["file", "antpos"], {"merge": False}, ValueError, "Antenna positions differ"],
     ],
 )
-def test_add_errs(mir_data, unload_data, muck_data, force, err_type, err_msg):
+def test_add_errs(mir_data, muck_data, kwargs, err_type, err_msg):
     """Verify that __add__ throws errors as expected"""
     mir_copy = mir_data.copy()
 
-    mir_data.unload_data(
-        unload_vis=(unload_data in ["vis", "all"]),
-        unload_raw=(unload_data in ["raw", "all"]),
-        unload_auto=(unload_data in ["auto", "all"]),
-    )
-
-    if muck_data is not None:
-        if muck_data == "tsys":
-            mir_data.apply_tsys(invert=True)
-        elif muck_data == "in_data":
-            mir_data.in_data["mjd"] = 0.0
-        elif muck_data == "all":
-            mir_data = np.arange(100)
-
-    if force:
+    if "in_data" in muck_data:
         mir_data.in_data["mjd"] = 0.0
+    if "auto" in muck_data:
+        mir_data._clear_auto()
+    if "jypk" in muck_data:
+        mir_data.jypk = 1.0
+    if "file" in muck_data:
+        mir_data._file_dict = {}
+    if "int_start" in muck_data:
+        for key in mir_data._file_dict:
+            mir_data._file_dict[key] = {}
+    if "antpos" in muck_data:
+        mir_data.antpos_data["xyz_pos"] = 0.0
+    if "all" in muck_data:
+        mir_data = np.arange(100)
 
     with pytest.raises(err_type) as err:
-        mir_data.__add__(mir_copy, force=force)
-    assert str(err.value).startswith(err_msg) or (muck_data == "all")
+        mir_data.__add__(mir_copy, **kwargs)
+    assert str(err.value).startswith(err_msg) or ("all" in muck_data)
 
     with pytest.raises(err_type) as err:
-        mir_copy.__add__(mir_data, force=force)
+        mir_copy.__add__(mir_data, **kwargs)
     assert str(err.value).startswith(err_msg)
 
 
-def test_add_simple(mir_data):
+def test_add_merge(mir_data):
     """
     Verify that the __add__ method behaves as expected under 'simple' scenarios, i.e.,
     where overwrite or force are not neccessary.
@@ -1929,6 +2070,32 @@ def test_add_simple(mir_data):
     assert mir_data == mir_orig
 
 
+@parametrize("drop_auto", [True, False])
+@parametrize("drop_raw", [True, False])
+@parametrize("drop_vis", [True, False, "jypk", "tsys"])
+def test_add_drop_data(mir_data, drop_auto, drop_raw, drop_vis):
+    mir_data.raw_data = mir_data.convert_vis_to_raw(mir_data.vis_data)
+    mir_copy = mir_data.copy()
+
+    if drop_auto:
+        mir_copy.auto_data = None
+    if drop_raw:
+        mir_copy.raw_data = None
+    if drop_vis:
+        if drop_vis == "jypk":
+            mir_copy.jypk = 0.0
+        elif drop_vis == "tsys":
+            mir_copy._tsys_applied = False
+        else:
+            mir_copy.vis_data = None
+
+    result = mir_data.__add__(mir_copy, overwrite=(drop_vis == "jypk"))
+
+    assert (result.auto_data is None) == bool(drop_auto)
+    assert (result.raw_data is None) == bool(drop_raw)
+    assert (result.vis_data is None) == bool(drop_vis)
+
+
 @pytest.mark.parametrize(
     "muck_attr",
     [
@@ -1990,8 +2157,94 @@ def test_add_overwrite(mir_data, muck_attr):
     assert mir_copy.__add__(mir_data, overwrite=True) == mir_data
 
 
-def test_add_concat(mir_data):
-    pass
+def test_add_concat_warn(mir_data, tmp_path):
+    filepath = os.path.join(tmp_path, "add_concat_warn")
+
+    with uvtest.check_warnings(UserWarning, "Writing out raw data with tsys applied."):
+        mir_data.tofile(filepath)
+
+    mir_copy = MirParser(filepath)
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Duplicate metadata found for the following attributes",
+            "These two objects contain data taken at the exact same time",
+            "Both objects do not have auto-correlation data.",
+        ],
+    ):
+        mir_copy.__iadd__(mir_data, force=True, merge=False)
+
+    assert mir_copy != mir_data
+    for item in mir_copy._metadata_attrs:
+        if item == "codes_data":
+            assert mir_data.codes_data == mir_copy.codes_data
+        else:
+            assert len(getattr(mir_copy, item)) == (2 * len(getattr(mir_data, item)))
+
+
+def test_add_concat(mir_data, tmp_path):
+    filepath = os.path.join(tmp_path, "add_concat")
+
+    # Clear out the autos, since we can't write them as full records _yet_
+    mir_data._clear_auto()
+    mir_copy = mir_data.copy()
+
+    # Preserve particular fields that we want to propagate into the next file.
+    prot_fields = [
+        "inhid",
+        "blhid",
+        "sphid",
+        "ints",
+        "antenna",
+        "xyz_pos",
+        "antennaNumber",
+        "achid",
+        "v_name",
+        "icode",
+        "ncode",
+        "dataoff",
+        "nch",
+        "iant1",
+        "iant2",
+        "tsys",
+        "tsys_rx2",
+        "ant1rx",
+        "ant2rx",
+    ]
+
+    for item in ["bl_data", "eng_data", "in_data", "sp_data", "we_data"]:
+        for field in getattr(mir_copy, item).dtype.names:
+            if field not in prot_fields:
+                getattr(mir_copy, item)[field] = 156
+
+    mir_copy.codes_data.set_value("code", "3c279", where=("v_name", "eq", "source"))
+
+    with uvtest.check_warnings(UserWarning, "Writing out raw data with tsys applied."):
+        mir_copy.tofile(filepath, overwrite=True)
+    # Read the file in so that we have a dict here to work with.
+    mir_copy.fromfile(filepath, load_vis=True)
+
+    new_obj = mir_data + mir_copy
+
+    # Make sure that the
+    for item, this_attr in new_obj._metadata_attrs.items():
+        other_attr = mir_data._metadata_attrs[item]
+        if item == "antpos_data":
+            assert this_attr == other_attr
+        else:
+            assert this_attr != other_attr
+            if item == "codes_data":
+                # We add 3 here since the 1 extra source creates 3 new codes entries
+                assert len(this_attr) == (3 + len(other_attr))
+
+                # Make sure that the source actually got updated as expected
+                assert this_attr["source"]["3c279"] == 2
+            else:
+                # Otherwise, the number of entries should double for all attributes
+                assert len(this_attr) == (2 * len(other_attr))
+                for field in this_attr.dtype.names:
+                    if field not in prot_fields:
+                        assert np.all(this_attr[field][len(other_attr) :] == 156)
 
 
 @pytest.mark.parametrize(
