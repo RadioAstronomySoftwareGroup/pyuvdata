@@ -216,8 +216,6 @@ class Mir(UVData):
         pol_code_dict = {}
         icode_dict = mir_data.codes_data["pol"]
         for code in mir_data.codes_data.get_codes("pol", return_dict=False):
-            if issubclass(type(code), np.integer):
-                continue
             # There are pol modes/codes that are support in MIR that are not in AIPS
             # or CASA, although they are rarely used, so we can skip over translating
             # them in the try/except loop here (if present in he data, it will throw
