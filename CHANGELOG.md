@@ -21,6 +21,8 @@ array rather than an array of spw numbers, making it match the other reorder met
 - Dropped support for python 3.7
 
 ### Fixed
+- A bug in `UVData.print_phase_center_info` that occasionally resulted in incorrect values being reported for RA/Az/Longitudinal coordinates.
+- A bug in `UVData.select` that could cause `UVData.check` to fail if `UVData._scan_number_array` was set.
 - A bug in `UVBeam.select` where after selecting down to only auto polarization power
 beams the `UVBeam.data_array` remained complex instead of real.
 - A bug in `UVBeam.__add__` where adding an object with cross pol power beams to an
