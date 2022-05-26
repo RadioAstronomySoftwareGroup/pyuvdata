@@ -1082,11 +1082,6 @@ class UVCal(UVBase):
         """
         if self.flex_spw:
             uvutils._check_flex_spw_contiguous(self.spw_array, self.flex_spw_id_array)
-        else:
-            # If this isn't a flex_spw data set, then there is only 1 spectral window,
-            # which means that the check always passes
-            pass
-        return True
 
     def _check_freq_spacing(self, raise_errors=True):
         """
