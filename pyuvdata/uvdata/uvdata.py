@@ -546,7 +546,7 @@ class UVData(UVBase):
         )
 
         desc = (
-            "Optional when reading a MS. Retains the  scan number when reading a MS."
+            "Optional when reading a MS. Retains the scan number when reading a MS."
             " Shape (Nblts), type = int."
         )
         self._scan_number_array = uvp.UVParameter(
@@ -8560,7 +8560,11 @@ class UVData(UVBase):
                         attr.value = attr.value.take(ind_arr, axis=sel_axis)
                     elif isinstance(attr.value, list):
                         # If this is a list, it _should_ always have 1-dimension.
-                        assert sel_axis == 0
+                        assert sel_axis == 0, (
+                            "Something is wrong, sel_axis != 0 when selecting on a "
+                            "list, which should not be possible. Please file an issue "
+                            "in our GitHub issue log so that we can fix it."
+                        )
                         attr.value = [attr.value[idx] for idx in ind_arr]
 
             if key == "Nblts":

@@ -6694,10 +6694,6 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method, casa_uvf
         with uvtest.check_warnings(
             UserWarning,
             [
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ]
-            + [
                 "Index baseline in the redundant group does not have all the "
                 "times, compressed object will be missing those times."
             ]
@@ -6705,7 +6701,8 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method, casa_uvf
             + [
                 "The uvw_array does not match the expected values given the antenna "
                 "positions."
-            ],
+            ]
+            * 2,
         ):
             uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
     else:
