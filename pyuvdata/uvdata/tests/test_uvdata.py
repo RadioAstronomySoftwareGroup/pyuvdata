@@ -11625,7 +11625,7 @@ def test_auto_check(hera_uvh5, uv_phase_comp, future_shapes, dataset, tmp_path):
 
     # Corrupt the auto data
     auto_screen = uv.ant_1_array == uv.ant_2_array
-    uv.data_array[auto_screen] *= 1j
+    uv.data_array[auto_screen] *= 1 + 0.5j
 
     with pytest.raises(
         ValueError, match="Some auto-correlations have non-real values in data_array."
