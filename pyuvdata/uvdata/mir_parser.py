@@ -1328,24 +1328,20 @@ class MirMetaData(object):
             return_tuples=(self._header_key is None) and (not force_list),
         )
 
-    def _generate_header_key_index_dict(self):
+    def _set_header_key_index_dict(self):
         """
-        Generate a dictionary to map header keys to index positions.
+        Set internal header key to index position dictionary attribute.
 
         Note that this is an internal helper function, not intended for general users
         but instead is part of the developer API. Generates a dictionary that can be
         used for mapping header key values to index positions inside the data array.
-
-        Returns
-        -------
-        header_key_index_dict : dict
-            Dict with keys of header key values (or tuples of values, if using a
-            pseudo-index), and values relating to the index position within the `_data`
-            attribute of the object.
         """
-        return {
-            item: idx for idx, item in enumerate(self.get_header_keys(use_mask=False))
-        }
+        self._header_key_index_dict = self.group_by(
+            self._pseudo_header_key if self._header_key is None else self._header_key,
+            use_mask=False,
+            return_index=True,
+            assume_unique=True,
+        )
 
     def _generate_new_header_keys(self, other):
         """
@@ -1417,9 +1413,15 @@ class MirMetaData(object):
             self._data = self._data[sort_idx]
             self._mask = self._mask[sort_idx]
 
-        self._header_key_index_dict = self._generate_header_key_index_dict()
+        self._set_header_key_index_dict()
 
-    def group_by(self, group_fields, use_mask=True, return_index=False):
+    def group_by(
+        self,
+        group_fields,
+        use_mask=True,
+        return_index=False,
+        assume_unique=False,
+    ):
         """
         Create groups of index positions based on particular field(s) in the metadata.
 
@@ -1473,6 +1475,12 @@ class MirMetaData(object):
                 index_arr = np.where(self._mask)[0][index_arr]
 
             index_arr = self.get_header_keys(index=index_arr)
+
+        if assume_unique:
+            if len(group_fields) == 1:
+                return {key: value for key, value in zip(group_data[0], index_arr)}
+            else:
+                return {tup[:-1]: tup[-1] for tup in zip(*group_data, index_arr)}
 
         # Otherwise, check element-wise for differences, since that will tell us the
         # boundaries for each "group" of data.
@@ -1547,7 +1555,7 @@ class MirMetaData(object):
         """
         self.reset_values()
         self.set_mask(reset=True)
-        self._header_key_index_dict = self._generate_header_key_index_dict()
+        self._set_header_key_index_dict()
 
     def _update_fields(self, update_dict, raise_err=False):
         """
@@ -2353,7 +2361,7 @@ class MirAntposData(MirMetaData):
         ).T
 
         self._mask = np.ones(len(self), dtype=bool)
-        self._header_key_index_dict = self._generate_header_key_index_dict()
+        self._set_header_key_index_dict()
 
     def _writefile(self, filepath, append_data, datamask=...):
         """
@@ -2808,6 +2816,7 @@ class MirAcData(MirMetaData):
         filepath : str
             Optional argument specifying the path to the Mir data folder.
         """
+        self._old_format = False
         super().__init__("ac_read", ac_dtype, "achid", None, None, filepath)
 
     def fromfile(self, filepath, nchunks=8):
@@ -2822,6 +2831,7 @@ class MirAcData(MirMetaData):
         old_ac_file = os.path.join(filepath, "autoCorrelations")
         new_ac_file = os.path.join(filepath, self._filetype)
         if os.path.exists(old_ac_file) and not os.path.exists(new_ac_file):
+            self._old_format = True
             file_size = os.path.getsize(old_ac_file)
             with open(old_ac_file, "rb") as auto_file:
                 data_offset = 0
@@ -3814,36 +3824,35 @@ class MirParser(object):
             values contain the spectrum of individual auto-correlation records, of
             type np.float32.
         """
-        if winsel is None:
-            winsel = np.arange(0, np.max(self.ac_data["nchunks"]))
+        if self.ac_data._old_format:
+            # In the old file format, each antenna's spectra was recorded as a single
+            # block of data, which each window being an unaveraged 16384 channels.
+            if winsel is None:
+                winsel = np.arange(0, np.max(self.ac_data["nchunks"]))
 
-        # The current generation correlator always produces 2**14 == 16384 channels per
-        # spectral window.
-        # TODO read_auto_data: Allow this work w/ spectrally averaged data
-        # (although this is presently blocked by the way the _old_ rechunker behaves)
-        auto_data = {}
+            auto_data = {}
 
-        for file, startdict in self._file_dict.items():
-            # Select out the appropriate records for this file
-            ac_mask = np.isin(self.ac_data["inhid"], list(startdict))
+            for file, startdict in self._file_dict.items():
+                # Select out the appropriate records for this file
+                ac_mask = np.isin(self.ac_data["inhid"], list(startdict))
 
-            dataoff_arr = self.ac_data["dataoff"][ac_mask]
-            nvals_arr = self.ac_data["datasize"][ac_mask].astype(np.int64) // 4
-            achid_arr = self.ac_data["achid"][ac_mask]
-            with open(os.path.join(file, "autoCorrelations"), "rb") as auto_file:
-                # Start scanning through the file now.
-                lastpos = 0
-                for achid, dataoff, nvals in zip(achid_arr, dataoff_arr, nvals_arr):
-                    deloff = dataoff - lastpos
-                    auto_data[achid] = np.fromfile(
-                        auto_file,
-                        dtype=np.float32,
-                        count=nvals,
-                        offset=deloff,
-                    ).reshape((-1, 2, 2**14))[winsel]
-                    lastpos = dataoff + (4 * nvals)
+                dataoff_arr = self.ac_data["dataoff"][ac_mask]
+                nvals_arr = self.ac_data["datasize"][ac_mask].astype(np.int64) // 4
+                achid_arr = self.ac_data["achid"][ac_mask]
+                with open(os.path.join(file, "autoCorrelations"), "rb") as auto_file:
+                    # Start scanning through the file now.
+                    lastpos = 0
+                    for achid, dataoff, nvals in zip(achid_arr, dataoff_arr, nvals_arr):
+                        deloff = dataoff - lastpos
+                        auto_data[achid] = np.fromfile(
+                            auto_file,
+                            dtype=np.float32,
+                            count=nvals,
+                            offset=deloff,
+                        ).reshape((-1, 2, 2**14))[winsel]
+                        lastpos = dataoff + (4 * nvals)
 
-        return auto_data
+            return auto_data
 
     def apply_tsys(self, invert=False, force=False):
         """
