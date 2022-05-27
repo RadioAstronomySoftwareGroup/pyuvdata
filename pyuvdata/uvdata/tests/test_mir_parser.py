@@ -416,14 +416,14 @@ def test_mir_meta_get_header_pseudo_keys(mir_eng_data):
     assert mir_eng_data.get_header_keys() == [(1, 1), (4, 1)]
 
 
-def test_mir_meta_generate_header_key_index_dict(mir_sp_data):
-    key_dict = mir_sp_data._generate_header_key_index_dict()
-    for key, value in key_dict.items():
+def test_mir_meta_set_header_key_index_dict(mir_sp_data):
+    mir_sp_data._set_header_key_index_dict()
+    for key, value in mir_sp_data._header_key_index_dict.items():
         assert key == (value + 1)
 
     mir_sp_data._data["sphid"] = np.flip(mir_sp_data._data["sphid"])
-    key_dict = mir_sp_data._generate_header_key_index_dict()
-    for key, value in key_dict.items():
+    mir_sp_data._set_header_key_index_dict()
+    for key, value in mir_sp_data._header_key_index_dict.items():
         assert (20 - key) == value
 
 
@@ -669,7 +669,7 @@ def test_mir_meta_add_check_concat(mir_bl_data, cmd, comp_results):
     elif "full" in cmd:
         mir_bl_copy._data["blhid"][:] = [5, 6, 7, 8]
 
-    mir_bl_copy._header_key_index_dict = mir_bl_copy._generate_header_key_index_dict()
+    mir_bl_copy._set_header_key_index_dict()
     mir_bl_copy._mask[:] = False
 
     if "flip" in cmd:
@@ -711,12 +711,12 @@ def test_mir_meta_add_concat(mir_bl_data, method):
     mir_bl_copy._data["blhid"] = [1, 3, 5, 7]
     mir_bl_copy._data["u"] = [11, 13, 15, 17]
     mir_bl_copy._mask[:] = [True, True, False, True]
-    mir_bl_copy._header_key_index_dict = mir_bl_copy._generate_header_key_index_dict()
+    mir_bl_copy._set_header_key_index_dict()
 
     mir_bl_data._data["blhid"] = [2, 4, 6, 8]
     mir_bl_data._data["u"] = [12, 14, 16, 18]
     mir_bl_data._mask[:] = [True, False, True, True]
-    mir_bl_data._header_key_index_dict = mir_bl_data._generate_header_key_index_dict()
+    mir_bl_data._set_header_key_index_dict()
 
     result = getattr(mir_bl_data, method)(mir_bl_copy)
     if method == "__iadd__":
