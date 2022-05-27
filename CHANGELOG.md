@@ -13,6 +13,7 @@ real-only if non-zero imaginary components are detected.
 and `reorder_jones`.
 
 ### Changed
+- `UVData.fix_phase` now raises a warning when called.
 - Changed `UVData.write_uvfits` to allow for one to write out datasets in UVFITS format
 without "spoofing" (via setting `spoof_nonessential=True`) UVFITS-specific values.
 - Methods that ensure that attributes are set up properly on `UVBeam` are now called in
