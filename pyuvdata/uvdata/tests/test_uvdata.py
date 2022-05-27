@@ -393,9 +393,12 @@ def uv_phase_comp_main():
     # checkwarnings to capture the warning about non-real autos
     with uvtest.check_warnings(
         UserWarning,
-        nwarnings=2,
-        match="Fixing auto-correlations to be be real-only, after some imaginary "
-        "values were detected in data_array.",
+        match=[
+            "Fixing auto-correlations to be be real-only, after some imaginary "
+            "values were detected in data_array.",
+            "Fixing phases using antenna positions.",
+        ]
+        * 2,
     ):
         uvd1.read_uvfits(file1, fix_old_proj=True)
         uvd2.read_uvfits(file2, fix_old_proj=True)
@@ -10766,7 +10769,14 @@ def test_fix_phase(hera_uvh5, future_shapes, use_ant_pos):
     # calculated from the antenna positions. Using fix phase here should be "perfect",
     # since the uvws are completely recalculated from scratch.
     uv_in_bad.phase(phase_ra, phase_dec, use_old_proj=True, use_ant_pos=use_ant_pos)
-    uv_in_bad.fix_phase(use_ant_pos=use_ant_pos)
+
+    if use_ant_pos:
+        warn_msg = "Fixing phases using antenna positions."
+    else:
+        warn_msg = "Attempting to fix residual phasing errors from the old `phase`"
+
+    with uvtest.check_warnings(UserWarning, warn_msg):
+        uv_in_bad.fix_phase(use_ant_pos=use_ant_pos)
 
     # We have to handle this case a little carefully, because since the old
     # unphase_to_drift was _mostly_ accurate, although it does seem to intoduce errors
