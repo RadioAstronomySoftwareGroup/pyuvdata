@@ -5964,6 +5964,12 @@ class UVData(UVBase):
         use_ant_pos : bool
             Use the antenna positions for determining UVW coordinates. Default is True.
         """
+        if self.multi_phase_center:
+            raise ValueError(
+                "Cannot run fix_phase on a mutli-phase-ctr dataset without using the "
+                "antenna positions. Please set use_ant_pos=True."
+            )
+
         # If we are missing apparent coordinates, we should calculate those now
         if (self.phase_center_app_ra is None) or (self.phase_center_app_dec is None):
             self._set_app_coords_helper()
@@ -5972,16 +5978,19 @@ class UVData(UVBase):
         # anything, since the new baseline vectors will be unaffected by the prior
         # phasing method, and the delta_w values already get correctly corrected for.
         if use_ant_pos:
+            warnings.warn("Fixing phases using antenna positions.")
+
             self.set_uvws_from_antenna_positions(
                 allow_phasing=True,
                 use_old_proj=False,
             )
-        elif self.multi_phase_center:
-            raise ValueError(
-                "Cannot run fix_phase on a mutli-phase-ctr dataset without using the "
-                "antenna positions. Please set use_ant_pos=True."
-            )
         else:
+            warnings.warn(
+                "Attempting to fix residual phasing errors from the old `phase` method "
+                "using the `unphase_to_drift` with use_old_proj set to True. This "
+                "can result in closure errors if the data were not actually phased "
+                "using the old method -- caution is advised."
+            )
             # Record the old values
             phase_center_ra = self.phase_center_ra
             phase_center_dec = self.phase_center_dec

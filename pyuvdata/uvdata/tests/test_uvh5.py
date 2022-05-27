@@ -3237,7 +3237,14 @@ def test_fix_phase(tmp_path):
     filepath = os.path.join(DATA_PATH, "1133866760.uvfits")
     writepath = os.path.join(tmp_path, "phasetest.uvh5")
 
-    uv_in.read(filepath, fix_old_proj=True)
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Fixing phases using antenna positions.",
+            "Fixing auto-correlations to be be real-only, after some imaginary values",
+        ],
+    ):
+        uv_in.read(filepath, fix_old_proj=True)
 
     # Make some copies of the data
     uv_in_bad_ant = uv_in.copy()
@@ -3257,7 +3264,8 @@ def test_fix_phase(tmp_path):
     uv_in_bad_ant.write_uvh5(
         writepath, clobber=True, run_check=False, check_extra=False
     )
-    uv_out.read(writepath, fix_old_proj=True, fix_use_ant_pos=True)
+    with uvtest.check_warnings(UserWarning, "Fixing phases using antenna positions."):
+        uv_out.read(writepath, fix_old_proj=True, fix_use_ant_pos=True)
 
     # make sure filename is what we expect
     assert uv_in.filename == ["1133866760.uvfits"]
@@ -3276,7 +3284,10 @@ def test_fix_phase(tmp_path):
     uv_in_bad_base.write_uvh5(
         writepath, clobber=True, run_check=False, check_extra=False
     )
-    uv_out.read(writepath, fix_old_proj=True, fix_use_ant_pos=False)
+    with uvtest.check_warnings(
+        UserWarning, "Attempting to fix residual phasing errors from the old `phase`"
+    ):
+        uv_out.read(writepath, fix_old_proj=True, fix_use_ant_pos=False)
     # We have to handle this case a little carefully, because since the old
     # unphase_to_drift was _mostly_ accurate, although it does seem to intoduce errors
     # on the order of a part in 1e5, which translates to about a tenth of a degree phase
