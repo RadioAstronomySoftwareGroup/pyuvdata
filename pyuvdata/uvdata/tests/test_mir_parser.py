@@ -629,7 +629,6 @@ def test_mir_meta_add_check_merge(mir_bl_data, args, cmd, comp_results):
     mir_bl_copy = mir_bl_data.copy()
     # Use this as a way to mark the copy as altered
     if "combmod" in cmd:
-        print("hi")
         mir_bl_copy._data["u"][0] = 0.0
         mir_bl_copy._mask[0] = False
         mir_bl_data._data["u"][2] = 0.0
@@ -644,8 +643,6 @@ def test_mir_meta_add_check_merge(mir_bl_data, args, cmd, comp_results):
         mir_bl_data._mask[2:4] = False
 
     result_tuple = mir_bl_data._add_check(mir_bl_copy, **args)
-    print(result_tuple)
-    print(comp_results)
     for item, jtem in zip(result_tuple, comp_results):
         assert np.array_equal(item, jtem)
 
@@ -674,9 +671,6 @@ def test_mir_meta_add_check_concat(mir_bl_data, cmd, comp_results):
         result_tuple = mir_bl_copy._add_check(mir_bl_data)
     else:
         result_tuple = mir_bl_data._add_check(mir_bl_copy)
-
-    print(result_tuple)
-    print(comp_results)
 
     for item, jtem in zip(result_tuple, comp_results):
         assert np.array_equal(item, jtem)
@@ -1518,7 +1512,7 @@ def test_apply_tsys_errs(mir_data):
 def test_apply_tsys_warn(mir_data):
     """Verify that apply_tsys throws warnings when tsys values aren't found."""
     with uvtest.check_warnings(UserWarning, "Changing fields that tie to header keys"):
-        mir_data.eng_data["antennaNumber"] = -1
+        mir_data.eng_data["antenna"] = -1
 
     mir_data._tsys_applied = False
 
@@ -2823,7 +2817,7 @@ def test_mir_remember_me_eng_data(mir_data):
     we know to be 'true' at the time of observations.
     """
     # Now check eng_read
-    assert np.all(mir_data.eng_data["antennaNumber"] == [1, 4])
+    assert np.all(mir_data.eng_data["antenna"] == [1, 4])
 
     assert np.all(mir_data.eng_data["padNumber"] == [5, 8])
 
