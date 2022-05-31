@@ -113,7 +113,7 @@ in_dtype = np.dtype(
 eng_dtype = np.dtype(
     [
         # Antenna number, should match iant in bl_read
-        ("antennaNumber", np.int32),
+        ("antenna", np.int32),
         # Pad number that the antenna is sitting on
         ("padNumber", np.int32),
         # Whether or not antenna was in the project (0 = offline, 1 = online)
@@ -1118,7 +1118,6 @@ class MirMetaData(object):
             "ints",
             "v_name",
             "icode",
-            "antennaNumber",
             "antenna",
             "achid",
         ]:
@@ -2394,8 +2393,8 @@ class MirEngData(MirMetaData):
     from/writing to disk, the object looks for a file named "eng_read", which is where
     the online system records this information. This object does not have a unique
     header key, but instead has a pseudo key made up of the integration header ID
-    number ("inhid") and the antenna number ("antennaNumber"), which should be unique
-    for each entry.
+    number ("inhid") and the antenna number ("antenna"), which should be unique for
+    each entry.
     """
 
     def __init__(self, filepath=None):
@@ -2408,7 +2407,7 @@ class MirEngData(MirMetaData):
             Optional argument specifying the path to the Mir data folder.
         """
         super().__init__(
-            "eng_read", eng_dtype, None, None, ("antennaNumber", "inhid"), filepath
+            "eng_read", eng_dtype, None, None, ("antenna", "inhid"), filepath
         )
 
 
@@ -2418,7 +2417,7 @@ class MirAntposData(MirMetaData):
 
     This class is a container for antenna positions, which are recorded as a text file
     within a Mir dataset named "antennas". It has a header key of "antenna", which is
-    paired to the antenna number in other metadata objects (e.g., "antennaNumber",
+    paired to the antenna number in other metadata objects (e.g., "antenna",
     "iant1", "iant2").
     """
 
@@ -4034,7 +4033,7 @@ class MirParser(object):
             (idx, jdx, 0): tsys**0.5
             for idx, jdx, tsys in zip(
                 self.eng_data["inhid"],
-                self.eng_data["antennaNumber"],
+                self.eng_data["antenna"],
                 self.eng_data["tsys"],
             )
         }
@@ -4043,7 +4042,7 @@ class MirParser(object):
                 (idx, jdx, 1): tsys**0.5
                 for idx, jdx, tsys in zip(
                     self.eng_data["inhid"],
-                    self.eng_data["antennaNumber"],
+                    self.eng_data["antenna"],
                     self.eng_data["tsys_rx2"],
                 )
             }
@@ -4426,32 +4425,29 @@ class MirParser(object):
         # Start by cascading the filters up -- from largest metadata tables to the
         # smallest. First up, spec win -> baseline
         if not np.all(self.sp_data.get_mask()):
-            mask_update |= self.bl_data.set_mask(
-                where=("blhid", "eq", self.sp_data["blhid"])
+            mask_update |= self.bl_data.set_mask(header_key=set(self.sp_data["blhid"]))
+
+        # Now do baseline -> antennas. Special handling required because of the
+        # lack of a unique index key for this table.
+        if not np.all(self.bl_data.get_mask()):
+            key_list = set(
+                self.bl_data.get_value(["iant1", "inhid"], return_tuples=True)
+                + self.bl_data.get_value(["iant2", "inhid"], return_tuples=True)
             )
 
-        # Next, ant -> baseline. Note that this requires a little extra special
-        # handling, since eng_data doesn't have a unique key set to index on.
-        if not np.all(self.eng_data.get_mask()):
-            bl_eng_mask = np.logical_and(
-                self.eng_data.get_mask(
-                    header_key=self.bl_data.get_value(
-                        ["iant1", "inhid"], return_tuples=True, use_mask=False
-                    )
-                ),
-                self.eng_data.get_mask(
-                    header_key=self.bl_data.get_value(
-                        ["iant2", "inhid"], return_tuples=True, use_mask=False
-                    )
-                ),
-            )
-            mask_update |= self.bl_data.set_mask(mask=bl_eng_mask)
+            if self._has_auto:
+                key_list.union(
+                    self.ac_data.get_value(["antenna", "inhid"], return_tuples=True)
+                )
+
+            mask_update |= self.eng_data.set_mask(header_key=key_list)
 
         # Now baseline -> int
-        if not np.all(self.bl_data.get_mask()):
-            mask_update |= self.in_data.set_mask(
-                where=("inhid", "eq", self.bl_data["inhid"])
-            )
+        if not (np.all(self.bl_data.get_mask()) and not self._has_auto):
+            good_inhid = set(self.bl_data["inhid"])
+            if self._has_auto:
+                good_inhid.union(self.ac_data["inhid"])
+            mask_update |= self.in_data.set_mask(header_key=good_inhid)
 
         # And weather scan -> int
         if not np.all(self.we_data.get_mask()):
@@ -4459,39 +4455,44 @@ class MirParser(object):
                 where=("ints", "eq", self.we_data["ints"])
             )
 
-        if mask_update or not np.all(self.in_data.get_mask()):
-            # We now cascade the masks downward. First up, int -> weather scan
-            mask_update |= self.we_data.set_mask(
-                where=("ints", "eq", self.in_data["ints"])
-            )
+        # We now cascade the masks downward. First up, int -> weather scan
+        mask_update |= self.we_data.set_mask(header_key=self.in_data["ints"])
 
-            # Next, do int -> baseline
-            mask_update |= self.bl_data.set_mask(
-                where=("inhid", "eq", self.in_data["inhid"])
-            )
+        # Next, ant -> baseline. Again this requires a little extra special
+        # handling, since eng_data doesn't have a unique header key.
+        bl_eng_mask = np.logical_and(
+            self.eng_data.get_mask(
+                header_key=self.bl_data.get_value(
+                    ["iant1", "inhid"], return_tuples=True, use_mask=False
+                )
+            ),
+            self.eng_data.get_mask(
+                header_key=self.bl_data.get_value(
+                    ["iant2", "inhid"], return_tuples=True, use_mask=False
+                )
+            ),
+        )
+        mask_update |= self.bl_data.set_mask(mask=bl_eng_mask)
 
-        if mask_update or not np.all(self.bl_data.get_mask()):
-            # Now do baseline -> antennas. Again special handling required because of
-            # the lack of a unique index key for this table.
-            mask_update |= self.eng_data.set_mask(
-                header_key=set(
-                    self.bl_data.get_value(["iant1", "inhid"], return_tuples=True)
-                    + self.bl_data.get_value(["iant2", "inhid"], return_tuples=True)
-                )
+        # Next, do int -> baseline
+        mask_update |= self.bl_data.set_mask(
+            where=("inhid", "eq", self.in_data["inhid"])
+        )
+
+        # Finally, do baseline -> spec win for the crosses...
+        mask_update |= self.sp_data.set_mask(
+            where=("blhid", "eq", self.bl_data["blhid"])
+        )
+        # ...and the autos.
+        if self._has_auto:
+            mask_update |= self.ac_data.set_mask(
+                mask=self.eng_data.get_mask(
+                    header_key=self.ac_data.get_value(
+                        ["antenna", "inhid"],
+                        return_tuples=True,
+                    )
+                ),
             )
-            # Finally, do baseline -> spec win for the crosses...
-            mask_update |= self.sp_data.set_mask(
-                where=("blhid", "eq", self.bl_data["blhid"])
-            )
-            # ...and the autos.
-            if self._has_auto:
-                mask_update |= self.ac_data.set_mask(
-                    mask=self.eng_data.get_mask(
-                        header_key=self.ac_data.get_value(
-                            ["antenna", "inhid"], return_tuples=True, use_mask=False
-                        )
-                    ),
-                )
 
         if update_data or (update_data is None):
             try:
@@ -5486,8 +5487,7 @@ class MirParser(object):
         # This dict records some common field aliases that users might specify, that
         # map to specific fields in the metadata.
         alias_dict = {
-            "ant": "antennaNumber",
-            "antenna": "antennaNumber",
+            "ant": "antenna",
             "ant1": "tel1",
             "ant2": "tel2",
         }
