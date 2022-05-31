@@ -12,6 +12,7 @@ import os
 import copy
 import warnings
 import h5py
+from functools import partial
 
 __all__ = ["MirParser"]
 
@@ -376,16 +377,82 @@ we_dtype = np.dtype(
 # correlations. Because of this, the dtype below may change.
 ac_dtype = np.dtype(
     [
-        ("inhid", np.int32),
+        # Auto-correlation header ID
         ("achid", np.int32),
+        # Integration header ID
+        ("inhid", np.int32),
+        # Antenna number
         ("antenna", np.int32),
-        ("nchunks", np.int32),
-        ("datasize", np.int32),
-        ("dataoff", np.int64),
+        # Time at midpoint of scan (in TT UT hours)
         ("dhrs", np.float64),
+        # Ant receiver number (0 = RxA, 1 = RxB)
+        ("antrx", np.int16),
+        # Reciever code (matched to rec in codes_read)
+        ("irec", np.int16),
+        # Polariztion code (matched to pol in codes_read)
+        ("ipol", np.int16),
+        # Sidebad code (matched to sb in codes_read; usually 0=LSB, 1=USB)
+        ("isb", np.int16),
+        # Band code (matched to band in codes_read, ususally equal to corrchunk)
+        ("iband", np.int16),
+        # Correlator chunk (spectral window number)
+        ("corrchunk", np.int16),
+        # Correlator number (0 = ASIC; 1 = SWARM)
+        ("correlator", np.int32),
+        # Sky frequency at band center (GHz)
+        ("fsky", np.float64),
+        # Gunn frequency (GHz)
+        ("gunnLO", np.float64),
+        # Second downconverter frequency (GHz, not used currently)
+        ("corrLO1", np.float64),
+        # Final downconverter frequency (GHz)
+        ("corrLO2", np.float64),
+        # DDS frequency offset on nominal Gunn LO (GHz)
+        ("fDDS", np.float64),
+        # Channel resolution (MHz)
+        ("fres", np.float32),
+        # Number of channels
+        ("nch", np.int32),
+        # Offset from the start of the spectral record of the packed data.
+        ("dataoff", np.int64),
+        # Spare value, always 0
+        ("sparedbl1", np.float64),
+        # Spare value, always 0
+        ("sparedbl2", np.float64),
+        # Spare value, always 0
+        ("sparedbl3", np.float64),
+        # Spare value, always 0
+        ("sparedbl4", np.float64),
+        # Spare value, always 0
+        ("sparedbl5", np.float64),
+        # Spare value, always 0
+        ("sparedbl6", np.float64),
+        # Spare value, always 0
+        ("sparedbl7", np.float64),
+        # Spare value, always 0
+        ("sparedbl8", np.float64),
+        # Spare value, always 0
+        ("sparedbl9", np.float64),
+        # Spare value, always 0
+        ("sparedbl10", np.float64),
+        # Spare value, always 0
+        ("sparedbl11", np.float64),
+        # Spare value, always 0
+        ("sparedbl12", np.float64),
+        # Spare value, always 0
+        ("sparedbl13", np.float64),
+        # Spare value, always 0
+        ("sparedbl14", np.float64),
+        # Spare value, always 0
+        ("sparedbl15", np.float64),
+        # Spare value, always 0
+        ("sparedbl16", np.float64),
     ]
 ).newbyteorder("little")
 
+# antennas is actually a text file rather than a binary one, which stores the physical
+# positions of the antennas at the time of observation. We use a fairly simple dtype
+# here for handling its values.
 antpos_dtype = np.dtype([("antenna", np.int16), ("xyz_pos", np.float64, 3)])
 
 
@@ -516,7 +583,7 @@ class MirMetaData(object):
         """
         return self._data.size
 
-    def __eq__(self, other, verbose=False, ignore_params=None, ignore_mask=True):
+    def __eq__(self, other, verbose=False, ignore_params=None, use_mask=False):
         """
         Compare MirMetaData objects for equality.
 
@@ -530,7 +597,7 @@ class MirMetaData(object):
         ignore_params : list of str or None
             Optional argument, which can be used to specify whether to ignore certain
             attributes when comparing objects. By default, no attributes are ignored.
-        ignore_mask : bool
+        use_mask : bool
             Whether or not to ignore the internal mask when performing the comparison.
             If set to True, will only compare those entries where the mask is set to
             True. Default is False.
@@ -560,14 +627,16 @@ class MirMetaData(object):
                 print("%s objects are not both initialized (one is empty)." % name)
             return is_eq
 
-        if ignore_mask and (len(self) != len(other)):
+        this_keys = self.get_header_keys(use_mask=use_mask)
+        other_keys = other.get_header_keys(use_mask=use_mask)
+
+        if set(this_keys) != set(other_keys):
             if verbose:
-                print("%s objects are of different lengths." % name)
+                print("%s object header key lists are different." % name)
             return False
-        elif not (np.array_equal(self._mask, other._mask) or ignore_mask):
-            if verbose:
-                print("%s objects have different masks." % name)
-            return False
+
+        this_idx = np.array([self._header_key_index_dict[key] for key in this_keys])
+        other_idx = np.array([other._header_key_index_dict[key] for key in this_keys])
 
         # Figure out which fields inside the data array we need to compare.
         comp_fields = list(self.dtype.fields)
@@ -582,8 +651,8 @@ class MirMetaData(object):
         # I say these objects are the same -- prove me wrong!
         is_eq = True
         for item in comp_fields:
-            left_vals = self._data[item] if ignore_mask else self[item]
-            right_vals = other._data[item] if ignore_mask else other[item]
+            left_vals = self.get_value(item, index=this_idx)
+            right_vals = other.get_value(item, index=other_idx)
 
             if not np.array_equal(left_vals, right_vals):
                 is_eq = False
@@ -595,7 +664,7 @@ class MirMetaData(object):
 
         return is_eq
 
-    def __ne__(self, other, verbose=False, ignore_params=None, ignore_mask=True):
+    def __ne__(self, other, verbose=False, ignore_params=None, use_mask=False):
         """
         Compare MirMetaData objects for inequality.
 
@@ -616,7 +685,7 @@ class MirMetaData(object):
             Value describing whether the two objects do not contain the same data.
         """
         return not self.__eq__(
-            other, verbose=verbose, ignore_params=ignore_params, ignore_mask=ignore_mask
+            other, verbose=verbose, ignore_params=ignore_params, use_mask=use_mask
         )
 
     def where(
@@ -1638,10 +1707,9 @@ class MirMetaData(object):
                     # If no matching key, then there is no update to perform
                     continue
 
-        # If we have messed with an indexing field, then sort the metadata and
-        # rebuild in header pos dict that we use elsewhere.
+        # If we have messed with an indexing field, then rebuild the header key index.
         if rebuild_index:
-            self._sort_by_header_key()
+            self._set_header_key_index_dict()
 
     def _add_check(self, other, merge=None, overwrite=None, discard_flagged=False):
         """
@@ -1825,8 +1893,8 @@ class MirMetaData(object):
                 "overwrite=True."
             )
 
-        this_idx = list(index_dict1.values())
-        other_idx = list(index_dict2.values())
+        this_idx = sorted(index_dict1.values())
+        other_idx = sorted(index_dict2.values())
 
         return this_idx, other_idx, this_mask[this_idx], other_mask[other_idx]
 
@@ -1908,7 +1976,7 @@ class MirMetaData(object):
 
         # Make sure the data is sorted corectly, generate the header key -> index
         # position dictionary.
-        new_obj._sort_by_header_key()
+        new_obj._set_header_key_index_dict()
 
         # Finally, clear out any sorted values, since there's no longer a good way to
         # carry them forward.
@@ -1976,10 +2044,7 @@ class MirMetaData(object):
             ).astype(self.dtype)
 
         self._mask = np.ones(len(self), dtype=bool)
-
-        # Make sure that the ordering is what we expect, and build the header key
-        # to index position dict.
-        self._sort_by_header_key()
+        self._set_header_key_index_dict()
 
     def _writefile(self, filepath, append_data, datamask=...):
         """
@@ -2080,6 +2145,159 @@ class MirMetaData(object):
 
         self._writefile(writepath, append_data, datamask)
 
+    def _get_record_size_info(self, use_mask=True):
+        if isinstance(self, MirSpData):
+            # Each channel is 2 bytes in length
+            val_size = 2
+            # Each channel has two values (real + imag)
+            n_val = 2
+            # Each vis record has an extra int16 that acts as a common exponent
+            n_pad = 1
+        elif isinstance(self, MirAcData):
+            # Each channel is 4 bytes in length (float32)
+            val_size = 4
+            # Each channel has one values (real-only)
+            n_val = 1
+            # There are no "extra" components of auto records
+            n_pad = 0
+        else:
+            raise TypeError(
+                "Cannot use this method on objects other than MirSpData"
+                "and MirAcData types."
+            )
+
+        # Calculate the individual record sizes here. Each record contains 1 int16
+        # (common exponent) + 2 * nch values.
+        rec_size_arr = val_size * (
+            n_pad + (n_val * self.get_value("nch", use_mask=use_mask).astype(int))
+        )
+
+        return rec_size_arr, val_size
+
+    def _recalc_dataoff(self, use_mask=True):
+        """
+        Calculate the offsets of each spectral record for packed data.
+
+        This is an internal helper function not meant to be called by users, but
+        instead is part of the low-level API. This function is used to calculate the
+        relative offset of the spectral record inside of a per-integration "packed
+        data array", which is what is recorded to disk. This method is primarily used
+        when writing visibility to disk, since the packing of the data (and by
+        extension, it's indexing) depends heavily on what records have been recorded to
+        disk. Note that operation _will_ modify the "dataoff" field inside of the
+        metadata, so care should be taken when calling it.
+
+        Parameters
+        ----------
+        use_mask : bool
+            If set to True, evaluate/calculate for only those records where the internal
+            mask is set to True. If set to False, use all records in the object,
+            regardless of mask status. Default is True.
+        """
+        rec_size_arr, _ = self._get_record_size_info(use_mask=use_mask)
+
+        # Create an array to plug values into
+        offset_arr = np.zeros_like(rec_size_arr)
+        for index_arr in self.group_by(
+            "inhid", use_mask=use_mask, return_index=True
+        ).values():
+            temp_recsize = rec_size_arr[index_arr]
+            offset_arr[index_arr] = np.cumsum(temp_recsize) - temp_recsize
+
+        # Finally, update the attribute with the newly calculated values. Filter out
+        # the warning since we don't need to raise this if using the internal method.
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message='Values in "dataoff" are typically only used for'
+            )
+            self.set_value("dataoff", offset_arr, use_mask=use_mask)
+
+    def _generate_recpos_dict(self, use_mask=True, reindex=False):
+        """
+        Generate a set of dicts for indexing of data.
+
+        This is an internal helper function not meant to be called by users, but
+        instead is part of the low-level API. This function is used to calculate
+        internal indexing values for use in unpacking the raw data on disk, recorded
+        under the filename "sch_read".
+
+        Parameters
+        ----------
+        use_mask : bool
+            If set to True, evaluate/calculate for only those records where the internal
+            mask is set to True. If set to False, use all records in the object,
+            regardless of mask status. Default is True.
+
+        Returns
+        -------
+        int_start_dict : dict
+            Dictionary with information about individual integrations, where the key
+            is matched to a integration header key ("inhid"), and the value is itself
+            a 3-element dictionary containing the keys "inhid" (header key as recorded
+            on disk, which is not _neccessarily_ the same as in the object),
+            "record_size" (in bytes), and "record_start" (start position of the packed
+            data relative to the start of the file, in bytes), with all values recorded
+            as ints.
+        sp_dict : dict
+            Dictionary containing per-spectral record indexing information. The keys
+            are values of "inhid", and the values are themselves dicts whose keys are
+            values of the spectral window header key ("sphid"), the whole group of which
+            are matched to a particular "inhid" value. The values of this "lower" dict
+            is yet another dict, containing three keys: "start_idx" (starting position
+            of the spectral record in the packed data, in number of 2-byte ints),
+            "end_idx" (ending position of the spectral record), and "chan_avg" (number
+            of channels we need average the spectrum over; default is 1).
+        """
+        rec_size_arr, val_size = self._get_record_size_info(use_mask=use_mask)
+
+        int_dict = {}
+        recpos_dict = {}
+
+        # Group together the spectral records by inhid to begin the process of
+        # building out sp_dict.
+        inhid_groups = self.group_by("inhid", use_mask=use_mask, return_index=True)
+        hkey_arr = self.get_header_keys(use_mask=use_mask)
+
+        # Divide by val_size here since we're going from bytes to number of vals
+        if not reindex:
+            dataoff_arr = self.get_value("dataoff", use_mask=use_mask) // val_size
+
+        # Begin putting together dicts now.
+        record_start = 0
+        for inhid in inhid_groups:
+            # Extract out the relevant spectral record group.
+            rec_idx = inhid_groups[inhid]
+
+            # We captured index values above, so now we need to grab header keys
+            # and record start/size information at each index position.
+            hkey_subarr = hkey_arr[rec_idx]
+            rec_size_subarr = rec_size_arr[rec_idx] // val_size
+            if reindex:
+                eidx_arr = np.cumsum(rec_size_subarr)
+                sidx_arr = eidx_arr - rec_size_subarr
+            else:
+                sidx_arr = dataoff_arr[rec_idx]
+                eidx_arr = sidx_arr + rec_size_subarr
+
+            # Plug in the start/end index positions for each spectral record.
+            recpos_dict[inhid] = {
+                hkey: {"start_idx": sidx, "end_idx": eidx, "chan_avg": 1}
+                for hkey, sidx, eidx in zip(hkey_subarr, sidx_arr, eidx_arr)
+            }
+
+            # Record size for int_dict is recorded in bytes, hence the * chan_size here
+            record_size = eidx_arr.max() * val_size
+
+            int_dict[inhid] = {
+                "inhid": inhid,
+                "record_size": record_size,
+                "record_start": record_start,
+            }
+            # Note the +8 here accounts for 2 int32s that are used to mark the inhid
+            # and record size within the sch_read file itself.
+            record_start += record_size + 8
+        return int_dict, recpos_dict
+
 
 class MirInData(MirMetaData):
     """
@@ -2145,129 +2363,6 @@ class MirSpData(MirMetaData):
             Optional argument specifying the path to the Mir data folder.
         """
         super().__init__("sp_read", sp_dtype, "sphid", None, None, filepath)
-
-    def _recalc_dataoff(self, use_mask=True):
-        """
-        Calculate the offsets of each spectral record for packed data.
-
-        This is an internal helper function not meant to be called by users, but
-        instead is part of the low-level API. This function is used to calculate the
-        relative offset of the spectral record inside of a per-integration "packed
-        data array", which is what is recorded to disk. This method is primarily used
-        when writing visibility to disk, since the packing of the data (and by
-        extension, it's indexing) depends heavily on what records have been recorded to
-        disk. Note that operation _will_ modify the "dataoff" field inside of the
-        metadata, so care should be taken when calling it.
-
-        Parameters
-        ----------
-        use_mask : bool
-            If set to True, evaluate/calculate for only those records where the internal
-            mask is set to True. If set to False, use all records in the object,
-            regardless of mask status. Default is True.
-        """
-        # Each channel is 4 bytes in length (int16 real + int16 imag), plus
-        # each spectral record has an int16 up front as the common exponent
-        record_size_arr = (4 * self.get_value("nch", use_mask=use_mask).astype(int)) + 2
-
-        # Create an array to plug values into
-        offset_arr = np.zeros_like(record_size_arr)
-        for index_arr in self.group_by(
-            "inhid", use_mask=use_mask, return_index=True
-        ).values():
-            temp_recsize = record_size_arr[index_arr]
-            offset_arr[index_arr] = np.cumsum(temp_recsize) - temp_recsize
-
-        # Finally, update the attribute with the newly calculated values. Filter out
-        # the warning since we don't need to raise this if using the internal method.
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", message='Values in "dataoff" are typically only used for'
-            )
-            self.set_value("dataoff", offset_arr, use_mask=use_mask)
-
-    def _generate_dataoff_dict(self, use_mask=True):
-        """
-        Generate a set of dicts for indexing of data.
-
-        This is an internal helper function not meant to be called by users, but
-        instead is part of the low-level API. This function is used to calculate
-        internal indexing values for use in unpacking the raw data on disk, recorded
-        under the filename "sch_read".
-
-        Parameters
-        ----------
-        use_mask : bool
-            If set to True, evaluate/calculate for only those records where the internal
-            mask is set to True. If set to False, use all records in the object,
-            regardless of mask status. Default is True.
-
-        Returns
-        -------
-        int_start_dict : dict
-            Dictionary with information about individual integrations, where the key
-            is matched to a integration header key ("inhid"), and the value is itself
-            a 3-element dictionary containing the keys "inhid" (header key as recorded
-            on disk, which is not _neccessarily_ the same as in the object),
-            "record_size" (in bytes), and "record_start" (start position of the packed
-            data relative to the start of the file, in bytes), with all values recorded
-            as ints.
-        sp_dict : dict
-            Dictionary containing per-spectral record indexing information. The keys
-            are values of "inhid", and the values are themselves dicts whose keys are
-            values of the spectral window header key ("sphid"), the whole group of which
-            are matched to a particular "inhid" value. The values of this "lower" dict
-            is yet another dict, containing three keys: "start_idx" (starting position
-            of the spectral record in the packed data, in number of 2-byte ints),
-            "end_idx" (ending position of the spectral record), and "chan_avg" (number
-            of channels we need average the spectrum over; default is 1).
-        """
-        int_dict = {}
-        sp_dict = {}
-
-        # Group together the spectral records by inhid to begin the process of
-        # building out sp_dict.
-        sp_in_groups = self.group_by("inhid", use_mask=use_mask, return_index=True)
-        sphid_arr = self.get_header_keys(use_mask=use_mask)
-
-        # Calculate the individual record sizes here. Each record contains 1 int16
-        # (common exponent) + 2 * nch values.
-        rec_size_arr = 1 + (2 * self.get_value("nch", use_mask=use_mask).astype(int))
-
-        # Divide by 2 here since we're going from bytes to number of int16s
-        dataoff_arr = self.get_value("dataoff", use_mask=use_mask) // 2
-
-        # Begin putting together dicts now.
-        record_start = 0
-        for inhid in sorted(sp_in_groups):
-            # Extract out the relevant spectral record group.
-            sp_idx = sp_in_groups[inhid]
-
-            # We captured index values above, so now we need to grab header keys
-            # and record start/size information at each index position.
-            sphid_subarr = sphid_arr[sp_idx]
-            sidx_arr = dataoff_arr[sp_idx]
-            rec_size_subarr = rec_size_arr[sp_idx]
-            eidx_arr = sidx_arr + rec_size_subarr
-
-            # Plug in the start/end index positions for each spectral record.
-            sp_dict[inhid] = {
-                sphid: {"start_idx": sidx, "end_idx": eidx, "chan_avg": 1}
-                for sphid, sidx, eidx in zip(sphid_subarr, sidx_arr, eidx_arr)
-            }
-
-            # Record size for int_dict is recorded in bytes, hence the x2 here
-            record_size = np.sum(rec_size_subarr) * 2
-            int_dict[inhid] = {
-                "inhid": inhid,
-                "record_size": record_size,
-                "record_start": record_start,
-            }
-            # Note the +8 here accounts for 2 int32s that are used to mark the inhid
-            # and record size within the sch_read file itself.
-            record_start += record_size + 8
-
-        return int_dict, sp_dict
 
 
 class MirWeData(MirMetaData):
@@ -2816,12 +2911,12 @@ class MirAcData(MirMetaData):
         filepath : str
             Optional argument specifying the path to the Mir data folder.
         """
-        self._old_format = False
+        self._old_type = False
         super().__init__("ac_read", ac_dtype, "achid", None, None, filepath)
 
     def fromfile(self, filepath, nchunks=8):
         """
-        Read in data for a MirAntposData object from disk.
+        Read in data for a MirAcData object from disk.
 
         Parameters
         ----------
@@ -2830,57 +2925,90 @@ class MirAcData(MirMetaData):
         """
         old_ac_file = os.path.join(filepath, "autoCorrelations")
         new_ac_file = os.path.join(filepath, self._filetype)
-        if os.path.exists(old_ac_file) and not os.path.exists(new_ac_file):
-            self._old_format = True
-            file_size = os.path.getsize(old_ac_file)
-            with open(old_ac_file, "rb") as auto_file:
-                data_offset = 0
-                last_offset = 0
-                acfile_dtype = np.dtype(
-                    [
-                        ("antenna", np.int32),
-                        ("nChunks", np.int32),
-                        ("scan", np.int32),
-                        ("dhrs", np.float64),
-                    ]
-                )
-                marker = 0
-                while data_offset < file_size:
-                    auto_vals = np.fromfile(
-                        auto_file, dtype=acfile_dtype, count=1, offset=last_offset
-                    )
-                    # This bit of code is to trap an unfortunately
-                    # common problem with metadata of MIR autos not
-                    # being correctly recorded.
-                    if data_offset == 0:
-                        if (file_size % (4 * (2**14) * nchunks * 2 + 20)) != 0:
-                            nchunks = int(auto_vals["nChunks"][0])
-                            if (file_size % (4 * (2**14) * nchunks * 2 + 20)) != 0:
-                                raise IndexError(
-                                    "Could not determine auto-correlation record size!"
-                                )
-                        # How big the record is for each data set
-                        last_offset = 4 * (2**14) * int(nchunks) * 2
-                        ac_data = np.zeros(
-                            file_size // ((4 * (2**14) * int(nchunks) * 2 + 20)),
-                            dtype=ac_dtype,
-                        )
-                    ac_data[marker] = (
-                        auto_vals["scan"][0],
-                        marker + 1,
-                        auto_vals["antenna"][0],
-                        nchunks,
-                        last_offset,
-                        data_offset,
-                        auto_vals["dhrs"][0],
-                    )
-                    data_offset += last_offset + 20
-                    marker += 1
-            self._data = ac_data
-            self._mask = np.ones(len(self), dtype=bool)
-            self._sort_by_header_key()
-        else:
+        if not (os.path.exists(old_ac_file) and not os.path.exists(new_ac_file)):
+            self._old_type = False
             super().fromfile(filepath)
+            return
+
+        self._old_type = True
+        file_size = os.path.getsize(old_ac_file)
+        hdr_dtype = np.dtype(
+            [("antenna", "<i4"), ("nChunks", "<i4"), ("inhid", "<i4"), ("dhrs", "<f8")]
+        )
+        # Cast this here just to avoid any potential overflow issues w/ shorter ints
+        nchunks = int(nchunks)
+        rec_size = 4 * 16384 * nchunks * 2
+
+        # This bit of code is to trap an unfortunately common problem with metadata
+        # of MIR autos not being correctly recorded.
+        if (file_size % (rec_size + hdr_dtype.itemsize)) != 0:
+            # If the file size doesn't go in evenly, then read in just the first
+            # record and try to figure it out.
+            nchunks = int(np.fromfile(old_ac_file, dtype=hdr_dtype, count=1)["nChunks"])
+            rec_size = 4 * 16384 * nchunks * 2
+            assert (
+                file_size % (rec_size + hdr_dtype.itemsize)
+            ) == 0, "Could not determine auto-correlation record size."
+
+        # Pre-allocate the metadata array,
+        n_rec = file_size // (rec_size + hdr_dtype.itemsize)
+        ac_data = np.zeros(2 * nchunks * n_rec, dtype=ac_dtype)
+
+        # Set values that we know apriori
+        ac_data["nch"] = 16384
+        ac_data["isb"] = 1
+        ac_data["correlator"] = 1
+
+        # Grab some references to the values we need to plug in to.
+        dataoff_arr = ac_data["dataoff"]
+        antenna_arr = ac_data["antenna"]
+        chunk_arr = ac_data["corrchunk"]
+        antrx_arr = ac_data["antrx"]
+        inhid_arr = ac_data["inhid"]
+        dhrs_arr = ac_data["dhrs"]
+        last_inhid = None
+
+        with open(old_ac_file, "rb") as auto_file:
+            for idx in range(n_rec):
+                auto_vals = np.fromfile(
+                    auto_file,
+                    dtype=hdr_dtype,
+                    count=1,
+                    offset=rec_size if idx else 0,  # Skip offset on first iteration
+                )
+                if auto_vals["inhid"] != last_inhid:
+                    rec_count = 0
+                    last_inhid = auto_vals["inhid"]
+
+                # Setup some slices that we'll use for plugging in values
+                rxa_slice = slice(idx * 2 * nchunks, ((idx * 2) + 1) * nchunks)
+                rxb_slice = slice(rxa_slice.stop, (idx + 1) * 2 * nchunks)
+                ac_slice = slice(rxa_slice.start, rxb_slice.stop)
+
+                # Plug in the entries that are changing on a per-record basis
+                dhrs_arr[ac_slice] = auto_vals["dhrs"]
+                antenna_arr[ac_slice] = auto_vals["antenna"]
+                chunk_arr[rxa_slice] = chunk_arr[rxb_slice] = np.arange(1, nchunks + 1)
+                antrx_arr[rxa_slice] = 0
+                antrx_arr[rxb_slice] = 1
+                inhid_arr[ac_slice] = last_inhid
+
+                # Each auto record contains nchunks * nrec (always 2 here) spectra, each
+                # one 16384 values of 4-bytes a piece. The offset position is then the
+                # sum of the size of the precious records, plus the header size.
+                dataoff_rec = (np.arange(2 * nchunks) * 4 * 16384) + hdr_dtype.itemsize
+                # Also add the previous offset for the integration, and subtract 8
+                # to account for the packdata header size (which we are spoofing).
+                dataoff_rec += (rec_count * (rec_size + hdr_dtype.itemsize)) - 8
+
+                # Now plug in the dataoff values
+                dataoff_arr[ac_slice] = dataoff_rec
+                rec_count += 1
+
+        # Copy the corrchunk values to iband, since they should be the same here.
+        ac_data["iband"] = ac_data["corrchunk"]
+        self._data = ac_data
+        self._mask = np.ones(len(self), dtype=bool)
 
 
 ########################################################################################
@@ -2996,6 +3124,12 @@ class MirParser(object):
         if not isinstance(other, self.__class__):
             raise ValueError("Cannot compare MirParser with %s." % type(other).__name__)
 
+        data_comp_dict = {
+            "raw_data": ["data", "scale_fac"],
+            "vis_data": ["data", "flags"],
+            "auto_data": ["data", "flags"],
+        }
+
         # I say these objects are the same -- prove me wrong!
         is_eq = True
 
@@ -3052,33 +3186,38 @@ class MirParser(object):
                         )
                     continue
 
+                comp_list = data_comp_dict[item]
+
                 # For the attributes with multiple fields to check, list them
                 # here for convenience.
-                comp_dict = {
-                    "raw_data": ["raw_data", "scale_fac"],
-                    "vis_data": ["vis_data", "vis_flags"],
-                }
                 for key in this_attr:
                     this_item = this_attr[key]
                     othr_item = other_attr[key]
 
-                    item_same = False
-                    # auto_data entries are just ndarrays, which we can compare directly
-                    if item == "auto_data":
-                        if this_item.shape == othr_item.shape:
-                            item_same = np.allclose(this_item, othr_item)
-                    else:
-                        # If cross-correlation data, then there are multiple dict
-                        # entries that we need to compare (defined above).
-                        for subkey in comp_dict[item]:
-                            if subkey == "scale_fac":
-                                item_same = this_item[subkey] == othr_item[subkey]
-                            else:
-                                if this_item[subkey].shape == othr_item[subkey].shape:
-                                    item_same = np.allclose(
-                                        this_item[subkey], othr_item[subkey]
-                                    )
-                    if not item_same:
+                    is_same = True
+                    for subkey in comp_list:
+                        if subkey == "scale_fac":
+                            is_same &= this_item[subkey] == othr_item[subkey]
+                        elif subkey == "flags":
+                            is_same &= np.array_equal(
+                                this_item[subkey], othr_item[subkey]
+                            )
+                        else:
+                            # The atol here is set by the max value in the spectrum
+                            # times 2^-10. That turns out to be _about_ the worst case
+                            # scenario for moving to and from the raw data format, which
+                            # compresses the data down from floats to ints.
+                            try:
+                                is_same &= np.allclose(
+                                    this_item[subkey],
+                                    othr_item[subkey],
+                                    atol=9.765625e-4
+                                    * np.nanmax(np.abs(this_item[subkey]), initial=0),
+                                    equal_nan=True,
+                                )
+                            except ValueError:
+                                is_same = False
+                    if not is_same:
                         is_eq = False
                         if verbose:
                             print("%s has the same keys, but different values." % item)
@@ -3087,6 +3226,14 @@ class MirParser(object):
                 # the item_same evauation below.
             elif issubclass(type(this_attr), MirMetaData):
                 is_eq &= this_attr.__eq__(other_attr, verbose=verbose)
+            elif item == "_metadata_attrs":
+                if this_attr.keys() != other_attr.keys():
+                    is_eq = False
+                    if verbose:
+                        print(
+                            f"{item} has different keys, left is {this_attr.keys()}, "
+                            f"right is {other_attr.keys()}."
+                        )
             else:
                 # We don't have special handling for this attribute at this point, so
                 # we just use the generic __ne__ method.
@@ -3167,17 +3314,15 @@ class MirParser(object):
             of the packdata array (in bytes) the relative offset (also in bytes) of
             the record within the sch_read file.
         """
-        full_filepath = os.path.join(filepath, "sch_read")
-
-        file_size = os.path.getsize(full_filepath)
+        file_size = os.path.getsize(filepath)
         data_offset = 0
         last_offset = 0
-        int_start_dict = {}
-        with open(full_filepath, "rb") as visibilities_file:
+        int_dict = {}
+        with open(filepath, "rb") as visibilities_file:
             while data_offset < file_size:
                 int_vals = np.fromfile(
                     visibilities_file,
-                    dtype=np.dtype([("inhid", np.int32), ("nbyt", np.int32)]),
+                    dtype=np.dtype([("inhid", "<i4"), ("nbyt", "<i4")]),
                     count=1,
                     offset=last_offset,
                 )[0]
@@ -3190,7 +3335,7 @@ class MirParser(object):
                             "be incomplete, or sch_read may have become corrupted in "
                             "some way."
                         )
-                int_start_dict[int_vals["inhid"]] = {
+                int_dict[int_vals["inhid"]] = {
                     "inhid": int_vals["inhid"],
                     "record_size": int_vals["nbyt"],
                     "record_start": data_offset,
@@ -3198,95 +3343,43 @@ class MirParser(object):
                 last_offset = int_vals["nbyt"].astype(int)
                 data_offset += last_offset + 8
 
-        return int_start_dict
+        return int_dict
 
-    def fix_int_start(self, filepath=None, int_start_dict=None):
+    def _fix_int_start(self, datatype):
         """
         Fix an integration postion dictionary.
 
+        Note that this function is not meant to be called by users, but is instead
+        part of the low-level API for handling error correction when reading in data.
         This method will fix potential errors in an internal dictionary used to mark
         where in the main visibility file an individual spectral record is located.
         Under normal conditions, this routine does not need to be run, unless another
         method reported a specific error on read calling for the user to run this code.
-
-        Parameter
-        ---------
-        filepath : list of str
-            Optional argument, specifying the path of the individual files. Default
-            is to pull this information from the MirParser object itself.
-        int_start_dict : list of dict
-            Optional argument, specifying the starting positions in the file for each
-            record. Default is to pull this information from the MirParser object
-            itself.
-
-        Returns
-        -------
-        file_dict : dict
-            Only returned if filepath and int_start_dict are provided, a dictionary
-            whose keys are the individual values of filepath, matched with the
-            updated integration position dictionary (i.e., int_start_dict).
-
-        Raises
-        ------
-        ValueError
-            If either (but not both) filepath and int_start_dict are set, or if the
-            length of the list in filepath does not match that of int_start_dict.
         """
-        # Make sure both arguments are set
-        if (filepath is None) != (int_start_dict is None):
-            raise ValueError(
-                "Must either set both or neither of filepath and "
-                "int_start_dict arguments."
-            )
+        for ifile, idict in self._file_dict.items():
+            if not idict[datatype]["ignore_header"]:
+                int_dict = copy.deepcopy(idict[datatype]["int_dict"])
 
-        # Determine whether or not to return the file_dict
-        return_dict = filepath is not None
-
-        # If arguments aren't provided, then grab the relevant data from the object
-        if filepath is None:
-            filepath = list(self._file_dict)
-
-            # Note that we want the deep copy here to avoid potentially corrupting
-            # the object-based values _before_ we finish readign in the new values
-            # (which could raise an error on read).
-            int_start_dict = copy.deepcopy(list(self._file_dict.values()))
-        else:
-            if len(filepath) != len(int_start_dict):
-                raise ValueError(
-                    "Both filepath and int_start_dict must be lists of the same length."
-                )
-
-        for ifile, idict in zip(filepath, int_start_dict):
             # Each file's inhid is allowed to be different than the objects inhid --
             # this is used in cases when combining multiple files together (via
             # concat). Here, we make a mapping of "file-based" inhid values to that
             # stored in the object.
-            imap = {val["inhid"]: inhid for inhid, val in idict.items()}
+            imap = {val["inhid"]: inhid for inhid, val in int_dict.items()}
 
             # Make the new dict by scaning the sch_read file.
-            new_dict = self.scan_int_start(filepath=ifile, allowed_inhid=list(imap))
+            new_dict = self.scan_int_start(
+                os.path.join(ifile, idict[datatype]["filetype"]), list(imap)
+            )
 
             # Go through the individual entries in each dict, and update them
             # with the "correct" values as determined by scanning through sch_read
             for key in new_dict:
-                idict[imap[key]] = new_dict[key]
+                int_dict[imap[key]] = new_dict[key]
 
-        # Finally, create the internal file dict by zipping together filepaths and
-        # the integration position dicts.
-        file_dict = {
-            os.path.abspath(ifile): idict
-            for ifile, idict in zip(filepath, int_start_dict)
-        }
-
-        # If we are supposed to return a dict, do that now, otherwise update
-        # the attribute in the object.
-        if return_dict:
-            return file_dict
-        else:
-            self._file_dict = file_dict
+            idict[datatype]["int_dict"] = int_dict
 
     @staticmethod
-    def read_packdata(file_dict, inhid_arr, use_mmap=False):
+    def read_packdata(file_dict, inhid_arr, data_type="cross", use_mmap=False):
         """
         Read "sch_read" mir file into memory (@staticmethod).
 
@@ -3315,26 +3408,23 @@ class MirParser(object):
         size_set = {
             rec_dict["record_size"]
             for idict in file_dict.values()
-            for rec_dict in idict.values()
+            for rec_dict in idict[data_type]["int_dict"].values()
         }
 
         for int_size in size_set:
             int_dtype_dict[int_size] = np.dtype(
-                [
-                    ("inhid", np.int32),
-                    ("nbyt", np.int32),
-                    ("packdata", np.int16, int_size // 2),
-                ]
-            ).newbyteorder("little")
+                [("inhid", "<i4"), ("nbyt", "<i4"), ("packdata", "B", int_size)]
+            )
 
-        key_set = sorted(inhid_arr)
+        key_set = list(inhid_arr)
         key_check = key_set.copy()
         # We add an extra key here, None, which cannot match any of the values in
         # int_start_dict (since inhid is type int). This basically tricks the loop
         # below into spitting out the last integration
         key_set.append(None)
-        for filename, int_start_dict in file_dict.items():
+        for filepath, indv_file_dict in file_dict.items():
             # Initialize a few values before we start running through the data.
+            int_dict = indv_file_dict[data_type]["int_dict"]
             inhid_list = []
             last_offset = last_size = num_vals = del_offset = 0
 
@@ -3349,7 +3439,7 @@ class MirParser(object):
                     int_size = int_start = 0
                 else:
                     try:
-                        rec_dict = int_start_dict[ind_key]
+                        rec_dict = int_dict[ind_key]
                         key_check.remove(ind_key)
                     except KeyError:
                         continue
@@ -3386,10 +3476,15 @@ class MirParser(object):
                     inhid_list = []
                 num_vals += 1
                 inhid_list.append(ind_key)
-
-            full_filename = os.path.join(filename, "sch_read")
+            filename = os.path.join(filepath, indv_file_dict[data_type]["filetype"])
             # Time to actually read in the data
             if use_mmap:
+                # kwargs = {
+                #     "mode": "r",
+                #     "offset": read_dict["start_offset"],
+                #     "shape": (read_dict["num_vals"],),
+                # }
+
                 # memmap is a little special, in that it wants the _absolute_ offset
                 # rather than the relative offset that np.fromfile uses (if passing a
                 # file object rather than a string with the path toward the file).
@@ -3398,7 +3493,7 @@ class MirParser(object):
                         zip(
                             read_dict["inhid_list"],
                             np.memmap(
-                                filename=full_filename,
+                                filename=filename,
                                 dtype=read_dict["int_dtype_dict"],
                                 mode="r",
                                 offset=read_dict["start_offset"],
@@ -3407,7 +3502,7 @@ class MirParser(object):
                         )
                     )
             else:
-                with open(full_filename, "rb") as visibilities_file:
+                with open(filename, "rb") as visibilities_file:
                     # Note that we do one open here to avoid the overheads associated
                     # with opening and closing the file each integration.
                     for read_dict in read_list:
@@ -3423,17 +3518,28 @@ class MirParser(object):
                             )
                         )
 
+            if not indv_file_dict[data_type]["ignore_header"]:
+                good_check = True
+                for inhid, idict in int_data_dict.items():
+                    # There is very little to check in the packdata records, so make
+                    # sure that this entry corresponds to the inhid and size we expect.
+                    good_check &= idict["inhid"] == int_dict[inhid]["inhid"]
+                    good_check &= idict["nbyt"] == int_dict[inhid]["record_size"]
+
+                if not good_check:
+                    raise MirMetaError("Thing")
+
         if len(key_check) != 0:
             raise ValueError("inhid_arr contains keys not found in file_dict.")
 
         return int_data_dict
 
     @staticmethod
-    def make_packdata(int_start_dict, sp_dict, raw_data):
+    def make_packdata(int_start_dict, recpos_dict, data_dict, data_type):
         """
-        Write packdata from raw_data.
+        Write packdata from raw_data or auto_data.
 
-        This method will convert raw data into packed data, ready to be written to
+        This method will convert regular data into "packed data", ready to be written to
         disk (i.e., MIR-formatted). This method is typically called by file writing
         utilities.
 
@@ -3461,18 +3567,24 @@ class MirParser(object):
             of the packed data (in bytes), and "packdata", which is the packed raw
             data.
         """
+        if data_type == "cross":
+            val_dtype = "<i2"
+            is_cross = True
+        elif data_type == "auto":
+            val_dtype = "<f4"
+            is_cross = False
+        else:
+            raise ValueError(
+                'Argument for data_type not recognized, must be "cross" or "auto".'
+            )
         # Figure out all of the unique dtypes we need for constructing the individual
         # packed datasets (where we need a different dtype based on the number of
         # individual visibilities we're packing in).
         int_dtype_dict = {}
         for int_size in {idict["record_size"] for idict in int_start_dict.values()}:
             int_dtype_dict[int_size] = np.dtype(
-                [
-                    ("inhid", np.int32),
-                    ("nbyt", np.int32),
-                    ("packdata", np.int16, int_size // 2),
-                ]
-            ).newbyteorder("little")
+                [("inhid", "<i4"), ("nbyt", "<i4"), ("packdata", "B", int_size)]
+            )
 
         # Now we start the heavy lifting -- start looping through the individual
         # integrations and pack them together.
@@ -3483,7 +3595,7 @@ class MirParser(object):
 
             # Convenience dict which contains the sphids as keys and start/stop of
             # the slice for each spectral record as values for each integrtation.
-            datapos_dict = sp_dict[inhid]
+            recpos_subdict = recpos_dict[inhid]
 
             # Plug in the "easy" parts of packdata
             int_data["inhid"] = inhid
@@ -3492,13 +3604,16 @@ class MirParser(object):
             # Now step through all of the spectral records and plug it in to the
             # main packdata array. In testing, this worked out to be a good degree
             # faster than running np.concat.
-            packdata = int_data["packdata"]
-            for sphid, sp_subdict in datapos_dict.items():
-                sp_raw = raw_data[sphid]
-                start_idx = sp_subdict["start_idx"]
-                end_idx = sp_subdict["end_idx"]
-                packdata[start_idx] = sp_raw["scale_fac"]
-                packdata[(start_idx + 1) : end_idx] = sp_raw["raw_data"]
+            packdata = int_data["packdata"].view(val_dtype)
+            for hid, recinfo in recpos_subdict.items():
+                data_record = data_dict[hid]
+                start_idx = recinfo["start_idx"]
+                end_idx = recinfo["end_idx"]
+                if is_cross:
+                    packdata[start_idx] = data_record["scale_fac"]
+                    packdata[(start_idx + 1) : end_idx] = data_record["data"]
+                else:
+                    packdata[start_idx:end_idx] = data_record["data"]
 
             int_data_dict[inhid] = int_data
 
@@ -3544,10 +3659,10 @@ class MirParser(object):
         #   4) pairs of float32 -> complex64 is super fast and efficient.
         vis_dict = {
             sphid: {
-                "vis_data": (
-                    (np.float32(2) ** sp_raw["scale_fac"]) * sp_raw["raw_data"]
-                ).view(dtype=np.complex64),
-                "vis_flags": sp_raw["raw_data"][::2] == -32768,
+                "data": ((np.float32(2) ** sp_raw["scale_fac"]) * sp_raw["data"]).view(
+                    dtype=np.complex64
+                ),
+                "flags": sp_raw["data"][::2] == -32768,
             }
             for sphid, sp_raw in raw_dict.items()
         }
@@ -3555,7 +3670,7 @@ class MirParser(object):
         # In testing, flagging the bad channels out after-the-fact was significantly
         # faster than trying to much w/ the data above.
         for item in vis_dict.values():
-            item["vis_data"][item["vis_flags"]] = 0.0
+            item["data"][item["flags"]] = 0.0
 
         return vis_dict
 
@@ -3596,7 +3711,7 @@ class MirParser(object):
         # of any real telescope (femtoJanskys FTW!).
         scale_fac = np.frexp(
             [
-                np.abs(sp_vis["vis_data"].view(dtype=np.float32)).max(
+                np.abs(sp_vis["data"].view(dtype=np.float32)).max(
                     initial=2.220446049250313e-16
                 )
                 for sp_vis in vis_dict.values()
@@ -3617,10 +3732,10 @@ class MirParser(object):
         raw_dict = {
             sphid: {
                 "scale_fac": sfac,
-                "raw_data": np.where(
-                    sp_vis["vis_flags"],
+                "data": np.where(
+                    sp_vis["flags"],
                     np.complex64(-32768 - 32768j),
-                    sp_vis["vis_data"] * (np.float32(2) ** (-sfac)),
+                    sp_vis["data"] * (np.float32(2) ** (-sfac)),
                 )
                 .view(dtype=np.float32)
                 .astype(np.int16),
@@ -3630,7 +3745,7 @@ class MirParser(object):
 
         return raw_dict
 
-    def read_vis_data(self, return_vis=True, use_mmap=True, read_only=False):
+    def read_data(self, data_type, return_vis=True, use_mmap=True, read_only=False):
         """
         Read "sch_read" mir file into a list of ndarrays.
 
@@ -3669,64 +3784,82 @@ class MirParser(object):
             spectrum (both are of length equal to `sp_data["nch"]` for the
             corresponding value of sphid).
         """
-        group_dict = self.sp_data.group_by("inhid")
+        if data_type not in ["auto", "cross"]:
+            raise ValueError(
+                'Argument for data_type not recognized, must be "cross" or "auto".'
+            )
+
+        is_cross = data_type == "cross"
+        if is_cross:
+            chavg_call = partial(self._rechunk_raw, inplace=True, return_vis=return_vis)
+            data_map = self._sp_dict
+            data_metadata = "sp_data"
+            val_type = "<i2"
+        else:
+            chavg_call = partial(self._rechunk_data, inplace=True)
+            data_map = self._ac_dict
+            data_metadata = "ac_data"
+            val_type = "<f4"
+            return_vis = False
+
+        group_dict = getattr(self, data_metadata).group_by("inhid")
         unique_inhid = list(group_dict)
 
-        # Begin the process of reading the data in, stuffing the "packdata" arrays
-        # (to be converted into "raw" data) into the dict below.
-        packdata_dict = {}
-        packdata_dict.update(
-            MirParser.read_packdata(self._file_dict, unique_inhid, use_mmap=use_mmap)
-        )
-        check_dict = {}
-        for int_start_dict in self._file_dict.values():
-            check_dict.update(int_start_dict)
+        try:
+            # Begin the process of reading the data in, stuffing the "packdata" arrays
+            # (to be converted into "raw" data) into the dict below.
+            packdata_dict = self.read_packdata(
+                self._file_dict, unique_inhid, data_type, use_mmap
+            )
+        except MirMetaError:
+            # Catch an error that indicates that the metadata inside the vis file does
+            # not match that in _file_dict, and attempt to fix the problem.
+            warnings.warn(
+                "Values in int_dict do not match that recorded inside the "
+                "file for %s data. Attempting to fix this automatically." % data_type
+            )
+            self._fix_int_start(data_type)
+            packdata_dict = self.read_packdata(
+                self._file_dict, unique_inhid, data_type, use_mmap
+            )
 
         # With the packdata in hand, start parsing the individual spectral records.
         data_dict = {}
         for inhid in unique_inhid:
-            # There is very little to check in the packdata records, so make sure
-            # that this entry corresponds to the inhid and size we expect.
-            if (packdata_dict[inhid]["inhid"] != check_dict[inhid]["inhid"]) or (
-                packdata_dict[inhid]["nbyt"] != check_dict[inhid]["record_size"]
-            ):
-                raise ValueError(
-                    "Values in int_start_dict do not match that recorded inside "
-                    "the data file. Run `fix_int_start` to regenerate the integration "
-                    "position information."
-                )
-
             # Pop here let's us delete this at the end (and hopefully let garbage
             # collection do it's job correctly).
-            packdata = packdata_dict.pop(inhid)["packdata"]
-            sphid_subarr = group_dict[inhid]
-            dataoff_subdict = self._sp_dict[inhid]
+            packdata = packdata_dict.pop(inhid)["packdata"].view(val_type)
+            hid_subarr = group_dict[inhid]
+            dataoff_subdict = data_map[inhid]
 
             # We copy here if we want the raw values AND we've used memmap, since
             # otherwise the resultant entries in raw_data will be memmap arrays, which
             # will be read only (and we want attributes to be modifiable.)
-            chan_avg_arr = np.zeros(len(sphid_subarr), dtype=int)
+            chan_avg_arr = np.zeros(len(hid_subarr), dtype=int)
             temp_dict = {}
-            for idx, sphid in enumerate(sphid_subarr):
-                dataoff = dataoff_subdict[sphid]
+            for idx, hid in enumerate(hid_subarr):
+                dataoff = dataoff_subdict[hid]
                 start_idx = dataoff["start_idx"]
                 end_idx = dataoff["end_idx"]
                 chan_avg_arr[idx] = dataoff["chan_avg"]
-                temp_dict[sphid] = {
-                    "scale_fac": packdata[start_idx],
-                    "raw_data": packdata[start_idx + 1 : end_idx],
-                }
+
+                if is_cross:
+                    temp_dict[hid] = {
+                        "scale_fac": packdata[start_idx],
+                        "data": packdata[start_idx + 1 : end_idx],
+                    }
+                else:
+                    data_arr = packdata[start_idx:end_idx]
+                    temp_dict[hid] = {"data": data_arr, "flags": np.isnan(data_arr)}
 
             if np.all(chan_avg_arr == 1):
                 if return_vis:
                     temp_dict = self.convert_raw_to_vis(temp_dict)
                 elif not read_only:
-                    for sp_data in temp_dict.values():
-                        sp_data["raw_data"] = sp_data["raw_data"].copy()
+                    for idict in temp_dict.values():
+                        idict["data"] = idict["data"].copy()
             else:
-                self._rechunk_raw(
-                    temp_dict, chan_avg_arr, inplace=True, return_vis=return_vis
-                )
+                chavg_call(temp_dict, chan_avg_arr)
 
             data_dict.update(temp_dict)
 
@@ -3737,9 +3870,9 @@ class MirParser(object):
         # Figure out which results we need to pass back
         return data_dict
 
-    def write_vis_data(self, filepath, append_data=False, raise_err=True):
+    def write_cross_data(self, filepath, append_data=False, raise_err=True):
         """
-        Write visibility data to disk.
+        Write cross-correlation data to disk.
 
         Parameters
         ----------
@@ -3764,7 +3897,7 @@ class MirParser(object):
             if raise_err:
                 raise ValueError("Cannot write data if not already loaded.")
             else:
-                warnings.warn("No data loaded, writing metadata only to disk.")
+                warnings.warn("No cross data loaded, skipping writing it to disk.")
                 return
 
         if (self.vis_data is not None) and self._tsys_applied:
@@ -3786,13 +3919,13 @@ class MirParser(object):
         # duplicate copies of the data which can cause the memory footprint to balloon,
         # So we want to just create one packdata entry at a time. To do that, we
         # actually need to sgement sp_data by the integration ID.
-        int_start_dict, sp_dict = self.sp_data._generate_dataoff_dict()
+        int_dict, sp_dict = self.sp_data._generate_recpos_dict(reindex=True)
 
         # We can now open the file once, and write each array upon construction
         with open(
             os.path.join(filepath, "sch_read"), "ab+" if append_data else "wb+"
         ) as file:
-            for inhid in sorted(int_start_dict):
+            for inhid in int_dict:
                 if self.vis_data is None:
                     raw_dict = self.raw_data
                 else:
@@ -3801,58 +3934,62 @@ class MirParser(object):
                     )
 
                 packdata = self.make_packdata(
-                    {inhid: int_start_dict[inhid]}, {inhid: sp_dict[inhid]}, raw_dict
+                    {inhid: int_dict[inhid]}, {inhid: sp_dict[inhid]}, raw_dict, "cross"
                 )
                 packdata[inhid].tofile(file)
 
-    def read_auto_data(self, winsel=None):
+    def write_auto_data(self, filepath, append_data=False, raise_err=True):
         """
-        Read "autoCorrelations" mir file into memory.
-
-        Note that this returns as an array, since there isn't any unique index for the
-        autocorrelations file.
+        Write auto-correlation data to disk.
 
         Parameters
         ----------
-        winsel : list of int (optional)
-            List of spectral windows to include.
+        filepath : str
+            String  describing the folder in which the data should be written.
+        append_data : bool
+            Option whether to append to an existing file, if one already exists, or to
+            overwrite any existing data. Default is False (overwrite existing data).
+        raise_err : bool
+            If set to True and data are not loaded, raise a ValueError. If False, raise
+            a warning instead. Default is True.
 
-        Returns
-        -------
-        auto_data : dict
-            A dictionary, whose keys are matched to values to achid in ac_data, and
-            values contain the spectrum of individual auto-correlation records, of
-            type np.float32.
+        Raises
+        ------
+        ValueError
+            If data are not loaded, and `raise_err=True`.
+        UserWarning
+            If data are not laoded, and `raise_err=False`. Also raised if tsys
+            corrections have been applied to the data prior to being written out.
         """
-        if self.ac_data._old_format:
-            # In the old file format, each antenna's spectra was recorded as a single
-            # block of data, which each window being an unaveraged 16384 channels.
-            if winsel is None:
-                winsel = np.arange(0, np.max(self.ac_data["nchunks"]))
+        if self.auto_data is None:
+            if raise_err:
+                raise ValueError("Cannot write data if not already loaded.")
+            else:
+                warnings.warn("No auto data loaded, skipping writing it to disk.")
+                return
 
-            auto_data = {}
+        if not os.path.isdir(filepath):
+            os.makedirs(filepath)
 
-            for file, startdict in self._file_dict.items():
-                # Select out the appropriate records for this file
-                ac_mask = np.isin(self.ac_data["inhid"], list(startdict))
+        # In order to write to disk, we need to create an intermediate product known
+        # as "packed data", which is written on a per-integration basis. These create
+        # duplicate copies of the data which can cause the memory footprint to balloon,
+        # So we want to just create one packdata entry at a time. To do that, we
+        # actually need to sgement sp_data by the integration ID.
+        int_dict, ac_dict = self.ac_data._generate_recpos_dict(reindex=True)
 
-                dataoff_arr = self.ac_data["dataoff"][ac_mask]
-                nvals_arr = self.ac_data["datasize"][ac_mask].astype(np.int64) // 4
-                achid_arr = self.ac_data["achid"][ac_mask]
-                with open(os.path.join(file, "autoCorrelations"), "rb") as auto_file:
-                    # Start scanning through the file now.
-                    lastpos = 0
-                    for achid, dataoff, nvals in zip(achid_arr, dataoff_arr, nvals_arr):
-                        deloff = dataoff - lastpos
-                        auto_data[achid] = np.fromfile(
-                            auto_file,
-                            dtype=np.float32,
-                            count=nvals,
-                            offset=deloff,
-                        ).reshape((-1, 2, 2**14))[winsel]
-                        lastpos = dataoff + (4 * nvals)
-
-            return auto_data
+        # We can now open the file once, and write each array upon construction
+        with open(
+            os.path.join(filepath, "ach_read"), "ab+" if append_data else "wb+"
+        ) as file:
+            for inhid in int_dict:
+                packdata = self.make_packdata(
+                    {inhid: int_dict[inhid]},
+                    {inhid: ac_dict[inhid]},
+                    self.auto_data,
+                    "auto",
+                )
+                packdata[inhid].tofile(file)
 
     def apply_tsys(self, invert=False, force=False):
         """
@@ -3947,9 +4084,9 @@ class MirParser(object):
         # that are in the dictionary.
         for sphid, blhid in zip(self.sp_data["sphid"], self.sp_data["blhid"]):
             try:
-                self.vis_data[sphid]["vis_data"] *= normal_dict[blhid]
+                self.vis_data[sphid]["data"] *= normal_dict[blhid]
             except KeyError:
-                self.vis_data[sphid]["vis_flags"][:] = True
+                self.vis_data[sphid]["flags"][:] = True
 
         self._tsys_applied = not invert
 
@@ -3970,7 +4107,7 @@ class MirParser(object):
             raise ValueError("Cannot apply flags if vis_data are not loaded.")
 
         for sphid, flagval in zip(self.sp_data["sphid"], self.sp_data["flags"]):
-            self.vis_data[sphid]["vis_flags"][:] = bool(flagval)
+            self.vis_data[sphid]["flags"][:] = bool(flagval)
 
     def _check_data_index(self):
         """
@@ -4212,15 +4349,14 @@ class MirParser(object):
 
         # Finally, if we didn't downselect or convert, load the data from disk now.
         if load_vis or load_raw:
-            setattr(
-                self,
-                "vis_data" if load_vis else "raw_data",
-                self.read_vis_data(
-                    return_vis=load_vis,
-                    use_mmap=use_mmap,
-                    read_only=read_only,
-                ),
+            data_dict = self.read_data(
+                "cross",
+                return_vis=load_vis,
+                use_mmap=use_mmap,
+                read_only=read_only,
             )
+
+            setattr(self, "vis_data" if load_vis else "raw_data", data_dict)
 
             if load_vis:
                 # Since we've loaded in "fresh" data, we mark that tsys has
@@ -4236,12 +4372,9 @@ class MirParser(object):
         # we will fix this, but for now, we triage the autos here. Note that if we
         # already have the auto_data loaded, we can bypass this step.
         if load_auto:
-            # Have to do this because of a strange bug in data recording where
-            # we record more autos worth of spectral windows than we actually
-            # have online.
-            winsel = np.unique(self.sp_data["corrchunk"])
-            winsel = winsel[winsel != 0].astype(int) - 1
-            self.auto_data = self.read_auto_data(winsel=winsel)
+            self.auto_data = self.read_data(
+                "auto", return_vis=False, use_mmap=use_mmap, read_only=read_only
+            )
 
     def unload_data(self, unload_vis=True, unload_raw=True, unload_auto=True):
         """
@@ -4346,10 +4479,19 @@ class MirParser(object):
                     + self.bl_data.get_value(["iant2", "inhid"], return_tuples=True)
                 )
             )
-            # Finally, do baseline -> spec win
+            # Finally, do baseline -> spec win for the crosses...
             mask_update |= self.sp_data.set_mask(
                 where=("blhid", "eq", self.bl_data["blhid"])
             )
+            # ...and the autos.
+            if self._has_auto:
+                mask_update |= self.ac_data.set_mask(
+                    mask=self.eng_data.get_mask(
+                        header_key=self.ac_data.get_value(
+                            ["antenna", "inhid"], return_tuples=True, use_mask=False
+                        )
+                    ),
+                )
 
         if update_data or (update_data is None):
             try:
@@ -4371,11 +4513,20 @@ class MirParser(object):
                     )
 
     def _clear_auto(self):
+        """
+        Remove attributes related to autos.
+
+        This method is part of the internal API, and not meant for general users. It
+        will clear out attributes related to the auto-correlations.
+        """
         self._has_auto = False
         self.auto_data = None
         self.ac_data = MirAcData()
+        self._ac_dict = None
         try:
             del self._metadata_attrs["ac_data"]
+            for key in self._file_dict:
+                del self._file_dict[key]["auto"]
         except KeyError:
             pass
 
@@ -4391,16 +4542,144 @@ class MirParser(object):
         for item in self._metadata_attrs:
             self._metadata_attrs[item].reset()
 
-        for int_dict in self._sp_dict.values():
-            for sp_dict in int_dict.values():
-                sp_dict["chan_avg"] = 1
+        update_list = []
+        if self._has_cross:
+            update_list.append(self._sp_dict)
+        if self._has_auto:
+            update_list.append(self._ac_dict)
+
+        for recpos_dict in update_list:
+            for int_dict in recpos_dict.values():
+                for idict in int_dict.values():
+                    idict["chan_avg"] = 1
 
         self.unload_data()
+
+    def _fix_acdata(self):
+        """
+        Fill in missing auto-correlation metadata.
+
+        This method is part of the internal API, and not meant to be called by users.
+        It's purpose is to reconstruct auto-correlation metadata based on that available
+        in other metadata attributes. This is needed because presently, the online
+        system records no such information.
+        """
+        # First up, we want to down-select any extra records belonging to correlator
+        # chunks that are completely blank.
+        unique_bands = np.unique(self.sp_data._data["iband"])
+        sel_mask = np.isin(self.ac_data._data["iband"], unique_bands)
+
+        self.ac_data._data = self.ac_data._data[sel_mask]
+        self.ac_data._mask = np.ones(len(self.ac_data), dtype=bool)
+
+        # Set up the header index for the object, and then construct the header key dict
+        self.ac_data._data["achid"] = np.arange(1, len(self.ac_data) + 1)
+        self.ac_data._set_header_key_index_dict()
+
+        # Now that we've got vitals, we want to import in metadata from some of the
+        # other metadata objects. List out those fields now.
+        bl_imports = ["irec", "ipol"]
+        sp_imports = ["fsky", "gunnLO", "corrLO1", "corrLO2", "fDDS", "fres"]
+
+        # Handle the special case that is the ipol values -- a common error is that they
+        # are all set to 0 when operating in dual-pol mode (when they should be 0 & 1).
+        if len(np.unique(self.bl_data["ipol"])) == 1 and (
+            len(self.codes_data["pol"]) == (2 * 4)
+        ):
+            bl_imports.remove("ipol")
+            self.ac_data["ipol"] = self.ac_data["antrx"]
+
+        # First, handle the cases where all values should be the same on a per-inhid
+        # basis, but pulled from bl_data.
+        ac_groups = self.ac_data.group_by(
+            ["inhid", "antrx", "antrx", "isb"], return_index=True, use_mask=False
+        )
+        bl_groups = self.bl_data.group_by(
+            ["inhid", "ant1rx", "ant2rx", "isb"], return_index=True, use_mask=False
+        )
+
+        # For each field, plug in the entries on a per-group basis. Note we use median
+        # here to try to add some robustness (in case of recording error in one record).
+        for field in bl_imports:
+            data_arr = self.ac_data._data[field]
+            export_data_arr = self.bl_data._data[field]
+            for key, idx_arr in ac_groups.items():
+                data_arr[idx_arr] = np.median(export_data_arr[bl_groups[key]])
+
+        # Now get set up for tackling the items that can change on a per spectral
+        # window basis. Note that here we are assuming that the values should be the
+        # same for at least the same inhid and spectral band number.
+        ac_groups = self.ac_data.group_by(
+            ["inhid", "antrx", "isb", "iband"], return_index=True, use_mask=False
+        )
+        bl_groups = self.bl_data.group_by(
+            ["inhid", "ant1rx", "ant2rx", "isb"], use_mask=False
+        )
+        sp_groups = self.sp_data.group_by(
+            ["blhid", "iband"],
+            use_mask=False,
+            assume_unique=True,
+            return_index=True,
+        )
+
+        # We have to do a bit of extra legwork here to figure out which blocks o
+        # entries map to which values.
+        metablock_dict = {}
+        for (inhid, ant1rx, ant2rx, isb), blhid_arr in bl_groups.items():
+            # Ignore cross-hand pol, since we don't have that for autos.
+            if ant1rx == ant2rx:
+                for iband in unique_bands:
+                    try:
+                        ac_idx = ac_groups[(inhid, ant1rx, isb, iband)]
+                    except KeyError:
+                        # If we have a key error, it means there are no entries with
+                        # this receiver, sideband, band at this inhid, so just skip it.
+                        continue
+                    # Pull together all the sphid entries that are in this group, then
+                    # add it to a list for handling later.
+                    sp_idx = [sp_groups[(blhid, iband)] for blhid in blhid_arr]
+                    try:
+                        metablock_dict[(ant1rx, isb, iband)]["ac_idx"].append(ac_idx)
+                        metablock_dict[(ant1rx, isb, iband)]["sp_idx"].append(sp_idx)
+                    except KeyError:
+                        metablock_dict[(ant1rx, isb, iband)] = {
+                            "ac_idx": [ac_idx],
+                            "sp_idx": [sp_idx],
+                        }
+
+        # Now get into plugging in values.
+        for field in sp_imports:
+            for idx_groups in metablock_dict.values():
+                # For several values, they will not change over the course of the obs.
+                # If that's the case, then it is _much_ faster to find the one value
+                # and plug it in once.
+                val_arr = self.sp_data.get_value(
+                    field, index=np.concatenate(idx_groups["sp_idx"])
+                )
+                median_val = np.median(val_arr)
+                if np.allclose(val_arr, median_val):
+                    self.ac_data.set_value(
+                        field, median_val, index=np.concatenate(idx_groups["ac_idx"])
+                    )
+                    continue
+
+                # Otherwise, if the value varies, then handle it on a per-inhid basis.
+                for ac_idx, sp_idx in zip(idx_groups["ac_idx"], idx_groups["sp_idx"]):
+                    self.ac_data.set_value(
+                        field,
+                        np.median(self.sp_data.get_value(field, index=sp_idx)),
+                        index=ac_idx,
+                    )
+
+        # Finally, clear out any stored values we may have accumulated from the above
+        # operations, since we don't want reset to clear them out.
+        self.ac_data._stored_values = {}
 
     def fromfile(
         self,
         filepath,
         has_auto=False,
+        has_cross=True,
         load_vis=False,
         load_raw=False,
         load_auto=False,
@@ -4437,20 +4716,48 @@ class MirParser(object):
             self._clear_auto()
             load_auto = False
 
+        if has_cross:
+            self._has_cross = True
+
+        filepath = os.path.abspath(filepath)
+
         for attr in self._metadata_attrs.values():
             attr.fromfile(filepath)
 
         # This indexes the "main" file that contains all the visibilities, to make
         # it faster to read in the data.
-        int_dict, self._sp_dict = self.sp_data._generate_dataoff_dict()
-        self._file_dict = {os.path.abspath(filepath): int_dict}
+        file_dict = {}
+        if self._has_cross:
+            int_dict, self._sp_dict = self.sp_data._generate_recpos_dict()
+            file_dict["cross"] = {
+                "int_dict": int_dict,
+                "filetype": "sch_read",
+                "ignore_header": False,
+            }
 
+        if self._has_auto:
+            filetype = "ach_read"
+            if self.ac_data._old_type:
+                # If we have the old-style file we are working with, then we need to
+                # do two things: first, clean up entries that don't actually have any
+                # data in them (the old format recorded lots of blank data to disk),
+                # and plug in some missing metadata.
+                self._fix_acdata()
+                filetype = "autoCorrelations"
+            int_dict, self._ac_dict = self.ac_data._generate_recpos_dict()
+
+            file_dict["auto"] = {
+                "int_dict": int_dict,
+                "filetype": filetype,
+                "ignore_header": self.ac_data._old_type,
+            }
+
+        self._file_dict = {filepath: file_dict}
         self.filepath = filepath
 
-        # Raw data aren't loaded on start, because the datasets can be huge
-        # You can force this after creating the object with load_data().
-        # Calling to unload_data will set all the relevant fields to None.
-        self.unload_data(unload_vis=True, unload_raw=True, unload_auto=True)
+        # Set/clear these to start
+        self.vis_data = self.raw_data = self.auto_data = None
+        self._tsys_applied = False
 
         # If requested, now we load up the visibilities.
         self.load_data(load_vis=load_vis, load_raw=load_raw, load_auto=load_auto)
@@ -4509,11 +4816,13 @@ class MirParser(object):
 
         # Check that the data are loaded
         if load_data:
-            self.load_data(load_vis=False, load_raw=True, load_auto=False)
+            self.load_data(
+                load_vis=False, load_raw=self._has_cross, load_auto=self._has_auto
+            )
 
         # Write out the various metadata fields
         for attr in self._metadata_attrs:
-            if attr == "sp_data":
+            if attr in ["sp_data", "ac_data"]:
                 mir_meta_obj = self._metadata_attrs[attr].copy()
                 mir_meta_obj._recalc_dataoff()
             else:
@@ -4527,10 +4836,14 @@ class MirParser(object):
             )
 
         # Finally, we can package up the data in order to write it to disk.
-        self.write_vis_data(filepath, append_data=append_data, raise_err=False)
+        if self._has_cross:
+            self.write_cross_data(filepath, append_data=append_data, raise_err=False)
+
+        if self._has_auto:
+            self.write_auto_data(filepath, append_data=append_data, raise_err=False)
 
     @staticmethod
-    def _rechunk_vis(vis_dict, chan_avg_arr, inplace=False):
+    def _rechunk_data(data_dict, chan_avg_arr, inplace=False):
         """
         Rechunk regular visibility spectra.
 
@@ -4559,19 +4872,22 @@ class MirParser(object):
             A dict containing the spectrally averaged data, in the same format as
             that provided in `vis_dict`.
         """
-        new_vis_dict = vis_dict if inplace else {}
+        if data_dict is None:
+            return
 
-        for chan_avg, (sphid, sp_vis) in zip(chan_avg_arr, vis_dict.items()):
+        new_data_dict = data_dict if inplace else {}
+
+        for chan_avg, (hkey, sp_data) in zip(chan_avg_arr, data_dict.items()):
             # If there isn't anything to average, we can skip the heavy lifting
             # and just proceed on to the next record.
             if chan_avg == 1:
                 if not inplace:
-                    new_vis_dict[sphid] = copy.deepcopy(sp_vis)
+                    new_data_dict[hkey] = copy.deepcopy(sp_data)
                 continue
 
             # Otherwise, we need to first get a handle on which data is "good"
             # for spectrally averaging over.
-            good_mask = ~sp_vis["vis_flags"].reshape((-1, chan_avg))
+            good_mask = ~sp_data["flags"].reshape((-1, chan_avg))
 
             # We need to count the number of valid visibilities that goes into each
             # new channel, so that we can normalize apporpriately later. Note we cast
@@ -4590,17 +4906,15 @@ class MirParser(object):
             # Now take the sum of all valid visibilities, multiplied by the
             # normalization factor.
             temp_vis = (
-                sp_vis["vis_data"].reshape((-1, chan_avg)).sum(where=good_mask, axis=-1)
+                sp_data["data"].reshape((-1, chan_avg)).sum(where=good_mask, axis=-1)
                 * temp_count
             )
 
-            # Finally, plug the spectrally averaged data back into the dict
-            new_vis_dict[sphid] = {
-                "vis_data": temp_vis,
-                "vis_flags": temp_count == 0,  # Flag channels with no valid data
-            }
+            # Finally, plug the spectrally averaged data back into the dict, flagging
+            # channels with no valid data.
+            new_data_dict[hkey] = {"data": temp_vis, "flags": temp_count == 0}
 
-        return new_vis_dict
+        return new_data_dict
 
     @staticmethod
     def _rechunk_raw(raw_dict, chan_avg_arr, inplace=False, return_vis=False):
@@ -4637,6 +4951,9 @@ class MirParser(object):
             A dict containing the spectrally averaged data, in the same format as
             that provided in `raw_dict` (unless `return_vis=True`).
         """
+        if raw_dict is None:
+            return
+
         # If inplace, point our new dict to the old one, otherwise create
         # an ampty dict to plug values into.
         data_dict = raw_dict if inplace else {}
@@ -4659,14 +4976,14 @@ class MirParser(object):
             # "dummy" dict here with an sphid of 0 to make it easy to retrieve that
             # entry after the sequence of calls.
             if return_vis:
-                data_dict[sphid] = MirParser._rechunk_vis(
+                data_dict[sphid] = MirParser._rechunk_data(
                     MirParser.convert_raw_to_vis({0: sp_raw}),
                     [chan_avg],
                     inplace=True,
                 )[0]
             else:
                 data_dict[sphid] = MirParser.convert_vis_to_raw(
-                    MirParser._rechunk_vis(
+                    MirParser._rechunk_data(
                         MirParser.convert_raw_to_vis({0: sp_raw}),
                         [chan_avg],
                         inplace=True,
@@ -4675,51 +4992,6 @@ class MirParser(object):
 
         # Finally, return the dict containing the raw data.
         return data_dict
-
-    @staticmethod
-    def _rechunk_auto(auto_dict, chan_avg_arr, inplace=False):
-        """
-        Rechunk auto-correlation spectra.
-
-        Note this routine is not intended to be called by users, but instead is a
-        low-level call from the `rechunk` method of MirParser to spectrally average
-        data.
-
-        Parameters
-        ----------
-        auto_dict : dict
-            A dict containing visibility data, where the keys match to individual values
-            of `achid` in `ac_data`, with each value being an auto-correlation spectrum
-            (dtype=np.float32).
-        chan_avg_arr : sequence of int
-            A list, array, or tuple of integers, specifying how many channels to
-            average over within each spectral record.
-        inplace : bool
-            If True, entries in `auto_dict` will be updated with spectrally averaged
-            data. If False (default), then the method will construct a new dict that
-            will contain the spectrally averaged data.
-
-        Returns
-        -------
-        new_auto_dict : dict
-            A dict containing the spectrally averaged data, in the same format as
-            that provided in `auto_dict`.
-        """
-        new_auto_dict = auto_dict if inplace else {}
-
-        for chan_avg, (achid, sp_auto) in zip(chan_avg_arr, auto_dict.items()):
-            # If there isn't anything to average, we can skip the heavy lifting
-            # and just proceed on to the next record.
-            if chan_avg == 1:
-                if not inplace:
-                    new_auto_dict[achid] = copy.deepcopy(sp_auto)
-                continue
-
-            # The autos are a bit simpler than the vis/raw data -- there are no
-            # flags (yet), so all we need to do is to average the data.
-            new_auto_dict[achid] = sp_auto.reshape((-1, chan_avg)).mean(axis=-1)
-
-        return new_auto_dict
 
     def rechunk(self, chan_avg):
         """
@@ -4761,41 +5033,52 @@ class MirParser(object):
         # Eventually, we can make this handling more sophisticated, but for now, just
         # make it so that we average every window aside from the pseudo continuum
         # (win #0) by the same value.
-        band_arr = self.sp_data.get_value("corrchunk", use_mask=False)
-        nchan_arr = self.sp_data.get_value("nch", use_mask=False)
-        fres_arr = self.sp_data.get_value("fres", use_mask=False)
-        vres_arr = self.sp_data.get_value("vres", use_mask=False)
+        band_dict = self.codes_data["band"]
+        chanavg_dict = {
+            key: 1 if value[0] == "c" else chan_avg
+            for key, value in band_dict.items()
+            if isinstance(value, str)
+        }
 
-        # Last task - update the metadata about num of channels accordingly,
-        # and clobber the dataoff values.
-        chanavg_dict = {band: chan_avg for band in np.unique(band_arr)}
-        chanavg_dict[0] = 1
-        chan_avg_arr = [chanavg_dict[band] for band in band_arr]
-        if np.any(np.mod(nchan_arr, chan_avg_arr) != 0):
-            raise ValueError(
-                "chan_avg does not go evenly into the number of channels in each "
-                "spectral window (typically chan_avg should be set to a power of 2)."
-            )
+        update_dict = {}
+        if self._has_cross:
+            update_dict["sp_data"] = [self._sp_dict, ["fres", "vres"], None, None]
+        if self._has_auto:
+            update_dict["ac_data"] = [self._ac_dict, ["fres"], None, None]
 
-        self.sp_data.set_value("nch", nchan_arr // chan_avg_arr, use_mask=False)
-        self.sp_data.set_value("fres", fres_arr * chan_avg_arr, use_mask=False)
-        self.sp_data.set_value("vres", vres_arr * chan_avg_arr, use_mask=False)
+        for attr in update_dict:
+            band_arr = getattr(self, attr).get_value("iband", use_mask=False)
+            nch_arr = getattr(self, attr).get_value("nch", use_mask=False)
+            chavg_arr = [chanavg_dict[band] for band in band_arr]
+            if np.any(np.mod(nch_arr, chavg_arr) != 0):
+                raise ValueError(
+                    "chan_avg does not go evenly into the number of channels in each "
+                    "spectral window (typically chan_avg should be a power of 2)."
+                )
+            update_dict[attr][2] = chavg_arr
+            update_dict[attr][3] = nch_arr // chavg_arr
 
-        for int_dict in self._sp_dict.values():
-            for sphid in int_dict:
-                int_dict[sphid]["chan_avg"] *= chanavg_dict[
-                    self.sp_data.get_value("corrchunk", header_key=sphid)
-                ]
+        for attr, (recpos_dict, update_list, chavg_arr, nch_arr) in update_dict.items():
+            for item in update_list:
+                getattr(self, attr).set_value(
+                    item,
+                    getattr(self, attr).get_value(item, use_mask=False) * chavg_arr,
+                    use_mask=False,
+                )
+            getattr(self, attr).set_value("nch", nch_arr, use_mask=False)
 
-        chan_avg_arr = [chanavg_dict[band] for band in self.sp_data["corrchunk"]]
+            for int_dict in recpos_dict.values():
+                for hid in int_dict:
+                    int_dict[hid]["chan_avg"] *= chanavg_dict[
+                        getattr(self, attr).get_value("iband", header_key=hid)
+                    ]
 
-        # Average down the data here.
-        if self.vis_data is not None:
-            self._rechunk_vis(self.vis_data, chan_avg_arr, inplace=True)
-        if self.raw_data is not None:
-            self._rechunk_raw(self.raw_data, chan_avg_arr, inplace=True)
-        if self.auto_data is not None:
-            self._rechunk_auto(self.auto_data, chan_avg_arr, inplace=True)
+            chan_avg_arr = [chanavg_dict[band] for band in getattr(self, attr)["iband"]]
+            if attr == "sp_data":
+                self._rechunk_data(self.vis_data, chan_avg_arr, inplace=True)
+                self._rechunk_raw(self.raw_data, chan_avg_arr, inplace=True)
+            else:
+                self._rechunk_data(self.auto_data, chan_avg_arr, inplace=True)
 
     def __add__(self, other, merge=None, overwrite=None, force=False, inplace=False):
         """
@@ -4876,9 +5159,9 @@ class MirParser(object):
                 "of the right object in the add sequence."
             )
 
-        same_filedict = self._file_dict == other._file_dict
+        same_files = self._file_dict.keys() == other._file_dict.keys()
         if np.any([file in self._file_dict for file in other._file_dict]):
-            if same_filedict:
+            if same_files:
                 if not (merge or (merge is None)):
                     raise ValueError(
                         "Must set merge=True in order to combine objects created from "
@@ -4886,8 +5169,8 @@ class MirParser(object):
                     )
             else:
                 raise ValueError(
-                    "These two objects were created from an overlapping set of files, "
-                    "but contain different indexing information. Cannot combine."
+                    "These two objects were created from a partially overlapping "
+                    "set of files. Cannot combine."
                 )
         elif merge:
             raise ValueError(
@@ -4895,7 +5178,7 @@ class MirParser(object):
                 "set merge=False."
             )
 
-        if merge or (same_filedict and (merge is None)):
+        if merge or (same_files and (merge is None)):
             # First up, check to see that the metadata appear identical, modulo data
             # that has been flagged/deselected.
             metadata_dict = self._metadata_attrs.copy()
@@ -5028,23 +5311,37 @@ class MirParser(object):
                     }
                 )
 
-            # From the primary update dict, grab the two that we need for data indexing
+            # From the primary update dict, grab the three that we need for indexing
             inhid_dict = update_dict.get("inhid", {})
             sphid_dict = update_dict.get("sphid", {})
+            achid_dict = update_dict.get("achid", {})
 
             # Now deal with packdata integration dict
-            for filename, int_start_dict in other._file_dict.items():
-                new_obj._file_dict[filename] = {
-                    inhid_dict.get(inhid, inhid): idict.copy()
-                    for inhid, idict in int_start_dict.items()
-                }
+            for filename, file_dict in other._file_dict.items():
+                new_obj._file_dict[filename] = {}
+                for datatype, datatype_dict in file_dict.items():
+                    new_obj._file_dict[filename][datatype] = {
+                        "filetype": datatype_dict["filetype"],
+                        "ignore_header": datatype_dict["ignore_header"],
+                    }
+                    new_obj._file_dict[filename][datatype]["int_dict"] = {
+                        inhid_dict.get(inhid, inhid): idict.copy()
+                        for inhid, idict in datatype_dict["int_dict"].items()
+                    }
 
-            # Finally, deal with the sp_dict
-            for inhid, int_dict in other._sp_dict.items():
-                new_obj._sp_dict[inhid_dict.get(inhid, inhid)] = {
-                    sphid_dict.get(sphid, sphid): idict.copy()
-                    for sphid, idict in int_dict.items()
-                }
+            # Finally, deal with the recpos_dicts
+            recpos_list = []
+            if new_obj._has_auto:
+                recpos_list.append(("_ac_dict", achid_dict))
+            if new_obj._has_cross:
+                recpos_list.append(("_sp_dict", sphid_dict))
+
+            for (attr, idict) in recpos_list:
+                for inhid, jdict in getattr(other, attr).items():
+                    getattr(new_obj, attr)[inhid_dict.get(inhid, inhid)] = {
+                        idict.get(sphid, sphid): kdict.copy()
+                        for sphid, kdict in jdict.items()
+                    }
 
         # If the data are in a mixed state, we just want to unloaded it all.
         # Otherwise merge the two. Note that deepcopy for dicts is not particularly
@@ -5228,7 +5525,7 @@ class MirParser(object):
                     # field name belongs one of the other metadata tables.
                     pass
 
-        # We have 5 objects to perform a search across, which link to each other in
+        # We have 5-6 objects to perform a search across, which link to each other in
         # different ways. We create this dict to start rather than populating the
         # objects since we don't want to change anything until we know that the where
         # statements all parse successfully.
@@ -5239,6 +5536,9 @@ class MirParser(object):
             "eng_data": None,
             "we_data": None,
         }
+
+        if self._has_auto:
+            search_dict["ac_data"] = None
 
         for attr in search_dict:
             try:
@@ -5546,8 +5846,8 @@ class MirParser(object):
                 finally:
                     # One way or another, we should have a set of gains solutions that
                     # we can apply now (flagging the data where appropriate).
-                    self.vis_data[sphid]["vis_data"] *= cal_soln["cal_data"]
-                    self.vis_data[sphid]["vis_flags"] += cal_soln["cal_flags"]
+                    self.vis_data[sphid]["data"] *= cal_soln["cal_data"]
+                    self.vis_data[sphid]["flags"] += cal_soln["cal_flags"]
 
         if apply_flags:
             # For sake of reading/coding, let's assign assign the two catalogs of flags
@@ -5563,7 +5863,7 @@ class MirParser(object):
                 try:
                     # If we have a flags entry for this sphid, then go ahead and apply
                     # them to the flags table for that spectral record.
-                    self.vis_data[sphid]["vis_flags"] += np.unpackbits(
+                    self.vis_data[sphid]["flags"] += np.unpackbits(
                         sphid_flags[sphid], bitorder="little"
                     ).astype(bool)
                 except KeyError:
@@ -5572,7 +5872,7 @@ class MirParser(object):
                     # antenna-receiver combination (for that sideband and spec window).
                     # Note that if we do not have an entry here, something is amiss.
                     try:
-                        self.vis_data[sphid]["vis_flags"] += np.unpackbits(
+                        self.vis_data[sphid]["flags"] += np.unpackbits(
                             wide_flags[
                                 (
                                     ant1_arr[idx],
@@ -5763,24 +6063,24 @@ class MirParser(object):
                     new_vis_dict[sphid] = copy.deepcopy(sp_vis)
                 continue
 
-            new_vis = np.empty_like(sp_vis["vis_data"])
+            new_vis = np.empty_like(sp_vis["data"])
 
             if shift_kernel is None:
                 # If the shift kernal is None, it means that we only have a coarse
                 # channel shift to worry about, which means we can bypass the whole
                 # convolution step (and save on a fair bit of processing time).
-                new_flags = np.empty_like(sp_vis["vis_flags"])
+                new_flags = np.empty_like(sp_vis["flags"])
 
                 # The indexing is a little different depending on the direction of
                 # the shift, hence the if statement here.
                 if coarse_shift < 0:
-                    new_vis[:coarse_shift] = sp_vis["vis_data"][-coarse_shift:]
-                    new_flags[:coarse_shift] = sp_vis["vis_flags"][-coarse_shift:]
+                    new_vis[:coarse_shift] = sp_vis["data"][-coarse_shift:]
+                    new_flags[:coarse_shift] = sp_vis["flags"][-coarse_shift:]
                     new_vis[coarse_shift:] = 0.0
                     new_flags[coarse_shift:] = True
                 else:
-                    new_vis[coarse_shift:] = sp_vis["vis_data"][:-coarse_shift]
-                    new_flags[coarse_shift:] = sp_vis["vis_flags"][:-coarse_shift]
+                    new_vis[coarse_shift:] = sp_vis["data"][:-coarse_shift]
+                    new_flags[coarse_shift:] = sp_vis["flags"][:-coarse_shift]
                     new_vis[:coarse_shift] = 0.0
                     new_flags[:coarse_shift] = True
             else:
@@ -5808,8 +6108,8 @@ class MirParser(object):
                     r_edge = len(new_vis)
 
                 # Grab a copy of the array to manipulate, and plug flagging values into
-                temp_vis = sp_vis["vis_data"][l_clip:r_clip].copy()
-                temp_vis[sp_vis["vis_flags"][l_clip:r_clip]] = (
+                temp_vis = sp_vis["data"][l_clip:r_clip].copy()
+                temp_vis[sp_vis["flags"][l_clip:r_clip]] = (
                     np.complex64(np.nan) if flag_adj else np.complex64(0.0)
                 )
 
@@ -5833,10 +6133,10 @@ class MirParser(object):
                     new_flags = np.isnan(new_vis)
                     new_vis[new_flags] = 0.0
                 else:
-                    new_flags = np.zeros_like(sp_vis["vis_flags"])
+                    new_flags = np.zeros_like(sp_vis["flags"])
                     new_flags[:l_edge] = new_flags[r_edge:] = True
             # Update our dict with the new values for this sphid
-            new_vis_dict[sphid] = {"vis_data": new_vis, "vis_flags": new_flags}
+            new_vis_dict[sphid] = {"data": new_vis, "flags": new_flags}
 
         return new_vis_dict
 
