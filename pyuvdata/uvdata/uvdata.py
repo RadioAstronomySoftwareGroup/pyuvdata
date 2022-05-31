@@ -6905,12 +6905,23 @@ class UVData(UVBase):
         pol_t2o = np.nonzero(
             np.in1d(this.polarization_array, other.polarization_array)
         )[0]
-        if this.future_array_shapes:
-            freq_t2o = np.nonzero(np.in1d(this.freq_array, other.freq_array))[0]
+        # Special handling here needed for flex_spw data
+        this_freqs = this.freq_array
+        other_freqs = other.freq_array
+        if not this.future_array_shapes:
+            this_freqs = this_freqs[0]
+            other_freqs = other_freqs[0]
+
+        if this.flex_spw:
+            freq_t2o = np.zeros(this_freqs.shape, dtype=bool)
+            for spw_id in set(this.spw_array).intersection(other.spw_array):
+                mask = this.flex_spw_id_array == spw_id
+                freq_t2o[mask] |= np.in1d(
+                    this_freqs[mask], other_freqs[other.flex_spw_id_array == spw_id]
+                )
+            freq_t2o = np.nonzero(freq_t2o)[0]
         else:
-            freq_t2o = np.nonzero(
-                np.in1d(this.freq_array[0, :], other.freq_array[0, :])
-            )[0]
+            freq_t2o = np.nonzero(np.in1d(this_freqs, other_freqs))[0]
         blt_t2o = np.nonzero(np.in1d(this_blts, other_blts))[0]
         if not self.metadata_only:
             if this.future_array_shapes:
