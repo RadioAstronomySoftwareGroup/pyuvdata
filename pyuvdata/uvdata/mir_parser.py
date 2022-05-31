@@ -4490,6 +4490,7 @@ class MirParser(object):
                     header_key=self.ac_data.get_value(
                         ["antenna", "inhid"],
                         return_tuples=True,
+                        use_mask=False,
                     )
                 ),
             )
