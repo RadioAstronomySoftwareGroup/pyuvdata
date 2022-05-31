@@ -487,11 +487,12 @@ def test_flex_pol_select(sma_mir_filt):
     """Test select operations on flex-pol UVData objects"""
 
     sma_mir_filt._make_flex_pol(raise_error=True)
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="No data matching this polarization and frequency"
+    ):
         sma_mir_filt.select(polarizations=["xx"], freq_chans=[0, 1, 2, 3])
 
-    assert str(cm.value).startswith("No data matching this polarization and frequency")
-
+    sma_mir_filt2 = sma_mir_filt.copy()
     sma_mir_filt.select(polarizations=["xx"])
 
     assert sma_mir_filt.flex_spw_polarization_array is None
@@ -501,6 +502,18 @@ def test_flex_pol_select(sma_mir_filt):
 
     assert np.all(sma_mir_filt.flex_spw_polarization_array == -5)
     assert np.all(sma_mir_filt.polarization_array == 0)
+
+    # Need to add more polarizations to test uneven pol spacing
+    sma_mir_filt3 = sma_mir_filt2.copy()
+    sma_mir_filt3.flex_spw_polarization_array = np.asarray([-7, -8])
+    sma_mir_filt3.flex_spw_id_array = np.asarray([0] * 4 + [1] * 4)
+    sma_mir_filt3.spw_array = [0, 1]
+    sma_mir_filt2 += sma_mir_filt3
+
+    with uvtest.check_warnings(
+        UserWarning, match="Selected polarization values are not evenly spaced"
+    ):
+        sma_mir_filt2.select(polarizations=["xx", "xy", "yx"])
 
 
 @pytest.mark.parametrize(
