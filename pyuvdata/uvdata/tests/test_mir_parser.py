@@ -14,7 +14,6 @@ import h5py
 import pytest
 import os
 
-from pytest_cases import parametrize
 from ..mir_parser import MirParser, MirMetaData, MirMetaError
 from ... import tests as uvtest
 
@@ -161,7 +160,6 @@ def test_mir_meta_eq_errs(mir_in_data, comp_obj, err_msg):
 @pytest.mark.parametrize("result", [True, False])
 def test_mir_meta_eq(mir_sp_data, result, verbose):
     copy_data = mir_sp_data.copy()
-    print(type(copy_data))
     comp_func = getattr(copy_data, "__eq__") if result else getattr(copy_data, "__ne__")
 
     assert comp_func(mir_sp_data, verbose=verbose) == result
@@ -181,11 +179,11 @@ def test_mir_meta_eq(mir_sp_data, result, verbose):
 
     # Make sure that mask diffs are also handled correctly.
     copy_data._mask[::2] = False
-    assert comp_func(mir_sp_data, verbose=verbose, ignore_mask=False) != result
+    assert comp_func(mir_sp_data, verbose=verbose, use_mask=True) != result
 
     # Now flag both datasets at the offending position
     mir_sp_data._mask[::2] = False
-    assert comp_func(mir_sp_data, verbose=verbose, ignore_mask=False) == result
+    assert comp_func(mir_sp_data, verbose=verbose, use_mask=True) == result
 
     # Check that diff data sizes are handled correctly
     copy_data._data = np.concatenate((copy_data._data, copy_data._data))
@@ -193,7 +191,7 @@ def test_mir_meta_eq(mir_sp_data, result, verbose):
 
     # Test the masks w/ a None
     copy_data._mask = None
-    assert comp_func(mir_sp_data, verbose=verbose, ignore_mask=False) != result
+    assert comp_func(mir_sp_data, verbose=verbose, use_mask=True) != result
 
 
 @pytest.mark.parametrize(
@@ -709,13 +707,13 @@ def test_mir_meta_add_none(mir_in_data, this_none, other_none, method):
 def test_mir_meta_add_concat(mir_bl_data, method):
     mir_bl_copy = mir_bl_data.copy()
     mir_bl_copy._data["blhid"] = [1, 3, 5, 7]
-    mir_bl_copy._data["u"] = [11, 13, 15, 17]
-    mir_bl_copy._mask[:] = [True, True, False, True]
+    mir_bl_copy._data["u"] = [15, 16, 17, 18]
+    mir_bl_copy._mask[:] = [True] * 4
     mir_bl_copy._set_header_key_index_dict()
 
     mir_bl_data._data["blhid"] = [2, 4, 6, 8]
-    mir_bl_data._data["u"] = [12, 14, 16, 18]
-    mir_bl_data._mask[:] = [True, False, True, True]
+    mir_bl_data._data["u"] = [11, 12, 13, 14]
+    mir_bl_data._mask[:] = [False] * 4
     mir_bl_data._set_header_key_index_dict()
 
     result = getattr(mir_bl_data, method)(mir_bl_copy)
@@ -723,9 +721,8 @@ def test_mir_meta_add_concat(mir_bl_data, method):
         assert mir_bl_data is result
 
     assert np.all(result._data["u"] == np.arange(11, 19))
-    assert np.all(result._mask[:3])
-    assert np.all(~result._mask[3:-3])
-    assert np.all(result._mask[-3:])
+    assert np.all(~result._mask[:4])
+    assert np.all(result._mask[4:])
 
 
 def test_mir_sp_recalc_dataoff(mir_sp_data):
@@ -757,19 +754,42 @@ def test_mir_sp_recalc_dataoff(mir_sp_data):
     assert np.all(mir_sp_data._data["dataoff"] == dataoff_arr)
 
 
+def test_mir_meta_get_record_size_info_errs():
+    with pytest.raises(TypeError) as err:
+        MirMetaData(None, None, None)._get_record_size_info()
+    assert str(err.value).startswith("Cannot use this method on objects other than")
+
+
+@pytest.mark.parametrize(
+    "attr,val_size,rec_size_arr",
+    [["sp_data", 2, ([18] + ([65538] * 4)) * 4], ["ac_data", 4, [65536] * 16]],
+)
+def test_mir_meta_get_record_size_info(mir_data, attr, val_size, rec_size_arr):
+    comp_rec_size, comp_val = getattr(mir_data, attr)._get_record_size_info()
+    assert val_size == comp_val
+    assert np.all(comp_rec_size == rec_size_arr)
+
+
+@pytest.mark.parametrize("reindex", [True, False])
 @pytest.mark.parametrize("use_mask", [True, False])
 @pytest.mark.parametrize("mod_mask", [True, False])
-def test_mir_sp_generate_dataoff_dict(mir_sp_data, use_mask, mod_mask):
+def test_mir_meta_generate_recpos_dict(mir_sp_data, reindex, use_mask, mod_mask):
     if mod_mask:
         mir_sp_data._mask[::2] = False
 
     dataoff_arr = mir_sp_data.get_value("dataoff", use_mask=use_mask).astype(int) // 2
     rec_size_arr = (mir_sp_data.get_value("nch", use_mask=use_mask).astype(int) * 2) + 1
-    int_dict, sp_dict = mir_sp_data._generate_dataoff_dict(use_mask=use_mask)
+
+    if use_mask and mod_mask and reindex:
+        dataoff_arr = np.cumsum(rec_size_arr) - rec_size_arr
+
+    int_dict, sp_dict = mir_sp_data._generate_recpos_dict(
+        use_mask=use_mask, reindex=reindex
+    )
     assert int_dict == {
         1: {
             "inhid": 1,
-            "record_size": 1048680 // (1 + (use_mask and mod_mask)),
+            "record_size": 1048680 // (1 + (use_mask and mod_mask and reindex)),
             "record_start": 0,
         }
     }
@@ -844,7 +864,7 @@ def test_mir_codes_where_errs(mir_codes_data, args, kwargs, err_type, err_msg):
         [
             ("vrad", "eq", "         0.0"),
             {"return_header_keys": False},
-            (98 * [False]) + [True],
+            (92 * [False]) + [True] + (6 * [False]),
         ],
     ],
 )
@@ -943,10 +963,10 @@ def test_mir_codes_generate_new_header_keys(mir_codes_data, code_row, update_dic
     assert update_dict == mir_codes_copy._generate_new_header_keys(mir_codes_data)
 
 
-def test_mir_ac_fromfile_errs(mir_data):
-    with pytest.raises(IndexError) as err:
-        mir_data.ac_data.fromfile(mir_data.filepath, nchunks=-1)
-    assert str(err.value).startswith("Could not determine auto-correlation record")
+def test_mir_acdata_fromfile_errs(mir_data):
+    with pytest.raises(AssertionError) as err:
+        mir_data.ac_data.fromfile(mir_data.filepath, nchunks=1)
+    str(err.value).startswith("Could not determine auto-correlation record size.")
 
 
 def test_mir_parser_index_uniqueness(mir_data):
@@ -1056,27 +1076,8 @@ def test_mir_write_item(mir_data, attr, tmp_path):
 def test_mir_write_vis_data_err(mir_data, tmp_path):
     mir_data.unload_data()
     with pytest.raises(ValueError) as err:
-        mir_data.write_vis_data(tmp_path)
+        mir_data.write_cross_data(tmp_path)
     assert str(err.value).startswith("Cannot write data if not already loaded.")
-
-
-@pytest.mark.parametrize(
-    "winsel,is_eq",
-    [
-        [None, True],
-        [list(range(8)), True],
-        [list(range(4)), False],
-        [[1], False],
-    ],
-)
-def test_mir_read_auto_data(mir_data, winsel, is_eq):
-    auto_data1 = mir_data.read_auto_data()
-    auto_data2 = mir_data.read_auto_data(winsel=winsel)
-
-    assert auto_data1.keys() == auto_data2.keys()
-
-    for key in auto_data1:
-        assert np.array_equal(auto_data1[key], auto_data2[key], equal_nan=True) == is_eq
 
 
 def test_mir_raw_data(mir_data, tmp_path):
@@ -1086,19 +1087,51 @@ def test_mir_raw_data(mir_data, tmp_path):
     filepath = os.path.join(tmp_path, "test_write_raw")
     mir_data.load_data(load_raw=True)
 
-    mir_data.write_vis_data(filepath)
+    mir_data.write_cross_data(filepath)
     # Sub out the file we need to read from
     mir_data._file_dict = {filepath: item for item in mir_data._file_dict.values()}
-    raw_data = mir_data.read_vis_data(return_vis=False)
+    raw_data = mir_data.read_data("cross", return_vis=False)
 
     assert raw_data.keys() == mir_data.raw_data.keys()
 
     for key in raw_data.keys():
-        for subkey in ["raw_data", "scale_fac"]:
+        for subkey in ["data", "scale_fac"]:
             assert np.array_equal(raw_data[key][subkey], mir_data.raw_data[key][subkey])
 
 
-@pytest.mark.parametrize("data_type", ["none", "raw", "vis", "load"])
+def test_mir_auto_data_errs(mir_data):
+    mir_data.unload_data()
+    with pytest.raises(ValueError) as err:
+        mir_data.write_auto_data(None)
+    assert str(err.value).startswith("Cannot write data if not already loaded.")
+
+
+def test_mir_auto_data(mir_data, tmp_path):
+    """
+    Test reading and writing of auto data.
+    """
+    filepath = os.path.join(tmp_path, "test_write_auto")
+
+    mir_data.write_auto_data(filepath)
+    # Sub out the file we need to read from, and fix a couple of attributes that changed
+    # since we are no longer spoofing values (after reading in data from old-style file)
+    mir_data._file_dict = {filepath: item for item in mir_data._file_dict.values()}
+    mir_data._file_dict[filepath]["auto"]["filetype"] = "ach_read"
+    int_dict, mir_data._ac_dict = mir_data.ac_data._generate_recpos_dict(reindex=True)
+    mir_data._file_dict[filepath]["auto"]["int_dict"] = int_dict
+    auto_data = mir_data.read_data("auto")
+
+    assert auto_data.keys() == mir_data.auto_data.keys()
+
+    for key in auto_data.keys():
+        for subkey in ["data", "flags"]:
+            assert np.array_equal(
+                auto_data[key][subkey], mir_data.auto_data[key][subkey]
+            )
+
+
+@pytest.mark.filterwarnings("ignore", message=["No cross data", "No auto data"])
+@pytest.mark.parametrize("data_type", ["none", "raw", "vis", "load", "no_auto"])
 def test_mir_write_full(mir_data, tmp_path, data_type):
     """
     Mir write dataset tester.
@@ -1107,22 +1140,24 @@ def test_mir_write_full(mir_data, tmp_path, data_type):
     """
     # We want to clear our the auto data here, since we can't _yet_ write that out
     mir_data.unload_data()
-    if data_type in ["vis", "raw"]:
-        mir_data.load_data(load_vis=(data_type == "vis"), apply_tsys=False)
+    if data_type == "no_auto":
+        mir_data._clear_auto()
 
-    mir_data._clear_auto()
+    if data_type in ["vis", "raw", "no_auto"]:
+        mir_data.load_data(load_raw=(data_type == "raw"), apply_tsys=False)
 
     # Write out our test dataset
     filepath = os.path.join(tmp_path, "test_write_full_%s.mir" % data_type)
 
+    mir_data.tofile(filepath, load_data=(data_type == "load"))
     with uvtest.check_warnings(
         None if (data_type != "none") else UserWarning,
-        None if (data_type != "none") else "No data loaded, writing metadata only",
+        None if (data_type != "none") else ["No cross data", "No auto data"],
     ):
         mir_data.tofile(filepath, load_data=(data_type == "load"))
 
     # Read in test dataset.
-    mir_copy = MirParser(filepath)
+    mir_copy = MirParser(filepath, has_auto=mir_data._has_auto)
     if data_type != "none":
         mir_copy.load_data(load_raw=(data_type in ["raw", "load"]), apply_tsys=False)
 
@@ -1130,12 +1165,20 @@ def test_mir_write_full(mir_data, tmp_path, data_type):
     assert mir_data != mir_copy
 
     # _file_dict has the filepath as a key, so we handle this in a special way.
-    assert list(mir_data._file_dict.values()) == list(mir_copy._file_dict.values())
+    assert mir_data._file_dict.values() != mir_copy._file_dict.values()
     mir_data._file_dict = mir_copy._file_dict = None
 
     # Filename obviously _should_ be different...
     assert mir_data.filepath != mir_copy.filepath
     mir_data.filepath = mir_copy.filepath = None
+
+    # Take care of some auto-specific stuff, which because we spoofed the original
+    # ac_data attribute, won't be _exactly_ the same.
+    if mir_copy._has_auto:
+        assert mir_data._ac_dict.values() != mir_copy._ac_dict.values()
+        mir_data._ac_dict = mir_copy._ac_dict = None
+        assert np.any(mir_data.ac_data["dataoff"] != mir_copy.ac_data._data["dataoff"])
+        mir_data.ac_data._data["dataoff"] = mir_copy.ac_data._data["dataoff"] = 0
 
     # Check for final equality with the above exceptions handled.
     assert mir_data == mir_copy
@@ -1149,14 +1192,14 @@ def test_compass_flag_sphid_apply(mir_data, compass_soln_file):
     """
     # Unflag previously flagged data
     for entry in mir_data.vis_data.values():
-        entry["vis_flags"][:] = False
+        entry["flags"][:] = False
 
     compass_solns = mir_data._read_compass_solns(compass_soln_file)
     mir_data._apply_compass_solns(compass_solns, apply_bp=False, apply_flags=True)
     for key, entry in mir_data.vis_data.items():
         if mir_data.sp_data.get_value("corrchunk", header_key=key) != 0:
-            assert np.all(entry["vis_flags"][1::2])
-            assert not np.any(entry["vis_flags"][::2])
+            assert np.all(entry["flags"][1::2])
+            assert not np.any(entry["flags"][::2])
 
 
 def test_compass_flag_wide_apply(mir_data, compass_soln_file):
@@ -1167,8 +1210,8 @@ def test_compass_flag_wide_apply(mir_data, compass_soln_file):
     """
     # Make sure that apriori flags are preserved
     for entry in mir_data.vis_data.values():
-        entry["vis_flags"][:] = False
-        entry["vis_flags"][-1] = True
+        entry["flags"][:] = False
+        entry["flags"][-1] = True
 
     mir_data.in_data["mjd"] += 1
     with uvtest.check_warnings(
@@ -1180,9 +1223,9 @@ def test_compass_flag_wide_apply(mir_data, compass_soln_file):
 
     for key, entry in mir_data.vis_data.items():
         if mir_data.sp_data.get_value("corrchunk", header_key=key) != 0:
-            assert np.all(entry["vis_flags"][:8192])
-            assert not np.any(entry["vis_flags"][8192:-1])
-            assert np.all(entry["vis_flags"][-1])
+            assert np.all(entry["flags"][:8192])
+            assert not np.any(entry["flags"][8192:-1])
+            assert np.all(entry["flags"][-1])
 
 
 @pytest.mark.parametrize("muck_solns", ["none", "some", "all"])
@@ -1194,8 +1237,8 @@ def test_compass_bp_apply(mir_data, compass_soln_file, muck_solns):
     """
     tempval = np.complex64(1 + 1j)
     for entry in mir_data.vis_data.values():
-        entry["vis_data"][:] = tempval
-        entry["vis_flags"][:] = False
+        entry["data"][:] = tempval
+        entry["flags"][:] = False
 
     if muck_solns != "none":
         mir_data.bl_data["iant1"] += 1
@@ -1214,8 +1257,8 @@ def test_compass_bp_apply(mir_data, compass_soln_file, muck_solns):
         if mir_data.sp_data.get_value("corrchunk", header_key=key) != 0:
             # If muck_solns is not some, then all the values should agree with our
             # temp value above, otherwise none should
-            assert (muck_solns != "some") == np.allclose(entry["vis_data"], tempval)
-            assert (muck_solns != "none") == np.all(entry["vis_flags"])
+            assert (muck_solns != "some") == np.allclose(entry["data"], tempval)
+            assert (muck_solns != "none") == np.all(entry["flags"])
 
 
 def test_compass_error(mir_data, compass_soln_file):
@@ -1288,8 +1331,8 @@ def test_eq_errs(mir_data):
             "vis_data",
             {
                 idx: {
-                    "vis_data": np.ones(2, dtype=np.complex64),
-                    "vis_flags": np.ones(4, dtype=bool),
+                    "data": np.ones(2, dtype=np.complex64),
+                    "flags": np.ones(4, dtype=bool),
                 }
                 for idx in range(1, 21)
             },
@@ -1305,6 +1348,7 @@ def test_eq_errs(mir_data):
         [True, "zero_data", None, True],
         [False, "zero_data", None, False],
         [False, "unload_data", None, True],
+        [False, "meta_attr", None, False],
     ],
 )
 @pytest.mark.parametrize("flip", [False, True])
@@ -1327,6 +1371,8 @@ def test_eq(mir_data, metadata_only, mod_attr, mod_val, exp_state, flip):
     elif "unload_data" == mod_attr:
         mir_data.unload_data()
         mir_copy.unload_data()
+    elif "meta_attr" == mod_attr:
+        del mir_copy._metadata_attrs["ac_data"]
     else:
         setattr(target_obj, mod_attr, mod_val)
 
@@ -1338,38 +1384,35 @@ def test_eq(mir_data, metadata_only, mod_attr, mod_val, exp_state, flip):
 def test_scan_int_start_errs(mir_data):
     """Verify scan_int_start throws errors when expected."""
     with pytest.raises(ValueError) as err:
-        mir_data.scan_int_start(mir_data.filepath, allowed_inhid=[-1])
+        mir_data.scan_int_start(
+            os.path.join(mir_data.filepath, "sch_read"), allowed_inhid=[-1]
+        )
     assert str(err.value).startswith("Index value inhid in sch_read does not match")
 
 
 def test_scan_int_start(mir_data):
     """Verify that we can correctly scan integration starting periods."""
     true_dict = {1: {"inhid": 1, "record_size": 1048680, "record_start": 0}}
-    assert true_dict == mir_data.scan_int_start(mir_data.filepath, allowed_inhid=[1])
-
-
-@pytest.mark.parametrize(
-    "filepath,int_start_dict,err_type,err_msg",
-    [
-        [["a"], None, ValueError, "Must either set both or neither of filepath and"],
-        [None, ["a"], ValueError, "Must either set both or neither of filepath and"],
-        [["a", "b"], ["c"], ValueError, "Both filepath and int_start_dict must"],
-    ],
-)
-def test_fix_int_start_errs(mir_data, filepath, int_start_dict, err_type, err_msg):
-    """Conirm that fix_int_start throws errors as expected."""
-    with pytest.raises(err_type) as err:
-        mir_data.fix_int_start(filepath, int_start_dict)
-    assert str(err.value).startswith(err_msg)
+    assert true_dict == mir_data.scan_int_start(
+        os.path.join(mir_data.filepath, "sch_read"), allowed_inhid=[1]
+    )
 
 
 def test_fix_int_start(mir_data):
     """Verify that we can fix a "bad" integration start record."""
-    bad_dict = {
-        mir_data.filepath: {2: {"inhid": 1, "record_size": 120, "record_start": 120}}
-    }
+    mir_data._clear_auto()
+    bad_entry = {2: {"inhid": 1, "record_size": 120, "record_start": 120}}
+
     good_dict = {
-        mir_data.filepath: {2: {"inhid": 1, "record_size": 1048680, "record_start": 0}}
+        mir_data.filepath: {
+            "cross": {
+                "int_dict": {
+                    2: {"inhid": 1, "record_size": 1048680, "record_start": 0}
+                },
+                "filetype": "sch_read",
+                "ignore_header": False,
+            }
+        }
     }
     # Muck with the records so that the inhids don't match that on disk.
     mir_data.sp_data._data["inhid"][:] = 2
@@ -1378,24 +1421,22 @@ def test_fix_int_start(mir_data):
     mir_data.sp_data._data["nch"][:] = 1
     mir_data._sp_dict[2] = mir_data._sp_dict.pop(1)
 
-    # Plug in the bad dict
-    mir_data._file_dict = bad_dict
-    with pytest.raises(ValueError) as err:
-        mir_data.read_vis_data(return_vis=False)
-    assert str(err.value).startswith("Values in int_start_dict do not match")
-
+    # Plug in the bad entry
+    mir_data._file_dict = good_dict
+    mir_data._file_dict[mir_data.filepath]["cross"]["int_dict"] = bad_entry.copy()
     # This should _hopefully_ generate the good dict
-    mir_data.fix_int_start()
+    mir_data._fix_int_start("cross")
+    assert good_dict == mir_data._file_dict
+
+    # Plug in the bad entry again
+    mir_data._file_dict[mir_data.filepath]["cross"]["int_dict"] = bad_entry.copy()
+    with uvtest.check_warnings(UserWarning, "Values in int_dict do not match"):
+        mir_data.read_data("cross", return_vis=False)
 
     assert good_dict == mir_data._file_dict
 
     # Attempt to load the data
-    _ = mir_data.read_vis_data(return_vis=False)
-
-    # Make sure that things work if we don't inherit stuff from object
-    check_dict = mir_data.fix_int_start([mir_data.filepath], list(bad_dict.values()))
-
-    assert good_dict == check_dict
+    _ = mir_data.read_data("cross", return_vis=False)
 
 
 def test_read_packdata_err(mir_data):
@@ -1419,14 +1460,26 @@ def test_read_packdata_mmap(mir_data):
         assert np.array_equal(mmap_data[key], reg_data[key])
 
 
+@pytest.mark.parametrize("attr", ["make_packdata", "read_data"])
+def test_data_errs(mir_data, attr):
+    with pytest.raises(ValueError) as err:
+        getattr(mir_data, attr)(None, None, None, None)
+    assert str(err.value).startswith("Argument for data_type not recognized")
+
+
 def test_read_packdata_make_packdata(mir_data):
     """Verify that making packdata produces the same result as reading packdata"""
     mir_data.load_data(load_raw=True)
 
-    read_data = mir_data.read_packdata(mir_data._file_dict, mir_data.in_data["inhid"])
+    read_data = mir_data.read_packdata(
+        mir_data._file_dict, mir_data.in_data["inhid"], "cross"
+    )
 
     make_data = mir_data.make_packdata(
-        list(mir_data._file_dict.values())[0], mir_data._sp_dict, mir_data.raw_data
+        mir_data._file_dict[mir_data.filepath]["cross"]["int_dict"],
+        mir_data._sp_dict,
+        mir_data.raw_data,
+        "cross",
     )
 
     assert read_data.keys() == make_data.keys()
@@ -1479,7 +1532,7 @@ def test_apply_tsys_warn(mir_data):
         mir_data.apply_tsys()
 
     assert np.all(
-        [np.all(data_dict["vis_flags"]) for data_dict in mir_data.vis_data.values()]
+        [np.all(data_dict["flags"]) for data_dict in mir_data.vis_data.values()]
     )
 
 
@@ -1505,20 +1558,20 @@ def test_apply_tsys(mir_data):
     mir_copy.load_data(load_vis=True, apply_tsys=True)
     for key, norm_fac in zip(mir_data.vis_data.keys(), norm_list):
         assert np.allclose(
-            norm_fac * mir_data.vis_data[key]["vis_data"],
-            mir_copy.vis_data[key]["vis_data"],
+            norm_fac * mir_data.vis_data[key]["data"],
+            mir_copy.vis_data[key]["data"],
         )
         assert np.allclose(
-            mir_data.vis_data[key]["vis_flags"], mir_copy.vis_data[key]["vis_flags"]
+            mir_data.vis_data[key]["flags"], mir_copy.vis_data[key]["flags"]
         )
 
     mir_copy.apply_tsys(invert=True)
     for key, norm_fac in zip(mir_data.vis_data.keys(), norm_list):
         assert np.allclose(
-            mir_data.vis_data[key]["vis_data"], mir_copy.vis_data[key]["vis_data"]
+            mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"]
         )
         assert np.allclose(
-            mir_data.vis_data[key]["vis_flags"], mir_copy.vis_data[key]["vis_flags"]
+            mir_data.vis_data[key]["flags"], mir_copy.vis_data[key]["flags"]
         )
 
 
@@ -1534,7 +1587,7 @@ def test_apply_flags(mir_data, sphid_arr):
     mir_data.sp_data.set_value("flags", 1, header_key=sphid_arr)
     mir_data.apply_flags()
     for key, value in mir_data.vis_data.items():
-        assert np.all(value["vis_flags"]) == (key in sphid_arr)
+        assert np.all(value["flags"]) == (key in sphid_arr)
 
 
 def test_check_data_index(mir_data):
@@ -1753,7 +1806,7 @@ def test_reset(mir_data):
     "unload_data,warn_msg",
     [
         [False, "Writing out raw data with tsys applied."],
-        [True, "No data loaded, writing metadata only"],
+        [True, ["No cross data loaded,", "No auto data loaded,"]],
     ],
 )
 def test_tofile_warn(mir_data, tmp_path, unload_data, warn_msg):
@@ -1787,7 +1840,7 @@ def test_rechunk_raw(inplace):
     """Test that rechunk_vis properly averages data"""
     raw_data = {
         5: {
-            "raw_data": np.arange(-16384, 16384, dtype=np.int16),
+            "data": np.arange(-16384, 16384, dtype=np.int16),
             "scale_fac": np.int16(1),
         }
     }
@@ -1799,7 +1852,7 @@ def test_rechunk_raw(inplace):
 
     assert raw_data.keys() == raw_copy.keys()
     assert raw_data[5]["scale_fac"] == 1
-    assert np.all(raw_data[5]["raw_data"] == np.arange(-16384, 16384))
+    assert np.all(raw_data[5]["data"] == np.arange(-16384, 16384))
 
     # Now let's actually do some averaging and make sure it works as expected.
     raw_copy = MirParser._rechunk_raw(raw_data, [2], inplace=inplace)
@@ -1810,7 +1863,7 @@ def test_rechunk_raw(inplace):
     # This is what raw_data _should_ look like after averaging. Note two aranges used
     # here because the spacing for real and imag is the same, but not real vs imag.
     assert np.all(
-        raw_copy[5]["raw_data"]
+        raw_copy[5]["data"]
         == np.vstack(
             (np.arange(-32766, 32768, 8), np.arange(-32764, 32768, 8))
         ).T.flatten()
@@ -1818,70 +1871,75 @@ def test_rechunk_raw(inplace):
     raw_data = raw_copy
 
     # Finally, test that flagging works as expected
-    raw_data[5]["raw_data"][2:] = -32768  # Marks channel as flagged
+    raw_data[5]["data"][2:] = -32768  # Marks channel as flagged
     raw_copy = MirParser._rechunk_raw(raw_data, [4096], inplace=inplace)
     assert (raw_copy is raw_data) == inplace
     # Scale factor should not change
     assert raw_copy[5]["scale_fac"] == 0
     # First channel should just contain channel 1 data, second channel should be flagged
-    assert np.all(raw_copy[5]["raw_data"] == [-32766, -32764, -32768, -32768])
+    assert np.all(raw_copy[5]["data"] == [-32766, -32764, -32768, -32768])
 
 
 @pytest.mark.parametrize("inplace", [True, False])
-def test_rechunk_vis(inplace):
+def test_rechunk_cross(inplace):
     """Test that rechunk_raw properly averages data"""
     # Chicago FTW!
     vis_data = {
         25624: {
-            "vis_data": (np.arange(1024) + np.flip(np.arange(1024) * 1j)),
-            "vis_flags": np.zeros(1024, dtype=bool),
+            "data": (np.arange(1024) + np.flip(np.arange(1024) * 1j)),
+            "flags": np.zeros(1024, dtype=bool),
         }
     }
     check_vals = np.arange(1024) + np.flip(np.arange(1024) * 1j)
 
     # First up, test no averaging
-    vis_copy = MirParser._rechunk_vis(vis_data, [1], inplace=inplace)
+    vis_copy = MirParser._rechunk_data(vis_data, [1], inplace=inplace)
 
     assert (vis_copy is vis_data) == inplace
 
     assert vis_data.keys() == vis_copy.keys()
-    assert np.all(vis_data[25624]["vis_flags"] == np.zeros(1024, dtype=bool))
-    assert np.all(vis_data[25624]["vis_data"] == check_vals)
+    assert np.all(vis_data[25624]["flags"] == np.zeros(1024, dtype=bool))
+    assert np.all(vis_data[25624]["data"] == check_vals)
 
     # Next, test averaging w/o flags
-    vis_copy = MirParser._rechunk_vis(vis_data, [4], inplace=inplace)
+    vis_copy = MirParser._rechunk_data(vis_data, [4], inplace=inplace)
     check_vals = np.mean(check_vals.reshape(256, 4), axis=1)
 
     assert (vis_copy is vis_data) == inplace
     assert vis_data.keys() == vis_copy.keys()
-    assert np.all(vis_copy[25624]["vis_flags"] == np.zeros(256, dtype=bool))
-    assert np.all(vis_copy[25624]["vis_data"] == check_vals)
+    assert np.all(vis_copy[25624]["flags"] == np.zeros(256, dtype=bool))
+    assert np.all(vis_copy[25624]["data"] == check_vals)
     vis_data = vis_copy
 
     # Finally, check what happens if we flag data
-    vis_data[25624]["vis_flags"][1:] = True
-    vis_copy = MirParser._rechunk_vis(vis_data, [128], inplace=inplace)
+    vis_data[25624]["flags"][1:] = True
+    vis_copy = MirParser._rechunk_data(vis_data, [128], inplace=inplace)
     assert (vis_copy is vis_data) == inplace
     assert vis_data.keys() == vis_copy.keys()
-    assert np.all(vis_copy[25624]["vis_flags"] == [False, True])
-    assert np.all(vis_copy[25624]["vis_data"] == [check_vals[0], 0.0])
+    assert np.all(vis_copy[25624]["flags"] == [False, True])
+    assert np.all(vis_copy[25624]["data"] == [check_vals[0], 0.0])
 
 
 @pytest.mark.parametrize("inplace", [True, False])
 def test_rechunk_auto(inplace):
-    auto_data = {5675309: np.arange(-1024, 1024, dtype=np.float32)}
+    auto_data = {
+        8675309: {
+            "data": np.arange(-1024, 1024, dtype=np.float32),
+            "flags": np.zeros(2048, dtype=bool),
+        }
+    }
 
     # First up, test no averaging
-    auto_copy = MirParser._rechunk_auto(auto_data, [1], inplace=inplace)
+    auto_copy = MirParser._rechunk_data(auto_data, [1], inplace=inplace)
     assert (auto_copy is auto_data) == inplace
     assert auto_data.keys() == auto_copy.keys()
-    assert np.all(auto_copy[5675309] == np.arange(-1024, 1024, dtype=np.float32))
+    assert np.all(auto_copy[8675309]["data"] == np.arange(-1024, 1024))
 
     # First up, test no averaging
-    auto_copy = MirParser._rechunk_auto(auto_data, [512], inplace=inplace)
+    auto_copy = MirParser._rechunk_data(auto_data, [512], inplace=inplace)
     assert (auto_copy is auto_data) == inplace
     assert auto_data.keys() == auto_copy.keys()
-    assert np.all(auto_copy[5675309] == [-768.5, -256.5, 255.5, 767.5])
+    assert np.all(auto_copy[8675309]["data"] == [-768.5, -256.5, 255.5, 767.5])
 
 
 @pytest.mark.parametrize(
@@ -1915,15 +1973,11 @@ def test_rechunk_nop(mir_data):
 
 
 def test_rechunk_on_the_fly(mir_data):
-    # Unload the autos for this test, since we do not _yet_ have support for on-the-fly
-    # rechunking of that data.
-    mir_data.unload_data(unload_vis=False, unload_auto=True)
-
     mir_data.rechunk(8)
     mir_copy = mir_data.copy()
 
     mir_copy.unload_data()
-    mir_copy.load_data(load_vis=True, load_auto=False)
+    mir_copy.load_data(load_vis=True, load_auto=True)
 
     assert mir_data == mir_copy
 
@@ -1954,7 +2008,7 @@ def test_rechunk_raw_vs_vis(mir_data):
         [["jypk"], {}, ValueError, "Cannot combine objects where the jypk value"],
         [["all"], {}, TypeError, "Cannot add a MirParser object an object of "],
         [[], {"merge": False}, ValueError, "Must set merge=True in order to"],
-        [["int_start"], {"merge": True}, ValueError, "These two objects were"],
+        [["add_file"], {"merge": True}, ValueError, "These two objects were"],
         [["file"], {"merge": True}, ValueError, "Cannot merge objects that"],
         [["file", "antpos"], {"merge": False}, ValueError, "Antenna positions differ"],
     ],
@@ -1971,9 +2025,8 @@ def test_add_errs(mir_data, muck_data, kwargs, err_type, err_msg):
         mir_data.jypk = 1.0
     if "file" in muck_data:
         mir_data._file_dict = {}
-    if "int_start" in muck_data:
-        for key in mir_data._file_dict:
-            mir_data._file_dict[key] = {}
+    if "add_file" in muck_data:
+        mir_data._file_dict["foo.mir"] = {}
     if "antpos" in muck_data:
         mir_data.antpos_data["xyz_pos"] = 0.0
     if "all" in muck_data:
@@ -2070,9 +2123,9 @@ def test_add_merge(mir_data):
     assert mir_data == mir_orig
 
 
-@parametrize("drop_auto", [True, False])
-@parametrize("drop_raw", [True, False])
-@parametrize("drop_vis", [True, False, "jypk", "tsys"])
+@pytest.mark.parametrize("drop_auto", [True, False])
+@pytest.mark.parametrize("drop_raw", [True, False])
+@pytest.mark.parametrize("drop_vis", [True, False, "jypk", "tsys"])
 def test_add_drop_data(mir_data, drop_auto, drop_raw, drop_vis):
     mir_data.raw_data = mir_data.convert_vis_to_raw(mir_data.vis_data)
     mir_copy = mir_data.copy()
@@ -2185,8 +2238,6 @@ def test_add_concat_warn(mir_data, tmp_path):
 def test_add_concat(mir_data, tmp_path):
     filepath = os.path.join(tmp_path, "add_concat")
 
-    # Clear out the autos, since we can't write them as full records _yet_
-    mir_data._clear_auto()
     mir_copy = mir_data.copy()
 
     # Preserve particular fields that we want to propagate into the next file.
@@ -2208,11 +2259,13 @@ def test_add_concat(mir_data, tmp_path):
         "iant2",
         "tsys",
         "tsys_rx2",
+        "antrx",
         "ant1rx",
         "ant2rx",
+        "isb",
     ]
 
-    for item in ["bl_data", "eng_data", "in_data", "sp_data", "we_data"]:
+    for item in ["bl_data", "eng_data", "in_data", "sp_data", "we_data", "ac_data"]:
         for field in getattr(mir_copy, item).dtype.names:
             if field not in prot_fields:
                 getattr(mir_copy, item)[field] = 156
@@ -2222,7 +2275,7 @@ def test_add_concat(mir_data, tmp_path):
     with uvtest.check_warnings(UserWarning, "Writing out raw data with tsys applied."):
         mir_copy.tofile(filepath, overwrite=True)
     # Read the file in so that we have a dict here to work with.
-    mir_copy.fromfile(filepath, load_vis=True)
+    mir_copy.fromfile(filepath, load_vis=True, has_auto=True)
 
     new_obj = mir_data + mir_copy
 
@@ -2311,7 +2364,7 @@ def test_chanshift_raw_vals(inplace, return_vis, fwd_dir, check_flags):
     raw_vals.extend([32767 if check_flags else 0] * 6)
 
     raw_dict = {
-        123: {"raw_data": np.array(raw_vals, dtype=np.int16), "scale_fac": np.int16(0)}
+        123: {"data": np.array(raw_vals, dtype=np.int16), "scale_fac": np.int16(0)}
     }
 
     # Test no-op
@@ -2323,7 +2376,7 @@ def test_chanshift_raw_vals(inplace, return_vis, fwd_dir, check_flags):
     if return_vis:
         new_dict = MirParser.convert_vis_to_raw(new_dict)
 
-    assert np.all(raw_vals == new_dict[123]["raw_data"])
+    assert np.all(raw_vals == new_dict[123]["data"])
     assert new_dict[123]["scale_fac"] == 0
 
     # Now try a simple one-channel shift
@@ -2344,16 +2397,16 @@ def test_chanshift_raw_vals(inplace, return_vis, fwd_dir, check_flags):
     # component. The first two entries are dropped because they _should_ be flagged.
     assert np.all(
         raw_vals[good_slice]
-        == np.roll(new_dict[123]["raw_data"], -2 if fwd_dir else 2)[good_slice]
+        == np.roll(new_dict[123]["data"], -2 if fwd_dir else 2)[good_slice]
     )
-    assert np.all(new_dict[123]["raw_data"][flag_slice] == -32768)
+    assert np.all(new_dict[123]["data"][flag_slice] == -32768)
     assert new_dict[123]["scale_fac"] == 0
 
     # Refresh the values, in case we are doing this in-place
     if inplace:
         raw_dict = {
             123: {
-                "raw_data": np.array(raw_vals, dtype=np.int16),
+                "data": np.array(raw_vals, dtype=np.int16),
                 "scale_fac": np.int16(0),
             }
         }
@@ -2371,19 +2424,17 @@ def test_chanshift_raw_vals(inplace, return_vis, fwd_dir, check_flags):
         new_dict = MirParser.convert_vis_to_raw(new_dict)
 
     if fwd_dir:
-        assert np.all(new_dict[123]["raw_data"][14:16] == (32767 if check_flags else 0))
+        assert np.all(new_dict[123]["data"][14:16] == (32767 if check_flags else 0))
         assert np.all(
-            new_dict[123]["raw_data"][10:14] == (-32768 if check_flags else 32767)
+            new_dict[123]["data"][10:14] == (-32768 if check_flags else 32767)
         )
-        assert np.all(new_dict[123]["raw_data"][4:10] == (32767 if check_flags else 0))
-        assert np.all(new_dict[123]["raw_data"][0:4] == -32768)
+        assert np.all(new_dict[123]["data"][4:10] == (32767 if check_flags else 0))
+        assert np.all(new_dict[123]["data"][0:4] == -32768)
     else:
-        assert np.all(new_dict[123]["raw_data"][0:4] == (32767 if check_flags else 0))
-        assert np.all(
-            new_dict[123]["raw_data"][4:8] == (-32768 if check_flags else 32767)
-        )
-        assert np.all(new_dict[123]["raw_data"][8:12] == (32767 if check_flags else 0))
-        assert np.all(new_dict[123]["raw_data"][12:16] == -32768)
+        assert np.all(new_dict[123]["data"][0:4] == (32767 if check_flags else 0))
+        assert np.all(new_dict[123]["data"][4:8] == (-32768 if check_flags else 32767))
+        assert np.all(new_dict[123]["data"][8:12] == (32767 if check_flags else 0))
+        assert np.all(new_dict[123]["data"][12:16] == -32768)
     assert new_dict[123]["scale_fac"] == (0 if check_flags else -1)
 
 
@@ -2404,8 +2455,8 @@ def test_chanshift_vis(check_flags, flag_adj, fwd_dir, inplace):
 
     vis_dict = {
         456: {
-            "vis_data": np.array(vis_vals, dtype=np.complex64),
-            "vis_flags": np.array(flag_vals, dtype=bool),
+            "data": np.array(vis_vals, dtype=np.complex64),
+            "flags": np.array(flag_vals, dtype=bool),
         }
     }
 
@@ -2417,8 +2468,8 @@ def test_chanshift_vis(check_flags, flag_adj, fwd_dir, inplace):
     if inplace:
         assert new_dict is vis_dict
 
-    assert np.all(vis_vals == new_dict[456]["vis_data"])
-    assert np.all(new_dict[456]["vis_flags"] == flag_vals)
+    assert np.all(vis_vals == new_dict[456]["data"])
+    assert np.all(new_dict[456]["flags"] == flag_vals)
 
     # Now try a simple one-channel shift
     new_dict = MirParser._chanshift_vis(
@@ -2436,22 +2487,22 @@ def test_chanshift_vis(check_flags, flag_adj, fwd_dir, inplace):
 
     assert np.all(
         vis_vals[good_slice]
-        == np.roll(new_dict[456]["vis_data"], -1 if fwd_dir else 1)[good_slice]
+        == np.roll(new_dict[456]["data"], -1 if fwd_dir else 1)[good_slice]
     )
     assert np.all(
         flag_vals[good_slice]
-        == np.roll(new_dict[456]["vis_flags"], -1 if fwd_dir else 1)[good_slice]
+        == np.roll(new_dict[456]["flags"], -1 if fwd_dir else 1)[good_slice]
     )
 
-    assert np.all(new_dict[456]["vis_data"][flag_slice] == 0.0)
-    assert np.all(new_dict[456]["vis_flags"][flag_slice])
+    assert np.all(new_dict[456]["data"][flag_slice] == 0.0)
+    assert np.all(new_dict[456]["flags"][flag_slice])
 
     # Refresh the values, in case we are doing this in-place
     if inplace:
         vis_dict = {
             456: {
-                "vis_data": np.array(vis_vals, dtype=np.complex64),
-                "vis_flags": np.array(flag_vals, dtype=bool),
+                "data": np.array(vis_vals, dtype=np.complex64),
+                "flags": np.array(flag_vals, dtype=bool),
             }
         }
 
@@ -2477,8 +2528,8 @@ def test_chanshift_vis(check_flags, flag_adj, fwd_dir, inplace):
         exp_vals[mod_slice] = [check_val * 0.25, check_val * 0.75]
         exp_flags[mod_slice] = False
 
-    assert np.all(new_dict[456]["vis_data"] == exp_vals)
-    assert np.all(new_dict[456]["vis_flags"] == exp_flags)
+    assert np.all(new_dict[456]["data"] == exp_vals)
+    assert np.all(new_dict[456]["flags"] == exp_flags)
 
 
 @pytest.mark.parametrize(
@@ -2519,11 +2570,11 @@ def test_redoppler_data(mir_data, plug_vals, diff_rx, use_raw):
     # Alright, let's tweak the data now to give us something to compare
     for sphid, nch in zip(mir_data.sp_data["sphid"], mir_data.sp_data["nch"]):
         if use_raw:
-            mir_data.raw_data[sphid]["raw_data"][:] = np.arange(nch * 2)
+            mir_data.raw_data[sphid]["data"][:] = np.arange(nch * 2)
             mir_data.raw_data[sphid]["scale_fac"] = np.int16(0)
         else:
-            mir_data.vis_data[sphid]["vis_data"][:] = np.arange(nch)
-            mir_data.vis_data[sphid]["vis_flags"][:] = False
+            mir_data.vis_data[sphid]["data"][:] = np.arange(nch)
+            mir_data.vis_data[sphid]["flags"][:] = False
 
     rxb_blhids = mir_data.bl_data["blhid"][mir_data.bl_data["ant1rx"] == 1]
 
@@ -2550,33 +2601,70 @@ def test_redoppler_data(mir_data, plug_vals, diff_rx, use_raw):
         chan_shift *= 2 if ((sp_rec["blhid"] in rxb_blhids) and diff_rx) else 1
         if chan_shift == 0:
             if use_raw:
-                assert np.all(
-                    mir_data.raw_data[sphid]["raw_data"] == np.arange(nch * 2)
-                )
+                assert np.all(mir_data.raw_data[sphid]["data"] == np.arange(nch * 2))
             else:
-                assert np.all(mir_data.vis_data[sphid]["vis_data"] == np.arange(nch))
+                assert np.all(mir_data.vis_data[sphid]["data"] == np.arange(nch))
         elif chan_shift < 0:
             if use_raw:
                 assert np.all(
-                    mir_data.raw_data[sphid]["raw_data"][: chan_shift * 2]
+                    mir_data.raw_data[sphid]["data"][: chan_shift * 2]
                     == np.arange(-(2 * chan_shift), nch * 2)
                 )
             else:
                 assert np.all(
-                    mir_data.vis_data[sphid]["vis_data"][:chan_shift]
+                    mir_data.vis_data[sphid]["data"][:chan_shift]
                     == np.arange(-chan_shift, nch)
                 )
         else:
             if use_raw:
                 assert np.all(
-                    mir_data.raw_data[sphid]["raw_data"][chan_shift * 2 :]
+                    mir_data.raw_data[sphid]["data"][chan_shift * 2 :]
                     == np.arange((nch - chan_shift) * 2)
                 )
             else:
                 assert np.all(
-                    mir_data.vis_data[sphid]["vis_data"][chan_shift:]
+                    mir_data.vis_data[sphid]["data"][chan_shift:]
                     == np.arange((nch - chan_shift))
                 )
+
+
+def test_fix_acdata(mir_data):
+    # So we have to do a bit of metadata manipualtion here in order to make this work
+    # for total test coverage. Spoof a dataset where there's only 1 sideband but two
+    # integations. First up - just double the number of int headers.
+    mir_data.in_data._data = np.tile(mir_data.in_data._data, 2)
+    mir_data.in_data._data["inhid"] = [1, 2]
+    mir_data.in_data._mask = np.tile(mir_data.in_data._mask, 2)
+    mir_data.in_data._set_header_key_index_dict()
+
+    # Now, anything that's LSB, make that part of integration #2 and USB
+    sel_mask = mir_data.bl_data._data["isb"] == 0
+    mir_data.bl_data._data["isb"][sel_mask] = 1
+    mir_data.bl_data._data["inhid"][sel_mask] = 2
+
+    # Finally, duplicate ac_data to be double te size, mapping the new entries to
+    # integration #2.
+    mir_data.ac_data._data = np.tile(mir_data.ac_data._data, 2)
+    mir_data.ac_data._data["inhid"][16:] = 2
+    mir_data.ac_data._mask = np.tile(mir_data.ac_data._mask, 2)
+    mir_data.ac_data._set_header_key_index_dict()
+
+    # Finally, call fix_acdata, which should (among other things), appoprpriately fill
+    # in the frequency information.
+    mir_data._fix_acdata()
+
+    # Now check that fsky is correctly set
+    assert np.all(
+        mir_data.ac_data["fsky"][16:] == np.tile(mir_data.sp_data["fsky"][1:5], 4)
+    )
+    assert np.all(
+        mir_data.ac_data["fsky"][:16] == np.tile(mir_data.sp_data["fsky"][11:15], 4)
+    )
+
+    # Make sure these values are actually different
+    assert np.all(
+        ~np.isin(mir_data.ac_data["fsky"][:16], mir_data.sp_data["fsky"][1:5])
+    )
 
 
 # Below are a series of checks that are designed to check to make sure that the
@@ -2595,7 +2683,7 @@ def test_mir_remember_me_record_lengths(mir_data):
 
     # ac_data only exists if has_auto=True
     if mir_data.ac_data._data is not None:
-        assert len(mir_data.ac_data) == 2
+        assert len(mir_data.ac_data) == 16
     else:
         # This should only occur when has_auto=False
         assert not mir_data._has_auto
@@ -2772,13 +2860,9 @@ def test_mir_remember_me_ac_data(mir_data):
 
         assert np.all(mir_data.ac_data["inhid"] == 1)
 
-        assert np.all(mir_data.ac_data["achid"] == np.arange(1, 3))
+        assert np.all(mir_data.ac_data["achid"] == np.arange(1, 17))
 
-        assert np.all(mir_data.ac_data["antenna"] == [1, 4])
-
-        assert np.all(mir_data.ac_data["nchunks"] == 8)
-
-        assert np.all(mir_data.ac_data["datasize"] == 1048576)
+        assert np.all(mir_data.ac_data["antenna"] == ([1] * 8) + ([4] * 8))
 
     else:
         # This should only occur when has_auto=False
@@ -2867,6 +2951,6 @@ def test_mir_remember_me_vis_data(mir_data):
     check_arr = np.array([-4302, -20291, -5261, -21128, -4192, -19634, -4999, -16346])
 
     assert np.all(
-        np.all(sp_raw["raw_data"] == check_arr) if (np.mod(idx, 5) == 0) else True
+        np.all(sp_raw["data"] == check_arr) if (np.mod(idx, 5) == 0) else True
         for idx, sp_raw in enumerate(mir_data.raw_data.values())
     )

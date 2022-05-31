@@ -381,18 +381,16 @@ class Mir(UVData):
             mir_data.sp_data, spdx_list, mir_data.vis_data.values()
         ):
             blt_idx = blhid_blt_order[sp_rec["blhid"]]
+            ch_slice = spdx_dict[window]["ch_slice"]
+            pol_idx = spdx_dict[window]["pol_idx"]
             spdx = spdx_dict[window]
-            vis_data[(blt_idx, spdx["pol_idx"], spdx["ch_slice"])] = np.conj(
-                vis_rec["vis_data"]
-            )
-            vis_flags[(blt_idx, spdx["pol_idx"], spdx["ch_slice"])] = vis_rec[
-                "vis_flags"
-            ]
+            vis_data[blt_idx, pol_idx, ch_slice] = np.conj(vis_rec["data"])
+            vis_flags[blt_idx, pol_idx, ch_slice] = vis_rec["flags"]
             # The "wt" column is calcualted as (T_DSB ** 2)/(integ time), but we want
             # units of Jy**-2. To do this, we just need to multiply by the forward gain
             # of the antenna squared and the channel width. The factor of 2**2 (4)
             # arises because we need to convert T_DSB**2 to T_SSB**2.
-            vis_weights[(blt_idx, spdx["pol_idx"], spdx["ch_slice"])] = (
+            vis_weights[blt_idx, pol_idx, ch_slice] = (
                 ((130.0 * 2.0) ** (2.0)) * sp_rec["wt"] * np.abs(sp_rec["fres"])
             )
 
