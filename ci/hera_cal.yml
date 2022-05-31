@@ -17,7 +17,7 @@ dependencies:
   - pytest-cov
   - pyyaml
   - scikit-learn
-  - scipy
+  - scipy<1.8.1
   - setuptools_scm
   - pip:
     - git+https://github.com/HERA-Team/linsolve.git
