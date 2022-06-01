@@ -106,7 +106,7 @@ a) miriad -> uvfits
 
   >>> # Write out the uvfits file
   >>> write_file = os.path.join('.', 'tutorial.uvfits')
-  >>> uvd.write_uvfits(write_file, force_phase=True, spoof_nonessential=True)
+  >>> uvd.write_uvfits(write_file, force_phase=True)
   The data are in drift mode and do not have a defined phase center. Phasing to zenith of the first timestamp.
 
 b) uvfits -> miriad
@@ -158,7 +158,7 @@ When reading FHD format, we need to point to several files for each observation.
   >>> uvd.read(fhd_files, file_type='fhd')
   >>> uvd.read_fhd(fhd_files)
   >>> write_file = os.path.join('.', 'tutorial.uvfits')
-  >>> uvd.write_uvfits(write_file, spoof_nonessential=True)
+  >>> uvd.write_uvfits(write_file)
 
 d) FHD -> miriad
 ****************
@@ -202,7 +202,7 @@ e) CASA -> uvfits
 
   >>> # Write out uvfits file
   >>> write_file = os.path.join('.', 'tutorial.uvfits')
-  >>> uvd.write_uvfits(write_file, spoof_nonessential=True)
+  >>> uvd.write_uvfits(write_file)
 
 f) CASA -> miriad
 *****************
@@ -302,7 +302,7 @@ approximation, and there is an option to instead use a slower integral implement
 
   >>> # Write out uvfits file
   >>> write_file = os.path.join('.', 'tutorial.uvfits')
-  >>> uvd.write_uvfits(write_file, spoof_nonessential=True)
+  >>> uvd.write_uvfits(write_file)
 
 .. _quick_access:
 
