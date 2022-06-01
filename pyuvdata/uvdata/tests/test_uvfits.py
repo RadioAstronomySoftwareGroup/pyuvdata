@@ -1502,3 +1502,59 @@ def test_mwax_missing_frame_comment(tmp_path):
         ["Required Antenna keyword 'FRAME' not set; Assuming frame is 'ITRF'."],
     ):
         UVData.from_file(outfile, read_data=False)
+
+
+@pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
+def test_no_spoof(sma_mir, tmp_path):
+    sma_uvfits = UVData()
+    sma_mir._set_app_coords_helper()
+    filename = os.path.join(tmp_path, "no_spoof.uvfits")
+    sma_mir.write_uvfits(filename)
+    sma_uvfits = UVData.from_file(filename)
+
+    # UVFITS has some differences w/ the MIR format that are expected -- handle
+    # all of that here, making sure that the returned values are consistent with
+    # what we expect. Start w/ spectral windows
+    assert len(np.unique(sma_mir.spw_array)) == len(np.unique(sma_uvfits.spw_array))
+
+    spw_dict = {idx: jdx for idx, jdx in zip(sma_uvfits.spw_array, sma_mir.spw_array)}
+
+    assert np.all(
+        [
+            idx == spw_dict[jdx]
+            for idx, jdx in zip(sma_mir.flex_spw_id_array, sma_uvfits.flex_spw_id_array)
+        ]
+    )
+    sma_uvfits.spw_array = sma_mir.spw_array
+    sma_uvfits.flex_spw_id_array = sma_mir.flex_spw_id_array
+
+    # Check the history next
+    assert sma_uvfits.history.startswith(sma_mir.history)
+    sma_mir.history = sma_uvfits.history
+
+    # We have to do a bit of special handling for the phase_center_catalog, because
+    # _very_ small floating point errors can creep in.
+    for cat_name in sma_mir.phase_center_catalog.keys():
+        this_cat = sma_mir.phase_center_catalog[cat_name]
+        other_cat = sma_uvfits.phase_center_catalog[cat_name]
+        assert np.isclose(this_cat["cat_lat"], other_cat["cat_lat"])
+        assert np.isclose(this_cat["cat_lon"], other_cat["cat_lon"])
+    sma_uvfits.phase_center_catalog = sma_mir.phase_center_catalog
+
+    # Finally, move on to the "non-spoofed paramters"
+    exp_dict = {
+        "dut1": -0.2137079,
+        "earth_omega": 360.9856438593,
+        "gst0": 122.6673828188983,
+        "rdate": "2020-07-24",
+        "timesys": "UTC",
+    }
+
+    for key, value in exp_dict.items():
+        if isinstance(value, str):
+            assert value == getattr(sma_uvfits, key)
+        else:
+            assert np.isclose(getattr(sma_uvfits, key), value)
+        setattr(sma_uvfits, key, None)
+
+    assert sma_uvfits == sma_mir
