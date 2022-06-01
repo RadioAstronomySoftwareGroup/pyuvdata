@@ -6003,10 +6003,6 @@ class UVData(UVBase):
                 "antenna positions. Please set use_ant_pos=True."
             )
 
-        # If we are missing apparent coordinates, we should calculate those now
-        if (self.phase_center_app_ra is None) or (self.phase_center_app_dec is None):
-            self._set_app_coords_helper()
-
         # If we are just using the antenna positions, we don't actually need to do
         # anything, since the new baseline vectors will be unaffected by the prior
         # phasing method, and the delta_w values already get correctly corrected for.
@@ -6491,7 +6487,7 @@ class UVData(UVBase):
                                 "Cannot add a flex-pol UVData objects where the same "
                                 "spectral window contains different polarizations. Use "
                                 "the `remove_flex_pol` method to convert the objects "
-                                "to have a regular polariztion axis."
+                                "to have a regular polarization axis."
                             )
                     except KeyError:
                         this_flexpol_dict[key] = other_flexpol_dict[key]
@@ -8544,7 +8540,6 @@ class UVData(UVBase):
                         "No data matching this polarization and frequency selection "
                         "in this UVData object."
                     )
-
                 if not uvutils._test_array_constant_spacing(
                     np.unique(self.flex_spw_polarization_array[spw_inds])
                 ):
@@ -13017,7 +13012,7 @@ class UVData(UVBase):
         mir_obj.write_mir(
             filepath,
         )
-        del mir_obj
+        del mir_obj  # pragma: nocover
 
     def write_ms(
         self,
