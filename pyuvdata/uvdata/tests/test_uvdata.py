@@ -4003,7 +4003,7 @@ def test_flex_spw_freq_avg(sma_mir):
         sma_mir.frequency_average(2)
 
 
-def test_check_flex_spw_contiguous(sma_mir):
+def test_check_flex_spw_contiguous(sma_mir, casa_uvfits):
     """
     Verify that check_flex_spw_contiguous works as expected (throws an error if
     windows are not contiguous, otherwise no error raised).
@@ -4012,6 +4012,8 @@ def test_check_flex_spw_contiguous(sma_mir):
     sma_mir.flex_spw_id_array[0] = 1
     with pytest.raises(ValueError, match="Channels from different spectral windows"):
         sma_mir._check_flex_spw_contiguous()
+
+    casa_uvfits._check_flex_spw_contiguous()
 
 
 def test_check_flex_spw_contiguous_no_flex_spw(hera_uvh5):
@@ -6375,6 +6377,8 @@ def test_redundancy_contract_expand(
 
     if future_shapes:
         uv0.use_future_array_shapes()
+        # Need to test with multi phase center, but don't need a separate parameterize
+        uv0._set_multi_phase_center(preserve_phase_center_info=True)
 
     # Fails at lower precision because some baselines fall into multiple
     # redundant groups
