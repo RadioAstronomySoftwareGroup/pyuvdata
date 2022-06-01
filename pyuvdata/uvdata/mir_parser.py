@@ -1509,6 +1509,11 @@ class MirMetaData(object):
             grouped data (if applicable). Note that the index positions are reported
             after the mask is applied, such that the highest index position will be
             equal to the sum of the mask values minus 1. Default is False.
+        assume_unique : bool
+            If set to True, assume that the value(s) of `group_field` are unique per
+            index position, and return the results without making any attempts at
+            grouping, which can produce a moderate increase in speed. Default is
+            False.
 
         Returns
         -------
@@ -1531,7 +1536,8 @@ class MirMetaData(object):
         # in order. This turns out to make extracting the index positions much faster.
         group_data = self.get_value(group_fields, use_mask=use_mask)
         index_arr = np.lexsort(group_data)
-        group_data = [data[index_arr] for data in group_data]
+        if not np.all(index_arr[1:] > index_arr[:-1]):
+            group_data = [data[index_arr] for data in group_data]
 
         # If we have no data, then bail.
         if len(index_arr) == 0:
@@ -2226,6 +2232,10 @@ class MirMetaData(object):
             If set to True, evaluate/calculate for only those records where the internal
             mask is set to True. If set to False, use all records in the object,
             regardless of mask status. Default is True.
+        reindex : bool
+            If set to True, evaluate/calculate ignoring the current indexing info,
+            instead relying upon record order and size for calculating the results.
+            Typically used for generating dicts for writing records to disk.
 
         Returns
         -------
@@ -2237,15 +2247,16 @@ class MirMetaData(object):
             "record_size" (in bytes), and "record_start" (start position of the packed
             data relative to the start of the file, in bytes), with all values recorded
             as ints.
-        sp_dict : dict
+        recpos_dict : dict
             Dictionary containing per-spectral record indexing information. The keys
             are values of "inhid", and the values are themselves dicts whose keys are
-            values of the spectral window header key ("sphid"), the whole group of which
-            are matched to a particular "inhid" value. The values of this "lower" dict
-            is yet another dict, containing three keys: "start_idx" (starting position
-            of the spectral record in the packed data, in number of 2-byte ints),
-            "end_idx" (ending position of the spectral record), and "chan_avg" (number
-            of channels we need average the spectrum over; default is 1).
+            values of the spectral window header key ("sphid" for cross-correlations, or
+            "achid" for auto-correlations), the whole group of which are matched to a
+            particular "inhid" value. The values of this "lower" dict is yet another
+            dict, containing three keys: "start_idx" (starting position of the spectral
+            record in the packed data, in number of 2-byte ints), "end_idx" (ending
+            position of the spectral record), and "chan_avg" (number of channels ones
+            needs to average the spectrum over; default is 1).
         """
         rec_size_arr, val_size = self._get_record_size_info(use_mask=use_mask)
 
@@ -3197,16 +3208,13 @@ class MirParser(object):
                     for subkey in comp_list:
                         if subkey == "scale_fac":
                             is_same &= this_item[subkey] == othr_item[subkey]
-                        elif subkey == "flags":
-                            is_same &= np.array_equal(
-                                this_item[subkey], othr_item[subkey]
-                            )
-                        else:
-                            # The atol here is set by the max value in the spectrum
-                            # times 2^-10. That turns out to be _about_ the worst case
-                            # scenario for moving to and from the raw data format, which
-                            # compresses the data down from floats to ints.
-                            try:
+                        elif not np.array_equal(this_item[subkey], othr_item[subkey]):
+                            if this_item[subkey].shape == othr_item[subkey].shape:
+                                # The atol here is set by the max value in the spectrum
+                                # times 2^-10. That turns out to be _about_ the worst
+                                # case scenario for moving to and from the raw data
+                                # format, which compresses the data down from floats to
+                                # ints.
                                 is_same &= np.allclose(
                                     this_item[subkey],
                                     othr_item[subkey],
@@ -3214,7 +3222,7 @@ class MirParser(object):
                                     * np.nanmax(np.abs(this_item[subkey]), initial=0),
                                     equal_nan=True,
                                 )
-                            except ValueError:
+                            else:
                                 is_same = False
                     if not is_same:
                         is_eq = False
@@ -3388,6 +3396,9 @@ class MirParser(object):
             filepath is the path to the folder containing the mir data set.
         int_start_dict : dict
             indexes to the visibility locations within the file.
+        data_type : str
+            Type of data to read, must either be "cross" (cross-correlations) or "auto"
+            (auto-correlations). Default is "cross".
         use_mmap : bool
             By default, the method will read all of the data into memory. However,
             if set to True, then the method will return mmap-based objects instead,
@@ -3526,7 +3537,10 @@ class MirParser(object):
                     good_check &= idict["nbyt"] == int_dict[inhid]["record_size"]
 
                 if not good_check:
-                    raise MirMetaError("Thing")
+                    raise MirMetaError(
+                        "File indexing information differs from that found in in "
+                        "file_dict. Cannot read in %s data." % data_type
+                    )
 
         if len(key_check) != 0:
             raise ValueError("inhid_arr contains keys not found in file_dict.")
@@ -3534,7 +3548,7 @@ class MirParser(object):
         return int_data_dict
 
     @staticmethod
-    def make_packdata(int_start_dict, recpos_dict, data_dict, data_type):
+    def make_packdata(int_dict, recpos_dict, data_dict, data_type):
         """
         Write packdata from raw_data or auto_data.
 
@@ -3544,17 +3558,30 @@ class MirParser(object):
 
         Parameters
         ----------
-        sp_data : ndarray of sp_data_type
-            Array from the file "sp_read", returned by `read_sp_data`.
-        raw_dict : dict
+        int_dict : dict
+            Dictionary describing the data on disk, with keys matched to individual
+            integration header numbers (`inhid`) and values themselves dicts containing
+            metainformation about the secptral record. This dict is generally produced
+            by `MirMetaData._generate_recpos_dict`, where further documentation can be
+            found.
+        recpos_dict : dict
+            Dictionary containing the spectral record indexing information, where keys
+            are unique values in the integration record number (`inhid`), and the values
+            are themselves dicts, with keys matched to spectral record numbers (`sphid`
+            or `achid`). This dict is produced by `MirMetaData._generate_recpos_dict`,
+            the documentation of which contains further information.
+        data_dict : dict
             A dictionary in the format of `raw_data`, where the keys are matched to
-            individual values of sphid in `sp_data`, and each entry comtains a dict
-            with two items: "scale_fac", and np.int16 which describes the common
-            exponent for the spectrum, and "raw_data", an array of np.int16 (of length
-            equal to twice that found in `sp_data["nch"]` for the corresponding value
-            of sphid) containing the compressed visibilities.  Note that entries equal
-            to -32768 aren't possible with the compression scheme used for MIR, and so
-            this value is used to mark flags.
+            individual spectral record numbers, and each entry comtains a dict with two
+            items. If `data_type="cross"`, those two items are "scale_fac", an np.int16
+            which describes the common exponent for the spectrum, and "data", an array
+            of np.int16.  Note that entries equal to -32768 aren't possible with the
+            compression scheme used for MIR, and so this value is used to mark flags.
+            If `data_type="auto"`, then those two items are "data", an array of
+            np.float32, and "flags", an array of np.bool.
+        data_type : str
+            Type of data to read, must either be "cross" (cross-correlations) or "auto"
+            (auto-correlations).
 
         Returns
         -------
@@ -3580,7 +3607,7 @@ class MirParser(object):
         # packed datasets (where we need a different dtype based on the number of
         # individual visibilities we're packing in).
         int_dtype_dict = {}
-        for int_size in {idict["record_size"] for idict in int_start_dict.values()}:
+        for int_size in {idict["record_size"] for idict in int_dict.values()}:
             int_dtype_dict[int_size] = np.dtype(
                 [("inhid", "<i4"), ("nbyt", "<i4"), ("packdata", "B", int_size)]
             )
@@ -3588,7 +3615,7 @@ class MirParser(object):
         # Now we start the heavy lifting -- start looping through the individual
         # integrations and pack them together.
         int_data_dict = {}
-        for inhid, int_subdict in int_start_dict.items():
+        for inhid, int_subdict in int_dict.items():
             # Make an empty packdata dtype, which we will fill with new values
             int_data = np.empty((), dtype=int_dtype_dict[int_subdict["record_size"]])
 
@@ -3629,7 +3656,7 @@ class MirParser(object):
             A dictionary in the format of `raw_data`, where the keys are matched to
             individual values of sphid in `sp_data`, and each entry comtains a dict
             with two items: "scale_fac", and np.int16 which describes the common
-            exponent for the spectrum, and "raw_data", an array of np.int16 (of length
+            exponent for the spectrum, and "data", an array of np.int16 (of length
             equal to twice that found in `sp_data["nch"]` for the corresponding value
             of sphid) containing the compressed visibilities.  Note that entries equal
             to -32768 aren't possible with the compression scheme used for MIR, and so
@@ -3640,8 +3667,8 @@ class MirParser(object):
         vis_dict : dict
             A dictionary in the format of `vis_data`, where the keys are matched to
             individual values of sphid in `sp_data`, and each entry comtains a dict
-            with two items: "vis_data", an array of np.complex64 containing the
-            visibilities, and "vis_flags", an array of bool containing the per-channel
+            with two items: "data", an array of np.complex64 containing the
+            visibilities, and "flags", an array of bool containing the per-channel
             flags of the spectrum (both are of length equal to `sp_data["nch"]` for the
             corresponding value of sphid).
         """
@@ -3683,8 +3710,8 @@ class MirParser(object):
         vis_dict : dict
             A dictionary in the format of `vis_data`, where the keys are matched to
             individual values of sphid in `sp_data`, and each entry comtains a dict
-            with two items: "vis_data", an array of np.complex64 containing the
-            visibilities, and "vis_flags", an array of bool containing the per-channel
+            with two items: "data", an array of np.complex64 containing the
+            visibilities, and "flags", an array of bool containing the per-channel
             flags of the spectrum (both are of length equal to `sp_data["nch"]` for the
             corresponding value of sphid).
 
@@ -3694,7 +3721,7 @@ class MirParser(object):
             A dictionary in the format of `raw_data`, where the keys are matched to
             individual values of sphid in `sp_data`, and each entry comtains a dict
             with two items: "scale_fac", and np.int16 which describes the common
-            exponent for the spectrum, and "raw_data", an array of np.int16 (of length
+            exponent for the spectrum, and "data", an array of np.int16 (of length
             equal to twice that found in `sp_data["nch"]` for the corresponding value
             of sphid) containing the compressed visibilities.  Note that entries equal
             to -32768 aren't possible with the compression scheme used for MIR, and so
@@ -3750,6 +3777,9 @@ class MirParser(object):
 
         Parameters
         ----------
+        data_type : str
+            Type of data to read, must either be "cross" (cross-correlations) or "auto"
+            (auto-correlations).
         return_vis : bool
             If set to True, will return a dictionary containing the visibilities read
             in the "normal" format. If set to False, will return a dictionary containing
@@ -3773,13 +3803,13 @@ class MirParser(object):
             `sp_data`, and each entry comtains a dict with two items. If
             `return_vis=False` then a "raw data" dict is passed, with keys "scale_fac",
             an np.int16 which describes the common exponent for the spectrum, and
-            "raw_data", an array of np.int16 (of length equal to twice that found in
+            "data", an array of np.int16 (of length equal to twice that found in
             `sp_data["nch"]` for the corresponding value of sphid) containing the
             compressed visibilities.  Note that entries equal to -32768 aren't possible
             with the compression scheme used for MIR, and so this value is used to mark
             flags. If `return_vis=True`, then a "vis data" dict is passed, with keys
-            "vis_data", an array of np.complex64 containing the visibilities, and
-            "vis_flags", an array of bool containing the per-channel flags of the
+            "data", an array of np.complex64 containing the visibilities, and
+            "flags", an array of bool containing the per-channel flags of the
             spectrum (both are of length equal to `sp_data["nch"]` for the
             corresponding value of sphid).
         """
@@ -4858,7 +4888,7 @@ class MirParser(object):
         vis_dict : dict
             A dict containing visibility data, where the keys match to individual values
             of `sphid` in `sp_data`, with each value being its own dict, with keys
-            "vis_data" (the visibility data, dtype=np.complex64) and "vis_flags"
+            "data" (the visibility data, dtype=np.complex64) and "flags"
             (the flagging inforformation, dtype=bool).
         chan_avg_arr : sequence of int
             A list, array, or tuple of integers, specifying how many channels to
@@ -4932,7 +4962,7 @@ class MirParser(object):
         raw_dict : dict
             A dict containing raw visibility data, where the keys match to individual
             values of "sphid" in `sp_data`, with each value being its own dict, with
-            keys "raw_data" (the raw visibility data, dtype=np.int16) and "scale_fac"
+            keys "data" (the raw visibility data, dtype=np.int16) and "scale_fac"
             (scale factor to multiply raw data by , dtype=np.int16).
         chan_avg_arr : sequence of int
             A list, array, or tuple of integers, specifying how many channels to
@@ -4944,7 +4974,7 @@ class MirParser(object):
         return_vis : bool
             If True, return data in the "normal" visibility format, where each
             spectral record has a key of "sphid" and a value being a dict of
-            "vis_data" (the visibility data, dtype=np.complex64) and "vis_flags"
+            "data" (the visibility data, dtype=np.complex64) and "flags"
             (the flagging inforformation, dtype=bool).
 
         Returns
@@ -6023,8 +6053,8 @@ class MirParser(object):
         vis_dict : dict
             A dictionary in the format of `vis_data`, where the keys are matched to
             individual values of sphid in `sp_data`, and each entry comtains a dict
-            with two items: "vis_data", an array of np.complex64 containing the
-            visibilities, and "vis_flags", an array of bool containing the per-channel
+            with two items: "data", an array of np.complex64 containing the
+            visibilities, and "flags", an array of bool containing the per-channel
             flags of the spectrum (both are of length equal to `sp_data["nch"]` for the
             corresponding value of sphid).
         shift_tuple_list : list of tuples
@@ -6154,7 +6184,7 @@ class MirParser(object):
             A dictionary in the format of `raw_data`, where the keys are matched to
             individual values of sphid in `sp_data`, and each entry comtains a dict
             with two items: "scale_fac", and np.int16 which describes the common
-            exponent for the spectrum, and "raw_data", an array of np.int16 (of length
+            exponent for the spectrum, and "data", an array of np.int16 (of length
             equal to twice that found in `sp_data["nch"]` for the corresponding value
             of sphid) containing the compressed visibilities.  Note that entries equal
             to -32768 aren't possible with the compression scheme used for MIR, and so
@@ -6179,7 +6209,7 @@ class MirParser(object):
         return_vis : bool
             If True, return data in the "normal" visibility format, where each
             spectral record has a key of "sphid" and a value being a dict of
-            "vis_data" (the visibility data, dtype=np.complex64) and "vis_flags"
+            "data" (the visibility data, dtype=np.complex64) and "flags"
             (the flagging inforformation, dtype=bool). This option is ignored if
             `inplace=True`.
 
