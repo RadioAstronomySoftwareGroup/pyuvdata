@@ -890,7 +890,8 @@ class UVFITS(UVData):
             The uvfits file to write to.
         spoof_nonessential : bool
             Option to spoof the values of optional UVParameters that are not set
-            but are required for uvfits files.
+            but are required for uvfits files. This keyword is now deprecated, as values
+            are automatically set to their best known values if not previously set.
         write_lst : bool
             Option to write the LSTs to the metadata (random group parameters).
         force_phase : bool
@@ -940,7 +941,9 @@ class UVFITS(UVData):
         if spoof_nonessential:
             warnings.warn(
                 (
-                    "The spoof_nonessential parameter is deprecated and will be "
+                    "UVFITS-required metadata are now set automatically to their "
+                    'best known values, and no longer need to be "spoofed". As such, '
+                    "the spoof_nonessential parameter is deprecated, and will be "
                     "removed in a future release."
                 ),
                 DeprecationWarning,

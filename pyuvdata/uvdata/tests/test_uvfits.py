@@ -1537,7 +1537,7 @@ def test_no_spoof(sma_mir, tmp_path, spoof):
 
     with uvtest.check_warnings(
         DeprecationWarning if spoof else None,
-        "The spoof_nonessential parameter is deprecated" if spoof else None,
+        "UVFITS-required metadata are now set automatically to " if spoof else None,
     ):
         sma_mir.write_uvfits(filename, spoof_nonessential=spoof)
 
