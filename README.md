@@ -143,15 +143,15 @@ Required:
 
 * astropy >= 5.0.4
 * h5py >= 3.0
-* numpy >= 1.18
+* numpy >= 1.19
 * pyerfa >= 2.0
-* scipy
+* scipy >= 1.3
 * setuptools_scm
 
 Optional:
 
-* python-casacore >= 3.1.0 (for working with CASA measurement sets)
-* astropy-healpix (for working with beams in HEALPix formats)
+* python-casacore >= 3.3.0 (for working with CASA measurement sets)
+* astropy-healpix >=0.6 (for working with beams in HEALPix formats)
 * pyyaml (for working with settings files for CST beam files)
 * novas and novas_de405 (for using the NOVAS library for astrometry)
 * astroquery >= 0.4.4 (for enabling lookup functionality with JPL-Horizons)

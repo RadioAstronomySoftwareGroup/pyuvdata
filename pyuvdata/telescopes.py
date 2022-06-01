@@ -174,6 +174,8 @@ def known_telescopes():
         List of known telescope names.
     """
     astropy_sites = EarthLocation.get_site_names()
+    # Empty strings have been removed from astropy sites as of astropy 5.1
+    # This can be removed when we require astropy >= 5.1
     while "" in astropy_sites:
         astropy_sites.remove("")
     known_telescopes = list(set(astropy_sites + list(KNOWN_TELESCOPES.keys())))

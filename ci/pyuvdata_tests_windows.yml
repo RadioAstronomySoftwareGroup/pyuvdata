@@ -7,11 +7,11 @@ dependencies:
   - astroquery>=0.4.4
   - h5py>=3.0
   - hdf5>=1.12.0
-  - astropy-healpix
-  - numpy
+  - astropy-healpix>=0.6
+  - numpy>=1.19.*
   - pyerfa>=2.0
   - pyyaml
-  - scipy
+  - scipy>=1.3
   - coverage
   - pytest>=6.2.0
   - pytest-cov
