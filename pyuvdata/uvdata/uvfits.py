@@ -33,7 +33,6 @@ class UVFITS(UVData):
     """
 
     uvfits_required_extra = [
-        "antenna_positions",
         "gst0",
         "rdate",
         "earth_omega",
@@ -1059,13 +1058,6 @@ class UVFITS(UVData):
                     if spoof_nonessential:
                         param.apply_spoof()
                         setattr(self, p, param)
-                    else:
-                        raise ValueError(
-                            "Required attribute {attribute} "
-                            "for uvfits not defined. Define or "
-                            "set spoof_nonessential to True to "
-                            "spoof this attribute.".format(attribute=p)
-                        )
 
         # check for unflagged data with nsample = 0. Warn if any found
         wh_nsample0 = np.where(self.nsample_array == 0)
@@ -1376,24 +1368,49 @@ class UVFITS(UVData):
         ant_hdu.header["ARRAYY"] = self.telescope_location[1]
         ant_hdu.header["ARRAYZ"] = self.telescope_location[2]
         ant_hdu.header["FRAME"] = "ITRF"
-        ant_hdu.header["GSTIA0"] = self.gst0
+
         # TODO Karto: Do this more intelligently in the future
         if self.future_array_shapes:
             ant_hdu.header["FREQ"] = self.freq_array[0]
         else:
             ant_hdu.header["FREQ"] = self.freq_array[0, 0]
-        ant_hdu.header["RDATE"] = self.rdate
-        ant_hdu.header["UT1UTC"] = self.dut1
 
-        ant_hdu.header["TIMESYS"] = self.timesys
-        if self.timesys != "UTC":
+        if (self.rdate is None) or (self.rdate == ""):
+            rdate_obj = Time(np.floor(self.time_array[0]), format="jd", scale="utc")
+        else:
+            try:
+                rdate_obj = Time(self.rdate, scale="utc")
+            except ValueError:
+                rdate_obj = Time(np.floor(self.time_array[0]), format="jd", scale="utc")
+
+        if self.rdate is None:
+            ant_hdu.header["RDATE"] = rdate_obj.strftime("%Y-%m-%d")
+        else:
+            ant_hdu.header["RDATE"] = self.rdate
+
+        if self.gst0 is None:
+            ant_hdu.header["GSTIA0"] = rdate_obj.sidereal_time("apparent", "tio").deg
+        else:
+            ant_hdu.header["GSTIA0"] = self.gst0
+
+        if self.dut1 is None:
+            ant_hdu.header["UT1UTC"] = float(rdate_obj.delta_ut1_utc)
+        else:
+            ant_hdu.header["UT1UTC"] = self.dut1
+
+        if not (self.timesys is None or self.timesys == "UTC"):
             raise ValueError(
-                "This file has a time system {tsys}. "
-                'Only "UTC" time system files are supported'.format(tsys=self.timesys)
+                "This file has a time system {tsys}. Only "
+                '"UTC" time system files are supported'.format(tsys=self.timesys)
             )
+        ant_hdu.header["TIMESYS"] = "UTC"
         ant_hdu.header["ARRNAM"] = self.telescope_name
         ant_hdu.header["NO_IF"] = self.Nspws
-        ant_hdu.header["DEGPDY"] = self.earth_omega
+        # Note the value below is basically 360 deg x num of sidereal days in a year /
+        # num of soalr days in a year.
+        ant_hdu.header["DEGPDY"] = (
+            360.9856438593 if self.earth_omega is None else self.earth_omega
+        )
         # This is just a statically defined value
         ant_hdu.header["IATUTC"] = 37.0
 
