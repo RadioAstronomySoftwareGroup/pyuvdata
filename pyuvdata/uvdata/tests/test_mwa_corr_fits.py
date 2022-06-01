@@ -88,7 +88,7 @@ def test_read_mwa_write_uvfits(tmp_path):
         )
 
     testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
-    mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
+    mwa_uv.write_uvfits(testfile)
     uvfits_uv.read_uvfits(testfile)
 
     # make sure filenames are what we expect
@@ -99,6 +99,14 @@ def test_read_mwa_write_uvfits(tmp_path):
     assert uvfits_uv.filename == ["outtest_MWAcorr.uvfits"]
     mwa_uv.filename = uvfits_uv.filename
     mwa_uv._filename.form = (1,)
+
+    for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
+        # Check to make sure that the UVFITS-specific paramters are set on the
+        # UVFITS-based obj, and not on our original object. Then set it to None for the
+        # UVFITS-based obj.
+        assert getattr(mwa_uv, item) is None
+        assert getattr(uvfits_uv, item) is not None
+        setattr(uvfits_uv, item, None)
 
     assert mwa_uv == uvfits_uv
 
@@ -139,8 +147,16 @@ def test_read_mwax_write_uvfits(tmp_path):
             phase_to_pointing_center=True,
         )
     testfile = str(tmp_path / "outtest_MWAXcorr.uvfits")
-    mwax_uv.write_uvfits(testfile, spoof_nonessential=True)
+    mwax_uv.write_uvfits(testfile)
     uvfits_uv.read_uvfits(testfile)
+
+    for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
+        # Check to make sure that the UVFITS-specific paramters are set on the
+        # UVFITS-based obj, and not on our original object. Then set it to None for the
+        # UVFITS-based obj.
+        assert getattr(mwax_uv, item) is None
+        assert getattr(uvfits_uv, item) is not None
+        setattr(uvfits_uv, item, None)
 
     assert mwax_uv == uvfits_uv
 
@@ -240,7 +256,7 @@ def test_read_mwa_write_uvfits_meta_mod(tmp_path):
     with uvtest.check_warnings(UserWarning, messages):
         mwa_uv.read(files, correct_cable_len=True, phase_to_pointing_center=True)
     testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
-    mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
+    mwa_uv.write_uvfits(testfile)
     uvfits_uv.read_uvfits(testfile)
 
     # make sure filenames are what we expect
@@ -251,6 +267,14 @@ def test_read_mwa_write_uvfits_meta_mod(tmp_path):
     assert uvfits_uv.filename == ["outtest_MWAcorr.uvfits"]
     mwa_uv.filename = uvfits_uv.filename
     mwa_uv._filename.form = (1,)
+
+    for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
+        # Check to make sure that the UVFITS-specific paramters are set on the
+        # UVFITS-based obj, and not on our original object. Then set it to None for the
+        # UVFITS-based obj.
+        assert getattr(mwa_uv, item) is None
+        assert getattr(uvfits_uv, item) is not None
+        setattr(uvfits_uv, item, None)
 
     assert mwa_uv == uvfits_uv
 
@@ -366,7 +390,7 @@ def test_ppds(tmp_path):
         [filelist[1], filelist[7]], phase_to_pointing_center=True, flag_init=False
     )
     testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
-    mwa_uv.write_uvfits(testfile, spoof_nonessential=True)
+    mwa_uv.write_uvfits(testfile)
     uvfits_uv = UVData()
     uvfits_uv.read_uvfits(testfile)
 
@@ -378,6 +402,14 @@ def test_ppds(tmp_path):
     assert uvfits_uv.filename == ["outtest_MWAcorr.uvfits"]
     mwa_uv.filename = uvfits_uv.filename
     mwa_uv._filename.form = (1,)
+
+    for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
+        # Check to make sure that the UVFITS-specific paramters are set on the
+        # UVFITS-based obj, and not on our original object. Then set it to None for the
+        # UVFITS-based obj.
+        assert getattr(mwa_uv, item) is None
+        assert getattr(uvfits_uv, item) is not None
+        setattr(uvfits_uv, item, None)
 
     assert mwa_uv == uvfits_uv
 

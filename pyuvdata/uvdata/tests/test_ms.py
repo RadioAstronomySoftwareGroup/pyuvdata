@@ -14,7 +14,6 @@ from pyuvdata import UVData
 from pyuvdata.uvdata.ms import MS
 from pyuvdata.data import DATA_PATH
 import pyuvdata.tests as uvtest
-from ..uvfits import UVFITS
 
 pytest.importorskip("casacore")
 
@@ -225,11 +224,11 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
 
     # set those parameters to none to check that the rest of the objects match
     ms_uv.antenna_diameters = None
-
+    uvfits_required_extra = ["dut1", "earth_omega", "gst0", "rdate", "timesys"]
     for p in uvfits_uv.extra():
         fits_param = getattr(uvfits_uv, p)
         ms_param = getattr(ms_uv, p)
-        if fits_param.name in UVFITS.uvfits_required_extra and ms_param.value is None:
+        if fits_param.name in uvfits_required_extra and ms_param.value is None:
             fits_param.value = None
             setattr(uvfits_uv, p, fits_param)
 
@@ -259,7 +258,7 @@ def test_read_ms_write_uvfits(nrao_uv, tmp_path):
     ms_uv = nrao_uv
     uvfits_uv = UVData()
     testfile = os.path.join(tmp_path, "outtest.uvfits")
-    ms_uv.write_uvfits(testfile, spoof_nonessential=True)
+    ms_uv.write_uvfits(testfile)
     uvfits_uv.read(testfile)
 
     # make sure filenames are what we expect
@@ -270,9 +269,15 @@ def test_read_ms_write_uvfits(nrao_uv, tmp_path):
     # propagate scan numbers to the uvfits, ONLY for comparison
     uvfits_uv.scan_number_array = ms_uv.scan_number_array
 
+    for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
+        # Check to make sure that the UVFITS-specific paramters are set on the
+        # UVFITS-based obj, and not on our original object. Then set it to None for the
+        # UVFITS-based obj.
+        assert getattr(ms_uv, item) is None
+        assert getattr(uvfits_uv, item) is not None
+        setattr(uvfits_uv, item, None)
+
     assert uvfits_uv == ms_uv
-    del ms_uv
-    del uvfits_uv
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
@@ -351,10 +356,11 @@ def test_multi_files(casa_uvfits, axis):
     # set those parameters to none to check that the rest of the objects match
     uv_multi.antenna_diameters = None
 
+    uvfits_required_extra = ["dut1", "earth_omega", "gst0", "rdate", "timesys"]
     for p in uv_full.extra():
         fits_param = getattr(uv_full, p)
         ms_param = getattr(uv_multi, p)
-        if fits_param.name in UVFITS.uvfits_required_extra and ms_param.value is None:
+        if fits_param.name in uvfits_required_extra and ms_param.value is None:
             fits_param.value = None
             setattr(uv_full, p, fits_param)
 

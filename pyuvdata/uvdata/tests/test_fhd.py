@@ -64,10 +64,7 @@ def test_read_fhd_write_read_uvfits(fhd_data, tmp_path):
     uvfits_uv = UVData()
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
-    fhd_uv.write_uvfits(
-        outfile,
-        spoof_nonessential=True,
-    )
+    fhd_uv.write_uvfits(outfile)
     uvfits_uv.read_uvfits(outfile)
 
     # make sure filename attributes are correct
@@ -206,10 +203,7 @@ def test_read_fhd_write_read_uvfits_variant_flag(tmp_path):
     fhd_uv.read(files_use)
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
-    fhd_uv.write_uvfits(
-        outfile,
-        spoof_nonessential=True,
-    )
+    fhd_uv.write_uvfits(outfile)
     uvfits_uv.read_uvfits(outfile)
 
     # make sure filenames are what we expect
@@ -236,10 +230,7 @@ def test_read_fhd_write_read_uvfits_fix_layout(tmp_path):
     fhd_uv.read(files_use)
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
 
-    fhd_uv.write_uvfits(
-        outfile,
-        spoof_nonessential=True,
-    )
+    fhd_uv.write_uvfits(outfile)
     uvfits_uv.read_uvfits(outfile)
 
     # make sure filenames are what we expect
@@ -277,10 +268,7 @@ def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc(tmp_path):
         fhd_uv.read(files_use)
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
-    fhd_uv.write_uvfits(
-        outfile,
-        spoof_nonessential=True,
-    )
+    fhd_uv.write_uvfits(outfile)
     uvfits_uv.read_uvfits(outfile)
 
     # make sure filenames are what we expect
@@ -317,10 +305,7 @@ def test_read_fhd_write_read_uvfits_bad_obs_loc(tmp_path):
         fhd_uv.read(files_use)
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
-    fhd_uv.write_uvfits(
-        outfile,
-        spoof_nonessential=True,
-    )
+    fhd_uv.write_uvfits(outfile)
     uvfits_uv.read_uvfits(outfile)
 
     # make sure filenames are what we expect
@@ -348,10 +333,7 @@ def test_read_fhd_write_read_uvfits_altered_layout(tmp_path):
     fhd_uv.read(files_use)
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
-    fhd_uv.write_uvfits(
-        outfile,
-        spoof_nonessential=True,
-    )
+    fhd_uv.write_uvfits(outfile)
     uvfits_uv.read_uvfits(outfile)
 
     # make sure filenames are what we expect
@@ -384,10 +366,7 @@ def test_read_fhd_write_read_uvfits_no_settings(tmp_path):
     assert fhd_uv.history == fhd_uv.pyuvdata_version_str
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
-    fhd_uv.write_uvfits(
-        outfile,
-        spoof_nonessential=True,
-    )
+    fhd_uv.write_uvfits(outfile)
     uvfits_uv.read_uvfits(outfile)
 
     # make sure filenames are what we expect
@@ -494,10 +473,7 @@ def test_read_fhd_model(tmp_path, fhd_model):
     uvfits_uv = UVData()
 
     outfile = str(tmp_path / "outtest_FHD_1061316296_model.uvfits")
-    fhd_uv.write_uvfits(
-        outfile,
-        spoof_nonessential=True,
-    )
+    fhd_uv.write_uvfits(outfile)
     uvfits_uv.read_uvfits(outfile)
 
     # make sure filenames are what we expect
