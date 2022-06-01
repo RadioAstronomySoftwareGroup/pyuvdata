@@ -365,7 +365,6 @@ def test_miriad_read_warning_lat_lon_corrected():
             {"spoof_nonessential": True},
             "The data are in drift mode. Set force_phase",
         ),
-        (ValueError, {"force_phase": True}, "Required attribute"),
     ],
 )
 def test_read_miriad_write_uvfits_phasing_errors(
