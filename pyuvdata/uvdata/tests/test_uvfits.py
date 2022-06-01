@@ -76,7 +76,7 @@ def test_time_precision(tmp_path):
     uvd.read(lwa_file)
 
     testfile = os.path.join(tmp_path, "lwa_testfile.uvfits")
-    uvd.write_uvfits(testfile, spoof_nonessential=True)
+    uvd.write_uvfits(testfile)
 
     uvd2 = UVData()
     uvd2.read(testfile)
@@ -99,7 +99,18 @@ def test_time_precision(tmp_path):
         atol=uvd2._lst_array.tols[1],
     )
 
-    assert uvd2.__eq__(uvd, allowed_failures=["filename", "scan_number_array"])
+    assert uvd2.__eq__(
+        uvd,
+        allowed_failures=[
+            "filename",
+            "scan_number_array",
+            "dut1",
+            "earth_omega",
+            "gst0",
+            "rdate",
+            "timesys",
+        ],
+    )
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -1386,7 +1397,7 @@ def test_read_ms_write_uvfits_casa_history(tmp_path):
     ms_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
     testfile = str(tmp_path / "outtest.uvfits")
     ms_uv.read_ms(ms_file)
-    ms_uv.write_uvfits(testfile, spoof_nonessential=True)
+    ms_uv.write_uvfits(testfile)
     uvfits_uv.read(testfile)
 
     # make sure filenames are what we expect
@@ -1396,6 +1407,14 @@ def test_read_ms_write_uvfits_casa_history(tmp_path):
 
     # propagate scan numbers to the uvfits, ONLY for comparison
     uvfits_uv.scan_number_array = ms_uv.scan_number_array
+
+    for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
+        # Check to make sure that the UVFITS-specific paramters are set on the
+        # UVFITS-based obj, and not on our original object. Then set it to None for the
+        # UVFITS-based obj.
+        assert getattr(ms_uv, item) is None
+        assert getattr(uvfits_uv, item) is not None
+        setattr(uvfits_uv, item, None)
 
     assert ms_uv == uvfits_uv
 
@@ -1472,7 +1491,7 @@ def test_flex_spw_uvfits_write_errs(sma_mir, freq_val, chan_val, msg):
     sma_mir.freq_array[:] = freq_val
     sma_mir.channel_width[:] = chan_val
     with pytest.raises(ValueError, match=msg):
-        sma_mir.write_uvfits("dummy", spoof_nonessential=True)
+        sma_mir.write_uvfits("dummy")
 
 
 def test_mwax_birli_frame(tmp_path):
@@ -1505,11 +1524,23 @@ def test_mwax_missing_frame_comment(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
-def test_no_spoof(sma_mir, tmp_path):
+@pytest.mark.parametrize("spoof", [False, True])
+def test_no_spoof(sma_mir, tmp_path, spoof):
+    """
+    Verify that option UVParameters are correctly generated when writing to a UVFITS
+    file if not previously set, and that spoof_nonessential throws the correct warning
+    message if used.
+    """
     sma_uvfits = UVData()
     sma_mir._set_app_coords_helper()
-    filename = os.path.join(tmp_path, "no_spoof.uvfits")
-    sma_mir.write_uvfits(filename)
+    filename = os.path.join(tmp_path, "spoof.uvfits" if spoof else "no_spoof.uvfits")
+
+    with uvtest.check_warnings(
+        DeprecationWarning if spoof else None,
+        "The spoof_nonessential parameter is deprecated" if spoof else None,
+    ):
+        sma_mir.write_uvfits(filename, spoof_nonessential=spoof)
+
     sma_uvfits = UVData.from_file(filename)
 
     # UVFITS has some differences w/ the MIR format that are expected -- handle
@@ -1555,6 +1586,14 @@ def test_no_spoof(sma_mir, tmp_path):
             assert value == getattr(sma_uvfits, key)
         else:
             assert np.isclose(getattr(sma_uvfits, key), value)
-        setattr(sma_uvfits, key, None)
+        assert getattr(sma_mir, key) is None
+        setattr(sma_mir, key, value)
 
     assert sma_uvfits == sma_mir
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_uvfits_phasing_errors(hera_uvh5, tmp_path):
+    # check error if phase_type is wrong and force_phase not set
+    with pytest.raises(ValueError, match="The data are in drift mode. Set force_phase"):
+        hera_uvh5.write_uvfits(tmp_path)
