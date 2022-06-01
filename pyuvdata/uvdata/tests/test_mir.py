@@ -59,8 +59,15 @@ def test_read_mir_write_uvfits(sma_mir, tmp_path, future_shapes):
     if future_shapes:
         sma_mir.use_future_array_shapes()
 
-    sma_mir.write_uvfits(testfile, spoof_nonessential=True)
+    sma_mir.write_uvfits(testfile)
     uvfits_uv.read_uvfits(testfile)
+    for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
+        # Check to make sure that the UVFITS-specific paramters are set on the
+        # UVFITS-based obj, and not on our original object. Then set it to None for the
+        # UVFITS-based obj.
+        assert getattr(sma_mir, item) is None
+        assert getattr(uvfits_uv, item) is not None
+        setattr(uvfits_uv, item, None)
 
     if future_shapes:
         uvfits_uv.use_future_array_shapes()
@@ -250,7 +257,7 @@ def test_multi_nchan_spw_read(tmp_path):
 
     dummyfile = os.path.join(tmp_path, "dummy.mirtest.uvfits")
     with pytest.raises(IndexError):
-        uv_in.write_uvfits(dummyfile, spoof_nonessential=True)
+        uv_in.write_uvfits(dummyfile)
 
 
 def test_read_mir_no_records():
@@ -462,7 +469,7 @@ def test_flex_pol_roundtrip(sma_mir_filt, filetype, future_shapes, tmp_path):
 
     # sma_mir_filtered._make_flex_pol()
     if filetype == "uvfits":
-        sma_mir_filt.write_uvfits(testfile, spoof_nonessential=True)
+        sma_mir_filt.write_uvfits(testfile)
     else:
         getattr(sma_mir_filt, "write_" + filetype)(testfile)
 
