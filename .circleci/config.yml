@@ -172,6 +172,10 @@ workflows:
           name: pyuvdata_min_deps
           python_version: "3.8"
           env_name: "pyuvdata_min_deps_tests"
+      - pyuvdata:
+          name: pyuvdata_min_versions
+          python_version: "3.8"
+          env_name: "pyuvdata_min_versions_tests"
       - warning_test:
           name: pyuvdata_warning_test
           python_version: "3.8"

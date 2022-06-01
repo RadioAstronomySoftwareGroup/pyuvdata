@@ -99,8 +99,8 @@ if not is_platform_windows():
 
 astroquery_reqs = ["astroquery>=0.4.4"]
 novas_reqs = ["novas", "novas_de405"]
-casa_reqs = ["python-casacore>=3.1.0"]
-healpix_reqs = ["astropy_healpix"]
+casa_reqs = ["python-casacore>=3.3.0"]
+healpix_reqs = ["astropy_healpix>=0.6"]
 cst_reqs = ["pyyaml"]
 test_reqs = (
     casa_reqs
@@ -137,9 +137,9 @@ setup_args = {
     "install_requires": [
         "astropy>=5.0.4",
         "h5py>=3.0",
-        "numpy>=1.18",
+        "numpy>=1.19",
         "pyerfa>=2.0",
-        "scipy",
+        "scipy>=1.3",
         "setuptools_scm",
     ],
     "extras_require": {
