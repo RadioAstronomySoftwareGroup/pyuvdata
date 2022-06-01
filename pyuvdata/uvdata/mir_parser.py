@@ -389,7 +389,7 @@ ac_dtype = np.dtype(
         ("antrx", np.int16),
         # Reciever code (matched to rec in codes_read)
         ("irec", np.int16),
-        # Polariztion code (matched to pol in codes_read)
+        # Polarization code (matched to pol in codes_read)
         ("ipol", np.int16),
         # Sidebad code (matched to sb in codes_read; usually 0=LSB, 1=USB)
         ("isb", np.int16),
