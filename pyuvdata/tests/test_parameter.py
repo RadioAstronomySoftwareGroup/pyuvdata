@@ -417,3 +417,10 @@ def test_value_none_parameter_mismatch():
     assert param2 != param1
 
     return
+
+
+def test_spoof():
+    param = uvp.UVParameter("test", expected_type=float, required=False, spoof_val=1.0)
+    assert param.value is None
+    param.apply_spoof()
+    assert param.value == 1.0
