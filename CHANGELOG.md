@@ -13,6 +13,8 @@ real-only if non-zero imaginary components are detected.
 and `reorder_jones`.
 
 ### Changed
+- Changed `UVData.write_uvfits` to allow for one to write out datasets in UVFITS format
+without "spoofing" (via setting `spoof_nonessential=True`) UVFITS-specific values.
 - Methods that ensure that attributes are set up properly on `UVBeam` are now called in
 the `UVBeam.check` method, making it easier to fill in UVBeam objects from scratch.
 - The `spw_order` parameter for the `UVData.reorder_freqs` method now accepts an index
