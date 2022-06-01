@@ -24,21 +24,7 @@ class UVFITS(UVData):
 
     This class should not be interacted with directly, instead use the read_uvfits
     and write_uvfits methods on the UVData class.
-
-    Attributes
-    ----------
-    uvfits_required_extra : list of str
-        Names of optional UVParameters that are required for uvfits.
-
     """
-
-    uvfits_required_extra = [
-        "gst0",
-        "rdate",
-        "earth_omega",
-        "dut1",
-        "timesys",
-    ]
 
     def _get_parameter_data(
         self,
@@ -936,9 +922,7 @@ class UVFITS(UVData):
             If the frequencies are not evenly spaced or are separated by more
             than their channel width.
             The polarization values are not evenly spaced.
-            Any of ['antenna_positions', 'gst0', 'rdate', 'earth_omega', 'dut1',
-            'timesys'] are not set on the object and `spoof_nonessential` is False.
-            If the `timesys` parameter is not set to "UTC".
+            If the `timesys` parameter is set to anything other than "UTC" or None.
         TypeError
             If any entry in extra_keywords is not a single string or number.
 
@@ -951,6 +935,15 @@ class UVFITS(UVData):
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
                 check_autos=check_autos,
                 fix_autos=fix_autos,
+            )
+
+        if spoof_nonessential:
+            warnings.warn(
+                (
+                    "The spoof_nonessential parameter is deprecated and will be "
+                    "removed in a future release."
+                ),
+                DeprecationWarning,
             )
 
         if self.phase_type == "phased":
@@ -1050,14 +1043,6 @@ class UVFITS(UVData):
             pol_indexing = np.asarray([0])
             polarization_array = self.polarization_array
             pol_spacing = 1
-
-        for p in self.extra():
-            param = getattr(self, p)
-            if param.name in self.uvfits_required_extra:
-                if param.value is None:
-                    if spoof_nonessential:
-                        param.apply_spoof()
-                        setattr(self, p, param)
 
         # check for unflagged data with nsample = 0. Warn if any found
         wh_nsample0 = np.where(self.nsample_array == 0)
