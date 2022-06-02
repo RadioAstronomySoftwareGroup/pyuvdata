@@ -2095,9 +2095,9 @@ class MirMetaData(object):
         filepath : str
             Path of the folder to write the metadata into.
         overwrite : bool
-            If set to True, will allow the method to overwrite a previously written
-            dataset. If set to False and said file exists, the method will throw an
-            error. Default is False.
+            If set to True, allow the file writer to overwrite a previously written
+            data set. Default is False. This argument is ignored if `append_data` is
+            set to True.
         append_data : bool
             If set to True, will append data to an existing file. Default is False.
         check_index : bool
@@ -2105,6 +2105,14 @@ class MirMetaData(object):
             appended to an existing file, the method will check to make sure that there
             are no header key conflicts with the data being being written to disk, since
             this can cause the file to become unusable. Default is False.
+
+        Raises
+        ------
+        FileExistsError
+            If a file already exists and cannot append or overwrite.
+        ValueError
+            If attempting to append data, but conflicting header keys are detected
+            between the data on disk and the data in the object.
         """
         if not os.path.isdir(filepath):
             os.makedirs(filepath)
@@ -3041,6 +3049,7 @@ class MirParser(object):
         self,
         filepath=None,
         has_auto=False,
+        has_cross=True,
         load_vis=False,
         load_raw=False,
         load_auto=False,
@@ -3055,15 +3064,17 @@ class MirParser(object):
         Parameters
         ----------
         filepath : str
-            filepath is the path to the folder containing the mir data set.
+            Filepath is the path to the folder containing the Mir data set.
         has_auto : bool
-            flag to read auto-correlation data, default is False.
+            Flag to read auto-correlation data. Default is False.
+        has_cross : bool
+            Flag to read cross-correlation data. Default is True.
         load_vis : bool
-            flag to load visibilities into memory, default is False.
+            Flag to load visibilities into memory. Default is False.
         load_raw : bool
-            flag to load raw data into memory, default is False.
+            Flag to load raw data into memory. Default is False.
         load_auto : bool
-            flag to load auto-correlations into memory, default is False.
+            Flag to load auto-correlations into memory. Default is False.
         """
         self.in_data = MirInData()
         self.bl_data = MirBlData()
@@ -3092,6 +3103,7 @@ class MirParser(object):
         self.vis_data = None
         self.auto_data = None
         self._has_auto = False
+        self._has_cross = False
         self._tsys_applied = False
 
         # This value is the forward gain of the antenna (in units of Jy/K), which is
@@ -3106,6 +3118,7 @@ class MirParser(object):
             self.fromfile(
                 filepath,
                 has_auto=has_auto,
+                has_cross=has_cross,
                 load_vis=load_vis,
                 load_raw=load_raw,
                 load_auto=load_auto,
@@ -3917,9 +3930,9 @@ class MirParser(object):
         Raises
         ------
         ValueError
-            If data are not loaded, and `raise_err=True`.
+            If cross data are not loaded, and `raise_err=True`.
         UserWarning
-            If data are not laoded, and `raise_err=False`. Also raised if tsys
+            If cross data are not loaded, and `raise_err=False`. Also raised if tsys
             corrections have been applied to the data prior to being written out.
         """
         if (self.raw_data is None) and (self.vis_data is None):
@@ -3985,9 +3998,9 @@ class MirParser(object):
         Raises
         ------
         ValueError
-            If data are not loaded, and `raise_err=True`.
+            If auto data are not loaded, and `raise_err=True`.
         UserWarning
-            If data are not laoded, and `raise_err=False`. Also raised if tsys
+            If auto data are not loaded, and `raise_err=False`. Also raised if tsys
             corrections have been applied to the data prior to being written out.
         """
         if self.auto_data is None:
@@ -4315,10 +4328,7 @@ class MirParser(object):
             load_auto = self._has_auto
 
         if load_raw and load_vis:
-            warnings.warn(
-                "Cannot load raw and vis data simultaneously, loading vis data only."
-            )
-            load_raw = False
+            raise ValueError("Cannot load raw and vis data simultaneously.")
 
         # If there is no auto data to actually load, raise an error now.
         if load_auto and not self._has_auto:
@@ -4459,7 +4469,7 @@ class MirParser(object):
 
         # Now do baseline -> antennas. Special handling required because of the
         # lack of a unique index key for this table.
-        if not np.all(self.bl_data.get_mask()):
+        if not (np.all(self.bl_data.get_mask()) and not self._has_auto):
             key_list = set(
                 self.bl_data.get_value(["iant1", "inhid"], return_tuples=True)
                 + self.bl_data.get_value(["iant2", "inhid"], return_tuples=True)
@@ -4472,12 +4482,9 @@ class MirParser(object):
 
             mask_update |= self.eng_data.set_mask(header_key=key_list)
 
-        # Now baseline -> int
-        if not (np.all(self.bl_data.get_mask()) and not self._has_auto):
-            good_inhid = set(self.bl_data["inhid"])
-            if self._has_auto:
-                good_inhid.union(self.ac_data["inhid"])
-            mask_update |= self.in_data.set_mask(header_key=good_inhid)
+        # Now antennas -> int
+        if not np.all(self.eng_data.get_mask()):
+            mask_update |= self.in_data.set_mask(header_key=set(self.eng_data["inhid"]))
 
         # And weather scan -> int
         if not np.all(self.we_data.get_mask()):
@@ -4726,15 +4733,17 @@ class MirParser(object):
         Parameters
         ----------
         filepath : str
-            filepath is the path to the folder containing the mir data set.
+            Filepath is the path to the folder containing the Mir data set.
         has_auto : bool
-            flag to read auto-correlation data, default is False.
+            Flag to read auto-correlation data. Default is False.
+        has_cross : bool
+            Flag to read cross-correlation data. Default is True.
         load_vis : bool
-            flag to load visibilities into memory, default is False.
+            Flag to load visibilities into memory. Default is False.
         load_raw : bool
-            flag to load raw data into memory, default is False.
+            Flag to load raw data into memory. Default is False.
         load_auto : bool
-            flag to load auto-correlations into memory, default is False.
+            Flag to load auto-correlations into memory. Default is False.
         """
         # These functions will read in the major blocks of metadata that get plugged
         # in to the various attributes of the MirParser object. Note that "_read"
@@ -4813,34 +4822,38 @@ class MirParser(object):
         ----------
         filepath : str
             Path of the directory to write out the data set.
+            found in `filepath`. If no previously created data set exists, then a new
+            data set is created on disk, and this parameter is ignored. Default is
+            False.
+        overwrite : bool
+            If set to True, any previously written data in `filepath` will be
+            overwritten. Default is False. This argument is ignored if `append_data` is
+            set to True.
         load_data : bool
             If set to True, load the raw visibility data. Default is False, which will
             forgo loading data. Note that if no data are loaded, then the method
             will then write out a metadata-only object.
         append_data : bool
-            When called, this method will generally overwrite any prior MIR data
-            located in the target directory. If set to True, this will allow the method
-            to append data instead. Note that appending will only work correctly if not
-            attempting to combine datasets with overlapping integration (inhid values).
-        append_codes : bool
-            Generally the `codes_data` information remains static over the course of
-            a track, and thus only needs to be written out once. However, if set to
-            True, then the information in `codes_data` will be appended to the
-            "codes_read" file. Default is False, and users are recommended to exercise
-            caution using this switch (and leave it alone unless certain it is
-            required), as it can corrupt. Only used if `append_data=True`.
-        bypass_append_check : bool
-            Normally, if seting `append_data=True`, the method will check to see that
-            there are no clashes in terms of header ID numbers. However, if set to
-            True, this option will bypass this check. Default is False, and users
-            should exercise caution using this switch (and leave it alone unless
-            certain it is required) as it can corrupt a dataset. Only used if
-            `append_data=True`.
+            If set to True, this will allow the method to append data to an existing
+            file on disk. If no such file exists in `filepath`, then a new file is
+            created (i.e., no appends are performed).
+        check_index : bool
+            Only applicable if `append_data=True`. If set to True and data are being
+            appended to an existing file, the method will check to make sure that there
+            are no header key conflicts with the data being being written to disk, since
+            this can cause corrupted the metadata. Default is True, users should
+            use this argument with caution, since it can cause the data set on disk
+            to become unusable.
 
         Raises
         ------
         UserWarning
             If only metadata is loaded in the MirParser object.
+        FileExistsError
+            If a file already exists and cannot append or overwrite.
+        ValueError
+            If attempting to append data, but conflicting header keys are detected
+            between the data on disk and the data in the object.
         """
         # If no directory exists, create one to write the data to
         if not os.path.isdir(filepath):
@@ -4930,7 +4943,7 @@ class MirParser(object):
 
             # Need to mask out when we have no counts, since it'll produce a divide
             # by zero error. As an added bonus, this will let us zero out any channels
-            # without any valid visilibies.
+            # without any valid visibilities.
             temp_count = np.reciprocal(
                 temp_count, where=(temp_count != 0), out=temp_count
             )
@@ -5881,7 +5894,7 @@ class MirParser(object):
                     self.vis_data[sphid]["flags"] += cal_soln["cal_flags"]
 
         if apply_flags:
-            # For sake of reading/coding, let's assign assign the two catalogs of flags
+            # For the sake of reading/coding, let's assign the two catalogs of flags
             # to their own variables, so that we can easily call them later.
             sphid_flags = compass_soln_dict["sphid_flags"]
             wide_flags = compass_soln_dict["wide_flags"]
@@ -6059,7 +6072,7 @@ class MirParser(object):
             corresponding value of sphid).
         shift_tuple_list : list of tuples
             List of the same length as `vis_dict`, each entry of which contains a three
-            element tuple matching the output of `_generate_doppler_kernel`. The first
+            element tuple matching the output of `_generate_chanshift_kernel`. The first
             entry is the whole number of channels the spectrum must be shifted by, the
             second entry is the size of the smoothing kernel for performing the "fine"
             (i.e., subsample) interpolation, and the third element is the smoothing

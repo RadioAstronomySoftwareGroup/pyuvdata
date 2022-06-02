@@ -1695,18 +1695,23 @@ def test_unload_data(mir_data, unload_vis, unload_raw, unload_auto):
     assert mir_data.auto_data is None if unload_auto else mir_data.auto_data is not None
 
 
-def test_load_data_err(mir_data):
+@pytest.mark.parametrize(
+    "kwargs,err_type,err_msg",
+    [
+        [{"load_vis": True, "load_raw": True}, ValueError, "Cannot load raw and vis"],
+        [{"load_auto": True}, ValueError, "This object has no auto-correlation data"],
+    ],
+)
+def test_load_data_err(mir_data, kwargs, err_type, err_msg):
     mir_data._clear_auto()
 
-    with pytest.raises(ValueError) as err:
-        mir_data.load_data(load_auto=True)
-    assert str(err.value).startswith("This object has no auto-correlation data to")
+    with pytest.raises(err_type, match=err_msg):
+        mir_data.load_data(**kwargs)
 
 
 @pytest.mark.parametrize(
     "optype,kwargs,warn_msg",
     [
-        ["", {"load_vis": True, "load_raw": True}, "Cannot load raw and vis data"],
         ["load_raw", {"load_vis": True}, "Converting previously loaded data since"],
         ["muck_vis", {"allow_downselect": True}, "Cannot downselect cross-correlation"],
         ["muck_auto", {"allow_downselect": True}, "Cannot downselect auto-correlation"],
