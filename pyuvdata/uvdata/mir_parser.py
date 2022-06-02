@@ -14,7 +14,18 @@ import warnings
 import h5py
 from functools import partial
 
-__all__ = ["MirParser"]
+__all__ = [
+    "MirParser",
+    "MirMetaData",
+    "MirInData",
+    "MirBlData",
+    "MirSpData",
+    "MirEngData",
+    "MirWeData",
+    "MirCodesData",
+    "MirAntposData",
+    "MirAcData",
+]
 
 # MIR structure definitions. Note that because these are all binaries, we need to
 # specify the endianness so that we don't potentially muck that on different machines
@@ -500,12 +511,12 @@ class MirMetaData(object):
             populated by (where the full path is filepath + "/" + filetype).
         dtype : dtype
             Numpy-based description of the binary data stored in the file.
-        header_key : str or None
+        header_key_name : str or None
             Field inside of `dtype` which contains a unique indexing key for the
             metadata in the file. Typically used to reference values between MirMetaData
             objects. If set to `None`, no field is used for indexing.
-        pseudo_index : list of str or None
-            Required if `index_name` is `None`, used to identify a group of fields,
+        pseudo_header_key_names : list of str or None
+            Required if `header_key_name` is `None`, used to identify a group of fields,
             which when taken in combination, can be used as a unique identifier.
         filepath : str
             Optional argument specifying the path to the Mir data folder.
@@ -531,7 +542,8 @@ class MirMetaData(object):
         Yields
         ------
         data_slice : ndarray
-            Value(s) at a given position in the .
+            Value(s) at a given position in the data array with dtype equal to that in
+            the `dtype` attribute of the object.
         """
         for idx in np.where(self._mask)[0]:
             yield self._data[idx]
@@ -618,21 +630,24 @@ class MirMetaData(object):
         if self.dtype != other.dtype:
             raise ValueError("Cannot compare %s with different dtypes." % name)
 
+        verbose_print = print if verbose else lambda *a, **k: None
+
         if (self._data is None or self._mask is None) or (
             other._data is None or other._mask is None
         ):
             is_eq = (self._data is None) == (other._data is None)
             is_eq &= (self._mask is None) == (other._mask is None)
-            if verbose and not is_eq:
-                print("%s objects are not both initialized (one is empty)." % name)
+            if not is_eq:
+                verbose_print(
+                    "%s objects are not both initialized (one is empty)." % name
+                )
             return is_eq
 
         this_keys = self.get_header_keys(use_mask=use_mask)
         other_keys = other.get_header_keys(use_mask=use_mask)
 
         if set(this_keys) != set(other_keys):
-            if verbose:
-                print("%s object header key lists are different." % name)
+            verbose_print("%s object header key lists are different." % name)
             return False
 
         this_idx = np.array([self._header_key_index_dict[key] for key in this_keys])
@@ -656,11 +671,12 @@ class MirMetaData(object):
 
             if not np.array_equal(left_vals, right_vals):
                 is_eq = False
-                if verbose:
-                    print(
-                        "%s of %s is different, left is %s, right is %s."
-                        % (item, name, left_vals, right_vals)
-                    )
+                verbose_print(
+                    "%s of %s is different, left is %s, right is %s."
+                    % (item, name, left_vals, right_vals)
+                )
+                if not verbose:
+                    break
 
         return is_eq
 
@@ -700,7 +716,7 @@ class MirMetaData(object):
         Find where metadata match a given set of selection criteria.
 
         This method will produce a masking screen based on the arguments provided to
-        determine which entries matche a given set of conditions.
+        determine which entries match a given set of conditions.
 
         Parameters
         ----------
@@ -709,20 +725,20 @@ class MirMetaData(object):
         select_comp : str
             Specifies the type of comparison to do between the value supplied in
             `select_val` and the metadata. No default, allowed values include:
-            "eq" (equal to, matching any in `select_val`),
-            "ne" (not equal to, not matching any in `select_val`),
-            "lt" (less than `select_val`),
-            "le" (less than or equal to `select_val`),
-            "gt" (greater than `select_val`),
-            "ge" (greater than or equal to `select_val`),
-            "btw" (between the range given by two values in `select_val`),
-            "out" (outside of the range give by two values in `select_val`).
+            "eq" | "==" (equal to, matching any in `select_val`),
+            "ne" | "!=" (not equal to, not matching any in `select_val`),
+            "lt" | "<" (less than `select_val`),
+            "le" | "<=" (less than or equal to `select_val`),
+            "gt" | ">" (greater than `select_val`),
+            "ge" | ">=" (greater than or equal to `select_val`),
+            "between" (between the range given by two values in `select_val`),
+            "outside" (outside of the range give by two values in `select_val`).
         select_val : number of str, or sequence of number or str
             Value(s) to compare data in `select_field` against. If `select_comp` is
             "lt", "le", "gt", "ge", then this must be either a single number
-            or string. If `select_comp` is "btw" or "out", then this must be a list
-            of length 2. If `select_comp` is "eq" or "ne", then this can be either a
-            single value or a sequence of values.
+            or string. If `select_comp` is "between" or "outside", then this must be a
+            list of length 2. If `select_comp` is "eq"/"==" or "ne"/"!=", then this can
+            be either a single value or a sequence of values.
         mask : ndarray of bool
             Optional argument, of the same length as the MirMetaData object, which is
             applied to the output of the selection parsing through an elemenent-wise
@@ -760,13 +776,20 @@ class MirMetaData(object):
             "le": np.less_equal,
             "gt": np.greater,
             "ge": np.greater_equal,
-            "btw": lambda val, lims: ((val >= lims[0]) & (val <= lims[1])),
-            "out": lambda val, lims: ((val < lims[0]) | (val > lims[1])),
+            "between": lambda val, lims: ((val >= lims[0]) & (val <= lims[1])),
+            "outside": lambda val, lims: ((val < lims[0]) | (val > lims[1])),
         }
 
         if isinstance(select_val, (list, set, tuple, str, np.ndarray, np.str_)):
             op_dict["eq"] = lambda val, comp: np.isin(val, comp)
             op_dict["ne"] = lambda val, comp: np.isin(val, comp, invert=True)
+
+        op_dict["=="] = op_dict["eq"]
+        op_dict["!="] = op_dict["ne"]
+        op_dict["<"] = op_dict["lt"]
+        op_dict["<="] = op_dict["le"]
+        op_dict[">"] = op_dict["gt"]
+        op_dict[">="] = op_dict["ge"]
 
         # Make sure the inputs look valid
         if select_comp not in op_dict:
@@ -893,37 +916,38 @@ class MirMetaData(object):
             self._mask.copy() if use_mask else np.full(len(self), bool(and_where_args))
         )
 
-        if where is not None:
-            # Otherwise, if we are going through where statements, then use the where
-            # method to build a mask that we can use to select the data on. Check to
-            # make sure that where matches what we expect - want to both accept a tuple
-            # and sequence of tuples, so force it to be the latter.
-            try:
-                if not (isinstance(where[0], (tuple, list))):
-                    # If where is not indexable, it'll raise a TypeError here.
-                    where = [where]
-                for item in where:
-                    # Note we raise a TypeError in this loop to trap an identical bug,
-                    # namely that the user has not provided a valid argument for where.
-                    if len(item) != 3:
-                        raise TypeError
-            except TypeError:
-                raise ValueError(
-                    "Argument for where must be either a 3-element tuple, or sequence "
-                    "of 3-element tuples."
-                )
-
-            # Now actually start going through the where statements.
-            where_success = False
+        # To reach this point, we must have supplied an argument to where. Use that
+        # method to build a mask that we can use to select the data on.  First check
+        # that the where argument matches what we expect - either a tuple or a sequence
+        # of tuples.
+        try:
+            if not (isinstance(where[0], (tuple, list))):
+                # If where is not indexable, it'll raise a TypeError here.
+                # Force this to be a sequence of tuples here so that the logic below is
+                # simplified.
+                where = [where]
             for item in where:
-                try:
-                    if and_where_args:
-                        mask &= self.where(*item)
-                    else:
-                        mask |= self.where(*item)
-                    where_success = True
-                except MirMetaError:
-                    pass
+                # Note we raise a TypeError in this loop to trap an identical bug,
+                # namely that the user has not provided a valid argument for where.
+                if len(item) != 3:
+                    raise TypeError
+        except TypeError:
+            raise ValueError(
+                "Argument for where must be either a 3-element tuple, or sequence "
+                "of 3-element tuples."
+            )
+
+        # Now actually start going through the where statements.
+        where_success = False
+        for item in where:
+            try:
+                if and_where_args:
+                    mask &= self.where(*item)
+                else:
+                    mask |= self.where(*item)
+                where_success = True
+            except MirMetaError:
+                pass
 
         # If we had NO success with where, then we should raise an error now.
         if not where_success:
@@ -1022,7 +1046,7 @@ class MirMetaData(object):
         else:
             return metadata
 
-    def __getitem__(self, item):
+    def __getitem__(self, field_name):
         """
         Get values for a particular field using get_value.
 
@@ -1041,7 +1065,7 @@ class MirMetaData(object):
             returned. If `return_tuples=True`, then a tuple containing the set of all
             fields at each index position will be provided.
         """
-        return self.get_value(item)
+        return self.get_value(field_name=field_name)
 
     def set_value(
         self,
@@ -1137,7 +1161,7 @@ class MirMetaData(object):
 
         self._data[field_name][idx_arr] = value
 
-    def __setitem__(self, item, value):
+    def __setitem__(self, field_name, value):
         """
         Set values for a particular field using set_value.
 
@@ -1150,7 +1174,7 @@ class MirMetaData(object):
             of the internal mask or to the shape of the `index` or `header_key`
             arguments.
         """
-        self.set_value(item, value)
+        self.set_value(field_name=field_name, value=value)
 
     def _generate_mask(
         self,
@@ -1564,7 +1588,7 @@ class MirMetaData(object):
 
         # Need the start position for the first group, and we add 1 to the rest of the
         # index values since the start positions are all offset by 1 thanks to the way
-        # that we slicd things above.
+        # that we sliced things above.
         diff_idx = [0] + list(np.where(diff_idx)[0] + 1)
 
         # Figure out how to "name" the groups, based on how many fields we considered.
@@ -1825,69 +1849,74 @@ class MirMetaData(object):
                 "contain overlapping header keys."
             )
 
-        # Go through the overlaping keys and see if we have any mismatches in mask
-        # state. If we do, then we "or" the mask elements together, which always
-        # results in a return value of True.
-        if len(key_overlap):
-            idx1 = [index_dict1[key] for key in key_overlap]
-            idx2 = [index_dict2[key] for key in key_overlap]
-            this_mask[idx1] |= other_mask[idx2]
-            other_mask[idx2] = this_mask[idx1]
-
         # Count the sum total number of entries we have
         idx_count = len(index_dict1) + len(index_dict2)
 
         # Assume that if key_overlap has entries, we are allowed to merge
-        if overwrite:
-            # If we can overwrite, then nothing else matters -- drop the index
-            # positions from this object and move on.
-            _ = [index_dict1.pop(key) for key in key_overlap]
-        elif len(key_overlap):
-            # Check array index positions for arr1 first, see if everything is flagged
-            arr1_idx = ... if same_dict else [index_dict1[key] for key in key_overlap]
-            arr2_idx = ... if same_dict else [index_dict2[key] for key in key_overlap]
-            arr1_mask = self._mask[arr1_idx]
-            arr2_mask = other._mask[arr2_idx]
-
-            if (overwrite is None) and not np.any(arr1_mask & arr2_mask):
-                # If at each position at least one object is flagged, then drop the key
-                # flagged from that object (dropping it from self if both objects have
-                # that index flagged).
-                for key, arr1_good in zip(key_overlap, arr1_mask):
-                    _ = index_dict2.pop(key) if arr1_good else index_dict1.pop(key)
+        if len(key_overlap):
+            # Go through the overlaping keys and see if we have any mismatches in mask
+            # state. If we do, then we "or" the mask elements together, which always
+            # results in a return value of True. Generate these indexing arrays once
+            # up front, so that we don't need build them redundantly for this_mask and
+            # other_mask.
+            idx1 = [index_dict1[key] for key in key_overlap]
+            idx2 = [index_dict2[key] for key in key_overlap]
+            this_mask[idx1] |= other_mask[idx2]
+            other_mask[idx2] = this_mask[idx1]
+            if overwrite:
+                # If we can overwrite, then nothing else matters -- drop the index
+                # positions from this object and move on.
+                _ = [index_dict1.pop(key) for key in key_overlap]
             else:
-                # If the previous check fails, we have to do some heavier lifting.
-                # Check all of the entries to see if the values are identical for
-                # the overlapping keys.
-                comp_mask = self._data[arr1_idx] == other._data[arr2_idx]
+                # Check array index positions for arr1 first, see if all are flagged
+                arr1_idx = (
+                    ... if same_dict else [index_dict1[key] for key in key_overlap]
+                )
+                arr2_idx = (
+                    ... if same_dict else [index_dict2[key] for key in key_overlap]
+                )
+                arr1_mask = self._mask[arr1_idx]
+                arr2_mask = other._mask[arr2_idx]
 
-                if np.all(comp_mask):
-                    # If all values are the same, then we can just delete all the
-                    # overlapping keys from this object.
-                    _ = [index_dict1.pop(key) for key in key_overlap]
-                elif overwrite is not None:
-                    # If you can't overwrite, then we have a problem -- this will
-                    # trigger a fail down below, since there are unremoved keys
-                    # not dealt with in key_overlap.
-                    pass
+                if (overwrite is None) and not np.any(arr1_mask & arr2_mask):
+                    # If at each position at least one object is flagged, then drop the
+                    # key flagged from that object (dropping it from self if both
+                    # objects have that index flagged).
+                    for key, arr1_good in zip(key_overlap, arr1_mask):
+                        _ = index_dict2.pop(key) if arr1_good else index_dict1.pop(key)
                 else:
-                    # Finally, we are in a mixed state where we have to evaluate
-                    # the entries on a case-by-case basis, and pass forward _some_
-                    # keys from this object, and _some_ keys from the other object
-                    # from the conflicted list.
-                    for key, comp, mask1, mask2 in zip(
-                        key_overlap, comp_mask, arr1_mask, arr2_mask
-                    ):
-                        if comp or (not mask1):
-                            # If equal values OR this obj's record is flagged
-                            del index_dict1[key]
-                        elif not mask2:
-                            # elif the other obj's record is flag
-                            del index_dict2[key]
-                        else:
-                            # If neither of the above, break the loop, which will
-                            # result in an error below.
-                            break
+                    # If the previous check fails, we have to do some heavier lifting.
+                    # Check all of the entries to see if the values are identical for
+                    # the overlapping keys.
+                    comp_mask = self._data[arr1_idx] == other._data[arr2_idx]
+
+                    if np.all(comp_mask):
+                        # If all values are the same, then we can just delete all the
+                        # overlapping keys from this object.
+                        _ = [index_dict1.pop(key) for key in key_overlap]
+                    elif overwrite is not None:
+                        # If you can't overwrite, then we have a problem -- this will
+                        # trigger a fail down below, since there are unremoved keys
+                        # not dealt with in key_overlap.
+                        pass
+                    else:
+                        # Finally, we are in a mixed state where we have to evaluate
+                        # the entries on a case-by-case basis, and pass forward _some_
+                        # keys from this object, and _some_ keys from the other object
+                        # from the conflicted list.
+                        for key, comp, mask1, mask2 in zip(
+                            key_overlap, comp_mask, arr1_mask, arr2_mask
+                        ):
+                            if comp or (not mask1):
+                                # If equal values OR this obj's record is flagged
+                                del index_dict1[key]
+                            elif not mask2:
+                                # elif the other obj's record is flag
+                                del index_dict2[key]
+                            else:
+                                # If neither of the above, break the loop, which will
+                                # result in an error below.
+                                break
 
         # If you've gotten to this point and you still have unresolved overlap
         # entries, then we have a problem -- time to raise an error.
@@ -1964,10 +1993,6 @@ class MirMetaData(object):
         if other._data is None:
             # If no data is loaded, then this is just a no-op
             return self if inplace else self.copy()
-        elif self._data is not None:
-            idx1, idx2, mask1, mask2 = self._add_check(
-                other, merge=merge, overwrite=overwrite, discard_flagged=discard_flagged
-            )
 
         # At this point, we should be able to combine the two objects
         new_obj = self if inplace else self.copy()
@@ -1976,6 +2001,9 @@ class MirMetaData(object):
             new_obj._data = other._data.copy()
             new_obj._mask = other._mask.copy()
         else:
+            idx1, idx2, mask1, mask2 = self._add_check(
+                other, merge=merge, overwrite=overwrite, discard_flagged=discard_flagged
+            )
             new_obj._data = np.concatenate((new_obj._data[idx1], other._data[idx2]))
             new_obj._mask = np.concatenate((mask1, mask2))
 
@@ -2597,6 +2625,33 @@ class MirCodesData(MirMetaData):
             "ddsmode": "iddsmode",
         }
 
+    def __getitem__(self, item):
+        """
+        Get values for a particular field using get_value.
+
+        Parameters
+        ----------
+        field_name : str
+            Fields from which to extract data. Must match a field name in the data, or
+            a value for "v_name" within the metadata.
+
+        Returns
+        -------
+        value_arr : ndarray or list of ndarrays or str or dict.
+            If `field_name` is one or more of "v_name", "code", "icode", or "ncode",
+            then this will be an ndarray if a single field name was selected, or list
+            of ndarray if multiple fields were selected. If giving a string which
+            matches an entry for "v_name", then the behavior is slightly different:
+            if a single entry is found (and "v_name" is not attached to a code that
+            is indexed in other metadata), then a str is returned that is the code
+            value for that entry. Otherwise, a dictionary mapping the indexing codes
+            (type int) and code string (type str) to one another.
+        """
+        if item in self.dtype.fields:
+            return super().__getitem__(item)
+        else:
+            return self.get_codes(item)
+
     def get_code_names(self):
         """
         Produce a list of code types (v_names) found in the metadata.
@@ -2630,20 +2685,20 @@ class MirCodesData(MirMetaData):
         select_comp : str
             Specifies the type of comparison to do between the value supplied in
             `select_val` and the metadata. No default, allowed values include:
-            "eq" (equal to, matching any in `select_val`),
-            "ne" (not equal to, not matching any in `select_val`),
-            "lt" (less than `select_val`),
-            "le" (less than or equal to `select_val`),
-            "gt" (greater than `select_val`),
-            "ge" (greater than or equal to `select_val`),
-            "btw" (between the range given by two values in `select_val`),
-            "out" (outside of the range give by two values in `select_val`).
+            "eq" | "==" (equal to, matching any in `select_val`),
+            "ne" | "!=" (not equal to, not matching any in `select_val`),
+            "lt" | "<" (less than `select_val`),
+            "le" | "<=" (less than or equal to `select_val`),
+            "gt" | ">" (greater than `select_val`),
+            "ge" | ">=" (greater than or equal to `select_val`),
+            "between" (between the range given by two values in `select_val`),
+            "outside" (outside of the range give by two values in `select_val`).
         select_val : number of str, or sequence of number or str
             Value(s) to compare data in `select_field` against. If `select_comp` is
             "lt", "le", "gt", "ge", then this must be either a single number
-            or string. If `select_comp` is "btw" or "out", then this must be a list
-            of length 2. If `select_comp` is "eq" or "ne", then this can be either a
-            single value or a sequence of values.
+            or string. If `select_comp` is "between" or "outside", then this must be a
+            list of length 2. If `select_comp` is "eq"/"==" or "ne"/"!=", then this can
+            be either a single value or a sequence of values.
         mask : ndarray of bool
             Optional argument, of the same length as the MirMetaData object, which is
             applied to the output of the selection parsing through an elemenent-wise
@@ -2689,9 +2744,10 @@ class MirCodesData(MirMetaData):
                 "indexing codes (%s)." % ", ".join(list(self._codes_index_dict))
             )
 
-        if select_comp not in ["eq", "ne"]:
+        if select_comp not in ["eq", "==", "ne", "!="]:
             raise ValueError(
-                'select_comp must be "eq" or "ne" when select_field is a code type.'
+                'select_comp must be "eq", "==", "ne", or "!=" when '
+                "select_field is a code type."
             )
 
         # Convert select_val into a bytes object or sequence of bytes objects, since
@@ -2718,6 +2774,34 @@ class MirCodesData(MirMetaData):
             return data_mask
 
     def get_codes(self, code_name, return_dict=None):
+        """
+        Get code strings for a given variable name in the metadata.
+
+        Look up the code strings for a given variable name (`v_name`), which typically
+        contain information about the data set as a whole, or information for mapping
+        indexing data from other MirMetaData objects to more easily understood strings
+        of text.
+
+        Parameters
+        ----------
+        code_name : str
+            Name of the codes, a full listing of which can be provided by the method
+            `get_code_name`.
+        return_dict : bool
+            If set to True, return a dict with keys and values that map code strings
+            to indexing values, and visa-versa. Useful for mapping values between
+            other MirCodesData and other MirMetaData object types. Default is None,
+            which will return a dict only if `code_name` has more than one entry or
+            has a known counterpart field in one of the other MirMetaData object types
+            (e.g., "source" maps to "isource" in MirInData).
+
+        Returns
+        -------
+        codes : list or dict
+            If `return_dict=False`, then a list for all code strings is returned.
+            Otherwise, a dict is returned which maps both indexing codes to code strings
+            and visa-versa.
+        """
         if code_name not in self.get_code_names():
             raise MirMetaError(
                 "%s does not match any code or field in the metadata." % code_name
@@ -2733,33 +2817,6 @@ class MirCodesData(MirMetaData):
             return {key: value for key, value in zip(codes + index, index + codes)}
         else:
             return codes
-
-    def __getitem__(self, item):
-        """
-        Get values for a particular field using get_value.
-
-        Parameters
-        ----------
-        field_name : str
-            Fields from which to extract data. Must match a field name in the data, or
-            a value for "v_name" within the metadata.
-
-        Returns
-        -------
-        value_arr : ndarray or list of ndarrays or str or dict.
-            If `field_name` is one or more of "v_name", "code", "icode", or "ncode",
-            then this will be an ndarray if a single field name was selected, or list
-            of ndarray if multiple fields were selected. If giving a string which
-            matches an entry for "v_name", then the behavior is slightly different:
-            if a single entry is found (and "v_name" is not attached to a code that
-            is indexed in other metadata), then a str is returned that is the code
-            value for that entry. Otherwise, a dictionary mapping the indexing codes
-            (type int) and code string (type str) to one another.
-        """
-        if item in self.dtype.fields:
-            return super().__getitem__(item)
-        else:
-            return self.get_codes(item)
 
     def _generate_new_header_keys(self, other):
         """
@@ -2940,6 +2997,10 @@ class MirAcData(MirMetaData):
         ----------
         filepath : str
             Path of the folder containing the metadata in question.
+        nchunks : int
+            Number of chunks to assume are recorded in the auto-correlation data. Note
+            that this parameter is only used with the "old-style" files (i.e., where
+            "ac_read" and "ach_read" are not present in the Mir file folder).
         """
         old_ac_file = os.path.join(filepath, "autoCorrelations")
         new_ac_file = os.path.join(filepath, self._filetype)
@@ -3319,20 +3380,30 @@ class MirParser(object):
     @staticmethod
     def scan_int_start(filepath, allowed_inhid=None):
         """
-        Read "sch_read" mir file into a python dictionary (@staticmethod).
+        Read "sch_read" or "ach_read" mir file into a python dictionary (@staticmethod).
 
         Parameters
         ----------
         filepath : str
-            filepath is the path to the folder containing the mir data set.
+            Filepath is the path to the folder containing the Mir data set.
+        allowed_inhid : list of int
+            List of allowed integration header key numbers ("inhid") that should be in
+            this dataset. If a header key is not found in this list, then the method
+            will exit with an error. No default value (all values allowed).
 
         Returns
         -------
-        int_start_dict : dict
+        int_dict : dict
             Dictionary containing the indexes from sch_read, where keys match to the
             inhid indexes, and the values contain a two-element tuple, with the length
             of the packdata array (in bytes) the relative offset (also in bytes) of
             the record within the sch_read file.
+
+        Raises
+        ------
+        ValueError
+            If a value on "inhid" is read from the file that does not match a value
+            given in `allowed_inhid` (if set).
         """
         file_size = os.path.getsize(filepath)
         data_offset = 0
@@ -3365,7 +3436,7 @@ class MirParser(object):
 
         return int_dict
 
-    def _fix_int_start(self, datatype):
+    def _fix_int_dict(self, data_type):
         """
         Fix an integration postion dictionary.
 
@@ -3375,10 +3446,16 @@ class MirParser(object):
         where in the main visibility file an individual spectral record is located.
         Under normal conditions, this routine does not need to be run, unless another
         method reported a specific error on read calling for the user to run this code.
+
+        Parameters
+        ----------
+        data_type : str
+            Type of data to fix , must either be "cross" (cross-correlations) or "auto"
+            (auto-correlations).
         """
         for ifile, idict in self._file_dict.items():
-            if not idict[datatype]["ignore_header"]:
-                int_dict = copy.deepcopy(idict[datatype]["int_dict"])
+            if not idict[data_type]["ignore_header"]:
+                int_dict = copy.deepcopy(idict[data_type]["int_dict"])
 
             # Each file's inhid is allowed to be different than the objects inhid --
             # this is used in cases when combining multiple files together (via
@@ -3388,7 +3465,7 @@ class MirParser(object):
 
             # Make the new dict by scaning the sch_read file.
             new_dict = self.scan_int_start(
-                os.path.join(ifile, idict[datatype]["filetype"]), list(imap)
+                os.path.join(ifile, idict[data_type]["filetype"]), list(imap)
             )
 
             # Go through the individual entries in each dict, and update them
@@ -3396,7 +3473,7 @@ class MirParser(object):
             for key in new_dict:
                 int_dict[imap[key]] = new_dict[key]
 
-            idict[datatype]["int_dict"] = int_dict
+            idict[data_type]["int_dict"] = int_dict
 
     @staticmethod
     def read_packdata(file_dict, inhid_arr, data_type="cross", use_mmap=False):
@@ -3405,10 +3482,17 @@ class MirParser(object):
 
         Parameters
         ----------
-        filepath : str
-            filepath is the path to the folder containing the mir data set.
-        int_start_dict : dict
-            indexes to the visibility locations within the file.
+        file_dict : dict
+            Dictionary which maps individual integrations to a specific packed data
+            record on disk. Keys are the path(s) to the data, with values that are
+            themselves dicts with keys of "auto" and/or "cross", which map to per-file
+            indexing information ("filetype": the name of the file in the Mir folder;
+            "int_dict": per-integration inforation that is typically generated by the
+            `_generate_recpos_dict` method of `MirParser.sp_data` and/or
+            `MirParser.ac_data`; "ignore_header": if set to True, disables checking
+            for header metadata consistency).
+        inhid_arr : sequence of int
+            Integration header keys to read the packed data of.
         data_type : str
             Type of data to read, must either be "cross" (cross-correlations) or "auto"
             (auto-correlations). Default is "cross".
@@ -3860,7 +3944,7 @@ class MirParser(object):
                 "Values in int_dict do not match that recorded inside the "
                 "file for %s data. Attempting to fix this automatically." % data_type
             )
-            self._fix_int_start(data_type)
+            self._fix_int_dict(data_type)
             packdata_dict = self.read_packdata(
                 self._file_dict, unique_inhid, data_type, use_mmap
             )
@@ -3888,7 +3972,7 @@ class MirParser(object):
                 if is_cross:
                     temp_dict[hid] = {
                         "scale_fac": packdata[start_idx],
-                        "data": packdata[start_idx + 1 : end_idx],
+                        "data": packdata[(start_idx + 1) : end_idx],
                     }
                 else:
                     data_arr = packdata[start_idx:end_idx]
@@ -4890,7 +4974,7 @@ class MirParser(object):
     @staticmethod
     def _rechunk_data(data_dict, chan_avg_arr, inplace=False):
         """
-        Rechunk regular visibility spectra.
+        Rechunk regular cross- and auto-correlation spectra.
 
         Note this routine is not intended to be called by users, but instead is a
         low-level call from the `rechunk` method of MirParser to spectrally average
@@ -4898,11 +4982,12 @@ class MirParser(object):
 
         Parameters
         ----------
-        vis_dict : dict
-            A dict containing visibility data, where the keys match to individual values
-            of `sphid` in `sp_data`, with each value being its own dict, with keys
-            "data" (the visibility data, dtype=np.complex64) and "flags"
-            (the flagging inforformation, dtype=bool).
+        data_dict : dict
+            A dict containing auto or cross data, where the keys match to values of
+            of "sphid" in `sp_data` for cross, or "achid" in `ac_data` for autos, with
+            each value being its own dict, with keys "data" (dtype=np.complex64 for
+            cross, dtype=np.float32 for auto) and "flags" (the flagging inforformation,
+            dtype=bool).
         chan_avg_arr : sequence of int
             A list, array, or tuple of integers, specifying how many channels to
             average over within each spectral record.
@@ -4935,10 +5020,10 @@ class MirParser(object):
             good_mask = ~sp_data["flags"].reshape((-1, chan_avg))
 
             # We need to count the number of valid visibilities that goes into each
-            # new channel, so that we can normalize apporpriately later. Note we cast
+            # new channel, so that we can normalize appropriately later. Note we cast
             # to float32 here, since the data are complex64 (and so there's no extra
-            # casting required, but we get the benefit of only mutiplyng real-only and
-            # complex data).
+            # casting required, but we get the benefit of only multiplying real-only
+            # and complex data).
             temp_count = good_mask.sum(axis=-1, dtype=np.float32)
 
             # Need to mask out when we have no counts, since it'll produce a divide
@@ -4988,7 +5073,8 @@ class MirParser(object):
             If True, return data in the "normal" visibility format, where each
             spectral record has a key of "sphid" and a value being a dict of
             "data" (the visibility data, dtype=np.complex64) and "flags"
-            (the flagging inforformation, dtype=bool).
+            (the flagging information, dtype=bool). This option is ignored if `inplace`
+            is set to True.
 
         Returns
         -------
@@ -5078,12 +5164,10 @@ class MirParser(object):
         # Eventually, we can make this handling more sophisticated, but for now, just
         # make it so that we average every window aside from the pseudo continuum
         # (win #0) by the same value.
-        band_dict = self.codes_data["band"]
-        chanavg_dict = {
-            key: 1 if value[0] == "c" else chan_avg
-            for key, value in band_dict.items()
-            if isinstance(value, str)
-        }
+        chanavg_dict = {}
+        for band_name in self.codes_data.get_codes("band", return_dict=False):
+            iband_value = self.codes_data["band"][band_name]
+            chanavg_dict[iband_value] = 1 if "c" in band_name else chan_avg
 
         update_dict = {}
         if self._has_cross:
@@ -5132,7 +5216,7 @@ class MirParser(object):
         This method allows for combining MirParser objects under two different
         scenarios. In the first, which we call a "merge", two objects are instantiated
         from the same file, but may have different data loaded due to, for example,
-        different calls to `select` being run. In the second scenarion, which we call
+        different calls to `select` being run. In the second scenario, which we call
         a "concatenation", objects are instantiated from different files, which need
         to be recombined (e.g., a single track is broken in half due to an
         intervening observation/system hiccup/etc.).
@@ -5409,7 +5493,7 @@ class MirParser(object):
 
         new_obj._sp_dict.update(copy.deepcopy(other._sp_dict))
 
-        # Finaly, if we have discrepant _has_auto states, we force the resultant object
+        # Finally, if we have discrepant _has_auto states, we force the resultant object
         # to unload any potential auto metadata.
         if self._has_auto != other._has_auto:
             warnings.warn(
@@ -5439,18 +5523,29 @@ class MirParser(object):
 
         Parameters
         ----------
-        other_obj : MirParser object
+        other : MirParser object
             Other MirParser object to combine with this data set.
-        overwrite : bool
-            If set to True, metadata from `other_obj` will overwrite that present in
-            this object, even if they differ. Default is False.
         merge : bool
-            TODO
+            If set to True, assume that the objects originate from the amd file, and
+            combine them together accordingly. If set to False, assume the two objects
+            originate from _different_ files, and concatenate them together. By default,
+            the method will check the internal file dictionary to see if it appears the
+            two objects come from the same file(s), automatically choosing between
+            merging or concatenating.
+        overwrite : bool
+            If set to True, metadata from `other` will overwrite that present in
+            this object, even if they differ. Default is False.
+        force : bool
+            If set to True, bypass certain checks to force the method to combine the
+            two objects. Note that this option should be used with care, as it can
+            result in objects with duplicate data (which may affect downstream
+            processing), or loss of support for handling auto-correlations within
+            the object. Default is False.
 
         Raises
         ------
         TypeError
-            If attemting to add a MirParser object with any other type of object.
+            If attempting to add a MirParser object with any other type of object.
         ValueError
             If the objects cannot be combined, either because of differing metadata (if
             `overwrite=False`), different data being loaded (raw vs vis vs auto), or
@@ -5470,7 +5565,7 @@ class MirParser(object):
         reset=False,
     ):
         """
-        Select a subset of data inside a Mir-formated file.
+        Select a subset of data inside a Mir-formatted file.
 
         This routine allows for one to select a subset of data within a Mir dataset,
         based on various metadata. The select command is designed to be flexible,
@@ -5495,14 +5590,14 @@ class MirParser(object):
             "ant1", "mjd", "source", "fsky"). The second element specifies the
             comparison operator, which is used to compare the metadata field against
             the third element in the tuple. Allowed comparisons include:
-            "eq" (equal to, matching any in the third element),
-            "ne" (not equal to, not matching any in third element),
-            "lt" (less than the third element),
-            "le" (less than or equal to the third element),
-            "gt" (greater than the third element),
-            "ge" (greater than or equal to the third element),
-            "btw" (between the range given by two values in the third element),
-            "out" (outside of the range give by two values in the third element).
+            "eq" | "==" (equal to, matching any in the third element),
+            "ne" | "!=" (not equal to, not matching any in third element),
+            "lt" | "<" (less than the third element),
+            "le" | "<=" (less than or equal to the third element),
+            "gt" | ">" (greater than the third element),
+            "ge" | ">=" (greater than or equal to the third element),
+            "between" (between the range given by two values in the third element),
+            "outside" (outside of the range give by two values in the third element).
             Multiple tuples to where can be supplied, where the results of each
             selection are combined based on the value of `and_where_args`.
         and_where_args : bool
@@ -5551,9 +5646,9 @@ class MirParser(object):
                     where[idx] = query
 
                 # The codes data is different than other metadata, in that it maps
-                # arbitary strings to integer values under specific header names. If
+                # arbitrary strings to integer values under specific header names. If
                 # we have an argument that matches once of these, we want to substitute
-                # the string and field name for the appropriate integrer (and associated
+                # the string and field name for the appropriate integer (and associated
                 # indexing field name).
                 try:
                     index_vals = self.codes_data.where(*query)
@@ -5591,7 +5686,7 @@ class MirParser(object):
                     where=where, and_where_args=and_where_args
                 )
             except MirMetaError:
-                # If not of the field indentified in the sequence of tuples were found
+                # If no field listed in the sequence of tuples is identified
                 # in the attribute, it'll throw the above error. That just means we
                 # aren't searching on anything relevant to this attr, so move along.
                 pass
@@ -5683,7 +5778,8 @@ class MirParser(object):
                         "cal_flags": cal_flags,
                     }
 
-            # Once we've divied up the solutions, plug this dict back into the main one.
+            # Once we've divied up the solutions, plug them back into the dict that
+            # we will pass back to the user.
             compass_soln_dict["bandpass_gains"] = bandpass_gains
 
             # Now, we can move on to flags. Note that COMPASS doesn't have access to
@@ -5695,6 +5791,13 @@ class MirParser(object):
 
             # Match each index to an inhid entry
             index_dict = {}
+
+            # On occasion, there are some minor rounding issues with the time stamps
+            # than can affect things on the order of up to half a second, so we use
+            # isclose + an absolute tolerance of 0.5 seconds (in units of Julian days)
+            # to try and match COMPASS to Mir timestamp. This is shorter than the
+            # shortest possible integration time (as of 2022), so this should be
+            # specific enough for our purposes here.
             atol = 0.5 / 86400
             for idx, mjd in enumerate(mjd_compass):
                 check = np.where(np.isclose(mjd, mjd_mir, atol=atol))[0]
@@ -5799,8 +5902,7 @@ class MirParser(object):
                 "`load_data(load_vis=True)` to fix this issue."
             )
 
-        # Before we do anything else, we want to be able to map certain entires that
-        # are per-blhid to be per-sphid.
+        # Use this to map certain per-blhid values to individual sphid entries.
         sp_bl_map = self.bl_data._index_query(header_key=self.sp_data["blhid"])
 
         # Now grab all of the metadata we want for processing the spectral records
@@ -5833,7 +5935,7 @@ class MirParser(object):
             ):
                 # Create an empty dictionary here for calculating the solutions for
                 # individual receiver pairs within different spectral windows. We'll
-                # be basically calcuating the gains solns on an "as needed" basis.
+                # be basically calculating the gains solns on an "as needed" basis.
                 bp_soln = {}
 
                 try:
@@ -5872,7 +5974,7 @@ class MirParser(object):
                         ant2flags = np.ones(ant1soln.shape, dtype=bool)
 
                     # For each baseline, we can calculate the correction needed by
-                    # multipling the gains for ant1 by the complex conj of the gains
+                    # multiplying the gains for ant1 by the complex conj of the gains
                     # for antenna 2. Note that the convention for the gains solns in
                     # COMPASS are set such that they need to be divided out. Division
                     # is a more computationally expensive operation than multiplication,
@@ -5941,7 +6043,7 @@ class MirParser(object):
         Calculate the kernel for shifting a spectrum a given number of channels.
 
         This function will calculate the parameters required for shifting a given
-        frequency number by an arbitary amount (i.e., not necessarily an integer
+        frequency number by an arbitrary amount (i.e., not necessarily an integer
         number of channels).
 
         chan_shift : float
@@ -5963,7 +6065,7 @@ class MirParser(object):
             -1 to -0.5, the latter of which is the default value due to the compactness
             of the PSF using this kernel.
         tol : float
-            If the desired frequency shift is close enough to an interger number of
+            If the desired frequency shift is close enough to an integer number of
             channels, then the method will forgo any attempt and interpolation and
             will simply return the nearest channel desired. The tolerance for choosing
             this behavior is given by this parameter, in units of number of channels.
@@ -6065,7 +6167,7 @@ class MirParser(object):
         ----------
         vis_dict : dict
             A dictionary in the format of `vis_data`, where the keys are matched to
-            individual values of sphid in `sp_data`, and each entry comtains a dict
+            individual values of sphid in `sp_data`, and each entry contains a dict
             with two items: "data", an array of np.complex64 containing the
             visibilities, and "flags", an array of bool containing the per-channel
             flags of the spectrum (both are of length equal to `sp_data["nch"]` for the
@@ -6136,7 +6238,7 @@ class MirParser(object):
                 r_edge = (1 - (kernel_size // 2)) + coarse_shift
 
                 # These clip values here are used to clip the original array to both
-                # make sure that the size matches, and to avoid doing any unneccessary
+                # make sure that the size matches, and to avoid doing any unnecessary
                 # work during the convolve for entries that will never get used.
                 l_clip = r_clip = None
 
@@ -6308,7 +6410,7 @@ class MirParser(object):
             ). Nearest neighbor is the fastest, although cubic convolution generally
             provides the best spectral PSF.
         tol : float
-            If the desired frequency shift is close enough to an interger number of
+            If the desired frequency shift is close enough to an integer number of
             channels, then the method will forgo any attempt and interpolation and
             will simply return the nearest channel desired. The tolerance for choosing
             this behavior is given by this parameter, in units of number of channels.

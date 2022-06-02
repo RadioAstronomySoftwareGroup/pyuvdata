@@ -198,7 +198,7 @@ def test_mir_meta_eq(mir_sp_data, result, verbose):
     "field,op,err_type,err_msg",
     [
         ["blah", "eq", MirMetaError, "select_field blah not found"],
-        ["inhid", "blah", ValueError, "select_comp must be one of"],
+        ["inhid", "blah", ValueError, "select_comp must be one of:"],
     ],
 )
 def test_mir_meta_where_errs(mir_in_data, field, op, err_type, err_msg):
@@ -212,13 +212,19 @@ def test_mir_meta_where_errs(mir_in_data, field, op, err_type, err_msg):
     "tup,goodidx,headkeys",
     [
         [("corrchunk", "eq", 0), np.arange(0, 20, 5), np.arange(0, 20, 5) + 1],
+        [("corrchunk", "==", 0), np.arange(0, 20, 5), np.arange(0, 20, 5) + 1],
         [("blhid", "ne", 4), np.arange(0, 15), np.arange(0, 15) + 1],
-        [("inhid", "btw", [0, 2]), np.arange(20), np.arange(20) + 1],
-        [("fres", "out", [-1, 1]), np.arange(0, 20, 5), np.arange(0, 20, 5) + 1],
+        [("blhid", "!=", 4), np.arange(0, 15), np.arange(0, 15) + 1],
+        [("inhid", "between", [0, 2]), np.arange(20), np.arange(20) + 1],
+        [("fres", "outside", [-1, 1]), np.arange(0, 20, 5), np.arange(0, 20, 5) + 1],
         [("ipq", "lt", [10]), np.arange(20), np.arange(20) + 1],
+        [("ipq", "<", [10]), np.arange(20), np.arange(20) + 1],
         [("nch", "le", 4), np.arange(0, 20, 5), np.arange(0, 20, 5) + 1],
+        [("nch", "<=", 4), np.arange(0, 20, 5), np.arange(0, 20, 5) + 1],
         [("dataoff", "gt", 0.0), np.arange(1, 20), np.arange(1, 20) + 1],
+        [("dataoff", ">", 0.0), np.arange(1, 20), np.arange(1, 20) + 1],
         [("wt", "ge", 0.0), np.arange(20), np.arange(20) + 1],
+        [("wt", ">=", 0.0), np.arange(20), np.arange(20) + 1],
     ],
 )
 def test_mir_meta_where(mir_sp_data, tup, goodidx, headkeys, return_keys):
@@ -840,7 +846,7 @@ def test_mir_codes_get_code_names(mir_codes_data):
     "args,kwargs,err_type,err_msg",
     [
         [(0, 0, 0), {}, MirMetaError, "select_field must either be one of the native"],
-        [("source", "gt", 0), {}, ValueError, 'select_comp must be "eq" or "ne" when'],
+        [("source", "gt", 0), {}, ValueError, 'select_comp must be "eq", "==", "ne"'],
     ],
 )
 def test_mir_codes_where_errs(mir_codes_data, args, kwargs, err_type, err_msg):
@@ -1274,11 +1280,11 @@ def test_compass_error(mir_data, compass_soln_file):
 @pytest.mark.parametrize(
     "field,comp,value,vis_keys",
     [
-        ["mjd", "btw", [60000.0, 50000.0], np.arange(1, 21)],
+        ["mjd", "between", [60000.0, 50000.0], np.arange(1, 21)],
         ["source", "ne", "nosourcehere", np.arange(1, 21)],
         ["ant", "eq", 4, np.arange(1, 21)],
-        ["ant1", "ne", 8, np.arange(1, 21)],
-        ["ant1rx", "eq", 0, [1, 2, 3, 4, 5, 11, 12, 13, 14, 15]],
+        ["ant1", "!=", 8, np.arange(1, 21)],
+        ["ant1rx", "==", 0, [1, 2, 3, 4, 5, 11, 12, 13, 14, 15]],
         ["corrchunk", "ne", [1, 2, 3, 4], np.arange(1, 21, 5)],
         ["N", "lt", 0.0, []],
     ],
@@ -1392,7 +1398,7 @@ def test_scan_int_start(mir_data):
     )
 
 
-def test_fix_int_start(mir_data):
+def test_fix_int_dict(mir_data):
     """Verify that we can fix a "bad" integration start record."""
     mir_data._clear_auto()
     bad_entry = {2: {"inhid": 1, "record_size": 120, "record_start": 120}}
@@ -1419,7 +1425,7 @@ def test_fix_int_start(mir_data):
     mir_data._file_dict = good_dict
     mir_data._file_dict[mir_data.filepath]["cross"]["int_dict"] = bad_entry.copy()
     # This should _hopefully_ generate the good dict
-    mir_data._fix_int_start("cross")
+    mir_data._fix_int_dict("cross")
     assert good_dict == mir_data._file_dict
 
     # Plug in the bad entry again
