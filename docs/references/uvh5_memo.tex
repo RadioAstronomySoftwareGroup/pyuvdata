@@ -207,8 +207,8 @@ interoperability between different HDF5 implementations.
   two-dimensional array of size (Nants\_telescope,
   3). (\textit{antenna\_positions})
 \item \textbf{phase\_center\_catalog}: A series of nested datasets, similar to
-a dict in python. The top level keys are strings giving the phase center
-catalog names. The next level keys must include:
+a dict in python (\textit{phase\_center\_catalog}). The top level keys are strings
+giving the phase center catalog names. The next level keys must include:
 	\begin{itemize}
 	\item \textbf{cat\_id}: \textit{int} The phase center catalog ID number,
 	  which is used to identify which baseline-times are phased to which
@@ -216,7 +216,8 @@ catalog names. The next level keys must include:
 	\item \textbf{cat\_type}: \textit{string} One of four allowed values:
 	  \textbf{(1)} sidereal, \textbf{(2)} ephem, \textbf{(3)} driftscan,
 	  \textbf{(4)} unprojected.
-  	  Sidereal means a phase center that is fixed in RA and Dec.
+  	  Sidereal means a phase center that is fixed in RA and Dec in a given
+	  celestial frame.
 	  Ephem means a phase center that has an RA and Dec that
 	  moves with time.
 	  Driftscan means a phase center with a fixed azimuth and
@@ -263,8 +264,10 @@ And may include:
 	  one dimensional array of length Npts (the number of ephemeris data points)
 	  for ephem type phase centers.
 	\item \textbf{info\_source}: \textit{string} Information about provenance of the source details.
+	  Typically this is set either to ``file'' if it originates from a file read operation, and ``user'' if
+	  it was added because of a call to the \verb+phase()+ method in \verb+pyuvdata+. But it
+	  can also be set to contain more detailed information.
 	\end{itemize}
-  (\textit{phase\_center\_catalog})
 \item \textbf{phase\_center\_id\_array}: \textit{int}
 A one dimensional array of length Nblts containing the cat\_id from the phase\_center\_catalog
 that each baseline-time is phased to. (\textit{phase\_center\_id\_array})
