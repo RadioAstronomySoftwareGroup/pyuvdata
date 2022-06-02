@@ -1510,7 +1510,7 @@ def test_calc_app_unprojected(astrometry_args):
     # use "unphased" to check for deprecation warning
     with uvtest.check_warnings(
         DeprecationWarning,
-        match="The `unphased` catalog type has been renamed to `unprojected`. Using "
+        match="The 'unphased' catalog type has been renamed to 'unprojected'. Using "
         "unprojected for now, this warning will become an error in version 2.4",
     ):
         check_ra, check_dec = uvutils.calc_app_coords(
