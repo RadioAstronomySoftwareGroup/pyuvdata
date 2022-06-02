@@ -1,0 +1,29 @@
+name: hera_cal
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - aipy
+  - astropy>=5.0.4
+  - astropy-healpix
+  - cached-property
+  - h5py>=3.0
+  - pyerfa>=2.0
+  - matplotlib
+  - numpy
+  - pandas
+  - pip
+  - pytest
+  - pytest-cov
+  - pyyaml
+  - scikit-learn
+  - scipy
+  - setuptools_scm
+  - pip:
+    - git+https://github.com/HERA-Team/linsolve.git
+    - git+https://github.com/HERA-Team/hera_qm.git
+    - git+https://github.com/HERA-Team/uvtools.git
+    - git+https://github.com/HERA-Team/hera_sim.git
+    - pyuvsim
+    - pyradiosky
+    - pytest-xdist

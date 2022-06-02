@@ -1,0 +1,52 @@
+jobs:
+- job: hera_cal
+  pool:
+    vmImage: "ubuntu-latest"
+  variables:
+    PYTHON: "3.9"
+    ENV_NAME: hera_cal
+    WITH_SUDO: true
+
+  steps:
+  - bash: echo "##vso[task.prependpath]$CONDA/bin"
+    displayName: Add conda to PATH
+
+  - bash: ./ci/install_conda.sh
+    displayName: Create Anaconda environment
+
+  - bash: |
+      source activate ${ENV_NAME}
+      pip install --no-deps .
+      cd ../
+      git clone https://github.com/HERA-Team/hera_cal.git
+      cd hera_cal
+      pip install --no-deps .
+      mkdir test-reports
+      python -m pytest hera_cal -n auto --junitxml=test-reports/xunit.xml
+    displayName: run hera_cal tests
+
+- job: hera_qm
+  pool:
+    vmImage: "ubuntu-latest"
+  variables:
+    PYTHON: "3.9"
+    ENV_NAME: hera_qm
+    WITH_SUDO: true
+
+  steps:
+  - bash: echo "##vso[task.prependpath]$CONDA/bin"
+    displayName: Add conda to PATH
+
+  - bash: ./ci/install_conda.sh
+    displayName: Create Anaconda environment
+
+  - bash: |
+      source activate ${ENV_NAME}
+      pip install --no-deps .
+      cd ../
+      git clone https://github.com/HERA-Team/hera_qm.git
+      cd hera_qm
+      pip install --no-deps .
+      mkdir test-reports
+      python -m pytest hera_qm -n auto --junitxml=test-reports/xunit.xml
+    displayName: run hera_qm tests
