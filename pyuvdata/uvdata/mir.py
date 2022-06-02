@@ -64,8 +64,6 @@ class Mir(UVData):
             Correlator chunk codes for MIR dataset
         pseudo_cont : boolean
             Read in only pseudo-continuuum values. Default is false.
-        flex_spw : boolean
-            Allow for support of multiple spectral windows. Default is true.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             before writing the file.
@@ -89,6 +87,9 @@ class Mir(UVData):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is False.
+        rechunk : int
+            Number of channels to average over when reading in the dataset. Optional
+            argument, typically required to be a power of 2.
         """
         # Use the mir_parser to read in metadata, which can be used to select data.
         mir_data = mir_parser.MirParser(filepath)
@@ -126,6 +127,8 @@ class Mir(UVData):
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
                 allow_flip_conj=True,
+                check_autos=check_autos,
+                fix_autos=fix_autos,
             )
 
     def _init_from_mir_parser(
@@ -171,7 +174,6 @@ class Mir(UVData):
             # codes + four unique index codes, then we actually need to verify this is
             # a single pol observation, since the current system has a quirk that it
             # marks both X- and Y-pol receivers as the same polarization.
-            pol_dict = {}
             pol_arr = np.zeros_like(sp_bl_idx)
 
             pol_arr[np.logical_and(ant1_rxa_mask, ant2_rxa_mask)] = 0
@@ -383,7 +385,6 @@ class Mir(UVData):
             blt_idx = blhid_blt_order[sp_rec["blhid"]]
             ch_slice = spdx_dict[window]["ch_slice"]
             pol_idx = spdx_dict[window]["pol_idx"]
-            spdx = spdx_dict[window]
             vis_data[blt_idx, pol_idx, ch_slice] = np.conj(vis_rec["data"])
             vis_flags[blt_idx, pol_idx, ch_slice] = vis_rec["flags"]
             # The "wt" column is calcualted as (T_DSB ** 2)/(integ time), but we want
@@ -391,7 +392,7 @@ class Mir(UVData):
             # of the antenna squared and the channel width. The factor of 2**2 (4)
             # arises because we need to convert T_DSB**2 to T_SSB**2.
             vis_weights[blt_idx, pol_idx, ch_slice] = (
-                ((130.0 * 2.0) ** (2.0)) * sp_rec["wt"] * np.abs(sp_rec["fres"])
+                ((130.0 * 2.0) ** 2.0) * sp_rec["wt"] * np.abs(sp_rec["fres"])
             )
 
         # Drop the data from the MirParser object once we have it loaded up.
