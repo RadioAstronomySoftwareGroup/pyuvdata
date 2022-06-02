@@ -101,7 +101,7 @@ astroquery_reqs = ["astroquery>=0.4.4"]
 novas_reqs = ["novas", "novas_de405"]
 casa_reqs = ["python-casacore>=3.3.0"]
 healpix_reqs = ["astropy_healpix>=0.6"]
-cst_reqs = ["pyyaml"]
+cst_reqs = ["pyyaml>=5.1"]
 test_reqs = (
     casa_reqs
     + astroquery_reqs
