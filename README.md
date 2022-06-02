@@ -152,7 +152,7 @@ Optional:
 
 * python-casacore >= 3.3.0 (for working with CASA measurement sets)
 * astropy-healpix >=0.6 (for working with beams in HEALPix formats)
-* pyyaml (for working with settings files for CST beam files)
+* pyyaml>=5.1 (for working with settings files for CST beam files)
 * novas and novas_de405 (for using the NOVAS library for astrometry)
 * astroquery >= 0.4.4 (for enabling lookup functionality with JPL-Horizons)
 
