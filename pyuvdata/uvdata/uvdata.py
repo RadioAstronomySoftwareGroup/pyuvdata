@@ -864,22 +864,22 @@ class UVData(UVBase):
                 "driftscan" (fixed az/el position),
                 "unprojected" (no w-projection, equivalent to `phase_type` == "drift").
         cat_lon : float or ndarray
-            Value of the longitudinal coordinate (e.g., RA, Az, l) of the phase center.
-            No default unless `cat_type="unprojected"`, in which case the default is
-            zero. Expected to be a float for sidereal and driftscan phase centers, and
-            an ndarray of floats of shape (Npts,) for ephem phase centers.
+            Value of the longitudinal coordinate (e.g., RA, Az, l) in radians of the
+            phase center. No default unless `cat_type="unprojected"`, in which case the
+            default is zero. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
         cat_lat : float or ndarray
-            Value of the latitudinal coordinate (e.g., Dec, El, b) of the phase center.
-            No default unless `cat_type="unprojected"`, in which case the default is
-            pi/2. Expected to be a float for sidereal and driftscan phase centers, and
-            an ndarray of floats of shape (Npts,) for ephem phase centers.
+            Value of the latitudinal coordinate (e.g., Dec, El, b) in radians of the
+            phase center. No default unless `cat_type="unprojected"`, in which case the
+            default is pi/2. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
         cat_frame : str
             Coordinate frame that cat_lon and cat_lat are given in. Only used for
             sidereal and ephem phase centers. Can be any of the several supported frames
             in astropy (a limited list: fk4, fk5, icrs, gcrs, cirs, galactic).
         cat_epoch : str or float
             Epoch of the coordinates, only used when cat_frame = fk4 or fk5. Given
-            in unites of fractional years, either as a float or as a string with the
+            in units of fractional years, either as a float or as a string with the
             epoch abbreviation (e.g, Julian epoch 2000.0 would be J2000.0).
         cat_times : ndarray of floats
             Only used when `cat_type="ephem"`. Describes the time for which the values
@@ -924,7 +924,7 @@ class UVData(UVBase):
 
         if cat_type == "unphased" or cat_name == "unphased":
             warnings.warn(
-                "The `unphased` catalog type has been renamed to `unprojected`. Using "
+                "The 'unphased' catalog type has been renamed to 'unprojected'. Using "
                 "unprojected for now, this warning will become an error in version 2.4",
                 DeprecationWarning,
             )
@@ -1060,22 +1060,22 @@ class UVData(UVBase):
                 "driftscan" (fixed az/el position),
                 "unprojected" (no w-projection, equivalent to `phase_type` == "drift").
         cat_lon : float or ndarray
-            Value of the longitudinal coordinate (e.g., RA, Az, l) of the phase center.
-            No default unless `cat_type="unprojected"`, in which case the default is
-            zero. Expected to be a float for sidereal and driftscan phase centers, and
-            an ndarray of floats of shape (Npts,) for ephem phase centers.
+            Value of the longitudinal coordinate (e.g., RA, Az, l) in radians of the
+            phase center. No default unless `cat_type="unprojected"`, in which case the
+            default is zero. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
         cat_lat : float or ndarray
-            Value of the latitudinal coordinate (e.g., Dec, El, b) of the phase center.
-            No default unless `cat_type="unprojected"`, in which case the default is
-            pi/2. Expected to be a float for sidereal and driftscan phase centers, and
-            an ndarray of floats of shape (Npts,) for ephem phase centers.
+            Value of the latitudinal coordinate (e.g., Dec, El, b) in radians of the
+            phase center. No default unless `cat_type="unprojected"`, in which case the
+            default is pi/2. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
         cat_frame : str
             Coordinate frame that cat_lon and cat_lat are given in. Only used
             for sidereal and ephem targets. Can be any of the several supported frames
             in astropy (a limited list: fk4, fk5, icrs, gcrs, cirs, galactic).
         cat_epoch : str or float
             Epoch of the coordinates, only used when cat_frame = fk4 or fk5. Given
-            in unites of fractional years, either as a float or as a string with the
+            in units of fractional years, either as a float or as a string with the
             epoch abbreviation (e.g, Julian epoch 2000.0 would be J2000.0).
         cat_times : ndarray of floats
             Only used when `cat_type="ephem"`. Describes the time for which the values
@@ -1134,7 +1134,7 @@ class UVData(UVBase):
 
         if cat_type == "unphased":
             warnings.warn(
-                "The `unphased` catalog type has been renamed to `unprojected`. Using "
+                "The 'unphased' catalog type has been renamed to 'unprojected'. Using "
                 "unprojected for now, this warning will become an error in version 2.4",
                 DeprecationWarning,
             )
@@ -1166,7 +1166,7 @@ class UVData(UVBase):
                 "cat_pm_ra and cat_pm_dec."
             )
 
-        # If left unset, unprojected and driftscan defaulted to Az, El = (0, 90)
+        # If left unset, unprojected and driftscan defaulted to Az, El = (0 deg, 90 deg)
         if cat_type in ["unprojected", "driftscan"]:
             if cat_lon is None:
                 cat_lon = 0.0

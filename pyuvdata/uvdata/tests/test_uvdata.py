@@ -10179,7 +10179,7 @@ def test_add_phase_center_known_source(sma_mir):
 def test_unphased_deprecation(sma_mir):
     with uvtest.check_warnings(
         DeprecationWarning,
-        "The `unphased` catalog type has been renamed to `unprojected`. Using "
+        "The 'unphased' catalog type has been renamed to 'unprojected'. Using "
         "unprojected for now, this warning will become an error in version 2.4",
     ):
         new_id = sma_mir._add_phase_center(
@@ -10191,7 +10191,7 @@ def test_unphased_deprecation(sma_mir):
 
     with uvtest.check_warnings(
         DeprecationWarning,
-        "The `unphased` catalog type has been renamed to `unprojected`. Using "
+        "The 'unphased' catalog type has been renamed to 'unprojected'. Using "
         "unprojected for now, this warning will become an error in version 2.4",
     ):
         lookup_id, _ = sma_mir._look_in_catalog("unphased")

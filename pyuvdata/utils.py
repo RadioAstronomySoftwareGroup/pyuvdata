@@ -2048,7 +2048,7 @@ def calc_uvw(
         # GHA -> Hour Angle as measured at Greenwich (because antenna coords are
         # centered such that x-plane intersects the meridian at longitude 0).
         if to_enu:
-            # Unprojected coordinates appear to be stored in ENU coordinates -- that's
+            # Unprojected coordinates are given in the ENU convention -- that's
             # equivalent to calculating uvw's based on zenith. We can use that to our
             # advantage and spoof the gha and dec based on telescope lon and lat
             unique_gha = np.zeros(1) - telescope_lon
@@ -3402,7 +3402,7 @@ def calc_app_coords(
 
     if coord_type == "unphased":
         warnings.warn(
-            "The `unphased` catalog type has been renamed to `unprojected`. Using "
+            "The 'unphased' catalog type has been renamed to 'unprojected'. Using "
             "unprojected for now, this warning will become an error in version 2.4",
             DeprecationWarning,
         )
