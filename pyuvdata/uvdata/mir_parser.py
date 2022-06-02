@@ -548,42 +548,6 @@ class MirMetaData(object):
         for idx in np.where(self._mask)[0]:
             yield self._data[idx]
 
-    def copy(self, skip_data=False):
-        """
-        Make and return a copy of the MirMetaData object.
-
-        Parameters
-        ----------
-        skip_data : bool
-            If set to True, forgo copying the data-related attributes. Default is False.
-
-        Returns
-        -------
-        new_obj : MirMetaData object
-            Copy of the originial object.
-        """
-        # Initialize a new object of the given type
-        copy_obj = type(self)()
-
-        deepcopy_list = ["_stored_values"]
-        data_list = ["_stored_values", "_data", "_mask", "_header_key_index_dict"]
-
-        for attr in vars(self):
-            if skip_data and attr in data_list:
-                continue
-
-            if attr in deepcopy_list:
-                copy_attr = copy.deepcopy(getattr(self, attr))
-            else:
-                try:
-                    copy_attr = getattr(self, attr).copy()
-                except AttributeError:
-                    copy_attr = copy.deepcopy(getattr(self, attr))
-
-            setattr(copy_obj, attr, copy_attr)
-
-        return copy_obj
-
     def __len__(self):
         """
         Calculate the number entries in the data table.
@@ -703,6 +667,167 @@ class MirMetaData(object):
         return not self.__eq__(
             other, verbose=verbose, ignore_params=ignore_params, use_mask=use_mask
         )
+
+    def __add__(
+        self,
+        other,
+        inplace=False,
+        merge=None,
+        overwrite=None,
+        discard_flagged=False,
+    ):
+        """
+        Combine two MirMetaData objects.
+
+        Note that when overlapping keys are detected (and are able to be reconciled),
+        the method will "or" the two internal masks together, such that the sum of the
+        two objects will contain the combination of any selection criteria that went
+        into each object individually. This is particularly useful for when subsets of
+        data have been split off from one another, and you wish to recombine them
+        further downstream.
+
+        Parameters
+        ----------
+        other : MirMetaData object
+            Object to combine with this. Must be of the same type.
+        inplace : bool
+            If set to True, replace this object with the one resulting from the
+            addition operation. Default is False.
+        merge : bool
+            If set to True, then the two objects are assumed to have identical metadata,
+            with potentially different selection masks applied. If the underlying data
+            or header key differences are detected, an error is raised. If set to False,
+            the objects are contain unique data sets with unique header keys. If
+            overlapping header keys are detected, an error is raised. By default, the
+            method assumes that each object could contain a subset of the other, and
+            will allow a partial merge where header keys overlap.
+        overwrite : bool
+            If set to True, then when merging two objects (partial or whole), where
+            the two objects have identical header keys, data from `other` will overwrite
+            that from this object. If set to False, no overwriting is allowed, and an
+            error will be thrown if differing metadata are detected. The default is to
+            allow metadata to be overwritten only where internal mask are set to False.
+        discard_flagged : bool
+            If set to True, exclude from metadata where the internal mask has been set
+            to False. Default is False. Note that this cannot be used if setting
+            `merge=True`.
+
+        Returns
+        -------
+        new_obj : MirMetaData object
+            The resultant combination of the two objects.
+
+        Raises
+        ------
+        ValueError
+            If attempting to combine this object with another of a different type.
+        """
+        # First up, make sure we have two objects of the same dtype
+        if type(self) != type(other):
+            raise ValueError("Both objects must be of the same type.")
+
+        if other._data is None:
+            # If no data is loaded, then this is just a no-op
+            return self if inplace else self.copy()
+
+        # At this point, we should be able to combine the two objects
+        new_obj = self if inplace else self.copy()
+
+        if self._data is None:
+            new_obj._data = other._data.copy()
+            new_obj._mask = other._mask.copy()
+        else:
+            idx1, idx2, mask1, mask2 = self._add_check(
+                other, merge=merge, overwrite=overwrite, discard_flagged=discard_flagged
+            )
+            new_obj._data = np.concatenate((new_obj._data[idx1], other._data[idx2]))
+            new_obj._mask = np.concatenate((mask1, mask2))
+
+        # Make sure the data is sorted corectly, generate the header key -> index
+        # position dictionary.
+        new_obj._set_header_key_index_dict()
+
+        # Finally, clear out any sorted values, since there's no longer a good way to
+        # carry them forward.
+        new_obj._stored_values = {}
+
+        return new_obj
+
+    def __iadd__(self, other, merge=None, overwrite=None, discard_flagged=False):
+        """
+        In-place addition of two MirMetaData objects.
+
+        Parameters
+        ----------
+        other : MirMetaData object
+            Object to combine with this. Must be of the same type.
+        merge : bool
+            If set to True, then the two objects are assumed to have identical metadata,
+            with potentially different selection masks applied. If the underlying data
+            or header key differences are detected, an error is raised. If set to False,
+            the objects are contain unique data sets with unique header keys. If
+            overlapping header keys are detected, an error is raised. By default, the
+            method assumes that each object could contain a subset of the other, and
+            will allow a partial merge where header keys overlap.
+        overwrite : bool
+            If set to True, then when merging two objects (partial or whole), where
+            the two objects have identical header keys, data from `other` will overwrite
+            that from this object. If set to False, no overwriting is allowed, and an
+            error will be thrown if differing metadata are detected. The default is to
+            allow metadata to be overwritten only where internal mask are set to False.
+        discard_flagged : bool
+            If set to True, exclude from metadata where the internal mask has been set
+            to False. Default is False. Note that this cannot be used if setting
+            `merge=True`.
+
+        Returns
+        -------
+        new_obj : MirMetaData object
+            The resultant combination of the two objects.
+        """
+        return self.__add__(
+            other,
+            inplace=True,
+            merge=merge,
+            overwrite=overwrite,
+            discard_flagged=discard_flagged,
+        )
+
+    def copy(self, skip_data=False):
+        """
+        Make and return a copy of the MirMetaData object.
+
+        Parameters
+        ----------
+        skip_data : bool
+            If set to True, forgo copying the data-related attributes. Default is False.
+
+        Returns
+        -------
+        new_obj : MirMetaData object
+            Copy of the originial object.
+        """
+        # Initialize a new object of the given type
+        copy_obj = type(self)()
+
+        deepcopy_list = ["_stored_values"]
+        data_list = ["_stored_values", "_data", "_mask", "_header_key_index_dict"]
+
+        for attr in vars(self):
+            if skip_data and attr in data_list:
+                continue
+
+            if attr in deepcopy_list:
+                copy_attr = copy.deepcopy(getattr(self, attr))
+            else:
+                try:
+                    copy_attr = getattr(self, attr).copy()
+                except AttributeError:
+                    copy_attr = copy.deepcopy(getattr(self, attr))
+
+            setattr(copy_obj, attr, copy_attr)
+
+        return copy_obj
 
     def where(
         self,
@@ -1932,131 +2057,6 @@ class MirMetaData(object):
 
         return this_idx, other_idx, this_mask[this_idx], other_mask[other_idx]
 
-    def __add__(
-        self,
-        other,
-        inplace=False,
-        merge=None,
-        overwrite=None,
-        discard_flagged=False,
-    ):
-        """
-        Combine two MirMetaData objects.
-
-        Note that when overlapping keys are detected (and are able to be reconciled),
-        the method will "or" the two internal masks together, such that the sum of the
-        two objects will contain the combination of any selection criteria that went
-        into each object individually. This is particularly useful for when subsets of
-        data have been split off from one another, and you wish to recombine them
-        further downstream.
-
-        Parameters
-        ----------
-        other : MirMetaData object
-            Object to combine with this. Must be of the same type.
-        inplace : bool
-            If set to True, replace this object with the one resulting from the
-            addition operation. Default is False.
-        merge : bool
-            If set to True, then the two objects are assumed to have identical metadata,
-            with potentially different selection masks applied. If the underlying data
-            or header key differences are detected, an error is raised. If set to False,
-            the objects are contain unique data sets with unique header keys. If
-            overlapping header keys are detected, an error is raised. By default, the
-            method assumes that each object could contain a subset of the other, and
-            will allow a partial merge where header keys overlap.
-        overwrite : bool
-            If set to True, then when merging two objects (partial or whole), where
-            the two objects have identical header keys, data from `other` will overwrite
-            that from this object. If set to False, no overwriting is allowed, and an
-            error will be thrown if differing metadata are detected. The default is to
-            allow metadata to be overwritten only where internal mask are set to False.
-        discard_flagged : bool
-            If set to True, exclude from metadata where the internal mask has been set
-            to False. Default is False. Note that this cannot be used if setting
-            `merge=True`.
-
-        Returns
-        -------
-        new_obj : MirMetaData object
-            The resultant combination of the two objects.
-
-        Raises
-        ------
-        ValueError
-            If attempting to combine this object with another of a different type.
-        """
-        # First up, make sure we have two objects of the same dtype
-        if type(self) != type(other):
-            raise ValueError("Both objects must be of the same type.")
-
-        if other._data is None:
-            # If no data is loaded, then this is just a no-op
-            return self if inplace else self.copy()
-
-        # At this point, we should be able to combine the two objects
-        new_obj = self if inplace else self.copy()
-
-        if self._data is None:
-            new_obj._data = other._data.copy()
-            new_obj._mask = other._mask.copy()
-        else:
-            idx1, idx2, mask1, mask2 = self._add_check(
-                other, merge=merge, overwrite=overwrite, discard_flagged=discard_flagged
-            )
-            new_obj._data = np.concatenate((new_obj._data[idx1], other._data[idx2]))
-            new_obj._mask = np.concatenate((mask1, mask2))
-
-        # Make sure the data is sorted corectly, generate the header key -> index
-        # position dictionary.
-        new_obj._set_header_key_index_dict()
-
-        # Finally, clear out any sorted values, since there's no longer a good way to
-        # carry them forward.
-        new_obj._stored_values = {}
-
-        return new_obj
-
-    def __iadd__(self, other, merge=None, overwrite=None, discard_flagged=False):
-        """
-        In-place addition of two MirMetaData objects.
-
-        Parameters
-        ----------
-        other : MirMetaData object
-            Object to combine with this. Must be of the same type.
-        merge : bool
-            If set to True, then the two objects are assumed to have identical metadata,
-            with potentially different selection masks applied. If the underlying data
-            or header key differences are detected, an error is raised. If set to False,
-            the objects are contain unique data sets with unique header keys. If
-            overlapping header keys are detected, an error is raised. By default, the
-            method assumes that each object could contain a subset of the other, and
-            will allow a partial merge where header keys overlap.
-        overwrite : bool
-            If set to True, then when merging two objects (partial or whole), where
-            the two objects have identical header keys, data from `other` will overwrite
-            that from this object. If set to False, no overwriting is allowed, and an
-            error will be thrown if differing metadata are detected. The default is to
-            allow metadata to be overwritten only where internal mask are set to False.
-        discard_flagged : bool
-            If set to True, exclude from metadata where the internal mask has been set
-            to False. Default is False. Note that this cannot be used if setting
-            `merge=True`.
-
-        Returns
-        -------
-        new_obj : MirMetaData object
-            The resultant combination of the two objects.
-        """
-        return self.__add__(
-            other,
-            inplace=True,
-            merge=merge,
-            overwrite=overwrite,
-            discard_flagged=discard_flagged,
-        )
-
     def fromfile(self, filepath):
         """
         Read in data for a MirMetaData object from disk.
@@ -2676,7 +2676,7 @@ class MirCodesData(MirMetaData):
         Find where metadata match a given set of selection criteria.
 
         This method will produce a masking screen based on the arguments provided to
-        determine which entries matche a given set of conditions.
+        determine which entries match a given set of conditions.
 
         Parameters
         ----------
@@ -3221,6 +3221,8 @@ class MirParser(object):
         this_attr_set = set(vars(self))
         other_attr_set = set(vars(other))
 
+        verbose_print = print if verbose else lambda *a, **k: None
+
         # Go through and drop any attributes that both objects do not have (and set
         # is_eq to False if any such attributes found).
         for item in this_attr_set.union(other_attr_set):
@@ -3233,8 +3235,7 @@ class MirParser(object):
                 target = "left"
             if target is not None:
                 is_eq = False
-                if verbose:
-                    print("%s does not exist in %s." % (item, target))
+                verbose_print("%s does not exist in %s." % (item, target))
 
         if metadata_only:
             for item in ["vis_data", "raw_data", "auto_data"]:
@@ -3249,11 +3250,10 @@ class MirParser(object):
             # we can actually compare the two without error.
             if not isinstance(this_attr, type(other_attr)):
                 is_eq = False
-                if verbose:
-                    print(
-                        "%s is of different types, left is %s, right is %s."
-                        % (item, type(this_attr), type(other_attr))
-                    )
+                verbose_print(
+                    "%s is of different types, left is %s, right is %s."
+                    % (item, type(this_attr), type(other_attr))
+                )
                 continue
             elif this_attr is None:
                 # If both are NoneType, we actually have nothing to do here
@@ -3263,11 +3263,10 @@ class MirParser(object):
                 # of dicts (note this may change at some point).
                 if this_attr.keys() != other_attr.keys():
                     is_eq = False
-                    if verbose:
-                        print(
-                            f"{item} has different keys, left is {this_attr.keys()}, "
-                            f"right is {other_attr.keys()}."
-                        )
+                    verbose_print(
+                        f"{item} has different keys, left is {this_attr.keys()}, "
+                        f"right is {other_attr.keys()}."
+                    )
                     continue
 
                 comp_list = data_comp_dict[item]
@@ -3300,8 +3299,9 @@ class MirParser(object):
                                 is_same = False
                     if not is_same:
                         is_eq = False
-                        if verbose:
-                            print("%s has the same keys, but different values." % item)
+                        verbose_print(
+                            "%s has the same keys, but different values." % item
+                        )
                         break
                 # We are done processing the data dicts at this point, so we can skip
                 # the item_same evauation below.
@@ -3310,21 +3310,19 @@ class MirParser(object):
             elif item == "_metadata_attrs":
                 if this_attr.keys() != other_attr.keys():
                     is_eq = False
-                    if verbose:
-                        print(
-                            f"{item} has different keys, left is {this_attr.keys()}, "
-                            f"right is {other_attr.keys()}."
-                        )
+                    verbose_print(
+                        f"{item} has different keys, left is {this_attr.keys()}, "
+                        f"right is {other_attr.keys()}."
+                    )
             else:
                 # We don't have special handling for this attribute at this point, so
                 # we just use the generic __ne__ method.
                 if this_attr != other_attr:
                     is_eq = False
-                    if verbose:
-                        print(
-                            f"{item} has different values, left is {this_attr}, "
-                            f"right is {other_attr}."
-                        )
+                    verbose_print(
+                        f"{item} has different values, left is {this_attr}, "
+                        f"right is {other_attr}."
+                    )
 
         return is_eq
 
@@ -5259,7 +5257,7 @@ class MirParser(object):
         Raises
         ------
         TypeError
-            If attemting to add a MirParser object with any other type of object.
+            If attempting to add a MirParser object with any other type of object.
         ValueError
             If the objects cannot be combined, either because of differing metadata (if
             `overwrite=False`), or because the two objects appear to be loaded from
@@ -6325,7 +6323,7 @@ class MirParser(object):
             If True, return data in the "normal" visibility format, where each
             spectral record has a key of "sphid" and a value being a dict of
             "data" (the visibility data, dtype=np.complex64) and "flags"
-            (the flagging inforformation, dtype=bool). This option is ignored if
+            (the flagging information, dtype=bool). This option is ignored if
             `inplace=True`.
 
         Returns
