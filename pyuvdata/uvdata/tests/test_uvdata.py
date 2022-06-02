@@ -10757,8 +10757,14 @@ def test_fix_phase_multi_phase_err(sma_mir):
     datasets throws an appropriate error
     """
     # Check the one error condition that fix_phase raises
-    with pytest.raises(ValueError, match="Cannot run fix_phase on a mutli-phase-ctr"):
+    with pytest.raises(ValueError, match="Cannot run fix_phase on a multi-phase-ctr"):
         sma_mir.fix_phase(use_ant_pos=False)
+
+    # check that it doesn't error (but does warn) if `use_ant_pos` is set to True
+    with uvtest.check_warnings(
+        UserWarning, match="Fixing phases using antenna positions."
+    ):
+        sma_mir.fix_phase(use_ant_pos=True)
 
 
 @pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
