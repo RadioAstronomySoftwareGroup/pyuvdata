@@ -13,6 +13,8 @@ real-only if non-zero imaginary components are detected.
 and `reorder_jones`.
 
 ### Changed
+- Updated minimum dependency versions: numpy>=1.19, scipy>=1.3, optional dependencies:
+python-casacore>=3.3, pyyam>=5.1, astropy-healpix>=0.6
 - `UVBase` object now require that individual attribute names match that given in
 `UVParameter._name`.
 - `UVData.fix_phase` now raises a warning when called.
