@@ -352,3 +352,10 @@ def test_check_ignore_unset():
     test_obj._unset_int1.required = True
     pytest.raises(ValueError, test_obj.check)
     assert test_obj.check(ignore_requirements=True)
+
+
+def test_name_error():
+    test_obj = UVTest()
+    test_obj._location.name = "place"
+    with pytest.raises(ValueError, match="UVParameter _location does not follow the"):
+        test_obj.check()

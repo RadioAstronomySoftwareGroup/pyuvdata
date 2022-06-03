@@ -355,6 +355,12 @@ class UVBase(object):
 
         for p in p_check:
             param = getattr(self, p)
+            if p != ("_" + param.name):
+                raise ValueError(
+                    "UVParameter %s does not follow the required naming convention"
+                    "(expected be %s)." % ((p, "_" + param.name))
+                )
+
             # Check required parameter exists
             if param.value is None:
                 if ignore_requirements:
