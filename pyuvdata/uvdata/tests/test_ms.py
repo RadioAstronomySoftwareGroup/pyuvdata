@@ -121,6 +121,16 @@ def test_read_nrao_loopback(tmp_path, nrao_uv):
 
     assert uvobj == uvobj2
 
+    # test that the clobber keyword works by rewriting
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Writing in the MS file that the units of the data are",
+            "The uvw_array does not match the expected values",
+        ],
+    ):
+        uvobj.write_ms(testfile, clobber=True)
+
 
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -333,7 +343,7 @@ def test_read_ms_write_miriad(nrao_uv, tmp_path):
     ms_uv = nrao_uv
     miriad_uv = UVData()
     testfile = os.path.join(tmp_path, "outtest_miriad")
-    ms_uv.write_miriad(testfile, clobber=True)
+    ms_uv.write_miriad(testfile)
     miriad_uv.read(testfile)
 
     # make sure filenames are what we expect
@@ -494,7 +504,7 @@ def test_ms_history_lesson(mir_uv, tmp_path):
         "APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n"
         "End measurement set history.\nLine 2.\n"
     )
-    mir_uv.write_ms(testfile, clobber=True)
+    mir_uv.write_ms(testfile)
 
     tb_hist = tables.table(testfile + "/HISTORY", readonly=False, ack=False)
     tb_hist.addrows()
@@ -534,7 +544,7 @@ def test_ms_no_ref_dir_source(mir_uv, tmp_path):
 
     mir_uv.phase_center_frame = "fk5"
     mir_uv._set_app_coords_helper()
-    mir_uv.write_ms(testfile, clobber=True)
+    mir_uv.write_ms(testfile)
     ms_uv.read(testfile)
 
     assert ms_uv.multi_phase_center is False
@@ -557,7 +567,7 @@ def test_ms_multi_spw_data_variation(mir_uv, tmp_path):
     ms_uv = UVData()
     testfile = os.path.join(tmp_path, "out_ms_multi_spw_data_variation.ms")
 
-    mir_uv.write_ms(testfile, clobber=True)
+    mir_uv.write_ms(testfile)
 
     tb_main = tables.table(testfile, readonly=False, ack=False)
     tb_main.putcol("EXPOSURE", np.arange(mir_uv.Nblts * mir_uv.Nspws) + 1.0)
@@ -592,11 +602,10 @@ def test_ms_phasing(mir_uv, future_shapes, tmp_path):
 
     mir_uv.unphase_to_drift()
 
-    with pytest.raises(ValueError) as cm:
-        mir_uv.write_ms(testfile, clobber=True)
-    assert str(cm.value).startswith("The data are in drift mode.")
+    with pytest.raises(ValueError, match="The data are in drift mode."):
+        mir_uv.write_ms(testfile)
 
-    mir_uv.write_ms(testfile, clobber=True, force_phase=True)
+    mir_uv.write_ms(testfile, force_phase=True)
 
     ms_uv.read(testfile)
 
@@ -619,7 +628,7 @@ def test_ms_single_chan(mir_uv, future_shapes, tmp_path):
     testfile = os.path.join(tmp_path, "out_ms_single_chan.ms")
 
     mir_uv.select(freq_chans=0)
-    mir_uv.write_ms(testfile, clobber=True)
+    mir_uv.write_ms(testfile)
     mir_uv.set_lsts_from_time_array()
     mir_uv._set_app_coords_helper()
 
@@ -721,7 +730,7 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
             phase_frame="icrs",
             select_mask=miriad_uv.phase_center_id_array == 0,
         )
-    miriad_uv.write_ms(testfile, clobber=True)
+    miriad_uv.write_ms(testfile)
 
     # Check on the scan number grouping based on consecutive integrations per phase
     # center
@@ -752,7 +761,7 @@ def test_ms_extra_data_descrip(mir_uv, tmp_path):
     ms_uv = UVData()
     testfile = os.path.join(tmp_path, "out_ms_extra_data_descrip.ms")
 
-    mir_uv.write_ms(testfile, clobber=True)
+    mir_uv.write_ms(testfile)
 
     tb_dd = tables.table(
         os.path.join(testfile, "DATA_DESCRIPTION"), ack=False, readonly=False
@@ -812,7 +821,7 @@ def test_ms_weights(mir_uv, tmp_path, onewin):
     mir_uv.nsample_array[0, 0, :, :] = np.tile(
         np.arange(mir_uv.Nfreqs / mir_uv.Nspws), (mir_uv.Npols, mir_uv.Nspws)
     ).T
-    mir_uv.write_ms(testfile, clobber=True)
+    mir_uv.write_ms(testfile)
 
     tb_main = tables.table(testfile, readonly=False, ack=False)
     tb_main.removecols("WEIGHT_SPECTRUM")
@@ -847,7 +856,7 @@ def test_ms_reader_errs(mir_uv, tmp_path, badcol, badval, errtype, msg):
 
     ms_uv = UVData()
     testfile = os.path.join(tmp_path, "out_ms_reader_errs.ms")
-    mir_uv.write_ms(testfile, clobber=True)
+    mir_uv.write_ms(testfile)
 
     data_col = "DATA"
 
