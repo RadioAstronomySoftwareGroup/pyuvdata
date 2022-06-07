@@ -586,13 +586,10 @@ class MirMetaData(object):
         # Grab the name of the class to make the output a bit more human parsable
         name = type(self).__name__
 
-        if not issubclass(other.__class__, MirMetaData):
-            raise ValueError("Both objects must be MirMetaData (sub-) types.")
-
-        # This _should_ be impossible unless the user mucked with the dtype, but
-        # for safety sake, check now.
-        if self.dtype != other.dtype:
-            raise ValueError("Cannot compare %s with different dtypes." % name)
+        if not isinstance(other, self.__class__):
+            raise ValueError(
+                "Cannot compare %s with %s." % (name, type(other).__name__)
+            )
 
         verbose_print = print if verbose else lambda *a, **k: None
 
