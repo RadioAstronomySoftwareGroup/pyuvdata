@@ -96,7 +96,8 @@ def test_mir_meta_init(mir_data):
         # generic read function for MirMetaData here.
         attr = getattr(mir_data, item)
         if item != "antpos_data":
-            new_attr = MirMetaData(
+            # Read in the metadata w/ the generic read
+            meta_attr = MirMetaData(
                 attr._filetype,
                 attr.dtype,
                 attr._header_key,
@@ -104,6 +105,11 @@ def test_mir_meta_init(mir_data):
                 attr._pseudo_header_key,
                 mir_data.filepath,
             )
+            # Now make a placeholder subtype
+            new_attr = type(attr)()
+
+            # Plug in the __dict__, which _should_ transfer over all the writable attrs
+            new_attr.__dict__ = meta_attr.__dict__
             assert attr == new_attr
 
         new_attr = type(attr)(mir_data.filepath)
@@ -144,11 +150,7 @@ def test_mir_meta_copy(mir_in_data):
 
 
 @pytest.mark.parametrize(
-    "comp_obj,err_msg",
-    [
-        [0, "Both objects must be MirMetaData (sub-) types."],
-        [MirMetaData(0, 0, 0), "Cannot compare MirInData with different dtypes."],
-    ],
+    "comp_obj,err_msg", [[0, "Cannot compare MirInData with int."]]
 )
 def test_mir_meta_eq_errs(mir_in_data, comp_obj, err_msg):
     with pytest.raises(ValueError) as err:
