@@ -38,8 +38,10 @@ jobs:
         with:
           path: ~/conda_pkgs_dir
           key:
-            ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
-            hashFiles('./ci/${{ steps.env_name.outputs.ENV_NAME }}.yml') }}
+            ${{ format('{0}-conda-{1}-{2}',
+              runner.os,
+              env.CACHE_NUMBER,
+              hashFiles(format('./ci/{0}.yml'),steps.env_name.outputs.ENV_NAME))) }}
 
       - name: Setup Minimamba
         uses: conda-incubator/setup-miniconda@v2

@@ -34,8 +34,10 @@ jobs:
         with:
           path: ~/conda_pkgs_dir
           key:
-            ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
-            hashFiles('../hera_cal/ci/${{ env.ENV_NAME }}.yml') }}
+            ${{ format('{0}-conda-{1}-{2}',
+              runner.os,
+              env.CACHE_NUMBER,
+              hashFiles(format('../hera_cal/ci/{0}.yml'), env.ENV_NAME))) }}
 
       - name: Setup Minimamba
         uses: conda-incubator/setup-miniconda@v2.0.0
@@ -105,8 +107,10 @@ jobs:
         with:
           path: ~/conda_pkgs_dir
           key:
-            ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
-            hashFiles('../hera_qm/ci/${{ env.ENV_NAME }}.yml') }}
+            ${{ format('{0}-conda-{1}-{2}',
+              runner.os,
+              env.CACHE_NUMBER,
+              hashFiles(format('../hera_qm/ci/{0}.yml'), env.ENV_NAME))) }}
 
       - name: Setup Minimamba
         uses: conda-incubator/setup-miniconda@v2
