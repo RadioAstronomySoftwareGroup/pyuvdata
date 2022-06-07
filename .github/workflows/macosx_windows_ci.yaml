@@ -41,7 +41,7 @@ jobs:
             ${{ format('{0}-conda-{1}-{2}',
               runner.os,
               env.CACHE_NUMBER,
-              hashFiles(format('./ci/{0}.yml'),steps.env_name.outputs.ENV_NAME))) }}
+              hashFiles(format('./ci/{0}.yml',steps.env_name.outputs.ENV_NAME))) }}
 
       - name: Setup Minimamba
         uses: conda-incubator/setup-miniconda@v2

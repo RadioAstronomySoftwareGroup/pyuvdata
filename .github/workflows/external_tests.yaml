@@ -37,7 +37,7 @@ jobs:
             ${{ format('{0}-conda-{1}-{2}',
               runner.os,
               env.CACHE_NUMBER,
-              hashFiles(format('../hera_cal/ci/{0}.yml'), env.ENV_NAME))) }}
+              hashFiles(format('../hera_cal/ci/{0}.yml', env.ENV_NAME))) }}
 
       - name: Setup Minimamba
         uses: conda-incubator/setup-miniconda@v2.0.0
@@ -110,7 +110,7 @@ jobs:
             ${{ format('{0}-conda-{1}-{2}',
               runner.os,
               env.CACHE_NUMBER,
-              hashFiles(format('../hera_qm/ci/{0}.yml'), env.ENV_NAME))) }}
+              hashFiles(format('../hera_qm/ci/{0}.yml', env.ENV_NAME))) }}
 
       - name: Setup Minimamba
         uses: conda-incubator/setup-miniconda@v2
