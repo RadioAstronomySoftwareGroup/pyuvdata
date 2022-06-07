@@ -87,7 +87,7 @@ jobs:
           cd pyuvdata
 
       - name: Setup Minimamba
-        uses: conda-incubator/setup-miniconda@v2.0.0
+        uses: conda-incubator/setup-miniconda@v2
         with:
           miniforge-variant: Mambaforge
           miniforge-version: latest
