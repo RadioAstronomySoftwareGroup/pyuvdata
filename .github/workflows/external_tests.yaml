@@ -24,6 +24,7 @@ jobs:
         run: |
           cd ../
           git clone https://github.com/HERA-Team/hera_cal.git
+          cp hera_cal/ci/${{ env.ENV_NAME }}.yml /pyuvdata/ci/
           cd pyuvdata
 
       - name: Cache conda
@@ -37,7 +38,7 @@ jobs:
             ${{ format('{0}-conda-{1}-{2}',
               runner.os,
               env.CACHE_NUMBER,
-              hashFiles(format('../hera_cal/ci/{0}.yml', env.ENV_NAME))) }}
+              hashFiles(format('./ci/{0}.yml', env.ENV_NAME))) }}
 
       - name: Setup Minimamba
         uses: conda-incubator/setup-miniconda@v2.0.0
@@ -46,7 +47,7 @@ jobs:
           miniforge-version: latest
           use-mamba: true
           python-version: ${{ env.PYTHON }}
-          environment-file: ../hera_cal/ci/${{ env.ENV_NAME }}.yml
+          environment-file: ./ci/${{ env.ENV_NAME }}.yml
           activate-environment: ${{ env.ENV_NAME }}
 
       - name: Conda Info
@@ -97,6 +98,7 @@ jobs:
         run: |
           cd ../
           git clone https://github.com/HERA-Team/hera_qm.git
+          cp hera_qm/ci/${{ env.ENV_NAME }}.yml pyuvdata/ci/
           cd pyuvdata
 
       - name: Cache conda
@@ -110,7 +112,7 @@ jobs:
             ${{ format('{0}-conda-{1}-{2}',
               runner.os,
               env.CACHE_NUMBER,
-              hashFiles(format('../hera_qm/ci/{0}.yml', env.ENV_NAME))) }}
+              hashFiles(format('./ci/{0}.yml', env.ENV_NAME))) }}
 
       - name: Setup Minimamba
         uses: conda-incubator/setup-miniconda@v2
@@ -119,7 +121,7 @@ jobs:
           miniforge-version: latest
           use-mamba: true
           python-version: ${{ env.PYTHON }}
-          environment-file: ../hera_qm/ci/${{ env.ENV_NAME }}.yml
+          environment-file: ./ci/${{ env.ENV_NAME }}.yml
           activate-environment: ${{ env.ENV_NAME }}
 
       - name: Conda Info
