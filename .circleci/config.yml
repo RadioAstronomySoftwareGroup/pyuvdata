@@ -25,7 +25,7 @@ jobs:
       - restore_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
       - run:
-          name: Instal Micromamba
+          name: Install Micromamba
           command: wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | sudo tar -C / -xvj bin/micromamba
       - run:
           name: configure conda environment
@@ -86,7 +86,7 @@ jobs:
       - restore_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
       - run:
-          name: Instal Micromamba
+          name: Install Micromamba
           command: wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | sudo tar -C / -xvj bin/micromamba
       - run:
           name: configure conda environment
@@ -147,7 +147,7 @@ jobs:
       - restore_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
       - run:
-          name: Instal Micromamba
+          name: Install Micromamba
           command: wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | sudo tar -C / -xvj bin/micromamba
       - run:
           name: configure conda environment
