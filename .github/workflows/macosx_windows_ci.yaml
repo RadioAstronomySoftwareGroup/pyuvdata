@@ -30,11 +30,12 @@ jobs:
           fi
         id: env_name
 
-      - name: Setup Miniconda
+      - name: Setup Minimamba
         uses: conda-incubator/setup-miniconda@v2
         with:
-          auto-update-conda: true
-          miniconda-version: "latest"
+          miniforge-variant: Mambaforge
+          miniforge-version: latest
+          use-mamba: true
           python-version: ${{ matrix.python-version }}
           environment-file: ci/${{ steps.env_name.outputs.ENV_NAME }}.yml
           activate-environment: ${{ steps.env_name.outputs.ENV_NAME }}
