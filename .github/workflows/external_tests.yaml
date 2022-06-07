@@ -24,7 +24,7 @@ jobs:
         run: |
           cd ../
           git clone https://github.com/HERA-Team/hera_cal.git
-          cp hera_cal/ci/${{ env.ENV_NAME }}.yml /pyuvdata/ci/
+          cp hera_cal/ci/${{ env.ENV_NAME }}.yml pyuvdata/ci/
           cd pyuvdata
 
       - name: Cache conda
@@ -41,7 +41,7 @@ jobs:
               hashFiles(format('./ci/{0}.yml', env.ENV_NAME))) }}
 
       - name: Setup Minimamba
-        uses: conda-incubator/setup-miniconda@v2.0.0
+        uses: conda-incubator/setup-miniconda@v2
         with:
           miniforge-variant: Mambaforge
           miniforge-version: latest
