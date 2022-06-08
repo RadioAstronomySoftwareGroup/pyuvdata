@@ -3285,11 +3285,15 @@ class MirParser(object):
                                 # case scenario for moving to and from the raw data
                                 # format, which compresses the data down from floats to
                                 # ints.
+                                if np.any(np.isfinite(this_item[subkey])):
+                                    atol = 1e-3 * np.nanmax(np.abs(this_item[subkey]))
+                                else:
+                                    atol = 0
+
                                 is_same &= np.allclose(
                                     this_item[subkey],
                                     othr_item[subkey],
-                                    atol=9.765625e-4
-                                    * np.nanmax(np.abs(this_item[subkey]), initial=0),
+                                    atol=atol,
                                     equal_nan=True,
                                 )
                             else:
