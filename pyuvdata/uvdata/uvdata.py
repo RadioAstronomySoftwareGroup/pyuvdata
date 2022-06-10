@@ -13447,102 +13447,104 @@ class UVData(UVBase):
         )
         del uvh5_obj
 
+    def normalize_by_autos(self):
+        """Normalize cross-correlations by auto-correlation data."""
+        # We need to match baselines in a single integration, so figure out how to
+        # group the data by time.
+        if np.any(self.time_array[:-1] > self.time_array[1:]):
+            # If the data are not in ascending time order, re-org the time values now
+            blt_idx = np.argsort(self.time_array)
+            ordered_time = self.time_array[blt_idx]
+        else:
+            blt_idx = np.arange(self.Nblts)
+            ordered_time = self.time_array
 
-def normalize_by_autos(self):
-    # We need to match baselines in a single integration, so figure out how to
-    # group the data by time.
-    if np.any(self.time_array[:-1] > self.time_array[1:]):
-        # If the data are not in ascending time order, re-org the time values now
-        blt_idx = np.argsort(self.time_array)
-        ordered_time = self.time_array[blt_idx]
-    else:
-        blt_idx = np.arange(self.Nblts)
-        ordered_time = self.time_array
+        # Normally time has a fixed atol, but verify that this is the case
+        time_tol = self._time_array.tols[1]
+        assert self._time_array.tols[0] == 0
 
-    # Normally time has a fixed atol, but verify that this is the case
-    time_tol = self._time_array.tols[1]
-    assert self._time_array.tols[0] == 0
-
-    # Start searching through time, keeping in mind that the data are time ordered.
-    time_groups = []
-    start_idx = end_idx = 0
-    while self.Nblts != start_idx:
-        # Search sorted will find where one would insert the value of the current
-        # time + the time tol, which will give us the ending index of the group.
-        end_idx += np.searchsorted(
-            ordered_time[start_idx:],
-            ordered_time[start_idx] + time_tol,
-            "right",
-        )
-        # Create this new grouping of blts
-        time_groups.append(blt_idx[start_idx:end_idx])
-        start_idx = end_idx
-
-    # Now figure out how the different polarizations map to the autos
-    pol_groups = []
-    pol_list = list(self.polarization_array)
-    for pol in pol_list:
-        try:
-            feed_pols = uvutils.POL_TO_FEED_DICT[uvutils.POL_NUM2STR_DICT[pol]]
-            pol_groups.append(
-                [
-                    pol_list.index(uvutils.POL_STR2NUM_DICT[item + item])
-                    for item in feed_pols
-                ]
+        # Start searching through time, keeping in mind that the data are time ordered.
+        time_groups = []
+        start_idx = end_idx = 0
+        while self.Nblts != start_idx:
+            # Search sorted will find where one would insert the value of the current
+            # time + the time tol, which will give us the ending index of the group.
+            end_idx += np.searchsorted(
+                ordered_time[start_idx:],
+                ordered_time[start_idx] + time_tol,
+                "right",
             )
-        except KeyError:
-            # If we run into a key error, it means that one of the dicts above does not
-            # have a match to the given polarization, in which case assume that this pol
-            # its it's own auto.
-            pol_groups.append([pol_list.index(pol)])
-        except ValueError as err:
-            # If we have an index error, it means that the pol that _would_ be the auto
-            # is not found in the data, in which case we need to throw an error.
-            raise ValueError(
-                "Cannot normalize %s, matching polarizations for autos not found." % pol
-            ) from err
+            # Create this new grouping of blts
+            time_groups.append(blt_idx[start_idx:end_idx])
+            start_idx = end_idx
 
-        # Each pol group contains the index positions for the "auto" polarizations, so
-        # we can grab all of the auto pols by searching for the unique values
-        auto_pols = list(np.unique(pol_groups))
+        # Now figure out how the different polarizations map to the autos
+        pol_groups = []
+        pol_list = list(self.polarization_array)
+        for pol in pol_list:
+            try:
+                feed_pols = uvutils.POL_TO_FEED_DICT[uvutils.POL_NUM2STR_DICT[pol]]
+                pol_groups.append(
+                    [
+                        pol_list.index(uvutils.POL_STR2NUM_DICT[item + item])
+                        for item in feed_pols
+                    ]
+                )
+            except KeyError:
+                # If we run into a key error, it means that one of the dicts above does
+                # not have a match to the given polarization, in which case assume that
+                # this pol its it's own auto.
+                pol_groups.append([pol_list.index(pol)])
+            except ValueError as err:
+                # If we have an index error, it means that the pol that _would_ be the
+                # auto is not found in the data, in which case we  throw an error.
+                raise ValueError(
+                    "Cannot normalize %s, matching pol for autos not found." % pol
+                ) from err
 
-        # Grab references to data and flags, to manipulate later
-        data_arr = self.data_array
-        flag_arr = self.flag_array
-        if not self.future_array_shapes:
-            data_arr = np.squeeze(data_arr, 1)
-            flag_arr = np.squeeze(flag_arr, 1)
+            # Each pol group contains the index positions for the "auto" polarizations,
+            # so we can grab all of the auto pols by searching for the unique values
+            auto_pols = list(np.unique(pol_groups))
 
-        for group in time_groups:
-            # Now start going through the groups
-            ant_1_arr = self.ant_1_array[group]
-            ant_2_arr = self.ant_2_array[group]
-            norm_dict = {}
-            flag_dict = {}
-            for grp_idx, ant1, ant2 in zip(group, ant_1_arr, ant_2_arr):
-                # Tabulate up front the normalization for each auto-correlation
-                # spectrum, which will save some work downstream
-                if ant1 != ant2:
-                    continue
-                norm_dict[ant1] = {}
-                flag_dict[ant1] = {}
-                for pol in auto_pols:
-                    # Autos _should_ be real only
-                    auto_data = data_arr[grp_idx, :, pol].real
-                    auto_flag = flag_arr[grp_idx, :, pol] | (auto_data == 0)
-                    norm_dict[ant1][pol] = np.where(auto_flag, 1, auto_data ** (-0.5))
-                    flag_dict[ant1][pol] = auto_flag
+            # Grab references to data and flags, to manipulate later
+            data_arr = self.data_array
+            flag_arr = self.flag_array
+            if not self.future_array_shapes:
+                data_arr = np.squeeze(data_arr, 1)
+                flag_arr = np.squeeze(flag_arr, 1)
 
-            for grp_idx, ant1, ant2 in zip(group, ant_1_arr, ant_2_arr):
-                try:
-                    for jdx, (pol1, pol2) in enumerate(pol_groups):
-                        # Proceed pol by pol
-                        data_arr[grp_idx, :, jdx] *= (
-                            norm_dict[ant1][pol1] * norm_dict[ant2][pol2]
+            for group in time_groups:
+                # Now start going through the groups
+                ant_1_arr = self.ant_1_array[group]
+                ant_2_arr = self.ant_2_array[group]
+                norm_dict = {}
+                flag_dict = {}
+                for grp_idx, ant1, ant2 in zip(group, ant_1_arr, ant_2_arr):
+                    # Tabulate up front the normalization for each auto-correlation
+                    # spectrum, which will save some work downstream
+                    if ant1 != ant2:
+                        continue
+                    norm_dict[ant1] = {}
+                    flag_dict[ant1] = {}
+                    for pol in auto_pols:
+                        # Autos _should_ be real only
+                        auto_data = data_arr[grp_idx, :, pol].real
+                        auto_flag = flag_arr[grp_idx, :, pol] | (auto_data == 0)
+                        norm_dict[ant1][pol] = np.where(
+                            auto_flag, 1, auto_data ** (-0.5)
                         )
-                        flag_arr[grp_idx, :, jdx] |= (
-                            flag_dict[ant1][pol1] | flag_dict[ant2][pol2]
-                        )
-                except KeyError:
-                    # If no data found for this antenna, then just flag the whole blt
-                    flag_arr[grp_idx] = True
+                        flag_dict[ant1][pol] = auto_flag
+
+                for grp_idx, ant1, ant2 in zip(group, ant_1_arr, ant_2_arr):
+                    try:
+                        for jdx, (pol1, pol2) in enumerate(pol_groups):
+                            # Proceed pol by pol
+                            data_arr[grp_idx, :, jdx] *= (
+                                norm_dict[ant1][pol1] * norm_dict[ant2][pol2]
+                            )
+                            flag_arr[grp_idx, :, jdx] |= (
+                                flag_dict[ant1][pol1] | flag_dict[ant2][pol2]
+                            )
+                    except KeyError:
+                        # If no data found for this antenna, then flag the whole blt
+                        flag_arr[grp_idx] = True
