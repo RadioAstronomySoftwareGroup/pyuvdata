@@ -516,8 +516,9 @@ class MirMetaData(object):
             metadata in the file. Typically used to reference values between MirMetaData
             objects. If set to `None`, no field is used for indexing.
         pseudo_header_key_names : list of str or None
-            Required if `header_key_name` is `None`, used to identify a group of fields,
-            which when taken in combination, can be used as a unique identifier.
+            Required if `header_key_name` is `None`. Used to identify a group of fields,
+            which when taken in combination, can be used as a unique identifier. Can
+            be set either to `None` (if not used) or otherwise a tuple of strings.
         filepath : str
             Optional argument specifying the path to the Mir data folder.
         """
@@ -588,7 +589,9 @@ class MirMetaData(object):
 
         if not isinstance(other, self.__class__):
             raise ValueError(
-                "Cannot compare %s with %s." % (name, type(other).__name__)
+                "Cannot compare {this_type} with {other_type}.".format(
+                    this_type=name, other_type=type(other).__name__
+                )
             )
 
         verbose_print = print if verbose else lambda *a, **k: None
@@ -802,7 +805,7 @@ class MirMetaData(object):
         Returns
         -------
         new_obj : MirMetaData object
-            Copy of the originial object.
+            Copy of the original object.
         """
         # Initialize a new object of the given type
         copy_obj = type(self)()
@@ -1118,7 +1121,7 @@ class MirMetaData(object):
         and_where_args : bool
             If set to True, then the individual calls to the `where` method will be
             combined via an element-wise "and" operator, such that the returned array
-            will report the positions where all criterea are met. If False, results
+            will report the positions where all criteria are met. If False, results
             are instead combined via an element-wise "or" operator. Default is True.
             If supplied, the argument for `mask` will be combined with the output from
             the calls to `where` with the same logic.
@@ -1268,7 +1271,7 @@ class MirMetaData(object):
             "achid",
         ]:
             warnings.warn(
-                "Changing fields that tie to header keys can result in unpredicable "
+                "Changing fields that tie to header keys can result in unpredictable "
                 "behavior, and extreme care should be taken in directly modifying "
                 "them. If you have set this in error, you can undo this by using the "
                 "reset method."
@@ -1326,7 +1329,7 @@ class MirMetaData(object):
         and_where_args : bool
             If set to True, then the individual calls to the `where` method will be
             combined via an element-wise "and" operator, such that the returned array
-            will report the positions where all criterea are met. If False, results
+            will report the positions where all criteria are met. If False, results
             are instead combined via an element-wise "or" operator. Default is True.
             If supplied, the argument for `mask` will be combined with the output from
             the calls to `where` with the same logic.
@@ -1378,7 +1381,7 @@ class MirMetaData(object):
         and_where_args : bool
             If set to True, then the individual calls to the `where` method will be
             combined via an element-wise "and" operator, such that the returned array
-            will report the positions where all criterea are met. If False, results
+            will report the positions where all criteria are met. If False, results
             are instead combined via an element-wise "or" operator. Default is True.
             If supplied, the argument for `mask` will be combined with the output from
             the calls to `where` with the same logic.
@@ -1421,7 +1424,7 @@ class MirMetaData(object):
         ----------
         mask : ndarray of bool
             Optional argument, of the same length as the MirMetaData object, where True
-            marks which index postions to set. Setting this will cause any arguments
+            marks which index positions to set. Setting this will cause any arguments
             passed to `where`, `header_key`, and `index` to be ignored.
         where : tuple of sequence of tuples
             Optional argument, each tuple is used to call the `where` method to identify
@@ -1434,7 +1437,7 @@ class MirMetaData(object):
         and_where_args : bool
             If set to True, then the individual calls to the `where` method will be
             combined via an element-wise "and" operator, such that the returned array
-            will report the positions where all criterea are met. If False, results
+            will report the positions where all criteria are met. If False, results
             are instead combined via an element-wise "or" operator. Default is True.
             If supplied, the argument for `mask` will be combined with the output from
             the calls to `where` with the same logic.
@@ -2128,7 +2131,7 @@ class MirMetaData(object):
         check_index : bool
             Only applicable if `append_data=True`. If set to True and data are being
             appended to an existing file, the method will check to make sure that there
-            are no header key conflicts with the data being being written to disk, since
+            are no header key conflicts with the data being written to disk, since
             this can cause the file to become unusable. Default is False.
 
         Raises
