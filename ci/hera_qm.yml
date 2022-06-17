@@ -1,7 +1,6 @@
 name: hera_qm
 channels:
   - conda-forge
-  - defaults
 dependencies:
   - astropy>=5.0.4
   - astropy-healpix
