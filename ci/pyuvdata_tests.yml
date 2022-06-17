@@ -1,7 +1,6 @@
 name: pyuvdata_tests
 channels:
   - conda-forge
-  - defaults
 dependencies:
   - astropy>=5.0.4
   - astroquery>=0.4.4
