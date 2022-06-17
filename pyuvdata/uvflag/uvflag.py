@@ -61,7 +61,7 @@ def lst_from_uv(uv):
     """
     if not isinstance(uv, (UVCal, UVData)):
         raise ValueError(
-            "Function lst_from_uv can only operate on " "UVCal or UVData object."
+            "Function lst_from_uv can only operate on UVCal or UVData object."
         )
 
     tel = uvtel.get_telescope(uv.telescope_name)
@@ -159,6 +159,9 @@ class UVFlag(UVBase):
         parameter.
     label: str, optional
         String used for labeling the object (e.g. 'FM').
+    use_future_array_shapes : bool
+        Option to convert to the future planned array shapes before the changes go
+        into effect by removing the spectral window axis.
     run_check : bool
         Option to check for the existence and proper shapes of parameters
         after creating UVFlag object.
@@ -171,7 +174,7 @@ class UVFlag(UVBase):
 
     Attributes
     ----------
-     UVParameter objects :
+    UVParameter objects :
         For full list see the UVFlag Parameters Documentation.
         (https://pyuvdata.readthedocs.io/en/latest/uvflag_parameters.html)
         Some are always required, some are required for certain phase_types
@@ -188,6 +191,7 @@ class UVFlag(UVBase):
         waterfall=False,
         history="",
         label="",
+        use_future_array_shapes=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -220,8 +224,8 @@ class UVFlag(UVBase):
 
         desc = (
             "The type of object defines the form of some arrays "
-            " and also how metrics/flags are combined. "
-            'Accepted types:"waterfall", "baseline", "antenna"'
+            "and also how metrics/flags are combined. "
+            "Accepted types:'waterfall', 'baseline', 'antenna'"
         )
         self._type = uvp.UVParameter(
             "type",
@@ -234,7 +238,7 @@ class UVFlag(UVBase):
         self._Ntimes = uvp.UVParameter(
             "Ntimes", description="Number of times", expected_type=int
         )
-        desc = "Number of baselines. " 'Only Required for "baseline" type objects.'
+        desc = "Number of baselines. Only Required for 'baseline' type objects."
         self._Nbls = uvp.UVParameter(
             "Nbls", description=desc, expected_type=int, required=False
         )
@@ -262,51 +266,77 @@ class UVFlag(UVBase):
         )
 
         desc = (
-            "Floating point metric information, only availble in metric mode. "
-            "shape (Nblts, Nspws, Nfreq, Npols)."
+            "Floating point metric information, only available in metric mode. "
+            "The shape depends on the `type` parameter and on the "
+            "`future_array_shapes` parameter. For 'baseline' type objects, "
+            "the shape is (Nblts, 1, Nfreq, Npols) or (Nblts, Nfreqs, Npols) if "
+            "future_array_shapes=True. For 'antenna' type objects, the shape is "
+            "(Nants_data, 1, Nfreqs, Ntimes, Npols) or "
+            "(Nants_data, Nfreqs, Ntimes, Npols) if future_array_shapes=True. "
+            "For 'waterfall' type objects, the shape is (Nfreq, Ntimes, Npols)."
         )
         self._metric_array = uvp.UVParameter(
             "metric_array",
             description=desc,
-            form=("Nblts", "Nspws", "Nfreqs", "Npols"),
+            form=("Nblts", 1, "Nfreqs", "Npols"),
             expected_type=float,
             required=False,
         )
 
         desc = (
-            "Boolean flag, True is flagged, only availble in flag mode. "
-            "shape (Nblts, Nspws, Nfreq, Npols)."
+            "Boolean flag, True is flagged, only available in flag mode. "
+            "The shape depends on the `type` parameter and on the "
+            "`future_array_shapes` parameter. For 'baseline' type objects, "
+            "the shape is (Nblts, 1, Nfreq, Npols) or (Nblts, Nfreqs, Npols) if "
+            "future_array_shapes=True. For 'antenna' type objects, the shape is "
+            "(Nants_data, 1, Nfreqs, Ntimes, Npols) or "
+            "(Nants_data, Nfreqs, Ntimes, Npols) if future_array_shapes=True. "
+            "For 'waterfall' type objects, the shape is (Nfreq, Ntimes, Npols)."
         )
         self._flag_array = uvp.UVParameter(
             "flag_array",
             description=desc,
-            form=("Nblts", "Nspws", "Nfreqs", "Npols"),
+            form=("Nblts", 1, "Nfreqs", "Npols"),
             expected_type=bool,
             required=False,
         )
 
-        desc = "Floating point weight information, shape (Nblts, Nspws, Nfreq, Npols)."
+        desc = (
+            "Floating point weight information, only available in metric mode."
+            "The shape depends on the `type` parameter and on the "
+            "`future_array_shapes` parameter. For 'baseline' type objects, "
+            "the shape is (Nblts, 1, Nfreq, Npols) or (Nblts, Nfreqs, Npols) if "
+            "future_array_shapes=True. For 'antenna' type objects, the shape is "
+            "(Nants_data, 1, Nfreqs, Ntimes, Npols) or "
+            "(Nants_data, Nfreqs, Ntimes, Npols) if future_array_shapes=True. "
+            "For 'waterfall' type objects, the shape is (Nfreq, Ntimes, Npols)."
+        )
         self._weights_array = uvp.UVParameter(
             "weights_array",
             description=desc,
-            form=("Nblts", "Nspws", "Nfreqs", "Npols"),
+            form=("Nblts", 1, "Nfreqs", "Npols"),
             expected_type=float,
         )
 
         desc = (
-            "Floating point weight information about sum of squares of weights"
-            " when weighted data converted from baseline to waterfall  mode."
+            "Floating point weight information about sum of squares of weights "
+            "when weighted data is converted from baseline to waterfall type."
+            "Only available in metric mode, the shape is (Nfreq, Ntimes, Npols)."
         )
+        # TODO: should this be set to None when converting back to baseline or antenna?
+        # If not, should the shape be adjusted?
         self._weights_square_array = uvp.UVParameter(
             "weights_square_array",
             description=desc,
-            form=("Nblts", "Nspws", "Nfreqs", "Npols"),
+            form=("Ntimes", "Nfreqs", "Npols"),
             expected_type=float,
             required=False,
         )
 
         desc = (
-            "Array of times, center of integration, shape (Nblts), " "units Julian Date"
+            "Array of times in Julian Date, center of integration. The shape depends "
+            "on the `type` parameter. For 'baseline' type object, shape is (Nblts), "
+            "for 'antenna' and 'waterfall' type objects, shape is (Ntimes)."
         )
         self._time_array = uvp.UVParameter(
             "time_array",
@@ -316,7 +346,11 @@ class UVFlag(UVBase):
             tols=1e-3 / (60.0 * 60.0 * 24.0),
         )  # 1 ms in days
 
-        desc = "Array of lsts, center of integration, shape (Nblts), " "units radians"
+        desc = (
+            "Array of lsts radians, center of integration. The shape depends "
+            "on the `type` parameter. For 'baseline' type object, shape is (Nblts), "
+            "for 'antenna' and 'waterfall' type objects, shape is (Ntimes)."
+        )
         self._lst_array = uvp.UVParameter(
             "lst_array",
             description=desc,
@@ -326,48 +360,61 @@ class UVFlag(UVBase):
         )
 
         desc = (
-            "Array of first antenna indices, shape (Nblts). "
-            'Only available for "baseline" type objects. '
-            "type = int, 0 indexed"
+            "Array of first antenna numbers, shape (Nblts). Only available for "
+            "'baseline' type objects."
         )
         self._ant_1_array = uvp.UVParameter(
-            "ant_1_array", description=desc, expected_type=int, form=("Nblts",)
+            "ant_1_array",
+            description=desc,
+            expected_type=int,
+            form=("Nblts",),
+            required=False,
         )
         desc = (
-            "Array of second antenna indices, shape (Nblts). "
-            'Only available for "baseline" type objects. '
-            "type = int, 0 indexed"
+            "Array of second antenna numbers, shape (Nblts). Only available for "
+            "'baseline' type objects."
         )
         self._ant_2_array = uvp.UVParameter(
-            "ant_2_array", description=desc, expected_type=int, form=("Nblts",)
+            "ant_2_array",
+            description=desc,
+            expected_type=int,
+            form=("Nblts",),
+            required=False,
         )
 
         desc = (
-            "Array of antenna numbers, shape (Nants_data), "
-            'Only available for "antenna" type objects. '
-            "type = int, 0 indexed"
+            "Array of antenna numbers, shape (Nants_data), only available for "
+            "'antenna' type objects. "
         )
         self._ant_array = uvp.UVParameter(
-            "ant_array", description=desc, expected_type=int, form=("Nants_data",)
+            "ant_array",
+            description=desc,
+            expected_type=int,
+            form=("Nants_data",),
+            required=False,
         )
 
         desc = (
             "Array of baseline indices, shape (Nblts). "
-            'Only available for "baseline" type objects. '
-            "type = int; baseline = 2048 * (ant1+1) + (ant2+1) + 2^16"
+            "Only available for 'baseline' type objects. "
+            "type = int; baseline = 2048 * ant1 + ant2 + 2^16"
         )
         self._baseline_array = uvp.UVParameter(
-            "baseline_array", description=desc, expected_type=int, form=("Nblts",)
+            "baseline_array",
+            description=desc,
+            expected_type=int,
+            form=("Nblts",),
+            required=False,
         )
 
         desc = (
-            "Array of frequencies, center of the channel, "
-            "shape (Nspws, Nfreqs), units Hz"
+            "Array of frequencies in Hz, center of the channel. Shape (1, Nfreqs) or "
+            "(Nfreqs,) if type is 'waterfall' or if future_array_shapes=True."
         )
         self._freq_array = uvp.UVParameter(
             "freq_array",
             description=desc,
-            form=("Nspws", "Nfreqs"),
+            form=(1, "Nfreqs"),
             expected_type=float,
             tols=1e-3,
         )  # mHz
@@ -411,10 +458,18 @@ class UVFlag(UVBase):
             expected_type=dict,
         )
 
+        desc = "Flag indicating that this object is using the future array shapes."
+        self._future_array_shapes = uvp.UVParameter(
+            "future_array_shapes",
+            description=desc,
+            expected_type=bool,
+            value=False,
+        )
+
         # ---antenna information ---
         desc = (
-            "Number of antennas in the array. "
-            'Only available for "baseline" type objects. '
+            "Number of antennas in the array.  Only available for 'baseline' type "
+            "objects, used for calculating baseline numbers. "
             "May be larger than the number of antennas with data."
         )
         self._Nants_telescope = uvp.UVParameter(
@@ -422,12 +477,13 @@ class UVFlag(UVBase):
         )
         desc = (
             "Number of antennas with data present. "
-            'Only available for "baseline" or "antenna" type objects.'
+            "Only available for 'baseline' or 'antenna' type objects."
             "May be smaller than the number of antennas in the array"
         )
         self._Nants_data = uvp.UVParameter(
-            "Nants_data", description=desc, expected_type=int, required=True
+            "Nants_data", description=desc, expected_type=int, required=False
         )
+
         #  --extra information ---
         desc = (
             "Orientation of the physical dipole corresponding to what is "
@@ -468,6 +524,7 @@ class UVFlag(UVBase):
                 waterfall=waterfall,
                 history=history,
                 label=label,
+                use_future_array_shapes=use_future_array_shapes,
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
@@ -480,6 +537,7 @@ class UVFlag(UVBase):
                         copy_flags=copy_flags,
                         waterfall=waterfall,
                         history=history,
+                        use_future_array_shapes=use_future_array_shapes,
                         run_check=run_check,
                         check_extra=check_extra,
                         run_check_acceptability=run_check_acceptability,
@@ -498,6 +556,7 @@ class UVFlag(UVBase):
             self.read(
                 indata,
                 history,
+                use_future_array_shapes=use_future_array_shapes,
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
@@ -510,6 +569,7 @@ class UVFlag(UVBase):
                 waterfall=waterfall,
                 history=history,
                 label=label,
+                use_future_array_shapes=use_future_array_shapes,
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
@@ -523,6 +583,7 @@ class UVFlag(UVBase):
                 waterfall=waterfall,
                 history=history,
                 label=label,
+                use_future_array_shapes=use_future_array_shapes,
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
@@ -583,6 +644,92 @@ class UVFlag(UVBase):
                 np.arange(1, 5)
             )
 
+    def _set_future_array_shapes(self):
+        """
+        Set future_array_shapes to True and adjust required parameters.
+
+        This method should not be called directly by users; instead it is called
+        by file-reading methods and `use_future_array_shapes` to indicate the
+        `future_array_shapes` is True and define expected parameter shapes.
+
+        """
+        self.future_array_shapes = True
+        self._freq_array.form = ("Nfreqs",)
+        data_like_params = ["metric_array", "weights_array", "flag_array"]
+
+        if self.type == "baseline":
+            for param_name in data_like_params:
+                getattr(self, "_" + param_name).form = ("Nblts", "Nfreqs", "Npols")
+        elif self.type == "antenna":
+            for param_name in data_like_params:
+                getattr(self, "_" + param_name).form = (
+                    "Nants_data",
+                    "Nfreqs",
+                    "Ntimes",
+                    "Npols",
+                )
+
+    def use_future_array_shapes(self):
+        """
+        Change the array shapes of this object to match the planned future shapes.
+
+        This method sets allows users to convert to the planned array shapes changes
+        before the changes go into effect. This method sets the `future_array_shapes`
+        parameter on this object to True.
+
+        """
+        self._set_future_array_shapes()
+        if not self.type == "waterfall":
+            # remove the length-1 spw axis for all data-like parameters
+            for param_name in self._data_params:
+                if param_name == "weights_square_array":
+                    continue
+                setattr(self, param_name, (getattr(self, param_name))[:, 0])
+
+            # remove the length-1 spw axis for the freq_array
+            self.freq_array = self.freq_array[0, :]
+
+    def use_current_array_shapes(self):
+        """
+        Change the array shapes of this object to match the current future shapes.
+
+        This method sets allows users to convert back to the current array shapes.
+        This method sets the `future_array_shapes` parameter on this object to False.
+        """
+        self.future_array_shapes = False
+        if not self.type == "waterfall":
+            if self.type == "baseline":
+                for param_name in self._data_params:
+                    if param_name == "weights_square_array":
+                        continue
+                    getattr(self, "_" + param_name).form = (
+                        "Nblts",
+                        1,
+                        "Nfreqs",
+                        "Npols",
+                    )
+            elif self.type == "antenna":
+                for param_name in self._data_params:
+                    if param_name == "weights_square_array":
+                        continue
+                    getattr(self, "_" + param_name).form = (
+                        "Nants_data",
+                        1,
+                        "Nfreqs",
+                        "Ntimes",
+                        "Npols",
+                    )
+
+            for param_name in self._data_params:
+                if param_name == "weights_square_array":
+                    continue
+                setattr(
+                    self, param_name, (getattr(self, param_name))[:, np.newaxis, :, :]
+                )
+
+            self._freq_array.form = (1, "Nfreqs")
+            self.freq_array = self.freq_array[np.newaxis, :]
+
     def _set_mode_flag(self):
         """Set the mode and required parameters consistent with a flag object."""
         self.mode = "flag"
@@ -619,44 +766,18 @@ class UVFlag(UVBase):
         self._Nspws.required = True
         self._Nblts.required = False
 
-        desc = (
-            "Floating point metric information, "
-            "has shape (Nants_data, Nspws, Nfreqs, Ntimes, Npols)."
-        )
-        self._metric_array.desc = desc
-        self._metric_array.form = ("Nants_data", "Nspws", "Nfreqs", "Ntimes", "Npols")
+        if self.future_array_shapes:
+            self._metric_array.form = ("Nants_data", "Nfreqs", "Ntimes", "Npols")
+            self._flag_array.form = ("Nants_data", "Nfreqs", "Ntimes", "Npols")
+            self._weights_array.form = ("Nants_data", "Nfreqs", "Ntimes", "Npols")
+        else:
+            self._metric_array.form = ("Nants_data", 1, "Nfreqs", "Ntimes", "Npols")
+            self._flag_array.form = ("Nants_data", 1, "Nfreqs", "Ntimes", "Npols")
+            self._weights_array.form = ("Nants_data", 1, "Nfreqs", "Ntimes", "Npols")
+            self._freq_array.form = (1, "Nfreqs")
 
-        desc = (
-            "Boolean flag, True is flagged, "
-            "has shape (Nants_data, Nspws, Nfreqs, Ntimes, Npols)."
-        )
-        self._flag_array.desc = desc
-        self._flag_array.form = ("Nants_data", "Nspws", "Nfreqs", "Ntimes", "Npols")
-
-        desc = (
-            "Floating point weight information, "
-            "has shape (Nants_data, Nspws, Nfreqs, Ntimes, Npols)."
-        )
-        self._weights_array.desc = desc
-        self._weights_array.form = ("Nants_data", "Nspws", "Nfreqs", "Ntimes", "Npols")
-
-        desc = (
-            "Array of unique times, center of integration, shape (Ntimes), "
-            "units Julian Date"
-        )
         self._time_array.form = ("Ntimes",)
-
-        desc = (
-            "Array of unique lsts, center of integration, shape (Ntimes), "
-            "units radians"
-        )
         self._lst_array.form = ("Ntimes",)
-
-        desc = (
-            "Array of frequencies, center of the channel, "
-            "shape (Nspws, Nfreqs), units Hz"
-        )
-        self._freq_array.form = ("Nspws", "Nfreqs")
 
     def _set_type_baseline(self):
         """Set the type and required propertis consistent with a baseline object."""
@@ -674,35 +795,19 @@ class UVFlag(UVBase):
         if self.time_array is not None:
             self.Nblts = len(self.time_array)
 
-        desc = "Floating point metric information, shape (Nblts, Nspws, Nfreqs, Npols)."
-        self._metric_array.desc = desc
-        self._metric_array.form = ("Nblts", "Nspws", "Nfreqs", "Npols")
+        if self.future_array_shapes:
+            self._metric_array.form = ("Nblts", "Nfreqs", "Npols")
+            self._flag_array.form = ("Nblts", "Nfreqs", "Npols")
+            self._weights_array.form = ("Nblts", "Nfreqs", "Npols")
 
-        desc = "Boolean flag, True is flagged, shape (Nblts, Nfreqs, Npols)"
-        self._flag_array.desc = desc
-        self._flag_array.form = ("Nblts", "Nspws", "Nfreqs", "Npols")
+        else:
+            self._metric_array.form = ("Nblts", 1, "Nfreqs", "Npols")
+            self._flag_array.form = ("Nblts", 1, "Nfreqs", "Npols")
+            self._weights_array.form = ("Nblts", 1, "Nfreqs", "Npols")
+            self._freq_array.form = (1, "Nfreqs")
 
-        desc = "Floating point weight information, has shape (Nblts, Nfreqs, Npols)."
-        self._weights_array.desc = desc
-        self._weights_array.form = ("Nblts", "Nspws", "Nfreqs", "Npols")
-
-        desc = (
-            "Array of unique times, center of integration, shape (Ntimes), "
-            "units Julian Date"
-        )
         self._time_array.form = ("Nblts",)
-
-        desc = (
-            "Array of unique lsts, center of integration, shape (Ntimes), "
-            "units radians"
-        )
         self._lst_array.form = ("Nblts",)
-
-        desc = (
-            "Array of frequencies, center of the channel, "
-            "shape (Nspws, Nfreqs), units Hz"
-        )
-        self._freq_array.form = ("Nspws", "Nfreqs")
 
     def _set_type_waterfall(self):
         """Set the type and required propertis consistent with a waterfall object."""
@@ -717,42 +822,15 @@ class UVFlag(UVBase):
         self._Nspws.required = False
         self._Nblts.required = False
 
-        desc = "Floating point metric information, shape (Ntimes, Nfreqs, Npols)."
-        self._metric_array.desc = desc
         self._metric_array.form = ("Ntimes", "Nfreqs", "Npols")
-
-        desc = "Boolean flag, True is flagged, shape (Ntimes, Nfreqs, Npols)"
-        self._flag_array.desc = desc
         self._flag_array.form = ("Ntimes", "Nfreqs", "Npols")
-
-        desc = "Floating point weight information, has shape (Ntimes, Nfreqs, Npols)."
-        self._weights_array.desc = desc
         self._weights_array.form = ("Ntimes", "Nfreqs", "Npols")
 
-        desc = (
-            "Floating point weight information about sum of squares of weights"
-            " when weighted data converted from baseline to waterfall  mode."
-            " Has shape (Ntimes, Nfreqs, Npols)."
-        )
-        self._weights_square_array.desc = desc
-        self._weights_square_array.form = ("Ntimes", "Nfreqs", "Npols")
-
-        desc = (
-            "Array of unique times, center of integration, shape (Ntimes), "
-            "units Julian Date"
-        )
         self._time_array.form = ("Ntimes",)
-
-        desc = (
-            "Array of unique lsts, center of integration, shape (Ntimes), "
-            "units radians"
-        )
         self._lst_array.form = ("Ntimes",)
 
-        desc = (
-            "Array of frequencies, center of the channel, " "shape (Nfreqs), units Hz"
-        )
-        self._freq_array.form = ("Nfreqs",)
+        if not self.future_array_shapes:
+            self._freq_array.form = ("Nfreqs",)
 
     def clear_unused_attributes(self):
         """Remove unused attributes.
@@ -854,7 +932,7 @@ class UVFlag(UVBase):
             Antenna numbers corresponding to baseline.
 
         """
-        assert self.type == "baseline", 'Must be "baseline" type UVFlag object.'
+        assert self.type == "baseline", "Must be 'baseline' type UVFlag object."
         return uvutils.baseline_to_antnums(baseline, self.Nants_telescope)
 
     def antnums_to_baseline(self, ant1, ant2, attempt256=False):
@@ -876,19 +954,19 @@ class UVFlag(UVBase):
         int or array of int
             baseline number corresponding to the two antenna numbers.
         """
-        assert self.type == "baseline", 'Must be "baseline" type UVFlag object.'
+        assert self.type == "baseline", "Must be 'baseline' type UVFlag object."
         return uvutils.antnums_to_baseline(
             ant1, ant2, self.Nants_telescope, attempt256=attempt256
         )
 
     def get_baseline_nums(self):
         """Return numpy array of unique baseline numbers in data."""
-        assert self.type == "baseline", 'Must be "baseline" type UVFlag object.'
+        assert self.type == "baseline", "Must be 'baseline' type UVFlag object."
         return np.unique(self.baseline_array)
 
     def get_antpairs(self):
         """Return list of unique antpair tuples (ant1, ant2) in data."""
-        assert self.type == "baseline", 'Must be "baseline" type UVFlag object.'
+        assert self.type == "baseline", "Must be 'baseline' type UVFlag object."
         return list(zip(*self.baseline_to_antnums(self.get_baseline_nums())))
 
     def get_ants(self):
@@ -1089,10 +1167,14 @@ class UVFlag(UVBase):
             darr = self.metric_array
 
         if self.type == "antenna":
+            if self.future_array_shapes:
+                collapse_axes = (0,)
+            else:
+                collapse_axes = (0, 1)
             d, w = uvutils.collapse(
                 darr,
                 method,
-                axis=(0, 1),
+                axis=collapse_axes,
                 weights=self.weights_array,
                 return_weights=True,
             )
@@ -1101,7 +1183,7 @@ class UVFlag(UVBase):
                 self.weights_array = np.swapaxes(w, 0, 1)
         elif self.type == "baseline":
             Nt = len(np.unique(self.time_array))
-            Nf = len(self.freq_array[0, :])
+            Nf = self.freq_array.size
             Np = len(self.polarization_array)
             d = np.zeros((Nt, Nf, Np))
             w = np.zeros((Nt, Nf, Np))
@@ -1177,7 +1259,7 @@ class UVFlag(UVBase):
         Parameters
         ----------
         uv : UVData or UVFlag object
-            Objcet with type baseline to match.
+            Object with type baseline to match.
         force_pol : bool
             If True, will use 1 pol to broadcast to any other pol.
             Otherwise, will require polarizations match.
@@ -1235,19 +1317,34 @@ class UVFlag(UVBase):
         if self.type == "waterfall":
             # Populate arrays
             if self.mode == "flag":
-                if issubclass(uv.__class__, UVData) and uv.future_array_shapes:
-                    arr = np.zeros_like(uv.flag_array[:, np.newaxis, :, :])
+                if (
+                    issubclass(uv.__class__, UVData)
+                    and uv.future_array_shapes != self.future_array_shapes
+                ):
+                    if uv.future_array_shapes:
+                        arr = np.zeros_like(uv.flag_array[:, np.newaxis, :, :])
+                    else:
+                        arr = np.zeros_like(uv.flag_array[:, 0, :, :])
                 else:
                     arr = np.zeros_like(uv.flag_array)
                 sarr = self.flag_array
             elif self.mode == "metric":
-                if issubclass(uv.__class__, UVData) and uv.future_array_shapes:
-                    arr = np.zeros_like(
-                        uv.flag_array[:, np.newaxis, :, :], dtype=np.float64
-                    )
-                    warr = np.zeros_like(
-                        uv.flag_array[:, np.newaxis, :, :], dtype=np.float64
-                    )
+                if (
+                    issubclass(uv.__class__, UVData)
+                    and uv.future_array_shapes != self.future_array_shapes
+                ):
+                    if uv.future_array_shapes:
+                        arr = np.zeros_like(
+                            uv.flag_array[:, np.newaxis, :, :], dtype=np.float64
+                        )
+                        warr = np.zeros_like(
+                            uv.flag_array[:, np.newaxis, :, :], dtype=np.float64
+                        )
+                    else:
+                        arr = np.zeros_like(uv.flag_array[:, 0, :, :], dtype=np.float64)
+                        warr = np.zeros_like(
+                            uv.flag_array[:, 0, :, :], dtype=np.float64
+                        )
                 else:
                     arr = np.zeros_like(uv.flag_array, dtype=np.float64)
                     warr = np.zeros_like(uv.flag_array, dtype=np.float64)
@@ -1261,22 +1358,23 @@ class UVFlag(UVBase):
                         atol=max(self._time_array.tols[1], uv._time_array.tols[1]),
                     )
                 )
-                arr[ti, :, :, :] = sarr[i, :, :][np.newaxis, np.newaxis, :, :]
-                if self.mode == "metric":
-                    warr[ti, :, :, :] = self.weights_array[i, :, :][
-                        np.newaxis, np.newaxis, :, :
-                    ]
+                if self.future_array_shapes:
+                    arr[ti] = sarr[i][np.newaxis, :, :]
+                    if self.mode == "metric":
+                        warr[ti] = self.weights_array[i][np.newaxis, :, :]
+                else:
+                    arr[ti] = sarr[i][np.newaxis, np.newaxis, :, :]
+                    if self.mode == "metric":
+                        warr[ti] = self.weights_array[i][np.newaxis, np.newaxis, :, :]
             if self.mode == "flag":
                 self.flag_array = arr
             elif self.mode == "metric":
                 self.metric_array = arr
                 self.weights_array = warr
-
         elif self.type == "antenna":
             if self.mode == "metric":
                 raise NotImplementedError(
-                    "Cannot currently convert from "
-                    "antenna type, metric mode to "
+                    "Cannot currently convert from antenna type, metric mode to "
                     "baseline type UVFlag object."
                 )
             else:
@@ -1291,9 +1389,14 @@ class UVFlag(UVBase):
                     new_flags = np.full(flag_shape, True, dtype=bool)
                     self.flag_array = np.append(self.flag_array, new_flags, axis=0)
 
-                baseline_flags = np.full(
-                    (uv.Nblts, self.Nspws, self.Nfreqs, self.Npols), True, dtype=bool
-                )
+                if self.future_array_shapes:
+                    baseline_flags = np.full(
+                        (uv.Nblts, self.Nfreqs, self.Npols), True, dtype=bool
+                    )
+                else:
+                    baseline_flags = np.full(
+                        (uv.Nblts, 1, self.Nfreqs, self.Npols), True, dtype=bool
+                    )
 
                 for t_index, bl in enumerate(uv.baseline_array):
                     uvf_t_index = np.nonzero(
@@ -1310,18 +1413,25 @@ class UVFlag(UVBase):
                         ant1, ant2 = uv.baseline_to_antnums(bl)
                         ant1_index = np.nonzero(np.array(self.ant_array) == ant1)
                         ant2_index = np.nonzero(np.array(self.ant_array) == ant2)
-                        or_flag = np.logical_or(
-                            self.flag_array[ant1_index, :, :, uvf_t_index, :],
-                            self.flag_array[ant2_index, :, :, uvf_t_index, :],
-                        )
+                        if self.future_array_shapes:
+                            or_flag = np.logical_or(
+                                self.flag_array[ant1_index, :, uvf_t_index, :],
+                                self.flag_array[ant2_index, :, uvf_t_index, :],
+                            )
+                        else:
+                            or_flag = np.logical_or(
+                                self.flag_array[ant1_index, :, :, uvf_t_index, :],
+                                self.flag_array[ant2_index, :, :, uvf_t_index, :],
+                            )
 
-                        baseline_flags[t_index, :, :, :] = or_flag.copy()
+                        baseline_flags[t_index] = or_flag.copy()
 
                 self.flag_array = baseline_flags
 
         # Check the frequency array for Nspws, otherwise broadcast to 1,Nfreqs
-        self.freq_array = np.atleast_2d(self.freq_array)
-        self.Nspws = self.freq_array.shape[0]
+        if not self.future_array_shapes:
+            self.freq_array = np.atleast_2d(self.freq_array)
+        self.Nspws = 1
 
         self.baseline_array = uv.baseline_array
         self.Nbls = np.unique(self.baseline_array).size
@@ -1426,24 +1536,40 @@ class UVFlag(UVBase):
                 raise ValueError("Polarizations could not be made to match.")
         # Populate arrays
         if self.mode == "flag":
-            self.flag_array = np.swapaxes(self.flag_array, 0, 1)[
-                np.newaxis, np.newaxis, :, :, :
-            ]
+            if self.future_array_shapes:
+                self.flag_array = np.swapaxes(self.flag_array, 0, 1)[
+                    np.newaxis, :, :, :
+                ]
+            else:
+                self.flag_array = np.swapaxes(self.flag_array, 0, 1)[
+                    np.newaxis, np.newaxis, :, :, :
+                ]
             self.flag_array = self.flag_array.repeat(len(uv.ant_array), axis=0)
         elif self.mode == "metric":
-            self.metric_array = np.swapaxes(self.metric_array, 0, 1)[
-                np.newaxis, np.newaxis, :, :, :
-            ]
+            if self.future_array_shapes:
+                self.metric_array = np.swapaxes(self.metric_array, 0, 1)[
+                    np.newaxis, :, :, :
+                ]
+                self.weights_array = np.swapaxes(self.weights_array, 0, 1)[
+                    np.newaxis, :, :, :
+                ]
+            else:
+                self.metric_array = np.swapaxes(self.metric_array, 0, 1)[
+                    np.newaxis, np.newaxis, :, :, :
+                ]
+                self.weights_array = np.swapaxes(self.weights_array, 0, 1)[
+                    np.newaxis, np.newaxis, :, :, :
+                ]
             self.metric_array = self.metric_array.repeat(len(uv.ant_array), axis=0)
-            self.weights_array = np.swapaxes(self.weights_array, 0, 1)[
-                np.newaxis, np.newaxis, :, :, :
-            ]
             self.weights_array = self.weights_array.repeat(len(uv.ant_array), axis=0)
         self.ant_array = uv.ant_array
         self.Nants_data = len(uv.ant_array)
         # Check the frequency array for Nspws, otherwise broadcast to 1,Nfreqs
-        self.freq_array = np.atleast_2d(self.freq_array)
-        self.Nspws = self.freq_array.shape[0]
+        if self.future_array_shapes:
+            self.freq_array = self.freq_array
+        else:
+            self.freq_array = np.atleast_2d(self.freq_array)
+        self.Nspws = 1
 
         self._set_type_antenna()
         self.history += 'Broadcast to type "antenna". '
@@ -1550,15 +1676,25 @@ class UVFlag(UVBase):
                     for i in range(self.Npols):
                         for ap in self.get_antpairs():
                             inds = self.antpair2ind(*ap)
-                            self.weights_array[inds, 0, :, i] *= ~and_rows_cols(
-                                self.flag_array[inds, 0, :, i]
-                            )
+                            if self.future_array_shapes:
+                                self.weights_array[inds, :, i] *= ~and_rows_cols(
+                                    self.flag_array[inds, :, i]
+                                )
+                            else:
+                                self.weights_array[inds, 0, :, i] *= ~and_rows_cols(
+                                    self.flag_array[inds, 0, :, i]
+                                )
                 elif self.type == "antenna":
                     for i in range(self.Npols):
                         for j in range(self.weights_array.shape[0]):
-                            self.weights_array[j, 0, :, :, i] *= ~and_rows_cols(
-                                self.flag_array[j, 0, :, :, i]
-                            )
+                            if self.future_array_shapes:
+                                self.weights_array[j, :, :, i] *= ~and_rows_cols(
+                                    self.flag_array[j, :, :, i]
+                                )
+                            else:
+                                self.weights_array[j, 0, :, :, i] *= ~and_rows_cols(
+                                    self.flag_array[j, 0, :, :, i]
+                                )
         else:
             raise ValueError(
                 "Unknown UVFlag mode: " + self.mode + ". Cannot convert to metric."
@@ -1629,6 +1765,14 @@ class UVFlag(UVBase):
                 "added to object of mode " + this.type + "."
             )
 
+        # check that both objects have the same array shapes
+        if this.future_array_shapes != other.future_array_shapes:
+            raise ValueError(
+                "Both objects must have the same `future_array_shapes` parameter. "
+                "Use the `use_future_array_shapes` or `use_current_array_shapes` "
+                "methods to convert them."
+            )
+
         # Update filename parameter
         this.filename = uvutils._combine_filenames(this.filename, other.filename)
         if this.filename is not None:
@@ -1637,15 +1781,26 @@ class UVFlag(UVBase):
         # Simplify axis referencing
         axis = axis.lower()
         type_nums = {"waterfall": 0, "baseline": 1, "antenna": 2}
-        axis_nums = {
-            "time": [0, 0, 3],
-            "baseline": [None, 0, None],
-            "antenna": [None, None, 0],
-            "frequency": [1, 2, 2],
-            "polarization": [2, 3, 4],
-            "pol": [2, 3, 4],
-            "jones": [2, 3, 4],
-        }
+        if self.future_array_shapes:
+            axis_nums = {
+                "time": [0, 0, 2],
+                "baseline": [None, 0, None],
+                "antenna": [None, None, 0],
+                "frequency": [1, 1, 1],
+                "polarization": [2, 2, 3],
+                "pol": [2, 2, 3],
+                "jones": [2, 2, 3],
+            }
+        else:
+            axis_nums = {
+                "time": [0, 0, 3],
+                "baseline": [None, 0, None],
+                "antenna": [None, None, 0],
+                "frequency": [1, 2, 2],
+                "polarization": [2, 3, 4],
+                "pol": [2, 3, 4],
+                "jones": [2, 3, 4],
+            }
         ax = axis_nums[axis][type_nums[self.type]]
         if axis == "time":
             this.time_array = np.concatenate([this.time_array, other.time_array])
@@ -1768,9 +1923,9 @@ class UVFlag(UVBase):
             other,
             inplace=True,
             axis=axis,
-            run_check=True,
-            check_extra=True,
-            run_check_acceptability=True,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
         )
         return self
 
@@ -2014,7 +2169,7 @@ class UVFlag(UVBase):
                 )
             if bls is not None:
                 raise ValueError(
-                    "Cannot select on bls with waterfall type " "UVFlag objects."
+                    "Cannot select on bls with waterfall type UVFlag objects."
                 )
 
         if ant_str is not None:
@@ -2258,10 +2413,10 @@ class UVFlag(UVBase):
             freq_inds = np.zeros(0, dtype=np.int64)
             # this works because we only allow one SPW. This will have to be
             # reworked when we support more.
-            if self.type != "waterfall":
+            if self.type != "waterfall" and not self.future_array_shapes:
                 freq_arr_use = self.freq_array[0, :]
             else:
-                freq_arr_use = self.freq_array[:]
+                freq_arr_use = self.freq_array
             for f in frequencies:
                 if f in freq_arr_use:
                     freq_inds = np.append(freq_inds, np.where(freq_arr_use == f)[0])
@@ -2349,7 +2504,7 @@ class UVFlag(UVBase):
 
         if freq_inds is not None:
             self.Nfreqs = len(freq_inds)
-            if self.type != "waterfall":
+            if self.type != "waterfall" and not self.future_array_shapes:
                 self.freq_array = self.freq_array[:, freq_inds]
             else:
                 self.freq_array = self.freq_array[freq_inds]
@@ -2494,57 +2649,87 @@ class UVFlag(UVBase):
                 for param_name, param in zip(
                     self._data_params, uv_object.data_like_parameters
                 ):
-                    setattr(uv_object, param_name, param[blt_inds, :, :, :])
+                    setattr(uv_object, param_name, param[blt_inds])
             if self.type == "waterfall":
                 for param_name, param in zip(
                     self._data_params, uv_object.data_like_parameters
                 ):
-                    setattr(uv_object, param_name, param[blt_inds, :, :])
+                    setattr(uv_object, param_name, param[blt_inds])
             if self.type == "antenna":
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
-                ):
-                    setattr(uv_object, param_name, param[:, :, :, blt_inds, :])
+                if self.future_array_shapes:
+                    for param_name, param in zip(
+                        self._data_params, uv_object.data_like_parameters
+                    ):
+                        setattr(uv_object, param_name, param[:, :, blt_inds, :])
+                else:
+                    for param_name, param in zip(
+                        self._data_params, uv_object.data_like_parameters
+                    ):
+                        setattr(uv_object, param_name, param[:, :, :, blt_inds, :])
 
         if ant_inds is not None and self.type == "antenna":
             for param_name, param in zip(
                 self._data_params, uv_object.data_like_parameters
             ):
-                setattr(uv_object, param_name, param[ant_inds, :, :, :])
+                setattr(uv_object, param_name, param[ant_inds])
 
         if freq_inds is not None:
             if self.type == "baseline":
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
-                ):
-                    setattr(uv_object, param_name, param[:, :, freq_inds, :])
+                if self.future_array_shapes:
+                    for param_name, param in zip(
+                        self._data_params, uv_object.data_like_parameters
+                    ):
+                        setattr(uv_object, param_name, param[:, freq_inds, :])
+                else:
+                    for param_name, param in zip(
+                        self._data_params, uv_object.data_like_parameters
+                    ):
+                        setattr(uv_object, param_name, param[:, :, freq_inds, :])
             if self.type == "waterfall":
                 for param_name, param in zip(
                     self._data_params, uv_object.data_like_parameters
                 ):
                     setattr(uv_object, param_name, param[:, freq_inds, :])
             if self.type == "antenna":
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
-                ):
-                    setattr(uv_object, param_name, param[:, :, freq_inds, :, :])
+                if self.future_array_shapes:
+                    for param_name, param in zip(
+                        self._data_params, uv_object.data_like_parameters
+                    ):
+                        setattr(uv_object, param_name, param[:, freq_inds, :, :])
+                else:
+                    for param_name, param in zip(
+                        self._data_params, uv_object.data_like_parameters
+                    ):
+                        setattr(uv_object, param_name, param[:, :, freq_inds, :, :])
 
         if pol_inds is not None:
             if self.type == "baseline":
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
-                ):
-                    setattr(uv_object, param_name, param[:, :, :, pol_inds])
+                if self.future_array_shapes:
+                    for param_name, param in zip(
+                        self._data_params, uv_object.data_like_parameters
+                    ):
+                        setattr(uv_object, param_name, param[:, :, pol_inds])
+                else:
+                    for param_name, param in zip(
+                        self._data_params, uv_object.data_like_parameters
+                    ):
+                        setattr(uv_object, param_name, param[:, :, :, pol_inds])
             if self.type == "waterfall":
                 for param_name, param in zip(
                     self._data_params, uv_object.data_like_parameters
                 ):
                     setattr(uv_object, param_name, param[:, :, pol_inds])
             if self.type == "antenna":
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
-                ):
-                    setattr(uv_object, param_name, param[:, :, :, :, pol_inds])
+                if self.future_array_shapes:
+                    for param_name, param in zip(
+                        self._data_params, uv_object.data_like_parameters
+                    ):
+                        setattr(uv_object, param_name, param[:, :, :, pol_inds])
+                else:
+                    for param_name, param in zip(
+                        self._data_params, uv_object.data_like_parameters
+                    ):
+                        setattr(uv_object, param_name, param[:, :, :, :, pol_inds])
 
         # check if object is uv_object-consistent
         if run_check:
@@ -2559,6 +2744,7 @@ class UVFlag(UVBase):
         self,
         filename,
         history="",
+        use_future_array_shapes=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -2571,6 +2757,9 @@ class UVFlag(UVBase):
             The file name to read.
         history : str
             History string to append to UVFlag history attribute.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after reading data.
@@ -2648,12 +2837,32 @@ class UVFlag(UVBase):
 
                 self.lst_array = header["lst_array"][()]
 
+                # read data arrays to figure out if the file has future shapes or not
+                future_shapes_ndim = {"antenna": 4, "baseline": 3}
+                dgrp = f["/Data"]
+                if self.mode == "metric":
+                    self.metric_array = dgrp["metric_array"][()]
+                    if self.type != "waterfall":
+                        if self.metric_array.ndim == future_shapes_ndim[self.type]:
+                            self._set_future_array_shapes()
+
+                    self.weights_array = dgrp["weights_array"][()]
+                    if "weights_square_array" in dgrp:
+                        self.weights_square_array = dgrp["weights_square_array"][()]
+                elif self.mode == "flag":
+                    self.flag_array = dgrp["flag_array"][()]
+                    if self.type != "waterfall":
+                        if self.flag_array.ndim == future_shapes_ndim[self.type]:
+                            self._set_future_array_shapes()
+
                 self.freq_array = header["freq_array"][()]
                 # older save files will not have this spws axis
                 # at least_2d will preserve shape of 2d arrays and
                 # promote 1D to (1, Nfreqs)
-                if self.type != "waterfall":
+                if self.type != "waterfall" and not self.future_array_shapes:
                     self.freq_array = np.atleast_2d(self.freq_array)
+                elif self.freq_array.ndim > 1:
+                    self.freq_array = self.freq_array[0]
 
                 if "Nfreqs" in header.keys():
                     self.Nfreqs = int(header["Nfreqs"][()])
@@ -2715,14 +2924,6 @@ class UVFlag(UVBase):
 
                     self.Nbls = np.unique(self.baseline_array).size
 
-                    try:
-                        self.Nants_telescope = int(header["Nants_telescope"][()])
-                    except KeyError:
-                        warnings.warn(
-                            "Nants_telescope not available in file, " "assuming < 2048."
-                        )
-                        self.Nants_telescope = 2047
-
                     if "Nants_data" in header.keys():
                         self.Nants_data = int(header["Nants_data"][()])
                     else:
@@ -2731,6 +2932,14 @@ class UVFlag(UVBase):
                                 np.union1d(self.ant_1_array, self.ant_2_array)
                             ).size
                         )
+
+                    try:
+                        self.Nants_telescope = int(header["Nants_telescope"][()])
+                    except KeyError:
+                        warnings.warn(
+                            "Nants_telescope not available in file, using Nants_data."
+                        )
+                        self.Nants_telescope = self.Nants_data
 
                     if "Nspws" in header.keys():
                         self.Nspws = int(header["Nspws"][()])
@@ -2753,15 +2962,13 @@ class UVFlag(UVBase):
                     else:
                         self.Nspws = np.shape(self.freq_array)[0]
 
-                dgrp = f["/Data"]
-                if self.mode == "metric":
-                    self.metric_array = dgrp["metric_array"][()]
-                    self.weights_array = dgrp["weights_array"][()]
-                    if "weights_square_array" in dgrp:
-                        self.weights_square_array = dgrp["weights_square_array"][()]
-                elif self.mode == "flag":
-                    self.flag_array = dgrp["flag_array"][()]
             self.clear_unused_attributes()
+
+            if use_future_array_shapes != self.future_array_shapes:
+                if use_future_array_shapes:
+                    self.use_future_array_shapes()
+                else:
+                    self.use_current_array_shapes()
 
             if run_check:
                 self.check(
@@ -2886,6 +3093,7 @@ class UVFlag(UVBase):
         waterfall=False,
         history="",
         label="",
+        use_future_array_shapes=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -2908,6 +3116,9 @@ class UVFlag(UVBase):
             History string to attach to object.
         label: str, optional
             String used for labeling the object (e.g. 'FM').
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after creating UVFlag object.
@@ -2934,6 +3145,9 @@ class UVFlag(UVBase):
                 "Input mode must be within acceptable values: "
                 "{}".format((", ").join(self._mode.acceptable_vals))
             )
+
+        if use_future_array_shapes:
+            self._set_future_array_shapes()
 
         if waterfall:
             self._set_type_waterfall()
@@ -2998,10 +3212,16 @@ class UVFlag(UVBase):
             self.lst_array = indata.lst_array
             self.Ntimes = np.unique(self.time_array).size
 
-            if indata.future_array_shapes:
+            if self.future_array_shapes == indata.future_array_shapes:
+                # match on future shape
+                self.freq_array = indata.freq_array
+            elif indata.future_array_shapes:
+                # input is future shaped, self is not
                 self.freq_array = indata.freq_array[np.newaxis, :]
             else:
-                self.freq_array = indata.freq_array
+                # input is not future shaped, self is
+                self.freq_array = indata.freq_array[0, :]
+
             self.Nfreqs = indata.Nfreqs
             self.Nspws = indata.Nspws
 
@@ -3009,10 +3229,12 @@ class UVFlag(UVBase):
             self.Npols = len(self.polarization_array)
             self.Nants_telescope = indata.Nants_telescope
             if copy_flags:
-                if indata.future_array_shapes:
+                if self.future_array_shapes == indata.future_array_shapes:
+                    self.flag_array = indata.flag_array
+                elif indata.future_array_shapes:
                     self.flag_array = indata.flag_array[:, np.newaxis, :, :]
                 else:
-                    self.flag_array = indata.flag_array
+                    self.flag_array = indata.flag_array[:, 0, :, :]
                 self.history += (
                     " Flags copied from " + str(indata.__class__) + " object."
                 )
@@ -3022,7 +3244,10 @@ class UVFlag(UVBase):
                     )
                     self._set_mode_flag()
             else:
-                array_shape = (self.Nblts, self.Nspws, self.Nfreqs, self.Npols)
+                if self.future_array_shapes:
+                    array_shape = (self.Nblts, self.Nfreqs, self.Npols)
+                else:
+                    array_shape = (self.Nblts, 1, self.Nfreqs, self.Npols)
                 if self.mode == "flag":
                     self.flag_array = np.zeros(array_shape, dtype=np.bool_)
                 elif self.mode == "metric":
@@ -3060,6 +3285,7 @@ class UVFlag(UVBase):
         waterfall=False,
         history="",
         label="",
+        use_future_array_shapes=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -3082,6 +3308,9 @@ class UVFlag(UVBase):
             History string to attach to object.
         label: str, optional
             String used for labeling the object (e.g. 'FM').
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after creating UVFlag object.
@@ -3109,6 +3338,9 @@ class UVFlag(UVBase):
                 "{}".format((", ").join(self._mode.acceptable_vals))
             )
 
+        if use_future_array_shapes:
+            self._set_future_array_shapes()
+
         if waterfall:
             self._set_type_waterfall()
             self.history += 'Flag object with type "waterfall" created. '
@@ -3119,7 +3351,10 @@ class UVFlag(UVBase):
 
             self.time_array, ri = np.unique(indata.time_array, return_index=True)
             self.Ntimes = len(self.time_array)
-            self.freq_array = indata.freq_array[0, :]
+            if indata.future_array_shapes:
+                self.freq_array = indata.freq_array
+            else:
+                self.freq_array = indata.freq_array[0, :]
             self.Nspws = None
             self.Nfreqs = len(self.freq_array)
             self.Nblts = len(self.time_array)
@@ -3166,14 +3401,28 @@ class UVFlag(UVBase):
             self.Ntimes = np.unique(self.time_array).size
             self.Nblts = self.Ntimes
 
-            self.freq_array = indata.freq_array
+            if self.future_array_shapes == indata.future_array_shapes:
+                # match on future shape
+                self.freq_array = indata.freq_array
+            elif indata.future_array_shapes:
+                # input is future shaped, self is not
+                self.freq_array = indata.freq_array[np.newaxis, :]
+            else:
+                # input is not future shaped, self is
+                self.freq_array = indata.freq_array[0, :]
+
             self.Nspws = indata.Nspws
             self.Nfreqs = np.unique(self.freq_array).size
 
             self.polarization_array = indata.jones_array
             self.Npols = len(self.polarization_array)
             if copy_flags:
-                self.flag_array = indata.flag_array
+                if self.future_array_shapes == indata.future_array_shapes:
+                    self.flag_array = indata.flag_array
+                elif indata.future_array_shapes:
+                    self.flag_array = indata.flag_array[:, np.newaxis, :, :]
+                else:
+                    self.flag_array = indata.flag_array[:, 0, :, :]
                 self.history += (
                     " Flags copied from " + str(indata.__class__) + " object."
                 )
@@ -3183,12 +3432,26 @@ class UVFlag(UVBase):
                     )
                     self._set_mode_flag()
             else:
-                if self.mode == "flag":
-                    self.flag_array = np.zeros_like(indata.flag_array)
-                elif self.mode == "metric":
-                    self.metric_array = np.zeros_like(indata.flag_array).astype(
-                        np.float64
+                if self.future_array_shapes:
+                    array_shape = (
+                        self.Nants_data,
+                        self.Nfreqs,
+                        self.Ntimes,
+                        self.Npols,
                     )
+                else:
+                    array_shape = (
+                        self.Nants_data,
+                        1,
+                        self.Nfreqs,
+                        self.Ntimes,
+                        self.Npols,
+                    )
+                if self.mode == "flag":
+                    self.flag_array = np.zeros(array_shape, dtype=np.bool_)
+                elif self.mode == "metric":
+                    self.metric_array = np.zeros(array_shape, dtype=np.float64)
+
         if self.mode == "metric":
             self.weights_array = np.ones(self.metric_array.shape)
 
