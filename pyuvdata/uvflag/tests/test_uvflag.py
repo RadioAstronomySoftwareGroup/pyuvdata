@@ -151,6 +151,31 @@ def test_outfile(tmp_path):
 
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("obj_type", ["baseline", "antenna", "waterfall"])
+def test_future_shapes(obj_type, uvf_from_data, uvf_from_uvcal, uvf_from_waterfall):
+    if obj_type == "baseline":
+        uvf = uvf_from_data
+    elif obj_type == "antenna":
+        uvf = uvf_from_uvcal
+    else:
+        uvf = uvf_from_waterfall
+
+    uvf.weights_square_array = np.ones(
+        uvf._weights_square_array.expected_shape(uvf), dtype=float
+    )
+    uvf.use_future_array_shapes()
+    uvf.check()
+
+    uvf.use_current_array_shapes()
+    uvf.check()
+
+    uvf2 = uvf.copy()
+
+    assert uvf == uvf2
+
+
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_check_flag_array(uvdata_obj):
     uvf = UVFlag()
     uvf.from_uvdata(uvdata_obj, mode="flag")
@@ -234,29 +259,40 @@ def test_init_uvdata_x_orientation(uvdata_obj):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_init_uvdata_copy_flags(uvdata_obj, future_shapes):
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
+@pytest.mark.parametrize("uvd_future_shapes", [True, False])
+@pytest.mark.parametrize("uvf_future_shapes", [True, False])
+def test_init_uvdata_copy_flags(uvdata_obj, uvd_future_shapes, uvf_future_shapes):
     uv = uvdata_obj
 
-    if future_shapes:
+    if uvd_future_shapes:
         uv.use_future_array_shapes()
 
     with uvtest.check_warnings(UserWarning, 'Copying flags to type=="baseline"'):
-        uvf = UVFlag(uv, copy_flags=True, mode="metric")
+        uvf = UVFlag(
+            uv,
+            copy_flags=True,
+            mode="metric",
+            use_future_array_shapes=uvf_future_shapes,
+        )
     #  with copy flags uvf.metric_array should be none
     assert hasattr(uvf, "metric_array")
     assert uvf.metric_array is None
-    if future_shapes:
-        assert np.array_equal(uvf.flag_array[:, 0, :, :], uv.flag_array)
-    else:
+    if uvd_future_shapes == uvf_future_shapes:
         assert np.array_equal(uvf.flag_array, uv.flag_array)
+    elif uvd_future_shapes:
+        assert np.array_equal(uvf.flag_array[:, 0], uv.flag_array)
+    else:
+        assert np.array_equal(uvf.flag_array, uv.flag_array[:, 0])
     assert uvf.weights_array is None
     assert uvf.type == "baseline"
     assert uvf.mode == "flag"
     assert np.all(uvf.time_array == uv.time_array)
     assert np.all(uvf.lst_array == uv.lst_array)
-    if future_shapes:
+    if uvd_future_shapes == uvf_future_shapes:
         assert np.all(uvf.freq_array == uv.freq_array)
+    elif uvd_future_shapes:
+        assert np.all(uvf.freq_array[0] == uv.freq_array)
     else:
         assert np.all(uvf.freq_array == uv.freq_array[0])
     assert np.all(uvf.polarization_array == uv.polarization_array)
@@ -268,20 +304,38 @@ def test_init_uvdata_copy_flags(uvdata_obj, future_shapes):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_init_uvdata_mode_flag(uvdata_obj):
+@pytest.mark.parametrize("uvd_future_shapes", [True, False])
+@pytest.mark.parametrize("uvf_future_shapes", [True, False])
+def test_init_uvdata_mode_flag(uvdata_obj, uvd_future_shapes, uvf_future_shapes):
     uv = uvdata_obj
+
+    if uvd_future_shapes:
+        uv.use_future_array_shapes()
+
     uvf = UVFlag()
-    uvf.from_uvdata(uv, copy_flags=False, mode="flag")
+    uvf.from_uvdata(
+        uv, copy_flags=False, mode="flag", use_future_array_shapes=uvf_future_shapes
+    )
     #  with copy flags uvf.metric_array should be none
     assert hasattr(uvf, "metric_array")
     assert uvf.metric_array is None
-    assert np.array_equal(uvf.flag_array, uv.flag_array)
+    if uvd_future_shapes == uvf_future_shapes:
+        assert np.array_equal(uvf.flag_array, uv.flag_array)
+    elif uvd_future_shapes:
+        assert np.array_equal(uvf.flag_array[:, 0], uv.flag_array)
+    else:
+        assert np.array_equal(uvf.flag_array, uv.flag_array[:, 0])
     assert uvf.weights_array is None
     assert uvf.type == "baseline"
     assert uvf.mode == "flag"
     assert np.all(uvf.time_array == uv.time_array)
     assert np.all(uvf.lst_array == uv.lst_array)
-    assert np.all(uvf.freq_array == uv.freq_array[0])
+    if uvd_future_shapes == uvf_future_shapes:
+        assert np.all(uvf.freq_array == uv.freq_array)
+    elif uvd_future_shapes:
+        assert np.all(uvf.freq_array[0] == uv.freq_array)
+    else:
+        assert np.all(uvf.freq_array == uv.freq_array[0])
     assert np.all(uvf.polarization_array == uv.polarization_array)
     assert np.all(uvf.baseline_array == uv.baseline_array)
     assert np.all(uvf.ant_1_array == uv.ant_1_array)
@@ -312,52 +366,94 @@ def test_init_uvcal():
     assert uvf.filename == uvc.filename
 
 
-def test_init_uvcal_mode_flag():
+@pytest.mark.parametrize("uvc_future_shapes", [True, False])
+@pytest.mark.parametrize("uvf_future_shapes", [True, False])
+def test_init_uvcal_mode_flag(uvc_future_shapes, uvf_future_shapes):
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
-    uvf = UVFlag(uvc, copy_flags=False, mode="flag")
+
+    if uvc_future_shapes:
+        uvc.use_future_array_shapes()
+
+    uvf = UVFlag(
+        uvc, copy_flags=False, mode="flag", use_future_array_shapes=uvf_future_shapes
+    )
     assert hasattr(uvf, "metric_array")
     assert uvf.metric_array is None
-    assert np.array_equal(uvf.flag_array, uvc.flag_array)
+    if uvc_future_shapes == uvf_future_shapes:
+        assert np.array_equal(uvf.flag_array, uvc.flag_array)
+    elif uvc_future_shapes:
+        assert np.array_equal(uvf.flag_array[:, 0], uvc.flag_array)
+    else:
+        assert np.array_equal(uvf.flag_array, uvc.flag_array[:, 0])
+
     assert uvf.weights_array is None
     assert uvf.type == "antenna"
     assert uvf.mode == "flag"
     assert np.all(uvf.time_array == uvc.time_array)
     lst = lst_from_uv(uvc)
     assert np.all(uvf.lst_array == lst)
-    assert np.all(uvf.freq_array == uvc.freq_array[0])
+    if uvc_future_shapes == uvf_future_shapes:
+        assert np.all(uvf.freq_array == uvc.freq_array)
+    elif uvc_future_shapes:
+        assert np.all(uvf.freq_array[0] == uvc.freq_array)
+    else:
+        assert np.all(uvf.freq_array == uvc.freq_array[0])
     assert np.all(uvf.polarization_array == uvc.jones_array)
     assert np.all(uvf.ant_array == uvc.ant_array)
     assert 'Flag object with type "antenna"' in uvf.history
     assert pyuvdata_version_str in uvf.history
 
 
-def test_init_cal_copy_flags():
+@pytest.mark.parametrize("uvc_future_shapes", [True, False])
+@pytest.mark.parametrize("uvf_future_shapes", [True, False])
+def test_init_cal_copy_flags(uvc_future_shapes, uvf_future_shapes):
     uv = UVCal()
     uv.read_calfits(test_c_file)
+
+    if uvc_future_shapes:
+        uv.use_future_array_shapes()
+
     with uvtest.check_warnings(UserWarning, 'Copying flags to type=="antenna"'):
-        uvf = UVFlag(uv, copy_flags=True, mode="metric")
+        uvf = UVFlag(
+            uv,
+            copy_flags=True,
+            mode="metric",
+            use_future_array_shapes=uvf_future_shapes,
+        )
     #  with copy flags uvf.metric_array should be none
     assert hasattr(uvf, "metric_array")
     assert uvf.metric_array is None
-    assert np.array_equal(uvf.flag_array, uv.flag_array)
+    if uvc_future_shapes == uvf_future_shapes:
+        assert np.array_equal(uvf.flag_array, uv.flag_array)
+    elif uvc_future_shapes:
+        assert np.array_equal(uvf.flag_array[:, 0], uv.flag_array)
+    else:
+        assert np.array_equal(uvf.flag_array, uv.flag_array[:, 0])
     assert uvf.type == "antenna"
     assert uvf.mode == "flag"
     assert np.all(uvf.time_array == np.unique(uv.time_array))
-    assert np.all(uvf.freq_array == uv.freq_array[0])
+    if uvc_future_shapes == uvf_future_shapes:
+        assert np.all(uvf.freq_array == uv.freq_array)
+    elif uvc_future_shapes:
+        assert np.all(uvf.freq_array[0] == uv.freq_array)
+    else:
+        assert np.all(uvf.freq_array == uv.freq_array[0])
+
     assert np.all(uvf.polarization_array == uv.jones_array)
     assert pyuvdata_version_str in uvf.history
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_init_waterfall_uvd(uvdata_obj, future_shapes):
+@pytest.mark.parametrize("uvd_future_shapes", [True, False])
+@pytest.mark.parametrize("uvf_future_shapes", [True, False])
+def test_init_waterfall_uvd(uvdata_obj, uvd_future_shapes, uvf_future_shapes):
     uv = uvdata_obj
 
-    if future_shapes:
+    if uvd_future_shapes:
         uv.use_future_array_shapes()
 
-    uvf = UVFlag(uv, waterfall=True)
+    uvf = UVFlag(uv, waterfall=True, use_future_array_shapes=uvf_future_shapes)
     assert uvf.metric_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Npols)
     assert np.all(uvf.metric_array == 0)
     assert uvf.weights_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Npols)
@@ -366,7 +462,7 @@ def test_init_waterfall_uvd(uvdata_obj, future_shapes):
     assert uvf.mode == "metric"
     assert np.all(uvf.time_array == np.unique(uv.time_array))
     assert np.all(uvf.lst_array == np.unique(uv.lst_array))
-    if future_shapes:
+    if uvd_future_shapes:
         assert np.all(uvf.freq_array == uv.freq_array)
     else:
         assert np.all(uvf.freq_array == uv.freq_array[0])
@@ -375,9 +471,15 @@ def test_init_waterfall_uvd(uvdata_obj, future_shapes):
     assert pyuvdata_version_str in uvf.history
 
 
-def test_init_waterfall_uvc():
+@pytest.mark.parametrize("uvc_future_shapes", [True, False])
+@pytest.mark.parametrize("uvf_future_shapes", [True, False])
+def test_init_waterfall_uvc(uvc_future_shapes, uvf_future_shapes):
     uv = UVCal()
     uv.read_calfits(test_c_file)
+
+    if uvc_future_shapes:
+        uv.use_future_array_shapes()
+
     uvf = UVFlag(uv, waterfall=True, history="input history check")
     assert uvf.metric_array.shape == (uv.Ntimes, uv.Nfreqs, uv.Njones)
     assert np.all(uvf.metric_array == 0)
@@ -386,7 +488,10 @@ def test_init_waterfall_uvc():
     assert uvf.type == "waterfall"
     assert uvf.mode == "metric"
     assert np.all(uvf.time_array == np.unique(uv.time_array))
-    assert np.all(uvf.freq_array == uv.freq_array[0])
+    if uvc_future_shapes:
+        assert np.all(uvf.freq_array == uv.freq_array)
+    else:
+        assert np.all(uvf.freq_array == uv.freq_array[0])
     assert np.all(uvf.polarization_array == uv.jones_array)
     assert 'Flag object with type "waterfall"' in uvf.history
     assert "input history check" in uvf.history
@@ -464,11 +569,13 @@ def test_from_udata_error():
     assert str(cm.value).startswith("from_uvdata can only initialize a UVFlag object")
 
 
-def test_init_list_files_weights(tmpdir):
+@pytest.mark.parametrize("read_future_shapes", [True, False])
+@pytest.mark.parametrize("write_future_shapes", [True, False])
+def test_init_list_files_weights(read_future_shapes, write_future_shapes, tmpdir):
     # Test that weights are preserved when reading list of files
     tmp_path = tmpdir.strpath
     # Create two files to read
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(test_f_file, use_future_array_shapes=write_future_shapes)
     np.random.seed(0)
     wts1 = np.random.rand(*uvf.weights_array.shape)
     uvf.weights_array = wts1.copy()
@@ -477,8 +584,15 @@ def test_init_list_files_weights(tmpdir):
     uvf.weights_array = wts2.copy()
     uvf.write(os.path.join(tmp_path, "test2.h5"))
     uvf2 = UVFlag(
-        [os.path.join(tmp_path, "test1.h5"), os.path.join(tmp_path, "test2.h5")]
+        [os.path.join(tmp_path, "test1.h5"), os.path.join(tmp_path, "test2.h5")],
+        use_future_array_shapes=read_future_shapes,
     )
+    if read_future_shapes != write_future_shapes:
+        if read_future_shapes:
+            uvf2.use_current_array_shapes()
+        else:
+            uvf2.use_future_array_shapes()
+
     assert np.all(uvf2.weights_array == np.concatenate([wts1, wts2], axis=0))
 
 
@@ -600,9 +714,9 @@ def test_read_add_version_str(uvdata_obj, test_outfile):
 
 
 def test_read_write_ant(test_outfile):
-    uv = UVCal()
-    uv.read_calfits(test_c_file)
-    uvf = UVFlag(uv, mode="flag", label="test")
+    uvc = UVCal()
+    uvc.read_calfits(test_c_file)
+    uvf = UVFlag(uvc, mode="flag", label="test")
     uvf.write(test_outfile, clobber=True)
     uvf2 = UVFlag(test_outfile)
     assert uvf.__eq__(uvf2, check_history=True)
@@ -805,8 +919,9 @@ def test_lst_from_uv_error():
     assert str(cm.value).startswith("Function lst_from_uv can only operate on")
 
 
-def test_add():
-    uv1 = UVFlag(test_f_file)
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_add(future_shapes):
+    uv1 = UVFlag(test_f_file, use_future_array_shapes=future_shapes)
     uv2 = copy.deepcopy(uv1)
     uv2.time_array += 1  # Add a day
     uv3 = uv1 + uv2
@@ -1038,32 +1153,35 @@ def test_add_errors(uvdata_obj):
     uvc.read_calfits(test_c_file)
     uv1 = UVFlag(uv)
     # Mismatched classes
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="Only UVFlag objects can be added to a UVFlag object"
+    ):
         uv1.__add__(3)
-    assert str(cm.value).startswith(
-        "Only UVFlag objects can be added to a UVFlag object"
-    )
 
     # Mismatched types
     uv2 = UVFlag(uvc)
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="UVFlag object of type "):
         uv1.__add__(uv2)
-    assert str(cm.value).startswith("UVFlag object of type ")
 
     # Mismatched modes
     uv3 = UVFlag(uv, mode="flag")
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="UVFlag object of mode "):
         uv1.__add__(uv3)
-    assert str(cm.value).startswith("UVFlag object of mode ")
+
+    # Mismatched shapes
+    uv3 = UVFlag(uv, use_future_array_shapes=True)
+    with pytest.raises(
+        ValueError,
+        match="Both objects must have the same `future_array_shapes` parameter",
+    ):
+        uv1.__add__(uv3)
 
     # Invalid axes
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="concatenated along antenna axis."):
         uv1.__add__(uv1, axis="antenna")
-    assert str(cm.value).endswith("concatenated along antenna axis.")
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="concatenated along baseline axis."):
         uv2.__add__(uv2, axis="baseline")
-    assert str(cm.value).endswith("concatenated along baseline axis.")
 
 
 def test_inplace_add():
@@ -1133,7 +1251,7 @@ def test_not_equal():
 
 
 def test_to_waterfall_bl():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.weights_array = np.ones_like(uvf.weights_array)
     uvf.to_waterfall()
     assert uvf.type == "waterfall"
@@ -1155,8 +1273,9 @@ def test_to_waterfall_add_version_str():
     assert pyuvdata_version_str in uvf.history
 
 
-def test_to_waterfall_bl_multi_pol():
-    uvf = UVFlag(test_f_file)
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_to_waterfall_bl_multi_pol(future_shapes):
+    uvf = UVFlag(test_f_file, use_future_array_shapes=future_shapes)
     uvf.weights_array = np.ones_like(uvf.weights_array)
     uvf2 = uvf.copy()
     uvf2.polarization_array[0] = -4
@@ -1344,10 +1463,11 @@ def test_to_waterfall_bl_flags_or():
     assert len(uvf.lst_array) == len(uvf.time_array)
 
 
-def test_to_waterfall_ant():
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_to_waterfall_ant(future_shapes):
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
-    uvf = UVFlag(uvc)
+    uvf = UVFlag(uvc, use_future_array_shapes=future_shapes)
     uvf.weights_array = np.ones_like(uvf.weights_array)
     uvf.to_waterfall()
     assert uvf.type == "waterfall"
@@ -1369,9 +1489,13 @@ def test_to_waterfall_waterfall():
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_to_baseline_flags(uvdata_obj):
+@pytest.mark.parametrize("uvd_future_shapes", [True, False])
+@pytest.mark.parametrize("uvf_future_shapes", [True, False])
+def test_to_baseline_flags(uvdata_obj, uvd_future_shapes, uvf_future_shapes):
     uv = uvdata_obj
-    uvf = UVFlag(uv)
+    if uvd_future_shapes:
+        uv.use_future_array_shapes()
+    uvf = UVFlag(uv, use_future_array_shapes=uvf_future_shapes)
     uvf.to_waterfall()
     uvf.to_flag()
     uvf.flag_array[0, 10, 0] = True  # Flag time0, chan10
@@ -1384,22 +1508,29 @@ def test_to_baseline_flags(uvdata_obj):
     ntrue = 0.0
     ind = np.where(uvf.time_array == times[0])[0]
     ntrue += len(ind)
-    assert np.all(uvf.flag_array[ind, 0, 10, 0])
+    if uvf_future_shapes:
+        assert np.all(uvf.flag_array[ind, 10, 0])
+    else:
+        assert np.all(uvf.flag_array[ind, 0, 10, 0])
     ind = np.where(uvf.time_array == times[1])[0]
     ntrue += len(ind)
-    assert np.all(uvf.flag_array[ind, 0, 15, 0])
+    if uvf_future_shapes:
+        assert np.all(uvf.flag_array[ind, 15, 0])
+    else:
+        assert np.all(uvf.flag_array[ind, 0, 15, 0])
     assert uvf.flag_array.mean() == ntrue / uvf.flag_array.size
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_to_baseline_metric(uvdata_obj, future_shapes):
+@pytest.mark.parametrize("uvd_future_shapes", [True, False])
+@pytest.mark.parametrize("uvf_future_shapes", [True, False])
+def test_to_baseline_metric(uvdata_obj, uvd_future_shapes, uvf_future_shapes):
     uv = uvdata_obj
 
-    if future_shapes:
+    if uvd_future_shapes:
         uv.use_future_array_shapes()
 
-    uvf = UVFlag(uv)
+    uvf = UVFlag(uv, use_future_array_shapes=uvf_future_shapes)
     uvf.to_waterfall()
     uvf.metric_array[0, 10, 0] = 3.2  # Fill in time0, chan10
     uvf.metric_array[1, 15, 0] = 2.1  # Fill in time1, chan15
@@ -1409,10 +1540,16 @@ def test_to_baseline_metric(uvdata_obj, future_shapes):
     times = np.unique(uvf.time_array)
     ind = np.where(uvf.time_array == times[0])[0]
     nt0 = len(ind)
-    assert np.all(uvf.metric_array[ind, 0, 10, 0] == 3.2)
+    if uvf_future_shapes:
+        assert np.all(uvf.metric_array[ind, 10, 0] == 3.2)
+    else:
+        assert np.all(uvf.metric_array[ind, 0, 10, 0] == 3.2)
     ind = np.where(uvf.time_array == times[1])[0]
     nt1 = len(ind)
-    assert np.all(uvf.metric_array[ind, 0, 15, 0] == 2.1)
+    if uvf_future_shapes:
+        assert np.all(uvf.metric_array[ind, 15, 0] == 2.1)
+    else:
+        assert np.all(uvf.metric_array[ind, 0, 15, 0] == 2.1)
     assert np.isclose(
         uvf.metric_array.mean(), (3.2 * nt0 + 2.1 * nt1) / uvf.metric_array.size
     )
@@ -1454,11 +1591,19 @@ def test_to_baseline_metric_error(uvdata_obj, uvf_from_uvcal):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_to_baseline_from_antenna(uvdata_obj, uvf_from_uvcal):
+@pytest.mark.parametrize("uvf_future_shapes", [True, False])
+@pytest.mark.parametrize("uvd_future_shapes", [True, False])
+def test_to_baseline_from_antenna(
+    uvdata_obj, uvf_from_uvcal, uvf_future_shapes, uvd_future_shapes
+):
     uvf = uvf_from_uvcal
+    if uvf_future_shapes:
+        uvf.use_future_array_shapes()
     uvf.select(polarizations=uvf.polarization_array[0])
     uvf.to_flag()
     uv = uvdata_obj
+    if uvd_future_shapes:
+        uv.use_future_array_shapes()
 
     ants_data = np.unique(uv.ant_1_array.tolist() + uv.ant_2_array.tolist())
     new_ants = np.setdiff1d(ants_data, uvf.ant_array)
@@ -1466,7 +1611,10 @@ def test_to_baseline_from_antenna(uvdata_obj, uvf_from_uvcal):
     old_baseline = (uvf.ant_array[0], uvf.ant_array[1])
     old_times = np.unique(uvf.time_array)
     or_flags = np.logical_or(uvf.flag_array[0], uvf.flag_array[1])
-    or_flags = np.transpose(or_flags, [2, 0, 1, 3])
+    if uvf_future_shapes:
+        or_flags = np.transpose(or_flags, [1, 0, 2])
+    else:
+        or_flags = np.transpose(or_flags, [2, 0, 1, 3])
 
     uv2 = copy.deepcopy(uv)
     uvf2 = uvf.copy()
@@ -1593,10 +1741,11 @@ def test_to_baseline_metric_force_pol(uvdata_obj):
     )
 
 
-def test_to_antenna_flags():
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_to_antenna_flags(future_shapes):
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
-    uvf = UVFlag(uvc)
+    uvf = UVFlag(uvc, use_future_array_shapes=future_shapes)
     uvf.to_waterfall()
     uvf.to_flag()
     uvf.flag_array[0, 10, 0] = True  # Flag time0, chan10
@@ -1605,15 +1754,23 @@ def test_to_antenna_flags():
     assert uvf.type == "antenna"
     assert np.all(uvf.ant_array == uvc.ant_array)
     assert np.all(uvf.time_array == uvc.time_array)
-    assert np.all(uvf.flag_array[:, 0, 10, 0, 0])
-    assert np.all(uvf.flag_array[:, 0, 15, 1, 0])
+    if future_shapes:
+        assert np.all(uvf.flag_array[:, 10, 0, 0])
+        assert np.all(uvf.flag_array[:, 15, 1, 0])
+    else:
+        assert np.all(uvf.flag_array[:, 0, 10, 0, 0])
+        assert np.all(uvf.flag_array[:, 0, 15, 1, 0])
     assert uvf.flag_array.mean() == 2.0 * uvc.Nants_data / uvf.flag_array.size
 
 
-def test_to_antenna_add_version_str():
+@pytest.mark.parametrize("uvc_future_shapes", [True, False])
+@pytest.mark.parametrize("uvf_future_shapes", [True, False])
+def test_to_antenna_add_version_str(uvc_future_shapes, uvf_future_shapes):
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
-    uvf = UVFlag(uvc)
+    if uvc_future_shapes:
+        uvc.use_future_array_shapes()
+    uvf = UVFlag(uvc, use_future_array_shapes=uvf_future_shapes)
     uvf.to_waterfall()
     uvf.to_flag()
     uvf.flag_array[0, 10, 0] = True  # Flag time0, chan10
@@ -1625,18 +1782,23 @@ def test_to_antenna_add_version_str():
     assert pyuvdata_version_str in uvf.history
 
 
-def test_to_antenna_metric():
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_to_antenna_metric(future_shapes):
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
-    uvf = UVFlag(uvc)
+    uvf = UVFlag(uvc, use_future_array_shapes=future_shapes)
     uvf.to_waterfall()
     uvf.metric_array[0, 10, 0] = 3.2  # Fill in time0, chan10
     uvf.metric_array[1, 15, 0] = 2.1  # Fill in time1, chan15
     uvf.to_antenna(uvc)
     assert np.all(uvf.ant_array == uvc.ant_array)
     assert np.all(uvf.time_array == uvc.time_array)
-    assert np.all(uvf.metric_array[:, 0, 10, 0, 0] == 3.2)
-    assert np.all(uvf.metric_array[:, 0, 15, 1, 0] == 2.1)
+    if future_shapes:
+        assert np.all(uvf.metric_array[:, 10, 0, 0] == 3.2)
+        assert np.all(uvf.metric_array[:, 15, 1, 0] == 2.1)
+    else:
+        assert np.all(uvf.metric_array[:, 0, 10, 0, 0] == 3.2)
+        assert np.all(uvf.metric_array[:, 0, 15, 1, 0] == 2.1)
     assert np.isclose(
         uvf.metric_array.mean(), (3.2 + 2.1) * uvc.Nants_data / uvf.metric_array.size
     )
@@ -1859,11 +2021,16 @@ def test_to_flag_unknown_mode():
     assert str(cm.value).startswith("Unknown UVFlag mode: foo")
 
 
-def test_to_metric_baseline():
-    uvf = UVFlag(test_f_file)
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_to_metric_baseline(future_shapes):
+    uvf = UVFlag(test_f_file, use_future_array_shapes=future_shapes)
     uvf.to_flag()
-    uvf.flag_array[:, :, 10] = True
-    uvf.flag_array[1, :, :] = True
+    if future_shapes:
+        uvf.flag_array[:, 10] = True
+        uvf.flag_array[1, :] = True
+    else:
+        uvf.flag_array[:, :, 10] = True
+        uvf.flag_array[1, :, :] = True
     assert hasattr(uvf, "flag_array")
     assert hasattr(uvf, "metric_array")
     assert uvf.metric_array is None
@@ -1875,7 +2042,10 @@ def test_to_metric_baseline():
     assert uvf.mode == "metric"
     assert 'Converted to mode "metric"' in uvf.history
     assert np.isclose(uvf.weights_array[1], 0.0).all()
-    assert np.isclose(uvf.weights_array[:, :, 10], 0.0).all()
+    if future_shapes:
+        assert np.isclose(uvf.weights_array[:, 10], 0.0).all()
+    else:
+        assert np.isclose(uvf.weights_array[:, :, 10], 0.0).all()
 
 
 def test_to_metric_add_version_str():
@@ -1906,15 +2076,24 @@ def test_to_metric_waterfall():
     assert np.isclose(uvf.weights_array[:, 10], 0.0).all()
 
 
-def test_to_metric_antenna():
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_to_metric_antenna(future_shapes):
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
-    uvf = UVFlag(uvc, mode="flag")
-    uvf.flag_array[10, :, :, 1, :] = True
-    uvf.flag_array[15, :, 3, :, :] = True
+    uvf = UVFlag(uvc, mode="flag", use_future_array_shapes=future_shapes)
+    if future_shapes:
+        uvf.flag_array[10, :, 1, :] = True
+        uvf.flag_array[15, 3, :, :] = True
+    else:
+        uvf.flag_array[10, :, :, 1, :] = True
+        uvf.flag_array[15, :, 3, :, :] = True
     uvf.to_metric(convert_wgts=True)
-    assert np.isclose(uvf.weights_array[10, :, :, 1, :], 0.0).all()
-    assert np.isclose(uvf.weights_array[15, :, 3, :, :], 0.0).all()
+    if future_shapes:
+        assert np.isclose(uvf.weights_array[10, :, 1, :], 0.0).all()
+        assert np.isclose(uvf.weights_array[15, 3, :, :], 0.0).all()
+    else:
+        assert np.isclose(uvf.weights_array[10, :, :, 1, :], 0.0).all()
+        assert np.isclose(uvf.weights_array[15, :, 3, :, :], 0.0).all()
 
 
 def test_metric_to_metric():
@@ -1987,7 +2166,7 @@ def test_missing_nants_telescope(tmp_path):
     ):
         uvf = UVFlag(testfile)
     uvf2 = UVFlag(test_f_file)
-    uvf2.Nants_telescope = 2047
+    uvf2.Nants_telescope = uvf2.Nants_data
     assert uvf == uvf2
     os.remove(testfile)
 
@@ -2189,8 +2368,11 @@ def test_select_waterfall_errors(uvf_from_waterfall):
 @cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 @pytest.mark.parametrize("dimension", list(range(1, 4)))
-def test_select_blt_inds(input_uvf, uvf_mode, dimension):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_select_blt_inds(input_uvf, uvf_mode, dimension, future_shapes):
     uvf = input_uvf
+    if future_shapes:
+        uvf.use_future_array_shapes()
 
     # used to set the mode depending on which input is given to uvf_mode
     getattr(uvf, uvf_mode)()
@@ -2215,12 +2397,16 @@ def test_select_blt_inds(input_uvf, uvf_mode, dimension):
     # test the data was extracted correctly for each case
     for param_name, new_param in zip(uvf._data_params, uvf1.data_like_parameters):
         old_param = getattr(uvf, param_name)
+        blt_inds_use = np.atleast_1d(blt_inds.squeeze())
         if uvf.type == "baseline":
-            assert np.allclose(old_param[blt_inds.squeeze()], new_param)
+            assert np.allclose(old_param[blt_inds_use], new_param)
         if uvf.type == "antenna":
-            assert np.allclose(old_param[:, :, :, blt_inds.squeeze()], new_param)
+            if future_shapes:
+                assert np.allclose(old_param[:, :, blt_inds_use], new_param)
+            else:
+                assert np.allclose(old_param[:, :, :, blt_inds_use], new_param)
         if uvf.type == "waterfall":
-            assert np.allclose(old_param[blt_inds.squeeze()], new_param)
+            assert np.allclose(old_param[blt_inds_use], new_param)
 
     if uvf.type == "baseline":
         assert uvf1.Nblts == new_nblts
@@ -2264,8 +2450,12 @@ def test_select_blt_inds_errors(input_uvf, uvf_mode, select_kwargs, err_msg):
 @cases_decorator_no_waterfall
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 @pytest.mark.parametrize("dimension", list(range(1, 4)))
-def test_select_antenna_nums(input_uvf, uvf_mode, dimension):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_select_antenna_nums(input_uvf, uvf_mode, dimension, future_shapes):
     uvf = input_uvf
+    if future_shapes:
+        uvf.use_future_array_shapes()
+
     # used to set the mode depending on which input is given to uvf_mode
     getattr(uvf, uvf_mode)()
 
@@ -2498,8 +2688,12 @@ def test_select_bls_errors(input_uvf, uvf_mode, select_kwargs, err_msg):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
-def test_select_times(input_uvf, uvf_mode):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_select_times(input_uvf, uvf_mode, future_shapes):
     uvf = input_uvf
+    if future_shapes:
+        uvf.use_future_array_shapes()
+
     # used to set the mode depending on which input is given to uvf_mode
     getattr(uvf, uvf_mode)()
     np.random.seed(0)
@@ -2556,8 +2750,12 @@ def test_select_times(input_uvf, uvf_mode):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
-def test_select_frequencies(input_uvf, uvf_mode):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_select_frequencies(input_uvf, uvf_mode, future_shapes):
     uvf = input_uvf
+    if future_shapes:
+        uvf.use_future_array_shapes()
+
     # used to set the mode depending on which input is given to uvf_mode
     getattr(uvf, uvf_mode)()
     np.random.seed(0)
@@ -2709,8 +2907,11 @@ def test_select_freq_chans(input_uvf, uvf_mode):
 @cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 @pytest.mark.parametrize("pols_to_keep", ([-5], ["xx"], ["nn"], [[-5]]))
-def test_select_polarizations(uvf_mode, pols_to_keep, input_uvf):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_select_polarizations(uvf_mode, pols_to_keep, input_uvf, future_shapes):
     uvf = input_uvf
+    if future_shapes:
+        uvf.use_future_array_shapes()
     # used to set the mode depending on which input is given to uvf_mode
     getattr(uvf, uvf_mode)()
     np.random.seed(0)

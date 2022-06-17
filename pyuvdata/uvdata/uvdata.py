@@ -199,7 +199,7 @@ class UVData(UVBase):
 
         desc = (
             "Array of baseline numbers, shape (Nblts), type = int; "
-            "by default baseline = 2048 * (ant1+1) + (ant2+1) + 2^16, "
+            "by default baseline = 2048 * ant1 + ant2 + 2^16, "
             "though other conventions are available."
         )
         self._baseline_array = uvp.UVParameter(

@@ -427,7 +427,7 @@ class UVParameter(object):
                     if val is None:
                         raise ValueError(
                             f"Missing UVBase parameter {p} needed to "
-                            "calculate expected shape of parameter"
+                            f"calculate expected shape of parameter {self.name}"
                         )
                     eshape = eshape + (val,)
             return eshape
