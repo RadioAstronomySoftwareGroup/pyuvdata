@@ -122,7 +122,7 @@ def mir_data_main():
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     mir_data = MirParser(
         testfile,
-        load_vis=True,
+        load_cross=True,
         load_auto=True,
         has_auto=True,
     )

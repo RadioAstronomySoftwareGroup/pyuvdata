@@ -525,37 +525,37 @@ def test_mir_meta_update_fields(mir_bl_data):
     assert np.all(mir_bl_data["iant2"] == [1, 1, 1, 1])
 
 
-def test_mir_meta_tofile_errs(mir_sp_data, tmp_path):
-    filepath = os.path.join(tmp_path, "meta_tofile_errs")
-    mir_sp_data.tofile(filepath)
+def test_mir_meta_write_errs(mir_sp_data, tmp_path):
+    filepath = os.path.join(tmp_path, "meta_write_errs")
+    mir_sp_data.write(filepath)
     mir_sp_data["gunnLO"] = 0.0
 
     with pytest.raises(FileExistsError) as err:
-        mir_sp_data.tofile(filepath)
+        mir_sp_data.write(filepath)
     assert str(err.value).startswith("File already exists, must set overwrite")
 
     with pytest.raises(ValueError) as err:
-        mir_sp_data.tofile(filepath, append_data=True, check_index=True)
+        mir_sp_data.write(filepath, append_data=True, check_index=True)
     assert str(err.value).startswith("Conflicting header keys detected")
 
 
-def test_mir_meta_tofile_append(mir_sp_data, tmp_path):
-    filepath = os.path.join(tmp_path, "meta_tofile_append")
+def test_mir_meta_write_append(mir_sp_data, tmp_path):
+    filepath = os.path.join(tmp_path, "meta_write_append")
     new_obj = type(mir_sp_data)()
 
-    mir_sp_data.tofile(filepath)
+    mir_sp_data.write(filepath)
     # Test the no-op
-    mir_sp_data.tofile(filepath, append_data=True, check_index=True)
-    new_obj.fromfile(filepath)
+    mir_sp_data.write(filepath, append_data=True, check_index=True)
+    new_obj.read(filepath)
     assert mir_sp_data == new_obj
 
     # Now try writing two separate halves of the data one at a time.
     mir_sp_data._mask[::2] = False
-    mir_sp_data.tofile(filepath, overwrite=True)
+    mir_sp_data.write(filepath, overwrite=True)
     mir_sp_data._mask[::2] = True
     mir_sp_data._mask[1::2] = False
-    mir_sp_data.tofile(filepath, append_data=True, check_index=True)
-    new_obj.fromfile(filepath)
+    mir_sp_data.write(filepath, append_data=True, check_index=True)
+    new_obj.read(filepath)
     assert mir_sp_data == new_obj
 
 
@@ -926,7 +926,7 @@ def test_mir_codes_generate_new_header_keys(mir_codes_data, code_row, update_dic
     assert update_dict == mir_codes_copy._generate_new_header_keys(mir_codes_data)
 
 
-def test_mir_acdata_fromfile_errs(mir_data):
+def test_mir_acdata_read_errs(mir_data):
     with pytest.raises(AssertionError) as err:
-        mir_data.ac_data.fromfile(mir_data.filepath, nchunks=1)
+        mir_data.ac_data.read(mir_data.filepath, nchunks=1)
     str(err.value).startswith("Could not determine auto-correlation record size.")

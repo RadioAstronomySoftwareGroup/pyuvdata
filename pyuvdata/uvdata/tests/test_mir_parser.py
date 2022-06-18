@@ -155,9 +155,9 @@ def test_mir_write_item(mir_data, attr, tmp_path):
     """
     filepath = os.path.join(tmp_path, "test_write%s" % attr)
     orig_attr = getattr(mir_data, attr)
-    orig_attr.tofile(filepath)
+    orig_attr.write(filepath)
     check_attr = orig_attr.copy(skip_data=True)
-    check_attr.fromfile(filepath)
+    check_attr.read(filepath)
     assert orig_attr == check_attr
 
 
@@ -237,12 +237,12 @@ def test_mir_write_full(mir_data, tmp_path, data_type):
     # Write out our test dataset
     filepath = os.path.join(tmp_path, "test_write_full_%s.mir" % data_type)
 
-    mir_data.tofile(filepath, load_data=(data_type == "load"))
+    mir_data.write(filepath, load_data=(data_type == "load"))
     with uvtest.check_warnings(
         None if (data_type != "none") else UserWarning,
         None if (data_type != "none") else ["No cross data", "No auto data"],
     ):
-        mir_data.tofile(filepath, load_data=(data_type == "load"))
+        mir_data.write(filepath, load_data=(data_type == "load"))
 
     # Read in test dataset.
     mir_copy = MirParser(filepath, has_auto=mir_data._has_auto)
@@ -534,7 +534,7 @@ def test_read_packdata_err(mir_data):
 
 
 def test_read_packdata_mmap(mir_data):
-    """Test that reading in vis data with mmap works just as well as np.fromfile"""
+    """Test that reading in vis data with mmap works just as well as np.read"""
     mmap_data = mir_data.read_packdata(
         mir_data._file_dict, mir_data.in_data["inhid"], use_mmap=True
     )
@@ -641,9 +641,9 @@ def test_apply_tsys(mir_data):
     )
 
     mir_data.unload_data()
-    mir_data.load_data(load_vis=True, apply_tsys=False)
+    mir_data.load_data(load_cross=True, apply_tsys=False)
     mir_copy.unload_data()
-    mir_copy.load_data(load_vis=True, apply_tsys=True)
+    mir_copy.load_data(load_cross=True, apply_tsys=True)
     for key, norm_fac in zip(mir_data.vis_data.keys(), norm_list):
         assert np.allclose(
             norm_fac * mir_data.vis_data[key]["data"],
@@ -791,10 +791,7 @@ def test_unload_data(mir_data, unload_vis, unload_raw, unload_auto):
 
 @pytest.mark.parametrize(
     "kwargs,err_type,err_msg",
-    [
-        [{"load_vis": True, "load_raw": True}, ValueError, "Cannot load raw and vis"],
-        [{"load_auto": True}, ValueError, "This object has no auto-correlation data"],
-    ],
+    [[{"load_auto": True}, ValueError, "This object has no auto-correlation data"]],
 )
 def test_load_data_err(mir_data, kwargs, err_type, err_msg):
     mir_data._clear_auto()
@@ -806,14 +803,14 @@ def test_load_data_err(mir_data, kwargs, err_type, err_msg):
 @pytest.mark.parametrize(
     "optype,kwargs,warn_msg",
     [
-        ["load_raw", {"load_vis": True}, "Converting previously loaded data since"],
+        ["load_raw", {"load_cross": True}, "Converting previously loaded data since"],
         ["muck_vis", {"allow_downselect": True}, "Cannot downselect cross-correlation"],
         ["muck_auto", {"allow_downselect": True}, "Cannot downselect auto-correlation"],
     ],
 )
 def test_load_data_warn(mir_data, optype, kwargs, warn_msg):
     if optype == "load_raw":
-        mir_data.load_data(load_raw=True, load_vis=False, load_auto=False)
+        mir_data.load_data(load_raw=True, load_cross=True, load_auto=False)
     elif optype == "muck_vis":
         mir_data.vis_data = {}
     elif optype == "muck_auto":
@@ -828,18 +825,11 @@ def test_load_data_defaults(mir_data, load_vis):
     """Check that the default behavior of load_vis acts as expected."""
     # Blow away the old data first before we attempt.
     mir_data.unload_data()
-    mir_data.load_data(load_vis=load_vis)
-
-    if load_vis is None:
-        assert mir_data.vis_data is not None
-        assert mir_data.raw_data is None
-    else:
-        assert mir_data.vis_data is None
-        assert mir_data.raw_data is not None
+    mir_data.load_data(load_cross=load_vis)
 
     assert (mir_data.vis_data is not None) == (load_vis is None)
     assert mir_data._tsys_applied == (load_vis is None)
-    assert (mir_data.raw_data is None) == (load_vis is None)
+    assert mir_data.raw_data is None
 
     assert mir_data.auto_data is not None
 
@@ -851,8 +841,8 @@ def test_load_data_conv(mir_data):
     mir_data.unload_data()
     assert mir_data.vis_data is None
 
-    mir_data.load_data(load_vis=True, allow_conversion=False)
-    mir_copy.load_data(load_vis=True, allow_conversion=True)
+    mir_data.load_data(load_cross=True, allow_conversion=False)
+    mir_copy.load_data(load_cross=True, allow_conversion=True)
 
     assert mir_copy.vis_data is not None
     assert mir_copy == mir_data
@@ -902,16 +892,16 @@ def test_reset(mir_data):
         [True, ["No cross data loaded,", "No auto data loaded,"]],
     ],
 )
-def test_tofile_warn(mir_data, tmp_path, unload_data, warn_msg):
-    """Test that tofile throws errors as expected."""
+def test_write_warn(mir_data, tmp_path, unload_data, warn_msg):
+    """Test that write throws errors as expected."""
     testfile = os.path.join(
-        tmp_path, "test_tofile_warn_%s.mir" % ("meta" if unload_data else "tsysapp")
+        tmp_path, "test_write_warn_%s.mir" % ("meta" if unload_data else "tsysapp")
     )
     if unload_data:
         mir_data.unload_data()
 
     with uvtest.check_warnings(UserWarning, warn_msg):
-        mir_data.tofile(testfile)
+        mir_data.write(testfile)
 
     # Drop the data and autos here to make the comparison a bit easier.
     mir_data.unload_data()
@@ -1070,7 +1060,7 @@ def test_rechunk_on_the_fly(mir_data):
     mir_copy = mir_data.copy()
 
     mir_copy.unload_data()
-    mir_copy.load_data(load_vis=True, load_auto=True)
+    mir_copy.load_data(load_cross=True, load_auto=True)
 
     assert mir_data == mir_copy
 
@@ -1087,7 +1077,7 @@ def test_rechunk_raw_vs_vis(mir_data):
 
     # This will convert raw to vis in the copy
     with uvtest.check_warnings(UserWarning, "Converting previously loaded data"):
-        mir_copy.load_data(allow_conversion=True, load_vis=True)
+        mir_copy.load_data(allow_conversion=True, load_cross=True)
 
     assert mir_copy == mir_data
 
@@ -1171,8 +1161,8 @@ def test_add_merge(mir_data):
     mir_copy.select(where=("sb", "eq", "u"))
 
     # The reset unloads the data, so fix that now
-    mir_data.load_data(load_vis=True, load_auto=True, apply_tsys=True)
-    mir_copy.load_data(load_vis=True, load_auto=True, apply_tsys=True)
+    mir_data.load_data(load_cross=True, load_auto=True, apply_tsys=True)
+    mir_copy.load_data(load_cross=True, load_auto=True, apply_tsys=True)
 
     # Verify that we have changed some things
     assert mir_data != mir_orig
@@ -1193,8 +1183,8 @@ def test_add_merge(mir_data):
 
     mir_data.select(where=("corrchunk", "eq", [1, 2]))
     mir_copy.select(where=("corrchunk", "eq", [3, 4]))
-    mir_data.load_data(load_vis=True, apply_tsys=True)
-    mir_copy.load_data(load_vis=True, apply_tsys=True)
+    mir_data.load_data(load_cross=True, apply_tsys=True)
+    mir_copy.load_data(load_cross=True, apply_tsys=True)
 
     with uvtest.check_warnings(
         UserWarning, "Both objects do not have auto-correlation data."
@@ -1212,7 +1202,7 @@ def test_add_merge(mir_data):
     # we get the same object back (modulo the auto-correlation data).
     assert mir_data != mir_orig
     mir_data.select(reset=True, update_data=True)
-    mir_data.load_data(load_vis=True, apply_tsys=True)
+    mir_data.load_data(load_cross=True, apply_tsys=True)
     assert mir_data == mir_orig
 
 
@@ -1307,7 +1297,7 @@ def test_add_concat_warn(mir_data, tmp_path):
     filepath = os.path.join(tmp_path, "add_concat_warn")
 
     with uvtest.check_warnings(UserWarning, "Writing out raw data with tsys applied."):
-        mir_data.tofile(filepath)
+        mir_data.write(filepath)
 
     mir_copy = MirParser(filepath)
     with uvtest.check_warnings(
@@ -1366,9 +1356,9 @@ def test_add_concat(mir_data, tmp_path):
     mir_copy.codes_data.set_value("code", "3c279", where=("v_name", "eq", "source"))
 
     with uvtest.check_warnings(UserWarning, "Writing out raw data with tsys applied."):
-        mir_copy.tofile(filepath, overwrite=True)
+        mir_copy.write(filepath, overwrite=True)
     # Read the file in so that we have a dict here to work with.
-    mir_copy.fromfile(filepath, load_vis=True, has_auto=True)
+    mir_copy.read(filepath, load_cross=True, has_auto=True)
 
     new_obj = mir_data + mir_copy
 

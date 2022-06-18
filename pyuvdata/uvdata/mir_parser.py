@@ -37,7 +37,7 @@ class MirParser(object):
     access to mir files without needing to create an object.  You can also
     instantiate a MirParser object with the constructor of this class which will only
     read the metadata into memory by default. Read in the raw data through the
-    use of the load_vis, load_raw, load_auto flags, or by using the load_data() function
+    use of the load_cross and load_auto flags, or by using the load_data() function
     once the object is created. This allows for the flexible case of quickly loading
     metadata first to check whether or not to load additional data into memory.
     """
@@ -47,9 +47,9 @@ class MirParser(object):
         filepath=None,
         has_auto=False,
         has_cross=True,
-        load_vis=False,
-        load_raw=False,
         load_auto=False,
+        load_cross=False,
+        load_raw=False,
     ):
         """
         Initialize a MirParser object.
@@ -66,12 +66,12 @@ class MirParser(object):
             Flag to read auto-correlation data. Default is False.
         has_cross : bool
             Flag to read cross-correlation data. Default is True.
-        load_vis : bool
+        load_auto : bool
+            Flag to load auto-correlations into memory. Default is False.
+        load_cross : bool
             Flag to load visibilities into memory. Default is False.
         load_raw : bool
             Flag to load raw data into memory. Default is False.
-        load_auto : bool
-            Flag to load auto-correlations into memory. Default is False.
         """
         self.in_data = MirInData()
         self.bl_data = MirBlData()
@@ -112,13 +112,13 @@ class MirParser(object):
 
         # On init, if a filepath is provided, then fill in the object
         if filepath is not None:
-            self.fromfile(
+            self.read(
                 filepath,
                 has_auto=has_auto,
                 has_cross=has_cross,
-                load_vis=load_vis,
-                load_raw=load_raw,
                 load_auto=load_auto,
+                load_cross=load_cross,
+                load_raw=load_raw,
             )
 
     def __eq__(self, other, verbose=True, metadata_only=False):
@@ -377,8 +377,8 @@ class MirParser(object):
         """
         Fix an integration postion dictionary.
 
-        Note that this function is not meant to be called by users, but is instead
-        part of the low-level API for handling error correction when reading in data.
+        Note that this function is not meant to be called by users, but is instead an
+        internal helper method for handling error correction when reading in data.
         This method will fix potential errors in an internal dictionary used to mark
         where in the main visibility file an individual spectral record is located.
         Under normal conditions, this routine does not need to be run, unless another
@@ -510,7 +510,7 @@ class MirParser(object):
                     # Capture the difference between the last integration and this
                     # integration that we're going to drop into the next read.
                     del_offset = int_start - (last_offset + (num_vals * last_size))
-                    # Starting positino for a sequence of integrations
+                    # Starting position for a sequence of integrations
                     last_offset = int_start
                     # Size of record (make sure all records are the same size in 1 read)
                     last_size = int_size
@@ -523,12 +523,6 @@ class MirParser(object):
             filename = os.path.join(filepath, indv_file_dict[data_type]["filetype"])
             # Time to actually read in the data
             if use_mmap:
-                # kwargs = {
-                #     "mode": "r",
-                #     "offset": read_dict["start_offset"],
-                #     "shape": (read_dict["num_vals"],),
-                # }
-
                 # memmap is a little special, in that it wants the _absolute_ offset
                 # rather than the relative offset that np.fromfile uses (if passing a
                 # file object rather than a string with the path toward the file).
@@ -728,7 +722,7 @@ class MirParser(object):
         }
 
         # In testing, flagging the bad channels out after-the-fact was significantly
-        # faster than trying to much w/ the data above.
+        # faster than trying to modify in situ w/ the call above.
         for item in vis_dict.values():
             item["data"][item["flags"]] = 0.0
 
@@ -1279,9 +1273,9 @@ class MirParser(object):
 
     def load_data(
         self,
-        load_vis=None,
-        load_raw=None,
         load_auto=None,
+        load_cross=None,
+        load_raw=False,
         apply_tsys=True,
         allow_downselect=None,
         allow_conversion=None,
@@ -1302,26 +1296,31 @@ class MirParser(object):
 
         Parameters
         ----------
-        load_vis : bool
-            Load the visibility data (floats) into object. Default is True if
-            `load_raw` is unset or otherwise set to False.
-        load_raw : bool
-            Load the raw visibility data (ints) into object. Default is False, unless
-            `load_vis` is set to False, in which case it defaults to True.
         load_auto: bool
-            Load the autos (floats) into object. Default is False.
+            Load the autos (floats) into object. Default is True if the object has
+            auto-correlation data, otherwise False.
+        load_cross : bool
+            Load the cross-correlation visibility data (floats) into object. Default is
+            True if if the object has cross-correlation data, otherwise False.
+        load_raw : bool
+            Nominally when loading cross-correlation data, the data are uncompressed
+            when being loaded into the object, and put into the attribute `vis_data`.
+            However, if set to True, the "raw" (compressed) data are put into the
+            attribute `raw_data`. Default is False.
         apply_tsys : bool
-            Apply tsys corrections to the data. Only applicable if loading vis data.
-            Default is True.
+            Apply tsys corrections to the data. Only applicable if loading
+            cross-correlation vis data (where `load_raw=False`). Default is True.
         allow_downselect : bool
             If data has been previously loaded, and all spectral records are currently
-            contained in `vis_data`, `raw_data`, and/or `auto_data` (if `load_vis`,
-            `load_raw`, and/or `load_auto` are True, respectively), then down-select
+            contained in `vis_data`, `raw_data`, and/or `auto_data`, then down-select
             from the currently loaded data rather than reading the data from disk.
+            Default is True if all spectral records have been previously loaded,
+            otherwise False.
         allow_conversion : bool
-            Allow the method to convert previously loaded raw_data into "normal"
-            visibility data. Default is True if the raw data is loaded and
-            `load_vis=True`.
+            Allow the method to convert previously loaded uncompressed ("raw") data into
+            "normal" data. Only applicable if loading cross-correlation data (and
+            `load_raw=False`). Default is True if all of the required spectral records
+            have been loaded into the `raw_data` attribute.
         use_mmap : bool
             If False, then each integration record needs to be read in before it can
             be parsed on a per-spectral record basis (which can be slow if only reading
@@ -1331,8 +1330,9 @@ class MirParser(object):
             data is slow, you may try seeing this to False and seeing if performance
             improves.
         read_only : bool
-            Only applicable if `return_vis=False` and `use_mmap=True`. If set to True,
-            will return back data arrays which are read-only. Default is False.
+            Only applicable if `load_cross=True`, `use_mmap=True`, and `load_raw=True`.
+            If set to True, will return back data arrays which are read-only. Default is
+            False.
 
         Raises
         ------
@@ -1341,19 +1341,17 @@ class MirParser(object):
             method is about to attempt to convert previously loaded data.
         """
         # Figure out what exactly we're going to load here.
-        if load_vis is None and not load_raw:
-            load_vis = True
-        if load_raw is None:
-            load_raw = not load_vis
+        if load_cross is None:
+            load_cross = self._has_cross
         if load_auto is None:
             load_auto = self._has_auto
-
-        if load_raw and load_vis:
-            raise ValueError("Cannot load raw and vis data simultaneously.")
 
         # If there is no auto data to actually load, raise an error now.
         if load_auto and not self._has_auto:
             raise ValueError("This object has no auto-correlation data to load.")
+
+        load_vis = load_cross and not load_raw
+        load_raw = load_cross and load_raw
 
         # Last chance before we load data -- see if we already have raw_data in hand,
         # and just need to convert it. If allow_conversion is None, we should decide
@@ -1386,13 +1384,12 @@ class MirParser(object):
         # If we are potentially downselecting data (typically used when calling select),
         # make sure that we actually have all the data we need loaded.
         if allow_downselect or (allow_downselect is None):
-            if load_vis or load_raw:
+            if load_cross:
                 try:
                     self._downselect_data(
                         select_vis=load_vis, select_raw=load_raw, select_auto=False
                     )
-                    load_vis = False
-                    load_raw = False
+                    load_cross = False
                 except MirMetaError:
                     if allow_downselect:
                         warnings.warn("Cannot downselect cross-correlation data.")
@@ -1408,7 +1405,7 @@ class MirParser(object):
                         warnings.warn("Cannot downselect auto-correlation data.")
 
         # Finally, if we didn't downselect or convert, load the data from disk now.
-        if load_vis or load_raw:
+        if load_cross:
             data_dict = self.read_data(
                 "cross",
                 return_vis=load_vis,
@@ -1469,7 +1466,7 @@ class MirParser(object):
         Update MirClass internal filters for the data.
 
         Note that this is an internal helper function which is not for general user use,
-        but instead is part of the low-level API for the MirParser object. Updates
+        but instead an internal helper function for the MirParser object. Updates
         the masks of the various MirMetaData objects so that only records with entries
         across _all_ the metadata objects are included. Typically used after issuing
         a `select` command to propagate masks to objects that did not immediately have
@@ -1557,20 +1554,20 @@ class MirParser(object):
             try:
                 self._downselect_data()
             except MirMetaError:
-                if update_data:
-                    self.load_data(
-                        load_vis=self.vis_data is not None,
-                        load_raw=self.raw_data is not None,
-                        load_auto=self.auto_data is not None,
-                        apply_tsys=self._tsys_applied,
-                        allow_downselect=False,
-                        allow_conversion=False,
-                    )
-                else:
+                if not update_data:
                     self.unload_data()
                     warnings.warn(
                         "Unable to update data attributes, unloading them now."
                     )
+                    return
+                self.load_data(
+                    load_cross=not (self.vis_data is None and self.raw_data is None),
+                    load_raw=self.raw_data is not None,
+                    load_auto=self.auto_data is not None,
+                    apply_tsys=self._tsys_applied,
+                    allow_downselect=False,
+                    allow_conversion=False,
+                )
 
     def _clear_auto(self):
         """
@@ -1735,14 +1732,14 @@ class MirParser(object):
         # operations, since we don't want reset to clear them out.
         self.ac_data._stored_values = {}
 
-    def fromfile(
+    def read(
         self,
         filepath,
         has_auto=False,
         has_cross=True,
-        load_vis=False,
-        load_raw=False,
         load_auto=False,
+        load_cross=False,
+        load_raw=False,
     ):
         """
         Read in all files from a mir data set into predefined numpy datatypes.
@@ -1759,12 +1756,12 @@ class MirParser(object):
             Flag to read auto-correlation data. Default is False.
         has_cross : bool
             Flag to read cross-correlation data. Default is True.
-        load_vis : bool
-            Flag to load visibilities into memory. Default is False.
-        load_raw : bool
-            Flag to load raw data into memory. Default is False.
         load_auto : bool
             Flag to load auto-correlations into memory. Default is False.
+        load_cross : bool
+            Flag to load cross-correlations into memory. Default is False.
+        load_raw : bool
+            Flag to load raw data into memory. Default is False.
         """
         # These functions will read in the major blocks of metadata that get plugged
         # in to the various attributes of the MirParser object. Note that "_read"
@@ -1784,7 +1781,7 @@ class MirParser(object):
         filepath = os.path.abspath(filepath)
 
         for attr in self._metadata_attrs.values():
-            attr.fromfile(filepath)
+            attr.read(filepath)
 
         # This indexes the "main" file that contains all the visibilities, to make
         # it faster to read in the data.
@@ -1822,9 +1819,9 @@ class MirParser(object):
         self._tsys_applied = False
 
         # If requested, now we load up the visibilities.
-        self.load_data(load_vis=load_vis, load_raw=load_raw, load_auto=load_auto)
+        self.load_data(load_cross=load_cross, load_raw=load_raw, load_auto=load_auto)
 
-    def tofile(
+    def write(
         self,
         filepath,
         overwrite=True,
@@ -1882,9 +1879,7 @@ class MirParser(object):
 
         # Check that the data are loaded
         if load_data:
-            self.load_data(
-                load_vis=False, load_raw=self._has_cross, load_auto=self._has_auto
-            )
+            self.load_data(load_raw=True)
 
         # Write out the various metadata fields
         for attr in self._metadata_attrs:
@@ -1894,7 +1889,7 @@ class MirParser(object):
             else:
                 mir_meta_obj = self._metadata_attrs[attr]
 
-            mir_meta_obj.tofile(
+            mir_meta_obj.write(
                 filepath,
                 overwrite=overwrite,
                 append_data=append_data,
@@ -2836,7 +2831,7 @@ class MirParser(object):
         if self.vis_data is None:
             raise ValueError(
                 "Visibility data must be loaded in order to apply COMPASS solns. Run "
-                "`load_data(load_vis=True)` to fix this issue."
+                "`load_data(load_cross=True)` to fix this issue."
             )
 
         # Use this to map certain per-blhid values to individual sphid entries.
