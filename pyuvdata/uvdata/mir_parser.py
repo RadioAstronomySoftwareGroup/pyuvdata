@@ -95,6 +95,7 @@ class MirParser(object):
         self.filepath = ""
         self._file_dict = {}
         self._sp_dict = {}
+        self._ac_dict = {}
 
         self.raw_data = None
         self.vis_data = None
@@ -315,7 +316,7 @@ class MirParser(object):
         return new_obj
 
     @staticmethod
-    def scan_int_start(filepath, allowed_inhid=None):
+    def _scan_int_start(filepath, allowed_inhid=None):
         """
         Read "sch_read" or "ach_read" mir file into a python dictionary (@staticmethod).
 
@@ -401,7 +402,7 @@ class MirParser(object):
             imap = {val["inhid"]: inhid for inhid, val in int_dict.items()}
 
             # Make the new dict by scaning the sch_read file.
-            new_dict = self.scan_int_start(
+            new_dict = self._scan_int_start(
                 os.path.join(ifile, idict[data_type]["filetype"]), list(imap)
             )
 
@@ -413,7 +414,7 @@ class MirParser(object):
             idict[data_type]["int_dict"] = int_dict
 
     @staticmethod
-    def read_packdata(file_dict, inhid_arr, data_type="cross", use_mmap=False):
+    def _read_packdata(file_dict, inhid_arr, data_type="cross", use_mmap=False):
         """
         Read "sch_read" mir file into memory (@staticmethod).
 
@@ -576,7 +577,7 @@ class MirParser(object):
         return int_data_dict
 
     @staticmethod
-    def make_packdata(int_dict, recpos_dict, data_dict, data_type):
+    def _make_packdata(int_dict, recpos_dict, data_dict, data_type):
         """
         Write packdata from raw_data or auto_data.
 
@@ -674,7 +675,7 @@ class MirParser(object):
         return int_data_dict
 
     @staticmethod
-    def convert_raw_to_vis(raw_dict):
+    def _convert_raw_to_vis(raw_dict):
         """
         Create a dict with visibilitity data via a raw data dict.
 
@@ -729,7 +730,7 @@ class MirParser(object):
         return vis_dict
 
     @staticmethod
-    def convert_vis_to_raw(vis_dict):
+    def _convert_vis_to_raw(vis_dict):
         """
         Create a dict with visibilitity data via a raw data dict.
 
@@ -755,7 +756,7 @@ class MirParser(object):
             to -32768 aren't possible with the compression scheme used for MIR, and so
             this value is used to mark flags.
         """
-        # Similar to convert_raw_to_vis, fair bit of testing went into making this as
+        # Similar to _convert_raw_to_vis, fair bit of testing went into making this as
         # fast as possible. Strangely enough, frexp is _way_ faster than ldexp.
         # Note that we only want to calculate a common exponent based on the unflagged
         # spectral channels.
@@ -799,7 +800,7 @@ class MirParser(object):
 
         return raw_dict
 
-    def read_data(self, data_type, return_vis=True, use_mmap=True, read_only=False):
+    def _read_data(self, data_type, return_vis=True, use_mmap=True, read_only=False):
         """
         Read "sch_read" mir file into a list of ndarrays.
 
@@ -865,7 +866,7 @@ class MirParser(object):
         try:
             # Begin the process of reading the data in, stuffing the "packdata" arrays
             # (to be converted into "raw" data) into the dict below.
-            packdata_dict = self.read_packdata(
+            packdata_dict = self._read_packdata(
                 self._file_dict, unique_inhid, data_type, use_mmap
             )
         except MirMetaError:
@@ -876,7 +877,7 @@ class MirParser(object):
                 "file for %s data. Attempting to fix this automatically." % data_type
             )
             self._fix_int_dict(data_type)
-            packdata_dict = self.read_packdata(
+            packdata_dict = self._read_packdata(
                 self._file_dict, unique_inhid, data_type, use_mmap
             )
 
@@ -911,7 +912,7 @@ class MirParser(object):
 
             if np.all(chan_avg_arr == 1):
                 if return_vis:
-                    temp_dict = self.convert_raw_to_vis(temp_dict)
+                    temp_dict = self._convert_raw_to_vis(temp_dict)
                 elif not read_only:
                     for idict in temp_dict.values():
                         idict["data"] = idict["data"].copy()
@@ -927,7 +928,7 @@ class MirParser(object):
         # Figure out which results we need to pass back
         return data_dict
 
-    def write_cross_data(self, filepath, append_data=False, raise_err=True):
+    def _write_cross_data(self, filepath, append_data=False, raise_err=True):
         """
         Write cross-correlation data to disk.
 
@@ -986,16 +987,16 @@ class MirParser(object):
                 if self.vis_data is None:
                     raw_dict = self.raw_data
                 else:
-                    raw_dict = self.convert_vis_to_raw(
+                    raw_dict = self._convert_vis_to_raw(
                         {sphid: self.vis_data[sphid] for sphid in sp_dict[inhid]}
                     )
 
-                packdata = self.make_packdata(
+                packdata = self._make_packdata(
                     {inhid: int_dict[inhid]}, {inhid: sp_dict[inhid]}, raw_dict, "cross"
                 )
                 packdata[inhid].tofile(file)
 
-    def write_auto_data(self, filepath, append_data=False, raise_err=True):
+    def _write_auto_data(self, filepath, append_data=False, raise_err=True):
         """
         Write auto-correlation data to disk.
 
@@ -1040,7 +1041,7 @@ class MirParser(object):
             os.path.join(filepath, "ach_read"), "ab+" if append_data else "wb+"
         ) as file:
             for inhid in int_dict:
-                packdata = self.make_packdata(
+                packdata = self._make_packdata(
                     {inhid: int_dict[inhid]},
                     {inhid: ac_dict[inhid]},
                     self.auto_data,
@@ -1368,7 +1369,7 @@ class MirParser(object):
             warnings.warn(
                 "Converting previously loaded data since allow_conversion=True."
             )
-            self.vis_data = self.convert_raw_to_vis(self.raw_data)
+            self.vis_data = self._convert_raw_to_vis(self.raw_data)
             self._tsys_applied = False
             # If we need to apply tsys, do that now.
             if apply_tsys:
@@ -1406,7 +1407,7 @@ class MirParser(object):
 
         # Finally, if we didn't downselect or convert, load the data from disk now.
         if load_cross:
-            data_dict = self.read_data(
+            data_dict = self._read_data(
                 "cross",
                 return_vis=load_vis,
                 use_mmap=use_mmap,
@@ -1429,7 +1430,7 @@ class MirParser(object):
         # we will fix this, but for now, we triage the autos here. Note that if we
         # already have the auto_data loaded, we can bypass this step.
         if load_auto:
-            self.auto_data = self.read_data(
+            self.auto_data = self._read_data(
                 "auto", return_vis=False, use_mmap=use_mmap, read_only=read_only
             )
 
@@ -1898,10 +1899,10 @@ class MirParser(object):
 
         # Finally, we can package up the data in order to write it to disk.
         if self._has_cross:
-            self.write_cross_data(filepath, append_data=append_data, raise_err=False)
+            self._write_cross_data(filepath, append_data=append_data, raise_err=False)
 
         if self._has_auto:
-            self.write_auto_data(filepath, append_data=append_data, raise_err=False)
+            self._write_auto_data(filepath, append_data=append_data, raise_err=False)
 
     @staticmethod
     def _rechunk_data(data_dict, chan_avg_arr, inplace=False):
@@ -2027,7 +2028,7 @@ class MirParser(object):
             if chan_avg == 1:
                 if (not inplace) or return_vis:
                     data_dict[sphid] = (
-                        MirParser.convert_raw_to_vis({0: sp_raw})[0]
+                        MirParser._convert_raw_to_vis({0: sp_raw})[0]
                         if return_vis
                         else copy.deepcopy(sp_raw)
                     )
@@ -2040,14 +2041,14 @@ class MirParser(object):
             # entry after the sequence of calls.
             if return_vis:
                 data_dict[sphid] = MirParser._rechunk_data(
-                    MirParser.convert_raw_to_vis({0: sp_raw}),
+                    MirParser._convert_raw_to_vis({0: sp_raw}),
                     [chan_avg],
                     inplace=True,
                 )[0]
             else:
-                data_dict[sphid] = MirParser.convert_vis_to_raw(
+                data_dict[sphid] = MirParser._convert_vis_to_raw(
                     MirParser._rechunk_data(
-                        MirParser.convert_raw_to_vis({0: sp_raw}),
+                        MirParser._convert_raw_to_vis({0: sp_raw}),
                         [chan_avg],
                         inplace=True,
                     )
@@ -3278,7 +3279,7 @@ class MirParser(object):
             if shift_tuple == (0, 0, None):
                 if not inplace:
                     data_dict[sphid] = (
-                        MirParser.convert_raw_to_vis({0: sp_raw})[0]
+                        MirParser._convert_raw_to_vis({0: sp_raw})[0]
                         if return_vis
                         else copy.deepcopy(sp_raw)
                     )
@@ -3291,15 +3292,15 @@ class MirParser(object):
             # entry after the sequence of calls.
             if return_vis:
                 data_dict[sphid] = MirParser._chanshift_vis(
-                    MirParser.convert_raw_to_vis({0: sp_raw}),
+                    MirParser._convert_raw_to_vis({0: sp_raw}),
                     [shift_tuple],
                     flag_adj=flag_adj,
                     inplace=False,
                 )[0]
             else:
-                data_dict[sphid] = MirParser.convert_vis_to_raw(
+                data_dict[sphid] = MirParser._convert_vis_to_raw(
                     MirParser._chanshift_vis(
-                        MirParser.convert_raw_to_vis({0: sp_raw}),
+                        MirParser._convert_raw_to_vis({0: sp_raw}),
                         [shift_tuple],
                         flag_adj=flag_adj,
                         inplace=False,

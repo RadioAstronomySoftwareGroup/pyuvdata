@@ -164,7 +164,7 @@ def test_mir_write_item(mir_data, attr, tmp_path):
 def test_mir_write_vis_data_err(mir_data, tmp_path):
     mir_data.unload_data()
     with pytest.raises(ValueError) as err:
-        mir_data.write_cross_data(tmp_path)
+        mir_data._write_cross_data(tmp_path)
     assert str(err.value).startswith("Cannot write data if not already loaded.")
 
 
@@ -175,10 +175,10 @@ def test_mir_raw_data(mir_data, tmp_path):
     filepath = os.path.join(tmp_path, "test_write_raw")
     mir_data.load_data(load_raw=True)
 
-    mir_data.write_cross_data(filepath)
+    mir_data._write_cross_data(filepath)
     # Sub out the file we need to read from
     mir_data._file_dict = {filepath: item for item in mir_data._file_dict.values()}
-    raw_data = mir_data.read_data("cross", return_vis=False)
+    raw_data = mir_data._read_data("cross", return_vis=False)
 
     assert raw_data.keys() == mir_data.raw_data.keys()
 
@@ -190,7 +190,7 @@ def test_mir_raw_data(mir_data, tmp_path):
 def test_mir_auto_data_errs(mir_data):
     mir_data.unload_data()
     with pytest.raises(ValueError) as err:
-        mir_data.write_auto_data(None)
+        mir_data._write_auto_data(None)
     assert str(err.value).startswith("Cannot write data if not already loaded.")
 
 
@@ -200,14 +200,14 @@ def test_mir_auto_data(mir_data, tmp_path):
     """
     filepath = os.path.join(tmp_path, "test_write_auto")
 
-    mir_data.write_auto_data(filepath)
+    mir_data._write_auto_data(filepath)
     # Sub out the file we need to read from, and fix a couple of attributes that changed
     # since we are no longer spoofing values (after reading in data from old-style file)
     mir_data._file_dict = {filepath: item for item in mir_data._file_dict.values()}
     mir_data._file_dict[filepath]["auto"]["filetype"] = "ach_read"
     int_dict, mir_data._ac_dict = mir_data.ac_data._generate_recpos_dict(reindex=True)
     mir_data._file_dict[filepath]["auto"]["int_dict"] = int_dict
-    auto_data = mir_data.read_data("auto")
+    auto_data = mir_data._read_data("auto")
 
     assert auto_data.keys() == mir_data.auto_data.keys()
 
@@ -470,9 +470,9 @@ def test_eq(mir_data, metadata_only, mod_attr, mod_val, exp_state, flip):
 
 
 def test_scan_int_start_errs(mir_data):
-    """Verify scan_int_start throws errors when expected."""
+    """Verify _scan_int_start throws errors when expected."""
     with pytest.raises(ValueError) as err:
-        mir_data.scan_int_start(
+        mir_data._scan_int_start(
             os.path.join(mir_data.filepath, "sch_read"), allowed_inhid=[-1]
         )
     assert str(err.value).startswith("Index value inhid in sch_read does not match")
@@ -481,7 +481,7 @@ def test_scan_int_start_errs(mir_data):
 def test_scan_int_start(mir_data):
     """Verify that we can correctly scan integration starting periods."""
     true_dict = {1: {"inhid": 1, "record_size": 1048680, "record_start": 0}}
-    assert true_dict == mir_data.scan_int_start(
+    assert true_dict == mir_data._scan_int_start(
         os.path.join(mir_data.filepath, "sch_read"), allowed_inhid=[1]
     )
 
@@ -519,27 +519,27 @@ def test_fix_int_dict(mir_data):
     # Plug in the bad entry again
     mir_data._file_dict[mir_data.filepath]["cross"]["int_dict"] = bad_entry.copy()
     with uvtest.check_warnings(UserWarning, "Values in int_dict do not match"):
-        mir_data.read_data("cross", return_vis=False)
+        mir_data._read_data("cross", return_vis=False)
 
     assert good_dict == mir_data._file_dict
 
     # Attempt to load the data
-    _ = mir_data.read_data("cross", return_vis=False)
+    _ = mir_data._read_data("cross", return_vis=False)
 
 
 def test_read_packdata_err(mir_data):
     with pytest.raises(ValueError) as err:
-        mir_data.read_packdata(mir_data._file_dict, [1, 2])
+        mir_data._read_packdata(mir_data._file_dict, [1, 2])
     assert str(err.value).startswith("inhid_arr contains keys not found in file_dict.")
 
 
 def test_read_packdata_mmap(mir_data):
     """Test that reading in vis data with mmap works just as well as np.read"""
-    mmap_data = mir_data.read_packdata(
+    mmap_data = mir_data._read_packdata(
         mir_data._file_dict, mir_data.in_data["inhid"], use_mmap=True
     )
 
-    reg_data = mir_data.read_packdata(
+    reg_data = mir_data._read_packdata(
         mir_data._file_dict, mir_data.in_data["inhid"], use_mmap=False
     )
 
@@ -548,31 +548,31 @@ def test_read_packdata_mmap(mir_data):
         assert np.array_equal(mmap_data[key], reg_data[key])
 
 
-@pytest.mark.parametrize("attr", ["make_packdata", "read_data"])
+@pytest.mark.parametrize("attr", ["_make_packdata", "_read_data"])
 def test_data_errs(mir_data, attr):
     with pytest.raises(ValueError) as err:
         getattr(mir_data, attr)(None, None, None, None)
     assert str(err.value).startswith("Argument for data_type not recognized")
 
 
-def test_read_packdata_make_packdata(mir_data):
+def test_read_packdata__make_packdata(mir_data):
     """Verify that making packdata produces the same result as reading packdata"""
     mir_data.load_data(load_raw=True)
 
-    read_data = mir_data.read_packdata(
+    _read_data = mir_data._read_packdata(
         mir_data._file_dict, mir_data.in_data["inhid"], "cross"
     )
 
-    make_data = mir_data.make_packdata(
+    make_data = mir_data._make_packdata(
         mir_data._file_dict[mir_data.filepath]["cross"]["int_dict"],
         mir_data._sp_dict,
         mir_data.raw_data,
         "cross",
     )
 
-    assert read_data.keys() == make_data.keys()
-    for key in read_data.keys():
-        assert np.array_equal(read_data[key], make_data[key])
+    assert _read_data.keys() == make_data.keys()
+    for key in _read_data.keys():
+        assert np.array_equal(_read_data[key], make_data[key])
 
 
 def test_apply_tsys_errs(mir_data):
@@ -705,7 +705,7 @@ def test_check_data_index(mir_data):
 def test_downselect_data(mir_data, select_vis, select_raw, select_auto):
     if select_raw:
         # Create the raw data in case we need it.
-        mir_data.raw_data = mir_data.convert_vis_to_raw(mir_data.vis_data)
+        mir_data.raw_data = mir_data._convert_vis_to_raw(mir_data.vis_data)
         if not select_vis:
             # Unload this if we don't need it
             mir_data.vis_data = None
@@ -1210,7 +1210,7 @@ def test_add_merge(mir_data):
 @pytest.mark.parametrize("drop_raw", [True, False])
 @pytest.mark.parametrize("drop_vis", [True, False, "jypk", "tsys"])
 def test_add_drop_data(mir_data, drop_auto, drop_raw, drop_vis):
-    mir_data.raw_data = mir_data.convert_vis_to_raw(mir_data.vis_data)
+    mir_data.raw_data = mir_data._convert_vis_to_raw(mir_data.vis_data)
     mir_copy = mir_data.copy()
 
     if drop_auto:
@@ -1457,7 +1457,7 @@ def test_chanshift_raw_vals(inplace, return_vis, fwd_dir, check_flags):
     if inplace:
         assert new_dict is raw_dict
     if return_vis:
-        new_dict = MirParser.convert_vis_to_raw(new_dict)
+        new_dict = MirParser._convert_vis_to_raw(new_dict)
 
     assert np.all(raw_vals == new_dict[123]["data"])
     assert new_dict[123]["scale_fac"] == 0
@@ -1472,7 +1472,7 @@ def test_chanshift_raw_vals(inplace, return_vis, fwd_dir, check_flags):
     if inplace:
         assert new_dict is raw_dict
     if return_vis:
-        new_dict = MirParser.convert_vis_to_raw(new_dict)
+        new_dict = MirParser._convert_vis_to_raw(new_dict)
 
     good_slice = slice(None if fwd_dir else 2, -2 if fwd_dir else None)
     flag_slice = slice(None if fwd_dir else -2, 2 if fwd_dir else None)
@@ -1504,7 +1504,7 @@ def test_chanshift_raw_vals(inplace, return_vis, fwd_dir, check_flags):
     if inplace:
         assert new_dict is raw_dict
     if return_vis:
-        new_dict = MirParser.convert_vis_to_raw(new_dict)
+        new_dict = MirParser._convert_vis_to_raw(new_dict)
 
     if fwd_dir:
         assert np.all(new_dict[123]["data"][14:16] == (32767 if check_flags else 0))
@@ -1641,7 +1641,7 @@ def test_redoppler_data(mir_data, plug_vals, diff_rx, use_raw):
     mir_data.codes_data.set_value("code", "4", where=("v_name", "eq", "filever"))
 
     if use_raw:
-        mir_data.raw_data = mir_data.convert_vis_to_raw(mir_data.vis_data)
+        mir_data.raw_data = mir_data._convert_vis_to_raw(mir_data.vis_data)
         mir_data.vis_data = None
 
     mir_copy = mir_data.copy()
