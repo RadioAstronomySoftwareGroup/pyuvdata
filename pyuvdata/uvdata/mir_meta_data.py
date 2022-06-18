@@ -345,7 +345,7 @@ sp_dtype = np.dtype(
 
 # codes_read is a special set of metadata, basically used for storing "everything else".
 # It is typically used for storing information that does not change over the course of
-# the track, although a few commonly used codes due vary integration by integration.
+# the track, although a few commonly used codes do vary integration by integration.
 
 codes_dtype = np.dtype(
     [("v_name", "U12"), ("icode", np.int16), ("code", "U26"), ("ncode", np.int16)]
@@ -531,7 +531,7 @@ class MirMetaData(object):
         self._stored_values = {}
 
         if filepath is not None:
-            self.fromfile(filepath)
+            self.read(filepath)
 
     def __iter__(self):
         """
@@ -847,12 +847,12 @@ class MirMetaData(object):
         select_comp : str
             Specifies the type of comparison to do between the value supplied in
             `select_val` and the metadata. No default, allowed values include:
-            "eq" | "==" (equal to, matching any in `select_val`),
-            "ne" | "!=" (not equal to, not matching any in `select_val`),
-            "lt" | "<" (less than `select_val`),
-            "le" | "<=" (less than or equal to `select_val`),
-            "gt" | ">" (greater than `select_val`),
-            "ge" | ">=" (greater than or equal to `select_val`),
+            "eq" or "==" (equal to, matching any in `select_val`),
+            "ne" or "!=" (not equal to, not matching any in `select_val`),
+            "lt" or "<" (less than `select_val`),
+            "le" or "<=" (less than or equal to `select_val`),
+            "gt" or ">" (greater than `select_val`),
+            "ge" or ">=" (greater than or equal to `select_val`),
             "between" (between the range given by two values in `select_val`),
             "outside" (outside of the range give by two values in `select_val`).
         select_val : number of str, or sequence of number or str
@@ -950,9 +950,8 @@ class MirMetaData(object):
         Find array index positions where selection criteria are met.
 
         This is an internal helper function used by several methods of the MirMetaData
-        class, and is not designed for users, but instead is part of the developer API.
-        This function will report back the index positions in the `_data` attribute
-        where the given selection criteria are met.
+        class, and is not designed for users. This function will report back the index
+        positions in the `_data` attribute where the given selection criteria are met.
 
         Parameters
         ----------
@@ -1288,7 +1287,7 @@ class MirMetaData(object):
         Set values for a particular field using set_value.
 
         field_name : str
-            Fields from which to extract data. Must match a field name, as list in the
+            Fields from which to extract data. Must match a field name, as listed in the
             `dtype` attribute of the object.
         value : ndarray
             Values to set the field in question to, where the provided selection
@@ -1308,10 +1307,10 @@ class MirMetaData(object):
         """
         Generate a boolean mask based on selection criteria.
 
-        Note that this is an internal helper function which is not for general user use,
-        but instead is part of the low-level API for the MirMetaData object. Generates
-        a boolean mask to based on the selection criteria (where the array is set to
-        True when the selection criteria are met).
+        Note that this is an internal helper function for other methods, which is not
+        intended for general user use. Generates a boolean mask to based on the
+        selection criteria (where the array is set to True when the selection criteria
+        are met).
 
         Parameters
         ----------
@@ -1669,7 +1668,7 @@ class MirMetaData(object):
             will be the unique values of the field, otherwise the keys will be tuples
             of the unique sets of metadata values for the grouping fields. The values
             are is either an ndarray of index positions (if `return_index=True`), an
-            ndarray of header key values (if `return_index=True` and the objet has a
+            ndarray of header key values (if `return_index=True` and the object has a
             valid  header key), or a list of tuples (if `return_index=True` and the
             object only has a pseudo-index), which correspond to the metadata entries
             that match the unique key.
@@ -1782,7 +1781,7 @@ class MirMetaData(object):
         Update fields within a MirMetaData object.
 
         Note that this is not a function designed to be called by users, but instead is
-        part of the low-level API for the object. This function will take a so-called
+        a helper function for other methods. This function will take a so-called
         "update dictionary", which provides a way to map an existing set of values
         for a given field to an updated one. This function is most typically called
         when adding two different MirParser objects together, where multiple fields used
@@ -1864,7 +1863,7 @@ class MirMetaData(object):
 
     def _add_check(self, other, merge=None, overwrite=None, discard_flagged=False):
         """
-        Check if two MirMetaData objects conflicting header key values.
+        Check if two MirMetaData objects contain conflicting header key values.
 
         This method is an internal helper function not meant to be called by users.
         It checks if the header keys for two objects have overlapping values, and if so,
@@ -2054,7 +2053,7 @@ class MirMetaData(object):
 
         return this_idx, other_idx, this_mask[this_idx], other_mask[other_idx]
 
-    def fromfile(self, filepath):
+    def read(self, filepath):
         """
         Read in data for a MirMetaData object from disk.
 
@@ -2080,8 +2079,8 @@ class MirMetaData(object):
         """
         Write _data attribute to disk.
 
-        This function is part of the low-level API, which is called when calling the
-        `tofile` method. It is broken out separately here to enable subclasses to
+        This function is a low-level helper function, which is called when calling the
+        `write` method. It is broken out separately here to enable subclasses to
         differently specify how data are written out (namely binary vs text).
 
         Parameters
@@ -2101,7 +2100,7 @@ class MirMetaData(object):
             else:
                 self._data[datamask].astype(self._binary_dtype).tofile(file)
 
-    def tofile(
+    def write(
         self,
         filepath,
         overwrite=False,
@@ -2109,11 +2108,7 @@ class MirMetaData(object):
         check_index=False,
     ):
         """
-        Write a metadata file to disk.
-
-        This function is part of the low-level API, which is called when calling the
-        `tofile` method. It is broken out separately here to enable subclasses to
-        differently specify how data are written out (namely binary vs text).
+        Write a metadata object to disk.
 
         Parameters
         ----------
@@ -2156,7 +2151,7 @@ class MirMetaData(object):
 
         if append_data and check_index:
             copy_obj = self.copy(skip_data=True)
-            copy_obj.fromfile(filepath)
+            copy_obj.read(filepath)
             try:
                 idx_arr = self._add_check(
                     copy_obj,
@@ -2217,7 +2212,7 @@ class MirMetaData(object):
         Calculate the offsets of each spectral record for packed data.
 
         This is an internal helper function not meant to be called by users, but
-        instead is part of the low-level API. This function is used to calculate the
+        instead is a low-level helper function. This function is used to calculate the
         relative offset of the spectral record inside of a per-integration "packed
         data array", which is what is recorded to disk. This method is primarily used
         when writing visibility to disk, since the packing of the data (and by
@@ -2255,7 +2250,7 @@ class MirMetaData(object):
         Generate a set of dicts for indexing of data.
 
         This is an internal helper function not meant to be called by users, but
-        instead is part of the low-level API. This function is used to calculate
+        instead is a low-level helper function. This function is used to calculate
         internal indexing values for use in unpacking the raw data on disk, recorded
         under the filename "sch_read".
 
@@ -2477,9 +2472,9 @@ class MirAntposData(MirMetaData):
         super().__init__("antennas", antpos_dtype, "antenna", None, None, None)
 
         if filepath is not None:
-            self.fromfile(filepath)
+            self.read(filepath)
 
-    def fromfile(self, filepath):
+    def read(self, filepath):
         """
         Read in data for a MirAntposData object from disk.
 
@@ -2505,8 +2500,8 @@ class MirAntposData(MirMetaData):
         """
         Write _data attribute to disk.
 
-        This function is part of the low-level API, which is called when calling the
-        `tofile` method. It is broken out separately here to enable subclasses to
+        This method is an internal function which is called when calling the
+        `write` method. It is broken out separately here to enable subclasses to
         differently specify how data are written out (namely binary vs text).
 
         Parameters
@@ -2682,12 +2677,12 @@ class MirCodesData(MirMetaData):
         select_comp : str
             Specifies the type of comparison to do between the value supplied in
             `select_val` and the metadata. No default, allowed values include:
-            "eq" | "==" (equal to, matching any in `select_val`),
-            "ne" | "!=" (not equal to, not matching any in `select_val`),
-            "lt" | "<" (less than `select_val`),
-            "le" | "<=" (less than or equal to `select_val`),
-            "gt" | ">" (greater than `select_val`),
-            "ge" | ">=" (greater than or equal to `select_val`),
+            "eq" or "==" (equal to, matching any in `select_val`),
+            "ne" or "!=" (not equal to, not matching any in `select_val`),
+            "lt" or "<" (less than `select_val`),
+            "le" or "<=" (less than or equal to `select_val`),
+            "gt" or ">" (greater than `select_val`),
+            "ge" or ">=" (greater than or equal to `select_val`),
             "between" (between the range given by two values in `select_val`),
             "outside" (outside of the range give by two values in `select_val`).
         select_val : number of str, or sequence of number or str
@@ -2986,7 +2981,7 @@ class MirAcData(MirMetaData):
         self._old_type = False
         super().__init__("ac_read", ac_dtype, "achid", None, None, filepath)
 
-    def fromfile(self, filepath, nchunks=8):
+    def read(self, filepath, nchunks=8):
         """
         Read in data for a MirAcData object from disk.
 
@@ -3003,7 +2998,7 @@ class MirAcData(MirMetaData):
         new_ac_file = os.path.join(filepath, self._filetype)
         if not (os.path.exists(old_ac_file) and not os.path.exists(new_ac_file)):
             self._old_type = False
-            super().fromfile(filepath)
+            super().read(filepath)
             return
 
         self._old_type = True

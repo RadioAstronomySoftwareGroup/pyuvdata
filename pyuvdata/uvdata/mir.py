@@ -185,7 +185,7 @@ class Mir(UVData):
             # single-code ambiguity.
             pol_arr = mir_data.bl_data.get_value("ipol", index=sp_bl_idx)
 
-        # Construct and indexing list, that we'll use later to figure out what data
+        # Construct an indexing list, that we'll use later to figure out what data
         # goes where, based on spw, sideband, and pol code.
         spdx_list = [
             (winid, sbid, polid)
@@ -220,7 +220,7 @@ class Mir(UVData):
         for code in mir_data.codes_data.get_codes("pol", return_dict=False):
             # There are pol modes/codes that are support in MIR that are not in AIPS
             # or CASA, although they are rarely used, so we can skip over translating
-            # them in the try/except loop here (if present in he data, it will throw
+            # them in the try/except loop here (if present in the data, it will throw
             # an error further downstream).
             try:
                 pol_code_dict[icode_dict[code]] = uvutils.POL_STR2NUM_DICT[code.lower()]
@@ -367,7 +367,7 @@ class Mir(UVData):
         vis_flags = np.ones((Nblts, Npols, Nfreqs), dtype=bool)
         vis_weights = np.zeros((Nblts, Npols, Nfreqs), dtype=np.float32)
         if mir_data.vis_data is None:
-            mir_data.load_data(load_vis=True, apply_tsys=True)
+            mir_data.load_data(load_cross=True, apply_tsys=True)
             mir_data.apply_flags()
 
         if not np.all(
@@ -387,7 +387,7 @@ class Mir(UVData):
             pol_idx = spdx_dict[window]["pol_idx"]
             vis_data[blt_idx, pol_idx, ch_slice] = np.conj(vis_rec["data"])
             vis_flags[blt_idx, pol_idx, ch_slice] = vis_rec["flags"]
-            # The "wt" column is calcualted as (T_DSB ** 2)/(integ time), but we want
+            # The "wt" column is calculated as (T_DSB ** 2)/(integ time), but we want
             # units of Jy**-2. To do this, we just need to multiply by the forward gain
             # of the antenna squared and the channel width. The factor of 2**2 (4)
             # arises because we need to convert T_DSB**2 to T_SSB**2.
