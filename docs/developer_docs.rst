@@ -78,6 +78,8 @@ Mir Parser
 .. automodule:: pyuvdata.uvdata.mir_parser
   :members:
 
+.. automodule:: pyuvdata.uvdata.mir_meta_data
+  :members:
 
 
 Functions
