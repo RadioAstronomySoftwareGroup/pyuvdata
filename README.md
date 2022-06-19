@@ -48,7 +48,7 @@ somewhat new format, so it may evolve a bit
 but we will strive to make future versions backwards compatible with the current format.
 It is probably not compatible with other interferometric HDF5 files defined by other groups.
 * FHD (read-only support, tested against MWA and PAPER data)
-* MIR (read-only support, tested against SMA data)
+* MIR (read-only support, though experimental write functions are available, tested against SMA data)
 * MWA correlator FITS files (read-only support, tested against Cotter outputs and FHD)
 
 ## UVCal file formats
