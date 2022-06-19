@@ -1545,9 +1545,9 @@ class MirMetaData(object):
         """
         Set internal header key to index position dictionary attribute.
 
-        Note that this is an internal helper function, not intended for general users
-        but instead is part of the developer API. Generates a dictionary that can be
-        used for mapping header key values to index positions inside the data array.
+        Note that this is an internal helper function, not intended for general users.
+        Generates a dictionary that can be used for mapping header key values to index
+        positions inside the data array.
         """
         self._header_key_index_dict = self.group_by(
             self._pseudo_header_key if self._header_key is None else self._header_key,
@@ -1561,7 +1561,7 @@ class MirMetaData(object):
         Create an updated set of header keys for a MirMetaData object.
 
         Note that this function is not meant to be called by users, but instead is
-        part of the low-level API for the object. This function allows for one to
+        low-level helper function for the object. This function allows for one to
         create an updated set of header keys, such that their values do not conflict
         with another MirMetaData object -- useful for situations where you would like
         to combine the two objects together in some fashion.
@@ -1613,7 +1613,7 @@ class MirMetaData(object):
         Sort data array by header key values.
 
         Note that this function is not designed to be called by users, but instead is
-        part of the low-level API for the object. Calling this function will sort the
+        a low-level helper function for the object. Calling this function will sort the
         metadata in the `_data` attribute by the (pseudo) header key, and will
         regenerate the header key index dict accordingly. This function is most
         most commonly used after combining two objects to guarantee that the data are
@@ -2815,7 +2815,7 @@ class MirCodesData(MirMetaData):
         Create an updated set of pseudo header keys for a MirCodesData object.
 
         Note that this function is not meant to be called by users, but instead is
-        part of the low-level API for the object. This function allows for one to
+        is a low-level helper function for the object. This function allows for one to
         create an updated set of pseudo header keys via an update to the indexing codes,
         such that their values do not conflict with another MirCodesData object --
         useful for situations where you would like to combine the two datasets together.

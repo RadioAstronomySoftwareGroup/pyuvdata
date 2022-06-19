@@ -1574,7 +1574,7 @@ class MirParser(object):
         """
         Remove attributes related to autos.
 
-        This method is part of the internal API, and not meant for general users. It
+        This method is an internal helper function, and not meant for general users. It
         will clear out attributes related to the auto-correlations.
         """
         self._has_auto = False
@@ -1617,7 +1617,7 @@ class MirParser(object):
         """
         Fill in missing auto-correlation metadata.
 
-        This method is part of the internal API, and not meant to be called by users.
+        This method is an internal helper function, and not meant to be called by users.
         It's purpose is to reconstruct auto-correlation metadata based on that available
         in other metadata attributes. This is needed because presently, the online
         system records no such information.
