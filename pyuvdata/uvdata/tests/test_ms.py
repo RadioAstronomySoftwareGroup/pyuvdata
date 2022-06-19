@@ -585,7 +585,7 @@ def test_ms_single_chan(mir_uv, future_shapes, tmp_path):
         ms_uv.read(testfile)
     assert str(cm.value).startswith("No valid data available in the MS file.")
 
-    ms_uv.read_ms(testfile, ignore_single_chan=False)
+    ms_uv.read(testfile, ignore_single_chan=False)
 
     # Easiest way to check that everything worked is to just check for equality, but
     # the MS file is single-spw, single-field, so we have a few things we need to fix
@@ -703,7 +703,7 @@ def test_ms_extra_data_descrip(mir_uv, tmp_path):
         tb_dd.putcell(col, tb_dd.nrows() - 1, tb_dd.getcell(col, 0))
     tb_dd.close()
 
-    ms_uv.read_ms(testfile, ignore_single_chan=False)
+    ms_uv.read(testfile, ignore_single_chan=False)
 
     # There are some minor differences between the values stored by MIR and that
     # calculated by UVData. Since MS format requires these to be calculated on the fly,
