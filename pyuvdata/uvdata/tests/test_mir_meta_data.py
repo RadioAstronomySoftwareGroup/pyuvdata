@@ -114,9 +114,8 @@ def test_mir_meta_copy(mir_in_data):
     "comp_obj,err_msg", [[0, "Cannot compare MirInData with int."]]
 )
 def test_mir_meta_eq_errs(mir_in_data, comp_obj, err_msg):
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(ValueError, match=err_msg):
         mir_in_data.__eq__(comp_obj)
-    assert str(err.value).startswith(err_msg)
 
 
 @pytest.mark.parametrize("verbose", [True, False])
@@ -165,9 +164,8 @@ def test_mir_meta_eq(mir_sp_data, result, verbose):
     ],
 )
 def test_mir_meta_where_errs(mir_in_data, field, op, err_type, err_msg):
-    with pytest.raises(err_type) as err:
+    with pytest.raises(err_type, match=err_msg):
         mir_in_data.where(field, op, [1])
-    assert str(err.value).startswith(err_msg)
 
 
 @pytest.mark.parametrize("return_keys", [True, False])
@@ -232,9 +230,8 @@ def test_mir_meta_where_pseudo_key(mir_data):
     ],
 )
 def test_mir_meta_index_query_errs(mir_in_data, kwargs, err_type, err_msg):
-    with pytest.raises(err_type) as err:
+    with pytest.raises(err_type, match=err_msg):
         mir_in_data._index_query(**kwargs)
-    assert str(err.value).startswith(err_msg)
 
 
 @pytest.mark.parametrize(
@@ -258,9 +255,8 @@ def test_mir_meta_index_query(mir_sp_data, arg, output):
     ],
 )
 def test_mir_meta_get_value_errs(mir_in_data, field_name, err_type, err_msg):
-    with pytest.raises(err_type) as err:
+    with pytest.raises(err_type, match=err_msg):
         mir_in_data.get_value(field_name)
-    assert str(err.value).startswith(err_msg)
 
 
 @pytest.mark.parametrize(
@@ -395,9 +391,8 @@ def test_mir_meta_set_header_key_index_dict(mir_sp_data):
 
 
 def test_mir_meta_generate_new_header_keys_err(mir_in_data):
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(ValueError, match="Both objects must be of the same type."):
         mir_in_data._generate_new_header_keys(0)
-    assert str(err.value).startswith("Both objects must be of the same type.")
 
 
 def test_mir_meta_generate_new_header_keys_noop(mir_eng_data):
@@ -458,9 +453,8 @@ def test_mir_meta_group_by(mir_sp_data, fields, args, mask_data, comp_dict):
 
 
 def test_mir_meta_reset_values_errs(mir_in_data):
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(ValueError, match="No stored values for field foo."):
         mir_in_data.reset_values("foo")
-    assert str(err.value).startswith("No stored values for field foo.")
 
 
 @pytest.mark.parametrize("list_args", [True, False])
@@ -503,9 +497,8 @@ def test_mir_meta_reset(mir_sp_data):
     ],
 )
 def test_mir_meta_update_fields_errs(mir_in_data, update_dict, err_type, err_msg):
-    with pytest.raises(err_type) as err:
+    with pytest.raises(err_type, match=err_msg):
         mir_in_data._update_fields(update_dict, raise_err=True)
-    assert str(err.value).startswith(err_msg)
 
 
 def test_mir_meta_update_fields(mir_bl_data):
@@ -530,13 +523,11 @@ def test_mir_meta_write_errs(mir_sp_data, tmp_path):
     mir_sp_data.write(filepath)
     mir_sp_data["gunnLO"] = 0.0
 
-    with pytest.raises(FileExistsError) as err:
+    with pytest.raises(FileExistsError, match="File already exists, must set overwri"):
         mir_sp_data.write(filepath)
-    assert str(err.value).startswith("File already exists, must set overwrite")
 
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(ValueError, match="Conflicting header keys detected"):
         mir_sp_data.write(filepath, append_data=True, check_index=True)
-    assert str(err.value).startswith("Conflicting header keys detected")
 
 
 def test_mir_meta_write_append(mir_sp_data, tmp_path):
@@ -579,9 +570,8 @@ def test_mir_meta_add_check_errs(mir_sp_data, cmd, args, err_type, err_msg):
         elif cmd == "muck_data":
             other["gunnLO"] = -1.0
 
-    with pytest.raises(err_type) as err:
+    with pytest.raises(err_type, match=err_msg):
         mir_sp_data._add_check(other, **args)
-    assert str(err.value).startswith(err_msg)
 
 
 @pytest.mark.parametrize(
@@ -646,9 +636,8 @@ def test_mir_meta_add_check_concat(mir_bl_data, cmd, comp_results):
 
 
 def test_mir_meta_add_errs(mir_in_data):
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(ValueError, match="Both objects must be of the same type."):
         mir_in_data += 0
-    assert str(err.value).startswith("Both objects must be of the same type.")
 
 
 @pytest.mark.parametrize("this_none", [True, False])
@@ -718,9 +707,8 @@ def test_mir_sp_recalc_dataoff(mir_sp_data):
 
 
 def test_mir_meta_get_record_size_info_errs():
-    with pytest.raises(TypeError) as err:
+    with pytest.raises(TypeError, match="Cannot use this method on objects other than"):
         MirMetaData(None, None, None)._get_record_size_info()
-    assert str(err.value).startswith("Cannot use this method on objects other than")
 
 
 @pytest.mark.parametrize(
@@ -813,9 +801,8 @@ def test_mir_codes_get_code_names(mir_codes_data):
     ],
 )
 def test_mir_codes_where_errs(mir_codes_data, args, kwargs, err_type, err_msg):
-    with pytest.raises(err_type) as err:
+    with pytest.raises(err_type, match=err_msg):
         mir_codes_data.where(*args, **kwargs)
-    assert str(err.value).startswith(err_msg)
 
 
 @pytest.mark.parametrize(
@@ -836,9 +823,8 @@ def test_mir_codes_where(mir_codes_data, args, kwargs, output):
 
 
 def test_mir_codes_get_item_err(mir_codes_data):
-    with pytest.raises(MirMetaError) as err:
+    with pytest.raises(MirMetaError, match="foo does not match any code or field"):
         mir_codes_data["foo"]
-    assert str(err.value).startswith("foo does not match any code or field")
 
 
 @pytest.mark.parametrize(
@@ -862,15 +848,14 @@ def test_mir_codes_get_item_dtype(mir_codes_data, name):
 def test_mir_codes_generate_new_header_keys_errs_and_warns(mir_codes_data):
     # This _could_ be parameterized, although each test is so customized that
     # it's easier to code this as a single passthrough.
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(ValueError, match="Both objects must be of the same type."):
         mir_codes_data._generate_new_header_keys(0)
-    assert str(err.value).startswith("Both objects must be of the same type.")
 
     mir_codes_copy = mir_codes_data.copy()
     mir_codes_copy.set_value("code", "1", where=("v_name", "eq", "filever"))
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(ValueError, match="The codes for filever in codes_read"):
         mir_codes_data._generate_new_header_keys(mir_codes_copy)
-    assert str(err.value).startswith("The codes for filever in codes_read")
+
     mir_codes_copy.set_value("code", "3", where=("v_name", "eq", "filever"))
 
     mir_codes_copy.set_value("code", ["3", "4", "5"], where=("v_name", "eq", "aq"))
