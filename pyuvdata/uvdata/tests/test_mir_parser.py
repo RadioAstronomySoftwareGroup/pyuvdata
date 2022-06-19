@@ -1366,8 +1366,7 @@ def test_add_concat(mir_data, tmp_path):
 @pytest.mark.parametrize(
     "kern_type,tol,err_type,err_msg",
     [
-        ["cubic", -1, ValueError, "tol must be in the range \[0, 0.5\]."],  # noqa
-        # Need noqa here to escape the square brackets in the error check below.
+        ["cubic", -1, ValueError, "tol must be betweem 0 and 0.5."],
         ["abc", 0.5, ValueError, 'Kernel type of "abc" not recognized,'],
     ],
 )
