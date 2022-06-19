@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added the `write` method to `MirParser`, which allows for `MirParser` to write out
+Mir-formatted data to disk.
+- Added the `select` method to `MirParser`, which provides a much simpler interface for
+selecting subsets of data to load.
+- Added the `rechunk` method to `MirParser`, which allows data to be spectrally averaged
+(either after already loading or to be averaged "on-the-fly" when data are read from
+disk).
+- Added the `redoppler_data` method to `MirParser`, which enables frequency shifting of
+the data.
+- Added new `__add__` and `__iadd__` method sto `MirParser` for combining data sets.
 - Added new functionality to `UVBeam.check` to verify that power beams for the auto
 polarizations (and pstokes) are real-only, along with an option to force them to be
 real-only if non-zero imaginary components are detected.
@@ -13,6 +23,8 @@ real-only if non-zero imaginary components are detected.
 and `reorder_jones`.
 
 ### Changed
+- The `MirParser` class has been significantly overhauled, which significantly reduces
+memory usage and improves processing speed.
 - Updated minimum dependency versions: numpy>=1.19, scipy>=1.3, optional dependencies:
 python-casacore>=3.3, pyyam>=5.1, astropy-healpix>=0.6
 - `UVBase` object now require that individual attribute names match that given in
