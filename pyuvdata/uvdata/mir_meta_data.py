@@ -186,9 +186,9 @@ bl_dtype = np.dtype(
         ("blhid", np.int32),
         # Integration header ID, matched in in_read
         ("inhid", np.int32),
-        # Sidebad code (matched to sb in codes_read; usually 0=LSB, 1=USB)
+        # Sideband code (matched to sb in codes_read; usually 0=LSB, 1=USB)
         ("isb", np.int16),
-        # Polariztion code (matched to pol in codes_read)
+        # Polarization code (matched to pol in codes_read)
         ("ipol", np.int16),
         # Ant1 receiver number (0 = RxA, 1 = RxB)
         ("ant1rx", np.int16),
@@ -196,7 +196,7 @@ bl_dtype = np.dtype(
         ("ant2rx", np.int16),
         # Pointing status (1 = offset pointing, 0 = target at pri beam center)
         ("pointing", np.int16),
-        # Reciever code (matched to rec in codes_read)
+        # Receiver code (matched to rec in codes_read)
         ("irec", np.int16),
         # u coordinate for the baseline (meters)
         ("u", np.float32),
@@ -272,15 +272,15 @@ sp_dtype = np.dtype(
         ("igq", np.int16),
         # Passband code (matched to pq in codes_read)
         ("ipq", np.int16),
-        # Band code (matched to band in codes_read, ususally equal to corrchunk)
+        # Band code (matched to band in codes_read, usually equal to corrchunk)
         ("iband", np.int16),
         # Polarization state code (matched to pstate in codes_read, not used)
         ("ipstate", np.int16),
         # Opacity at 225 GHz (nepers)
         ("tau0", np.float32),
-        # Velocity at source restframe at band center (km/s)
+        # Velocity at source rest frame at band center (km/s)
         ("vel", np.float64),
-        # Velocity resolution at source restframe at band center (km/s)
+        # Velocity resolution at source rest frame at band center (km/s)
         ("vres", np.float32),
         # Sky frequency at band center (GHz)
         ("fsky", np.float64),
@@ -290,9 +290,9 @@ sp_dtype = np.dtype(
         ("gunnLO", np.float64),
         # Cabin BDA LO frequency (GHz, not used anymore)
         ("cabinLO", np.float64),
-        # Second downconverter frequency (GHz, not used anymore)
+        # Second down-converter frequency (GHz, not used anymore)
         ("corrLO1", np.float64),
-        # Final downconverter frequency (GHz)
+        # Final down-converter frequency (GHz)
         ("corrLO2", np.float64),
         # Integration time for spw-baseline-scan (s)
         ("integ", np.float32),
@@ -373,9 +373,9 @@ we_dtype = np.dtype(
         ("humid", np.float32, 11),
         # Wind speed measured at each antenna (m/s, -1 if no hardware)
         ("windSpeed", np.float32, 11),
-        # Wind direction measured at each antenna (rad, -1 if no hardward)
+        # Wind direction measured at each antenna (rad, -1 if no hardware)
         ("windDir", np.float32, 11),
-        # Boresite PWV measured at each antenna (mm, -1 if no hardware)
+        # Bore sight PWV measured at each antenna (mm, -1 if no hardware)
         ("h2o", np.float32, 11),
     ]
 ).newbyteorder("little")
@@ -395,13 +395,13 @@ ac_dtype = np.dtype(
         ("dhrs", np.float64),
         # Ant receiver number (0 = RxA, 1 = RxB)
         ("antrx", np.int16),
-        # Reciever code (matched to rec in codes_read)
+        # Receiver code (matched to rec in codes_read)
         ("irec", np.int16),
         # Polarization code (matched to pol in codes_read)
         ("ipol", np.int16),
-        # Sidebad code (matched to sb in codes_read; usually 0=LSB, 1=USB)
+        # Sideband code (matched to sb in codes_read; usually 0=LSB, 1=USB)
         ("isb", np.int16),
-        # Band code (matched to band in codes_read, ususally equal to corrchunk)
+        # Band code (matched to band in codes_read, usually equal to corrchunk)
         ("iband", np.int16),
         # Correlator chunk (spectral window number)
         ("corrchunk", np.int16),
@@ -411,9 +411,9 @@ ac_dtype = np.dtype(
         ("fsky", np.float64),
         # Gunn frequency (GHz)
         ("gunnLO", np.float64),
-        # Second downconverter frequency (GHz, not used currently)
+        # Second down-converter frequency (GHz, not used currently)
         ("corrLO1", np.float64),
-        # Final downconverter frequency (GHz)
+        # Final down-converter frequency (GHz)
         ("corrLO2", np.float64),
         # DDS frequency offset on nominal Gunn LO (GHz)
         ("fDDS", np.float64),
@@ -740,7 +740,7 @@ class MirMetaData(object):
             new_obj._data = np.concatenate((new_obj._data[idx1], other._data[idx2]))
             new_obj._mask = np.concatenate((mask1, mask2))
 
-        # Make sure the data is sorted corectly, generate the header key -> index
+        # Make sure the data is sorted correctly, generate the header key -> index
         # position dictionary.
         new_obj._set_header_key_index_dict()
 
@@ -847,23 +847,23 @@ class MirMetaData(object):
         select_comp : str
             Specifies the type of comparison to do between the value supplied in
             `select_val` and the metadata. No default, allowed values include:
-            "eq" or "==" (equal to, matching any in `select_val`),
-            "ne" or "!=" (not equal to, not matching any in `select_val`),
-            "lt" or "<" (less than `select_val`),
-            "le" or "<=" (less than or equal to `select_val`),
-            "gt" or ">" (greater than `select_val`),
-            "ge" or ">=" (greater than or equal to `select_val`),
-            "between" (between the range given by two values in `select_val`),
-            "outside" (outside of the range give by two values in `select_val`).
+            "eq" or "==" (equal to);
+            "ne" or "!=" (not equal to);
+            "lt" or "<" (less than);
+            "le" or "<=" (less than or equal to);
+            "gt" or ">" (greater than);
+            "ge" or ">=" (greater than or equal to);
+            "between" (between a range of values);
+            "outside" (outside of a range of values).
         select_val : number of str, or sequence of number or str
             Value(s) to compare data in `select_field` against. If `select_comp` is
-            "lt", "le", "gt", "ge", then this must be either a single number
-            or string. If `select_comp` is "between" or "outside", then this must be a
-            list of length 2. If `select_comp` is "eq"/"==" or "ne"/"!=", then this can
-            be either a single value or a sequence of values.
+            "lt", "le", "gt", "ge", then this must be a single number. If `select_comp`
+            is "between" or "outside", then this must be a list 2 numbers. If
+            `select_comp` is "eq"/"==" or "ne"/"!=", then this can be either a single
+            value (number or string) or a sequence of numbers.
         mask : ndarray of bool
             Optional argument, of the same length as the MirMetaData object, which is
-            applied to the output of the selection parsing through an elemenent-wise
+            applied to the output of the selection parsing through an element-wise
             "and" operation. Useful for combining multiple calls to `where` together.
         return_header_keys : bool
             If set to True, return a list of the header key values where matching
@@ -969,12 +969,12 @@ class MirMetaData(object):
         and_where_args : bool
             If set to True, then the individual calls to the `where` method will be
             combined via an element-wise "and" operator, such that the returned array
-            will report the positions where all criterea are met. If False, results
+            will report the positions where all criteria are met. If False, results
             are instead combined via an element-wise "or" operator. Default is True.
             If supplied, the argument for `mask` will be combined with the output from
             the calls to `where` with the same logic.
         index : sequence of ints
-            Index positions of the array. Note that this is typicaly what you are
+            Index positions of the array. Note that this is typically what you are
             calling this method for, but is included as an argument to simplify
             argument processing for various calls.
         header_key : sequence of ints or tuples
@@ -997,7 +997,7 @@ class MirMetaData(object):
             or `where`; or when attempting to supply a mask when supplying an argument
             to either `index` or `header_key`; or when the length of the mask does not
             match that of the object itself. Also raised if the argument supplied to
-            `where` is not a 3-element tuple or seqeuence of 3-element tuples.
+            `where` is not a 3-element tuple or sequence of 3-element tuples.
         MirMetaError
             If supplying an argument to `where`, and the selected field matches does
             not match for any of the supplied arguments.
@@ -1229,7 +1229,7 @@ class MirMetaData(object):
         and_where_args : bool
             If set to True, then the individual calls to the `where` method will be
             combined via an element-wise "and" operator, such that the returned array
-            will report the positions where all criterea are met. If False, results
+            will report the positions where all criteria are met. If False, results
             are instead combined via an element-wise "or" operator. Default is True.
             If supplied, the argument for `mask` will be combined with the output from
             the calls to `where` with the same logic.
@@ -1506,7 +1506,7 @@ class MirMetaData(object):
         and_where_args : bool
             If set to True, then the individual calls to the `where` method will be
             combined via an element-wise "and" operator, such that the returned array
-            will report the positions where all criterea are met. If False, results
+            will report the positions where all criteria are met. If False, results
             are instead combined via an element-wise "or" operator. Default is True.
             If supplied, the argument for `mask` will be combined with the output from
             the calls to `where` with the same logic.
@@ -1514,7 +1514,7 @@ class MirMetaData(object):
             Optional argument, specifies the index positions at which to extract data
             from the meta data. Cannot be specified with `header_key` or `where`.
         force_list : False
-            Normally the header keys are returned as an interable (ndarray in there
+            Normally the header keys are returned as an iterable (ndarray in there
             is a header key, otherwise a list of tuples), but if set to True, the output
             will instead be a list of ndarray for each one of the fields within the set
             of (pseudo) header keys.
@@ -1614,7 +1614,7 @@ class MirMetaData(object):
 
         Note that this function is not designed to be called by users, but instead is
         part of the low-level API for the object. Calling this function will sort the
-        metadaata in the `_data` attribute by the (pseudo) header key, and will
+        metadata in the `_data` attribute by the (pseudo) header key, and will
         regenerate the header key index dict accordingly. This function is most
         most commonly used after combining two objects to guarantee that the data are
         in the expected order.
@@ -1801,7 +1801,7 @@ class MirMetaData(object):
         raise_err : bool
             If set to True, then if the field names in `update_dict` have no match
             in this object, an error is raised. Default is False, which means that
-            if no match is found for a particular entry, the method quitely moves on
+            if no match is found for a particular entry, the method quietly moves on
             to the next item.
 
         Raises
@@ -1895,22 +1895,22 @@ class MirMetaData(object):
         Returns
         -------
         this_idx : list of int
-            Index positions denote which indicies of metadata would be utilized from
+            Index positions denote which indices of metadata would be utilized from
             this object if an __add__ operation were to be performed. Note that the
             header keys for this set of index positions will be completely disjoint
             from that of `other_idx` and `other`.
         other_idx : list of int
-            Index positions denote which indicies of metadata would be utilized from
+            Index positions denote which indices of metadata would be utilized from
             `other` if an __add__ operation were to be performed. Note that the
             header keys for this set of index positions will be completely disjoint
             from that of `this_idx` and this object.
         this_mask : ndarray of bool
             Mask values for the index values in `this_idx`. Note that in the case of
-            overlappping keys between this object and `other`, the maskes are "or'd"
+            overlapping keys between this object and `other`, the masks are "or'd"
             together.
-        other_mask : ndarraay of bool
+        other_mask : ndarray of bool
             Mask values for the index values in `other_idx`. Note that in the case of
-            overlappping keys between this object and `other`, the maskes are "or'd"
+            overlapping keys between this object and `other`, the masks are "or'd"
             together.
 
         Raises
@@ -1975,7 +1975,7 @@ class MirMetaData(object):
 
         # Assume that if key_overlap has entries, we are allowed to merge
         if len(key_overlap):
-            # Go through the overlaping keys and see if we have any mismatches in mask
+            # Go through the overlapping keys and see if we have any mismatches in mask
             # state. If we do, then we "or" the mask elements together, which always
             # results in a return value of True. Generate these indexing arrays once
             # up front, so that we don't need build them redundantly for this_mask and
@@ -2271,7 +2271,7 @@ class MirMetaData(object):
             Dictionary with information about individual integrations, where the key
             is matched to a integration header key ("inhid"), and the value is itself
             a 3-element dictionary containing the keys "inhid" (header key as recorded
-            on disk, which is not _neccessarily_ the same as in the object),
+            on disk, which is not _necessarily_ the same as in the object),
             "record_size" (in bytes), and "record_start" (start position of the packed
             data relative to the start of the file, in bytes), with all values recorded
             as ints.
@@ -2365,7 +2365,7 @@ class MirBlData(MirMetaData):
     This class is a container for per-baseline metadata, using the header key
     "blhid". When reading from/writing to disk, the object looks for a file named
     "bl_read", which is where the online system records this information. Note that
-    "per-baseine" here means per-integration, per-sideband, per-receiver/polarization.
+    "per-baseline" here means per-integration, per-sideband, per-receiver/polarization.
     """
 
     def __init__(self, filepath=None):
@@ -2677,23 +2677,23 @@ class MirCodesData(MirMetaData):
         select_comp : str
             Specifies the type of comparison to do between the value supplied in
             `select_val` and the metadata. No default, allowed values include:
-            "eq" or "==" (equal to, matching any in `select_val`),
-            "ne" or "!=" (not equal to, not matching any in `select_val`),
-            "lt" or "<" (less than `select_val`),
-            "le" or "<=" (less than or equal to `select_val`),
-            "gt" or ">" (greater than `select_val`),
-            "ge" or ">=" (greater than or equal to `select_val`),
-            "between" (between the range given by two values in `select_val`),
-            "outside" (outside of the range give by two values in `select_val`).
+            "eq" or "==" (equal to);
+            "ne" or "!=" (not equal to);
+            "lt" or "<" (less than);
+            "le" or "<=" (less than or equal to);
+            "gt" or ">" (greater than);
+            "ge" or ">=" (greater than or equal to);
+            "between" (between a range of values);
+            "outside" (outside of a range of values).
         select_val : number of str, or sequence of number or str
             Value(s) to compare data in `select_field` against. If `select_comp` is
-            "lt", "le", "gt", "ge", then this must be either a single number
-            or string. If `select_comp` is "between" or "outside", then this must be a
-            list of length 2. If `select_comp` is "eq"/"==" or "ne"/"!=", then this can
-            be either a single value or a sequence of values.
+            "lt", "le", "gt", "ge", then this must be a single number. If `select_comp`
+            is "between" or "outside", then this must be a list 2 numbers. If
+            `select_comp` is "eq"/"==" or "ne"/"!=", then this can be either a single
+            value (number or string) or a sequence of numbers.
         mask : ndarray of bool
             Optional argument, of the same length as the MirMetaData object, which is
-            applied to the output of the selection parsing through an elemenent-wise
+            applied to the output of the selection parsing through an element-wise
             "and" operation. Useful for combining multiple calls to `where` together.
         return_header_keys : bool
             If set to True, return a list of the header key values where matching
@@ -2816,7 +2816,7 @@ class MirCodesData(MirMetaData):
 
         Note that this function is not meant to be called by users, but instead is
         part of the low-level API for the object. This function allows for one to
-        create an updated set of pseudo header keys via an updae to the indexing codes,
+        create an updated set of pseudo header keys via an update to the indexing codes,
         such that their values do not conflict with another MirCodesData object --
         useful for situations where you would like to combine the two datasets together.
 
@@ -2893,7 +2893,7 @@ class MirCodesData(MirMetaData):
                 this_dict = self[vname]
                 other_dict = other[vname]
 
-                # Start the process of reindexing the "icode" values
+                # Start the process of re-indexing the "icode" values
                 last_idx = 1
                 for key, value in this_dict.items():
                     if not isinstance(key, str):
@@ -3025,7 +3025,7 @@ class MirAcData(MirMetaData):
         n_rec = file_size // (rec_size + hdr_dtype.itemsize)
         ac_data = np.zeros(2 * nchunks * n_rec, dtype=ac_dtype)
 
-        # Set values that we know apriori
+        # Set values that we know a priori
         ac_data["nch"] = 16384
         ac_data["isb"] = 1
         ac_data["correlator"] = 1
