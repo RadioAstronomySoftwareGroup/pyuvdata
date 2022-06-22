@@ -5,9 +5,9 @@
 """Tests for MirMetaData class and associated subclasses.
 
 Performs a series of tests on the MirMetaData, and the associated subclasses, which are
-the python-based handlers for Mir metadata poducts. Tests in this module are designed
+the python-based handlers for Mir metadata products. Tests in this module are designed
 to probe the functions of the individual class methods and attributes, and not
-neccessarily how they interact with each other (inside the `MirParser` class) or with
+necessarily how they interact with each other (inside the `MirParser` class) or with
 pyuvdata at large (via the `UVData` class).
 """
 import numpy as np
@@ -338,7 +338,7 @@ def test_mir_meta_generate_mask(mir_bl_data, arg, output):
     ],
 )
 def test_mir_meta_set_mask(mir_bl_data, arg, output):
-    # Set the mask apriori to give us something to compare with.
+    # Set the mask a priori to give us something to compare with.
     mir_bl_data._mask[:] = [True, False, False, True]
 
     check = mir_bl_data.set_mask(**arg)
@@ -523,7 +523,7 @@ def test_mir_meta_write_errs(mir_sp_data, tmp_path):
     mir_sp_data.write(filepath)
     mir_sp_data["gunnLO"] = 0.0
 
-    with pytest.raises(FileExistsError, match="File already exists, must set overwri"):
+    with pytest.raises(FileExistsError, match="File already exists, must set over"):
         mir_sp_data.write(filepath)
 
     with pytest.raises(ValueError, match="Conflicting header keys detected"):
@@ -578,26 +578,26 @@ def test_mir_meta_add_check_errs(mir_sp_data, cmd, args, err_type, err_msg):
     "cmd,args,comp_results",
     [
         [["noop"], {"merge": True}, [[], [0, 1, 2, 3], [], [True] * 4]],
-        [["combmod"], {}, [[0], [1, 2, 3], [True], [True] * 3]],
-        [["maskmod"], {}, [[0, 1], [2, 3], [True] * 2, [True] * 2]],
-        [["maskmod"], {"overwrite": True}, [[], [0, 1, 2, 3], [], [True] * 4]],
-        [["flipmod"], {"overwrite": True}, [[], [0, 1, 2, 3], [], [True] * 4]],
+        [["comb_mod"], {}, [[0], [1, 2, 3], [True], [True] * 3]],
+        [["mask_mod"], {}, [[0, 1], [2, 3], [True] * 2, [True] * 2]],
+        [["mask_mod"], {"overwrite": True}, [[], [0, 1, 2, 3], [], [True] * 4]],
+        [["flip_mod"], {"overwrite": True}, [[], [0, 1, 2, 3], [], [True] * 4]],
     ],
 )
 def test_mir_meta_add_check_merge(mir_bl_data, args, cmd, comp_results):
     mir_bl_copy = mir_bl_data.copy()
     # Use this as a way to mark the copy as altered
-    if "combmod" in cmd:
+    if "comb_mod" in cmd:
         mir_bl_copy._data["u"][0] = 0.0
         mir_bl_copy._mask[0] = False
         mir_bl_data._data["u"][2] = 0.0
         mir_bl_data._mask[2] = False
-    elif "flipmod" in cmd:
+    elif "flip_mod" in cmd:
         mir_bl_data["u"] = 0.0
     elif "noop" not in cmd:
         mir_bl_copy["u"] = 0.0
 
-    if "maskmod" in cmd:
+    if "mask_mod" in cmd:
         mir_bl_copy._mask[0:2] = False
         mir_bl_data._mask[2:4] = False
 
@@ -701,7 +701,7 @@ def test_mir_sp_recalc_dataoff(mir_sp_data):
         )
     )
 
-    # Finally, ignore the mask when doing dataof and make sure it returns whats expected
+    # Finally, ignore the mask when doing dataoff and make sure it returns correctly
     mir_sp_data._recalc_dataoff(use_mask=False)
     assert np.all(mir_sp_data._data["dataoff"] == dataoff_arr)
 
@@ -901,7 +901,7 @@ def test_mir_codes_generate_new_header_keys_errs_and_warns(mir_codes_data):
             ("project", 2, "retune", 0),
             {"iproject": {2: 1}, ("v_name", "icode"): {("project", 2): ("project", 1)}},
         ],
-        [("project", 2, "doathing", 0), {}],
+        [("project", 2, "do_a_thing", 0), {}],
     ],
 )
 def test_mir_codes_generate_new_header_keys(mir_codes_data, code_row, update_dict):
