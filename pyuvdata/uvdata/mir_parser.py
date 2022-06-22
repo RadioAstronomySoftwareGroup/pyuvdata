@@ -3035,7 +3035,7 @@ class MirParser(object):
             the list of supported values.
         """
         if (tol < 0) or (tol > 0.5):
-            raise ValueError("tol must be betweem 0 and 0.5.")
+            raise ValueError("tol must be between 0 and 0.5.")
 
         coarse_shift = np.floor(chan_shift).astype(int)
         fine_shift = chan_shift - coarse_shift

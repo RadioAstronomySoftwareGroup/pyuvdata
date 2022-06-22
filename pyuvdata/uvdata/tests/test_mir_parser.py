@@ -6,7 +6,7 @@
 
 Performs a series of tests on the MirParser, which is the python-based reader for MIR
 data in pyuvdata. Tests in this module are specific to the way that MIR is read into
-python, not neccessarily how pyuvdata (by way of the UVData class) interacts with that
+python, not necessarily how pyuvdata (by way of the UVData class) interacts with that
 data.
 """
 import numpy as np
@@ -61,7 +61,7 @@ def test_mir_parser_index_uniqueness(mir_data):
     """
     Mir index uniqueness check
 
-    Make sure that there are no duplicate indicies for things that are primary keys
+    Make sure that there are no duplicate indices for things that are primary keys
     for the various table-like structures that are used in MIR
     """
     inhid_list = mir_data.in_data["inhid"]
@@ -91,7 +91,7 @@ def test_mir_parser_index_linked(mir_data):
     """
     Mir index link check
 
-    Make sure that all referenced indicies have matching pairs in their parent tables
+    Make sure that all referenced indices have matching pairs in their parent tables
     """
     inhid_set = set(np.unique(mir_data.in_data["inhid"]))
 
@@ -294,7 +294,7 @@ def test_compass_flag_wide_apply(mir_data, compass_soln_file):
 
     Test that applying COMPASS flags on a per-baseline (all time) basis works correctly.
     """
-    # Make sure that apriori flags are preserved
+    # Make sure that a priori flags are preserved
     for entry in mir_data.vis_data.values():
         entry["flags"][:] = False
         entry["flags"][-1] = True
@@ -317,7 +317,7 @@ def test_compass_flag_wide_apply(mir_data, compass_soln_file):
 @pytest.mark.parametrize("muck_solns", ["none", "some", "all"])
 def test_compass_bp_apply(mir_data, compass_soln_file, muck_solns):
     """
-    Test COMPASS bandpass calibraiton.
+    Test COMPASS bandpass calibration.
 
     Test that applying COMPASS bandpass solutions works correctly.
     """
@@ -496,7 +496,7 @@ def test_fix_int_dict(mir_data):
             }
         }
     }
-    # Muck with the records so that the inhids don't match that on disk.
+    # Muck with the records so that the inhid does not match that on disk.
     mir_data.sp_data._data["inhid"][:] = 2
     mir_data.bl_data._data["inhid"][:] = 2
     mir_data.in_data._data["inhid"][:] = 2
@@ -711,7 +711,7 @@ def test_downselect_data(mir_data, select_vis, select_raw, select_auto):
 
     assert mir_data._check_data_index()
 
-    # If we downselected, make sure we plug back in the original data.
+    # If we down-selected, make sure we plug back in the original data.
     if select_vis or select_raw:
         mir_data.sp_data._mask[:] = True
     if select_auto:
@@ -924,8 +924,9 @@ def test_rechunk_raw(inplace):
     # Scale factor drops on account of having gotten rid of one sig binary digit
     # through the averaging process
     assert raw_copy[5]["scale_fac"] == 0
-    # This is what raw_data _should_ look like after averaging. Note two aranges used
-    # here because the spacing for real and imag is the same, but not real vs imag.
+    # This is what raw_data _should_ look like after averaging. Note two arange arrays
+    # are used here because the spacing for real _or_ imag is the same, but not real
+    # and imag together.
     assert np.all(
         raw_copy[5]["data"]
         == np.vstack(
@@ -1020,7 +1021,7 @@ def test_rechunk_errs(mir_data, chan_avg, drop_data, err_type, err_msg):
     if drop_data:
         mir_data.vis_data = {}
 
-    # Rather than parameterizing this, because the underlying object isn't changed,
+    # Rather than parametrize this, because the underlying object isn't changed,
     # check for the different load states here, since the error should get thrown
     # no matter which thing you are loading.
     with pytest.raises(err_type, match=err_msg):
@@ -1107,7 +1108,7 @@ def test_add_errs(mir_data, muck_data, kwargs, err_type, err_msg):
 def test_add_merge(mir_data):
     """
     Verify that the __add__ method behaves as expected under 'simple' scenarios, i.e.,
-    where overwrite or force are not neccessary.
+    where overwrite or force are not necessary.
     """
     mir_copy = mir_data.copy()
     mir_orig = mir_data.copy()
@@ -1263,7 +1264,7 @@ def test_add_overwrite(mir_data, muck_attr):
             if field not in prot_fields:
                 getattr(mir_data, muck_attr)[field] = -1
 
-    # After mucking, verfiy that at least something looks different
+    # After mucking, verify that at least something looks different
     assert mir_data != mir_copy
 
     # mir_copy contains the good data, so adding it second will overwrite the bad data.
@@ -1366,7 +1367,7 @@ def test_add_concat(mir_data, tmp_path):
 @pytest.mark.parametrize(
     "kern_type,tol,err_type,err_msg",
     [
-        ["cubic", -1, ValueError, "tol must be betweem 0 and 0.5."],
+        ["cubic", -1, ValueError, "tol must be between 0 and 0.5."],
         ["abc", 0.5, ValueError, 'Kernel type of "abc" not recognized,'],
     ],
 )
@@ -1602,7 +1603,7 @@ def test_chanshift_vis(check_flags, flag_adj, fwd_dir, inplace):
     ],
 )
 def test_redoppler_data_errs(mir_data, filever, irec, err_type, err_msg):
-    """Verift that redoppler_data throws errors as expected."""
+    """Verify that redoppler_data throws errors as expected."""
     mir_data.codes_data.set_value("code", filever, where=("v_name", "eq", "filever"))
     mir_data.bl_data["irec"] = irec
 
@@ -1690,9 +1691,9 @@ def test_redoppler_data(mir_data, plug_vals, diff_rx, use_raw):
 
 
 def test_fix_acdata(mir_data):
-    # So we have to do a bit of metadata manipualtion here in order to make this work
+    # So we have to do a bit of metadata manipulation here in order to make this work
     # for total test coverage. Spoof a dataset where there's only 1 sideband but two
-    # integations. First up - just double the number of int headers.
+    # integrations. First up - just double the number of int headers.
     mir_data.in_data._data = np.tile(mir_data.in_data._data, 2)
     mir_data.in_data._data["inhid"] = [1, 2]
     mir_data.in_data._mask = np.tile(mir_data.in_data._mask, 2)
@@ -1710,7 +1711,7 @@ def test_fix_acdata(mir_data):
     mir_data.ac_data._mask = np.tile(mir_data.ac_data._mask, 2)
     mir_data.ac_data._set_header_key_index_dict()
 
-    # Finally, call fix_acdata, which should (among other things), appoprpriately fill
+    # Finally, call fix_acdata, which should (among other things), appropriately fill
     # in the frequency information.
     mir_data._fix_acdata()
 
@@ -1769,7 +1770,7 @@ def test_mir_remember_me_codes_data(mir_data):
     Mir codes_read checker.
 
     Make sure that certain values in the codes_read file of the test data set match
-    whatwe know to be 'true' at the time of observations.
+    what we know to be 'true' at the time of observations.
     """
     assert mir_data.codes_data["filever"][0] == "3"
 
