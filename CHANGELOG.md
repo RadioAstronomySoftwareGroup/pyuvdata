@@ -14,7 +14,7 @@ selecting subsets of data to load.
 disk).
 - Added the `redoppler_data` method to `MirParser`, which enables frequency shifting of
 the data.
-- Added new `__add__` and `__iadd__` method sto `MirParser` for combining data sets.
+- Added new `__add__` and `__iadd__` methods to `MirParser` for combining data sets.
 - Added new functionality to `UVBeam.check` to verify that power beams for the auto
 polarizations (and pstokes) are real-only, along with an option to force them to be
 real-only if non-zero imaginary components are detected.
