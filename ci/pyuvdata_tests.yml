@@ -16,7 +16,7 @@ dependencies:
   - pytest>=6.2.0
   - pytest-cov
   - cython
-  - setuptools_scm<7.0,>=7.0.3
+  - setuptools_scm<7.0|>=7.0.3
   - pip
   - pip:
       - pytest-cases>=3.6.9
