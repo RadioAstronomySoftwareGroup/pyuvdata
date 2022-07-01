@@ -9,7 +9,7 @@ dependencies:
   - h5py>=3.0
   - pyerfa>=2.0
   - cython
-  - setuptools_scm<7.0,>=7.0.3
+  - setuptools_scm<7.0|>=7.0.3
   - pip
   - pip:
      - pep517
