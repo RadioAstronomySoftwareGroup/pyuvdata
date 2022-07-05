@@ -1797,7 +1797,8 @@ class MirParser(object):
 
         if self._has_auto:
             filetype = "ach_read"
-            if self.ac_data._old_type:
+            old_fmt = self.ac_data._old_fmt
+            if old_fmt:
                 # If we have the old-style file we are working with, then we need to
                 # do two things: first, clean up entries that don't actually have any
                 # data in them (the old format recorded lots of blank data to disk),
@@ -1807,9 +1808,9 @@ class MirParser(object):
             int_dict, self._ac_dict = self.ac_data._generate_recpos_dict()
 
             file_dict["auto"] = {
-                "int_dict": int_dict,
+                "int_dict": self.ac_data._old_fmt_int_dict if old_fmt else int_dict,
                 "filetype": filetype,
-                "ignore_header": self.ac_data._old_type,
+                "ignore_header": old_fmt,
             }
 
         self._file_dict = {filepath: file_dict}
