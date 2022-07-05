@@ -1716,11 +1716,13 @@ def test_fix_acdata(mir_data):
     mir_data._fix_acdata()
 
     # Now check that fsky is correctly set
-    assert np.all(
-        mir_data.ac_data["fsky"][16:] == np.tile(mir_data.sp_data["fsky"][1:5], 4)
+    assert np.array_equal(
+        mir_data.ac_data["fsky"][:16],
+        np.tile(np.repeat(mir_data.sp_data["fsky"][11:15], 2), 2),
     )
-    assert np.all(
-        mir_data.ac_data["fsky"][:16] == np.tile(mir_data.sp_data["fsky"][11:15], 4)
+    assert np.array_equal(
+        mir_data.ac_data["fsky"][16:],
+        np.tile(np.repeat(mir_data.sp_data["fsky"][1:5], 2), 2),
     )
 
     # Make sure these values are actually different

@@ -422,7 +422,7 @@ ac_dtype = np.dtype(
         # Number of channels
         ("nch", np.int32),
         # Offset from the start of the spectral record of the packed data.
-        ("dataoff", np.int64),
+        ("dataoff", np.int32),
         # Spare value, always 0
         ("sparedbl1", np.float64),
         # Spare value, always 0
@@ -2611,6 +2611,7 @@ class MirCodesData(MirMetaData):
             "tel1": "iant1",
             "tel2": "iant2",
             "pol": "ipol",
+            "rec": "irec",
             "pstate": "ipstate",
             "sb": "isb",
             "band": "iband",
@@ -2978,7 +2979,8 @@ class MirAcData(MirMetaData):
         filepath : str
             Optional argument specifying the path to the Mir data folder.
         """
-        self._old_type = False
+        self._old_fmt = False
+        self._old_fmt_int_dict = None
         super().__init__("ac_read", ac_dtype, "achid", None, None, filepath)
 
     def read(self, filepath, nchunks=8):
@@ -2997,11 +2999,11 @@ class MirAcData(MirMetaData):
         old_ac_file = os.path.join(filepath, "autoCorrelations")
         new_ac_file = os.path.join(filepath, self._filetype)
         if not (os.path.exists(old_ac_file) and not os.path.exists(new_ac_file)):
-            self._old_type = False
+            self._old_fmt = False
             super().read(filepath)
             return
 
-        self._old_type = True
+        self._old_fmt = True
         file_size = os.path.getsize(old_ac_file)
         hdr_dtype = np.dtype(
             [("antenna", "<i4"), ("nChunks", "<i4"), ("inhid", "<i4"), ("dhrs", "<f8")]
@@ -3037,7 +3039,10 @@ class MirAcData(MirMetaData):
         antrx_arr = ac_data["antrx"]
         inhid_arr = ac_data["inhid"]
         dhrs_arr = ac_data["dhrs"]
+        int_dict = {}
         last_inhid = None
+        last_pos = 0
+        rec_count = 0
 
         with open(old_ac_file, "rb") as auto_file:
             for idx in range(n_rec):
@@ -3046,14 +3051,15 @@ class MirAcData(MirMetaData):
                     dtype=hdr_dtype,
                     count=1,
                     offset=rec_size if idx else 0,  # Skip offset on first iteration
-                )
+                )[0]
                 if auto_vals["inhid"] != last_inhid:
+                    last_pos += rec_count * (rec_size + hdr_dtype.itemsize)
                     rec_count = 0
                     last_inhid = auto_vals["inhid"]
 
                 # Setup some slices that we'll use for plugging in values
-                rxa_slice = slice(idx * 2 * nchunks, ((idx * 2) + 1) * nchunks)
-                rxb_slice = slice(rxa_slice.stop, (idx + 1) * 2 * nchunks)
+                rxa_slice = slice(idx * 2 * nchunks, (idx + 1) * 2 * nchunks, 2)
+                rxb_slice = slice(1 + (idx * 2 * nchunks), (idx + 1) * 2 * nchunks, 2)
                 ac_slice = slice(rxa_slice.start, rxb_slice.stop)
 
                 # Plug in the entries that are changing on a per-record basis
@@ -3076,7 +3082,14 @@ class MirAcData(MirMetaData):
                 dataoff_arr[ac_slice] = dataoff_rec
                 rec_count += 1
 
+                int_dict[auto_vals["inhid"]] = {
+                    "inhid": auto_vals["inhid"],
+                    "record_size": (rec_count * (rec_size + hdr_dtype.itemsize)) - 8,
+                    "record_start": last_pos,
+                }
+
         # Copy the corrchunk values to iband, since they should be the same here.
         ac_data["iband"] = ac_data["corrchunk"]
         self._data = ac_data
         self._mask = np.ones(len(self), dtype=bool)
+        self._old_fmt_int_dict = int_dict
