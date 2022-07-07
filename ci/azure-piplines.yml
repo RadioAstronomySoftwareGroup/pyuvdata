@@ -1,5 +1,5 @@
 jobs:
-- job: hera_cal
+- job: hera_cal_tests
   pool:
     vmImage: "ubuntu-latest"
   variables:
@@ -47,7 +47,7 @@ jobs:
     vmImage: "ubuntu-latest"
   variables:
     PYTHON: "3.9"
-    ENV_NAME: hera_qm
+    ENV_NAME: hera_qm_tests
     WITH_SUDO: true
 
   steps:
