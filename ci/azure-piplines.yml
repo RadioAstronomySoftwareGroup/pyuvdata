@@ -8,13 +8,19 @@ jobs:
     WITH_SUDO: true
 
   steps:
+  - bash: |
+      cd ../
+      git clone https://github.com/HERA-Team/hera_cal.git
+      cd pyuvdata
+    displayName: clone hera_cal
+
   - bash: wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | sudo tar -C / -xvj bin/micromamba
     displayName: Install Micromamba
 
   - bash: |
       micromamba info
       # need these to add gxx and gcc to build novas and cython
-      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc -f ci/${ENV_NAME}.yml -yq
+      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc -f ../hera_cal/ci/${ENV_NAME}.yml -yq
     displayName: configure conda environment
 
   - bash: |
@@ -47,13 +53,19 @@ jobs:
     WITH_SUDO: true
 
   steps:
+  - bash: |
+      cd ../
+      git clone https://github.com/HERA-Team/hera_qm.git
+      cd pyuvdata
+    displayName: clone hera_qm
+
   - bash: wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | sudo tar -C / -xvj bin/micromamba
     displayName: Install Micromamba
 
   - bash: |
       micromamba info
       # need these to add gxx and gcc to build novas and cython
-      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc -f ci/${ENV_NAME}.yml -yq
+      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc -f ../hera_qm/ci/${ENV_NAME}.yml -yq
     displayName: configure conda environment
 
   - bash: |
