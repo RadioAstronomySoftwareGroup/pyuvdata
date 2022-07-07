@@ -28,7 +28,7 @@ jobs:
     displayName: Verify Mamba Config
 
   - bash: |
-      source activate ${ENV_NAME}
+      source ./ci/_activate_current_env.sh
       pip install --no-deps .
       cd ../
       git clone https://github.com/HERA-Team/hera_cal.git
@@ -67,7 +67,7 @@ jobs:
     displayName: Verify Mamba Config
 
   - bash: |
-      source activate ${ENV_NAME}
+      source ./ci/_activate_current_env.sh
       pip install --no-deps .
       cd ../
       git clone https://github.com/HERA-Team/hera_qm.git
