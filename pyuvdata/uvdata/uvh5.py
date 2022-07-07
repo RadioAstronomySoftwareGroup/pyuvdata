@@ -94,9 +94,17 @@ def _read_complex_astype(dset, indices, dtype_out=np.complex64):
     dset_shape, indices = uvutils._get_dset_shape(dset, indices)
     output_array = np.empty(dset_shape, dtype=dtype_out)
     dtype_in = dset.dtype
+    dtype_cast = dtype_in["r"]
     # dset is indexed in native dtype, but is upcast upon assignment
-    output_array.real = uvutils._index_dset(dset.astype(dtype_in)["r"], indices)
-    output_array.imag = uvutils._index_dset(dset.astype(dtype_in)["i"], indices)
+
+    if dtype_out == np.complex64:
+        dtype_use = np.float32
+    else:
+        dtype_use = np.float64
+
+    output_array.view(dtype_use)[:] = uvutils._index_dset(dset, indices).view(
+        dtype_cast
+    )
 
     return output_array
 
