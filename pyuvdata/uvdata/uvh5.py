@@ -93,18 +93,14 @@ def _read_complex_astype(dset, indices, dtype_out=np.complex64):
         )
     dset_shape, indices = uvutils._get_dset_shape(dset, indices)
     output_array = np.empty(dset_shape, dtype=dtype_out)
-    dtype_in = dset.dtype
-    dtype_cast = dtype_in["r"]
     # dset is indexed in native dtype, but is upcast upon assignment
 
     if dtype_out == np.complex64:
-        dtype_use = np.float32
+        compound_dtype = [("r", "f4"), ("i", "f4")]
     else:
-        dtype_use = np.float64
+        compound_dtype = [("r", "f8"), ("i", "f8")]
 
-    output_array.view(dtype_use)[:] = uvutils._index_dset(dset, indices).view(
-        dtype_cast
-    )
+    output_array.view(compound_dtype)[:, :] = uvutils._index_dset(dset, indices)[:, :]
 
     return output_array
 
@@ -133,15 +129,24 @@ def _write_complex_astype(data, dset, indices):
     """
     # get datatype from dataset
     dtype_out = dset.dtype
+
+    if data.dtype == np.complex64:
+        compound_dtype = [("r", "f4"), ("i", "f4")]
+    else:
+        compound_dtype = [("r", "f8"), ("i", "f8")]
+
     # make doubly sure dtype is valid; should be unless user is pathological
     _check_uvh5_dtype(dtype_out)
     if len(dset.shape) == 3:
         # this is the future array shape
-        dset[indices[0], indices[1], indices[2], "r"] = data.real
-        dset[indices[0], indices[1], indices[2], "i"] = data.imag
+        dset[indices[0], indices[1], indices[2]] = data.view(compound_dtype).astype(
+            dtype_out
+        )
     else:
-        dset[indices[0], np.s_[:], indices[1], indices[2], "r"] = data.real
-        dset[indices[0], np.s_[:], indices[1], indices[2], "i"] = data.imag
+        dset[indices[0], np.s_[:], indices[1], indices[2]] = data.view(
+            compound_dtype
+        ).astype(dtype_out)
+
     return
 
 
