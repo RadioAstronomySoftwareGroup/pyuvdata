@@ -1,10 +1,10 @@
 jobs:
-- job: hera_cal_tests
+- job: hera_cal
   pool:
     vmImage: "ubuntu-latest"
   variables:
     PYTHON: "3.9"
-    ENV_NAME: hera_cal
+    ENV_NAME: hera_cal_tests
     WITH_SUDO: true
 
   steps:
@@ -39,7 +39,7 @@ jobs:
       cd ../hera_cal
       pip install --no-deps .
       mkdir test-reports
-      python -m pytest hera_cal -n auto --junitxml=test-reports/xunit.xml
+      python -m pytest hera_cal --junitxml=test-reports/xunit.xml
     displayName: run hera_cal tests
 
 - job: hera_qm
@@ -82,5 +82,5 @@ jobs:
       cd ../hera_qm
       pip install --no-deps .
       mkdir test-reports
-      python -m pytest hera_qm -n auto --junitxml=test-reports/xunit.xml
+      python -m pytest hera_qm --junitxml=test-reports/xunit.xml
     displayName: run hera_qm tests
