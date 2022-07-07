@@ -11,7 +11,7 @@ jobs:
   - bash: |
       cd ../
       git clone https://github.com/HERA-Team/hera_cal.git
-      cd pyuvdata
+      cd s
     displayName: clone hera_cal
 
   - bash: wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | sudo tar -C / -xvj bin/micromamba
@@ -36,9 +36,7 @@ jobs:
   - bash: |
       source ./ci/_activate_current_env.sh
       pip install --no-deps .
-      cd ../
-      git clone https://github.com/HERA-Team/hera_cal.git
-      cd hera_cal
+      cd ../hera_cal
       pip install --no-deps .
       mkdir test-reports
       python -m pytest hera_cal -n auto --junitxml=test-reports/xunit.xml
@@ -56,7 +54,7 @@ jobs:
   - bash: |
       cd ../
       git clone https://github.com/HERA-Team/hera_qm.git
-      cd pyuvdata
+      cd s
     displayName: clone hera_qm
 
   - bash: wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | sudo tar -C / -xvj bin/micromamba
@@ -81,9 +79,7 @@ jobs:
   - bash: |
       source ./ci/_activate_current_env.sh
       pip install --no-deps .
-      cd ../
-      git clone https://github.com/HERA-Team/hera_qm.git
-      cd hera_qm
+      cd ../hera_qm
       pip install --no-deps .
       mkdir test-reports
       python -m pytest hera_qm -n auto --junitxml=test-reports/xunit.xml
