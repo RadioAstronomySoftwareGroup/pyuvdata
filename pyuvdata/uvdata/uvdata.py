@@ -313,7 +313,7 @@ class UVData(UVBase):
         desc = (
             "Only relevant if multi_phase_center = True. Dictionary that acts as a "
             "catalog, containing information on individual phase centers. Keys are the "
-            "names of the different phase centers in the UVData object. At a minimum, "
+            "catalog IDs of the different phase centers in the object. At a minimum, "
             'each dictionary must contain the key "cat_type", which can be either '
             '"sidereal" (fixed position in RA/Dec), "ephem" (position in RA/Dec which'
             'moves with time), "driftscan" (fixed postion in Az/El, NOT the same as '
@@ -798,18 +798,14 @@ class UVData(UVBase):
                 self.scan_number_array = np.ones((self.Nblts,), dtype=int)
 
             else:
-                sou_list = list(self.phase_center_catalog.keys())
-                sou_list.sort()
-
                 slice_list = []
                 # This loops over phase centers, finds contiguous integrations with
                 # ndimage.label, and then finds the slices to return those contiguous
                 # integrations with nd.find_objects.
-                for idx in range(self.Nphase):
-                    sou_id = self.phase_center_catalog[sou_list[idx]]["cat_id"]
+                for cat_id in self.phase_center_catalog:
                     slice_list.extend(
                         nd.find_objects(
-                            nd.label(self.phase_center_id_array == sou_id)[0]
+                            nd.label(self.phase_center_id_array == cat_id)[0]
                         )
                     )
 
@@ -825,10 +821,29 @@ class UVData(UVBase):
 
                 self.scan_number_array = scan_array
 
+    def _look_for_name(self, cat_name):
+        """
+        Look up catalog IDs which match a given name.
+
+        Parameters
+        ----------
+        cat_name : str
+            Name to match against entries in phase_center_catalog.
+
+        Returns
+        -------
+        cat_id_list : list
+            List of all catalog IDs which match the given name.
+        """
+        return [
+            pc_id
+            for pc_id, pc_dict in self.phase_center_catalog.items()
+            if pc_dict["cat_name"] == cat_name
+        ]
+
     def _look_in_catalog(
         self,
-        cat_name,
-        phase_dict=None,
+        cat_name=None,
         cat_type=None,
         cat_lon=None,
         cat_lat=None,
@@ -840,6 +855,8 @@ class UVData(UVBase):
         cat_dist=None,
         cat_vrad=None,
         ignore_name=False,
+        target_cat_id=None,
+        phase_dict=None,
     ):
         """
         Check the catalog to see if an existing entry matches provided data.
@@ -850,13 +867,8 @@ class UVData(UVBase):
         Parameters
         ----------
         cat_name : str
-            Name of the phase center, which should match a key in
-            `phase_center_catalog`.
-        phase_dict : dict
-            Instead of providing individual parameters, one may provide a dict which
-            matches that format used within `phase_center_catalog` for checking for
-            existing entries. If used, all other parameters (save for `ignore_name` and
-            `cat_name`) are disregarded.
+            Name of the phase center, which should match a the value of "cat_name"
+            inside an entry of `phase_center_catalog`.
         cat_type : str
             Type of phase center of the entry. Must be one of:
                 "sidereal" (fixed RA/Dec),
@@ -903,6 +915,13 @@ class UVData(UVBase):
             matches the name of an entry in the catalog. However, by setting this to
             True, the method will search all entries in the catalog and see if any
             match all of the provided data (excluding `cat_name`).
+        target_cat_id : int
+            Optional argument to specify a particular cat_id to check against.
+        phase_dict : dict
+            Instead of providing individual parameters, one may provide a dict which
+            matches that format used within `phase_center_catalog` for checking for
+            existing entries. If used, all other parameters (save for `ignore_name` and
+            `cat_name`) are disregarded.
 
         Returns
         -------
@@ -919,8 +938,15 @@ class UVData(UVBase):
         # 1 marcsec tols
         radian_tols = (0, 1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0))
         default_tols = (1e-5, 1e-8)
-        cat_id = None
-        cat_diffs = 0
+        match_id = None
+        match_diffs = 99999
+
+        if (cat_name is None) and (not ignore_name):
+            if phase_dict is None:
+                raise ValueError(
+                    "Must specify either phase_dict or cat_name if ignore_name=False."
+                )
+            cat_name = phase_dict["cat_name"]
 
         if cat_type == "unphased" or cat_name == "unphased":
             warnings.warn(
@@ -957,22 +983,24 @@ class UVData(UVBase):
             }
 
         if self.multi_phase_center:
-            check_dict = self.phase_center_catalog
+            this_dict = self.phase_center_catalog
         else:
-            check_dict = {}
+            this_dict = {}
             is_phased = self.phase_type == "phased"
-            check_dict[self.object_name] = {
-                "cat_type": "sidereal" if is_phased else "unprojected",
-                "cat_lon": self.phase_center_ra if is_phased else 0.0,
-                "cat_lat": self.phase_center_dec if is_phased else np.pi / 2.0,
-                "cat_frame": self.phase_center_frame if is_phased else "altaz",
-                "cat_epoch": self.phase_center_epoch if is_phased else None,
-                "cat_times": None,
-                "cat_pm_ra": None,
-                "cat_pm_dec": None,
-                "cat_dist": None,
-                "cat_vrad": None,
-                "cat_id": 0,
+            this_dict = {
+                0: {
+                    "cat_type": "sidereal" if is_phased else "unprojected",
+                    "cat_lon": self.phase_center_ra if is_phased else 0.0,
+                    "cat_lat": self.phase_center_dec if is_phased else np.pi / 2.0,
+                    "cat_frame": self.phase_center_frame if is_phased else "altaz",
+                    "cat_epoch": self.phase_center_epoch if is_phased else None,
+                    "cat_times": None,
+                    "cat_pm_ra": None,
+                    "cat_pm_dec": None,
+                    "cat_dist": None,
+                    "cat_vrad": None,
+                    "cat_id": 0,
+                }
             }
 
         tol_dict = {
@@ -989,41 +1017,60 @@ class UVData(UVBase):
         }
 
         if self.multi_phase_center:
-            name_list = list(self.phase_center_catalog.keys())
+            if target_cat_id is not None:
+                if target_cat_id not in self.phase_center_catalog:
+                    raise ValueError(
+                        "No phase center with ID number %i." % target_cat_id
+                    )
+                name_dict = {
+                    target_cat_id: self.phase_center_catalog[target_cat_id]["cat_name"]
+                }
+            else:
+                name_dict = {
+                    key: cat_dict["cat_name"]
+                    for key, cat_dict in self.phase_center_catalog.items()
+                }
         else:
-            name_list = [self.object_name]
+            name_dict = {0: self.object_name}
 
-        for name in name_list:
+        for cat_id, name in name_dict.items():
             cat_diffs = 0
             if (cat_name != name) and (not ignore_name):
                 continue
+            check_dict = this_dict[cat_id]
             for key in tol_dict.keys():
                 if phase_dict.get(key) is not None:
-                    if check_dict[name].get(key) is None:
+                    if check_dict.get(key) is None:
                         cat_diffs += 1
                     elif tol_dict[key] is None:
                         # If no tolerance specified, expect attributes to be identical
-                        cat_diffs += phase_dict.get(key) != check_dict[name].get(key)
+                        cat_diffs += phase_dict.get(key) != check_dict.get(key)
                     else:
-                        # Numpy will throw a Value error if you have two arrays
+                        # allclose will throw a Value error if you have two arrays
                         # of different shape, which we can catch to flag that
                         # the two arrays are actually not within tolerance.
-                        if np.shape(phase_dict[key]) != np.shape(check_dict[name][key]):
+                        if np.shape(phase_dict[key]) != np.shape(check_dict[key]):
                             cat_diffs += 1
                         else:
                             cat_diffs += not np.allclose(
                                 phase_dict[key],
-                                check_dict[name][key],
+                                check_dict[key],
                                 tol_dict[key][0],
                                 tol_dict[key][1],
                             )
                 else:
-                    cat_diffs += check_dict[name][key] is not None
+                    cat_diffs += check_dict[key] is not None
             if (cat_diffs == 0) or (cat_name == name):
-                cat_id = check_dict[name]["cat_id"]
-                break
+                if cat_diffs < match_diffs:
+                    # If our current match is an improvement on any previous matches,
+                    # then record it as the best match.
+                    match_id = cat_id
+                    match_diffs = cat_diffs
+                if match_diffs == 0:
+                    # If we have a total match, we can bail at this point
+                    break
 
-        return cat_id, cat_diffs
+        return match_id, match_diffs
 
     def _add_phase_center(
         self,
@@ -1248,7 +1295,7 @@ class UVData(UVBase):
         # Names serve as dict keys, so we need to make sure that they're unique
         if not force_update:
             temp_id, cat_diffs = self._look_in_catalog(
-                cat_name,
+                cat_name=cat_name,
                 cat_type=cat_type,
                 cat_lon=cat_lon,
                 cat_lat=cat_lat,
@@ -1275,27 +1322,19 @@ class UVData(UVBase):
         # We want to create a unique ID for each source, for use in indexing arrays.
         # The logic below ensures that we pick the lowest positive integer that is
         # not currently being used by another source
-        used_cat_ids = {
-            self.phase_center_catalog[name]["cat_id"]: name
-            for name in self.phase_center_catalog.keys()
-        }
-
-        if force_update and (cat_name in self.phase_center_catalog.keys()):
-            cat_id = self.phase_center_catalog[cat_name]["cat_id"]
-        elif cat_id is None:
-            cat_id = int(
-                np.arange(self.Nphase + 1)[
-                    ~np.isin(np.arange(self.Nphase + 1), list(used_cat_ids.keys()))
-                ][0]
+        if cat_id is None:
+            cat_id = (
+                set(range(self.Nphase + 1)).difference(self.phase_center_catalog).pop()
             )
-        elif cat_id in used_cat_ids.keys():
+        elif cat_id in self.phase_center_catalog and not force_update:
             raise ValueError(
-                "Provided cat_id belongs to another source (%s)." % used_cat_ids[cat_id]
+                "Provided cat_id belongs to another source (%s)."
+                % self.phase_center_catalog[cat_id]["cat_name"]
             )
 
         # If source is unique, begin creating a dictionary for it
         phase_dict = {
-            "cat_id": cat_id,
+            "cat_name": cat_name,
             "cat_type": cat_type,
             "cat_lon": cat_lon,
             "cat_lat": cat_lat,
@@ -1309,11 +1348,11 @@ class UVData(UVBase):
             "info_source": info_source,
         }
 
-        self.phase_center_catalog[cat_name] = phase_dict
-        self.Nphase = len(self.phase_center_catalog.keys())
+        self.phase_center_catalog[cat_id] = phase_dict
+        self.Nphase = len(self.phase_center_catalog)
         return cat_id
 
-    def _remove_phase_center(self, defunct_name):
+    def _remove_phase_center(self, defunct_id):
         """
         Remove an entry from the internal object/source catalog.
 
@@ -1323,8 +1362,8 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        defunct_name : str
-            Name of the source to be removed
+        defunct_id : int
+            Catalog ID of the source to be removed
 
         Raises
         ------
@@ -1338,11 +1377,11 @@ class UVData(UVBase):
                 "Cannot remove a phase center if multi_phase_center != True."
             )
 
-        if defunct_name not in self.phase_center_catalog.keys():
-            raise IndexError("No source by that name contained in the catalog.")
+        if defunct_id not in self.phase_center_catalog:
+            raise IndexError("No source by that ID contained in the catalog.")
 
-        del self.phase_center_catalog[defunct_name]
-        self.Nphase = len(self.phase_center_catalog.keys())
+        del self.phase_center_catalog[defunct_id]
+        self.Nphase = len(self.phase_center_catalog)
 
     def _clear_unused_phase_centers(self):
         """
@@ -1366,12 +1405,11 @@ class UVData(UVBase):
         unique_cat_ids = np.unique(self.phase_center_id_array)
         defunct_list = []
         Nphase = 0
-        for cat_name in self.phase_center_catalog.keys():
-            cat_id = self.phase_center_catalog[cat_name]["cat_id"]
+        for cat_id in self.phase_center_catalog:
             if cat_id in unique_cat_ids:
                 Nphase += 1
             else:
-                defunct_list.append(cat_name)
+                defunct_list.append(cat_id)
 
         # Check the number of "good" sources we have -- if we haven't dropped any,
         # then we are free to bail, otherwise update the Nphase attribute
@@ -1379,8 +1417,8 @@ class UVData(UVBase):
             return
 
         # Time to kill the entries that are no longer in the source stack
-        for defunct_name in defunct_list:
-            self._remove_phase_center(defunct_name)
+        for defunct_id in defunct_list:
+            self._remove_phase_center(defunct_id)
 
     def _check_for_unprojected(self):
         """
@@ -1398,34 +1436,35 @@ class UVData(UVBase):
         if self.multi_phase_center:
             # Check and see if we have any unprojected objects, in which case
             # their w-values should be zeroed out.
-            nophase_dict = {
-                self.phase_center_catalog[name]["cat_id"]: self.phase_center_catalog[
-                    name
-                ]["cat_type"]
-                == "unprojected"
-                for name in self.phase_center_catalog.keys()
-            }
+            nophase_list = [
+                cat_id
+                for cat_id, cat_dict in self.phase_center_catalog.items()
+                if cat_dict["cat_type"] == "unprojected"
+            ]
 
-            # Use dict to construct a bool array
-            blt_mask = np.array(
-                [nophase_dict[idx] for idx in self.phase_center_id_array], dtype=bool
-            )
+            # Construct a bool mask
+            blt_mask = np.isin(self.phase_center_id_array, nophase_list)
         else:
             # If not multi phase center, we just need to check the phase type
             blt_mask = np.repeat(self.phase_type == "drift", self.Nblts)
 
         return blt_mask
 
-    def rename_phase_center(self, old_name, new_name):
+    def rename_phase_center(self, old_name=None, new_name=None, cat_id=None):
         """
         Rename a phase center/catalog entry within a multi phase center data set.
 
         Parameters
         ----------
-        old_name : str
-            Phase center name for the data to be renamed.
         new_name : str
             New name for the phase center.
+        old_name : str
+            Optional argument, phase center name for the target to be renamed. Note that
+            either `old_name` or `cat_id` must be specified.
+        cat_id : int or list of int
+            Optional argument, phase center IDs number for the target to be renamed.
+            Note that either `old_name` or `cat_id` must be specified.
+
 
         Raises
         ------
@@ -1441,31 +1480,57 @@ class UVData(UVBase):
             raise ValueError(
                 "Cannot rename a phase center if multi_phase_center != True."
             )
-        if old_name not in self.phase_center_catalog.keys():
-            raise ValueError("No entry by the name %s in the catalog." % old_name)
+        if (old_name is None) == (cat_id is None):
+            raise ValueError(
+                "Either old_name or cat_id must be supplied (but not both)."
+            )
+
+        if cat_id is None:
+            cat_id = []
+            for key, ps_dict in self.phase_center_catalog.items():
+                if ps_dict["cat_name"] == old_name:
+                    cat_id.append(key)
+            if len(cat_id) == 0:
+                raise ValueError("No entry by the name %s in the catalog." % old_name)
+
+        else:
+            # Force cat_id to be a list to make downstream code simpler. If cat_id is
+            # an int, it will throw a TypeError on casting to list, which we can catch.
+            try:
+                cat_id = list(cat_id)
+            except TypeError:
+                cat_id = [cat_id]
+
+            for key in cat_id:
+                if key not in self.phase_center_catalog:
+                    raise ValueError("No entry with the ID %i in the catalog." % cat_id)
+
         if not isinstance(new_name, str):
             raise TypeError("Value provided to new_name must be a string.")
-        if new_name == old_name:
+
+        if (new_name == old_name) or (len(cat_id) == 0):
             # This is basically just a no-op, so return to user
             return
-        if new_name in self.phase_center_catalog.keys():
-            raise ValueError(
-                "Must include a unique name for new_name, %s is already present "
-                "in phase_center_catalog." % new_name
-            )
-        if (new_name == "unprojected") and (
-            self.phase_center_catalog[old_name]["cat_type"] != "unprojected"
-        ):
-            raise ValueError(
-                "The name unprojected is reserved. Please choose another value for "
-                "new_name."
-            )
 
-        self.phase_center_catalog[new_name] = self.phase_center_catalog[old_name]
-        self.Nphase = len(self.phase_center_catalog.keys())
-        self._remove_phase_center(old_name)
+        for key in cat_id:
+            if (new_name == "unprojected") and (
+                self.phase_center_catalog[key]["cat_type"] != "unprojected"
+            ):
+                raise ValueError(
+                    'The name "unprojected" is reserved. Please choose another value '
+                    "for new_name."
+                )
+            self.phase_center_catalog[key]["cat_name"] = new_name
 
-    def split_phase_center(self, cat_name, new_name, select_mask, downselect=False):
+    def split_phase_center(
+        self,
+        cat_name=None,
+        new_name=None,
+        select_mask=None,
+        cat_id=None,
+        new_id=None,
+        downselect=False,
+    ):
         """
         Rename the phase center (but preserve other properties) of a subset of data.
 
@@ -1477,14 +1542,22 @@ class UVData(UVBase):
         Parameters
         ----------
         cat_name : str
-            Name of the phase center to be split.
+            Name of the phase center to be split. Either cat_id or cat_name must be
+            supplied.
         new_name : str
-            New name for the object.
+            Name for the "split" portion of the phase center. Optional argument, default
+            is to use the same name as the existing phase center.
         select_mask : array_like
             Selection mask for which data should be identified as belonging to the phase
             center labeled by `new_name`. Any array-like able to be used as an index
             is suitable -- the most typical is an array of bool with length `Nblts`,
             or an array of ints within the range (-Nblts, Nblts).
+        cat_id : int
+            Catalog ID of the existing phase center to be split. Either cat_id or
+            cat_name must be supplied.
+        new_id : int
+            Catalog ID to assign to the new phase center. Optional argument, a unique
+            value will be automatically assigned if not provided.
         downselect : bool
             If selecting data that is not marked as belonging to `cat_name`,
             normally an error is thrown. By setting this to True, `select_mask` will
@@ -1510,22 +1583,44 @@ class UVData(UVBase):
             raise ValueError(
                 "Cannot use split_phase_center on a non-multi phase center data set."
             )
-        if not isinstance(new_name, str):
+
+        if cat_id is None:
+            if cat_name is None:
+                raise ValueError("Must supply a value for either cat_name or cat_id")
+
+            for pc_id, pc_dict in self.phase_center_catalog.items():
+                if cat_name == pc_dict["cat_name"]:
+                    if cat_id is None:
+                        cat_id = pc_id
+                    else:
+                        raise ValueError(
+                            "The cat_name %s has multiple entries in the catalog. "
+                            "Please specify a cat_id in order to eliminate ambiguity "
+                            "(which you can see using the `print_phase_center_info` "
+                            "method)." % cat_name
+                        )
+
+            if cat_id is None:
+                raise ValueError("No catalog entries matching the name %s." % cat_name)
+
+        if cat_id not in self.phase_center_catalog:
+            raise ValueError("No entry with the ID %i found in the catalog." % cat_id)
+
+        if new_id is None:
+            new_id = (
+                set(range(self.Nphase + 1)).difference(self.phase_center_catalog).pop()
+            )
+        elif not isinstance(new_id, int):
+            raise TypeError("Value provided to new_id must be an int.")
+
+        if new_id in self.phase_center_catalog:
+            raise ValueError(
+                "The ID %i is already in the catalog, choose another value for "
+                "new_id." % new_id
+            )
+
+        if not (isinstance(new_name, str) or new_name is None):
             raise TypeError("Value provided to new_name must be a string.")
-        if cat_name not in self.phase_center_catalog.keys():
-            raise ValueError("No entry by the name %s in the catalog." % cat_name)
-        if new_name in self.phase_center_catalog.keys():
-            raise ValueError(
-                "The name %s is already found in the catalog, choose another name "
-                "for new_name." % new_name
-            )
-        if (new_name == "unprojected") and (
-            self.phase_center_catalog[cat_name]["cat_type"] != "unprojected"
-        ):
-            raise ValueError(
-                "The name unprojected is reserved. Please choose another value for "
-                "new_name."
-            )
 
         try:
             inv_mask = np.ones(self.Nblts, dtype=bool)
@@ -1533,20 +1628,17 @@ class UVData(UVBase):
         except IndexError as err:
             raise IndexError(
                 "select_mask must be an array-like, either of ints with shape (Nblts), "
-                "or of ints within the range (-Nblts, Nblts)."
+                "or  of ints within the range (-Nblts, Nblts)."
             ) from err
-        # Now that we know nthat all the inputs are sensible, lets make sure that
-        # the select_mask choice is sensible
-        cat_id = self.phase_center_catalog[cat_name]["cat_id"]
 
         # If we have selected any entries that don't correspond to the cat_id
         # in question, either downselect or raise an error.
-        if np.any(cat_id != self.phase_center_id_array[select_mask]):
+        if np.any(
+            np.isin(self.phase_center_id_array[select_mask], cat_id, invert=True)
+        ):
             if downselect:
-                select_mask = np.logical_and(
-                    ~inv_mask, cat_id == self.phase_center_id_array
-                )
-                inv_mask = ~select_mask
+                inv_mask |= np.isin(self.phase_center_id_array, cat_id, invert=True)
+                select_mask = ~inv_mask
             else:
                 raise ValueError(
                     "Data selected with select_mask includes that which has not been "
@@ -1557,22 +1649,21 @@ class UVData(UVBase):
         # Now check for no(-ish) ops
         if np.all(inv_mask):
             # You didn't actually select anything we could change
-            warnings.warn(
-                "No relevant data selected - %s not added to the data set" % new_name
-            )
-        elif not np.any(cat_id == self.phase_center_id_array[inv_mask]):
+            warnings.warn("No relevant data selected - check select_mask.")
+        elif not np.any(np.isin(self.phase_center_id_array[inv_mask], cat_id)):
             # No matching catalog IDs found outside the range, so this is really a
             # replace more than a split.
             warnings.warn(
-                "All data for %s selected - using rename_phase_center instead of a "
-                "split_phase_center." % cat_name
+                "All data for the source selected - updating the cat_id instead."
             )
-            self.rename_phase_center(cat_name, new_name)
+            self._update_phase_center_id(cat_id, new_id)
+            if new_name is not None:
+                self.rename_phase_center(cat_id=new_id, new_name=new_name)
         else:
-            temp_dict = self.phase_center_catalog[cat_name]
+            temp_dict = self.phase_center_catalog[cat_id]
             cat_id = self._add_phase_center(
-                new_name,
-                temp_dict["cat_type"],
+                temp_dict["cat_name"] if new_name is None else new_name,
+                cat_type=temp_dict["cat_type"],
                 cat_lon=temp_dict.get("cat_lon"),
                 cat_lat=temp_dict.get("cat_lat"),
                 cat_frame=temp_dict.get("cat_frame"),
@@ -1582,10 +1673,18 @@ class UVData(UVBase):
                 cat_pm_dec=temp_dict.get("cat_pm_dec"),
                 cat_dist=temp_dict.get("cat_dist"),
                 cat_vrad=temp_dict.get("cat_vrad"),
+                cat_id=new_id,
+                force_update=True,
             )
             self.phase_center_id_array[select_mask] = cat_id
 
-    def merge_phase_centers(self, catname1, catname2, force_merge=False):
+    def merge_phase_centers(
+        self,
+        cat_name=None,
+        cat_id_list=None,
+        force_merge=False,
+        ignore_name=False,
+    ):
         """
         Merge two differently named objects into one within a mutli-phase-ctr data set.
 
@@ -1595,13 +1694,12 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        catname1 : str
-            String containing the name of the first phase center. Note that this name
-            will be preserved in the UVData object.
-        catname2 : str
-            String containing the name of the second phase center, which will be merged
-            into the first phase center. Note that once the merge is complete, all
-            information about this phase center is removed.
+        cat_name : str
+            String containing the name of the phase center(s) to merge. Either cat_name
+            or cat_id must be specified.
+        cat_id_list : list of int
+            Catalog ID(s) of the phase center(s) to merge together. Either cat_name or
+            cat_id must be specified.
         force_merge : bool
             Normally, the method will throw an error if the phase center properties
             differ for `catname1` and `catname2`. This can be overriden by setting this
@@ -1619,46 +1717,60 @@ class UVData(UVBase):
             raise ValueError(
                 "Cannot use merge_phase_centers on a non-multi phase center data set."
             )
-        if catname1 not in self.phase_center_catalog.keys():
-            raise ValueError("No entry by the name %s in the catalog." % catname1)
-        if catname2 not in self.phase_center_catalog.keys():
-            raise ValueError("No entry by the name %s in the catalog." % catname2)
-        temp_dict = self.phase_center_catalog[catname2]
-        # First, let's check and see if the dict entries are identical
-        cat_id, cat_diffs = self._look_in_catalog(
-            catname1,
-            cat_type=temp_dict["cat_type"],
-            cat_lon=temp_dict.get("cat_lon"),
-            cat_lat=temp_dict.get("cat_lat"),
-            cat_frame=temp_dict.get("cat_frame"),
-            cat_epoch=temp_dict.get("cat_epoch"),
-            cat_times=None,
-            cat_pm_ra=None,
-            cat_pm_dec=None,
-            cat_dist=None,
-            cat_vrad=None,
-        )
-        if cat_diffs != 0:
-            if force_merge:
+
+        if cat_id_list is None:
+            cat_id_list = []
+            for pc_id in self.phase_center_catalog:
+                if self.phase_center_catalog[pc_id]["cat_name"] == cat_name:
+                    cat_id_list.append(pc_id)
+            if len(cat_id_list) == 0:
+                raise ValueError("No entry by the name %s in the catalog." % cat_name)
+            elif len(cat_id_list) == 1:
                 warnings.warn(
-                    "Forcing %s and %s together, even though their attributes "
-                    "differ" % (catname1, catname2)
-                )
-            else:
-                raise ValueError(
-                    "Attributes of %s and %s differ in phase_center_catalog, which "
-                    "means that they are likely not referring to the same position in "
-                    "the sky. You can ignore this error and force merge_phase_centers "
-                    "to complete by setting force_merge=True, but this should be done "
-                    "with substantial caution." % (catname1, catname2)
+                    "The name %s matches only one phase center, "
+                    "returning without merge." % cat_name
                 )
 
-        old_cat_id = self.phase_center_catalog[catname2]["cat_id"]
-        self.phase_center_id_array[self.phase_center_id_array == old_cat_id] = cat_id
-        self._remove_phase_center(catname2)
+        for cat_id in cat_id_list:
+            if cat_id not in self.phase_center_catalog:
+                raise ValueError("No entry matching the catalog ID number %i." % cat_id)
+
+        # First, let's check and see if the dict entries are identical
+        for cat_id in cat_id_list[1:]:
+            pc_id, pc_diffs = self._look_in_catalog(
+                phase_dict=self.phase_center_catalog[cat_id],
+                ignore_name=ignore_name,
+                target_cat_id=cat_id_list[0],
+            )
+            if (pc_diffs != 0) or (pc_id is None):
+                if force_merge:
+                    warnings.warn(
+                        "Forcing fields together, even though their attributes differ."
+                    )
+                else:
+                    raise ValueError(
+                        "Attributes of phase centers differ in phase_center_catalog. "
+                        "You can ignore this error and force merge_phase_centers to "
+                        "complete by setting force_merge=True, but this should be done "
+                        "with substantial caution."
+                    )
+
+        # Set everything to the first cat ID in the list
+        self.phase_center_id_array[
+            np.isin(self.phase_center_id_array, cat_id_list)
+        ] = cat_id_list[0]
+
+        # Finally, remove the defunct cat IDs
+        for cat_id in cat_id_list[1:]:
+            self._remove_phase_center(cat_id)
 
     def print_phase_center_info(
-        self, cat_name=None, hms_format=None, return_str=False, print_table=True
+        self,
+        cat_id=None,
+        cat_name=None,
+        hms_format=None,
+        return_str=False,
+        print_table=True,
     ):
         """
         Print out the details of objects in a mutli-phase-ctr data set.
@@ -1671,8 +1783,8 @@ class UVData(UVBase):
         ----------
         cat_name : str
             Optional parameter which, if provided, will cause the method to only return
-            information on the phase center with the matching name. Default is to print
-            out information on all catalog entries.
+            information on the phase center(s) with the matching name. Default is to
+            print out information on all catalog entries.
         hms_format : bool
             Optional parameter, which if selected, can be used to force coordinates to
             be printed out in Hours-Min-Sec (if set to True) or Deg-Min-Sec (if set to
@@ -1705,23 +1817,36 @@ class UVData(UVBase):
                 "Cannot use print_phase_center_info on a "
                 "non-multi phase center data set."
             )
-        if cat_name is None:
-            name_list = list(self.phase_center_catalog.keys())
-            dict_list = [self.phase_center_catalog[name] for name in name_list]
-        elif cat_name in self.phase_center_catalog.keys():
-            name_list = [cat_name]
-            dict_list = [self.phase_center_catalog[cat_name]]
+        if cat_id is None:
+            if cat_name is None:
+                cat_id_list = list(self.phase_center_catalog)
+            else:
+                cat_id_list = [
+                    pc_id
+                    for pc_id, pc_dict in self.phase_center_catalog.items()
+                    if pc_dict["cat_name"] == cat_name
+                ]
+                if len(cat_id_list) == 0:
+                    raise ValueError(
+                        "No entry by the name %s in the catalog." % cat_name
+                    )
+        elif np.all(np.isin(cat_id, list(self.phase_center_catalog))):
+            cat_id_list = [cat_id] if isinstance(cat_id, int) else cat_id
         else:
-            raise ValueError("No entry by the name %s in the catalog." % cat_name)
+            known_keys = list(self.phase_center_catalog)
+            raise ValueError(
+                "Mismatch between keys in catalog (%s) and "
+                "keys provided in cat_id." % known_keys
+            )
+
+        dict_list = [self.phase_center_catalog[cat_id] for cat_id in cat_id_list]
 
         # We want to check and actually see which fields we need to
         # print
         any_lon = any_lat = any_frame = any_epoch = any_times = False
         any_pm_ra = any_pm_dec = any_dist = any_vrad = False
 
-        cat_id_list = []
         for indv_dict in dict_list:
-            cat_id_list.append(indv_dict["cat_id"])
             any_lon = any_lon or indv_dict.get("cat_lon") is not None
             any_lat = any_lat or indv_dict.get("cat_lat") is not None
             any_frame = any_frame or indv_dict.get("cat_frame") is not None
@@ -1856,8 +1981,8 @@ class UVData(UVBase):
             for col in col_list:
                 # If we have a "special" field that needs extra handling,
                 # take care of that up front
-                if col["name"] == "cat_name":
-                    temp_val = name_list[idx]
+                if col["name"] == "cat_id":
+                    temp_val = cat_id_list[idx]
                 else:
                     temp_val = dict_list[idx][col["name"]]
                 if temp_val is None:
@@ -1908,16 +2033,16 @@ class UVData(UVBase):
         if return_str:
             return info_str
 
-    def _update_phase_center_id(self, cat_name, new_cat_id=None, reserved_ids=None):
+    def _update_phase_center_id(self, cat_id, new_id=None, reserved_ids=None):
         """
         Update a phase center with a new catalog ID number.
 
         Parameters
         ----------
-        cat_name : str
-            Name of the phase center, which corresponds to a key in the attribute
-            `phase_center_catalog`.
-        new_cat_id : int
+        cat_id : int
+            Current catalog ID of the phase center, which corresponds to a key in the
+            attribute `phase_center_catalog`.
+        new_id : int
             Optional argument. If supplied, then the method will attempt to use the
             provided value as the new catalog ID, provided that an existing catalog
             entry is not already using the same value. If not supplied, then the
@@ -1930,7 +2055,7 @@ class UVData(UVBase):
         ------
         ValueError
             If not using the method on a multi-phase-ctr data set, if there's no entry
-            that matches `cat_name`, or of the value `new_cat_id` is already taken.
+            that matches `cat_name`, or of the value `new_id` is already taken.
         """
         if not self.multi_phase_center:
             raise ValueError(
@@ -1938,34 +2063,28 @@ class UVData(UVBase):
                 "non-multi phase center data set."
             )
 
-        if cat_name not in self.phase_center_catalog.keys():
+        if cat_id not in self.phase_center_catalog:
             raise ValueError(
-                "Cannot run _update_phase_center_id: no entry with name %s." % cat_name
+                "Cannot run _update_phase_center_id: no entry with id %i." % cat_id
             )
 
-        old_cat_id = self.phase_center_catalog[cat_name]["cat_id"]
+        used_cat_ids = set(self.phase_center_catalog)
+        used_cat_ids.remove(cat_id)
+        if reserved_ids is not None:
+            used_cat_ids = used_cat_ids.union(reserved_ids)
 
-        used_cat_ids = [] if (reserved_ids is None) else reserved_ids.copy()
-        for name in self.phase_center_catalog.keys():
-            if name != cat_name:
-                used_cat_ids.append(self.phase_center_catalog[name]["cat_id"])
-        if new_cat_id is None:
+        if new_id is None:
             # If the old ID is in the reserved list, then we'll need to update it
-            if old_cat_id not in used_cat_ids:
+            if cat_id not in used_cat_ids:
                 # Don't need to actually update anything
                 return
-            else:
-                new_cat_id = np.arange(len(used_cat_ids) + 1)[
-                    ~np.isin(np.arange(len(used_cat_ids) + 1), used_cat_ids)
-                ][0]
+            new_id = set(range(len(used_cat_ids) + 1)).difference(used_cat_ids).pop()
         else:
-            if new_cat_id in used_cat_ids:
+            if new_id in used_cat_ids:
                 raise ValueError("Catalog ID supplied already taken by another source.")
 
-        self.phase_center_id_array[
-            self.phase_center_id_array == old_cat_id
-        ] = new_cat_id
-        self.phase_center_catalog[cat_name]["cat_id"] = new_cat_id
+        self.phase_center_id_array[self.phase_center_id_array == cat_id] = new_id
+        self.phase_center_catalog[new_id] = self.phase_center_catalog.pop(cat_id)
 
     def _set_multi_phase_center(self, preserve_phase_center_info=False):
         """
@@ -2310,9 +2429,9 @@ class UVData(UVBase):
         elif self.multi_phase_center:
             app_ra = np.zeros(self.Nblts, dtype=float)
             app_dec = np.zeros(self.Nblts, dtype=float)
-            for name in self.phase_center_catalog.keys():
-                temp_dict = self.phase_center_catalog[name]
-                select_mask = self.phase_center_id_array == temp_dict["cat_id"]
+            for cat_id in self.phase_center_catalog.keys():
+                temp_dict = self.phase_center_catalog[cat_id]
+                select_mask = self.phase_center_id_array == cat_id
                 cat_type = temp_dict["cat_type"]
                 lon_val = temp_dict.get("cat_lon")
                 lat_val = temp_dict.get("cat_lat")
@@ -4970,13 +5089,23 @@ class UVData(UVBase):
         cat_id = None
         info_source = "user"
         if self.multi_phase_center:
-            name_list = list(self.phase_center_catalog.keys())
+            name_dict = {
+                pc_dict["cat_name"]: pc_id
+                for pc_id, pc_dict in self.phase_center_catalog.items()
+            }
         else:
-            name_list = [self.object_name]
+            name_dict = {self.object_name: 0}
+
+        if lookup_name and self.multi_phase_center:
+            if len(self._look_for_name(cat_name)) > 1:
+                raise ValueError(
+                    "Name of object has multiple matches in phase center catalog. "
+                    "Set lookup_name=False in order to continue."
+                )
 
         # We only want to use the JPL-Horizons service if using a non-mutli-phase-ctr
         # instance of a UVData object.
-        if lookup_name and (cat_name not in name_list) and self.multi_phase_center:
+        if lookup_name and (cat_name not in name_dict) and self.multi_phase_center:
             if (cat_type is None) or (cat_type == "ephem"):
                 [
                     cat_times,
@@ -5001,11 +5130,11 @@ class UVData(UVBase):
                     "information (e.g., RA and Dec coordinates) and "
                     "set lookup_name=False." % cat_name
                 )
-        elif (cat_name in name_list) and self.multi_phase_center:
+        elif (cat_name in name_dict) and self.multi_phase_center:
             # If the name of the source matches, then verify that all of its
             # properties are the same as what is stored in phase_center_catalog.
             if lookup_name:
-                cat_id = self.phase_center_catalog[cat_name]["cat_id"]
+                cat_id = name_dict[cat_name]
                 cat_diffs = 0
             else:
                 cat_id, cat_diffs = self._look_in_catalog(
@@ -5023,27 +5152,10 @@ class UVData(UVBase):
                 )
             # If cat_diffs > 0, it means that the catalog entries dont match
             if cat_diffs != 0:
-                # Last chance here -- if we have selected all of the data phased
-                # to this phase center, then we are still okay.
-                if select_mask is None:
-                    # We have selected all data, so we're good
-                    pass
-                elif np.all(
-                    np.not_equal(
-                        self.phase_center_id_array[~select_mask],
-                        self.phase_center_catalog[cat_name]["cat_id"],
-                    )
-                ):
-                    # We have selected a subset of the data that contains
-                    # everything that was phased to the object
-                    pass
-                else:
-                    raise ValueError(
-                        "The entry name %s is not unique, but arguments to phase "
-                        "do not match that stored in phase_center_catalog. Try using a "
-                        "different name, using select_mask to select all data "
-                        "phased to this phase center, or using the existing phase "
-                        "center information by setting lookup_name=True." % cat_name
+                if self.multi_phase_center:
+                    warnings.warn(
+                        "The entry name %s is not unique inside the phase center "
+                        "catalog, adding anyways." % cat_name
                     )
                 cat_type = "sidereal" if cat_type is None else cat_type
                 cat_lon = ra
@@ -5056,8 +5168,7 @@ class UVData(UVBase):
                 cat_dist = dist
                 cat_vrad = vrad
             else:
-                temp_dict = self.phase_center_catalog[cat_name]
-                cat_id = temp_dict["cat_id"]
+                temp_dict = self.phase_center_catalog[cat_id]
                 cat_type = temp_dict["cat_type"]
                 info_source = temp_dict["info_source"]
                 # Get here will return None if no key found, which we want
@@ -6581,38 +6692,6 @@ class UVData(UVBase):
                     )
                 raise ValueError(msg)
 
-        # At this point, we are assuming that the two data sets _mostly_ compatible.
-        # Last thing we need to check is if these are mutli-phase-ctr data sets, whether
-        # or not they are compatible.
-        if this.multi_phase_center or make_multi_phase:
-            if other.multi_phase_center:
-                other_names = list(other.phase_center_catalog.keys())
-                other_cat = other.phase_center_catalog
-            else:
-                other_names = [other.object_name]
-                other_cat = {
-                    other_names[0]: {
-                        "cat_type": "sidereal",
-                        "cat_lon": other.phase_center_ra,
-                        "cat_lat": other.phase_center_dec,
-                        "cat_frame": other.phase_center_frame,
-                        "cat_epoch": other.phase_center_epoch,
-                    },
-                }
-
-            for name in other_names:
-                cat_id, cat_diffs = this._look_in_catalog(
-                    name, phase_dict=other_cat[name]
-                )
-                if (cat_id is not None) and (cat_diffs != 0):
-                    # We have a name conflict, raise an error now
-                    raise ValueError(
-                        "There exists a target named %s in both objects in the "
-                        "sum, but their properties are different. Use the rename_"
-                        "phase_center method in order to rename it in one object."
-                        % name
-                    )
-
         # Begin manipulating the objects.
         # First, handle the internal source catalogs, since merging them is kind of a
         # weird, one-off process (i.e., nothing is cat'd across a particular axis)
@@ -6620,40 +6699,35 @@ class UVData(UVBase):
             this._set_multi_phase_center(preserve_phase_center_info=True)
         if other.multi_phase_center:
             # This to get adding stuff to the catalog
-            reserved_ids = [
-                other.phase_center_catalog[name]["cat_id"]
-                for name in other.phase_center_catalog.keys()
-            ]
-            # First loop, we want to look at the sources that are in this, but not
-            # other, since we need to choose catalog IDs that won't collide with the
-            # catalog that exists.
-            for name in this.phase_center_catalog.keys():
-                if name not in other.phase_center_catalog.keys():
-                    this._update_phase_center_id(name, reserved_ids=reserved_ids)
+            reserved_ids = list(other.phase_center_catalog)
+            # First loop, we want to update all the catalog IDs so that we know there
+            # are no conflicts between this and other.
+            for cat_id in list(this.phase_center_catalog):
+                this._update_phase_center_id(cat_id, reserved_ids=reserved_ids)
             # Next loop, we want to update the IDs of sources that are in both
-            for name in this.phase_center_catalog.keys():
-                if name in other.phase_center_catalog.keys():
-                    this._update_phase_center_id(
-                        name,
-                        new_cat_id=other.phase_center_catalog[name]["cat_id"],
-                    )
+            for cat_id in list(this.phase_center_catalog):
+                match_id, match_diffs = other._look_in_catalog(
+                    phase_dict=this.phase_center_catalog[cat_id],
+                )
+                if match_diffs == 0:
+                    this._update_phase_center_id(cat_id, new_id=match_id)
             # Finally, add those other objects not found in this
-            for name in other.phase_center_catalog.keys():
-                if name not in this.phase_center_catalog.keys():
+            for cat_id in other.phase_center_catalog:
+                if cat_id not in this.phase_center_catalog:
                     this._add_phase_center(
-                        name,
-                        cat_type=other.phase_center_catalog[name]["cat_type"],
-                        cat_lon=other.phase_center_catalog[name]["cat_lon"],
-                        cat_lat=other.phase_center_catalog[name]["cat_lat"],
-                        cat_frame=other.phase_center_catalog[name]["cat_frame"],
-                        cat_epoch=other.phase_center_catalog[name]["cat_epoch"],
-                        cat_times=other.phase_center_catalog[name]["cat_times"],
-                        cat_pm_ra=other.phase_center_catalog[name]["cat_pm_ra"],
-                        cat_pm_dec=other.phase_center_catalog[name]["cat_pm_dec"],
-                        cat_dist=other.phase_center_catalog[name]["cat_dist"],
-                        cat_vrad=other.phase_center_catalog[name]["cat_vrad"],
-                        info_source=other.phase_center_catalog[name]["info_source"],
-                        cat_id=other.phase_center_catalog[name]["cat_id"],
+                        other.phase_center_catalog[cat_id]["cat_name"],
+                        cat_type=other.phase_center_catalog[cat_id]["cat_type"],
+                        cat_lon=other.phase_center_catalog[cat_id]["cat_lon"],
+                        cat_lat=other.phase_center_catalog[cat_id]["cat_lat"],
+                        cat_frame=other.phase_center_catalog[cat_id]["cat_frame"],
+                        cat_epoch=other.phase_center_catalog[cat_id]["cat_epoch"],
+                        cat_times=other.phase_center_catalog[cat_id]["cat_times"],
+                        cat_pm_ra=other.phase_center_catalog[cat_id]["cat_pm_ra"],
+                        cat_pm_dec=other.phase_center_catalog[cat_id]["cat_pm_dec"],
+                        cat_dist=other.phase_center_catalog[cat_id]["cat_dist"],
+                        cat_vrad=other.phase_center_catalog[cat_id]["cat_vrad"],
+                        info_source=other.phase_center_catalog[cat_id]["info_source"],
+                        cat_id=cat_id,
                     )
         elif this.multi_phase_center:
             # If other is not multi phase center, then we'll go ahead and add the object
