@@ -291,16 +291,9 @@ def test_read_carma_miriad_write_ms(tmp_path):
     # Check and see that the naming convention lines up as expected -- only the internal
     # catalog entries (specifically the names/keys and catalog IDs) should have changed.
     uv_out.read(testfile)
-    cat_id_dict = {}
     for idx in range(3):
-        sou_dict = uv_out.phase_center_catalog.pop("TEST-%03i" % idx)
-        sou_dict["cat_id"] = uv_in.phase_center_catalog[orig_name[idx]]["cat_id"]
-        uv_out.phase_center_catalog[orig_name[idx]] = sou_dict
-        cat_id_dict[idx] = uv_in.phase_center_catalog[orig_name[idx]]["cat_id"]
-
-    uv_out.phase_center_id_array = np.array(
-        [cat_id_dict[key] for key in uv_out.phase_center_id_array], dtype=int
-    )
+        assert uv_out.phase_center_catalog[idx]["cat_name"] == "TEST-%03i" % idx
+        uv_out.phase_center_catalog[idx]["cat_name"] = orig_name[idx]
 
     # Final equality check
     assert uv_in.__eq__(uv_out, allowed_failures=["filename"])

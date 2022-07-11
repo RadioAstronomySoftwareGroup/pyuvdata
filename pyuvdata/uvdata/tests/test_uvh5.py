@@ -3372,7 +3372,10 @@ def test_old_phase_center_catalog_format(sma_mir, tmp_path):
         phase_dict = header.create_group("phase_center_catalog")
         for k in sma_mir.phase_center_catalog.keys():
             # Dictionary entries used to be written out as JSON-formatted strings.
-            phase_dict[k] = np.string_(json.dumps(sma_mir.phase_center_catalog[k]))
+            temp_dict = sma_mir.phase_center_catalog[k].copy()
+            temp_dict["cat_id"] = k
+            temp_name = temp_dict.pop("cat_name")
+            phase_dict[temp_name] = np.string_(json.dumps(temp_dict))
 
     uvd = UVData.from_file(testfile)
     uvd.history = sma_mir.history
