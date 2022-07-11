@@ -460,18 +460,15 @@ class MS(UVData):
                 field_table.putcolkeyword(col, "MEASINFO", meas_info_dict)
 
         if self.multi_phase_center:
-            sou_list = list(self.phase_center_catalog.keys())
-            sou_list.sort()
+            sou_id_list = list(self.phase_center_catalog)
         else:
-            sou_list = [
-                self.object_name,
-            ]
+            sou_id_list = [0]
 
-        for idx, key in enumerate(sou_list):
+        for idx, sou_id in enumerate(sou_id_list):
             if self.multi_phase_center:
-                cat_dict = self.phase_center_catalog[key]
+                cat_dict = self.phase_center_catalog[sou_id]
                 phasedir = np.array([[cat_dict["cat_lon"], cat_dict["cat_lat"]]])
-                sou_id = cat_dict["cat_id"]
+                sou_name = cat_dict["cat_name"]
                 ref_dir = self._parse_pyuvdata_frame_ref(
                     cat_dict["cat_frame"],
                     cat_dict["cat_epoch"],
@@ -479,7 +476,7 @@ class MS(UVData):
                 )
             else:
                 phasedir = np.array([[self.phase_center_ra, self.phase_center_dec]])
-                sou_id = 0
+                sou_name = self.object_name
                 assert self.phase_center_epoch == 2000.0
 
             field_table.addrows()
@@ -487,7 +484,7 @@ class MS(UVData):
             field_table.putcell("DELAY_DIR", idx, phasedir)
             field_table.putcell("PHASE_DIR", idx, phasedir)
             field_table.putcell("REFERENCE_DIR", idx, phasedir)
-            field_table.putcell("NAME", idx, key)
+            field_table.putcell("NAME", idx, sou_name)
             field_table.putcell("NUM_POLY", idx, n_poly)
             field_table.putcell("TIME", idx, time_val)
             field_table.putcell("SOURCE_ID", idx, sou_id)
@@ -524,30 +521,25 @@ class MS(UVData):
         )
         int_val = np.finfo(float).max
 
-        if self.multi_phase_center:
-            sou_list = list(self.phase_center_catalog.keys())
-        else:
-            sou_list = [
-                self.object_name,
-            ]
+        sou_list = list(self.phase_center_catalog) if self.multi_phase_center else [0]
 
         row_count = 0
-        for sou_name in sou_list:
+        for sou_id in sou_list:
             if self.multi_phase_center:
-                sou_ra = self.phase_center_catalog[sou_name]["cat_lon"]
-                sou_dec = self.phase_center_catalog[sou_name]["cat_lat"]
-                pm_ra = self.phase_center_catalog[sou_name].get("cat_pm_ra")
-                pm_dec = self.phase_center_catalog[sou_name].get("cat_pm_dec")
+                sou_ra = self.phase_center_catalog[sou_id]["cat_lon"]
+                sou_dec = self.phase_center_catalog[sou_id]["cat_lat"]
+                pm_ra = self.phase_center_catalog[sou_id].get("cat_pm_ra")
+                pm_dec = self.phase_center_catalog[sou_id].get("cat_pm_dec")
                 if (pm_ra is None) or (pm_dec is None):
                     pm_ra = 0.0
                     pm_dec = 0.0
-                sou_id = self.phase_center_catalog[sou_name]["cat_id"]
+                sou_name = self.phase_center_catalog[sou_id]["cat_name"]
             else:
                 sou_ra = self.phase_center_ra
                 sou_dec = self.phase_center_dec
                 pm_ra = 0.0
                 pm_dec = 0.0
-                sou_id = 0
+                sou_name = self.object_name
 
             sou_dir = np.array([sou_ra, sou_dec])
             pm_dir = np.array([pm_ra, pm_dec])
@@ -1316,15 +1308,8 @@ class MS(UVData):
             # the FIELD subtable). When we write out the fields, we use sort so that
             # we can reproduce the same ordering here.
             field_ids = np.empty_like(self.phase_center_id_array)
-            sou_list = list(self.phase_center_catalog.keys())
-            sou_list.sort()
-            for idx in range(self.Nphase):
-                sel_mask = np.equal(
-                    self.phase_center_id_array,
-                    self.phase_center_catalog[sou_list[idx]]["cat_id"],
-                )
-
-                field_ids[sel_mask] = idx
+            for idx, cat_id in enumerate(self.phase_center_catalog):
+                field_ids[self.phase_center_id_array == cat_id] = idx
 
             ms.putcol(
                 "FIELD_ID", field_ids[blt_map_array] if self.Nspws > 1 else field_ids

@@ -252,22 +252,26 @@ class UVH5(UVData):
             if isinstance(header["phase_center_catalog"][key_list[0]], h5py.Group):
                 # This is the new, correct way
                 for pc, pc_dict in header["phase_center_catalog"].items():
-                    self.phase_center_catalog[pc] = {}
+                    pc_id = int(pc)
+                    self.phase_center_catalog[pc_id] = {}
                     for key, dset in pc_dict.items():
                         if issubclass(dset.dtype.type, np.bytes_):
-                            self.phase_center_catalog[pc][key] = bytes(dset[()]).decode(
-                                "utf8"
-                            )
+                            self.phase_center_catalog[pc_id][key] = bytes(
+                                dset[()]
+                            ).decode("utf8")
                         elif dset.shape is None:
-                            self.phase_center_catalog[pc][key] = None
+                            self.phase_center_catalog[pc_id][key] = None
                         else:
-                            self.phase_center_catalog[pc][key] = dset[()]
+                            self.phase_center_catalog[pc_id][key] = dset[()]
             else:
                 # This is the old way this was written
                 for key in header["phase_center_catalog"].keys():
-                    self.phase_center_catalog[key] = json.loads(
+                    pc_dict = json.loads(
                         bytes(header["phase_center_catalog"][key][()]).decode("utf8")
                     )
+                    pc_dict["cat_name"] = key
+                    pc_id = pc_dict.pop("cat_id")
+                    self.phase_center_catalog[pc_id] = pc_dict
         else:
             # check for older phasing information
             self.phase_type = bytes(header["phase_type"][()]).decode("utf8")
@@ -1072,7 +1076,7 @@ class UVH5(UVData):
             # next level keys give details for each phase center.
             pc_group = header.create_group("phase_center_catalog")
             for pc, pc_dict in self.phase_center_catalog.items():
-                this_group = pc_group.create_group(pc)
+                this_group = pc_group.create_group(str(pc))
                 for key, value in pc_dict.items():
                     if isinstance(value, str):
                         this_group[key] = np.bytes_(value)

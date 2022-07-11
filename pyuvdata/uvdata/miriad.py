@@ -1920,10 +1920,6 @@ class Miriad(UVData):
         uv.add_var("cnt", "d")
         if self.multi_phase_center:
             uv.add_var("source", "a")
-            name_dict = {
-                self.phase_center_catalog[key]["cat_id"]: key
-                for key in self.phase_center_catalog.keys()
-            }
         uv.add_var("ra", "d")
         uv.add_var("dec", "d")
         uv.add_var("inttime", "d")
@@ -1951,10 +1947,10 @@ class Miriad(UVData):
             uv["inttime"] = self.integration_time[viscnt].astype(np.double)
             if self.phase_type == "phased":
                 if self.multi_phase_center:
-                    cat_name = name_dict[self.phase_center_id_array[viscnt]]
-                    uv["source"] = cat_name
-                    uv["ra"] = self.phase_center_catalog[cat_name]["cat_lon"]
-                    uv["dec"] = self.phase_center_catalog[cat_name]["cat_lat"]
+                    cat_id = self.phase_center_id_array[viscnt]
+                    uv["source"] = self.phase_center_catalog[cat_id]["cat_name"]
+                    uv["ra"] = self.phase_center_catalog[cat_id]["cat_lon"]
+                    uv["dec"] = self.phase_center_catalog[cat_id]["cat_lat"]
                 else:
                     uv["ra"] = self.phase_center_ra
                     uv["dec"] = self.phase_center_dec

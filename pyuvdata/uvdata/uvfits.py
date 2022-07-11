@@ -763,17 +763,17 @@ class UVFITS(UVData):
                     "table. Bypassing for now, but note that this file _may_ not "
                     "work correctly in UVFITS-based programs (e.g., AIPS, CASA)."
                 )
-                name = list(self.phase_center_catalog.keys())[0]
-                self.phase_center_ra = self.phase_center_catalog[name]["cat_lon"]
-                self.phase_center_dec = self.phase_center_catalog[name]["cat_lat"]
-                self.phase_center_frame = self.phase_center_catalog[name]["cat_frame"]
-                self.phase_center_epoch = self.phase_center_catalog[name]["cat_epoch"]
+                cat_id = list(self.phase_center_catalog)[0]
+                self.object_name = self.phase_center_catalog[cat_id]["cat_name"]
+                self.phase_center_ra = self.phase_center_catalog[cat_id]["cat_lon"]
+                self.phase_center_dec = self.phase_center_catalog[cat_id]["cat_lat"]
+                self.phase_center_frame = self.phase_center_catalog[cat_id]["cat_frame"]
+                self.phase_center_epoch = self.phase_center_catalog[cat_id]["cat_epoch"]
 
                 self.multi_phase_center = False
                 self._phase_center_id_array.required = False
                 self._Nphase.required = False
                 self._phase_center_catalog.required = False
-                self.object_name = name
                 self.Nphase = None
                 self.phase_center_catalog = None
                 self.phase_center_id_array = None
@@ -791,7 +791,7 @@ class UVFITS(UVData):
 
                 # Reset the catalog, since it has some dummy information stored within
                 # it (that was pulled off the primary table)
-                self._remove_phase_center(list(self.phase_center_catalog.keys())[0])
+                self._remove_phase_center(list(self.phase_center_catalog)[0])
 
                 # Set up these arrays so we can assign values to them
                 self.phase_center_app_ra = np.zeros(self.Nblts)
@@ -1120,12 +1120,7 @@ class UVFITS(UVData):
         }
 
         if self.multi_phase_center:
-            id_offset = np.any(
-                [
-                    temp_dict["cat_id"] == 0
-                    for temp_dict in self.phase_center_catalog.values()
-                ]
-            )
+            id_offset = int(0 in self.phase_center_catalog)
             group_parameter_dict["SOURCE  "] = self.phase_center_id_array + id_offset
 
         pscal_dict = {
@@ -1473,7 +1468,9 @@ class UVFITS(UVData):
             flt_zeros = np.zeros(self.Nphase, dtype=np.float64)
             zero_arr = np.zeros((self.Nphase, self.Nspws))
             sou_ids = np.zeros(self.Nphase)
-            name_arr = np.array(list(self.phase_center_catalog.keys()))
+            name_arr = np.array(
+                [ps_dict["cat_name"] for ps_dict in self.phase_center_catalog.values()]
+            )
             cal_code = ["    "] * self.Nphase
             # These are things we need to flip through on a source-by-source basis
             ra_arr = np.zeros(self.Nphase, dtype=np.float64)
@@ -1484,10 +1481,10 @@ class UVFITS(UVData):
             pm_ra = np.zeros(self.Nphase, dtype=np.float64)
             pm_dec = np.zeros(self.Nphase, dtype=np.float64)
             rest_freq = np.zeros((self.Nphase, self.Nspws), dtype=np.float64)
-            for idx, name in enumerate(name_arr):
-                phase_dict = self.phase_center_catalog[name]
+            for idx, cat_id in enumerate(self.phase_center_catalog):
+                phase_dict = self.phase_center_catalog[cat_id]
                 # This is a stub for something smarter in the future
-                sou_ids[idx] = self.phase_center_catalog[name]["cat_id"] + id_offset
+                sou_ids[idx] = cat_id + id_offset
                 rest_freq[idx][:] = np.mean(self.freq_array)
                 pm_ra[idx] = 0.0
                 pm_dec[idx] = 0.0
@@ -1511,8 +1508,6 @@ class UVFITS(UVData):
                         if "cat_epoch" in (phase_dict.keys())
                         else 2000.0
                     )
-
-                    cat_id = self.phase_center_catalog[name]["cat_id"]
 
                     app_ra[idx] = np.median(
                         self.phase_center_app_ra[self.phase_center_id_array == cat_id]
