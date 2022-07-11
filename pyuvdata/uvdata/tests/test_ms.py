@@ -499,8 +499,8 @@ def test_ms_no_ref_dir_source(mir_uv, tmp_path):
     assert ms_uv.multi_phase_center is False
 
     ms_uv._set_multi_phase_center(preserve_phase_center_info=True)
-    ms_uv._update_phase_center_id("3c84", 1)
-    ms_uv.phase_center_catalog["3c84"]["info_source"] = "file"
+    ms_uv._update_phase_center_id(0, 1)
+    ms_uv.phase_center_catalog[1]["info_source"] = "file"
 
     assert ms_uv.phase_center_catalog == mir_uv.phase_center_catalog
 
@@ -593,7 +593,6 @@ def test_ms_single_chan(mir_uv, future_shapes, tmp_path):
 
     # First, make the date multi-phase-ctr
     ms_uv._set_multi_phase_center(preserve_phase_center_info=True)
-    ms_uv._update_phase_center_id("3c84", 1)
 
     # Next, turn on flex-spw
     ms_uv._set_flex_spw()

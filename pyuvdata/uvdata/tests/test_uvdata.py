@@ -9828,6 +9828,7 @@ def test_print_object_full(sma_mir):
         cat_pm_dec=0.0,
         cat_frame="fk5",
         cat_epoch=2000.0,
+        cat_id=list(sma_mir.phase_center_catalog)[0],
         force_update=True,
     )
     check_str = (
@@ -9856,6 +9857,7 @@ def test_print_object_ephem(sma_mir):
         cat_lon=0.0,
         cat_frame="icrs",
         cat_times=2456789.0,
+        cat_id=list(sma_mir.phase_center_catalog)[0],
         force_update=True,
     )
     check_str = (
@@ -9878,7 +9880,12 @@ def test_print_object_driftscan(sma_mir):
     """
     # Check and see that if we force this to be a driftscan, we get the output
     # we expect
-    _ = sma_mir._add_phase_center("3c84", cat_type="driftscan", force_update=True)
+    _ = sma_mir._add_phase_center(
+        "3c84",
+        cat_type="driftscan",
+        force_update=True,
+        cat_id=list(sma_mir.phase_center_catalog)[0],
+    )
     check_str = (
         "   ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame \n"
         "    #          Name                          deg           deg        \n"
@@ -9890,7 +9897,12 @@ def test_print_object_driftscan(sma_mir):
 
 
 def test_print_object_unprojected(sma_mir):
-    _ = sma_mir._add_phase_center("3c84", cat_type="unprojected", force_update=True)
+    _ = sma_mir._add_phase_center(
+        "3c84",
+        cat_type="unprojected",
+        force_update=True,
+        cat_id=list(sma_mir.phase_center_catalog)[0],
+    )
     check_str = (
         "   ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame \n"
         "    #          Name                          deg           deg        \n"
@@ -9901,7 +9913,7 @@ def test_print_object_unprojected(sma_mir):
     assert table_str == check_str
 
 
-def test_print_object_no_math(sma_mir):
+def test_print_object_no_match(sma_mir):
     """
     Test that print_object fails as expected when print
     """
@@ -9927,7 +9939,7 @@ def test_print_object_multi(carma_miriad):
     pytest.importorskip("pyuvdata._miriad")
 
     _ = carma_miriad._add_phase_center(
-        "NOISE", cat_type="unprojected", force_update=True
+        "NOISE", cat_type="unprojected", force_update=True, cat_id=0
     )
     check_str = (
         "   ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"  # noqa
@@ -9949,7 +9961,7 @@ def test_print_object_multi(carma_miriad):
         ["zenith", None, {}, 0, 4],
         ["zenith", "driftscan", {}, 0, 1],
         ["zenith", "unprojected", {}, 0, 0],
-        ["unprojected", "unprojected", {}, None, 0],
+        ["unprojected", "unprojected", {}, None, 99999],
         ["unprojected", "unprojected", {"ignore_name": True}, 0, 0],
         ["zenith", "unprojected", {"lat": 1.0}, 0, 1],
         ["zenith", "unprojected", {"lon": 1.0}, 0, 1],
@@ -9969,7 +9981,7 @@ def test_look_in_catalog(hera_uvh5, name, stype, arg_dict, exp_id, exp_diffs):
     parameters and that recorded in the UVData object.
     """
     [cat_id, num_diffs] = hera_uvh5._look_in_catalog(
-        name,
+        cat_name=name,
         cat_type=stype,
         cat_lon=arg_dict.get("lon"),
         cat_lat=arg_dict.get("lat"),
@@ -9995,7 +10007,7 @@ def test_look_in_catalog_phase_dict(sma_mir):
     """
     # Now try lookup using a dictionary of properties
     assert sma_mir._look_in_catalog("3c84") == (1, 5)
-    phase_dict = sma_mir.phase_center_catalog["3c84"]
+    phase_dict = sma_mir.phase_center_catalog[1]
     assert sma_mir._look_in_catalog("3c84", phase_dict=phase_dict) == (1, 0)
 
     # Make sure that if we set ignore_name, we still get a match
@@ -10187,7 +10199,7 @@ def test_unphased_deprecation(sma_mir):
             cat_type="unphased",
         )
     assert new_id == 0
-    assert sma_mir.phase_center_catalog["unprojected"]["cat_type"] == "unprojected"
+    assert sma_mir.phase_center_catalog[new_id]["cat_type"] == "unprojected"
 
     with uvtest.check_warnings(
         DeprecationWarning,
@@ -10206,9 +10218,9 @@ def test_remove_phase_center_arg_errs(sma_mir):
     """
     # Only one bad argument to check, so no use parametrizing it
     with pytest.raises(
-        IndexError, match="No source by that name contained in the catalog."
+        IndexError, match="No source by that ID contained in the catalog."
     ):
-        sma_mir._remove_phase_center("zenith")
+        sma_mir._remove_phase_center(-1)
 
 
 def test_clear_unused_phase_centers_no_op(sma_mir):
@@ -10229,8 +10241,7 @@ def test_clear_unused_phase_centers_no_op(sma_mir):
     (
         ["abc", "xyz", ValueError, "No entry by the name abc in the catalog."],
         ["3C273", -2, TypeError, "Value provided to new_name must be a string"],
-        ["3C273", "unprojected", ValueError, "The name unprojected is reserved."],
-        ["3C273", "NOISE", ValueError, "Must include a unique name for new_name"],
+        ["3C273", "unprojected", ValueError, 'The name "unprojected" is reserved.'],
     ),
 )
 def test_rename_phase_center_bad_args(carma_miriad, name1, name2, err_type, msg):
@@ -10247,10 +10258,9 @@ def test_rename_phase_center_bad_args(carma_miriad, name1, name2, err_type, msg)
 @pytest.mark.parametrize(
     "name1,name2,mask,err_type,msg",
     (
-        ["abc", "xyz", 1, ValueError, "No entry by the name abc in the catalog."],
+        ["abc", "xyz", 1, ValueError, "No catalog entries matching the name abc."],
         ["3C273", -2, 1, TypeError, "Value provided to new_name must be a string"],
-        ["3C273", "unprojected", 1, ValueError, "The name unprojected is reserved."],
-        ["3C273", "3C273", 1, ValueError, "The name 3C273 is already found"],
+        ["1159+292", "unprojected", -1, ValueError, "The name unprojected is reserved"],
         ["3C273", "3c273", 1.5, IndexError, "select_mask must be an array-like,"],
         ["3C273", "3c273", 1, ValueError, "Data selected with select_mask includes"],
     ),
@@ -10265,35 +10275,34 @@ def test_split_phase_center_bad_args(carma_miriad, name1, name2, mask, err_type,
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
 @pytest.mark.parametrize(
-    "name1,name2,err_type,msg",
+    "kwargs,err_type,msg",
     (
-        ["3C273", "dummy1", ValueError, "No entry by the name dummy1 in the catalog"],
-        ["dummy2", "3C273", ValueError, "No entry by the name dummy2 in the catalog"],
-        ["3C273", "NOISE", ValueError, "Attributes of 3C273 and NOISE differ"],
+        [{"cat_name": "dummy1"}, ValueError, "No entry by the name dummy1 in"],
+        [{"cat_id_list": [0, 1, 2]}, ValueError, "Attributes of phase centers differ"],
     ),
 )
-def test_merge_phase_centers_bad_args(carma_miriad, name1, name2, err_type, msg):
+def test_merge_phase_centers_bad_args(carma_miriad, kwargs, err_type, msg):
     """
     Verify that merge_phase_centers will throw an error if supplied with bad args
     """
     pytest.importorskip("pyuvdata._miriad")
     with pytest.raises(err_type, match=msg):
-        carma_miriad.merge_phase_centers(name1, name2)
+        carma_miriad.merge_phase_centers(**kwargs)
 
 
 @pytest.mark.parametrize(
-    "name,cat_id,res_id,err_type,msg",
+    "cat_id,new_id,res_id,err_type,msg",
     (
-        ["abc", 0, 0, ValueError, "Cannot run _update_phase_center_id: no entry"],
-        ["3c84", 0, [0], ValueError, "Catalog ID supplied already taken by another"],
+        [-1, -1, 0, ValueError, "Cannot run _update_phase_center_id: no entry"],
+        [1, 1, [1], ValueError, "Catalog ID supplied already taken by another"],
     ),
 )
-def test_update_id_bad_args(sma_mir, name, cat_id, res_id, err_type, msg):
+def test_update_id_bad_args(sma_mir, cat_id, new_id, res_id, err_type, msg):
     """
     Verify that _update_phase_center_id throws errors when supplied with bad args
     """
     with pytest.raises(err_type, match=msg):
-        sma_mir._update_phase_center_id(name, new_cat_id=cat_id, reserved_ids=res_id)
+        sma_mir._update_phase_center_id(cat_id, new_id, reserved_ids=res_id)
 
 
 def test_add_clear_phase_center(sma_mir):
@@ -10331,12 +10340,10 @@ def test_rename_object_capitalization(sma_mir, sma_mir_catalog):
     """
     # Check and see what happens if we attempt to rename the source
     sma_mir.rename_phase_center("3c84", "3C84")
-    assert sma_mir.phase_center_catalog["3C84"] == sma_mir_catalog["3c84"]
-    assert list(sma_mir.phase_center_catalog.keys()) == ["3C84"]
+    assert sma_mir.phase_center_catalog != sma_mir_catalog
 
     sma_mir.rename_phase_center("3C84", "3c84")
     assert sma_mir.phase_center_catalog == sma_mir_catalog
-    assert list(sma_mir.phase_center_catalog.keys()) == ["3c84"]
 
 
 def test_rename_no_ops(sma_mir, sma_mir_catalog):
@@ -10346,7 +10353,6 @@ def test_rename_no_ops(sma_mir, sma_mir_catalog):
     # Check to make sure that setting the same name doesn't harm anything
     sma_mir.rename_phase_center("3c84", "3c84")
     assert sma_mir.phase_center_catalog == sma_mir_catalog
-    assert list(sma_mir.phase_center_catalog.keys()) == ["3c84"]
 
 
 def test_update_id_no_op(sma_mir, sma_mir_catalog):
@@ -10356,7 +10362,7 @@ def test_update_id_no_op(sma_mir, sma_mir_catalog):
     """
     # This should effectively be a no-op, since the catalog ID of the source isn't
     # being taken up by anything else
-    sma_mir._update_phase_center_id("3c84")
+    sma_mir._update_phase_center_id(1)
     assert sma_mir.phase_center_catalog == sma_mir_catalog
 
 
@@ -10367,15 +10373,15 @@ def test_update_id(sma_mir):
     """
     # If all goes well, this operation should assign the lowest possible integer to the
     # catalog ID of 3c84 -- in this case, 4.
-    sma_mir._update_phase_center_id("3c84", reserved_ids=[0, 1, 2, 3])
-    assert sma_mir.phase_center_catalog["3c84"]["cat_id"] == 4
+    sma_mir._update_phase_center_id(1, reserved_ids=[0, 1, 2, 3])
+    assert list(sma_mir.phase_center_catalog)[0] == 4
 
 
 @pytest.mark.parametrize(
     "name1,name2,select_mask,msg",
     (
         ["3c84", "3C84", False, "No relevant data selected"],
-        ["3c84", "3C84", True, "All data for 3c84 selected"],
+        ["3c84", "3C84", True, "All data for the source selected"],
     ),
 )
 def test_split_phase_center_warnings(sma_mir, name1, name2, select_mask, msg):
@@ -10393,23 +10399,17 @@ def test_split_phase_center(hera_uvh5):
     select_mask = np.isin(hera_uvh5.time_array, np.unique(hera_uvh5.time_array)[::2])
 
     hera_uvh5.split_phase_center("zenith", "zenith2", select_mask)
-
+    cat_id1 = hera_uvh5._look_for_name("zenith")
+    cat_id2 = hera_uvh5._look_for_name("zenith2")
     # Check that the catalog IDs also line up w/ what we expect
-    obj_id_check = hera_uvh5.phase_center_catalog["zenith"]["cat_id"]
-    assert np.all(hera_uvh5.phase_center_id_array[~select_mask] == obj_id_check)
-    obj_id_check = hera_uvh5.phase_center_catalog["zenith2"]["cat_id"]
-    assert np.all(hera_uvh5.phase_center_id_array[select_mask] == obj_id_check)
+    assert np.all(hera_uvh5.phase_center_id_array[~select_mask] == cat_id1)
+    assert np.all(hera_uvh5.phase_center_id_array[select_mask] == cat_id2)
+    assert hera_uvh5.Nphase == 2
 
     # Make sure the catalog makes sense -- entries should be identical sans cat_id
     temp_cat = hera_uvh5.phase_center_catalog.copy()
-    assert temp_cat["zenith"]["cat_id"] != temp_cat["zenith2"]["cat_id"]
-    temp_cat["zenith"]["cat_id"] = temp_cat["zenith2"]["cat_id"]
-    assert temp_cat["zenith"] == temp_cat["zenith2"]
-
-    # Finally, verify the phase center names
-    sorted_names = sorted(hera_uvh5.phase_center_catalog.keys())
-    assert sorted_names == sorted(["zenith", "zenith2"])
-    assert hera_uvh5.Nphase == 2
+    temp_cat[cat_id1[0]]["cat_name"] = "zenith2"
+    assert temp_cat[cat_id1[0]] == temp_cat[cat_id2[0]]
 
 
 def test_split_phase_center_downselect(hera_uvh5):
@@ -10423,37 +10423,31 @@ def test_split_phase_center_downselect(hera_uvh5):
 
     # Now effectively rename zenith2 as zenith3 by selecting all data and using
     # the downselect switch
-    with uvtest.check_warnings(UserWarning, "All data for zenith2 selected"):
+    with uvtest.check_warnings(UserWarning, "All data for the source selected"):
         hera_uvh5.split_phase_center(
             "zenith2", "zenith3", np.arange(hera_uvh5.Nblts), downselect=True
         )
 
-    obj_id_check = hera_uvh5.phase_center_catalog["zenith"]["cat_id"]
-    assert np.all(hera_uvh5.phase_center_id_array[~select_mask] == obj_id_check)
-    obj_id_check = hera_uvh5.phase_center_catalog["zenith3"]["cat_id"]
-    assert np.all(hera_uvh5.phase_center_id_array[select_mask] == obj_id_check)
-
-    sorted_names = sorted(hera_uvh5.phase_center_catalog.keys())
-    assert sorted_names == sorted(["zenith", "zenith3"])
+    cat_id1 = hera_uvh5._look_for_name("zenith")
+    cat_id3 = hera_uvh5._look_for_name("zenith3")
+    assert np.all(hera_uvh5.phase_center_id_array[~select_mask] == cat_id1)
+    assert np.all(hera_uvh5.phase_center_id_array[select_mask] == cat_id3)
 
     # Make sure the dicts make sense
-    temp_dict = hera_uvh5.phase_center_catalog["zenith"].copy()
-    temp_dict2 = hera_uvh5.phase_center_catalog["zenith3"].copy()
-    assert temp_dict["cat_id"] != temp_dict2["cat_id"]
-    temp_dict["cat_id"] = temp_dict2["cat_id"]
-    assert temp_dict == temp_dict2
+    temp_dict = hera_uvh5.phase_center_catalog[cat_id1[0]].copy()
+    temp_dict["cat_name"] = "zenith3"
+    assert temp_dict == hera_uvh5.phase_center_catalog[cat_id3[0]]
 
     # Finally, force the two objects back to being one, despite the fact that we've
     # contaminated the dict of one (which will be overwritten by the other)
-    hera_uvh5.phase_center_catalog["zenith3"]["cat_epoch"] = 2000.0
-    with uvtest.check_warnings(UserWarning, "Forcing zenith and zenith3 together"):
-        hera_uvh5.merge_phase_centers("zenith", "zenith3", force_merge=True)
+    hera_uvh5.phase_center_catalog[cat_id3[0]]["cat_epoch"] = 2000.0
+    with uvtest.check_warnings(UserWarning, "Forcing fields together, even though"):
+        hera_uvh5.merge_phase_centers(cat_id_list=cat_id1 + cat_id3, force_merge=True)
 
     # We merged everything back together, so we _should_  get back the same
     # thing that we started with.
     assert hera_uvh5.phase_center_catalog == catalog_copy
-    obj_id_check = hera_uvh5.phase_center_catalog["zenith"]["cat_id"]
-    assert np.all(hera_uvh5.phase_center_id_array == obj_id_check)
+    assert np.all(hera_uvh5.phase_center_id_array == hera_uvh5._look_for_name("zenith"))
 
 
 @pytest.mark.parametrize(
@@ -10529,7 +10523,6 @@ def test_phase_dict_helper_simple(hera_uvh5, sma_mir, dummy_phase_dict):
             {"cat_type": "ephem", "time_arr": 2456789, "lookup": True},
             "Target ID is not recognized in either the small or major",
         ],
-        [{"cat_name": "3c84", "sel_mask": np.array([False])}, "The entry name 3c84 is"],
     ],
 )
 def test_phase_dict_helper_errs(sma_mir, arg_dict, dummy_phase_dict, msg):
@@ -10585,22 +10578,23 @@ def test_phase_dict_helper_sidereal_no_lookup(sma_mir, dummy_phase_dict, sel_mas
     """
     # Try looking up a name, where the properties are different but where we've selected
     # all of the data (via None for the select mask)
-    phase_dict = sma_mir._phase_dict_helper(
-        dummy_phase_dict["cat_lon"],
-        dummy_phase_dict["cat_lat"],
-        dummy_phase_dict["cat_epoch"],
-        dummy_phase_dict["cat_frame"],
-        dummy_phase_dict["cat_times"],
-        dummy_phase_dict["cat_type"],
-        dummy_phase_dict["cat_pm_ra"],
-        dummy_phase_dict["cat_pm_dec"],
-        dummy_phase_dict["cat_dist"],
-        dummy_phase_dict["cat_vrad"],
-        "3c84",
-        False,  # Do lookup source!
-        sel_mask,  # Apply no mask
-        None,  # Don't supply a time_array
-    )
+    with uvtest.check_warnings(UserWarning, "The entry name 3c84 is not unique"):
+        phase_dict = sma_mir._phase_dict_helper(
+            dummy_phase_dict["cat_lon"],
+            dummy_phase_dict["cat_lat"],
+            dummy_phase_dict["cat_epoch"],
+            dummy_phase_dict["cat_frame"],
+            dummy_phase_dict["cat_times"],
+            dummy_phase_dict["cat_type"],
+            dummy_phase_dict["cat_pm_ra"],
+            dummy_phase_dict["cat_pm_dec"],
+            dummy_phase_dict["cat_dist"],
+            dummy_phase_dict["cat_vrad"],
+            "3c84",
+            False,  # Do lookup source!
+            sel_mask,  # Apply no mask
+            None,  # Don't supply a time_array
+        )
 
     assert phase_dict["cat_name"] == "3c84"
     phase_dict["cat_name"] = "z1"
@@ -10629,12 +10623,8 @@ def test_phase_dict_helper_sidereal_lookup(sma_mir, dummy_phase_dict):
         None,  # Apply no mask
         None,  # Don't supply a time_array
     )
-    assert phase_dict.pop("cat_name") == "3c84"
-    assert phase_dict == sma_mir.phase_center_catalog["3c84"]
-    # Check that even if we force the names to match, the catalogs are different, i.e.
-    # the dummy dict was ignored upon lookup.
-    phase_dict["cat_name"] = dummy_phase_dict["cat_name"]
-    assert phase_dict != dummy_phase_dict
+    assert phase_dict.pop("cat_id") == sma_mir._look_for_name("3c84")[0]
+    assert phase_dict == sma_mir.phase_center_catalog[sma_mir._look_for_name("3c84")[0]]
 
 
 def test_phase_dict_helper_jpl_lookup_existing(sma_mir):
@@ -10644,24 +10634,25 @@ def test_phase_dict_helper_jpl_lookup_existing(sma_mir):
     """
     # Finally, check that we get a good result if feeding the same values, even if not
     # actually performing a lookup
+    cat_id = sma_mir._look_for_name("3c84")[0]
     phase_dict = sma_mir._phase_dict_helper(
-        sma_mir.phase_center_catalog["3c84"].get("cat_lon"),
-        sma_mir.phase_center_catalog["3c84"].get("cat_lat"),
-        sma_mir.phase_center_catalog["3c84"].get("cat_epoch"),
-        sma_mir.phase_center_catalog["3c84"].get("cat_frame"),
-        sma_mir.phase_center_catalog["3c84"].get("cat_times"),
-        sma_mir.phase_center_catalog["3c84"].get("cat_type"),
-        sma_mir.phase_center_catalog["3c84"].get("cat_pm_ra"),
-        sma_mir.phase_center_catalog["3c84"].get("cat_pm_dec"),
-        sma_mir.phase_center_catalog["3c84"].get("cat_dist"),
-        sma_mir.phase_center_catalog["3c84"].get("cat_vrad"),
+        sma_mir.phase_center_catalog[cat_id].get("cat_lon"),
+        sma_mir.phase_center_catalog[cat_id].get("cat_lat"),
+        sma_mir.phase_center_catalog[cat_id].get("cat_epoch"),
+        sma_mir.phase_center_catalog[cat_id].get("cat_frame"),
+        sma_mir.phase_center_catalog[cat_id].get("cat_times"),
+        sma_mir.phase_center_catalog[cat_id].get("cat_type"),
+        sma_mir.phase_center_catalog[cat_id].get("cat_pm_ra"),
+        sma_mir.phase_center_catalog[cat_id].get("cat_pm_dec"),
+        sma_mir.phase_center_catalog[cat_id].get("cat_dist"),
+        sma_mir.phase_center_catalog[cat_id].get("cat_vrad"),
         "3c84",
         False,
         None,
         sma_mir.time_array,
     )
-    assert phase_dict.pop("cat_name") == "3c84"
-    assert phase_dict == sma_mir.phase_center_catalog["3c84"]
+    assert phase_dict.pop("cat_id") == cat_id
+    assert phase_dict == sma_mir.phase_center_catalog[sma_mir._look_for_name("3c84")[0]]
 
 
 def test_phase_dict_helper_jpl_lookup_append(sma_mir):
@@ -10893,11 +10884,7 @@ def test_multi_phase_add_ops(hera_uvh5_split, future_shapes, add_method):
 
 @pytest.mark.parametrize(
     "mpc1,mpc2,msg",
-    [
-        [False, True, "To combine these data, please run the add operation with"],
-        [True, False, "There exists a target named target1 in"],
-        [True, True, "There exists a target named target1 in"],
-    ],
+    [[False, True, "To combine these data, please run the add operation with"]],
 )
 def test_multi_phase_add_errs(hera_uvh5_split, mpc1, mpc2, msg):
     """ """
@@ -10934,7 +10921,9 @@ def test_multi_phase_split_merge_rename(hera_uvh5_split, test_op):
 
     uvfull.reorder_blts()
     uvfull.phase(3.6, -0.5, cat_name="target1")
-    uvfull._update_phase_center_id("target1", 1 if (test_op is None) else 0)
+    uvfull._update_phase_center_id(
+        list(uvfull.phase_center_catalog)[0], 1 if (test_op is None) else 0
+    )
 
     # Any of these operations should allow for the objects to become equal to the
     # other -- they're basically the inverse action taken on two different objects.
@@ -10943,13 +10932,19 @@ def test_multi_phase_split_merge_rename(hera_uvh5_split, test_op):
         # any renaming operations.
         pass
     if test_op == "split":
-        uvfull.split_phase_center("target1", "target2", ~half_mask)
+        uvfull.split_phase_center(
+            select_mask=~half_mask, cat_id=0, new_id=1, new_name="target2"
+        )
     elif test_op == "rename":
-        uv3.merge_phase_centers("target2", "target1")
+        uv3.merge_phase_centers(
+            cat_id_list=list(uv3.phase_center_catalog)[::-1], ignore_name=True
+        )
         uvfull.rename_phase_center("target1", "target2")
-        uvfull._update_phase_center_id("target2", 1)
+        uvfull._update_phase_center_id(0, 1)
     elif test_op == "merge":
-        uv3.merge_phase_centers("target1", "target2")
+        uv3.rename_phase_center("target2", "target1")
+        print(uv3.phase_center_catalog)
+        uv3.merge_phase_centers(cat_name="target1")
 
     assert uvfull.history in uv3.history
     uvfull.history = uv3.history
@@ -10980,7 +10975,9 @@ def test_multi_phase_add(hera_uvh5_split, mpc1, mpc2, catid, future_shapes):
 
     # Test that addition handles cat ID collisions correctly
     if mpc2:
-        uv2._update_phase_center_id("target2", catid)
+        for pc_id in list(uv2.phase_center_catalog):
+            if uv2.phase_center_catalog[pc_id]["cat_name"] == "target2":
+                uv2._update_phase_center_id(pc_id, catid)
 
     # Add the objects together
     uv3 = uv1.__add__(uv2, make_multi_phase=True)
@@ -10997,18 +10994,26 @@ def test_multi_phase_add(hera_uvh5_split, mpc1, mpc2, catid, future_shapes):
     uvfull.history = uv3.history
 
     # By construct, we've made it so that the cat IDs don't line up, but everything
-    # else should. Make sure the IDs and catalogs are different, but contain the
-    # same names for the phase centers
+    # else should. Make sure the IDs are different, but contain the same entries/names
+    # for the phase centers
     assert np.any(uv3.phase_center_id_array != uvfull.phase_center_id_array)
     assert uv3.phase_center_catalog != uvfull.phase_center_catalog
-    uvfull_names = sorted(uvfull.phase_center_catalog.keys())
-    uv3_names = sorted(uv3.phase_center_catalog.keys())
-    assert uvfull_names == uv3_names
 
     # Update the Obs IDs, and make sure that _now_ the objects are equal
-    uv3._update_phase_center_id("target2", 99)
-    uv3._update_phase_center_id("target1", 2)
-    uv3._update_phase_center_id("target2", 1)
+    name_map1 = {
+        pc_dict["cat_name"]: pc_id
+        for pc_id, pc_dict in uv3.phase_center_catalog.items()
+    }
+    name_map2 = {
+        pc_dict["cat_name"]: pc_id
+        for pc_id, pc_dict in uvfull.phase_center_catalog.items()
+    }
+
+    uv3._update_phase_center_id(name_map1["target1"], 100)
+    uv3._update_phase_center_id(name_map1["target2"], 101)
+    uv3._update_phase_center_id(100, name_map2["target1"])
+    uv3._update_phase_center_id(101, name_map2["target2"])
+
     assert uv3 == uvfull
 
 
