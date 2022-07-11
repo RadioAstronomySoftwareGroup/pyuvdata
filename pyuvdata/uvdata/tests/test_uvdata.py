@@ -9765,7 +9765,13 @@ def test_rephase_to_time():
     assert uvd.phase_center_dec == zenith_dec
 
 
-def test_print_object_standard(sma_mir, hera_uvh5):
+def test_print_object_err(sma_mir):
+    with pytest.raises(ValueError, match="Mismatch between keys in catalog"):
+        sma_mir.print_phase_center_info(cat_id=-1)
+
+
+@pytest.mark.parametrize("kwargs", [{}, {"cat_name": "3c84"}, {"cat_id": 1}])
+def test_print_object_standard(sma_mir, kwargs):
     """
     Check that the 'standard' mode of print_object works.
     """
@@ -9776,7 +9782,9 @@ def test_print_object_standard(sma_mir, hera_uvh5):
         "    1          3c84      sidereal    3:19:48.16  +41:30:42.11    fk5  J2000.0 \n"  # noqa
     )
 
-    table_str = sma_mir.print_phase_center_info(print_table=False, return_str=True)
+    table_str = sma_mir.print_phase_center_info(
+        print_table=False, return_str=True, **kwargs
+    )
     assert table_str == check_str
 
     # Make sure we can specify the object name and get the same result
@@ -9953,6 +9961,18 @@ def test_print_object_multi(carma_miriad):
         print_table=False, return_str=True, hms_format=True
     )
     assert table_str == check_str
+
+
+@pytest.mark.parametrize(
+    "kwargs,err_type,err_msg",
+    [
+        [{}, ValueError, "Must specify either phase_dict or cat_name"],
+        [{"cat_name": "3c84", "target_cat_id": -1}, ValueError, "No phase center with"],
+    ],
+)
+def test_look_in_catalog_err(sma_mir, kwargs, err_type, err_msg):
+    with pytest.raises(err_type, match=err_msg):
+        sma_mir._look_in_catalog(**kwargs)
 
 
 @pytest.mark.parametrize(
@@ -10237,40 +10257,57 @@ def test_clear_unused_phase_centers_no_op(sma_mir):
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
 @pytest.mark.parametrize(
-    "name1,name2,err_type,msg",
+    "args,err_type,msg",
     (
-        ["abc", "xyz", ValueError, "No entry by the name abc in the catalog."],
-        ["3C273", -2, TypeError, "Value provided to new_name must be a string"],
-        ["3C273", "unprojected", ValueError, 'The name "unprojected" is reserved.'],
+        [["abc", "xyz"], ValueError, "No entry by the name abc in the catalog."],
+        [["3C273", -2], TypeError, "Value provided to new_name must be a string"],
+        [["3C273", "unprojected"], ValueError, 'The name "unprojected" is reserved.'],
+        [[], ValueError, "Either old_name or cat_id must be supplied"],
+        [[None, None, -1], ValueError, "No entry with the ID -1 in the catalog."],
     ),
 )
-def test_rename_phase_center_bad_args(carma_miriad, name1, name2, err_type, msg):
+def test_rename_phase_center_bad_args(carma_miriad, args, err_type, msg):
     """
     Verify that rename_phase_center will throw appropriate errors when supplying
     bad arguments to the method.
     """
     pytest.importorskip("pyuvdata._miriad")
     with pytest.raises(err_type, match=msg):
-        carma_miriad.rename_phase_center(name1, name2)
+        carma_miriad.rename_phase_center(*args)
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
 @pytest.mark.parametrize(
-    "name1,name2,mask,err_type,msg",
+    "args,err_type,msg",
     (
-        ["abc", "xyz", 1, ValueError, "No catalog entries matching the name abc."],
-        ["3C273", -2, 1, TypeError, "Value provided to new_name must be a string"],
-        ["1159+292", "unprojected", -1, ValueError, "The name unprojected is reserved"],
-        ["3C273", "3c273", 1.5, IndexError, "select_mask must be an array-like,"],
-        ["3C273", "3c273", 1, ValueError, "Data selected with select_mask includes"],
+        [["abc", "xyz", 1], ValueError, "No catalog entries matching the name abc."],
+        [["3C273", -2, 1], TypeError, "Value provided to new_name must be a string"],
+        [["1159+292", "unprojected", -1], ValueError, "The name unprojected is reserv"],
+        [["3C273", "3c273", 1.5], IndexError, "select_mask must be an array-like,"],
+        [["3C273", "3c273", 1], ValueError, "Data selected with select_mask includes"],
+        [[], ValueError, "Must supply a value for either cat_name or cat_id"],
+        [[None] * 3 + [-1], ValueError, "No entry with the ID -1 found in the catalog"],
+        [[None] * 3 + [1, "hi"], TypeError, "Value provided to new_id must be an int"],
+        [[None] * 3 + [1, 2], ValueError, "The ID 2 is already in the catalog"],
     ),
 )
-def test_split_phase_center_bad_args(carma_miriad, name1, name2, mask, err_type, msg):
+def test_split_phase_center_bad_args(carma_miriad, args, err_type, msg):
     """
     Verify that split_phase_center will throw an error if supplied with bad args
     """
     with pytest.raises(err_type, match=msg):
-        carma_miriad.split_phase_center(name1, name2, mask)
+        carma_miriad.split_phase_center(*args)
+
+
+def test_split_phase_center_err_multiname(carma_miriad):
+    """
+    Verify that split_phase_center will throw an error if multiple fields
+    have the same name in the dataset.
+    """
+    for key in carma_miriad.phase_center_catalog:
+        carma_miriad.phase_center_catalog[key]["cat_name"] = "NOISE"
+    with pytest.raises(ValueError, match="The cat_name NOISE has multiple entries in"):
+        carma_miriad.split_phase_center(cat_name="NOISE")
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
@@ -10279,6 +10316,7 @@ def test_split_phase_center_bad_args(carma_miriad, name1, name2, mask, err_type,
     (
         [{"cat_name": "dummy1"}, ValueError, "No entry by the name dummy1 in"],
         [{"cat_id_list": [0, 1, 2]}, ValueError, "Attributes of phase centers differ"],
+        [{"cat_id_list": [-1, -2]}, ValueError, "No entry matching the catalog ID"],
     ),
 )
 def test_merge_phase_centers_bad_args(carma_miriad, kwargs, err_type, msg):
@@ -10288,6 +10326,11 @@ def test_merge_phase_centers_bad_args(carma_miriad, kwargs, err_type, msg):
     pytest.importorskip("pyuvdata._miriad")
     with pytest.raises(err_type, match=msg):
         carma_miriad.merge_phase_centers(**kwargs)
+
+
+def test_merge_phase_centers_bad_warn(sma_mir):
+    with uvtest.check_warnings(UserWarning, "The name 3c84 matches only one phase"):
+        sma_mir.merge_phase_centers(cat_name="3c84")
 
 
 @pytest.mark.parametrize(
@@ -10481,6 +10524,20 @@ def test_apply_w_no_ops(hera_uvh5, future_shapes):
     # And now with a selection mask applied
     hera_uvh5._apply_w_proj([0.0, 1.0], [0.0, 1.0], [0, 1])
     assert hera_uvh5 == hera_copy
+
+
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
+def test_phase_dict_helper_err_multi_match(carma_miriad):
+    """
+    Verify that _phase_dict_helper will throw an error if multiple fields
+    have the same name in the dataset when using lookup.
+    """
+    for key in carma_miriad.phase_center_catalog:
+        carma_miriad.phase_center_catalog[key]["cat_name"] = "NOISE"
+    args = [None] * 14
+    args[10:12] = "NOISE", True
+    with pytest.raises(ValueError, match="Name of object has multiple matches in "):
+        carma_miriad._phase_dict_helper(*args)
 
 
 def test_phase_dict_helper_simple(hera_uvh5, sma_mir, dummy_phase_dict):
