@@ -1503,7 +1503,7 @@ class UVData(UVBase):
 
             for key in cat_id:
                 if key not in self.phase_center_catalog:
-                    raise ValueError("No entry with the ID %i in the catalog." % cat_id)
+                    raise ValueError("No entry with the ID %s in the catalog." % key)
 
         if not isinstance(new_name, str):
             raise TypeError("Value provided to new_name must be a string.")
