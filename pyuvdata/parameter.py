@@ -304,8 +304,14 @@ class UVParameter(object):
 
                             # check to see if they are equal other than
                             # upper/lower case keys
-                            self_lower = {k.lower(): v for k, v in self.value.items()}
-                            other_lower = {k.lower(): v for k, v in other.value.items()}
+                            self_lower = {
+                                (k.lower() if isinstance(k, str) else k): v
+                                for k, v in self.value.items()
+                            }
+                            other_lower = {
+                                (k.lower() if isinstance(k, str) else k): v
+                                for k, v in other.value.items()
+                            }
                             message_str = f"{self.name} parameter is a dict"
                             self_key_set = set(self_lower.keys())
                             other_key_set = set(other_lower.keys())
