@@ -313,20 +313,39 @@ class UVData(UVBase):
         desc = (
             "Only relevant if multi_phase_center = True. Dictionary that acts as a "
             "catalog, containing information on individual phase centers. Keys are the "
-            "catalog IDs of the different phase centers in the object. At a minimum, "
-            'each dictionary must contain the key "cat_type", which can be either '
-            '"sidereal" (fixed position in RA/Dec), "ephem" (position in RA/Dec which'
-            'moves with time), "driftscan" (fixed postion in Az/El, NOT the same as '
-            '`phase_type`="drift") and "unprojected" (baseline coordinates in ENU, but '
-            'data are not phased, similar to `phase_type`="drift"). Other typical '
-            'keyworks include "cat_lon" (longitude coord, e.g. RA), "cat_lat" '
-            '(latitude coord, e.g. Dec.), "cat_frame" (coordinate frame, e.g. '
-            'icrs), "cat_epoch" (epoch and equinox of the coordinate frame), '
-            '"cat_times" (times for the coordinates, only used for "ephem" '
-            'types), "cat_pm_ra" (proper motion in RA), "cat_pm_dec" (proper '
-            'motion in Dec), "cat_dist" (physical distance), "cat_vrad" ('
-            'rest frame velocity), "info_source" (describes where catalog info came '
-            'from), and "cat_id" (matched to the parameter `phase_center_id_array`. '
+            "catalog IDs of the different phase centers in the object (matched to the "
+            "parameter `phase_center_id_array`). At a minimum, each dictionary must "
+            "contain the keys "
+            "'cat_name' giving the phase center name (this does not have to be unique, "
+            "non-unique values can be used to indicate sets of phase centers that make "
+            "up a mosaic observation), "
+            "'cat_type', which can be 'sidereal' (fixed position in RA/Dec), 'ephem' "
+            "(position in RA/Dec which moves with time), 'driftscan' (fixed postion in "
+            "Az/El, NOT the same as `phase_type`='drift') or 'unprojected' (baseline "
+            "coordinates in ENU, but data are not phased, similar to "
+            "`phase_type`='drift')"
+            "'cat_lon' (longitude coord, e.g. RA, either a single value or a one "
+            "dimensional array of length Npts --the number of ephemeris data points-- "
+            "for ephem type phase centers), "
+            "'cat_lat' (latitude coord, e.g. Dec., either a single value or a one "
+            "dimensional array of length Npts --the number of ephemeris data points-- "
+            "for ephem type phase centers), "
+            "'cat_frame' (coordinate frame, e.g. icrs, must be a frame supported by "
+            "astropy). "
+            "Other optional keys include "
+            "'cat_epoch' (epoch and equinox of the coordinate frame, not needed for "
+            "frames without an epoch (e.g. ICRS) unless the there is proper motion), "
+            "'cat_times' (times for the coordinates, only used for 'ephem' types), "
+            "'cat_pm_ra' (proper motion in RA), "
+            "'cat_pm_dec' (proper motion in Dec), "
+            "'cat_dist' (physical distance to the source in parsec, useful if parallax "
+            "is important, either a single value or a one dimensional array of length "
+            "Npts --the number of ephemeris data points-- for ephem type phase "
+            "centers.), "
+            "'cat_vrad' (rest frame velocity in km/s, either a single value or a one "
+            "dimensional array of length Npts --the number of ephemeris data points-- "
+            "for ephem type phase centers.), and "
+            "'info_source' (describes where catalog info came from). "
             "See the documentation of the `phase` method for more details."
         )
         self._phase_center_catalog = uvp.UVParameter(
@@ -533,8 +552,8 @@ class UVData(UVBase):
 
         desc = (
             "Required if multi_phase_center = True. Maps individual indices along the "
-            "Nblt axis to an entry in `phase_center_catalog`, with the ID number of "
-            "individual entries stored as `cat_id`, along with other metadata. "
+            "Nblt axis to a key in `phase_center_catalog`, which maps to a dict "
+            "containing the other metadata for each phase center."
             "Shape (Nblts), type = int."
         )
         self._phase_center_id_array = uvp.UVParameter(
