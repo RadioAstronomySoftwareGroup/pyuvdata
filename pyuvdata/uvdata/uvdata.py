@@ -1713,9 +1713,10 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        cat_name : str
-            String containing the name of the phase center(s) to merge. Either cat_name
-            or cat_id_list must be specified.
+        cat_name : str or list of str
+            String(s) containing the name of the phase center(s) to merge. Either
+            cat_name or cat_id_list must be specified, this argument is ignored if an
+            argument is supplied for cat_id_list.
         cat_id_list : list of int
             Catalog ID(s) of the phase center(s) to merge together. Either cat_name or
             cat_id_list must be specified.
@@ -1742,21 +1743,32 @@ class UVData(UVBase):
             )
 
         if cat_id_list is None:
+            if isinstance(cat_name, str):
+                cat_name = [cat_name]
+            elif cat_name is None:
+                raise ValueError("Must specify either cat_name or cat_id_list")
+
             cat_id_list = []
+            name_check = {name: False for name in cat_name}
             for pc_id in self.phase_center_catalog:
-                if self.phase_center_catalog[pc_id]["cat_name"] == cat_name:
+                if self.phase_center_catalog[pc_id]["cat_name"] in cat_name:
                     cat_id_list.append(pc_id)
-            if len(cat_id_list) == 0:
-                raise ValueError("No entry by the name %s in the catalog." % cat_name)
-            elif len(cat_id_list) == 1:
-                warnings.warn(
-                    "The name %s matches only one phase center, "
-                    "returning without merge." % cat_name
-                )
+                    name_check[self.phase_center_catalog[pc_id]["cat_name"]] = True
+
+            for name, status in name_check.items():
+                if not status:
+                    raise ValueError("No entry by the name %s in the catalog." % name)
 
         for cat_id in cat_id_list:
             if cat_id not in self.phase_center_catalog:
                 raise ValueError("No entry matching the catalog ID number %i." % cat_id)
+
+        # Check for the no-op
+        if len(cat_id_list) < 2:
+            warnings.warn(
+                "Selection matches less than two phase centers, no need to merge."
+            )
+            return
 
         # First, let's check and see if the dict entries are identical
         for cat_id in cat_id_list[1:]:

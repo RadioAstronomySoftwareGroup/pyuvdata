@@ -10317,6 +10317,7 @@ def test_split_phase_center_err_multiname(carma_miriad):
         [{"cat_name": "dummy1"}, ValueError, "No entry by the name dummy1 in"],
         [{"cat_id_list": [0, 1, 2]}, ValueError, "Attributes of phase centers differ"],
         [{"cat_id_list": [-1, -2]}, ValueError, "No entry matching the catalog ID"],
+        [{}, ValueError, "Must specify either cat_name or cat_id_list"],
     ),
 )
 def test_merge_phase_centers_bad_args(carma_miriad, kwargs, err_type, msg):
@@ -10329,7 +10330,7 @@ def test_merge_phase_centers_bad_args(carma_miriad, kwargs, err_type, msg):
 
 
 def test_merge_phase_centers_bad_warn(sma_mir):
-    with uvtest.check_warnings(UserWarning, "The name 3c84 matches only one phase"):
+    with uvtest.check_warnings(UserWarning, "Selection matches less than two phase"):
         sma_mir.merge_phase_centers(cat_name="3c84")
 
 
@@ -10958,7 +10959,7 @@ def test_multi_phase_add_errs(hera_uvh5_split, mpc1, mpc2, msg):
         _ = uv1 + uv2
 
 
-@pytest.mark.parametrize("test_op", [None, "split", "rename", "merge"])
+@pytest.mark.parametrize("test_op", [None, "split", "rename", "merge", "r+m"])
 def test_multi_phase_split_merge_rename(hera_uvh5_split, test_op):
     """
     Test the split, merge, and rename operations, and make sure their operations
@@ -10999,8 +11000,9 @@ def test_multi_phase_split_merge_rename(hera_uvh5_split, test_op):
         uvfull.rename_phase_center("target1", "target2")
         uvfull._update_phase_center_id(0, 1)
     elif test_op == "merge":
+        uv3.merge_phase_centers(cat_name=["target1", "target2"], ignore_name=True)
+    elif test_op == "r+m":
         uv3.rename_phase_center("target2", "target1")
-        print(uv3.phase_center_catalog)
         uv3.merge_phase_centers(cat_name="target1")
 
     assert uvfull.history in uv3.history
