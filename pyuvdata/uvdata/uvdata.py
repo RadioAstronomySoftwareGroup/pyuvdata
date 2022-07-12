@@ -1008,6 +1008,7 @@ class UVData(UVBase):
             is_phased = self.phase_type == "phased"
             this_dict = {
                 0: {
+                    "cat_name": cat_name,
                     "cat_type": "sidereal" if is_phased else "unprojected",
                     "cat_lon": self.phase_center_ra if is_phased else 0.0,
                     "cat_lat": self.phase_center_dec if is_phased else np.pi / 2.0,
@@ -1018,7 +1019,6 @@ class UVData(UVBase):
                     "cat_pm_dec": None,
                     "cat_dist": None,
                     "cat_vrad": None,
-                    "cat_id": 0,
                 }
             }
 
@@ -1475,11 +1475,11 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        new_name : str
-            New name for the phase center.
         old_name : str
             Optional argument, phase center name for the target to be renamed. Note that
             either `old_name` or `cat_id` must be specified.
+        new_name : str
+            New name for the phase center.
         cat_id : int or list of int
             Optional argument, phase center IDs number for the target to be renamed.
             Note that either `old_name` or `cat_id` must be specified.
@@ -1715,14 +1715,18 @@ class UVData(UVBase):
         ----------
         cat_name : str
             String containing the name of the phase center(s) to merge. Either cat_name
-            or cat_id must be specified.
+            or cat_id_list must be specified.
         cat_id_list : list of int
             Catalog ID(s) of the phase center(s) to merge together. Either cat_name or
-            cat_id must be specified.
+            cat_id_list must be specified.
         force_merge : bool
             Normally, the method will throw an error if the phase center properties
             differ for `catname1` and `catname2`. This can be overriden by setting this
             to True. Default is False.
+        ignore_name : bool
+            When comparing phase centers, all attributes are normally checked. However,
+            if set to True, the catalog name ("cat_name") will be ignored when
+            performing the comparison. Default is False.
 
         Raises
         ------
