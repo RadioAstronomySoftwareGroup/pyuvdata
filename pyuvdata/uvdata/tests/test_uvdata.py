@@ -11675,3 +11675,63 @@ def test_auto_check(hera_uvh5, uv_phase_comp, future_shapes, dataset, tmp_path):
         uv1.use_future_array_shapes()
 
     assert uv == uv1
+
+
+@pytest.mark.parametrize(
+    "select_kwargs,err_type,err_msg",
+    [
+        [{"bls": (1, 2)}, ValueError, "No autos available in this data set to do"],
+        [{"polarizations": -7}, ValueError, "Cannot normalize xy, matching pols"],
+    ],
+)
+def test_normalize_by_autos_errs(uv_phase_comp, select_kwargs, err_type, err_msg):
+    uv, _ = uv_phase_comp
+    uv.select(**select_kwargs)
+    with pytest.raises(err_type, match=err_msg):
+        uv.normalize_by_autos()
+
+
+@pytest.mark.parametrize("muck_data", ["pol", "time", None])
+def test_normalize_by_autos_roundtrip(hera_uvh5, muck_data):
+    """
+    Check that we can roundtrip autocorrelation normalization under various
+    different circumstances.
+    """
+    if muck_data == "pol":
+        # Stick in pseudo-Stokes pols and verify that these roundtrip correctly
+        hera_uvh5.polarization_array[:] = [1, 2]
+    elif muck_data == "time":
+        # Flip the times so that they are now out of order.
+        hera_uvh5.time_array[:] = hera_uvh5.time_array[::-1]
+
+    hera_copy = hera_uvh5.copy()
+    # Figure out where all the crosses live
+    cross_mask = hera_uvh5.ant_1_array != hera_uvh5.ant_2_array
+
+    # Make sure that all the values have high amps
+    assert np.all(np.abs(hera_copy.data_array[cross_mask]) > 1)
+
+    # Normalize and verify that things look as expected.
+    hera_copy.normalize_by_autos()
+    assert np.all(np.abs(hera_copy.data_array[cross_mask]) < 1)
+    assert hera_copy != hera_uvh5
+
+    # Complete the roundtrip, and verify that things look identical to how
+    # we started.
+    hera_copy.normalize_by_autos(invert=True)
+    assert hera_copy == hera_uvh5
+
+
+def test_normalize_by_autos_flag_noautos(hera_uvh5):
+    """
+    Verify that the crosses are correctly flagged as expected when a given antennas
+    autos are missing from the data set.
+    """
+    hera_uvh5.select(
+        bls=[(0, 1), (2, 1), (0, 0), (1, 11), (1, 1), (0, 2), (2, 2), (2, 11), (0, 11)],
+    )
+    cross_mask = (hera_uvh5.ant_1_array == 11) | (hera_uvh5.ant_2_array == 11)
+    assert not np.any(hera_uvh5.flag_array[cross_mask])
+
+    hera_uvh5.normalize_by_autos()
+    assert np.all(hera_uvh5.flag_array[cross_mask])
