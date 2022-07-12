@@ -13529,10 +13529,13 @@ class UVData(UVBase):
                     for pol in auto_pols:
                         # Autos _should_ be real only
                         auto_data = data_arr[grp_idx, :, pol].real
-                        auto_flag = flag_arr[grp_idx, :, pol] | (auto_data == 0)
-                        norm_dict[ant1][pol] = np.where(
-                            auto_flag, 1, auto_data ** (-0.5)
+                        auto_flag = flag_arr[grp_idx, :, pol] | ~(auto_data > 0)
+                        norm_data = np.zeros_like(auto_data)
+                        norm_data = np.reciprocal(
+                            auto_data, where=~auto_flag, out=norm_data
                         )
+                        norm_data = np.sqrt(auto_data, out=norm_data)
+                        norm_dict[ant1][pol] = norm_data
                         flag_dict[ant1][pol] = auto_flag
 
                 for grp_idx, ant1, ant2 in zip(group, ant_1_arr, ant_2_arr):
