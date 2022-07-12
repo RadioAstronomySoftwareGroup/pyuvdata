@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added the `normalize_by_autos` method to `UVData`, which allows one to normalize
+cross-correlations (i.e., covert values from arbitrary scale to correlation coefficients)
+if auto-correlations are present in the data.
 - Added the `write` method to `MirParser`, which allows for `MirParser` to write out
 Mir-formatted data to disk.
 - Added the `select` method to `MirParser`, which provides a much simpler interface for
