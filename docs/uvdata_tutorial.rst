@@ -538,10 +538,10 @@ b) Data with a multiple phase centers enabled.
       0        zenith   unprojected     0:00:00.00  +90:00:00.00  altaz
 
 
-  >>> # With multi-phase-ctr data sets, one needs to supply a unique name for each
-  >>> # phase center. We are specifying that the type here is "sidereal", which just
-  >>> # means that the position is represented by a fixed set of coordinates in a
-  >>> # sidereal coordinate frame (e.g., ICRS, FK5, etc)
+  >>> # With multi-phase-ctr data sets, one needs to supply a name for each phase
+  >>> # center, though it does not need to be unique. We are specifying that the type
+  >>> # here is "sidereal", which means that the position is represented by a fixed set
+  >>> # of coordinates in a sidereal coordinate frame (e.g., ICRS, FK5, etc).
   >>> uvd.phase(5.23368, 0.710940, epoch="J2000", cat_name='target1', cat_type="sidereal")
   >>> uvd.print_phase_center_info()
      ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch
