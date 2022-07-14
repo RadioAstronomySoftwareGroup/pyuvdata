@@ -28,7 +28,7 @@
 \author{Paul La Plante, and the pyuvdata team}
 \date{November 28, 2018\\
 Revised April 2, 2021\\
-Revised April 21, 2022
+Revised July 14, 2022
 }
 
 \begin{document}
@@ -479,40 +479,6 @@ dataset with the key \verb+version+. Note that files have not always contained
 this dataset, but as much as possible, new files written should contain this
 dataset to clarify.
 
-\subsection{Version 1.0}
-Historically, only a single phase center was supported and only sidereal or
-unprojected (zenith drift without w projection) phasing types were supported.
-When multiple phase center phasing was added, along with support for more
-types of phase centers, the phase\_center\_app\_ra, phase\_center\_app\_dec,
-phase\_center\_frame\_pa and phase\_center\_catalog were added and the
-following header items were removed:
-
-\begin{itemize}
-    \item \textbf{phase\_center\_ra}: \textit{float} The right ascension of the
-      phase center of the observation in radians. Required if phase\_type is
-      ``phased''. (\textit{phase\_center\_ra})
-    \item \textbf{phase\_center\_dec}: \textit{float} The declination of the phase
-      center of the observation in radians. Required if phase\_type is
-      ``phased''. (\textit{phase\_center\_dec}).
-    \item \textbf{phase\_center\_epoch}: \textit{float} The epoch year of the phase
-      applied to the data (\textit{e.g.}, 2000.). Required if phase\_type is
-      ``phased''. (\textit{phase\_center\_epoch})
-    \item \textbf{phase\_center\_frame}: \textit{string} The frame the data and
-      uvw\_array are phased to. Options are ``gcrs'' and ``icrs'', with default
-      ``icrs''. These frames are defined as
-      \href{https://docs.astropy.org/en/stable/coordinates/index.html}{coordinate
-        systems in astropy}. (\textit{phase\_center\_frame})
-    \item \textbf{object\_name}: \textit{string} The name of the object tracked by
-      the telescope. For a drift-scan antenna, this is typically
-      ``zenith''. (\textit{object\_name})
-    \item \textbf{phase\_type}: \textit{string} The phase type of the
-      observation. Should be ``phased'' or ``drift''. Note that ``drift'' in this
-      context more accurately means ``unphased'', in that baselines are computing
-      using ENU coordinates, without any $w$-projection. Any other value is treated as
-      an unrecognized type. (\textit{phase\_type})
-\end{itemize}
-
-
 \subsection{Version 0.x/0.1}
 Historically, UVH5 files written by \verb+pyuvdata+ and the HERA correlator did
 not include the \verb+version+ dataset as part of the header. Implicitly, these
@@ -597,6 +563,47 @@ written with the previous convention (i.e., having an explicit spectral
 window-axis), UVH5 files should be written such that they conform to Version
 1.0.
 
+\subsection{Version 1.1}
+Historically, only a single phase center was supported and only sidereal or
+unprojected (zenith drift without w projection) phasing types were supported.
+When multiple phase center phasing was added, along with support for more
+types of phase centers, the  \textbf{phase\_center\_catalog},
+\textbf{phase\_center\_id\_array}, \textbf{phase\_center\_app\_ra},
+\textbf{phase\_center\_app\_dec}, and \textbf{phase\_center\_frame\_pa}
+(described in \ref{sec:req_params}) were added and the following header
+items (found in versions less than 1.1) were removed:
+
+\begin{itemize}
+    \item \textbf{phase\_center\_ra}: \textit{float} The right ascension of the
+      phase center of the observation in radians. Required if phase\_type is
+      ``phased''. (\textit{phase\_center\_ra})
+    \item \textbf{phase\_center\_dec}: \textit{float} The declination of the phase
+      center of the observation in radians. Required if phase\_type is
+      ``phased''. (\textit{phase\_center\_dec}).
+    \item \textbf{phase\_center\_epoch}: \textit{float} The epoch year of the phase
+      applied to the data (\textit{e.g.}, 2000.). Required if phase\_type is
+      ``phased''. (\textit{phase\_center\_epoch})
+    \item \textbf{phase\_center\_frame}: \textit{string} The frame the data and
+      uvw\_array are phased to. Options are ``gcrs'' and ``icrs'', with default
+      ``icrs''. These frames are defined as
+      \href{https://docs.astropy.org/en/stable/coordinates/index.html}{coordinate
+        systems in astropy}. (\textit{phase\_center\_frame})
+    \item \textbf{object\_name}: \textit{string} The name of the object tracked by
+      the telescope. For a drift-scan antenna, this is typically
+      ``zenith''. (\textit{object\_name})
+    \item \textbf{phase\_type}: \textit{string} The phase type of the
+      observation. Should be ``phased'' or ``drift''. Note that ``drift'' in this
+      context more accurately means ``unphased'', in that baselines are computing
+      using ENU coordinates, without any $w$-projection. Any other value is treated as
+      an unrecognized type. (\textit{phase\_type})
+\end{itemize}
+
+For a brief period of time, while the version number was still 1.0, the new phase attributes
+were written to files along with the header items listed above. During this time, the
+\textbf{phase\_center\_catalog} was written as a python dict converted to a JSON-formatted
+string. This intermediate file format was undocumented and not widely used, but it is possible
+some files like this exist "in the wild".
+
 \subsection{Table Summarizing Changes}
 \label{sec:version_table}
 In the interest of summarizing all of the historical changes in a single place,
@@ -604,13 +611,22 @@ we outline below the changes that have occurred in the UVH5 specification. We
 note what they are currently, along with how they were saved
 previously.
 
+\begin{table}[t]
 \begin{center}
-  \begin{tabular}{ m{8em} | m{10em} | m{10em} | m{4em} }
+  \begin{tabular}{ m{10em} | m{10em} | m{10em} | m{4em} }
     \textbf{Dataset} & \makecell[cl]{\textbf{Current}\\\textbf{Convention}} & \makecell[cl]{\textbf{Previous}\\\textbf{Convention}} & \textbf{Version Changed} \\\hline\hline
     \texttt{Header/version} & String corresponding to version & Not present & v0.1 \\[1em] \hline
-    \makecell[tl]{\texttt{Header/}\\\texttt{integration\_time}} & Array of float, shape (Nblts) & Single float (assumed to apply to all baseline-times) & v0.1 \\[1.75em]
+    \makecell[tl]{\texttt{Header/}\\\texttt{integration\_time}} & Array of float, shape (Nblts) & Single float (assumed to apply to all baseline-times) & v0.1 \\[1.75em] \hline
+    \makecell[tl]{\texttt{Header/}\\\texttt{phase\_center\_catalog}} & nested datasets, similar to a dict in python & Not present & v1.1 \\[1.75em] \hline
+    \makecell[tl]{\texttt{Header/}\\\texttt{phase\_center\_id\_array}} & Array of int, shape (Nblts) & Not present & v1.1 \\[1.75em] \hline
+    \makecell[tl]{\texttt{Header/}\\\texttt{phase\_center\_app\_ra}} & Array of float, shape (Nblts) & Not present & v1.1 \\[1.75em] \hline
+    \makecell[tl]{\texttt{Header/}\\\texttt{phase\_center\_app\_dec}} & Array of float, shape (Nblts) & Not present & v1.1 \\[1.75em] \hline
+    \makecell[tl]{\texttt{Header/}\\\texttt{phase\_center\_app\_pa}} & Array of float, shape (Nblts) & Not present & v1.1 \\[1.75em]
   \end{tabular}
 \end{center}
+  \caption{A table summarizing changes that have occurred in the UVH5 specification.}
+  \label{table:history}
+\end{table}
 
 We also summarize the combination of data and metadata properties for the cases
 of: (A) rank-3 data arrays, flexible spectral windows; (B) rank-3 data arrays,
@@ -644,6 +660,7 @@ for a visual representation. \textbf{Note that we include the following only as
     possible (within reason).}
   \label{table:spw}
 \end{table}
+
 
 \begin{thebibliography}{9}
 
