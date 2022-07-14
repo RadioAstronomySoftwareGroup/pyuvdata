@@ -539,7 +539,7 @@ b) Data with a multiple phase centers enabled.
 
 
   >>> # With multi-phase-ctr data sets, one needs to supply a unique name for each
-  >>> # phase center. We are specifing that the type here is "sidereal", which just
+  >>> # phase center. We are specifying that the type here is "sidereal", which just
   >>> # means that the position is represented by a fixed set of coordinates in a
   >>> # sidereal coordinate frame (e.g., ICRS, FK5, etc)
   >>> uvd.phase(5.23368, 0.710940, epoch="J2000", cat_name='target1', cat_type="sidereal")
@@ -891,7 +891,7 @@ e) Select polarizations
 ***********************
 Selecting on polarizations can be done either using the polarization numbers or the
 polarization strings (e.g. "xx" or "yy" for linear polarizations or "rr" or "ll" for
-circular polarizations). If ``x_orientation`` is set on the object, strings represting
+circular polarizations). If ``x_orientation`` is set on the object, strings representing
 the physical orientation of the dipole can also be used (e.g. "nn" or "ee).
 
 .. code-block:: python
@@ -1510,7 +1510,7 @@ The :meth:`pyuvdata.UVData.reorder_blts` method will reorder the baseline-time a
 sorting by ``'time'``, ``'baseline'``, ``'ant1'`` or ``'ant2'`` or according to an order
 preferred for data that have baseline dependent averaging ``'bda'``. A user can also
 just specify a desired order by passing an array of baseline-time indices. There is also
-an option to sort the auto visibilitiess before the cross visibilities (``autos_first``).
+an option to sort the auto visibilities before the cross visibilities (``autos_first``).
 
 .. code-block:: python
 
@@ -1749,7 +1749,7 @@ gain" of the antenna, which typically depend on geometric size and aperture effi
 Note that when normalizing, if the corresponding autocorrelations are not found or are
 otherwise marked as bad in ``flag_array``, then the the cross-correlation will be
 flagged as well (e.g., if all of antenna 1's autos are flagged, then every baseline that
-containts antenna 1 will also be flagged).
+contains antenna 1 will also be flagged).
 
 .. code-block:: python
 
