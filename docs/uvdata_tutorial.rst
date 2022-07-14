@@ -1723,7 +1723,7 @@ in the full data array based on redundancy.
   >>> # Note -- Compressing and inflating changes the baseline order, reorder before comparing.
   >>> uv0.inflate_by_redundancy(tol=tol)
   >>> uv_backup.reorder_blts(conj_convention="u>0", uvw_tol=tol)
-  >>> uv0.reorder_blts()efficiency
+  >>> uv0.reorder_blts()
   >>> np.all(uv0.baseline_array == uv_backup.baseline_array)
   True
 
