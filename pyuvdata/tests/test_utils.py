@@ -3404,18 +3404,19 @@ def test_uvcalibrate_delay_multispw(uvcalibrate_data):
 
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_apply_uvflag(future_shapes):
+@pytest.mark.parametrize("uvdata_future_shapes", [True, False])
+@pytest.mark.parametrize("uvflag_future_shapes", [True, False])
+def test_apply_uvflag(uvdata_future_shapes, uvflag_future_shapes):
     # load data and insert some flags
     uvd = UVData()
     uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"))
     uvd.flag_array[uvd.antpair2ind(9, 20)] = True
 
-    if future_shapes:
+    if uvdata_future_shapes:
         uvd.use_future_array_shapes()
 
     # load a UVFlag into flag type
-    uvf = UVFlag(uvd)
+    uvf = UVFlag(uvd, use_future_array_shapes=uvflag_future_shapes)
     uvf.to_flag()
 
     # insert flags for 2 out of 3 times
@@ -3479,7 +3480,10 @@ def test_apply_uvflag(future_shapes):
     assert "Input uvf and uvd polarizations do not match" in str(cm.value)
 
     # test time and frequency mismatch exceptions
-    uvf2 = uvf.select(frequencies=uvf.freq_array[:, :2], inplace=False)
+    if uvflag_future_shapes:
+        uvf2 = uvf.select(frequencies=uvf.freq_array[:2], inplace=False)
+    else:
+        uvf2 = uvf.select(frequencies=uvf.freq_array[:, :2], inplace=False)
     with pytest.raises(ValueError) as cm:
         uvutils.apply_uvflag(uvd, uvf2)
     assert "UVFlag and UVData have mismatched frequency arrays" in str(cm.value)
@@ -3502,7 +3506,10 @@ def test_apply_uvflag(future_shapes):
     assert "UVFlag and UVData have mismatched time arrays" in str(cm.value)
 
     # assert implicit broadcasting works
-    uvf2 = uvf.select(frequencies=uvf.freq_array[:, :1], inplace=False)
+    if uvflag_future_shapes:
+        uvf2 = uvf.select(frequencies=uvf.freq_array[:1], inplace=False)
+    else:
+        uvf2 = uvf.select(frequencies=uvf.freq_array[:, :1], inplace=False)
     uvd2 = uvutils.apply_uvflag(uvd, uvf2, inplace=False)
     assert np.all(uvd2.get_flags(9, 10)[:2])
     uvf2 = uvf.select(times=np.unique(uvf.time_array)[:1], inplace=False)
