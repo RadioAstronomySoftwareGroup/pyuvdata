@@ -614,10 +614,35 @@ def test_data_like_property_mode_tamper(uvdata_obj):
     assert str(cm.value).startswith("Invalid mode. Mode must be one of")
 
 
-def test_read_write_loop(uvdata_obj, test_outfile):
+@pytest.mark.parametrize("read_future_shapes", [True, False])
+@pytest.mark.parametrize("write_future_shapes", [True, False])
+def test_read_write_loop(
+    uvdata_obj, test_outfile, write_future_shapes, read_future_shapes
+):
+    uv = uvdata_obj
+    uvf = UVFlag(uv, label="test", use_future_array_shapes=write_future_shapes)
+    uvf.write(test_outfile, clobber=True)
+    uvf2 = UVFlag(test_outfile, use_future_array_shapes=read_future_shapes)
+    if read_future_shapes != write_future_shapes:
+        if read_future_shapes:
+            uvf2.use_current_array_shapes()
+        else:
+            uvf2.use_future_array_shapes()
+    assert uvf.__eq__(uvf2, check_history=True)
+    assert uvf2.filename == [os.path.basename(test_outfile)]
+
+
+def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile):
     uv = uvdata_obj
     uvf = UVFlag(uv, label="test")
     uvf.write(test_outfile, clobber=True)
+    with h5py.File(test_outfile, "r+") as h5f:
+        del h5f["/Header/Ntimes"]
+        del h5f["/Header/Nfreqs"]
+        del h5f["/Header/Npols"]
+        del h5f["/Header/Nblts"]
+        del h5f["/Header/Nants_data"]
+        del h5f["/Header/Nspws"]
     uvf2 = UVFlag(test_outfile)
     assert uvf.__eq__(uvf2, check_history=True)
     assert uvf2.filename == [os.path.basename(test_outfile)]
@@ -713,12 +738,22 @@ def test_read_add_version_str(uvdata_obj, test_outfile):
     assert uvf == uvf2
 
 
-def test_read_write_ant(test_outfile):
+@pytest.mark.parametrize("read_future_shapes", [True, False])
+@pytest.mark.parametrize("write_future_shapes", [True, False])
+def test_read_write_ant(test_outfile, write_future_shapes, read_future_shapes):
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
-    uvf = UVFlag(uvc, mode="flag", label="test")
+    uvf = UVFlag(
+        uvc, mode="flag", label="test", use_future_array_shapes=write_future_shapes
+    )
     uvf.write(test_outfile, clobber=True)
-    uvf2 = UVFlag(test_outfile)
+    uvf2 = UVFlag(test_outfile, use_future_array_shapes=read_future_shapes)
+
+    if read_future_shapes != write_future_shapes:
+        if read_future_shapes:
+            uvf2.use_current_array_shapes()
+        else:
+            uvf2.use_future_array_shapes()
     assert uvf.__eq__(uvf2, check_history=True)
 
 
