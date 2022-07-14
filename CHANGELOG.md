@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added `use_future_array_shapes` method to UVFlag to allow users to convert to using the
+future array shapes now, with support throughout UVFlag methods and related utility
+functions. Also added a `use_future_array_shapes` parameter to UVFlag's `__init__`,
+`read`, `from_uvdata` and `from_uvcal` methods to allow the conversion to be done at the
+time the object is made. Added `use_current_array_shapes` to revert to the standard shapes.
 - Baseline number calculations for antenna numbers > 2047.
 - New uvh5 version 1.1 definition in memo and code to use the future phasing info
 (i.e. the phase_center_catalog) rather than the older parameters.
@@ -53,8 +58,10 @@ array rather than an array of spw numbers, making it match the other reorder met
 as a json blob.
 - A bug in `UVData.__add__` where flexible spectral window datasets were not combined
 correctly if they contained overlapping frequencies in different spectral windows.
-- A bug in `UVData.print_phase_center_info` that occasionally resulted in incorrect values being reported for RA/Az/Longitudinal coordinates.
-- A bug in `UVData.select` that could cause `UVData.check` to fail if `UVData._scan_number_array` was set.
+- A bug in `UVData.print_phase_center_info` that occasionally resulted in incorrect
+values being reported for RA/Az/Longitudinal coordinates.
+- A bug in `UVData.select` that could cause `UVData.check` to fail if
+`UVData._scan_number_array` was set.
 - A bug in `UVBeam.select` where after selecting down to only auto polarization power
 beams the `UVBeam.data_array` remained complex instead of real.
 - A bug in `UVBeam.__add__` where adding an object with cross pol power beams to an
