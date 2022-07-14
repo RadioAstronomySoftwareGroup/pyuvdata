@@ -1723,10 +1723,62 @@ in the full data array based on redundancy.
   >>> # Note -- Compressing and inflating changes the baseline order, reorder before comparing.
   >>> uv0.inflate_by_redundancy(tol=tol)
   >>> uv_backup.reorder_blts(conj_convention="u>0", uvw_tol=tol)
-  >>> uv0.reorder_blts()
+  >>> uv0.reorder_blts()efficiency
   >>> np.all(uv0.baseline_array == uv_backup.baseline_array)
   True
 
   >>> uvd2.inflate_by_redundancy(tol=tol)
   >>> uvd2 == uv0
+  True
+
+UVData: Normalizing data
+------------------------
+If autocorrelation data is stored alongside cross-correlations, then one can convert
+arbitrarily-scaled data in ``data_array`` to units of correlation coefficients by way of
+the :meth:`pyuvdata.UVData.normalize_by_autos` method. In this normalization step, each
+cross-correlation visibility (frequency channel on a given baseline for a particular
+integration) is divided by the geometric mean of the two autocorrelations, belonging
+to the two antennas that make up the baseline for the cross-correlation. As the
+statistical uncertainty in the amplitude of the autos is under most circumstances
+relatively much less than that for the crosses, performing this step affords one the
+ability to perform some basic flux scaling of the data provided some a priori
+information about the antennas (namely the system temperature and the so-called "forward
+gain" of the antenna, which typically depend on geometric size and aperture efficiency
+).
+
+Note that when normalizing, if the corresponding autocorrelations are not found or are
+otherwise marked as bad in ``flag_array``, then the the cross-correlation will be
+flagged as well (e.g., if all of antenna 1's autos are flagged, then every baseline that
+containts antenna 1 will also be flagged).
+
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> import numpy as np
+
+  >>> uvd = UVData.from_file(os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5'))
+  >>> # Build a binary mask where the cross-correlations are stored.
+  >>> cross_mask = uvd.ant_1_array != uvd.ant_2_array
+  >>> # Check to see that all the crosses have amplitudes greater than 1
+  >>> print(np.all(np.abs(uvd.data_array[cross_mask]) > 1))
+  True
+
+  >>> # On normalization, you can convert arb scaled data to correlation coefficients,
+  >>> # which should always be less than 1 in amplitude.
+  >>> uvd.normalize_by_autos()
+  >>> print(np.all(np.abs(uvd.data_array[cross_mask]) < 1))
+  True
+
+  >>> # An important note for using normalize_by_autos is that it will usually leave the
+  >>> # autos alone unless told otherwise, in order to make reverting normalization
+  >>> # possible. We can see this by checking the values of the autos.
+  >>> print(np.any(uvd.data_array[~cross_mask]) < 1)
+  False
+
+  >>> # Finally, we can undo the above by setting invert=True.
+  >>> uvd.normalize_by_autos(invert=True)
+  >>> print(np.all(np.abs(uvd.data_array[cross_mask]) > 1))
   True
