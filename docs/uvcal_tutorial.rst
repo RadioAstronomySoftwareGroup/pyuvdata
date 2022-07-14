@@ -484,11 +484,11 @@ Methods exist for sorting data along all the data axes to support comparisons be
 UVCal objects and software access patterns.
 
 a) Sorting along the antenna axis
+*********************************
 The :meth:`pyuvdata.UVCal.reorder_antennas` method will reorder the antenna axis by
 sorting by antenna names or numbers, in ascending or descending order, or in an order
 specified by passing an index array.
 
-*********************************
 .. code-block:: python
 
   >>> import os

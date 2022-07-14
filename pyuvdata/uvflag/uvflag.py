@@ -2861,8 +2861,6 @@ class UVFlag(UVBase):
                 # promote 1D to (1, Nfreqs)
                 if self.type != "waterfall" and not self.future_array_shapes:
                     self.freq_array = np.atleast_2d(self.freq_array)
-                elif self.freq_array.ndim > 1:
-                    self.freq_array = self.freq_array[0]
 
                 if "Nfreqs" in header.keys():
                     self.Nfreqs = int(header["Nfreqs"][()])
@@ -3000,6 +2998,12 @@ class UVFlag(UVBase):
             header = f.create_group("Header")
 
             # write out metadata
+            if self.future_array_shapes:
+                # this is Version 1.0
+                header["version"] = np.string_("1.0")
+            else:
+                header["version"] = np.string_("0.1")
+
             header["type"] = np.string_(self.type)
             header["mode"] = np.string_(self.mode)
 
