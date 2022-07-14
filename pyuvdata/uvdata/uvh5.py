@@ -139,23 +139,13 @@ def _write_complex_astype(data, dset, indices):
     _check_uvh5_dtype(dtype_out)
     if len(dset.shape) == 3:
         # this is the future array shape
-        try:
-            dset[indices[0], indices[1], indices[2]] = data.view(compound_dtype).astype(
-                dtype_out, cast="safe", copy=False
-            )
-        except TypeError:
-            dset[indices[0], indices[1], indices[2]] = data.view(compound_dtype).astype(
-                dtype_out
-            )
+        dset[indices[0], indices[1], indices[2]] = data.view(compound_dtype).astype(
+            dtype_out, copy=False
+        )
     else:
-        try:
-            dset[indices[0], np.s_[:], indices[1], indices[2]] = data.view(
-                compound_dtype
-            ).astype(dtype_out, cast="safe", copy=False)
-        except TypeError:
-            dset[indices[0], np.s_[:], indices[1], indices[2]] = data.view(
-                compound_dtype
-            ).astype(dtype_out)
+        dset[indices[0], np.s_[:], indices[1], indices[2]] = data.view(
+            compound_dtype
+        ).astype(dtype_out, copy=False)
 
     return
 
