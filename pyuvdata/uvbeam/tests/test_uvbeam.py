@@ -54,6 +54,7 @@ def uvbeam_data():
         "model_version",
         "history",
         "antenna_type",
+        "future_array_shapes",
     ]
     required_parameters = ["_" + prop for prop in required_properties]
 
@@ -133,22 +134,6 @@ def power_beam_for_adding(cst_power_1freq):
     new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
     power_beam += new_beam
 
-    # add optional parameters for testing purposes
-    power_beam.extra_keywords = {"KEY1": "test_keyword"}
-    power_beam.reference_impedance = 340.0
-    power_beam.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.loss_array = np.random.normal(
-        50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, power_beam.Nspws, power_beam.Nfreqs)
-    )
-
     yield power_beam
 
     del power_beam
@@ -165,22 +150,6 @@ def efield_beam_for_adding(cst_efield_1freq):
     new_beam = efield_beam.copy()
     new_beam.freq_array = efield_beam.freq_array + efield_beam.Nfreqs * 1e6
     efield_beam += new_beam
-
-    # add optional parameters for testing purposes
-    efield_beam.extra_keywords = {"KEY1": "test_keyword"}
-    efield_beam.reference_impedance = 340.0
-    efield_beam.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs)
-    )
-    efield_beam.loss_array = np.random.normal(
-        50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs)
-    )
-    efield_beam.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(efield_beam.Nspws, efield_beam.Nfreqs)
-    )
-    efield_beam.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, efield_beam.Nspws, efield_beam.Nfreqs)
-    )
 
     yield efield_beam
 
@@ -291,6 +260,33 @@ def test_properties(uvbeam_data):
             raise
 
 
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
+def test_future_array_shapes(beam_type, cst_efield_2freq, cst_power_2freq):
+    if beam_type == "efield":
+        beam = cst_efield_2freq
+    else:
+        beam = cst_power_2freq
+    beam2 = beam.copy()
+
+    beam.use_future_array_shapes()
+    beam.check()
+
+    with pytest.raises(
+        ValueError, match="This object already has the future array shapes."
+    ):
+        beam.use_future_array_shapes()
+
+    beam.use_current_array_shapes()
+    beam.check()
+
+    with pytest.raises(
+        ValueError, match="This object already has the current array shapes."
+    ):
+        beam.use_current_array_shapes()
+
+    assert beam == beam2
+
+
 def test_set_cs_params(cst_efield_2freq):
     """
     Test _set_cs_params.
@@ -347,11 +343,15 @@ def test_errors():
         beam_obj._convert_to_filetype("foo")
 
 
-def test_check_auto_power(cst_efield_2freq_cut):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_check_auto_power(future_shapes, cst_efield_2freq_cut):
     power_beam = cst_efield_2freq_cut.copy()
     power_beam.efield_to_power()
-
-    power_beam.data_array[:, :, 0] += power_beam.data_array[:, :, 2]
+    if future_shapes:
+        power_beam.use_future_array_shapes()
+        power_beam.data_array[:, 0] += power_beam.data_array[:, 2]
+    else:
+        power_beam.data_array[:, :, 0] += power_beam.data_array[:, :, 2]
     with pytest.raises(
         ValueError,
         match="Some auto polarization power beams have non-real values in "
@@ -376,6 +376,8 @@ def test_check_auto_power(cst_efield_2freq_cut):
     ):
         power_beam2.check(check_auto_power=True, fix_auto_power=True)
 
+
+def test_check_auto_power_errors(cst_efield_2freq_cut):
     with uvtest.check_warnings(
         UserWarning,
         match="Cannot use _check_auto_power if beam_type is not 'power', or "
@@ -391,36 +393,38 @@ def test_check_auto_power(cst_efield_2freq_cut):
         cst_efield_2freq_cut._fix_auto_power()
 
 
-def test_peak_normalize(cst_efield_2freq, cst_power_2freq):
-    efield_beam = cst_efield_2freq
+@pytest.mark.parametrize("future_shapes", [True, False])
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
+def test_peak_normalize(future_shapes, beam_type, cst_efield_2freq, cst_power_2freq):
+    if beam_type == "efield":
+        beam = cst_efield_2freq
+    else:
+        beam = cst_power_2freq
 
-    orig_bandpass_array = copy.deepcopy(efield_beam.bandpass_array)
-    maxima = np.zeros(efield_beam.Nfreqs)
-    for freq_i in range(efield_beam.Nfreqs):
-        maxima[freq_i] = np.amax(abs(efield_beam.data_array[:, :, :, freq_i]))
-    efield_beam.peak_normalize()
-    assert np.amax(abs(efield_beam.data_array)) == 1
-    assert np.sum(abs(efield_beam.bandpass_array - orig_bandpass_array * maxima)) == 0
-    assert efield_beam.data_normalization == "peak"
+    if future_shapes:
+        beam.use_future_array_shapes()
 
-    power_beam = cst_power_2freq
+    orig_bandpass_array = copy.deepcopy(beam.bandpass_array)
+    maxima = np.zeros(beam.Nfreqs)
+    for freq_i in range(beam.Nfreqs):
+        if future_shapes:
+            maxima[freq_i] = np.amax(abs(beam.data_array[:, :, freq_i]))
+        else:
+            maxima[freq_i] = np.amax(abs(beam.data_array[:, :, :, freq_i]))
+    beam.peak_normalize()
+    assert np.amax(abs(beam.data_array)) == 1
+    assert np.sum(abs(beam.bandpass_array - orig_bandpass_array * maxima)) == 0
+    assert beam.data_normalization == "peak"
 
-    orig_bandpass_array = copy.deepcopy(power_beam.bandpass_array)
-    maxima = np.zeros(efield_beam.Nfreqs)
-    for freq_i in range(efield_beam.Nfreqs):
-        maxima[freq_i] = np.amax(power_beam.data_array[:, :, :, freq_i])
-    power_beam.peak_normalize()
-    assert np.amax(abs(power_beam.data_array)) == 1
-    assert np.sum(abs(power_beam.bandpass_array - orig_bandpass_array * maxima)) == 0
-    assert power_beam.data_normalization == "peak"
 
-    power_beam.data_normalization = "solid_angle"
+def test_peak_normalize_errors(cst_power_2freq):
+    cst_power_2freq.data_normalization = "solid_angle"
     with pytest.raises(
         NotImplementedError,
         match="Conversion from solid_angle to peak "
         "normalization is not yet implemented",
     ):
-        power_beam.peak_normalize()
+        cst_power_2freq.peak_normalize()
 
 
 def test_stokes_matrix():
@@ -431,12 +435,19 @@ def test_stokes_matrix():
         beam._stokes_matrix(5)
 
 
-def test_efield_to_pstokes(cst_efield_2freq_cut, cst_efield_2freq_cut_healpix):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_efield_to_pstokes(
+    future_shapes, cst_efield_2freq_cut, cst_efield_2freq_cut_healpix
+):
+    pstokes_beam = cst_efield_2freq_cut
     pstokes_beam_2 = cst_efield_2freq_cut_healpix
+
+    if future_shapes:
+        pstokes_beam.use_future_array_shapes()
+        pstokes_beam_2.use_future_array_shapes()
+
     # convert to pstokes after interpolating
     beam_return = pstokes_beam_2.efield_to_pstokes(inplace=False)
-
-    pstokes_beam = cst_efield_2freq_cut
 
     # interpolate after converting to pstokes
     pstokes_beam.interpolation_function = "az_za_simple"
@@ -459,9 +470,14 @@ def test_efield_to_pstokes_error(cst_power_2freq_cut):
         power_beam.efield_to_pstokes()
 
 
-def test_efield_to_power(cst_efield_2freq_cut, cst_power_2freq_cut):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_efield_to_power(future_shapes, cst_efield_2freq_cut, cst_power_2freq_cut):
     efield_beam = cst_efield_2freq_cut
     power_beam = cst_power_2freq_cut
+
+    if future_shapes:
+        efield_beam.use_future_array_shapes()
+        power_beam.use_future_array_shapes()
 
     new_power_beam = efield_beam.efield_to_power(calc_cross_pols=False, inplace=False)
 
@@ -593,40 +609,80 @@ def test_efield_to_power_rotated(cst_efield_2freq_cut):
     assert new_power_beam == new_power_beam2
 
 
-def test_efield_to_power_crosspol(cst_efield_2freq_cut, tmp_path):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_efield_to_power_crosspol(future_shapes, cst_efield_2freq_cut, tmp_path):
     efield_beam = cst_efield_2freq_cut
+
+    if future_shapes:
+        efield_beam.use_future_array_shapes()
 
     # test calculating cross pols
     new_power_beam = efield_beam.efield_to_power(calc_cross_pols=True, inplace=False)
-    assert np.all(
-        np.abs(
-            new_power_beam.data_array[
-                :, :, 0, :, :, np.where(new_power_beam.axis1_array == 0)[0]
-            ]
+    if future_shapes:
+        assert np.all(
+            np.abs(
+                new_power_beam.data_array[
+                    :, 0, :, :, np.where(new_power_beam.axis1_array == 0)[0]
+                ]
+            )
+            > np.abs(
+                new_power_beam.data_array[
+                    :, 2, :, :, np.where(new_power_beam.axis1_array == 0)[0]
+                ]
+            )
         )
-        > np.abs(
-            new_power_beam.data_array[
-                :, :, 2, :, :, np.where(new_power_beam.axis1_array == 0)[0]
-            ]
+        assert np.all(
+            np.abs(
+                new_power_beam.data_array[
+                    :, 0, :, :, np.where(new_power_beam.axis1_array == np.pi / 2.0)[0]
+                ]
+            )
+            > np.abs(
+                new_power_beam.data_array[
+                    :, 2, :, :, np.where(new_power_beam.axis1_array == np.pi / 2.0)[0]
+                ]
+            )
         )
-    )
-    assert np.all(
-        np.abs(
-            new_power_beam.data_array[
-                :, :, 0, :, :, np.where(new_power_beam.axis1_array == np.pi / 2.0)[0]
-            ]
+    else:
+        assert np.all(
+            np.abs(
+                new_power_beam.data_array[
+                    :, :, 0, :, :, np.where(new_power_beam.axis1_array == 0)[0]
+                ]
+            )
+            > np.abs(
+                new_power_beam.data_array[
+                    :, :, 2, :, :, np.where(new_power_beam.axis1_array == 0)[0]
+                ]
+            )
         )
-        > np.abs(
-            new_power_beam.data_array[
-                :, :, 2, :, :, np.where(new_power_beam.axis1_array == np.pi / 2.0)[0]
-            ]
+        assert np.all(
+            np.abs(
+                new_power_beam.data_array[
+                    :,
+                    :,
+                    0,
+                    :,
+                    :,
+                    np.where(new_power_beam.axis1_array == np.pi / 2.0)[0],
+                ]
+            )
+            > np.abs(
+                new_power_beam.data_array[
+                    :,
+                    :,
+                    2,
+                    :,
+                    :,
+                    np.where(new_power_beam.axis1_array == np.pi / 2.0)[0],
+                ]
+            )
         )
-    )
     # test writing out & reading back in power files (with cross pols which are complex)
     write_file = str(tmp_path / "outtest_beam.fits")
     new_power_beam.write_beamfits(write_file, clobber=True)
     new_power_beam2 = UVBeam()
-    new_power_beam2.read_beamfits(write_file)
+    new_power_beam2.read_beamfits(write_file, use_future_array_shapes=future_shapes)
     assert new_power_beam == new_power_beam2
 
     # test keeping basis vectors
@@ -653,8 +709,12 @@ def test_efield_to_power_errors(cst_efield_2freq_cut, cst_power_2freq_cut):
         efield_beam.efield_to_power()
 
 
-def test_freq_interpolation(cst_power_2freq):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_freq_interpolation(future_shapes, cst_power_2freq):
     power_beam = cst_power_2freq
+
+    if future_shapes:
+        power_beam.use_future_array_shapes()
 
     power_beam.interpolation_function = "az_za_simple"
 
@@ -680,43 +740,77 @@ def test_freq_interpolation(cst_power_2freq):
 
     # test frequency interpolation returns new UVBeam for small and large tolerances
     power_beam.saved_interp_functions = {}
-    new_beam_obj = power_beam.interp(
-        freq_array=freq_orig_vals, freq_interp_tol=0.0, new_object=True
-    )
+
+    optional_freq_params = [
+        "receiver_temperature_array",
+        "loss_array",
+        "mismatch_array",
+        "s_parameters",
+    ]
+    exp_warnings = []
+    for param_name in optional_freq_params:
+        exp_warnings.append(
+            f"Input object has {param_name} defined but we do not "
+            "currently support interpolating it in frequency. Returned "
+            "object will not have it set to None."
+        )
+    with uvtest.check_warnings(UserWarning, match=exp_warnings):
+        new_beam_obj = power_beam.interp(
+            freq_array=freq_orig_vals, freq_interp_tol=0.0, new_object=True
+        )
     assert isinstance(new_beam_obj, UVBeam)
-    np.testing.assert_array_almost_equal(new_beam_obj.freq_array[0], freq_orig_vals)
+    if future_shapes:
+        np.testing.assert_array_almost_equal(new_beam_obj.freq_array, freq_orig_vals)
+    else:
+        np.testing.assert_array_almost_equal(new_beam_obj.freq_array[0], freq_orig_vals)
     assert new_beam_obj.freq_interp_kind == "linear"
     # test that saved functions are erased in new obj
     assert not hasattr(new_beam_obj, "saved_interp_functions")
     assert power_beam.history != new_beam_obj.history
     new_beam_obj.history = power_beam.history
+    # add back optional params to get equality:
+    for param_name in optional_freq_params:
+        setattr(new_beam_obj, param_name, getattr(power_beam, param_name))
     assert power_beam == new_beam_obj
 
-    new_beam_obj = power_beam.interp(
-        freq_array=freq_orig_vals, freq_interp_tol=1.0, new_object=True
-    )
+    with uvtest.check_warnings(UserWarning, match=exp_warnings):
+        new_beam_obj = power_beam.interp(
+            freq_array=freq_orig_vals, freq_interp_tol=1.0, new_object=True
+        )
     assert isinstance(new_beam_obj, UVBeam)
-    np.testing.assert_array_almost_equal(new_beam_obj.freq_array[0], freq_orig_vals)
+    if future_shapes:
+        np.testing.assert_array_almost_equal(new_beam_obj.freq_array, freq_orig_vals)
+    else:
+        np.testing.assert_array_almost_equal(new_beam_obj.freq_array[0], freq_orig_vals)
     # assert interp kind is 'nearest' when within tol
     assert new_beam_obj.freq_interp_kind == "nearest"
     new_beam_obj.freq_interp_kind = "linear"
     assert power_beam.history != new_beam_obj.history
     new_beam_obj.history = power_beam.history
+    # add back optional params to get equality:
+    for param_name in optional_freq_params:
+        setattr(new_beam_obj, param_name, getattr(power_beam, param_name))
     assert power_beam == new_beam_obj
 
     # test frequency interpolation returns valid new UVBeam for different
     # number of freqs from input
     power_beam.saved_interp_functions = {}
-    new_beam_obj = power_beam.interp(
-        freq_array=np.linspace(123e6, 150e6, num=5),
-        freq_interp_tol=0.0,
-        new_object=True,
-    )
+    with uvtest.check_warnings(UserWarning, match=exp_warnings):
+        new_beam_obj = power_beam.interp(
+            freq_array=np.linspace(123e6, 150e6, num=5),
+            freq_interp_tol=0.0,
+            new_object=True,
+        )
 
     assert isinstance(new_beam_obj, UVBeam)
-    np.testing.assert_array_almost_equal(
-        new_beam_obj.freq_array[0], np.linspace(123e6, 150e6, num=5)
-    )
+    if future_shapes:
+        np.testing.assert_array_almost_equal(
+            new_beam_obj.freq_array, np.linspace(123e6, 150e6, num=5)
+        )
+    else:
+        np.testing.assert_array_almost_equal(
+            new_beam_obj.freq_array[0], np.linspace(123e6, 150e6, num=5)
+        )
     assert new_beam_obj.freq_interp_kind == "linear"
     # test that saved functions are erased in new obj
     assert not hasattr(new_beam_obj, "saved_interp_functions")
@@ -727,6 +821,9 @@ def test_freq_interpolation(cst_power_2freq):
     new_beam_obj.select(frequencies=freq_orig_vals)
     assert power_beam.history != new_beam_obj.history
     new_beam_obj.history = power_beam.history
+    # add back optional params to get equality:
+    for param_name in optional_freq_params:
+        setattr(new_beam_obj, param_name, getattr(power_beam, param_name))
     assert power_beam == new_beam_obj
 
     # using only one freq chan should trigger a ValueError if interp_bool is True
@@ -734,9 +831,14 @@ def test_freq_interpolation(cst_power_2freq):
     # Therefore, to test that interp_bool is False returns array slice as desired,
     # test that ValueError is not raised in this case.
     # Other ways of testing this (e.g. interp_data_array.flags['OWNDATA']) does not work
-    _pb = power_beam.select(frequencies=power_beam.freq_array[0, :1], inplace=False)
+    if future_shapes:
+        _pb = power_beam.select(frequencies=power_beam.freq_array[:1], inplace=False)
+        freq_arr_use = _pb.freq_array
+    else:
+        _pb = power_beam.select(frequencies=power_beam.freq_array[0, :1], inplace=False)
+        freq_arr_use = _pb.freq_array[0]
     try:
-        interp_data, interp_basis_vector = _pb.interp(freq_array=_pb.freq_array[0])
+        interp_data, interp_basis_vector = _pb.interp(freq_array=freq_arr_use)
     except ValueError as err:
         raise AssertionError(
             "UVBeam.interp didn't return an array slice as expected"
@@ -763,20 +865,43 @@ def test_freq_interpolation(cst_power_2freq):
         )
 
 
-def test_freq_interp_real_and_complex(cst_power_2freq):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_freq_interp_real_and_complex(future_shapes, cst_power_2freq):
     # test interpolation of real and complex data are the same
     power_beam = cst_power_2freq
+
+    if future_shapes:
+        power_beam.use_future_array_shapes()
 
     power_beam.interpolation_function = "az_za_simple"
 
     # make a new object with more frequencies
     freqs = np.linspace(123e6, 150e6, 4)
     power_beam.freq_interp_kind = "linear"
-    pbeam = power_beam.interp(freq_array=freqs, new_object=True)
+
+    optional_freq_params = [
+        "receiver_temperature_array",
+        "loss_array",
+        "mismatch_array",
+        "s_parameters",
+    ]
+    exp_warnings = []
+    for param_name in optional_freq_params:
+        exp_warnings.append(
+            f"Input object has {param_name} defined but we do not "
+            "currently support interpolating it in frequency. Returned "
+            "object will not have it set to None."
+        )
+    with uvtest.check_warnings(UserWarning, match=exp_warnings):
+        pbeam = power_beam.interp(freq_array=freqs, new_object=True)
 
     # modulate the data
-    pbeam.data_array[:, :, :, 1] *= 2
-    pbeam.data_array[:, :, :, 2] *= 0.5
+    if future_shapes:
+        pbeam.data_array[:, :, 1] *= 2
+        pbeam.data_array[:, :, 2] *= 0.5
+    else:
+        pbeam.data_array[:, :, :, 1] *= 2
+        pbeam.data_array[:, :, :, 2] *= 0.5
 
     # interpolate cubic on real data
     freqs = np.linspace(123e6, 150e6, 10)
@@ -830,13 +955,27 @@ def test_spatial_interpolation_samepoints(
         assert np.allclose(uvbeam.basis_vector_array, interp_basis_vector)
 
     # test that new object from interpolation is identical
-    new_beam = uvbeam.interp(
-        az_array=uvbeam.axis1_array,
-        za_array=uvbeam.axis2_array,
-        az_za_grid=True,
-        freq_array=freq_orig_vals,
-        new_object=True,
-    )
+    optional_freq_params = [
+        "receiver_temperature_array",
+        "loss_array",
+        "mismatch_array",
+        "s_parameters",
+    ]
+    exp_warnings = []
+    for param_name in optional_freq_params:
+        exp_warnings.append(
+            f"Input object has {param_name} defined but we do not "
+            "currently support interpolating it in frequency. Returned "
+            "object will not have it set to None."
+        )
+    with uvtest.check_warnings(UserWarning, match=exp_warnings):
+        new_beam = uvbeam.interp(
+            az_array=uvbeam.axis1_array,
+            za_array=uvbeam.axis2_array,
+            az_za_grid=True,
+            freq_array=freq_orig_vals,
+            new_object=True,
+        )
     assert new_beam.freq_interp_kind == "nearest"
     assert new_beam.history == (
         uvbeam.history + " Interpolated in "
@@ -848,6 +987,9 @@ def test_spatial_interpolation_samepoints(
     # make histories & freq_interp_kind equal
     new_beam.history = uvbeam.history
     new_beam.freq_interp_kind = "linear"
+    # add back optional params to get equality:
+    for param_name in optional_freq_params:
+        setattr(new_beam, param_name, getattr(uvbeam, param_name))
     assert new_beam == uvbeam
 
     # test error if new_object set without az_za_grid
@@ -875,9 +1017,10 @@ def test_spatial_interpolation_samepoints(
         assert np.allclose(data_array_compare, interp_data_array)
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
 def test_spatial_interpolation_everyother(
-    beam_type, cst_power_2freq_cut, cst_efield_2freq_cut
+    future_shapes, beam_type, cst_power_2freq_cut, cst_efield_2freq_cut
 ):
     """
     test that interp to every other point returns an object that matches a select
@@ -886,6 +1029,9 @@ def test_spatial_interpolation_everyother(
         uvbeam = cst_power_2freq_cut
     else:
         uvbeam = cst_efield_2freq_cut
+
+    if future_shapes:
+        uvbeam.use_future_array_shapes()
     uvbeam.interpolation_function = "az_za_simple"
 
     axis1_inds = np.arange(0, uvbeam.Naxes1, 2)
@@ -1321,14 +1467,18 @@ def test_healpix_interpolation(cst_efield_2freq):
         power_beam.interp(az_array=az_orig_vals, za_array=za_orig_vals)
 
 
-def test_to_healpix(
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_to_healpix_power(
+    future_shapes,
     cst_power_2freq_cut,
     cst_power_2freq_cut_healpix,
-    cst_efield_2freq_cut,
-    cst_efield_2freq_cut_healpix,
 ):
     power_beam = cst_power_2freq_cut
     power_beam_healpix = cst_power_2freq_cut_healpix
+
+    if future_shapes:
+        power_beam.use_future_array_shapes()
+        power_beam_healpix.use_future_array_shapes()
 
     sky_area_reduction_factor = (1.0 - np.cos(np.deg2rad(10))) / 2.0
 
@@ -1355,9 +1505,20 @@ def test_to_healpix(
     with pytest.raises(ValueError, match='pixel_coordinate_system must be "az_za"'):
         power_beam.to_healpix()
 
-    # Now check Efield interpolation
+
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_to_healpix_efield(
+    future_shapes,
+    cst_efield_2freq_cut,
+    cst_efield_2freq_cut_healpix,
+):
     efield_beam = cst_efield_2freq_cut
     interp_then_sq = cst_efield_2freq_cut_healpix
+
+    if future_shapes:
+        efield_beam.use_future_array_shapes()
+        interp_then_sq.use_future_array_shapes()
+
     interp_then_sq.efield_to_power(calc_cross_pols=False)
 
     # convert to power and then interpolate to compare.
@@ -1383,9 +1544,9 @@ def test_to_healpix(
     # check history changes
     interp_history_add = (
         " Interpolated from "
-        + power_beam.coordinate_system_dict["az_za"]["description"]
+        + efield_beam.coordinate_system_dict["az_za"]["description"]
         + " to "
-        + power_beam.coordinate_system_dict["healpix"]["description"]
+        + efield_beam.coordinate_system_dict["healpix"]["description"]
         + " using pyuvdata with interpolation_function = az_za_simple."
     )
     sq_history_add = " Converted from efield to power using pyuvdata."
@@ -1404,24 +1565,11 @@ def test_to_healpix(
     assert sq_then_interp == interp_then_sq
 
 
-def test_select_axis(cst_power_1freq, tmp_path):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_select_axis(future_shapes, cst_power_1freq, tmp_path):
     power_beam = cst_power_1freq
-
-    # add optional parameters for testing purposes
-    power_beam.extra_keywords = {"KEY1": "test_keyword"}
-    power_beam.reference_impedance = 340.0
-    power_beam.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.loss_array = np.random.normal(
-        50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, power_beam.Nspws, power_beam.Nfreqs)
-    )
+    if future_shapes:
+        power_beam.use_future_array_shapes()
 
     old_history = power_beam.history
 
@@ -1510,8 +1658,12 @@ def test_select_axis(cst_power_1freq, tmp_path):
         power_beam2.write_beamfits(write_file_beamfits)
 
 
-def test_select_frequencies(cst_power_1freq, tmp_path):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_select_frequencies(future_shapes, cst_power_1freq, tmp_path):
     power_beam = cst_power_1freq
+
+    if future_shapes:
+        power_beam.use_future_array_shapes()
 
     # generate more frequencies for testing by copying and adding several times
     while power_beam.Nfreqs < 8:
@@ -1519,24 +1671,11 @@ def test_select_frequencies(cst_power_1freq, tmp_path):
         new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
         power_beam += new_beam
 
-    # add optional parameters for testing purposes
-    power_beam.extra_keywords = {"KEY1": "test_keyword"}
-    power_beam.reference_impedance = 340.0
-    power_beam.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.loss_array = np.random.normal(
-        50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, power_beam.Nspws, power_beam.Nfreqs)
-    )
-
     old_history = power_beam.history
-    freqs_to_keep = power_beam.freq_array[0, np.arange(2, 7)]
+    if future_shapes:
+        freqs_to_keep = power_beam.freq_array[np.arange(2, 7)]
+    else:
+        freqs_to_keep = power_beam.freq_array[0, np.arange(2, 7)]
 
     power_beam2 = power_beam.select(frequencies=freqs_to_keep, inplace=False)
 
@@ -1554,7 +1693,10 @@ def test_select_frequencies(cst_power_1freq, tmp_path):
     write_file_beamfits = str(tmp_path / "select_beam.fits")
     # test writing beamfits with only one frequency
 
-    freqs_to_keep = power_beam.freq_array[0, 5]
+    if future_shapes:
+        freqs_to_keep = power_beam.freq_array[5]
+    else:
+        freqs_to_keep = power_beam.freq_array[0, 5]
     power_beam2 = power_beam.select(frequencies=freqs_to_keep, inplace=False)
     power_beam2.write_beamfits(write_file_beamfits, clobber=True)
 
@@ -1568,10 +1710,14 @@ def test_select_frequencies(cst_power_1freq, tmp_path):
 
     # check for warnings and errors associated with unevenly spaced frequencies
     power_beam2 = power_beam.copy()
+    if future_shapes:
+        freqs_to_keep = power_beam.freq_array[[0, 5, 6]]
+    else:
+        freqs_to_keep = power_beam.freq_array[0, [0, 5, 6]]
     with uvtest.check_warnings(
         UserWarning, "Selected frequencies are not evenly spaced"
     ):
-        power_beam2.select(frequencies=power_beam2.freq_array[0, [0, 5, 6]])
+        power_beam2.select(frequencies=freqs_to_keep)
     with pytest.raises(ValueError, match="The frequencies are not evenly spaced "):
         power_beam2.write_beamfits(write_file_beamfits)
 
@@ -1581,10 +1727,16 @@ def test_select_frequencies(cst_power_1freq, tmp_path):
     power_beam2 = power_beam.select(freq_chans=chans_to_keep, inplace=False)
 
     assert len(chans_to_keep) == power_beam2.Nfreqs
-    for chan in chans_to_keep:
-        assert power_beam.freq_array[0, chan] in power_beam2.freq_array
-    for f in np.unique(power_beam2.freq_array):
-        assert f in power_beam.freq_array[0, chans_to_keep]
+    if future_shapes:
+        for chan in chans_to_keep:
+            assert power_beam.freq_array[chan] in power_beam2.freq_array
+        for f in np.unique(power_beam2.freq_array):
+            assert f in power_beam.freq_array[chans_to_keep]
+    else:
+        for chan in chans_to_keep:
+            assert power_beam.freq_array[0, chan] in power_beam2.freq_array
+        for f in np.unique(power_beam2.freq_array):
+            assert f in power_beam.freq_array[0, chans_to_keep]
 
     assert uvutils._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
@@ -1592,7 +1744,10 @@ def test_select_frequencies(cst_power_1freq, tmp_path):
     )
 
     # Test selecting both channels and frequencies
-    freqs_to_keep = power_beam.freq_array[0, np.arange(6, 8)]  # Overlaps with chans
+    if future_shapes:
+        freqs_to_keep = power_beam.freq_array[np.arange(6, 8)]  # Overlaps with chans
+    else:
+        freqs_to_keep = power_beam.freq_array[0, np.arange(6, 8)]  # Overlaps with chans
     all_chans_to_keep = np.arange(2, 8)
 
     power_beam2 = power_beam.select(
@@ -1600,30 +1755,24 @@ def test_select_frequencies(cst_power_1freq, tmp_path):
     )
 
     assert len(all_chans_to_keep) == power_beam2.Nfreqs
-    for chan in all_chans_to_keep:
-        assert power_beam.freq_array[0, chan] in power_beam2.freq_array
-    for f in np.unique(power_beam2.freq_array):
-        assert f in power_beam.freq_array[0, all_chans_to_keep]
+    if future_shapes:
+        for chan in all_chans_to_keep:
+            assert power_beam.freq_array[chan] in power_beam2.freq_array
+        for f in np.unique(power_beam2.freq_array):
+            assert f in power_beam.freq_array[all_chans_to_keep]
+    else:
+        for chan in all_chans_to_keep:
+            assert power_beam.freq_array[0, chan] in power_beam2.freq_array
+        for f in np.unique(power_beam2.freq_array):
+            assert f in power_beam.freq_array[0, all_chans_to_keep]
 
 
-def test_select_feeds(cst_efield_1freq):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_select_feeds(future_shapes, cst_efield_1freq):
     efield_beam = cst_efield_1freq
 
-    # add optional parameters for testing purposes
-    efield_beam.extra_keywords = {"KEY1": "test_keyword"}
-    efield_beam.reference_impedance = 340.0
-    efield_beam.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs)
-    )
-    efield_beam.loss_array = np.random.normal(
-        50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs)
-    )
-    efield_beam.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(efield_beam.Nspws, efield_beam.Nfreqs)
-    )
-    efield_beam.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, efield_beam.Nspws, efield_beam.Nfreqs)
-    )
+    if future_shapes:
+        efield_beam.use_future_array_shapes()
 
     old_history = efield_beam.history
     feeds_to_keep = ["x"]
@@ -1677,29 +1826,16 @@ def test_select_feeds(cst_efield_1freq):
 
 
 @pytest.mark.filterwarnings("ignore:Fixing auto polarization power beams")
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize(
     "pols_to_keep", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]])
 )
-def test_select_polarizations(pols_to_keep, cst_efield_1freq):
+def test_select_polarizations(future_shapes, pols_to_keep, cst_efield_1freq):
     # generate more polarizations for testing by using efield and keeping cross-pols
     power_beam = cst_efield_1freq
+    if future_shapes:
+        power_beam.use_future_array_shapes()
     power_beam.efield_to_power()
-
-    # add optional parameters for testing purposes
-    power_beam.extra_keywords = {"KEY1": "test_keyword"}
-    power_beam.reference_impedance = 340.0
-    power_beam.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.loss_array = np.random.normal(
-        50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, power_beam.Nspws, power_beam.Nfreqs)
-    )
 
     old_history = power_beam.history
 
@@ -1772,147 +1908,101 @@ def test_select_polarizations_errors(cst_efield_1freq):
             power_beam.select(polarizations=[-5, -6])
 
 
-def test_select(cst_power_1freq, cst_efield_1freq):
-    power_beam = cst_power_1freq
+@pytest.mark.parametrize("future_shapes", [True, False])
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
+def test_select(future_shapes, beam_type, cst_power_1freq, cst_efield_1freq):
+    if beam_type == "efield":
+        beam = cst_efield_1freq
+    else:
+        beam = cst_power_1freq
+
+    if future_shapes:
+        beam.use_future_array_shapes()
 
     # generate more frequencies for testing by copying and adding
-    new_beam = power_beam.copy()
-    new_beam.freq_array = power_beam.freq_array + power_beam.Nfreqs * 1e6
-    power_beam += new_beam
-
-    # add optional parameters for testing purposes
-    power_beam.extra_keywords = {"KEY1": "test_keyword"}
-    power_beam.reference_impedance = 340.0
-    power_beam.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.loss_array = np.random.normal(
-        50.0, 5, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(power_beam.Nspws, power_beam.Nfreqs)
-    )
-    power_beam.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, power_beam.Nspws, power_beam.Nfreqs)
-    )
+    new_beam = beam.copy()
+    new_beam.freq_array = beam.freq_array + beam.Nfreqs * 1e6
+    beam += new_beam
 
     # now test selecting along all axes at once
-    old_history = power_beam.history
+    old_history = beam.history
 
     inds1_to_keep = np.arange(14, 63)
     inds2_to_keep = np.arange(5, 14)
-    freqs_to_keep = [power_beam.freq_array[0, 0]]
-    pols_to_keep = [-5]
+    if future_shapes:
+        freqs_to_keep = [beam.freq_array[0]]
+    else:
+        freqs_to_keep = [beam.freq_array[0, 0]]
+    if beam_type == "efield":
+        feeds_to_keep = ["x"]
+        pols_to_keep = None
+    else:
+        pols_to_keep = [-5]
+        feeds_to_keep = None
 
-    power_beam2 = power_beam.select(
+    beam2 = beam.select(
         axis1_inds=inds1_to_keep,
         axis2_inds=inds2_to_keep,
         frequencies=freqs_to_keep,
         polarizations=pols_to_keep,
-        inplace=False,
-    )
-
-    assert len(inds1_to_keep) == power_beam2.Naxes1
-    for i in inds1_to_keep:
-        assert power_beam.axis1_array[i] in power_beam2.axis1_array
-    for i in np.unique(power_beam2.axis1_array):
-        assert i in power_beam.axis1_array
-
-    assert len(inds2_to_keep) == power_beam2.Naxes2
-    for i in inds2_to_keep:
-        assert power_beam.axis2_array[i] in power_beam2.axis2_array
-    for i in np.unique(power_beam2.axis2_array):
-        assert i in power_beam.axis2_array
-
-    assert len(freqs_to_keep) == power_beam2.Nfreqs
-    for f in freqs_to_keep:
-        assert f in power_beam2.freq_array
-    for f in np.unique(power_beam2.freq_array):
-        assert f in freqs_to_keep
-
-    assert len(pols_to_keep) == power_beam2.Npols
-    for p in pols_to_keep:
-        assert p in power_beam2.polarization_array
-    for p in np.unique(power_beam2.polarization_array):
-        assert p in pols_to_keep
-
-    assert uvutils._check_histories(
-        old_history + "  Downselected to "
-        "specific parts of first image axis, "
-        "parts of second image axis, "
-        "frequencies, polarizations using pyuvdata.",
-        power_beam2.history,
-    )
-
-    # repeat for efield beam
-    efield_beam = cst_efield_1freq
-
-    # generate more frequencies for testing by copying and adding
-    new_beam = efield_beam.copy()
-    new_beam.freq_array = efield_beam.freq_array + efield_beam.Nfreqs * 1e6
-    efield_beam += new_beam
-
-    # add optional parameters for testing purposes
-    efield_beam.extra_keywords = {"KEY1": "test_keyword"}
-    efield_beam.reference_impedance = 340.0
-    efield_beam.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs)
-    )
-    efield_beam.loss_array = np.random.normal(
-        50.0, 5, size=(efield_beam.Nspws, efield_beam.Nfreqs)
-    )
-    efield_beam.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(efield_beam.Nspws, efield_beam.Nfreqs)
-    )
-    efield_beam.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, efield_beam.Nspws, efield_beam.Nfreqs)
-    )
-
-    feeds_to_keep = ["x"]
-
-    efield_beam2 = efield_beam.select(
-        axis1_inds=inds1_to_keep,
-        axis2_inds=inds2_to_keep,
-        frequencies=freqs_to_keep,
         feeds=feeds_to_keep,
         inplace=False,
     )
 
-    assert len(inds1_to_keep) == efield_beam2.Naxes1
+    assert len(inds1_to_keep) == beam2.Naxes1
     for i in inds1_to_keep:
-        assert efield_beam.axis1_array[i] in efield_beam2.axis1_array
-    for i in np.unique(efield_beam2.axis1_array):
-        assert i in efield_beam.axis1_array
+        assert beam.axis1_array[i] in beam2.axis1_array
+    for i in np.unique(beam2.axis1_array):
+        assert i in beam.axis1_array
 
-    assert len(inds2_to_keep) == efield_beam2.Naxes2
+    assert len(inds2_to_keep) == beam2.Naxes2
     for i in inds2_to_keep:
-        assert efield_beam.axis2_array[i] in efield_beam2.axis2_array
-    for i in np.unique(efield_beam2.axis2_array):
-        assert i in efield_beam.axis2_array
+        assert beam.axis2_array[i] in beam2.axis2_array
+    for i in np.unique(beam2.axis2_array):
+        assert i in beam.axis2_array
 
-    assert len(freqs_to_keep) == efield_beam2.Nfreqs
+    assert len(freqs_to_keep) == beam2.Nfreqs
     for f in freqs_to_keep:
-        assert f in efield_beam2.freq_array
-    for f in np.unique(efield_beam2.freq_array):
+        assert f in beam2.freq_array
+    for f in np.unique(beam2.freq_array):
         assert f in freqs_to_keep
 
-    assert len(feeds_to_keep) == efield_beam2.Nfeeds
-    for f in feeds_to_keep:
-        assert f in efield_beam2.feed_array
-    for f in np.unique(efield_beam2.feed_array):
-        assert f in feeds_to_keep
+    if beam_type == "efield":
+        assert len(feeds_to_keep) == beam2.Nfeeds
+        for f in feeds_to_keep:
+            assert f in beam2.feed_array
+        for f in np.unique(beam2.feed_array):
+            assert f in feeds_to_keep
 
-    assert uvutils._check_histories(
-        old_history + "  Downselected to "
-        "specific parts of first image axis, "
-        "parts of second image axis, "
-        "frequencies, feeds using pyuvdata.",
-        efield_beam2.history,
-    )
+        assert uvutils._check_histories(
+            old_history + "  Downselected to "
+            "specific parts of first image axis, "
+            "parts of second image axis, "
+            "frequencies, feeds using pyuvdata.",
+            beam2.history,
+        )
+    else:
+        assert len(pols_to_keep) == beam2.Npols
+        for p in pols_to_keep:
+            assert p in beam2.polarization_array
+        for p in np.unique(beam2.polarization_array):
+            assert p in pols_to_keep
+
+        assert uvutils._check_histories(
+            old_history + "  Downselected to "
+            "specific parts of first image axis, "
+            "parts of second image axis, "
+            "frequencies, polarizations using pyuvdata.",
+            beam2.history,
+        )
 
 
-def test_add_axis1(power_beam_for_adding):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_add_axis1(future_shapes, power_beam_for_adding):
     power_beam = power_beam_for_adding
+
+    if future_shapes:
+        power_beam.use_future_array_shapes()
 
     # Add along first image axis
     beam1 = power_beam.select(axis1_inds=np.arange(0, 180), inplace=False)
@@ -1937,8 +2027,12 @@ def test_add_axis1(power_beam_for_adding):
     assert beam1 == power_beam
 
 
-def test_add_axis2(power_beam_for_adding):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_add_axis2(future_shapes, power_beam_for_adding):
     power_beam = power_beam_for_adding
+
+    if future_shapes:
+        power_beam.use_future_array_shapes()
 
     # Add along second image axis
     beam1 = power_beam.select(axis2_inds=np.arange(0, 90), inplace=False)
@@ -1963,8 +2057,12 @@ def test_add_axis2(power_beam_for_adding):
     assert beam1 == power_beam
 
 
-def test_add_frequencies(power_beam_for_adding):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_add_frequencies(future_shapes, power_beam_for_adding):
     power_beam = power_beam_for_adding
+
+    if future_shapes:
+        power_beam.use_future_array_shapes()
 
     # Add frequencies
     beam1 = power_beam.select(freq_chans=0, inplace=False)
@@ -1988,8 +2086,12 @@ def test_add_frequencies(power_beam_for_adding):
     assert beam1 == power_beam
 
 
-def test_add_pols(power_beam_for_adding):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_add_pols(future_shapes, power_beam_for_adding):
     power_beam = power_beam_for_adding
+
+    if future_shapes:
+        power_beam.use_future_array_shapes()
 
     # Add polarizations
     beam1 = power_beam.select(polarizations=-5, inplace=False)
@@ -2012,8 +2114,12 @@ def test_add_pols(power_beam_for_adding):
     assert beam1 == power_beam
 
 
-def test_add_feeds(efield_beam_for_adding):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_add_feeds(future_shapes, efield_beam_for_adding):
     efield_beam = efield_beam_for_adding
+
+    if future_shapes:
+        efield_beam.use_future_array_shapes()
 
     beam1 = efield_beam.select(feeds=efield_beam.feed_array[0], inplace=False)
     beam2 = efield_beam.select(feeds=efield_beam.feed_array[1], inplace=False)
@@ -2234,30 +2340,22 @@ def test_add_errors(power_beam_for_adding, efield_beam_for_adding):
         beam1.__iadd__(beam2)
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
 def test_select_healpix_pixels(
-    beam_type, cst_power_1freq_cut_healpix, cst_efield_1freq_cut_healpix, tmp_path
+    future_shapes,
+    beam_type,
+    cst_power_1freq_cut_healpix,
+    cst_efield_1freq_cut_healpix,
+    tmp_path,
 ):
     if beam_type == "power":
         beam_healpix = cst_power_1freq_cut_healpix
     else:
         beam_healpix = cst_efield_1freq_cut_healpix
 
-    # add optional parameters for testing purposes
-    beam_healpix.extra_keywords = {"KEY1": "test_keyword"}
-    beam_healpix.reference_impedance = 340.0
-    beam_healpix.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(beam_healpix.Nspws, beam_healpix.Nfreqs)
-    )
-    beam_healpix.loss_array = np.random.normal(
-        50.0, 5, size=(beam_healpix.Nspws, beam_healpix.Nfreqs)
-    )
-    beam_healpix.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(beam_healpix.Nspws, beam_healpix.Nfreqs)
-    )
-    beam_healpix.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, beam_healpix.Nspws, beam_healpix.Nfreqs)
-    )
+    if future_shapes:
+        beam_healpix.use_future_array_shapes()
 
     old_history = beam_healpix.history
     pixels_to_keep = np.arange(31, 184)
@@ -2313,7 +2411,10 @@ def test_select_healpix_pixels(
 
     # ------------------------
     # test selecting along all axes at once for healpix beams
-    freqs_to_keep = [beam_healpix.freq_array[0, 0]]
+    if future_shapes:
+        freqs_to_keep = [beam_healpix.freq_array[0]]
+    else:
+        freqs_to_keep = [beam_healpix.freq_array[0, 0]]
 
     if beam_type == "efield":
         feeds_to_keep = ["x"]
@@ -2383,30 +2484,18 @@ def test_select_healpix_pixels_error(
         beam.select(pixels=np.arange(31, 184))
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
 def test_add_healpix(
-    beam_type, cst_power_2freq_cut_healpix, cst_efield_2freq_cut_healpix
+    future_shapes, beam_type, cst_power_2freq_cut_healpix, cst_efield_2freq_cut_healpix
 ):
     if beam_type == "power":
         beam_healpix = cst_power_2freq_cut_healpix
     else:
         beam_healpix = cst_efield_2freq_cut_healpix
 
-    # add optional parameters for testing purposes
-    beam_healpix.extra_keywords = {"KEY1": "test_keyword"}
-    beam_healpix.reference_impedance = 340.0
-    beam_healpix.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(beam_healpix.Nspws, beam_healpix.Nfreqs)
-    )
-    beam_healpix.loss_array = np.random.normal(
-        50.0, 5, size=(beam_healpix.Nspws, beam_healpix.Nfreqs)
-    )
-    beam_healpix.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(beam_healpix.Nspws, beam_healpix.Nfreqs)
-    )
-    beam_healpix.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, beam_healpix.Nspws, beam_healpix.Nfreqs)
-    )
+    if future_shapes:
+        beam_healpix.use_future_array_shapes()
 
     # Test adding a different combo with healpix
     beam_ref = beam_healpix.copy()
@@ -2429,8 +2518,8 @@ def test_add_healpix(
         beam1.history,
     )
     # Zero out missing data in reference object
-    beam_ref.data_array[:, :, :, 0, beam_healpix.Npixels // 2 :] = 0.0
-    beam_ref.data_array[:, :, :, 1, : beam_healpix.Npixels // 2] = 0.0
+    beam_ref.data_array[..., 0, beam_healpix.Npixels // 2 :] = 0.0
+    beam_ref.data_array[..., 1, : beam_healpix.Npixels // 2] = 0.0
     beam1.history = beam_healpix.history
     assert beam1 == beam_ref
 
@@ -2451,8 +2540,8 @@ def test_add_healpix(
             beam1.history,
         )
         # Zero out missing data in reference object
-        beam_ref.data_array[:, :, 1, 0, :] = 0.0
-        beam_ref.data_array[:, :, 0, 1, :] = 0.0
+        beam_ref.data_array[..., 1, 0, :] = 0.0
+        beam_ref.data_array[..., 0, 1, :] = 0.0
         beam1.history = beam_healpix.history
         assert beam1 == beam_ref
 
@@ -2483,8 +2572,14 @@ def test_add_healpix(
         beam1.__iadd__(beam2)
 
 
-def test_beam_area_healpix(cst_power_1freq_cut_healpix, cst_efield_1freq_cut_healpix):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_beam_area_healpix(
+    future_shapes, cst_power_1freq_cut_healpix, cst_efield_1freq_cut_healpix
+):
     power_beam_healpix = cst_power_1freq_cut_healpix
+
+    if future_shapes:
+        power_beam_healpix.use_future_array_shapes()
 
     # Test beam area methods
     # Check that non-peak normalizations error
@@ -2509,6 +2604,7 @@ def test_beam_area_healpix(cst_power_1freq_cut_healpix, cst_efield_1freq_cut_hea
     numfreqs = healpix_norm.freq_array.shape[-1]
     beam_int = healpix_norm.get_beam_area(pol="xx")
     beam_sq_int = healpix_norm.get_beam_sq_area(pol="xx")
+    print(beam_int.shape)
     assert beam_int.shape[0] == numfreqs
     assert beam_sq_int.shape[0] == numfreqs
 
@@ -2562,7 +2658,10 @@ def test_beam_area_healpix(cst_power_1freq_cut_healpix, cst_efield_1freq_cut_hea
     ):
         healpix_norm.get_beam_sq_area(pol="xx")
 
-    efield_beam = cst_efield_1freq_cut_healpix
+    efield_beam = cst_efield_1freq_cut_healpix.copy()
+    if future_shapes:
+        efield_beam.use_future_array_shapes()
+
     healpix_norm_fullpol = efield_beam.efield_to_power(inplace=False)
     healpix_norm_fullpol.peak_normalize()
     xx_area = healpix_norm_fullpol.get_beam_sq_area("XX")
@@ -2595,6 +2694,8 @@ def test_beam_area_healpix(cst_power_1freq_cut_healpix, cst_efield_1freq_cut_hea
 
     # check pseudo-Stokes parameters
     efield_beam = cst_efield_1freq_cut_healpix
+    if future_shapes:
+        efield_beam.use_future_array_shapes()
 
     efield_beam.efield_to_pstokes()
     efield_beam.peak_normalize()
@@ -2648,10 +2749,12 @@ def test_get_beam_functions(cst_power_1freq_cut_healpix):
         healpix_power_beam._get_beam(4)
 
 
-def test_generic_read_cst():
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_generic_read_cst(future_shapes):
     uvb = UVBeam()
     uvb.read(
         cst_files,
+        use_future_array_shapes=future_shapes,
         beam_type="power",
         frequency=np.array([150e6, 123e6]),
         feed_pol="y",
@@ -2665,15 +2768,16 @@ def test_generic_read_cst():
     assert uvb.check()
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize(
     "filename",
     [cst_yaml_file, mwa_beam_file, casa_beamfits],
 )
-def test_generic_read(filename):
+def test_generic_read(filename, future_shapes):
     """Test generic read can infer the file types correctly."""
     uvb = UVBeam()
     # going to check in a second anyway, no need to double check.
-    uvb.read(filename, run_check=False)
+    uvb.read(filename, use_future_array_shapes=future_shapes, run_check=False)
     # hera casa beam is missing some parameters but we just want to check
     # that reading is going okay
     if filename == casa_beamfits:
@@ -2774,17 +2878,20 @@ def test_generic_read_all_bad_files(tmp_path):
         uvb3.read(filenames, skip_bad_files=True)
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize(
     "filename",
     [cst_yaml_file, mwa_beam_file, casa_beamfits],
 )
-def test_from_file(filename):
+def test_from_file(future_shapes, filename):
     """Test from file produces same the results as reading explicitly."""
     uvb = UVBeam()
     # don't run checks because of casa_beamfits, we'll do that later
     uvb.read(filename, run_check=False)
-    uvb2 = UVBeam.from_file(filename, run_check=False)
-    uvb.read(filename, run_check=False)
+    uvb2 = UVBeam.from_file(
+        filename, use_future_array_shapes=future_shapes, run_check=False
+    )
+    uvb.read(filename, use_future_array_shapes=future_shapes, run_check=False)
     # hera casa beam is missing some parameters but we just want to check
     # that reading is going okay
     if filename == casa_beamfits:

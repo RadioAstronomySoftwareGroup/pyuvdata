@@ -479,6 +479,7 @@ class MWABeam(UVBeam):
     def read_mwa_beam(
         self,
         h5filepath,
+        use_future_array_shapes=False,
         delays=None,
         amplitudes=None,
         pixels_per_deg=5,
@@ -498,6 +499,9 @@ class MWABeam(UVBeam):
             path to input h5 file containing the MWA full embedded element spherical
             harmonic modes. Download via
             `wget http://cerberus.mwa128t.org/mwa_full_embedded_element_pattern.h5`
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
         delays : array of ints
             Array of MWA beamformer delay steps. Should be shape (n_pols, n_dipoles).
         amplitudes : array of floats
@@ -691,6 +695,9 @@ class MWABeam(UVBeam):
         )
         self.basis_vector_array[0, 0, :, :] = 1.0
         self.basis_vector_array[1, 1, :, :] = 1.0
+
+        if use_future_array_shapes:
+            self.use_future_array_shapes()
 
         if run_check:
             self.check(

@@ -61,6 +61,7 @@ class BeamFITS(UVBeam):
     def read_beamfits(
         self,
         filename,
+        use_future_array_shapes=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -77,6 +78,9 @@ class BeamFITS(UVBeam):
         ----------
         filename : str
             The beamfits file to read from.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
         run_check : bool
             Option to check for the existence and proper shapes of
             required parameters after reading in the file.
@@ -243,11 +247,16 @@ class BeamFITS(UVBeam):
                     primary_header.pop("CTYPE" + str(ax_nums["spw"])).lower().strip()
                     == "if"
                 ):
-                    self.Nspws = primary_header.pop("NAXIS" + str(ax_nums["spw"]), None)
-                    # subtract 1 to be zero-indexed
-                    self.spw_array = (
-                        uvutils._fits_gethduaxis(primary_hdu, ax_nums["spw"]) - 1
-                    )
+                    file_nspws = primary_header.pop("NAXIS" + str(ax_nums["spw"]), None)
+                    if file_nspws > 1:
+                        raise (
+                            NotImplementedError,
+                            "beamfits does not support having a spectral window axis "
+                            "larger than one. Spectral windows are instead supported"
+                            "through the flexible spectral window mechanism.",
+                        )
+                    self.Nspws = 1
+                    self.spw_array = np.array([0])
 
             if n_dimensions > ax_nums["basisvec"] - 1:
                 if (
@@ -277,7 +286,7 @@ class BeamFITS(UVBeam):
                 self.Nspws = 1
 
             self.freq_array = uvutils._fits_gethduaxis(primary_hdu, ax_nums["freq"])
-            self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
+            self.freq_array.shape = (1, self.freq_array.size)
             # default frequency axis is Hz, but check for corresonding CUNIT
             freq_units = primary_header.pop("CUNIT" + str(ax_nums["freq"]), "Hz")
             if freq_units != "Hz":
@@ -502,14 +511,20 @@ class BeamFITS(UVBeam):
 
                 if "rx_temp" in columns:
                     self.receiver_temperature_array = freq_data["rx_temp"]
+                    if freq_range is not None:
+                        self.receiver_temperature_array = self.receiver_temperature_array[freq_mask]
                     self.receiver_temperature_array = self.receiver_temperature_array[
                         np.newaxis, :
                     ]
                 if "loss" in columns:
                     self.loss_array = freq_data["loss"]
+                    if freq_range is not None:
+                        self.loss_array = self.loss_array[freq_mask]
                     self.loss_array = self.loss_array[np.newaxis, :]
                 if "mismatch" in columns:
                     self.mismatch_array = freq_data["mismatch"]
+                    if freq_range is not None:
+                        self.mismatch_array = self.mismatch_array[freq_mask]
                     self.mismatch_array = self.mismatch_array[np.newaxis, :]
                 if "s11" in columns:
                     s11 = freq_data["s11"]
@@ -521,9 +536,14 @@ class BeamFITS(UVBeam):
                     self.s_parameters[1, 0, :] = s12
                     self.s_parameters[2, 0, :] = s21
                     self.s_parameters[3, 0, :] = s22
+                    if freq_range is not None:
+                        self.s_parameters = self.s_parameters[:, :, freq_mask]
             else:
                 # no bandpass information, set it to an array of ones
-                self.bandpass_array = np.zeros((self.Nspws, self.Nfreqs)) + 1.0
+                self.bandpass_array = np.zeros((1, self.Nfreqs)) + 1.0
+
+        if use_future_array_shapes:
+            self.use_future_array_shapes()
 
         if run_check:
             self.check(
@@ -584,7 +604,10 @@ class BeamFITS(UVBeam):
             )
 
         if self.Nfreqs > 1:
-            freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
+            if self.future_array_shapes:
+                freq_spacing = self.freq_array[1:] - self.freq_array[:-1]
+            else:
+                freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
             if not uvutils._test_array_constant(freq_spacing, self._freq_array.tols):
                 raise ValueError(
                     "The frequencies are not evenly spaced (probably "
@@ -694,9 +717,13 @@ class BeamFITS(UVBeam):
             primary_header["CUNIT" + str(ax_nums["img_ax2"])] = "deg"
 
         # set up frequency axis
+        if self.future_array_shapes:
+            freq_ref = self.freq_array[0]
+        else:
+            freq_ref = self.freq_array[0, 0]
         primary_header["CTYPE" + str(ax_nums["freq"])] = "FREQ"
         primary_header["CUNIT" + str(ax_nums["freq"])] = "Hz"
-        primary_header["CRVAL" + str(ax_nums["freq"])] = self.freq_array[0, 0]
+        primary_header["CRVAL" + str(ax_nums["freq"])] = freq_ref
         primary_header["CRPIX" + str(ax_nums["freq"])] = 1
         primary_header["CDELT" + str(ax_nums["freq"])] = freq_spacing
 
@@ -758,6 +785,9 @@ class BeamFITS(UVBeam):
                 "Unknown beam_type: {type}, beam_type should be "
                 '"efield" or "power".'.format(type=self.beam_type)
             )
+        if self.future_array_shapes:
+            primary_data = primary_data[:, np.newaxis]
+
         primary_header["CRPIX" + str(ax_nums["feed_pol"])] = 1
 
         # set up spw axis
@@ -903,38 +933,74 @@ class BeamFITS(UVBeam):
 
         # check for frequency-specific optional arrays. If they're not None,
         # add them to the BANDPARM binary table HDU along with the bandpass_array
-        bandpass_col = fits.Column(
-            name="bandpass", format="D", array=self.bandpass_array[0, :]
-        )
-        col_list = [bandpass_col]
-
-        if self.receiver_temperature_array is not None:
-            rx_temp_col = fits.Column(
-                name="rx_temp", format="D", array=self.receiver_temperature_array[0, :]
+        if self.future_array_shapes:
+            bandpass_col = fits.Column(
+                name="bandpass", format="D", array=self.bandpass_array
             )
-            col_list.append(rx_temp_col)
-        if self.loss_array is not None:
-            loss_col = fits.Column(name="loss", format="D", array=self.loss_array[0, :])
-            col_list.append(loss_col)
-        if self.mismatch_array is not None:
-            mismatch_col = fits.Column(
-                name="mismatch", format="D", array=self.mismatch_array[0, :]
+            col_list = [bandpass_col]
+            if self.receiver_temperature_array is not None:
+                rx_temp_col = fits.Column(
+                    name="rx_temp", format="D", array=self.receiver_temperature_array
+                )
+                col_list.append(rx_temp_col)
+            if self.loss_array is not None:
+                loss_col = fits.Column(name="loss", format="D", array=self.loss_array)
+                col_list.append(loss_col)
+            if self.mismatch_array is not None:
+                mismatch_col = fits.Column(
+                    name="mismatch", format="D", array=self.mismatch_array
+                )
+                col_list.append(mismatch_col)
+            if self.s_parameters is not None:
+                s11_col = fits.Column(
+                    name="s11", format="D", array=self.s_parameters[0, :]
+                )
+                s12_col = fits.Column(
+                    name="s12", format="D", array=self.s_parameters[1, :]
+                )
+                s21_col = fits.Column(
+                    name="s21", format="D", array=self.s_parameters[2, :]
+                )
+                s22_col = fits.Column(
+                    name="s22", format="D", array=self.s_parameters[3, :]
+                )
+                col_list += [s11_col, s12_col, s21_col, s22_col]
+        else:
+            bandpass_col = fits.Column(
+                name="bandpass", format="D", array=self.bandpass_array[0, :]
             )
-            col_list.append(mismatch_col)
-        if self.s_parameters is not None:
-            s11_col = fits.Column(
-                name="s11", format="D", array=self.s_parameters[0, 0, :]
-            )
-            s12_col = fits.Column(
-                name="s12", format="D", array=self.s_parameters[1, 0, :]
-            )
-            s21_col = fits.Column(
-                name="s21", format="D", array=self.s_parameters[2, 0, :]
-            )
-            s22_col = fits.Column(
-                name="s22", format="D", array=self.s_parameters[3, 0, :]
-            )
-            col_list += [s11_col, s12_col, s21_col, s22_col]
+            col_list = [bandpass_col]
+            if self.receiver_temperature_array is not None:
+                rx_temp_col = fits.Column(
+                    name="rx_temp",
+                    format="D",
+                    array=self.receiver_temperature_array[0, :],
+                )
+                col_list.append(rx_temp_col)
+            if self.loss_array is not None:
+                loss_col = fits.Column(
+                    name="loss", format="D", array=self.loss_array[0, :]
+                )
+                col_list.append(loss_col)
+            if self.mismatch_array is not None:
+                mismatch_col = fits.Column(
+                    name="mismatch", format="D", array=self.mismatch_array[0, :]
+                )
+                col_list.append(mismatch_col)
+            if self.s_parameters is not None:
+                s11_col = fits.Column(
+                    name="s11", format="D", array=self.s_parameters[0, 0, :]
+                )
+                s12_col = fits.Column(
+                    name="s12", format="D", array=self.s_parameters[1, 0, :]
+                )
+                s21_col = fits.Column(
+                    name="s21", format="D", array=self.s_parameters[2, 0, :]
+                )
+                s22_col = fits.Column(
+                    name="s22", format="D", array=self.s_parameters[3, 0, :]
+                )
+                col_list += [s11_col, s12_col, s21_col, s22_col]
 
         coldefs = fits.ColDefs(col_list)
         bandpass_hdu = fits.BinTableHDU.from_columns(coldefs)
