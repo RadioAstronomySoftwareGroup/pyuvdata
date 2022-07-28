@@ -55,6 +55,7 @@ class CSTBeam(UVBeam):
         self,
         filename,
         beam_type="power",
+        use_future_array_shapes=False,
         feed_pol="x",
         rotate_pol=True,
         frequency=None,
@@ -82,6 +83,9 @@ class CSTBeam(UVBeam):
             The cst file to read from.
         beam_type : str
             What beam_type to read in ('power' or 'efield').
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
         feed_pol : str
             The feed or polarization or list of feeds or polarizations the
             files correspond to.
@@ -356,6 +360,9 @@ class CSTBeam(UVBeam):
                 "No frequency provided. Detected frequency is: "
                 "{freqs} Hz".format(freqs=self.freq_array)
             )
+
+        if use_future_array_shapes:
+            self.use_future_array_shapes()
 
         if run_check:
             self.check(

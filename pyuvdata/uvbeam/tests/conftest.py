@@ -15,6 +15,12 @@ filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
 cst_folder = "NicCSTbeams"
 cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
 
+# define some values for optional params here so same across efield & power beams
+receiver_temperature_array = np.random.normal(50.0, 5, size=(1, 2))
+loss_array = np.random.normal(50.0, 5, size=(1, 2))
+mismatch_array = np.random.normal(0.0, 1.0, size=(1, 2))
+s_parameters = np.random.normal(0.0, 0.3, size=(4, 1, 2))
+
 
 def make_cst_beam(beam_type):
     """Make the default CST testing beam."""
@@ -44,6 +50,14 @@ def make_cst_beam(beam_type):
         ),
         extra_keywords=extra_keywords,
     )
+
+    # add optional parameters for testing purposes
+    beam.reference_impedance = 340.0
+    beam.receiver_temperature_array = receiver_temperature_array
+    beam.loss_array = loss_array
+    beam.mismatch_array = mismatch_array
+    beam.s_parameters = s_parameters
+
     return beam
 
 
