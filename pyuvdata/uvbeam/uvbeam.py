@@ -642,13 +642,6 @@ class UVBeam(UVBase):
             "freq_array",
         ]
 
-    @property
-    def freq_like_parameters(self):
-        """Iterate defined parameters which are shaped like the freq_array."""
-        for key in self._freq_params:
-            if hasattr(self, key):
-                yield getattr(self, key)
-
     def _set_future_array_shapes(self):
         """
         Set future_array_shapes to True and adjust required parameters.
@@ -2007,7 +2000,10 @@ class UVBeam(UVBase):
                             input_data_array[data_inds],
                         )
 
-                    interp_data[index0, 0, index2, index3, :] = hmap
+                    if self.future_array_shapes:
+                        interp_data[index0, index2, index3, :] = hmap
+                    else:
+                        interp_data[index0, 0, index2, index3, :] = hmap
 
         return interp_data, interp_basis_vector, interp_bandpass
 
