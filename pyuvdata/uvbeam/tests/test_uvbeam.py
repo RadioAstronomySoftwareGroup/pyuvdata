@@ -1287,9 +1287,13 @@ def test_interp_healpix_nside(cst_efield_2freq_cut, cst_efield_2freq_cut_healpix
         )
 
 
-def test_healpix_interpolation(cst_efield_2freq):
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_healpix_interpolation(future_shapes, cst_efield_2freq):
     pytest.importorskip("astropy_healpix")
     efield_beam = cst_efield_2freq
+
+    if future_shapes:
+        efield_beam.use_future_array_shapes()
 
     efield_beam.interpolation_function = "az_za_simple"
 
@@ -1426,7 +1430,10 @@ def test_healpix_interpolation(cst_efield_2freq):
     interp_data_array2, interp_basis_vector2 = power_beam.interp(
         az_array=az_orig_vals, za_array=za_orig_vals, polarizations=["yy"]
     )
-    assert np.allclose(interp_data_array[:, :, 1:2], interp_data_array2[:, :, :1])
+    if future_shapes:
+        assert np.allclose(interp_data_array[:, 1:2], interp_data_array2[:, :1])
+    else:
+        assert np.allclose(interp_data_array[:, :, 1:2], interp_data_array2[:, :, :1])
 
     # change complex data_array to real data_array and test again
     assert power_beam.data_array.dtype == np.complex128
@@ -1452,9 +1459,14 @@ def test_healpix_interpolation(cst_efield_2freq):
         )
 
     # check error when pixels out of order
-    power_beam.pixel_array = power_beam.pixel_array[
-        np.argsort(power_beam.data_array[0, 0, 0, 0, :])
-    ]
+    if future_shapes:
+        power_beam.pixel_array = power_beam.pixel_array[
+            np.argsort(power_beam.data_array[0, 0, 0, :])
+        ]
+    else:
+        power_beam.pixel_array = power_beam.pixel_array[
+            np.argsort(power_beam.data_array[0, 0, 0, 0, :])
+        ]
     with pytest.raises(
         ValueError,
         match="simple healpix interpolation requires healpix pixels to be in order.",
@@ -2372,6 +2384,18 @@ def test_add_errors(power_beam_for_adding, efield_beam_for_adding):
             match=f"UVParameter {param} does not match. Cannot combine objects.",
         ):
             beam1_copy.__iadd__(beam2_copy)
+
+    # different future shapes
+    beam1_copy = beam1.copy()
+    beam2_copy = beam2.copy()
+    beam2_copy.use_future_array_shapes()
+
+    with pytest.raises(
+        ValueError,
+        match="Both objects must have the same `future_array_shapes` parameter.",
+    ):
+        beam1_copy.__iadd__(beam2_copy)
+
     del beam1_copy
     del beam2_copy
 

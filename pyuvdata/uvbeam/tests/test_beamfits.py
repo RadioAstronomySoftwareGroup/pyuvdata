@@ -346,17 +346,34 @@ def test_error_antenna_type(cst_efield_1freq, tmp_path):
 
 
 @pytest.mark.parametrize(
-    "header_dict,error_msg",
+    "header_dict,err,error_msg",
     [
-        ({"BTYPE": "foo"}, "Unknown beam_type: foo"),
-        ({"COORDSYS": "orthoslant_zenith"}, "Coordinate axis list does not match"),
-        ({"NAXIS": ""}, "beam_type is efield and data dimensionality"),
-        ({"CUNIT1": "foo"}, 'Units of first axis array are not "deg" or "rad"'),
-        ({"CUNIT2": "foo"}, 'Units of second axis array are not "deg" or "rad"'),
-        ({"CUNIT3": "foo"}, "Frequency units not recognized"),
+        ({"BTYPE": "foo"}, ValueError, "Unknown beam_type: foo"),
+        (
+            {"COORDSYS": "orthoslant_zenith"},
+            ValueError,
+            "Coordinate axis list does not match",
+        ),
+        ({"NAXIS": ""}, ValueError, "beam_type is efield and data dimensionality"),
+        (
+            {"CUNIT1": "foo"},
+            ValueError,
+            'Units of first axis array are not "deg" or "rad"',
+        ),
+        (
+            {"CUNIT2": "foo"},
+            ValueError,
+            'Units of second axis array are not "deg" or "rad"',
+        ),
+        ({"CUNIT3": "foo"}, ValueError, "Frequency units not recognized"),
+        (
+            {"NAXIS5": 2},
+            NotImplementedError,
+            "UVBeam does not support having a spectral window axis",
+        ),
     ],
 )
-def test_header_val_errors(cst_efield_1freq, tmp_path, header_dict, error_msg):
+def test_header_val_errors(cst_efield_1freq, tmp_path, header_dict, err, error_msg):
     beam_in = cst_efield_1freq
     beam_out = UVBeam()
 
@@ -380,9 +397,25 @@ def test_header_val_errors(cst_efield_1freq, tmp_path, header_dict, error_msg):
             if ax_num != "":
                 ax_num = int(ax_num)
                 ax_use = len(data.shape) - ax_num
-                new_arrays = np.split(data, primary_hdr[keyword], axis=ax_use)
-                data = new_arrays[0]
+                ax_size = primary_hdr[keyword]
+                assert new_val != ax_size
+                if new_val < ax_size:
+                    # make array bigger along specified axis
+                    data = np.moveaxis(
+                        (np.moveaxis(data, ax_use, 0))[:new_val], 0, ax_use
+                    )
+                    assert data.shape[ax_use] == new_val
+                else:
+                    # make array smaller along specified axis
+                    extra_size = new_val - ax_size
+                    added_array = np.moveaxis(
+                        (np.moveaxis(data, ax_use, 0))[:extra_size], 0, ax_use
+                    )
+                    data = np.concatenate((data, added_array), axis=ax_use)
+                    assert data.shape[ax_use] == new_val
+                primary_hdr[keyword] = new_val
             else:
+                # remove first axis
                 data = np.squeeze(
                     np.split(data, primary_hdr["NAXIS1"], axis=len(data.shape) - 1)[0]
                 )
@@ -395,7 +428,7 @@ def test_header_val_errors(cst_efield_1freq, tmp_path, header_dict, error_msg):
         hdulist.writeto(write_file2, overwrite=True)
         hdulist.close()
 
-    with pytest.raises(ValueError, match=error_msg):
+    with pytest.raises(err, match=error_msg):
         beam_out.read_beamfits(write_file2)
 
     return

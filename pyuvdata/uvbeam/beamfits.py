@@ -249,11 +249,9 @@ class BeamFITS(UVBeam):
                 ):
                     file_nspws = primary_header.pop("NAXIS" + str(ax_nums["spw"]), None)
                     if file_nspws > 1:
-                        raise (
-                            NotImplementedError,
-                            "beamfits does not support having a spectral window axis "
-                            "larger than one. Spectral windows are instead supported"
-                            "through the flexible spectral window mechanism.",
+                        raise NotImplementedError(
+                            "UVBeam does not support having a spectral window axis "
+                            "larger than one.",
                         )
                     self.Nspws = 1
                     self.spw_array = np.array([0])
