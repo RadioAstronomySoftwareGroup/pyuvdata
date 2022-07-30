@@ -307,34 +307,8 @@ def test_error_beam_type(cst_efield_1freq, tmp_path):
     return
 
 
-def test_error_antenna_type(cst_efield_1freq, tmp_path):
-    beam_in = cst_efield_1freq
-    beam_in.antenna_type = "phased_array"
-    beam_in.Nelements = 4
-    beam_in.coupling_matrix = np.zeros(
-        (
-            beam_in.Nelements,
-            beam_in.Nelements,
-            beam_in.Nfeeds,
-            beam_in.Nfeeds,
-            beam_in.Nspws,
-            beam_in.Nfreqs,
-        ),
-        dtype=complex,
-    )
-    for element in range(beam_in.Nelements):
-        beam_in.coupling_matrix[element, element] = np.ones(
-            (beam_in.Nfeeds, beam_in.Nfeeds, beam_in.Nspws, beam_in.Nfreqs)
-        )
-    beam_in.delay_array = np.zeros(beam_in.Nelements, dtype=float)
-    beam_in.gain_array = np.ones(beam_in.Nelements, dtype=float)
-    beam_in.element_coordinate_system = "x-y"
-    element_x_array, element_y_array = np.meshgrid(
-        np.arange(2) * 2.5, np.arange(2) * 2.5
-    )
-    beam_in.element_location_array = np.concatenate(
-        (np.reshape(element_x_array, (1, 4)), np.reshape(element_y_array, (1, 4)))
-    )
+def test_error_antenna_type(phased_array_beam_1freq, tmp_path):
+    beam_in = phased_array_beam_1freq
 
     write_file = str(tmp_path / "outtest_beam.fits")
     with pytest.raises(

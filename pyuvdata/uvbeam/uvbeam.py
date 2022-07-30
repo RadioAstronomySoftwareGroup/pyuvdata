@@ -1097,13 +1097,18 @@ class UVBeam(UVBase):
             Option to check optional parameters as well as required ones.
 
         """
+        if self.beam_type != "efield":
+            raise ValueError("beam_type must be efield")
+
+        if self.antenna_type == "phased_array":
+            raise NotImplementedError(
+                "Conversion to power is not yet implemented for phased_array antennas"
+            )
+
         if inplace:
             beam_object = self
         else:
             beam_object = self.copy()
-
-        if beam_object.beam_type != "efield":
-            raise ValueError("beam_type must be efield")
 
         if beam_object.Nfeeds == 1:
             # There are no cross pols with one feed. Set this so the power beam is real
@@ -1470,6 +1475,12 @@ class UVBeam(UVBase):
         interp_bandpass : array_like of float
             The interpolated bandpass. shape: (1, freq_array.size) or (freq_array.size)
             if future_array_shapes is True
+        interp_coupling_matrix : array_like of complex, optional
+            The interpolated coupling matrix. Only returned if antenna_type is
+            "phased_array".
+            shape: (Nelements, Nelements, Nfeeds, Nfeeds, 1, freq_array.size) or
+            (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size) if
+            future_array_shapes is True.
 
         """
         assert isinstance(freq_array, np.ndarray)
@@ -1493,6 +1504,8 @@ class UVBeam(UVBase):
                     self.data_array[:, :, :, nearest_inds, :],
                     self.bandpass_array[:, nearest_inds],
                 ]
+            if self.antenna_type == "phased_array":
+                interp_arrays.append(self.coupling_matrix[..., nearest_inds])
 
         # otherwise interpolate the beam
         else:
@@ -1539,6 +1552,18 @@ class UVBeam(UVBase):
                 else:
                     lut = interpolate.interp1d(beam_freqs, data, kind=kind, axis=ax)
                     lut = get_lambda(lut)
+
+                interp_arrays.append(lut(freq_array))
+
+            if self.antenna_type == "phased_array":
+                # interpolate real and imaginary parts separately
+                real_lut = interpolate.interp1d(
+                    beam_freqs, self.coupling_matrix.real, kind=kind, axis=-1
+                )
+                imag_lut = interpolate.interp1d(
+                    beam_freqs, self.coupling_matrix.imag, kind=kind, axis=-1
+                )
+                lut = get_lambda(real_lut, imag_lut)
 
                 interp_arrays.append(lut(freq_array))
 
@@ -1594,15 +1619,21 @@ class UVBeam(UVBase):
         -------
         interp_data : array_like of float or complex
             The array of interpolated data values,
-            shape: (Naxes_vec, 1, Nfeeds or Npols, Nfreqs, az_array.size) or
-            (Naxes_vec, Nfeeds or Npols, Nfreqs, az_array.size) if future_array_shapes
-            is True
+            shape: (Naxes_vec, 1, Nfeeds or Npols, freq_array.size, az_array.size) or
+            (Naxes_vec, Nfeeds or Npols, freq_array.size, az_array.size) if
+            future_array_shapes is True
         interp_basis_vector : array_like of float
             The array of interpolated basis vectors,
             shape: (Naxes_vec, Ncomponents_vec, az_array.size)
         interp_bandpass : array_like of float
             The interpolated bandpass. shape: (1, freq_array.size) or (freq_array.size,)
             if future_array_shapes is True
+        interp_coupling_matrix : array_like of complex, optional
+            The interpolated coupling matrix. Only returned if antenna_type is
+            "phased_array".
+            shape: (Nelements, Nelements, Nfeeds, Nfeeds, 1, freq_array.size) or
+            (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size) if
+            future_array_shapes is True.
 
         """
         if self.pixel_coordinate_system != "az_za":
@@ -1610,9 +1641,17 @@ class UVBeam(UVBase):
 
         if freq_array is not None:
             assert isinstance(freq_array, np.ndarray)
-            input_data_array, interp_bandpass = self._interp_freq(
+            interp_arrays = self._interp_freq(
                 freq_array, kind=freq_interp_kind, tol=freq_interp_tol
             )
+            if self.antenna_type == "phased_array":
+                (
+                    input_data_array,
+                    interp_bandpass,
+                    interp_coupling_matrix,
+                ) = interp_arrays
+            else:
+                input_data_array, interp_bandpass = interp_arrays
             input_nfreqs = freq_array.size
         else:
             input_data_array = self.data_array
@@ -1622,9 +1661,14 @@ class UVBeam(UVBase):
             else:
                 freq_array = self.freq_array[0]
             interp_bandpass = self.bandpass_array[0]
+            if self.antenna_type == "phased_array":
+                interp_coupling_matrix = self.coupling_matrix
 
         if az_array is None or za_array is None:
-            return input_data_array, self.basis_vector_array, interp_bandpass
+            interp_arrays = [input_data_array, self.basis_vector_array, interp_bandpass]
+            if self.antenna_type == "phased_array":
+                interp_arrays.append(interp_coupling_matrix)
+            return tuple(interp_arrays)
 
         assert isinstance(az_array, np.ndarray)
         assert isinstance(za_array, np.ndarray)
@@ -1816,7 +1860,10 @@ class UVBeam(UVBase):
                             za_array, az_array
                         )
 
-        return interp_data, interp_basis_vector, interp_bandpass
+        interp_arrays = [interp_data, interp_basis_vector, interp_bandpass]
+        if self.antenna_type == "phased_array":
+            interp_arrays.append(interp_coupling_matrix)
+        return tuple(interp_arrays)
 
     def _interp_healpix_bilinear(
         self,
@@ -1861,6 +1908,12 @@ class UVBeam(UVBase):
         interp_bandpass : array_like of float
             The interpolated bandpass. shape: (1, freq_array.size) or (freq_array.size,)
             if future_array_shapes is True
+        interp_coupling_matrix : array_like of complex, optional
+            The interpolated coupling matrix. Only returned if antenna_type is
+            "phased_array".
+            shape: (Nelements, Nelements, Nfeeds, Nfeeds, 1, freq_array.size) or
+            (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size) if
+            future_array_shapes is True.
 
         """
         try:
@@ -1886,18 +1939,31 @@ class UVBeam(UVBase):
 
         if freq_array is not None:
             assert isinstance(freq_array, np.ndarray)
-            input_data_array, interp_bandpass = self._interp_freq(
+            interp_arrays = self._interp_freq(
                 freq_array, kind=freq_interp_kind, tol=freq_interp_tol
             )
+            if self.antenna_type == "phased_array":
+                (
+                    input_data_array,
+                    interp_bandpass,
+                    interp_coupling_matrix,
+                ) = interp_arrays
+            else:
+                input_data_array, interp_bandpass = interp_arrays
             input_nfreqs = freq_array.size
         else:
             input_data_array = self.data_array
             input_nfreqs = self.Nfreqs
             freq_array = self.freq_array[0]
             interp_bandpass = self.bandpass_array[0]
+            if self.antenna_type == "phased_array":
+                interp_coupling_matrix = self.coupling_matrix
 
         if az_array is None or za_array is None:
-            return input_data_array, self.basis_vector_array, interp_bandpass
+            interp_arrays = [input_data_array, self.basis_vector_array, interp_bandpass]
+            if self.antenna_type == "phased_array":
+                interp_arrays.append(interp_coupling_matrix)
+            return tuple(interp_arrays)
 
         assert isinstance(az_array, np.ndarray)
         assert isinstance(za_array, np.ndarray)
@@ -2006,7 +2072,10 @@ class UVBeam(UVBase):
                     else:
                         interp_data[index0, 0, index2, index3, :] = hmap
 
-        return interp_data, interp_basis_vector, interp_bandpass
+        interp_arrays = [interp_data, interp_basis_vector, interp_bandpass]
+        if self.antenna_type == "phased_array":
+            interp_arrays.append(interp_coupling_matrix)
+        return tuple(interp_arrays)
 
     def interp(
         self,
@@ -2019,6 +2088,7 @@ class UVBeam(UVBase):
         freq_interp_tol=1.0,
         polarizations=None,
         return_bandpass=False,
+        return_coupling=False,
         reuse_spline=False,
         spline_opts=None,
         new_object=False,
@@ -2096,19 +2166,32 @@ class UVBeam(UVBase):
             Nfreqs or freq_array.size if freq_array is passed, Npixels/(Naxis1, Naxis2)
             or az_array.size if az/za_arrays are passed) if future_array_shapes is True.
         interp_basis_vector : array_like of float, optional
-            an array of interpolated basis vectors (or self.basis_vector_array
-            if az/za_arrays are not passed), shape: (Naxes_vec, Ncomponents_vec,
-            Npixels/(Naxis1, Naxis2) or az_array.size if az/za_arrays are passed)
+            The array of interpolated basis vectors (or self.basis_vector_array
+            if az/za_arrays are not passed). Only returned if `new_object` is False.
+            shape: (Naxes_vec, Ncomponents_vec, Npixels/(Naxis1, Naxis2) or
+            az_array.size if az/za_arrays are passed)
         interp_bandpass : array_like of float, optional
-            The interpolated bandpass, only returned if `return_bandpass` is True.
+            The interpolated bandpass, only returned if `return_bandpass` is True and
+            `new_object` is False.
             shape: (1, freq_array.size) or (freq_array.size,) if future_array_shapes is
             True.
+        interp_coupling_matrix : array_like of complex, optional
+            The interpolated coupling matrix. Only returned if return_coupling is True
+            and `new_object` is False.
+            shape: (Nelements, Nelements, Nfeeds, Nfeeds, 1, freq_array.size) or
+            (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size) if
+            future_array_shapes is True.
 
         """
         if self.interpolation_function is None:
             raise ValueError("interpolation_function must be set on object first")
         if self.freq_interp_kind is None:
             raise ValueError("freq_interp_kind must be set on object first")
+
+        if return_coupling is True and self.antenna_type != "phased_array":
+            raise ValueError(
+                "return_coupling can only be set if antenna_type is phased_array"
+            )
 
         if new_object:
             if not az_za_grid and az_array is not None:
@@ -2173,7 +2256,7 @@ class UVBeam(UVBase):
             extra_keyword_dict["spline_opts"] = spline_opts
             extra_keyword_dict["check_azza_domain"] = check_azza_domain
 
-        interp_data, interp_basis_vector, interp_bandpass = getattr(self, interp_func)(
+        interp_arrays = getattr(self, interp_func)(
             az_array_use,
             za_array_use,
             freq_array,
@@ -2182,12 +2265,23 @@ class UVBeam(UVBase):
             **extra_keyword_dict,
         )
 
+        if self.antenna_type == "simple":
+            interp_data, interp_basis_vector, interp_bandpass = interp_arrays
+        else:
+            (
+                interp_data,
+                interp_basis_vector,
+                interp_bandpass,
+                interp_coupling_matrix,
+            ) = interp_arrays
         # return just the interpolated arrays
         if not new_object:
+            interp_arrays = [interp_data, interp_basis_vector]
             if return_bandpass:
-                return interp_data, interp_basis_vector, interp_bandpass
-            else:
-                return interp_data, interp_basis_vector
+                interp_arrays.append(interp_bandpass)
+            if return_coupling:
+                interp_arrays.append(interp_coupling_matrix)
+            return tuple(interp_arrays)
 
         # return a new UVBeam object with interpolated data
         else:
@@ -2204,6 +2298,9 @@ class UVBeam(UVBase):
                     new_uvb.freq_array = freq_array.reshape(1, -1)
                 new_uvb.bandpass_array = interp_bandpass
                 new_uvb.freq_interp_kind = kind_use
+
+                if self.antenna_type == "phased_array":
+                    new_uvb.coupling_matrix = interp_coupling_matrix
 
                 optional_freq_params = [
                     "receiver_temperature_array",
@@ -2582,6 +2679,7 @@ class UVBeam(UVBase):
         # Check objects are compatible
         compatibility_params = [
             "_beam_type",
+            "_antenna_type",
             "_data_normalization",
             "_telescope_name",
             "_feed_name",
@@ -2593,6 +2691,15 @@ class UVBeam(UVBase):
             "_nside",
             "_ordering",
         ]
+        if this.antenna_type == "phased_array":
+            compatibility_params.extend(
+                [
+                    "_Nelements",
+                    "_delay_array",
+                    "_element_coordinate_system",
+                    "_element_location_array",
+                ]
+            )
         for a in compatibility_params:
             if getattr(this, a) != getattr(other, a):
                 msg = (
@@ -2917,6 +3024,16 @@ class UVBeam(UVBase):
                     this.s_parameters = np.concatenate(
                         [this.s_parameters, np.zeros((4, 1, len(fnew_inds)))], axis=2
                     )[:, :, order]
+            if this.antenna_type == "phased_array":
+                coupling_pad_dims = tuple(
+                    list(this.coupling_matrix.shape[0:-1]) + [len(fnew_inds)]
+                )
+                coupling_zero_pad = np.zeros(
+                    coupling_pad_dims, dtype=this.coupling_matrix.dtype
+                )
+                this.coupling_matrix = np.concatenate(
+                    [this.coupling_matrix, coupling_zero_pad], axis=-1
+                )[..., order]
 
         if len(pnew_inds) > 0:
             if self.future_array_shapes:
@@ -2943,6 +3060,32 @@ class UVBeam(UVBase):
                 )
                 order = np.argsort(this.feed_array)
                 this.feed_array = this.feed_array[order]
+
+                if this.antenna_type == "phased_array":
+                    # have to concat twice because two axes are feed axes
+                    coupling_pad_dims = tuple(
+                        list(this.coupling_matrix.shape[0:2])
+                        + [len(pnew_inds)]
+                        + list(this.coupling_matrix.shape[3:])
+                    )
+                    coupling_zero_pad = np.zeros(
+                        coupling_pad_dims, dtype=this.coupling_matrix.dtype
+                    )
+                    this.coupling_matrix = np.concatenate(
+                        [this.coupling_matrix, coupling_zero_pad], axis=2
+                    )[:, :, order]
+
+                    coupling_pad_dims = tuple(
+                        list(this.coupling_matrix.shape[0:3])
+                        + [len(pnew_inds)]
+                        + list(this.coupling_matrix.shape[4:])
+                    )
+                    coupling_zero_pad = np.zeros(
+                        coupling_pad_dims, dtype=this.coupling_matrix.dtype
+                    )
+                    this.coupling_matrix = np.concatenate(
+                        [this.coupling_matrix, coupling_zero_pad], axis=3
+                    )[:, :, :, order]
 
             if self.future_array_shapes:
                 this.data_array = np.concatenate(
@@ -3037,6 +3180,17 @@ class UVBeam(UVBase):
                 this.mismatch_array[np.ix_(freq_t2o)] = other.mismatch_array
             if this.s_parameters is not None:
                 this.s_parameters[np.ix_(np.arange(4), freq_t2o)] = other.s_parameters
+
+            if this.antenna_type == "phased_array":
+                this.coupling_matrix[
+                    np.ix_(
+                        np.arange(this.Nelements),
+                        np.arange(this.Nelements),
+                        pol_t2o,
+                        pol_t2o,
+                        freq_t2o,
+                    )
+                ] = other.coupling_matrix
         else:
             this.bandpass_array[np.ix_([0], freq_t2o)] = other.bandpass_array
 
@@ -3052,6 +3206,18 @@ class UVBeam(UVBase):
                 this.s_parameters[
                     np.ix_(np.arange(4), [0], freq_t2o)
                 ] = other.s_parameters
+
+            if this.antenna_type == "phased_array":
+                this.coupling_matrix[
+                    np.ix_(
+                        np.arange(this.Nelements),
+                        np.arange(this.Nelements),
+                        pol_t2o,
+                        pol_t2o,
+                        [0],
+                        freq_t2o,
+                    )
+                ] = other.coupling_matrix
 
         this.Nfreqs = this.freq_array.size
 
@@ -3391,6 +3557,14 @@ class UVBeam(UVBase):
         if feeds is not None:
             if beam_object.beam_type == "power":
                 raise ValueError("feeds cannot be used with power beams")
+
+            if beam_object.antenna_type == "phased_array":
+                warnings.warn(
+                    "Downselecting feeds on phased array beams will lead to loss of "
+                    "information that cannot be recovered by selecting the other feed "
+                    "because the cross-feed coupling matrix elements can only be "
+                    "represented when all feeds are present."
+                )
             x_orient_dict = {}
             if beam_object.x_orientation is not None:
                 for key, value in uvutils._x_orientation_rep_dict(
@@ -3431,6 +3605,15 @@ class UVBeam(UVBase):
                 beam_object.data_array = beam_object.data_array[..., feed_inds, :, :]
             else:
                 beam_object.data_array = beam_object.data_array[..., feed_inds, :, :, :]
+
+            if beam_object.antenna_type == "phased_array":
+                # have to select twice because two axes are feed axes
+                beam_object.coupling_matrix = beam_object.coupling_matrix[
+                    :, :, feed_inds
+                ]
+                beam_object.coupling_matrix = beam_object.coupling_matrix[
+                    :, :, :, feed_inds
+                ]
 
         if polarizations is not None:
             if beam_object.beam_type == "efield":
