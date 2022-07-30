@@ -253,8 +253,9 @@ class BeamFITS(UVBeam):
                             "UVBeam does not support having a spectral window axis "
                             "larger than one.",
                         )
-                    self.Nspws = 1
-                    self.spw_array = np.array([0])
+                    if not use_future_array_shapes:
+                        self.Nspws = 1
+                        self.spw_array = np.array([0])
 
             if n_dimensions > ax_nums["basisvec"] - 1:
                 if (
@@ -270,7 +271,7 @@ class BeamFITS(UVBeam):
             if (
                 self.Nspws is None or self.Naxes_vec is None
             ) and self.beam_type == "power":
-                if self.Nspws is None:
+                if self.Nspws is None and not use_future_array_shapes:
                     self.Nspws = 1
                     self.spw_array = np.array([0])
                 if self.Naxes_vec is None:
@@ -279,9 +280,6 @@ class BeamFITS(UVBeam):
                 # add extra empty dimensions to data_array as appropriate
                 while len(data.shape) < n_efield_dims - 1:
                     data = np.expand_dims(data, axis=0)
-
-            if self.Nspws is None:
-                self.Nspws = 1
 
             self.freq_array = uvutils._fits_gethduaxis(primary_hdu, ax_nums["freq"])
             self.freq_array.shape = (1, self.freq_array.size)

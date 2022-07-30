@@ -77,6 +77,7 @@ class UVBeam(UVBase):
             "More than one spectral window is not "
             "currently supported.",
             expected_type=int,
+            required=False,
         )
 
         desc = (
@@ -298,6 +299,7 @@ class UVBeam(UVBase):
             description="Array of spectral window Numbers, shape (Nspws)",
             form=("Nspws",),
             expected_type=int,
+            required=False,
         )
 
         desc = (
@@ -690,6 +692,12 @@ class UVBeam(UVBase):
         if self.s_parameters is not None:
             self.s_parameters = self.s_parameters[:, 0, :]
 
+        # remove spw_array and Nspws if they have default values. They are now
+        # optional and currently have no utility.
+        if self.spw_array == np.array([0]) and self.Nspws == 1:
+            self.spw_array = None
+            self.Nspws = None
+
     def use_current_array_shapes(self):
         """
         Change the array shapes of this object to match the current future shapes.
@@ -730,6 +738,10 @@ class UVBeam(UVBase):
             param = getattr(self, param_name)
             if param is not None:
                 setattr(self, param_name, param[np.newaxis, :])
+
+        if self.spw_array is None and self.Nspws is None:
+            self.Nspws = 1
+            self.spw_array = np.array([0])
 
     def _set_cs_params(self):
         """Set parameters depending on pixel_coordinate_system."""
