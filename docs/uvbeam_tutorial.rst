@@ -4,8 +4,8 @@ UVBeam
 
 UVBeam objects hold all of the metadata and data required to work with primary beam
 models for radio telescopes. UVBeam supports both E-field and power beams
-(labelled by the ``beam_type`` attribute) in a few different coordinate and gridding
-systems (e.g. regular azimuth/zenith angle grids, zenith-based HEALPix grids, labelled
+(labeled by the ``beam_type`` attribute) in a few different coordinate and gridding
+systems (e.g. regular azimuth/zenith angle grids, zenith-based HEALPix grids, labeled
 by the ``pixel_coordinate_system`` attribute).
 
 For E-field beams, UVBeam supports specifying the E-field components in two or three
@@ -60,6 +60,40 @@ parameters for common beam pixel and E-field coordinate systems include:
     - ``basis_vector_array[0, 1, :] = 0``
     - ``basis_vector_array[1, 0, :] = 0``
     - ``basis_vector_array[1, 1, :] = 1``
+
+UVBeam: parameter shape changes
+-------------------------------
+As detailed in :ref:`uvdata_future_shapes`, UVData objects now support flexible spectral
+windows and will have several parameter shapes change in version 3.0. UVData objects
+also have a method to convert to the planned future array shapes now to support an
+orderly conversion of code and packages that use UVData objects to the future shapes.
+
+UVBeam objects will also see parameter shape changes in version 3.0, but will not add
+support for flexible spectral windows as there does not currently seem to be a need for
+spectral window support currently in UVBeam.
+
+In version 3.0, several parameters will change shape. The length 1 axis that was
+originally intended for the spectral windows axis will be removed from the
+``data_array`` , ``freq_array``, ``bandpass_array``, ``receiver_temperature_array``,
+``loss_array``, ``mismatch_array``, ``s_parameters`` and ``coupling_matrix``.
+In addition, the ``spw_array`` and ``Nspws`` parameters will become optional.
+
+In order to support an orderly conversion of code and packages that use the UVBeam
+object to these new parameter shapes, we have created the
+:meth:`pyuvdata.UVBeam.use_future_array_shapes` method which will change the parameters
+listed above to have their future shapes. We have also added ``use_future_array_shapes``
+parameters to the :meth:`pyuvdata.UVBeam.read` and :meth:`pyuvdata.UVBeam.from_file` methods
+(as well as the underlying :meth:`pyuvdata.UVBeam.read_beamfits`,
+:meth:`pyuvdata.UVBeam.read_cst_beam`, :meth:`pyuvdata.UVBeam.read_mwa_beam` methods),
+which can be set to ``True`` to yield an object with the future shapes. Users writing
+new code that uses UVBeam objects are encouraged to call the ``use_future_array_shapes``
+method immediately after creating a UVBeam object or use the corresponding parameter
+when reading in data from a file to ensure that the code will be compatible with the
+forthcoming changes. Developers and maintainers of existing code that uses UVBeam
+objects are encouraged to similarly update their code to use the new shapes at their
+earliest convenience to ensure future compatibility. The method and parameters will be
+deprecated but not removed in version 3.0 (it will just become a no-op) so that code
+that calls it will continue to function.
 
 UVBeam: Reading/writing
 -----------------------
