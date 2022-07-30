@@ -669,13 +669,19 @@ class UVBeam(UVBase):
             "Nfreqs",
         )
 
-    def use_future_array_shapes(self):
+    def use_future_array_shapes(self, unset_spw_params=True):
         """
         Change the array shapes of this object to match the planned future shapes.
 
         This method sets allows users to convert to the planned array shapes changes
         before the changes go into effect. This method sets the `future_array_shapes`
         parameter on this object to True.
+
+        Parameters
+        ----------
+        unset_spw_params : bool
+            Option to unset the (now optional) spectral window related parameters
+            (spw_array and Nspws).
 
         """
         if self.future_array_shapes:
@@ -693,18 +699,24 @@ class UVBeam(UVBase):
         if self.s_parameters is not None:
             self.s_parameters = self.s_parameters[:, 0, :]
 
-        # remove spw_array and Nspws if they have default values. They are now
-        # optional and currently have no utility.
-        if self.spw_array == np.array([0]) and self.Nspws == 1:
+        if unset_spw_params:
             self.spw_array = None
             self.Nspws = None
 
-    def use_current_array_shapes(self):
+    def use_current_array_shapes(self, set_spw_params=True):
         """
         Change the array shapes of this object to match the current future shapes.
 
         This method sets allows users to convert back to the current array shapes.
         This method sets the `future_array_shapes` parameter on this object to False.
+
+        Parameters
+        ----------
+        set_spw_params : bool
+            Option to set the spectral window related parameters (spw_array and Nspws)
+            to their default values if they are not set. These parameters are optional,
+            but were required in the past.
+
         """
         if not self.future_array_shapes:
             raise ValueError("This object already has the current array shapes.")
@@ -740,7 +752,7 @@ class UVBeam(UVBase):
             if param is not None:
                 setattr(self, param_name, param[np.newaxis, :])
 
-        if self.spw_array is None and self.Nspws is None:
+        if self.spw_array is None and self.Nspws is None and set_spw_params:
             self.Nspws = 1
             self.spw_array = np.array([0])
 
