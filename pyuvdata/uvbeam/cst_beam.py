@@ -197,11 +197,12 @@ class CSTBeam(UVBeam):
         self.antenna_type = "simple"
 
         self.Nfreqs = 1
-        self.Nspws = 1
-        self.freq_array = np.zeros((self.Nspws, self.Nfreqs))
-        self.bandpass_array = np.zeros((self.Nspws, self.Nfreqs))
+        self.freq_array = np.zeros((1, self.Nfreqs))
+        self.bandpass_array = np.zeros((1, self.Nfreqs))
 
-        self.spw_array = np.array([0])
+        if not use_future_array_shapes:
+            self.Nspws = 1
+            self.spw_array = np.array([0])
         self.pixel_coordinate_system = "az_za"
         self._set_cs_params()
 

@@ -664,12 +664,14 @@ class MWABeam(UVBeam):
         # to make the beam
         self.antenna_type = "simple"
 
-        self.Nspws = 1
-        self.spw_array = np.array([0])
         self.Nfreqs = freqs_use.size
         self.freq_array = freqs_use.astype(np.float64)
         self.freq_array = self.freq_array[np.newaxis, :]
-        self.bandpass_array = np.ones((self.Nspws, self.Nfreqs))
+        self.bandpass_array = np.ones((1, self.Nfreqs))
+
+        if not use_future_array_shapes:
+            self.Nspws = 1
+            self.spw_array = np.array([0])
 
         self.pixel_coordinate_system = "az_za"
         self._set_cs_params()
@@ -682,7 +684,7 @@ class MWABeam(UVBeam):
         # The array that come from `_get_response` has shape shape
         # (Npol, 2, Nfreq, Nphi, Ntheta)
         # UVBeam wants shape
-        # ('Naxes_vec', 'Nspws', 'Nfeeds', 'Nfreqs', 'Naxes2', 'Naxes1')
+        # ('Naxes_vec', 1, 'Nfeeds', 'Nfreqs', 'Naxes2', 'Naxes1')
         # where the Naxes_vec dimension lines up with the 2 from `_get_response`,
         # Nfeeds is UVBeam's Npol for E-field beams,
         # and axes (2, 1) correspond to (theta, phi)
