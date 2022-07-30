@@ -40,10 +40,8 @@ def uvbeam_data():
         "beam_type",
         "Nfreqs",
         "Naxes_vec",
-        "Nspws",
         "pixel_coordinate_system",
         "freq_array",
-        "spw_array",
         "data_normalization",
         "data_array",
         "bandpass_array",
@@ -73,6 +71,8 @@ def uvbeam_data():
         "feed_array",
         "polarization_array",
         "basis_vector_array",
+        "Nspws",
+        "spw_array",
         "extra_keywords",
         "Nelements",
         "element_coordinate_system",
@@ -274,6 +274,8 @@ def test_future_array_shapes(
     beam2 = beam.copy()
 
     beam.use_future_array_shapes()
+    assert beam.Nspws is None
+    assert beam.spw_array is None
     beam.check()
 
     with pytest.raises(
@@ -282,6 +284,8 @@ def test_future_array_shapes(
         beam.use_future_array_shapes()
 
     beam.use_current_array_shapes()
+    assert beam.Nspws == 1
+    assert beam.spw_array is not None
     beam.check()
 
     with pytest.raises(
