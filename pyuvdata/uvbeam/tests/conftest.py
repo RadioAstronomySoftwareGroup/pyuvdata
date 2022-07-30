@@ -229,3 +229,44 @@ def cst_power_1freq_cut_healpix_main(cst_power_2freq_cut_healpix_main):
 def cst_power_1freq_cut_healpix(cst_power_1freq_cut_healpix_main):
     """Make function level HEALPix cut down single freq power beam."""
     return cst_power_1freq_cut_healpix_main.copy()
+
+
+@pytest.fixture
+def phased_array_beam_2freq(cst_efield_2freq):
+    """Basic phased_array beam for testing."""
+    beam = cst_efield_2freq.copy()
+    beam.antenna_type = "phased_array"
+    beam.Nelements = 4
+    beam.coupling_matrix = np.zeros(
+        (
+            beam.Nelements,
+            beam.Nelements,
+            beam.Nfeeds,
+            beam.Nfeeds,
+            beam.Nspws,
+            beam.Nfreqs,
+        ),
+        dtype=complex,
+    )
+    for element in range(beam.Nelements):
+        beam.coupling_matrix[element, element] = np.ones(
+            (beam.Nfeeds, beam.Nfeeds, beam.Nspws, beam.Nfreqs)
+        )
+    beam.delay_array = np.zeros(beam.Nelements, dtype=float)
+    beam.gain_array = np.ones(beam.Nelements, dtype=float)
+    beam.element_coordinate_system = "x-y"
+    element_x_array, element_y_array = np.meshgrid(
+        np.arange(2) * 2.5, np.arange(2) * 2.5
+    )
+    beam.element_location_array = np.concatenate(
+        (np.reshape(element_x_array, (1, 4)), np.reshape(element_y_array, (1, 4)))
+    )
+
+    beam.check()
+    return beam
+
+
+@pytest.fixture
+def phased_array_beam_1freq(phased_array_beam_2freq):
+    """Basic phased_array beam for testing."""
+    return single_freq_version(phased_array_beam_2freq.copy())
