@@ -8,8 +8,12 @@ All notable changes to this project will be documented in this file.
   or zenith angle (if beam is in az/za coordinates).
 - Logging statements (INFO level) in `UVdata.check`.
 ### Changed
+- Added `use_future_array_shapes` method to UVBeam to allow users to convert to using
+the future array shapes now, with support throughout UVBeam methods and related utility
+functions. Also added `use_current_array_shapes` to revert to the standard shapes.
 - Performance improvement when doing a `UVData.select` using the `bls` parameter (~70%
   improvement in the `_select_preprocess` function)
+
 ## [2.2.9] - 2022-8-23
 
 ### Added
