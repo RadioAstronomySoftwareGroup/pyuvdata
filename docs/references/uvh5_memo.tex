@@ -308,8 +308,12 @@ baseline-time in this calculation. This is set to zero for unprojected phase typ
   (Nfreqs). Note this is \textbf{required} if the file uses flexible
   spectral windows (see
   Sec.~\ref{sec:flex_spw}). (\textit{flex\_spw\_id\_array})
-\item \textbf{dut1}: \textit{float} DUT1 (google it), in seconds. AIPS 117 calls
-  it \verb+UT1UTC+. (\textit{dut1})
+\item \textbf{dut1}: \textit{float} difference between UT1 (defined with respect to the
+  Earth's angle of rotation, which includes whole and partial "leap seconds") and UTC
+  (which \emph{only} includes whole leap seconds), in seconds, with typical precision of
+  1 ms. AIPS 117 calls it \verb+UT1UTC+. Note that this is slightly different from
+  the value DUT1 which is broadcast by various time signal services (e.g., NIST), which
+  only supply this difference with precision of 0.1 seconds. (\textit{dut1})
 \item \textbf{earth\_omega}: \textit{float} Earth's rotation rate in degrees per
   day. Note the difference in units, which is inherited from the way this
   quantity is handled in UVFITS datasets (AIPS 117 calls it \verb+DEGPDY+).
