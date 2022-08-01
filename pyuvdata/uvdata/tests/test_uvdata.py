@@ -3981,15 +3981,28 @@ def test_flex_spw_freq_avg(sma_mir):
 
 def test_check_flex_spw_contiguous(sma_mir, casa_uvfits):
     """
-    Verify that check_flex_spw_contiguous works as expected (throws an error if
-    windows are not contiguous, otherwise no error raised).
+    Verify that check_flex_spw_contiguous passes silently as expected when windows are
+    contiguous.
     """
     sma_mir._check_flex_spw_contiguous()
-    sma_mir.flex_spw_id_array[0] = 1
-    with pytest.raises(ValueError, match="Channels from different spectral windows"):
-        sma_mir._check_flex_spw_contiguous()
 
     casa_uvfits._check_flex_spw_contiguous()
+
+
+def test_check_flex_spw_contiguous_error(sma_mir):
+    """
+    Verify that check_flex_spw_contiguous errors as expected when windows are
+    not contiguous.
+    """
+    sma_mir.flex_spw_id_array[0] = 1
+    with pytest.raises(
+        ValueError,
+        match="Channels from different spectral windows are interspersed with "
+        "one another, rather than being grouped together along the "
+        "frequency axis. Most file formats do not support such "
+        "non-grouping of data.",
+    ):
+        sma_mir._check_flex_spw_contiguous()
 
 
 def test_check_flex_spw_contiguous_no_flex_spw(hera_uvh5):
