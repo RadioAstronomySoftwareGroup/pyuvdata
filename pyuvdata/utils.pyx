@@ -111,7 +111,7 @@ cdef inline void _bl_to_ant_2147483648(
 cpdef numpy.ndarray[dtype=numpy.int64_t, ndim=2] baseline_to_antnums(
     numpy.int64_t[::1] _bl
 ):
-  cdef long _min = arraymin(_bl)
+  cdef numpy.int64_t _min = arraymin(_bl)
   cdef bint use2147483648 = _min >= (2 ** 16 + 2 ** 22)
   cdef bint use2048 = _min >= 2 ** 16
   cdef long nbls = _bl.shape[0]
