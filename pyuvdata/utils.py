@@ -758,14 +758,14 @@ def baseline_to_antnums(baseline, Nants_telescope):
         second antenna number(s)
 
     """
-    if Nants_telescope > 2048:
+    if Nants_telescope > 2147483648:
         raise ValueError(
-            "error Nants={Nants}>2048 not supported".format(Nants=Nants_telescope)
+            "error Nants={Nants}>2147483648 not supported".format(Nants=Nants_telescope)
         )
     if np.any(np.asarray(baseline) < 0):
         raise ValueError("negative baseline numbers are not supported")
-    if np.any(np.asarray(baseline) > 4259839):
-        raise ValueError("baseline numbers > 4259839 are not supported")
+    if np.any(np.asarray(baseline) > 4611686018498691072):
+        raise ValueError("baseline numbers > 4611686018498691072 are not supported")
 
     return_array = isinstance(baseline, (np.ndarray, list, tuple))
     ant1, ant2 = _utils.baseline_to_antnums(
@@ -791,8 +791,9 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
         number of antennas
     attempt256 : bool
         Option to try to use the older 256 standard used in
-        many uvfits files (will use 2048 standard if there are more
-        than 256 antennas). Default is False.
+        many uvfits files. If there are more than 256 antennas, the 2048
+        standard will be used unless there are more than 2048 antennas.
+        In that case, the 2147483648 standard will be used. Default is False.
 
     Returns
     -------
@@ -800,15 +801,15 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
         baseline number corresponding to the two antenna numbers.
 
     """
-    if Nants_telescope is not None and Nants_telescope > 2048:
+    if Nants_telescope is not None and Nants_telescope > 2147483648:
         raise ValueError(
             "cannot convert ant1, ant2 to a baseline index "
-            "with Nants={Nants}>2048.".format(Nants=Nants_telescope)
+            "with Nants={Nants}>2147483648.".format(Nants=Nants_telescope)
         )
-    if np.any(np.concatenate((np.unique(ant1), np.unique(ant2))) >= 2048):
+    if np.any(np.concatenate((np.unique(ant1), np.unique(ant2))) >= 2147483648):
         raise ValueError(
             "cannot convert ant1, ant2 to a baseline index "
-            "with antenna numbers greater than 2047."
+            "with antenna numbers greater than 2147483647."
         )
     if np.any(np.concatenate((np.unique(ant1), np.unique(ant2))) < 0):
         raise ValueError(

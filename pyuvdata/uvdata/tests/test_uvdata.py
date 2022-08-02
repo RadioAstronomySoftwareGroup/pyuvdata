@@ -310,7 +310,7 @@ def uvdata_baseline():
     uv_object = UVData()
     uv_object.Nants_telescope = 128
     uv_object2 = UVData()
-    uv_object2.Nants_telescope = 2049
+    uv_object2.Nants_telescope = 2147483649
 
     DataHolder = namedtuple(
         "DataHolder",
@@ -767,18 +767,21 @@ def test_converttofiletype(casa_uvfits):
 def test_baseline_to_antnums(uvdata_baseline):
     """Test baseline to antnum conversion for 256 & larger conventions."""
     assert uvdata_baseline.uv_object.baseline_to_antnums(65536) == (0, 0)
+    assert uvdata_baseline.uv_object.baseline_to_antnums(592128) == (257, 256)
+    assert uvdata_baseline.uv_object.baseline_to_antnums(4404493223938) == (2051, 2050)
+
     with pytest.raises(Exception) as cm:
         uvdata_baseline.uv_object2.baseline_to_antnums(65536)
     assert str(cm.value).startswith(
-        "error Nants={Nants}>2048"
+        "error Nants={Nants}>2147483648"
         " not supported".format(Nants=uvdata_baseline.uv_object2.Nants_telescope)
     )
     with pytest.raises(ValueError, match="negative baseline numbers are not supported"):
         uvdata_baseline.uv_object.baseline_to_antnums(-10)
     with pytest.raises(
-        ValueError, match="baseline numbers > 4259839 are not supported"
+        ValueError, match="baseline numbers > 4611686018498691072 are not supported"
     ):
-        uvdata_baseline.uv_object.baseline_to_antnums(5000000)
+        uvdata_baseline.uv_object.baseline_to_antnums(4611686018498691073)
     ant_pairs = [(10, 20), (280, 310)]
     for pair in ant_pairs:
         if np.max(np.array(pair)) < 255:
@@ -812,23 +815,24 @@ def test_antnums_to_baselines(uvdata_baseline):
     """Test antums to baseline conversion for 256 & larger conventions."""
     assert uvdata_baseline.uv_object.antnums_to_baseline(0, 0) == 65536
     assert uvdata_baseline.uv_object.antnums_to_baseline(257, 256) == 592128
-    assert uvdata_baseline.uv_object.baseline_to_antnums(592128) == (257, 256)
+    assert uvdata_baseline.uv_object.antnums_to_baseline(2051, 2050) == 4404493223938
     # Check attempt256
     assert uvdata_baseline.uv_object.antnums_to_baseline(0, 0, attempt256=True) == 0
     with uvtest.check_warnings(UserWarning, "found antenna numbers > 255"):
         uvdata_baseline.uv_object.antnums_to_baseline(256, 255, attempt256=True)
     with pytest.raises(
         ValueError,
-        match="cannot convert ant1, ant2 to a baseline index with Nants=2049>2048.",
+        match="cannot convert ant1, ant2 to a baseline index with Nants={Nants}"
+        ">2147483648.".format(Nants=uvdata_baseline.uv_object2.Nants_telescope),
     ):
         uvdata_baseline.uv_object2.antnums_to_baseline(0, 0)
     # check for out of range antenna numbers
     with pytest.raises(
         ValueError,
         match="cannot convert ant1, ant2 to a baseline index "
-        "with antenna numbers greater than 2047.",
+        "with antenna numbers greater than 2147483647.",
     ):
-        uvdata_baseline.uv_object.antnums_to_baseline(2048, 2049)
+        uvdata_baseline.uv_object.antnums_to_baseline(2147483649, 2147483648)
     with pytest.raises(
         ValueError,
         match="cannot convert ant1, ant2 to a baseline index "
