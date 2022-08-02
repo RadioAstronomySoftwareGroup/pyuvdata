@@ -10262,8 +10262,7 @@ def test_clear_unused_phase_centers_no_op(sma_mir):
         [["abc", "xyz"], ValueError, "No entry by the name abc in the catalog."],
         [["3C273", -2], TypeError, "Value provided to new_name must be a string"],
         [["3C273", "unprojected"], ValueError, 'The name "unprojected" is reserved.'],
-        [[], ValueError, "Either old_name or cat_id must be supplied"],
-        [[None, None, -1], ValueError, "No entry with the ID -1 in the catalog."],
+        [[-1, None], ValueError, "No entry with the ID -1 in the catalog."],
     ),
 )
 def test_rename_phase_center_bad_args(carma_miriad, args, err_type, msg):

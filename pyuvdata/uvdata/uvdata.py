@@ -1469,29 +1469,26 @@ class UVData(UVBase):
 
         return blt_mask
 
-    def rename_phase_center(self, old_name=None, new_name=None, cat_id=None):
+    def rename_phase_center(self, catalog_identifier, new_name):
         """
         Rename a phase center/catalog entry within a multi phase center data set.
 
         Parameters
         ----------
-        old_name : str
-            Optional argument, phase center name for the target to be renamed. Note that
-            either `old_name` or `cat_id` must be specified.
+        catalog_identifier : str or int
+            Unique identifier of a phase center to be renamed. If supplied as a str,
+            will be matched against the phase center name. Otherwise if an int, assumed
+            to be the catalog ID number.
         new_name : str
             New name for the phase center.
-        cat_id : int or list of int
-            Optional argument, phase center IDs number for the target to be renamed.
-            Note that either `old_name` or `cat_id` must be specified.
 
 
         Raises
         ------
         ValueError
             If attempting to run the method on a non multi phase center data set, if
-            `old_name` is not found as a key in `phase_center_catalog`, if `new_name`
-            already exists as a key in `phase_center_catalog`, or if attempting to
-            name a source "unprojected" (which is reserved).
+            `catalog_identifier` is not found in `phase_center_catalog`, or if
+            attempting to name a source "unprojected" (which is reserved).
         TypeError
             If `new_name` is not actually a string.
         """
@@ -1499,26 +1496,23 @@ class UVData(UVBase):
             raise ValueError(
                 "Cannot rename a phase center if multi_phase_center != True."
             )
-        if (old_name is None) == (cat_id is None):
-            raise ValueError(
-                "Either old_name or cat_id must be supplied (but not both)."
-            )
 
-        if cat_id is None:
+        if isinstance(catalog_identifier, str):
             cat_id = []
             for key, ps_dict in self.phase_center_catalog.items():
-                if ps_dict["cat_name"] == old_name:
+                if ps_dict["cat_name"] == catalog_identifier:
                     cat_id.append(key)
             if len(cat_id) == 0:
-                raise ValueError("No entry by the name %s in the catalog." % old_name)
-
+                raise ValueError(
+                    "No entry by the name %s in the catalog." % catalog_identifier
+                )
         else:
             # Force cat_id to be a list to make downstream code simpler. If cat_id is
             # an int, it will throw a TypeError on casting to list, which we can catch.
             try:
-                cat_id = list(cat_id)
+                cat_id = list(catalog_identifier)
             except TypeError:
-                cat_id = [cat_id]
+                cat_id = [catalog_identifier]
 
             for key in cat_id:
                 if key not in self.phase_center_catalog:
@@ -1527,7 +1521,7 @@ class UVData(UVBase):
         if not isinstance(new_name, str):
             raise TypeError("Value provided to new_name must be a string.")
 
-        if (new_name == old_name) or (len(cat_id) == 0):
+        if (new_name == catalog_identifier) or (len(cat_id) == 0):
             # This is basically just a no-op, so return to user
             return
 
@@ -1677,7 +1671,7 @@ class UVData(UVBase):
             )
             self._update_phase_center_id(cat_id, new_id)
             if new_name is not None:
-                self.rename_phase_center(cat_id=new_id, new_name=new_name)
+                self.rename_phase_center(new_id, new_name)
         else:
             temp_dict = self.phase_center_catalog[cat_id]
             cat_id = self._add_phase_center(
