@@ -1490,12 +1490,16 @@ class UVData(UVBase):
             `catalog_identifier` is not found in `phase_center_catalog`, or if
             attempting to name a source "unprojected" (which is reserved).
         TypeError
-            If `new_name` is not actually a string.
+            If `new_name` is not actually a string or if `catalog_identifier` is not a
+            string or an integer.
         """
         if not self.multi_phase_center:
             raise ValueError(
                 "Cannot rename a phase center if multi_phase_center != True."
             )
+
+        if not isinstance(catalog_identifier, (str, int)):
+            raise TypeError("catalog_identifier must be a string or an integer.")
 
         if isinstance(catalog_identifier, str):
             cat_id = []

@@ -10274,6 +10274,11 @@ def test_clear_unused_phase_centers_no_op(sma_mir):
     (
         [["abc", "xyz"], ValueError, "No entry by the name abc in the catalog."],
         [["3C273", -2], TypeError, "Value provided to new_name must be a string"],
+        [
+            [3.1415, "abc"],
+            TypeError,
+            "catalog_identifier must be a string or an integer.",
+        ],
         [["3C273", "unprojected"], ValueError, 'The name "unprojected" is reserved.'],
         [[-1, None], ValueError, "No entry with the ID -1 in the catalog."],
     ),
