@@ -4,22 +4,23 @@
 
 """Class for reading MWA correlator FITS files."""
 
+import itertools
 import os
 import warnings
-import itertools
-import numpy as np
-import h5py
 
+import h5py
+import numpy as np
+from astropy import constants as const
 from astropy.io import fits
 from astropy.time import Time
-from astropy import constants as const
-from pyuvdata.data import DATA_PATH
-from scipy.special import erf
 from scipy.integrate import simps
+from scipy.special import erf
+
+from pyuvdata.data import DATA_PATH
 
 from .. import _corr_fits
-from . import UVData
 from .. import utils as uvutils
+from . import UVData
 
 __all__ = ["input_output_mapping", "MWACorrFITS"]
 
@@ -1333,8 +1334,8 @@ class MWACorrFITS(UVData):
                     # check that files with a timing offset can be aligned
                     elif np.abs(start_time - first_time) % head0["INTTIME"] != 0.0:
                         raise ValueError(
-                            "coarse channel start times are misaligned by an amount that is not \
-                            an integer multiple of the integration time"
+                            "coarse channel start times are misaligned by an amount "
+                            "that is not an integer multiple of the integration time"
                         )
                     elif start_time > first_time:
                         start_time = first_time
@@ -1830,9 +1831,9 @@ class MWACorrFITS(UVData):
             if correct_cable_len is None:
                 correct_cable_len = True
                 warnings.warn(
-                    "cable length correction is now defaulted to True rather than False. \
-                    To read in files without applying the correction set \
-                    correct_cable_len=False. This warning will be removed in v2.4"
+                    "cable length correction is now defaulted to True rather than "
+                    "False. To read in files without applying the correction set "
+                    "correct_cable_len=False. This warning will be removed in v2.4"
                 )
             if correct_cable_len:
                 self.correct_cable_length(cable_lens, ant_1_inds, ant_2_inds)

@@ -5,14 +5,15 @@
 """Tests for uvcal object.
 
 """
-import pytest
-import os
 import copy
-import numpy as np
+import os
 
-from pyuvdata import UVCal
-import pyuvdata.utils as uvutils
+import numpy as np
+import pytest
+
 import pyuvdata.tests as uvtest
+import pyuvdata.utils as uvutils
+from pyuvdata import UVCal
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:telescope_location is not set. Using known values",

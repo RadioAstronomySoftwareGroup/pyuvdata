@@ -4,14 +4,15 @@
 """Primary container for radio interferometer calibration solutions."""
 
 import copy
-import numpy as np
 import threading
 import warnings
 
-from ..uvbase import UVBase
+import numpy as np
+
 from .. import parameter as uvp
 from .. import telescopes as uvtel
 from .. import utils as uvutils
+from ..uvbase import UVBase
 from ..uvdata import UVData
 
 __all__ = ["UVCal"]

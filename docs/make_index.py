@@ -4,8 +4,8 @@
 Format the readme.md file into the sphinx index.rst file.
 
 """
-import os
 import inspect
+import os
 
 import pypandoc
 from astropy.time import Time

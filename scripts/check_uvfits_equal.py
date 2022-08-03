@@ -6,6 +6,7 @@
 
 import argparse
 import os.path as op
+
 from pyuvdata import UVData
 
 parser = argparse.ArgumentParser()

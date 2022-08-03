@@ -3,23 +3,21 @@
 # Licensed under the 2-clause BSD License
 
 """Commonly used utility functions."""
-import re
 import copy
+import re
 import warnings
 from collections.abc import Iterable
 from copy import deepcopy
 
-import numpy as np
-from scipy.spatial.distance import cdist
-from astropy.time import Time
-from astropy.coordinates import Angle
-from astropy.utils import iers
-from astropy.coordinates import SkyCoord, Distance, EarthLocation
-from astropy import units
 import erfa
+import numpy as np
+from astropy import units
+from astropy.coordinates import Angle, Distance, EarthLocation, SkyCoord
+from astropy.time import Time
+from astropy.utils import iers
+from scipy.spatial.distance import cdist
 
 from . import _utils
-
 
 __all__ = [
     "POL_STR2NUM_DICT",
@@ -2550,9 +2548,9 @@ def transform_icrs_to_app(
     elif astrometry_library == "novas":
         # Import the NOVAS library only if it's needed/available.
         try:
+            import novas_de405  # noqa
             from novas import compat as novas
             from novas.compat import eph_manager
-            import novas_de405  # noqa
         except ImportError as e:  # pragma: no cover
             raise ImportError(
                 "novas and/or novas_de405 are not installed but is required for "
@@ -3019,9 +3017,10 @@ def lookup_jplhorizons(
             "astroquery is not installed but is required for "
             "planet ephemeris functionality"
         ) from err
-    from pyuvdata.data import DATA_PATH
-    from os.path import join as path_join
     from json import load as json_load
+    from os.path import join as path_join
+
+    from pyuvdata.data import DATA_PATH
 
     # Get the telescope location into a format that JPL-Horizons can understand,
     # which is nominally a dict w/ entries for lon (units of deg), lat (units of
@@ -3650,9 +3649,9 @@ def get_lst_for_time(
     elif astrometry_library == "novas":
         # Import the NOVAS library only if it's needed/available.
         try:
+            import novas_de405  # noqa
             from novas import compat as novas
             from novas.compat import eph_manager
-            import novas_de405  # noqa
         except ImportError as e:  # pragma: no cover
             raise ImportError(
                 "novas and/or novas_de405 are not installed but is required for "

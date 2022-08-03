@@ -2,22 +2,21 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-import os
-import io
-import sys
 import glob
+import io
+import os
 import platform
-from setuptools import setup, Extension, find_namespace_packages
+import sys
+from sysconfig import get_config_var
 
 import numpy
-from sysconfig import get_config_var
-from packaging.version import parse
 from Cython.Build import cythonize
+from packaging.version import parse
+from setuptools import Extension, find_namespace_packages, setup
 
 # add pyuvdata to our path in order to use the branch_scheme function
 sys.path.append("pyuvdata")
 from branch_scheme import branch_scheme  # noqa
-
 
 with io.open("README.md", "r", encoding="utf-8") as readme_file:
     readme = readme_file.read()

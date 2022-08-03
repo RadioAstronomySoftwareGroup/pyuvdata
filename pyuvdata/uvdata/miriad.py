@@ -3,17 +3,18 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing Miriad files."""
+import itertools
 import os
 import shutil
-import numpy as np
-import itertools
 import warnings
+
+import numpy as np
 from astropy import constants as const
 from astropy.coordinates import Angle, SkyCoord
 
-from .uvdata import UVData
 from .. import telescopes as uvtel
 from .. import utils as uvutils
+from .uvdata import UVData
 
 __all__ = ["Miriad"]
 

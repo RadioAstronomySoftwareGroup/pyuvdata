@@ -4,17 +4,18 @@
 
 """Tests for MWACorrFITS object."""
 
-import pytest
-import os
-import h5py
 import itertools
-import numpy as np
+import os
 
+import h5py
+import numpy as np
+import pytest
+from astropy.io import fits
+
+import pyuvdata.tests as uvtest
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
-import pyuvdata.tests as uvtest
 from pyuvdata.uvdata.mwa_corr_fits import input_output_mapping
-from astropy.io import fits
 
 # set up MWA correlator file list
 testdir = os.path.join(DATA_PATH, "mwa_corr_fits_testfiles/")

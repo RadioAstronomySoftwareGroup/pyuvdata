@@ -10,12 +10,13 @@ to probe the functions of the individual class methods and attributes, and not
 necessarily how they interact with each other (inside the `MirParser` class) or with
 pyuvdata at large (via the `UVData` class).
 """
-import numpy as np
-import pytest
 import os
 
-from ..mir_meta_data import MirMetaData, MirMetaError
+import numpy as np
+import pytest
+
 from ... import tests as uvtest
+from ..mir_meta_data import MirMetaData, MirMetaError
 
 
 @pytest.fixture(scope="function")

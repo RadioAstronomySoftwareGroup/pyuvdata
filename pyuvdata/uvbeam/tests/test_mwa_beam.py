@@ -3,14 +3,14 @@
 # Licensed under the 2-clause BSD License
 import os
 
-import pytest
 import numpy as np
+import pytest
 
-from pyuvdata.data import DATA_PATH
-from pyuvdata import UVBeam
-from pyuvdata.uvbeam.mwa_beam import P1sin, P1sin_array
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
+from pyuvdata import UVBeam
+from pyuvdata.data import DATA_PATH
+from pyuvdata.uvbeam.mwa_beam import P1sin, P1sin_array
 
 filename = os.path.join(DATA_PATH, "mwa_full_EE_test.h5")
 

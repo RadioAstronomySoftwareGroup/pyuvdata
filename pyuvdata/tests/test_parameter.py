@@ -2,9 +2,9 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-import pytest
-import numpy as np
 import astropy.units as units
+import numpy as np
+import pytest
 
 from pyuvdata import parameter as uvp
 from pyuvdata.uvbase import UVBase

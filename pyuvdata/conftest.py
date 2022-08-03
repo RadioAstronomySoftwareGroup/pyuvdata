@@ -5,13 +5,13 @@
 """Testing environment setup and teardown for pytest."""
 import os
 
-from astropy.utils import iers
-from astropy.time import Time
-from astropy.coordinates import EarthLocation
 import numpy as np
 import pytest
+from astropy.coordinates import EarthLocation
+from astropy.time import Time
+from astropy.utils import iers
 
-from pyuvdata import UVData, UVCal
+from pyuvdata import UVCal, UVData
 from pyuvdata.data import DATA_PATH
 
 

@@ -3,18 +3,19 @@
 # Licensed under the 2-clause BSD License
 
 """Primary container for radio interferometer flag manipulation."""
-import numpy as np
 import os
-import warnings
-import h5py
 import pathlib
+import warnings
 
-from ..uvbase import UVBase
+import h5py
+import numpy as np
+
 from .. import parameter as uvp
-from ..uvdata import UVData
-from ..uvcal import UVCal
-from .. import utils as uvutils
 from .. import telescopes as uvtel
+from .. import utils as uvutils
+from ..uvbase import UVBase
+from ..uvcal import UVCal
+from ..uvdata import UVData
 
 __all__ = ["UVFlag", "flags2waterfall", "and_rows_cols", "lst_from_uv"]
 

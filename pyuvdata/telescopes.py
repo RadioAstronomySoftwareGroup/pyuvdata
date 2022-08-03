@@ -4,12 +4,14 @@
 
 """Telescope information and known telescope list."""
 import os
+
 import numpy as np
 from astropy.coordinates import Angle, EarthLocation
 
-from . import uvbase
-from . import parameter as uvp
 from pyuvdata.data import DATA_PATH
+
+from . import parameter as uvp
+from . import uvbase
 
 __all__ = ["Telescope", "known_telescopes", "get_telescope"]
 

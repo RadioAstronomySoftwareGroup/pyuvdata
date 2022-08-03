@@ -3,19 +3,19 @@
 # Licensed under the 2-clause BSD License
 
 """Tests for common utility functions."""
-import os
 import copy
+import os
 import re
 
-import pytest
 import numpy as np
+import pytest
 from astropy import units
+from astropy.coordinates import Angle, EarthLocation, SkyCoord
 from astropy.time import Time
-from astropy.coordinates import SkyCoord, Angle, EarthLocation
 
-from pyuvdata import UVData, UVFlag, UVCal
-import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
+import pyuvdata.utils as uvutils
+from pyuvdata import UVCal, UVData, UVFlag
 from pyuvdata.data import DATA_PATH
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
@@ -1088,6 +1088,7 @@ def test_lookup_jplhorizons_arg_errs(arg_dict, msg):
     pytest.importorskip("astroquery")
 
     from ssl import SSLError
+
     from requests import RequestException
 
     default_args = {
@@ -1329,6 +1330,7 @@ def test_jphl_lookup():
     pytest.importorskip("astroquery")
 
     from ssl import SSLError
+
     from requests import RequestException
 
     # If we can't connect to JPL-Horizons, then skip this test and don't outright fail.

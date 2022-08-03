@@ -5,15 +5,16 @@
 """Tests for FHD object.
 
 """
-import pytest
-import os
 import glob
-import numpy as np
+import os
 from shutil import copyfile
 
-from pyuvdata import UVData
-import pyuvdata.utils as uvutils
+import numpy as np
+import pytest
+
 import pyuvdata.tests as uvtest
+import pyuvdata.utils as uvutils
+from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
 
 # set up FHD file list

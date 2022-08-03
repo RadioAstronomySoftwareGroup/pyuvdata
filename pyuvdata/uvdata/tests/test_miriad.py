@@ -22,16 +22,18 @@ on their own.
 """
 import os
 import shutil
+
 import numpy as np
 import pytest
-from astropy.time import Time, TimeDelta
 from astropy import constants as const
+from astropy.time import Time, TimeDelta
 
-from pyuvdata import UVData
-from ..miriad import Miriad
-import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
+import pyuvdata.utils as uvutils
+from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
+
+from ..miriad import Miriad
 
 aipy_extracts = pytest.importorskip("pyuvdata.uvdata.aipy_extracts")
 

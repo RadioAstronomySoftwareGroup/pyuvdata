@@ -7,15 +7,14 @@
 """
 import os
 
-import pytest
-import numpy as np
-
 import erfa
+import numpy as np
+import pytest
 from astropy.io import fits
 
-from pyuvdata import UVData
-import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
+import pyuvdata.utils as uvutils
+from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
 
 casa_tutorial_uvfits = os.path.join(

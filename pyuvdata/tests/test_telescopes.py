@@ -6,14 +6,14 @@
 
 """
 import os
-from astropy.coordinates import EarthLocation
 
 import numpy as np
 import pytest
+from astropy.coordinates import EarthLocation
 
 import pyuvdata
-from pyuvdata.data import DATA_PATH
 from pyuvdata import UVData
+from pyuvdata.data import DATA_PATH
 
 required_parameters = ["_telescope_name", "_telescope_location"]
 required_properties = ["telescope_name", "telescope_location"]

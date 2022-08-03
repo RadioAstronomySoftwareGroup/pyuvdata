@@ -8,8 +8,8 @@ import warnings
 import numpy as np
 from astropy.io import fits
 
-from .uvcal import UVCal
 from .. import utils as uvutils
+from .uvcal import UVCal
 
 __all__ = ["CALFITS"]
 

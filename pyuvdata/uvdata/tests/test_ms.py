@@ -5,15 +5,16 @@
 """Tests for MS object.
 
 """
-import pytest
 import os
 import shutil
-import numpy as np
 
-from pyuvdata import UVData
-from pyuvdata.uvdata.ms import MS
-from pyuvdata.data import DATA_PATH
+import numpy as np
+import pytest
+
 import pyuvdata.tests as uvtest
+from pyuvdata import UVData
+from pyuvdata.data import DATA_PATH
+from pyuvdata.uvdata.ms import MS
 
 pytest.importorskip("casacore")
 

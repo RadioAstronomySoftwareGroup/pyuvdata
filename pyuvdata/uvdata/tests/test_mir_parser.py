@@ -9,13 +9,14 @@ data in pyuvdata. Tests in this module are specific to the way that MIR is read 
 python, not necessarily how pyuvdata (by way of the UVData class) interacts with that
 data.
 """
-import numpy as np
-import h5py
-import pytest
 import os
 
-from ..mir_parser import MirParser, MirMetaError
+import h5py
+import numpy as np
+import pytest
+
 from ... import tests as uvtest
+from ..mir_parser import MirMetaError, MirParser
 
 
 @pytest.fixture(scope="module")

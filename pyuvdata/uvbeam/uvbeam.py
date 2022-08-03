@@ -3,18 +3,18 @@
 # Licensed under the 2-clause BSD License
 
 """Primary container for radio telescope antenna beams."""
+import copy
 import os
 import warnings
-import copy
 
 import numpy as np
-from scipy import interpolate
 from astropy import units
 from astropy.coordinates import Angle
+from scipy import interpolate
 
-from ..uvbase import UVBase
 from .. import parameter as uvp
 from .. import utils as uvutils
+from ..uvbase import UVBase
 
 __all__ = ["UVBeam"]
 

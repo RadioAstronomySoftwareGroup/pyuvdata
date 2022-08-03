@@ -5,16 +5,15 @@
 """Tests for uvbase object.
 
 """
-import pytest
 import numpy as np
+import pytest
 from astropy import units
 from astropy.coordinates import Distance
 from astropy.time import Time
 
-from pyuvdata.uvbase import UVBase
-from pyuvdata.uvbase import _warning
 from pyuvdata import parameter as uvp
 from pyuvdata import tests as uvtest
+from pyuvdata.uvbase import UVBase, _warning
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
 ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)

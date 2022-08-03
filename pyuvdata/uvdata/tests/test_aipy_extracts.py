@@ -7,11 +7,11 @@
 """
 import os
 import shutil
-import pytest
+
 import numpy as np
+import pytest
 
 from pyuvdata.data import DATA_PATH
-
 
 aipy_extracts = pytest.importorskip("pyuvdata.uvdata.aipy_extracts")
 
