@@ -12,8 +12,9 @@ of metadata.
 
 """
 import builtins
-import numpy as np
+
 import astropy.units as units
+import numpy as np
 
 from . import utils
 

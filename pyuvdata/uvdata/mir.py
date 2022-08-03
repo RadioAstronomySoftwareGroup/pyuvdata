@@ -4,14 +4,15 @@
 
 """Class for reading and writing Mir files."""
 import os
-import numpy as np
-from astropy.time import Time
 import warnings
 
-from .uvdata import UVData
-from . import mir_parser
-from .. import utils as uvutils
+import numpy as np
+from astropy.time import Time
+
 from .. import get_telescope
+from .. import utils as uvutils
+from . import mir_parser
+from .uvdata import UVData
 
 __all__ = ["Mir"]
 

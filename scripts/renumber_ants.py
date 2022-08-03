@@ -15,11 +15,13 @@ This only works if the number of antennas (Nants_telescope) is less than 255.
 Antenna names are not changed, so they reflect the original names of the antennas.
 
 """
-import numpy as np
-import os
 import argparse
-from pyuvdata import UVData
+import os
 import sys
+
+import numpy as np
+
+from pyuvdata import UVData
 
 # setup argparse
 a = argparse.ArgumentParser(

@@ -7,13 +7,14 @@ Class for reading and writing casa measurement sets.
 
 Requires casacore.
 """
-import numpy as np
 import os
 import warnings
+
+import numpy as np
 from astropy.time import Time
 
-from .uvdata import UVData
 from .. import utils as uvutils
+from .uvdata import UVData
 
 __all__ = ["MS"]
 
@@ -1832,7 +1833,7 @@ class MS(UVData):
             # per-row basis for the same data description. Alternative read methods
             # w/ getcell, getvarcol, and per-row getcols produced way slower code.
             tb_main_sel = tables.taql(
-                "select from %s where DATA_DESC_ID == %i" % (filepath, key)
+                f"select from {filepath} where DATA_DESC_ID == {key}"  # nosec
             )
 
             # Fill in the temp arrays, and then plug them back into the main array.

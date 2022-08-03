@@ -3,17 +3,17 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing uvfits files."""
-import os
 import copy
+import os
 import warnings
 
 import numpy as np
 from astropy import constants as const
-from astropy.time import Time
 from astropy.io import fits
+from astropy.time import Time
 
-from .uvdata import UVData
 from .. import utils as uvutils
+from .uvdata import UVData
 
 __all__ = ["UVFITS"]
 

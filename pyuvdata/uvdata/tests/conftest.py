@@ -7,10 +7,10 @@ import os
 
 import pytest
 
-from pyuvdata.data import DATA_PATH
-from pyuvdata import UVData
-from pyuvdata.uvdata.mir_parser import MirParser
 import pyuvdata.tests as uvtest
+from pyuvdata import UVData
+from pyuvdata.data import DATA_PATH
+from pyuvdata.uvdata.mir_parser import MirParser
 
 casa_tutorial_uvfits = os.path.join(
     DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits"

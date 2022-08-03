@@ -4,10 +4,11 @@
 # Licensed under the 2-clause BSD License
 """Test memory usage of read_uvfits."""
 
-from memory_profiler import profile
 import numpy as np
 from astropy import constants as const
 from astropy.io import fits
+from memory_profiler import profile
+
 from pyuvdata import UVData
 
 

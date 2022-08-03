@@ -6,17 +6,18 @@
 
 """
 import os
+
+import h5py
 import numpy as np
 import pytest
 from astropy.time import Time
-import h5py
 
-from pyuvdata import UVData
-from .. import uvh5
-import pyuvdata.utils as uvutils
-from pyuvdata.data import DATA_PATH
 import pyuvdata.tests as uvtest
+import pyuvdata.utils as uvutils
+from pyuvdata import UVData
+from pyuvdata.data import DATA_PATH
 
+from .. import uvh5
 
 # ignore common file-read warnings
 pytestmark = [

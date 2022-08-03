@@ -5,11 +5,11 @@
 """pytest fixtures for UVBeam tests."""
 import os
 
-import pytest
 import numpy as np
+import pytest
 
-from pyuvdata.data import DATA_PATH
 from pyuvdata import UVBeam
+from pyuvdata.data import DATA_PATH
 
 filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
 cst_folder = "NicCSTbeams"

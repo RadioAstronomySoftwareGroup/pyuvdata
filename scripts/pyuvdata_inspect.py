@@ -5,8 +5,9 @@
 """Inspect attributes of pyuvdata objects."""
 
 import argparse
-from pyuvdata import UVData, UVBeam, UVCal
 import os
+
+from pyuvdata import UVBeam, UVCal, UVData
 
 # setup argparse
 a = argparse.ArgumentParser(

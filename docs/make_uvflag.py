@@ -1,11 +1,13 @@
 # -*- mode: python; coding: utf-8 -*-
 
 """Format the UVData object parameters into a sphinx rst file."""
-import os
 import inspect
+import os
+
+from astropy.time import Time
+
 from pyuvdata import UVFlag
 from pyuvdata.data import DATA_PATH
-from astropy.time import Time
 
 
 def write_uvflag_rst(write_file=None):

@@ -6,10 +6,12 @@
 """Convert any pyuvdata compatible file to UVFITS format."""
 
 import argparse
-import sys
 import os
-import pyuvdata
+import sys
+
 from astropy.time import Time
+
+import pyuvdata
 
 # setup argparse
 a = argparse.ArgumentParser(

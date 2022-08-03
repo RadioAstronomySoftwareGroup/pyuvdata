@@ -4,11 +4,13 @@
 Format the UVBeam object parameters into a sphinx rst file.
 
 """
+import inspect
 import io
 import os
-import inspect
-from pyuvdata import UVBeam
+
 from astropy.time import Time
+
+from pyuvdata import UVBeam
 
 
 def write_uvbeam_rst(write_file=None):

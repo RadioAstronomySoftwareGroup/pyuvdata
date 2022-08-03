@@ -3,29 +3,25 @@
 # Licensed under the 2-clause BSD License
 
 """Tests for uvdata object."""
-import pytest
-import os
 import copy
 import itertools
-import h5py
+import os
+from collections import Counter
 
+import h5py
 import numpy as np
+import pytest
 from astropy import units
+from astropy.coordinates import Angle, EarthLocation, SkyCoord
 from astropy.time import Time
 from astropy.utils import iers
-from astropy.coordinates import Angle, EarthLocation, SkyCoord
 
-from pyuvdata import UVData, UVCal
-import pyuvdata.utils as uvutils
 import pyuvdata.tests as uvtest
+import pyuvdata.utils as uvutils
+from pyuvdata import UVCal, UVData
 from pyuvdata.data import DATA_PATH
-
-# needed for multifile read error test
-from pyuvdata.uvdata.tests.test_mwa_corr_fits import filelist as mwa_corr_files
 from pyuvdata.uvdata.tests.test_fhd import testfiles as fhd_files
-
-
-from collections import Counter
+from pyuvdata.uvdata.tests.test_mwa_corr_fits import filelist as mwa_corr_files
 
 
 @pytest.fixture(scope="function")
@@ -10534,6 +10530,7 @@ def test_phase_dict_helper_errs(sma_mir, arg_dict, dummy_phase_dict, msg):
     pytest.importorskip("astroquery")
 
     from ssl import SSLError
+
     from requests import RequestException
 
     for key in dummy_phase_dict.keys():
@@ -10663,6 +10660,7 @@ def test_phase_dict_helper_jpl_lookup_append(sma_mir):
     pytest.importorskip("astroquery")
 
     from ssl import SSLError
+
     from requests import RequestException
 
     # Now see what happens if we attempt to lookup something that JPL actually knows

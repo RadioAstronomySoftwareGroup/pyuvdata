@@ -6,12 +6,14 @@
 # cython: linetrace=True
 
 # cython imports
+
 cimport cython
 cimport numpy
 from libc.stdlib cimport strtod
-from libc.string cimport strncmp, strtok, memcpy
+from libc.string cimport memcpy, strncmp, strtok
 
-from cython.parallel import prange, parallel
+from cython.parallel import parallel, prange
+
 from libc.math cimport exp, pi, sqrt
 
 # This initializes the numpy 1.7 c-api.

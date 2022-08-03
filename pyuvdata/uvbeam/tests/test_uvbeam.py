@@ -5,24 +5,22 @@
 """Tests for uvbeam object.
 
 """
-import os
 import copy
+import os
 import warnings
 
 import numpy as np
-from astropy import units
-from astropy.io import fits
-from astropy.coordinates import Angle
 import pytest
+from astropy import units
+from astropy.coordinates import Angle
+from astropy.io import fits
 
-from pyuvdata import UVBeam
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
+from pyuvdata import UVBeam
 from pyuvdata.data import DATA_PATH
-
-from pyuvdata.uvbeam.tests.test_mwa_beam import filename as mwa_beam_file
 from pyuvdata.uvbeam.tests.test_cst_beam import cst_files, cst_yaml_file
-
+from pyuvdata.uvbeam.tests.test_mwa_beam import filename as mwa_beam_file
 
 try:
     from astropy_healpix import HEALPix

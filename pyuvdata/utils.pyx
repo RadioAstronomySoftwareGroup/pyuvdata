@@ -7,10 +7,12 @@
 
 # python imports
 import warnings
+
 # cython imports
-cimport numpy
+
 cimport cython
-from libc.math cimport sin, cos, sqrt, atan2
+cimport numpy
+from libc.math cimport atan2, cos, sin, sqrt
 
 # This initializes the numpy 1.7 c-api.
 # cython 3.0 will do this by default.

@@ -4,12 +4,12 @@
 
 """Init file for pyuvdata."""
 import warnings
-from setuptools_scm import get_version
 from pathlib import Path
-from pkg_resources import get_distribution, DistributionNotFound
+
+from pkg_resources import DistributionNotFound, get_distribution
+from setuptools_scm import get_version
 
 from .branch_scheme import branch_scheme
-
 
 try:  # pragma: nocover
     # get accurate version for developer installs
@@ -30,10 +30,10 @@ except (LookupError, ImportError):
 warnings.filterwarnings("ignore", message="numpy.dtype size changed")
 warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 
-from .uvdata import UVData  # noqa
-from .telescopes import known_telescopes, Telescope, get_telescope  # noqa
-from .uvcal import UVCal  # noqa
+from .telescopes import Telescope, get_telescope, known_telescopes  # noqa
 from .uvbeam import UVBeam  # noqa
+from .uvcal import UVCal  # noqa
+from .uvdata import UVData  # noqa
 from .uvflag import UVFlag  # noqa
 
 __all__ = [

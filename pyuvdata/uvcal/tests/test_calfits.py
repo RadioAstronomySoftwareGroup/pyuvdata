@@ -5,15 +5,16 @@
 """Tests for calfits object
 
 """
-import pytest
 import os
+
 import numpy as np
+import pytest
 from astropy.io import fits
 
-from pyuvdata import UVCal
 import pyuvdata.tests as uvtest
-from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
+from pyuvdata import UVCal
+from pyuvdata.data import DATA_PATH
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:telescope_location is not set. Using known values",

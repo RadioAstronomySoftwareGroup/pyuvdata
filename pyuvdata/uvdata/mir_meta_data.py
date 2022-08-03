@@ -7,10 +7,11 @@
 This module provides a python interface for individual Mir metadata files, e.g.
 "in_read", "bl_read", "sp_read", "we_read", "eng_read", "antennas", and "codes_read".
 """
-import numpy as np
-import os
 import copy
+import os
 import warnings
+
+import numpy as np
 
 __all__ = [
     "MirMetaData",

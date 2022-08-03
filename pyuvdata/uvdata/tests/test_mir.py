@@ -11,11 +11,11 @@ manipulate into a UVData object.
 """
 import os
 
-import pytest
 import numpy as np
+import pytest
 
-from ... import tests as uvtest
 from ... import UVData
+from ... import tests as uvtest
 from ...data import DATA_PATH
 from ...uvdata.mir import Mir
 

@@ -5,12 +5,12 @@
 import os
 import warnings
 
-import numpy as np
 import h5py
+import numpy as np
 from scipy.special import factorial, lpmv  # associated Legendre function
 
-from . import UVBeam
 from .. import utils as uvutils
+from . import UVBeam
 
 __all__ = ["P1sin", "P1sin_array", "MWABeam"]
 

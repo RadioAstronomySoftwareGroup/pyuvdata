@@ -12,8 +12,9 @@ used by pyuvdata are ``uv_selector`` and ``UV``.
 """
 __all__ = ["uv_selector", "UV"]
 
-import numpy as np
 import re
+
+import numpy as np
 
 try:
     from pyuvdata import _miriad

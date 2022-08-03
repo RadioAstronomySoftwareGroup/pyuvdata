@@ -4,13 +4,13 @@
 import os
 import shutil
 
-import pytest
 import numpy as np
+import pytest
 
-from pyuvdata.data import DATA_PATH
-from pyuvdata import UVBeam
-from pyuvdata.uvbeam.cst_beam import CSTBeam
 import pyuvdata.tests as uvtest
+from pyuvdata import UVBeam
+from pyuvdata.data import DATA_PATH
+from pyuvdata.uvbeam.cst_beam import CSTBeam
 
 filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
 cst_folder = "NicCSTbeams"

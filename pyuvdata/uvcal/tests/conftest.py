@@ -5,13 +5,13 @@
 """pytest fixtures for UVCal tests."""
 import os
 
-import pytest
 import numpy as np
+import pytest
 
-from pyuvdata.data import DATA_PATH
-from pyuvdata import UVCal
 import pyuvdata.tests as uvtest
 import pyuvdata.uvcal.tests.test_fhd_cal as test_fhd_cal
+from pyuvdata import UVCal
+from pyuvdata.data import DATA_PATH
 
 
 @pytest.fixture(scope="session")

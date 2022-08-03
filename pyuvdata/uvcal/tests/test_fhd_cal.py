@@ -3,13 +3,13 @@
 # Licensed under the 2-clause BSD License
 
 """Tests for FHD_cal object."""
-import pytest
 import os
 
 import numpy as np
+import pytest
 
-from pyuvdata import UVCal
 import pyuvdata.tests as uvtest
+from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
 
 # set up FHD files

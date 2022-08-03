@@ -3,14 +3,15 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing UVH5 files."""
-import numpy as np
+import json
 import os
 import warnings
-import h5py
-import json
 
-from .uvdata import UVData
+import h5py
+import numpy as np
+
 from .. import utils as uvutils
+from .uvdata import UVData
 
 __all__ = ["UVH5"]
 

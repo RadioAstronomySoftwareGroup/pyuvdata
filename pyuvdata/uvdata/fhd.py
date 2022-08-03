@@ -4,14 +4,15 @@
 
 """Class for reading FHD save files."""
 import os
-import numpy as np
 import warnings
-from scipy.io import readsav
-from astropy import constants as const
 
-from .uvdata import UVData
-from .. import utils as uvutils
+import numpy as np
+from astropy import constants as const
+from scipy.io import readsav
+
 from .. import telescopes as uvtel
+from .. import utils as uvutils
+from .uvdata import UVData
 
 __all__ = ["get_fhd_history", "get_fhd_layout_info", "FHD"]
 

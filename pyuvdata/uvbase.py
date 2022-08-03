@@ -13,15 +13,33 @@ import warnings
 import numpy as np
 from astropy.units import Quantity
 
+from . import __version__
 from . import parameter as uvp
 from .utils import _get_iterable
-from . import __version__
 
 __all__ = ["UVBase"]
 
 
 def _warning(msg, *a, **kwargs):
-    """Improve the printing of user warnings."""
+    """
+    Improve the printing of user warnings.
+
+    Parameters
+    ----------
+    msg : str
+        Input warning message.
+    a
+        postional parameters not used by this formatting method.
+    kwargs
+        named parameters not used by this formatting method.
+
+    Returns
+    -------
+    str
+        Input warning message with new line character appended to improve warning
+        formatting.
+
+    """
     return str(msg) + "\n"
 
 
@@ -93,13 +111,36 @@ class UVBase(object):
         )
 
     def __setstate__(self, state):
-        """Set the state of the object from given input state."""
+        """
+        Set the state of the object from given input state.
+
+        This is useful for pickling.
+
+        Parameters
+        ----------
+        state
+            input state to assign to the __dict__.
+
+        """
         self.__dict__ = state
         self._setup_parameters()
 
     def prop_fget(self, param_name):
-        """Getter method for UVParameter properties."""
-        # Create function to return
+        """
+        Getter method for UVParameter properties.
+
+        Parameters
+        ----------
+        param_name : str
+            Property name to get, corresponds the the UVParameter.name.
+
+        Returns
+        -------
+        fget
+            getter method to use for the property definition.
+
+        """
+        # Create method to return
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.value
@@ -107,8 +148,21 @@ class UVBase(object):
         return fget
 
     def prop_fset(self, param_name):
-        """Setter method for UVParameter properties."""
-        # Create function to return
+        """
+        Setter method for UVParameter properties.
+
+        Parameters
+        ----------
+        param_name : str
+            Property name to set, corresponds the the UVParameter.name.
+
+        Returns
+        -------
+        fset
+            setter method to use for the property definition.
+
+        """
+        # Create method to return
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.value = value
@@ -117,8 +171,22 @@ class UVBase(object):
         return fset
 
     def degree_prop_fget(self, param_name):
-        """Degree getter method for AngleParameter properties."""
-        # Create function to return
+        """
+        Degree getter method for AngleParameter properties.
+
+        Parameters
+        ----------
+        param_name : str
+            Property name to get, corresponds the the UVParameter.name with "_degrees"
+            appended.
+
+        Returns
+        -------
+        fget
+            getter method to use for the property definition.
+
+        """
+        # Create method to return
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.degrees()
@@ -126,8 +194,22 @@ class UVBase(object):
         return fget
 
     def degree_prop_fset(self, param_name):
-        """Degree setter method for AngleParameter properties."""
-        # Create function to return
+        """
+        Degree setter method for AngleParameter properties.
+
+        Parameters
+        ----------
+        param_name : str
+            Property name to set, corresponds the the UVParameter.name with "_degrees"
+            appended.
+
+        Returns
+        -------
+        fset
+            setter method to use for the property definition.
+
+        """
+        # Create method to return
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.set_degrees(value)
@@ -136,8 +218,22 @@ class UVBase(object):
         return fset
 
     def lat_lon_alt_prop_fget(self, param_name):
-        """Lat/lon/alt getter method for LocationParameter properties."""
-        # Create function to return
+        """
+        Lat/lon/alt getter method for LocationParameter properties.
+
+        Parameters
+        ----------
+        param_name : str
+            Property name to get, corresponds the the UVParameter.name with
+            "_lat_lon_alt" appended.
+
+        Returns
+        -------
+        fget
+            getter method to use for the property definition.
+
+        """
+        # Create method to return
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.lat_lon_alt()
@@ -145,8 +241,22 @@ class UVBase(object):
         return fget
 
     def lat_lon_alt_prop_fset(self, param_name):
-        """Lat/lon/alt setter method for LocationParameter properties."""
-        # Create function to return
+        """
+        Lat/lon/alt setter method for LocationParameter properties.
+
+        Parameters
+        ----------
+        param_name : str
+            Property name to set, corresponds the the UVParameter.name with
+            "_lat_lon_alt" appended.
+
+        Returns
+        -------
+        fset
+            setter method to use for the property definition.
+
+        """
+        # Create method to return
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.set_lat_lon_alt(value)
@@ -155,8 +265,22 @@ class UVBase(object):
         return fset
 
     def lat_lon_alt_degrees_prop_fget(self, param_name):
-        """Lat/lon/alt degree getter method for LocationParameter properties."""
-        # Create function to return
+        """
+        Lat/lon/alt degree getter method for LocationParameter properties.
+
+        Parameters
+        ----------
+        param_name : str
+            Property name to get, corresponds the the UVParameter.name with
+            "_lat_lon_alt_degrees" appended.
+
+        Returns
+        -------
+        fget
+            getter method to use for the property definition.
+
+        """
+        # Create method to return
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.lat_lon_alt_degrees()
@@ -164,8 +288,22 @@ class UVBase(object):
         return fget
 
     def lat_lon_alt_degrees_prop_fset(self, param_name):
-        """Lat/lon/alt degree setter method for LocationParameter properties."""
-        # Create function to return
+        """
+        Lat/lon/alt degree setter method for LocationParameter properties.
+
+        Parameters
+        ----------
+        param_name : str
+            Property name to set, corresponds the the UVParameter.name with
+            "_lat_lon_alt_degrees" appended.
+
+        Returns
+        -------
+        fset
+            setter method to use for the property definition.
+
+        """
+        # Create method to return
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.set_lat_lon_alt_degrees(value)
@@ -174,7 +312,20 @@ class UVBase(object):
         return fset
 
     def __iter__(self, uvparams_only=True):
-        """Iterate over all UVParameter attributes."""
+        """
+        Iterate over all (UVParameter) attributes.
+
+        Parameters
+        ----------
+        uvparams_only : bool
+            Option to only iterate over UVParameter attributes.
+
+        Yields
+        ------
+        attribute : UVParameter or any type
+            Object attributes, exclusively UVParameter objects if uvparams_only is True.
+
+        """
         attribute_list = [
             a
             for a in dir(self)
@@ -192,7 +343,15 @@ class UVBase(object):
             yield a
 
     def required(self):
-        """Iterate over all required UVParameter attributes."""
+        """
+        Iterate over all required UVParameter attributes.
+
+        Yields
+        ------
+        UVParameter
+            required UVParameters on this object.
+
+        """
         attribute_list = [
             a
             for a in dir(self)
@@ -208,7 +367,15 @@ class UVBase(object):
             yield a
 
     def extra(self):
-        """Iterate over all non-required UVParameter attributes."""
+        """
+        Iterate over all non-required UVParameter attributes.
+
+        Yields
+        ------
+        UVParameter
+            optional (non-required) UVParameters on this object.
+
+        """
         attribute_list = [
             a
             for a in dir(self)
@@ -243,7 +410,8 @@ class UVBase(object):
         Returns
         -------
         bool
-            Whether the two instances are equivalent.
+            True if the two instances are equivalent.
+
         """
         if isinstance(other, self.__class__):
             # only check that required parameters are identical
@@ -323,9 +491,32 @@ class UVBase(object):
             print("Classes do not match")
             return False
 
-    def __ne__(self, other):
-        """Not equal."""
-        return not self.__eq__(other)
+    def __ne__(self, other, check_extra=True, allowed_failures=("filename",)):
+        """
+        Test if classes match and parameters are not equal.
+
+        Parameters
+        ----------
+        other : class
+            Other class instance to check
+        check_extra : bool
+            Option to specify whether to include all parameters, or just the
+            required ones. Default is True.
+        allowed_failures : iterable of str, optional
+            List or tuple of parameter names that are allowed to fail while
+            still passing an overall equality check. These should only include
+            optional parameters. By default, the `filename` parameter will be
+            ignored.
+
+        Returns
+        -------
+        bool
+            True if the two instances are equivalent.
+
+        """
+        return not self.__eq__(
+            other, check_extra=check_extra, allowed_failures=allowed_failures
+        )
 
     def check(
         self, check_extra=True, run_check_acceptability=True, ignore_requirements=False
@@ -347,6 +538,17 @@ class UVBase(object):
             This allows the user to run the shape/acceptability checks
             on parameters in a partially-defined UVData object.
 
+        Returns
+        -------
+        bool
+            True if the checks pass.
+
+        Raises
+        ------
+        ValueError
+            If required UVParameter values have not been set or if set UVParameters
+            values do not have the expected names, shapes, types or values.
+
         """
         if check_extra:
             p_check = list(self.required()) + list(self.extra())
@@ -357,8 +559,8 @@ class UVBase(object):
             param = getattr(self, p)
             if p != ("_" + param.name):
                 raise ValueError(
-                    "UVParameter %s does not follow the required naming convention"
-                    "(expected be %s)." % ((p, "_" + param.name))
+                    f"UVParameter {p} does not follow the required naming convention"
+                    f"(expected be {'_' + param.name})."
                 )
 
             # Check required parameter exists
@@ -455,5 +657,13 @@ class UVBase(object):
         return True
 
     def copy(self):
-        """Make and return a copy of the object."""
+        """
+        Make and return a copy of the object.
+
+        Returns
+        -------
+        UVBase
+            A deep copy of this object.
+
+        """
         return copy.deepcopy(self)

@@ -7,14 +7,14 @@
 """
 import os
 
-import pytest
 import numpy as np
+import pytest
 from astropy.io import fits
 
-from pyuvdata import UVBeam
 import pyuvdata.tests as uvtest
-from pyuvdata.data import DATA_PATH
 import pyuvdata.utils as uvutils
+from pyuvdata import UVBeam
+from pyuvdata.data import DATA_PATH
 
 filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
 cst_folder = "NicCSTbeams"

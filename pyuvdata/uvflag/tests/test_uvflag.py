@@ -2,21 +2,23 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
+import copy
+import os
+import pathlib
+import shutil
+import warnings
+
+import h5py
+import numpy as np
 import pytest
 from _pytest.outcomes import Skipped
-import os
-import numpy as np
+
 import pyuvdata.tests as uvtest
-from pyuvdata import UVData, UVCal, utils as uvutils
+from pyuvdata import UVCal, UVData, UVFlag, __version__
+from pyuvdata import utils as uvutils
 from pyuvdata.data import DATA_PATH
-from pyuvdata import UVFlag
-from ..uvflag import lst_from_uv, flags2waterfall, and_rows_cols
-from pyuvdata import __version__
-import shutil
-import copy
-import warnings
-import h5py
-import pathlib
+
+from ..uvflag import and_rows_cols, flags2waterfall, lst_from_uv
 
 test_d_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5")
 test_c_file = os.path.join(DATA_PATH, "zen.2457555.42443.HH.uvcA.omni.calfits")

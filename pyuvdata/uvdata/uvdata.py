@@ -3,24 +3,24 @@
 # Licensed under the 2-clause BSD License
 
 """Primary container for radio interferometer datasets."""
-import os
 import copy
-from collections.abc import Iterable
-import warnings
+import os
 import threading
+import warnings
+from collections.abc import Iterable
 
-import numpy as np
-from scipy import ndimage as nd
-from astropy import constants as const
 import astropy.units as units
-from astropy.time import Time
-from astropy.coordinates import SkyCoord, EarthLocation, FK5, Angle
+import numpy as np
+from astropy import constants as const
 from astropy import coordinates as coord
+from astropy.coordinates import FK5, Angle, EarthLocation, SkyCoord
+from astropy.time import Time
+from scipy import ndimage as nd
 
-from ..uvbase import UVBase
 from .. import parameter as uvp
 from .. import telescopes as uvtel
 from .. import utils as uvutils
+from ..uvbase import UVBase
 
 __all__ = ["UVData"]
 
