@@ -307,8 +307,20 @@ class UVParameter(object):
                             self_lower = {k.lower(): v for k, v in self.value.items()}
                             other_lower = {k.lower(): v for k, v in other.value.items()}
                             message_str = f"{self.name} parameter is a dict"
-                            if set(self_lower.keys()) != set(other_lower.keys()):
-                                message_str += ", keys are not the same."
+                            self_key_set = set(self_lower.keys())
+                            other_key_set = set(other_lower.keys())
+                            if self_key_set != other_key_set:
+                                message_str += ", keys are not the same.\n"
+                                self_only = self_key_set - other_key_set
+                                other_only = other_key_set - self_key_set
+                                if len(self_only) > 0:
+                                    message_str += (
+                                        f" keys only on left are: {self_only}\n"
+                                    )
+                                if len(other_only) > 0:
+                                    message_str += (
+                                        f" keys only on right are: {self_only}\n"
+                                    )
                                 print(message_str)
                                 return False
                             else:

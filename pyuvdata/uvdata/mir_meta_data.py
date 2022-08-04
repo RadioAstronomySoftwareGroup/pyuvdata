@@ -1053,11 +1053,11 @@ class MirMetaData(object):
                 # namely that the user has not provided a valid argument for where.
                 if len(item) != 3:
                     raise TypeError
-        except TypeError:
+        except TypeError as err:
             raise ValueError(
                 "Argument for where must be either a 3-element tuple, or sequence "
                 "of 3-element tuples."
-            )
+            ) from err
 
         # Now actually start going through the where statements.
         where_success = False
@@ -2159,13 +2159,13 @@ class MirMetaData(object):
                     discard_flagged=True,
                     overwrite=False,
                 )[0]
-            except MirMetaError:
+            except MirMetaError as err:
                 # If we get this error, it means our (partial) merge has failed.
                 # Time to bail.
                 raise ValueError(
                     "Conflicting header keys detected with data on disk. Cannot "
                     "append data from this object to specified file."
-                )
+                ) from err
 
             if len(idx_arr) == 0:
                 # There's literally nothing to do here, so bail.

@@ -85,7 +85,7 @@ for i, f in enumerate(args.files):
     filetype = None
     # try to open object
     for j, ob in enumerate(objs):
-        for k, r in enumerate(ob_reads[j]):
+        for r in ob_reads[j]:
             try:
                 # instantiate data class and try to read file
                 UV = ob()
@@ -116,7 +116,7 @@ for i, f in enumerate(args.files):
 
     # print out desired attribute(s) of data object
     attrs = [x.split(".") for x in args.attrs.split(",")]
-    for j, attr in enumerate(attrs):
+    for attr in attrs:
         # try to get attribute
         try:
             Nnest = len(attr)

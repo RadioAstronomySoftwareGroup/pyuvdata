@@ -1260,10 +1260,10 @@ class MirParser(object):
                 auto_data = {
                     achid: self.auto_data[achid] for achid in self.ac_data["achid"]
                 }
-        except (TypeError, KeyError):
+        except (TypeError, KeyError) as err:
             raise MirMetaError(
                 "Missing spectral records in data attributes. Run load_data instead."
-            )
+            ) from err
 
         # At this point, we can actually plug our values in, since we know that the
         # operation above succeeded.

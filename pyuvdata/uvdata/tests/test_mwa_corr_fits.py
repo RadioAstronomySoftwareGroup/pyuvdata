@@ -47,7 +47,7 @@ def flag_file_init(tmp_path_factory):
     with fits.open(filelist[1]) as mini1:
         mini1[1].data = np.repeat(mini1[1].data, 8, axis=0)
         extra_dat = np.copy(mini1[1].data)
-        for app_ind in range(2):
+        for _ in range(2):
             mini1.append(fits.ImageHDU(extra_dat))
         mini1[2].header["MILLITIM"] = 500
         mini1[2].header["TIME"] = mini1[1].header["TIME"]
@@ -58,7 +58,7 @@ def flag_file_init(tmp_path_factory):
     with fits.open(filelist[2]) as mini6:
         mini6[1].data = np.repeat(mini6[1].data, 8, axis=0)
         extra_dat = np.copy(mini6[1].data)
-        for app_ind in range(2):
+        for _ in range(2):
             mini6.append(fits.ImageHDU(extra_dat))
         mini6[2].header["MILLITIM"] = 500
         mini6[2].header["TIME"] = mini6[1].header["TIME"]

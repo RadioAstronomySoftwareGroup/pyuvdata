@@ -1212,11 +1212,11 @@ class UVData(UVBase):
                     cat_dist = np.array(cat_dist, dtype=float).reshape(cshape)
                 if cat_vrad is not None:
                     cat_vrad = np.array(cat_vrad, dtype=float).reshape(cshape)
-            except ValueError:
+            except ValueError as err:
                 raise ValueError(
                     "Object properties -- lon, lat, pm_ra, pm_dec, dist, vrad -- must "
                     "be of the same size as cat_times for ephem phase centers."
-                )
+                ) from err
         else:
             cat_lon = None if cat_lon is None else float(cat_lon)
             cat_lat = None if cat_lat is None else float(cat_lat)
@@ -1510,11 +1510,11 @@ class UVData(UVBase):
         try:
             inv_mask = np.ones(self.Nblts, dtype=bool)
             inv_mask[select_mask] = False
-        except IndexError:
+        except IndexError as err:
             raise IndexError(
                 "select_mask must be an array-like, either of ints with shape (Nblts), "
-                "or  of ints within the range (-Nblts, Nblts)."
-            )
+                "or of ints within the range (-Nblts, Nblts)."
+            ) from err
         # Now that we know nthat all the inputs are sensible, lets make sure that
         # the select_mask choice is sensible
         cat_id = self.phase_center_catalog[cat_name]["cat_id"]
@@ -3103,12 +3103,12 @@ class UVData(UVBase):
                 if len(blt_ind2) > 0:
                     try:
                         pol_ind2 = uvutils.reorder_conj_pols(self.polarization_array)
-                    except ValueError:
+                    except ValueError as err:
                         if len(blt_ind1) == 0:
                             raise KeyError(
                                 f"Baseline {key} not found for polarization "
                                 "array in data."
-                            )
+                            ) from err
                         else:
                             pol_ind2 = np.array([], dtype=np.int64)
                             blt_ind2 = np.array([], dtype=np.int64)
@@ -3128,11 +3128,11 @@ class UVData(UVBase):
             if len(blt_ind2) > 0:
                 try:
                     pol_ind2 = uvutils.reorder_conj_pols(self.polarization_array)
-                except ValueError:
+                except ValueError as err:
                     if len(blt_ind1) == 0:
                         raise KeyError(
                             f"Baseline {key} not found for polarization array in data."
-                        )
+                        ) from err
                     else:
                         pol_ind2 = np.array([], dtype=np.int64)
                         blt_ind2 = np.array([], dtype=np.int64)
@@ -4035,7 +4035,7 @@ class UVData(UVBase):
                     enu, anum = self.get_ENU_antpos()
                     anum = anum.tolist()
                     uvw_array_use = np.zeros_like(self.uvw_array)
-                    for i, bl in enumerate(self.baseline_array):
+                    for i in range(self.baseline_array.size):
                         a1, a2 = self.ant_1_array[i], self.ant_2_array[i]
                         i1, i2 = anum.index(a1), anum.index(a2)
                         uvw_array_use[i, :] = enu[i2] - enu[i1]
@@ -4651,11 +4651,11 @@ class UVData(UVBase):
                 inv_mask[select_mask] = False
                 select_mask = ~inv_mask
                 select_len = np.sum(select_mask)
-            except IndexError:
+            except IndexError as err:
                 raise IndexError(
                     "select_mask must be an array-like, either of ints with shape "
                     "(Nblts), or of ints within the range (-Nblts, Nblts)."
-                )
+                ) from err
 
         # Promote everything to float64 ndarrays if they aren't already
         old_w_vals = np.array(old_w_vals, dtype=np.float64)
@@ -5149,7 +5149,7 @@ class UVData(UVBase):
                 phase_dict[key] = phase_dict[key].astype(float)
             elif (key == "cat_id") and (phase_dict[key] is not None):
                 # If this is the cat_id, make it an int
-                phase_dict[key] == int(phase_dict[key])
+                phase_dict[key] = int(phase_dict[key])
             elif not ((phase_dict[key] is None) or isinstance(phase_dict[key], str)):
                 phase_dict[key] = float(phase_dict[key])
 
@@ -13492,14 +13492,14 @@ class UVData(UVBase):
                 # not have a match to the given polarization, in which case assume that
                 # this pol its it's own auto.
                 pol_groups.append([pol_list.index(pol)] * 2)
-            except ValueError:
-                # If we have an index error, it means that the pol that _would_ be the
+            except ValueError as err:
+                # If we have an value error, it means that the pol that _would_ be the
                 # auto is not found in the data, in which case we  throw an error.
                 raise ValueError(
                     "Cannot normalize {pol}, matching pols for autos not found.".format(
                         pol=uvutils.POL_NUM2STR_DICT[pol]
                     )
-                )
+                ) from err
 
         # Each pol group contains the index positions for the "auto" polarizations,
         # so we can grab all of the auto pols by searching for the unique values

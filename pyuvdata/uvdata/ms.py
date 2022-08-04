@@ -1013,7 +1013,7 @@ class MS(UVData):
                 priority.insert(line_no, "INFO")
                 times.insert(line_no, Time.now().mjd * 3600.0 * 24.0)
 
-            for line_no, line in enumerate(post_ms_history_lines):
+            for line in post_ms_history_lines:
                 app_params.append("")
                 cli_command.append("")
                 application.append("pyuvdata")
@@ -1246,16 +1246,19 @@ class MS(UVData):
 
                 # This is where the bulk of the heavy lifting is - use the per-spw
                 # channel masks to record one spectral window at a time.
-                for idx, key in enumerate(self.spw_array):
+                for spw_num in self.spw_array:
                     for col in col_list:
                         ms.putcol(
-                            col, val_dict[col][:, spw_sel_dict[key]], last_row, Nrecs
+                            col,
+                            val_dict[col][:, spw_sel_dict[spw_num]],
+                            last_row,
+                            Nrecs,
                         )
 
                     # Tally here the "wideband" weights for the whole spectral window,
                     # which is used in some CASA routines.
                     temp_weights[last_row : last_row + Nrecs] = np.median(
-                        val_dict["WEIGHT_SPECTRUM"][:, spw_sel_dict[key]], axis=1
+                        val_dict["WEIGHT_SPECTRUM"][:, spw_sel_dict[spw_num]], axis=1
                     )
                     last_row += Nrecs
 
@@ -1383,28 +1386,23 @@ class MS(UVData):
         try:
             frame_tuple = COORD_UVDATA2CASA_DICT[ref_name]
             if frame_tuple is None:
+                message = f"Support for the {ref_name} frame is not yet supported."
                 if raise_error:
-                    raise NotImplementedError(
-                        "Support for the %s frame is not yet supported." % ref_name
-                    )
+                    raise NotImplementedError(message)
                 else:
-                    warnings.warn(
-                        "Support for the %s frame is not yet supported." % ref_name
-                    )
+                    warnings.warn(message)
             else:
                 frame_name = frame_tuple[0]
                 epoch_val = frame_tuple[1]
-        except KeyError:
+        except KeyError as err:
+            message = (
+                f"The coordinate frame {ref_name} is not one of the supported frames "
+                "for measurement sets."
+            )
             if raise_error:
-                raise ValueError(
-                    "The coordinate frame %s is not one of the supported frames for "
-                    "measurement sets." % ref_name
-                )
+                raise ValueError(message) from err
             else:
-                warnings.warn(
-                    "The coordinate frame %s is not one of the supported frames for "
-                    "measurement sets." % ref_name
-                )
+                warnings.warn(message)
 
         return frame_name, epoch_val
 
@@ -1446,17 +1444,15 @@ class MS(UVData):
         ref_name = None
         try:
             ref_name = reverse_dict[(str(frame_name), float(epoch_val))]
-        except KeyError:
+        except KeyError as err:
+            message = (
+                f"Frame {frame_name} (epoch {format(epoch_val,'g')}) does not have a "
+                "corresponding match to supported frames in the MS file format."
+            )
             if raise_error:
-                raise ValueError(
-                    "Frame %s (epoch %g) does not have a corresponding match to "
-                    "supported frames in the MS file format." % (frame_name, epoch_val)
-                )
+                raise ValueError(message) from err
             else:
-                warnings.warn(
-                    "Frame %s (epoch %g) does not have a corresponding match to "
-                    "supported frames in the MS file format." % (frame_name, epoch_val)
-                )
+                warnings.warn(message)
 
         return ref_name
 
@@ -1687,7 +1683,9 @@ class MS(UVData):
         nfreqs = 0
         spw_id_array = np.array([], dtype=int)
         for key in sorted(spw_dict.keys()):
-            len(data_dict) == len(spw_dict)
+            assert len(data_dict) == len(
+                spw_dict
+            ), "This is a bug, please make an issue in our issue log."
             data_dict_key = spw_dict[key]["DATA_DICT_KEY"]
             nchan = spw_dict[key]["NUM_CHAN"]
             data_dict[data_dict_key]["STARTCHAN"] = nfreqs

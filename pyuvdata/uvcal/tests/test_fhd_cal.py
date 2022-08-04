@@ -107,6 +107,8 @@ def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
 
     assert fhd_cal == fhd_cal2
 
+    # test that no diffuse is properly picked up from the settings file when
+    # read_data is False
     fhd_cal.read_fhd_cal(
         cal_testfile,
         obs_testfile,
@@ -115,8 +117,8 @@ def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
         raw=raw,
         read_data=False,
     )
-    fhd_cal2.diffuse_model = None
-    fhd_cal == fhd_cal2
+
+    assert fhd_cal.diffuse_model is None
 
     return
 

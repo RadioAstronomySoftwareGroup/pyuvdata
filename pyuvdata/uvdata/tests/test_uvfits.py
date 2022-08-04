@@ -1155,7 +1155,7 @@ def test_multi_files(casa_uvfits, tmp_path):
     assert set(uv1.filename) == {"uv1.uvfits", "uv2.uvfits"}
     assert uv_full.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
     uv1.filename = uv_full.filename
-    uv1._filename.form == (1,)
+    uv1._filename.form = (1,)
 
     assert uv1 == uv_full
 
@@ -1192,7 +1192,7 @@ def test_multi_files_axis(casa_uvfits, tmp_path):
     assert set(uv1.filename) == {"uv1.uvfits", "uv2.uvfits"}
     assert uv_full.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
     uv1.filename = uv_full.filename
-    uv1._filename.form == (1,)
+    uv1._filename.form = (1,)
 
     assert uv1 == uv_full
 
@@ -1233,7 +1233,7 @@ def test_multi_files_metadata_only(casa_uvfits, tmp_path):
     assert set(uv1.filename) == {"uv1.uvfits", "uv2.uvfits"}
     assert uv_full.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
     uv1.filename = uv_full.filename
-    uv1._filename.form == (1,)
+    uv1._filename.form = (1,)
 
     assert uv1 == uv_full
 

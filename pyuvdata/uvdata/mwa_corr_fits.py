@@ -877,8 +877,7 @@ class MWACorrFITS(UVData):
             ant_inds = ant_inds[~np.in1d(ant_inds, flagged_ant_inds)]
             if len(ant_inds) != 0:
                 self.history += (
-                    " The following antennas were flagged by the Van Vleck \
-                    correction: "
+                    " The following antennas were flagged by the Van Vleck correction: "
                     + str(ant_inds)
                     + "."
                 )
@@ -1299,94 +1298,102 @@ class MWACorrFITS(UVData):
                     raise ValueError("multiple metafits files in filelist")
                 metafits_file = filename
             elif filename.lower().endswith(".fits"):
-                # check if ppds file
-                try:
-                    fits.getheader(filename, extname="ppds")
-                    ppds_file = filename
-                except Exception:
-                    # check obsid
-                    head0 = fits.getheader(filename, 0)
-                    if obs_id is None:
-                        obs_id = head0["OBSID"]
-                    else:
-                        if head0["OBSID"] != obs_id:
-                            raise ValueError(
-                                "files from different observations submitted "
-                                "in same list"
-                            )
-                    # check if mwax
-                    if mwax is None:
-                        if "CORR_VER" in head0.keys():
-                            mwax = True
-                            # save mwax version #s into extra_keywords
-                            self.extra_keywords["U2S_VER"] = head0["U2S_VER"]
-                            self.extra_keywords["CBF_VER"] = head0["CBF_VER"]
-                            self.extra_keywords["DB2F_VER"] = head0["DB2F_VER"]
-                        else:
-                            mwax = False
-                    # check headers for first and last times containing data
-                    headstart = fits.getheader(filename, 1)
-                    headfin = fits.getheader(filename, -1)
-                    first_time = headstart["TIME"] + headstart["MILLITIM"] / 1000.0
-                    last_time = headfin["TIME"] + headfin["MILLITIM"] / 1000.0
-                    if start_time == 0.0:
-                        start_time = first_time
-                    # check that files with a timing offset can be aligned
-                    elif np.abs(start_time - first_time) % head0["INTTIME"] != 0.0:
-                        raise ValueError(
-                            "coarse channel start times are misaligned by an amount "
-                            "that is not an integer multiple of the integration time"
+                with fits.open(filename, memmap=True) as hdu_list:
+                    hdunames = uvutils._fits_indexhdus(hdu_list)
+                    if "PPDS" in hdunames.keys():
+                        ppds_file = filename
+                        ppd_meta_header = hdu_list[0].header
+                        ppd_extra_keywords = uvutils._get_fits_extra_keywords(
+                            ppd_meta_header,
+                            keywords_to_skip=["DATE-OBS", "TELESCOP", "INSTRUME"],
                         )
-                    elif start_time > first_time:
-                        start_time = first_time
-                    if end_time < last_time:
-                        end_time = last_time
-                    # get number of fine channels in each coarse channel
-                    if num_fine_chans == 0:
-                        if mwax:
-                            # number of fine channels is multiplied by 4 (pols)
-                            # and by 2 (real and imaginary parts)
-                            num_fine_chans = int(headstart["NAXIS1"] / 8)
+                    else:
+                        # check obsid
+                        head0 = hdu_list[0].header
+                        if obs_id is None:
+                            obs_id = head0["OBSID"]
                         else:
-                            num_fine_chans = headstart["NAXIS2"]
-                    else:
-                        if mwax:
-                            if num_fine_chans != int(headstart["NAXIS1"] / 8):
+                            if head0["OBSID"] != obs_id:
                                 raise ValueError(
-                                    "files submitted have different numbers \
-                                    of fine channels"
+                                    "files from different observations submitted "
+                                    "in same list"
                                 )
-                        else:
-                            if num_fine_chans != headstart["NAXIS2"]:
-                                raise ValueError(
-                                    "files submitted have different numbers \
-                                        of fine channels"
-                                )
-
-                    # get the file number from the file name;
-                    # this will later be mapped to a coarse channel
-                    if mwax:
-                        file_num = int(filename.split("_")[-2][-3:])
-                    else:
-                        file_num = int(filename.split("_")[-2][-2:])
-                    if file_num not in included_file_nums:
-                        included_file_nums.append(file_num)
-                    # organize files
-                    if "data" not in file_dict.keys():
-                        file_dict["data"] = [filename]
-                    else:
-                        file_dict["data"].append(filename)
-
-                    # save bscale keyword
-                    # look for bscale in the first hdu, as some data does not
-                    # record it in the zeroth hdu
-                    if not mwax:
-                        if "SCALEFAC" not in self.extra_keywords.keys():
-                            if "BSCALE" in headstart.keys():
-                                self.extra_keywords["SCALEFAC"] = headstart["BSCALE"]
+                        # check if mwax
+                        if mwax is None:
+                            if "CORR_VER" in head0.keys():
+                                mwax = True
+                                # save mwax version #s into extra_keywords
+                                self.extra_keywords["U2S_VER"] = head0["U2S_VER"]
+                                self.extra_keywords["CBF_VER"] = head0["CBF_VER"]
+                                self.extra_keywords["DB2F_VER"] = head0["DB2F_VER"]
                             else:
-                                # correlator did a divide by 4 before october 2014
-                                self.extra_keywords["SCALEFAC"] = 0.25
+                                mwax = False
+                        # check headers for first and last times containing data
+                        headstart = hdu_list[1].header
+                        headfin = hdu_list[-1].header
+                        first_time = headstart["TIME"] + headstart["MILLITIM"] / 1000.0
+                        last_time = headfin["TIME"] + headfin["MILLITIM"] / 1000.0
+                        if start_time == 0.0:
+                            start_time = first_time
+                        # check that files with a timing offset can be aligned
+                        elif np.abs(start_time - first_time) % head0["INTTIME"] != 0.0:
+                            raise ValueError(
+                                "coarse channel start times are misaligned by an "
+                                "amount =that is not an integer multiple of the "
+                                "integration time"
+                            )
+                        elif start_time > first_time:
+                            start_time = first_time
+                        if end_time < last_time:
+                            end_time = last_time
+                        # get number of fine channels in each coarse channel
+                        if num_fine_chans == 0:
+                            if mwax:
+                                # number of fine channels is multiplied by 4 (pols)
+                                # and by 2 (real and imaginary parts)
+                                num_fine_chans = int(headstart["NAXIS1"] / 8)
+                            else:
+                                num_fine_chans = headstart["NAXIS2"]
+                        else:
+                            if mwax:
+                                if num_fine_chans != int(headstart["NAXIS1"] / 8):
+                                    raise ValueError(
+                                        "files submitted have different numbers of "
+                                        "fine channels"
+                                    )
+                            else:
+                                if num_fine_chans != headstart["NAXIS2"]:
+                                    raise ValueError(
+                                        "files submitted have different numbers of "
+                                        "fine channels"
+                                    )
+
+                        # get the file number from the file name;
+                        # this will later be mapped to a coarse channel
+                        if mwax:
+                            file_num = int(filename.split("_")[-2][-3:])
+                        else:
+                            file_num = int(filename.split("_")[-2][-2:])
+                        if file_num not in included_file_nums:
+                            included_file_nums.append(file_num)
+                        # organize files
+                        if "data" not in file_dict.keys():
+                            file_dict["data"] = [filename]
+                        else:
+                            file_dict["data"].append(filename)
+
+                        # save bscale keyword
+                        # look for bscale in the first hdu, as some data does not
+                        # record it in the zeroth hdu
+                        if not mwax:
+                            if "SCALEFAC" not in self.extra_keywords.keys():
+                                if "BSCALE" in headstart.keys():
+                                    self.extra_keywords["SCALEFAC"] = headstart[
+                                        "BSCALE"
+                                    ]
+                                else:
+                                    # correlator did a divide by 4 before october 2014
+                                    self.extra_keywords["SCALEFAC"] = 0.25
 
             # look for flag files
             elif filename.lower().endswith(".mwaf"):
@@ -1409,18 +1416,12 @@ class MWACorrFITS(UVData):
             raise ValueError("no metafits file submitted")
         elif metafits_file is None:
             metafits_file = ppds_file
-        elif ppds_file is not None:
-            ppds = fits.getheader(ppds_file, 0)
-            meta = fits.getheader(metafits_file, 0)
-            for key in ppds.keys():
-                if key not in meta.keys():
-                    self.extra_keywords[key] = ppds[key]
         if "data" not in file_dict.keys():
             raise ValueError("no data files submitted")
         if "flags" not in file_dict.keys() and use_aoflagger_flags:
             raise ValueError(
-                "no flag files submitted. Rerun with flag files \
-                             or use_aoflagger_flags=False"
+                "no flag files submitted. Rerun with flag files or "
+                "use_aoflagger_flags=False"
             )
 
         # reorder file numbers
@@ -1489,19 +1490,18 @@ class MWACorrFITS(UVData):
             # set start_flag with goodtime
             if flag_init and start_flag == "goodtime":
                 # ppds file does not contain this key
-                try:
-                    if meta_hdr["GOODTIME"] > start_time:
-                        start_flag = meta_hdr["GOODTIME"] - start_time
-                        # round start_flag up to nearest multiple of int_time
-                        if start_flag % int_time > 0:
-                            start_flag = (1 + int(start_flag / int_time)) * int_time
-                    else:
-                        start_flag = 0.0
-                except KeyError:
+                if "GOODTIME" not in meta_hdr:
                     raise ValueError(
-                        "To use start_flag='goodtime', a .metafits file must \
-                            be submitted"
+                        "To use start_flag='goodtime', a .metafits file must be "
+                        "submitted"
                     )
+                if meta_hdr["GOODTIME"] > start_time:
+                    start_flag = meta_hdr["GOODTIME"] - start_time
+                    # round start_flag up to nearest multiple of int_time
+                    if start_flag % int_time > 0:
+                        start_flag = (1 + int(start_flag / int_time)) * int_time
+                else:
+                    start_flag = 0.0
 
             if "HISTORY" in meta_hdr:
                 self.history = str(meta_hdr["HISTORY"])
@@ -1517,22 +1517,27 @@ class MWACorrFITS(UVData):
             self.object_name = meta_hdr.pop("FILENAME")
             self.Nants_telescope = int(meta_hdr.pop("INSTRUME")[0:3])
 
-            # get rid of keywords that uvfits.py gets rid of
-            bad_keys = ["SIMPLE", "EXTEND", "BITPIX", "NAXIS", "DATE-OBS"]
-            for key in bad_keys:
-                meta_hdr.remove(key, remove_all=True)
             # if not mwax, remove mwax-specific keys
+            mwax_keys_to_skip = []
             if not mwax:
-                mwax_keys = ["DELAYMOD", "DELDESC", "CABLEDEL", "GEODEL", "CALIBDEL"]
-                for key in mwax_keys:
-                    if key in meta_hdr.keys():
-                        meta_hdr.remove(key, remove_all=True)
+                mwax_keys_to_skip = [
+                    "DELAYMOD",
+                    "DELDESC",
+                    "CABLEDEL",
+                    "GEODEL",
+                    "CALIBDEL",
+                ]
             # store remaining keys in extra keywords
-            for key in meta_hdr:
-                if key == "COMMENT":
-                    self.extra_keywords[key] = str(meta_hdr.get(key))
-                elif key != "":
-                    self.extra_keywords[key] = meta_hdr.get(key)
+            meta_extra_keywords = uvutils._get_fits_extra_keywords(
+                meta_hdr, keywords_to_skip=["DATE-OBS"] + mwax_keys_to_skip
+            )
+            for key, value in meta_extra_keywords.items():
+                self.extra_keywords[key] = value
+            if ppds_file is not None:
+                # get any unique ones from ppd file
+                for key, value in ppd_extra_keywords.items():
+                    if key not in self.extra_keywords.keys():
+                        self.extra_keywords[key] = value
             # get antenna data from metafits file table
             meta_tbl = meta[1].data
 
@@ -1845,8 +1850,8 @@ class MWACorrFITS(UVData):
                         "flag file coarse bands do not match data file coarse bands"
                     )
                 warnings.warn(
-                    "coarse channel, start time, and end time flagging will default \
-                        to the more aggressive of flag_init and AOFlagger"
+                    "coarse channel, start time, and end time flagging will default "
+                    "to the more aggressive of flag_init and AOFlagger"
                 )
                 for filename in file_dict["flags"]:
                     self._read_flag_file(filename, file_nums, num_fine_chans)
