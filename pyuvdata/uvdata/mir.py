@@ -576,7 +576,7 @@ class Mir(UVData):
         self.vis_units = "Jy"
 
         isource = np.unique(mir_data.in_data["isource"])
-        for idx, sou_id in enumerate(isource):
+        for sou_id in isource:
             source_mask = mir_data.in_data["isource"] == sou_id
             source_ra = np.mean(mir_data.in_data["rar"][source_mask]).astype(float)
             source_dec = np.mean(mir_data.in_data["decr"][source_mask]).astype(float)

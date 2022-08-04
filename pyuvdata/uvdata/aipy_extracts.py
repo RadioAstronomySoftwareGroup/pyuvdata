@@ -636,7 +636,7 @@ class UV(_miriad.UV):
 
         self.raw_write(preamble, data.astype(np.complex64), flags.astype(np.int32))
 
-    def init_from_uv(self, uv, override={}, exclude=[]):
+    def init_from_uv(self, uv, override=None, exclude=None):
         """
         Initialize header items and variables from another UV.
 
@@ -653,6 +653,12 @@ class UV(_miriad.UV):
         exclude : list
             list of variable to exclude
         """
+        if override is None:
+            override = {}
+
+        if exclude is None:
+            exclude = []
+
         for k in uv.items():
             if k in exclude:
                 continue

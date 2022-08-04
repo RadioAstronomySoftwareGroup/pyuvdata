@@ -287,7 +287,7 @@ def check_warnings(expected_warning, match=None, nwarnings=None, *args, **kwargs
 # Functions that are useful for testing:
 def clearWarnings():
     """Quick code to make warnings reproducible."""
-    for name, mod in list(sys.modules.items()):
+    for _, mod in list(sys.modules.items()):
         try:
             reg = getattr(mod, "__warningregistry__", None)
         except ImportError:
@@ -418,20 +418,20 @@ def checkWarnings(
             )
             for idx, wi in enumerate(w):
                 print("warning {i} is: {w}".format(i=idx, w=wi))
-            assert False
+            raise AssertionError
         else:
             for i, w_i in enumerate(w):
                 if w_i.category is not category[i]:
                     print("expected category " + str(i) + " was: ", category[i])
                     print("category " + str(i) + " was: ", str(w_i.category))
-                    assert False
+                    raise AssertionError
                 if message[i] is None or message[i] == "":
                     print("Expected message " + str(i) + " was None or an empty string")
                     print("message " + str(i) + " was: ", str(w_i.message))
-                    assert False
+                    raise AssertionError
                 else:
                     if message[i] not in str(w_i.message):
                         print("expected message " + str(i) + " was: ", message[i])
                         print("message " + str(i) + " was: ", str(w_i.message))
-                        assert False
+                        raise AssertionError
         return retval

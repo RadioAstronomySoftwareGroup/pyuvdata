@@ -1305,7 +1305,7 @@ class Miriad(UVData):
         c_ns = const.c.to("m/ns").value
         for pol, data in data_accumulator.items():
             pol_ind = self._pol_to_ind(pol)
-            for ind, d in enumerate(data):
+            for d in data:
                 blt = [
                     "{1:.{0}f}".format(prec_t, d[1]).zfill(ndig_t),
                     str(d[2]).zfill(ndig_ant),
@@ -1941,7 +1941,7 @@ class Miriad(UVData):
 
         # write data
         c_ns = const.c.to("m/ns").value
-        for viscnt, blt in enumerate(self.data_array):
+        for viscnt in range(self.data_array.shape[0]):
             uvw = (self.uvw_array[viscnt] / c_ns).astype(np.double)
             t = miriad_time_array[viscnt]
             i = self.ant_1_array[viscnt]

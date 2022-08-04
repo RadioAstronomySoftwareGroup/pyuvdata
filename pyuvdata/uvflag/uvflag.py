@@ -1542,19 +1542,19 @@ class UVFlag(UVBase):
             if convert_wgts:
                 self.weights_array = np.ones_like(self.weights_array)
                 if self.type == "waterfall":
-                    for i, pol in enumerate(self.polarization_array):
+                    for i in range(self.Npols):
                         self.weights_array[:, :, i] *= ~and_rows_cols(
                             self.flag_array[:, :, i]
                         )
                 elif self.type == "baseline":
-                    for i, pol in enumerate(self.polarization_array):
-                        for j, ap in enumerate(self.get_antpairs()):
+                    for i in range(self.Npols):
+                        for ap in self.get_antpairs():
                             inds = self.antpair2ind(*ap)
                             self.weights_array[inds, 0, :, i] *= ~and_rows_cols(
                                 self.flag_array[inds, 0, :, i]
                             )
                 elif self.type == "antenna":
-                    for i, pol in enumerate(self.polarization_array):
+                    for i in range(self.Npols):
                         for j in range(self.weights_array.shape[0]):
                             self.weights_array[j, 0, :, :, i] *= ~and_rows_cols(
                                 self.flag_array[j, 0, :, :, i]

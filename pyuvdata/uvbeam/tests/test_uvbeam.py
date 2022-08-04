@@ -8,6 +8,7 @@
 import copy
 import os
 import warnings
+from collections import namedtuple
 
 import numpy as np
 import pytest
@@ -94,22 +95,17 @@ def uvbeam_data():
 
     beam_obj = UVBeam()
 
-    class DataHolder:
-        def __init__(
-            self,
-            beam_obj,
-            required_parameters,
-            required_properties,
-            extra_parameters,
-            extra_properties,
-            other_properties,
-        ):
-            self.beam_obj = beam_obj
-            self.required_parameters = required_parameters
-            self.required_properties = required_properties
-            self.extra_parameters = extra_parameters
-            self.extra_properties = extra_properties
-            self.other_properties = other_properties
+    DataHolder = namedtuple(
+        "DataHolder",
+        [
+            "beam_obj",
+            "required_parameters",
+            "required_properties",
+            "extra_parameters",
+            "extra_properties",
+            "other_properties",
+        ],
+    )
 
     uvbeam_data = DataHolder(
         beam_obj,
@@ -741,8 +737,10 @@ def test_freq_interpolation(cst_power_2freq):
     _pb = power_beam.select(frequencies=power_beam.freq_array[0, :1], inplace=False)
     try:
         interp_data, interp_basis_vector = _pb.interp(freq_array=_pb.freq_array[0])
-    except ValueError:
-        raise AssertionError("UVBeam.interp didn't return an array slice as expected")
+    except ValueError as err:
+        raise AssertionError(
+            "UVBeam.interp didn't return an array slice as expected"
+        ) from err
 
     # test errors if one frequency
     power_beam_singlef = power_beam.select(freq_chans=[0], inplace=False)
@@ -2745,7 +2743,6 @@ def test_generic_read_multi_bad_files(tmp_path, skip, flip_order):
             UserWarning, f"Failed to read {filenames[0]} due to ValueError"
         ):
             uvb3.read(filenames, skip_bad_files=skip)
-        uvb3.history == uvb2.history
         assert uvb3 == uvb2
 
     else:

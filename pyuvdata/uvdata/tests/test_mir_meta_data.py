@@ -123,7 +123,7 @@ def test_mir_meta_eq_errs(mir_in_data, comp_obj, err_msg):
 @pytest.mark.parametrize("result", [True, False])
 def test_mir_meta_eq(mir_sp_data, result, verbose):
     copy_data = mir_sp_data.copy()
-    comp_func = getattr(copy_data, "__eq__") if result else getattr(copy_data, "__ne__")
+    comp_func = copy_data.__eq__ if result else copy_data.__ne__
 
     assert comp_func(mir_sp_data, verbose=verbose) == result
 

@@ -6,7 +6,7 @@
 import copy
 import itertools
 import os
-from collections import Counter
+from collections import Counter, namedtuple
 
 import h5py
 import numpy as np
@@ -105,22 +105,17 @@ def uvdata_props():
 
     uv_object = UVData()
 
-    class DataHolder:
-        def __init__(
-            self,
-            uv_object,
-            required_parameters,
-            required_properties,
-            extra_parameters,
-            extra_properties,
-            other_properties,
-        ):
-            self.uv_object = uv_object
-            self.required_parameters = required_parameters
-            self.required_properties = required_properties
-            self.extra_parameters = extra_parameters
-            self.extra_properties = extra_properties
-            self.other_properties = other_properties
+    DataHolder = namedtuple(
+        "DataHolder",
+        [
+            "uv_object",
+            "required_parameters",
+            "required_properties",
+            "extra_parameters",
+            "extra_properties",
+            "other_properties",
+        ],
+    )
 
     uvdata_props = DataHolder(
         uv_object,
@@ -317,10 +312,13 @@ def uvdata_baseline():
     uv_object2 = UVData()
     uv_object2.Nants_telescope = 2049
 
-    class DataHolder:
-        def __init__(self, uv_object, uv_object2):
-            self.uv_object = uv_object
-            self.uv_object2 = uv_object2
+    DataHolder = namedtuple(
+        "DataHolder",
+        [
+            "uv_object",
+            "uv_object2",
+        ],
+    )
 
     uvdata_baseline = DataHolder(uv_object, uv_object2)
 
@@ -962,7 +960,7 @@ def test_phase_unphase_hera_antpos(uv1_2_set_uvws):
     )
     uvw_calc = np.zeros_like(uv_raw.uvw_array)
     unique_times, unique_inds = np.unique(uv_raw.time_array, return_index=True)
-    for ind, jd in enumerate(unique_times):
+    for jd in unique_times:
         inds = np.where(uv_raw.time_array == jd)[0]
         for bl_ind in inds:
             wh_ant1 = np.where(uv_raw.antenna_numbers == uv_raw.ant_1_array[bl_ind])
@@ -6340,7 +6338,7 @@ def test_get_antenna_redundancies(pyuvsim_redundant):
     assert not np.allclose(uv0.baseline_array, old_bl_array)
 
     # assert all baselines are in the data (because it's conjugated to match)
-    for i, gp in enumerate(red_gps):
+    for gp in red_gps:
         for bl in gp:
             assert bl in uv0.baseline_array
 
@@ -6393,7 +6391,7 @@ def test_redundancy_contract_expand(
             orig_conjugates,
         ) = uv0.get_redundancies(tol, include_conjugates=True)
         blt_inds_to_conj = []
-        for gp_ind, gp in enumerate(orig_red_gps):
+        for gp in orig_red_gps:
             if len(gp) > 1:
                 blt_inds_to_conj.extend(
                     list(np.nonzero(uv0.baseline_array == gp[0])[0])
@@ -6443,7 +6441,7 @@ def test_redundancy_contract_expand(
     if method == "average":
         gp_bl_use = []
         nbls_group = []
-        for gp_ind, gp in enumerate(red_gps):
+        for gp in red_gps:
             bls_init = [bl for bl in gp if bl in uv0.baseline_array]
             nbls_group.append(len(bls_init))
             bl_use = [bl for bl in gp if bl in uv2.baseline_array]
@@ -6473,7 +6471,7 @@ def test_redundancy_contract_expand(
     if reconjugate:
         assert len(orig_red_gps) == len(red_gps)
         match_ind_list = []
-        for gp_ind, gp in enumerate(red_gps):
+        for gp in red_gps:
             for bl in gp:
                 match_ind = [
                     ind for ind, orig_gp in enumerate(orig_red_gps) if bl in orig_gp
@@ -6820,7 +6818,7 @@ def test_compress_redundancy_metadata_only(method, pyuvsim_redundant):
         tol=tol, use_antpos=True, conjugate_bls=True
     )
     for i, gp in enumerate(red_gps):
-        for bl_ind, bl in enumerate(gp):
+        for bl in gp:
             inds = np.where(bl == uv0.baseline_array)
             uv0.data_array[inds] *= 0
             uv0.data_array[inds] += complex(i)

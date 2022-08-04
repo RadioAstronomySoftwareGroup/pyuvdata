@@ -638,7 +638,7 @@ def test_apply_tsys(mir_data):
         )
 
     mir_copy.apply_tsys(invert=True)
-    for key, norm_fac in zip(mir_data.vis_data.keys(), norm_list):
+    for key, _ in zip(mir_data.vis_data.keys(), norm_list):
         assert np.allclose(
             mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"]
         )

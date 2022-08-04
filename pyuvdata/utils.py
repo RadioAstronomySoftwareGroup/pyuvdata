@@ -186,6 +186,7 @@ def _get_fits_extra_keywords(header, keywords_to_skip=None):
         "BLOCKED",
         "GROUPS",
         "PCOUNT",
+        "GCOUNT",
         "BSCALE",
         "BZERO",
         "NAXIS",
@@ -4171,12 +4172,12 @@ def collapse(
             return_weights=return_weights,
             return_weights_square=return_weights_square,
         )
-    except KeyError:
+    except KeyError as err:
         raise ValueError(
             "Collapse algorithm must be one of: "
             + ", ".join(collapse_dict.keys())
             + "."
-        )
+        ) from err
     return out
 
 
