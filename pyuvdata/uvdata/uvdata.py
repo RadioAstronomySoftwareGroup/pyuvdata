@@ -1498,8 +1498,16 @@ class UVData(UVBase):
                 "Cannot rename a phase center if multi_phase_center != True."
             )
 
-        if not isinstance(catalog_identifier, (str, int)):
-            raise TypeError("catalog_identifier must be a string or an integer.")
+        if isinstance(catalog_identifier, (str, int)):
+            pass
+        elif isinstance(catalog_identifier, list) and all(
+            isinstance(cat, int) for cat in catalog_identifier
+        ):
+            pass
+        else:
+            raise TypeError(
+                "catalog_identifier must be a string, an integer or a list of integers."
+            )
 
         if isinstance(catalog_identifier, str):
             cat_id = []
