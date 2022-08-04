@@ -10269,6 +10269,13 @@ def test_clear_unused_phase_centers_no_op(sma_mir):
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
+@pytest.mark.parametrize("cat_id,new_name", [(1, "foo"), ([1, 2], "foo")])
+def test_rename_phase_center_ints(carma_miriad, cat_id, new_name):
+    pytest.importorskip("pyuvdata._miriad")
+    carma_miriad.rename_phase_center(cat_id, new_name)
+
+
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
 @pytest.mark.parametrize(
     "args,err_type,msg",
     (
@@ -10277,7 +10284,17 @@ def test_clear_unused_phase_centers_no_op(sma_mir):
         [
             [3.1415, "abc"],
             TypeError,
-            "catalog_identifier must be a string or an integer.",
+            "catalog_identifier must be a string, an integer or a list of integers.",
+        ],
+        [
+            [["3C273", "unprojected"], "abc"],
+            TypeError,
+            "catalog_identifier must be a string, an integer or a list of integers.",
+        ],
+        [
+            [["3C273", 1], "abc"],
+            TypeError,
+            "catalog_identifier must be a string, an integer or a list of integers.",
         ],
         [["3C273", "unprojected"], ValueError, 'The name "unprojected" is reserved.'],
         [[-1, None], ValueError, "No entry with the ID -1 in the catalog."],
