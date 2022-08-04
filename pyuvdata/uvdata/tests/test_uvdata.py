@@ -10271,8 +10271,9 @@ def test_clear_unused_phase_centers_no_op(sma_mir):
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
 @pytest.mark.parametrize("cat_id,new_name", [(1, "foo"), ([1, 2], "foo")])
 def test_rename_phase_center_ints(carma_miriad, cat_id, new_name):
+    uvd = carma_miriad.copy()
     pytest.importorskip("pyuvdata._miriad")
-    carma_miriad.rename_phase_center(cat_id, new_name)
+    uvd.rename_phase_center(cat_id, new_name)
 
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
