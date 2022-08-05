@@ -11200,12 +11200,21 @@ def test_multi_phase_downselect(hera_uvh5_split, cat_type, future_shapes):
         uvfull.phase(-0.5, 3.6, cat_name="target2", select_mask=~half_mask)
         uvfull.phase(3.6, -0.5, cat_name="target1", select_mask=half_mask)
     elif cat_type == "ephem":
-        uv1.phase(0, 0, epoch="J2000", lookup_name="Mars", cat_name="Mars")
-        uv2.phase(0, 0, epoch="J2000", lookup_name="Jupiter", cat_name="Jupiter")
-        uvfull.phase(
-            0, 0, lookup_name="Jupiter", cat_name="Jupiter", select_mask=~half_mask
-        )
-        uvfull.phase(0, 0, lookup_name="Mars", cat_name="Mars", select_mask=half_mask)
+        from ssl import SSLError
+
+        from requests import RequestException
+
+        try:
+            uv1.phase(0, 0, epoch="J2000", lookup_name="Mars", cat_name="Mars")
+            uv2.phase(0, 0, epoch="J2000", lookup_name="Jupiter", cat_name="Jupiter")
+            uvfull.phase(
+                0, 0, lookup_name="Jupiter", cat_name="Jupiter", select_mask=~half_mask
+            )
+            uvfull.phase(
+                0, 0, lookup_name="Mars", cat_name="Mars", select_mask=half_mask
+            )
+        except (SSLError, RequestException) as err:
+            pytest.skip("SSL/Connection error w/ JPL Horizons: " + str(err))
     elif cat_type == "driftscan":
         uv1.phase(3.6, -0.5, cat_type=cat_type, phase_frame=None, cat_name="drift1")
         uv2.phase(-0.5, 3.6, cat_type=cat_type, phase_frame="altaz", cat_name="drift2")
