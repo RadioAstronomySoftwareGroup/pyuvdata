@@ -5,8 +5,8 @@
 """Tests for HDF5 object
 
 """
-import os
 import json
+import os
 
 import h5py
 import numpy as np
