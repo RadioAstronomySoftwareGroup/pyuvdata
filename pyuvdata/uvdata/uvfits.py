@@ -107,6 +107,8 @@ class UVFITS(UVData):
                 bl_input_array
             )
 
+        # self.multi_phase_center is set to True in `read_uvfits` if the "SOURCE" is
+        # one of the random group. So it will already be set properly when it gets here.
         if self.multi_phase_center:
             source = vis_hdu.data.par("SOURCE")
             self.phase_center_id_array = source.astype(int)
@@ -538,26 +540,13 @@ class UVFITS(UVData):
                 self.spw_array = (
                     uvutils._fits_gethduaxis(vis_hdu, 5).astype(np.int64) - 1
                 )
-                if not self.multi_phase_center:
-                    with warnings.catch_warnings():
-                        warnings.filterwarnings(
-                            "ignore", message="The older phase attributes"
-                        )
-                        # the axis number for phase center depends on if the spw exists
-                        self.phase_center_ra_degrees = float(vis_hdr.pop("CRVAL6"))
-                        self.phase_center_dec_degrees = float(vis_hdr.pop("CRVAL7"))
+                ra_axis = 6
+                dec_axis = 7
             else:
                 self.Nspws = 1
                 self.spw_array = np.array([np.int64(0)])
-
-                if not self.multi_phase_center:
-                    # the axis number for phase center depends on if the spw exists
-                    with warnings.catch_warnings():
-                        warnings.filterwarnings(
-                            "ignore", message="The older phase attributes"
-                        )
-                        self.phase_center_ra_degrees = float(vis_hdr.pop("CRVAL5"))
-                        self.phase_center_dec_degrees = float(vis_hdr.pop("CRVAL6"))
+                ra_axis = 5
+                dec_axis = 6
 
             # get shapes
             self.Npols = vis_hdr.pop("NAXIS3")
@@ -626,10 +615,18 @@ class UVFITS(UVData):
                 self.vis_units = "uncalib"
 
             if not self.multi_phase_center:
+                # the axis number for phase center depends on if the spw exists
                 with warnings.catch_warnings():
                     warnings.filterwarnings(
                         "ignore", message="The older phase attributes"
                     )
+                    self.phase_center_ra_degrees = float(
+                        vis_hdr.pop("CRVAL" + str(ra_axis))
+                    )
+                    self.phase_center_dec_degrees = float(
+                        vis_hdr.pop("CRVAL" + str(dec_axis))
+                    )
+
                     self.phase_center_epoch = vis_hdr.pop("EPOCH", None)
                     self.object_name = vis_hdr.pop("OBJECT", None)
 
