@@ -209,7 +209,7 @@ interoperability between different HDF5 implementations.
 \item \textbf{phase\_center\_catalog}: A series of nested datasets, similar to
 a dict in python (\textit{phase\_center\_catalog}). The top level keys are integers
 giving the phase center catalog IDs which are used to identify which
-baseline-times are phased to which phase center via the phase\_center\_id\_array.
+baseline-times are phased to which phase center via the \textit{phase\_center\_id\_array}.
 The next level keys must include:
 	\begin{itemize}
 	\item \textbf{cat\_name}: \textit{string} The phase center catalog name. This
@@ -287,7 +287,7 @@ calculation. For unprojected phase types, this is just the telescope latitude.
 \item \textbf{phase\_center\_frame\_pa}: \textit{float}
 Position angle between the hour circle (which is a great circle that goes through the target
 postion and both poles) in the apparent/topocentric frame, and the frame given in the
-phase\_center\_catalog under the cat\_frame dataset. This is a one dimensional array
+\textit{phase\_center\_catalog} under the \textit{cat\_frame} dataset. This is a one dimensional array
 of length Nblts. In the event that there are multiple phase centers with different frames,
 the phase\_center\_id\_array can be used to identify which frame is used for each
 baseline-time in this calculation. This is set to zero for unprojected phase types.
@@ -309,7 +309,7 @@ baseline-time in this calculation. This is set to zero for unprojected phase typ
   spectral windows (see
   Sec.~\ref{sec:flex_spw}). (\textit{flex\_spw\_id\_array})
 \item \textbf{dut1}: \textit{float} difference between UT1 (defined with respect to the
-  Earth's angle of rotation, which includes whole and partial "leap seconds") and UTC
+  Earth's angle of rotation, which includes whole and partial ``leap seconds") and UTC
   (which \emph{only} includes whole leap seconds), in seconds, with typical precision of
   1 ms. AIPS 117 calls it \verb+UT1UTC+. Note that this is slightly different from
   the value DUT1 which is broadcast by various time signal services (e.g., NIST), which
@@ -571,11 +571,17 @@ window-axis), UVH5 files should be written such that they conform to Version
 Historically, only a single phase center was supported and only sidereal or
 unprojected (zenith drift without w projection) phasing types were supported.
 When multiple phase center phasing was added, along with support for more
-types of phase centers, the  \textbf{phase\_center\_catalog},
-\textbf{phase\_center\_id\_array}, \textbf{phase\_center\_app\_ra},
-\textbf{phase\_center\_app\_dec}, and \textbf{phase\_center\_frame\_pa}
-(described in \ref{sec:req_params}) were added and the following header
-items (found in versions less than 1.1) were removed:
+types of phase centers, the following parameters were added (described in \ref{sec:req_params}):
+
+\begin{itemize}
+  \item \textbf{phase\_center\_catalog}
+  \item \textbf{phase\_center\_id\_array}
+  \item \textbf{phase\_center\_app\_ra}
+  \item \textbf{phase\_center\_app\_dec}
+  \item \textbf{phase\_center\_frame\_pa}
+\end{itemize}
+
+and the following header items (found in versions less than 1.1) were removed:
 
 \begin{itemize}
     \item \textbf{phase\_center\_ra}: \textit{float} The right ascension of the
@@ -602,11 +608,10 @@ items (found in versions less than 1.1) were removed:
       an unrecognized type. (\textit{phase\_type})
 \end{itemize}
 
-For a brief period of time, while the version number was still 1.0, the new phase attributes
-were written to files along with the header items listed above. During this time, the
-\textbf{phase\_center\_catalog} was written as a python dict converted to a JSON-formatted
-string. This intermediate file format was undocumented and not widely used, but it is possible
-some files like this exist ``in the wild".
+Prior to version 1.1, the new phase attributes were sometimes written to files along with the
+header items listed above. During this time, the \textbf{phase\_center\_catalog} was written
+as a python dict converted to a JSON-formatted string. This intermediate file format was
+undocumented and not widely used, but it is possible some files like this exist ``in the wild".
 
 \subsection{Table Summarizing Changes}
 \label{sec:version_table}
