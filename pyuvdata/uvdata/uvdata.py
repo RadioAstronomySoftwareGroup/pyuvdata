@@ -373,6 +373,15 @@ class UVData(UVBase):
             expected_type=str,
         )
 
+        self._telescope_frame = uvp.UVParameter(
+            "telescope_frame",
+            description='Coordinate frame of the telescope_location. Default is "itrs"',
+            form="str",
+            value="itrs",
+            expected_type=str,
+            acceptable_vals=["itrs", "mcmf"],
+        )
+
         desc = (
             "Telescope location: xyz in ITRF (earth-centered frame). "
             "Can also be accessed using telescope_location_lat_lon_alt or "

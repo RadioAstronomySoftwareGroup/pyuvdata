@@ -10,16 +10,21 @@ import re
 import numpy as np
 import pytest
 from astropy import units
-from astropy.coordinates import Angle, EarthLocation, SkyCoord
-from astropy.time import Time
+from astropy.coordinates import Angle, EarthLocation
 
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal, UVData, UVFlag
+from pyuvdata.astropy_interface import SkyCoord, Time, hasmoon
 from pyuvdata.data import DATA_PATH
 
+# Earth
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
 ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
+
+# Moon
+ref_latlonalt_moon = tuple(np.deg2rad(x) for x in (0.6875, 24.433, 0))
+ref_xyz_moon = (1581421.16194946, 718462.9979381, 20843.20350155)
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:telescope_location is not set. Using known values",
@@ -188,6 +193,49 @@ def test_LatLonAlt_from_XYZ():
 
     # test error checking
     pytest.raises(ValueError, uvutils.LatLonAlt_from_XYZ, ref_xyz[0:1])
+
+
+@pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
+def test_XYZ_from_LatLonAlt_mcmf():
+    """Test MCMF lat/lon/alt to xyz with reference values."""
+    lat, lon, alt = ref_latlonalt_moon
+    out_xyz = uvutils.XYZ_from_LatLonAlt(lat, lon, alt, frame="mcmf")
+    assert np.allclose(ref_xyz_moon, out_xyz, rtol=0, atol=1e-3)
+
+    # Test errors with invalid frame
+    with pytest.raises(
+        ValueError, match="No cartesian to spherical transform defined for frame"
+    ):
+        uvutils.XYZ_from_LatLonAlt(lat, lon, alt, frame="undef")
+
+
+@pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
+def test_LatLonAlt_from_XYZ_mcmf():
+    """Test MCMF xyz to lat/lon/alt with reference values."""
+    out_latlonalt = uvutils.LatLonAlt_from_XYZ(ref_xyz_moon, frame="mcmf")
+    assert np.allclose(ref_latlonalt_moon, out_latlonalt, rtol=0, atol=1e-3)
+
+    # Test errors with invalid frame
+    with pytest.raises(
+        ValueError, match="Cannot check acceptability for unknown frame"
+    ):
+        out_latlonalt = uvutils.LatLonAlt_from_XYZ(ref_xyz_moon, frame="undef")
+    with pytest.raises(
+        ValueError, match="No spherical to cartesian transform defined for frame"
+    ):
+        uvutils.LatLonAlt_from_XYZ(
+            ref_xyz_moon, frame="undef", check_acceptability=False
+        )
+
+
+@pytest.mark.skipif(hasmoon, reason="Test only when lunarsky not installed.")
+def test_no_moon():
+    """Check errors when calling functions with MCMF without lunarsky."""
+    msg = "Need to install `lunarsky` package to work with MCMF frame."
+    with pytest.raises(ValueError, match=msg):
+        uvutils.LatLonAlt_from_XYZ(ref_xyz_moon, frame="mcmf")
+    with pytest.raises(ValueError, match=msg):
+        uvutils.XYZ_from_LatLonAlt(ref_latlonalt_moon, frame="mcmf")
 
 
 def test_lla_xyz_lla_roundtrip():
