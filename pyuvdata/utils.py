@@ -12,12 +12,12 @@ from copy import deepcopy
 import erfa
 import numpy as np
 from astropy import units
-from astropy.coordinates import Angle, Distance, EarthLocation, SkyCoord
-from astropy.time import Time
+from astropy.coordinates import Angle, Distance, EarthLocation
 from astropy.utils import iers
 from scipy.spatial.distance import cdist
 
 from . import _utils
+from .astropy_interface import LUNAR_RADIUS, SkyCoord, Time, hasmoon
 
 __all__ = [
     "POL_STR2NUM_DICT",
@@ -1202,7 +1202,7 @@ def reorder_conj_pols(pols):
     return conj_order
 
 
-def LatLonAlt_from_XYZ(xyz, check_acceptability=True):
+def LatLonAlt_from_XYZ(xyz, frame="ITRS", check_acceptability=True):
     """
     Calculate lat/lon/alt from ECEF x,y,z.
 
@@ -1210,6 +1210,9 @@ def LatLonAlt_from_XYZ(xyz, check_acceptability=True):
     ----------
     xyz : ndarray of float
         numpy array, shape (Npts, 3), with ECEF x,y,z coordinates.
+    frame : str
+        Coordinate frame of xyz.
+        Valid options are ITRS (default) or MCMF.
     check_acceptability : bool
         Flag to check XYZ coordinates are reasonable.
 
@@ -1223,6 +1226,15 @@ def LatLonAlt_from_XYZ(xyz, check_acceptability=True):
         altitude, numpy array (if Npts > 1) or value (if Npts = 1) in meters
 
     """
+    frame = frame.upper()
+    if not hasmoon and frame == "MCMF":
+        raise ValueError("Need to install `lunarsky` package to work with MCMF frame.")
+
+    if frame == "ITRS":
+        accept_bounds = (6.35e6, 6.39e6)
+    elif frame == "MCMF":
+        accept_bounds = (1.71e6, 1.75e6)
+
     # convert to a numpy array
     xyz = np.asarray(xyz)
     if xyz.ndim > 1 and xyz.shape[1] != 3:
@@ -1237,18 +1249,32 @@ def LatLonAlt_from_XYZ(xyz, check_acceptability=True):
 
     # checking for acceptable values
     if check_acceptability:
+        if frame not in ["ITRS", "MCMF"]:
+            raise ValueError(f'Cannot check acceptability for unknown frame "{frame}".')
         norms = np.linalg.norm(xyz, axis=0)
-        if not all(np.logical_and(norms >= 6.35e6, norms <= 6.39e6)):
-            raise ValueError("xyz values should be ECEF x, y, z coordinates in meters")
+        if not all(
+            np.logical_and(norms >= accept_bounds[0], norms <= accept_bounds[1])
+        ):
+            raise ValueError(
+                f"xyz values should be {frame} x, y, z coordinates in meters"
+            )
     # this helper function returns one 2D array because it is less overhead for cython
-    lla = _utils._lla_from_xyz(xyz)
+    if frame == "ITRS":
+        lla = _utils._lla_from_xyz(xyz)
+    elif frame == "MCMF":
+        lla = erfa.gc2gde(LUNAR_RADIUS, 0.0, xyz.T)
+        lla = np.asarray((lla[1], lla[0], lla[2]))  # Swap lon/lat
+    else:
+        raise ValueError(
+            f'No spherical to cartesian transform defined for frame "{frame}".'
+        )
 
     if squeeze:
         return lla[0, 0], lla[1, 0], lla[2, 0]
     return lla[0], lla[1], lla[2]
 
 
-def XYZ_from_LatLonAlt(latitude, longitude, altitude):
+def XYZ_from_LatLonAlt(latitude, longitude, altitude, frame="ITRS"):
     """
     Calculate ECEF x,y,z from lat/lon/alt values.
 
@@ -1260,6 +1286,9 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude):
         longitude, numpy array (if Npts > 1) or value (if Npts = 1) in radians
     altitude :  ndarray or float
         altitude, numpy array (if Npts > 1) or value (if Npts = 1) in meters
+    frame : str
+        Coordinate frame of xyz.
+        Valid options are ITRS (default) or MCMF.
 
     Returns
     -------
@@ -1273,6 +1302,10 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude):
 
     n_pts = latitude.size
 
+    frame = frame.upper()
+    if not hasmoon and frame == "MCMF":
+        raise ValueError("Need to install `lunarsky` package to work with MCMF frame.")
+
     if longitude.size != n_pts:
         raise ValueError(
             "latitude, longitude and altitude must all have the same length"
@@ -1281,9 +1314,16 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude):
         raise ValueError(
             "latitude, longitude and altitude must all have the same length"
         )
+    if frame == "ITRS":
+        xyz = _utils._xyz_from_latlonalt(latitude, longitude, altitude)
+        xyz = xyz.T
+    elif frame == "MCMF":
+        xyz = erfa.gd2gce(LUNAR_RADIUS, 0.0, longitude, latitude, altitude)
+    else:
+        raise ValueError(
+            f'No cartesian to spherical transform defined for frame "{frame}".'
+        )
 
-    xyz = _utils._xyz_from_latlonalt(latitude, longitude, altitude)
-    xyz = xyz.T
     if n_pts == 1:
         return xyz[0]
 
