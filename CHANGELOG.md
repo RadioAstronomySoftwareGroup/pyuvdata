@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Baseline number calculations for antenna numbers > 2047.
 - New uvh5 version 1.1 definition in memo and code to use the future phasing info
 (i.e. the phase_center_catalog) rather than the older parameters.
 - Added the `normalize_by_autos` method to `UVData`, which allows one to normalize
