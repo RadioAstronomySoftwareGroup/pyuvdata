@@ -18,7 +18,7 @@ from astropy.utils import iers
 from scipy.spatial.distance import cdist
 
 from . import _utils
-from .astropy_interface import LUNAR_RADIUS, SkyCoord, Time, hasmoon
+from .astropy_interface import LUNAR_RADIUS, MoonLocation, SkyCoord, Time, hasmoon
 
 __all__ = [
     "POL_STR2NUM_DICT",
@@ -3682,7 +3682,7 @@ def calc_sidereal_coords(
 
 
 def get_lst_for_time(
-    jd_array, latitude, longitude, altitude, astrometry_library="erfa"
+    jd_array, latitude, longitude, altitude, astrometry_library="erfa", frame="itrs"
 ):
     """
     Get the local apparent sidereal time for a set of jd times at an earth location.
@@ -3710,6 +3710,10 @@ def get_lst_for_time(
         Library used for running the LST calculations. Allowed options are 'erfa'
         (which uses the pyERFA), 'novas' (which uses the python-novas library),
         and 'astropy' (which uses the astropy utilities). Default is erfa.
+    frame : str
+        Frame of reference ofr latitude/longitude/altitude.
+        Options are ITRS (default) or MCMF.
+        If MCMF, the 'astrometry_library' keyword will default to astropy.
 
     Returns
     -------
@@ -3723,11 +3727,26 @@ def get_lst_for_time(
         lst_array = np.zeros(1)
 
     jd, reverse_inds = np.unique(jd_array, return_inverse=True)
+
+    if frame.upper() == "MCMF":
+        if not hasmoon:
+            raise ValueError(
+                "Need to install `lunarsky` package to work with MCMF frame."
+            )
+        loc = MoonLocation.from_selenodetic(
+            Angle(longitude, unit="deg"), Angle(latitude, unit="deg"), altitude
+        )
+        if not astrometry_library == "astropy":
+            warnings.warn("Defaulting to `astrometry_library=astropy` for MCMF frame.")
+        astrometry_library = "astropy"
+    else:
+        loc = (Angle(longitude, unit="deg"), Angle(latitude, unit="deg"), altitude)
+
     times = Time(
         jd,
         format="jd",
         scale="utc",
-        location=(Angle(longitude, unit="deg"), Angle(latitude, unit="deg"), altitude),
+        location=loc,
     )
 
     if iers.conf.auto_max_age is None:  # pragma: no cover
