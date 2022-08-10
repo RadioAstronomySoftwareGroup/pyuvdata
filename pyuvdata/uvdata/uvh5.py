@@ -15,6 +15,16 @@ from .uvdata import UVData
 
 __all__ = ["UVH5"]
 
+no_bitshuffle_message = (
+    "bitshuffle is not installed but is required to read this dataset"
+)
+
+bitshuffle_present = True
+try:
+    import hdf5plugin  # noqa: F401
+except ImportError as error:  # pragma: no cover
+    bitshuffle_present = False
+    bitshuffle_error = error
 
 # define HDF5 type for interpreting HERA correlator outputs (integers) as
 # complex numbers
@@ -477,6 +487,11 @@ class UVH5(UVData):
             This is raised if the data array read from the file is not a complex
             datatype (np.complex64 or np.complex128).
         """
+        # check for bitshuffle data; bitshuffle filter number is 32008
+        if "32008" in dgrp["visdata"]._filters:
+            if not bitshuffle_present:
+                raise ImportError(no_bitshuffle_message) from bitshuffle_error
+
         # figure out what data to read in
         blt_inds, freq_inds, pol_inds, history_update_string = self._select_preprocess(
             antenna_nums,

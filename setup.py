@@ -118,6 +118,7 @@ test_reqs = (
     ]
 )
 doc_reqs = ["sphinx", "pypandoc"]
+bitshuffle_reqs = ["hdf5plugin"]
 
 setup_args = {
     "name": "pyuvdata",
@@ -151,6 +152,7 @@ setup_args = {
         "test": test_reqs,
         "doc": doc_reqs,
         "dev": test_reqs + doc_reqs,
+        "bitshuffle": bitshuffle_reqs,
     },
     "classifiers": [
         "Development Status :: 5 - Production/Stable",
