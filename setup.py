@@ -147,10 +147,16 @@ setup_args = {
         "novas": novas_reqs,
         "healpix": healpix_reqs,
         "cst": cst_reqs,
-        "all": casa_reqs + healpix_reqs + cst_reqs + novas_reqs + astroquery_reqs,
+        "all": casa_reqs
+        + healpix_reqs
+        + cst_reqs
+        + novas_reqs
+        + astroquery_reqs
+        + ["lunarsky"],
         "test": test_reqs,
         "doc": doc_reqs,
         "dev": test_reqs + doc_reqs,
+        "lunar": ["lunarsky"],
     },
     "classifiers": [
         "Development Status :: 5 - Production/Stable",
