@@ -15,7 +15,7 @@ from astropy.coordinates import Angle, EarthLocation
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal, UVData, UVFlag
-from pyuvdata.astropy_interface import SkyCoord, Time, hasmoon
+from pyuvdata.astropy_interface import MoonLocation, SkyCoord, Time, hasmoon
 from pyuvdata.data import DATA_PATH
 
 # Earth
@@ -1961,6 +1961,25 @@ def test_lst_for_time_float_vs_array(astrometry_args):
     )
 
     assert np.all(lst_array == check_lst)
+
+
+@pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
+def test_lst_for_time_moon(astrometry_args):
+    """Test the get_lst_for_time function with MCMF frame"""
+    lat, lon, alt = (0.6875, 24.433, 0)  # Degrees
+
+    with pytest.warns(UserWarning, match="Defaulting to `astrometry_library=astropy`"):
+        lst_array = uvutils.get_lst_for_time(
+            astrometry_args["time_array"], lat, lon, alt, frame="mcmf"
+        )
+
+    # Verify that lsts are close to local zenith RA
+    loc = MoonLocation.from_selenodetic(lon, lat, alt)
+    for ii, tt in enumerate(
+        Time(astrometry_args["time_array"], format="jd", scale="utc", location=loc)
+    ):
+        src = SkyCoord(alt="90d", az="0d", frame="lunartopo", obstime=tt, location=loc)
+        assert np.isclose(lst_array[ii], src.transform_to("icrs").ra.rad, atol=1e-4)
 
 
 def test_phasing_funcs():
