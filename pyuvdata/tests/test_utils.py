@@ -235,7 +235,8 @@ def test_no_moon():
     with pytest.raises(ValueError, match=msg):
         uvutils.LatLonAlt_from_XYZ(ref_xyz_moon, frame="mcmf")
     with pytest.raises(ValueError, match=msg):
-        uvutils.xyz_from_latlonalt(ref_latlonalt_moon, frame="mcmf")
+        lat, lon, alt = ref_latlonalt_moon
+        uvutils.XYZ_from_LatLonAlt(lat, lon, alt, frame="mcmf")
     with pytest.raises(ValueError, match=msg):
         uvutils.get_lst_for_time([2451545.0], 0, 0, 0, frame="mcmf")
 
@@ -398,6 +399,7 @@ def test_enu_from_ecef(enu_ecef_info):
     assert np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
 
 
+@pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
 def test_enu_from_mcmf(enu_mcmf_info):
     (
         center_lat,
@@ -472,11 +474,14 @@ def test_enu_from_ecef_magnitude_error(enu_ecef_info):
     with pytest.raises(ValueError) as cm:
         uvutils.ENU_from_ECEF(xyz / 2.0, center_lat, center_lon, center_alt)
     assert str(cm.value).startswith(
-        "ECEF vector magnitudes must be on the order of the radius of the earth"
+        "ITRS vector magnitudes must be on the order of the radius of the earth"
     )
 
 
-@pytest.mark.parametrize("frame", ["itrs", "mcmf"])
+_frames = ["itrs", "mcmf"] if hasmoon else ["itrs"]
+
+
+@pytest.mark.parametrize("frame", _frames)
 def test_ecef_from_enu_roundtrip(enu_ecef_info, enu_mcmf_info, frame):
     """Test ECEF_from_ENU values."""
     (

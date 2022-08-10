@@ -52,6 +52,7 @@ def uvdata_props():
         "telescope_name",
         "instrument",
         "telescope_location",
+        "telescope_frame",
         "history",
         "vis_units",
         "Nants_data",
