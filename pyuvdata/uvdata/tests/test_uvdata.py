@@ -820,6 +820,8 @@ def test_antnums_to_baselines(uvdata_baseline):
     assert uvdata_baseline.uv_object.antnums_to_baseline(0, 0, attempt256=True) == 0
     with uvtest.check_warnings(UserWarning, "found antenna numbers > 255"):
         uvdata_baseline.uv_object.antnums_to_baseline(256, 255, attempt256=True)
+    with uvtest.check_warnings(UserWarning, "found antenna numbers > 2047"):
+        uvdata_baseline.uv_object.antnums_to_baseline(2051, 2050, attempt256=True)
     with pytest.raises(
         ValueError,
         match="cannot convert ant1, ant2 to a baseline index with Nants={Nants}"
