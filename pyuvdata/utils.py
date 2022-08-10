@@ -2001,7 +2001,7 @@ def calc_uvw(
     based under a few different circumstances:
 
     1) Calculating ENU coordinates using antenna positions
-    2) Calculating uwv coordinates at a given sky position using antenna positions
+    2) Calculating uvw coordinates at a given sky position using antenna positions
     3) Converting from ENU coordinates to uvw coordinates
     4) Converting from uvw coordinate to ENU coordinates
     5) Converting from uvw coordinates at one sky position to another sky position
@@ -2234,7 +2234,7 @@ def calc_uvw(
             )[:, :, 0]
         else:
             new_coords = _rotate_two_axis(
-                _rotate_two_axis(  # Yo dawg, I heard you like rotation maticies...
+                _rotate_two_axis(  # Yo dawg, I heard you like rotation matricies...
                     uvw_array[:, [2, 0, 1], np.newaxis],
                     0.0 if (from_enu or old_frame_pa is None) else (-old_frame_pa),
                     (-telescope_lat) if from_enu else (-old_app_dec),
