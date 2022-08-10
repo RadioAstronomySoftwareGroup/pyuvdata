@@ -235,7 +235,9 @@ def test_no_moon():
     with pytest.raises(ValueError, match=msg):
         uvutils.LatLonAlt_from_XYZ(ref_xyz_moon, frame="mcmf")
     with pytest.raises(ValueError, match=msg):
-        uvutils.XYZ_from_LatLonAlt(ref_latlonalt_moon, frame="mcmf")
+        uvutils.xyz_from_latlonalt(ref_latlonalt_moon, frame="mcmf")
+    with pytest.raises(ValueError, match=msg):
+        uvutils.get_lst_for_time([2451545.0], 0, 0, 0, frame="mcmf")
 
 
 def test_lla_xyz_lla_roundtrip():

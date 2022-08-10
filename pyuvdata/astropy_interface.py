@@ -42,6 +42,11 @@ except ImportError:
 
         pass
 
+    class MCMF:
+        """Mock MCMF frame so that imports pass."""
+
+        pass
+
 
 for obj in [SkyCoord, MoonLocation, LunarTopo, Time, MCMF]:
     assert obj
