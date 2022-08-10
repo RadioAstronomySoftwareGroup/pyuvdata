@@ -309,6 +309,51 @@ def enu_ecef_info():
     )
 
 
+@pytest.fixture(scope="module")
+def enu_mcmf_info():
+    center_lat, center_lon, center_alt = [np.deg2rad(x) for x in (0.6875, 24.433, 0)]
+
+    # Creating a test pattern of a circle of antennas, radius 500 m in ENU coordinates.
+    angs = np.linspace(0, 2 * np.pi, 10, endpoint=False)
+    enus = 500 * np.array([np.cos(angs), np.sin(angs), [0] * angs.size])
+    east = enus[0].tolist()
+    north = enus[1].tolist()
+    up = enus[2].tolist()
+
+    # fmt: off
+    lats = np.deg2rad([0.70399179, 0.70084213, 0.69259622, 0.68240373, 0.67415785,
+                       0.67100821, 0.67415785, 0.68240373, 0.69259622, 0.70084213])
+
+    lons = np.deg2rad([24.433, 24.44269436, 24.44868577, 24.44868574, 24.4426943,
+                       24.433, 24.4233057, 24.41731426, 24.41731423, 24.42330564])
+
+    alts = [0.07195322, 0.07195087, 0.07195163, 0.07195521, 0.07196024,
+            0.0719648, 0.07196715, 0.07196639, 0.07196281, 0.07195778]
+
+    x = [-5.46215006, -125.98145249, -198.38012202, -195.00432763, -117.14350804,
+         5.46215006, 125.98145249, 198.38012202, 195.00432763, 117.14350804]
+    y = [-2.48155003, 265.56562447, 432.17575667, 433.70943893, 269.58085676,
+         2.48155003, -265.56562448, -432.17575667, -433.70943893, -269.58085676]
+    z = [499.96400553, 404.4793848, 154.49738682, -154.49736175, -404.4793693,
+         -499.96400553, -404.4793848, -154.49738682, 154.49736175, 404.4793693]
+
+    # fmt: on
+    yield (
+        center_lat,
+        center_lon,
+        center_alt,
+        lats,
+        lons,
+        alts,
+        x,
+        y,
+        z,
+        east,
+        north,
+        up,
+    )
+
+
 def test_xyz_from_latlonalt(enu_ecef_info):
     """Test calculating xyz from lat lot alt."""
     (
@@ -348,6 +393,26 @@ def test_enu_from_ecef(enu_ecef_info):
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
 
     enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
+    assert np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
+
+
+def test_enu_from_mcmf(enu_mcmf_info):
+    (
+        center_lat,
+        center_lon,
+        center_alt,
+        lats,
+        lons,
+        alts,
+        x,
+        y,
+        z,
+        east,
+        north,
+        up,
+    ) = enu_mcmf_info
+    xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts, frame="mcmf")
+    enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt, frame="mcmf")
     assert np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
 
 
@@ -409,7 +474,8 @@ def test_enu_from_ecef_magnitude_error(enu_ecef_info):
     )
 
 
-def test_ecef_from_enu_roundtrip(enu_ecef_info):
+@pytest.mark.parametrize("frame", ["itrs", "mcmf"])
+def test_ecef_from_enu_roundtrip(enu_ecef_info, enu_mcmf_info, frame):
     """Test ECEF_from_ENU values."""
     (
         center_lat,
@@ -424,11 +490,15 @@ def test_ecef_from_enu_roundtrip(enu_ecef_info):
         east,
         north,
         up,
-    ) = enu_ecef_info
-    xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
-    enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
+    ) = (
+        enu_ecef_info if frame == "itrs" else enu_mcmf_info
+    )
+    xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts, frame=frame)
+    enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt, frame=frame)
     # check that a round trip gives the original value.
-    xyz_from_enu = uvutils.ECEF_from_ENU(enu, center_lat, center_lon, center_alt)
+    xyz_from_enu = uvutils.ECEF_from_ENU(
+        enu, center_lat, center_lon, center_alt, frame=frame
+    )
     assert np.allclose(xyz, xyz_from_enu, atol=1e-3)
 
 

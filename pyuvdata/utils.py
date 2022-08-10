@@ -13,6 +13,7 @@ import erfa
 import numpy as np
 from astropy import units
 from astropy.coordinates import Angle, Distance, EarthLocation
+from astropy.coordinates.matrix_utilities import rotation_matrix
 from astropy.utils import iers
 from scipy.spatial.distance import cdist
 
@@ -1391,7 +1392,7 @@ def ECEF_from_rotECEF(xyz, longitude):
     return rot_matrix.dot(xyz.T).T
 
 
-def ENU_from_ECEF(xyz, latitude, longitude, altitude):
+def ENU_from_ECEF(xyz, latitude, longitude, altitude, frame="ITRS"):
     """
     Calculate local ENU (east, north, up) coordinates from ECEF coordinates.
 
@@ -1405,6 +1406,9 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
         Longitude of center of ENU coordinates in radians.
     altitude : float
         Altitude of center of ENU coordinates in radians.
+    frame : str
+        Coordinate frame of xyz.
+        Valid options are ITRS (default) or MCMF.
 
     Returns
     -------
@@ -1412,6 +1416,17 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
         numpy array, shape (Npts, 3), with local ENU coordinates
 
     """
+    frame = frame.upper()
+    if not hasmoon and frame == "MCMF":
+        raise ValueError("Need to install `lunarsky` package to work with MCMF frame.")
+
+    if frame == "ITRS":
+        sensible_radius_range = (6.35e6, 6.39e6)
+        world = "earth"
+    elif frame == "MCMF":
+        world = "moon"
+        sensible_radius_range = (1.71e6, 1.75e6)
+
     xyz = np.asarray(xyz)
     if xyz.ndim > 1 and xyz.shape[1] != 3:
         raise ValueError("The expected shape of ECEF xyz array is (Npts, 3).")
@@ -1425,31 +1440,44 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude):
     # check that these are sensible ECEF values -- their magnitudes need to be
     # on the order of Earth's radius
     ecef_magnitudes = np.linalg.norm(xyz, axis=0)
-    sensible_radius_range = (6.35e6, 6.39e6)
     if np.any(ecef_magnitudes <= sensible_radius_range[0]) or np.any(
         ecef_magnitudes >= sensible_radius_range[1]
     ):
         raise ValueError(
-            "ECEF vector magnitudes must be on the order of the radius of the earth"
+            f"{frame} vector magnitudes must be on the order"
+            f" of the radius of the {world}"
         )
 
-    # the cython utility expects (3, Npts) for faster manipulation
-    # transpose after we get the array back to match the expected shape
-    enu = _utils._ENU_from_ECEF(
-        xyz,
-        np.ascontiguousarray(latitude, dtype=np.float64),
-        np.ascontiguousarray(longitude, dtype=np.float64),
-        np.ascontiguousarray(altitude, dtype=np.float64),
-    )
+    if frame == "ITRS":
+        # the cython utility expects (3, Npts) for faster manipulation
+        # transpose after we get the array back to match the expected shape
+        enu = _utils._ENU_from_ECEF(
+            xyz,
+            np.ascontiguousarray(latitude, dtype=np.float64),
+            np.ascontiguousarray(longitude, dtype=np.float64),
+            np.ascontiguousarray(altitude, dtype=np.float64),
+        )
+        enu = enu.T
 
-    enu = enu.T
+    elif frame == "MCMF":
+        xyz_cent = erfa.gd2gce(LUNAR_RADIUS, 0.0, longitude, latitude, altitude)
+        ecef_to_enu = np.matmul(
+            rotation_matrix(-longitude, "z", unit="rad"),
+            rotation_matrix(latitude, "y", unit="rad"),
+        ).T
+
+        ecef_to_enu = ecef_to_enu[[2, 1, 0]]
+        enu = np.dot(ecef_to_enu, (xyz.T - xyz_cent).T).T
+
+    else:
+        raise ValueError(f'No ENU_from_ECEF transform defined for frame "{frame}".')
     if squeeze:
         enu = np.squeeze(enu)
 
     return enu
 
 
-def ECEF_from_ENU(enu, latitude, longitude, altitude):
+def ECEF_from_ENU(enu, latitude, longitude, altitude, frame="ITRS"):
     """
     Calculate ECEF coordinates from local ENU (east, north, up) coordinates.
 
@@ -1463,6 +1491,9 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
         Longitude of center of ENU coordinates in radians.
     altitude : float
         Altitude of center of ENU coordinates in radians.
+    frame : str
+        Coordinate frame of xyz.
+        Valid options are ITRS (default) or MCMF.
 
 
     Returns
@@ -1471,6 +1502,10 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
         numpy array, shape (Npts, 3), with ECEF x,y,z coordinates.
 
     """
+    frame = frame.upper()
+    if not hasmoon and frame == "MCMF":
+        raise ValueError("Need to install `lunarsky` package to work with MCMF frame.")
+
     enu = np.asarray(enu)
     if enu.ndim > 1 and enu.shape[1] != 3:
         raise ValueError("The expected shape of the ENU array is (Npts, 3).")
@@ -1481,15 +1516,27 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude):
         enu = enu[np.newaxis, :]
     enu = np.ascontiguousarray(enu.T, dtype=np.float64)
 
-    # the cython utility expects (3, Npts) for faster manipulation
-    # transpose after we get the array back to match the expected shape
-    xyz = _utils._ECEF_from_ENU(
-        enu,
-        np.ascontiguousarray(latitude, dtype=np.float64),
-        np.ascontiguousarray(longitude, dtype=np.float64),
-        np.ascontiguousarray(altitude, dtype=np.float64),
-    )
-    xyz = xyz.T
+    if frame == "ITRS":
+        # the cython utility expects (3, Npts) for faster manipulation
+        # transpose after we get the array back to match the expected shape
+        xyz = _utils._ECEF_from_ENU(
+            enu,
+            np.ascontiguousarray(latitude, dtype=np.float64),
+            np.ascontiguousarray(longitude, dtype=np.float64),
+            np.ascontiguousarray(altitude, dtype=np.float64),
+        )
+        xyz = xyz.T
+    elif frame == "MCMF":
+        xyz_cent = erfa.gd2gce(LUNAR_RADIUS, 0.0, longitude, latitude, altitude)
+        ecef_to_enu = np.matmul(
+            rotation_matrix(-longitude, "z", unit="rad"),
+            rotation_matrix(latitude, "y", unit="rad"),
+        ).T
+        enu_to_ecef = np.linalg.inv(ecef_to_enu[[2, 1, 0]])
+        xyz_rel = np.dot(enu_to_ecef, enu)
+        xyz = xyz_cent + xyz_rel.T
+    else:
+        raise ValueError(f'No ECEF_from_ENU transform defined for frame "{frame}".')
     if squeeze:
         xyz = np.squeeze(xyz)
 
