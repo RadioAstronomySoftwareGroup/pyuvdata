@@ -3918,6 +3918,7 @@ class UVData(UVBase):
         antpos = uvutils.ENU_from_ECEF(
             (self.antenna_positions + self.telescope_location),
             *self.telescope_location_lat_lon_alt,
+            frame=self.telescope_frame,
         )
         ants = self.antenna_numbers
 
