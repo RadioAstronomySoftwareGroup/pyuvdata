@@ -311,16 +311,19 @@ def uvdata_baseline():
     uv_object.Nants_telescope = 128
     uv_object2 = UVData()
     uv_object2.Nants_telescope = 2147483649
+    uv_object3 = UVData()
+    uv_object3.Nants_telescope = 2050
 
     DataHolder = namedtuple(
         "DataHolder",
         [
             "uv_object",
             "uv_object2",
+            "uv_object3",
         ],
     )
 
-    uvdata_baseline = DataHolder(uv_object, uv_object2)
+    uvdata_baseline = DataHolder(uv_object, uv_object2, uv_object3)
 
     # yields the data we need but will continue to the del call after tests
     yield uvdata_baseline
@@ -822,6 +825,8 @@ def test_antnums_to_baselines(uvdata_baseline):
         uvdata_baseline.uv_object.antnums_to_baseline(256, 255, attempt256=True)
     with uvtest.check_warnings(UserWarning, "found antenna numbers > 2047"):
         uvdata_baseline.uv_object.antnums_to_baseline(2051, 2050, attempt256=True)
+    with uvtest.check_warnings(UserWarning, "found antenna numbers > 2047"):
+        uvdata_baseline.uv_object3.antnums_to_baseline(1112, 1111, attempt256=True)
     with pytest.raises(
         ValueError,
         match="cannot convert ant1, ant2 to a baseline index with Nants={Nants}"
