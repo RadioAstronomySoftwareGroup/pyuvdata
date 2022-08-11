@@ -791,9 +791,10 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
         number of antennas
     attempt256 : bool
         Option to try to use the older 256 standard used in
-        many uvfits files. If there are more than 256 antennas, the 2048
-        standard will be used unless there are more than 2048 antennas.
-        In that case, the 2147483648 standard will be used. Default is False.
+        many uvfits files. If there are antenna numbers >= 256, the 2048
+        standard will be used unless there are antenna numbers >= 2048
+        or Nants_telescope > 2048. In that case, the 2147483648 standard
+        will be used. Default is False.
 
     Returns
     -------
@@ -817,11 +818,16 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False):
             "with antenna numbers less than zero."
         )
 
+    nants_less2048 = True
+    if Nants_telescope is not None and Nants_telescope > 2048:
+        nants_less2048 = False
+
     return_array = isinstance(ant1, (np.ndarray, list, tuple))
     baseline = _utils.antnums_to_baseline(
         np.ascontiguousarray(ant1, dtype=np.int64),
         np.ascontiguousarray(ant2, dtype=np.int64),
         attempt256=attempt256,
+        nants_less2048=nants_less2048,
     )
     if return_array:
         return baseline
