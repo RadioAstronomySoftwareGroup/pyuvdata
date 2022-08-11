@@ -182,7 +182,7 @@ class UVData(UVBase):
             description=desc,
             expected_type=int,
             form=("Nblts",),
-            acceptable_range=(0, 2047),
+            acceptable_range=(0, 2147483647),
         )
 
         desc = (
@@ -194,19 +194,20 @@ class UVData(UVBase):
             description=desc,
             expected_type=int,
             form=("Nblts",),
-            acceptable_range=(0, 2047),
+            acceptable_range=(0, 2147483647),
         )
 
         desc = (
-            "Array of baseline numbers, shape (Nblts), "
-            "type = int; baseline = 2048 * (ant1+1) + (ant2+1) + 2^16."
+            "Array of baseline numbers, shape (Nblts), type = int; "
+            "by default baseline = 2048 * (ant1+1) + (ant2+1) + 2^16, "
+            "though other conventions are available."
         )
         self._baseline_array = uvp.UVParameter(
             "baseline_array",
             description=desc,
             expected_type=int,
             form=("Nblts",),
-            acceptable_range=(0, 4259839),
+            acceptable_range=(0, 4611686018498691072),
         )
 
         # this dimensionality of freq_array does not allow for different spws

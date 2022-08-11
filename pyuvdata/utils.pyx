@@ -209,8 +209,8 @@ cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
         _antnum_to_bl_2048(ant1, ant2, _bl, nbls)
     else:
       message = (
-        "antnums_to_baseline: found antenna numbers > 2047, using "
-        "2147483648 baseline indexing."
+        "antnums_to_baseline: found antenna numbers > 2047 or "
+        "Nants_telescope > 2048, using 2147483648 baseline indexing."
       )
       warnings.warn(message)
       _antnum_to_bl_2147483648(ant1, ant2, _bl, nbls)
