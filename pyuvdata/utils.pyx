@@ -175,7 +175,8 @@ cdef inline void _antnum_to_bl_256(
 cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
   numpy.int64_t[::1] ant1,
   numpy.int64_t[::1] ant2,
-  bint attempt256=False
+  bint attempt256=False,
+  bint nants_less2048=True
 ):
   cdef int ndim = 1
   cdef int nbls = ant1.shape[0]
@@ -183,11 +184,11 @@ cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
   cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] baseline = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_INT64, 0)
   cdef numpy.int64_t[::1] _bl = baseline
   cdef bint less255
-  cdef bint less2048
+  cdef bint ants_less2048
   # to ensure baseline numbers are unambiguous,
   # use the 2048 calculation for antennas >= 256
   # and use the 2147483648 calculation for antennas >= 2048
-  less2048 = max(
+  ants_less2048 = max(
     arraymax(ant1),
     arraymax(ant2),
   ) < 2048
@@ -199,24 +200,22 @@ cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
     if less256:
       _antnum_to_bl_256(ant1, ant2, _bl, nbls)
 
-    elif less2048:
+    elif ants_less2048 and nants_less2048:
         message = (
           "antnums_to_baseline: found antenna numbers > 255, using "
-          "2048 baseline indexing. Beware compatibility "
-          "with CASA etc"
+          "2048 baseline indexing."
         )
         warnings.warn(message)
         _antnum_to_bl_2048(ant1, ant2, _bl, nbls)
     else:
       message = (
         "antnums_to_baseline: found antenna numbers > 2047, using "
-        "2147483648 baseline indexing. Beware compatibility "
-        "with CASA etc"
+        "2147483648 baseline indexing."
       )
       warnings.warn(message)
       _antnum_to_bl_2147483648(ant1, ant2, _bl, nbls)
 
-  elif less2048:
+  elif ants_less2048 and nants_less2048:
     _antnum_to_bl_2048(ant1, ant2, _bl, nbls)
 
   else:
