@@ -29,11 +29,24 @@ class Mir(UVData):
     def read_mir(
         self,
         filepath,
-        isource=None,
-        irec=None,
-        isb=None,
+        select_where=None,
+        antenna_nums=None,
+        antenna_names=None,
+        bls=None,
+        times=None,
+        time_range=None,
+        lsts=None,
+        lst_range=None,
+        polarizations=None,
+        sources=None,
         corrchunk=None,
+        receivers=None,
+        sidebands=None,
+        apply_tsys=True,
+        apply_flags=True,
+        apply_dedoppler=False,
         pseudo_cont=False,
+        rechunk=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -41,7 +54,6 @@ class Mir(UVData):
         allow_flex_pol=True,
         check_autos=True,
         fix_autos=False,
-        rechunk=None,
         use_future_array_shapes=False,
     ):
         """
@@ -56,16 +68,10 @@ class Mir(UVData):
         ----------
         filepath : str
             The file path to the MIR folder to read from.
-        isource : list of int
-            Source code(s) for MIR dataset
-        irec : array-like of int
-            Receiver code for MIR dataset
-        isb : array-like of int
-            Sideband codes for MIR dataset (0 = LSB, 1 = USB). Default is both sb.
         corrchunk : array-like of int
             Correlator chunk codes for MIR dataset
         pseudo_cont : boolean
-            Read in only pseudo-continuuum values. Default is false.
+            Read in only pseudo-continuum values. Default is false.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             before writing the file.
@@ -76,7 +82,7 @@ class Mir(UVData):
             writing the file.
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
+            uvw coordinates match antenna positions does not pass.
         allow_flex_pol : bool
             If only one polarization per spectral window is read (and the polarization
             differs from window to window), allow for the `UVData` object to use
@@ -100,32 +106,61 @@ class Mir(UVData):
         # Use the mir_parser to read in metadata, which can be used to select data.
         mir_data = mir_parser.MirParser(filepath)
 
-        if isource is not None:
-            mir_data.select(where=("isource", "eq", isource))
-            if not np.any(mir_data.in_data.get_mask()):
-                raise ValueError("No valid sources selected!")
+        if select_where is None:
+            select_where = []
 
-        if irec is not None:
-            mir_data.select(where=("irec", "eq", irec))
-            if not np.any(mir_data.in_data.get_mask()):
-                raise ValueError("No valid receivers selected!")
+            if antenna_nums is not None:
+                select_where += [("ant", "eq", antenna_nums)]
+            if antenna_names is not None:
+                select_where += [("tel1", "eq", antenna_names)]
+                select_where += [("tel2", "eq", antenna_names)]
+            if bls is not None:
+                select_where += [
+                    ("blcd", "eq", ["%i-%i" % (tup[0], tup[1]) for tup in bls])
+                ]
+            if times is not None:
+                # Have to convert times from UTC JD -> TT MJD for mIR
+                select_where += [
+                    ("mjd", "eq", Time(times, format="jd", scale="utc").tt.mjd)
+                ]
+            if time_range is not None:
+                # Have to convert times from UTC JD -> TT MJD for mIR
+                select_where += [
+                    ("mjd", "btw", Time(time_range, format="jd", scale="utc").tt.mjd)
+                ]
+            if time_range is not None:
+                select_where += [("lst", "eq", time_range)]
+            if lsts is not None:
+                select_where += [("lst", "eq", lsts)]
+            if lst_range is not None:
+                select_where += [("lst_range", "btw", lst_range)]
+            if polarizations is not None:
+                select_where += [("pol", "eq", polarizations)]
+            if sources is not None:
+                select_where += [("source", "eq", sources)]
+            if receivers is not None:
+                select_where += [("rec", "eq", receivers)]
+            if sidebands is not None:
+                select_where += [("sb", "eq", sidebands)]
 
-        if isb is not None:
-            mir_data.select(where=("isb", "eq", isb))
-            if not np.any(mir_data.in_data.get_mask()):
-                raise ValueError("No valid sidebands selected!")
+            if corrchunk is not None:
+                select_where += [("corrchunk", "eq", corrchunk)]
+            elif not pseudo_cont:
+                select_where += [("corrchunk", "ne", 0)]
 
-        if corrchunk is not None:
-            mir_data.select(where=("corrchunk", "eq", corrchunk))
-            if not np.any(mir_data.in_data.get_mask()):
-                raise ValueError("No valid spectral bands selected!")
-        elif not pseudo_cont:
-            mir_data.select(where=("corrchunk", "ne", 0))
+        if select_where:
+            mir_data.select(where=select_where)
 
         if rechunk is not None:
             mir_data.rechunk(rechunk)
 
-        self._init_from_mir_parser(mir_data, allow_flex_pol=allow_flex_pol)
+        self._init_from_mir_parser(
+            mir_data,
+            allow_flex_pol=allow_flex_pol,
+            apply_flags=apply_flags,
+            apply_tsys=apply_tsys,
+            apply_dedoppler=apply_dedoppler,
+        )
 
         if use_future_array_shapes:
             self.use_future_array_shapes()
@@ -143,7 +178,12 @@ class Mir(UVData):
             )
 
     def _init_from_mir_parser(
-        self, mir_data: mir_parser.MirParser, allow_flex_pol=True
+        self,
+        mir_data: mir_parser.MirParser,
+        allow_flex_pol=True,
+        apply_tsys=True,
+        apply_flags=True,
+        apply_dedoppler=False,
     ):
         """
         Convert a MirParser object into a UVData object.
@@ -166,7 +206,7 @@ class Mir(UVData):
         self._set_flex_spw()
 
         # Create a simple list for broadcasting values stored on a
-        # per-intergration basis in MIR into the (tasty) per-blt records in UVDATA.
+        # per-integration basis in MIR into the (tasty) per-blt records in UVDATA.
         bl_in_idx = mir_data.in_data._index_query(header_key=mir_data.bl_data["inhid"])
 
         # Create a simple array/list for broadcasting values stored on a
@@ -251,8 +291,8 @@ class Mir(UVData):
 
         # Create a list of baseline-time combinations in the data
         blt_list = [
-            (intid, ant1, ant2)
-            for intid, ant1, ant2 in zip(*mir_data.bl_data[["inhid", "iant1", "iant2"]])
+            (inhid, ant1, ant2)
+            for inhid, ant1, ant2 in zip(*mir_data.bl_data[["inhid", "iant1", "iant2"]])
         ]
 
         # Use the list above to create a dict that maps baseline-time combo
@@ -376,8 +416,11 @@ class Mir(UVData):
         vis_flags = np.ones((Nblts, Npols, Nfreqs), dtype=bool)
         vis_weights = np.zeros((Nblts, Npols, Nfreqs), dtype=np.float32)
         if mir_data.vis_data is None:
-            mir_data.load_data(load_cross=True, apply_tsys=True)
-            mir_data.apply_flags()
+            mir_data.load_data(load_cross=True, apply_tsys=apply_tsys)
+            if apply_flags:
+                mir_data.apply_flags()
+            if apply_dedoppler:
+                mir_data.redoppler_data()
 
         if not np.all(
             np.isin(list(mir_data.vis_data.keys()), mir_data.sp_data["sphid"])
@@ -450,7 +493,7 @@ class Mir(UVData):
         lat, lon, alt = get_telescope("SMA")._telescope_location.lat_lon_alt()
         self.telescope_location_lat_lon_alt = (lat, lon, alt)
 
-        # Calculate antenna postions in EFEF frame. Note that since both
+        # Calculate antenna positions in ECEF frame. Note that since both
         # coordinate systems are in relative units, no subtraction from
         # telescope geocentric position is required , i.e we are going from
         # relRotECEF -> relECEF
@@ -489,7 +532,7 @@ class Mir(UVData):
             except KeyError:
                 # If we get a key error, it means this is the first record to be
                 # evaluated for this given baseline-time, so create a new dict
-                # entry so that subseqent sphid records can be evaluated.
+                # entry so that subsequent sphid records can be evaluated.
                 sp_temp_dict[blhid_blt_order[sp_rec["blhid"]]] = temp_dict
 
         # Next step: we want to check that information that's stored on a per-baseline
@@ -531,7 +574,7 @@ class Mir(UVData):
             except KeyError:
                 # If we get a key error, it means this is the first record to be
                 # evaluated for this given baseline-time, so create a new dict
-                # entry so that subseqent blhid records can be evaluated.
+                # entry so that subsequent blhid records can be evaluated.
                 blt_temp_dict[blhid_blt_order[bl_rec["blhid"]]] = temp_dict
 
         # Initialize the metadata arrays.
@@ -562,7 +605,7 @@ class Mir(UVData):
             app_ra[blt_key] = temp_dict["ara"]
             app_dec[blt_key] = temp_dict["adec"]
 
-        # Finally, assign arrays to arributed
+        # Finally, assign arrays to attributed
         self.ant_1_array = ant_1_array
         self.ant_2_array = ant_2_array
         self.baseline_array = self.antnums_to_baseline(
@@ -610,9 +653,9 @@ class Mir(UVData):
         self.phase_center_app_ra = app_ra
         self.phase_center_app_dec = app_dec
 
-        # For MIR, uvws are always calculated in the "apparent" position. We can adjust
-        # this by calculating the position angle with our preferred coordinate frame
-        # (ICRS) and applying the rotation below (via `calc_uvw`).
+        # For MIR, uvw coords are always calculated in the "apparent" position. We can
+        # adjust this by calculating the position angle with our preferred coordinate
+        # frame (ICRS) and applying the rotation below (via `calc_uvw`).
         self._set_app_coords_helper(pa_only=True)
 
         self.uvw_array = uvutils.calc_uvw(

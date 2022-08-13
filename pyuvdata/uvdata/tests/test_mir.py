@@ -289,59 +289,6 @@ def test_multi_nchan_spw_read(tmp_path):
         uv_in.write_uvfits(dummyfile)
 
 
-def test_read_mir_no_records():
-    """
-    Mir no-records check
-
-    Make sure that mir correctly handles the case where no matching records are found
-    """
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    uv_in = UVData()
-    with pytest.raises(ValueError, match="No valid sources selected!"):
-        uv_in.read_mir(testfile, isource=-1)
-
-    with pytest.raises(ValueError, match="No valid receivers selected!"):
-        uv_in.read_mir(testfile, irec=-1)
-
-    with pytest.raises(ValueError, match="No valid sidebands selected!"):
-        uv_in.read_mir(testfile, isb=-156)
-
-    with pytest.raises(ValueError, match="No valid spectral bands selected!"):
-        uv_in.read_mir(testfile, corrchunk=999)
-
-
-@pytest.mark.parametrize("pseudo_cont", [True, False])
-def test_read_mir_sideband_select(sma_mir, pseudo_cont):
-    """
-    Mir sideband read check
-
-    Make sure that we can read the individual sidebands out of MIR correctly, and then
-    stitch them back together as though they were read together from the start.
-    """
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    if pseudo_cont:
-        sma_mir.read(testfile, pseudo_cont=pseudo_cont, use_future_array_shapes=True)
-
-    # Re-order here so that we can more easily compare the two
-    sma_mir.reorder_freqs(channel_order="freq", spw_order="freq")
-    # Drop the history
-    sma_mir.history = ""
-
-    mir_lsb = UVData()
-    mir_lsb.read(testfile, isb=0, pseudo_cont=pseudo_cont, use_future_array_shapes=True)
-
-    mir_usb = UVData()
-    mir_usb.read(testfile, isb=1, pseudo_cont=pseudo_cont, use_future_array_shapes=True)
-
-    mir_recomb = mir_lsb + mir_usb
-    # Re-order here so that we can more easily compare the two
-    mir_recomb.reorder_freqs(spw_order="freq", channel_order="freq")
-    # Drop the history
-    mir_recomb.history = ""
-
-    assert sma_mir == mir_recomb
-
-
 def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
     """
     Mir to MS loopback test with flex-pol.
