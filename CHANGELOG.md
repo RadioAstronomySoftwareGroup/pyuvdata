@@ -41,7 +41,7 @@ to describe zenith driftscan data that have no w-projections applied.
 - The `MirParser` class has been significantly overhauled, which significantly reduces
 memory usage and improves processing speed.
 - Updated minimum dependency versions: numpy>=1.19, scipy>=1.3, optional dependencies:
-python-casacore>=3.3, pyyam>=5.1, astropy-healpix>=0.6
+python-casacore>=3.3, pyyaml>=5.1, astropy-healpix>=0.6
 - `UVBase` object now require that individual attribute names match that given in
 `UVParameter._name`.
 - `UVData.fix_phase` now raises a warning when called.
@@ -106,9 +106,9 @@ along with an option to force them to be real-only if non-zero imaginary compone
 - Added the `_make_flex_pol` and `remove_flex_pol` methods to `UVData`, which allows for
   one to convert a standard `UVData` object to one with "flexible-polarization".
 - Added a new method to `MirParser` called `_apply_tsys`, which will convert MIR visibility data
-  from correlation coefficiencts to pseudo-Jy.
+  from correlation coefficients to pseudo-Jy.
 - Added a method to `Mir` called `_init_from_mir_parser`, which allows for one to pass
-  a `MirParser` object to be coverted into a UVData object (rather than reading from
+  a `MirParser` object to be converted into a UVData object (rather than reading from
   a file on disk).
 - Added the `flex_spw` attribute to the `UVCal` class, which can be set to True by using
 the new `_set_flex_spw` method.
