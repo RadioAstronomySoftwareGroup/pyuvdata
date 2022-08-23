@@ -1,8 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-
 ## [Unreleased]
+
+## [2.2.9] - 2022-8-23
 
 ### Added
 - Added `use_future_array_shapes` method to UVFlag to allow users to convert to using the
