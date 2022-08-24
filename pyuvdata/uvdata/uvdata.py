@@ -3025,6 +3025,7 @@ class UVData(UVBase):
                             for pol in self.flex_spw_polarization_array
                         ]
                     )
+                    freq_screen = pol_screen[self.flex_spw_id_array]
                 else:
                     pol_screen = np.array(
                         [
@@ -3043,18 +3044,30 @@ class UVData(UVBase):
                     if np.all(pol_screen):
                         auto_imag = np.any(auto_imag)
                     elif self.future_array_shapes:
-                        auto_imag = np.any(auto_imag[:, :, pol_screen])
+                        if self.flex_spw_polarization_array is not None:
+                            auto_imag = np.any(auto_imag[:, freq_screen])
+                        else:
+                            auto_imag = np.any(auto_imag[:, :, pol_screen])
                     else:
-                        auto_imag = np.any(auto_imag[:, :, :, pol_screen])
+                        if self.flex_spw_polarization_array is not None:
+                            auto_imag = np.any(auto_imag[:, :, freq_screen])
+                        else:
+                            auto_imag = np.any(auto_imag[:, :, :, pol_screen])
                 if auto_imag:
                     if np.all(pol_screen):
                         temp_data = self.data_array[autos]
                     else:
                         auto_data = self.data_array[autos]
                         if self.future_array_shapes:
-                            temp_data = auto_data[:, :, pol_screen]
+                            if self.flex_spw_polarization_array is not None:
+                                temp_data = auto_data[:, freq_screen]
+                            else:
+                                temp_data = auto_data[:, :, pol_screen]
                         else:
-                            temp_data = auto_data[:, :, :, pol_screen]
+                            if self.flex_spw_polarization_array is not None:
+                                temp_data = auto_data[:, :, freq_screen]
+                            else:
+                                temp_data = auto_data[:, :, :, pol_screen]
                     temp_data = temp_data[temp_data.imag != 0]
                     max_imag = np.max(np.abs(temp_data.imag))
                     max_imag_ratio = np.max(np.abs(temp_data.imag / temp_data.real))

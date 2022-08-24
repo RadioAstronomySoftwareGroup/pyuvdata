@@ -11736,6 +11736,79 @@ def test_flex_pol_no_op(sma_mir):
     assert sma_mir == sma_copy
 
 
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_flex_pol_uvh5(future_shapes, tmp_path):
+    """
+    Check that we can write out uvh5 files with flex pol data sets.
+
+    This also exercises the check_autos for flex_pol.
+    """
+
+    uvd = UVData.from_file(os.path.join(DATA_PATH, "1133866760.uvfits"))
+
+    assert uvd.Npols > 1
+
+    uvd.check(check_autos=True)
+
+    uvd.use_future_array_shapes()
+    uvd._set_flex_spw()
+    uvd.flex_spw_polarization_array = uvd.polarization_array
+    uvd.flex_spw_id_array = np.zeros(uvd.Nfreqs, dtype=int)
+    for spw in np.arange(uvd.Npols - 1):
+        uvd.flex_spw_id_array = np.concatenate(
+            (
+                uvd.flex_spw_id_array,
+                np.zeros(uvd.Nfreqs, dtype=int) + spw + 1,
+            )
+        )
+    uvd.spw_array = np.arange(uvd.Npols)
+    uvd.Nspws = uvd.Npols
+    uvd.polarization_array = np.array([0])
+    uvd.freq_array = np.repeat(uvd.freq_array, uvd.Npols)
+    uvd.channel_width = np.repeat(uvd.channel_width, uvd.Npols)
+
+    # make a copy and reshape improperly to trigger the check_autos code
+    uvd2 = uvd.copy()
+    uvd2.data_array = uvd2.data_array.reshape(uvd2.Nblts, uvd2.Nfreqs * uvd2.Npols, 1)
+    uvd2.flag_array = uvd2.flag_array.reshape(uvd2.Nblts, uvd2.Nfreqs * uvd2.Npols, 1)
+    uvd2.nsample_array = uvd.nsample_array.reshape(
+        uvd2.Nblts, uvd2.Nfreqs * uvd2.Npols, 1
+    )
+    uvd2.Nfreqs = uvd2.Nfreqs * uvd2.Npols
+    uvd2.Npols = 1
+    uvd2._make_flex_pol()
+    if not future_shapes:
+        uvd2.use_current_array_shapes()
+    with pytest.raises(ValueError, match="Some auto-correlations have non-real values"):
+        uvd2.check(check_autos=True)
+
+    uvd.data_array = uvd.data_array.reshape(
+        uvd.Nblts, uvd.Nfreqs * uvd.Npols, 1, order="F"
+    )
+    uvd.flag_array = uvd.flag_array.reshape(
+        uvd.Nblts, uvd.Nfreqs * uvd.Npols, 1, order="F"
+    )
+    uvd.nsample_array = uvd.nsample_array.reshape(
+        uvd.Nblts, uvd.Nfreqs * uvd.Npols, 1, order="F"
+    )
+
+    uvd.Nfreqs = uvd.Nfreqs * uvd.Npols
+    uvd.Npols = 1
+    uvd._make_flex_pol()
+    uvd.check()
+
+    if not future_shapes:
+        uvd.use_current_array_shapes()
+
+    outfile = os.path.join(tmp_path, "test.uvh5")
+    uvd.write_uvh5(outfile)
+    uvd2 = UVData.from_file(outfile)
+    if future_shapes:
+        uvd2.use_future_array_shapes()
+
+    assert uvd2 == uvd
+
+
 @pytest.mark.parametrize(
     "err_msg,param,param_val",
     [
