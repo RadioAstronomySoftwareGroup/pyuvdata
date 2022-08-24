@@ -3018,12 +3018,20 @@ class UVData(UVBase):
                 # Only these pols have "true" auto-correlations, that we'd expect
                 # to be real only. Select on only them
                 auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pU", "pV"]
-                pol_screen = np.array(
-                    [
-                        uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
-                        for pol in self.polarization_array
-                    ]
-                )
+                if self.flex_spw_polarization_array is not None:
+                    pol_screen = np.array(
+                        [
+                            uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
+                            for pol in self.flex_spw_polarization_array
+                        ]
+                    )
+                else:
+                    pol_screen = np.array(
+                        [
+                            uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
+                            for pol in self.polarization_array
+                        ]
+                    )
 
                 # Check autos if they have imag component -- doing iscomplex first and
                 # then pol select was faster in every case checked in test files.
