@@ -56,7 +56,7 @@ class BeamFITS(UVBeam):
     formats because it needs to support multiple dimensions (e.g. polarization,
     frequency, efield vectors).
     """
-
+    @profile
     def read_beamfits(
         self,
         filename,
@@ -65,6 +65,9 @@ class BeamFITS(UVBeam):
         run_check_acceptability=True,
         check_auto_power=True,
         fix_auto_power=True,
+        freq_range=None,
+        az_range=None,
+        za_range=None,
     ):
         """
         Read the data from a beamfits file.
@@ -87,7 +90,17 @@ class BeamFITS(UVBeam):
         fix_auto_power : bool
             For power beams, if auto polarization beams with imaginary values are found,
             fix those values so that they are real-only in data_array.
-
+        freq_range : tuple of float in Hz
+            If given, the lower and upper limit of the frequencies to read in. Default
+            is to read in all frequencies. Restricting the frequencies reduces peak
+            memory usage.
+        az_range : tuple of float in deg
+            The azimuth range to read in, if the beam is specified in az/za coordinates.
+            Default is to read in all azimuths. Restricting the azimuth reduces peak
+            memory usage.
+        za_range : tuple of float in deg
+            The zenith angle range to read in, if the beam is specified in za/za coordinates.
+            Default is to read in all za. Restricting the za reduces peak memory.
         """
         # update filename attribute
         basename = os.path.basename(filename)
@@ -98,9 +111,7 @@ class BeamFITS(UVBeam):
             primary_hdu = fname[0]
             primary_header = primary_hdu.header.copy()
             hdunames = uvutils._fits_indexhdus(fname)  # find the rest of the tables
-
             data = primary_hdu.data
-
             # only support simple antenna_types for now.
             # support for phased arrays should be added
             self._set_simple()
@@ -183,6 +194,15 @@ class BeamFITS(UVBeam):
                     raise ValueError(
                         'Units of first axis array are not "deg" or "rad".'
                     )
+                
+                if az_range is not None:
+                    azmin = np.where(self.axis1_array >= np.deg2rad(az_range[0]))[0][0]
+                    azmax = np.where(self.axis1_array <= np.deg2rad(az_range[1]))[0][-1]
+                    self.Naxes1 = azmax - azmin
+                    print(azmax, azmin)
+                    az_mask = slice(azmin, azmax)
+                    self.axis1_array = self.axis1_array[az_mask]
+                
                 axis2_units = primary_header.pop(
                     "CUNIT" + str(ax_nums["img_ax2"]), "deg"
                 )
@@ -193,70 +213,14 @@ class BeamFITS(UVBeam):
                         'Units of second axis array are not "deg" or "rad".'
                     )
 
+                if za_range is not None:
+                    zamin = np.where(self.axis2_array >= np.deg2rad(za_range[0]))[0][0]
+                    zamax = np.where(self.axis2_array <= np.deg2rad(za_range[1]))[0][-1]
+                    self.Naxes2 = zamax - zamin
+                    za_mask = slice(zamin, zamax)
+                    self.axis2_array = self.axis2_array[za_mask]
+                
             n_efield_dims = max(ax_nums[key] for key in ax_nums)
-
-            if self.beam_type == "power":
-                # check for case where the data is complex (e.g. for xy beams)
-                if n_dimensions > ax_nums["complex"] - 1:
-                    complex_arrs = np.split(data, 2, axis=0)
-                    self.data_array = np.squeeze(
-                        complex_arrs[0] + 1j * complex_arrs[1], axis=0
-                    )
-                else:
-                    self.data_array = data
-
-                # Note: This axis is called STOKES by analogy with the equivalent
-                # uvfits axis
-                # However, this is confusing because it is NOT a true Stokes axis,
-                #   it is really the polarization axis.
-                if (
-                    primary_header.pop("CTYPE" + str(ax_nums["feed_pol"]))
-                    .lower()
-                    .strip()
-                    == "stokes"
-                ):
-                    self.Npols = primary_header.pop("NAXIS" + str(ax_nums["feed_pol"]))
-
-                self.polarization_array = np.int32(
-                    uvutils._fits_gethduaxis(primary_hdu, ax_nums["feed_pol"])
-                )
-                self._set_power()
-            elif self.beam_type == "efield":
-                self._set_efield()
-                if n_dimensions < n_efield_dims:
-                    raise ValueError(
-                        "beam_type is efield and data dimensionality is too low"
-                    )
-                complex_arrs = np.split(data, 2, axis=0)
-                self.data_array = np.squeeze(
-                    complex_arrs[0] + 1j * complex_arrs[1], axis=0
-                )
-                if (
-                    primary_header.pop("CTYPE" + str(ax_nums["feed_pol"]))
-                    .lower()
-                    .strip()
-                    == "feedind"
-                ):
-                    self.Nfeeds = primary_header.pop("NAXIS" + str(ax_nums["feed_pol"]))
-                feedlist = primary_header.pop("FEEDLIST", None)
-                if feedlist is not None:
-                    self.feed_array = np.array(feedlist[1:-1].split(", "))
-            else:
-                raise ValueError(
-                    "Unknown beam_type: {type}, beam_type should be "
-                    '"efield" or "power".'.format(type=self.beam_type)
-                )
-
-            self.data_normalization = primary_header.pop("NORMSTD", None)
-
-            self.telescope_name = primary_header.pop("TELESCOP")
-            self.feed_name = primary_header.pop("FEED", None)
-            self.feed_version = primary_header.pop("FEEDVER", None)
-            self.model_name = primary_header.pop("MODEL", None)
-            self.model_version = primary_header.pop("MODELVER", None)
-            self.x_orientation = primary_header.pop("XORIENT", None)
-            self.interpolation_function = primary_header.pop("INTERPFN", None)
-            self.freq_interp_kind = primary_header.pop("FINTERP", None)
 
             # shapes
             if (
@@ -297,8 +261,8 @@ class BeamFITS(UVBeam):
                     self.Naxes_vec = 1
 
                 # add extra empty dimensions to data_array as appropriate
-                while len(self.data_array.shape) < n_efield_dims - 1:
-                    self.data_array = np.expand_dims(self.data_array, axis=0)
+                while len(data.shape) < n_efield_dims - 1:
+                    data = np.expand_dims(data, axis=0)
 
             self.freq_array = uvutils._fits_gethduaxis(primary_hdu, ax_nums["freq"])
             self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
@@ -310,6 +274,79 @@ class BeamFITS(UVBeam):
                     self.freq_array = self.freq_array * freq_factor[freq_units]
                 else:
                     raise ValueError("Frequency units not recognized.")
+
+            if freq_range is not None:
+                freq_mask = (self.freq_array[0] >= freq_range[0]) & (self.freq_array[0] <= freq_range[1])
+                self.Nfreqs = np.sum(freq_mask)
+                self.freq_array = self.freq_array[:, freq_mask]
+
+            if az_range is not None:
+                data = data[..., az_mask]
+            if za_range is not None:
+                data = data[..., za_mask, :]
+
+            if freq_range is not None:
+                data = data[..., freq_mask, :, :]
+
+            if self.beam_type == "power":
+                # check for case where the data is complex (e.g. for xy beams)
+                if n_dimensions > ax_nums["complex"] - 1:
+                    complex_arrs = np.split(data, 2, axis=0)
+                    self.data_array = np.squeeze(
+                        complex_arrs[0] + 1j * complex_arrs[1], axis=0
+                    )
+                else:
+                    self.data_array = data
+
+                # Note: This axis is called STOKES by analogy with the equivalent
+                # uvfits axis
+                # However, this is confusing because it is NOT a true Stokes axis,
+                #   it is really the polarization axis.
+                if (
+                    primary_header.pop("CTYPE" + str(ax_nums["feed_pol"]))
+                    .lower()
+                    .strip()
+                    == "stokes"
+                ):
+                    self.Npols = primary_header.pop("NAXIS" + str(ax_nums["feed_pol"]))
+
+                self.polarization_array = np.int32(
+                    uvutils._fits_gethduaxis(primary_hdu, ax_nums["feed_pol"])
+                )
+                self._set_power()
+            elif self.beam_type == "efield":
+                self._set_efield()
+                if n_dimensions < n_efield_dims:
+                    raise ValueError(
+                        "beam_type is efield and data dimensionality is too low"
+                    )
+                self.data_array = data[0] + 1j*data[1]
+                if (
+                    primary_header.pop("CTYPE" + str(ax_nums["feed_pol"]))
+                    .lower()
+                    .strip()
+                    == "feedind"
+                ):
+                    self.Nfeeds = primary_header.pop("NAXIS" + str(ax_nums["feed_pol"]))
+                feedlist = primary_header.pop("FEEDLIST", None)
+                if feedlist is not None:
+                    self.feed_array = np.array(feedlist[1:-1].split(", "))
+            else:
+                raise ValueError(
+                    "Unknown beam_type: {type}, beam_type should be "
+                    '"efield" or "power".'.format(type=self.beam_type)
+                )
+
+            self.data_normalization = primary_header.pop("NORMSTD", None)
+
+            self.telescope_name = primary_header.pop("TELESCOP")
+            self.feed_name = primary_header.pop("FEED", None)
+            self.feed_version = primary_header.pop("FEEDVER", None)
+            self.model_name = primary_header.pop("MODEL", None)
+            self.model_version = primary_header.pop("MODELVER", None)
+            self.x_orientation = primary_header.pop("XORIENT", None)
+            self.interpolation_function = primary_header.pop("INTERPFN", None)
+            self.freq_interp_kind = primary_header.pop("FINTERP", None)        
 
             self.history = str(primary_header.get("HISTORY", ""))
             if not uvutils._check_history_version(
@@ -348,6 +385,11 @@ class BeamFITS(UVBeam):
                             "primary HDU"
                         )
                 else:
+                    if az_range is not None:
+                        self.basis_vector_array = self.basis_vector_array[..., az_mask]
+                    if za_range is not None:
+                        self.basis_vector_array = self.basis_vector_array[..., za_mask, :]
+
                     basisvec_ax_nums = reg_basisvec_ax_nums
                     basisvec_coord_list = [
                         basisvec_header[
@@ -387,11 +429,15 @@ class BeamFITS(UVBeam):
                             " 'deg' or 'rad'."
                         )
 
+                    if az_range is not None:
+                        basisvec_axis1_array = basisvec_axis1_array[az_mask]
                     if not np.all(basisvec_axis1_array == self.axis1_array):
                         raise ValueError(
                             "First image axis in BASISVEC HDU does not match "
                             "primary HDU"
                         )
+                    if za_range is not None:
+                        basisvec_axis2_array = basisvec_axis2_array[za_mask]
                     if not np.all(basisvec_axis2_array == self.axis2_array):
                         raise ValueError(
                             "Second image axis in BASISVEC HDU does not "
@@ -432,6 +478,9 @@ class BeamFITS(UVBeam):
                 freq_data = bandpass_hdu.data
                 columns = [c.name for c in freq_data.columns]
                 self.bandpass_array = freq_data["bandpass"]
+                if freq_range is not None:
+                    self.bandpass_array = self.bandpass_array[freq_mask]
+
                 self.bandpass_array = self.bandpass_array[np.newaxis, :]
 
                 if "rx_temp" in columns:
