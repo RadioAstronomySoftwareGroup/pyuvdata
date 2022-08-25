@@ -3089,6 +3089,9 @@ class UVBeam(UVBase):
         run_check_acceptability=True,
         check_auto_power=True,
         fix_auto_power=True,
+        freq_range=None,
+        az_range=None,
+        za_range=None,
     ):
         """
         Read in data from a beamfits file.
@@ -3111,7 +3114,17 @@ class UVBeam(UVBase):
         fix_auto_power : bool
             For power beams, if auto polarization beams with imaginary values are found,
             fix those values so that they are real-only in data_array.
-
+        freq_range : tuple of float in Hz
+            If given, the lower and upper limit of the frequencies to read in. Default
+            is to read in all frequencies. Restricting the frequencies reduces peak
+            memory usage.
+        az_range : tuple of float in deg
+            The azimuth range to read in, if the beam is specified in az/za coordinates.
+            Default is to read in all azimuths. Restricting the azimuth reduces peak
+            memory usage.
+        za_range : tuple of float in deg
+            The zenith angle range to read in, if the beam is specified in za/za coordinates.
+            Default is to read in all za. Restricting the za reduces peak memory.
         """
         from . import beamfits
 
@@ -3123,6 +3136,9 @@ class UVBeam(UVBase):
                 run_check_acceptability=run_check_acceptability,
                 check_auto_power=check_auto_power,
                 fix_auto_power=fix_auto_power,
+                freq_range=freq_range,
+                az_range=az_range,
+                za_range=za_range,
             )
             if len(filename) > 1:
                 for f in filename[1:]:
@@ -3134,6 +3150,9 @@ class UVBeam(UVBase):
                         run_check_acceptability=run_check_acceptability,
                         check_auto_power=check_auto_power,
                         fix_auto_power=fix_auto_power,
+                        freq_range=freq_range,
+                        az_range=az_range,
+                        za_range=za_range,
                     )
                     self += beam2
                 del beam2
@@ -3146,6 +3165,9 @@ class UVBeam(UVBase):
                 run_check_acceptability=run_check_acceptability,
                 check_auto_power=check_auto_power,
                 fix_auto_power=fix_auto_power,
+                freq_range=freq_range,
+                az_range=az_range,
+                za_range=za_range,
             )
             self._convert_from_filetype(beamfits_obj)
             del beamfits_obj
@@ -3664,6 +3686,9 @@ class UVBeam(UVBase):
         filename,
         file_type=None,
         skip_bad_files=False,
+        # beamfits settings
+        az_range=None,
+        za_range=None,
         # cst beam settings
         beam_type="power",
         feed_pol=None,
@@ -3820,6 +3845,17 @@ class UVBeam(UVBase):
         fix_auto_power : bool
             For power beams, if auto polarization beams with imaginary values are found,
             fix those values so that they are real-only in data_array.
+        freq_range : tuple of float in Hz
+            If given, the lower and upper limit of the frequencies to read in. Default
+            is to read in all frequencies. Restricting the frequencies reduces peak
+            memory usage.
+        az_range : tuple of float in deg
+            The azimuth range to read in, if the beam is specified in az/za coordinates.
+            Default is to read in all azimuths. Restricting the azimuth reduces peak
+            memory usage.
+        za_range : tuple of float in deg
+            The zenith angle range to read in, if the beam is specified in za/za coordinates.
+            Default is to read in all za. Restricting the za reduces peak memory.
 
         Raises
         ------
@@ -4019,6 +4055,9 @@ class UVBeam(UVBase):
                         run_check_acceptability=run_check_acceptability,
                         check_auto_power=check_auto_power,
                         fix_auto_power=fix_auto_power,
+                        az_range=az_range,
+                        za_range=za_range,
+                        freq_range=freq_range,
                     )
 
     @classmethod
