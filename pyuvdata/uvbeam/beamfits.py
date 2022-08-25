@@ -57,6 +57,7 @@ class BeamFITS(UVBeam):
     frequency, efield vectors).
     """
 
+    # @profile
     def read_beamfits(
         self,
         filename,
@@ -116,7 +117,7 @@ class BeamFITS(UVBeam):
             # only support simple antenna_types for now.
             # support for phased arrays should be added
             self._set_simple()
-
+            print(data.nbytes / 1024**2)
             self.beam_type = primary_header.pop("BTYPE", None)
             if self.beam_type is not None:
                 self.beam_type = self.beam_type.lower()
@@ -200,7 +201,6 @@ class BeamFITS(UVBeam):
                     azmin = np.where(self.axis1_array >= np.deg2rad(az_range[0]))[0][0]
                     azmax = np.where(self.axis1_array <= np.deg2rad(az_range[1]))[0][-1]
                     self.Naxes1 = azmax - azmin
-                    print(azmax, azmin)
                     az_mask = slice(azmin, azmax)
                     self.axis1_array = self.axis1_array[az_mask]
 
@@ -265,6 +265,9 @@ class BeamFITS(UVBeam):
                 while len(data.shape) < n_efield_dims - 1:
                     data = np.expand_dims(data, axis=0)
 
+            if self.Nspws is None:
+                self.Nspws = 1
+
             self.freq_array = uvutils._fits_gethduaxis(primary_hdu, ax_nums["freq"])
             self.freq_array.shape = (self.Nspws,) + self.freq_array.shape
             # default frequency axis is Hz, but check for corresonding CUNIT
@@ -277,17 +280,16 @@ class BeamFITS(UVBeam):
                     raise ValueError("Frequency units not recognized.")
 
             if freq_range is not None:
-                freq_mask = (self.freq_array[0] >= freq_range[0]) & (
-                    self.freq_array[0] <= freq_range[1]
-                )
-                self.Nfreqs = np.sum(freq_mask)
+                fmin = np.where(self.freq_array[0] >= freq_range[0])[0][0]
+                fmax = np.where(self.freq_array[0] <= freq_range[1])[0][-1]
+                freq_mask = slice(fmin, fmax)
+                self.Nfreqs = fmax - fmin
                 self.freq_array = self.freq_array[:, freq_mask]
 
             if az_range is not None:
                 data = data[..., az_mask]
             if za_range is not None:
                 data = data[..., za_mask, :]
-
             if freq_range is not None:
                 data = data[..., freq_mask, :, :]
 
