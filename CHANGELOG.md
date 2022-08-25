@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Support for partial reads on beamfits files. This can be done on frequency, azimuth
-  or zenith angle (if beam is in az/za coordinates). 
+  or zenith angle (if beam is in az/za coordinates).
 
 ## [2.2.9] - 2022-8-23
 
