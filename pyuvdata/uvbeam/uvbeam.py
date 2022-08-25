@@ -3123,8 +3123,9 @@ class UVBeam(UVBase):
             Default is to read in all azimuths. Restricting the azimuth reduces peak
             memory usage.
         za_range : tuple of float in deg
-            The zenith angle range to read in, if the beam is specified in za/za coordinates.
-            Default is to read in all za. Restricting the za reduces peak memory.
+            The zenith angle range to read in, if the beam is specified in za/za
+            coordinates. Default is to read in all za. Restricting the za reduces peak
+            memory.
         """
         from . import beamfits
 
@@ -3854,8 +3855,9 @@ class UVBeam(UVBase):
             Default is to read in all azimuths. Restricting the azimuth reduces peak
             memory usage.
         za_range : tuple of float in deg
-            The zenith angle range to read in, if the beam is specified in za/za coordinates.
-            Default is to read in all za. Restricting the za reduces peak memory.
+            The zenith angle range to read in, if the beam is specified in za/za
+            coordinates. Default is to read in all za. Restricting the za reduces peak
+            memory.
 
         Raises
         ------

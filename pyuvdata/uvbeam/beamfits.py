@@ -56,7 +56,7 @@ class BeamFITS(UVBeam):
     formats because it needs to support multiple dimensions (e.g. polarization,
     frequency, efield vectors).
     """
-    @profile
+
     def read_beamfits(
         self,
         filename,
@@ -99,8 +99,9 @@ class BeamFITS(UVBeam):
             Default is to read in all azimuths. Restricting the azimuth reduces peak
             memory usage.
         za_range : tuple of float in deg
-            The zenith angle range to read in, if the beam is specified in za/za coordinates.
-            Default is to read in all za. Restricting the za reduces peak memory.
+            The zenith angle range to read in, if the beam is specified in za/za
+            coordinates. Default is to read in all za. Restricting the za reduces peak
+            memory.
         """
         # update filename attribute
         basename = os.path.basename(filename)
@@ -194,7 +195,7 @@ class BeamFITS(UVBeam):
                     raise ValueError(
                         'Units of first axis array are not "deg" or "rad".'
                     )
-                
+
                 if az_range is not None:
                     azmin = np.where(self.axis1_array >= np.deg2rad(az_range[0]))[0][0]
                     azmax = np.where(self.axis1_array <= np.deg2rad(az_range[1]))[0][-1]
@@ -202,7 +203,7 @@ class BeamFITS(UVBeam):
                     print(azmax, azmin)
                     az_mask = slice(azmin, azmax)
                     self.axis1_array = self.axis1_array[az_mask]
-                
+
                 axis2_units = primary_header.pop(
                     "CUNIT" + str(ax_nums["img_ax2"]), "deg"
                 )
@@ -219,7 +220,7 @@ class BeamFITS(UVBeam):
                     self.Naxes2 = zamax - zamin
                     za_mask = slice(zamin, zamax)
                     self.axis2_array = self.axis2_array[za_mask]
-                
+
             n_efield_dims = max(ax_nums[key] for key in ax_nums)
 
             # shapes
@@ -276,7 +277,9 @@ class BeamFITS(UVBeam):
                     raise ValueError("Frequency units not recognized.")
 
             if freq_range is not None:
-                freq_mask = (self.freq_array[0] >= freq_range[0]) & (self.freq_array[0] <= freq_range[1])
+                freq_mask = (self.freq_array[0] >= freq_range[0]) & (
+                    self.freq_array[0] <= freq_range[1]
+                )
                 self.Nfreqs = np.sum(freq_mask)
                 self.freq_array = self.freq_array[:, freq_mask]
 
@@ -320,7 +323,7 @@ class BeamFITS(UVBeam):
                     raise ValueError(
                         "beam_type is efield and data dimensionality is too low"
                     )
-                self.data_array = data[0] + 1j*data[1]
+                self.data_array = data[0] + 1j * data[1]
                 if (
                     primary_header.pop("CTYPE" + str(ax_nums["feed_pol"]))
                     .lower()
@@ -346,7 +349,7 @@ class BeamFITS(UVBeam):
             self.model_version = primary_header.pop("MODELVER", None)
             self.x_orientation = primary_header.pop("XORIENT", None)
             self.interpolation_function = primary_header.pop("INTERPFN", None)
-            self.freq_interp_kind = primary_header.pop("FINTERP", None)        
+            self.freq_interp_kind = primary_header.pop("FINTERP", None)
 
             self.history = str(primary_header.get("HISTORY", ""))
             if not uvutils._check_history_version(
@@ -388,7 +391,9 @@ class BeamFITS(UVBeam):
                     if az_range is not None:
                         self.basis_vector_array = self.basis_vector_array[..., az_mask]
                     if za_range is not None:
-                        self.basis_vector_array = self.basis_vector_array[..., za_mask, :]
+                        self.basis_vector_array = self.basis_vector_array[
+                            ..., za_mask, :
+                        ]
 
                     basisvec_ax_nums = reg_basisvec_ax_nums
                     basisvec_coord_list = [
