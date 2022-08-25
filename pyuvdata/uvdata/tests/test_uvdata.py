@@ -11752,8 +11752,11 @@ def test_flex_pol_uvh5(future_shapes, tmp_path):
 
     uvd.use_future_array_shapes()
     uvd._set_flex_spw()
-    uvd.flex_spw_polarization_array = uvd.polarization_array
     uvd.flex_spw_id_array = np.zeros(uvd.Nfreqs, dtype=int)
+    uvd.check()
+    uvd_orig = uvd.copy()
+
+    uvd.flex_spw_polarization_array = uvd.polarization_array
     for spw in np.arange(uvd.Npols - 1):
         uvd.flex_spw_id_array = np.concatenate(
             (
@@ -11764,8 +11767,8 @@ def test_flex_pol_uvh5(future_shapes, tmp_path):
     uvd.spw_array = np.arange(uvd.Npols)
     uvd.Nspws = uvd.Npols
     uvd.polarization_array = np.array([0])
-    uvd.freq_array = np.repeat(uvd.freq_array, uvd.Npols)
-    uvd.channel_width = np.repeat(uvd.channel_width, uvd.Npols)
+    uvd.freq_array = np.tile(uvd.freq_array, uvd.Npols)
+    uvd.channel_width = np.tile(uvd.channel_width, uvd.Npols)
 
     # make a copy and reshape improperly to trigger the check_autos code
     uvd2 = uvd.copy()
@@ -11807,6 +11810,36 @@ def test_flex_pol_uvh5(future_shapes, tmp_path):
         uvd2.use_future_array_shapes()
 
     assert uvd2 == uvd
+
+    if not future_shapes:
+        uvd2.use_future_array_shapes()
+    uvd2.Npols = uvd2.Nspws
+    uvd2.Nspws = 1
+    uvd2.Nfreqs = int(np.round(uvd2.Nfreqs / uvd2.Npols))
+    uvd2.freq_array = uvd2.freq_array[: uvd2.Nfreqs]
+    uvd2.channel_width = uvd2.channel_width[: uvd2.Nfreqs]
+    uvd2.polarization_array = uvd2.flex_spw_polarization_array
+    uvd2.flex_spw_polarization_array = None
+    uvd2.spw_array = np.array([0])
+    uvd2.flex_spw_id_array = np.zeros(uvd2.Nfreqs, dtype=int)
+    uvd2.data_array = uvd2.data_array.reshape(
+        uvd2.Nblts, uvd2.Nfreqs, uvd2.Npols, order="F"
+    )
+    uvd2.flag_array = uvd2.flag_array.reshape(
+        uvd2.Nblts, uvd2.Nfreqs, uvd2.Npols, order="F"
+    )
+    uvd2.nsample_array = uvd2.nsample_array.reshape(
+        uvd2.Nblts, uvd2.Nfreqs, uvd2.Npols, order="F"
+    )
+    if not future_shapes:
+        uvd2.use_current_array_shapes()
+        uvd_orig.use_current_array_shapes()
+    uvd2.check()
+
+    # cast to integers for comparison
+    uvd_orig.data_array.real = np.fix(uvd_orig.data_array.real)
+    uvd_orig.data_array.imag = np.fix(uvd_orig.data_array.imag)
+    assert uvd_orig == uvd2
 
 
 @pytest.mark.parametrize(
