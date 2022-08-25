@@ -199,7 +199,9 @@ class BeamFITS(UVBeam):
 
                 if az_range is not None:
                     azmin = np.where(self.axis1_array >= np.deg2rad(az_range[0]))[0][0]
-                    azmax = np.where(self.axis1_array <= np.deg2rad(az_range[1]))[0][-1]
+                    azmax = (
+                        np.where(self.axis1_array <= np.deg2rad(az_range[1]))[0][-1] + 1
+                    )
                     self.Naxes1 = azmax - azmin
                     az_mask = slice(azmin, azmax)
                     self.axis1_array = self.axis1_array[az_mask]
@@ -216,7 +218,9 @@ class BeamFITS(UVBeam):
 
                 if za_range is not None:
                     zamin = np.where(self.axis2_array >= np.deg2rad(za_range[0]))[0][0]
-                    zamax = np.where(self.axis2_array <= np.deg2rad(za_range[1]))[0][-1]
+                    zamax = (
+                        np.where(self.axis2_array <= np.deg2rad(za_range[1]))[0][-1] + 1
+                    )
                     self.Naxes2 = zamax - zamin
                     za_mask = slice(zamin, zamax)
                     self.axis2_array = self.axis2_array[za_mask]
@@ -281,7 +285,7 @@ class BeamFITS(UVBeam):
 
             if freq_range is not None:
                 fmin = np.where(self.freq_array[0] >= freq_range[0])[0][0]
-                fmax = np.where(self.freq_array[0] <= freq_range[1])[0][-1]
+                fmax = np.where(self.freq_array[0] <= freq_range[1])[0][-1] + 1
                 freq_mask = slice(fmin, fmax)
                 self.Nfreqs = fmax - fmin
                 self.freq_array = self.freq_array[:, freq_mask]
