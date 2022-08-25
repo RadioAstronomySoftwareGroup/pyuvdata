@@ -75,3 +75,5 @@ docs/references/_minted*/*.pygstyle
 pyuvdata/uvdata/src/miriad_wrap.cpp
 pyuvdata/uvdata/corr_fits.c
 pyuvdata/utils.c
+
+.vscode/

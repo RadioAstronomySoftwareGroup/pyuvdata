@@ -774,3 +774,35 @@ def test_multi_files(cst_efield_2freq, tmp_path):
 
     beam1.history = beam_full.history
     assert beam1 == beam_full
+
+
+@pytest.fixture(scope="module")
+def twofreq(cst_efield_2freq_main, tmp_path_factory):
+    testfile = str(tmp_path_factory.mktemp("beams") / "twofreq.fits")
+    cst_efield_2freq_main.write_beamfits(testfile)
+    return testfile
+
+
+def test_partial_read_freq(twofreq):
+
+    beam2 = UVBeam()
+    beam2.read(twofreq, freq_range=(145e6, 155e6))
+
+    assert beam2.freq_array.shape == (1, 1)
+    assert beam2.freq_array[0, 0] == 150e6
+
+
+def test_partial_read_az(twofreq):
+    beam2 = UVBeam()
+    beam2.read(twofreq, az_range=(0, 180))
+
+    assert beam2.axis1_array.shape == (181,)
+    assert np.all(beam2.axis1_array <= np.pi)
+
+
+def test_partial_read_za(twofreq):
+    beam2 = UVBeam()
+    beam2.read(twofreq, za_range=(0, 90))
+
+    assert beam2.axis2_array.shape == (91,)
+    assert np.all(beam2.axis2_array <= np.pi / 2)
