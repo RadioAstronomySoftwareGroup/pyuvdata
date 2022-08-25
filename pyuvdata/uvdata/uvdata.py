@@ -2614,7 +2614,7 @@ class UVData(UVBase):
         polarization handling, which is required for some operations or writing in
         certain filetypes. Note that depending on how it is used, this can inflate
         the size of data-like parameters by up to a factor of Nspws (the true value
-        depends on the number of unique entiries in `flex_spw_polarization_array`).
+        depends on the number of unique entries in `flex_spw_polarization_array`).
         """
         if self.flex_spw_polarization_array is None:
             # There isn't anything to do, so just move along
