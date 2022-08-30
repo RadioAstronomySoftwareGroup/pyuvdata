@@ -49,6 +49,13 @@ python-casacore>=3.3, pyyaml>=5.1, astropy-healpix>=0.6
 without "spoofing" (via setting `spoof_nonessential=True`) UVFITS-specific values.
 - Methods that ensure that attributes are set up properly on `UVBeam` are now called in
 the `UVBeam.check` method, making it easier to fill in UVBeam objects from scratch.
+- Changed uvfits reading and writing to no longer subtract/add 1 to the antenna
+numbers. The subtraction/addition of 1 was initially done because FITS uses one-based
+indexing but antenna numbers are physical numbers not indices, so the numbers should not
+be adjusted.
+- Changed the way baseline numbers are calculated from antenna numbers to conform to the
+standard in uvfits and miriad. The inconsistency with those files was noticed when we
+corrected the handling of antenna numbers in uvfits.
 - The `spw_order` parameter for the `UVData.reorder_freqs` method now accepts an index
 array rather than an array of spw numbers, making it match the other reorder methods.
 - Updated the astropy requirement to >= 5.0.4
