@@ -346,9 +346,9 @@ class UVH5(UVData):
                     if self.phase_type != "drift":
                         warnings.warn(
                             "Unknown phase types are no longer supported, marking this "
-                            'object as phase_type="drift" by default. If this was a phased '
-                            "object, you can set the phase type correctly by running the "
-                            "_set_phased() method."
+                            "object as phase_type='drift' by default. If this was a "
+                            "phased object, you can set the phase type correctly by "
+                            "running the _set_phased() method."
                         )
                     self._set_drift()
 
@@ -805,18 +805,19 @@ class UVH5(UVData):
                 if add_app_coords:
                     self._set_app_coords_helper()
 
-                # Default behavior for UVH5 is to fix phasing if the problem is detected,
-                # since the absence of the app coord attributes is the most clear indicator
-                # of the old phasing algorithm being used. Double-check the multi-phase-ctr
-                # attribute just to be extra safe.
+                # Default behavior for UVH5 is to fix phasing if the problem is
+                # detected, since the absence of the app coord attributes is the most
+                # clear indicator of the old phasing algorithm being used. Double-check
+                # the multi-phase-ctr attribute just to be extra safe.
                 if (fix_old_proj) or (fix_old_proj is None and add_app_coords):
                     self.fix_phase(use_ant_pos=fix_use_ant_pos)
                 elif add_app_coords:
                     warnings.warn(
-                        "This data appears to have been phased-up using the old `phase` "
-                        "method, which is incompatible with the current sent of methods. "
-                        "Please run the `fix_phase` method (or set fix_old_proj=True when "
-                        "loading the dataset) to address this issue."
+                        "This data appears to have been phased-up using the old "
+                        "`phase` method, which is incompatible with the current set of "
+                        "methods. Please run the `fix_phase` method (or set "
+                        "`fix_old_proj=True` when loading the dataset) to address this "
+                        "issue."
                     )
 
         # check if object has all required UVParameters set

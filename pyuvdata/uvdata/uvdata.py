@@ -6526,8 +6526,9 @@ class UVData(UVBase):
                     not (allow_phasing) and require_phasing
                 ):
                     raise ValueError(
-                        "UVW recalculation requires either unprojected data or the ability "
-                        "to rephase data. Use unphase_to_drift or set allow_phasing=True."
+                        "UVW recalculation requires either unprojected data or the "
+                        "ability to rephase data. Use unphase_to_drift or set "
+                        "allow_phasing=True."
                     )
 
                 telescope_location = self.telescope_location_lat_lon_alt
@@ -6553,8 +6554,9 @@ class UVData(UVBase):
                         self._apply_w_proj(new_uvw[:, 2], old_w_vals)
                     else:
                         warnings.warn(
-                            "Recalculating uvw_array without adjusting visibility phases "
-                            "-- this can introduce significant errors if used incorrectly."
+                            "Recalculating uvw_array without adjusting visibility "
+                            "phases -- this can introduce significant errors if used "
+                            "incorrectly."
                         )
 
             # If the data are phased, we've already adjusted the phases. Now we just
@@ -6591,7 +6593,9 @@ class UVData(UVBase):
                             'Options are "icrs" or "gcrs".'
                         )
                     with warnings.catch_warnings():
-                        warnings.filterwarnings("ignore", message="The older phase attributes")
+                        warnings.filterwarnings(
+                            "ignore", message="The older phase attributes"
+                        )
                         phase_center_ra = self.phase_center_ra
                         phase_center_dec = self.phase_center_dec
                         phase_center_epoch = self.phase_center_epoch
@@ -9266,16 +9270,17 @@ class UVData(UVBase):
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", message="The older phase attributes")
                 for param in self:
-                    # For each attribute, if the value is None, then bail, otherwise attempt
-                    # to figure out along which axis ind_arr will apply.
+                    # For each attribute, if the value is None, then bail, otherwise
+                    # attempt to figure out along which axis ind_arr will apply.
                     attr = getattr(self, param)
                     if attr.value is not None:
                         try:
                             sel_axis = attr.form.index(key)
                         except (AttributeError, ValueError):
-                            # If form is not a tuple/list (and therefore not array-like),
-                            # it'll throw an AttributeError, and if key is not found in the
-                            # tuple/list, it'll throw a ValueError. In both cases, skip!
+                            # If form is not a tuple/list (and therefore not
+                            # array-like), it'll throw an AttributeError, and if key is
+                            # not found in the tuple/list, it'll throw a ValueError.
+                            # In both cases, skip!
                             continue
 
                         if isinstance(attr.value, np.ndarray):
@@ -9286,8 +9291,8 @@ class UVData(UVBase):
                             # If this is a list, it _should_ always have 1-dimension.
                             assert sel_axis == 0, (
                                 "Something is wrong, sel_axis != 0 when selecting on a "
-                                "list, which should not be possible. Please file an issue "
-                                "in our GitHub issue log so that we can fix it."
+                                "list, which should not be possible. Please file an "
+                                "issue in our GitHub issue log so that we can fix it."
                             )
                             attr.value = [attr.value[idx] for idx in ind_arr]
 

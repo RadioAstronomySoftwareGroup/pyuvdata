@@ -30,9 +30,16 @@ to set several of these new parameters.
 objects to support observatories on the moon (or anywhere not on earth).
 
 ### Fixed
+- Fix a bug in how `frame_pa` was calculated in `phase` and `_set_app_coords_helper` for
+multi_phase_center objects (it was using the old `phase_center_frame` attribute).
 - A bug in `UVData.read_uvh5` where `multi_phase_center` was being used to imply the
 existence of the `phase_center_catalog` header item, rather than checking for the
 presence of that item. This conflicted with the uvh5 memo.
+
+### Deprecated
+- Deprecated the older phase attributes (`phase_type`, `phase_center_ra`,
+`phase_center_dec`, `phase_center_frame`, `phase_center_epoch`, `object_name`) in favor
+of the `phase_center_catalog`. The older phase attributes will be removed in version 3.0.
 
 ## [2.2.10] - 2022-10-20
 
