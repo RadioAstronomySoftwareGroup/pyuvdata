@@ -172,7 +172,12 @@ def hera_uvh5_split(hera_uvh5_split_main):
 def hera_uvh5_xx_main():
     """Read in a HERA uvh5 file."""
     hera_uvh5_xx = UVData()
-    hera_uvh5_xx.read_uvh5(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5"))
+    with uvtest.check_warnings(
+        UserWarning, match="The uvw_array does not match the expected values"
+    ):
+        hera_uvh5_xx.read_uvh5(
+            os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5")
+        )
 
     yield hera_uvh5_xx
 
@@ -255,7 +260,14 @@ def bda_test_file_main():
     # read in test file for BDA-like data
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "simulated_bda_file.uvh5")
-    uv_object.read(testfile)
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Unknown phase types are no longer supported",
+            "Telescope mock-HERA is not in known_telescopes",
+        ],
+    ):
+        uv_object.read(testfile)
 
     yield uv_object
 
