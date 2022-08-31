@@ -2447,13 +2447,16 @@ class UVData(UVBase):
     def _set_lsts_helper(self):
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
         unique_times, inverse_inds = np.unique(self.time_array, return_inverse=True)
+        memlog("After Unique Times")
         unique_lst_array = uvutils.get_lst_for_time(
             unique_times,
             latitude,
             longitude,
             altitude,
         )
+        memlog("After Unique LSTs")
         self.lst_array = unique_lst_array[inverse_inds]
+        memlog("After LST array")
         return
 
     def _set_app_coords_helper(self, pa_only=False):
