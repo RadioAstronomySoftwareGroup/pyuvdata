@@ -6,6 +6,7 @@
 import copy
 import os
 import threading
+import tracemalloc
 import warnings
 from collections.abc import Iterable
 
@@ -23,6 +24,15 @@ from .. import utils as uvutils
 from ..uvbase import UVBase
 
 __all__ = ["UVData"]
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def memlog(msg):
+    """Print a message about memory usage."""
+    c, p = tracemalloc.get_traced_memory()
+    logger.info(f"{msg:>25}: {c / 1024**3:.2f} | {p/1024**3:.2f} GB")
 
 
 class UVData(UVBase):
@@ -2866,9 +2876,12 @@ class UVData(UVBase):
         else:
             raise ValueError('Phase type must be either "phased" or "drift"')
 
+        memlog("Starting Out")
         super(UVData, self).check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
+
+        memlog("UVBase Check")
 
         # Check internal consistency of numbers which don't explicitly correspond
         # to the shape of another array.
@@ -2909,6 +2922,7 @@ class UVData(UVBase):
                 "polarization_array may not be equal to 0 if "
                 "flex_spw_polarization_array is not set."
             )
+        memlog("Simple Checks")
 
         # require that all entries in ant_1_array and ant_2_array exist in
         # antenna_numbers
@@ -2917,6 +2931,7 @@ class UVData(UVBase):
         if not set(np.unique(self.ant_2_array)).issubset(self.antenna_numbers):
             raise ValueError("All antennas in ant_2_array must be in antenna_numbers.")
 
+        memlog("Antenna Uniqueness Check")
         # issue warning if extra_keywords keys are longer than 8 characters
         for key in self.extra_keywords.keys():
             if len(key) > 8:
@@ -2939,6 +2954,7 @@ class UVData(UVBase):
             # check that the uvws make sense given the antenna positions
             # make a metadata only copy of this object to properly calculate uvws
             temp_obj = self.copy(metadata_only=True)
+            memlog("Temp Obj")
 
             if temp_obj.phase_center_frame is not None:
                 output_phase_frame = temp_obj.phase_center_frame
@@ -2951,9 +2967,11 @@ class UVData(UVBase):
                     allow_phasing=True,
                     output_phase_frame=output_phase_frame,
                 )
+                memlog("Set UVWs")
 
             if not np.allclose(temp_obj.uvw_array, self.uvw_array, atol=1):
                 max_diff = np.max(np.abs(temp_obj.uvw_array - self.uvw_array))
+                memlog("Max Diff UVWs")
                 if allow_flip_conj and np.allclose(
                     -temp_obj.uvw_array, self.uvw_array, atol=1
                 ):
@@ -2963,6 +2981,7 @@ class UVData(UVBase):
                     )
                     self.uvw_array *= -1
                     self.data_array = np.conj(self.data_array)
+                    memlog("Flipped Array")
                 elif not strict_uvw_antpos_check:
                     warnings.warn(
                         "The uvw_array does not match the expected values given "
@@ -2991,6 +3010,7 @@ class UVData(UVBase):
                 raise ValueError(
                     "Some auto-correlations have non-zero uvw_array coordinates."
                 )
+            memlog("Checked Autos")
             if (self.data_array is not None and np.any(autos)) and check_autos:
                 # Verify here that the autos do not have any imaginary components
                 # Only these pols have "true" auto-correlations, that we'd expect
@@ -3043,6 +3063,7 @@ class UVData(UVBase):
                             f"imaginary/real ratio was {max_imag_ratio}."
                             " You can attempt to fix this by setting fix_autos=True."
                         )
+            memlog("Checked Auto Imag")
             if np.any(
                 np.isclose(
                     # this line used to use np.linalg.norm but it turns out
@@ -3061,10 +3082,11 @@ class UVData(UVBase):
                 raise ValueError(
                     "Some cross-correlations have near-zero uvw_array magnitudes."
                 )
+            memlog("Check UVW array cross-corrs")
 
         if check_freq_spacing:
             self._check_freq_spacing()
-
+        memlog("Checked Freq Spacing.")
         return True
 
     def copy(self, metadata_only=False):
