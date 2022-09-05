@@ -8289,36 +8289,42 @@ class UVData(UVBase):
             bls_blt_inds = np.zeros(0, dtype=np.int64)
             bl_pols = set()
             for bl in bls:
-                if not (bl[0] in self.ant_1_array or bl[0] in self.ant_2_array):
-                    raise ValueError(
-                        "Antenna number {a} is not present in the "
-                        "ant_1_array or ant_2_array".format(a=bl[0])
-                    )
-                if not (bl[1] in self.ant_1_array or bl[1] in self.ant_2_array):
-                    raise ValueError(
-                        "Antenna number {a} is not present in the "
-                        "ant_1_array or ant_2_array".format(a=bl[1])
-                    )
+                # The following is not necessary, and takes ~28% of the time when using
+                # 126 HERA antennas.
+                # if not (bl[0] in self.ant_1_array or bl[0] in self.ant_2_array):
+                #     raise ValueError(
+                #         "Antenna number {a} is not present in the "
+                #         "ant_1_array or ant_2_array".format(a=bl[0])
+                #     )
+                # if not (bl[1] in self.ant_1_array or bl[1] in self.ant_2_array):
+                #     raise ValueError(
+                #         "Antenna number {a} is not present in the "
+                #         "ant_1_array or ant_2_array".format(a=bl[1])
+                #     )
                 wh1 = np.where(
                     np.logical_and(self.ant_1_array == bl[0], self.ant_2_array == bl[1])
-                )[0]
-                wh2 = np.where(
-                    np.logical_and(self.ant_1_array == bl[1], self.ant_2_array == bl[0])
                 )[0]
                 if len(wh1) > 0:
                     bls_blt_inds = np.append(bls_blt_inds, list(wh1))
                     if len(bl) == 3:
                         bl_pols.add(bl[2])
-                elif len(wh2) > 0:
-                    bls_blt_inds = np.append(bls_blt_inds, list(wh2))
-                    if len(bl) == 3:
-                        # find conjugate polarization
-                        bl_pols.add(uvutils.conj_pol(bl[2]))
                 else:
-                    raise ValueError(
-                        "Antenna pair {p} does not have any data "
-                        "associated with it.".format(p=bl)
-                    )
+                    wh2 = np.where(
+                        np.logical_and(
+                            self.ant_1_array == bl[1], self.ant_2_array == bl[0]
+                        )
+                    )[0]
+
+                    if len(wh2) > 0:
+                        bls_blt_inds = np.append(bls_blt_inds, list(wh2))
+                        if len(bl) == 3:
+                            # find conjugate polarization
+                            bl_pols.add(uvutils.conj_pol(bl[2]))
+                    else:
+                        raise ValueError(
+                            "Antenna pair {p} does not have any data "
+                            "associated with it.".format(p=bl)
+                        )
             if len(bl_pols) > 0:
                 polarizations = list(bl_pols)
 
