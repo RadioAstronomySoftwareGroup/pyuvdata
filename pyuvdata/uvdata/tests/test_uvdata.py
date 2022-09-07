@@ -1729,14 +1729,10 @@ def test_select_bls(casa_uvfits):
 
     with pytest.raises(ValueError) as cm:
         uv_object.select(bls=(5, 1))
-    assert str(cm.value).startswith(
-        "Antenna number 5 is not present in the " "ant_1_array or ant_2_array"
-    )
+    assert str(cm.value).startswith("Antenna pair (5, 1) does not have any data")
     with pytest.raises(ValueError) as cm:
         uv_object.select(bls=(1, 5))
-    assert str(cm.value).startswith(
-        "Antenna number 5 is not present in the " "ant_1_array or ant_2_array"
-    )
+    assert str(cm.value).startswith("Antenna pair (1, 5) does not have any data")
     with pytest.raises(ValueError) as cm:
         uv_object.select(bls=(27, 27))
     assert str(cm.value).startswith("Antenna pair (27, 27) does not have any data")
