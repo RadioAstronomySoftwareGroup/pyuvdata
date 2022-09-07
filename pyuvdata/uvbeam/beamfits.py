@@ -117,7 +117,6 @@ class BeamFITS(UVBeam):
             # only support simple antenna_types for now.
             # support for phased arrays should be added
             self._set_simple()
-            print(data.nbytes / 1024**2)
             self.beam_type = primary_header.pop("BTYPE", None)
             if self.beam_type is not None:
                 self.beam_type = self.beam_type.lower()
