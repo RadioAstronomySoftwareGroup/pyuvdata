@@ -193,6 +193,10 @@ c) Reading in the MWA full embedded element beam
 
 d) Writing a regularly gridded beam FITS file
 **********************************************
+When reading a beam FITS file, you also have the option of selecting frequencies and
+az/za values at the read step -- i.e. so that memory is never allocated for data outside
+these ranges. Use the ``freq_range`` and ``za_range`` parameters to achieve this.
+
 .. code-block:: python
 
   >>> import os
@@ -200,7 +204,7 @@ d) Writing a regularly gridded beam FITS file
   >>> from pyuvdata.data import DATA_PATH
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read(settings_file, beam_type='power')
+  >>> beam.read(settings_file, beam_type='power', freq_range=(1e8, 1.5e8), za_range=(0, 90.0))
   >>> write_file = os.path.join('.', 'tutorial.fits')
   >>> beam.write_beamfits(write_file, clobber=True)
 
