@@ -720,7 +720,7 @@ class MS(UVData):
             sw_table.putcell("RESOLUTION", idx, ch_width[ch_mask])
             # TODO: These are placeholders for now, but should be replaced with
             # actual frequency reference info (once UVData handles that)
-            sw_table.putcell("MEAS_FREQ_REF", idx, VEL_DICT["LSRK"])
+            sw_table.putcell("MEAS_FREQ_REF", idx, VEL_DICT["TOPO"])
             sw_table.putcell("REF_FREQUENCY", idx, freq_array[0])
 
         sw_table.done()
