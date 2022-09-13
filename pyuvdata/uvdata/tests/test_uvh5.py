@@ -1747,7 +1747,9 @@ def test_uvh5_partial_write_errors(uv_partial_write, tmp_path):
     partial_testfile = str(tmp_path / "outtest_partial.uvh5")
     if os.path.exists(partial_testfile):
         os.remove(partial_testfile)
-    with pytest.raises(AssertionError, match=f"{partial_testfile} does not exist"):
+    with pytest.raises(
+        AssertionError, match="{} does not exist".format(partial_testfile)
+    ):
         partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples, bls=key)
 
     # initialize file on disk
