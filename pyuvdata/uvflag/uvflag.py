@@ -511,10 +511,7 @@ class UVFlag(UVBase):
 
         desc = "Flag indicating that this object is using the future array shapes."
         self._future_array_shapes = uvp.UVParameter(
-            "future_array_shapes",
-            description=desc,
-            expected_type=bool,
-            value=False,
+            "future_array_shapes", description=desc, expected_type=bool, value=False
         )
 
         # ---antenna information ---
@@ -602,10 +599,7 @@ class UVFlag(UVBase):
             "input files."
         )
         self._filename = uvp.UVParameter(
-            "filename",
-            required=False,
-            description=desc,
-            expected_type=str,
+            "filename", required=False, description=desc, expected_type=str
         )
 
         # initialize the underlying UVBase properties

@@ -667,12 +667,7 @@ class MirMetaData(object):
         )
 
     def __add__(
-        self,
-        other,
-        inplace=False,
-        merge=None,
-        overwrite=None,
-        discard_flagged=False,
+        self, other, inplace=False, merge=None, overwrite=None, discard_flagged=False
     ):
         """
         Combine two MirMetaData objects.
@@ -828,12 +823,7 @@ class MirMetaData(object):
         return copy_obj
 
     def where(
-        self,
-        select_field,
-        select_comp,
-        select_val,
-        mask=None,
-        return_header_keys=False,
+        self, select_field, select_comp, select_val, mask=None, return_header_keys=False
     ):
         """
         Find where metadata match a given set of selection criteria.
@@ -1299,11 +1289,7 @@ class MirMetaData(object):
         self.set_value(field_name=field_name, value=value)
 
     def _generate_mask(
-        self,
-        where=None,
-        and_where_args=True,
-        header_key=None,
-        index=None,
+        self, where=None, and_where_args=True, header_key=None, index=None
     ):
         """
         Generate a boolean mask based on selection criteria.
@@ -1351,13 +1337,7 @@ class MirMetaData(object):
         new_mask[idx_arr] = True
         return new_mask
 
-    def get_mask(
-        self,
-        where=None,
-        and_where_args=True,
-        header_key=None,
-        index=None,
-    ):
+    def get_mask(self, where=None, and_where_args=True, header_key=None, index=None):
         """
         Get value of the mask at a set of locations..
 
@@ -1601,8 +1581,7 @@ class MirMetaData(object):
             self._header_key: {
                 old_key: new_key
                 for old_key, new_key in zip(
-                    self.get_header_keys(use_mask=False),
-                    range(idx_start, idx_stop),
+                    self.get_header_keys(use_mask=False), range(idx_start, idx_stop)
                 )
             }
         }
@@ -1630,11 +1609,7 @@ class MirMetaData(object):
         self._set_header_key_index_dict()
 
     def group_by(
-        self,
-        group_fields,
-        use_mask=True,
-        return_index=False,
-        assume_unique=False,
+        self, group_fields, use_mask=True, return_index=False, assume_unique=False
     ):
         """
         Create groups of index positions based on particular field(s) in the metadata.
@@ -2065,8 +2040,7 @@ class MirMetaData(object):
         """
         if self._binary_dtype is None:
             self._data = np.fromfile(
-                os.path.join(filepath, self._filetype),
-                dtype=self.dtype,
+                os.path.join(filepath, self._filetype), dtype=self.dtype
             )
         else:
             self._data = np.fromfile(
@@ -2101,13 +2075,7 @@ class MirMetaData(object):
             else:
                 self._data[datamask].astype(self._binary_dtype).tofile(file)
 
-    def write(
-        self,
-        filepath,
-        overwrite=False,
-        append_data=False,
-        check_index=False,
-    ):
+    def write(self, filepath, overwrite=False, append_data=False, check_index=False):
         """
         Write a metadata object to disk.
 
@@ -2155,9 +2123,7 @@ class MirMetaData(object):
             copy_obj.read(filepath)
             try:
                 idx_arr = self._add_check(
-                    copy_obj,
-                    discard_flagged=True,
-                    overwrite=False,
+                    copy_obj, discard_flagged=True, overwrite=False
                 )[0]
             except MirMetaError as err:
                 # If we get this error, it means our (partial) merge has failed.
@@ -2590,10 +2556,7 @@ class MirCodesData(MirMetaData):
         # These are codes that _cannot_ change between objects, otherwise it breaks
         # some of the underlying logic of some code, and could mean that the files
         # may have different metadata fields populated.
-        self._immutable_codes = [
-            "filever",
-            "pol",
-        ]
+        self._immutable_codes = ["filever", "pol"]
 
         # These are v_names that match to particular indexing fields in other metadata
         # files (with the values matching said fields).
@@ -2659,12 +2622,7 @@ class MirCodesData(MirMetaData):
         return sorted(set(self.get_value("v_name")))
 
     def where(
-        self,
-        select_field,
-        select_comp,
-        select_val,
-        mask=None,
-        return_header_keys=None,
+        self, select_field, select_comp, select_val, mask=None, return_header_keys=None
     ):
         """
         Find where metadata match a given set of selection criteria.

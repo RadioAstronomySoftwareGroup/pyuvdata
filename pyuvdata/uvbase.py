@@ -391,7 +391,9 @@ class UVBase(object):
         for a in extra_list:
             yield a
 
-    def __eq__(self, other, check_extra=True, allowed_failures=("filename",)):
+    def __eq__(
+        self, other, check_extra=True, allowed_failures=("filename",), silent=False
+    ):
         """
         Test if classes match and parameters are equal.
 
@@ -407,6 +409,9 @@ class UVBase(object):
             still passing an overall equality check. These should only include
             optional parameters. By default, the `filename` parameter will be
             ignored.
+        silent : bool
+            Option to turn off printing explanations of why equality fails. Useful to
+            prevent __ne__ from printing lots of messages.
 
         Returns
         -------
@@ -423,11 +428,12 @@ class UVBase(object):
             for param in other.required():
                 other_required.append(param)
             if set(self_required) != set(other_required):
-                print(
-                    "Sets of required parameters do not match. "
-                    f"Left is {self_required},"
-                    f" right is {other_required}."
-                )
+                if not silent:
+                    print(
+                        "Sets of required parameters do not match. "
+                        f"Left is {self_required},"
+                        f" right is {other_required}."
+                    )
                 return False
 
             if check_extra:
@@ -438,11 +444,12 @@ class UVBase(object):
                 for param in other.extra():
                     other_extra.append(param)
                 if set(self_extra) != set(other_extra):
-                    print(
-                        "Sets of extra parameters do not match. "
-                        f"Left is {self_extra},"
-                        f" right is {other_extra}."
-                    )
+                    if not silent:
+                        print(
+                            "Sets of extra parameters do not match. "
+                            f"Left is {self_extra},"
+                            f" right is {other_extra}."
+                        )
                     return False
                 p_check = self_required + self_extra
             else:
@@ -468,11 +475,12 @@ class UVBase(object):
             for param in p_check:
                 self_param = getattr(self, param)
                 other_param = getattr(other, param)
-                if self_param != other_param:
-                    print(
-                        f"parameter {param} does not match. Left is "
-                        f"{self_param.value}, right is {other_param.value}."
-                    )
+                if self_param.__ne__(other_param, silent=silent):
+                    if not silent:
+                        print(
+                            f"parameter {param} does not match. Left is "
+                            f"{self_param.value}, right is {other_param.value}."
+                        )
                     p_equal = False
 
             if allowed_failures is not None:
@@ -480,19 +488,23 @@ class UVBase(object):
                     if hasattr(self, param):
                         self_param = getattr(self, param)
                         other_param = getattr(other, param)
-                        if self_param != other_param:
-                            print(
-                                f"parameter {param} does not match, but is not "
-                                "required to for equality. Left is "
-                                f"{self_param.value}, right is {other_param.value}."
-                            )
+                        if self_param.__ne__(other_param, silent=silent):
+                            if not silent:
+                                print(
+                                    f"parameter {param} does not match, but is not "
+                                    "required to for equality. Left is "
+                                    f"{self_param.value}, right is {other_param.value}."
+                                )
 
             return p_equal
         else:
-            print("Classes do not match")
+            if not silent:
+                print("Classes do not match")
             return False
 
-    def __ne__(self, other, check_extra=True, allowed_failures=("filename",)):
+    def __ne__(
+        self, other, check_extra=True, allowed_failures=("filename",), silent=True
+    ):
         """
         Test if classes match and parameters are not equal.
 
@@ -508,6 +520,9 @@ class UVBase(object):
             still passing an overall equality check. These should only include
             optional parameters. By default, the `filename` parameter will be
             ignored.
+        silent : bool
+            Option to turn off printing explanations of why equality fails. Useful to
+            prevent __ne__ from printing lots of messages.
 
         Returns
         -------
@@ -516,7 +531,10 @@ class UVBase(object):
 
         """
         return not self.__eq__(
-            other, check_extra=check_extra, allowed_failures=allowed_failures
+            other,
+            check_extra=check_extra,
+            allowed_failures=allowed_failures,
+            silent=silent,
         )
 
     def check(

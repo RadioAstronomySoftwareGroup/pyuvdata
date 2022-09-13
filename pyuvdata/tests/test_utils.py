@@ -71,9 +71,7 @@ def astrometry_args():
     )
 
     default_args["icrs_coord"] = SkyCoord(
-        default_args["icrs_ra"],
-        default_args["icrs_dec"],
-        unit="rad",
+        default_args["icrs_ra"], default_args["icrs_dec"], unit="rad"
     )
 
     default_args["fk5_ra"], default_args["fk5_dec"] = uvutils.transform_sidereal_coords(
@@ -94,9 +92,7 @@ def astrometry_args():
     )
 
     default_args["app_coord"] = SkyCoord(
-        default_args["app_ra"],
-        default_args["app_dec"],
-        unit="rad",
+        default_args["app_ra"], default_args["app_dec"], unit="rad"
     )
 
     yield default_args
@@ -730,15 +726,11 @@ def test_rotate_one_axis(vector_list):
     assert np.all(uvutils._rotate_one_axis(x_vecs, 0.0, 0) == x_vecs)
     assert np.all(
         uvutils._rotate_one_axis(x_vecs[:, 0], 0.0, 1)
-        == x_vecs[np.newaxis, :, 0, np.newaxis],
+        == x_vecs[np.newaxis, :, 0, np.newaxis]
     )
     assert np.all(
-        uvutils._rotate_one_axis(
-            x_vecs[:, :, np.newaxis],
-            0.0,
-            2,
-        )
-        == x_vecs[:, :, np.newaxis],
+        uvutils._rotate_one_axis(x_vecs[:, :, np.newaxis], 0.0, 2)
+        == x_vecs[:, :, np.newaxis]
     )
 
     # Test no-ops w/ None
@@ -748,11 +740,7 @@ def test_rotate_one_axis(vector_list):
         == test_vecs[np.newaxis, :, 0, np.newaxis]
     )
     assert np.all(
-        uvutils._rotate_one_axis(
-            test_vecs[:, :, np.newaxis],
-            None,
-            0,
-        )
+        uvutils._rotate_one_axis(test_vecs[:, :, np.newaxis], None, 0)
         == test_vecs[:, :, np.newaxis]
     )
 
@@ -1409,10 +1397,7 @@ def test_calc_parallactic_angle():
     """
     expected_vals = np.array([1.0754290375762232, 0.0, -0.6518070715011698])
     meas_vals = uvutils.calc_parallactic_angle(
-        [0.0, 1.0, 2.0],
-        [-1.0, 0.0, 1.0],
-        [2.0, 1.0, 0],
-        1.0,
+        [0.0, 1.0, 2.0], [-1.0, 0.0, 1.0], [2.0, 1.0, 0], 1.0
     )
     # Make sure things agree to better than ~0.1 uas (as it definitely should)
     assert np.allclose(expected_vals, meas_vals, 0.0, 1e-12)
@@ -3015,11 +3000,7 @@ def test_uvcalibrate_apply_gains_oldfiles():
     with uvtest.check_warnings(UserWarning, match=ants_expected):
         with pytest.raises(ValueError, match=freq_expected):
             uvutils.uvcalibrate(
-                uvd,
-                uvc,
-                prop_flags=True,
-                ant_check=False,
-                time_check=False,
+                uvd, uvc, prop_flags=True, ant_check=False, time_check=False
             )
 
 
@@ -3122,13 +3103,11 @@ def test_uvcalibrate(
 
     if gain_convention == "divide":
         np.testing.assert_array_almost_equal(
-            uvdcal.get_data(key),
-            uvd.get_data(key) / gain_product,
+            uvdcal.get_data(key), uvd.get_data(key) / gain_product
         )
     else:
         np.testing.assert_array_almost_equal(
-            uvdcal.get_data(key),
-            uvd.get_data(key) * gain_product,
+            uvdcal.get_data(key), uvd.get_data(key) * gain_product
         )
 
     # test undo
@@ -3469,8 +3448,7 @@ def test_uvcalibrate_feedpol_mismatch(uvcalibrate_data):
     # downselect the feed polarization to get warnings
     uvc.select(jones=uvutils.jstr2num("Jnn", x_orientation=uvc.x_orientation))
     with pytest.raises(
-        ValueError,
-        match=("Feed polarization e exists on UVData but not on UVCal."),
+        ValueError, match=("Feed polarization e exists on UVData but not on UVCal.")
     ):
         uvutils.uvcalibrate(uvd, uvc, inplace=False)
 

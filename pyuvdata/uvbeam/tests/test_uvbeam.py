@@ -936,9 +936,7 @@ def test_spatial_interpolation_samepoints(
         ValueError, match="interpolation_function must be set on object first"
     ):
         uvbeam.interp(
-            az_array=az_orig_vals,
-            za_array=za_orig_vals,
-            freq_array=freq_orig_vals,
+            az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals
         )
 
     uvbeam.interpolation_function = "az_za_simple"
@@ -1183,9 +1181,7 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
         "the UVBeam freq_array range.",
     ):
         uvbeam.interp(
-            az_array=az_interp_vals,
-            za_array=za_interp_vals,
-            freq_array=np.array([100]),
+            az_array=az_interp_vals, za_array=za_interp_vals, freq_array=np.array([100])
         )
 
     # test errors if positions outside range
@@ -1194,10 +1190,7 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
         match="at least one interpolation location "
         "is outside of the UVBeam pixel coverage.",
     ):
-        uvbeam.interp(
-            az_array=az_interp_vals,
-            za_array=za_interp_vals + np.pi / 2,
-        )
+        uvbeam.interp(az_array=az_interp_vals, za_array=za_interp_vals + np.pi / 2)
 
     # test no errors only frequency interpolation
     interp_data_array, interp_basis_vector = uvbeam.interp(freq_array=freq_interp_vals)
@@ -1208,9 +1201,7 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
         match="Requested polarization 1 not found in self.polarization_array",
     ):
         uvbeam.interp(
-            az_array=az_interp_vals,
-            za_array=za_interp_vals,
-            polarizations=["pI"],
+            az_array=az_interp_vals, za_array=za_interp_vals, polarizations=["pI"]
         )
 
     # test error returning coupling matrix for simple antenna_types
@@ -3046,10 +3037,7 @@ def test_generic_read_all_bad_files(tmp_path):
     fits.setval(fname2, "BTYPE", value="foobar")
     uvb3 = UVBeam()
     filenames = [fname1, fname2]
-    with uvtest.check_warnings(
-        UserWarning,
-        "ALL FILES FAILED ON READ",
-    ):
+    with uvtest.check_warnings(UserWarning, "ALL FILES FAILED ON READ"):
         uvb3.read(filenames, skip_bad_files=True)
 
 

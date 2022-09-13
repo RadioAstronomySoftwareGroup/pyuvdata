@@ -215,8 +215,7 @@ def test_check_flag_array(uvdata_obj):
     uvf.flag_array = np.ones((uvf.flag_array.shape), dtype=int)
 
     with pytest.raises(
-        ValueError,
-        match="UVParameter _flag_array is not the appropriate type.",
+        ValueError, match="UVParameter _flag_array is not the appropriate type."
     ):
         uvf.check()
 
@@ -3882,10 +3881,7 @@ def test_parse_ants_error(uvf_from_uvcal, uvf_mode):
             {"ant_str": "all", "polarizations": [-5, -6, -7]},
             "Cannot provide ant_str with antenna_nums, bls, or polarizations.",
         ),
-        (
-            {"ant_str": "auto"},
-            "There is no data matching ant_str=auto in this object.",
-        ),
+        ({"ant_str": "auto"}, "There is no data matching ant_str=auto in this object."),
     ],
 )
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
@@ -3910,8 +3906,7 @@ def test_select_parse_ants(uvf_from_data, uvf_mode):
     assert np.array_equiv(
         np.unique(uvf.baseline_array),
         uvutils.antnums_to_baseline(
-            *np.transpose([(88, 97), (97, 104), (97, 105)]),
-            uvf.Nants_telescope,
+            *np.transpose([(88, 97), (97, 104), (97, 105)]), uvf.Nants_telescope
         ),
     )
 
@@ -3959,8 +3954,7 @@ def test_get_ants_error(uvf_from_waterfall):
     uvf = uvf_from_waterfall
 
     with pytest.raises(
-        ValueError,
-        match="A waterfall type UVFlag object has no sense of antennas.",
+        ValueError, match="A waterfall type UVFlag object has no sense of antennas."
     ):
         uvf.get_ants()
 

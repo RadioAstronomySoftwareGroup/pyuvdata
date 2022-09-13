@@ -53,9 +53,7 @@ else:
     extra_compile_args = ["-O3", "-fopenmp"]
     extra_link_args = ["-fopenmp"]
 
-global_c_macros = [
-    ("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION"),
-]
+global_c_macros = [("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")]
 
 miriad_extension = Extension(
     "pyuvdata._miriad",

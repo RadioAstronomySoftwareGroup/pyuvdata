@@ -251,9 +251,7 @@ def test_mir_meta_index_query(mir_sp_data, arg, output):
 
 @pytest.mark.parametrize(
     "field_name,err_type,err_msg",
-    [
-        [[0, 1], ValueError, "field_name must either be a str or list of str."],
-    ],
+    [[[0, 1], ValueError, "field_name must either be a str or list of str."]],
 )
 def test_mir_meta_get_value_errs(mir_in_data, field_name, err_type, err_msg):
     with pytest.raises(err_type, match=err_msg):

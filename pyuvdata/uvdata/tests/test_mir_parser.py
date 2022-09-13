@@ -38,8 +38,7 @@ def compass_soln_file(tmp_path_factory):
         bp_soln = np.arange(16 * 16384) + (np.flip(np.arange(16 * 16384)) * 1j)
 
         file["bandpassArr"] = np.reshape(
-            np.concatenate((bp_soln, np.conj(np.reciprocal(bp_soln)))),
-            (2, 16, 16384),
+            np.concatenate((bp_soln, np.conj(np.reciprocal(bp_soln)))), (2, 16, 16384)
         ).astype(np.complex64)
 
         # This number is pulled from the test mir_data object, in in_data["mjd"].
@@ -630,8 +629,7 @@ def test_apply_tsys(mir_data):
     mir_copy.load_data(load_cross=True, apply_tsys=True)
     for key, norm_fac in zip(mir_data.vis_data.keys(), norm_list):
         assert np.allclose(
-            norm_fac * mir_data.vis_data[key]["data"],
-            mir_copy.vis_data[key]["data"],
+            norm_fac * mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"]
         )
         assert np.allclose(
             mir_data.vis_data[key]["flags"], mir_copy.vis_data[key]["flags"]
@@ -904,10 +902,7 @@ def test_write_warn(mir_data, tmp_path, unload_data, warn_msg):
 def test_rechunk_raw(inplace):
     """Test that rechunk_vis properly averages data"""
     raw_data = {
-        5: {
-            "data": np.arange(-16384, 16384, dtype=np.int16),
-            "scale_fac": np.int16(1),
-        }
+        5: {"data": np.arange(-16384, 16384, dtype=np.int16), "scale_fac": np.int16(1)}
     }
 
     # First up, test what should be a no-op
@@ -1469,10 +1464,7 @@ def test_chanshift_raw_vals(inplace, return_vis, fwd_dir, check_flags):
     # Refresh the values, in case we are doing this in-place
     if inplace:
         raw_dict = {
-            123: {
-                "data": np.array(raw_vals, dtype=np.int16),
-                "scale_fac": np.int16(0),
-            }
+            123: {"data": np.array(raw_vals, dtype=np.int16), "scale_fac": np.int16(0)}
         }
 
     # Last check, try a linear interpolation step
@@ -1537,10 +1529,7 @@ def test_chanshift_vis(check_flags, flag_adj, fwd_dir, inplace):
 
     # Now try a simple one-channel shift
     new_dict = MirParser._chanshift_vis(
-        vis_dict,
-        [(1 if fwd_dir else -1, 0, None)],
-        flag_adj=flag_adj,
-        inplace=inplace,
+        vis_dict, [(1 if fwd_dir else -1, 0, None)], flag_adj=flag_adj, inplace=inplace
     )
 
     if inplace:

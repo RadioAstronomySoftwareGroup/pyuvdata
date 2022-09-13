@@ -13,11 +13,7 @@ from astropy.utils import iers
 
 import pyuvdata.utils as uvutils
 
-__all__ = [
-    "check_warnings",
-    "clearWarnings",
-    "checkWarnings",
-]
+__all__ = ["check_warnings", "clearWarnings", "checkWarnings"]
 
 
 class WarningsChecker(warnings.catch_warnings):
@@ -140,12 +136,7 @@ class WarningsChecker(warnings.catch_warnings):
 
         return self
 
-    def __exit__(
-        self,
-        exc_type=None,
-        exc_val=None,
-        exc_tb=None,
-    ):
+    def __exit__(self, exc_type=None, exc_val=None, exc_tb=None):
         if not self._entered:
             __tracebackhide__ = True
             raise RuntimeError("Cannot exit %r without entering first" % self)

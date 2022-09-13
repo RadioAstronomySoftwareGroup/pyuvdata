@@ -248,8 +248,7 @@ def test_init_from_uv_exclude(tmp_path, exclude):
 
 
 @pytest.mark.parametrize(
-    "var_dict",
-    [{}, {"latitud": 0.0}, {"longitu": 0.0}, {"history": "abc"}],
+    "var_dict", [{}, {"latitud": 0.0}, {"longitu": 0.0}, {"history": "abc"}]
 )
 def test_init_from_uv_override(tmp_path, var_dict):
     infile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")

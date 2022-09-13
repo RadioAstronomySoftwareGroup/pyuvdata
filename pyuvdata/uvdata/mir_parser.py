@@ -1093,9 +1093,7 @@ class MirParser(object):
         tsys_dict = {
             (idx, jdx, 0): tsys**0.5
             for idx, jdx, tsys in zip(
-                self.eng_data["inhid"],
-                self.eng_data["antenna"],
-                self.eng_data["tsys"],
+                self.eng_data["inhid"], self.eng_data["antenna"], self.eng_data["tsys"]
             )
         }
         tsys_dict.update(
@@ -1127,13 +1125,7 @@ class MirParser(object):
             except KeyError:
                 warnings.warn(
                     "No tsys for blhid %i found (%i-%i baseline, inhid %i). "
-                    "Baseline record will be flagged."
-                    % (
-                        blhid,
-                        jdx,
-                        ldx,
-                        idx,
-                    )
+                    "Baseline record will be flagged." % (blhid, jdx, ldx, idx)
                 )
 
         if invert:
@@ -1379,9 +1371,7 @@ class MirParser(object):
 
         # Unload anything that we don't want to load at this point.
         self.unload_data(
-            unload_vis=not load_vis,
-            unload_raw=not load_raw,
-            unload_auto=not load_auto,
+            unload_vis=not load_vis, unload_raw=not load_raw, unload_auto=not load_auto
         )
 
         # If we are potentially downselecting data (typically used when calling select),
@@ -1410,10 +1400,7 @@ class MirParser(object):
         # Finally, if we didn't downselect or convert, load the data from disk now.
         if load_cross:
             data_dict = self._read_data(
-                "cross",
-                return_vis=load_vis,
-                use_mmap=use_mmap,
-                read_only=read_only,
+                "cross", return_vis=load_vis, use_mmap=use_mmap, read_only=read_only
             )
 
             setattr(self, "vis_data" if load_vis else "raw_data", data_dict)
@@ -1546,11 +1533,9 @@ class MirParser(object):
             mask_update |= self.ac_data.set_mask(
                 mask=self.eng_data.get_mask(
                     header_key=self.ac_data.get_value(
-                        ["antenna", "inhid"],
-                        return_tuples=True,
-                        use_mask=False,
+                        ["antenna", "inhid"], return_tuples=True, use_mask=False
                     )
-                ),
+                )
             )
 
         if update_data or (update_data is None):
@@ -1676,10 +1661,7 @@ class MirParser(object):
             ["inhid", "ant1rx", "ant2rx", "isb"], use_mask=False
         )
         sp_groups = self.sp_data.group_by(
-            ["blhid", "iband"],
-            use_mask=False,
-            assume_unique=True,
-            return_index=True,
+            ["blhid", "iband"], use_mask=False, assume_unique=True, return_index=True
         )
 
         # We have to do a bit of extra legwork here to figure out which blocks o
@@ -2044,9 +2026,7 @@ class MirParser(object):
             # entry after the sequence of calls.
             if return_vis:
                 data_dict[sphid] = MirParser._rechunk_data(
-                    MirParser._convert_raw_to_vis({0: sp_raw}),
-                    [chan_avg],
-                    inplace=True,
+                    MirParser._convert_raw_to_vis({0: sp_raw}), [chan_avg], inplace=True
                 )[0]
             else:
                 data_dict[sphid] = MirParser._convert_vis_to_raw(
@@ -2251,9 +2231,7 @@ class MirParser(object):
             for item in metadata_dict:
                 try:
                     metadata_dict[item] = getattr(self, item).__add__(
-                        getattr(other, item),
-                        merge=merge,
-                        overwrite=overwrite,
+                        getattr(other, item), merge=merge, overwrite=overwrite
                     )
                 except MirMetaError:
                     # MirMetaError is a unique error thrown when there are conflicting
@@ -2568,11 +2546,7 @@ class MirParser(object):
         """
         # This dict records some common field aliases that users might specify, that
         # map to specific fields in the metadata.
-        alias_dict = {
-            "ant": "antenna",
-            "ant1": "tel1",
-            "ant2": "tel2",
-        }
+        alias_dict = {"ant": "antenna", "ant1": "tel1", "ant2": "tel2"}
 
         # Make sure that where is a list, to make arg parsing more uniform downstream
         if not isinstance(where, list) and where is not None:
@@ -3058,10 +3032,7 @@ class MirParser(object):
             shift_tuple = (
                 coarse_shift,
                 2,
-                np.array(
-                    [1 - fine_shift, fine_shift],
-                    dtype=np.float32,
-                ),
+                np.array([1 - fine_shift, fine_shift], dtype=np.float32),
             )
         elif kernel_type == "cubic":
             # Cubic convolution is a bit more complicated, and the exact value

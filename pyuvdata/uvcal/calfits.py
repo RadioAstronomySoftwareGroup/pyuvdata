@@ -57,8 +57,7 @@ class CALFITS(UVCal):
 
         if run_check:
             self.check(
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
             )
 
         # calfits allows for frequency spacing to not equal channel widths as long as

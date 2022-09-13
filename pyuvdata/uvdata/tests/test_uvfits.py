@@ -83,10 +83,7 @@ def test_time_precision(tmp_path):
     latitude, longitude, altitude = uvd2.telescope_location_lat_lon_alt_degrees
     unique_times, inverse_inds = np.unique(uvd2.time_array, return_inverse=True)
     unique_lst_array = uvutils.get_lst_for_time(
-        unique_times,
-        latitude,
-        longitude,
-        altitude,
+        unique_times, latitude, longitude, altitude
     )
 
     calc_lst_array = unique_lst_array[inverse_inds]
@@ -98,6 +95,10 @@ def test_time_precision(tmp_path):
         atol=uvd2._lst_array.tols[1],
     )
 
+    # The incoming ra is specified as negative, it gets 2pi added to it in the roundtrip
+    uvd2.phase_center_catalog[1]["cat_lon"] -= 2 * np.pi
+
+    uvd2._consolidate_phase_center_catalogs(reference_catalog=uvd.phase_center_catalog)
     assert uvd2.__eq__(
         uvd,
         allowed_failures=[
@@ -127,8 +128,6 @@ def test_break_read_uvfits():
 def test_source_group_params(casa_uvfits, tmp_path):
     # make a file with a single source to test that it works
     uv_in = casa_uvfits
-    # Writing a source table to UVFITS makes pyuvdata think that the data are
-    # mutli-phase-ctr, so we'll force that in the original file as well
     write_file = os.path.join(tmp_path, "outtest_casa.uvfits")
     write_file2 = os.path.join(tmp_path, "outtest_casa2.uvfits")
     uv_in.write_uvfits(write_file)
@@ -195,6 +194,9 @@ def test_source_group_params(casa_uvfits, tmp_path):
     assert uv_out.filename == ["outtest_casa2.uvfits"]
     uv_in.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(
+        reference_catalog=uv_in.phase_center_catalog
+    )
     assert uv_in == uv_out
 
 
@@ -202,11 +204,10 @@ def test_source_group_params(casa_uvfits, tmp_path):
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The older phase attributes")
 @pytest.mark.parametrize("frame", ["icrs", "fk4"])
+@pytest.mark.filterwarnings("ignore:UVFITS file is missing AIPS SU table")
 def test_source_frame_defaults(casa_uvfits, tmp_path, frame):
     # make a file with a single source to test that it works
     uv_in = casa_uvfits
-    # Writing a source table to UVFITS makes pyuvdata think that the data are
-    # mutli-phase-ctr, so we'll force that in the original file as well
     write_file = os.path.join(tmp_path, "outtest_casa.uvfits")
     write_file2 = os.path.join(tmp_path, "outtest_casa2.uvfits")
     uv_in.write_uvfits(write_file)
@@ -269,7 +270,7 @@ def test_source_frame_defaults(casa_uvfits, tmp_path, frame):
 
     uv_out = UVData()
     uv_out.read(write_file2)
-    assert uv_out.phase_center_frame == frame
+    assert uv_out.phase_center_catalog[0]["cat_frame"] == frame
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -431,6 +432,9 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes):
     assert uv_out.filename == ["outtest_casa.uvfits"]
     uv_in.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(
+        reference_catalog=uv_in.phase_center_catalog
+    )
     assert uv_in == uv_out
 
     return
@@ -492,8 +496,9 @@ def test_uvw_coordinate_suffixes(casa_uvfits, tmp_path, uvw_suffix):
         vis_hdu = fits.GroupsHDU(vis_hdu)
         vis_hdu.header = vis_hdr
         ant_hdu = hdu_list[hdunames["AIPS AN"]]
+        source_hdu = hdu_list[hdunames["AIPS SU"]]
 
-        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu, source_hdu])
         hdulist.writeto(write_file2, overwrite=True)
         hdulist.close()
 
@@ -514,6 +519,7 @@ def test_uvw_coordinate_suffixes(casa_uvfits, tmp_path, uvw_suffix):
     else:
         uv2 = UVData.from_file(write_file2)
 
+    uv2._consolidate_phase_center_catalogs(reference_catalog=uv_in.phase_center_catalog)
     assert uv2 == uv_in
 
 
@@ -575,8 +581,9 @@ def test_uvw_coordinate_suffix_errors(casa_uvfits, tmp_path, uvw_suffix):
         vis_hdu = fits.GroupsHDU(vis_hdu)
         vis_hdu.header = vis_hdr
         ant_hdu = hdu_list[hdunames["AIPS AN"]]
+        source_hdu = hdu_list[hdunames["AIPS SU"]]
 
-        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu, source_hdu])
         hdulist.writeto(write_file2, overwrite=True)
         hdulist.close()
 
@@ -603,6 +610,9 @@ def test_readwriteread_no_lst(tmp_path, casa_uvfits):
     assert uv_out.filename == ["outtest_casa.uvfits"]
     uv_in.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(
+        reference_catalog=uv_in.phase_center_catalog
+    )
     assert uv_in == uv_out
 
     return
@@ -625,6 +635,9 @@ def test_readwriteread_x_orientation(tmp_path, casa_uvfits):
     assert uv_out.filename == ["outtest_casa.uvfits"]
     uv_in.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(
+        reference_catalog=uv_in.phase_center_catalog
+    )
     assert uv_in == uv_out
 
     return
@@ -649,6 +662,9 @@ def test_readwriteread_antenna_diameters(tmp_path, casa_uvfits):
     assert uv_out.filename == ["outtest_casa.uvfits"]
     uv_in.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(
+        reference_catalog=uv_in.phase_center_catalog
+    )
     assert uv_in == uv_out
 
     return
@@ -686,6 +702,9 @@ def test_readwriteread_large_antnums(tmp_path, casa_uvfits):
     assert uv_out.filename == ["outtest_casa.uvfits"]
     uv_in.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(
+        reference_catalog=uv_in.phase_center_catalog
+    )
     assert uv_in == uv_out
 
     return
@@ -718,8 +737,9 @@ def test_readwriteread_missing_info(tmp_path, casa_uvfits):
         ant_hdr["FRAME"] = "????"
 
         ant_hdu.header = ant_hdr
+        source_hdu = hdu_list[hdunames["AIPS SU"]]
 
-        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu, source_hdu])
         hdulist.writeto(write_file2, overwrite=True)
 
     uv_out.read(write_file2)
@@ -917,6 +937,9 @@ def test_extra_keywords(casa_uvfits, tmp_path, kwd_names, kwd_values):
     assert uv_out.filename == ["outtest_casa.uvfits"]
     uv_in.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(
+        reference_catalog=uv_in.phase_center_catalog
+    )
     assert uv_in == uv_out
 
 
@@ -938,6 +961,9 @@ def test_roundtrip_blt_order(casa_uvfits, order, tmp_path):
     assert uv_out.filename == ["blt_order_test.uvfits"]
     uv_in.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(
+        reference_catalog=uv_in.phase_center_catalog
+    )
     assert uv_in == uv_out
 
 
@@ -997,6 +1023,9 @@ def test_select_read(casa_uvfits, tmp_path, select_kwargs):
     assert uvfits_uv2.filename == ["outtest_casa.uvfits"]
     uvfits_uv.filename = uvfits_uv2.filename
 
+    uvfits_uv2._consolidate_phase_center_catalogs(
+        reference_catalog=uvfits_uv.phase_center_catalog
+    )
     assert uvfits_uv == uvfits_uv2
 
 
@@ -1104,6 +1133,9 @@ def test_read_uvfits_write_miriad(casa_uvfits, tmp_path):
     assert uvfits_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
     miriad_uv.filename = uvfits_uv.filename
 
+    miriad_uv._consolidate_phase_center_catalogs(
+        reference_catalog=uvfits_uv.phase_center_catalog
+    )
     assert miriad_uv == uvfits_uv
 
     # check that setting the phase_type keyword also works
@@ -1125,6 +1157,9 @@ def test_read_uvfits_write_miriad(casa_uvfits, tmp_path):
     assert uvfits_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
     miriad_uv.filename = uvfits_uv.filename
 
+    miriad_uv._consolidate_phase_center_catalogs(
+        reference_catalog=uvfits_uv.phase_center_catalog
+    )
     assert miriad_uv == uvfits_uv
 
 
@@ -1143,7 +1178,7 @@ def test_multi_files(casa_uvfits, tmp_path):
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
-    uv1.read(np.array([testfile1, testfile2]), file_type="uvfits")
+    uv1.read(np.array([testfile1, testfile2]), file_type="uvfits", allow_rephase=False)
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
@@ -1162,6 +1197,9 @@ def test_multi_files(casa_uvfits, tmp_path):
     uv1.filename = uv_full.filename
     uv1._filename.form = (1,)
 
+    uv1._consolidate_phase_center_catalogs(
+        reference_catalog=uv_full.phase_center_catalog
+    )
     assert uv1 == uv_full
 
 
@@ -1181,7 +1219,7 @@ def test_multi_files_axis(casa_uvfits, tmp_path):
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
 
-    uv1.read([testfile1, testfile2], axis="freq")
+    uv1.read([testfile1, testfile2], axis="freq", allow_rephase=False)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         uv_full.history + "  Downselected to "
@@ -1199,6 +1237,9 @@ def test_multi_files_axis(casa_uvfits, tmp_path):
     uv1.filename = uv_full.filename
     uv1._filename.form = (1,)
 
+    uv1._consolidate_phase_center_catalogs(
+        reference_catalog=uv_full.phase_center_catalog
+    )
     assert uv1 == uv_full
 
 
@@ -1221,7 +1262,7 @@ def test_multi_files_metadata_only(casa_uvfits, tmp_path):
     # check with metadata_only
     uv_full = uv_full.copy(metadata_only=True)
     uv1 = UVData()
-    uv1.read([testfile1, testfile2], read_data=False)
+    uv1.read([testfile1, testfile2], read_data=False, allow_rephase=False)
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
@@ -1240,6 +1281,9 @@ def test_multi_files_metadata_only(casa_uvfits, tmp_path):
     uv1.filename = uv_full.filename
     uv1._filename.form = (1,)
 
+    uv1._consolidate_phase_center_catalogs(
+        reference_catalog=uv_full.phase_center_catalog
+    )
     assert uv1 == uv_full
 
 
@@ -1258,21 +1302,15 @@ def test_multi_unphase_on_read(casa_uvfits, tmp_path):
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
     with uvtest.check_warnings(
-        UserWarning,
-        [
-            "Telescope EVLA is not",
+        [UserWarning] * 8 + [DeprecationWarning] * 2,
+        ["Telescope EVLA is not"] * 2
+        + [
             "The uvw_array does not match the expected values given the "
-            "antenna positions.",
-            "Telescope EVLA is not",
-            "The uvw_array does not match the expected values given the "
-            "antenna positions.",
-            "The uvw_array does not match the expected values given the "
-            "antenna positions.",
-            "The uvw_array does not match the expected values given the "
-            "antenna positions.",
-            "Unphasing this UVData object to drift",
-            "Unphasing other UVData object to drift",
-        ],
+            "antenna positions."
+        ]
+        * 4
+        + ["Unprojecting this UVData object.", "Unprojecting other UVData object."]
+        + ["The `unphase_to_drift` option is deprecated"] * 2,
     ):
         uv1.read(np.array([testfile1, testfile2]), unphase_to_drift=True)
 
@@ -1285,7 +1323,7 @@ def test_multi_unphase_on_read(casa_uvfits, tmp_path):
         uv1.history,
     )
 
-    uv_full.unphase_to_drift()
+    uv_full.unproject_phase()
 
     uv1.history = uv_full.history
 
@@ -1295,16 +1333,20 @@ def test_multi_unphase_on_read(casa_uvfits, tmp_path):
     uv1.filename = uv_full.filename
     uv1._filename.form = (1,)
 
+    uv1._consolidate_phase_center_catalogs(
+        reference_catalog=uv_full.phase_center_catalog
+    )
     assert uv1 == uv_full
 
     # check unphasing when reading only one file
     with uvtest.check_warnings(
-        UserWarning,
+        [UserWarning] * 3 + [DeprecationWarning],
         [
             "Telescope EVLA is not",
             "The uvw_array does not match the expected values given the "
             "antenna positions.",
-            "Unphasing this UVData object to drift",
+            "Unprojecting this UVData object.",
+            "The `unphase_to_drift` option is deprecated",
         ],
     ):
         uv_full2.read(casa_tutorial_uvfits, unphase_to_drift=True)
@@ -1322,8 +1364,8 @@ def test_multi_phase_on_read(casa_uvfits, tmp_path):
     testfile1 = str(tmp_path / "uv1.uvfits")
     testfile2 = str(tmp_path / "uv2.uvfits")
     phase_center_radec = [
-        uv_full.phase_center_ra + 0.01,
-        uv_full.phase_center_dec + 0.01,
+        uv_full.phase_center_catalog[0]["cat_lon"] + 0.01,
+        uv_full.phase_center_catalog[0]["cat_lat"] + 0.01,
     ]
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
@@ -1332,23 +1374,21 @@ def test_multi_phase_on_read(casa_uvfits, tmp_path):
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
     with uvtest.check_warnings(
-        UserWarning,
-        [
-            "Telescope EVLA is not",
+        [UserWarning] * 7 + [DeprecationWarning] * 3,
+        ["Telescope EVLA is not"] * 2
+        + [
             "The uvw_array does not match the expected values given the "
-            "antenna positions.",
-            "Telescope EVLA is not",
-            "The uvw_array does not match the expected values given the "
-            "antenna positions.",
-            "Phasing this UVData object to phase_center_radec",
-            "The uvw_array does not match the expected values given the "
-            "antenna positions.",
-            "Phasing this UVData object to phase_center_radec",
-        ],
+            "antenna positions."
+        ]
+        * 3
+        + ["Phasing this UVData object to phase_center_radec"] * 2
+        + ["The `allow_rephase` option is deprecated"]
+        + ["The `phase_center_radec` parameter is deprecated"] * 2,
     ):
         uv1.read(
             np.array([testfile1, testfile2]),
             phase_center_radec=phase_center_radec,
+            allow_rephase=True,
         )
 
     # Check history is correct, before replacing and doing a full object check
@@ -1360,7 +1400,7 @@ def test_multi_phase_on_read(casa_uvfits, tmp_path):
         uv1.history,
     )
 
-    uv_full.phase(*phase_center_radec)
+    uv_full.phase(*phase_center_radec, cat_name=uv1.phase_center_catalog[0]["cat_name"])
     uv1.history = uv_full.history
 
     # make sure filenames are what we expect
@@ -1369,24 +1409,36 @@ def test_multi_phase_on_read(casa_uvfits, tmp_path):
     uv1.filename = uv_full.filename
     uv1._filename.form = (1,)
 
+    uv_full._consolidate_phase_center_catalogs(
+        reference_catalog=uv1.phase_center_catalog
+    )
     assert uv1 == uv_full
 
     # check phasing when reading only one file
     with uvtest.check_warnings(
-        UserWarning,
+        [UserWarning] * 3 + [DeprecationWarning],
         [
             "Telescope EVLA is not",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
             "Phasing this UVData object to phase_center_radec",
+            "The `phase_center_radec` parameter is deprecated",
         ],
     ):
         uv_full2.read(casa_tutorial_uvfits, phase_center_radec=phase_center_radec)
+
+    uv_full2._consolidate_phase_center_catalogs(
+        reference_catalog=uv_full.phase_center_catalog
+    )
     assert uv_full2 == uv_full
 
-    with pytest.raises(ValueError) as cm:
-        uv_full2.read(casa_tutorial_uvfits, phase_center_radec=phase_center_radec[0])
-    assert str(cm.value).startswith("phase_center_radec should have length 2.")
+    with pytest.raises(ValueError, match="phase_center_radec should have length 2."):
+        with uvtest.check_warnings(
+            DeprecationWarning, match="The `phase_center_radec` parameter is deprecated"
+        ):
+            uv_full2.read(
+                casa_tutorial_uvfits, phase_center_radec=phase_center_radec[0]
+            )
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -1421,6 +1473,9 @@ def test_read_ms_write_uvfits_casa_history(tmp_path):
         assert getattr(uvfits_uv, item) is not None
         setattr(uvfits_uv, item, None)
 
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=ms_uv.phase_center_catalog
+    )
     assert ms_uv == uvfits_uv
 
 
@@ -1482,6 +1537,9 @@ def test_readwriteread_reorder_pols(tmp_path, casa_uvfits, future_shapes):
     assert uv_out.filename == ["outtest_casa.uvfits"]
     uv_in.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(
+        reference_catalog=uv_in.phase_center_catalog
+    )
     assert uv_in == uv_out
 
 
@@ -1600,5 +1658,7 @@ def test_no_spoof(sma_mir, tmp_path, spoof):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvfits_phasing_errors(hera_uvh5, tmp_path):
     # check error if phase_type is wrong and force_phase not set
-    with pytest.raises(ValueError, match="The data are in drift mode. Set force_phase"):
+    with pytest.raises(
+        ValueError, match="The data are not all phased to a sidereal source"
+    ):
         hera_uvh5.write_uvfits(tmp_path)

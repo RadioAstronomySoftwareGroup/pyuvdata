@@ -269,6 +269,11 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
         uvfits_uv.ant_1_array, uvfits_uv.ant_2_array
     )
 
+    # also need to adjust phase_center_catalogs
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=ms_uv.phase_center_catalog
+    )
+
     # they are equal if only required parameters are checked:
     # scan numbers only defined for the MS
     assert uvfits_uv.__eq__(ms_uv, check_extra=False, allowed_failures=allowed_failures)
@@ -328,6 +333,9 @@ def test_read_ms_write_uvfits(nrao_uv, tmp_path):
         assert getattr(uvfits_uv, item) is not None
         setattr(uvfits_uv, item, None)
 
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=ms_uv.phase_center_catalog
+    )
     assert uvfits_uv == ms_uv
 
 
@@ -383,7 +391,7 @@ def test_multi_files(casa_uvfits, axis):
     if axis is None:
         filesread = np.array(filesread)
 
-    uv_multi.read(filesread, axis=axis)
+    uv_multi.read(filesread, axis=axis, allow_rephase=False)
 
     # histories are different because of combining along freq. axis
     # replace the history
@@ -400,6 +408,10 @@ def test_multi_files(casa_uvfits, axis):
     uv_full.ant_2_array = uv_full.ant_2_array - 1
     uv_full.baseline_array = uv_full.antnums_to_baseline(
         uv_full.ant_1_array, uv_full.ant_2_array
+    )
+
+    uv_full._consolidate_phase_center_catalogs(
+        reference_catalog=uv_multi.phase_center_catalog
     )
 
     # now they are equal if only required parameters are checked:
@@ -534,29 +546,6 @@ def test_ms_history_lesson(mir_uv, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
-def test_ms_no_ref_dir_source(mir_uv, tmp_path):
-    """
-    Test that the MS writer/reader appropriately reads in a single-source data set
-    as non-multi-phase if it can be, even if the original data set was.
-    """
-    ms_uv = UVData()
-    testfile = os.path.join(tmp_path, "out_ms_no_ref_dir_source.ms")
-
-    mir_uv.phase_center_frame = "fk5"
-    mir_uv._set_app_coords_helper()
-    mir_uv.write_ms(testfile)
-    ms_uv.read(testfile)
-
-    assert ms_uv.multi_phase_center is False
-
-    ms_uv._set_multi_phase_center(preserve_phase_center_info=True)
-    ms_uv._update_phase_center_id(0, 1)
-    ms_uv.phase_center_catalog[1]["info_source"] = "file"
-
-    assert ms_uv.phase_center_catalog == mir_uv.phase_center_catalog
-
-
-@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 def test_ms_multi_spw_data_variation(mir_uv, tmp_path):
     """
     Test that the MS writer/reader appropriately reads in a single-source data set
@@ -578,8 +567,7 @@ def test_ms_multi_spw_data_variation(mir_uv, tmp_path):
     assert str(cm.value).startswith("Column EXPOSURE appears to vary on between")
 
     with uvtest.check_warnings(
-        UserWarning,
-        match="Column EXPOSURE appears to vary on between windows, ",
+        UserWarning, match="Column EXPOSURE appears to vary on between windows, "
     ):
         ms_uv.read(testfile, raise_error=False)
 
@@ -600,7 +588,7 @@ def test_ms_phasing(mir_uv, future_shapes, tmp_path):
     ms_uv = UVData()
     testfile = os.path.join(tmp_path, "out_ms_phasing.ms")
 
-    mir_uv.unphase_to_drift()
+    mir_uv.unproject_phase()
 
     with pytest.raises(ValueError, match="The data are in drift mode."):
         mir_uv.write_ms(testfile)
@@ -641,14 +629,11 @@ def test_ms_single_chan(mir_uv, future_shapes, tmp_path):
     # Easiest way to check that everything worked is to just check for equality, but
     # the MS file is single-spw, single-field, so we have a few things we need to fix
 
-    # First, make the date multi-phase-ctr
-    ms_uv._set_multi_phase_center(preserve_phase_center_info=True)
     cat_id = list(mir_uv.phase_center_catalog.keys())[0]
     cat_name = mir_uv.phase_center_catalog[cat_id]["cat_name"]
     ms_uv._update_phase_center_id(list(ms_uv.phase_center_catalog.keys())[0], cat_id)
     ms_uv.phase_center_catalog[cat_id]["cat_name"] = cat_name
     ms_uv.phase_center_catalog[cat_id]["info_source"] = "file"
-    ms_uv.phase_center_frame = "icrs"
 
     # Next, turn on flex-spw
     ms_uv._set_flex_spw()
@@ -702,12 +687,9 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
             "psysattn in extra_keywords is a list, array or dict",
             "ambpsys in extra_keywords is a list, array or dict",
             "bfmask in extra_keywords is a list, array or dict",
-            "Cannot fix the phases of multi phase center datasets, as they were not "
-            "supported when the old phasing method was used, and thus, there "
-            "is no need to correct the data.",
         ],
     ):
-        miriad_uv.read(carma_file, fix_old_proj=True)
+        miriad_uv.read(carma_file)
 
     # MIRIAD is missing these in the file, so we'll fill it in here.
     miriad_uv.antenna_diameters = np.zeros(miriad_uv.Nants_telescope)
@@ -721,22 +703,27 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
     miriad_uv._set_app_coords_helper()
 
     if multi_frame:
-        ra_use = miriad_uv.phase_center_catalog["NOISE"]["cat_lon"]
-        dec_use = miriad_uv.phase_center_catalog["NOISE"]["cat_lat"]
-        miriad_uv.phase(
-            ra_use,
-            dec_use,
-            cat_name="NOISE",
-            phase_frame="icrs",
-            select_mask=miriad_uv.phase_center_id_array == 0,
-        )
+        cat_id = miriad_uv._look_for_name("NOISE")
+        ra_use = miriad_uv.phase_center_catalog[cat_id[0]]["cat_lon"]
+        dec_use = miriad_uv.phase_center_catalog[cat_id[0]]["cat_lat"]
+        with uvtest.check_warnings(
+            UserWarning,
+            match=[
+                "The entry name NOISE is not unique",
+                "The provided name NOISE is already used",
+            ],
+        ):
+            miriad_uv.phase(
+                ra_use,
+                dec_use,
+                cat_name="NOISE",
+                phase_frame="icrs",
+                select_mask=miriad_uv.phase_center_id_array == cat_id[0],
+            )
     miriad_uv.write_ms(testfile)
 
     # Check on the scan number grouping based on consecutive integrations per phase
     # center
-
-    # Double-check multi-phase center is True.
-    assert miriad_uv.multi_phase_center
 
     # Read back in as MS. Should have 3 scan numbers defined.
     ms_uv = UVData()
@@ -772,13 +759,11 @@ def test_ms_extra_data_descrip(mir_uv, tmp_path):
     tb_dd.close()
 
     ms_uv.read(testfile, ignore_single_chan=False)
-    ms_uv._set_multi_phase_center(preserve_phase_center_info=True)
     cat_id = list(mir_uv.phase_center_catalog.keys())[0]
     cat_name = mir_uv.phase_center_catalog[cat_id]["cat_name"]
     ms_uv._update_phase_center_id(list(ms_uv.phase_center_catalog.keys())[0], cat_id)
     ms_uv.phase_center_catalog[cat_id]["cat_name"] = cat_name
     ms_uv.phase_center_catalog[cat_id]["info_source"] = "file"
-    ms_uv.phase_center_frame = "icrs"
 
     # There are some minor differences between the values stored by MIR and that
     # calculated by UVData. Since MS format requires these to be calculated on the fly,
@@ -903,4 +888,7 @@ def test_antenna_diameter_handling(hera_uvh5, tmp_path):
     uv_obj2.history = uv_obj.history
     uv_obj2.extra_keywords = uv_obj.extra_keywords
 
+    uv_obj2._consolidate_phase_center_catalogs(
+        reference_catalog=uv_obj.phase_center_catalog
+    )
     assert uv_obj2.__eq__(uv_obj, allowed_failures=allowed_failures)

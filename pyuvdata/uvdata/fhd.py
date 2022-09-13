@@ -13,6 +13,7 @@ from scipy.io import readsav
 from .. import telescopes as uvtel
 from .. import utils as uvutils
 from .uvdata import UVData
+from .uvdata import radian_tol as default_radian_tol
 
 __all__ = ["get_fhd_history", "get_fhd_layout_info", "FHD"]
 
@@ -79,12 +80,9 @@ def _xyz_close(xyz1, xyz2, loc_tols):
     return np.allclose(xyz1, xyz2, rtol=loc_tols[0], atol=loc_tols[1])
 
 
-def _latlonalt_close(latlonalt1, latlonalt2, radian_tols, loc_tols):
+def _latlonalt_close(latlonalt1, latlonalt2, radian_tol, loc_tols):
     latlon_close = np.allclose(
-        np.array(latlonalt1[0:2]),
-        np.array(latlonalt2[0:2]),
-        rtol=radian_tols[0],
-        atol=radian_tols[1],
+        np.array(latlonalt1[0:2]), np.array(latlonalt2[0:2]), rtol=0, atol=radian_tol
     )
     alt_close = np.isclose(
         latlonalt1[2], latlonalt2[2], rtol=loc_tols[0], atol=loc_tols[1]
@@ -98,7 +96,7 @@ def get_fhd_layout_info(
     latitude,
     longitude,
     altitude,
-    radian_tols,
+    radian_tol,
     loc_tols,
     obs_tile_names,
     run_check_acceptability=True,
@@ -170,10 +168,7 @@ def get_fhd_layout_info(
         # check both lat/lon/alt and xyz because of subtle differences
         # in tolerances
         if _xyz_close(location_latlonalt, arr_center, loc_tols) or _latlonalt_close(
-            (latitude, longitude, altitude),
-            latlonalt_arr_center,
-            radian_tols,
-            loc_tols,
+            (latitude, longitude, altitude), latlonalt_arr_center, radian_tol, loc_tols
         ):
             telescope_location = arr_center
         else:
@@ -209,8 +204,7 @@ def get_fhd_layout_info(
     # use the longitude from the layout file because that's how the antenna
     # positions were calculated
     latitude, longitude, altitude = uvutils.LatLonAlt_from_XYZ(
-        arr_center,
-        check_acceptability=run_check_acceptability,
+        arr_center, check_acceptability=run_check_acceptability
     )
     antenna_positions = uvutils.ECEF_from_rotECEF(rot_ecef_positions, longitude)
 
@@ -552,25 +546,23 @@ class FHD(UVData):
         # # --- observation information ---
         self.telescope_name = obs["INSTRUMENT"][0].decode("utf8")
 
-        # This is a bit of a kludge because nothing like object_name exists
+        # This is a bit of a kludge because nothing like a phase center name exists
         # in FHD files.
         # At least for the MWA, obs.ORIG_PHASERA and obs.ORIG_PHASEDEC specify
         # the field the telescope was nominally pointing at
         # (May need to be revisited, but probably isn't too important)
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message="The older phase attributes")
-            self.object_name = (
-                "Field RA(deg): "
-                + str(obs["ORIG_PHASERA"][0])
-                + ", Dec:"
-                + str(obs["ORIG_PHASEDEC"][0])
-            )
-            # For the MWA, this can sometimes be converted to EoR fields
-            if self.telescope_name.lower() == "mwa":
-                if np.isclose(obs["ORIG_PHASERA"][0], 0) and np.isclose(
-                    obs["ORIG_PHASEDEC"][0], -27
-                ):
-                    self.object_name = "EoR 0 Field"
+        cat_name = (
+            "Field RA(deg): "
+            + str(obs["ORIG_PHASERA"][0])
+            + ", Dec:"
+            + str(obs["ORIG_PHASEDEC"][0])
+        )
+        # For the MWA, this can sometimes be converted to EoR fields
+        if self.telescope_name.lower() == "mwa":
+            if np.isclose(obs["ORIG_PHASERA"][0], 0) and np.isclose(
+                obs["ORIG_PHASEDEC"][0], -27
+            ):
+                cat_name = "EoR 0 Field"
 
         self.instrument = self.telescope_name
         latitude = np.deg2rad(float(obs["LAT"][0]))
@@ -592,7 +584,7 @@ class FHD(UVData):
                 latitude,
                 longitude,
                 altitude,
-                self._phase_center_ra.tols,
+                default_radian_tol,
                 self._telescope_location.tols,
                 obs_tile_names,
                 run_check_acceptability=True,
@@ -629,15 +621,16 @@ class FHD(UVData):
                 "improperly -- without changing the uvw locations"
             )
 
-        self._set_phased()
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message="The older phase attributes")
-            self.phase_center_ra_degrees = float(obs["OBSRA"][0])
-            self.phase_center_dec_degrees = float(obs["OBSDEC"][0])
-            self.phase_center_frame = astrometry["RADECSYS"][0].decode().lower()
+        cat_id = self._add_phase_center(
+            cat_name=cat_name,
+            cat_type="sidereal",
+            cat_lon=np.deg2rad(float(obs["OBSRA"][0])),
+            cat_lat=np.deg2rad(float(obs["OBSDEC"][0])),
+            cat_frame=astrometry["RADECSYS"][0].decode().lower(),
+            cat_epoch=astrometry["EQUINOX"][0],
+        )
+        self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
 
-            self.phase_center_epoch = astrometry["EQUINOX"][0]
-        self._set_app_coords_helper()
         # Note that FHD antenna arrays are 1-indexed so we subtract 1
         # to get 0-indexed arrays
         self.ant_1_array = bl_info["TILE_A"][0] - 1
@@ -717,6 +710,8 @@ class FHD(UVData):
         # wait for LSTs if set in background
         if proc is not None:
             proc.join()
+
+        self._set_app_coords_helper()
 
         # check if object has all required uv_properties set
         if run_check:

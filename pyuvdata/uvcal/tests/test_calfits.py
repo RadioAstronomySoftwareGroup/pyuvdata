@@ -361,8 +361,7 @@ def test_extra_keywords_errors(gain_data, tmp_path, ex_val, error_msg):
     val = ex_val[keyword]
     cal_in.extra_keywords[keyword] = val
     with uvtest.check_warnings(
-        UserWarning,
-        match=f"{keyword} in extra_keywords is a list, array or dict",
+        UserWarning, match=f"{keyword} in extra_keywords is a list, array or dict"
     ):
         cal_in.check()
     with pytest.raises(TypeError, match=error_msg):

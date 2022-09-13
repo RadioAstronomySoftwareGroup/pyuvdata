@@ -260,8 +260,7 @@ class UVParameter(object):
             self.strict_type = True
         else:
             self.expected_type = _get_generic_type(
-                expected_type,
-                strict_type_check=strict_type_check,
+                expected_type, strict_type_check=strict_type_check
             )
             self.strict_type = strict_type_check
         self.acceptable_vals = acceptable_vals
@@ -273,7 +272,7 @@ class UVParameter(object):
             # relative and absolute tolerances to be used in np.isclose
             self.tols = tols
 
-    def __eq__(self, other):
+    def __eq__(self, other, silent=False):
         """
         Test if classes match and values are within tolerances.
 
@@ -281,28 +280,37 @@ class UVParameter(object):
         ----------
         other : UVParameter or subclass
             The other UVParameter to compare with this one.
-
+        silent : bool
+            When set to False (default), descriptive text is printed out when parameters
+            do not match. If set to True, this text is not printed.
         """
         if isinstance(other, self.__class__):
             if self.value is None:
                 if other.value is not None:
-                    print(f"{self.name} is None on left, but not right")
+                    if not silent:
+                        print(f"{self.name} is None on left, but not right")
                     return False
                 else:
                     return True
             if other.value is None:
                 if self.value is not None:
-                    print(f"{self.name} is None on right, but not left")
+                    if not silent:
+                        print(f"{self.name} is None on right, but not left")
                     return False
 
             if isinstance(self.value, np.ndarray) and not isinstance(
                 self.value.item(0), (str, np.str_)
             ):
                 if not isinstance(other.value, np.ndarray):
-                    print(f"{self.name} parameter value is array, but other is not")
+                    if not silent:
+                        print(f"{self.name} parameter value is array, but other is not")
                     return False
                 if self.value.shape != other.value.shape:
-                    print(f"{self.name} parameter value is array, shapes are different")
+                    if not silent:
+                        print(
+                            f"{self.name} parameter value is array, shapes are "
+                            "different"
+                        )
                     return False
 
                 # check to see if strict types are used
@@ -311,34 +319,39 @@ class UVParameter(object):
                     if other.strict_type:
                         # both strict, expected_type must match
                         if self.expected_type != other.expected_type:
-                            print(
-                                f"{self.name} parameter has incompatible types. "
-                                f"Left is {self.expected_type}, right is "
-                                f"{other.expected_type}"
-                            )
+                            if not silent:
+                                print(
+                                    f"{self.name} parameter has incompatible types. "
+                                    f"Left is {self.expected_type}, right is "
+                                    f"{other.expected_type}"
+                                )
                             return False
                     elif not isinstance(self.value.item(0), other.expected_type):
-                        print(
-                            f"{self.name} parameter has incompatible dtypes. Left "
-                            f"requires {self.expected_type}, right is "
-                            f"{other.value.dtype}"
-                        )
+                        if not silent:
+                            print(
+                                f"{self.name} parameter has incompatible dtypes. Left "
+                                f"requires {self.expected_type}, right is "
+                                f"{other.value.dtype}"
+                            )
                         return False
                 elif other.strict_type:
                     # types must match in the other direction
                     if not isinstance(other.value.item(0), self.expected_type):
-                        print(
-                            f"{self.name} parameter has incompatible dtypes. Left is "
-                            f"{self.value.dtype}, right requires {other.expected_type}"
-                        )
+                        if not silent:
+                            print(
+                                f"{self.name} parameter has incompatible dtypes. Left "
+                                f"is {self.value.dtype}, right requires "
+                                f"{other.expected_type}"
+                            )
                         return False
 
                 elif isinstance(self.value, units.Quantity):
                     if not self.value.unit.is_equivalent(other.value.unit):
-                        print(
-                            f"{self.name} parameter value is an astropy Quantity, "
-                            "units are not equivalent"
-                        )
+                        if not silent:
+                            print(
+                                f"{self.name} parameter value is an astropy Quantity, "
+                                "units are not equivalent"
+                            )
                         return False
                     if not isinstance(self.tols[1], units.Quantity):
                         atol_use = self.tols[1] * self.value.unit
@@ -351,10 +364,11 @@ class UVParameter(object):
                         atol=atol_use,
                         equal_nan=True,
                     ):
-                        print(
-                            f"{self.name} parameter value is an astropy Quantity, "
-                            "values are not close"
-                        )
+                        if not silent:
+                            print(
+                                f"{self.name} parameter value is an astropy Quantity, "
+                                "values are not close"
+                            )
                         return False
                 elif not np.allclose(
                     self.value,
@@ -363,26 +377,33 @@ class UVParameter(object):
                     atol=self.tols[1],
                     equal_nan=True,
                 ):
-                    print(f"{self.name} parameter value is array, values are not close")
+                    if not silent:
+                        print(
+                            f"{self.name} parameter value is array, values are not "
+                            "close"
+                        )
                     return False
             else:
                 # check to see if strict types are used
                 if self.strict_type:
                     # types must match
                     if not isinstance(self.value, other.expected_type):
-                        print(
-                            f"{self.name} parameter has incompatible types. Left "
-                            f"requires {type(self.value)}, right is "
-                            f"{other.expected_type}"
-                        )
+                        if not silent:
+                            print(
+                                f"{self.name} parameter has incompatible types. Left "
+                                f"requires {type(self.value)}, right is "
+                                f"{other.expected_type}"
+                            )
                         return False
                 if other.strict_type:
                     # types must match in the other direction
                     if not isinstance(other.value, self.expected_type):
-                        print(
-                            f"{self.name} parameter has incompatible types. Left is "
-                            f"{self.expected_type}, right requires {type(other.value)}"
-                        )
+                        if not silent:
+                            print(
+                                f"{self.name} parameter has incompatible types. Left "
+                                f"is {self.expected_type}, right requires "
+                                f"{type(other.value)}"
+                            )
                         return False
 
                 str_type = False
@@ -394,10 +415,11 @@ class UVParameter(object):
 
                 if not str_type:
                     if isinstance(other.value, np.ndarray):
-                        print(
-                            f"{self.name} parameter value is not an array, "
-                            "but other is not"
-                        )
+                        if not silent:
+                            print(
+                                f"{self.name} parameter value is not an array, "
+                                "but other is not"
+                            )
                         return False
                     try:
                         if not np.allclose(
@@ -407,11 +429,12 @@ class UVParameter(object):
                             atol=self.tols[1],
                             equal_nan=True,
                         ):
-                            print(
-                                f"{self.name} parameter value can be cast to an array"
-                                " and tested with np.allclose. The values are "
-                                "not close"
-                            )
+                            if not silent:
+                                print(
+                                    f"{self.name} parameter value can be cast to an "
+                                    "array and tested with np.allclose. The values are "
+                                    "not close"
+                                )
                             return False
                     except (TypeError):
                         if isinstance(self.value, dict):
@@ -424,16 +447,17 @@ class UVParameter(object):
                                 return True
                             else:
                                 message_str += dict_message_str
-                                print(message_str)
+                                if not silent:
+                                    print(message_str)
                                 return False
                         else:
                             if self.value != other.value:
-                                print(
-                                    f"{self.name} parameter value is not a string "
-                                    "or a dict and cannot be cast as a numpy "
-                                    "array. The values are not equal."
-                                )
-
+                                if not silent:
+                                    print(
+                                        f"{self.name} parameter value is not a string "
+                                        "or a dict and cannot be cast as a numpy "
+                                        "array. The values are not equal."
+                                    )
                                 return False
 
                 else:
@@ -441,28 +465,31 @@ class UVParameter(object):
                         if [s.strip() for s in self.value] != [
                             s.strip() for s in other.value
                         ]:
-                            print(
-                                f"{self.name} parameter value is a list of strings, "
-                                "values are different"
-                            )
+                            if not silent:
+                                print(
+                                    f"{self.name} parameter value is a list of "
+                                    "strings, values are different"
+                                )
                             return False
                     else:
                         if self.value.strip() != other.value.strip():
                             if self.value.replace("\n", "").replace(
                                 " ", ""
                             ) != other.value.replace("\n", "").replace(" ", ""):
-                                print(
-                                    f"{self.name} parameter value is a string, "
-                                    "values are different"
-                                )
+                                if not silent:
+                                    print(
+                                        f"{self.name} parameter value is a string, "
+                                        "values are different"
+                                    )
                                 return False
 
             return True
         else:
-            print(f"{self.name} parameter classes are different")
+            if not silent:
+                print(f"{self.name} parameter classes are different")
             return False
 
-    def __ne__(self, other):
+    def __ne__(self, other, silent=True):
         """
         Test if classes do not match or values are not within tolerances.
 
@@ -470,7 +497,9 @@ class UVParameter(object):
         ----------
         other : UVParameter or subclass
             The other UVParameter to compare with this one.
-
+        silent : bool
+            When set to False (default), descriptive text is printed out when parameters
+            do not match. If set to True, this text is not printed.
         """
         return not self.__eq__(other)
 
