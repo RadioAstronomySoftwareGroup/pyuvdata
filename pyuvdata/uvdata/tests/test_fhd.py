@@ -74,6 +74,10 @@ def test_read_fhd_write_read_uvfits(fhd_data, tmp_path):
     fhd_uv.filename = uvfits_uv.filename
     fhd_uv._filename.form = (1,)
 
+    # fix up the phase_center_catalogs
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=fhd_uv.phase_center_catalog
+    )
     assert fhd_uv == uvfits_uv
 
 
@@ -123,7 +127,7 @@ def test_read_fhd_select():
         UserWarning,
         [
             "Telescope location derived from obs lat/lon/alt values does not match the "
-            "location in the layout file. Using the value from known_telescopes.",
+            "location in the layout file. Using the value from known_telescopes."
         ],
     ):
         fhd_uv.read(testfiles)
@@ -213,6 +217,10 @@ def test_read_fhd_write_read_uvfits_variant_flag(tmp_path):
     fhd_uv.filename = uvfits_uv.filename
     fhd_uv._filename.form = (1,)
 
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=fhd_uv.phase_center_catalog
+    )
+
     assert fhd_uv == uvfits_uv
 
 
@@ -239,6 +247,10 @@ def test_read_fhd_write_read_uvfits_fix_layout(tmp_path):
     assert uvfits_uv.filename == ["outtest_FHD_1061316296.uvfits"]
     fhd_uv.filename = uvfits_uv.filename
     fhd_uv._filename.form = (1,)
+
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=fhd_uv.phase_center_catalog
+    )
 
     assert fhd_uv == uvfits_uv
 
@@ -278,6 +290,9 @@ def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc(tmp_path):
     fhd_uv.filename = uvfits_uv.filename
     fhd_uv._filename.form = (1,)
 
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=fhd_uv.phase_center_catalog
+    )
     assert fhd_uv == uvfits_uv
 
 
@@ -315,6 +330,9 @@ def test_read_fhd_write_read_uvfits_bad_obs_loc(tmp_path):
     fhd_uv.filename = uvfits_uv.filename
     fhd_uv._filename.form = (1,)
 
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=fhd_uv.phase_center_catalog
+    )
     assert fhd_uv == uvfits_uv
 
 
@@ -343,6 +361,9 @@ def test_read_fhd_write_read_uvfits_altered_layout(tmp_path):
     fhd_uv.filename = uvfits_uv.filename
     fhd_uv._filename.form = (1,)
 
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=fhd_uv.phase_center_catalog
+    )
     assert fhd_uv == uvfits_uv
 
 
@@ -376,6 +397,9 @@ def test_read_fhd_write_read_uvfits_no_settings(tmp_path):
     fhd_uv.filename = uvfits_uv.filename
     fhd_uv._filename.form = (1,)
 
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=fhd_uv.phase_center_catalog
+    )
     assert fhd_uv == uvfits_uv
 
 
@@ -393,8 +417,7 @@ def test_break_read_fhd():
 
     # No data files
     with pytest.raises(
-        ValueError,
-        match="No data files included in file list and read_data is True.",
+        ValueError, match="No data files included in file list and read_data is True."
     ):
         fhd_uv.read(["foo.sav"])
 
@@ -483,6 +506,9 @@ def test_read_fhd_model(tmp_path, fhd_model):
     fhd_uv.filename = uvfits_uv.filename
     fhd_uv._filename.form = (1,)
 
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=fhd_uv.phase_center_catalog
+    )
     assert fhd_uv == uvfits_uv
 
 
@@ -493,12 +519,14 @@ def test_multi_files(fhd_model):
     fhd_uv2 = UVData()
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])
     test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6, 7]])
-    fhd_uv1.read(np.array([test1, test2]), use_model=True, file_type="fhd")
+    fhd_uv1.read(
+        np.array([test1, test2]), use_model=True, file_type="fhd", allow_rephase=False
+    )
 
     fhd_uv2 = fhd_model
 
     assert uvutils._check_histories(
-        fhd_uv2.history + " Combined data " "along polarization axis using pyuvdata.",
+        fhd_uv2.history + " Combined data along polarization axis using pyuvdata.",
         fhd_uv1.history,
     )
 
@@ -518,12 +546,17 @@ def test_multi_files_axis(fhd_model):
     fhd_uv2 = UVData()
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])
     test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6, 7]])
-    fhd_uv1.read(np.array([test1, test2]), use_model=True, axis="polarization")
+    fhd_uv1.read(
+        np.array([test1, test2]),
+        use_model=True,
+        axis="polarization",
+        allow_rephase=False,
+    )
 
     fhd_uv2 = fhd_model
 
     assert uvutils._check_histories(
-        fhd_uv2.history + " Combined data " "along polarization axis using pyuvdata.",
+        fhd_uv2.history + " Combined data along polarization axis using pyuvdata.",
         fhd_uv1.history,
     )
 
@@ -544,8 +577,7 @@ def test_single_time():
 
     fhd_uv = UVData()
     with uvtest.check_warnings(
-        UserWarning,
-        "Telescope gaussian is not in known_telescopes.",
+        UserWarning, "Telescope gaussian is not in known_telescopes."
     ):
         fhd_uv.read(single_time_filelist)
 
@@ -562,8 +594,7 @@ def test_conjugation():
 
     fhd_uv = UVData()
     with uvtest.check_warnings(
-        UserWarning,
-        "Telescope gaussian is not in known_telescopes.",
+        UserWarning, "Telescope gaussian is not in known_telescopes."
     ):
         fhd_uv.read(fhd_filelist)
 

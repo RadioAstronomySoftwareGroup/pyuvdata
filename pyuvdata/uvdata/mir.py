@@ -149,12 +149,10 @@ class Mir(UVData):
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window. Default is True.
         """
-        # By default, we will want to assume that MIR datasets are phased, multi-spw,
-        # and multi phase center. At present, there is no advantage to allowing these
-        # not to be true on read-in, particularly as in the long-term, these settings
+        # By default, we will want to assume that MIR datasets are multi-spw.
+        # At present, there is no advantage to allowing this
+        # not to be true on read-in, particularly as in the long-term, this setting
         # will hopefully become the default for all data sets.
-        self._set_phased()
-        self._set_multi_phase_center()
         self._set_flex_spw()
 
         # Create a simple list for broadcasting values stored on a
@@ -595,14 +593,8 @@ class Mir(UVData):
         # Regenerate the sou_id_array thats native to MIR into a zero-indexed per-blt
         # entry for UVData, then grab ra/dec/position data.
         self.phase_center_id_array = phase_center_id_array
-
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message="The older phase attributes")
-            # These are all ignored w/ mutli-phase-ctr data sets
-            self.phase_center_ra = 0.0
-            self.phase_center_dec = 0.0
-            self.phase_center_epoch = 2000.0
-            self.phase_center_frame = "icrs"
+        for val in np.unique(self.phase_center_id_array):
+            assert val in self.phase_center_catalog.keys()
 
         # Fill in the apparent coord calculations
         self.phase_center_app_ra = app_ra

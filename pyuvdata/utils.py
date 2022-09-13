@@ -332,10 +332,7 @@ def _test_array_constant(array, tols=None):
         return True
 
     return np.isclose(
-        np.min(array_to_test),
-        np.max(array_to_test),
-        rtol=tols[0],
-        atol=tols[1],
+        np.min(array_to_test), np.max(array_to_test), rtol=tols[0], atol=tols[1]
     )
 
 
@@ -1621,9 +1618,7 @@ def unphase_uvw(ra, dec, uvw):
         uvw = uvw[np.newaxis, :]
 
     return _utils._unphase_uvw(
-        np.float64(ra),
-        np.float64(dec),
-        np.ascontiguousarray(uvw.T, dtype=np.float64),
+        np.float64(ra), np.float64(dec), np.ascontiguousarray(uvw.T, dtype=np.float64)
     ).T
 
 
@@ -1837,9 +1832,7 @@ def _rotate_one_axis(xyz_array, rot_amount, rot_axis):
         # else is done.
         return np.transpose(
             _rotate_matmul_wrapper(
-                np.transpose(xyz_array, axes=[2, 1, 0]),
-                rot_matrix,
-                n_rot,
+                np.transpose(xyz_array, axes=[2, 1, 0]), rot_matrix, n_rot
             ),
             axes=[2, 1, 0],
         )
@@ -1978,9 +1971,7 @@ def _rotate_two_axis(xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
         # else is done.
         return np.transpose(
             _rotate_matmul_wrapper(
-                np.transpose(xyz_array, axes=[2, 1, 0]),
-                rot_matrix,
-                n_rot,
+                np.transpose(xyz_array, axes=[2, 1, 0]), rot_matrix, n_rot
             ),
             axes=[2, 1, 0],
         )
@@ -2394,9 +2385,7 @@ def transform_sidereal_coords(
         lat_coord = np.repeat(lat_coord, len(time_array))
     if rep_time:
         time_obj_array = Time(
-            np.repeat(time_obj_array.jd, len(lon_coord)),
-            format="jd",
-            scale="utc",
+            np.repeat(time_obj_array.jd, len(lon_coord)), format="jd", scale="utc"
         )
     coord_object = SkyCoord(
         lon_coord,
@@ -2643,9 +2632,7 @@ def transform_icrs_to_app(
         )
 
         app_ha, app_dec = erfa.ae2hd(
-            azel_data.az.rad,
-            azel_data.alt.rad,
-            site_loc.lat.rad,
+            azel_data.az.rad, azel_data.alt.rad, site_loc.lat.rad
         )
         app_ra = np.mod(
             time_obj_array.sidereal_time("apparent", longitude=site_loc.lon).rad
@@ -2721,20 +2708,11 @@ def transform_icrs_to_app(
                 pm_y = pm_y_array[idx] * np.cos(gast) - pm_x_array[idx] * np.sin(gast)
                 tt_time = tt_time_array[idx]
                 ut1_time = ut1_time_array[idx]
-                novas.cel_pole(
-                    tt_time,
-                    2,
-                    delta_x_array[idx],
-                    delta_y_array[idx],
-                )
+                novas.cel_pole(tt_time, 2, delta_x_array[idx], delta_y_array[idx])
 
             # Calculate topocentric RA/Dec values
             [temp_ra, temp_dec] = novas.topo_star(
-                tt_time,
-                (tt_time - ut1_time) * 86400.0,
-                cat_entry,
-                site_loc,
-                accuracy=0,
+                tt_time, (tt_time - ut1_time) * 86400.0, cat_entry, site_loc, accuracy=0
             )
             xyz_array = polar2_to_cart3(
                 temp_ra * (np.pi / 12.0), temp_dec * (np.pi / 180.0)
@@ -2773,11 +2751,7 @@ def transform_icrs_to_app(
 
 
 def transform_app_to_icrs(
-    time_array,
-    app_ra,
-    app_dec,
-    telescope_loc,
-    astrometry_library="erfa",
+    time_array, app_ra, app_dec, telescope_loc, astrometry_library="erfa"
 ):
     """
     Transform a set of coordinates in topocentric/apparent to ICRS coordinates.
@@ -2841,6 +2815,7 @@ def transform_app_to_icrs(
             height=telescope_loc[2],
         )
 
+    assert time_array.size > 0
     if isinstance(time_array, Time):
         time_obj_array = time_array
     else:
@@ -2915,12 +2890,7 @@ def transform_app_to_icrs(
     return icrs_ra, icrs_dec
 
 
-def calc_parallactic_angle(
-    app_ra,
-    app_dec,
-    lst_array,
-    telescope_lat,
-):
+def calc_parallactic_angle(app_ra, app_dec, lst_array, telescope_lat):
     """
     Calculate the parallactic angle between RA/Dec and the AltAz frame.
 
@@ -3052,10 +3022,7 @@ def calc_frame_pos_angle(
     frame_pa = np.zeros_like(app_ra)
     for idx in range(n_coord):
         select_mask = np.logical_and(
-            np.logical_and(
-                unique_ra[idx] == app_ra,
-                unique_dec[idx] == app_dec,
-            ),
+            np.logical_and(unique_ra[idx] == app_ra, unique_dec[idx] == app_dec),
             unique_time[idx] == time_array,
         )
         frame_pa[select_mask] = unique_pa[idx]
@@ -3228,10 +3195,7 @@ def lookup_jplhorizons(
         id_type = None
 
     query_obj = Horizons(
-        id=target_id,
-        location=site_loc,
-        epochs=epoch_list,
-        id_type=id_type,
+        id=target_id, location=site_loc, epochs=epoch_list, id_type=id_type
     )
     # If not in the major bodies catalog, try the minor bodies list, and if
     # still not found, throw an error.
@@ -3268,12 +3232,7 @@ def lookup_jplhorizons(
 
 
 def interpolate_ephem(
-    time_array,
-    ephem_times,
-    ephem_ra,
-    ephem_dec,
-    ephem_dist=None,
-    ephem_vel=None,
+    time_array, ephem_times, ephem_ra, ephem_dec, ephem_dist=None, ephem_vel=None
 ):
     """
     Interpolates ephemerides to give positions for requested times.
@@ -3566,10 +3525,7 @@ def calc_app_coords(
         unique_app_dec = unique_app_dec + np.zeros_like(unique_app_ra)
     elif coord_type == "ephem":
         interp_ra, interp_dec, _, _ = interpolate_ephem(
-            unique_time_array,
-            coord_times,
-            lon_coord,
-            lat_coord,
+            unique_time_array, coord_times, lon_coord, lat_coord
         )
         if coord_frame != "icrs":
             icrs_ra, icrs_dec = transform_sidereal_coords(
@@ -3586,12 +3542,7 @@ def calc_app_coords(
         # TODO: Vel and distance handling to be integrated here, once they are are
         # needed for velocity frame tracking
         unique_app_ra, unique_app_dec = transform_icrs_to_app(
-            unique_time_array,
-            icrs_ra,
-            icrs_dec,
-            site_loc,
-            pm_ra=pm_ra,
-            pm_dec=pm_dec,
+            unique_time_array, icrs_ra, icrs_dec, site_loc, pm_ra=pm_ra, pm_dec=pm_dec
         )
     elif coord_type == "unprojected":
         # This is the easiest one - this is just supposed to be ENU, so set the
@@ -3618,12 +3569,7 @@ def calc_app_coords(
 
 
 def calc_sidereal_coords(
-    time_array,
-    app_ra,
-    app_dec,
-    telescope_loc,
-    coord_frame,
-    coord_epoch=None,
+    time_array, app_ra, app_dec, telescope_loc, coord_frame, coord_epoch=None
 ):
     """
     Calculate sidereal coordinates given apparent coordinates.
@@ -5060,10 +5006,7 @@ def parse_ants(uv, ant_str, print_toggle=False, x_orientation=None):
                                         in polarizations
                                     ):
                                         polarizations.remove(
-                                            polstr2num(
-                                                pol,
-                                                x_orientation=x_orientation,
-                                            )
+                                            polstr2num(pol, x_orientation=x_orientation)
                                         )
                                 elif not (
                                     pol.lower() in pols_data or pol in warned_pols

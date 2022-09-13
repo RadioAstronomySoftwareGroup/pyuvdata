@@ -626,10 +626,7 @@ class UVBeam(UVBase):
             "input files."
         )
         self._filename = uvp.UVParameter(
-            "filename",
-            required=False,
-            description=desc,
-            expected_type=str,
+            "filename", required=False, description=desc, expected_type=str
         )
 
         super(UVBeam, self).__init__()
@@ -4704,9 +4701,7 @@ class UVBeam(UVBase):
                 beam_list = [self] + beam_list
                 while len(beam_list) > 1:
                     for beam1, beam2 in zip(beam_list[0::2], beam_list[1::2]):
-                        beam1.__iadd__(
-                            beam2,
-                        )
+                        beam1.__iadd__(beam2)
                     beam_list = beam_list[0::2]
                 # Because self was at the beginning of the list,
                 # everything is merged into it at the end of this loop

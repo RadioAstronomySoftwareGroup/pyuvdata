@@ -80,9 +80,7 @@ def test_read_mwa_write_uvfits(tmp_path):
     """
     mwa_uv = UVData()
     uvfits_uv = UVData()
-    messages = [
-        "some coarse channel files were not submitted",
-    ]
+    messages = ["some coarse channel files were not submitted"]
     with uvtest.check_warnings(UserWarning, messages):
         mwa_uv.read(
             filelist[0:2], correct_cable_len=True, phase_to_pointing_center=True
@@ -109,6 +107,9 @@ def test_read_mwa_write_uvfits(tmp_path):
         assert getattr(uvfits_uv, item) is not None
         setattr(uvfits_uv, item, None)
 
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=mwa_uv.phase_center_catalog
+    )
     assert mwa_uv == uvfits_uv
 
 
@@ -159,6 +160,9 @@ def test_read_mwax_write_uvfits(tmp_path):
         assert getattr(uvfits_uv, item) is not None
         setattr(uvfits_uv, item, None)
 
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=mwax_uv.phase_center_catalog, ignore_name=True
+    )
     assert mwax_uv == uvfits_uv
 
 
@@ -250,9 +254,7 @@ def test_read_mwa_write_uvfits_meta_mod(tmp_path):
     # and to have an uncorrected cable length.
     mwa_uv = UVData()
     uvfits_uv = UVData()
-    messages = [
-        "some coarse channel files were not submitted",
-    ]
+    messages = ["some coarse channel files were not submitted"]
     files = [filelist[1], filelist[5]]
     with uvtest.check_warnings(UserWarning, messages):
         mwa_uv.read(files, correct_cable_len=True, phase_to_pointing_center=True)
@@ -277,6 +279,9 @@ def test_read_mwa_write_uvfits_meta_mod(tmp_path):
         assert getattr(uvfits_uv, item) is not None
         setattr(uvfits_uv, item, None)
 
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=mwa_uv.phase_center_catalog
+    )
     assert mwa_uv == uvfits_uv
 
 
@@ -412,6 +417,9 @@ def test_ppds(tmp_path):
         assert getattr(uvfits_uv, item) is not None
         setattr(uvfits_uv, item, None)
 
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=mwa_uv.phase_center_catalog
+    )
     assert mwa_uv == uvfits_uv
 
     del mwa_uv
@@ -670,9 +678,7 @@ def test_flag_init_errors(flag_file_init, err_type, read_kwargs, err_msg):
 def test_read_metadata_only(tmp_path):
     """Test reading an MWA corr fits file as metadata only."""
     uvd = UVData()
-    messages = [
-        "some coarse channel files were not submitted",
-    ]
+    messages = ["some coarse channel files were not submitted"]
     with uvtest.check_warnings(UserWarning, messages):
         uvd.read(
             filelist[0:2],
@@ -904,10 +910,7 @@ def test_aoflagger_flags():
     ]
     with uvtest.check_warnings(UserWarning, messages):
         uv.read(
-            files,
-            flag_init=False,
-            remove_flagged_ants=False,
-            correct_cable_len=False,
+            files, flag_init=False, remove_flagged_ants=False, correct_cable_len=False
         )
 
     with fits.open(filelist[3]) as aoflags:
@@ -1038,11 +1041,7 @@ def test_start_flag_int_time(tmp_path):
     with fits.open(filelist[0]) as meta:
         meta[0].header["GOODTIME"] = 1447698337.25
         meta.writeto(new_meta)
-    uv.read(
-        [new_meta, filelist[1]],
-        flag_init=True,
-        start_flag="goodtime",
-    )
+    uv.read([new_meta, filelist[1]], flag_init=True, start_flag="goodtime")
     # first integration time should be flagged
     # data only has one integration time, so all data should be flagged
     assert np.all(uv.flag_array)
@@ -1121,9 +1120,7 @@ def test_van_vleck_interp(tmp_path):
     with fits.open(filelist[8]) as mini:
         mini[1].data = np.full((1, 66048), 7744)
         mini.writeto(small_sigs)
-    messages = [
-        "values are being corrected with the van vleck integral",
-    ]
+    messages = ["values are being corrected with the van vleck integral"]
     messages = messages * 10
     messages.append("some coarse channel files were not submitted")
     messages.append("Fixing auto-correlations to be be real-only,")
@@ -1145,15 +1142,9 @@ def test_van_vleck_interp(tmp_path):
 def test_remove_flagged_ants(tmp_path):
     """Test remove_flagged_ants."""
     uv1 = UVData()
-    uv1.read(
-        filelist[8:10],
-        remove_flagged_ants=True,
-    )
+    uv1.read(filelist[8:10], remove_flagged_ants=True)
     uv2 = UVData()
-    uv2.read(
-        filelist[8:10],
-        remove_flagged_ants=False,
-    )
+    uv2.read(filelist[8:10], remove_flagged_ants=False)
     good_ants = np.delete(np.unique(uv2.ant_1_array), 76)
 
     uv2.select(antenna_nums=good_ants)
@@ -1172,13 +1163,9 @@ def test_small_sigs(tmp_path):
         mini.writeto(small_sigs)
     uv1 = UVData()
     uv1.read(
-        [small_sigs, filelist[9]],
-        correct_van_vleck=True,
-        flag_small_auto_ants=True,
+        [small_sigs, filelist[9]], correct_van_vleck=True, flag_small_auto_ants=True
     )
-    messages = [
-        "values are being corrected with the van vleck integral",
-    ]
+    messages = ["values are being corrected with the van vleck integral"]
     messages = messages * 8
     messages.append("some coarse channel files were not submitted")
     messages.append("cable length correction is now defaulted to True")
@@ -1203,14 +1190,9 @@ def test_deprecated_keywords():
     messages.append("some coarse channel files were not submitted")
     messages.append("cable length correction is now defaulted to True")
     with uvtest.check_warnings(
-        [DeprecationWarning, DeprecationWarning, UserWarning, UserWarning],
-        messages,
+        [DeprecationWarning, DeprecationWarning, UserWarning, UserWarning], messages
     ):
-        uv.read(
-            filelist[0:2],
-            use_cotter_flags=False,
-            flag_small_sig_ants=True,
-        )
+        uv.read(filelist[0:2], use_cotter_flags=False, flag_small_sig_ants=True)
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")

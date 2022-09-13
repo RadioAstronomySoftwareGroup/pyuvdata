@@ -91,8 +91,7 @@ def delay_data_inputflag_future_main(delay_data_inputflag_main):
 
     # convert to future array shapes, drop freq_array, set Nfreqs=1
     with uvtest.check_warnings(
-        UserWarning,
-        match="When converting a delay-style cal to future array shapes",
+        UserWarning, match="When converting a delay-style cal to future array shapes"
     ):
         delay_object.use_future_array_shapes()
 

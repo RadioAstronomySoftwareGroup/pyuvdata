@@ -11,3 +11,6 @@ profile = "black"
 
 [darglint]
 docstring_style = "numpy"
+
+[tool.black]
+skip_magic_trailing_comma = true

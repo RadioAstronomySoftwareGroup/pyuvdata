@@ -277,6 +277,13 @@ class UVH5(UVData):
                 header["eq_coeffs_convention"][()]
             ).decode("utf8")
 
+        # get data shapes
+        self.Nfreqs = int(header["Nfreqs"][()])
+        self.Npols = int(header["Npols"][()])
+        self.Ntimes = int(header["Ntimes"][()])
+        self.Nblts = int(header["Nblts"][()])
+        self.Nspws = int(header["Nspws"][()])
+
         # We've added a few new keywords that did not exist before, so check to see if
         # any of them are in the header, and if not, mark the data set as being
         # "regular" (e.g., not a flexible spectral window setup, single source only).
@@ -287,13 +294,13 @@ class UVH5(UVData):
             self.flex_spw_id_array = header["flex_spw_id_array"][:]
         if "flex_spw_polarization_array" in header:
             self.flex_spw_polarization_array = header["flex_spw_polarization_array"][:]
+        read_phase_center_catalog = False
+        if "phase_center_catalog" in header:
+            read_phase_center_catalog = True
 
         # Here is where we start handing phase center information.  If we have a
         # multi phase center dataset, we need to get different header items
-        if "phase_center_catalog" in header:
-            self._set_phased()
-            self._set_multi_phase_center(preserve_phase_center_info=False)
-
+        if read_phase_center_catalog:
             self.Nphase = int(header["Nphase"][()])
             self.phase_center_id_array = header["phase_center_id_array"][:]
 
@@ -325,32 +332,39 @@ class UVH5(UVData):
                     self.phase_center_catalog[pc_id] = pc_dict
         else:
             # check for older phasing information
-            self.phase_type = bytes(header["phase_type"][()]).decode("utf8")
+            phase_type = bytes(header["phase_type"][()]).decode("utf8")
             if "object_name" in header:
-                self.object_name = bytes(header["object_name"][()]).decode("utf8")
+                cat_name = bytes(header["object_name"][()]).decode("utf8")
             if "phase_center_ra" in header:
-                self.phase_center_ra = float(header["phase_center_ra"][()])
+                phase_center_ra = float(header["phase_center_ra"][()])
             if "phase_center_dec" in header:
-                self.phase_center_dec = float(header["phase_center_dec"][()])
+                phase_center_dec = float(header["phase_center_dec"][()])
             if "phase_center_frame" in header:
-                self.phase_center_frame = bytes(
-                    header["phase_center_frame"][()]
-                ).decode("utf8")
+                phase_center_frame = bytes(header["phase_center_frame"][()]).decode(
+                    "utf8"
+                )
             if "phase_center_epoch" in header:
-                self.phase_center_epoch = float(header["phase_center_epoch"][()])
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", message="The older phase attributes")
-                if self.phase_type == "phased":
-                    self._set_phased()
-                else:
-                    if self.phase_type != "drift":
-                        warnings.warn(
-                            "Unknown phase types are no longer supported, marking this "
-                            "object as phase_type='drift' by default. If this was a "
-                            "phased object, you can set the phase type correctly by "
-                            "running the _set_phased() method."
-                        )
-                    self._set_drift()
+                phase_center_epoch = float(header["phase_center_epoch"][()])
+
+            if phase_type not in ["phased", "drift"]:
+                warnings.warn(
+                    "Unknown phase types are no longer supported, marking this "
+                    "object as unprojected (unphased) by default."
+                )
+                phase_type = "drift"
+
+            if phase_type == "drift":
+                cat_id = self._add_phase_center("unprojected", cat_type="unprojected")
+            else:
+                cat_id = self._add_phase_center(
+                    cat_name,
+                    cat_type="sidereal",
+                    cat_lon=phase_center_ra,
+                    cat_lat=phase_center_dec,
+                    cat_frame=phase_center_frame,
+                    cat_epoch=phase_center_epoch,
+                )
+            self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
 
         if "phase_center_app_ra" in header and "phase_center_app_dec" in header:
             self.phase_center_app_ra = header["phase_center_app_ra"][:]
@@ -401,10 +415,7 @@ class UVH5(UVData):
                 ) = self.telescope_location_lat_lon_alt_degrees
 
                 lst_array = uvutils.get_lst_for_time(
-                    self.time_array,
-                    latitude,
-                    longitude,
-                    altitude,
+                    self.time_array, latitude, longitude, altitude
                 )
 
                 if not np.all(
@@ -448,13 +459,6 @@ class UVH5(UVData):
 
         # get polarization information
         self.polarization_array = header["polarization_array"][:]
-
-        # get data shapes
-        self.Nfreqs = int(header["Nfreqs"][()])
-        self.Npols = int(header["Npols"][()])
-        self.Ntimes = int(header["Ntimes"][()])
-        self.Nblts = int(header["Nblts"][()])
-        self.Nspws = int(header["Nspws"][()])
 
         # get extra_keywords
         if "extra_keywords" in header:
@@ -793,44 +797,6 @@ class UVH5(UVData):
             assert self.channel_width.size == self.freq_array.size, arr_shape_msg
             self._set_future_array_shapes()
 
-        # Finally, backfill the apparent coords if they aren't in the original datafile
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message="The older phase attributes")
-            if self.phase_type == "phased":
-                add_app_coords = (
-                    self.phase_center_app_ra is None
-                    or (self.phase_center_app_dec is None)
-                    or (self.phase_center_frame_pa is None)
-                )
-                if add_app_coords:
-                    self._set_app_coords_helper()
-
-                # Default behavior for UVH5 is to fix phasing if the problem is
-                # detected, since the absence of the app coord attributes is the most
-                # clear indicator of the old phasing algorithm being used. Double-check
-                # the multi-phase-ctr attribute just to be extra safe.
-                if (fix_old_proj) or (fix_old_proj is None and add_app_coords):
-                    self.fix_phase(use_ant_pos=fix_use_ant_pos)
-                elif add_app_coords:
-                    warnings.warn(
-                        "This data appears to have been phased-up using the old "
-                        "`phase` method, which is incompatible with the current set of "
-                        "methods. Please run the `fix_phase` method (or set "
-                        "`fix_old_proj=True` when loading the dataset) to address this "
-                        "issue."
-                    )
-
-        # check if object has all required UVParameters set
-        if run_check:
-            self.check(
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
-                strict_uvw_antpos_check=strict_uvw_antpos_check,
-                allow_flip_conj=True,
-                check_autos=check_autos,
-                fix_autos=fix_autos,
-            )
-
         return
 
     def read_uvh5(
@@ -1022,55 +988,71 @@ class UVH5(UVData):
                 background_lsts=background_lsts,
             )
 
-            if not read_data:
-                # don't read in the data. This means the object is incomplete,
-                # but that may not matter for many purposes.
+            if read_data:
+                # Now read in the data
+                dgrp = f["/Data"]
+                self._get_data(
+                    dgrp,
+                    antenna_nums,
+                    antenna_names,
+                    ant_str,
+                    bls,
+                    frequencies,
+                    freq_chans,
+                    times,
+                    time_range,
+                    lsts,
+                    lst_range,
+                    polarizations,
+                    blt_inds,
+                    data_array_dtype,
+                    keep_all_metadata,
+                    multidim_index,
+                    run_check,
+                    check_extra,
+                    run_check_acceptability,
+                    strict_uvw_antpos_check,
+                    fix_old_proj,
+                    fix_use_ant_pos,
+                    check_autos,
+                    fix_autos,
+                )
 
-                # run a check if desired before returning
-                if run_check:
-                    self.check(
-                        check_extra=check_extra,
-                        run_check_acceptability=run_check_acceptability,
-                        strict_uvw_antpos_check=strict_uvw_antpos_check,
-                    )
+        # Finally, backfill the apparent coords if they aren't in the original datafile
+        add_app_coords = (
+            self.phase_center_app_ra is None
+            or (self.phase_center_app_dec is None)
+            or (self.phase_center_frame_pa is None)
+        )
+        if add_app_coords:
+            self._set_app_coords_helper()
 
-                if remove_flex_pol:
-                    self.remove_flex_pol()
+        # Default behavior for UVH5 is to fix phasing if the problem is
+        # detected, since the absence of the app coord attributes is the most
+        # clear indicator of the old phasing algorithm being used. Double-check
+        # the multi-phase-ctr attribute just to be extra safe.
+        old_phase_compatible, _ = self._old_phase_attributes_compatible()
+        if np.any(~self._check_for_cat_type("unprojected")) and old_phase_compatible:
+            if (fix_old_proj) or (fix_old_proj is None and add_app_coords):
+                self.fix_phase(use_ant_pos=fix_use_ant_pos)
+            elif add_app_coords:
+                warnings.warn(
+                    "This data appears to have been phased-up using the old "
+                    "`phase` method, which is incompatible with the current set of "
+                    "methods. Please run the `fix_phase` method (or set "
+                    "`fix_old_proj=True` when loading the dataset) to address this "
+                    "issue."
+                )
 
-                # For now, always use current shapes when data is read in, even if the
-                # file has the future shapes. This will change soon!
-                if self.future_array_shapes:
-                    self.use_current_array_shapes()
-
-                return
-
-            # Now read in the data
-            dgrp = f["/Data"]
-            self._get_data(
-                dgrp,
-                antenna_nums,
-                antenna_names,
-                ant_str,
-                bls,
-                frequencies,
-                freq_chans,
-                times,
-                time_range,
-                lsts,
-                lst_range,
-                polarizations,
-                blt_inds,
-                data_array_dtype,
-                keep_all_metadata,
-                multidim_index,
-                run_check,
-                check_extra,
-                run_check_acceptability,
-                strict_uvw_antpos_check,
-                fix_old_proj,
-                fix_use_ant_pos,
-                check_autos,
-                fix_autos,
+        # check if object has all required UVParameters set
+        if run_check:
+            self.check(
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
+                allow_flip_conj=True,
+                check_autos=check_autos,
+                fix_autos=fix_autos,
             )
 
         if remove_flex_pol:
@@ -1098,14 +1080,10 @@ class UVH5(UVData):
         None
         """
         # write out UVH5 version information
-        if self.multi_phase_center:
-            # this is Version 1.1!
-            header["version"] = np.string_("1.1")
-        elif self.future_array_shapes:
-            # this is Version 1.0
-            header["version"] = np.string_("1.0")
-        else:
-            header["version"] = np.string_("0.1")
+        assert (
+            self.future_array_shapes
+        ), "This is a bug, please report it in our issue log."
+        header["version"] = np.string_("1.1")
 
         # write out telescope and source information
         header["latitude"] = self.telescope_location_lat_lon_alt_degrees[0]
@@ -1142,42 +1120,23 @@ class UVH5(UVData):
 
         # write out phasing information
         # Write out the catalog, if available
-        if self.phase_center_catalog:
-            header["phase_center_id_array"] = self.phase_center_id_array
-            header["Nphase"] = self.Nphase
-            # this is a dict of dicts. Top level key is the phase_center_id,
-            # next level keys give details for each phase center.
-            pc_group = header.create_group("phase_center_catalog")
-            for pc, pc_dict in self.phase_center_catalog.items():
-                this_group = pc_group.create_group(str(pc))
-                for key, value in pc_dict.items():
-                    if isinstance(value, str):
-                        this_group[key] = np.bytes_(value)
-                    elif value is None:
-                        this_group[key] = h5py.Empty("f")
-                    else:
-                        this_group[key] = value
-            header["phase_center_app_ra"] = self.phase_center_app_ra
-            header["phase_center_app_dec"] = self.phase_center_app_dec
-            header["phase_center_frame_pa"] = self.phase_center_frame_pa
-        else:
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", message="The older phase attributes")
-                header["phase_type"] = np.string_(self.phase_type)
-                if self.phase_type == "phased":
-                    header["phase_center_app_ra"] = self.phase_center_app_ra
-                    header["phase_center_app_dec"] = self.phase_center_app_dec
-                    header["phase_center_frame_pa"] = self.phase_center_frame_pa
-                if self.phase_center_ra is not None:
-                    header["phase_center_ra"] = self.phase_center_ra
-                if self.phase_center_dec is not None:
-                    header["phase_center_dec"] = self.phase_center_dec
-                if self.phase_center_epoch is not None:
-                    header["phase_center_epoch"] = self.phase_center_epoch
-                if self.phase_center_frame is not None:
-                    header["phase_center_frame"] = np.string_(self.phase_center_frame)
-                if self.object_name is not None:
-                    header["object_name"] = np.string_(self.object_name)
+        header["phase_center_id_array"] = self.phase_center_id_array
+        header["Nphase"] = self.Nphase
+        # this is a dict of dicts. Top level key is the phase_center_id,
+        # next level keys give details for each phase center.
+        pc_group = header.create_group("phase_center_catalog")
+        for pc, pc_dict in self.phase_center_catalog.items():
+            this_group = pc_group.create_group(str(pc))
+            for key, value in pc_dict.items():
+                if isinstance(value, str):
+                    this_group[key] = np.bytes_(value)
+                elif value is None:
+                    this_group[key] = h5py.Empty("f")
+                else:
+                    this_group[key] = value
+        header["phase_center_app_ra"] = self.phase_center_app_ra
+        header["phase_center_app_dec"] = self.phase_center_app_dec
+        header["phase_center_frame_pa"] = self.phase_center_frame_pa
 
         # write out optional parameters
         if self.dut1 is not None:
@@ -1477,6 +1436,13 @@ class UVH5(UVData):
 
         data_compression, data_compression_opts = _get_compression(data_compression)
 
+        revert_fas = False
+        if not self.future_array_shapes:
+            # We force using future array shapes here to always write version 1.* files.
+            # We capture the current state so that it can be reverted later if needed.
+            revert_fas = True
+            self.use_future_array_shapes()
+
         # write header and empty arrays to file
         with h5py.File(filename, "w") as f:
             # write header
@@ -1517,6 +1483,9 @@ class UVH5(UVData):
                 dtype="f4",
                 compression=nsample_compression,
             )
+
+        if revert_fas:
+            self.use_current_array_shapes()
 
         return
 
@@ -1731,6 +1700,13 @@ class UVH5(UVData):
                 "initialize_uvh5_file".format(filename)
             )
 
+        revert_fas = False
+        if not self.future_array_shapes:
+            # We force using future array shapes here to always write version 1.* files.
+            # We capture the current state so that it can be reverted later if needed.
+            revert_fas = True
+            self.use_future_array_shapes()
+
         if check_header:
             self._check_header(
                 filename, run_check_acceptability=run_check_acceptability
@@ -1821,16 +1797,18 @@ class UVH5(UVData):
             pol_inds = np.s_[:]
 
         # check for proper size of input arrays
-        if self.future_array_shapes:
-            proper_shape = (Nblts, Nfreqs, Npols)
-        else:
-            proper_shape = (Nblts, 1, Nfreqs, Npols)
+        proper_shape = (Nblts, Nfreqs, Npols)
         if data_array.shape != proper_shape:
-            raise AssertionError(
-                "data_array has shape {0}; was expecting {1}".format(
-                    data_array.shape, proper_shape
+            if revert_fas and data_array.shape == (Nblts, 1, Nfreqs, Npols):
+                data_array = data_array[:, 0, :, :]
+                flag_array = flag_array[:, 0, :, :]
+                nsample_array = nsample_array[:, 0, :, :]
+            else:
+                raise AssertionError(
+                    "data_array has shape {0}; was expecting {1}".format(
+                        data_array.shape, proper_shape
+                    )
                 )
-            )
 
         # actually write the data
         with h5py.File(filename, "r+") as f:
@@ -2036,5 +2014,8 @@ class UVH5(UVData):
                     # erase dataset first b/c it has fixed-length string datatype
                     del f["Header"]["history"]
                 f["Header"]["history"] = np.string_(history)
+
+        if revert_fas:
+            self.use_current_array_shapes()
 
         return

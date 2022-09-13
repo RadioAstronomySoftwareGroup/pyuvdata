@@ -27,10 +27,7 @@ class UVFITS(UVData):
     """
 
     def _get_parameter_data(
-        self,
-        vis_hdu,
-        run_check_acceptability,
-        background_lsts=True,
+        self, vis_hdu, read_source, run_check_acceptability, background_lsts=True
     ):
         """
         Read just the random parameters portion of the uvfits file ("metadata").
@@ -107,9 +104,7 @@ class UVFITS(UVData):
                 bl_input_array
             )
 
-        # self.multi_phase_center is set to True in `read_uvfits` if the "SOURCE" is
-        # one of the random group. So it will already be set properly when it gets here.
-        if self.multi_phase_center:
+        if read_source:
             source = vis_hdu.data.par("SOURCE")
             self.phase_center_id_array = source.astype(int)
 
@@ -520,12 +515,12 @@ class UVFITS(UVData):
             hdunames = uvutils._fits_indexhdus(hdu_list)  # find the rest of the tables
 
             # First get everything we can out of the header.
-            self._set_phased()
 
             # check for multi source files. NOW SUPPORTED, W00T!
+            read_source = False
             if "SOURCE" in vis_hdu.data.parnames:
                 if "AIPS SU" in hdunames.keys():
-                    self._set_multi_phase_center()
+                    read_source = True
                 else:
                     warnings.warn(
                         "UVFITS file is missing AIPS SU table, which is required when "
@@ -614,49 +609,50 @@ class UVFITS(UVData):
             if self.vis_units == "UNCALIB":
                 self.vis_units = "uncalib"
 
-            if not self.multi_phase_center:
+            # PHSFRAME is not a standard UVFITS keyword, but was used by older
+            # versions of pyuvdata. To ensure backwards compatibility, we look
+            # for it first to determine the coordinate frame for the data
+            phase_center_frame = vis_hdr.pop("PHSFRAME", None)
+            # If we don't find the special keyword PHSFRAME, try for the more
+            # FITS-standard RADESYS
+            if phase_center_frame is None:
+                phase_center_frame = vis_hdr.pop("RADESYS", None)
+            # If we still don't find anything, try the two 'special' variant
+            # names for the coordinate frame that seem to have been documented
+            if phase_center_frame is None:
+                phase_center_frame = vis_hdr.pop("RADESYSA", None)
+            if phase_center_frame is None:
+                phase_center_frame = vis_hdr.pop("RADESYSa", None)
+
+            if not read_source:
                 # the axis number for phase center depends on if the spw exists
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore", message="The older phase attributes"
-                    )
-                    self.phase_center_ra_degrees = float(
-                        vis_hdr.pop("CRVAL" + str(ra_axis))
-                    )
-                    self.phase_center_dec_degrees = float(
-                        vis_hdr.pop("CRVAL" + str(dec_axis))
-                    )
 
-                    self.phase_center_epoch = vis_hdr.pop("EPOCH", None)
-                    self.object_name = vis_hdr.pop("OBJECT", None)
+                phase_center_ra_degrees = float(vis_hdr.pop("CRVAL" + str(ra_axis)))
+                phase_center_dec_degrees = float(vis_hdr.pop("CRVAL" + str(dec_axis)))
 
-                    # PHSFRAME is not a standard UVFITS keyword, but was used by older
-                    # versions of pyuvdata. To ensure backwards compatibility, we look
-                    # for it first to determine the coordinate frame for the data
-                    self.phase_center_frame = vis_hdr.pop("PHSFRAME", None)
-                    # If we don't find the special keyword PHSFRAME, try for the more
-                    # FITS-standard RADESYS
-                    if self.phase_center_frame is None:
-                        self.phase_center_frame = vis_hdr.pop("RADESYS", None)
-                    # If we still don't find anything, try the two 'special' variant
-                    # names for the coordinate frame that seem to have been documented
-                    if self.phase_center_frame is None:
-                        self.phase_center_frame = vis_hdr.pop("RADESYSA", None)
-                    if self.phase_center_frame is None:
-                        self.phase_center_frame = vis_hdr.pop("RADESYSa", None)
+                phase_center_epoch = vis_hdr.pop("EPOCH", None)
+                object_name = vis_hdr.pop("OBJECT", None)
 
-                    # If we _still_ can't find anything, take a guess based on the value
-                    # listed in the EPOCH. The behavior listed here is based off of the
-                    # AIPS task REGRD (http://www.aips.nrao.edu/cgi-bin/ZXHLP2.PL?REGRD)
-                    if self.phase_center_frame is None:
-                        if self.phase_center_epoch is None:
-                            self.phase_center_frame = "icrs"
+                # If we _still_ didn't find the phase frame, take a guess based on the
+                # value listed in the EPOCH. The behavior listed here is based off of
+                # the AIPS task REGRD (http://www.aips.nrao.edu/cgi-bin/ZXHLP2.PL?REGRD)
+                if phase_center_frame is None:
+                    if phase_center_epoch is None:
+                        phase_center_frame = "icrs"
+                    else:
+                        if phase_center_epoch == 1950.0:
+                            phase_center_frame = "fk4"
                         else:
-                            if self.phase_center_epoch == 1950.0:
-                                frame = "fk4"
-                            else:
-                                frame = "fk5"
-                            self.phase_center_frame = frame
+                            phase_center_frame = "fk5"
+                cat_id = self._add_phase_center(
+                    object_name,
+                    cat_type="sidereal",
+                    cat_lon=np.deg2rad(phase_center_ra_degrees),
+                    cat_lat=np.deg2rad(phase_center_dec_degrees),
+                    cat_frame=phase_center_frame,
+                    cat_epoch=phase_center_epoch,
+                )
+                self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
 
             self.extra_keywords = uvutils._get_fits_extra_keywords(
                 vis_hdr,
@@ -782,34 +778,12 @@ class UVFITS(UVData):
             # Now read in the random parameter info
             self._get_parameter_data(
                 vis_hdu,
+                read_source,
                 run_check_acceptability,
                 background_lsts=background_lsts,
             )
-            # If we find the source attribute in the FITS random paramter list,
-            # the multi_phase_center attribute will be set to True, and we should also
-            # expect that there must be an AIPS SU table.
-            if self.multi_phase_center and "AIPS SU" not in hdunames.keys():
-                warnings.warn(
-                    "UVFITS file is missing AIPS SU table, which is required when "
-                    "SOURCE is one of the `random paramters` in the main binary "
-                    "table. Bypassing for now, but note that this file _may_ not "
-                    "work correctly in UVFITS-based programs (e.g., AIPS, CASA)."
-                )
-                cat_id = list(self.phase_center_catalog)[0]
-                self.object_name = self.phase_center_catalog[cat_id]["cat_name"]
-                self.phase_center_ra = self.phase_center_catalog[cat_id]["cat_lon"]
-                self.phase_center_dec = self.phase_center_catalog[cat_id]["cat_lat"]
-                self.phase_center_frame = self.phase_center_catalog[cat_id]["cat_frame"]
-                self.phase_center_epoch = self.phase_center_catalog[cat_id]["cat_epoch"]
 
-                self.multi_phase_center = False
-                self._phase_center_id_array.required = False
-                self._Nphase.required = False
-                self._phase_center_catalog.required = False
-                self.Nphase = None
-                self.phase_center_catalog = None
-                self.phase_center_id_array = None
-            elif self.multi_phase_center:
+            if read_source:
                 su_hdu = hdu_list[hdunames["AIPS SU"]]
                 # We should have as many entries in the AIPS SU header as we have
                 # unique entries in the SOURCES random paramter (checked in the call
@@ -835,7 +809,14 @@ class UVFITS(UVData):
                     sou_ra = sou_info["RAEPO"] * (np.pi / 180.0)
                     sou_dec = sou_info["DECEPO"] * (np.pi / 180.0)
                     sou_epoch = sou_info["EPOCH"]
-                    sou_frame = "fk5"
+
+                    if phase_center_frame is not None:
+                        sou_frame = phase_center_frame
+                    else:
+                        if sou_epoch == 1950.0:
+                            sou_frame = "fk4"
+                        else:
+                            sou_frame = "fk5"
 
                     self._add_phase_center(
                         sou_name,
@@ -977,26 +958,21 @@ class UVFITS(UVData):
                 DeprecationWarning,
             )
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message="The older phase attributes")
-            if self.phase_type == "phased":
-                pass
-            elif self.phase_type == "drift":
-                if force_phase:
-                    print(
-                        "The data are in drift mode and do not have a "
-                        "defined phase center. Phasing to zenith of the first "
-                        "timestamp."
-                    )
-                    phase_time = Time(self.time_array[0], format="jd")
-                    self.phase_to_time(phase_time)
-                else:
-                    raise ValueError(
-                        "The data are in drift mode. "
-                        "Set force_phase to true to phase the data "
-                        "to zenith of the first timestamp before "
-                        "writing a uvfits file."
-                    )
+        if np.any(~self._check_for_cat_type(["sidereal"])):
+            if force_phase:
+                print(
+                    "The data are not all phased to a sidereal source. Phasing to "
+                    "zenith of the first timestamp."
+                )
+                phase_time = Time(self.time_array[0], format="jd")
+                self.phase_to_time(phase_time)
+            else:
+                raise ValueError(
+                    "The data are not all phased to a sidereal source. "
+                    "Set force_phase to true to phase the data "
+                    "to zenith of the first timestamp before "
+                    "writing a uvfits file."
+                )
 
         if self.flex_spw:
             # If we have a 'flexible' spectral window, we will need to evaluate the
@@ -1101,8 +1077,7 @@ class UVFITS(UVData):
         # So conjugate the visibilities and flip the uvws:
         data_array = np.reshape(np.conj(self.data_array), uvfits_data_shape)
         weights_array = np.reshape(
-            self.nsample_array * np.where(self.flag_array, -1, 1),
-            uvfits_data_shape,
+            self.nsample_array * np.where(self.flag_array, -1, 1), uvfits_data_shape
         )
         data_array = data_array[:, :, :, :, :, pol_indexing, :]
         weights_array = weights_array[:, :, :, :, :, pol_indexing, :]
@@ -1149,9 +1124,8 @@ class UVFITS(UVData):
             "INTTIM  ": int_time_array,
         }
 
-        if self.multi_phase_center:
-            id_offset = int(0 in self.phase_center_catalog)
-            group_parameter_dict["SOURCE  "] = self.phase_center_id_array + id_offset
+        id_offset = int(0 in self.phase_center_catalog)
+        group_parameter_dict["SOURCE  "] = self.phase_center_id_array + id_offset
 
         pscal_dict = {
             "UU      ": 1.0,
@@ -1210,10 +1184,7 @@ class UVFITS(UVData):
                 "using the measurement set writer method (`write_ms`) instead."
             )
 
-        if self.multi_phase_center:
-            parnames_use.append("SOURCE  ")
-
-        parnames_use += ["ANTENNA1", "ANTENNA2", "SUBARRAY", "INTTIM  "]
+        parnames_use += ["SOURCE  ", "ANTENNA1", "ANTENNA2", "SUBARRAY", "INTTIM  "]
 
         if write_lst:
             parnames_use.append("LST     ")
@@ -1267,39 +1238,59 @@ class UVFITS(UVData):
         hdu.header["CRPIX5  "] = 1.0
         hdu.header["CDELT5  "] = 1.0
 
+        if self.Nphase > 1:
+            ra_use = 0.0
+            dec_use = 0.0
+            name_use = "MULTI"
+        else:
+            phase_dict = list(self.phase_center_catalog.values())[0]
+            ra_use = np.rad2deg(phase_dict["cat_lon"])
+            dec_use = np.rad2deg(phase_dict["cat_lat"])
+            name_use = phase_dict["cat_name"]
+
         hdu.header["CTYPE6  "] = "RA"
-        hdu.header["CRVAL6  "] = self.phase_center_ra_degrees
+        hdu.header["CRVAL6  "] = ra_use
 
         hdu.header["CTYPE7  "] = "DEC"
-        hdu.header["CRVAL7  "] = self.phase_center_dec_degrees
+        hdu.header["CRVAL7  "] = dec_use
 
         hdu.header["BUNIT   "] = self.vis_units
         hdu.header["BSCALE  "] = 1.0
         hdu.header["BZERO   "] = 0.0
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message="The older phase attributes")
-            name = "MULTI" if self.multi_phase_center else self.object_name
-        hdu.header["OBJECT  "] = name
+        hdu.header["OBJECT  "] = name_use
         hdu.header["TELESCOP"] = self.telescope_name
         hdu.header["LAT     "] = self.telescope_location_lat_lon_alt_degrees[0]
         hdu.header["LON     "] = self.telescope_location_lat_lon_alt_degrees[1]
         hdu.header["ALT     "] = self.telescope_location_lat_lon_alt[2]
         hdu.header["INSTRUME"] = self.instrument
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message="The older phase attributes")
-            if self.phase_center_epoch is not None:
-                hdu.header["EPOCH   "] = float(self.phase_center_epoch)
+        if self.Nphase == 1:
+            hdu.header["EPOCH   "] = float(phase_dict["cat_epoch"])
         # TODO: This is a keyword that should at some point get added for velocity
         # reference stuff, although for right now pyuvdata doesn't do any sort of
         # handling of this, so stub this out for now.
         # hdu.header["SPECSYS "] = "TOPOCENT"
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message="The older phase attributes")
-            if self.phase_center_frame is not None:
-                # Previous versions of pyuvdata wrote this header as PHSFRAME
-                hdu.header["RADESYS"] = self.phase_center_frame
+        if self.Nphase == 1:
+            hdu.header["RADESYS"] = phase_dict["cat_frame"]
+        else:
+            frames = [
+                ph_dict["cat_frame"] for ph_dict in self.phase_center_catalog.values()
+            ]
+            unique_frames, frame_count = np.unique(np.array(frames), return_counts=True)
+            if unique_frames.size == 1:
+                hdu.header["RADESYS"] = unique_frames[0]
+            else:
+                most_common_frames = frame_count[frame_count == np.max(frame_count)]
+                if most_common_frames.size == 1:
+                    hdu.header["RADESYS"] = most_common_frames[0]
+                else:
+                    preferred_frames = ["fk5", "icrs"] + most_common_frames
+                    # this is guaranteed to find a match because most_common_frames are
+                    # in the list, but it puts more preferred frames first
+                    for frame in preferred_frames:
+                        if frame in most_common_frames:
+                            hdu.header["RADESYS"] = frame
 
         if self.x_orientation is not None:
             hdu.header["XORIENT"] = self.x_orientation
@@ -1494,64 +1485,63 @@ class UVFITS(UVData):
             fq_hdu.header["NO_IF"] = self.Nspws
             fits_tables.append(fq_hdu)
 
-        # If needed, add the SU table
-        if self.multi_phase_center:
-            fmt_d = "%iD" % self.Nspws
-            fmt_e = "%iE" % self.Nspws
-            fmt_j = "%iJ" % self.Nspws
+        # Always write the SU table
+        fmt_d = "%iD" % self.Nspws
+        fmt_e = "%iE" % self.Nspws
+        fmt_j = "%iJ" % self.Nspws
 
-            int_zeros = np.zeros(self.Nphase, dtype=int)
-            flt_zeros = np.zeros(self.Nphase, dtype=np.float64)
-            zero_arr = np.zeros((self.Nphase, self.Nspws))
-            sou_ids = np.zeros(self.Nphase)
-            name_arr = np.array(
-                [ps_dict["cat_name"] for ps_dict in self.phase_center_catalog.values()]
-            )
-            cal_code = ["    "] * self.Nphase
-            # These are things we need to flip through on a source-by-source basis
-            ra_arr = np.zeros(self.Nphase, dtype=np.float64)
-            app_ra = np.zeros(self.Nphase, dtype=np.float64)
-            dec_arr = np.zeros(self.Nphase, dtype=np.float64)
-            app_dec = np.zeros(self.Nphase, dtype=np.float64)
-            epo_arr = np.zeros(self.Nphase, dtype=np.float64)
-            pm_ra = np.zeros(self.Nphase, dtype=np.float64)
-            pm_dec = np.zeros(self.Nphase, dtype=np.float64)
-            rest_freq = np.zeros((self.Nphase, self.Nspws), dtype=np.float64)
-            for idx, cat_id in enumerate(self.phase_center_catalog):
-                phase_dict = self.phase_center_catalog[cat_id]
-                # This is a stub for something smarter in the future
-                sou_ids[idx] = cat_id + id_offset
-                rest_freq[idx][:] = np.mean(self.freq_array)
-                pm_ra[idx] = 0.0
-                pm_dec[idx] = 0.0
-                if phase_dict["cat_type"] == "sidereal":
-                    # So here's the deal -- we need all the objects to be in the same
-                    # coordinate frame, although nothing in phase_center_catalog forces
-                    # objects to share the same frame. So we want to make sure that
-                    # everything lines up with the coordinate frame listed.
-                    ra_arr[idx], dec_arr[idx] = uvutils.transform_sidereal_coords(
-                        phase_dict["cat_lon"],
-                        phase_dict["cat_lat"],
-                        phase_dict["cat_frame"],
-                        "fk5",
-                        in_coord_epoch=phase_dict.get("cat_epoch"),
-                        out_coord_epoch=phase_dict.get("cat_epoch"),
-                        time_array=np.mean(self.time_array),
-                    )
+        int_zeros = np.zeros(self.Nphase, dtype=int)
+        flt_zeros = np.zeros(self.Nphase, dtype=np.float64)
+        zero_arr = np.zeros((self.Nphase, self.Nspws))
+        sou_ids = np.zeros(self.Nphase)
+        name_arr = np.array(
+            [ps_dict["cat_name"] for ps_dict in self.phase_center_catalog.values()]
+        )
+        cal_code = ["    "] * self.Nphase
+        # These are things we need to flip through on a source-by-source basis
+        ra_arr = np.zeros(self.Nphase, dtype=np.float64)
+        app_ra = np.zeros(self.Nphase, dtype=np.float64)
+        dec_arr = np.zeros(self.Nphase, dtype=np.float64)
+        app_dec = np.zeros(self.Nphase, dtype=np.float64)
+        epo_arr = np.zeros(self.Nphase, dtype=np.float64)
+        pm_ra = np.zeros(self.Nphase, dtype=np.float64)
+        pm_dec = np.zeros(self.Nphase, dtype=np.float64)
+        rest_freq = np.zeros((self.Nphase, self.Nspws), dtype=np.float64)
+        for idx, cat_id in enumerate(self.phase_center_catalog):
+            phase_dict = self.phase_center_catalog[cat_id]
+            # This is a stub for something smarter in the future
+            sou_ids[idx] = cat_id + id_offset
+            rest_freq[idx][:] = np.mean(self.freq_array)
+            pm_ra[idx] = 0.0
+            pm_dec[idx] = 0.0
+            if phase_dict["cat_type"] == "sidereal":
+                # So here's the deal -- we need all the objects to be in the same
+                # coordinate frame, although nothing in phase_center_catalog forces
+                # objects to share the same frame. So we want to make sure that
+                # everything lines up with the coordinate frame listed.
+                ra_arr[idx], dec_arr[idx] = uvutils.transform_sidereal_coords(
+                    phase_dict["cat_lon"],
+                    phase_dict["cat_lat"],
+                    phase_dict["cat_frame"],
+                    hdu.header["RADESYS"],
+                    in_coord_epoch=phase_dict.get("cat_epoch"),
+                    out_coord_epoch=phase_dict.get("cat_epoch"),
+                    time_array=np.mean(self.time_array),
+                )
 
-                    epo_arr[idx] = (
-                        phase_dict["cat_epoch"]
-                        if "cat_epoch" in (phase_dict.keys())
-                        else 2000.0
-                    )
+                epo_arr[idx] = (
+                    phase_dict["cat_epoch"]
+                    if "cat_epoch" in (phase_dict.keys())
+                    else 2000.0
+                )
 
-                    app_ra[idx] = np.median(
-                        self.phase_center_app_ra[self.phase_center_id_array == cat_id]
-                    )
+                app_ra[idx] = np.median(
+                    self.phase_center_app_ra[self.phase_center_id_array == cat_id]
+                )
 
-                    app_dec[idx] = np.median(
-                        self.phase_center_app_dec[self.phase_center_id_array == cat_id]
-                    )
+                app_dec[idx] = np.median(
+                    self.phase_center_app_dec[self.phase_center_id_array == cat_id]
+                )
 
             ra_arr *= 180.0 / np.pi
             dec_arr *= 180.0 / np.pi

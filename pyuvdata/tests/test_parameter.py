@@ -370,10 +370,7 @@ def test_skycoord_param_inequality(sky_in, change):
 
 def test_non_builtin_expected_type():
     with pytest.raises(ValueError) as cm:
-        uvp.UVParameter(
-            "_test",
-            expected_type="integer",
-        )
+        uvp.UVParameter("_test", expected_type="integer")
     assert str(cm.value).startswith("Input expected_type is a string with value")
 
 

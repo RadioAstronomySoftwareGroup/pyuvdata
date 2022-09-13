@@ -295,9 +295,7 @@ def test_read_yaml_multi_pol(tmp_path):
     }
 
     with uvtest.check_warnings(
-        UserWarning,
-        "No frequency provided. Detected frequency is",
-        nwarnings=2,
+        UserWarning, "No frequency provided. Detected frequency is", nwarnings=2
     ):
         beam1.read_cst_beam(
             [cst_files[0], cst_files[0]],
@@ -358,10 +356,7 @@ def test_read_yaml_errors(tmp_path):
         yaml.dump(settings_dict, outfile, default_flow_style=False)
 
     beam1 = UVBeam()
-    with pytest.raises(
-        ValueError,
-        match=("filenames in yaml file must be a list."),
-    ):
+    with pytest.raises(ValueError, match=("filenames in yaml file must be a list.")):
         beam1.read_cst_beam(test_yaml_file, beam_type="power")
 
     with open(cst_yaml_file, "r") as file:
@@ -372,10 +367,7 @@ def test_read_yaml_errors(tmp_path):
         yaml.dump(settings_dict, outfile, default_flow_style=False)
 
     beam1 = UVBeam()
-    with pytest.raises(
-        ValueError,
-        match=("frequencies in yaml file must be a list."),
-    ):
+    with pytest.raises(ValueError, match=("frequencies in yaml file must be a list.")):
         beam1.read_cst_beam(test_yaml_file, beam_type="power")
 
     os.remove(test_yaml_file)

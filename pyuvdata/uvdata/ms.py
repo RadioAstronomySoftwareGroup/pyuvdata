@@ -132,13 +132,11 @@ class MS(UVData):
         # based on a test ALMA dataset and comparison with what gets generated with
         # a dataset that comes through importuvfits.
         ms_desc["FLAG"].update(
-            dataManagerType="TiledShapeStMan",
-            dataManagerGroup="TiledFlag",
+            dataManagerType="TiledShapeStMan", dataManagerGroup="TiledFlag"
         )
 
         ms_desc["UVW"].update(
-            dataManagerType="TiledColumnStMan",
-            dataManagerGroup="TiledUVW",
+            dataManagerType="TiledColumnStMan", dataManagerGroup="TiledUVW"
         )
         # TODO: Can stuff UVFLAG objects into this
         ms_desc["FLAG_CATEGORY"].update(
@@ -147,12 +145,10 @@ class MS(UVData):
             keywords={"CATEGORY": np.array("baddata")},
         )
         ms_desc["WEIGHT"].update(
-            dataManagerType="TiledShapeStMan",
-            dataManagerGroup="TiledWgt",
+            dataManagerType="TiledShapeStMan", dataManagerGroup="TiledWgt"
         )
         ms_desc["SIGMA"].update(
-            dataManagerType="TiledShapeStMan",
-            dataManagerGroup="TiledSigma",
+            dataManagerType="TiledShapeStMan", dataManagerGroup="TiledSigma"
         )
 
         # The ALMA default for the next set of columns from the MAIN table use the
@@ -181,8 +177,7 @@ class MS(UVData):
         ]
         for key in incremental_list:
             ms_desc[key].update(
-                dataManagerType="IncrementalStMan",
-                dataManagerGroup=key,
+                dataManagerType="IncrementalStMan", dataManagerGroup=key
             )
 
         # TODO: Verify that the casacore defaults for coldesc are satisfactory for
@@ -349,8 +344,7 @@ class MS(UVData):
         else:
             nfeeds_table *= self.Nspws
             spectral_window_id_table = np.repeat(
-                np.arange(self.Nspws),
-                np.max(self.antenna_numbers) + 1,
+                np.arange(self.Nspws), np.max(self.antenna_numbers) + 1
             )
             antenna_id_table = np.tile(antenna_id_table, self.Nspws)
             # we want "x" or "y", *not* "e" or "n", so as not to confuse CASA
@@ -406,23 +400,17 @@ class MS(UVData):
         n_poly = 0
 
         var_ref = False
-        if not self.multi_phase_center:
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", message="The older phase attributes")
-                sou_frame = self.phase_center_frame
-                sou_epoch = self.phase_center_epoch
-        else:
-            for ind, phase_dict in enumerate(self.phase_center_catalog.values()):
-                if ind == 0:
-                    sou_frame = phase_dict["cat_frame"]
-                    sou_epoch = phase_dict["cat_epoch"]
-                    continue
+        for ind, phase_dict in enumerate(self.phase_center_catalog.values()):
+            if ind == 0:
+                sou_frame = phase_dict["cat_frame"]
+                sou_epoch = phase_dict["cat_epoch"]
+                continue
 
-                if (sou_frame != phase_dict["cat_frame"]) or (
-                    sou_epoch != phase_dict["cat_epoch"]
-                ):
-                    var_ref = True
-                    break
+            if (sou_frame != phase_dict["cat_frame"]) or (
+                sou_epoch != phase_dict["cat_epoch"]
+            ):
+                var_ref = True
+                break
 
         if var_ref:
             var_ref_dict = {
@@ -464,29 +452,15 @@ class MS(UVData):
 
             field_table.putcolkeyword(col, "MEASINFO", meas_info_dict)
 
-        if self.multi_phase_center:
-            sou_id_list = list(self.phase_center_catalog)
-        else:
-            sou_id_list = [0]
+        sou_id_list = list(self.phase_center_catalog)
 
         for idx, sou_id in enumerate(sou_id_list):
-            if self.multi_phase_center:
-                cat_dict = self.phase_center_catalog[sou_id]
-                phasedir = np.array([[cat_dict["cat_lon"], cat_dict["cat_lat"]]])
-                sou_name = cat_dict["cat_name"]
-                ref_dir = self._parse_pyuvdata_frame_ref(
-                    cat_dict["cat_frame"],
-                    cat_dict["cat_epoch"],
-                    raise_error=var_ref,
-                )
-            else:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore", message="The older phase attributes"
-                    )
-                    phasedir = np.array([[self.phase_center_ra, self.phase_center_dec]])
-                    sou_name = self.object_name
-                    assert self.phase_center_epoch == 2000.0
+            cat_dict = self.phase_center_catalog[sou_id]
+            phasedir = np.array([[cat_dict["cat_lon"], cat_dict["cat_lat"]]])
+            sou_name = cat_dict["cat_name"]
+            ref_dir = self._parse_pyuvdata_frame_ref(
+                cat_dict["cat_frame"], cat_dict["cat_epoch"], raise_error=var_ref
+            )
 
             field_table.addrows()
 
@@ -530,29 +504,18 @@ class MS(UVData):
         )
         int_val = np.finfo(float).max
 
-        sou_list = list(self.phase_center_catalog) if self.multi_phase_center else [0]
+        sou_list = list(self.phase_center_catalog)
 
         row_count = 0
         for sou_id in sou_list:
-            if self.multi_phase_center:
-                sou_ra = self.phase_center_catalog[sou_id]["cat_lon"]
-                sou_dec = self.phase_center_catalog[sou_id]["cat_lat"]
-                pm_ra = self.phase_center_catalog[sou_id].get("cat_pm_ra")
-                pm_dec = self.phase_center_catalog[sou_id].get("cat_pm_dec")
-                if (pm_ra is None) or (pm_dec is None):
-                    pm_ra = 0.0
-                    pm_dec = 0.0
-                sou_name = self.phase_center_catalog[sou_id]["cat_name"]
-            else:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore", message="The older phase attributes"
-                    )
-                    sou_ra = self.phase_center_ra
-                    sou_dec = self.phase_center_dec
-                    sou_name = self.object_name
+            sou_ra = self.phase_center_catalog[sou_id]["cat_lon"]
+            sou_dec = self.phase_center_catalog[sou_id]["cat_lat"]
+            pm_ra = self.phase_center_catalog[sou_id].get("cat_pm_ra")
+            pm_dec = self.phase_center_catalog[sou_id].get("cat_pm_dec")
+            if (pm_ra is None) or (pm_dec is None):
                 pm_ra = 0.0
                 pm_dec = 0.0
+            sou_name = self.phase_center_catalog[sou_id]["cat_name"]
 
             sou_dir = np.array([sou_ra, sou_dec])
             pm_dir = np.array([pm_ra, pm_dec])
@@ -831,9 +794,7 @@ class MS(UVData):
 
                 pol_table.addrows()
                 pol_table.putcell(
-                    "CORR_TYPE",
-                    idx,
-                    np.array([POL_AIPS2CASA_DICT[spw_pol]]),
+                    "CORR_TYPE", idx, np.array([POL_AIPS2CASA_DICT[spw_pol]])
                 )
                 pol_table.putcell("CORR_PRODUCT", idx, pol_tuples)
                 pol_table.putcell("NUM_CORR", idx, self.Npols)
@@ -1126,7 +1087,8 @@ class MS(UVData):
         # (and if need be, fix it).
         # TODO: I thought CASA could handle driftscan data. Are we sure it can't handle
         # unprojected data? Maybe update the print and error messages below...
-        if np.any(self._check_for_unprojected()):
+        unprojected_blts = self._check_for_cat_type("unprojected")
+        if np.any(unprojected_blts):
             if force_phase:
                 print(
                     "The data are in drift mode and do not have a "
@@ -1134,12 +1096,7 @@ class MS(UVData):
                     "timestamp."
                 )
                 phase_time = Time(self.time_array[0], format="jd")
-                self.phase_to_time(
-                    phase_time,
-                    select_mask=self._check_for_unprojected()
-                    if self.multi_phase_center
-                    else None,
-                )
+                self.phase_to_time(phase_time, select_mask=unprojected_blts)
             else:
                 raise ValueError(
                     "The data are in drift mode. "
@@ -1230,14 +1187,12 @@ class MS(UVData):
 
                 # Record which SPW/"Data Description" this data is matched to
                 data_desc_array[last_row : last_row + (Nrecs * self.Nspws)] = np.repeat(
-                    np.arange(self.Nspws),
-                    Nrecs,
+                    np.arange(self.Nspws), Nrecs
                 )
 
                 # Record index positions
                 blt_map_array[last_row : last_row + (Nrecs * self.Nspws)] = np.tile(
-                    np.where(scan_screen)[0],
-                    self.Nspws,
+                    np.where(scan_screen)[0], self.Nspws
                 )
 
                 # Extract out the relevant data out of our data-like arrays that
@@ -1315,18 +1270,15 @@ class MS(UVData):
         # same as ours & Miriad's
         ms.putcol("UVW", uvw_array)
 
-        if self.multi_phase_center:
-            # We have to do an extra bit of work here, as CASA won't accept arbitrary
-            # values for field ID (rather, the ID number matches to the row number in
-            # the FIELD subtable). When we write out the fields, we use sort so that
-            # we can reproduce the same ordering here.
-            field_ids = np.empty_like(self.phase_center_id_array)
-            for idx, cat_id in enumerate(self.phase_center_catalog):
-                field_ids[self.phase_center_id_array == cat_id] = idx
+        # We have to do an extra bit of work here, as CASA won't accept arbitrary
+        # values for field ID (rather, the ID number matches to the row number in
+        # the FIELD subtable). When we write out the fields, we use sort so that
+        # we can reproduce the same ordering here.
+        field_ids = np.empty_like(self.phase_center_id_array)
+        for idx, cat_id in enumerate(self.phase_center_catalog):
+            field_ids[self.phase_center_id_array == cat_id] = idx
 
-            ms.putcol(
-                "FIELD_ID", field_ids[blt_map_array] if self.Nspws > 1 else field_ids
-            )
+        ms.putcol("FIELD_ID", field_ids[blt_map_array] if self.Nspws > 1 else field_ids)
 
         # Finally, record extra keywords and x_orientation, both of which the MS format
         # doesn't quite have equivalent fields to stuff data into (and instead is put
@@ -1732,8 +1684,7 @@ class MS(UVData):
                 data_dict[key]["POL_IDX"] = np.array([0])
             pol_list = np.array([0])
             flex_pol = np.array(
-                [spw_dict[key]["POL"] for key in sorted(spw_dict.keys())],
-                dtype=int,
+                [spw_dict[key]["POL"] for key in sorted(spw_dict.keys())], dtype=int
             )
 
         # We have all of the meta-information linked the various data desc IDs,
@@ -2175,8 +2126,6 @@ class MS(UVData):
 
         tb_ant.close()
 
-        self._set_phased()
-
         # set LST array from times and itrf
         proc = self.set_lsts_from_time_array(background=background_lsts)
 
@@ -2218,72 +2167,54 @@ class MS(UVData):
             phase_center_frame = "icrs"
             phase_center_epoch = 2000.0
 
-        # If only dealing with a single target, assume we don't want to make a
-        # multi-phase-center data set.
-        if (len(field_list) == 1) and (ref_dir_dict is None):
-            radec_center = tb_field.getcell("PHASE_DIR", field_list[0])[0]
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", message="The older phase attributes")
-                self.phase_center_ra = float(radec_center[0])
-                self.phase_center_dec = float(radec_center[1])
-                self.phase_center_id_array = None
-                self.object_name = tb_field.getcol("NAME")[0]
-                self.phase_center_frame = phase_center_frame
-                self.phase_center_epoch = phase_center_epoch
-        else:
-            self._set_multi_phase_center()
-            field_id_dict = {field_idx: field_idx for field_idx in field_list}
-            try:
-                id_arr = tb_field.getcol("SOURCE_ID")
-                if np.all(id_arr >= 0) and len(np.unique(id_arr)) == len(id_arr):
-                    for idx, sou_id in enumerate(id_arr):
-                        if idx in field_list:
-                            field_id_dict[idx] = sou_id
-            except RuntimeError:
-                # Reach here if no column named SOURCE_ID exists, or if it does exist
-                # but is completely unfilled. Nothing to do at this point but move on.
-                pass
-            # Field names are allowed to be the same in CASA, so if we detect
-            # conflicting names here we use the FIELD row numbers to try and
-            # differentiate between them.
-            field_name_list = tb_field.getcol("NAME")
-            uniq_names, uniq_count = np.unique(field_name_list, return_counts=True)
-            rep_name_list = uniq_names[uniq_count > 1]
-            for rep_name in rep_name_list:
-                rep_count = 0
-                for idx in range(len(field_name_list)):
-                    if field_name_list[idx] == rep_name:
-                        field_name_list[idx] = "%s-%03i" % (
-                            field_name_list[idx],
-                            rep_count,
-                        )
-                        rep_count += 1
+        field_id_dict = {field_idx: field_idx for field_idx in field_list}
+        try:
+            id_arr = tb_field.getcol("SOURCE_ID")
+            if np.all(id_arr >= 0) and len(np.unique(id_arr)) == len(id_arr):
+                for idx, sou_id in enumerate(id_arr):
+                    if idx in field_list:
+                        field_id_dict[idx] = sou_id
+        except RuntimeError:
+            # Reach here if no column named SOURCE_ID exists, or if it does exist
+            # but is completely unfilled. Nothing to do at this point but move on.
+            pass
+        # Field names are allowed to be the same in CASA, so if we detect
+        # conflicting names here we use the FIELD row numbers to try and
+        # differentiate between them.
+        field_name_list = tb_field.getcol("NAME")
+        uniq_names, uniq_count = np.unique(field_name_list, return_counts=True)
+        rep_name_list = uniq_names[uniq_count > 1]
+        for rep_name in rep_name_list:
+            rep_count = 0
+            for idx in range(len(field_name_list)):
+                if field_name_list[idx] == rep_name:
+                    field_name_list[idx] = "%s-%03i" % (field_name_list[idx], rep_count)
+                    rep_count += 1
 
-            for field_idx in field_list:
-                radec_center = tb_field.getcell("PHASE_DIR", field_idx)[0]
-                field_name = field_name_list[field_idx]
-                if ref_dir_colname is not None:
-                    frame_tuple = self._parse_casa_frame_ref(
-                        ref_dir_dict[tb_field.getcell(ref_dir_colname, field_list[0])]
-                    )
-                else:
-                    frame_tuple = (phase_center_frame, phase_center_epoch)
-
-                self._add_phase_center(
-                    field_name,
-                    cat_type="sidereal",
-                    cat_lon=radec_center[0],
-                    cat_lat=radec_center[1],
-                    cat_frame=frame_tuple[0],
-                    cat_epoch=frame_tuple[1],
-                    info_source="file",
-                    cat_id=field_id_dict[field_idx],
+        for field_idx in field_list:
+            radec_center = tb_field.getcell("PHASE_DIR", field_idx)[0]
+            field_name = field_name_list[field_idx]
+            if ref_dir_colname is not None:
+                frame_tuple = self._parse_casa_frame_ref(
+                    ref_dir_dict[tb_field.getcell(ref_dir_colname, field_list[0])]
                 )
-            # Only thing left to do is to update the IDs for the per-BLT records
-            self.phase_center_id_array = np.array(
-                [field_id_dict[sou_id] for sou_id in self.phase_center_id_array],
-                dtype=int,
+            else:
+                frame_tuple = (phase_center_frame, phase_center_epoch)
+
+            self._add_phase_center(
+                field_name,
+                cat_type="sidereal",
+                cat_lon=radec_center[0],
+                cat_lat=radec_center[1],
+                cat_frame=frame_tuple[0],
+                cat_epoch=frame_tuple[1],
+                info_source="file",
+                cat_id=field_id_dict[field_idx],
             )
+        # Only thing left to do is to update the IDs for the per-BLT records
+        self.phase_center_id_array = np.array(
+            [field_id_dict[sou_id] for sou_id in self.phase_center_id_array], dtype=int
+        )
 
         tb_field.close()
 

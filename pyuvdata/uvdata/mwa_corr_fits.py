@@ -282,14 +282,7 @@ def van_vleck_crosses_cheby(
 
     """
     kap = np.array([khat[broad_inds].real, khat[broad_inds].imag])
-    _corr_fits.van_vleck_cheby(
-        kap,
-        rho_coeff,
-        sv_inds_right1,
-        sv_inds_right2,
-        ds1,
-        ds2,
-    )
+    _corr_fits.van_vleck_cheby(kap, rho_coeff, sv_inds_right1, sv_inds_right2, ds1, ds2)
     khat[broad_inds] = (kap[0, :] + 1j * kap[1, :]) * (
         sig1[broad_inds] * sig2[broad_inds]
     )
@@ -333,9 +326,7 @@ class MWACorrFITS(UVData):
         )
         # from MWA_Tools/CONV2UVFITS/convutils.h
         cable_len_diffs = _corr_fits.get_cable_len_diffs(
-            ant_1_inds,
-            ant_2_inds,
-            cable_lens,
+            ant_1_inds, ant_2_inds, cable_lens
         )
         self.data_array *= np.exp(
             -1j
@@ -413,10 +404,7 @@ class MWACorrFITS(UVData):
         self.flag_array = (
             self.flag_array
             if (shape == reshape)
-            else np.reshape(
-                self.flag_array,
-                reshape,
-            )
+            else np.reshape(self.flag_array, reshape)
         )
 
         bad_chan_inds = []
@@ -444,10 +432,7 @@ class MWACorrFITS(UVData):
         self.flag_array = (
             self.flag_array
             if (shape == reshape)
-            else np.reshape(
-                self.flag_array,
-                shape,
-            )
+            else np.reshape(self.flag_array, shape)
         )
 
     def _read_fits_file(
@@ -555,12 +540,7 @@ class MWACorrFITS(UVData):
             self.Nblts, num_fine_chans, self.Npols
         )
         # reorder pols here to avoid memory spike from self.reorder_pols
-        np.take(
-            coarse_chan_data,
-            pol_index_array,
-            axis=-1,
-            out=coarse_chan_data,
-        )
+        np.take(coarse_chan_data, pol_index_array, axis=-1, out=coarse_chan_data)
         # make a mask where data actually is so coarse channels that
         # are split into two files don't overwrite eachother
         data_mask = coarse_chan_data != 0
@@ -597,17 +577,11 @@ class MWACorrFITS(UVData):
         self.flag_array[
             blt_ind:, freq_ind : freq_ind + num_fine_chans, :
         ] = np.logical_or(
-            self.flag_array[blt_ind:, freq_ind : freq_ind + num_fine_chans, :],
-            flags,
+            self.flag_array[blt_ind:, freq_ind : freq_ind + num_fine_chans, :], flags
         )
 
     def van_vleck_correction(
-        self,
-        ant_1_inds,
-        ant_2_inds,
-        flagged_ant_inds,
-        cheby_approx,
-        data_array_dtype,
+        self, ant_1_inds, ant_2_inds, flagged_ant_inds, cheby_approx, data_array_dtype
     ):
         """
         Apply a van vleck correction to the data array.
@@ -719,8 +693,7 @@ class MWACorrFITS(UVData):
                 (sig1_pol, sig2_pol) = pol_dict[i][0]
                 # broadcast in_inds
                 broad_inds = np.logical_and(
-                    in_inds[sig1_inds, pol1, :],
-                    in_inds[sig2_inds, pol2, :],
+                    in_inds[sig1_inds, pol1, :], in_inds[sig2_inds, pol2, :]
                 )
                 # broadcast indices and distances for bilinear interpolation
                 sv_inds_right1 = sv_inds_right[sig1_inds, pol1, :][broad_inds]
@@ -867,10 +840,7 @@ class MWACorrFITS(UVData):
         # auto_flags = self.flag_array[auto_inds, :, 0:2]
         autos = autos.reshape(self.Ntimes, self.Nants_data, self.Nfreqs, 2)
         # find autos below threshold
-        small_auto_flags = np.logical_and(
-            autos != 0,
-            autos <= threshold,
-        )
+        small_auto_flags = np.logical_and(autos != 0, autos <= threshold)
         if flag_small_auto_ants:
             # find antenna indices for small sig ants and add to flagged_ant_inds
             ant_inds = np.unique(np.nonzero(small_auto_flags)[1])
@@ -1431,9 +1401,7 @@ class MWACorrFITS(UVData):
         # first set parameters that are always true
         self.Nspws = 1
         self.spw_array = np.array([0])
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message="The older phase attributes")
-            self.phase_type = "drift"
+        cat_id = self._add_phase_center("unprojected", cat_type="unprojected")
         self.vis_units = "uncalib"
         self.Npols = 4
         self.xorientation = "east"
@@ -1516,8 +1484,8 @@ class MWACorrFITS(UVData):
                 self.history += self.pyuvdata_version_str
             self.instrument = meta_hdr["TELESCOP"]
             self.telescope_name = meta_hdr.pop("TELESCOP")
-            self.object_name = meta_hdr.pop("FILENAME")
             self.Nants_telescope = int(meta_hdr.pop("INSTRUME")[0:3])
+            object_name = meta_hdr.pop("FILENAME")
 
             # if not mwax, remove mwax-specific keys
             mwax_keys_to_skip = []
@@ -1587,6 +1555,7 @@ class MWACorrFITS(UVData):
         self.Ntimes = len(time_array)
 
         self.Nblts = int(self.Nbls * self.Ntimes)
+        self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
 
         # convert times to lst
         proc = self.set_lsts_from_time_array(background=background_lsts)
@@ -1627,8 +1596,6 @@ class MWACorrFITS(UVData):
         ant_1_inds = np.tile(np.array(ant_1_inds), self.Ntimes).astype(np.int_)
         ant_2_inds = np.tile(np.array(ant_2_inds), self.Ntimes).astype(np.int_)
 
-        # create self.uvw_array
-        self.set_uvws_from_antenna_positions(allow_phasing=False)
         if not mwax:
             # coarse channel mapping for the legacy correlator:
             # channels in group 0-128 are assigned to files in order;
@@ -1716,17 +1683,10 @@ class MWACorrFITS(UVData):
                 # but we are explicitly declaring C to be consistent with the rest
                 # of the python which interacts with the C/Cython code.
                 # generate a mapping index array
-                map_inds = np.zeros(
-                    (self.Nbls * self.Npols),
-                    dtype=np.int32,
-                    order="C",
-                )
+                map_inds = np.zeros((self.Nbls * self.Npols), dtype=np.int32, order="C")
                 # generate a conjugation array
                 conj = np.full(
-                    (self.Nbls * self.Npols),
-                    False,
-                    dtype=np.bool_,
-                    order="C",
+                    (self.Nbls * self.Npols), False, dtype=np.bool_, order="C"
                 )
 
                 _corr_fits.generate_map(corr_ants_to_pfb_inputs, map_inds, conj)
@@ -1735,8 +1695,7 @@ class MWACorrFITS(UVData):
                 conj = None
             # create arrays for data, nsamples, and flags
             self.data_array = np.zeros(
-                (self.Nblts, self.Nfreqs, self.Npols),
-                dtype=data_array_dtype,
+                (self.Nblts, self.Nfreqs, self.Npols), dtype=data_array_dtype
             )
             self.nsample_array = np.zeros(
                 (self.Ntimes, self.Nbls, self.Nfreqs, self.Npols),
@@ -1867,6 +1826,11 @@ class MWACorrFITS(UVData):
         if proc is not None:
             proc.join()
 
+        self._set_app_coords_helper()
+
+        # create self.uvw_array
+        self.set_uvws_from_antenna_positions(allow_phasing=False)
+
         # remove bad antennas
         # select must be called after lst thread is re-joined
         if remove_flagged_ants:
@@ -1875,7 +1839,13 @@ class MWACorrFITS(UVData):
 
         # phasing
         if phase_to_pointing_center:
-            self.phase(ra_rad, dec_rad)
+            self.phase(
+                lon=ra_rad,
+                lat=dec_rad,
+                epoch="J2000",
+                phase_frame="fk5",
+                cat_name=object_name,
+            )
 
         # switch to current_array_shape
         self.use_current_array_shapes()

@@ -335,8 +335,7 @@ def test_check_flag_array(gain_data):
     gain_data.flag_array = np.ones((gain_data.flag_array.shape), dtype=int)
 
     with pytest.raises(
-        ValueError,
-        match="UVParameter _flag_array is not the appropriate type.",
+        ValueError, match="UVParameter _flag_array is not the appropriate type."
     ):
         gain_data.check()
 
@@ -611,8 +610,7 @@ def test_flexible_spw(gain_data):
     calobj.check()
 
     with pytest.raises(
-        ValueError,
-        match="Channels from different spectral windows are interspersed",
+        ValueError, match="Channels from different spectral windows are interspersed"
     ):
         calobj._check_flex_spw_contiguous()
 
@@ -753,16 +751,14 @@ def test_convert_to_gain_errors(
     gain_obj = gain_data
 
     with pytest.raises(
-        ValueError,
-        match="freq_array contains values outside the freq_range.",
+        ValueError, match="freq_array contains values outside the freq_range."
     ):
         delay_obj.convert_to_gain(
             freq_array=np.asarray([50e6, 60e6]), channel_width=delay_obj.channel_width
         )
 
     with pytest.raises(
-        ValueError,
-        match="freq_array parameter must be a one dimensional array",
+        ValueError, match="freq_array parameter must be a one dimensional array"
     ):
         delay_obj.convert_to_gain(
             freq_array=delay_obj.freq_array, channel_width=delay_obj.channel_width
@@ -787,28 +783,20 @@ def test_convert_to_gain_errors(
         multi_spw_delay.convert_to_gain()
 
     with pytest.raises(
-        ValueError,
-        match="delay_convention can only be 'minus' or 'plus'",
+        ValueError, match="delay_convention can only be 'minus' or 'plus'"
     ):
         delay_obj.convert_to_gain(delay_convention="bogus")
 
-    with pytest.raises(
-        ValueError,
-        match="The data is already a gain cal_type.",
-    ):
+    with pytest.raises(ValueError, match="The data is already a gain cal_type."):
         gain_obj.convert_to_gain()
 
     gain_obj._set_unknown_cal_type()
-    with pytest.raises(
-        ValueError,
-        match="cal_type is unknown, cannot convert to gain",
-    ):
+    with pytest.raises(ValueError, match="cal_type is unknown, cannot convert to gain"):
         gain_obj.convert_to_gain()
 
     delay_obj = delay_data_inputflag_future
     with pytest.raises(
-        ValueError,
-        match="freq_array and channel_width must be provided",
+        ValueError, match="freq_array and channel_width must be provided"
     ):
         delay_obj.convert_to_gain()
 
@@ -909,8 +897,7 @@ def test_select_antennas(
         calobj._total_quality_array.expected_shape(calobj)
     )
     with uvtest.check_warnings(
-        UserWarning,
-        match="Cannot preserve total_quality_array",
+        UserWarning, match="Cannot preserve total_quality_array"
     ):
         calobj.select(antenna_names=ant_names, inplace=True)
     assert calobj.total_quality_array is None
@@ -971,8 +958,7 @@ def test_select_times(
     # check for warnings and errors associated with unevenly spaced times
     calobj2 = calobj.copy()
     with uvtest.check_warnings(
-        UserWarning,
-        match="Selected times are not evenly spaced",
+        UserWarning, match="Selected times are not evenly spaced"
     ):
         calobj2.select(times=calobj2.time_array[[0, 2, 3]])
     pytest.raises(ValueError, calobj2.write_calfits, write_file_calfits)
@@ -1079,8 +1065,7 @@ def test_select_frequencies(
             calobj2.select(frequencies=freqs_to_keep)
     else:
         with uvtest.check_warnings(
-            UserWarning,
-            match="Selected frequencies are not evenly spaced",
+            UserWarning, match="Selected frequencies are not evenly spaced"
         ):
             calobj2.select(frequencies=freqs_to_keep)
 
@@ -1283,8 +1268,7 @@ def test_select_spws_wideband(caltype, multi_spw_delay, wideband_gain, tmp_path)
 
     # check for errors associated with spws not included in data
     with pytest.raises(
-        ValueError,
-        match="SPW number 5 is not present in the spw_array",
+        ValueError, match="SPW number 5 is not present in the spw_array"
     ):
         calobj.select(spws=[5])
 
@@ -1322,50 +1306,27 @@ def test_select_polarizations(
         calobj.Njones += 1
         if future_shapes:
             calobj.flag_array = np.concatenate(
-                (
-                    calobj.flag_array,
-                    calobj.flag_array[:, :, :, [-1]],
-                ),
-                axis=3,
+                (calobj.flag_array, calobj.flag_array[:, :, :, [-1]]), axis=3
             )
             if calobj.input_flag_array is not None:
                 calobj.input_flag_array = np.concatenate(
-                    (
-                        calobj.input_flag_array,
-                        calobj.input_flag_array[:, :, :, [-1]],
-                    ),
+                    (calobj.input_flag_array, calobj.input_flag_array[:, :, :, [-1]]),
                     axis=3,
                 )
             if caltype == "gain":
                 calobj.gain_array = np.concatenate(
-                    (
-                        calobj.gain_array,
-                        calobj.gain_array[:, :, :, [-1]],
-                    ),
-                    axis=3,
+                    (calobj.gain_array, calobj.gain_array[:, :, :, [-1]]), axis=3
                 )
             else:
                 calobj.delay_array = np.concatenate(
-                    (
-                        calobj.delay_array,
-                        calobj.delay_array[:, :, :, [-1]],
-                    ),
-                    axis=3,
+                    (calobj.delay_array, calobj.delay_array[:, :, :, [-1]]), axis=3
                 )
             calobj.quality_array = np.concatenate(
-                (
-                    calobj.quality_array,
-                    calobj.quality_array[:, :, :, [-1]],
-                ),
-                axis=3,
+                (calobj.quality_array, calobj.quality_array[:, :, :, [-1]]), axis=3
             )
         else:
             calobj.flag_array = np.concatenate(
-                (
-                    calobj.flag_array,
-                    calobj.flag_array[:, :, :, :, [-1]],
-                ),
-                axis=4,
+                (calobj.flag_array, calobj.flag_array[:, :, :, :, [-1]]), axis=4
             )
             if calobj.input_flag_array is not None:
                 calobj.input_flag_array = np.concatenate(
@@ -1377,26 +1338,14 @@ def test_select_polarizations(
                 )
             if caltype == "gain":
                 calobj.gain_array = np.concatenate(
-                    (
-                        calobj.gain_array,
-                        calobj.gain_array[:, :, :, :, [-1]],
-                    ),
-                    axis=4,
+                    (calobj.gain_array, calobj.gain_array[:, :, :, :, [-1]]), axis=4
                 )
             else:
                 calobj.delay_array = np.concatenate(
-                    (
-                        calobj.delay_array,
-                        calobj.delay_array[:, :, :, :, [-1]],
-                    ),
-                    axis=4,
+                    (calobj.delay_array, calobj.delay_array[:, :, :, :, [-1]]), axis=4
                 )
             calobj.quality_array = np.concatenate(
-                (
-                    calobj.quality_array,
-                    calobj.quality_array[:, :, :, :, [-1]],
-                ),
-                axis=4,
+                (calobj.quality_array, calobj.quality_array[:, :, :, :, [-1]]), axis=4
             )
     # add dummy total_quality_array
     calobj.total_quality_array = np.zeros(
@@ -1441,8 +1390,7 @@ def test_select_polarizations(
 
     # check for warnings and errors associated with unevenly spaced polarizations
     with uvtest.check_warnings(
-        UserWarning,
-        match="Selected jones polarization terms are not evenly spaced",
+        UserWarning, match="Selected jones polarization terms are not evenly spaced"
     ):
         calobj.select(jones=calobj.jones_array[[0, 1, 3]])
     write_file_calfits = os.path.join(tmp_path, "select_test.calfits")
@@ -2666,18 +2614,12 @@ def test_add_errors(caltype, gain_data, delay_data, multi_spw_gain):
         calobj.__add__(calobj2)
 
     # test addition of UVCal and non-UVCal object (empty list)
-    with pytest.raises(
-        ValueError,
-        match="Only UVCal ",
-    ):
+    with pytest.raises(ValueError, match="Only UVCal "):
         calobj.__add__([])
 
     # test compatibility param mismatch
     calobj2.telescope_name = "PAPER"
-    with pytest.raises(
-        ValueError,
-        match="Parameter telescope_name does not match",
-    ):
+    with pytest.raises(ValueError, match="Parameter telescope_name does not match"):
         calobj.__add__(calobj2)
 
     # test array shape mismatch
@@ -2705,10 +2647,7 @@ def test_jones_warning(gain_data):
     calobj2.jones_array[0] = -6
     calobj += calobj2
     calobj2.jones_array[0] = -8
-    with uvtest.check_warnings(
-        UserWarning,
-        match="Combined Jones elements",
-    ):
+    with uvtest.check_warnings(UserWarning, match="Combined Jones elements"):
         calobj.__iadd__(calobj2)
     assert sorted(calobj.jones_array) == [-8, -6, -5]
 
@@ -2871,10 +2810,7 @@ def test_uvcal_get_methods(future_shapes, gain_data):
     # test against by-hand indexing
     if future_shapes:
         expected_array = uvc.gain_array[
-            uvc.ant_array.tolist().index(10),
-            :,
-            :,
-            uvc.jones_array.tolist().index(-5),
+            uvc.ant_array.tolist().index(10), :, :, uvc.jones_array.tolist().index(-5),
         ]
     else:
         expected_array = uvc.gain_array[
@@ -3223,10 +3159,7 @@ def test_init_from_uvdata_setfreqs_errors(uvcalibrate_data):
         ValueError, match="channel_width must be provided if frequencies is provided"
     ):
         UVCal.initialize_from_uvdata(
-            uvd,
-            uvc.gain_convention,
-            uvc.cal_style,
-            frequencies=freqs_use[0, :],
+            uvd, uvc.gain_convention, uvc.cal_style, frequencies=freqs_use[0, :]
         )
 
     with pytest.raises(
@@ -3329,10 +3262,7 @@ def test_init_from_uvdata_settimes_errors(uvcalibrate_data):
         ValueError, match="integation_time must be provided if times is provided"
     ):
         UVCal.initialize_from_uvdata(
-            uvd,
-            uvc.gain_convention,
-            uvc.cal_style,
-            times=times_use,
+            uvd, uvc.gain_convention, uvc.cal_style, times=times_use
         )
 
     with pytest.raises(
@@ -3361,10 +3291,7 @@ def test_init_from_uvdata_setjones(uvcalibrate_data):
     uvc2 = uvc.copy(metadata_only=True)
 
     uvc_new = UVCal.initialize_from_uvdata(
-        uvd,
-        uvc.gain_convention,
-        uvc.cal_style,
-        jones=[-5, -6],
+        uvd, uvc.gain_convention, uvc.cal_style, jones=[-5, -6]
     )
 
     # antenna positions are different by ~6cm or less. The ones in the uvcal file
@@ -3583,11 +3510,7 @@ def test_init_from_uvdata_sky(
 @pytest.mark.parametrize("flex_spw", [True, False])
 @pytest.mark.parametrize("set_frange", [True, False])
 def test_init_from_uvdata_delay(
-    uvdata_future_shapes,
-    uvcal_future_shapes,
-    flex_spw,
-    set_frange,
-    uvcalibrate_data,
+    uvdata_future_shapes, uvcal_future_shapes, flex_spw, set_frange, uvcalibrate_data
 ):
     uvd, uvc = uvcalibrate_data
 
@@ -3698,10 +3621,7 @@ def test_init_from_uvdata_delay(
 @pytest.mark.parametrize("flex_spw", [True, False])
 @pytest.mark.parametrize("set_frange", [True, False])
 def test_init_from_uvdata_wideband(
-    uvdata_future_shapes,
-    flex_spw,
-    set_frange,
-    uvcalibrate_data,
+    uvdata_future_shapes, flex_spw, set_frange, uvcalibrate_data
 ):
     uvd, uvc = uvcalibrate_data
 

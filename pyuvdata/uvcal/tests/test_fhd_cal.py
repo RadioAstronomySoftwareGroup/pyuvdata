@@ -24,14 +24,8 @@ settings_testfile_nodiffuse = os.path.join(
 layout_testfile = os.path.join(testdir, testfile_prefix + "layout.sav")
 
 testdir2 = os.path.join(DATA_PATH, "fhd_cal_data/set2")
-obs_file_multi = [
-    obs_testfile,
-    os.path.join(testdir2, testfile_prefix + "obs.sav"),
-]
-cal_file_multi = [
-    cal_testfile,
-    os.path.join(testdir2, testfile_prefix + "cal.sav"),
-]
+obs_file_multi = [obs_testfile, os.path.join(testdir2, testfile_prefix + "obs.sav")]
+cal_file_multi = [cal_testfile, os.path.join(testdir2, testfile_prefix + "cal.sav")]
 layout_file_multi = [layout_testfile, layout_testfile]
 settings_file_multi = [
     settings_testfile,
