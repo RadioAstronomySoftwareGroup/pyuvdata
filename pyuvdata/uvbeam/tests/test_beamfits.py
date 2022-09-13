@@ -25,14 +25,18 @@ cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
 def cst_power_1freq(cst_efield_1freq_main):
     beam_in = cst_efield_1freq_main.copy()
     beam_in.efield_to_power()
-    return beam_in.copy()
+    beam = beam_in.copy()
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="module")
 def cst_power_1freq_cut_healpix(cst_efield_1freq_cut_healpix_main):
     beam_in = cst_efield_1freq_cut_healpix_main.copy()
     beam_in.efield_to_power()
-    return beam_in.copy()
+    beam = beam_in.copy()
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="function")
@@ -53,7 +57,8 @@ def hera_beam_casa():
     # For now pretend it's in a zenith orthoslant projection
     beam_in.pixel_coordinate_system = "orthoslant_zenith"
 
-    return beam_in
+    yield beam_in
+    del beam_in
 
 
 @pytest.mark.filterwarnings("ignore:Fixing auto polarization power beams")
