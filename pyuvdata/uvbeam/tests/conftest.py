@@ -82,25 +82,37 @@ def single_freq_version(beam):
 @pytest.fixture(scope="session")
 def cst_efield_2freq_main():
     """Make session level 2-freq efield beam."""
-    return make_cst_beam("efield")
+    beam = make_cst_beam("efield")
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="function")
 def cst_efield_2freq(cst_efield_2freq_main):
     """Make function level 2-freq efield beam."""
-    return cst_efield_2freq_main.copy()
+    beam = cst_efield_2freq_main.copy()
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="session")
 def cst_efield_2freq_cut_main(cst_efield_2freq_main):
     """Make session level cut down 2-freq efield beam."""
-    return cut_beam(cst_efield_2freq_main.copy())
+    beam = cut_beam(cst_efield_2freq_main.copy())
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="function")
 def cst_efield_2freq_cut(cst_efield_2freq_cut_main):
     """Make function level cut down 2-freq efield beam."""
-    return cst_efield_2freq_cut_main.copy()
+    beam = cst_efield_2freq_cut_main.copy()
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="session")
@@ -110,73 +122,108 @@ def cst_efield_2freq_cut_healpix_main(cst_efield_2freq_cut_main):
     beam = cst_efield_2freq_cut_main.copy()
     beam.interpolation_function = "az_za_simple"
     beam.to_healpix()
-    return beam
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="function")
 def cst_efield_2freq_cut_healpix(cst_efield_2freq_cut_healpix_main):
     """Make function level cut down HEALPix 2-freq efield beam."""
-    return cst_efield_2freq_cut_healpix_main.copy()
+    beam = cst_efield_2freq_cut_healpix_main.copy()
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="session")
 def cst_efield_1freq_main(cst_efield_2freq_main):
     """Make session level single freq efield beam."""
-    return single_freq_version(cst_efield_2freq_main.copy())
+    beam = single_freq_version(cst_efield_2freq_main.copy())
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="function")
 def cst_efield_1freq(cst_efield_1freq_main):
     """Make function level single freq efield beam."""
-    return cst_efield_1freq_main.copy()
+    beam = cst_efield_1freq_main.copy()
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="session")
 def cst_efield_1freq_cut_main(cst_efield_2freq_cut_main):
     """Make session level cut down single freq efield beam."""
-    return single_freq_version(cst_efield_2freq_cut_main.copy())
+    beam = single_freq_version(cst_efield_2freq_cut_main.copy())
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="function")
 def cst_efield_1freq_cut(cst_efield_1freq_cut_main):
     """Make function level cut down single freq efield beam."""
-    return cst_efield_1freq_cut_main.copy()
+    beam = cst_efield_1freq_cut_main.copy()
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="session")
 def cst_efield_1freq_cut_healpix_main(cst_efield_2freq_cut_healpix_main):
     """Make session level HEALPix cut down single freq efield beam."""
-    return single_freq_version(cst_efield_2freq_cut_healpix_main.copy())
+    beam = single_freq_version(cst_efield_2freq_cut_healpix_main.copy())
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="function")
 def cst_efield_1freq_cut_healpix(cst_efield_1freq_cut_healpix_main):
     """Make function level HEALPix cut down single freq efield beam."""
-    return cst_efield_1freq_cut_healpix_main.copy()
+    beam = cst_efield_1freq_cut_healpix_main.copy()
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="session")
 def cst_power_2freq_main():
     """Make session level 2-freq power beam."""
-    return make_cst_beam("power")
+    beam = make_cst_beam("power")
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="function")
 def cst_power_2freq(cst_power_2freq_main):
     """Make function level 2-freq efield beam."""
-    return cst_power_2freq_main.copy()
+    beam = cst_power_2freq_main.copy()
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="session")
 def cst_power_2freq_cut_main(cst_power_2freq_main):
     """Make session level cut down 2-freq power beam."""
-    return cut_beam(cst_power_2freq_main.copy())
+    beam = cut_beam(cst_power_2freq_main.copy())
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="function")
 def cst_power_2freq_cut(cst_power_2freq_cut_main):
     """Make function level cut down 2-freq power beam."""
-    return cst_power_2freq_cut_main.copy()
+    beam = cst_power_2freq_cut_main.copy()
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="session")
@@ -186,49 +233,72 @@ def cst_power_2freq_cut_healpix_main(cst_power_2freq_cut_main):
     beam = cst_power_2freq_cut_main.copy()
     beam.interpolation_function = "az_za_simple"
     beam.to_healpix()
-    return beam
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="function")
 def cst_power_2freq_cut_healpix(cst_power_2freq_cut_healpix_main):
     """Make function level HEALPix cut down 2-freq power beam."""
-    return cst_power_2freq_cut_healpix_main.copy()
+    beam = cst_power_2freq_cut_healpix_main.copy()
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="session")
 def cst_power_1freq_main(cst_power_2freq_main):
     """Make session level single freq power beam."""
-    return single_freq_version(cst_power_2freq_main.copy())
+    beam = single_freq_version(cst_power_2freq_main.copy())
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="function")
 def cst_power_1freq(cst_power_1freq_main):
     """Make function level single freq power beam."""
-    return cst_power_1freq_main.copy()
+    beam = cst_power_1freq_main.copy()
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="session")
 def cst_power_1freq_cut_main(cst_power_2freq_cut_main):
     """Make session level cut down single freq power beam."""
-    return single_freq_version(cst_power_2freq_cut_main.copy())
+    beam = single_freq_version(cst_power_2freq_cut_main.copy())
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="function")
 def cst_power_1freq_cut(cst_power_1freq_cut_main):
     """Make function level cut down single freq power beam."""
-    return cst_power_1freq_cut_main.copy()
+    beam = cst_power_1freq_cut_main.copy()
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="session")
 def cst_power_1freq_cut_healpix_main(cst_power_2freq_cut_healpix_main):
     """Make session level HEALPix cut down single freq power beam."""
-    return single_freq_version(cst_power_2freq_cut_healpix_main.copy())
+    beam = single_freq_version(cst_power_2freq_cut_healpix_main.copy())
+
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="function")
 def cst_power_1freq_cut_healpix(cst_power_1freq_cut_healpix_main):
     """Make function level HEALPix cut down single freq power beam."""
-    return cst_power_1freq_cut_healpix_main.copy()
+    beam = cst_power_1freq_cut_healpix_main.copy()
+
+    yield beam
+    del beam
 
 
 @pytest.fixture
@@ -263,10 +333,15 @@ def phased_array_beam_2freq(cst_efield_2freq):
     )
 
     beam.check()
-    return beam
+
+    yield beam
+    del beam
 
 
 @pytest.fixture
 def phased_array_beam_1freq(phased_array_beam_2freq):
     """Basic phased_array beam for testing."""
-    return single_freq_version(phased_array_beam_2freq.copy())
+    beam = single_freq_version(phased_array_beam_2freq.copy())
+
+    yield beam
+    del beam

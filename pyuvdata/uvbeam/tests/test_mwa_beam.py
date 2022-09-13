@@ -20,12 +20,16 @@ def mwa_beam_1ppd_main():
     beam = UVBeam()
     beam.read_mwa_beam(filename, pixels_per_deg=1)
 
-    return beam
+    yield beam
+    del beam
 
 
 @pytest.fixture(scope="function")
 def mwa_beam_1ppd(mwa_beam_1ppd_main):
-    return mwa_beam_1ppd_main.copy()
+    beam = mwa_beam_1ppd_main.copy()
+
+    yield beam
+    del beam
 
 
 def test_read_write_mwa(mwa_beam_1ppd, tmp_path):
