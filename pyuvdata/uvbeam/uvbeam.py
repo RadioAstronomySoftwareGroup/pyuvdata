@@ -634,16 +634,15 @@ class UVBeam(UVBase):
 
         super(UVBeam, self).__init__()
 
-    @property
     def _freq_params(self):
-        """List of strings giving the parameters that shaped like the freq_array."""
-        return [
-            "bandpass_array",
-            "receiver_temperature_array",
-            "loss_array",
-            "mismatch_array",
-            "freq_array",
-        ]
+        """List of strings giving the parameters shaped like the freq_array."""
+        form = self._freq_array.form
+        param_list = []
+        for uvpar in self:
+            this_par = getattr(self, uvpar)
+            if this_par.form == form:
+                param_list.append(this_par.name)
+        return param_list
 
     def _set_future_array_shapes(self):
         """
@@ -654,10 +653,8 @@ class UVBeam(UVBase):
         `future_array_shapes` is True and define expected parameter shapes.
 
         """
-        self.future_array_shapes = True
-        self._freq_array.form = ("Nfreqs",)
-        for param_name in self._freq_params:
-            getattr(self, "_" + param_name).form = ("Nfreqs",)
+        for prop_name in self._freq_params():
+            getattr(self, "_" + prop_name).form = ("Nfreqs",)
 
         self._s_parameters.form = (4, "Nfreqs")
         self._data_array.form = ("Naxes_vec", "Nfeeds", "Nfreqs", "Naxes2", "Naxes1")
@@ -668,6 +665,7 @@ class UVBeam(UVBase):
             "Nfeeds",
             "Nfreqs",
         )
+        self.future_array_shapes = True
 
     def use_future_array_shapes(self, unset_spw_params=True):
         """
@@ -691,10 +689,10 @@ class UVBeam(UVBase):
         if self.coupling_matrix is not None:
             self.coupling_matrix = self.coupling_matrix[:, :, :, :, 0]
 
-        for param_name in self._freq_params:
-            param = getattr(self, param_name)
-            if param is not None:
-                setattr(self, param_name, param[0, :])
+        for prop_name in self._freq_params():
+            this_prop = getattr(self, prop_name)
+            if this_prop is not None:
+                setattr(self, prop_name, this_prop[0, :])
 
         if self.s_parameters is not None:
             self.s_parameters = self.s_parameters[:, 0, :]
@@ -721,8 +719,6 @@ class UVBeam(UVBase):
         if not self.future_array_shapes:
             raise ValueError("This object already has the current array shapes.")
 
-        self.future_array_shapes = False
-
         self._data_array.form = ("Naxes_vec", 1, "Nfeeds", "Nfreqs", "Naxes2", "Naxes1")
         self.data_array = self.data_array[:, np.newaxis]
 
@@ -741,20 +737,20 @@ class UVBeam(UVBase):
         if self.s_parameters is not None:
             self.s_parameters = self.s_parameters[:, np.newaxis, :]
 
-        for param_name in self._freq_params:
-            getattr(self, "_" + param_name).form = (
+        for prop_name in self._freq_params():
+            getattr(self, "_" + prop_name).form = (
                 1,
                 "Nfreqs",
             )
 
-        for param_name in self._freq_params:
-            param = getattr(self, param_name)
-            if param is not None:
-                setattr(self, param_name, param[np.newaxis, :])
+            this_prop = getattr(self, prop_name)
+            if this_prop is not None:
+                setattr(self, prop_name, this_prop[np.newaxis, :])
 
         if self.spw_array is None and self.Nspws is None and set_spw_params:
             self.Nspws = 1
             self.spw_array = np.array([0])
+        self.future_array_shapes = False
 
     def _set_cs_params(self):
         """Set parameters depending on pixel_coordinate_system."""
@@ -1077,12 +1073,12 @@ class UVBeam(UVBase):
             )
         for i in range(self.Nfreqs):
             if self.future_array_shapes:
-                max_val = abs(self.data_array[:, :, i, :]).max()
+                max_val = abs(self.data_array[:, :, i]).max()
                 self.data_array[:, :, i, :] /= max_val
                 self.bandpass_array[i] *= max_val
             else:
-                max_val = abs(self.data_array[:, :, :, i, :]).max()
-                self.data_array[:, :, :, i, :] /= max_val
+                max_val = abs(self.data_array[:, :, :, i]).max()
+                self.data_array[:, :, :, i] /= max_val
                 self.bandpass_array[:, i] *= max_val
         self.data_normalization = "peak"
 
