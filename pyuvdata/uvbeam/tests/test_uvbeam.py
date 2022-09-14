@@ -358,9 +358,8 @@ def test_check_auto_power(future_shapes, cst_efield_2freq_cut):
     power_beam.efield_to_power()
     if future_shapes:
         power_beam.use_future_array_shapes()
-        power_beam.data_array[:, 0] += power_beam.data_array[:, 2]
-    else:
-        power_beam.data_array[:, :, 0] += power_beam.data_array[:, :, 2]
+    power_beam.data_array[..., 0, :, :, :] += power_beam.data_array[..., 2, :, :, :]
+
     with pytest.raises(
         ValueError,
         match="Some auto polarization power beams have non-real values in "
@@ -416,10 +415,8 @@ def test_peak_normalize(future_shapes, beam_type, cst_efield_2freq, cst_power_2f
     orig_bandpass_array = copy.deepcopy(beam.bandpass_array)
     maxima = np.zeros(beam.Nfreqs)
     for freq_i in range(beam.Nfreqs):
-        if future_shapes:
-            maxima[freq_i] = np.amax(abs(beam.data_array[:, :, freq_i]))
-        else:
-            maxima[freq_i] = np.amax(abs(beam.data_array[:, :, :, freq_i]))
+        maxima[freq_i] = np.amax(abs(beam.data_array[..., freq_i, :, :]))
+
     beam.peak_normalize()
     assert np.amax(abs(beam.data_array)) == 1
     assert np.sum(abs(beam.bandpass_array - orig_bandpass_array * maxima)) == 0
@@ -627,66 +624,16 @@ def test_efield_to_power_crosspol(future_shapes, cst_efield_2freq_cut, tmp_path)
 
     # test calculating cross pols
     new_power_beam = efield_beam.efield_to_power(calc_cross_pols=True, inplace=False)
-    if future_shapes:
-        assert np.all(
-            np.abs(
-                new_power_beam.data_array[
-                    :, 0, :, :, np.where(new_power_beam.axis1_array == 0)[0]
-                ]
-            )
-            > np.abs(
-                new_power_beam.data_array[
-                    :, 2, :, :, np.where(new_power_beam.axis1_array == 0)[0]
-                ]
-            )
-        )
-        assert np.all(
-            np.abs(
-                new_power_beam.data_array[
-                    :, 0, :, :, np.where(new_power_beam.axis1_array == np.pi / 2.0)[0]
-                ]
-            )
-            > np.abs(
-                new_power_beam.data_array[
-                    :, 2, :, :, np.where(new_power_beam.axis1_array == np.pi / 2.0)[0]
-                ]
-            )
-        )
-    else:
-        assert np.all(
-            np.abs(
-                new_power_beam.data_array[
-                    :, :, 0, :, :, np.where(new_power_beam.axis1_array == 0)[0]
-                ]
-            )
-            > np.abs(
-                new_power_beam.data_array[
-                    :, :, 2, :, :, np.where(new_power_beam.axis1_array == 0)[0]
-                ]
-            )
-        )
-        assert np.all(
-            np.abs(
-                new_power_beam.data_array[
-                    :,
-                    :,
-                    0,
-                    :,
-                    :,
-                    np.where(new_power_beam.axis1_array == np.pi / 2.0)[0],
-                ]
-            )
-            > np.abs(
-                new_power_beam.data_array[
-                    :,
-                    :,
-                    2,
-                    :,
-                    :,
-                    np.where(new_power_beam.axis1_array == np.pi / 2.0)[0],
-                ]
-            )
-        )
+    wh_2pi = np.where(new_power_beam.axis1_array == np.pi / 2.0)[0]
+    wh_0 = np.where(new_power_beam.axis1_array == 0)[0]
+    assert np.all(
+        np.abs(new_power_beam.data_array[..., 0, :, :, wh_0])
+        > np.abs(new_power_beam.data_array[..., 2, :, :, wh_0])
+    )
+    assert np.all(
+        np.abs(new_power_beam.data_array[..., 0, :, :, wh_2pi])
+        > np.abs(new_power_beam.data_array[..., 2, :, :, wh_2pi])
+    )
     # test writing out & reading back in power files (with cross pols which are complex)
     write_file = str(tmp_path / "outtest_beam.fits")
     new_power_beam.write_beamfits(write_file, clobber=True)
@@ -951,12 +898,8 @@ def test_freq_interp_real_and_complex(future_shapes, cst_power_2freq):
         pbeam = power_beam.interp(freq_array=freqs, new_object=True)
 
     # modulate the data
-    if future_shapes:
-        pbeam.data_array[:, :, 1] *= 2
-        pbeam.data_array[:, :, 2] *= 0.5
-    else:
-        pbeam.data_array[:, :, :, 1] *= 2
-        pbeam.data_array[:, :, :, 2] *= 0.5
+    pbeam.data_array[..., 1] *= 2
+    pbeam.data_array[..., 2] *= 0.5
 
     # interpolate cubic on real data
     freqs = np.linspace(123e6, 150e6, 10)
@@ -1396,7 +1339,7 @@ def test_healpix_interpolation(
     za_orig_vals = za_orig_vals.ravel(order="C")
     freq_orig_vals = np.array([123e6, 150e6])
 
-    interp_data_array, interp_basis_vector = hpx_efield_beam.interp(
+    interp_data_array, _ = hpx_efield_beam.interp(
         az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals
     )
     data_array_compare = hpx_efield_beam.data_array
@@ -1459,7 +1402,7 @@ def test_healpix_interpolation(
     assert new_reg_beam == efield_beam
 
     # test no inputs equals same answer
-    interp_data_array2, interp_basis_vector2 = hpx_efield_beam.interp()
+    interp_data_array2, _ = hpx_efield_beam.interp()
     assert np.allclose(interp_data_array, interp_data_array2)
 
     # test errors with specifying healpix_inds without healpix_nside
@@ -1507,7 +1450,7 @@ def test_healpix_interpolation(
 
     power_beam = hpx_efield_beam.efield_to_power(inplace=False)
     del hpx_efield_beam
-    interp_data_array, interp_basis_vector = power_beam.interp(
+    interp_data_array, _ = power_beam.interp(
         az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals
     )
     data_array_compare = power_beam.data_array
@@ -1527,30 +1470,30 @@ def test_healpix_interpolation(
     assert select_beam == interp_beam
 
     # assert not feeding frequencies gives same answer
-    interp_data_array2, interp_basis_vector2 = power_beam.interp(
+    interp_data_array2, _ = power_beam.interp(
         az_array=az_orig_vals, za_array=za_orig_vals
     )
     assert np.allclose(interp_data_array, interp_data_array2)
 
     # assert not feeding az_array gives same answer
-    interp_data_array2, interp_basis_vector2 = power_beam.interp(
+    interp_data_array2, _ = power_beam.interp(
         az_array=az_orig_vals, za_array=za_orig_vals
     )
     assert np.allclose(interp_data_array, interp_data_array2)
 
     # test requesting polarization gives the same answer
-    interp_data_array2, interp_basis_vector2 = power_beam.interp(
+    interp_data_array2, _ = power_beam.interp(
         az_array=az_orig_vals, za_array=za_orig_vals, polarizations=["yy"]
     )
-    if future_shapes:
-        assert np.allclose(interp_data_array[:, 1:2], interp_data_array2[:, :1])
-    else:
-        assert np.allclose(interp_data_array[:, :, 1:2], interp_data_array2[:, :, :1])
+
+    assert np.allclose(
+        interp_data_array[..., 1:2, :, :], interp_data_array2[..., :1, :, :]
+    )
 
     # change complex data_array to real data_array and test again
     assert power_beam.data_array.dtype == np.complex128
     power_beam.data_array = np.abs(power_beam.data_array)
-    interp_data_array, interp_basis_vector = power_beam.interp(
+    interp_data_array, _ = power_beam.interp(
         az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals
     )
     data_array_compare = power_beam.data_array

@@ -19,6 +19,36 @@ cst_yaml_file = os.path.join(DATA_PATH, cst_folder, "NicCSTbeams.yaml")
 cst_yaml_vivaldi = os.path.join(DATA_PATH, cst_folder, "HERA_Vivaldi_CST_beams.yaml")
 
 
+@pytest.fixture(scope="function")
+def cst_efield_1freq_mod(cst_efield_1freq_main):
+    """Make modified version of 1-freq efield beam."""
+    beam = cst_efield_1freq_main.copy()
+
+    beam.reference_impedance = 100
+    beam.receiver_temperature_array = None
+    beam.loss_array = None
+    beam.mismatch_array = None
+    beam.s_parameters = None
+
+    yield beam
+    del beam
+
+
+@pytest.fixture(scope="function")
+def cst_efield_2freq_mod(cst_efield_2freq_main):
+    """Make modified version of 2-freq efield beam."""
+    beam = cst_efield_2freq_main.copy()
+
+    beam.reference_impedance = 100
+    beam.receiver_temperature_array = None
+    beam.loss_array = None
+    beam.mismatch_array = None
+    beam.s_parameters = None
+
+    yield beam
+    del beam
+
+
 def test_basic_frequencyparse():
     beam1 = CSTBeam()
 
@@ -73,7 +103,7 @@ def test_frequencyparse_decimal_non_mhz():
     assert parsed_freqs == [120.87e3, 120.87e9, 120.87]
 
 
-def test_read_yaml(cst_efield_2freq):
+def test_read_yaml(cst_efield_2freq_mod):
     pytest.importorskip("yaml")
     beam1 = UVBeam()
     beam2 = UVBeam()
@@ -85,7 +115,7 @@ def test_read_yaml(cst_efield_2freq):
         "port_num": 1,
     }
 
-    beam1 = cst_efield_2freq
+    beam1 = cst_efield_2freq_mod
     assert beam1.filename == ["HERA_NicCST_123MHz.txt", "HERA_NicCST_150MHz.txt"]
 
     beam2.read_cst_beam(cst_yaml_file, beam_type="efield")
@@ -97,19 +127,13 @@ def test_read_yaml(cst_efield_2freq):
         ]
     )
 
-    # update optional parameters for testing equality
-    beam1.reference_impedance = 100
-    beam1.receiver_temperature_array = None
-    beam1.loss_array = None
-    beam1.mismatch_array = None
-    beam1.s_parameters = None
     assert beam1 == beam2
 
     assert beam2.reference_impedance == 100
     assert beam2.extra_keywords == extra_keywords
 
 
-def test_read_yaml_onefile(cst_efield_1freq, tmp_path):
+def test_read_yaml_onefile(cst_efield_1freq_mod, tmp_path):
     pytest.importorskip("yaml")
     import yaml
 
@@ -138,13 +162,7 @@ def test_read_yaml_onefile(cst_efield_1freq, tmp_path):
         "port_num": 1,
     }
 
-    beam1 = cst_efield_1freq
-    # update optional parameters for testing equality
-    beam1.reference_impedance = 100
-    beam1.receiver_temperature_array = None
-    beam1.loss_array = None
-    beam1.mismatch_array = None
-    beam1.s_parameters = None
+    beam1 = cst_efield_1freq_mod
 
     beam2.read_cst_beam(test_yaml_file, beam_type="efield")
     assert beam1 == beam2
@@ -153,7 +171,7 @@ def test_read_yaml_onefile(cst_efield_1freq, tmp_path):
     assert beam2.extra_keywords == extra_keywords
 
 
-def test_read_yaml_override(cst_efield_2freq):
+def test_read_yaml_override(cst_efield_2freq_mod):
     pytest.importorskip("yaml")
     beam1 = UVBeam()
     beam2 = UVBeam()
@@ -165,13 +183,7 @@ def test_read_yaml_override(cst_efield_2freq):
         "port_num": 1,
     }
 
-    beam1 = cst_efield_2freq
-    # update optional parameters for testing equality
-    beam1.reference_impedance = 100
-    beam1.receiver_temperature_array = None
-    beam1.loss_array = None
-    beam1.mismatch_array = None
-    beam1.s_parameters = None
+    beam1 = cst_efield_2freq_mod
 
     beam1.telescope_name = "test"
 
@@ -190,19 +202,13 @@ def test_read_yaml_override(cst_efield_2freq):
     assert beam2.extra_keywords == extra_keywords
 
 
-def test_read_yaml_freq_select(cst_efield_1freq):
+def test_read_yaml_freq_select(cst_efield_1freq_mod):
     pytest.importorskip("yaml")
     # test frequency_select
     beam1 = UVBeam()
     beam2 = UVBeam()
 
-    beam1 = cst_efield_1freq
-    # update optional parameters for testing equality
-    beam1.reference_impedance = 100
-    beam1.receiver_temperature_array = None
-    beam1.loss_array = None
-    beam1.mismatch_array = None
-    beam1.s_parameters = None
+    beam1 = cst_efield_1freq_mod
 
     beam2.read_cst_beam(cst_yaml_file, beam_type="efield", frequency_select=[150e6])
 
@@ -214,7 +220,7 @@ def test_read_yaml_freq_select(cst_efield_1freq):
         beam2.read_cst_beam(cst_yaml_file, beam_type="power", frequency_select=[freq])
 
 
-def test_read_yaml_feed_pol_list(cst_efield_2freq, cst_efield_1freq):
+def test_read_yaml_feed_pol_list(cst_efield_2freq_mod, cst_efield_1freq_mod):
     pytest.importorskip("yaml")
     # make yaml with a list of (the same) feed_pols
     import yaml
@@ -238,13 +244,7 @@ def test_read_yaml_feed_pol_list(cst_efield_2freq, cst_efield_1freq):
         "port_num": 1,
     }
 
-    beam1 = cst_efield_2freq
-    # update optional parameters for testing equality
-    beam1.reference_impedance = 100
-    beam1.receiver_temperature_array = None
-    beam1.loss_array = None
-    beam1.mismatch_array = None
-    beam1.s_parameters = None
+    beam1 = cst_efield_2freq_mod
 
     beam2.read_cst_beam(test_yaml_file, beam_type="efield")
     assert beam1 == beam2
@@ -253,13 +253,7 @@ def test_read_yaml_feed_pol_list(cst_efield_2freq, cst_efield_1freq):
     assert beam2.extra_keywords == extra_keywords
 
     # also test with frequency_select
-    beam1 = cst_efield_1freq
-    # update optional parameters for testing equality
-    beam1.reference_impedance = 100
-    beam1.receiver_temperature_array = None
-    beam1.loss_array = None
-    beam1.mismatch_array = None
-    beam1.s_parameters = None
+    beam1 = cst_efield_1freq_mod
 
     beam2.read_cst_beam(test_yaml_file, beam_type="efield", frequency_select=[150e6])
     assert beam1 == beam2
