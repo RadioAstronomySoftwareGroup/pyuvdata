@@ -333,6 +333,7 @@ def test_error_antenna_type(phased_array_beam_1freq, tmp_path):
             ValueError,
             "Coordinate axis list does not match",
         ),
+        #  This case is is removing the first axis of the data (so changing the shape)
         ({"NAXIS": ""}, ValueError, "beam_type is efield and data dimensionality"),
         (
             {"CUNIT1": "foo"},
@@ -345,6 +346,7 @@ def test_error_antenna_type(phased_array_beam_1freq, tmp_path):
             'Units of second axis array are not "deg" or "rad"',
         ),
         ({"CUNIT3": "foo"}, ValueError, "Frequency units not recognized"),
+        # This case is changing the NAXIS5, so changing the data shape
         (
             {"NAXIS5": 2},
             NotImplementedError,
@@ -353,6 +355,9 @@ def test_error_antenna_type(phased_array_beam_1freq, tmp_path):
     ],
 )
 def test_header_val_errors(cst_efield_1freq, tmp_path, header_dict, err, error_msg):
+    """
+    Modify some beamfits files by hand to generate various errors on read.
+    """
     beam_in = cst_efield_1freq
     beam_out = UVBeam()
 
@@ -374,17 +379,20 @@ def test_header_val_errors(cst_efield_1freq, tmp_path, header_dict, err, error_m
         if "NAXIS" in keyword:
             ax_num = keyword.split("NAXIS")[1]
             if ax_num != "":
+                # This means we're changing the size of one of the axes of the data
                 ax_num = int(ax_num)
                 ax_use = len(data.shape) - ax_num
                 ax_size = primary_hdr[keyword]
                 assert new_val != ax_size
                 if new_val < ax_size:
+                    # the new axis size is larger than before
                     # make array bigger along specified axis
                     data = np.moveaxis(
                         (np.moveaxis(data, ax_use, 0))[:new_val], 0, ax_use
                     )
                     assert data.shape[ax_use] == new_val
                 else:
+                    # the new axis size is smaller than before
                     # make array smaller along specified axis
                     extra_size = new_val - ax_size
                     added_array = np.moveaxis(
