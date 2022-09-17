@@ -155,6 +155,7 @@ Optional:
 * pyyaml>=5.1 (for working with settings files for CST beam files)
 * novas and novas_de405 (for using the NOVAS library for astrometry)
 * astroquery >= 0.4.4 (for enabling lookup functionality with JPL-Horizons)
+* lunarsky >=0.1.2 (for working with simulated datasets for lunar telescopes)
 
 The numpy and astropy versions are important, so make sure these are up to date.
 
@@ -168,8 +169,8 @@ You can install the optional dependencies via pip by specifying an option
 when you install pyuvdata, as in ```pip install pyuvdata[healpix]```
 which will install all the required packages for using the HEALPix functionality
 in pyuvdata. The options that can be passed in this way are:
-[`casa`, `healpix`, `cst`, `all`, `test`, `doc`, `dev`]. The first three (`casa`, `healpix`, `cst`)
-enable various specific functionality while `all` will install all optional
+[`astroquery`, `casa`, `cst`, `healpix`, `lunar`, `novas`,  `all`, `test`, `doc`, `dev`].
+The first six enable various specific functionality while `all` will install all optional
 dependencies. The last three (`test`, `doc`, `dev`) may be useful for developers
 of pyuvdata.
 
