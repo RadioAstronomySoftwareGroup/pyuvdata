@@ -239,6 +239,10 @@ def test_no_moon():
         uvutils.XYZ_from_LatLonAlt(lat, lon, alt, frame="mcmf")
     with pytest.raises(ValueError, match=msg):
         uvutils.get_lst_for_time([2451545.0], 0, 0, 0, frame="mcmf")
+    with pytest.raises(ValueError, match=msg):
+        uvutils.ENU_from_ECEF(None, 0.0, 1.0, 10.0, frame="mcmf")
+    with pytest.raises(ValueError, match=msg):
+        uvutils.ECEF_from_ENU(None, 0.0, 1.0, 10.0, frame="mcmf")
 
 
 def test_lla_xyz_lla_roundtrip():
