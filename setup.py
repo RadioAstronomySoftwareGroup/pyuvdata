@@ -101,12 +101,14 @@ novas_reqs = ["novas", "novas_de405"]
 casa_reqs = ["python-casacore>=3.3.1"]
 healpix_reqs = ["astropy_healpix>=0.6"]
 cst_reqs = ["pyyaml>=5.1"]
+lunar_reqs = ["lunarsky>=0.1.2"]
 test_reqs = (
     casa_reqs
     + astroquery_reqs
     + healpix_reqs
     + novas_reqs
     + cst_reqs
+    + lunar_reqs
     + [
         "pytest>=6.2",
         "pytest-xdist",
@@ -144,19 +146,19 @@ setup_args = {
     "extras_require": {
         "astroquery": astroquery_reqs,
         "casa": casa_reqs,
-        "novas": novas_reqs,
-        "healpix": healpix_reqs,
         "cst": cst_reqs,
+        "healpix": healpix_reqs,
+        "lunar": lunar_reqs,
+        "novas": novas_reqs,
         "all": casa_reqs
         + healpix_reqs
         + cst_reqs
         + novas_reqs
         + astroquery_reqs
-        + ["lunarsky"],
+        + lunar_reqs,
         "test": test_reqs,
         "doc": doc_reqs,
         "dev": test_reqs + doc_reqs,
-        "lunar": ["lunarsky"],
     },
     "classifiers": [
         "Development Status :: 5 - Production/Stable",

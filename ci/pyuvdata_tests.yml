@@ -18,7 +18,8 @@ dependencies:
   - setuptools_scm<7.0|>=7.0.3
   - pip
   - pip:
-      - pytest-cases>=3.6.9
-      - pytest-xdist
+      - lunarsky>=0.1.2
       - novas
       - novas_de405
+      - pytest-cases>=3.6.9
+      - pytest-xdist
