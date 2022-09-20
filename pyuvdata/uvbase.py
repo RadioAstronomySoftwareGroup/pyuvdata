@@ -11,6 +11,7 @@ import copy
 import warnings
 
 import numpy as np
+from astropy.coordinates import SkyCoord
 from astropy.units import Quantity
 
 from . import __version__
@@ -591,6 +592,17 @@ class UVBase(object):
                                 param=p, pshape=np.shape(param.value), eshape=eshape
                             )
                         )
+                    # Handle SkyCoord objects separately
+                    if isinstance(param, uvp.SkyCoordParameter):
+                        if not issubclass(param.value.__class__, SkyCoord):
+                            raise ValueError(
+                                f"UVParameter {p} is should be a subclass of a "
+                                f"SkyCoord object but it is {type(param.value)}."
+                            )
+                        else:
+                            # matches expected type
+                            continue  # pragma: no cover
+
                     # Quantity objects complicate things slightly
                     # Do a separate check with warnings until a quantity based
                     # parameter value is created

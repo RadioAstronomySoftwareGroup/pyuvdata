@@ -15,6 +15,7 @@ import builtins
 
 import astropy.units as units
 import numpy as np
+from astropy.coordinates import SkyCoord
 
 from . import utils
 
@@ -70,6 +71,50 @@ class UVParameter(object):
     """
     Data and metadata objects for interferometric data sets.
 
+    Parameters
+    ----------
+    name : str
+        The name of the attribute. Used as the associated property name in
+        classes based on UVBase.
+    required : bool
+        Flag indicating whether this is required metadata for
+        the class with this UVParameter as an attribute. Default is True.
+    value
+        The value of the data or metadata.
+    spoof_val
+        A fake value that can be assigned to a non-required UVParameter if the
+        metadata is required for a particular file-type.
+        This is not an attribute of required UVParameters.
+    form : 'str', int or tuple
+        Either 'str' or a tuple giving information about the expected
+        shape of the value. Elements of the tuple may be the name of other
+        UVParameters that indicate data shapes.
+
+        Form examples:
+            - 'str': a string value
+            - ('Nblts', 3): the value should be an array of shape:
+               Nblts (another UVParameter name), 3
+            - (): a single numeric value
+            - 3: the value should be an array of shape (3, )
+
+    description : str
+        Description of the data or metadata in the object.
+    expected_type
+        The type that the data or metadata should be. Default is int or str if
+        form is 'str'.
+    acceptable_vals : list, optional
+        List giving allowed values for elements of value.
+    acceptable_range: 2-tuple, optional
+        Tuple giving a range of allowed magnitudes for elements of value.
+    tols : float or 2-tuple of float
+        Tolerances for testing the equality of UVParameters. Either a single
+        absolute value or a tuple of relative and absolute values to be used by
+        np.isclose()
+    strict_type_check : bool
+        When True, the input expected_type is used exactly, otherwise a more
+        generic type is found to allow changes in precicions or to/from numpy
+        dtypes to not break checks.
+
     Attributes
     ----------
     name : str
@@ -93,6 +138,8 @@ class UVParameter(object):
             - 'str': a string value
             - ('Nblts', 3): the value should be an array of shape:
                Nblts (another UVParameter name), 3
+            - (): a single numeric value
+            - 3: the value should be an array of shape (3, )
 
     description : str
         Description of the data or metadata in the object.
@@ -103,10 +150,9 @@ class UVParameter(object):
         List giving allowed values for elements of value.
     acceptable_range: 2-tuple, optional
         Tuple giving a range of allowed magnitudes for elements of value.
-    tols : float or 2-tuple of float
-        Tolerances for testing the equality of UVParameters. Either a single
-        absolute value or a tuple of relative and absolute values to be used by
-        np.isclose()
+    tols : 2-tuple of float
+        Relative and absolute tolerances for testing the equality of UVParameters, to be
+        used by np.isclose()
     strict_type_check : bool
         When True, the input expected_type is used exactly, otherwise a more
         generic type is found to allow changes in precicions or to/from numpy
@@ -156,7 +202,15 @@ class UVParameter(object):
             self.tols = tols
 
     def __eq__(self, other):
-        """Equal if classes match and values are identical."""
+        """
+        Test if classes match and values are within tolerances.
+
+        Parameters
+        ----------
+        other : UVParameter or subclass
+            The other UVParameter to compare with this one.
+
+        """
         if isinstance(other, self.__class__):
             if self.value is None:
                 if other.value is not None:
@@ -389,7 +443,15 @@ class UVParameter(object):
             return False
 
     def __ne__(self, other):
-        """Not equal."""
+        """
+        Test if classes do not match or values are not within tolerances.
+
+        Parameters
+        ----------
+        other : UVParameter or subclass
+            The other UVParameter to compare with this one.
+
+        """
         return not self.__eq__(other)
 
     def apply_spoof(self):
@@ -482,6 +544,94 @@ class AngleParameter(UVParameter):
 
     Adds extra methods for conversion to & from degrees (used by UVBase objects
     for _degrees properties associated with these parameters).
+
+    Parameters
+    ----------
+    name : str
+        The name of the attribute. Used as the associated property name in
+        classes based on UVBase.
+    required : bool
+        Flag indicating whether this is required metadata for
+        the class with this UVParameter as an attribute. Default is True.
+    value
+        The value of the data or metadata.
+    spoof_val
+        A fake value that can be assigned to a non-required UVParameter if the
+        metadata is required for a particular file-type.
+        This is not an attribute of required UVParameters.
+    form : 'str' or tuple
+        Either 'str' or a tuple giving information about the expected
+        shape of the value. Elements of the tuple may be the name of other
+        UVParameters that indicate data shapes.
+
+        Form examples:
+            - 'str': a string value
+            - ('Nblts', 3): the value should be an array of shape:
+               Nblts (another UVParameter name), 3
+            - (): a single numeric value
+            - 3: the value should be an array of shape (3, )
+
+    description : str
+        Description of the data or metadata in the object.
+    expected_type
+        The type that the data or metadata should be. Default is int or str if
+        form is 'str'.
+    acceptable_vals : list, optional
+        List giving allowed values for elements of value.
+    acceptable_range: 2-tuple, optional
+        Tuple giving a range of allowed magnitudes for elements of value.
+    tols : float or 2-tuple of float
+        Tolerances for testing the equality of UVParameters. Either a single
+        absolute value or a tuple of relative and absolute values to be used by
+        np.isclose()
+    strict_type_check : bool
+        When True, the input expected_type is used exactly, otherwise a more
+        generic type is found to allow changes in precicions or to/from numpy
+        dtypes to not break checks.
+
+    Attributes
+    ----------
+    name : str
+        The name of the attribute. Used as the associated property name in
+        classes based on UVBase.
+    required : bool
+        Flag indicating whether this is required metadata for
+        the class with this UVParameter as an attribute. Default is True.
+    value
+        The value of the data or metadata.
+    spoof_val
+        A fake value that can be assigned to a non-required UVParameter if the
+        metadata is required for a particular file-type.
+        This is not an attribute of required UVParameters.
+    form : 'str' or tuple
+        Either 'str' or a tuple giving information about the expected
+        shape of the value. Elements of the tuple may be the name of other
+        UVParameters that indicate data shapes.
+
+        Form examples:
+            - 'str': a string value
+            - ('Nblts', 3): the value should be an array of shape:
+               Nblts (another UVParameter name), 3
+            - (): a single numeric value
+            - 3: the value should be an array of shape (3, )
+
+    description : str
+        Description of the data or metadata in the object.
+    expected_type
+        The type that the data or metadata should be. Default is int or str if
+        form is 'str'.
+    acceptable_vals : list, optional
+        List giving allowed values for elements of value.
+    acceptable_range: 2-tuple, optional
+        Tuple giving a range of allowed magnitudes for elements of value.
+    tols : 2-tuple of float
+        Relative and absolute tolerances for testing the equality of UVParameters, to be
+        used by np.isclose()
+    strict_type_check : bool
+        When True, the input expected_type is used exactly, otherwise a more
+        generic type is found to allow changes in precicions or to/from numpy
+        dtypes to not break checks.
+
     """
 
     def degrees(self):
@@ -513,6 +663,67 @@ class LocationParameter(UVParameter):
     Adds extra methods for conversion to & from lat/lon/alt in radians or
     degrees (used by UVBase objects for _lat_lon_alt and _lat_lon_alt_degrees
     properties associated with these parameters).
+
+    Parameters
+    ----------
+    name : str
+        The name of the attribute. Used as the associated property name in
+        classes based on UVBase.
+    required : bool
+        Flag indicating whether this is required metadata for
+        the class with this UVParameter as an attribute. Default is True.
+    value
+        The value of the data or metadata.
+    spoof_val
+        A fake value that can be assigned to a non-required UVParameter if the
+        metadata is required for a particular file-type.
+        This is not an attribute of required UVParameters.
+    description : str
+        Description of the data or metadata in the object.
+    acceptable_vals : list, optional
+        List giving allowed values for elements of value.
+    acceptable_range: 2-tuple, optional
+        Tuple giving a range of allowed magnitudes for elements of value.
+    tols : float or 2-tuple of float
+        Tolerances for testing the equality of UVParameters. Either a single
+        absolute value or a tuple of relative and absolute values to be used by
+        np.isclose()
+    strict_type_check : bool
+        When True, the input expected_type is used exactly, otherwise a more
+        generic type is found to allow changes in precicions or to/from numpy
+        dtypes to not break checks.
+
+    Attributes
+    ----------
+    name : str
+        The name of the attribute. Used as the associated property name in
+        classes based on UVBase.
+    required : bool
+        Flag indicating whether this is required metadata for
+        the class with this UVParameter as an attribute. Default is True.
+    value
+        The value of the data or metadata.
+    spoof_val
+        A fake value that can be assigned to a non-required UVParameter if the
+        metadata is required for a particular file-type.
+        This is not an attribute of required UVParameters.
+    form : int
+       Always set to 3.
+    description : str
+        Description of the data or metadata in the object.
+    expected_type
+        Always set to float.
+    acceptable_vals : list, optional
+        List giving allowed values for elements of value.
+    acceptable_range: 2-tuple, optional
+        Tuple giving a range of allowed magnitudes for elements of value.
+    tols : 2-tuple of float
+        Relative and absolute tolerances for testing the equality of UVParameters, to be
+        used by np.isclose()
+    strict_type_check : bool
+        When True, the input expected_type is used exactly, otherwise a more
+        generic type is found to allow changes in precicions or to/from numpy
+        dtypes to not break checks.
 
     """
 
@@ -606,3 +817,156 @@ class LocationParameter(UVParameter):
                     f"Value {testval}, is not in allowed range: {self.acceptable_range}"
                 )
                 return False, message
+
+
+class SkyCoordParameter(UVParameter):
+    """
+    Subclass of UVParameter for SkyCoord parameters.
+
+    Needed for handling tolerances properly. The `tols` attribute is interpreted as the
+    tolerance of the sky separation in radians.
+
+    Parameters
+    ----------
+    name : str
+        The name of the attribute. Used as the associated property name in
+        classes based on UVBase.
+    required : bool
+        Flag indicating whether this is required metadata for
+        the class with this UVParameter as an attribute. Default is True.
+    value
+        The value of the data or metadata.
+    spoof_val
+        A fake value that can be assigned to a non-required UVParameter if the
+        metadata is required for a particular file-type.
+        This is not an attribute of required UVParameters.
+    form : 'str', int or tuple
+        Either 'str' or a tuple giving information about the expected
+        shape of the value. Elements of the tuple may be the name of other
+        UVParameters that indicate data shapes.
+
+        Form examples:
+            - 'str': a string value
+            - ('Nblts', 3): the value should be an array of shape:
+               Nblts (another UVParameter name), 3
+            - (): a single numeric value
+            - 3: the value should be an array of shape (3, )
+
+    description : str
+        Description of the data or metadata in the object.
+    expected_type
+        The type that the data or metadata should be. Default is int or str if
+        form is 'str'.
+    acceptable_vals : list, optional
+        List giving allowed values for elements of value.
+    acceptable_range: 2-tuple, optional
+        Tuple giving a range of allowed magnitudes for elements of value.
+    radian_tol : float
+        Tolerance of the sky separation in radians.
+    strict_type_check : bool
+        When True, the input expected_type is used exactly, otherwise a more
+        generic type is found to allow changes in precicions or to/from numpy
+        dtypes to not break checks.
+
+    Attributes
+    ----------
+    name : str
+        The name of the attribute. Used as the associated property name in
+        classes based on UVBase.
+    required : bool
+        Flag indicating whether this is required metadata for
+        the class with this UVParameter as an attribute. Default is True.
+    value
+        The value of the data or metadata.
+    spoof_val
+        A fake value that can be assigned to a non-required UVParameter if the
+        metadata is required for a particular file-type.
+        This is not an attribute of required UVParameters.
+    form : 'str' or tuple
+        Either 'str' or a tuple giving information about the expected
+        shape of the value. Elements of the tuple may be the name of other
+        UVParameters that indicate data shapes.
+
+        Form examples:
+            - 'str': a string value
+            - ('Nblts', 3): the value should be an array of shape:
+               Nblts (another UVParameter name), 3
+            - (): a single numeric value
+            - 3: the value should be an array of shape (3, )
+
+    description : str
+        Description of the data or metadata in the object.
+    expected_type
+        Always set to SkyCoord.
+    acceptable_vals : list, optional
+        List giving allowed values for elements of value.
+    acceptable_range: 2-tuple, optional
+        Tuple giving a range of allowed magnitudes for elements of value.
+    tols : 2-tuple of float
+        Set to (0, `radian_tol`).
+    strict_type_check : bool
+        When True, the input expected_type is used exactly, otherwise a more
+        generic type is found to allow changes in precicions or to/from numpy
+        dtypes to not break checks.
+
+    """
+
+    def __init__(
+        self,
+        name,
+        required=True,
+        value=None,
+        spoof_val=None,
+        form=(),
+        description="",
+        acceptable_range=None,
+        # standard angle tolerance: 1 mas in radians.
+        radian_tol=1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0),
+    ):
+        super(SkyCoordParameter, self).__init__(
+            name,
+            required=required,
+            value=value,
+            spoof_val=spoof_val,
+            form=form,
+            description=description,
+            expected_type=SkyCoord,
+            acceptable_range=acceptable_range,
+            tols=(0, radian_tol),
+        )
+
+    def __eq__(self, other):
+        if not issubclass(self.value.__class__, SkyCoord) or not issubclass(
+            other.value.__class__, SkyCoord
+        ):
+            return super(SkyCoordParameter, self).__eq__(other)
+
+        if self.value.shape != other.value.shape:
+            print(f"{self.name} parameter shapes are different")
+            return False
+
+        this_frame = self.value.frame.name
+        other_frame = other.value.frame.name
+        if this_frame != other_frame:
+            print(
+                f"{self.name} parameter has different frames, {this_frame} vs "
+                f"{other_frame}."
+            )
+            return False
+
+        this_rep_type = self.value.representation_type
+        other_rep_type = other.value.representation_type
+        if this_rep_type != other_rep_type:
+            print(
+                f"{self.name} parameter has different representation_types, "
+                f"{this_rep_type} vs {other_rep_type}."
+            )
+            return False
+
+        # finally calculate on sky separations
+        sky_separation = self.value.separation(other.value).rad
+        if np.any(sky_separation > self.tols[1]):
+            print(f"{self.name} parameter is not close. ")
+            return False
+
+        return True
