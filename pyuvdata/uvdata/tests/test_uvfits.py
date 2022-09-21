@@ -1138,14 +1138,14 @@ def test_read_uvfits_write_miriad(casa_uvfits, tmp_path):
     )
     assert miriad_uv == uvfits_uv
 
-    # check that setting the phase_type keyword also works
-    miriad_uv.read_miriad(testfile, phase_type="phased")
+    # check that setting the projected keyword also works
+    miriad_uv.read_miriad(testfile, projected=True)
 
-    # check that setting the phase_type to drift raises an error
+    # check that setting the projected False raises an error
     with pytest.raises(
-        ValueError, match='phase_type is "drift" but the RA values are constant.'
+        ValueError, match="projected is False but the RA values are constant."
     ):
-        miriad_uv.read_miriad(testfile, phase_type="drift")
+        miriad_uv.read_miriad(testfile, projected=False)
 
     # check that setting it works after selecting a single time
     uvfits_uv.select(times=uvfits_uv.time_array[0])

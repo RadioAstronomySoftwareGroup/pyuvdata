@@ -335,6 +335,8 @@ class UVH5(UVData):
             phase_type = bytes(header["phase_type"][()]).decode("utf8")
             if "object_name" in header:
                 cat_name = bytes(header["object_name"][()]).decode("utf8")
+            else:
+                cat_name = None
             if "phase_center_ra" in header:
                 phase_center_ra = float(header["phase_center_ra"][()])
             if "phase_center_dec" in header:
@@ -354,7 +356,9 @@ class UVH5(UVData):
                 phase_type = "drift"
 
             if phase_type == "drift":
-                cat_id = self._add_phase_center("unprojected", cat_type="unprojected")
+                if cat_name is None:
+                    cat_name = "unprojected"
+                cat_id = self._add_phase_center(cat_name, cat_type="unprojected")
             else:
                 cat_id = self._add_phase_center(
                     cat_name,
@@ -496,6 +500,7 @@ class UVH5(UVData):
         lst_range,
         polarizations,
         blt_inds,
+        phase_center_ids,
         data_array_dtype,
         keep_all_metadata,
         multidim_index,
@@ -556,6 +561,7 @@ class UVH5(UVData):
             lst_range,
             polarizations,
             blt_inds,
+            phase_center_ids,
         )
 
         # figure out which axis is the most selective
@@ -814,6 +820,7 @@ class UVH5(UVData):
         lst_range=None,
         polarizations=None,
         blt_inds=None,
+        phase_center_ids=None,
         keep_all_metadata=True,
         read_data=True,
         data_array_dtype=np.complex128,
@@ -899,6 +906,9 @@ class UVH5(UVData):
         blt_inds : array_like of int, optional
             The baseline-time indices to include when reading data into the
             object. This is not commonly used. Ignored if read_data is False.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to include when reading data into the object (effectively
+            a selection on baseline-times).
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
@@ -1005,6 +1015,7 @@ class UVH5(UVData):
                     lst_range,
                     polarizations,
                     blt_inds,
+                    phase_center_ids,
                     data_array_dtype,
                     keep_all_metadata,
                     multidim_index,
@@ -1586,6 +1597,7 @@ class UVH5(UVData):
         lst_range=None,
         polarizations=None,
         blt_inds=None,
+        phase_center_ids=None,
         run_check_acceptability=True,
         add_to_history=None,
     ):
@@ -1670,6 +1682,9 @@ class UVH5(UVData):
         blt_inds : array_like of int, optional
             The baseline-time indices to include when writing data to the file.
             This is not commonly used.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to include when writing data into the file (effectively
+            a selection on baseline-times).
         add_to_history : str
             String to append to history before write out. Default is no appending.
 
@@ -1726,6 +1741,7 @@ class UVH5(UVData):
             lst_range,
             polarizations,
             blt_inds,
+            phase_center_ids,
         )
 
         # make sure that the dimensions of the data to write are correct

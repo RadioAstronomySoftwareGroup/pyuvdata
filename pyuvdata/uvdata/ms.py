@@ -1086,20 +1086,19 @@ class MS(UVData):
         # objects can, so we need to check here whether or not any such data exists
         # (and if need be, fix it).
         # TODO: I thought CASA could handle driftscan data. Are we sure it can't handle
-        # unprojected data? Maybe update the print and error messages below...
+        # unprojected data?
         unprojected_blts = self._check_for_cat_type("unprojected")
         if np.any(unprojected_blts):
             if force_phase:
                 print(
-                    "The data are in drift mode and do not have a "
-                    "defined phase center. Phasing to zenith of the first "
+                    "The data are unprojected. Phasing to zenith of the first "
                     "timestamp."
                 )
                 phase_time = Time(self.time_array[0], format="jd")
                 self.phase_to_time(phase_time, select_mask=unprojected_blts)
             else:
                 raise ValueError(
-                    "The data are in drift mode. "
+                    "The data are unprojected. "
                     "Set force_phase to true to phase the data "
                     "to zenith of the first timestamp before "
                     "writing a measurement set file."
@@ -2102,7 +2101,9 @@ class MS(UVData):
         # antenna names
         ant_names = np.asarray(tb_ant.getcol("NAME"))[ant_good_position].tolist()
         station_names = np.asarray(tb_ant.getcol("STATION"))[ant_good_position].tolist()
-        self.antenna_diameters = tb_ant.getcol("DISH_DIAMETER")[ant_good_position]
+        antenna_diameters = tb_ant.getcol("DISH_DIAMETER")[ant_good_position]
+        if np.any(antenna_diameters > 0):
+            self.antenna_diameters = antenna_diameters
 
         # importuvfits measurement sets store antenna names in the STATION column.
         # cotter measurement sets store antenna names in the NAME column, which is

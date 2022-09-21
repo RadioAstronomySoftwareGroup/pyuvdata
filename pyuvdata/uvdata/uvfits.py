@@ -206,6 +206,7 @@ class UVFITS(UVData):
         lst_range,
         polarizations,
         blt_inds,
+        phase_center_ids,
         read_metadata,
         keep_all_metadata,
         run_check,
@@ -236,6 +237,7 @@ class UVFITS(UVData):
             lst_range,
             polarizations,
             blt_inds,
+            phase_center_ids,
         )
 
         if blt_inds is not None:
@@ -369,6 +371,7 @@ class UVFITS(UVData):
         lst_range=None,
         polarizations=None,
         blt_inds=None,
+        phase_center_ids=None,
         keep_all_metadata=True,
         read_data=True,
         background_lsts=True,
@@ -452,6 +455,9 @@ class UVFITS(UVData):
         blt_inds : array_like of int, optional
             The baseline-time indices to include when reading data into the
             object. This is not commonly used. Ignored if read_data is False.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to include when reading data into the object (effectively
+            a selection on baseline-times).
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
@@ -859,6 +865,7 @@ class UVFITS(UVData):
                 lst_range,
                 polarizations,
                 blt_inds,
+                phase_center_ids,
                 False,
                 keep_all_metadata,
                 run_check,
@@ -898,9 +905,8 @@ class UVFITS(UVData):
         filename : str
             The uvfits file to write to.
         spoof_nonessential : bool
-            Option to spoof the values of optional UVParameters that are not set
-            but are required for uvfits files. This keyword is now deprecated, as values
-            are automatically set to their best known values if not previously set.
+            Deprecated and has no effect. Values are automatically set to their best
+            known values if not previously set.
         write_lst : bool
             Option to write the LSTs to the metadata (random group parameters).
         force_phase : bool

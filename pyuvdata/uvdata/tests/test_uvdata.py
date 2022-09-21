@@ -210,7 +210,7 @@ def carma_miriad_main():
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", "Altitude is not present in Miriad file")
         uv_object.read(testfile, run_check=False, check_extra=False)
-    uv_object.extra_keywords = None
+    uv_object.extra_keywords = {}
 
     yield uv_object
 
@@ -965,6 +965,7 @@ def test_phase_unphase_hera(uv1_2_set_uvws, future_shapes, phase_kwargs):
         "describes what is being done. This method will be removed in version 2.4.",
     ):
         uv1.unphase_to_drift()
+    uv1.rename_phase_center(0, new_name="zenith")
     # check that phase + unphase gets back to raw
     assert uv_raw == uv1
 
@@ -981,7 +982,7 @@ def test_phase_unphase_hera_one_bl(uv1_2_set_uvws):
         "Defaulting to naming based on lat/lon.",
     ):
         uv_phase_small.phase(Angle("23h").rad, Angle("15d").rad)
-    uv_phase_small.unproject_phase()
+    uv_phase_small.unproject_phase(cat_name="zenith")
     assert uv_raw_small == uv_phase_small
 
 
@@ -1022,7 +1023,7 @@ def test_phase_unphase_hera_antpos(uv1_2_set_uvws):
     assert uv_phase2 == uv_phase
 
     # check that phase + unphase gets back to raw using antpos
-    uv_phase.unproject_phase(use_ant_pos=True)
+    uv_phase.unproject_phase(use_ant_pos=True, cat_name="zenith")
     assert uv_raw_new == uv_phase
 
 
@@ -1049,7 +1050,7 @@ def test_phase_hera_zenith_timestamp_minimal_changes(uv1_2_set_uvws):
 def test_phase_to_time_jd_input(uv1_2_set_uvws):
     uv_phase, uv_raw = uv1_2_set_uvws
     uv_phase.phase_to_time(uv_raw.time_array[0])
-    uv_phase.unproject_phase()
+    uv_phase.unproject_phase(cat_name="zenith")
     assert uv_phase == uv_raw
 
 
@@ -1095,7 +1096,7 @@ def test_unphase_drift_data_error(uv1_2_set_uvws, sma_mir, future_shapes):
         match="The `use_old_proj` option is deprecated and will be removed in "
         "version 2.4.",
     ):
-        uv_phase.unproject_phase(use_old_proj=True)
+        uv_phase.unproject_phase(use_old_proj=True, cat_name="zenith")
     assert uv_drift == uv_phase
 
     with pytest.raises(
@@ -1531,6 +1532,66 @@ def test_select_blts(paper_uvh5, future_shapes):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_phase_center_id(tmp_path, carma_miriad):
+    uv_obj = carma_miriad
+    testfile = os.path.join(tmp_path, "outtest.uvh5")
+
+    uv1 = uv_obj.select(phase_center_ids=0, inplace=False)
+    uv2 = uv_obj.select(phase_center_ids=[1, 2], inplace=False)
+
+    uv_sum = uv1 + uv2
+    assert uvutils._check_histories(
+        uv_obj.history + "  Downselected to specific phase center IDs using pyuvdata.  "
+        "Combined data along baseline-time axis using pyuvdata.",
+        uv_sum.history,
+    )
+    uv_sum.history = uv_obj.history
+
+    assert uv_sum == uv_obj
+
+    uv_obj.write_uvh5(testfile)
+
+    uv1_read = UVData.from_file(testfile, phase_center_ids=0)
+    assert uv1_read == uv1
+
+    uv2_read = UVData.from_file(testfile, phase_center_ids=[1, 2])
+    assert uv2_read == uv2
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_phase_center_id_blts(carma_miriad):
+    uv_obj = carma_miriad
+    uv_obj.reorder_blts(order="baseline")
+
+    uv1 = uv_obj.select(
+        phase_center_ids=0, blt_inds=np.arange(uv_obj.Nblts // 2), inplace=False
+    )
+    uv2 = uv_obj.select(
+        phase_center_ids=[1, 2], blt_inds=np.arange(uv_obj.Nblts // 2), inplace=False
+    )
+    uv3 = uv_obj.select(
+        blt_inds=np.arange(uv_obj.Nblts // 2, uv_obj.Nblts), inplace=False
+    )
+
+    uv_sum = uv1 + uv2 + uv3
+    print(uv_sum.history)
+    assert uvutils._check_histories(
+        uv_obj.history
+        + "  Downselected to specific baseline-times, phase center IDs using pyuvdata. "
+        "Combined data along baseline-time axis using pyuvdata.  "
+        "Combined data along baseline-time axis using pyuvdata.  "
+        "Unique part of next object history follows.  baseline-times",
+        uv_sum.history,
+    )
+    uv_sum.history = uv_obj.history
+
+    uv_sum.reorder_blts()
+    uv_obj.reorder_blts()
+
+    assert uv_sum == uv_obj
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_antennas(casa_uvfits):
     uv_object = casa_uvfits
 
@@ -1929,8 +1990,9 @@ def test_select_time_range(casa_uvfits):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_select_lsts(casa_uvfits, future_shapes):
+def test_select_lsts(casa_uvfits, tmp_path, future_shapes):
     uv_object = casa_uvfits
 
     if future_shapes:
@@ -1971,6 +2033,49 @@ def test_select_lsts(casa_uvfits, future_shapes):
         old_history + "  Downselected to specific lsts using pyuvdata.",
         uv_object2.history,
     )
+
+    testfile = os.path.join(tmp_path, "outtest.uvh5")
+    uv_object.write_uvh5(testfile)
+
+    uv2_in = UVData.from_file(testfile, lsts=lsts_to_keep)
+    if future_shapes:
+        uv2_in.use_future_array_shapes()
+
+    assert uv2_in == uv_object2
+
+    testfile = os.path.join(tmp_path, "outtest.ms")
+    uv_object.write_ms(testfile)
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            'select on read keyword set, but file_type is "ms" which does not '
+            "support select on read",
+            "The uvw_array does not match the expected values",
+            "The uvw_array does not match the expected values",
+        ],
+    ):
+        uv2_in = UVData.from_file(testfile, lsts=lsts_to_keep)
+    if future_shapes:
+        uv2_in.use_future_array_shapes()
+
+    uv2_in.history = uv_object2.history
+    uv2_in._consolidate_phase_center_catalogs(
+        reference_catalog=uv_object2.phase_center_catalog, ignore_name=True
+    )
+    params_to_update = [
+        "dut1",
+        "earth_omega",
+        "gst0",
+        "rdate",
+        "timesys",
+        "extra_keywords",
+        "scan_number_array",
+    ]
+    for param in params_to_update:
+        setattr(uv2_in, param, getattr(uv_object2, param))
+
+    assert uv2_in == uv_object2
 
     return
 
@@ -2073,7 +2178,8 @@ def test_select_lsts_too_big(casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_select_lst_range(casa_uvfits):
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
+def test_select_lst_range(casa_uvfits, tmp_path):
     uv_object = casa_uvfits
     old_history = uv_object.history
     unique_lsts = np.unique(uv_object.lst_array)
@@ -2101,6 +2207,45 @@ def test_select_lst_range(casa_uvfits):
         old_history + "  Downselected to specific lsts using pyuvdata.",
         uv_object2.history,
     )
+
+    testfile = os.path.join(tmp_path, "outtest.uvh5")
+    uv_object.write_uvh5(testfile)
+
+    uv2_in = UVData.from_file(testfile, lst_range=lst_range)
+
+    assert uv2_in == uv_object2
+
+    testfile = os.path.join(tmp_path, "outtest.ms")
+    uv_object.write_ms(testfile)
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            'select on read keyword set, but file_type is "ms" which does not '
+            "support select on read",
+            "The uvw_array does not match the expected values",
+            "The uvw_array does not match the expected values",
+        ],
+    ):
+        uv2_in = UVData.from_file(testfile, lst_range=lst_range)
+
+    uv2_in.history = uv_object2.history
+    uv2_in._consolidate_phase_center_catalogs(
+        reference_catalog=uv_object2.phase_center_catalog, ignore_name=True
+    )
+    params_to_update = [
+        "dut1",
+        "earth_omega",
+        "gst0",
+        "rdate",
+        "timesys",
+        "extra_keywords",
+        "scan_number_array",
+    ]
+    for param in params_to_update:
+        setattr(uv2_in, param, getattr(uv_object2, param))
+
+    assert uv2_in == uv_object2
 
     return
 
@@ -4265,7 +4410,7 @@ def test_add_error_drift_and_rephase(casa_uvfits, test_func, extra_kwargs):
 )
 def test_add_this_phased_unproject_phase(uv_phase_time_split, test_func, extra_kwargs):
     (uv_phase_1, uv_phase_2, uv_phase, uv_raw_1, uv_raw_2, uv_raw) = uv_phase_time_split
-    func_kwargs = {"unphase_to_drift": True, "inplace": False}
+    func_kwargs = {"unphase_to_drift": True, "inplace": False, "ignore_name": True}
     func_kwargs.update(extra_kwargs)
     with uvtest.check_warnings(
         [DeprecationWarning, UserWarning],
@@ -4275,13 +4420,14 @@ def test_add_this_phased_unproject_phase(uv_phase_time_split, test_func, extra_k
         ],
     ):
         uv_out = getattr(uv_phase_1, test_func)(uv_raw_2, **func_kwargs)
+    assert uv_out.Nphase == 1
     # the histories will be different here
     # but everything else should match.
     uv_out.history = copy.deepcopy(uv_raw.history)
     # ensure baseline time order is the same
     # because fast_concat will not order for us
     uv_out.reorder_blts(order="time", minor_order="baseline")
-    assert uv_out.phase_type == "drift"
+    assert np.all(uv_out._check_for_cat_type("unprojected"))
     assert uv_out == uv_raw
 
 
@@ -4293,7 +4439,7 @@ def test_add_this_phased_unproject_phase(uv_phase_time_split, test_func, extra_k
 def test_add_other_phased_unproject_phase(uv_phase_time_split, test_func, extra_kwargs):
     (uv_phase_1, uv_phase_2, uv_phase, uv_raw_1, uv_raw_2, uv_raw) = uv_phase_time_split
 
-    func_kwargs = {"unphase_to_drift": True, "inplace": False}
+    func_kwargs = {"unphase_to_drift": True, "inplace": False, "ignore_name": True}
     func_kwargs.update(extra_kwargs)
     with uvtest.check_warnings(
         [DeprecationWarning, UserWarning],
@@ -4310,7 +4456,8 @@ def test_add_other_phased_unproject_phase(uv_phase_time_split, test_func, extra_
     # ensure baseline time order is the same
     # because fast_concat will not order for us
     uv_out.reorder_blts(order="time", minor_order="baseline")
-    assert uv_out.phase_type == "drift"
+    uv_out.rename_phase_center(0, new_name="zenith")
+    assert np.all(uv_out._check_for_cat_type("unprojected"))
     assert uv_out == uv_raw
 
 
@@ -6942,12 +7089,9 @@ def test_redundancy_missing_groups(method, pyuvsim_redundant, tmp_path):
     assert uv1.filename == ["temp_hera19_missingreds.uvfits"]
 
     # update phase center catalog to make objects match
-    uv1._update_phase_center_id(1, new_id=0)
-    uv1.rename_phase_center(0, new_name=uv0.phase_center_catalog[0]["cat_name"])
-    uv1.phase_center_catalog[0]["info_source"] = uv0.phase_center_catalog[0][
-        "info_source"
-    ]
-
+    uv1._consolidate_phase_center_catalogs(
+        reference_catalog=uv0.phase_center_catalog, ignore_name=True
+    )
     assert uv0 == uv1  # Check that writing compressed files causes no issues.
 
     with uvtest.check_warnings(
@@ -10003,20 +10147,20 @@ def test_look_in_catalog_err(sma_mir, kwargs, err_type, err_msg):
 @pytest.mark.parametrize(
     "name,stype,arg_dict,exp_id,exp_diffs",
     (
-        ["unprojected", None, {}, 0, 4],
-        ["unprojected", "driftscan", {}, 0, 1],
-        ["unprojected", "unprojected", {}, 0, 0],
-        ["zenith", "unprojected", {}, None, 99999],
-        ["zenith", "unprojected", {"ignore_name": True}, 0, 0],
-        ["unprojected", "unprojected", {"lat": 1.0}, 0, 1],
-        ["unprojected", "unprojected", {"lon": 1.0}, 0, 1],
-        ["unprojected", "unprojected", {"frame": 1.0}, 0, 1],
-        ["unprojected", "unprojected", {"epoch": 1.0}, 0, 1],
-        ["unprojected", "unprojected", {"times": 1.0}, 0, 1],
-        ["unprojected", "unprojected", {"pm_ra": 1.0}, 0, 1],
-        ["unprojected", "unprojected", {"pm_dec": 1.0}, 0, 1],
-        ["unprojected", "unprojected", {"dist": 1.0}, 0, 1],
-        ["unprojected", "unprojected", {"vrad": 1.0}, 0, 1],
+        ["zenith", None, {}, 0, 4],
+        ["zenith", "driftscan", {}, 0, 1],
+        ["zenith", "unprojected", {}, 0, 0],
+        ["unprojected", "unprojected", {}, None, 99999],
+        ["unprojected", "unprojected", {"ignore_name": True}, 0, 0],
+        ["zenith", "unprojected", {"lat": 1.0}, 0, 1],
+        ["zenith", "unprojected", {"lon": 1.0}, 0, 1],
+        ["zenith", "unprojected", {"frame": 1.0}, 0, 1],
+        ["zenith", "unprojected", {"epoch": 1.0}, 0, 1],
+        ["zenith", "unprojected", {"times": 1.0}, 0, 1],
+        ["zenith", "unprojected", {"pm_ra": 1.0}, 0, 1],
+        ["zenith", "unprojected", {"pm_dec": 1.0}, 0, 1],
+        ["zenith", "unprojected", {"dist": 1.0}, 0, 1],
+        ["zenith", "unprojected", {"vrad": 1.0}, 0, 1],
     ),
 )
 def test_look_in_catalog(hera_uvh5, name, stype, arg_dict, exp_id, exp_diffs):
@@ -10072,8 +10216,6 @@ def test_look_in_catalog_phase_dict(sma_mir):
     "name,stype,arg_dict,msg",
     (
         [-1, "drift", {}, "cat_name must be a string."],
-        ["unprojected", "drift", {}, "The name unprojected is reserved."],
-        ["unprojected", "drift", {}, "The name unprojected is reserved."],
         ["zenith", "drift", {}, "Only sidereal, ephem, driftscan or unprojected may"],
         ["zenith", "driftscan", {"pm_ra": 0, "pm_dec": 0}, "Non-zero proper motion"],
         [
@@ -10219,7 +10361,6 @@ def test_rename_phase_center_ints(carma_miriad, cat_id, new_name):
             TypeError,
             "catalog_identifier must be a string, an integer or a list of integers.",
         ],
-        [["3C273", "unprojected"], ValueError, 'The name "unprojected" is reserved.'],
         [[-1, None], ValueError, "No entry with the ID -1 in the catalog."],
     ),
 )
@@ -10239,7 +10380,6 @@ def test_rename_phase_center_bad_args(carma_miriad, args, err_type, msg):
     (
         [["abc", "xyz", 1], ValueError, "No catalog entries matching the name abc."],
         [["3C273", -2, 1], TypeError, "Value provided to new_name must be a string"],
-        [["1159+292", "unprojected", -1], ValueError, "The name unprojected is reserv"],
         [["3C273", "3c273", 1.5], IndexError, "select_mask must be an array-like,"],
         [["3C273", "3c273", 1], ValueError, "Data selected with select_mask includes"],
         [[-1], ValueError, "No entry with the ID -1 found in the catalog"],
@@ -10762,7 +10902,7 @@ def test_fix_phase(hera_uvh5, future_shapes, use_ant_pos):
         DeprecationWarning,
         match="The `fix_old_proj` parameter is deprecated and will be removed",
     ):
-        uv_in.phase(phase_ra, phase_dec, fix_old_proj=True, cat_name="zenith")
+        uv_in.phase(phase_ra, phase_dec, fix_old_proj=True, cat_name="foo")
 
     # First test the case where we are using the old phase method with the uvws
     # calculated from the antenna positions. Using fix phase here should be "perfect",
@@ -10776,7 +10916,7 @@ def test_fix_phase(hera_uvh5, future_shapes, use_ant_pos):
             phase_dec,
             use_old_proj=True,
             use_ant_pos=use_ant_pos,
-            cat_name="zenith",
+            cat_name="foo",
         )
 
     if use_ant_pos:
