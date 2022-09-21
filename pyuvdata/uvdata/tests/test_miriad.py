@@ -26,6 +26,7 @@ import shutil
 import numpy as np
 import pytest
 from astropy import constants as const
+from astropy.coordinates import Angle
 from astropy.time import Time, TimeDelta
 
 import pyuvdata.tests as uvtest
@@ -182,7 +183,7 @@ def test_read_write_read_carma(tmp_path):
 
     # We should get the same result if we feed in these parameters, since the original
     # file had the LST calculated on read, and its def a phased dataset
-    uv_out.read(testfile, calc_lst=False, phase_type="phased")
+    uv_out.read(testfile, calc_lst=False)
 
     assert uv_in == uv_out
 
@@ -349,22 +350,16 @@ def test_miriad_read_warning_lat_lon_corrected():
         miriad_uv.read(paper_miriad_file, correct_lat_lon=False)
 
 
-@pytest.mark.parametrize(
-    "err_type,read_kwargs,err_msg",
-    [
-        (
-            ValueError,
-            {"phase_type": "phased"},
-            'phase_type is "phased" but the RA values are varying',
-        ),
-        (ValueError, {"phase_type": "foo"}, "The phase_type was not recognized."),
-    ],
-)
-def test_read_miriad_phasing_errors(err_type, read_kwargs, err_msg):
+def test_read_miriad_phasing_errors():
     miriad_uv = UVData()
     # check that setting the phase_type to something wrong errors
-    with pytest.raises(err_type, match=err_msg):
-        miriad_uv.read(paper_miriad_file, **read_kwargs)
+    with pytest.raises(
+        ValueError, match="The phase_type was not one of the recognized options."
+    ):
+        with uvtest.check_warnings(
+            DeprecationWarning, match="The phase_type parameter is deprecated"
+        ):
+            miriad_uv.read(paper_miriad_file, phase_type="foo")
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -424,7 +419,8 @@ def test_wronglatlon():
         UserWarning,
         [
             "Altitude is not present in file and latitude value does not match",
-            "drift RA, Dec is off from lst, latitude by more than 1.0 deg",
+            "projected is False, but RA, Dec is off from lst, latitude by more than "
+            "1.0 deg",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
@@ -435,7 +431,8 @@ def test_wronglatlon():
         UserWarning,
         [
             "Altitude is not present in file and longitude value does not match",
-            "drift RA, Dec is off from lst, latitude by more than 1.0 deg",
+            "projected is False, but RA, Dec is off from lst, latitude by more than "
+            "1.0 deg",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
         ],
@@ -557,7 +554,8 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
             "file lat/lon coordinates. Antenna positions "
             "are present, but the mean antenna latitude "
             "value does not match",
-            "drift RA, Dec is off from lst, latitude by more than 1.0 deg",
+            "projected is False, but RA, Dec is off from lst, latitude by more than "
+            "1.0 deg",
             "Telescope foo is not in known_telescopes.",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
@@ -597,7 +595,8 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
             "file lat/lon coordinates. Antenna positions "
             "are present, but the mean antenna longitude "
             "value does not match",
-            "drift RA, Dec is off from lst, latitude by more than 1.0 deg",
+            "projected is False, but RA, Dec is off from lst, latitude by more than "
+            "1.0 deg",
             "Telescope foo is not in known_telescopes.",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
@@ -641,7 +640,8 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
             "file lat/lon coordinates. Antenna positions "
             "are present, but the mean antenna latitude and "
             "longitude values do not match",
-            "drift RA, Dec is off from lst, latitude by more than 1.0 deg",
+            "projected is False, but RA, Dec is off from lst, latitude by more than "
+            "1.0 deg",
             "Telescope foo is not in known_telescopes.",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
@@ -700,10 +700,10 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_singletimeselect_drift(uv_in_paper, tmp_path):
+def test_singletimeselect_unprojected(uv_in_paper):
     """
     Check behavior with writing & reading after selecting a single time from
-    a drift file.
+    an unprojected file.
     """
     uv_in, uv_out, testfile = uv_in_paper
 
@@ -719,8 +719,8 @@ def test_singletimeselect_drift(uv_in_paper, tmp_path):
 
     assert uv_in == uv_out
 
-    # check that setting the phase_type works
-    uv_out.read(testfile, phase_type="drift")
+    # check that setting projected works
+    uv_out.read(testfile, projected=False)
     assert uv_in == uv_out
 
     # check again with more than one time but only 1 unflagged time
@@ -741,9 +741,38 @@ def test_singletimeselect_drift(uv_in_paper, tmp_path):
 
     assert uv_in_copy == uv_out
 
-    # check that setting the phase_type works
-    uv_out.read(testfile, phase_type="drift")
+    # check that setting projected works
+    uv_out.read(testfile, projected=False)
     assert uv_in_copy == uv_out
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_driftscan(tmp_path, paper_miriad):
+    uv_in = paper_miriad
+    testfile = os.path.join(tmp_path, "outtest_miriad.uv")
+
+    uv2 = uv_in.copy()
+    uv2.phase(
+        lat=Angle("80d").rad,
+        lon=0,
+        phase_frame="altaz",
+        cat_type="driftscan",
+        cat_name="drift_alt80",
+    )
+    with uvtest.check_warnings(
+        UserWarning,
+        match="This object has a driftscan phase center. Miriad does not really ",
+    ):
+        uv2.write_miriad(testfile, clobber=True)
+
+    uv3 = UVData.from_file(testfile)
+    assert np.all(uv3._check_for_cat_type("ephem"))
+
+    # put it back to a driftscan
+    uv3._update_phase_center_id(0, new_id=1)
+    uv3.phase_center_catalog = uv2.phase_center_catalog
+
+    assert uv2 == uv3
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -809,9 +838,9 @@ def test_poltoind(uv_in_paper):
     ),
 )
 def test_miriad_extra_keywords_errors(
-    uv_in_paper, tmp_path, kwd_name, kwd_value, warnstr, errstr
+    uv_in_paper, kwd_name, kwd_value, warnstr, errstr
 ):
-    uv_in, uv_out, testfile = uv_in_paper
+    uv_in, _, testfile = uv_in_paper
 
     uvw_warn_str = "The uvw_array does not match the expected values"
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
@@ -1739,7 +1768,7 @@ def test_fix_phase(tmp_path):
     phase_dec = uv_in.telescope_location_lat_lon_alt[0] * 0.5
 
     # Do the improved phasing on the data set.
-    uv_in.phase(phase_ra, phase_dec, cat_name="zenith")
+    uv_in.phase(phase_ra, phase_dec, cat_name="foo")
 
     # First test the case where we are using the old phase method with the uvws
     # calculated from the antenna positions
@@ -1747,7 +1776,7 @@ def test_fix_phase(tmp_path):
         DeprecationWarning, match="The `use_old_proj` option is deprecated"
     ):
         uv_in_bad_ant.phase(
-            phase_ra, phase_dec, use_old_proj=True, use_ant_pos=True, cat_name="zenith"
+            phase_ra, phase_dec, use_old_proj=True, use_ant_pos=True, cat_name="foo"
         )
     uv_in_bad_ant.write_miriad(
         writepath, clobber=True, run_check=False, check_extra=False
@@ -1771,7 +1800,7 @@ def test_fix_phase(tmp_path):
         DeprecationWarning, match="The `use_old_proj` option is deprecated"
     ):
         uv_in_bad_base.phase(
-            phase_ra, phase_dec, use_old_proj=True, use_ant_pos=False, cat_name="zenith"
+            phase_ra, phase_dec, use_old_proj=True, use_ant_pos=False, cat_name="foo"
         )
     uv_in_bad_base.write_miriad(
         writepath, clobber=True, run_check=False, check_extra=False

@@ -590,7 +590,7 @@ def test_ms_phasing(mir_uv, future_shapes, tmp_path):
 
     mir_uv.unproject_phase()
 
-    with pytest.raises(ValueError, match="The data are in drift mode."):
+    with pytest.raises(ValueError, match="The data are unprojected."):
         mir_uv.write_ms(testfile)
 
     mir_uv.write_ms(testfile, force_phase=True)
@@ -704,8 +704,32 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
 
     if multi_frame:
         cat_id = miriad_uv._look_for_name("NOISE")
-        ra_use = miriad_uv.phase_center_catalog[cat_id[0]]["cat_lon"]
-        dec_use = miriad_uv.phase_center_catalog[cat_id[0]]["cat_lat"]
+        ra_use = miriad_uv.phase_center_catalog[cat_id[0]]["cat_lon"][0]
+        dec_use = miriad_uv.phase_center_catalog[cat_id[0]]["cat_lat"][0]
+        with pytest.raises(
+            ValueError,
+            match="lon parameter must be a single value for cat_type sidereal",
+        ):
+            miriad_uv.phase(
+                miriad_uv.phase_center_catalog[cat_id[0]]["cat_lon"],
+                dec_use,
+                cat_name="foo",
+                phase_frame="icrs",
+                select_mask=miriad_uv.phase_center_id_array == cat_id[0],
+            )
+
+        with pytest.raises(
+            ValueError,
+            match="lat parameter must be a single value for cat_type sidereal",
+        ):
+            miriad_uv.phase(
+                ra_use,
+                miriad_uv.phase_center_catalog[cat_id[0]]["cat_lat"],
+                cat_name="foo",
+                phase_frame="icrs",
+                select_mask=miriad_uv.phase_center_id_array == cat_id[0],
+            )
+
         with uvtest.check_warnings(
             UserWarning,
             match=[

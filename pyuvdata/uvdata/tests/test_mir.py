@@ -232,6 +232,26 @@ def test_read_mir_write_uvh5(sma_mir, tmp_path):
     assert sma_mir == uvh5_uv
 
 
+def test_mir_partial_read(sma_mir):
+    """Check that select is done after the read for select on read with mir files."""
+    uv = sma_mir
+
+    uv2 = uv.copy()
+    freq_chans_to_keep = np.arange(uv.Nfreqs // 2)
+    uv2.select(freq_chans=freq_chans_to_keep)
+
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    with uvtest.check_warnings(
+        UserWarning,
+        'Warning: select on read keyword set, but file_type is "mir" which does not '
+        "support select on read. Entire file will be read and then select will be "
+        "performed",
+    ):
+        uv3 = UVData.from_file(testfile, freq_chans=freq_chans_to_keep)
+
+    assert uv3 == uv2
+
+
 def test_write_mir(hera_uvh5, err_type=NotImplementedError):
     """
     Mir writer test

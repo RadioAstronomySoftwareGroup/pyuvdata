@@ -1401,7 +1401,6 @@ class MWACorrFITS(UVData):
         # first set parameters that are always true
         self.Nspws = 1
         self.spw_array = np.array([0])
-        cat_id = self._add_phase_center("unprojected", cat_type="unprojected")
         self.vis_units = "uncalib"
         self.Npols = 4
         self.xorientation = "east"
@@ -1538,6 +1537,12 @@ class MWACorrFITS(UVData):
         self.Nbls = int(
             len(self.antenna_numbers) * (len(self.antenna_numbers) + 1) / 2.0
         )
+        if phase_to_pointing_center:
+            # use another name to prevent name collision in phase call below
+            cat_name = "unprojected"
+        else:
+            cat_name = object_name
+        cat_id = self._add_phase_center(cat_name=cat_name, cat_type="unprojected")
 
         # get telescope parameters
         self.set_telescope_params(warn=False)

@@ -749,7 +749,6 @@ class UVData(UVBase):
         cat_dist=None,
         cat_vrad=None,
         ignore_name=False,
-        ignore_info=False,
         target_cat_id=None,
         phase_dict=None,
     ):
@@ -811,16 +810,13 @@ class UVData(UVBase):
             matches the name of an entry in the catalog. However, by setting this to
             True, the method will search all entries in the catalog and see if any
             match all of the provided data (excluding `cat_name`).
-        ignore_info : bool
-            If set, this method will exclude the `info_source` field in the catalogs
-            from the matching evaluation.
         target_cat_id : int
             Optional argument to specify a particular cat_id to check against.
         phase_dict : dict
             Instead of providing individual parameters, one may provide a dict which
             matches that format used within `phase_center_catalog` for checking for
-            existing entries. If used, all other parameters (save for `ignore_name`,
-            `ignore_info` and `cat_name`) are disregarded.
+            existing entries. If used, all other parameters (save for `ignore_name`
+            and `cat_name`) are disregarded.
 
         Returns
         -------
@@ -835,7 +831,7 @@ class UVData(UVBase):
             `cat_diffs=0`.
         """
         # 1 marcsec tols
-        radian_tols = (0, 1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0))
+        radian_tols = (0, radian_tol)
         default_tols = (1e-5, 1e-8)
         match_id = None
         match_diffs = 99999
@@ -1025,7 +1021,7 @@ class UVData(UVBase):
             Normally, `_add_phase_center` will throw an error if there already exists a
             phase_center with the given cat_id. However, if one sets
             `force_update=True`, the method will overwrite the existing entry in
-            `phase_center_catalog` with the paramters supplied. Note that doing this
+            `phase_center_catalog` with the parameters supplied. Note that doing this
             will _not_ update other atributes of the `UVData` object. Default is False.
         cat_id : int
             An integer signifying the ID number for the phase center, used in the
@@ -1057,15 +1053,6 @@ class UVData(UVBase):
             cat_type = "unprojected"
             if cat_name == "unphased":
                 cat_name = "unprojected"
-
-        # The catalog name "unprojected" is used internally whenever we have to make a
-        # block of data as unprojected in a data set. To avoid naming collisions, check
-        # that someone hasn't tried to use it for any other purpose.
-        if (cat_name == "unprojected") and (cat_type != "unprojected"):
-            raise ValueError(
-                "The name unprojected is reserved. Please choose another value for "
-                "cat_name."
-            )
 
         # We currently only have 4 supported types -- make sure the user supplied
         # one of those
@@ -1154,6 +1141,8 @@ class UVData(UVBase):
                     "be of the same size as cat_times for ephem phase centers."
                 ) from err
         else:
+            if cat_lon is not None:
+                cat_lon = float(cat_lon)
             cat_lon = None if cat_lon is None else float(cat_lon)
             cat_lat = None if cat_lat is None else float(cat_lat)
             cat_pm_ra = None if cat_pm_ra is None else float(cat_pm_ra)
@@ -1332,9 +1321,8 @@ class UVData(UVBase):
         Raises
         ------
         ValueError
-            If attempting to run the method on a non multi phase center data set, if
-            `catalog_identifier` is not found in `phase_center_catalog`, or if
-            attempting to name a source "unprojected" (which is reserved).
+            If attempting to run the method on a non multi phase center data set, or if
+            `catalog_identifier` is not found in `phase_center_catalog`.
         TypeError
             If `new_name` is not actually a string or if `catalog_identifier` is not a
             string or an integer.
@@ -1379,13 +1367,6 @@ class UVData(UVBase):
             return
 
         for key in cat_id:
-            if (new_name == "unprojected") and (
-                self.phase_center_catalog[key]["cat_type"] != "unprojected"
-            ):
-                raise ValueError(
-                    'The name "unprojected" is reserved. Please choose another value '
-                    "for new_name."
-                )
             self.phase_center_catalog[key]["cat_name"] = new_name
 
     def split_phase_center(
@@ -1429,12 +1410,11 @@ class UVData(UVBase):
         Raises
         ------
         ValueError
-            If attempting to run the method on a non multi phase center data set, if
-            `old_name` is not found as a key in `phase_center_catalog`, if `new_name`
-            already exists as a key in `phase_center_catalog`, or if attempting to
-            name a source "unprojected" (which is reserved). Also raised if
-            `select_mask` contains data that doesn't belong to `cat_name`, unless
-            setting `downselect` to True.
+            If  catalog_identifier is not an int or string or if it is not found as a
+            cat_name in `phase_center_catalog` or if it is a string and is found
+            multiple times. If new_id is not an int or already exists in the catalog.
+            If new_name is not a string. If `select_mask` contains data that doesn't
+            belong to catalog_identifier, unless `downselect` is True.
         IndexError
             If select_mask is not a valid indexing array.
         UserWarning
@@ -1965,6 +1945,96 @@ class UVData(UVBase):
         self.phase_center_id_array[self.phase_center_id_array == cat_id] = new_id
         self.phase_center_catalog[new_id] = self.phase_center_catalog.pop(cat_id)
 
+    def _consolidate_phase_center_catalogs(
+        self, reference_catalog=None, other=None, ignore_name=False
+    ):
+        """
+        Consolidate phase center catalogs with a reference or another object.
+
+        This is a helper method which updates the phase_center_catalog and related
+        parameters to make this object consistent with a reference catalog or with
+        another object so the second object can be added or concatenated to this object.
+        If both `reference_catalog` and `other` are provided, both this object and the
+        one passed to `other` will have their catalogs updated.
+
+        Parameters
+        ----------
+        reference_calalog : dict
+            A reference catalog to make this object consistent with.
+        other : UVData object
+            A UVData object which self needs to be consistent with because it will be
+            added to self. The phase_center_catalog from other is used as the reference
+            catalog if the reference_catalog is None. If `reference_catalog` is also
+            set, the phase_center_catalog on other will also be modified to be
+            consistent with the `reference_catalog`.
+        ignore_name : bool
+            Option to ignore the name of the phase center (`cat_name` in
+            `phase_center_catalog`) when identifying matching phase centers. If set to
+            True, phase centers that are the same up to their name will be combined with
+            the name set to the reference catalog name or the name found in the first
+            UVData object. If set to False, phase centers that are the same up to the
+            name will be kept as separate phase centers. Default is False.
+
+        """
+        if reference_catalog is None and other is None:
+            raise ValueError(
+                "Either the reference_catalog or the other parameter must be set."
+            )
+
+        if reference_catalog is None:
+            reference_catalog = other.phase_center_catalog
+        elif other is not None:
+            # first update other to be consistent with the reference
+            other._consolidate_phase_center_catalogs(
+                reference_catalog=reference_catalog
+            )
+            # then use the updated other as the reference
+            reference_catalog = other.phase_center_catalog
+
+        reserved_ids = list(reference_catalog)
+        # First loop, we want to update all the catalog IDs so that we know there
+        # are no conflicts with the reference
+        for cat_id in list(self.phase_center_catalog):
+            self._update_phase_center_id(cat_id, reserved_ids=reserved_ids)
+
+        # Next loop, we want to update the IDs of sources that are in the reference.
+        for cat_id in list(reference_catalog):
+            match_id, match_diffs = self._look_in_catalog(
+                phase_dict=reference_catalog[cat_id], ignore_name=ignore_name
+            )
+            if match_id is not None and match_diffs == 0:
+                self._update_phase_center_id(match_id, new_id=cat_id)
+                if ignore_name:
+                    # Make the names match if names were ignored in matching
+                    self.phase_center_catalog[cat_id]["cat_name"] = reference_catalog[
+                        cat_id
+                    ]["cat_name"]
+
+                # _look_in_catalog ignores the "info_source" field. Update it so
+                # it matches the reference.
+                self.phase_center_catalog[cat_id]["info_source"] = reference_catalog[
+                    cat_id
+                ]["info_source"]
+
+        # Finally, add those other objects not found in self
+        for cat_id in reference_catalog:
+            if cat_id not in self.phase_center_catalog:
+                self._add_phase_center(
+                    reference_catalog[cat_id]["cat_name"],
+                    cat_type=reference_catalog[cat_id]["cat_type"],
+                    cat_lon=reference_catalog[cat_id]["cat_lon"],
+                    cat_lat=reference_catalog[cat_id]["cat_lat"],
+                    cat_frame=reference_catalog[cat_id]["cat_frame"],
+                    cat_epoch=reference_catalog[cat_id]["cat_epoch"],
+                    cat_times=reference_catalog[cat_id]["cat_times"],
+                    cat_pm_ra=reference_catalog[cat_id]["cat_pm_ra"],
+                    cat_pm_dec=reference_catalog[cat_id]["cat_pm_dec"],
+                    cat_dist=reference_catalog[cat_id]["cat_dist"],
+                    cat_vrad=reference_catalog[cat_id]["cat_vrad"],
+                    info_source=reference_catalog[cat_id]["info_source"],
+                    cat_id=cat_id,
+                )
+
     def _set_drift(self):
         # This is an internal method so could just be deleted.
         # TODO decide whether we should give a deprecation period or just remove it.
@@ -1982,6 +2052,8 @@ class UVData(UVBase):
             "v2.4. It has no effect"
         )
         pass
+
+    # def set_rdate(self):
 
     @property
     def _data_params(self):
@@ -2334,6 +2406,7 @@ class UVData(UVBase):
                 cat_type = temp_dict["cat_type"]
                 lon_val = temp_dict.get("cat_lon")
                 lat_val = temp_dict.get("cat_lat")
+                time_val = temp_dict.get("cat_times")
                 epoch = temp_dict.get("cat_epoch")
                 frame = temp_dict.get("cat_frame")
                 pm_ra = temp_dict.get("cat_pm_ra")
@@ -2346,6 +2419,7 @@ class UVData(UVBase):
                     lat_val,
                     frame,
                     coord_epoch=epoch,
+                    coord_times=time_val,
                     pm_ra=pm_ra,
                     pm_dec=pm_dec,
                     vrad=vrad,
@@ -5120,7 +5194,12 @@ class UVData(UVBase):
         )
 
     def unproject_phase(
-        self, phase_frame=None, use_ant_pos=True, use_old_proj=False, select_mask=None
+        self,
+        phase_frame=None,
+        use_ant_pos=True,
+        use_old_proj=False,
+        select_mask=None,
+        cat_name="unprojected",
     ):
         """
         Undo phasing to get back to an `unprojected` state.
@@ -5145,6 +5224,8 @@ class UVData(UVBase):
         select_mask : ndarray of bool
             Optional mask for selecting which data to operate on along the blt-axis.
             Shape is (Nblts,). Ignored if `use_old_proj` is True.
+        cat_name : str
+            Name for the newly unprojected entry in the phase_center_catalog.
 
         Raises
         ------
@@ -5191,9 +5272,15 @@ class UVData(UVBase):
             self.uvw_array = new_uvw
 
             # remove/update phase center
-            self.phase_center_id_array[select_mask_use] = self._add_phase_center(
-                "unprojected", "unprojected"
+            match_id, match_diffs = self._look_in_catalog(
+                cat_name=cat_name, cat_type="unprojected"
             )
+            if match_diffs == 0:
+                self.phase_center_id_array[select_mask_use] = match_id
+            else:
+                self.phase_center_id_array[select_mask_use] = self._add_phase_center(
+                    cat_name, cat_type="unprojected"
+                )
             self._clear_unused_phase_centers()
             self.phase_center_app_ra[select_mask_use] = self.lst_array[
                 select_mask_use
@@ -5354,7 +5441,7 @@ class UVData(UVBase):
 
         # remove/add phase center
         self.phase_center_id_array[:] = self._add_phase_center(
-            "unprojected", "unprojected"
+            cat_name, cat_type="unprojected"
         )
         self._clear_unused_phase_centers()
 
@@ -5381,7 +5468,7 @@ class UVData(UVBase):
         time_array,
     ):
         """
-        Supplies a dictionary with parametrs for the phase method to use.
+        Supplies a dictionary with parameters for the phase method to use.
 
         This method should not be called directly by users; it is instead a function
         called by the `phase` method, which packages up phase center information
@@ -5403,6 +5490,7 @@ class UVData(UVBase):
                     "Set lookup_name=False in order to continue."
                 )
 
+        # TODO I don't understand this comment:
         # We only want to use the JPL-Horizons service if using a non-multi-phase-ctr
         # instance of a UVData object.
         if lookup_name and (cat_name not in name_dict):
@@ -5696,7 +5784,7 @@ class UVData(UVBase):
                 DeprecationWarning,
             )
 
-        if cat_type != "unprojected" and cat_name is None:
+        if cat_name is None:
             warnings.warn(
                 "No cat_name provided, this will become an error in pyuvdata v2.4. "
                 "Defaulting to naming based on lat/lon.",
@@ -5754,6 +5842,19 @@ class UVData(UVBase):
             lookup_name,
             self.time_array,
         )
+
+        if phase_dict["cat_type"] not in ["ephem", "unprojected"]:
+            if np.array(lon).size > 1:
+                raise ValueError(
+                    "lon parameter must be a single value for cat_type "
+                    f"{phase_dict['cat_type']}"
+                )
+
+            if np.array(lat).size > 1:
+                raise ValueError(
+                    "lat parameter must be a single value for cat_type "
+                    f"{phase_dict['cat_type']}"
+                )
 
         # Right up front, we're gonna split off the piece of the code that
         # does the phasing using the "new" method, since its a lot more flexible
@@ -6604,96 +6705,6 @@ class UVData(UVBase):
                             use_ant_pos=use_ant_pos,
                             allow_rephase=True,
                         )
-
-    def _consolidate_phase_center_catalogs(
-        self, reference_catalog=None, other=None, ignore_name=False
-    ):
-        """
-        Consolidate phase center catalogs with a reference or another object.
-
-        This is a helper method which updates the phase_center_catalog and related
-        parameters to make this object consistent with a reference catalog or with
-        another object so the second object can be added or concatenated to this object.
-        If both `reference_catalog` and `other` are provided, both this object and the
-        one passed to `other` will have their catalogs updated.
-
-        Parameters
-        ----------
-        reference_calalog : dict
-            A reference catalog to make this object consistent with.
-        other : UVData object
-            A UVData object which self needs to be consistent with because it will be
-            added to self. The phase_center_catalog from other is used as the reference
-            catalog if the reference_catalog is None. If `reference_catalog` is also
-            set, the phase_center_catalog on other will also be modified to be
-            consistent with the `reference_catalog`.
-        ignore_name : bool
-            Option to ignore the name of the phase center (`cat_name` in
-            `phase_center_catalog`) when identifying matching phase centers. If set to
-            True, phase centers that are the same up to their name will be combined with
-            the name set to the reference catalog name or the name found in the first
-            UVData object. If set to False, phase centers that are the same up to the
-            name will be kept as separate phase centers. Default is False.
-
-        """
-        if reference_catalog is None and other is None:
-            raise ValueError(
-                "Either the reference_catalog or the other parameter must be set."
-            )
-
-        if reference_catalog is None:
-            reference_catalog = other.phase_center_catalog
-        elif other is not None:
-            # first update other to be consistent with the reference
-            other._consolidate_phase_center_catalogs(
-                reference_catalog=reference_catalog
-            )
-            # then use the updated other as the reference
-            reference_catalog = other.phase_center_catalog
-
-        reserved_ids = list(reference_catalog)
-        # First loop, we want to update all the catalog IDs so that we know there
-        # are no conflicts with the reference
-        for cat_id in list(self.phase_center_catalog):
-            self._update_phase_center_id(cat_id, reserved_ids=reserved_ids)
-
-        # Next loop, we want to update the IDs of sources that are in the reference.
-        for cat_id in list(reference_catalog):
-            match_id, match_diffs = self._look_in_catalog(
-                phase_dict=reference_catalog[cat_id], ignore_name=ignore_name
-            )
-            if match_id is not None and match_diffs == 0:
-                self._update_phase_center_id(match_id, new_id=cat_id)
-                if ignore_name:
-                    # Make the names match if names were ignored in matching
-                    self.phase_center_catalog[cat_id]["cat_name"] = reference_catalog[
-                        cat_id
-                    ]["cat_name"]
-
-                # _look_in_catalog ignores the "info_source" field. Update it so
-                # it matches the reference.
-                self.phase_center_catalog[cat_id]["info_source"] = reference_catalog[
-                    cat_id
-                ]["info_source"]
-
-        # Finally, add those other objects not found in self
-        for cat_id in reference_catalog:
-            if cat_id not in self.phase_center_catalog:
-                self._add_phase_center(
-                    reference_catalog[cat_id]["cat_name"],
-                    cat_type=reference_catalog[cat_id]["cat_type"],
-                    cat_lon=reference_catalog[cat_id]["cat_lon"],
-                    cat_lat=reference_catalog[cat_id]["cat_lat"],
-                    cat_frame=reference_catalog[cat_id]["cat_frame"],
-                    cat_epoch=reference_catalog[cat_id]["cat_epoch"],
-                    cat_times=reference_catalog[cat_id]["cat_times"],
-                    cat_pm_ra=reference_catalog[cat_id]["cat_pm_ra"],
-                    cat_pm_dec=reference_catalog[cat_id]["cat_pm_dec"],
-                    cat_dist=reference_catalog[cat_id]["cat_dist"],
-                    cat_vrad=reference_catalog[cat_id]["cat_vrad"],
-                    info_source=reference_catalog[cat_id]["info_source"],
-                    cat_id=cat_id,
-                )
 
     def __add__(
         self,
@@ -8322,6 +8333,7 @@ class UVData(UVBase):
         lst_range,
         polarizations,
         blt_inds,
+        phase_center_ids,
     ):
         """
         Build up blt_inds, freq_inds, pol_inds and history_update_string for select.
@@ -8391,6 +8403,9 @@ class UVData(UVBase):
         blt_inds : array_like of int, optional
             The baseline-time indices to keep in the object. This is
             not commonly used.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to keep on the object (effectively a selection on
+            baseline-times).
 
         Returns
         -------
@@ -8434,6 +8449,25 @@ class UVData(UVBase):
             if np.array(blt_inds).ndim > 1:
                 blt_inds = np.array(blt_inds).flatten()
             history_update_string += "baseline-times"
+            n_selects += 1
+
+        if phase_center_ids is not None:
+            phase_center_ids = np.array(uvutils._get_iterable(phase_center_ids))
+            pc_blt_inds = np.nonzero(
+                np.isin(self.phase_center_id_array, phase_center_ids)
+            )[0]
+            if blt_inds is not None:
+                # Use intersection (and) to join phase_center_ids
+                # with blt_inds
+                blt_inds = np.array(
+                    list(set(blt_inds).intersection(pc_blt_inds)), dtype=np.int64
+                )
+            else:
+                blt_inds = pc_blt_inds
+            if n_selects > 0:
+                history_update_string += ", phase center IDs"
+            else:
+                history_update_string += "phase center IDs"
             n_selects += 1
 
         if antenna_names is not None:
@@ -9011,6 +9045,7 @@ class UVData(UVBase):
         lst_range=None,
         polarizations=None,
         blt_inds=None,
+        phase_center_ids=None,
         inplace=True,
         keep_all_metadata=True,
         run_check=True,
@@ -9091,6 +9126,9 @@ class UVData(UVBase):
         blt_inds : array_like of int, optional
             The baseline-time indices to keep in the object. This is
             not commonly used.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to keep on the object (effectively a selection on
+            baseline-times).
         inplace : bool
             Option to perform the select directly on self or return a new UVData
             object with just the selected data (the default is True, meaning the
@@ -9149,6 +9187,7 @@ class UVData(UVBase):
             lst_range,
             polarizations,
             blt_inds,
+            phase_center_ids,
         )
 
         # Call the low-level selection method.
@@ -10913,7 +10952,6 @@ class UVData(UVBase):
         self._convert_from_filetype(mir_obj)
         del mir_obj
 
-    # TODO decide what to do with the `phase_type` argument in read_miriad.
     def read_miriad(
         self,
         filepath,
@@ -10924,6 +10962,7 @@ class UVData(UVBase):
         time_range=None,
         read_data=True,
         phase_type=None,
+        projected=None,
         correct_lat_lon=True,
         background_lsts=True,
         run_check=True,
@@ -10974,10 +11013,16 @@ class UVData(UVBase):
             only the metadata will be read in. Setting read_data to False
             results in an incompletely defined object (check will not pass).
         phase_type : str, optional
-            Option to specify the phasing status of the data. Options are 'drift',
-            'phased' or None. 'drift' means the data are zenith drift data,
-            'phased' means the data are phased to a single RA/Dec. Default is None
-            meaning it will be guessed at based on the file contents.
+            Deprecated, use the `projected` parameter insted. Option to specify the
+            phasing status of the data. Options are 'drift', 'phased' or None. 'drift'
+            is the same as setting the projected parameter to False, 'phased' is the
+            same as setting the projected parameter to True. Ignored if `projected`
+            is set.
+        projected : bool or None
+            Option to force the dataset to be labelled as projected or unprojected
+            regardless of the evidence in the file. The default is None which means that
+            the projection will be set based on the file contents. Be careful setting
+            this keyword unless you are confident about the contents of the file.
         correct_lat_lon : bool
             Option to update the latitude and longitude from the known_telescopes
             list if the altitude is missing.
@@ -11046,6 +11091,7 @@ class UVData(UVBase):
             correct_lat_lon=correct_lat_lon,
             read_data=read_data,
             phase_type=phase_type,
+            projected=projected,
             antenna_nums=antenna_nums,
             ant_str=ant_str,
             bls=bls,
@@ -11406,6 +11452,7 @@ class UVData(UVBase):
         lst_range=None,
         polarizations=None,
         blt_inds=None,
+        phase_center_ids=None,
         keep_all_metadata=True,
         read_data=True,
         background_lsts=True,
@@ -11489,6 +11536,9 @@ class UVData(UVBase):
         blt_inds : array_like of int, optional
             The baseline-time indices to include when reading data into the
             object. This is not commonly used. Ignored if read_data is False.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to include when reading data into the object (effectively
+            a selection on baseline-times).
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
@@ -11596,6 +11646,7 @@ class UVData(UVBase):
         lst_range=None,
         polarizations=None,
         blt_inds=None,
+        phase_center_ids=None,
         keep_all_metadata=True,
         read_data=True,
         data_array_dtype=np.complex128,
@@ -11682,6 +11733,9 @@ class UVData(UVBase):
         blt_inds : array_like of int, optional
             The baseline-time indices to include when reading data into the
             object. This is not commonly used. Ignored if read_data is False.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to include when reading data into the object (effectively
+            a selection on baseline-times).
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
@@ -11772,6 +11826,7 @@ class UVData(UVBase):
             lst_range=lst_range,
             polarizations=polarizations,
             blt_inds=blt_inds,
+            phase_center_ids=phase_center_ids,
             data_array_dtype=data_array_dtype,
             keep_all_metadata=keep_all_metadata,
             read_data=read_data,
@@ -11823,6 +11878,7 @@ class UVData(UVBase):
         lst_range=None,
         polarizations=None,
         blt_inds=None,
+        phase_center_ids=None,
         keep_all_metadata=True,
         # checking parameters
         run_check=True,
@@ -11834,6 +11890,7 @@ class UVData(UVBase):
         # file-type specific parameters
         # miriad
         phase_type=None,
+        projected=None,
         correct_lat_lon=True,
         calc_lst=True,
         # FHD
@@ -12040,6 +12097,9 @@ class UVData(UVBase):
         blt_inds : array_like of int, optional
             The baseline-time indices to include when reading data into the
             object. This is not commonly used.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to include when reading data into the object (effectively
+            a selection on baseline-times).
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
@@ -12071,10 +12131,16 @@ class UVData(UVBase):
         Miriad
         ------
         phase_type : str, optional
-            Option to specify the phasing status of the data. Options are 'drift',
-            'phased' or None. 'drift' means the data are zenith drift data,
-            'phased' means the data are phased to a single RA/Dec. Default is None
-            meaning it will be guessed at based on the file contents.
+            Deprecated, use the `projected` parameter insted. Option to specify the
+            phasing status of the data. Options are 'drift', 'phased' or None. 'drift'
+            is the same as setting the projected parameter to False, 'phased' is the
+            same as setting the projected parameter to True. Ignored if `projected`
+            is set.
+        projected : bool or None
+            Option to force the dataset to be labelled as projected or unprojected
+            regardless of the evidence in the file. The default is None which means that
+            the projection will be set based on the file contents. Be careful setting
+            this keyword unless you are confident about the contents of the file.
         correct_lat_lon : bool
             Option to update the latitude and longitude from the known_telescopes
             list if the altitude is missing.
@@ -12356,12 +12422,14 @@ class UVData(UVBase):
                         times=times,
                         polarizations=polarizations,
                         blt_inds=blt_inds,
+                        phase_center_ids=phase_center_ids,
                         time_range=time_range,
                         lsts=lsts,
                         lst_range=lst_range,
                         keep_all_metadata=keep_all_metadata,
                         read_data=read_data,
                         phase_type=phase_type,
+                        projected=projected,
                         correct_lat_lon=correct_lat_lon,
                         use_model=use_model,
                         data_column=data_column,
@@ -12472,12 +12540,14 @@ class UVData(UVBase):
                             times=times,
                             polarizations=polarizations,
                             blt_inds=blt_inds,
+                            phase_center_ids=phase_center_ids,
                             time_range=time_range,
                             lsts=lsts,
                             lst_range=lst_range,
                             keep_all_metadata=keep_all_metadata,
                             read_data=read_data,
                             phase_type=phase_type,
+                            projected=projected,
                             correct_lat_lon=correct_lat_lon,
                             use_model=use_model,
                             data_column=data_column,
@@ -12579,7 +12649,7 @@ class UVData(UVBase):
                 # everything is merged into it at the end of this loop
 
         else:
-            if file_type in ["fhd", "ms", "mwa_corr_fits"]:
+            if file_type in ["fhd", "ms", "mwa_corr_fits", "mir"]:
                 if (
                     antenna_nums is not None
                     or antenna_names is not None
@@ -12588,9 +12658,12 @@ class UVData(UVBase):
                     or frequencies is not None
                     or freq_chans is not None
                     or times is not None
+                    or lsts is not None
                     or time_range is not None
+                    or lst_range is not None
                     or polarizations is not None
                     or blt_inds is not None
+                    or phase_center_ids is not None
                 ):
                     select = True
                     warnings.warn(
@@ -12608,9 +12681,12 @@ class UVData(UVBase):
                     select_frequencies = frequencies
                     select_freq_chans = freq_chans
                     select_times = times
+                    select_lsts = lsts
                     select_time_range = time_range
+                    select_lst_range = lst_range
                     select_polarizations = polarizations
                     select_blt_inds = blt_inds
+                    select_phase_center_ids = phase_center_ids
                 else:
                     select = False
             elif file_type in ["uvfits", "uvh5"]:
@@ -12622,6 +12698,7 @@ class UVData(UVBase):
                     or freq_chans is not None
                     or times is not None
                     or blt_inds is not None
+                    or phase_center_ids is not None
                 ):
 
                     if blt_inds is not None:
@@ -12659,7 +12736,10 @@ class UVData(UVBase):
                     select_frequencies = frequencies
                     select_freq_chans = freq_chans
                     select_times = times
+                    select_lsts = lsts
+                    select_lst_range = lst_range
                     select_blt_inds = blt_inds
+                    select_phase_center_ids = phase_center_ids
                 else:
                     select = False
 
@@ -12679,6 +12759,7 @@ class UVData(UVBase):
                     lst_range=lst_range,
                     polarizations=polarizations,
                     blt_inds=blt_inds,
+                    phase_center_ids=phase_center_ids,
                     read_data=read_data,
                     keep_all_metadata=keep_all_metadata,
                     background_lsts=background_lsts,
@@ -12709,7 +12790,6 @@ class UVData(UVBase):
                     fix_autos=fix_autos,
                     rechunk=rechunk,
                 )
-                select = False
 
             elif file_type == "miriad":
                 self.read_miriad(
@@ -12721,6 +12801,7 @@ class UVData(UVBase):
                     time_range=time_range,
                     read_data=read_data,
                     phase_type=phase_type,
+                    projected=projected,
                     correct_lat_lon=correct_lat_lon,
                     background_lsts=background_lsts,
                     run_check=run_check,
@@ -12813,6 +12894,7 @@ class UVData(UVBase):
                     lst_range=lst_range,
                     polarizations=polarizations,
                     blt_inds=blt_inds,
+                    phase_center_ids=phase_center_ids,
                     read_data=read_data,
                     data_array_dtype=data_array_dtype,
                     keep_all_metadata=keep_all_metadata,
@@ -12839,9 +12921,12 @@ class UVData(UVBase):
                     frequencies=select_frequencies,
                     freq_chans=select_freq_chans,
                     times=select_times,
+                    lsts=select_lsts,
                     time_range=select_time_range,
+                    lst_range=select_lst_range,
                     polarizations=select_polarizations,
                     blt_inds=select_blt_inds,
+                    phase_center_ids=select_phase_center_ids,
                     keep_all_metadata=keep_all_metadata,
                     run_check=run_check,
                     check_extra=check_extra,
@@ -12893,6 +12978,7 @@ class UVData(UVBase):
         lst_range=None,
         polarizations=None,
         blt_inds=None,
+        phase_center_ids=None,
         keep_all_metadata=True,
         # checking parameters
         run_check=True,
@@ -12904,6 +12990,7 @@ class UVData(UVBase):
         # file-type specific parameters
         # miriad
         phase_type=None,
+        projected=None,
         correct_lat_lon=True,
         calc_lst=True,
         # FHD
@@ -13110,6 +13197,9 @@ class UVData(UVBase):
         blt_inds : array_like of int, optional
             The baseline-time indices to include when reading data into the
             object. This is not commonly used.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to include when reading data into the object (effectively
+            a selection on baseline-times).
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
@@ -13141,10 +13231,16 @@ class UVData(UVBase):
         Miriad
         ------
         phase_type : str, optional
-            Option to specify the phasing status of the data. Options are 'drift',
-            'phased' or None. 'drift' means the data are zenith drift data,
-            'phased' means the data are phased to a single RA/Dec. Default is None
-            meaning it will be guessed at based on the file contents.
+            Deprecated, use the `projected` parameter insted. Option to specify the
+            phasing status of the data. Options are 'drift', 'phased' or None. 'drift'
+            is the same as setting the projected parameter to False, 'phased' is the
+            same as setting the projected parameter to True. Ignored if `projected`
+            is set.
+        projected : bool or None
+            Option to force the dataset to be labelled as projected or unprojected
+            regardless of the evidence in the file. The default is None which means that
+            the projection will be set based on the file contents. Be careful setting
+            this keyword unless you are confident about the contents of the file.
         correct_lat_lon : bool
             Option to update the latitude and longitude from the known_telescopes
             list if the altitude is missing.
@@ -13344,6 +13440,7 @@ class UVData(UVBase):
             lst_range=lst_range,
             polarizations=polarizations,
             blt_inds=blt_inds,
+            phase_center_ids=phase_center_ids,
             keep_all_metadata=keep_all_metadata,
             # checking parameters
             run_check=run_check,
@@ -13355,6 +13452,7 @@ class UVData(UVBase):
             # start file-type specific parameters
             # miriad
             phase_type=phase_type,
+            projected=projected,
             correct_lat_lon=correct_lat_lon,
             calc_lst=calc_lst,
             # FHD
@@ -13611,8 +13709,8 @@ class UVData(UVBase):
         filename : str
             The uvfits file to write to.
         spoof_nonessential : bool
-            Option to spoof the values of optional UVParameters that are not set
-            but are required for uvfits files.
+            Deprecated and has no effect. Values are automatically set to their best
+            known values if not previously set.
         write_lst : bool
             Option to write the LSTs to the metadata (random group parameters).
         force_phase:  : bool
@@ -13646,8 +13744,6 @@ class UVData(UVBase):
             If the frequencies are not evenly spaced or are separated by more
             than their channel width.
             The polarization values are not evenly spaced.
-            Any of ['antenna_positions', 'gst0', 'rdate', 'earth_omega', 'dut1',
-            'timesys'] are not set on the object and `spoof_nonessential` is False.
             If the `timesys` parameter is not set to "UTC".
             If the UVData object is a metadata only object.
         TypeError
@@ -13863,6 +13959,7 @@ class UVData(UVBase):
         lst_range=None,
         polarizations=None,
         blt_inds=None,
+        phase_center_ids=None,
         add_to_history=None,
         run_check_acceptability=True,
         fix_autos=False,
@@ -13947,6 +14044,9 @@ class UVData(UVBase):
         blt_inds : array_like of int, optional
             The baseline-time indices to include when writing data into the file.
             This is not commonly used.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to include when writing data into the file (effectively
+            a selection on baseline-times).
         add_to_history : str
             String to append to history before write out. Default is no appending.
         run_check_acceptability : bool
@@ -13983,6 +14083,7 @@ class UVData(UVBase):
             lst_range=lst_range,
             polarizations=polarizations,
             blt_inds=blt_inds,
+            phase_center_ids=phase_center_ids,
             add_to_history=add_to_history,
             run_check_acceptability=run_check_acceptability,
         )

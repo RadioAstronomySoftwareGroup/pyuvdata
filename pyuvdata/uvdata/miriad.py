@@ -9,8 +9,10 @@ import shutil
 import warnings
 
 import numpy as np
+import scipy
 from astropy import constants as const
-from astropy.coordinates import Angle, SkyCoord
+from astropy.coordinates import Angle, EarthLocation, SkyCoord
+from astropy.time import Time
 
 from .. import telescopes as uvtel
 from .. import utils as uvutils
@@ -721,6 +723,7 @@ class Miriad(UVData):
         time_range=None,
         read_data=True,
         phase_type=None,
+        projected=None,
         correct_lat_lon=True,
         background_lsts=True,
         run_check=True,
@@ -774,10 +777,16 @@ class Miriad(UVData):
             if this keyword is False. Therefore, setting read_data to False
             results in an incompletely defined object (check will not pass).
         phase_type : str, optional
-            Option to specify the phasing status of the data. Options are 'drift',
-            'phased' or None. 'drift' means the data are zenith drift data,
-            'phased' means the data are phased to a single RA/Dec. Default is None
-            meaning it will be guessed at based on the file contents.
+            Deprecated, use the `projected` parameter insted. Option to specify the
+            phasing status of the data. Options are 'drift', 'phased' or None. 'drift'
+            is the same as setting the projected parameter to False, 'phased' is the
+            same as setting the projected parameter to True. Ignored if `projected`
+            is set.
+        projected : bool or None
+            Option to force the dataset to be labelled as projected or unprojected
+            regardless of the evidence in the file. The default is None which means that
+            the projection will be set based on the file contents. Be careful setting
+            this keyword unless you are confident about the contents of the file.
         correct_lat_lon : bool
             Option to update the latitude and longitude from the known_telescopes
             list if the altitude is missing.
@@ -833,6 +842,23 @@ class Miriad(UVData):
         if not os.path.exists(filepath):
             raise IOError(filepath + " not found")
         uv = aipy_extracts.UV(filepath)
+
+        if phase_type is not None:
+            warnings.warn(
+                "The phase_type parameter is deprecated, use the projected parameter "
+                "instead.",
+                DeprecationWarning,
+            )
+            if projected is None:
+                if phase_type not in ["phased", "drift"]:
+                    raise ValueError(
+                        "The phase_type was not one of the recognized options: "
+                        "'drift', 'phased'. Instead, use the `projected` parameter."
+                    )
+                if phase_type == "drift":
+                    projected = False
+                else:
+                    projected = True
 
         # load metadata
         (
@@ -1324,7 +1350,6 @@ class Miriad(UVData):
                 self.data_array[blt_index, :, :, pol_ind] = d[4]
                 self.flag_array[blt_index, :, :, pol_ind] = d[5]
                 self.nsample_array[blt_index, :, :, pol_ind] = d[6]
-
                 # because there are uvws/ra/dec for each pol, and one pol may not
                 # have that visibility, we collapse along the polarization
                 # axis but avoid any missing visbilities
@@ -1443,40 +1468,21 @@ class Miriad(UVData):
                 np.pi * 1.002737909350795 * self.integration_time / (24.0 * 3600.0)
             )
 
-        # TODO: do we really want a `phase_type` parameter to this method?
-        # first check to see if the phase_type was specified.
-        if phase_type is not None:
-            if phase_type not in ["phased", "drift"]:
-                raise ValueError(
-                    "The phase_type was not recognized. "
-                    'Set the phase_type to "drift" or "phased" to '
-                    "reflect the phasing status of the data"
-                )
-        else:
-            # check if ra is constant throughout file OR if there are multiple sources
-            # listed; if the obs meets either of those conditions, then assume that the
-            # file is tracking, and if not, assume that the  file is drift scanning,
-            # checking if there's only one unflagged time
-            if not single_time:
+        if projected is None:
+            if record_phase_frame:
+                projected = True
+            elif not single_time:
                 if single_ra or (Nphase > 1):
-                    phase_type = "phased"
+                    projected = True
                 else:
-                    phase_type = "drift"
+                    projected = False
             else:
-                # next check if ra == obsra and dec == obsdec -- if so, this is drift
-                if (
-                    record_app
-                    and np.all(ra_list == app_ra_list)
-                    and np.all(dec_list == app_dec_list)
-                ):
-                    phase_type = "drift"
-
                 # Finally check for the presence of an epoch variable, which isn't
                 # really a good option, but at least it prevents crashes.
                 if "epoch" in uv.vartable.keys():
-                    phase_type = "phased"
+                    projected = True
                 else:
-                    phase_type = "drift"
+                    projected = False
 
         if record_app:
             self.phase_center_app_ra = app_ra_list
@@ -1484,7 +1490,7 @@ class Miriad(UVData):
             if record_pa:
                 self.phase_center_frame_pa = frame_pa_list
 
-        if phase_type == "phased":
+        if projected:
             # This presupposes that the data are already phased
 
             # Note that MIRIAD, AIPS, and (I think) CASA tasks assume the
@@ -1496,9 +1502,16 @@ class Miriad(UVData):
             for name in sou_dict.keys():
                 select_mask = sou_id_list == sou_dict[name]
 
-                # TODO: I don't think epoch should be varying for a single source.
-                # So why take the median?
+                if not uvutils._test_array_constant(
+                    epoch_list[select_mask], tols=(1e-05, 1e-08)
+                ):
+                    # This is unusual but allowed within Miriad.
+                    warnings.warn(
+                        "Epoch values are varying within a single source. "
+                        "Setting the epoch to the median."
+                    )
                 epoch_val = np.median(epoch_list[select_mask])
+                cat_type = None
                 if record_phase_frame:
                     unique_phase_frames = np.unique(phase_frame_list[select_mask])
                     # "phsframe" is not a standard Miriad keyword, it is only present
@@ -1507,35 +1520,86 @@ class Miriad(UVData):
                         unique_phase_frames.size == 1
                     ), "This is a bug, please make an issue in our issue log"
                     cat_frame = unique_phase_frames[0]
+
+                    if cat_frame == "unprojected":
+                        cat_type = "unprojected"
+                        cat_frame = None
                 else:
                     if epoch_val < 1984.0:
                         cat_frame = "fk4"
                     else:
                         cat_frame = "fk5"
 
+                radian_tols = self._phase_center_app_ra.tols
+                this_single_ra = uvutils._test_array_constant(
+                    ra_list[select_mask], tols=radian_tols
+                )
+                this_single_dec = uvutils._test_array_constant(
+                    dec_list[select_mask], tols=radian_tols
+                )
+
+                if not this_single_ra or not this_single_dec:
+                    cat_type = "ephem"
+
+                    lon_use = ra_list[select_mask]
+                    lat_use = dec_list[select_mask]
+                    times_use = self.time_array[select_mask]
+
+                    unique_times, unique_inds, inverse, counts = np.unique(
+                        times_use,
+                        return_index=True,
+                        return_inverse=True,
+                        return_counts=True,
+                    )
+                    if np.max(counts) > 1:
+                        for t_ind in np.arange(unique_times.size):
+                            if not uvutils._test_array_constant(
+                                lon_use[inverse == t_ind], tols=radian_tols
+                            ):
+                                raise ValueError(
+                                    f"Source {name} has different RA values for "
+                                    "different baselines at the same time."
+                                )
+                            if not uvutils._test_array_constant(
+                                lat_use[inverse == t_ind], tols=radian_tols
+                            ):
+                                raise ValueError(
+                                    f"Source {name} has different RA values for "
+                                    "different baselines at the same time."
+                                )
+                        times_use = unique_times
+                        lon_use = lon_use[unique_inds]
+                        lat_use = lat_use[unique_inds]
+
+                elif cat_type == "unprojected":
+                    lon_use = None
+                    lat_use = None
+                    times_use = None
+                else:
+                    cat_type = "sidereal"
+                    lon_use = np.median(ra_list[select_mask])
+                    lat_use = np.median(dec_list[select_mask])
+                    times_use = None
+
                 self._add_phase_center(
                     name,
-                    "sidereal",
-                    cat_lon=np.median(ra_list[select_mask]),
-                    cat_lat=np.median(dec_list[select_mask]),
+                    cat_type,
+                    cat_lon=lon_use,
+                    cat_lat=lat_use,
                     cat_frame=cat_frame,
                     cat_epoch=epoch_val,
                     cat_id=sou_dict[name],
+                    cat_times=times_use,
                     info_source="file",
                 )
-            if Nphase == 1:
-                # check that the RA values do not vary
-                if not single_ra:
-                    raise ValueError(
-                        'phase_type is "phased" but the RA values are varying.'
-                    )
+
         else:
             # check that the RA values are not constant (if more than one time
             # present)
+            if Nphase > 1:
+                raise ValueError("projected is False but there are multiple sources.")
             if single_ra and not single_time:
-                raise ValueError(
-                    'phase_type is "drift" but the RA values are constant.'
-                )
+                raise ValueError("projected is False but the RA values are constant.")
 
             # use skycoord to simplify calculating sky separations.
             # Note, this should be done in the TEE frame, which isn't supported
@@ -1555,14 +1619,16 @@ class Miriad(UVData):
             acceptable_offset = Angle("1d")
             if np.max(separation_angles.rad) > acceptable_offset.rad:
                 warnings.warn(
-                    "drift RA, Dec is off from lst, latitude by more than "
-                    f"{acceptable_offset}, so it appears that it is not a zenith "
-                    "drift scan. Setting cat_type to unprojected for now."
+                    "projected is False, but RA, Dec is off from lst, latitude by more "
+                    f"than {acceptable_offset}, so it appears that it is not an "
+                    "unphased file. Setting cat_type to unprojected, but that might be "
+                    "inaccurate."
                 )
 
-            cat_id = self._add_phase_center(
-                cat_name="unprojected", cat_type="unprojected"
-            )
+            # there can only be one source name or it would have errored earlier.
+            cat_name = list(sou_dict.keys())[0]
+
+            cat_id = self._add_phase_center(cat_name=cat_name, cat_type="unprojected")
             self.phase_center_id_array = np.zeros((self.Nblts), dtype=int) + cat_id
 
         # close out now that we're done
@@ -1591,7 +1657,7 @@ class Miriad(UVData):
             self.reorder_blts(order=order, minor_order=minor_order)
 
         # If the data set was recorded using the old phasing method, fix that now.
-        if fix_old_proj and (phase_type == "phased"):
+        if fix_old_proj and projected:
             # this will error if it could not have been phased with the old method
             self.fix_phase(use_ant_pos=fix_use_ant_pos)
 
@@ -1937,15 +2003,75 @@ class Miriad(UVData):
         uv.add_var("inttime", "d")
 
         uv.add_var("epoch", "r")
-        uv.add_var("phsframe", "a")
+        uv.add_var("phsframe", "a")  # Non-standard MIRIAD keyword
 
-        any_phased = np.any(~self._check_for_cat_type("unprojected"))
         uv.add_var("obsra", "d")
         uv.add_var("obsdec", "d")
         uv.add_var("obspa", "d")  # Non-standard MIRIAD keyword
 
         # write data
         c_ns = const.c.to("m/ns").value
+        any_ephem = np.any(self._check_for_cat_type("ephem"))
+        any_driftscan = np.any(self._check_for_cat_type("driftscan"))
+        if any_driftscan:
+            warnings.warn(
+                "This object has a driftscan phase center. Miriad does not really "
+                "support driftscans, writing this out in the same way 'ephem' phase "
+                "centers are written by converting alt/az to ra/dec at each time. The "
+                "data will not be changed, but if this file  is read back in it will "
+                "be represented as an ephem phase center rather than a driftscan phase "
+                "center."
+            )
+            driftscan_ids = []
+            driftscan_coords = {}
+            for cat_id, phase_dict in self.phase_center_catalog.items():
+                if phase_dict["cat_type"] == "driftscan":
+                    driftscan_ids.append(cat_id)
+                    times = np.unique(
+                        self.time_array[self.phase_center_id_array == cat_id]
+                    )
+                    this_altaz = SkyCoord(
+                        alt=np.zeros_like(times) + phase_dict["cat_lat"],
+                        az=np.zeros_like(times) + phase_dict["cat_lon"],
+                        frame="altaz",
+                        unit="rad",
+                        location=EarthLocation.from_geocentric(
+                            *self.telescope_location, unit="m"
+                        ),
+                        obstime=Time(times, format="jd"),
+                    )
+                    driftscan_coords[cat_id] = {
+                        "times": times,
+                        "coord": this_altaz.transform_to("fk5"),
+                    }
+        if any_ephem:
+            ephem_interp = False
+            ra_interp = {}
+            dec_interp = {}
+            for cat_id in self.phase_center_catalog.keys():
+                if self.phase_center_catalog[cat_id]["cat_type"] != "ephem":
+                    continue
+                npts = self.phase_center_catalog[cat_id]["cat_times"].size
+                if npts == 1:
+                    continue
+                if npts <= 4:
+                    interp_kind = "slinear"
+                else:
+                    interp_kind = "cubic"
+                unique_times, unique_inds = np.unique(
+                    self.phase_center_catalog[cat_id]["cat_times"], return_index=True
+                )
+                # generate interp functions in case they're needed
+                ra_interp[cat_id] = scipy.interpolate.interp1d(
+                    unique_times,
+                    self.phase_center_catalog[cat_id]["cat_lon"][unique_inds],
+                    kind=interp_kind,
+                )
+                dec_interp[cat_id] = scipy.interpolate.interp1d(
+                    unique_times,
+                    self.phase_center_catalog[cat_id]["cat_lat"][unique_inds],
+                    kind=interp_kind,
+                )
         for viscnt in range(self.data_array.shape[0]):
             uvw = (self.uvw_array[viscnt] / c_ns).astype(np.double)
             t = miriad_time_array[viscnt]
@@ -1955,22 +2081,69 @@ class Miriad(UVData):
             uv["lst"] = miriad_lsts[viscnt].astype(np.double)
             uv["inttime"] = self.integration_time[viscnt].astype(np.double)
 
-            # TODO: I think this will make it so that unprojected files will have their
-            # source name set to "unprojected". Is that what we want? I think it means
-            # that if we read in a miriad file and wrote it back out, the source name
-            # would be different between the files for unprojected files.
             cat_id = self.phase_center_id_array[viscnt]
             uv["source"] = self.phase_center_catalog[cat_id]["cat_name"]
-            if any_phased:
+            cat_type = self.phase_center_catalog[cat_id]["cat_type"]
+            if cat_type == "unprojected":
+                uv["ra"] = self.phase_center_app_ra[viscnt]
+                uv["dec"] = self.phase_center_app_dec[viscnt]
+            elif cat_type == "sidereal":
                 uv["ra"] = self.phase_center_catalog[cat_id]["cat_lon"]
                 uv["dec"] = self.phase_center_catalog[cat_id]["cat_lat"]
-                # TODO: I moved these here, they used to be set as a single value.
-                # Is this correct?
+                uv["epoch"] = self.phase_center_catalog[cat_id]["cat_epoch"]
+                uv["phsframe"] = self.phase_center_catalog[cat_id]["cat_frame"]
+            elif cat_type == "ephem":
+                if self.phase_center_catalog[cat_id]["cat_times"].size == 1:
+                    # if there's only one time, just use the values
+                    uv["ra"] = self.phase_center_catalog[cat_id]["cat_lon"]
+                    uv["dec"] = self.phase_center_catalog[cat_id]["cat_lat"]
+                else:
+                    # there are multiple times. find closest time. Use the
+                    # integration center time NOT the miriad time
+                    t_use = self.time_array[viscnt]
+                    t_diffs = np.abs(
+                        self.phase_center_catalog[cat_id]["cat_times"] - t_use
+                    )
+                    t_min_loc = np.argmin(t_diffs, keepdims=True)
+                    tols = self._time_array.tols
+                    if np.isclose(0, t_diffs[t_min_loc], rtol=tols[0], atol=tols[1]):
+                        uv["ra"] = self.phase_center_catalog[cat_id]["cat_lon"][
+                            t_min_loc
+                        ]
+                        uv["dec"] = self.phase_center_catalog[cat_id]["cat_lat"][
+                            t_min_loc
+                        ]
+                    else:
+                        ephem_interp = True
+                        try:
+                            uv["ra"] = ra_interp[cat_id](t)
+                            uv["dec"] = dec_interp[cat_id](t)
+                        except ValueError:
+                            # If t_use would require extrapolation, use the closest time
+                            uv["ra"] = self.phase_center_catalog[cat_id]["cat_lon"][
+                                t_min_loc
+                            ]
+                            uv["dec"] = self.phase_center_catalog[cat_id]["cat_lat"][
+                                t_min_loc
+                            ]
                 uv["epoch"] = self.phase_center_catalog[cat_id]["cat_epoch"]
                 uv["phsframe"] = self.phase_center_catalog[cat_id]["cat_frame"]
             else:
-                uv["ra"] = self.phase_center_app_ra[viscnt]
-                uv["dec"] = self.phase_center_app_dec[viscnt]
+                # This is a driftscan, use driftscan_coords to set ra/dec
+                t_ind = np.nonzero(
+                    driftscan_coords[cat_id]["times"] == self.time_array[viscnt]
+                )[0]
+                uv["ra"] = driftscan_coords[cat_id]["coord"][t_ind].ra.rad
+                uv["dec"] = driftscan_coords[cat_id]["coord"][t_ind].dec.rad
+                uv["epoch"] = driftscan_coords[cat_id]["coord"].equinox.jyear
+                uv["phsframe"] = driftscan_coords[cat_id]["coord"].frame.name
+
+            if any_ephem and ephem_interp:
+                warnings.warn(
+                    "Some visibility times did not match ephem times so the ra and dec "
+                    "values for those visibilities were interpolated or set to the "
+                    "closest time if they would have required extrapolation."
+                )
 
             uv["obspa"] = self.phase_center_frame_pa[viscnt]
             uv["obsra"] = self.phase_center_app_ra[viscnt]
