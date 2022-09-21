@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Support for selecting on phase center IDs, including on read.
 - Several new attributes to UVFlag: `telescope_name`, `telescope_location`,
 `antenna_names`, `antenna_numbers`, `antenna_positions`, `channel_width`, `spw_array`,
 `flex_spw_id_array`, enabling support for flexible spectral windows. All of these except
@@ -15,7 +16,16 @@ they are converted between types using UVData and UVCalobjects.
 - The `UVFlag.set_telescope_params` method, similar to the ones on UVData and UVCal,
 to set several of these new parameters.
 
+### Fixed
+- Fix a bug in how `frame_pa` was calculated in `phase` and `_set_app_coords_helper` for
+multi_phase_center objects (it was using the old `phase_center_frame` attribute).
+- Fix a bug where trying to select lsts or lst_ranges on read didn't work for some file
+types.
+
 ### Deprecated
+- Deprecated the older phase attributes (`phase_type`, `phase_center_ra`,
+`phase_center_dec`, `phase_center_frame`, `phase_center_epoch`, `object_name`) in favor
+of the `phase_center_catalog`. The older phase attributes will be removed in version 3.0.
 - The `lst_from_uv` function in the uvflag module.
 
 ## [2.2.12] - 2022-12-07
@@ -30,16 +40,9 @@ to set several of these new parameters.
 objects to support observatories on the moon (or anywhere not on earth).
 
 ### Fixed
-- Fix a bug in how `frame_pa` was calculated in `phase` and `_set_app_coords_helper` for
-multi_phase_center objects (it was using the old `phase_center_frame` attribute).
 - A bug in `UVData.read_uvh5` where `multi_phase_center` was being used to imply the
 existence of the `phase_center_catalog` header item, rather than checking for the
 presence of that item. This conflicted with the uvh5 memo.
-
-### Deprecated
-- Deprecated the older phase attributes (`phase_type`, `phase_center_ra`,
-`phase_center_dec`, `phase_center_frame`, `phase_center_epoch`, `object_name`) in favor
-of the `phase_center_catalog`. The older phase attributes will be removed in version 3.0.
 
 ## [2.2.10] - 2022-10-20
 
