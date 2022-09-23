@@ -1723,35 +1723,40 @@ def test_select_bls(casa_uvfits):
         uv_object.select(bls=list(zip(first_ants, second_ants)) + [1, 7])
     assert str(cm.value).startswith("bls must be a list of tuples of antenna numbers")
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="bls must be a list of tuples of antenna numbers"
+    ):
         uv_object.select(bls=[(uv_object.antenna_names[0], uv_object.antenna_names[1])])
-    assert str(cm.value).startswith("bls must be a list of tuples of antenna numbers")
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Antenna pair (5, 1) does not have any data"):
         uv_object.select(bls=(5, 1))
-    assert str(cm.value).startswith("Antenna pair (5, 1) does not have any data")
-    with pytest.raises(ValueError) as cm:
+
+    with pytest.raises(ValueError, match="Antenna pair (1, 5) does not have any data"):
         uv_object.select(bls=(1, 5))
-    assert str(cm.value).startswith("Antenna pair (1, 5) does not have any data")
-    with pytest.raises(ValueError) as cm:
+
+    with pytest.raises(
+        ValueError, match="Antenna pair (27, 27) does not have any data"
+    ):
         uv_object.select(bls=(27, 27))
-    assert str(cm.value).startswith("Antenna pair (27, 27) does not have any data")
-    with pytest.raises(ValueError) as cm:
+
+    with pytest.raises(
+        ValueError,
+        match="Cannot provide length-3 tuples and also specify polarizations.",
+    ):
         uv_object.select(bls=(7, 1, "RR"), polarizations="RR")
-    assert str(cm.value).startswith(
-        "Cannot provide length-3 tuples and also " "specify polarizations."
-    )
-    with pytest.raises(ValueError) as cm:
+
+    with pytest.raises(
+        ValueError, match="The third element in each bl must be a polarization string"
+    ):
         uv_object.select(bls=(7, 1, 7))
-    assert str(cm.value).startswith(
-        "The third element in each bl must be a " "polarization string"
-    )
-    with pytest.raises(ValueError) as cm:
+
+    with pytest.raises(
+        ValueError, match="bls must be a list of tuples of antenna numbers"
+    ):
         uv_object.select(bls=[])
-    assert str(cm.value).startswith("bls must be a list of tuples of antenna numbers")
-    with pytest.raises(ValueError) as cm:
+
+    with pytest.raises(ValueError, match="Baseline number 100 is not present in the"):
         uv_object.select(bls=[100])
-    assert str(cm.value).startswith("Baseline number 100 is not present in the")
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")

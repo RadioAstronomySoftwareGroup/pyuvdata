@@ -783,10 +783,19 @@ def twofreq(cst_efield_2freq_main, tmp_path_factory):
     return testfile
 
 
-def test_partial_read_freq(twofreq):
+@pytest.fixture(scope="module")
+def twofreq_healpix(cst_efield_2freq_cut_healpix, tmp_path_factory):
+    testfile = str(tmp_path_factory.mktemp("beams") / "twofreq_healpix.fits")
+    cst_efield_2freq_cut_healpix.write_beamfits(testfile)
+    return testfile
+
+
+@pytest.mark.parametrize("beamfile", ["twofreq", "twofreq_healpix"])
+def test_partial_read_freq(request, beamfile):
+    beamfile = request.getfixturevalue(beamfile)
 
     beam2 = UVBeam()
-    beam2.read(twofreq, freq_range=(145e6, 155e6))
+    beam2.read(beamfile, freq_range=(145e6, 155e6))
 
     assert beam2.freq_array.shape == (1, 1)
     assert beam2.freq_array[0, 0] == 150e6
