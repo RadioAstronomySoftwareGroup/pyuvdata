@@ -195,7 +195,9 @@ d) Writing a regularly gridded beam FITS file
 **********************************************
 When reading a beam FITS file, you also have the option of selecting frequencies and
 az/za values at the read step -- i.e. so that memory is never allocated for data outside
-these ranges. Use the ``freq_range`` and ``za_range`` parameters to achieve this.
+these ranges. Use the ``freq_range``, ``za_range`` and ``az_range`` parameters to
+achieve this. The ``freq_range`` parameter will be effective for both HEALpix beamfits
+files and az/za grid.
 
 .. code-block:: python
 

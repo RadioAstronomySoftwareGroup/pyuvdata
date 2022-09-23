@@ -157,6 +157,11 @@ class BeamFITS(UVBeam):
                     )
 
             if self.pixel_coordinate_system == "healpix":
+                if az_range is not None or za_range is not None:
+                    raise ValueError(
+                        "az_range and za_range are not supported for healpix beams!"
+                    )
+
                 # get pixel values out of HPX_IND extension
                 hpx_hdu = fname[hdunames["HPX_INDS"]]
                 self.Npixels = hpx_hdu.header["NAXIS2"]

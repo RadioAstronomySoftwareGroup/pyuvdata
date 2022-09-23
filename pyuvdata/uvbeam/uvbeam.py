@@ -3826,8 +3826,9 @@ class UVBeam(UVBase):
             Only applies to mwa_beam type files.
         freq_range : array_like of float
             Range of frequencies to include in Hz, defaults to all available
-            frequencies. Must be length 2.
-            Only applies to mwa_beam type files.
+            frequencies. Must be length 2. Only applies to mwa_beam and beamfits
+            type files. For beamfits, this will cause a *partial read* (i.e. reduce
+            peak memory usage).
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -3846,18 +3847,14 @@ class UVBeam(UVBase):
         fix_auto_power : bool
             For power beams, if auto polarization beams with imaginary values are found,
             fix those values so that they are real-only in data_array.
-        freq_range : tuple of float in Hz
-            If given, the lower and upper limit of the frequencies to read in. Default
-            is to read in all frequencies. Restricting the frequencies reduces peak
-            memory usage.
         az_range : tuple of float in deg
             The azimuth range to read in, if the beam is specified in az/za coordinates.
             Default is to read in all azimuths. Restricting the azimuth reduces peak
-            memory usage.
+            memory usage. Only used for beamfits files.
         za_range : tuple of float in deg
             The zenith angle range to read in, if the beam is specified in za/za
             coordinates. Default is to read in all za. Restricting the za reduces peak
-            memory.
+            memory. Only used for beamfits files.
 
         Raises
         ------
