@@ -12,7 +12,8 @@ import warnings
 
 cimport cython
 cimport numpy
-from libc.math cimport fabs, min, sqrt
+from libc.math cimport fabs
+from numpy.math cimport PI
 
 # This initializes the numpy 1.7 c-api.
 # cython 3.0 will do this by default.
@@ -21,10 +22,10 @@ numpy.import_array()
 
 
 @cython.boundscheck(False)
-@cython.wwraparound(False)
+@cython.wraparound(False)
 cpdef numpy.ndarray[dtype=numpy.npy_bool] find_healpix_indices(
-    numpy.float64_t[::1] theta_grid
-    numpy.float64_t[::1] phi_grid
+    numpy.float64_t[::1] theta_grid,
+    numpy.float64_t[::1] phi_grid,
     numpy.float64_t[::1] theta_hpx,
     numpy.float64_t[::1] phi_hpx,
     numpy.float64_t pixel_resolution
@@ -54,8 +55,8 @@ cpdef numpy.ndarray[dtype=numpy.npy_bool] find_healpix_indices(
               break
           theta_g = theta_grid[itheta]
           dtheta = fabs(theta_h - theta_g)
-          if dtheta > numpy.pi:
-              dtheta -= 2 * numpy.pi
+          if dtheta > PI:
+              dtheta -= 2 * PI
 
           # only look through phi if we're within the pixel resolution in theta
           dtheta *= dtheta
