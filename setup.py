@@ -90,7 +90,15 @@ utils_extension = Extension(
     extra_compile_args=extra_compile_args,
 )
 
-extensions = [corr_fits_extension, utils_extension]
+uvbeam_extension = Extension(
+    "pyuvdata._uvbeam",
+    sources=["pyuvdata/uvbeam/uvbeam.pyx"],
+    define_macros=global_c_macros,
+    include_dirs=[numpy.get_include()],
+    extra_compile_args=extra_compile_args,
+)
+
+extensions = [corr_fits_extension, utils_extension, uvbeam_extension]
 
 # don't build miriad on windows
 if not is_platform_windows():

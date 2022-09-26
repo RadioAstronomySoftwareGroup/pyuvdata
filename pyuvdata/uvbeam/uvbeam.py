@@ -12,6 +12,7 @@ from astropy import units
 from astropy.coordinates import Angle
 from scipy import interpolate
 
+from .. import _uvbeam
 from .. import parameter as uvp
 from .. import utils as uvutils
 from ..uvbase import UVBase
@@ -2064,21 +2065,31 @@ class UVBeam(UVBase):
         hpx_theta = (Angle(np.pi / 2, units.radian) - hpx_lat).radian
         hpx_phi = hpx_lon.radian
 
-        phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
-
-        # Don't ask for interpolation to pixels that aren't inside the beam area
-        pix_dists = np.sqrt(
-            (theta_vals.ravel() - hpx_theta.reshape(-1, 1)) ** 2
-            + (phi_vals.ravel() - hpx_phi.reshape(-1, 1)) ** 2
+        inds_to_use = _uvbeam.find_healpix_indices(
+            np.ascontiguousarray(self.axis2_array, dtype=np.float64),
+            np.ascontiguousarray(self.axis1_array, dtype=np.float64),
+            np.ascontiguousarray(hpx_theta, dtype=np.float64),
+            np.ascontiguousarray(hpx_phi, dtype=np.float64),
+            np.float64(hp_obj.pixel_resolution.to_value(units.radian)),
         )
 
-        inds_to_use = np.argwhere(
-            np.min(pix_dists, axis=1)
-            < hp_obj.pixel_resolution.to_value(units.radian) * 2
-        ).squeeze(1)
+        # phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
 
-        if inds_to_use.size < hp_obj.npix:
-            pixels = pixels[inds_to_use]
+        # # Don't ask for interpolation to pixels that aren't inside the beam area
+        # pix_dists = np.sqrt(
+        #     (theta_vals.ravel() - hpx_theta.reshape(-1, 1)) ** 2
+        #     + (phi_vals.ravel() - hpx_phi.reshape(-1, 1)) ** 2
+        # )
+
+        # inds_to_use = np.argwhere(
+        #     np.min(pix_dists, axis=1)
+        #     < hp_obj.pixel_resolution.to_value(units.radian) * 2
+        # ).squeeze(1)
+
+        # if inds_to_use.size < hp_obj.npix:
+        #     pixels = pixels[inds_to_use]
+
+        pixels = pixels[inds_to_use]
 
         beam_object = self.interp(
             healpix_nside=nside,
