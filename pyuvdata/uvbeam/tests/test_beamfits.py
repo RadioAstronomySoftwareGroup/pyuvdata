@@ -783,7 +783,7 @@ def twofreq(cst_efield_2freq_main, tmp_path_factory):
     return testfile
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def twofreq_healpix(cst_efield_2freq_cut_healpix, tmp_path_factory):
     testfile = str(tmp_path_factory.mktemp("beams") / "twofreq_healpix.fits")
     cst_efield_2freq_cut_healpix.write_beamfits(testfile)
