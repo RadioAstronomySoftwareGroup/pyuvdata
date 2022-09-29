@@ -6,6 +6,7 @@
 import copy
 import itertools
 import os
+import re
 from collections import Counter, namedtuple
 
 import h5py
@@ -1728,14 +1729,18 @@ def test_select_bls(casa_uvfits):
     ):
         uv_object.select(bls=[(uv_object.antenna_names[0], uv_object.antenna_names[1])])
 
-    with pytest.raises(ValueError, match=re.escape("Antenna pair (5, 1) does not have any data")):
+    with pytest.raises(
+        ValueError, match=re.escape("Antenna pair (5, 1) does not have any data")
+    ):
         uv_object.select(bls=(5, 1))
 
-    with pytest.raises(ValueError, match=re.escape("Antenna pair (1, 5) does not have any data")):
+    with pytest.raises(
+        ValueError, match=re.escape("Antenna pair (1, 5) does not have any data")
+    ):
         uv_object.select(bls=(1, 5))
 
     with pytest.raises(
-        ValueError, match=re.escape("Antenna pair (27, 27) does not have any data)"
+        ValueError, match=re.escape("Antenna pair (27, 27) does not have any data")
     ):
         uv_object.select(bls=(27, 27))
 
