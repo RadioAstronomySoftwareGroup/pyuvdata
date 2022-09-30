@@ -435,7 +435,27 @@ def test_flex_pol_roundtrip(sma_mir_filt, filetype, future_shapes, tmp_path):
     if future_shapes:
         sma_mir_filt.use_future_array_shapes()
 
+    uvd2 = sma_mir_filt.copy(metadata_only=True)
+
     sma_mir_filt._make_flex_pol(raise_error=True)
+    with pytest.raises(
+        ValueError,
+        match="Cannot make a metadata_only UVData object flex-pol because flagging "
+        "info is required.",
+    ):
+        uvd2._make_flex_pol(raise_error=True)
+    with uvtest.check_warnings(
+        UserWarning,
+        match="Cannot make a metadata_only UVData object flex-pol because flagging "
+        "info is required.",
+    ):
+        uvd2._make_flex_pol()
+    uvd2._make_flex_pol(raise_warning=False)
+    uvd3 = sma_mir_filt.copy(metadata_only=True)
+    assert uvd2 != uvd3
+
+    uvd3.remove_flex_pol(combine_spws=False)
+    assert uvd2 != uvd3
 
     if filetype in ["uvfits", "miriad"]:
         warn_str = (
