@@ -299,8 +299,10 @@ class BeamFITS(UVBeam):
             if za_range is not None:
                 data = data[..., za_mask, :]
             if freq_range is not None:
-                data = data[..., freq_mask, :, :]
-
+                if self.pixel_coordinate_system == "healpix":
+                    data = data[..., freq_mask, :]
+                else:
+                    data = data[..., freq_mask, :, :]
             if self.beam_type == "power":
                 # check for case where the data is complex (e.g. for xy beams)
                 if n_dimensions > ax_nums["complex"] - 1:
