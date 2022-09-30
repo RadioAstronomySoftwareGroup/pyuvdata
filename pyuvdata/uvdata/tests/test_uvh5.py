@@ -3440,3 +3440,15 @@ def test_fix_autos_no_op():
         UserWarning, "Cannot use _fix_autos if ant_1_array, ant_2_array, or "
     ):
         uvd._fix_autos()
+
+
+def test_uvh5_bitshuffle(uv_phase_comp, tmp_path):
+    pytest.importorskip("hdf5plugin")
+
+    uvd, _ = uv_phase_comp
+
+    outfile = os.path.join(tmp_path, "test.uvh5")
+    uvd.write_uvh5(outfile, data_compression="bitshuffle")
+
+    uvd2 = UVData.from_file(outfile)
+    assert uvd == uvd2

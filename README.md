@@ -150,12 +150,14 @@ Required:
 
 Optional:
 
-* python-casacore >= 3.3.1 (for working with CASA measurement sets)
-* astropy-healpix >=0.6 (for working with beams in HEALPix formats)
-* pyyaml>=5.1 (for working with settings files for CST beam files)
-* novas and novas_de405 (for using the NOVAS library for astrometry)
-* astroquery >= 0.4.4 (for enabling lookup functionality with JPL-Horizons)
+* astropy-healpix >= 0.6 (for working with beams in HEALPix formats)
+* astroquery >= 0.4.4 (for enabling phasing to ephemeris objects using JPL-Horizons)
+* hdf5plugin >= 3.1.0 (for enabling bitshuffle and other hdf5 compression filters in uvh5 files)
 * lunarsky >=0.1.2 (for working with simulated datasets for lunar telescopes)
+* novas and novas_de405 (for using the NOVAS library for astrometry)
+* python-casacore >= 3.3.1 (for working with CASA measurement sets)
+* pyyaml >= 5.1 (for working with settings files for CST beam files)
+
 
 The numpy and astropy versions are important, so make sure these are up to date.
 
@@ -169,9 +171,10 @@ You can install the optional dependencies via pip by specifying an option
 when you install pyuvdata, as in ```pip install pyuvdata[healpix]```
 which will install all the required packages for using the HEALPix functionality
 in pyuvdata. The options that can be passed in this way are:
-[`astroquery`, `casa`, `cst`, `healpix`, `lunar`, `novas`,  `all`, `test`, `doc`, `dev`].
-The first six enable various specific functionality while `all` will install all optional
-dependencies. The last three (`test`, `doc`, `dev`) may be useful for developers
+[`astroquery`, `casa`, `cst`, `hdf5_compression`, `healpix`, `lunar`, `novas`, `all`, `test`,
+`doc`, `dev`]. The first set (`astroquery`, `casa`, `cst`, `hdf5_compression`,
+`healpix`, `lunar`, `novas`) enable various specific functionality while `all` will install all
+optional dependencies. The last three (`test`, `doc`, `dev`) may be useful for developers
 of pyuvdata.
 
 ### Installing python-casacore
@@ -216,12 +219,17 @@ One other package, pytest-xdist, is not required, but can be used to speed up ru
 the test suite by running tests in parallel. To use it call pytest with the
 ```-n auto``` option.
 
-One way to ensure you have all the needed packages is to use the included `environment.yaml` file to create a new environment that will
+One way to ensure you have all the needed packages is to use the included
+`environment.yaml` file to create a new environment that will
 contain all the optional dependencies along with dependencies required for
-testing and development (```conda env create -f environment.yaml```). Alternatively, you can specify `test`, `doc`, or `dev` when installing pyuvdata (as in `pip install pyuvdata[dev]`) to install the packages needed for testing (including coverage and
-linting) and documentation development; `dev` includes everything in `test` and `doc`.
+testing and development (```conda env create -f environment.yaml```).
+Alternatively, you can specify `test`, `doc`, or `dev` when installing pyuvdata
+(as in `pip install pyuvdata[dev]`) to install the packages needed for testing
+(including coverage and linting) and documentation development;
+`dev` includes everything in `test` and `doc`.
 
-To use pre-commit to prevent committing code that does not follow our style, you'll need to run `pre-commit install` in the top level `pyuvdata` directory.
+To use pre-commit to prevent committing code that does not follow our style, you'll
+need to run `pre-commit install` in the top level `pyuvdata` directory.
 
 ## Tests
 Uses the `pytest` package to execute test suite.
