@@ -3850,11 +3850,13 @@ class UVBeam(UVBase):
         az_range : tuple of float in deg
             The azimuth range to read in, if the beam is specified in az/za coordinates.
             Default is to read in all azimuths. Restricting the azimuth reduces peak
-            memory usage. Only used for beamfits files.
+            memory usage. Only used for beamfits files that have their coordinates
+            in az/za grid.
         za_range : tuple of float in deg
             The zenith angle range to read in, if the beam is specified in za/za
             coordinates. Default is to read in all za. Restricting the za reduces peak
-            memory. Only used for beamfits files.
+            memory. Only used for beamfits files that have their coordinates
+            in az/za grid.
 
         Raises
         ------
