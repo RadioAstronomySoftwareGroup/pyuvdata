@@ -437,11 +437,21 @@ def test_flex_pol_roundtrip(sma_mir_filt, filetype, future_shapes, tmp_path):
 
     sma_mir_filt._make_flex_pol(raise_error=True)
 
-    # sma_mir_filtered._make_flex_pol()
-    if filetype == "uvfits":
-        sma_mir_filt.write_uvfits(testfile)
+    if filetype in ["uvfits", "miriad"]:
+        warn_str = (
+            "combine_spws is True but there are not matched spws for all "
+            "polarizations, so spws will not be combined."
+        )
+        exp_warning = UserWarning
     else:
-        getattr(sma_mir_filt, "write_" + filetype)(testfile)
+        exp_warning = None
+        warn_str = ""
+
+    with uvtest.check_warnings(exp_warning, match=warn_str):
+        if filetype == "uvfits":
+            sma_mir_filt.write_uvfits(testfile)
+        else:
+            getattr(sma_mir_filt, "write_" + filetype)(testfile)
 
     test_uv = UVData.from_file(testfile)
 

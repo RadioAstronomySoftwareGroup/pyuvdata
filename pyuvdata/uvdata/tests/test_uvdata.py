@@ -11678,98 +11678,173 @@ def test_flex_pol_check_errs(sma_mir, pol_sel, flex_err, err_msg):
     else:
         sma_mir.polarization_array[0] = 0
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=err_msg):
         sma_mir.check()
 
-    assert str(cm.value).startswith(err_msg)
+
+def test_remove_flex_pol_error(uv_phase_comp):
+
+    uvd, _ = uv_phase_comp
+
+    uvd2 = uvd.copy()
+    uvd2.convert_to_flex_pol()
+    uvd2.flex_spw_polarization_array[1] = uvd2.flex_spw_polarization_array[0]
+    with pytest.raises(
+        ValueError,
+        match="Some spectral windows have identical frequencies, "
+        "channel widths and polarizations, so spws cannot be "
+        "combined. Set combine_spws=False to avoid this error.",
+    ):
+        uvd2.remove_flex_pol()
 
 
-def test_flex_pol_no_op(sma_mir):
+def test_flex_pol_no_op(sma_mir, uv_phase_comp):
     """
-    Test that appropriate errors are thrown when flex_spw_polarization_array is set
-    incorrectly.
+    Test shortcircuits of flex_pol method
     """
-    sma_mir.select(polarizations=["xx"])
-    sma_copy = sma_mir.copy()
-    sma_mir.remove_flex_pol()
+    uvd = sma_mir.copy()
 
-    assert sma_mir == sma_copy
+    # remove_flex_pol no op
+    uvd.select(polarizations=["xx"])
+    sma_copy = uvd.copy()
+    uvd.remove_flex_pol()
 
-    sma_mir.flag_array[:, :, : sma_mir.Nfreqs // 2, 0] = True
-    sma_mir._make_flex_pol()
-    sma_copy = sma_mir.copy()
+    assert uvd == sma_copy
 
-    sma_mir._make_flex_pol()
+    # _make_flex_pol no op
+    uvd.flag_array[:, :, : sma_mir.Nfreqs // 2, 0] = True
+    uvd._make_flex_pol()
+    sma_copy = uvd.copy()
 
-    assert sma_mir == sma_copy
+    uvd._make_flex_pol()
+
+    assert uvd == sma_copy
+
+    # remove_flex_pol with one spw
+    uvd, _ = uv_phase_comp
+
+    uvd2 = uvd.copy()
+    uvd2.convert_to_flex_pol()
+    uvd2.select(polarizations=["xx"])
+    uvd2.remove_flex_pol()
+
+    # also remove flex_spw
+    uvd2.flex_spw = False
+    uvd2.flex_spw_id_array = None
+    uvd2._flex_spw_id_array.required = False
+    uvd2.channel_width = uvd2.channel_width[0]
+    uvd2._channel_width.form = ()
+
+    uvd2.check()
+    uvd3 = uvd.copy()
+    uvd3.select(polarizations=["xx"])
+    assert uvd2 == uvd3
+
+    # remove_flex_pol with multiple spws but only one pol
+    uvd2 = uvd.copy()
+    uvd2._set_flex_spw()
+    uvd2.channel_width = np.full(uvd2.Nfreqs, uvd2.channel_width)
+    uvd2.spw_array = np.array([1, 4, 5])
+    uvd2.Nspws = 3
+    uvd2.flex_spw_id_array = np.zeros(uvd2.Nfreqs, dtype=int)
+    uvd2.flex_spw_id_array[: uvd2.Nfreqs // 3] = 1
+    uvd2.flex_spw_id_array[uvd2.Nfreqs // 3 : 2 * (uvd2.Nfreqs // 3)] = 4
+    uvd2.flex_spw_id_array[2 * (uvd2.Nfreqs // 3) :] = 5
+    uvd2.check()
+    uvd3 = uvd2.copy()
+
+    uvd2.convert_to_flex_pol()
+    uvd2.select(polarizations=["xx"])
+    uvd2.remove_flex_pol()
+
+    uvd3.select(polarizations=["xx"])
+    assert uvd2 == uvd3
 
 
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_flex_pol_uvh5(future_shapes, uv_phase_comp, tmp_path):
+@pytest.mark.parametrize(
+    "future_shapes, multispw,sorting",
+    [
+        [True, False, None],
+        [False, True, None],
+        [False, False, "channel"],
+        [True, True, "channel"],
+        [False, True, "spw1"],
+        [True, True, "spw2"],
+    ],
+)
+def test_flex_pol_uvh5(future_shapes, multispw, sorting, uv_phase_comp, tmp_path):
     """
     Check that we can write out uvh5 files with flex pol data sets.
 
-    This also exercises the check_autos for flex_pol.
+    This exercises `convert_to_flex_pol` and `remove_flex_pol` and the check_autos for
+    flex_pol.
     """
 
     uvd, _ = uv_phase_comp
 
     assert uvd.Npols > 1
 
-    uvd.check(check_autos=True)
+    if future_shapes:
+        uvd.use_future_array_shapes()
 
-    uvd.use_future_array_shapes()
-    uvd._set_flex_spw()
-    uvd.flex_spw_id_array = np.zeros(uvd.Nfreqs, dtype=int)
-    uvd.check()
+    if multispw:
+        # split data into multiple spws
+        uvd._set_flex_spw()
+        if not future_shapes:
+            uvd.channel_width = np.full(uvd.Nfreqs, uvd.channel_width)
+        uvd.spw_array = np.array([1, 4, 5])
+        uvd.Nspws = 3
+        uvd.flex_spw_id_array = np.zeros(uvd.Nfreqs, dtype=int)
+        uvd.flex_spw_id_array[: uvd.Nfreqs // 3] = 1
+        uvd.flex_spw_id_array[uvd.Nfreqs // 3 : 2 * (uvd.Nfreqs // 3)] = 4
+        with pytest.raises(
+            ValueError,
+            match="All values in the flex_spw_id_array must exist in the spw_array.",
+        ):
+            uvd.check()
+        uvd.flex_spw_id_array[2 * (uvd.Nfreqs // 3) :] = 5
+
     uvd_orig = uvd.copy()
 
-    uvd.flex_spw_polarization_array = uvd.polarization_array
-    for spw in np.arange(uvd.Npols - 1):
-        uvd.flex_spw_id_array = np.concatenate(
-            (
-                uvd.flex_spw_id_array,
-                np.zeros(uvd.Nfreqs, dtype=int) + spw + 1,
-            )
-        )
-    uvd.spw_array = np.arange(uvd.Npols)
-    uvd.Nspws = uvd.Npols
-    uvd.polarization_array = np.array([0])
-    uvd.freq_array = np.tile(uvd.freq_array, uvd.Npols)
-    uvd.channel_width = np.tile(uvd.channel_width, uvd.Npols)
-
     # make a copy and reshape improperly to trigger the check_autos code
-    uvd2 = uvd.copy()
-    uvd2.data_array = uvd2.data_array.reshape(uvd2.Nblts, uvd2.Nfreqs * uvd2.Npols, 1)
-    uvd2.flag_array = uvd2.flag_array.reshape(uvd2.Nblts, uvd2.Nfreqs * uvd2.Npols, 1)
-    uvd2.nsample_array = uvd.nsample_array.reshape(
-        uvd2.Nblts, uvd2.Nfreqs * uvd2.Npols, 1
-    )
-    uvd2.Nfreqs = uvd2.Nfreqs * uvd2.Npols
-    uvd2.Npols = 1
-    uvd2._make_flex_pol()
-    if not future_shapes:
-        uvd2.use_current_array_shapes()
+    uvd2 = uvd.copy(metadata_only=True)
+    uvd2.convert_to_flex_pol()
+    uvd2.check(check_autos=True)
+    if future_shapes:
+        uvd2.data_array = uvd.data_array.reshape(uvd.Nblts, uvd.Nfreqs * uvd.Npols, 1)
+        uvd2.flag_array = uvd.flag_array.reshape(uvd.Nblts, uvd.Nfreqs * uvd.Npols, 1)
+        uvd2.nsample_array = uvd.nsample_array.reshape(
+            uvd.Nblts, uvd.Nfreqs * uvd.Npols, 1
+        )
+    else:
+        uvd2.data_array = uvd.data_array.reshape(
+            uvd.Nblts, 1, uvd.Nfreqs * uvd.Npols, 1
+        )
+        uvd2.flag_array = uvd.flag_array.reshape(
+            uvd.Nblts, 1, uvd.Nfreqs * uvd.Npols, 1
+        )
+        uvd2.nsample_array = uvd.nsample_array.reshape(
+            uvd.Nblts, 1, uvd.Nfreqs * uvd.Npols, 1
+        )
     with pytest.raises(ValueError, match="Some auto-correlations have non-real values"):
         uvd2.check(check_autos=True)
 
-    uvd.data_array = uvd.data_array.reshape(
-        uvd.Nblts, uvd.Nfreqs * uvd.Npols, 1, order="F"
-    )
-    uvd.flag_array = uvd.flag_array.reshape(
-        uvd.Nblts, uvd.Nfreqs * uvd.Npols, 1, order="F"
-    )
-    uvd.nsample_array = uvd.nsample_array.reshape(
-        uvd.Nblts, uvd.Nfreqs * uvd.Npols, 1, order="F"
-    )
+    uvd.convert_to_flex_pol()
 
-    uvd.Nfreqs = uvd.Nfreqs * uvd.Npols
-    uvd.Npols = 1
-    uvd._make_flex_pol()
-    uvd.check()
+    if sorting == "channel":
+        spw_reorder = 2
+        uvd.reorder_freqs(select_spw=spw_reorder, channel_order="-freq")
+    elif sorting == "spw1":
+        uvd.reorder_freqs(spw_order="number")
+    elif sorting == "spw2":
+        if multispw:
+            spw_final_order = [1, 4, 5, 0, 3, 2, 6, 7, 8, 9, 10, 11]
+            spw_order = np.zeros_like(uvd.spw_array)
+            for idx, spw in enumerate(spw_final_order):
+                spw_order[idx] = np.nonzero(uvd.spw_array == spw)[0]
+            uvd.reorder_freqs(spw_order=spw_order)
 
-    if not future_shapes:
-        uvd.use_current_array_shapes()
+    uvd.check(check_autos=True)
 
     outfile = os.path.join(tmp_path, "test.uvh5")
     uvd.write_uvh5(outfile)
@@ -11779,34 +11854,30 @@ def test_flex_pol_uvh5(future_shapes, uv_phase_comp, tmp_path):
 
     assert uvd2 == uvd
 
-    if not future_shapes:
-        uvd2.use_future_array_shapes()
-    uvd2.Npols = uvd2.Nspws
-    uvd2.Nspws = 1
-    uvd2.Nfreqs = int(np.round(uvd2.Nfreqs / uvd2.Npols))
-    uvd2.freq_array = uvd2.freq_array[: uvd2.Nfreqs]
-    uvd2.channel_width = uvd2.channel_width[: uvd2.Nfreqs]
-    uvd2.polarization_array = uvd2.flex_spw_polarization_array
-    uvd2.flex_spw_polarization_array = None
-    uvd2.spw_array = np.array([0])
-    uvd2.flex_spw_id_array = np.zeros(uvd2.Nfreqs, dtype=int)
-    uvd2.data_array = uvd2.data_array.reshape(
-        uvd2.Nblts, uvd2.Nfreqs, uvd2.Npols, order="F"
-    )
-    uvd2.flag_array = uvd2.flag_array.reshape(
-        uvd2.Nblts, uvd2.Nfreqs, uvd2.Npols, order="F"
-    )
-    uvd2.nsample_array = uvd2.nsample_array.reshape(
-        uvd2.Nblts, uvd2.Nfreqs, uvd2.Npols, order="F"
-    )
-    if not future_shapes:
-        uvd2.use_current_array_shapes()
-        uvd_orig.use_current_array_shapes()
+    uvd2.remove_flex_pol()
+    if not multispw:
+        uvd2.flex_spw = False
+        uvd2.flex_spw_id_array = None
+        uvd2._flex_spw_id_array.required = False
+        if not future_shapes:
+            uvd2.channel_width = uvd2.channel_width[0]
+            uvd2._channel_width.form = ()
+
     uvd2.check()
 
-    # cast to integers for comparison
-    uvd_orig.data_array.real = np.fix(uvd_orig.data_array.real)
-    uvd_orig.data_array.imag = np.fix(uvd_orig.data_array.imag)
+    if multispw and sorting == "spw1":
+        # This changes which spw numbers are kept, so need to renumber for equality
+        spw_renumber_dict = {0: 1, 2: 4, 3: 5}
+        new_spw_array = np.zeros_like(uvd2.spw_array)
+        for idx, spw in enumerate(uvd2.spw_array):
+            new_spw = spw_renumber_dict[spw]
+            new_spw_array[idx] = new_spw
+            uvd2.flex_spw_id_array[
+                np.nonzero(uvd2.flex_spw_id_array == spw)[0]
+            ] = new_spw
+        uvd2.spw_array = new_spw_array
+        uvd2.check()
+
     assert uvd_orig == uvd2
 
 
