@@ -815,3 +815,11 @@ def test_partial_read_za(twofreq):
 
     assert beam2.axis2_array.shape == (91,)
     assert np.all(beam2.axis2_array <= np.pi / 2)
+
+
+def test_azza_range_onhealpix(twofreq_healpix):
+    beam2 = UVBeam()
+    with pytest.raises(
+        ValueError, match="az_range and za_range are not supported for healpix beams"
+    ):
+        beam2.read(twofreq_healpix, az_range=(0, 90))
