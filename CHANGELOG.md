@@ -4,17 +4,30 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added `UVData.convert_to_flex_pol` method to enable writing uvh5 files with the
+polarization axis changing slowest as desired by HERA. Also updated
+`UVData.remove_flex_pol` to properly undo the `UVData.convert_to_flex_pol` operation.
+- Added an option to `UVData.read` and `UVData.from_file` methods when reading uvh5
+type files to call `remove_flex_pol` as part of the read. This is defaulted to `True`
+so that when HERA data is written with flex_pol the change will not disrupt users, but
+other users of uvh5 may want to set it to `False`.
+- Added support to make bitshuffle compression easier when writing UVData objects to
+uvh5 files
 - Support for partial reads on beamfits files. This can be done on frequency, azimuth
 or zenith angle (if beam is in az/za coordinates).
-- Logging statements (INFO level) in `UVdata.check`.
+- Logging statements (INFO level) in `UVData.check`.
 
 ### Changed
+- Significantly increased uvh5 reading and writing speed.
 - Added `use_future_array_shapes` method to UVBeam to allow users to convert to using
 the future array shapes now, with support throughout UVBeam methods and related utility
 functions. Also added `use_current_array_shapes` to revert to the standard shapes.
 - Major performance improvement in the `UVBeam.to_healpix` method.
 - Performance improvement when doing a `UVData.select` using the `bls` parameter (~70%
 improvement in the `_select_preprocess` function)
+
+### Fixed
+- A bug in `UVData.check` when `check_autos` is True and the object is a flex pol object.
 
 ## [2.2.9] - 2022-8-23
 
