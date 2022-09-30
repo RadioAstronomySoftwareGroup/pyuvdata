@@ -1254,7 +1254,7 @@ class UVData(UVBase):
             if cat_frame is None:
                 cat_frame = "altaz"
 
-        # Let's check some case-specific things and make sure all the entires are value
+        # check some case-specific things and make sure all the entries are acceptable
         if (cat_times is None) and (cat_type == "ephem"):
             raise ValueError("cat_times cannot be None for ephem object.")
         elif (cat_times is not None) and (cat_type != "ephem"):
@@ -2606,7 +2606,7 @@ class UVData(UVBase):
             raise_errors=raise_errors,
         )
 
-    def remove_flex_pol(self):
+    def remove_flex_pol(self, combine_spws=True):
         """
         Convert a flex-pol UVData object into one with a standard polarization axis.
 
@@ -2620,17 +2620,217 @@ class UVData(UVBase):
             # There isn't anything to do, so just move along
             return
 
-        self.polarization_array = np.unique(self.flex_spw_polarization_array)
-        self.Npols = len(self.polarization_array)
+        unique_pols = np.unique(self.flex_spw_polarization_array)
+        n_pols = len(unique_pols)
 
+        if self.Nspws == 1 or n_pols == 1:
+            # Just remove the flex_spw_polarization_array and fix the polarization array
+            self.polarization_array = unique_pols
+            self.flex_spw_polarization_array = None
+            return
+
+        if combine_spws:
+            # check to see if there are spectral windows that have matching freq_array
+            # and channel_width (up to sorting). If so, they need to be combined.
+            if self.future_array_shapes:
+                freq_array_use = self.freq_array
+            else:
+                freq_array_use = self.freq_array[0, :]
+
+            # Now find matching sets of spws
+            # order spws by order of appearance in flex_spw_id_array
+            # this tends to get back to the original order in a convert/remove loop
+            spws_remaining = self.flex_spw_id_array[
+                np.sort(np.unique(self.flex_spw_id_array, return_index=True)[1])
+            ].tolist()
+            # key is first spw in a set, value is another dict with keys:
+            #  - "freqs" sorted array of frequencies
+            #  - "widths" channel widths sorted to match frequencies (using argsort)
+            #  - "spws" list of spws in this set
+            #  - "pols" list of pols for the spws in this set
+            spw_dict = {}
+            # key is spw, value is first spw that matches (key into spw_dict)
+            first_spw_dict = {}
+            while len(spws_remaining) > 0:
+                this_spw = spws_remaining[0]
+                this_pol = self.flex_spw_polarization_array[self.spw_array == this_spw][
+                    0
+                ]
+                spw_inds = np.nonzero(self.flex_spw_id_array == this_spw)[0]
+                spw_inds = spw_inds[np.argsort(freq_array_use[spw_inds])]
+                this_freqs = freq_array_use[spw_inds]
+                this_widths = self.channel_width[spw_inds]
+                match = False
+                for spw1, fset1 in spw_dict.items():
+                    if np.array_equal(fset1["freqs"], this_freqs) and np.array_equal(
+                        fset1["widths"], this_widths
+                    ):
+                        if this_pol in spw_dict[spw1]["pols"]:
+                            raise ValueError(
+                                "Some spectral windows have identical frequencies, "
+                                "channel widths and polarizations, so spws cannot be "
+                                "combined. Set combine_spws=False to avoid this error."
+                            )
+                        # this spw matches an existing set with no overlapping pols
+                        spw_dict[spw1]["spws"].append(this_spw)
+                        spw_dict[spw1]["pols"].append(this_pol)
+                        first_spw_dict[this_spw] = spw1
+                        spws_remaining.remove(this_spw)
+                        match = True
+                        continue
+                if not match:
+                    # this spw does not match an existing set
+                    spw_dict[this_spw] = {
+                        "freqs": this_freqs,
+                        "widths": this_widths,
+                        "spws": [this_spw],
+                        "pols": [this_pol],
+                    }
+                    first_spw_dict[this_spw] = this_spw
+                    spws_remaining.remove(this_spw)
+
+            n_sets = len(spw_dict)
+            n_spws_per_set = []
+            n_freqs = 0
+            reorder_channels = False
+            for spw1, spw_set in spw_dict.items():
+                n_spws_per_set.append(len(spw_set["spws"]))
+                n_freqs += spw_set["freqs"].size
+                spw1_mask = self.flex_spw_id_array == spw1
+                for spw2 in spw_set["spws"][1:]:
+                    spw2_mask = self.flex_spw_id_array == spw2
+                    if not (
+                        np.array_equal(
+                            freq_array_use[spw1_mask], freq_array_use[spw2_mask]
+                        )
+                        and np.array_equal(
+                            self.channel_width[spw1_mask], self.channel_width[spw2_mask]
+                        )
+                    ):
+                        reorder_channels = True
+
+            n_spws_per_set = np.array(n_spws_per_set)
+
+            if not np.all(n_spws_per_set == n_pols):
+                # If all the pols are not present in all sets, we cannot combine spws
+                warnings.warn(
+                    "combine_spws is True but there are not matched spws for all "
+                    "polarizations, so spws will not be combined."
+                )
+                combine_spws = False
+
+        if combine_spws:
+            # figure out whether reordering is required to use an inplace reshape
+            # Criteria:
+            #  1) polarization is the slowest changing axis
+            #  2) freqs and spw sets are in the same order for each pol
+            reorder_spws = False
+            spw_inds = np.zeros_like(self.flex_spw_id_array)
+            first_spw_array = np.zeros_like(self.flex_spw_id_array)
+            for spw_ind, spw in enumerate(self.spw_array):
+                these_freq_inds = np.nonzero(self.flex_spw_id_array == spw)[0]
+                spw_inds[these_freq_inds] = spw_ind
+                first_spw_array[these_freq_inds] = first_spw_dict[spw]
+            pol_array_check = self.flex_spw_polarization_array[spw_inds]
+            if not np.nonzero(np.diff(pol_array_check))[0].size == n_pols - 1:
+                reorder_spws = True
+
+            pol0_spw_order = first_spw_array[pol_array_check == unique_pols[0]]
+            for pol in unique_pols[1:]:
+                this_spw_order = first_spw_array[pol_array_check == pol]
+                if not np.array_equal(this_spw_order, pol0_spw_order):
+                    reorder_spws = True
+
+            if reorder_channels or reorder_spws:
+                if reorder_channels:
+                    channel_order = "freq"
+                else:
+                    channel_order = None
+                if reorder_spws:
+                    # note: spw_order is an index array into spw_array
+                    spw_order = np.zeros(self.Nspws, dtype=int)
+                    if np.all(unique_pols < 0):
+                        # use more standard ordering for polarizations
+                        unique_pols = unique_pols[np.argsort(np.abs(unique_pols))]
+                    for pol_ind, pol in enumerate(unique_pols):
+                        for spw_ind, (_, spw_set) in enumerate(spw_dict.items()):
+                            this_ind = pol_ind * n_sets + spw_ind
+                            this_spw = np.array(spw_set["spws"])[spw_set["pols"] == pol]
+                            spw_order[this_ind] = np.nonzero(
+                                self.spw_array == this_spw
+                            )[0]
+                else:
+                    spw_order = None
+
+                self.reorder_freqs(channel_order=channel_order, spw_order=spw_order)
+
+                # recalculate arrays used below
+                if self.future_array_shapes:
+                    freq_array_use = self.freq_array
+                else:
+                    freq_array_use = self.freq_array[0, :]
+                first_spw_array = np.zeros_like(self.flex_spw_id_array)
+                for spw_ind, spw in enumerate(self.spw_array):
+                    these_freq_inds = np.nonzero(self.flex_spw_id_array == spw)[0]
+                    spw_inds[these_freq_inds] = spw_ind
+                    first_spw_array[these_freq_inds] = first_spw_dict[spw]
+                pol_array_check = self.flex_spw_polarization_array[spw_inds]
+
+            self.Npols = n_pols
+            self.Nspws = n_sets
+            self.Nfreqs = n_freqs
+
+            # now things are in the correct order to do a simple reshape
+            if self.future_array_shapes:
+                self.freq_array = freq_array_use[: self.Nfreqs]
+            else:
+                self.freq_array = freq_array_use[np.newaxis, : self.Nfreqs]
+            self.channel_width = self.channel_width[: self.Nfreqs]
+
+            self.polarization_array = pol_array_check[
+                np.sort(np.unique(pol_array_check, return_index=True)[1])
+            ]
+            self.flex_spw_polarization_array = None
+
+            self.spw_array = first_spw_array[
+                np.sort(np.unique(first_spw_array, return_index=True)[1])
+            ]
+            self.flex_spw_id_array = first_spw_array[: self.Nfreqs]
+            if not self.metadata_only:
+                if self.future_array_shapes:
+                    self.data_array = self.data_array.reshape(
+                        self.Nblts, self.Nfreqs, self.Npols, order="F"
+                    )
+                    self.flag_array = self.flag_array.reshape(
+                        self.Nblts, self.Nfreqs, self.Npols, order="F"
+                    )
+                    self.nsample_array = self.nsample_array.reshape(
+                        self.Nblts, self.Nfreqs, self.Npols, order="F"
+                    )
+                else:
+                    self.data_array = self.data_array.reshape(
+                        self.Nblts, 1, self.Nfreqs, self.Npols, order="F"
+                    )
+                    self.flag_array = self.flag_array.reshape(
+                        self.Nblts, 1, self.Nfreqs, self.Npols, order="F"
+                    )
+                    self.nsample_array = self.nsample_array.reshape(
+                        self.Nblts, 1, self.Nfreqs, self.Npols, order="F"
+                    )
+            return
+
+        self.Npols = n_pols
+        self.Nfreqs = n_freqs
         # If we have metadata only, or there was only one pol we were working with,
         # then we do not need to do anything further aside from removing the array
         # associated with flex_spw_polarization_array
         if self.metadata_only or (self.Npols == 1):
+            self.polarization_array = unique_pols
             self.flex_spw_polarization_array = None
             return
 
         # Otherwise, move through all of the data params
+        self.polarization_array = unique_pols
         for name, param in zip(self._data_params, self.data_like_parameters):
             # We need to construct arrays with the appropriate shape
             new_shape = [self.Nblts, 1, self.Nfreqs, self.Npols]
@@ -2771,6 +2971,88 @@ class UVData(UVBase):
             # With the new array defined and filled, set the attribute equal to it
             setattr(self, name, new_param)
 
+    def convert_to_flex_pol(self):
+        """
+        Convert a regular UVData object into a flex-polarization object.
+
+        This effectively combines the frequency and polarization axis with polarization
+        changing slowest. Saving data to uvh5 files this way can speed up some kinds
+        of data access.
+
+        """
+        if self.flex_spw_polarization_array is not None:
+            raise ValueError("This is already a flex-pol object")
+
+        if not self.flex_spw:
+            self._set_flex_spw()
+            if not self.future_array_shapes:
+                self.channel_width = np.full(self.Nfreqs, self.channel_width)
+            self.flex_spw_id_array = np.zeros(self.Nfreqs, dtype=int)
+
+        new_spw_array = self.spw_array
+        new_flex_pol_array = np.full(self.Nspws, self.polarization_array[0])
+        new_spw_id_array = np.zeros((self.Nfreqs, self.Npols), dtype=int)
+        for pol_ind, pol in enumerate(self.polarization_array):
+            if pol_ind == 0:
+                new_spw_id_array[:, 0] = self.flex_spw_id_array
+            else:
+                for spw in self.spw_array:
+                    new_spw = (
+                        set(range(self.Nspws * self.Npols + 1))
+                        .difference(new_spw_array)
+                        .pop()
+                    )
+                    new_spw_array = np.concatenate((new_spw_array, np.array([new_spw])))
+                    new_flex_pol_array = np.concatenate(
+                        (new_flex_pol_array, np.array([pol]))
+                    )
+                    spw_inds = np.nonzero(self.flex_spw_id_array == spw)[0]
+                    new_spw_id_array[spw_inds, pol_ind] = new_spw
+
+        spw_sort = np.argsort(new_spw_array)
+        self.spw_array = new_spw_array[spw_sort]
+        self.flex_spw_polarization_array = new_flex_pol_array[spw_sort]
+        self.flex_spw_id_array = new_spw_id_array.reshape(
+            self.Nfreqs * self.Npols, order="F"
+        )
+        self.Nspws = self.spw_array.size
+        self.polarization_array = np.array([0])
+        if self.future_array_shapes:
+            freq_array_use = self.freq_array
+        else:
+            freq_array_use = self.freq_array[0, :]
+        self.freq_array = np.tile(freq_array_use, self.Npols)
+        if not self.future_array_shapes:
+            self.freq_array = self.freq_array[np.newaxis, :]
+        self.channel_width = np.tile(self.channel_width, self.Npols)
+        if not self.metadata_only:
+            if self.future_array_shapes:
+                self.data_array = self.data_array.reshape(
+                    self.Nblts, self.Nfreqs * self.Npols, 1, order="F"
+                )
+                self.flag_array = self.flag_array.reshape(
+                    self.Nblts, self.Nfreqs * self.Npols, 1, order="F"
+                )
+                self.nsample_array = self.nsample_array.reshape(
+                    self.Nblts, self.Nfreqs * self.Npols, 1, order="F"
+                )
+            else:
+                self.data_array = self.data_array.reshape(
+                    self.Nblts, 1, self.Nfreqs * self.Npols, 1, order="F"
+                )
+                self.flag_array = self.flag_array.reshape(
+                    self.Nblts, 1, self.Nfreqs * self.Npols, 1, order="F"
+                )
+                self.nsample_array = self.nsample_array.reshape(
+                    self.Nblts, 1, self.Nfreqs * self.Npols, 1, order="F"
+                )
+
+        self.Nfreqs = self.Nfreqs * self.Npols
+        self.Npols = 1
+        self._make_flex_pol()
+
+        return
+
     def _calc_nants_data(self):
         """Calculate the number of antennas from ant_1_array and ant_2_array arrays."""
         return int(np.union1d(self.ant_1_array, self.ant_2_array).size)
@@ -2904,6 +3186,13 @@ class UVData(UVBase):
                 "times in the time_array"
             )
 
+        if self.flex_spw:
+            # Check that all values in flex_spw_id_array are entries in the spw_array
+            if not np.all(np.isin(self.flex_spw_id_array, self.spw_array)):
+                raise ValueError(
+                    "All values in the flex_spw_id_array must exist in the spw_array."
+                )
+
         if self.flex_spw_polarization_array is not None:
             # Check that usage of flex_spw_polarization_array follows the rule that
             # each window only has a single polarization per spectral window.
@@ -2918,7 +3207,7 @@ class UVData(UVBase):
                 )
         elif np.any(self.polarization_array == 0):
             # If flex_spw_polarization_array is not set, then make sure that
-            # no entires in polarization_array are equal to zero.
+            # no entries in polarization_array are equal to zero.
             raise ValueError(
                 "polarization_array may not be equal to 0 if "
                 "flex_spw_polarization_array is not set."
@@ -3025,7 +3314,12 @@ class UVData(UVBase):
                             for pol in self.flex_spw_polarization_array
                         ]
                     )
-                    freq_screen = pol_screen[self.flex_spw_id_array]
+                    # There should be a better way...
+                    spw_inds = np.zeros_like(self.flex_spw_id_array)
+                    for spw_ind, spw in enumerate(self.spw_array):
+                        these_freq_inds = np.nonzero(self.flex_spw_id_array == spw)[0]
+                        spw_inds[these_freq_inds] = spw_ind
+                    freq_screen = pol_screen[spw_inds]
                 else:
                     pol_screen = np.array(
                         [
@@ -4760,7 +5054,15 @@ class UVData(UVBase):
             unique_index = np.sort(
                 np.unique(self.flex_spw_id_array, return_index=True)[1]
             )
-            self.spw_array = self.flex_spw_id_array[unique_index]
+            new_spw_array = self.flex_spw_id_array[unique_index]
+            if self.flex_spw_polarization_array is not None:
+                spw_sort_inds = np.zeros_like(self.spw_array)
+                for idx, spw in enumerate(new_spw_array):
+                    spw_sort_inds[idx] = np.nonzero(self.spw_array == spw)[0]
+                self.flex_spw_polarization_array = self.flex_spw_polarization_array[
+                    spw_sort_inds
+                ]
+            self.spw_array = new_spw_array
         elif self.future_array_shapes:
             self.channel_width = self.channel_width[index_array]
 
@@ -13079,6 +13381,8 @@ class UVData(UVBase):
         # writer without issue. We create a copy because otherwise we run the risk of
         # messing w/ the metadata of the original object, and because the overhead of
         # doing so is generally smaller than that from removing flex-pol.
+        # TODO: reconsider this. The overhead is not smaller if `convert_to_flex_pol`
+        # was used.
         if self.flex_spw_polarization_array is not None:
             miriad_obj = miriad_obj.copy()
             miriad_obj.remove_flex_pol()
@@ -13274,6 +13578,8 @@ class UVData(UVBase):
         # writer without issue. We create a copy because otherwise we run the risk of
         # messing w/ the metadata of the original object, and because the overhead of
         # doing so is generally smaller than that from removing flex-pol.
+        # TODO: reconsider this. The overhead is not smaller if `convert_to_flex_pol`
+        # was used.
         if self.flex_spw_polarization_array is not None:
             uvfits_obj = uvfits_obj.copy()
             uvfits_obj.remove_flex_pol()
