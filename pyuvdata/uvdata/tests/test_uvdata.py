@@ -382,38 +382,6 @@ def uv_phase_time_split(uv1_2_set_uvws):
     del uv_phase_1, uv_phase_2, uv_raw_1, uv_raw_2, uv_phase, uv_raw
 
 
-@pytest.fixture(scope="session")
-def uv_phase_comp_main():
-    file1 = os.path.join(DATA_PATH, "1133866760.uvfits")
-    file2 = os.path.join(DATA_PATH, "1133866760_rephase.uvfits")
-    uvd1 = UVData()
-    uvd2 = UVData()
-    # These files came from an external source, don't want to rewrite them, so use
-    # checkwarnings to capture the warning about non-real autos
-    with uvtest.check_warnings(
-        UserWarning,
-        match=[
-            "Fixing auto-correlations to be be real-only, after some imaginary "
-            "values were detected in data_array.",
-            "Fixing phases using antenna positions.",
-        ]
-        * 2,
-    ):
-        uvd1.read_uvfits(file1, fix_old_proj=True)
-        uvd2.read_uvfits(file2, fix_old_proj=True)
-
-    yield uvd1, uvd2
-
-
-@pytest.fixture(scope="function")
-def uv_phase_comp(uv_phase_comp_main):
-    uvd1, uvd2 = uv_phase_comp_main
-    uvd1_copy = uvd1.copy()
-    uvd2_copy = uvd2.copy()
-
-    yield uvd1_copy, uvd2_copy
-
-
 @pytest.fixture()
 def dummy_phase_dict():
     dummy_dict = {
@@ -11737,14 +11705,14 @@ def test_flex_pol_no_op(sma_mir):
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_flex_pol_uvh5(future_shapes, tmp_path):
+def test_flex_pol_uvh5(future_shapes, uv_phase_comp, tmp_path):
     """
     Check that we can write out uvh5 files with flex pol data sets.
 
     This also exercises the check_autos for flex_pol.
     """
 
-    uvd = UVData.from_file(os.path.join(DATA_PATH, "1133866760.uvfits"))
+    uvd, _ = uv_phase_comp
 
     assert uvd.Npols > 1
 

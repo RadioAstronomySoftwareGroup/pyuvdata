@@ -105,28 +105,30 @@ if not is_platform_windows():
     extensions.append(miriad_extension)
 
 astroquery_reqs = ["astroquery>=0.4.4"]
-novas_reqs = ["novas", "novas_de405"]
 casa_reqs = ["python-casacore>=3.3.1"]
-healpix_reqs = ["astropy_healpix>=0.6"]
 cst_reqs = ["pyyaml>=5.1"]
+hdf5_compression_reqs = ["hdf5plugin>=3.1.0"]
+healpix_reqs = ["astropy_healpix>=0.6"]
 lunar_reqs = ["lunarsky>=0.1.2"]
-test_reqs = (
-    casa_reqs
-    + astroquery_reqs
-    + healpix_reqs
-    + novas_reqs
+novas_reqs = ["novas", "novas_de405"]
+all_optional_reqs = (
+    astroquery_reqs
+    + casa_reqs
     + cst_reqs
+    + hdf5_compression_reqs
+    + healpix_reqs
     + lunar_reqs
-    + [
-        "pytest>=6.2",
-        "pytest-xdist",
-        "pytest-cases>=3.6.9",
-        "pytest-cov",
-        "cython",
-        "coverage",
-        "pre-commit",
-    ]
+    + novas_reqs
 )
+test_reqs = all_optional_reqs + [
+    "pytest>=6.2",
+    "pytest-xdist",
+    "pytest-cases>=3.6.9",
+    "pytest-cov",
+    "cython",
+    "coverage",
+    "pre-commit",
+]
 doc_reqs = ["sphinx", "pypandoc"]
 
 setup_args = {
@@ -155,15 +157,11 @@ setup_args = {
         "astroquery": astroquery_reqs,
         "casa": casa_reqs,
         "cst": cst_reqs,
+        "hdf5_compression": hdf5_compression_reqs,
         "healpix": healpix_reqs,
         "lunar": lunar_reqs,
         "novas": novas_reqs,
-        "all": casa_reqs
-        + healpix_reqs
-        + cst_reqs
-        + novas_reqs
-        + astroquery_reqs
-        + lunar_reqs,
+        "all": all_optional_reqs
         "test": test_reqs,
         "doc": doc_reqs,
         "dev": test_reqs + doc_reqs,

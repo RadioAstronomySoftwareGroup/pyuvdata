@@ -13321,8 +13321,13 @@ class UVData(UVBase):
             h5py.create_dataset chunks keyword. Tuple for chunk shape,
             True for auto-chunking, None for no chunking. Default is True.
         data_compression : str
-            HDF5 filter to apply when writing the data_array. Default is
-            None meaning no filter or compression. Dataset must be chunked.
+            HDF5 filter to apply when writing the data_array. Default is None
+            (no filter/compression). In addition to the normal HDF5 filter values, the
+            user may specify "bitshuffle" which will set the compression to `32008` for
+            bitshuffle and will set the `compression_opts` to `(0, 2)` to allow
+            bitshuffle to automatically determine the block size and to use the LZF
+            filter after bitshuffle. Using `bitshuffle` requires having the
+            `hdf5plugin` package installed.  Dataset must be chunked to use compression.
         flags_compression : str
             HDF5 filter to apply when writing the flags_array. Default is "lzf"
             for the LZF filter. Dataset must be chunked.
@@ -13409,8 +13414,13 @@ class UVData(UVBase):
             h5py.create_dataset chunks keyword. Tuple for chunk shape,
             True for auto-chunking, None for no chunking. Default is True.
         data_compression : str
-            HDF5 filter to apply when writing the data_array. Default is
-            None meaning no filter or compression. Dataset must be chunked.
+            HDF5 filter to apply when writing the data_array. Default is None
+            (no filter/compression). In addition to the normal HDF5 filter values, the
+            user may specify "bitshuffle" which will set the compression to `32008` for
+            bitshuffle and will set the `compression_opts` to `(0, 2)` to allow
+            bitshuffle to automatically determine the block size and to use the LZF
+            filter after bitshuffle. Using `bitshuffle` requires having the
+            `hdf5plugin` package installed.  Dataset must be chunked to use compression.
         flags_compression : str
             HDF5 filter to apply when writing the flags_array. Default is "lzf"
             for the LZF filter. Dataset must be chunked.

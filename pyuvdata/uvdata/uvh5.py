@@ -20,6 +20,13 @@ __all__ = ["UVH5"]
 # complex numbers
 _hera_corr_dtype = np.dtype([("r", "<i4"), ("i", "<i4")])
 
+hdf5plugin_present = True
+try:
+    import hdf5plugin  # noqa: F401
+except ImportError as error:
+    hdf5plugin_present = False
+    hdf5plugin_error = error
+
 
 def _check_uvh5_dtype(dtype):
     """
@@ -148,6 +155,38 @@ def _write_complex_astype(data, dset, indices):
         ).astype(dtype_out, copy=False)
 
     return
+
+
+def _get_compression(compression):
+    """
+    Get the HDF5 compression and compression options to use.
+
+    Parameters
+    ----------
+    compression : str
+        HDF5 compression specification or "bitshuffle".
+
+    Returns
+    -------
+    compression_use : str
+        HDF5 compression specification
+    compression_opts : tuple
+        HDF5 compression options
+    """
+    if compression == "bitshuffle":
+        if not hdf5plugin_present:  # pragma: no cover
+            raise ImportError(
+                "The hdf5plugin package is not installed but is required to use "
+                "bitshuffle compression."
+            ) from hdf5plugin_error
+
+        compression_use = 32008
+        compression_opts = (0, 2)
+    else:
+        compression_use = compression
+        compression_opts = None
+
+    return compression_use, compression_opts
 
 
 class UVH5(UVData):
@@ -490,6 +529,14 @@ class UVH5(UVData):
             This is raised if the data array read from the file is not a complex
             datatype (np.complex64 or np.complex128).
         """
+        # check for bitshuffle data; bitshuffle filter number is 32008
+        # TODO should we check for any other filters?
+        if "32008" in dgrp["visdata"]._filters:
+            if not hdf5plugin_present:  # pragma: no cover
+                raise ImportError(
+                    "hdf5plugin is not installed but is required to read this dataset"
+                ) from hdf5plugin_error
+
         # figure out what data to read in
         blt_inds, freq_inds, pol_inds, history_update_string = self._select_preprocess(
             antenna_nums,
@@ -1193,7 +1240,12 @@ class UVH5(UVData):
             True for auto-chunking, None for no chunking. Default is True.
         data_compression : str
             HDF5 filter to apply when writing the data_array. Default is None
-            (no filter/compression). Dataset must be chunked.
+            (no filter/compression). In addition to the normal HDF5 filter values, the
+            user may specify "bitshuffle" which will set the compression to `32008` for
+            bitshuffle and will set the `compression_opts` to `(0, 2)` to allow
+            bitshuffle to automatically determine the block size and to use the LZF
+            filter after bitshuffle. Using `bitshuffle` requires having the
+            `hdf5plugin` package installed.  Dataset must be chunked to use compression.
         flags_compression : str
             HDF5 filter to apply when writing the flags_array. Default is the
             LZF filter. Dataset must be chunked.
@@ -1273,6 +1325,8 @@ class UVH5(UVData):
             revert_fas = True
             self.use_future_array_shapes()
 
+        data_compression, data_compression_opts = _get_compression(data_compression)
+
         # open file for writing
         with h5py.File(filename, "w") as f:
             # write header
@@ -1293,6 +1347,7 @@ class UVH5(UVData):
                     self.data_array.shape,
                     chunks=chunks,
                     compression=data_compression,
+                    compression_opts=data_compression_opts,
                     dtype=data_write_dtype,
                 )
                 indices = (np.s_[:], np.s_[:], np.s_[:])
@@ -1303,6 +1358,7 @@ class UVH5(UVData):
                     chunks=chunks,
                     data=self.data_array,
                     compression=data_compression,
+                    compression_opts=data_compression_opts,
                     dtype=data_write_dtype,
                 )
             dgrp.create_dataset(
@@ -1347,7 +1403,12 @@ class UVH5(UVData):
             True for auto-chunking, None for no chunking. Default is True.
         data_compression : str
             HDF5 filter to apply when writing the data_array. Default is None
-            (no filter/compression). Dataset must be chunked.
+            (no filter/compression). In addition to the normal HDF5 filter values, the
+            user may specify "bitshuffle" which will set the compression to `32008` for
+            bitshuffle and will set the `compression_opts` to `(0, 2)` to allow
+            bitshuffle to automatically determine the block size and to use the LZF
+            filter after bitshuffle. Using `bitshuffle` requires having the
+            `hdf5plugin` package installed.  Dataset must be chunked to use compression.
         flags_compression : str
             HDF5 filter to apply when writing the flags_array. Default is the
             LZF filter. Dataset must be chunked.
@@ -1399,6 +1460,8 @@ class UVH5(UVData):
             else:
                 raise IOError("File exists; skipping")
 
+        data_compression, data_compression_opts = _get_compression(data_compression)
+
         # write header and empty arrays to file
         with h5py.File(filename, "w") as f:
             # write header
@@ -1423,6 +1486,7 @@ class UVH5(UVData):
                 chunks=chunks,
                 dtype=data_write_dtype,
                 compression=data_compression,
+                compression_opts=data_compression_opts,
             )
             dgrp.create_dataset(
                 "flags",
