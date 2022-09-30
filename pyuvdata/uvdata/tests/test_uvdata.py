@@ -11682,12 +11682,16 @@ def test_flex_pol_check_errs(sma_mir, pol_sel, flex_err, err_msg):
         sma_mir.check()
 
 
-def test_remove_flex_pol_error(uv_phase_comp):
+def test_convert_remove_flex_pol_error(uv_phase_comp):
 
     uvd, _ = uv_phase_comp
 
     uvd2 = uvd.copy()
     uvd2.convert_to_flex_pol()
+
+    with pytest.raises(ValueError, match="This is already a flex-pol object"):
+        uvd2.convert_to_flex_pol()
+
     uvd2.flex_spw_polarization_array[1] = uvd2.flex_spw_polarization_array[0]
     with pytest.raises(
         ValueError,

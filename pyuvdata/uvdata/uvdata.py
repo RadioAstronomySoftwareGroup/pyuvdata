@@ -2820,11 +2820,10 @@ class UVData(UVBase):
             return
 
         self.Npols = n_pols
-        self.Nfreqs = n_freqs
         # If we have metadata only, or there was only one pol we were working with,
         # then we do not need to do anything further aside from removing the array
         # associated with flex_spw_polarization_array
-        if self.metadata_only or (self.Npols == 1):
+        if self.metadata_only:
             self.polarization_array = unique_pols
             self.flex_spw_polarization_array = None
             return
@@ -2895,6 +2894,18 @@ class UVData(UVBase):
                 warnings.warn(msg)
             return
 
+        if self.metadata_only:
+            msg = (
+                "Cannot make a metadata_only UVData object flex-pol because flagging "
+                "info is required. Consider using `convert_to_flex_pol` instead, but "
+                "be aware that the behavior is somewhat different"
+            )
+            if raise_error:
+                raise ValueError(msg)
+            if raise_warning:
+                warnings.warn(msg)
+            return
+
         if self.Npols == 1:
             # This is basically a no-op, fix the to pol-array attributes and exit
             if self.flex_spw_polarization_array is None:
@@ -2908,7 +2919,7 @@ class UVData(UVBase):
         for idx, spw in enumerate(self.spw_array):
             spw_screen = self.flex_spw_id_array == spw
 
-            # For each window, we want to check that there is only one poalrization with
+            # For each window, we want to check that there is only one polarization with
             # any unflagged data, which we can do by seeing if not all of the flags
             # are set across the non-polarization axes (hence the ~np.all()).
             if self.future_array_shapes:
@@ -3049,7 +3060,6 @@ class UVData(UVBase):
 
         self.Nfreqs = self.Nfreqs * self.Npols
         self.Npols = 1
-        self._make_flex_pol()
 
         return
 
