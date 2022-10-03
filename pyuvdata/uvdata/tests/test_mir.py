@@ -22,7 +22,6 @@ from ...uvdata.mir import Mir
 
 @pytest.fixture(scope="session")
 def sma_mir_filt_main():
-    # read in test file for the resampling in time functions
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     uv_object.read(testfile, pseudo_cont=True, corrchunk=0)
@@ -37,7 +36,6 @@ def sma_mir_filt_main():
 
 @pytest.fixture(scope="function")
 def sma_mir_filt(sma_mir_filt_main):
-    # read in test file for the resampling in time functions
     uv_object = sma_mir_filt_main.copy()
 
     yield uv_object
@@ -327,7 +325,7 @@ def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
     mir_data.sp_data._data["gunnLO"][np.isin(mir_data.sp_data["blhid"], [1, 3])] += 30.0
     mir_data.sp_data._data["fsky"][np.isin(mir_data.sp_data["blhid"], [1, 3])] += 30.0
 
-    # Spin up a Mir object, which can be covered into a UVData object,
+    # Spin up a Mir object, which can be converted into a UVData object,
     # with flex-pol enabled.
     mir_uv = UVData()
     mir_obj = Mir()
