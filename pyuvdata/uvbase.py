@@ -596,7 +596,7 @@ class UVBase(object):
                     if isinstance(param, uvp.SkyCoordParameter):
                         if not issubclass(param.value.__class__, SkyCoord):
                             raise ValueError(
-                                f"UVParameter {p} is should be a subclass of a "
+                                f"UVParameter {p} should be a subclass of a "
                                 f"SkyCoord object but it is {type(param.value)}."
                             )
                         else:
@@ -637,7 +637,8 @@ class UVBase(object):
                                 "check will fail in a future version."
                             )
                             check_vals = [param.value.item(0).value]
-
+                    elif isinstance(param.value, SkyCoord):
+                        check_vals = list(param.value)
                     elif eshape == ():
                         # Single element
                         check_vals = [param.value]
