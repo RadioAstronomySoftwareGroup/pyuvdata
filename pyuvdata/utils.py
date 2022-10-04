@@ -1436,6 +1436,8 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude, frame="ITRS"):
     elif frame == "MCMF":
         world = "moon"
         sensible_radius_range = (1.71e6, 1.75e6)
+    else:
+        raise ValueError(f'No ENU_from_ECEF transform defined for frame "{frame}".')
 
     xyz = np.asarray(xyz)
     if xyz.ndim > 1 and xyz.shape[1] != 3:
@@ -1479,8 +1481,6 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude, frame="ITRS"):
         ecef_to_enu = ecef_to_enu[[2, 1, 0]]
         enu = np.dot(ecef_to_enu, (xyz.T - xyz_cent).T).T
 
-    else:
-        raise ValueError(f'No ENU_from_ECEF transform defined for frame "{frame}".')
     if squeeze:
         enu = np.squeeze(enu)
 
@@ -1513,6 +1513,10 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude, frame="ITRS"):
 
     """
     frame = frame.upper()
+
+    if frame not in ["ITRS", "MCMF"]:
+        raise ValueError(f'No ECEF_from_ENU transform defined for frame "{frame}".')
+
     if not hasmoon and frame == "MCMF":
         raise ValueError("Need to install `lunarsky` package to work with MCMF frame.")
 
@@ -1545,8 +1549,7 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude, frame="ITRS"):
         enu_to_ecef = np.linalg.inv(ecef_to_enu[[2, 1, 0]])
         xyz_rel = np.dot(enu_to_ecef, enu)
         xyz = xyz_cent + xyz_rel.T
-    else:
-        raise ValueError(f'No ECEF_from_ENU transform defined for frame "{frame}".')
+
     if squeeze:
         xyz = np.squeeze(xyz)
 

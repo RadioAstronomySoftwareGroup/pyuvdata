@@ -428,6 +428,18 @@ def test_enu_from_mcmf(enu_mcmf_info):
     assert np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
 
 
+def test_invalid_frame():
+    """Test error is raised when an invalid frame name is passed in."""
+    with pytest.raises(
+        ValueError, match='No ENU_from_ECEF transform defined for frame "UNDEF".'
+    ):
+        uvutils.ENU_from_ECEF(np.zeros((2, 3)), 0.0, 0.0, 0.0, frame="undef")
+    with pytest.raises(
+        ValueError, match='No ECEF_from_ENU transform defined for frame "UNDEF".'
+    ):
+        uvutils.ECEF_from_ENU(np.zeros((2, 3)), 0.0, 0.0, 0.0, frame="undef")
+
+
 @pytest.mark.parametrize("shape_type", ["transpose", "Nblts,2", "Nblts,1"])
 def test_enu_from_ecef_shape_errors(enu_ecef_info, shape_type):
     """Test ENU_from_ECEF input shape errors."""
