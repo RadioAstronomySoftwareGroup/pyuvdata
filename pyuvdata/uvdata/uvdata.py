@@ -11553,6 +11553,7 @@ class UVData(UVBase):
         read_data=True,
         data_array_dtype=np.complex128,
         multidim_index=False,
+        remove_flex_pol=True,
         background_lsts=True,
         run_check=True,
         check_extra=True,
@@ -11651,6 +11652,9 @@ class UVData(UVBase):
             simultaneously along all data axes. Otherwise index one axis at-a-time.
             This only works if data selection is sliceable along all but one axis.
             If indices are not well-matched to data chunks, this can be slow.
+        remove_flex_pol : bool
+            If True and if the file is a flex_pol file, convert back to a standard
+            UVData object.
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
         run_check : bool
@@ -11725,6 +11729,7 @@ class UVData(UVBase):
             keep_all_metadata=keep_all_metadata,
             read_data=read_data,
             multidim_index=multidim_index,
+            remove_flex_pol=remove_flex_pol,
             background_lsts=background_lsts,
             run_check=run_check,
             check_extra=check_extra,
@@ -11796,6 +11801,7 @@ class UVData(UVBase):
         allow_flex_pol=True,
         # uvh5
         multidim_index=False,
+        remove_flex_pol=True,
         # uvh5 & mwa_corr_fits
         data_array_dtype=np.complex128,
         # mwa_corr_fits
@@ -12076,6 +12082,9 @@ class UVData(UVBase):
             axes. Otherwise index one axis at-a-time. This only works if data selection
             is sliceable along all but one axis. If indices are not well-matched to
             data chunks, this can be slow.
+        remove_flex_pol : bool
+            If True and if the file is a flex_pol file, convert back to a standard
+            UVData object.
         data_array_dtype : numpy dtype
             Datatype to store the output data_array as. Must be either
             np.complex64 (single-precision real and imaginary) or np.complex128 (double-
@@ -12710,6 +12719,7 @@ class UVData(UVBase):
                     data_array_dtype=data_array_dtype,
                     keep_all_metadata=keep_all_metadata,
                     multidim_index=multidim_index,
+                    remove_flex_pol=remove_flex_pol,
                     background_lsts=background_lsts,
                     run_check=run_check,
                     check_extra=check_extra,
@@ -12845,6 +12855,7 @@ class UVData(UVBase):
         allow_flex_pol=True,
         # uvh5
         multidim_index=False,
+        remove_flex_pol=True,
         # uvh5 & mwa_corr_fits
         data_array_dtype=np.complex128,
         # mwa_corr_fits
@@ -13125,6 +13136,9 @@ class UVData(UVBase):
             axes. Otherwise index one axis at-a-time. This only works if data selection
             is sliceable along all but one axis. If indices are not well-matched to
             data chunks, this can be slow.
+        remove_flex_pol : bool
+            If True and if the file is a flex_pol file, convert back to a standard
+            UVData object.
         data_array_dtype : numpy dtype
             Datatype to store the output data_array as. Must be either
             np.complex64 (single-precision real and imaginary) or np.complex128 (double-
@@ -13289,6 +13303,7 @@ class UVData(UVBase):
             allow_flex_pol=allow_flex_pol,
             # uvh5
             multidim_index=multidim_index,
+            remove_flex_pol=remove_flex_pol,
             # uvh5 & mwa_corr_fits
             data_array_dtype=data_array_dtype,
             nsample_array_dtype=nsample_array_dtype,
