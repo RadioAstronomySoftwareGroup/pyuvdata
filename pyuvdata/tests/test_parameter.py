@@ -5,9 +5,20 @@
 import astropy.units as units
 import numpy as np
 import pytest
+from astropy.coordinates import CartesianRepresentation, Latitude, Longitude, SkyCoord
 
 from pyuvdata import parameter as uvp
 from pyuvdata.uvbase import UVBase
+
+
+@pytest.fixture
+def sky_in():
+    yield SkyCoord(
+        ra=Longitude(5.0, unit="hourangle"),
+        dec=Latitude(-30, unit="deg"),
+        frame="fk5",
+        equinox="J2000",
+    )
 
 
 def test_class_inequality():
@@ -256,6 +267,65 @@ def test_location_acceptable_none():
     param1 = uvp.LocationParameter(name="p2", value=1, acceptable_range=None)
 
     assert param1.check_acceptability()
+
+
+@pytest.mark.parametrize(
+    "sky2",
+    [
+        SkyCoord(
+            ra=Longitude(5.0, unit="hourangle"),
+            dec=Latitude(-30, unit="deg"),
+            frame="fk5",
+            equinox="J2000",
+        ),
+        SkyCoord(
+            ra=Longitude(5.0, unit="hourangle"),
+            dec=Latitude(-30, unit="deg") + Latitude(0.0005, unit="arcsec"),
+            frame="fk5",
+            equinox="J2000",
+        ),
+    ],
+)
+def test_skycoord_param_equality(sky_in, sky2):
+    param1 = uvp.SkyCoordParameter(name="sky1", value=sky_in)
+    param2 = uvp.SkyCoordParameter(name="sky2", value=sky2)
+
+    assert param1 == param2
+
+
+@pytest.mark.parametrize(
+    "change", ["frame", "representation", "separation", "shape", "type"]
+)
+def test_skycoord_param_inequality(sky_in, change):
+    param1 = uvp.SkyCoordParameter(name="sky1", value=sky_in)
+
+    if change == "frame":
+        param2 = uvp.SkyCoordParameter(name="sky2", value=sky_in.transform_to("icrs"))
+    elif change == "representation":
+        sky2 = sky_in.copy()
+        sky2.representation_type = CartesianRepresentation
+        param2 = uvp.SkyCoordParameter(name="sky2", value=sky2)
+    elif change == "separation":
+        sky2 = SkyCoord(
+            ra=Longitude(5.0, unit="hourangle"),
+            dec=Latitude(-30, unit="deg") + Latitude(0.002, unit="arcsec"),
+            frame="fk5",
+            equinox="J2000",
+        )
+        param2 = uvp.SkyCoordParameter(name="sky2", value=sky2)
+    elif change == "shape":
+        sky2 = SkyCoord(
+            ra=Longitude([5.0, 5.0], unit="hourangle"),
+            dec=Latitude([-30, -30], unit="deg"),
+            frame="fk5",
+            equinox="J2000",
+        )
+        param2 = uvp.SkyCoordParameter(name="sky2", value=sky2)
+    elif change == "type":
+        sky2 = Longitude(5.0, unit="hourangle")
+        param2 = uvp.SkyCoordParameter(name="sky2", value=sky2)
+
+    assert param1 != param2
 
 
 def test_non_builtin_expected_type():

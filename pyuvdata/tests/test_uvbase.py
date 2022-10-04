@@ -5,10 +5,12 @@
 """Tests for uvbase object.
 
 """
+import re
+
 import numpy as np
 import pytest
 from astropy import units
-from astropy.coordinates import Distance
+from astropy.coordinates import Distance, Latitude, Longitude, SkyCoord
 from astropy.time import Time
 
 from pyuvdata import parameter as uvp
@@ -128,6 +130,30 @@ class UVTest(UVBase):
             description="A quantity but also a single element.",
             expected_type=units.Quantity,
             value=2 * units.m,
+            form=(),
+        )
+
+        self._skycoord_array = uvp.SkyCoordParameter(
+            "skycoord_array",
+            description="A skycoord array.",
+            value=SkyCoord(
+                ra=Longitude([5.0, 5.1], unit="hourangle"),
+                dec=Latitude([-30, -30], unit="deg"),
+                frame="fk5",
+                equinox="J2000",
+            ),
+            form=(2),
+        )
+
+        self._skycoord_scalar = uvp.SkyCoordParameter(
+            "skycoord_scalar",
+            description="A skycoord scalar.",
+            value=SkyCoord(
+                ra=Longitude(5.0, unit="hourangle"),
+                dec=Latitude(-30, unit="deg"),
+                frame="fk5",
+                equinox="J2000",
+            ),
             form=(),
         )
 
@@ -263,6 +289,31 @@ def test_quantity_scalar_type():
         "is a precision identifier: (<class 'float'>, <class 'numpy.floating'>). "
         "Testing the precision of the value, but this "
         "check will fail in a future version.",
+    ):
+        test_obj.check()
+
+
+def test_skycoord_shape():
+    test_obj = UVTest()
+    test_obj._skycoord_array.form = (3,)
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "UVParameter _skycoord_array is not expected shape. "
+            "Parameter shape is (2,), expected shape is (3,)."
+        ),
+    ):
+        test_obj.check()
+
+
+def test_skycoord_type():
+    test_obj = UVTest()
+    test_obj.skycoord_scalar = Longitude(5.0, unit="hourangle")
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "UVParameter _skycoord_scalar should be a subclass of a SkyCoord object"
+        ),
     ):
         test_obj.check()
 
