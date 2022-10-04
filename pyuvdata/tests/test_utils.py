@@ -10,13 +10,17 @@ import re
 import numpy as np
 import pytest
 from astropy import units
-from astropy.coordinates import Angle, EarthLocation
+from astropy.coordinates import Angle, EarthLocation, SkyCoord
+from astropy.time import Time
 
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal, UVData, UVFlag
-from pyuvdata.astropy_interface import MoonLocation, SkyCoord, Time, hasmoon
 from pyuvdata.data import DATA_PATH
+from pyuvdata.utils import hasmoon
+
+if hasmoon:
+    from pyuvdata.utils import LTime, MoonLocation
 
 # Earth
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
@@ -1977,8 +1981,9 @@ def test_lst_for_time_float_vs_array(astrometry_args):
 @pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
 def test_lst_for_time_moon(astrometry_args):
     """Test the get_lst_for_time function with MCMF frame"""
-    lat, lon, alt = (0.6875, 24.433, 0)  # Degrees
+    from lunarsky import SkyCoord as LSkyCoord
 
+    lat, lon, alt = (0.6875, 24.433, 0)  # Degrees
     with pytest.warns(UserWarning, match="Defaulting to `astrometry_library=astropy`"):
         lst_array = uvutils.get_lst_for_time(
             astrometry_args["time_array"], lat, lon, alt, frame="mcmf"
@@ -1987,9 +1992,9 @@ def test_lst_for_time_moon(astrometry_args):
     # Verify that lsts are close to local zenith RA
     loc = MoonLocation.from_selenodetic(lon, lat, alt)
     for ii, tt in enumerate(
-        Time(astrometry_args["time_array"], format="jd", scale="utc", location=loc)
+        LTime(astrometry_args["time_array"], format="jd", scale="utc", location=loc)
     ):
-        src = SkyCoord(alt="90d", az="0d", frame="lunartopo", obstime=tt, location=loc)
+        src = LSkyCoord(alt="90d", az="0d", frame="lunartopo", obstime=tt, location=loc)
         assert np.isclose(lst_array[ii], src.transform_to("icrs").ra.rad, atol=1e-4)
 
 
