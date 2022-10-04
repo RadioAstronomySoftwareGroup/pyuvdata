@@ -12,13 +12,23 @@ from copy import deepcopy
 import erfa
 import numpy as np
 from astropy import units
-from astropy.coordinates import Angle, Distance, EarthLocation
+from astropy.coordinates import Angle, Distance, EarthLocation, SkyCoord
 from astropy.coordinates.matrix_utilities import rotation_matrix
+from astropy.time import Time
 from astropy.utils import iers
 from scipy.spatial.distance import cdist
 
 from . import _utils
-from .astropy_interface import LUNAR_RADIUS, MoonLocation, SkyCoord, Time, hasmoon
+
+try:
+    from lunarsky import MoonLocation
+    from lunarsky import Time as LTime
+
+    LUNAR_RADIUS = MoonLocation._lunar_radius
+    hasmoon = True
+except ImportError:
+    hasmoon = False
+
 
 __all__ = [
     "POL_STR2NUM_DICT",
@@ -3733,6 +3743,7 @@ def get_lst_for_time(
             raise ValueError(
                 "Need to install `lunarsky` package to work with MCMF frame."
             )
+        TimeClass = LTime
         loc = MoonLocation.from_selenodetic(
             Angle(longitude, unit="deg"), Angle(latitude, unit="deg"), altitude
         )
@@ -3740,9 +3751,10 @@ def get_lst_for_time(
             warnings.warn("Defaulting to `astrometry_library=astropy` for MCMF frame.")
         astrometry_library = "astropy"
     else:
+        TimeClass = Time  # astropy.time.Time
         loc = (Angle(longitude, unit="deg"), Angle(latitude, unit="deg"), altitude)
 
-    times = Time(
+    times = TimeClass(
         jd,
         format="jd",
         scale="utc",
