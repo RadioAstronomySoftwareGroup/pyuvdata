@@ -471,7 +471,7 @@ def test_flex_pol_roundtrip(sma_mir_filt, filetype, future_shapes, tmp_path):
         else:
             getattr(sma_mir_filt, "write_" + filetype)(testfile)
 
-    test_uv = UVData.from_file(testfile)
+    test_uv = UVData.from_file(testfile, remove_flex_pol=False)
 
     if future_shapes:
         test_uv.use_future_array_shapes()

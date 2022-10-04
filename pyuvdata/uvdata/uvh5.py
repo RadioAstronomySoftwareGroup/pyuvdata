@@ -848,6 +848,7 @@ class UVH5(UVData):
         read_data=True,
         data_array_dtype=np.complex128,
         multidim_index=False,
+        remove_flex_pol=True,
         background_lsts=True,
         run_check=True,
         check_extra=True,
@@ -945,6 +946,9 @@ class UVH5(UVData):
             simultaneously along all data axes. Otherwise index one axis at-a-time.
             This only works if data selection is sliceable along all but one axis.
             If indices are not well-matched to data chunks, this can be slow.
+        remove_flex_pol : bool
+            If True and if the file is a flex_pol file, convert back to a standard
+            UVData object.
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
         run_check : bool
@@ -1026,6 +1030,9 @@ class UVH5(UVData):
                         strict_uvw_antpos_check=strict_uvw_antpos_check,
                     )
 
+                if remove_flex_pol:
+                    self.remove_flex_pol()
+
                 # For now, always use current shapes when data is read in, even if the
                 # file has the future shapes. This will change soon!
                 if self.future_array_shapes:
@@ -1061,6 +1068,9 @@ class UVH5(UVData):
                 check_autos,
                 fix_autos,
             )
+
+        if remove_flex_pol:
+            self.remove_flex_pol()
 
         # For now, always use current shapes when data is read in, even if the file
         # has the future shapes.

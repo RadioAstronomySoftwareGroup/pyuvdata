@@ -11766,7 +11766,7 @@ def test_flex_pol_no_op(sma_mir, uv_phase_comp):
 
 
 @pytest.mark.parametrize(
-    "future_shapes, multispw,sorting",
+    "future_shapes,multispw,sorting",
     [
         [True, False, None],
         [False, True, None],
@@ -11852,13 +11852,19 @@ def test_flex_pol_uvh5(future_shapes, multispw, sorting, uv_phase_comp, tmp_path
 
     outfile = os.path.join(tmp_path, "test.uvh5")
     uvd.write_uvh5(outfile)
-    uvd2 = UVData.from_file(outfile)
+    uvd2 = UVData.from_file(outfile, remove_flex_pol=False)
     if future_shapes:
         uvd2.use_future_array_shapes()
 
     assert uvd2 == uvd
 
+    uvd3 = UVData.from_file(outfile)
+    if future_shapes:
+        uvd3.use_future_array_shapes()
     uvd2.remove_flex_pol()
+
+    assert uvd3 == uvd2
+
     if not multispw:
         uvd2.flex_spw = False
         uvd2.flex_spw_id_array = None
