@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
   or zenith angle (if beam is in az/za coordinates).
 - Logging statements (INFO level) in `UVdata.check`.
 ### Changed
-- Performance improvement when doing a `select` using the `bls` parameter (~70%
+- Performance improvement when doing a `UVData.select` using the `bls` parameter (~70%
   improvement in the `_select_preprocess` function)
 ## [2.2.9] - 2022-8-23
 

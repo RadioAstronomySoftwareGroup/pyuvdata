@@ -8285,18 +8285,6 @@ class UVData(UVBase):
             bls_blt_inds = np.zeros(0, dtype=np.int64)
             bl_pols = set()
             for bl in bls:
-                # The following is not necessary, and takes ~28% of the time when using
-                # 126 HERA antennas.
-                # if not (bl[0] in self.ant_1_array or bl[0] in self.ant_2_array):
-                #     raise ValueError(
-                #         "Antenna number {a} is not present in the "
-                #         "ant_1_array or ant_2_array".format(a=bl[0])
-                #     )
-                # if not (bl[1] in self.ant_1_array or bl[1] in self.ant_2_array):
-                #     raise ValueError(
-                #         "Antenna number {a} is not present in the "
-                #         "ant_1_array or ant_2_array".format(a=bl[1])
-                #     )
                 wh1 = np.where(
                     np.logical_and(self.ant_1_array == bl[0], self.ant_2_array == bl[1])
                 )[0]
