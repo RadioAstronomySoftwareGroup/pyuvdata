@@ -961,10 +961,13 @@ class UVData(UVBase):
         cat_id=None,
     ):
         """
-        Add an entry to the internal object/source catalog.
+        Add an entry to the internal object/source catalog or find a matching one.
 
-        This is a helper function for adding a source to the internal
-        catalog, contained within the attribute `phase_center_catalog`.
+        This is a helper function for identifying a adding a phase center to the
+        internal catalog, contained within the attribute `phase_center_catalog`, unless
+        a phase center already exists that matches the passed parameters. If a matching
+        phase center is found, the catalog ID associated with that phase center is
+        returned.
 
         Parameters
         ----------
@@ -1025,14 +1028,18 @@ class UVData(UVBase):
             will _not_ update other atributes of the `UVData` object. Default is False.
         cat_id : int
             An integer signifying the ID number for the phase center, used in the
-            `phase_center_id_array` attribute. The default is for the method to assign
-            this value automatically.
+            `phase_center_id_array` attribute. If a matching phase center entry exists
+            already, that phase center ID will be returned, which may be different than
+            the value specified to this parameter. The default is for the method to
+            assign this value automatically.
 
         Returns
         -------
         cat_id : int
-            The unique ID number for the phase center added to the internal catalog.
-            This value is used in the `phase_center_id_array` attribute to denote which
+            The unique ID number for the phase center that either matches the specified
+            parameters or was added to the internal catalog. If a matching entry was
+            found, this may not be the value passed to the `cat_id` parameter. This
+            value is used in the `phase_center_id_array` attribute to denote which
             source a given baseline-time corresponds to.
 
         Raises
@@ -1040,6 +1047,7 @@ class UVData(UVBase):
         ValueError
             If attempting to add a non-unique source name or if adding a sidereal
             source without coordinates.
+
         """
         if not isinstance(cat_name, str):
             raise ValueError("cat_name must be a string.")
@@ -1186,8 +1194,6 @@ class UVData(UVBase):
             if temp_id is not None:
                 if cat_diffs == 0:
                     # Everything matches, return the catalog ID of the matching entry
-                    # TODO: is it a problem that this might return a different ID than
-                    # was requested?
                     return temp_id
                 else:
                     warnings.warn(
@@ -2052,8 +2058,6 @@ class UVData(UVBase):
             "v2.4. It has no effect"
         )
         pass
-
-    # def set_rdate(self):
 
     @property
     def _data_params(self):
@@ -5317,7 +5321,7 @@ class UVData(UVBase):
             )
 
         # TODO the following code needs to be moved to `fix_phase` in version 2.4
-        # when the `use_old_proj` parameter is deprecated
+        # when the `use_old_proj` parameter is removed
         phase_dict = list(self.phase_center_catalog.values())[0]
 
         if phase_dict["cat_type"] == "unprojected":
@@ -6692,7 +6696,7 @@ class UVData(UVBase):
                 obj_name = obj_names[obj_ind]
                 if rephase:
                     warnings.warn(
-                        f"Phasing {obj_name} UVData object to phase_center_radec"
+                        f"Phasing {obj_name} UVData object to {phase_center_radec}"
                     )
                     with warnings.catch_warnings():
                         warnings.filterwarnings(
@@ -12410,51 +12414,64 @@ class UVData(UVBase):
             f = filename[file_num]
             while unread and file_num < len(filename):
                 try:
-                    self.read(
-                        filename[file_num],
-                        file_type=file_type,
-                        antenna_nums=antenna_nums,
-                        antenna_names=antenna_names,
-                        ant_str=ant_str,
-                        bls=bls,
-                        frequencies=frequencies,
-                        freq_chans=freq_chans,
-                        times=times,
-                        polarizations=polarizations,
-                        blt_inds=blt_inds,
-                        phase_center_ids=phase_center_ids,
-                        time_range=time_range,
-                        lsts=lsts,
-                        lst_range=lst_range,
-                        keep_all_metadata=keep_all_metadata,
-                        read_data=read_data,
-                        phase_type=phase_type,
-                        projected=projected,
-                        correct_lat_lon=correct_lat_lon,
-                        use_model=use_model,
-                        data_column=data_column,
-                        pol_order=pol_order,
-                        data_array_dtype=data_array_dtype,
-                        nsample_array_dtype=nsample_array_dtype,
-                        skip_bad_files=skip_bad_files,
-                        background_lsts=background_lsts,
-                        run_check=run_check,
-                        check_extra=check_extra,
-                        run_check_acceptability=run_check_acceptability,
-                        strict_uvw_antpos_check=strict_uvw_antpos_check,
-                        isource=None,
-                        irec=irec,
-                        isb=isb,
-                        corrchunk=corrchunk,
-                        pseudo_cont=pseudo_cont,
-                        calc_lst=calc_lst,
-                        fix_old_proj=fix_old_proj,
-                        fix_use_ant_pos=fix_use_ant_pos,
-                        make_multi_phase=make_multi_phase,
-                        allow_flex_pol=allow_flex_pol,
-                        check_autos=check_autos,
-                        fix_autos=fix_autos,
-                    )
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings(
+                            "ignore", "The `allow_rephase` option is deprecated"
+                        )
+                        warnings.filterwarnings(
+                            "ignore", "The `make_multi_phase` option is deprecated"
+                        )
+                        self.read(
+                            filename[file_num],
+                            file_type=file_type,
+                            allow_rephase=allow_rephase,
+                            phase_center_radec=phase_center_radec,
+                            phase_frame=phase_frame,
+                            phase_epoch=phase_epoch,
+                            phase_use_ant_pos=phase_use_ant_pos,
+                            unphase_to_drift=unphase_to_drift,
+                            antenna_nums=antenna_nums,
+                            antenna_names=antenna_names,
+                            ant_str=ant_str,
+                            bls=bls,
+                            frequencies=frequencies,
+                            freq_chans=freq_chans,
+                            times=times,
+                            polarizations=polarizations,
+                            blt_inds=blt_inds,
+                            phase_center_ids=phase_center_ids,
+                            time_range=time_range,
+                            lsts=lsts,
+                            lst_range=lst_range,
+                            keep_all_metadata=keep_all_metadata,
+                            read_data=read_data,
+                            phase_type=phase_type,
+                            projected=projected,
+                            correct_lat_lon=correct_lat_lon,
+                            use_model=use_model,
+                            data_column=data_column,
+                            pol_order=pol_order,
+                            data_array_dtype=data_array_dtype,
+                            nsample_array_dtype=nsample_array_dtype,
+                            skip_bad_files=skip_bad_files,
+                            background_lsts=background_lsts,
+                            run_check=run_check,
+                            check_extra=check_extra,
+                            run_check_acceptability=run_check_acceptability,
+                            strict_uvw_antpos_check=strict_uvw_antpos_check,
+                            isource=None,
+                            irec=irec,
+                            isb=isb,
+                            corrchunk=corrchunk,
+                            pseudo_cont=pseudo_cont,
+                            calc_lst=calc_lst,
+                            fix_old_proj=fix_old_proj,
+                            fix_use_ant_pos=fix_use_ant_pos,
+                            make_multi_phase=make_multi_phase,
+                            allow_flex_pol=allow_flex_pol,
+                            check_autos=check_autos,
+                            fix_autos=fix_autos,
+                        )
                     unread = False
                 except KeyError as err:
                     file_warnings = (
@@ -12525,55 +12542,76 @@ class UVData(UVBase):
                 for f in filename[file_num + 1 :]:
                     uv2 = UVData()
                     try:
-                        uv2.read(
-                            f,
-                            file_type=file_type,
-                            phase_center_radec=phase_center_radec,
-                            phase_frame=phase_frame,
-                            phase_epoch=phase_epoch,
-                            antenna_nums=antenna_nums,
-                            antenna_names=antenna_names,
-                            ant_str=ant_str,
-                            bls=bls,
-                            frequencies=frequencies,
-                            freq_chans=freq_chans,
-                            times=times,
-                            polarizations=polarizations,
-                            blt_inds=blt_inds,
-                            phase_center_ids=phase_center_ids,
-                            time_range=time_range,
-                            lsts=lsts,
-                            lst_range=lst_range,
-                            keep_all_metadata=keep_all_metadata,
-                            read_data=read_data,
-                            phase_type=phase_type,
-                            projected=projected,
-                            correct_lat_lon=correct_lat_lon,
-                            use_model=use_model,
-                            data_column=data_column,
-                            pol_order=pol_order,
-                            data_array_dtype=data_array_dtype,
-                            nsample_array_dtype=nsample_array_dtype,
-                            skip_bad_files=skip_bad_files,
-                            background_lsts=background_lsts,
-                            run_check=run_check,
-                            check_extra=check_extra,
-                            run_check_acceptability=run_check_acceptability,
-                            strict_uvw_antpos_check=strict_uvw_antpos_check,
-                            isource=None,
-                            irec=irec,
-                            isb=isb,
-                            corrchunk=corrchunk,
-                            pseudo_cont=pseudo_cont,
-                            calc_lst=calc_lst,
-                            fix_old_proj=fix_old_proj,
-                            fix_use_ant_pos=fix_use_ant_pos,
-                            make_multi_phase=make_multi_phase,
-                            allow_flex_pol=allow_flex_pol,
-                            check_autos=check_autos,
-                            fix_autos=fix_autos,
-                            rechunk=rechunk,
-                        )
+                        with warnings.catch_warnings():
+                            warnings.filterwarnings(
+                                "ignore", "The `allow_rephase` option is deprecated"
+                            )
+                            warnings.filterwarnings(
+                                "ignore", "The `make_multi_phase` option is deprecated"
+                            )
+                            warnings.filterwarnings(
+                                "ignore",
+                                "The `phase_center_radec` parameter is deprecated",
+                            )
+                            warnings.filterwarnings(
+                                "ignore",
+                                "The `unphase_to_drift` parameter is deprecated",
+                            )
+                            warnings.filterwarnings(
+                                "ignore", "The `allow_rephase` option is deprecated"
+                            )
+                            uv2.read(
+                                f,
+                                file_type=file_type,
+                                allow_rephase=allow_rephase,
+                                phase_center_radec=phase_center_radec,
+                                phase_frame=phase_frame,
+                                phase_epoch=phase_epoch,
+                                phase_use_ant_pos=phase_use_ant_pos,
+                                unphase_to_drift=unphase_to_drift,
+                                antenna_nums=antenna_nums,
+                                antenna_names=antenna_names,
+                                ant_str=ant_str,
+                                bls=bls,
+                                frequencies=frequencies,
+                                freq_chans=freq_chans,
+                                times=times,
+                                polarizations=polarizations,
+                                blt_inds=blt_inds,
+                                phase_center_ids=phase_center_ids,
+                                time_range=time_range,
+                                lsts=lsts,
+                                lst_range=lst_range,
+                                keep_all_metadata=keep_all_metadata,
+                                read_data=read_data,
+                                phase_type=phase_type,
+                                projected=projected,
+                                correct_lat_lon=correct_lat_lon,
+                                use_model=use_model,
+                                data_column=data_column,
+                                pol_order=pol_order,
+                                data_array_dtype=data_array_dtype,
+                                nsample_array_dtype=nsample_array_dtype,
+                                skip_bad_files=skip_bad_files,
+                                background_lsts=background_lsts,
+                                run_check=run_check,
+                                check_extra=check_extra,
+                                run_check_acceptability=run_check_acceptability,
+                                strict_uvw_antpos_check=strict_uvw_antpos_check,
+                                isource=None,
+                                irec=irec,
+                                isb=isb,
+                                corrchunk=corrchunk,
+                                pseudo_cont=pseudo_cont,
+                                calc_lst=calc_lst,
+                                fix_old_proj=fix_old_proj,
+                                fix_use_ant_pos=fix_use_ant_pos,
+                                make_multi_phase=make_multi_phase,
+                                allow_flex_pol=allow_flex_pol,
+                                check_autos=check_autos,
+                                fix_autos=fix_autos,
+                                rechunk=rechunk,
+                            )
                         uv_list.append(uv2)
                     except KeyError as err:
                         file_warnings = (
@@ -12606,20 +12644,11 @@ class UVData(UVBase):
                 warnings.warn(file_warnings)
 
             # Concatenate once at end
-            # TODO I think the phasing related stuff can be removed since it is done
-            # below
-            # TODO should test that selection & phasing happens properly if only one
-            # file in a list doesn't error on read.
             if axis is not None:
                 # Rewrote fast_concat to operate on lists
                 self.fast_concat(
                     uv_list,
                     axis,
-                    phase_center_radec=phase_center_radec,
-                    unphase_to_drift=unphase_to_drift,
-                    phase_frame=phase_frame,
-                    orig_phase_frame=orig_phase_frame,
-                    use_ant_pos=phase_use_ant_pos,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
@@ -12634,10 +12663,6 @@ class UVData(UVBase):
                     for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2]):
                         uv1.__iadd__(
                             uv2,
-                            phase_center_radec=phase_center_radec,
-                            unphase_to_drift=unphase_to_drift,
-                            phase_frame=phase_frame,
-                            orig_phase_frame=orig_phase_frame,
                             use_ant_pos=phase_use_ant_pos,
                             run_check=run_check,
                             check_extra=check_extra,
