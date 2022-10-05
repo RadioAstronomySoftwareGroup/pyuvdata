@@ -4514,7 +4514,7 @@ def test_add_rephase_new_phase_center(
         [
             "The `use_ant_pos` option is deprecated",
             "The `phase_center_radec` parameter is deprecated",
-            f"Phasing {rephase_obj} UVData object to phase_center_radec",
+            f"Phasing {rephase_obj} UVData object to {phase_center_radec}",
         ],
     ):
         uv_out = getattr(uv_raw_1, test_func)(uv_raw_2, **func_kwargs)
@@ -9702,14 +9702,14 @@ def test_multifile_read_errors(read_func, filelist):
 def test_multifile_read_check(hera_uvh5, tmp_path):
     """Test setting skip_bad_files=True when reading in files"""
 
-    uvTrue = hera_uvh5.copy()
+    uv_true = hera_uvh5.copy()
 
     uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
 
     # Create a test file and remove header info to 'corrupt' it
     testfile = os.path.join(tmp_path, "zen.2458661.23480.HH.uvh5")
 
-    uvTrue.write_uvh5(testfile)
+    uv_true.write_uvh5(testfile)
     with h5py.File(testfile, "r+") as h5f:
         del h5f["Header/ant_1_array"]
 
@@ -9725,21 +9725,56 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
         with uvtest.check_warnings(UserWarning, match="Failed to read"):
             uv.read(fileList, skip_bad_files=False)
     assert "Unable to open object (object 'ant_1_array' doesn't exist)" in str(cm.value)
-    assert uv != uvTrue
+    assert uv != uv_true
 
     # Test when the corrupted file is at the beggining, skip_bad_files=True
     fileList = [testfile, uvh5_file]
     with uvtest.check_warnings(UserWarning, match=["Failed to read"]):
         uv.read(fileList, skip_bad_files=True, allow_rephase=False)
-    assert uv == uvTrue
+    assert uv == uv_true
 
     # Test when the corrupted file is at the end of a list
     fileList = [uvh5_file, testfile]
     with uvtest.check_warnings(UserWarning, match=["Failed to read"]):
         uv.read(fileList, skip_bad_files=True, allow_rephase=False)
     # Check that the uncorrupted file was still read in
-    assert uv == uvTrue
+    assert uv == uv_true
 
+    # Test that selection happens when there's only one good file in a list
+    uv_true2 = uv_true.copy()
+    uv_true2.select(freq_chans=np.arange(uv_true.Nfreqs // 2))
+    with uvtest.check_warnings(UserWarning, match=["Failed to read"]):
+        uv.read(
+            fileList,
+            skip_bad_files=True,
+            allow_rephase=False,
+            freq_chans=np.arange(uv_true.Nfreqs // 2),
+        )
+    # Check that the uncorrupted file was still read in and selection is applied
+    assert uv == uv_true2
+
+    # Test that phasing happens when there's only one good file in a list
+    uv_true2 = uv_true.copy()
+    uv_true2.phase_to_time(np.median(uv_true2.time_array))
+    phase_center_radec = [
+        uv_true2.phase_center_catalog[1]["cat_lon"],
+        uv_true2.phase_center_catalog[1]["cat_lat"],
+    ]
+    with uvtest.check_warnings(
+        [UserWarning, UserWarning, DeprecationWarning, DeprecationWarning],
+        match=[
+            "Failed to read",
+            "Phasing this UVData object",
+            "The `phase_center_radec` parameter is deprecated",
+            "The default behavior is to rephase data from the files",
+        ],
+    ):
+        uv.read(fileList, skip_bad_files=True, phase_center_radec=phase_center_radec)
+    # Check that the uncorrupted file was still read in and phased properly
+    uv._consolidate_phase_center_catalogs(
+        reference_catalog=uv_true2.phase_center_catalog, ignore_name=True
+    )
+    assert uv == uv_true2
     os.remove(testfile)
 
     return
@@ -9772,13 +9807,12 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
             h5f["Header/ant_1_array"][2] = 1024
 
     # Test with corrupted file as last file in list, skip_bad_files=True
-    uvTest = UVData()
+    uv_test = UVData()
     with uvtest.check_warnings(UserWarning, "Failed to read"):
-        uvTest.read(fileList[0:4], skip_bad_files=True)
-    uvTrue = UVData()
-    uvTrue.read(fileList[0:3], skip_bad_files=True)
-
-    assert uvTest == uvTrue
+        uv_test.read(fileList[0:4], skip_bad_files=True)
+    uv_true = UVData()
+    uv_true.read(fileList[0:3], skip_bad_files=True)
+    assert uv_test == uv_true
 
     # Repeat above test, but with corrupted file as first file in list
     os.remove(fileList[3])
@@ -9792,28 +9826,28 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
         with h5py.File(fileList[0], "r+") as h5f:
             h5f["Header/antenna_numbers"][3] = 85
             h5f["Header/ant_1_array"][2] = 1024
-    uvTest = UVData()
+    uv_test = UVData()
     with uvtest.check_warnings(UserWarning, "Failed to read"):
-        uvTest.read(fileList[0:4], skip_bad_files=True)
-    uvTrue = UVData()
-    uvTrue.read(fileList[1:4], skip_bad_files=True)
+        uv_test.read(fileList[0:4], skip_bad_files=True)
+    uv_true = UVData()
+    uv_true.read(fileList[1:4], skip_bad_files=True)
 
-    assert uvTest == uvTrue
+    assert uv_test == uv_true
 
     # Test with corrupted file first in list, but with skip_bad_files=False
-    uvTest = UVData()
+    uv_test = UVData()
     if err_type == "KeyError":
         with pytest.raises(KeyError, match="Unable to open object"):
             with uvtest.check_warnings(UserWarning, match="Failed to read"):
-                uvTest.read(fileList[0:4], skip_bad_files=False)
+                uv_test.read(fileList[0:4], skip_bad_files=False)
     elif err_type == "ValueError":
         with pytest.raises(ValueError, match="Nants_data must be equal to"):
             with uvtest.check_warnings(UserWarning, match="Failed to read"):
-                uvTest.read(fileList[0:4], skip_bad_files=False)
-    uvTrue = UVData()
-    uvTrue.read([fileList[1], fileList[2], fileList[3]], skip_bad_files=False)
+                uv_test.read(fileList[0:4], skip_bad_files=False)
+    uv_true = UVData()
+    uv_true.read([fileList[1], fileList[2], fileList[3]], skip_bad_files=False)
 
-    assert uvTest != uvTrue
+    assert uv_test != uv_true
 
     # Repeat above test, but with corrupted file in the middle of the list
     os.remove(fileList[0])
@@ -9827,28 +9861,28 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
         with h5py.File(fileList[1], "r+") as h5f:
             h5f["Header/antenna_numbers"][3] = 85
             h5f["Header/ant_1_array"][2] = 1024
-    uvTest = UVData()
+    uv_test = UVData()
     with uvtest.check_warnings(UserWarning, "Failed to read"):
-        uvTest.read(fileList[0:4], skip_bad_files=True)
-    uvTrue = UVData()
-    uvTrue.read([fileList[0], fileList[2], fileList[3]], skip_bad_files=True)
+        uv_test.read(fileList[0:4], skip_bad_files=True)
+    uv_true = UVData()
+    uv_true.read([fileList[0], fileList[2], fileList[3]], skip_bad_files=True)
 
-    assert uvTest == uvTrue
+    assert uv_test == uv_true
 
     # Test with corrupted file in middle of list, but with skip_bad_files=False
-    uvTest = UVData()
+    uv_test = UVData()
     if err_type == "KeyError":
         with pytest.raises(KeyError, match="Unable to open object"):
             with uvtest.check_warnings(UserWarning, match="Failed to read"):
-                uvTest.read(fileList[0:4], skip_bad_files=False)
+                uv_test.read(fileList[0:4], skip_bad_files=False)
     elif err_type == "ValueError":
         with pytest.raises(ValueError, match="Nants_data must be equal to"):
             with uvtest.check_warnings(UserWarning, match="Failed to read"):
-                uvTest.read(fileList[0:4], skip_bad_files=False)
-    uvTrue = UVData()
-    uvTrue.read([fileList[0], fileList[2], fileList[3]], skip_bad_files=False)
+                uv_test.read(fileList[0:4], skip_bad_files=False)
+    uv_true = UVData()
+    uv_true.read([fileList[0], fileList[2], fileList[3]], skip_bad_files=False)
 
-    assert uvTest != uvTrue
+    assert uv_test != uv_true
 
     # Test case where all files in list are corrupted
     os.remove(fileList[1])
@@ -9863,7 +9897,7 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
             with h5py.File(file, "r+") as h5f:
                 h5f["Header/antenna_numbers"][3] = 85
                 h5f["Header/ant_1_array"][2] = 1024
-    uvTest = UVData()
+    uv_test = UVData()
     with uvtest.check_warnings(
         UserWarning,
         match=(
@@ -9872,10 +9906,10 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
             "########################################################"
         ),
     ):
-        uvTest.read(fileList[0:4], skip_bad_files=True)
-    uvTrue = UVData()
+        uv_test.read(fileList[0:4], skip_bad_files=True)
+    uv_true = UVData()
 
-    assert uvTest == uvTrue
+    assert uv_test == uv_true
 
     os.remove(fileList[0])
     os.remove(fileList[1])
