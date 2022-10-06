@@ -31,7 +31,7 @@ cpdef numpy.ndarray[dtype=numpy.npy_bool] find_healpix_indices(
     numpy.float64_t pixel_resolution
 ):
   cdef Py_ssize_t itheta, iphi, ipix
-  cdef numpy.float64_t theta_h, phi_h, theta_g, phi_g, dist, dist_test
+  cdef numpy.float64_t theta_h, phi_h, theta_g, phi_g, dist, dist_test, dtheta
   cdef numpy.npy_bool found_pixel
   cdef int ndim = 1
   cdef int n_theta = theta_grid.shape[0]
