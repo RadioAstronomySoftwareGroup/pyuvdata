@@ -508,7 +508,9 @@ class BeamFITS(UVBeam):
                 if "rx_temp" in columns:
                     self.receiver_temperature_array = freq_data["rx_temp"]
                     if freq_range is not None:
-                        self.receiver_temperature_array = self.receiver_temperature_array[freq_mask]
+                        self.receiver_temperature_array = (
+                            self.receiver_temperature_array[freq_mask]
+                        )
                     self.receiver_temperature_array = self.receiver_temperature_array[
                         np.newaxis, :
                     ]
