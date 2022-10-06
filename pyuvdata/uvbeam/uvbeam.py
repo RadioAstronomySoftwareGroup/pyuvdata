@@ -2050,7 +2050,11 @@ class UVBeam(UVBase):
 
         if nside is None:
             min_res = np.min(
-                np.array([np.diff(self.axis1_array)[0], np.diff(self.axis2_array)[0]])
+                np.abs(
+                    np.array(
+                        [np.diff(self.axis1_array)[0], np.diff(self.axis2_array)[0]]
+                    )
+                )
             )
             nside_min_res = np.sqrt(3 / np.pi) * np.radians(60.0) / min_res
             nside = int(2 ** np.ceil(np.log2(nside_min_res)))
