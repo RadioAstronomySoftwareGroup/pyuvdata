@@ -31,7 +31,7 @@ cpdef numpy.ndarray[dtype=numpy.npy_bool] find_healpix_indices(
     numpy.float64_t pixel_resolution
 ):
   cdef Py_ssize_t itheta, iphi, ipix
-  cdef numpy.float64_t theta_h, phi_h, theta_g, phi_g, dist, dist_test, dtheta
+  cdef numpy.float64_t theta_h, phi_h, theta_g, phi_g, dist, dist_test, dtheta, dphi
   cdef numpy.npy_bool found_pixel
   cdef int ndim = 1
   cdef int n_theta = theta_grid.shape[0]
@@ -53,18 +53,30 @@ cpdef numpy.ndarray[dtype=numpy.npy_bool] find_healpix_indices(
       for itheta in range(n_theta):
           if found_pixel:
               break
+          #  positive and negative latitudes are actually identical
+          #  since the origin of the coordinate system is a Pole
           theta_g = theta_grid[itheta]
+
+          if theta_g < 0:
+            theta_g = fabs(theta_g)
+
           dtheta = fabs(theta_h - theta_g)
-          if dtheta > PI:
+          while dtheta > PI:
               dtheta -= 2 * PI
 
           # only look through phi if we're within the pixel resolution in theta
           dtheta *= dtheta
+
           if dtheta < dist_test:
               for iphi in range(n_phi):
                   phi_g = phi_grid[iphi]
                   # compute distance
-                  dist = dtheta + (phi_h - phi_g)**2
+
+                  dphi = fabs(phi_h - phi_g)
+                  while dphi > 2 * PI:
+                    dphi -= 2 * PI
+
+                  dist = dtheta + dphi ** 2
                   if dist < dist_test:
                       _in_map[ipix] = True
                       found_pixel = True
