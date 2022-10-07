@@ -3724,7 +3724,7 @@ def get_lst_for_time(
         (which uses the pyERFA), 'novas' (which uses the python-novas library),
         and 'astropy' (which uses the astropy utilities). Default is erfa.
     frame : str
-        Frame of reference ofr latitude/longitude/altitude.
+        Reference frame for latitude/longitude/altitude.
         Options are ITRS (default) or MCMF.
         If MCMF, the 'astrometry_library' keyword will default to astropy.
 
