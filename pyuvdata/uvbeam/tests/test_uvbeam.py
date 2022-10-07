@@ -1321,6 +1321,45 @@ def test_healpix_interpolation(cst_efield_2freq):
         power_beam.interp(az_array=az_orig_vals, za_array=za_orig_vals)
 
 
+def test_find_healpix_indices():
+
+    hp_obj = HEALPix(nside=2)
+    pixels = np.arange(hp_obj.npix)
+    hpx_lon, hpx_lat = hp_obj.healpix_to_lonlat(pixels)
+
+    hpx_theta = (Angle(np.pi / 2, units.radian) - hpx_lat).radian
+    hpx_phi = hpx_lon.radian
+
+    theta_vals1 = np.arange(5) * np.pi / 5
+    theta_vals2 = theta_vals1 - np.pi
+    phi_vals = np.arange(10) * 2 * np.pi / 10
+
+    inds_to_use1 = _uvbeam.find_healpix_indices(
+        np.ascontiguousarray(theta_vals1, dtype=np.float64),
+        np.ascontiguousarray(phi_vals, dtype=np.float64),
+        np.ascontiguousarray(hpx_theta, dtype=np.float64),
+        np.ascontiguousarray(hpx_phi, dtype=np.float64),
+        np.float64(hp_obj.pixel_resolution.to_value(units.radian)),
+    )
+
+    inds_to_use2 = _uvbeam.find_healpix_indices(
+        np.ascontiguousarray(theta_vals2, dtype=np.float64),
+        np.ascontiguousarray(phi_vals, dtype=np.float64),
+        np.ascontiguousarray(hpx_theta, dtype=np.float64),
+        np.ascontiguousarray(hpx_phi, dtype=np.float64),
+        np.float64(hp_obj.pixel_resolution.to_value(units.radian)),
+    )
+
+    pixels1 = pixels[inds_to_use1]
+    pixels2 = pixels[inds_to_use2]
+
+    print(pixels1)
+    print("")
+    print(pixels2)
+
+    assert np.array_equal(np.sort(pixels[inds_to_use1]), np.sort(pixels[inds_to_use2]))
+
+
 def test_to_healpix(
     cst_power_2freq_cut,
     cst_power_2freq_cut_healpix,
@@ -1329,21 +1368,6 @@ def test_to_healpix(
 ):
     power_beam = cst_power_2freq_cut
     power_beam_healpix = cst_power_2freq_cut_healpix
-
-    hp_obj = HEALPix(nside=power_beam_healpix.nside)
-    pixels = np.arange(hp_obj.npix)
-    hpx_lon, hpx_lat = hp_obj.healpix_to_lonlat(pixels)
-
-    hpx_theta = (Angle(np.pi / 2, units.radian) - hpx_lat).radian
-    hpx_phi = hpx_lon.radian
-    inds_to_use = _uvbeam.find_healpix_indices(
-        np.ascontiguousarray(cst_power_2freq_cut.axis2_array[::-1], dtype=np.float64),
-        np.ascontiguousarray(cst_power_2freq_cut.axis1_array, dtype=np.float64),
-        np.ascontiguousarray(hpx_theta, dtype=np.float64),
-        np.ascontiguousarray(hpx_phi, dtype=np.float64),
-        np.float64(hp_obj.pixel_resolution.to_value(units.radian)),
-    )
-    assert np.array_equal(pixels[inds_to_use], power_beam_healpix.pixel_array)
 
     sky_area_reduction_factor = (1.0 - np.cos(np.deg2rad(10))) / 2.0
 
