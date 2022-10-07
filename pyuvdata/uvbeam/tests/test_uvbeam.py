@@ -1321,7 +1321,11 @@ def test_healpix_interpolation(cst_efield_2freq):
         power_beam.interp(az_array=az_orig_vals, za_array=za_orig_vals)
 
 
-def test_find_healpix_indices():
+@pytest.mark.parametrize(
+    "start, stop", [(-np.pi, 0), (2 * np.pi, 3 * np.pi), (10 * np.pi, 11 * np.pi)]
+)
+@pytest.mark.parametrize("phi_start, phi_end", [(0, 2 * np.pi), (0, -2 * np.pi)])
+def test_find_healpix_indices(start, stop, phi_start, phi_end):
 
     hp_obj = HEALPix(nside=2)
     pixels = np.arange(hp_obj.npix)
@@ -1330,9 +1334,10 @@ def test_find_healpix_indices():
     hpx_theta = (Angle(np.pi / 2, units.radian) - hpx_lat).radian
     hpx_phi = hpx_lon.radian
 
-    theta_vals1 = np.arange(5) * np.pi / 5
-    theta_vals2 = theta_vals1 - np.pi
-    phi_vals = np.arange(10) * 2 * np.pi / 10
+    theta_vals1 = np.linspace(0, np.pi, 5, endpoint=True)
+    theta_vals2 = np.linspace(start, stop, 5, endpoint=True)
+
+    phi_vals = np.linspace(phi_start, phi_end, 10, endpoint=False)
 
     inds_to_use1 = _uvbeam.find_healpix_indices(
         np.ascontiguousarray(theta_vals1, dtype=np.float64),
@@ -1349,13 +1354,6 @@ def test_find_healpix_indices():
         np.ascontiguousarray(hpx_phi, dtype=np.float64),
         np.float64(hp_obj.pixel_resolution.to_value(units.radian)),
     )
-
-    pixels1 = pixels[inds_to_use1]
-    pixels2 = pixels[inds_to_use2]
-
-    print(pixels1)
-    print("")
-    print(pixels2)
 
     assert np.array_equal(np.sort(pixels[inds_to_use1]), np.sort(pixels[inds_to_use2]))
 
