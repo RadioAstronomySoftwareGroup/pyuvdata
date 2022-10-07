@@ -161,7 +161,7 @@ setup_args = {
         "healpix": healpix_reqs,
         "lunar": lunar_reqs,
         "novas": novas_reqs,
-        "all": all_optional_reqs
+        "all": all_optional_reqs,
         "test": test_reqs,
         "doc": doc_reqs,
         "dev": test_reqs + doc_reqs,
