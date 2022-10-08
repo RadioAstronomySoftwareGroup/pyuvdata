@@ -1326,7 +1326,7 @@ def test_healpix_interpolation(cst_efield_2freq):
 )
 @pytest.mark.parametrize("phi_start, phi_end", [(0, 2 * np.pi), (0, -2 * np.pi)])
 def test_find_healpix_indices(start, stop, phi_start, phi_end):
-
+    pytest.importorskip("astropy_healpix")
     hp_obj = HEALPix(nside=2)
     pixels = np.arange(hp_obj.npix)
     hpx_lon, hpx_lat = hp_obj.healpix_to_lonlat(pixels)
