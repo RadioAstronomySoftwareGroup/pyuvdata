@@ -1322,7 +1322,13 @@ def test_healpix_interpolation(cst_efield_2freq):
 
 
 @pytest.mark.parametrize(
-    "start, stop", [(-np.pi, 0), (2 * np.pi, 3 * np.pi), (10 * np.pi, 11 * np.pi)]
+    "start, stop",
+    [
+        (-3 * np.pi, -2 * np.pi),
+        (-np.pi, 0),
+        (2 * np.pi, 3 * np.pi),
+        (10 * np.pi, 11 * np.pi),
+    ],
 )
 @pytest.mark.parametrize("phi_start, phi_end", [(0, 2 * np.pi), (0, -2 * np.pi)])
 def test_find_healpix_indices(start, stop, phi_start, phi_end):
