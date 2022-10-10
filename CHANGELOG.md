@@ -5,11 +5,17 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Support for partial reads on beamfits files. This can be done on frequency, azimuth
-  or zenith angle (if beam is in az/za coordinates).
+or zenith angle (if beam is in az/za coordinates).
 - Logging statements (INFO level) in `UVdata.check`.
+
 ### Changed
+- Added `use_future_array_shapes` method to UVBeam to allow users to convert to using
+the future array shapes now, with support throughout UVBeam methods and related utility
+functions. Also added `use_current_array_shapes` to revert to the standard shapes.
+- Major performance improvement in the `UVBeam.to_healpix` method.
 - Performance improvement when doing a `UVData.select` using the `bls` parameter (~70%
-  improvement in the `_select_preprocess` function)
+improvement in the `_select_preprocess` function)
+
 ## [2.2.9] - 2022-8-23
 
 ### Added
