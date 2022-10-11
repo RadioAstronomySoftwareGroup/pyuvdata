@@ -734,9 +734,12 @@ class LocationParameter(UVParameter):
         value=None,
         spoof_val=None,
         description="",
+        frame="itrs",
         acceptable_range=(6.35e6, 6.39e6),
         tols=1e-3,
     ):
+        if frame == "mcmf":
+            acceptable_range = (1717100.0, 1757100.0)
         super(LocationParameter, self).__init__(
             name,
             required=required,
@@ -748,6 +751,7 @@ class LocationParameter(UVParameter):
             acceptable_range=acceptable_range,
             tols=tols,
         )
+        self.frame = frame
 
     def lat_lon_alt(self):
         """Get value in (latitude, longitude, altitude) tuple in radians."""
@@ -755,7 +759,9 @@ class LocationParameter(UVParameter):
             return None
         else:
             # check defaults to False b/c exposed check kwarg exists in UVData
-            return utils.LatLonAlt_from_XYZ(self.value, check_acceptability=False)
+            return utils.LatLonAlt_from_XYZ(
+                self.value, check_acceptability=False, frame=self.frame
+            )
 
     def set_lat_lon_alt(self, lat_lon_alt):
         """
@@ -771,7 +777,10 @@ class LocationParameter(UVParameter):
             self.value = None
         else:
             self.value = utils.XYZ_from_LatLonAlt(
-                lat_lon_alt[0], lat_lon_alt[1], lat_lon_alt[2]
+                lat_lon_alt[0],
+                lat_lon_alt[1],
+                lat_lon_alt[2],
+                frame=self.frame,
             )
 
     def lat_lon_alt_degrees(self):
@@ -798,7 +807,10 @@ class LocationParameter(UVParameter):
         else:
             latitude, longitude, altitude = lat_lon_alt_degree
             self.value = utils.XYZ_from_LatLonAlt(
-                latitude * np.pi / 180.0, longitude * np.pi / 180.0, altitude
+                latitude * np.pi / 180.0,
+                longitude * np.pi / 180.0,
+                altitude,
+                frame=self.frame,
             )
 
     def check_acceptability(self):
