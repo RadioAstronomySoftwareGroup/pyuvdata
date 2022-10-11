@@ -131,6 +131,15 @@ class UVTest(UVBase):
             form=(),
         )
 
+        self._dependent = uvp.UVParameter(
+            "dependent",
+            description="A parameter that depends on another parameter.",
+            expected_type=str,
+            dependencies={"time": "cur_time"},
+            value="val0",
+            required=False,
+        )
+
         super(UVTest, self).__init__()
 
 
@@ -358,3 +367,10 @@ def test_name_error():
     test_obj._location.name = "place"
     with pytest.raises(ValueError, match="UVParameter _location does not follow the"):
         test_obj.check()
+
+
+def test_param_dependency():
+    test_obj = UVTest()
+    # Need to access the parameter value at least once for the other values to be set
+    assert test_obj.dependent == "val0"
+    assert test_obj._dependent.cur_time == test_obj.time

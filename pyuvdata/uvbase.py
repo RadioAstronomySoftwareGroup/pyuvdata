@@ -143,6 +143,13 @@ class UVBase(object):
         # Create method to return
         def fget(self):
             this_param = getattr(self, param_name)
+            if this_param.dependencies is not None:
+                for sup_par, attr_name in this_param.dependencies.items():
+                    # Key is the name of parent parameters
+                    # Value is the name to give that attribute in this parameter
+                    sup_val = getattr(self, sup_par)
+                    setattr(this_param, attr_name, sup_val)
+                setattr(self, param_name, this_param)
             return this_param.value
 
         return fget
@@ -166,6 +173,12 @@ class UVBase(object):
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.value = value
+            if this_param.dependencies is not None:
+                for sup_par, attr_name in this_param.dependencies.items():
+                    # Key is the name of parent parameters
+                    # Value is the name to give that attribute in this parameter
+                    sup_val = getattr(self, sup_par)
+                    setattr(this_param, attr_name, sup_val)
             setattr(self, param_name, this_param)
 
         return fset

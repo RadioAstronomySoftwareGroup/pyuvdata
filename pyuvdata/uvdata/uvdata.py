@@ -383,13 +383,14 @@ class UVData(UVBase):
         )
 
         desc = (
-            "Telescope location: xyz in ITRF (earth-centered frame). "
+            "Telescope location: xyz position in telescope_frame. "
             "Can also be accessed using telescope_location_lat_lon_alt or "
             "telescope_location_lat_lon_alt_degrees properties."
         )
         self._telescope_location = uvp.LocationParameter(
             "telescope_location",
             description=desc,
+            dependencies={"telescope_frame": "frame"},
             acceptable_range=(6.35e6, 6.39e6),
             tols=1e-3,
         )
@@ -2454,6 +2455,7 @@ class UVData(UVBase):
             latitude,
             longitude,
             altitude,
+            frame=self.telescope_frame,
         )
         self.lst_array = unique_lst_array[inverse_inds]
         return
