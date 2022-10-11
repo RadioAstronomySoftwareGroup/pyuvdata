@@ -373,17 +373,8 @@ class UVData(UVBase):
             expected_type=str,
         )
 
-        self._telescope_frame = uvp.UVParameter(
-            "telescope_frame",
-            description='Coordinate frame of the telescope_location. Default is "itrs"',
-            form="str",
-            value="itrs",
-            expected_type=str,
-            acceptable_vals=["itrs", "mcmf"],
-        )
-
         desc = (
-            "Telescope location: xyz in ITRF (earth-centered frame). "
+            "Telescope location: xyz position in specified frame (default ITRS). "
             "Can also be accessed using telescope_location_lat_lon_alt or "
             "telescope_location_lat_lon_alt_degrees properties."
         )
@@ -391,6 +382,7 @@ class UVData(UVBase):
             "telescope_location",
             description=desc,
             acceptable_range=(6.35e6, 6.39e6),
+            frame="itrs",
             tols=1e-3,
         )
 
@@ -2454,6 +2446,7 @@ class UVData(UVBase):
             latitude,
             longitude,
             altitude,
+            frame=self._telescope_location.frame,
         )
         self.lst_array = unique_lst_array[inverse_inds]
         return
@@ -4250,7 +4243,7 @@ class UVData(UVBase):
         antpos = uvutils.ENU_from_ECEF(
             (self.antenna_positions + self.telescope_location),
             *self.telescope_location_lat_lon_alt,
-            frame=self.telescope_frame,
+            frame=self._telescope_location.frame,
         )
         ants = self.antenna_numbers
 
