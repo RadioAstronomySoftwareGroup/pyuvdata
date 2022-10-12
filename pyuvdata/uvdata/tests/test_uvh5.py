@@ -3450,5 +3450,9 @@ def test_uvh5_bitshuffle(uv_phase_comp, tmp_path):
     outfile = os.path.join(tmp_path, "test.uvh5")
     uvd.write_uvh5(outfile, data_compression="bitshuffle")
 
+    with h5py.File(outfile, "r") as f:
+        dgrp = f["/Data"]
+        assert "32008" in dgrp["visdata"]._filters
+
     uvd2 = UVData.from_file(outfile)
     assert uvd == uvd2

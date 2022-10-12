@@ -2797,6 +2797,9 @@ class UVData(UVBase):
             ]
             self.flex_spw_id_array = first_spw_array[: self.Nfreqs]
             if not self.metadata_only:
+                # we use the order="F" parameter here to undo the reshape done in
+                # `convert_to_flexp_pol` (which uses it to ensure that polarization is
+                # the slowest changing axis)
                 if self.future_array_shapes:
                     self.data_array = self.data_array.reshape(
                         self.Nblts, self.Nfreqs, self.Npols, order="F"
@@ -3023,6 +3026,8 @@ class UVData(UVBase):
         spw_sort = np.argsort(new_spw_array)
         self.spw_array = new_spw_array[spw_sort]
         self.flex_spw_polarization_array = new_flex_pol_array[spw_sort]
+        # we use the order="F" parameter here to ensure that polarization is the slowest
+        # changing axis
         self.flex_spw_id_array = new_spw_id_array.reshape(
             self.Nfreqs * self.Npols, order="F"
         )
@@ -3037,6 +3042,8 @@ class UVData(UVBase):
             self.freq_array = self.freq_array[np.newaxis, :]
         self.channel_width = np.tile(self.channel_width, self.Npols)
         if not self.metadata_only:
+            # we use the order="F" parameter here to ensure that polarization is the
+            # slowest changing axis
             if self.future_array_shapes:
                 self.data_array = self.data_array.reshape(
                     self.Nblts, self.Nfreqs * self.Npols, 1, order="F"
