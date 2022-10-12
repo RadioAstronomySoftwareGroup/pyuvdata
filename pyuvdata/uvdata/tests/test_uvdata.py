@@ -11702,9 +11702,9 @@ def test_convert_remove_flex_pol_error(uv_phase_comp):
         uvd2.remove_flex_pol()
 
 
-def test_flex_pol_no_op(sma_mir, uv_phase_comp):
+def test_sma_make_remove_flex_pol_no_op(sma_mir):
     """
-    Test shortcircuits of flex_pol method
+    Test shortcircuits of _make_flex_pol & remove_flex_pol method
     """
     uvd = sma_mir.copy()
 
@@ -11724,6 +11724,11 @@ def test_flex_pol_no_op(sma_mir, uv_phase_comp):
 
     assert uvd == sma_copy
 
+
+def test_remove_flex_pol_no_op(uv_phase_comp):
+    """
+    Test shortcircuits of remove_flex_pol method
+    """
     # remove_flex_pol with one spw
     uvd, _ = uv_phase_comp
 
@@ -11744,7 +11749,14 @@ def test_flex_pol_no_op(sma_mir, uv_phase_comp):
     uvd3.select(polarizations=["xx"])
     assert uvd2 == uvd3
 
+
+def test_remove_flex_pol_no_op_multiple_spws(uv_phase_comp):
+    """
+    Test shortcircuits of flex_pol method
+    """
     # remove_flex_pol with multiple spws but only one pol
+    uvd, _ = uv_phase_comp
+
     uvd2 = uvd.copy()
     uvd2._set_flex_spw()
     uvd2.channel_width = np.full(uvd2.Nfreqs, uvd2.channel_width)
