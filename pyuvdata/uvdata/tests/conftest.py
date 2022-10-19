@@ -136,21 +136,18 @@ def mir_data(mir_data_main):
 def uv_phase_comp_main():
     file1 = os.path.join(DATA_PATH, "1133866760.uvfits")
     file2 = os.path.join(DATA_PATH, "1133866760_rephase.uvfits")
-    uvd1 = UVData()
-    uvd2 = UVData()
     # These files came from an external source, don't want to rewrite them, so use
     # checkwarnings to capture the warning about non-real autos
     with uvtest.check_warnings(
         UserWarning,
         match=[
             "Fixing auto-correlations to be be real-only, after some imaginary "
-            "values were detected in data_array.",
-            "Fixing phases using antenna positions.",
+            "values were detected in data_array."
         ]
         * 2,
     ):
-        uvd1.read_uvfits(file1, fix_old_proj=True)
-        uvd2.read_uvfits(file2, fix_old_proj=True)
+        uvd1 = UVData.from_file(file1)
+        uvd2 = UVData.from_file(file2)
 
     yield uvd1, uvd2
 
