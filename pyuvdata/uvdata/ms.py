@@ -499,35 +499,51 @@ class MS(UVData):
             readonly=False,
         )
 
-        time_val = (
+        # Make the default time be the midpoint of the obs
+        time_default = (
             Time(np.median(self.time_array), format="jd", scale="utc").mjd * 86400.0
         )
-        int_val = np.finfo(float).max
-
-        sou_list = list(self.phase_center_catalog)
+        # Default interval should be several times a Hubble time. Gotta make this code
+        # future-proofed until the eventual heat death of the Universe.
+        int_default = np.finfo(float).max
 
         row_count = 0
-        for sou_id in sou_list:
-            sou_ra = self.phase_center_catalog[sou_id]["cat_lon"]
-            sou_dec = self.phase_center_catalog[sou_id]["cat_lat"]
-            pm_ra = self.phase_center_catalog[sou_id].get("cat_pm_ra")
-            pm_dec = self.phase_center_catalog[sou_id].get("cat_pm_dec")
-            if (pm_ra is None) or (pm_dec is None):
-                pm_ra = 0.0
-                pm_dec = 0.0
-            sou_name = self.phase_center_catalog[sou_id]["cat_name"]
+        for sou_id, pc_dict in self.phase_center_catalog.items():
+            # Get some pieces of info that should not depend on the cat type, like name,
+            # proper motions, (others possible)
+            sou_name = pc_dict["cat_name"]
+            pm_dir = np.array(
+                [[pc_dict.get("cat_pm_ra", 0.0), pc_dict.get("cat_pm_dec", 0.0)]]
+            )
+            int_val = int_default
 
-            sou_dir = np.array([sou_ra, sou_dec])
-            pm_dir = np.array([pm_ra, pm_dec])
-            for jdx in range(self.Nspws):
+            if pc_dict["cat_type"] == "sidereal":
+                # If this is just a single set of points, set up values to have shape
+                # (1, X) so that we can iterate through them later.
+                sou_dir = np.array([[pc_dict["cat_lon"], pc_dict["cat_lat"]]])
+                time_val = np.array([time_default])
+            elif pc_dict["cat_type"] == "ephem":
+                # Otherwise for ephem, make time the outer-most axis so that we
+                # can easily iterate through.
+                sou_dir = np.vstack(((pc_dict["cat_lon"], pc_dict["cat_lat"])))
+                time_val = (
+                    Time(pc_dict["cat_times"], format="jd", scale="utc").mjd * 86400.0
+                ).flatten()
+                # If there are multile time entries, then approximate a value for the
+                # interval (needed for CASA, not UVData) by taking the range divided
+                # by the number of points in the ephem.
+                if len(time_val) > 1:
+                    int_val = (time_val.max() - time_val.min()) / (len(time_val) - 1)
+
+            for idx in range(len(sou_dir)):
                 source_table.addrows()
-                source_table.putcell("SOURCE_ID", row_count, sou_id)
-                source_table.putcell("TIME", row_count, time_val)
-                source_table.putcell("INTERVAL", row_count, int_val)
-                source_table.putcell("SPECTRAL_WINDOW_ID", row_count, jdx)
-                source_table.putcell("NUM_LINES", row_count, 0)
                 source_table.putcell("NAME", row_count, sou_name)
-                source_table.putcell("DIRECTION", row_count, sou_dir)
+                source_table.putcell("SOURCE_ID", row_count, sou_id)
+                source_table.putcell("INTERVAL", row_count, int_val)
+                source_table.putcell("SPECTRAL_WINDOW_ID", row_count, -1)
+                source_table.putcell("NUM_LINES", row_count, 0)
+                source_table.putcell("TIME", row_count, time_val[idx])
+                source_table.putcell("DIRECTION", row_count, sou_dir[idx])
                 source_table.putcell("PROPER_MOTION", row_count, pm_dir)
                 row_count += 1
 
@@ -2130,8 +2146,6 @@ class MS(UVData):
         # set LST array from times and itrf
         proc = self.set_lsts_from_time_array(background=background_lsts)
 
-        # CASA weights column keeps track of number of data points averaged.
-
         tb_field = tables.table(filepath + "/FIELD", ack=False)
 
         # Error if the phase_dir has a polynomial term because we don't know
@@ -2141,6 +2155,66 @@ class MS(UVData):
             "We do not currently support this mode, please make an issue."
         )
         assert tb_field.getcol("PHASE_DIR").shape[1] == 1, message
+
+        # The SOURCE table is optional in MS, but can contain some relevant metadata
+        # about
+        tb_sou_dict = {}
+        try:
+            tb_source = tables.table(filepath + "/SOURCE", ack=False)
+        except RuntimeError:
+            pass
+        else:
+            for idx in range(tb_source.nrows()):
+                sou_id = tb_source.getcell("SOURCE_ID", idx)
+                pm_vec = tb_source.getcell("PROPER_MOTION", idx)
+                time_stamp = tb_source.getcell("TIME", idx)
+                sou_vec = tb_source.getcell("DIRECTION", idx)
+                try:
+                    for idx in np.where(
+                        np.isclose(tb_sou_dict[sou_id]["cat_times"], time_stamp)
+                    )[0]:
+                        if not (
+                            np.isclose(tb_sou_dict[sou_id]["cat_ra"], sou_vec[0])
+                            and np.isclose(tb_sou_dict[sou_id]["cat_dec"], sou_vec[1])
+                            and np.isclose(tb_sou_dict[sou_id]["cat_pm_ra"], pm_vec[0])
+                            and np.isclose(tb_sou_dict[sou_id]["cat_pm_dec"], pm_vec[1])
+                        ):
+                            warnings.warn(
+                                "Different windows in this MS file contain different "
+                                "metadata for the same integration. Be aware that "
+                                "UVData objects do not allow for this, and thus will "
+                                "default to using the metadata from the last row read "
+                                "from the SOURCE table."
+                            )
+                        _ = tb_sou_dict[sou_id]["cat_times"].pop(idx)
+                        _ = tb_sou_dict[sou_id]["cat_ra"].pop(idx)
+                        _ = tb_sou_dict[sou_id]["cat_dec"].pop(idx)
+                        _ = tb_sou_dict[sou_id]["cat_pm_ra"].pop(idx)
+                        _ = tb_sou_dict[sou_id]["cat_pm_dec"].pop(idx)
+                    tb_sou_dict[sou_id]["cat_times"].append(time_stamp)
+                    tb_sou_dict[sou_id]["cat_ra"].append(sou_vec[0])
+                    tb_sou_dict[sou_id]["cat_dec"].append(sou_vec[1])
+                    tb_sou_dict[sou_id]["cat_pm_ra"].append(pm_vec[0])
+                    tb_sou_dict[sou_id]["cat_pm_dec"].append(pm_vec[1])
+                except KeyError:
+                    tb_sou_dict[sou_id] = {
+                        "cat_times": [time_stamp],
+                        "cat_ra": [sou_vec[0]],
+                        "cat_dec": [sou_vec[1]],
+                        "cat_pm_ra": [pm_vec[0]],
+                        "cat_pm_dec": [pm_vec[1]],
+                    }
+
+            for cat_dict in tb_sou_dict.values():
+                for key in cat_dict:
+                    if len(cat_dict["cat_times"]) == 1:
+                        cat_dict[key] = cat_dict[key][0]
+                    else:
+                        cat_dict[key] = np.array(cat_dict[key])
+                if np.allclose(cat_dict["cat_pm_ra"], 0) and np.allclose(
+                    cat_dict["cat_pm_dec"], 0
+                ):
+                    cat_dict["cat_pm_ra"] = cat_dict["cat_pm_dec"] = None
 
         # MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
         measinfo_keyword = tb_field.getcolkeyword("PHASE_DIR", "MEASINFO")
@@ -2201,6 +2275,8 @@ class MS(UVData):
                 )
             else:
                 frame_tuple = (phase_center_frame, phase_center_epoch)
+
+            # TODO: Add source table lookup here
 
             self._add_phase_center(
                 field_name,
