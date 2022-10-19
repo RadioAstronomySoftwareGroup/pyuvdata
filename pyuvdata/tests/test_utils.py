@@ -500,20 +500,7 @@ _frames = ["itrs", "mcmf"] if hasmoon else ["itrs"]
 @pytest.mark.parametrize("frame", _frames)
 def test_ecef_from_enu_roundtrip(enu_ecef_info, enu_mcmf_info, frame):
     """Test ECEF_from_ENU values."""
-    (
-        center_lat,
-        center_lon,
-        center_alt,
-        lats,
-        lons,
-        alts,
-        x,
-        y,
-        z,
-        east,
-        north,
-        up,
-    ) = (
+    (center_lat, center_lon, center_alt, lats, lons, alts, x, y, z, east, north, up) = (
         enu_ecef_info if frame == "itrs" else enu_mcmf_info
     )
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts, frame=frame)

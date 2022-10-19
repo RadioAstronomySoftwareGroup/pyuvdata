@@ -1425,10 +1425,7 @@ def test_healpix_interpolation(
         match="interpolation for input basis vectors that are not aligned to the "
         "native theta/phi coordinate system is not yet supported",
     ):
-        hpx_efield_beam.interp(
-            az_array=az_orig_vals,
-            za_array=za_orig_vals,
-        )
+        hpx_efield_beam.interp(az_array=az_orig_vals, za_array=za_orig_vals)
 
     # now convert to power beam
     if antenna_type == "phased_array":
@@ -1566,9 +1563,7 @@ def test_find_healpix_indices(start, stop, phi_start, phi_end):
 
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_to_healpix_power(
-    future_shapes,
-    cst_power_2freq_cut,
-    cst_power_2freq_cut_healpix,
+    future_shapes, cst_power_2freq_cut, cst_power_2freq_cut_healpix
 ):
     power_beam = cst_power_2freq_cut
     power_beam_healpix = cst_power_2freq_cut_healpix
@@ -1605,9 +1600,7 @@ def test_to_healpix_power(
 
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_to_healpix_efield(
-    future_shapes,
-    cst_efield_2freq_cut,
-    cst_efield_2freq_cut_healpix,
+    future_shapes, cst_efield_2freq_cut, cst_efield_2freq_cut_healpix
 ):
     efield_beam = cst_efield_2freq_cut
     interp_then_sq = cst_efield_2freq_cut_healpix
@@ -2935,10 +2928,7 @@ def test_generic_read_cst(future_shapes):
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
-@pytest.mark.parametrize(
-    "filename",
-    [cst_yaml_file, mwa_beam_file, casa_beamfits],
-)
+@pytest.mark.parametrize("filename", [cst_yaml_file, mwa_beam_file, casa_beamfits])
 def test_generic_read(filename, future_shapes):
     """Test generic read can infer the file types correctly."""
     uvb = UVBeam()
@@ -3042,10 +3032,7 @@ def test_generic_read_all_bad_files(tmp_path):
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
-@pytest.mark.parametrize(
-    "filename",
-    [cst_yaml_file, mwa_beam_file, casa_beamfits],
-)
+@pytest.mark.parametrize("filename", [cst_yaml_file, mwa_beam_file, casa_beamfits])
 def test_from_file(future_shapes, filename):
     """Test from file produces same the results as reading explicitly."""
     uvb = UVBeam()

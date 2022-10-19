@@ -3706,12 +3706,7 @@ def get_lst_for_time(
         TimeClass = Time  # astropy.time.Time
         loc = (Angle(longitude, unit="deg"), Angle(latitude, unit="deg"), altitude)
 
-    times = TimeClass(
-        jd,
-        format="jd",
-        scale="utc",
-        location=loc,
-    )
+    times = TimeClass(jd, format="jd", scale="utc", location=loc)
 
     if iers.conf.auto_max_age is None:  # pragma: no cover
         delta, status = times.get_delta_ut1_utc(return_status=True)
