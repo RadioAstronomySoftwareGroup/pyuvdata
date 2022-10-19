@@ -382,39 +382,6 @@ def uv_phase_time_split(uv1_2_set_uvws):
     del uv_phase_1, uv_phase_2, uv_raw_1, uv_raw_2, uv_phase, uv_raw
 
 
-@pytest.fixture(scope="session")
-def uv_phase_comp_main():
-    file1 = os.path.join(DATA_PATH, "1133866760.uvfits")
-    file2 = os.path.join(DATA_PATH, "1133866760_rephase.uvfits")
-    # These files came from an external source, don't want to rewrite them, so use
-    # checkwarnings to capture the warning about non-real autos
-    with uvtest.check_warnings(
-        UserWarning,
-        match=[
-            "Fixing auto-correlations to be be real-only, after some imaginary "
-            "values were detected in data_array."
-        ]
-        * 2,
-    ):
-        uvd1 = UVData.from_file(file1)
-        uvd2 = UVData.from_file(file2)
-
-    # # fix the phasing
-    # uvd1.fix_phase()
-    # uvd2.fix_phase()
-
-    yield uvd1, uvd2
-
-
-@pytest.fixture(scope="function")
-def uv_phase_comp(uv_phase_comp_main):
-    uvd1, uvd2 = uv_phase_comp_main
-    uvd1_copy = uvd1.copy()
-    uvd2_copy = uvd2.copy()
-
-    yield uvd1_copy, uvd2_copy
-
-
 @pytest.fixture()
 def dummy_phase_dict():
     dummy_dict = {
