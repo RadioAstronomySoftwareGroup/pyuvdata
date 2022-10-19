@@ -1302,14 +1302,14 @@ def test_multi_unphase_on_read(casa_uvfits, tmp_path):
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
     with uvtest.check_warnings(
-        [UserWarning] * 8 + [DeprecationWarning] * 2,
+        [UserWarning] * 6 + [DeprecationWarning] * 2,
         ["Telescope EVLA is not"] * 2
         + [
             "The uvw_array does not match the expected values given the "
             "antenna positions."
         ]
-        * 4
-        + ["Unprojecting this UVData object.", "Unprojecting other UVData object."]
+        * 2
+        + ["Unprojecting this UVData object."] * 2
         + ["The `unphase_to_drift` option is deprecated"] * 2,
     ):
         uv1.read(np.array([testfile1, testfile2]), unphase_to_drift=True)
@@ -1374,16 +1374,16 @@ def test_multi_phase_on_read(casa_uvfits, tmp_path):
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
     with uvtest.check_warnings(
-        [UserWarning] * 7 + [DeprecationWarning] * 3,
+        [UserWarning] * 6 + [DeprecationWarning] * 2,
         ["Telescope EVLA is not"] * 2
         + [
             "The uvw_array does not match the expected values given the "
             "antenna positions."
         ]
-        * 3
-        + ["Phasing this UVData object to phase_center_radec"] * 2
+        * 2
+        + ["Phasing this UVData object to"] * 2
         + ["The `allow_rephase` option is deprecated"]
-        + ["The `phase_center_radec` parameter is deprecated"] * 2,
+        + ["The `phase_center_radec` parameter is deprecated"],
     ):
         uv1.read(
             np.array([testfile1, testfile2]),
@@ -1421,7 +1421,7 @@ def test_multi_phase_on_read(casa_uvfits, tmp_path):
             "Telescope EVLA is not",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
-            "Phasing this UVData object to phase_center_radec",
+            "Phasing this UVData object to",
             "The `phase_center_radec` parameter is deprecated",
         ],
     ):
