@@ -365,10 +365,7 @@ class UVBeam(UVBase):
 
         desc = "Flag indicating that this object is using the future array shapes."
         self._future_array_shapes = uvp.UVParameter(
-            "future_array_shapes",
-            description=desc,
-            expected_type=bool,
-            value=False,
+            "future_array_shapes", description=desc, expected_type=bool, value=False
         )
 
         # --------- metadata -------------
@@ -735,10 +732,7 @@ class UVBeam(UVBase):
             self.s_parameters = self.s_parameters[:, np.newaxis, :]
 
         for prop_name in self._freq_params():
-            getattr(self, "_" + prop_name).form = (
-                1,
-                "Nfreqs",
-            )
+            getattr(self, "_" + prop_name).form = (1, "Nfreqs")
 
             this_prop = getattr(self, prop_name)
             if this_prop is not None:
@@ -764,19 +758,9 @@ class UVBeam(UVBase):
 
             if self.future_array_shapes:
                 if self.beam_type == "power":
-                    self._data_array.form = (
-                        "Naxes_vec",
-                        "Npols",
-                        "Nfreqs",
-                        "Npixels",
-                    )
+                    self._data_array.form = ("Naxes_vec", "Npols", "Nfreqs", "Npixels")
                 else:
-                    self._data_array.form = (
-                        "Naxes_vec",
-                        "Nfeeds",
-                        "Nfreqs",
-                        "Npixels",
-                    )
+                    self._data_array.form = ("Naxes_vec", "Nfeeds", "Nfreqs", "Npixels")
             else:
                 if self.beam_type == "power":
                     self._data_array.form = (
@@ -2065,23 +2049,17 @@ class UVBeam(UVBase):
                     if np.iscomplexobj(input_data_array):
                         # interpolate real and imaginary parts separately
                         real_hmap = hp_obj.interpolate_bilinear_lonlat(
-                            lon_array,
-                            lat_array,
-                            input_data_array[data_inds].real,
+                            lon_array, lat_array, input_data_array[data_inds].real
                         )
                         imag_hmap = hp_obj.interpolate_bilinear_lonlat(
-                            lon_array,
-                            lat_array,
-                            input_data_array[data_inds].imag,
+                            lon_array, lat_array, input_data_array[data_inds].imag
                         )
 
                         hmap = real_hmap + 1j * imag_hmap
                     else:
                         # interpolate once
                         hmap = hp_obj.interpolate_bilinear_lonlat(
-                            lon_array,
-                            lat_array,
-                            input_data_array[data_inds],
+                            lon_array, lat_array, input_data_array[data_inds]
                         )
 
                     if self.future_array_shapes:
@@ -2994,15 +2972,15 @@ class UVBeam(UVBase):
                 )[:, :, order, ...]
                 if this.receiver_temperature_array is not None:
                     this.receiver_temperature_array = np.concatenate(
-                        [this.receiver_temperature_array, np.zeros(len(fnew_inds))],
+                        [this.receiver_temperature_array, np.zeros(len(fnew_inds))]
                     )[order]
                 if this.loss_array is not None:
                     this.loss_array = np.concatenate(
-                        [this.loss_array, np.zeros(len(fnew_inds))],
+                        [this.loss_array, np.zeros(len(fnew_inds))]
                     )[order]
                 if this.mismatch_array is not None:
                     this.mismatch_array = np.concatenate(
-                        [this.mismatch_array, np.zeros(len(fnew_inds))],
+                        [this.mismatch_array, np.zeros(len(fnew_inds))]
                     )[order]
                 if this.s_parameters is not None:
                     this.s_parameters = np.concatenate(

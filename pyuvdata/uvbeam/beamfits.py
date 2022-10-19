@@ -251,7 +251,7 @@ class BeamFITS(UVBeam):
                     if file_nspws > 1:
                         raise NotImplementedError(
                             "UVBeam does not support having a spectral window axis "
-                            "larger than one.",
+                            "larger than one."
                         )
                     if not use_future_array_shapes:
                         self.Nspws = 1
