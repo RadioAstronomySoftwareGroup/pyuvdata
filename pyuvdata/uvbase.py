@@ -600,7 +600,7 @@ class UVBase(object):
                                 f"SkyCoord object but it is {type(param.value)}."
                             )
                         else:
-                            # matches expected type
+                            # matches expected type. Don't need to iterate through it.
                             continue  # pragma: no cover
 
                     # Quantity objects complicate things slightly
@@ -637,8 +637,6 @@ class UVBase(object):
                                 "check will fail in a future version."
                             )
                             check_vals = [param.value.item(0).value]
-                    elif isinstance(param.value, SkyCoord):
-                        check_vals = list(param.value)
                     elif eshape == ():
                         # Single element
                         check_vals = [param.value]
