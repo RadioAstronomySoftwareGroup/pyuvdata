@@ -86,8 +86,8 @@ class UVParameter(object):
         metadata is required for a particular file-type.
         This is not an attribute of required UVParameters.
     form : 'str', int or tuple
-        Either 'str' or a tuple giving information about the expected
-        shape of the value. Elements of the tuple may be the name of other
+        Either 'str' or an int (if a single value) or tuple giving information about the
+        expected shape of the value. Elements of the tuple may be the name of other
         UVParameters that indicate data shapes.
 
         Form examples:
@@ -129,9 +129,9 @@ class UVParameter(object):
         A fake value that can be assigned to a non-required UVParameter if the
         metadata is required for a particular file-type.
         This is not an attribute of required UVParameters.
-    form : 'str' or tuple
-        Either 'str' or a tuple giving information about the expected
-        shape of the value. Elements of the tuple may be the name of other
+    form : 'str', int or tuple
+        Either 'str' or an int (if a single value) or tuple giving information about the
+        expected shape of the value. Elements of the tuple may be the name of other
         UVParameters that indicate data shapes.
 
         Form examples:
@@ -559,9 +559,9 @@ class AngleParameter(UVParameter):
         A fake value that can be assigned to a non-required UVParameter if the
         metadata is required for a particular file-type.
         This is not an attribute of required UVParameters.
-    form : 'str' or tuple
-        Either 'str' or a tuple giving information about the expected
-        shape of the value. Elements of the tuple may be the name of other
+    form : 'str', int or tuple
+        Either 'str' or an int (if a single value) or tuple giving information about the
+        expected shape of the value. Elements of the tuple may be the name of other
         UVParameters that indicate data shapes.
 
         Form examples:
@@ -603,9 +603,9 @@ class AngleParameter(UVParameter):
         A fake value that can be assigned to a non-required UVParameter if the
         metadata is required for a particular file-type.
         This is not an attribute of required UVParameters.
-    form : 'str' or tuple
-        Either 'str' or a tuple giving information about the expected
-        shape of the value. Elements of the tuple may be the name of other
+    form : 'str', int or tuple
+        Either 'str' or an int (if a single value) or tuple giving information about the
+        expected shape of the value. Elements of the tuple may be the name of other
         UVParameters that indicate data shapes.
 
         Form examples:
@@ -841,8 +841,8 @@ class SkyCoordParameter(UVParameter):
         metadata is required for a particular file-type.
         This is not an attribute of required UVParameters.
     form : 'str', int or tuple
-        Either 'str' or a tuple giving information about the expected
-        shape of the value. Elements of the tuple may be the name of other
+        Either 'str' or an int (if a single value) or tuple giving information about the
+        expected shape of the value. Elements of the tuple may be the name of other
         UVParameters that indicate data shapes.
 
         Form examples:
@@ -882,9 +882,9 @@ class SkyCoordParameter(UVParameter):
         A fake value that can be assigned to a non-required UVParameter if the
         metadata is required for a particular file-type.
         This is not an attribute of required UVParameters.
-    form : 'str' or tuple
-        Either 'str' or a tuple giving information about the expected
-        shape of the value. Elements of the tuple may be the name of other
+    form : 'str', int or tuple
+        Either 'str' or an int (if a single value) or tuple giving information about the
+        expected shape of the value. Elements of the tuple may be the name of other
         UVParameters that indicate data shapes.
 
         Form examples:
