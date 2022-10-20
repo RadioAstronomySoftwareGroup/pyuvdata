@@ -3,7 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.2.10] - 2022-10-20
+
 ### Added
+- A new subclass of UVParameter for SkyCoord objects, needed in pyradiosky.
 - Added `UVData.convert_to_flex_pol` method to enable writing uvh5 files with the
 polarization axis changing slowest as desired by HERA. Also updated
 `UVData.remove_flex_pol` to properly undo the `UVData.convert_to_flex_pol` operation.
