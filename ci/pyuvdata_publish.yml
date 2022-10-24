@@ -11,4 +11,4 @@ dependencies:
   - setuptools_scm<7.0|>=7.0.3
   - pip
   - pip:
-     - pep517
+     - build

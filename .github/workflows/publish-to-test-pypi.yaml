@@ -49,7 +49,7 @@ jobs:
 
       - name: Build a binary wheel and a source tarball
         run: |
-          python -m pep517.build --source --out-dir dist/ .
+          python -m build
 
       - name: Publish to Test PyPI
         if: startsWith(github.event.ref, 'refs/tags')
