@@ -1,20 +1,34 @@
-## How to make a new release on PyPI and conda-forge
+# How to make a new release on GitHub, PyPI and conda-forge
 
-### PyPI
+## Making the release (tag) on GitHub
+
 1. Define the newest version number. Our version numbering approach is:
     - The first number is for very large changes which might happen every couple of years (e.g. 1.0).
     - The second number is for regular releases, our goal is to issue these ~3-4 times per year.
-    - The third number is for small patches to fix issues. These happen as needed to get critical fixes onto PyPI and conda-forge.
+    - The third number is for small patches to fix issues. These happen as needed to
+    get critical fixes onto PyPI and conda-forge.
 2. Update the changelog to put all the unreleased changes under the new version
 (leaving the unreleased section empty).
 3. Make a PR for the version change and get it accepted & merged.
-5. Iterate the version number as a new tag. This can be accomplished through
-the online interface or via the cli with: `git tag <hash> vX.Y.Z` where the
-hashed commit must be the merge commit from the previous PR.
-6. Check that the publish to pypi github action (which automatically makes the
-release to PyPI when the tag is created) doesn't error.
+4. Iterate the version number as a new tag. This can be accomplished through
+the online interface (this is the best approach) or via the cli with:
+`git tag <hash> vX.Y.Z` where the hashed commit must be the merge commit from the previous PR.
 
-### Conda (do this after the PyPI release)
+## PyPI (do this after the GitHub release)
+
+When the tag is made on GitHub, a GitHub Actions workflow automatically publishes the
+new release to PyPI. Check that the publish to pypi github action doesn't error. If it
+does error, follow the steps below:
+
+To release to PyPI by hand:
+1. Checkout the main branch and pull. Ensure that there are no local changes. PyPI
+distributions should only be made from a clean main branch!
+1. make the distribution: ```python -m build```
+2. upload to test site: twine upload --repository testpypi dist/*
+3. check that it looks good at https://test.pypi.org/project/pyuvdata
+4. upload to real site: twine upload --repository pypi dist/*
+
+## Conda (do this after the PyPI release)
 
 When the PyPI package is updated, a bot will probably make a PR that only changes
 the version, build and SHA (plus maybe some re-rendering). If these are the only
