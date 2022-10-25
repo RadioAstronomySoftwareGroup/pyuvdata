@@ -269,6 +269,12 @@ def test_location_acceptable_none():
     assert param1.check_acceptability()
 
 
+def test_location_mcmf_acceptability():
+    loc = np.array([171720.0, 0.0, 0.0])
+    param1 = uvp.LocationParameter(name="p2", value=loc, frame="mcmf")
+    assert param1.check_acceptability()
+
+
 @pytest.mark.parametrize(
     "sky2",
     [
