@@ -1030,10 +1030,16 @@ class UVCal(UVBase):
                         "antenna_positions is not set. Using known values "
                         f"for {telescope_obj.telescope_name}."
                     )
-                    telescope_ant_inds = np.array(telescope_ant_inds)
-                    self.antenna_positions = telescope_obj.antenna_positions[
-                        telescope_ant_inds, :
-                    ]
+                    if overwrite:
+                        self.antenna_names = telescope_obj.antenna_names
+                        self.antenna_numbers = telescope_obj.antenna_numbers
+                        self.antenna_positions = telescope_obj.antenna_positions
+                        self.Nants_telescope = telescope_obj.Nants_telescope
+                    else:
+                        telescope_ant_inds = np.array(telescope_ant_inds)
+                        self.antenna_positions = telescope_obj.antenna_positions[
+                            telescope_ant_inds, :
+                        ]
         else:
             raise ValueError(
                 f"Telescope {self.telescope_name} is not in known_telescopes."
@@ -1171,7 +1177,7 @@ class UVCal(UVBase):
                 category=DeprecationWarning,
             )
 
-        # If the antenna positions parameter is not set issue a deprecation warning
+        # If the lst_array parameter is not set issue a deprecation warning
         if self.lst_array is None:
             warnings.warn(
                 "The lst_array is not set. It will be a required "

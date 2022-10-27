@@ -29,6 +29,8 @@ pyuvdata_version_str = "  Read/written with pyuvdata version: " + __version__ + 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:telescope_location is not set. Using known values for HERA.",
     "ignore:antenna_positions is not set. Using known values for HERA.",
+    "ignore:The uvw_array does not match the expected values",
+    "ignore:Fixing auto-correlations to be be real-only",
 )
 
 
@@ -89,6 +91,36 @@ def uvf_from_uvcal():
 
     # do some cleanup
     del (uvf, uvc)
+
+
+@pytest.fixture(scope="function")
+def uvf_from_file_future_main():
+    with uvtest.check_warnings(
+        [UserWarning] * 4 + [DeprecationWarning] * 5,
+        match=[
+            "channel_width not available in file, computing it from the freq_array",
+            "Nants_data in file does not match number of antennas with data.",
+            "antenna_numbers not in file, cannot be set based on ant_1_array and",
+            "telescope_name not available in file, so telescope related parameters",
+            "The telescope_name is not set. It will be a required parameter",
+            "The telescope_location is not set. It will be a required parameter",
+            "The antenna_numbers is not set. It will be a required parameter",
+            "The antenna_names is not set. It will be a required parameter",
+            "The antenna_positions is not set. It will be a required parameter",
+        ],
+    ):
+        uvf = UVFlag(test_f_file, use_future_array_shapes=True)
+    uvf.telescope_name = "HERA"
+    uvf.antenna_numbers = None
+    uvf.antenna_names = None
+    uvf.set_telescope_params()
+
+    yield uvf
+
+
+@pytest.fixture(scope="function")
+def uvf_from_file_future(uvf_from_file_future_main):
+    yield uvf_from_file_future_main.copy()
 
 
 @pytest.fixture(scope="function")
@@ -356,7 +388,11 @@ def test_init_uvcal():
     assert uvf.mode == "metric"
     assert np.all(uvf.time_array == uvc.time_array)
     assert uvf.x_orientation == uvc.x_orientation
-    lst = lst_from_uv(uvc)
+
+    with uvtest.check_warnings(
+        DeprecationWarning, match="The lst_from_uv function is deprecated"
+    ):
+        lst = lst_from_uv(uvc)
     assert np.all(uvf.lst_array == lst)
     assert np.all(uvf.freq_array == uvc.freq_array[0])
     assert np.all(uvf.polarization_array == uvc.jones_array)
@@ -391,7 +427,10 @@ def test_init_uvcal_mode_flag(uvc_future_shapes, uvf_future_shapes):
     assert uvf.type == "antenna"
     assert uvf.mode == "flag"
     assert np.all(uvf.time_array == uvc.time_array)
-    lst = lst_from_uv(uvc)
+    with uvtest.check_warnings(
+        DeprecationWarning, match="The lst_from_uv function is deprecated"
+    ):
+        lst = lst_from_uv(uvc)
     assert np.all(uvf.lst_array == lst)
     if uvc_future_shapes == uvf_future_shapes:
         assert np.all(uvf.freq_array == uvc.freq_array)
@@ -944,14 +983,23 @@ def test_write_no_clobber():
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_lst_from_uv(uvdata_obj):
     uv = uvdata_obj
-    lst_array = lst_from_uv(uv)
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The lst_from_uv function is deprecated. Use the "
+        "`set_lsts_from_time_array` method on the input object.",
+    ):
+        lst_array = lst_from_uv(uv)
     assert np.allclose(uv.lst_array, lst_array)
 
 
 def test_lst_from_uv_error():
-    with pytest.raises(ValueError) as cm:
-        lst_from_uv(4)
-    assert str(cm.value).startswith("Function lst_from_uv can only operate on")
+    with pytest.raises(ValueError, match="Function lst_from_uv can only operate on"):
+        with uvtest.check_warnings(
+            DeprecationWarning,
+            match="The lst_from_uv function is deprecated. Use the "
+            "`set_lsts_from_time_array` method on the input object.",
+        ):
+            lst_from_uv(4)
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
@@ -998,7 +1046,7 @@ def test_add_collapsed_pols():
     uvf3.time_array += 1  # increment the time array
     uvf4 = uvf + uvf3
     assert uvf4.Ntimes == 2 * uvf.Ntimes
-    assert uvf4.check()
+    uvf4.check()
 
 
 def test_add_add_version_str():
@@ -1051,6 +1099,8 @@ def test_add_antenna():
     uv1 = UVFlag(uvc)
     uv2 = copy.deepcopy(uv1)
     uv2.ant_array += 100  # Arbitrary
+    uv2.antenna_numbers += 100
+    uv2.antenna_names = np.array([name + "_new" for name in uv2.antenna_names])
     uv3 = uv1.__add__(uv2, axis="antenna")
     assert np.array_equal(np.concatenate((uv1.ant_array, uv2.ant_array)), uv3.ant_array)
     assert np.array_equal(
@@ -1243,8 +1293,6 @@ def test_clear_unused_attributes():
     assert uv.ant_1_array is None
     assert hasattr(uv, "ant_2_array")
     assert uv.ant_2_array is None
-    assert hasattr(uv, "Nants_telescope")
-    assert uv.Nants_telescope is None
 
     uv._set_mode_flag()
     assert hasattr(uv, "metric_array")
@@ -1366,7 +1414,7 @@ def test_collapse_pol(test_outfile):
     assert uvf2.flag_array is None
 
     # test check passes just to be sure
-    assert uvf2.check()
+    uvf2.check()
 
     # test writing it out and reading in to make sure polarization_array has
     # correct type
@@ -1616,13 +1664,22 @@ def test_baseline_to_baseline(uvdata_obj):
 
 def test_to_baseline_metric_error(uvdata_obj, uvf_from_uvcal):
     uvf = uvf_from_uvcal
-    uvf.select(polarizations=uvf.polarization_array[0])
     uv = uvdata_obj
-    with pytest.raises(NotImplementedError) as cm:
-        uvf.to_baseline(uv, force_pol=True)
-    assert str(cm.value).startswith(
-        "Cannot currently convert from " "antenna type, metric mode"
+    uvf.select(
+        polarizations=uvf.polarization_array[0], frequencies=np.squeeze(uv.freq_array)
     )
+    with uvtest.check_warnings(
+        UserWarning,
+        match=["Nants_telescope, antenna_names, antenna_numbers, antenna_positions"]
+        * 2,
+    ):
+        uvf.set_telescope_params(overwrite=True)
+        uv.set_telescope_params(overwrite=True)
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot currently convert from antenna type, metric mode",
+    ):
+        uvf.to_baseline(uv, force_pol=True)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -1634,11 +1691,28 @@ def test_to_baseline_from_antenna(
     uvf = uvf_from_uvcal
     if uvf_future_shapes:
         uvf.use_future_array_shapes()
-    uvf.select(polarizations=uvf.polarization_array[0])
-    uvf.to_flag()
+
     uv = uvdata_obj
     if uvd_future_shapes:
         uv.use_future_array_shapes()
+
+    uvf.select(polarizations=uvf.polarization_array[0], freq_chans=np.arange(uv.Nfreqs))
+    if uvd_future_shapes == uvf_future_shapes:
+        uv.freq_array = uvf.freq_array
+    elif uvd_future_shapes:
+        uv.freq_array = uvf.freq_array[0, :]
+    else:
+        uv.freq_array = uvf.freq_array[np.newaxis, :]
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match=["Nants_telescope, antenna_names, antenna_numbers, antenna_positions"]
+        * 2,
+    ):
+        uvf.set_telescope_params(overwrite=True)
+        uv.set_telescope_params(overwrite=True)
+
+    uvf.to_flag()
 
     ants_data = np.unique(uv.ant_1_array.tolist() + uv.ant_2_array.tolist())
     new_ants = np.setdiff1d(ants_data, uvf.ant_array)
@@ -1660,7 +1734,7 @@ def test_to_baseline_from_antenna(
 
     uvf.to_baseline(uv, force_pol=True)
     uvf2.to_baseline(uv2, force_pol=True)
-    assert uvf.check()
+    uvf.check()
 
     uvf2.select(bls=old_baseline, times=old_times)
     assert np.allclose(or_flags, uvf2.flag_array)
@@ -1686,27 +1760,41 @@ def test_to_baseline_from_antenna(
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_to_baseline_errors(uvdata_obj):
-    uvc = UVCal()
-    uvc.read_calfits(test_c_file)
     uv = uvdata_obj
     uvf = UVFlag(test_f_file)
+
+    uvf.select(frequencies=np.squeeze(uv.freq_array))
+    with uvtest.check_warnings(
+        UserWarning,
+        match=["Nants_telescope, antenna_names, antenna_numbers, antenna_positions"]
+        * 2,
+    ):
+        uvf.set_telescope_params(overwrite=True)
+        uv.set_telescope_params(overwrite=True)
+
     uvf.to_waterfall()
     with pytest.raises(ValueError) as cm:
         uvf.to_baseline(7.3)  # invalid matching object
     assert str(cm.value).startswith("Must pass in UVData object or UVFlag object")
 
     uvf = UVFlag(test_f_file)
+    uvf.select(frequencies=np.squeeze(uv.freq_array))
+    with uvtest.check_warnings(
+        UserWarning,
+        match=["Nants_telescope, antenna_names, antenna_numbers, antenna_positions"],
+    ):
+        uvf.set_telescope_params(overwrite=True)
+
+    assert uv._freq_array == uvf._freq_array
     uvf.to_waterfall()
     uvf2 = uvf.copy()
     uvf.polarization_array[0] = -4
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Polarizations do not match."):
         uvf.to_baseline(uv)  # Mismatched pols
-    assert str(cm.value).startswith("Polarizations do not match.")
     uvf.__iadd__(uvf2, axis="polarization")
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Polarizations could not be made to match."):
         uvf.to_baseline(uv)  # Mismatched pols, can't be forced
-    assert str(cm.value).startswith("Polarizations could not be made to match.")
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -1776,11 +1864,21 @@ def test_to_baseline_metric_force_pol(uvdata_obj):
     )
 
 
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_to_antenna_flags(future_shapes):
+@pytest.mark.parametrize("uvf_future_shapes", [True, False])
+@pytest.mark.parametrize("uvc_future_shapes", [True, False])
+def test_to_antenna_flags(uvf_future_shapes, uvc_future_shapes):
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
-    uvf = UVFlag(uvc, use_future_array_shapes=future_shapes)
+    if uvc_future_shapes:
+        uvc.use_future_array_shapes()
+    uvf = UVFlag(uvc, use_future_array_shapes=uvf_future_shapes)
+    if uvf_future_shapes == uvc_future_shapes:
+        uvf.freq_array = uvc.freq_array
+    elif uvf_future_shapes:
+        uvf.freq_array = uvc.freq_array[0, :]
+    else:
+        uvf.freq_array = uvc.freq_array[np.newaxis, :]
+
     uvf.to_waterfall()
     uvf.to_flag()
     uvf.flag_array[0, 10, 0] = True  # Flag time0, chan10
@@ -1789,7 +1887,7 @@ def test_to_antenna_flags(future_shapes):
     assert uvf.type == "antenna"
     assert np.all(uvf.ant_array == uvc.ant_array)
     assert np.all(uvf.time_array == uvc.time_array)
-    if future_shapes:
+    if uvf_future_shapes:
         assert np.all(uvf.flag_array[:, 10, 0, 0])
         assert np.all(uvf.flag_array[:, 15, 1, 0])
     else:
@@ -1872,27 +1970,36 @@ def test_to_antenna_errors(uvdata_obj):
     uv = uvdata_obj
     uvf = UVFlag(test_f_file)
     uvf.to_waterfall()
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Must pass in UVCal object or UVFlag object"):
         uvf.to_antenna(7.3)  # invalid matching object
-    assert str(cm.value).startswith("Must pass in UVCal object or UVFlag object ")
 
     uvf = UVFlag(uv)
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match='Cannot convert from type "baseline" to "antenna".'
+    ):
         uvf.to_antenna(uvc)  # Cannot pass in baseline type
-    assert str(cm.value).startswith('Cannot convert from type "baseline" to "antenna".')
 
     uvf = UVFlag(test_f_file)
+    uvc.select(frequencies=np.squeeze(uvf.freq_array))
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Nants_telescope, antenna_names, antenna_numbers, antenna_positions",
+            "telescope_location is not set. Using known values for HERA.",
+            "antenna_positions is not set. Using known values for HERA.",
+        ],
+    ):
+        uvf.set_telescope_params(overwrite=True)
+        uvc.set_telescope_params(overwrite=True)
     uvf.to_waterfall()
     uvf2 = uvf.copy()
     uvf.polarization_array[0] = -4
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Polarizations do not match."):
         uvf.to_antenna(uvc)  # Mismatched pols
-    assert str(cm.value).startswith("Polarizations do not match. ")
 
     uvf.__iadd__(uvf2, axis="polarization")
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Polarizations could not be made to match."):
         uvf.to_antenna(uvc)  # Mismatched pols, can't be forced
-    assert str(cm.value).startswith("Polarizations could not be made to match.")
 
 
 def test_to_antenna_force_pol():
@@ -2197,11 +2304,11 @@ def test_missing_nants_telescope(tmp_path):
         del f["/Header/Nants_telescope"]
     with uvtest.check_warnings(
         UserWarning,
-        match="Nants_telescope not available in file",
+        match="Nants_telescope not available in file, using Nants_data.",
     ):
         uvf = UVFlag(testfile)
     uvf2 = UVFlag(test_f_file)
-    uvf2.Nants_telescope = uvf2.Nants_data
+    uvf2.Nants_telescope = uvf2.antenna_names.size
     assert uvf == uvf2
     os.remove(testfile)
 
@@ -3235,12 +3342,12 @@ def test_to_antenna_collapsed_pols(uvf_from_uvcal):
 
     uvf.collapse_pol()
     assert uvf.pol_collapsed
-    assert uvf.check()
+    uvf.check()
 
     uvf.to_waterfall()
     uvf.to_antenna(uvc, force_pol=True)
     assert not uvf.pol_collapsed
-    assert uvf.check()
+    uvf.check()
 
 
 def test_get_ants_error(uvf_from_waterfall):
