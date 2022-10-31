@@ -11,9 +11,3 @@ profile = "black"
 
 [darglint]
 docstring_style = "numpy"
-
-[tool.pytest.ini_options]
-filterwarnings = [
-   "error",
-   "ignore:The --rsyncdir command line argument and rsyncdirs config variable are deprecated.:DeprecationWarning",
-]

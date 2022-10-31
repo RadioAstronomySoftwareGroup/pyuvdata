@@ -9,10 +9,9 @@ dependencies:
   - pyerfa>=2.0
   - coverage
   - pytest>=6.2.0
+  - pytest-cases>=3.6.9
   - pytest-cov
+  - pytest-xdist
   - cython
   - setuptools_scm<7.0|>=7.0.3
   - pip
-  - pip:
-     - pytest-cases>=3.6.9
-     - pytest-xdist
