@@ -680,6 +680,8 @@ class LocationParameter(UVParameter):
         This is not an attribute of required UVParameters.
     description : str
         Description of the data or metadata in the object.
+    frame : str, optional
+        Coordinate frame. Valid options are "itrs" (default) or "mcmf".
     acceptable_vals : list, optional
         List giving allowed values for elements of value.
     acceptable_range: 2-tuple, optional
@@ -711,6 +713,8 @@ class LocationParameter(UVParameter):
        Always set to 3.
     description : str
         Description of the data or metadata in the object.
+    frame : str, optional
+        Coordinate frame. Valid options are "itrs" (default) or "mcmf".
     expected_type
         Always set to float.
     acceptable_vals : list, optional
@@ -735,11 +739,13 @@ class LocationParameter(UVParameter):
         spoof_val=None,
         description="",
         frame="itrs",
-        acceptable_range=(6.35e6, 6.39e6),
+        acceptable_range=None,
         tols=1e-3,
     ):
-        if frame == "mcmf":
-            acceptable_range = (1717100.0, 1757100.0)
+        if acceptable_range is None:
+            acceptable_range = (
+                (6.35e6, 6.39e6) if frame == "itrs" else (1717100.0, 1757100.0)
+            )
         super(LocationParameter, self).__init__(
             name,
             required=required,
