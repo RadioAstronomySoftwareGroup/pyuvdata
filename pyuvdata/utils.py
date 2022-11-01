@@ -3245,27 +3245,14 @@ def lookup_jplhorizons(
         ephem_data = query_obj.ephemerides(extra_precision=False)  # pragma: no cover
     except ValueError as err:
         query_obj._session.close()
-        if "Ambiguous target name" in str(err):  # pragma: no cover
-            # this can happen because of a change in the JPL-Horizons API, try again
-            # with the target name, which might help
-            try:
-                query_obj = Horizons(
-                    id=target_name,
-                    location=site_loc,
-                    epochs=epoch_list,
-                    id_type=id_type,
-                )
-                ephem_data = query_obj.ephemerides(extra_precision=True)
-            except KeyError:
-                ephem_data = query_obj.ephemerides(extra_precision=False)
-            except ValueError:
-                raise
-        elif "Unknown target" in str(err):
+        if "Unknown target" in str(err):
             raise ValueError(
                 "Target ID is not recognized in either the small or major bodies "
                 "catalogs, please consult the JPL-Horizons database for supported "
                 "targets (https://ssd.jpl.nasa.gov/?horizons)."
             ) from err
+        else:
+            raise  # pragma: no cover
     # This is explicitly closed here to trap a bug that occassionally throws an
     # unexpected warning, see astroquery issue #1807
     query_obj._session.close()
