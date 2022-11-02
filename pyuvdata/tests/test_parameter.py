@@ -268,6 +268,13 @@ def test_location_acceptable_none():
 
     assert param1.check_acceptability()
 
+    # For undefined frame, acceptable_range should remain None
+    param1 = uvp.LocationParameter(
+        name="p2", value=1, acceptable_range=None, frame="undef"
+    )
+    assert param1.acceptable_range is None
+    assert param1.check_acceptability()
+
 
 def test_location_mcmf_acceptability():
     loc = np.array([171720.0, 0.0, 0.0])
