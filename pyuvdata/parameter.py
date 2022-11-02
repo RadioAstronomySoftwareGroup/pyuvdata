@@ -739,14 +739,16 @@ class LocationParameter(UVParameter):
         spoof_val=None,
         description="",
         frame="itrs",
-        acceptable_range=None,
+        acceptable_range=-1,
         tols=1e-3,
     ):
-        if acceptable_range is None:
+        if acceptable_range == -1:
             if frame == "itrs":
                 acceptable_range = (6.35e6, 6.39e6)
             elif frame == "mcmf":
                 acceptable_range = (1717100.0, 1757100.0)
+            else:
+                acceptable_range = None
 
         super(LocationParameter, self).__init__(
             name,
