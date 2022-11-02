@@ -658,7 +658,7 @@ class AngleParameter(UVParameter):
 
 class LocationParameter(UVParameter):
     """
-    Subclass of UVParameter for Earth location type parameters.
+    Subclass of UVParameter for location type parameters.
 
     Adds extra methods for conversion to & from lat/lon/alt in radians or
     degrees (used by UVBase objects for _lat_lon_alt and _lat_lon_alt_degrees
@@ -743,9 +743,11 @@ class LocationParameter(UVParameter):
         tols=1e-3,
     ):
         if acceptable_range is None:
-            acceptable_range = (
-                (6.35e6, 6.39e6) if frame == "itrs" else (1717100.0, 1757100.0)
-            )
+            if frame == "itrs":
+                acceptable_range = (6.35e6, 6.39e6)
+            elif frame == "mcmf":
+                acceptable_range = (1717100.0, 1757100.0)
+
         super(LocationParameter, self).__init__(
             name,
             required=required,
