@@ -268,10 +268,8 @@ def test_location_acceptable_none():
 
     assert param1.check_acceptability()
 
-    # For undefined frame, acceptable_range should remain None
-    param1 = uvp.LocationParameter(
-        name="p2", value=1, acceptable_range=None, frame="undef"
-    )
+    # For undefined frame, acceptable_range should default to None
+    param1 = uvp.LocationParameter(name="p2", value=1, frame="undef")
     assert param1.acceptable_range is None
     assert param1.check_acceptability()
 
