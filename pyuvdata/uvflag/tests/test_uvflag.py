@@ -5,7 +5,6 @@
 import copy
 import os
 import pathlib
-import shutil
 import warnings
 
 import h5py
@@ -805,8 +804,7 @@ def test_read_missing_nants_data(test_outfile):
     with h5py.File(test_outfile, "a") as h5:
         del h5["Header/Nants_data"]
 
-    with uvtest.check_warnings(UserWarning, "Nants_data not available in file,"):
-        uvf2 = UVFlag(test_outfile)
+    uvf2 = UVFlag(test_outfile)
 
     # make sure this was set to None
     assert uvf2.Nants_data == len(uvf2.ant_array)
@@ -2294,23 +2292,6 @@ def test_get_antpairs():
         assert len(ind) > 0
     for a1, a2 in zip(uvf.ant_1_array, uvf.ant_2_array):
         assert (a1, a2) in antpairs
-
-
-def test_missing_nants_telescope(tmp_path):
-    testfile = str(tmp_path / "test_missing_Nants.h5")
-    shutil.copyfile(test_f_file, testfile)
-
-    with h5py.File(testfile, "r+") as f:
-        del f["/Header/Nants_telescope"]
-    with uvtest.check_warnings(
-        UserWarning,
-        match="Nants_telescope not available in file, using Nants_data.",
-    ):
-        uvf = UVFlag(testfile)
-    uvf2 = UVFlag(test_f_file)
-    uvf2.Nants_telescope = uvf2.antenna_names.size
-    assert uvf == uvf2
-    os.remove(testfile)
 
 
 def test_combine_metrics_inplace():

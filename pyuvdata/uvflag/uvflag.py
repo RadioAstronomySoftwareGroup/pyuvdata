@@ -1626,6 +1626,7 @@ class UVFlag(UVBase):
                     f"on uv is {uv.freq_array}"
                 )
 
+        # TODO: should Nants_telescope and Nspws be in this list?
         warn_compatibility_params = [
             "telescope_name",
             "telescope_location",
@@ -1650,7 +1651,9 @@ class UVFlag(UVBase):
                     rtol=self._channel_width.tols[0],
                     atol=self._channel_width.tols[1],
                 ):
-                    raise ValueError(
+                    # TODO: should this become an error in the future? If so, this
+                    # should be a deprecation warning.
+                    warnings.warn(
                         "channel_width is not the same this object and on uv. The "
                         f"value on this object is {self.channel_width}; the value on "
                         f"uv is {uv.channel_width}"
@@ -1660,6 +1663,8 @@ class UVFlag(UVBase):
                 this_param = getattr(self, "_" + param)
                 uv_param = getattr(uv, "_" + param)
                 if this_param.value is not None and this_param != uv_param:
+                    # TODO: should this become an error in the future? If so, this
+                    # should be a deprecation warning.
                     warnings.warn(
                         f"{param} is not the same this object and on uv. The value on "
                         f"this object is {this_param.value}; the value on uv is "
@@ -1757,56 +1762,55 @@ class UVFlag(UVBase):
                     "Cannot currently convert from antenna type, metric mode to "
                     "baseline type UVFlag object."
                 )
+            ants_data = np.unique(uv.ant_1_array.tolist() + uv.ant_2_array.tolist())
+            new_ants = np.setdiff1d(ants_data, self.ant_array)
+            if new_ants.size > 0:
+                self.ant_array = np.append(self.ant_array, new_ants).tolist()
+                # make new flags of the same shape but with first axis the
+                # size of the new ants
+                flag_shape = list(self.flag_array.shape)
+                flag_shape[0] = new_ants.size
+                new_flags = np.full(flag_shape, True, dtype=bool)
+                self.flag_array = np.append(self.flag_array, new_flags, axis=0)
+
+            if self.future_array_shapes:
+                baseline_flags = np.full(
+                    (uv.Nblts, self.Nfreqs, self.Npols), True, dtype=bool
+                )
             else:
-                ants_data = np.unique(uv.ant_1_array.tolist() + uv.ant_2_array.tolist())
-                new_ants = np.setdiff1d(ants_data, self.ant_array)
-                if new_ants.size > 0:
-                    self.ant_array = np.append(self.ant_array, new_ants).tolist()
-                    # make new flags of the same shape but with first axis the
-                    # size of the new ants
-                    flag_shape = list(self.flag_array.shape)
-                    flag_shape[0] = new_ants.size
-                    new_flags = np.full(flag_shape, True, dtype=bool)
-                    self.flag_array = np.append(self.flag_array, new_flags, axis=0)
+                baseline_flags = np.full(
+                    (uv.Nblts, 1, self.Nfreqs, self.Npols), True, dtype=bool
+                )
 
-                if self.future_array_shapes:
-                    baseline_flags = np.full(
-                        (uv.Nblts, self.Nfreqs, self.Npols), True, dtype=bool
+            for blt_index, bl in enumerate(uv.baseline_array):
+                uvf_t_index = np.nonzero(
+                    np.isclose(
+                        uv.time_array[blt_index],
+                        self.time_array,
+                        rtol=max(self._time_array.tols[0], uv._time_array.tols[0]),
+                        atol=max(self._time_array.tols[1], uv._time_array.tols[1]),
                     )
-                else:
-                    baseline_flags = np.full(
-                        (uv.Nblts, 1, self.Nfreqs, self.Npols), True, dtype=bool
-                    )
-
-                for t_index, bl in enumerate(uv.baseline_array):
-                    uvf_t_index = np.nonzero(
-                        np.isclose(
-                            uv.time_array[t_index],
-                            self.time_array,
-                            rtol=max(self._time_array.tols[0], uv._time_array.tols[0]),
-                            atol=max(self._time_array.tols[1], uv._time_array.tols[1]),
+                )[0]
+                if uvf_t_index.size > 0:
+                    # if the time is found in the uvflag object time_array
+                    # input the or'ed data from each antenna
+                    ant1, ant2 = uv.baseline_to_antnums(bl)
+                    ant1_index = np.nonzero(np.array(self.ant_array) == ant1)
+                    ant2_index = np.nonzero(np.array(self.ant_array) == ant2)
+                    if self.future_array_shapes:
+                        or_flag = np.logical_or(
+                            self.flag_array[ant1_index, :, uvf_t_index, :],
+                            self.flag_array[ant2_index, :, uvf_t_index, :],
                         )
-                    )[0]
-                    if uvf_t_index.size > 0:
-                        # if the time is found in the array
-                        # input the or'ed data from each antenna
-                        ant1, ant2 = uv.baseline_to_antnums(bl)
-                        ant1_index = np.nonzero(np.array(self.ant_array) == ant1)
-                        ant2_index = np.nonzero(np.array(self.ant_array) == ant2)
-                        if self.future_array_shapes:
-                            or_flag = np.logical_or(
-                                self.flag_array[ant1_index, :, uvf_t_index, :],
-                                self.flag_array[ant2_index, :, uvf_t_index, :],
-                            )
-                        else:
-                            or_flag = np.logical_or(
-                                self.flag_array[ant1_index, :, :, uvf_t_index, :],
-                                self.flag_array[ant2_index, :, :, uvf_t_index, :],
-                            )
+                    else:
+                        or_flag = np.logical_or(
+                            self.flag_array[ant1_index, :, :, uvf_t_index, :],
+                            self.flag_array[ant2_index, :, :, uvf_t_index, :],
+                        )
 
-                        baseline_flags[t_index] = or_flag.copy()
+                    baseline_flags[blt_index] = or_flag.copy()
 
-                self.flag_array = baseline_flags
+            self.flag_array = baseline_flags
 
         # Check the frequency array for shape, broadcast to (1, Nfreqs) if needed
         if not self.future_array_shapes:
@@ -1822,15 +1826,23 @@ class UVFlag(UVBase):
         self.lst_array = uv.lst_array
         self.Nblts = self.time_array.size
 
-        self.Nants_telescope = int(uv.Nants_telescope)
-        for param in warn_compatibility_params:
-            if getattr(self, param) is None:
-                setattr(self, param, getattr(uv, param))
+        if self.telescope_name is None and self.telescope_location is None:
+            self.telescope_name = uv.telescope_name
+            self.telescope_location = uv.telescope_location
 
-        self.Nspws = self.spw_array.size
+        if (
+            self.antenna_numbers is None
+            and self.antenna_names is None
+            and self.antenna_positions is None
+        ):
+            self.antenna_numbers = uv.antenna_numbers
+            self.antenna_names = uv.antenna_names
+            self.antenna_positions = uv.antenna_positions
+            self.Nants_telescope = uv.Nants_telescope
 
         self._set_type_baseline()
         self.clear_unused_attributes()
+
         self.history += 'Broadcast to type "baseline". '
 
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
@@ -1908,6 +1920,7 @@ class UVFlag(UVBase):
                     f"on uv is {uv.freq_array}"
                 )
 
+        # TODO: should Nants_telescope and Nspws be in this list?
         warn_compatibility_params = [
             "telescope_name",
             "telescope_location",
@@ -1931,7 +1944,9 @@ class UVFlag(UVBase):
                     rtol=self._channel_width.tols[0],
                     atol=self._channel_width.tols[1],
                 ):
-                    raise ValueError(
+                    # TODO: should this become an error in the future? If so, this
+                    # should be a deprecation warning.
+                    warnings.warn(
                         "channel_width is not the same this object and on uv. The "
                         f"value on this object is {self.channel_width}; the value on "
                         f"uv is {uv.channel_width}"
@@ -1941,6 +1956,8 @@ class UVFlag(UVBase):
                 this_param = getattr(self, "_" + param)
                 uv_param = getattr(uv, "_" + param)
                 if this_param.value is not None and this_param != uv_param:
+                    # TODO: should this become an error in the future? If so, this
+                    # should be a deprecation warning.
                     warnings.warn(
                         f"{param} is not the same this object and on uv. The value on "
                         f"this object is {this_param.value}; the value on uv is "
@@ -2015,9 +2032,19 @@ class UVFlag(UVBase):
         else:
             self.freq_array = np.atleast_2d(self.freq_array)
 
-        for param in warn_compatibility_params:
-            if getattr(self, param) is None:
-                setattr(self, param, getattr(uv, param))
+        if self.telescope_name is None and self.telescope_location is None:
+            self.telescope_name = uv.telescope_name
+            self.telescope_location = uv.telescope_location
+
+        if (
+            self.antenna_numbers is None
+            and self.antenna_names is None
+            and self.antenna_positions is None
+        ):
+            self.antenna_numbers = uv.antenna_numbers
+            self.antenna_names = uv.antenna_names
+            self.antenna_positions = uv.antenna_positions
+            self.Nants_telescope = uv.Nants_telescope
 
         self.Nspws = self.spw_array.size
 
@@ -3367,15 +3394,15 @@ class UVFlag(UVBase):
                         )
                     warnings.warn(msg)
 
-                if "Nspws" in header.keys():
-                    self.Nspws = int(header["Nspws"][()])
-                else:
-                    self.Nspws = np.shape(self.freq_array)[0]
-
                 if "spw_array" in header.keys():
                     self.spw_array = header["spw_array"][()]
                 else:
                     self.spw_array = np.array([0])
+
+                if "Nspws" in header.keys():
+                    self.Nspws = int(header["Nspws"][()])
+                else:
+                    self.Nspws = self.spw_array.size
 
                 if "flex_spw_id_array" in header.keys():
                     self.flex_spw_id_array = header["flex_spw_id_array"][()]
@@ -3462,58 +3489,24 @@ class UVFlag(UVBase):
 
                 elif self.type == "antenna":
                     self.ant_array = header["ant_array"][()]
-                    try:
+                    if "Nants_data" in header.keys():
                         self.Nants_data = int(header["Nants_data"][()])
-                    except KeyError:
-                        warnings.warn(
-                            "Nants_data not available in file, "
-                            "attempting to calculate from ant_array."
-                        )
+                    else:
                         self.Nants_data = len(self.ant_array)
+
+                if "Nants_telescope" in header.keys():
+                    self.Nants_telescope = int(header["Nants_telescope"][()])
 
                 if "antenna_numbers" in header.keys():
                     self.antenna_numbers = header["antenna_numbers"][()]
-                else:
-                    msg = "antenna_numbers not in file"
-                    if self.type == "baseline":
-                        if self.Nants_telescope == self.Nants_data:
-                            msg += ", setting based on ant_1_array and ant_2_array."
-                            self.antenna_numbers = np.unique(
-                                np.union1d(self.ant_1_array, self.ant_2_array)
-                            )
-                        else:
-                            msg += (
-                                ", cannot be set based on ant_1_array and ant_2_array "
-                                "because Nants_telescope is greater than Nants_data."
-                            )
-                    elif self.type == "antenna":
-                        if self.Nants_telescope > self.Nants_data:
-                            msg += ", setting based on ant_array."
-                            self.antenna_numbers = np.unique(self.ant_array)
-                        else:
-                            msg += (
-                                ", cannot be set based on ant_array because "
-                                "Nants_telescope is greater than Nants_data."
-                            )
-                    warnings.warn(msg)
 
                 if "antenna_names" in header.keys():
                     self.antenna_names = np.array(
                         [bytes(n).decode("utf8") for n in header["antenna_names"][:]]
                     )
-                elif self.antenna_numbers is not None:
-                    warnings.warn(
-                        "antenna_names not in file, setting based on antenna_numbers"
-                    )
-                    self.antenna_names = self.antenna_numbers.astype(str)
 
                 if "antenna_positions" in header.keys():
                     self.antenna_positions = header["antenna_positions"][()]
-
-                try:
-                    self.Nants_telescope = int(header["Nants_telescope"][()])
-                except KeyError:
-                    pass  # this is handled below
 
                 if self.telescope_name is None:
                     warnings.warn(
@@ -3530,16 +3523,53 @@ class UVFlag(UVBase):
                     if self.antenna_numbers is not None:
                         self.Nants_telescope = self.antenna_numbers.size
 
-                if self.Nants_telescope is None:
+                if self.antenna_numbers is None and self.type in [
+                    "baseline",
+                    "antenna",
+                ]:
+                    msg = "antenna_numbers not in file"
+                    if (
+                        self.Nants_telescope is None
+                        or self.Nants_telescope == self.Nants_data
+                    ):
+                        if self.type == "baseline":
+                            msg += ", setting based on ant_1_array and ant_2_array."
+                            self.antenna_numbers = np.unique(
+                                np.union1d(self.ant_1_array, self.ant_2_array)
+                            )
+                        else:
+                            msg += ", setting based on ant_array."
+                            self.antenna_numbers = np.unique(self.ant_array)
+                    else:
+                        if self.type == "baseline":
+                            msg += (
+                                ", cannot be set based on ant_1_array and ant_2_array "
+                                "because Nants_telescope is greater than Nants_data."
+                            )
+                        else:
+                            msg += (
+                                ", cannot be set based on ant_array because "
+                                "Nants_telescope is greater than Nants_data."
+                            )
+                    warnings.warn(msg)
+
+                if self.antenna_names is None and self.antenna_numbers is not None:
                     warnings.warn(
-                        "Nants_telescope not available in file, using Nants_data."
+                        "antenna_names not in file, setting based on antenna_numbers"
                     )
+                    self.antenna_names = self.antenna_numbers.astype(str)
+
+                if self.Nants_telescope is None:
                     if self.antenna_numbers is not None:
                         self.Nants_telescope = self.antenna_numbers.size
                     elif self.antenna_names is not None:
                         self.Nants_telescope = self.antenna_names.size
                     else:
                         self.Nants_telescope = self.Nants_data
+                        warnings.warn(
+                            "Nants_telescope not available in file, setting equal to "
+                            "Nants_data."
+                        )
 
             self.clear_unused_attributes()
 
