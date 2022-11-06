@@ -109,7 +109,7 @@ a) miriad -> uvfits
   >>> # Write out the uvfits file
   >>> write_file = os.path.join('.', 'tutorial.uvfits')
   >>> uvd.write_uvfits(write_file, force_phase=True)
-  The data are in drift mode and do not have a defined phase center. Phasing to zenith of the first timestamp.
+  The data are not all phased to a sidereal source. Phasing to zenith of the first timestamp.
 
 b) uvfits -> miriad
 *******************

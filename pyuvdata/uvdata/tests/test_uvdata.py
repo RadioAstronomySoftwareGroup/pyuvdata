@@ -2010,6 +2010,33 @@ def test_select_lsts(casa_uvfits, tmp_path, future_shapes):
 
     assert uv2_in == uv_object2
 
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
+@pytest.mark.parametrize("future_shapes", [True, False])
+@pytest.mark.parametrize("select_type", ["range", "specified"])
+def test_select_lsts_casa(casa_uvfits, tmp_path, future_shapes, select_type):
+    pytest.importorskip("casacore")
+
+    uv_object = casa_uvfits
+
+    if future_shapes:
+        uv_object.use_future_array_shapes()
+
+    unique_lsts = np.unique(uv_object.lst_array)
+
+    if select_type == "range":
+        mean_lst = np.mean(unique_lsts)
+        lst_range = [np.min(unique_lsts), mean_lst]
+        lsts_to_keep = unique_lsts[
+            np.nonzero((unique_lsts <= lst_range[1]) & (unique_lsts >= lst_range[0]))
+        ]
+    elif select_type == "specified":
+        lsts_to_keep = unique_lsts[[0, 3, 5, 6, 7, 10, 14]]
+
+    uv_object.select(lsts=lsts_to_keep)
+
     testfile = os.path.join(tmp_path, "outtest.ms")
     uv_object.write_ms(testfile)
 
@@ -2022,13 +2049,13 @@ def test_select_lsts(casa_uvfits, tmp_path, future_shapes):
             "The uvw_array does not match the expected values",
         ],
     ):
-        uv2_in = UVData.from_file(testfile, lsts=lsts_to_keep)
+        uv_in = UVData.from_file(testfile, lsts=lsts_to_keep)
     if future_shapes:
-        uv2_in.use_future_array_shapes()
+        uv_in.use_future_array_shapes()
 
-    uv2_in.history = uv_object2.history
-    uv2_in._consolidate_phase_center_catalogs(
-        reference_catalog=uv_object2.phase_center_catalog, ignore_name=True
+    uv_in.history = uv_object.history
+    uv_in._consolidate_phase_center_catalogs(
+        reference_catalog=uv_object.phase_center_catalog, ignore_name=True
     )
     params_to_update = [
         "dut1",
@@ -2040,11 +2067,9 @@ def test_select_lsts(casa_uvfits, tmp_path, future_shapes):
         "scan_number_array",
     ]
     for param in params_to_update:
-        setattr(uv2_in, param, getattr(uv_object2, param))
+        setattr(uv_in, param, getattr(uv_object, param))
 
-    assert uv2_in == uv_object2
-
-    return
+    assert uv_in == uv_object
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -2181,40 +2206,6 @@ def test_select_lst_range(casa_uvfits, tmp_path):
     uv2_in = UVData.from_file(testfile, lst_range=lst_range)
 
     assert uv2_in == uv_object2
-
-    testfile = os.path.join(tmp_path, "outtest.ms")
-    uv_object.write_ms(testfile)
-
-    with uvtest.check_warnings(
-        UserWarning,
-        match=[
-            'select on read keyword set, but file_type is "ms" which does not '
-            "support select on read",
-            "The uvw_array does not match the expected values",
-            "The uvw_array does not match the expected values",
-        ],
-    ):
-        uv2_in = UVData.from_file(testfile, lst_range=lst_range)
-
-    uv2_in.history = uv_object2.history
-    uv2_in._consolidate_phase_center_catalogs(
-        reference_catalog=uv_object2.phase_center_catalog, ignore_name=True
-    )
-    params_to_update = [
-        "dut1",
-        "earth_omega",
-        "gst0",
-        "rdate",
-        "timesys",
-        "extra_keywords",
-        "scan_number_array",
-    ]
-    for param in params_to_update:
-        setattr(uv2_in, param, getattr(uv_object2, param))
-
-    assert uv2_in == uv_object2
-
-    return
 
 
 def test_select_lst_range_too_big(casa_uvfits):
