@@ -623,8 +623,8 @@ the data have had baseline-dependent averaging applied.
 
   >>> # first use n_times_to_avg to average by a factor of 2 in time.
   >>> uvd.downsample_in_time(n_times_to_avg=2)
-  Data are in drift mode, phasing before resampling.
-  Unphasing back to drift mode.
+  Data are unprojected or phased as a driftscan, phasing before resampling.
+  Undoing phasing.
 
   >>> print("Range of integration times after downsampling: ", np.amin(uvd.integration_time),
   ...       "-", np.amax(uvd.integration_time))
@@ -633,8 +633,8 @@ the data have had baseline-dependent averaging applied.
   >>> # Now use min_int_time to average by a factor of 2 in time.
   >>> min_integration_time = np.amax(uvd2.integration_time) * 2.0
   >>> uvd2.downsample_in_time(min_int_time=min_integration_time)
-  Data are in drift mode, phasing before resampling.
-  Unphasing back to drift mode.
+  Data are unprojected or phased as a driftscan, phasing before resampling.
+  Undoing phasing.
 
   >>> print("Range of integration times after downsampling: ", np.amin(uvd2.integration_time),
   ...       "-", np.amax(uvd2.integration_time))
@@ -658,8 +658,8 @@ b) Upsampling in time
 
   >>> max_integration_time = np.amin(uvd.integration_time) / 2.0
   >>> uvd.upsample_in_time(max_integration_time)
-  Data are in drift mode, phasing before resampling.
-  Unphasing back to drift mode.
+  Data are unprojected or phased as a driftscan, phasing before resampling.
+  Undoing phasing.
 
   >>> print("Range of integration times after upsampling: ", np.amin(uvd.integration_time),
   ...       "-", np.amax(uvd.integration_time))
