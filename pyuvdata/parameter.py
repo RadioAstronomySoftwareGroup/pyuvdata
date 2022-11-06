@@ -836,10 +836,7 @@ class LocationParameter(UVParameter):
             self.value = None
         else:
             self.value = utils.XYZ_from_LatLonAlt(
-                lat_lon_alt[0],
-                lat_lon_alt[1],
-                lat_lon_alt[2],
-                frame=self.frame,
+                lat_lon_alt[0], lat_lon_alt[1], lat_lon_alt[2], frame=self.frame
             )
 
     def lat_lon_alt_degrees(self):
