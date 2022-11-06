@@ -281,7 +281,6 @@ def test_read_carma_miriad_write_ms(tmp_path):
     # Manipulate the table so that all fields have the same name (as is permitted
     # for MS files), and wipe out the source_ID information
     tb_field = tables.table(os.path.join(testfile, "FIELD"), ack=False, readonly=False)
-    orig_name = tb_field.getcol("NAME")
     tb_field.putcol("NAME", ["TEST"] * 3)
     tb_field.removecols("SOURCE_ID")
     tb_field.close()
@@ -291,7 +290,9 @@ def test_read_carma_miriad_write_ms(tmp_path):
     uv_out.read(testfile)
     for idx in range(3):
         assert uv_out.phase_center_catalog[idx]["cat_name"] == "TEST-%03i" % idx
-        uv_out.phase_center_catalog[idx]["cat_name"] = orig_name[idx]
+
+    uv_out.phase_center_catalog = uv_in.phase_center_catalog
+    uv_out._set_app_coords_helper()
 
     # Final equality check
     assert uv_in.__eq__(uv_out, allowed_failures=["filename"])
