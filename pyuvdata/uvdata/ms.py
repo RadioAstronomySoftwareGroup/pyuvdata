@@ -456,7 +456,11 @@ class MS(UVData):
 
         for idx, sou_id in enumerate(sou_id_list):
             cat_dict = self.phase_center_catalog[sou_id]
-            phasedir = np.array([[cat_dict["cat_lon"], cat_dict["cat_lat"]]])
+
+            phase_dir = np.array([[cat_dict["cat_lon"], cat_dict["cat_lat"]]])
+            if (cat_dict["cat_type"] == "ephem") and (phase_dir.ndim == 3):
+                phase_dir = np.median(phase_dir, axis=2)
+
             sou_name = cat_dict["cat_name"]
             ref_dir = self._parse_pyuvdata_frame_ref(
                 cat_dict["cat_frame"], cat_dict["cat_epoch"], raise_error=var_ref
@@ -464,9 +468,9 @@ class MS(UVData):
 
             field_table.addrows()
 
-            field_table.putcell("DELAY_DIR", idx, phasedir)
-            field_table.putcell("PHASE_DIR", idx, phasedir)
-            field_table.putcell("REFERENCE_DIR", idx, phasedir)
+            field_table.putcell("DELAY_DIR", idx, phase_dir)
+            field_table.putcell("PHASE_DIR", idx, phase_dir)
+            field_table.putcell("REFERENCE_DIR", idx, phase_dir)
             field_table.putcell("NAME", idx, sou_name)
             field_table.putcell("NUM_POLY", idx, n_poly)
             field_table.putcell("TIME", idx, time_val)
@@ -527,7 +531,7 @@ class MS(UVData):
             elif pc_dict["cat_type"] == "ephem":
                 # Otherwise for ephem, make time the outer-most axis so that we
                 # can easily iterate through.
-                sou_dir = np.vstack(((pc_dict["cat_lon"], pc_dict["cat_lat"])))
+                sou_dir = np.vstack(((pc_dict["cat_lon"], pc_dict["cat_lat"]))).T
                 time_val = (
                     Time(pc_dict["cat_times"], format="jd", scale="utc").mjd * 86400.0
                 ).flatten()
@@ -2173,13 +2177,18 @@ class MS(UVData):
                 sou_vec = tb_source.getcell("DIRECTION", idx)
                 try:
                     for idx in np.where(
-                        np.isclose(tb_sou_dict[sou_id]["cat_times"], time_stamp)
+                        np.isclose(
+                            tb_sou_dict[sou_id]["cat_times"],
+                            time_stamp,
+                            rtol=0,
+                            atol=1e-3,
+                        )
                     )[0]:
                         if not (
-                            np.isclose(tb_sou_dict[sou_id]["cat_ra"], sou_vec[0])
-                            and np.isclose(tb_sou_dict[sou_id]["cat_dec"], sou_vec[1])
-                            and np.isclose(tb_sou_dict[sou_id]["cat_pm_ra"], pm_vec[0])
-                            and np.isclose(tb_sou_dict[sou_id]["cat_pm_dec"], pm_vec[1])
+                            (tb_sou_dict[sou_id]["cat_ra"][idx] == sou_vec[0])
+                            and (tb_sou_dict[sou_id]["cat_dec"][idx] == sou_vec[1])
+                            and (tb_sou_dict[sou_id]["cat_pm_ra"][idx] == pm_vec[0])
+                            and (tb_sou_dict[sou_id]["cat_pm_dec"][idx] == pm_vec[1])
                         ):
                             warnings.warn(
                                 "Different windows in this MS file contain different "
@@ -2209,6 +2218,9 @@ class MS(UVData):
 
             for cat_dict in tb_sou_dict.values():
                 make_arr = len(cat_dict["cat_times"]) != 1
+                if not make_arr:
+                    del cat_dict["cat_times"]
+
                 for key in cat_dict:
                     if make_arr:
                         cat_dict[key] = np.array(cat_dict[key])
@@ -2254,6 +2266,7 @@ class MS(UVData):
         except RuntimeError:
             # Reach here if no column named SOURCE_ID exists, or if it does exist
             # but is completely unfilled. Nothing to do at this point but move on.
+            tb_sou_dict = {}
             pass
         # Field names are allowed to be the same in CASA, so if we detect
         # conflicting names here we use the FIELD row numbers to try and
@@ -2269,7 +2282,7 @@ class MS(UVData):
                     rep_count += 1
 
         for field_idx in field_list:
-            radec_center = tb_field.getcell("PHASE_DIR", field_idx)[0]
+            ra_val, dec_val = tb_field.getcell("PHASE_DIR", field_idx)[0]
             field_name = field_name_list[field_idx]
             if ref_dir_colname is not None:
                 frame_tuple = self._parse_casa_frame_ref(
@@ -2278,15 +2291,26 @@ class MS(UVData):
             else:
                 frame_tuple = (phase_center_frame, phase_center_epoch)
 
-            # TODO: Add source table lookup here
+            pm_ra = pm_dec = ephem_times = None
+            if field_id_dict[field_idx] in tb_sou_dict:
+                cat_dict = tb_sou_dict[field_id_dict[field_idx]]
+                ra_val, dec_val = cat_dict["cat_ra"], cat_dict["cat_dec"]
+                pm_ra, pm_dec = cat_dict["cat_pm_ra"], cat_dict["cat_pm_dec"]
+                if "cat_times" in cat_dict:
+                    ephem_times = Time(
+                        cat_dict["cat_times"] / 86400, format="mjd", scale="utc"
+                    ).jd
 
             self._add_phase_center(
                 field_name,
-                cat_type="sidereal",
-                cat_lon=radec_center[0],
-                cat_lat=radec_center[1],
+                cat_type="sidereal" if (ephem_times is None) else "ephem",
+                cat_lon=ra_val,
+                cat_lat=dec_val,
+                cat_times=ephem_times,  # Convert Julian secs to JD
                 cat_frame=frame_tuple[0],
                 cat_epoch=frame_tuple[1],
+                cat_pm_ra=pm_ra,
+                cat_pm_dec=pm_dec,
                 info_source="file",
                 cat_id=field_id_dict[field_idx],
             )
