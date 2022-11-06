@@ -682,8 +682,8 @@ c) Resampling a BDA dataset in time
 
   >>> # Resample all baselines to an 8s integration time
   >>> uvd.resample_in_time(8, allow_drift=True)
-  Data are in drift mode and allow_drift is True, so resampling will be done without phasing.
-  Data are in drift mode and allow_drift is True, so resampling will be done without phasing.
+  Data are unprojected or phased as a driftscan and allow_drift is True, so resampling will be done without phasing.
+  Data are unprojected or phased as a driftscan and allow_drift is True, so resampling will be done without phasing.
 
   >>> print("Range of integration times after resampling: ", np.amin(uvd.integration_time),
   ...       "-", np.amax(uvd.integration_time))
