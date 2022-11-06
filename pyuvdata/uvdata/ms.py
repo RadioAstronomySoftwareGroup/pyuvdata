@@ -511,11 +511,13 @@ class MS(UVData):
         for sou_id, pc_dict in self.phase_center_catalog.items():
             # Get some pieces of info that should not depend on the cat type, like name,
             # proper motions, (others possible)
+            int_val = int_default
             sou_name = pc_dict["cat_name"]
             pm_dir = np.array(
-                [[pc_dict.get("cat_pm_ra", 0.0), pc_dict.get("cat_pm_dec", 0.0)]]
+                [pc_dict.get("cat_pm_ra"), pc_dict.get("cat_pm_ra")], dtype=np.double
             )
-            int_val = int_default
+            if not np.all(np.isfinite(pm_dir)):
+                pm_dir[:] = 0.0
 
             if pc_dict["cat_type"] == "sidereal":
                 # If this is just a single set of points, set up values to have shape
@@ -2206,15 +2208,15 @@ class MS(UVData):
                     }
 
             for cat_dict in tb_sou_dict.values():
+                make_arr = len(cat_dict["cat_times"]) != 1
                 for key in cat_dict:
-                    if len(cat_dict["cat_times"]) == 1:
-                        cat_dict[key] = cat_dict[key][0]
-                    else:
+                    if make_arr:
                         cat_dict[key] = np.array(cat_dict[key])
-                if np.allclose(cat_dict["cat_pm_ra"], 0) and np.allclose(
-                    cat_dict["cat_pm_dec"], 0
-                ):
-                    cat_dict["cat_pm_ra"] = cat_dict["cat_pm_dec"] = None
+                    else:
+                        cat_dict[key] = cat_dict[key][0]
+                if np.allclose(cat_dict["cat_pm_ra"], 0):
+                    if np.allclose(cat_dict["cat_pm_dec"], 0):
+                        cat_dict["cat_pm_ra"] = cat_dict["cat_pm_dec"] = None
 
         # MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
         measinfo_keyword = tb_field.getcolkeyword("PHASE_DIR", "MEASINFO")
