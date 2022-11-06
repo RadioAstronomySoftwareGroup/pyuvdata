@@ -7,7 +7,7 @@ Define UVParameters: data and metadata objects for interferometric data sets.
 
 UVParameters are objects to hold specific data and metadata associated with
 interferometric data sets. They are used as attributes for classes based on
-UVBase. This module also includes specialized sublasses for particular types
+UVBase. This module also includes specialized subclasses for particular types
 of metadata.
 
 """
@@ -26,7 +26,7 @@ def _get_generic_type(expected_type, strict_type_check=False):
     """Return tuple of more generic types.
 
     Allows for more flexible type checking in the case when a Parameter's value
-    changes precison or to/from a numpy dtype but still is the desired generic type.
+    changes precision or to/from a numpy dtype but still is the desired generic type.
     If a generic type cannot be found, the expected_type is returned
 
     Parameters
@@ -184,7 +184,7 @@ class UVParameter(object):
         np.isclose()
     strict_type_check : bool
         When True, the input expected_type is used exactly, otherwise a more
-        generic type is found to allow changes in precicions or to/from numpy
+        generic type is found to allow changes in precisions or to/from numpy
         dtypes to not break checks.
 
     Attributes
@@ -227,7 +227,7 @@ class UVParameter(object):
         used by np.isclose()
     strict_type_check : bool
         When True, the input expected_type is used exactly, otherwise a more
-        generic type is found to allow changes in precicions or to/from numpy
+        generic type is found to allow changes in precisions or to/from numpy
         dtypes to not break checks.
 
     """
