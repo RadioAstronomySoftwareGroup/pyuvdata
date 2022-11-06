@@ -2104,7 +2104,7 @@ class Miriad(UVData):
                     t_diffs = np.abs(
                         self.phase_center_catalog[cat_id]["cat_times"] - t_use
                     )
-                    t_min_loc = np.argmin(t_diffs, keepdims=True)
+                    t_min_loc = np.argmin(t_diffs)
                     tols = self._time_array.tols
                     if np.isclose(0, t_diffs[t_min_loc], rtol=tols[0], atol=tols[1]):
                         uv["ra"] = self.phase_center_catalog[cat_id]["cat_lon"][

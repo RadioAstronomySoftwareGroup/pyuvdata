@@ -2203,7 +2203,14 @@ def test_select_lst_range(casa_uvfits, tmp_path):
     testfile = os.path.join(tmp_path, "outtest.uvh5")
     uv_object.write_uvh5(testfile)
 
-    uv2_in = UVData.from_file(testfile, lst_range=lst_range)
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Telescope EVLA is not in known_telescopes",
+            "The uvw_array does not match the expected values",
+        ],
+    ):
+        uv2_in = UVData.from_file(testfile, lst_range=lst_range)
 
     assert uv2_in == uv_object2
 
