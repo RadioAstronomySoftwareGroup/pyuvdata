@@ -84,7 +84,7 @@ class AnalyticBeam(ABC):
         Returns
         -------
         array_like of complex
-            An array of beam values. The shape of the interpolated data will be:
+            An array of beam values. The shape of the evaluated data will be:
             (Naxes_vec, Nfeeds, freq_array.size, az_array.size)
 
         """
@@ -108,12 +108,10 @@ class AnalyticBeam(ABC):
         Returns
         -------
         array_like of float
-            An array of beam values. The shape of the interpolated data will be:
-            (1, Nfeeds, freq_array.size, az_array.size)
+            An array of beam values. The shape of the evaluated data will be:
+            (1, Npols, freq_array.size, az_array.size)
 
         """
-        # TODO: decide if the returned array should have a shallow first dimension
-        # so that it has the same number of dimensions as efield or not.
 
 
 def diameter_to_sigma(diam, freqs):
@@ -254,13 +252,10 @@ class GaussianBeam(AnalyticBeam):
         data_array = np.zeros(
             (self.Naxes_vec, self.Nfeeds, freq_array.size, az_array.size), dtype=float
         )
-        # This looks very different than what is in pyuvsim. But this is what I think
-        # it should be, so we need to investigate.
-        # gaussian beams are unpolarized, so have the same response for each basis
-        # vector and for each feed
-        # But maybe this will lead to cross-pols being like autos, so maybe it's not
-        # what we want?
+        # This is different than what is in pyuvsim because it means that we have the
+        # same response to any polarized source in both feeds. We think this is correct
+        # for an azimuthally symmetric analytic beam but it is a change.
         # On pyuvsim we essentially have each basis vector go into only one feed.
         for fn in np.arange(self.Nfeeds):
-            data_array[0, fn, :, :] = values
-            data_array[1, fn, :, :] = values
+            data_array[0, fn, :, :] = values / 2.0
+            data_array[1, fn, :, :] = values / 2.0
