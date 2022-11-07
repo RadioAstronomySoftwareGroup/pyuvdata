@@ -12459,7 +12459,7 @@ class UVData(UVBase):
                             check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability,
                             strict_uvw_antpos_check=strict_uvw_antpos_check,
-                            isource=None,
+                            isource=isource,
                             irec=irec,
                             isb=isb,
                             corrchunk=corrchunk,
@@ -12504,6 +12504,7 @@ class UVData(UVBase):
                 return
 
             any_unprojected = np.any(~self._check_for_cat_type("unprojected"))
+            phase_dict = None
             if allow_rephase is None and not make_multi_phase and any_unprojected:
                 warnings.warn(
                     "The default behavior is to rephase data from the files to make "
@@ -12532,10 +12533,6 @@ class UVData(UVBase):
                     )
                 else:
                     phase_dict = list(self.phase_center_catalog.values())[0]
-                    # set the phase center to be the phase center of the first file
-                    phase_center_radec = [phase_dict["cat_lon"], phase_dict["cat_lat"]]
-                    phase_frame = phase_dict["cat_frame"]
-                    phase_epoch = phase_dict["cat_epoch"]
 
             uv_list = []
             if len(filename) > file_num + 1:
@@ -12598,7 +12595,7 @@ class UVData(UVBase):
                                 check_extra=check_extra,
                                 run_check_acceptability=run_check_acceptability,
                                 strict_uvw_antpos_check=strict_uvw_antpos_check,
-                                isource=None,
+                                isource=isource,
                                 irec=irec,
                                 isb=isb,
                                 corrchunk=corrchunk,
@@ -12612,6 +12609,23 @@ class UVData(UVBase):
                                 fix_autos=fix_autos,
                                 rechunk=rechunk,
                             )
+                        if phase_dict is not None:
+                            uv2.phase(
+                                lon=phase_dict.get("cat_lon"),
+                                lat=phase_dict.get("cat_lat"),
+                                epoch=phase_dict.get("cat_epoch"),
+                                phase_frame=phase_dict.get("cat_frame"),
+                                cat_type=phase_dict.get("cat_type"),
+                                ephem_times=phase_dict.get("cat_times"),
+                                pm_ra=phase_dict.get("cat_pm_ra"),
+                                pm_dec=phase_dict.get("cat_pm_dec"),
+                                dist=phase_dict.get("cat_dist"),
+                                vrad=phase_dict.get("cat_vrad"),
+                                cat_name=phase_dict.get("cat_name"),
+                                use_ant_pos=phase_use_ant_pos,
+                                allow_rephase=allow_rephase,
+                            )
+
                         uv_list.append(uv2)
                     except KeyError as err:
                         file_warnings = (
