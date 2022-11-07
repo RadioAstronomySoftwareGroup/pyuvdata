@@ -3235,6 +3235,10 @@ def test_read_metadata(casa_uvfits, tmp_path):
 # so I don't think using fix_old_proj is really the right thing to do.
 # I'm not really sure why this test is here (in test_uvh5) at all, I'm inclined to
 # remove it but I'm leaving it until I can ask Karto
+# KARTO: This test was here originally to verify the behavior of the fix_old_phasing
+# switch for UVH5, since that behaves a _bit_ differently than the other file types
+# (it's the only one you can definitively say what kind of phasing was applied). But
+# given the changes in this PR, it's possible this isn't needed anymore.
 # @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 # @pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
 # def test_fix_phase(tmp_path):
