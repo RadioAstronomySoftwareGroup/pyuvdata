@@ -2021,6 +2021,11 @@ class UVBeam(UVBase):
         polarizations : list of str
             polarizations to interpolate if beam_type is 'power'.
             Default is all polarizations in self.polarization_array.
+        return_bandpass : bool
+            Option to return the bandpass. Only applies if `new_object` is False.
+        return_coupling : bool
+            Option to return the interpolated coupling matrix, only applies if
+            `antenna_type` is "phased_array" and `new_object` is False.
         new_object : bool
             Option to return a new UVBeam object with the interpolated data,
             if possible. Note that this is only possible for Healpix pixels or
