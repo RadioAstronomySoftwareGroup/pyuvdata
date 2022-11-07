@@ -12042,3 +12042,26 @@ def test_normalize_by_autos_flag_noautos(hera_uvh5):
 
     hera_uvh5.normalize_by_autos()
     assert np.all(hera_uvh5.flag_array[cross_mask])
+
+
+@pytest.mark.filterwarnings("ignore:The default behavior is to rephase data from the")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes")
+def test_split_write_comb_read(tmp_path):
+    """Pulled from a failed tutorial example."""
+    uvd = UVData()
+    filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+
+    uvd.read(filename)
+    uvd1 = uvd.select(freq_chans=np.arange(0, 20), inplace=False)
+    uvd2 = uvd.select(freq_chans=np.arange(20, 40), inplace=False)
+    uvd3 = uvd.select(freq_chans=np.arange(40, 64), inplace=False)
+
+    uvd1.write_uvfits(os.path.join(tmp_path, "select1.uvfits"))
+    uvd2.write_uvfits(os.path.join(tmp_path, "select2.uvfits"))
+    uvd3.write_uvfits(os.path.join(tmp_path, "select3.uvfits"))
+    filenames = [
+        os.path.join(tmp_path, f)
+        for f in ["select1.uvfits", "select2.uvfits", "select3.uvfits"]
+    ]
+    uvd.read(filenames)
