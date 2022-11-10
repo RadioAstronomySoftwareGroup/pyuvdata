@@ -7,6 +7,7 @@
 """
 import json
 import os
+import re
 
 import h5py
 import numpy as np
@@ -1748,7 +1749,7 @@ def test_uvh5_partial_write_errors(uv_partial_write, tmp_path):
     if os.path.exists(partial_testfile):
         os.remove(partial_testfile)
     with pytest.raises(
-        AssertionError, match="{} does not exist".format(partial_testfile)
+        AssertionError, match=re.escape(f"{partial_testfile} does not exist")
     ):
         partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples, bls=key)
 
