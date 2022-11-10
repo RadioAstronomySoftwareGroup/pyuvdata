@@ -848,7 +848,8 @@ def test_hera_diameters(paper_uvh5):
 
     uv_in.telescope_name = "HERA"
     with uvtest.check_warnings(
-        UserWarning, "antenna_diameters is not set. Using known values for HERA."
+        UserWarning,
+        match="antenna_diameters are not set or being overwritten. Using known values",
     ):
         uv_in.set_telescope_params()
 

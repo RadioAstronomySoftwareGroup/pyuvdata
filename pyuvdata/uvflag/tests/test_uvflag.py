@@ -5,6 +5,7 @@
 import copy
 import os
 import pathlib
+import re
 import warnings
 
 import h5py
@@ -220,6 +221,85 @@ def test_check_flag_array(uvdata_obj):
         uvf.check()
 
 
+@pytest.mark.parametrize(
+    "param",
+    [
+        "telescope_name",
+        "telescope_location",
+        "channel_width",
+        "spw_array",
+        "antenna_names",
+        "antenna_numbers",
+        "antenna_positions",
+    ],
+)
+def test_check_warnings_new_params(uvf_from_data, param):
+    uvf = uvf_from_data
+
+    setattr(uvf, param, None)
+
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match=f"The {param} is not set. It will be a required "
+        "parameter starting in pyuvdata version 2.4",
+    ):
+        uvf.check()
+
+
+@pytest.mark.parametrize(
+    ["param", "msg"],
+    [
+        ("Nants_data", "Nants_data must be equal to the number of unique values in"),
+        ("Nbls", "Nbls must be equal to the number of unique baselines in the"),
+        ("Ntimes", "Ntimes must be equal to the number of unique times in the"),
+    ],
+)
+def test_check_implicit_sizes(uvf_from_data, param, msg):
+    uvf = uvf_from_data
+
+    setattr(uvf, param, getattr(uvf, param) - 1)
+
+    with pytest.raises(ValueError, match=msg):
+        uvf.check()
+
+
+@pytest.mark.parametrize("param", ["ant_1_array", "ant_2_array", "ant_array"])
+def test_check_ant_arrays_in_ant_nums(uvf_from_data, uvf_from_uvcal, param):
+    if param == "ant_array":
+        uvf = uvf_from_uvcal
+    else:
+        uvf = uvf_from_data
+
+    ant_array = getattr(uvf, param)
+    ant_array[np.nonzero(ant_array == np.max(ant_array))] += 20
+    setattr(uvf, param, ant_array)
+    if param != "ant_array":
+        uvf.Nants_data += 1
+
+    with pytest.raises(
+        ValueError, match=f"All antennas in {param} must be in antenna_numbers."
+    ):
+        uvf.check()
+
+
+def test_check_flex_spw_id_array(uvf_from_data):
+    uvf = uvf_from_data
+    uvf.spw_array = np.arange(3)
+    uvf.Nspws = 3
+
+    with pytest.raises(
+        ValueError, match="Required UVParameter _flex_spw_id_array has not been set."
+    ):
+        uvf.check()
+
+    uvf.flex_spw_id_array = np.full(uvf.Nfreqs, 5, dtype="int")
+    with pytest.raises(
+        ValueError,
+        match="All values in the flex_spw_id_array must exist in the spw_array.",
+    ):
+        uvf.check()
+
+
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_init_bad_mode(uvdata_obj):
     uv = uvdata_obj
@@ -343,6 +423,13 @@ def test_init_uvdata_mode_flag(uvdata_obj, uvd_future_shapes, uvf_future_shapes)
     if uvd_future_shapes:
         uv.use_future_array_shapes()
 
+    # add spectral windows to test handling
+    uv.Nspws = 2
+    uv.spw_array = np.array([0, 1])
+    uv.flex_spw_id_array = np.zeros(uv.Nfreqs, dtype=int)
+    uv.flex_spw_id_array[: uv.Nfreqs // 2] = 1
+    uv.check()
+
     uvf = UVFlag()
     uvf.from_uvdata(
         uv, copy_flags=False, mode="flag", use_future_array_shapes=uvf_future_shapes
@@ -378,6 +465,14 @@ def test_init_uvdata_mode_flag(uvdata_obj, uvd_future_shapes, uvf_future_shapes)
 def test_init_uvcal():
     uvc = UVCal()
     uvc.read_calfits(test_c_file)
+
+    # add spectral windows to test handling
+    uvc.Nspws = 2
+    uvc.spw_array = np.array([0, 1])
+    uvc.flex_spw_id_array = np.zeros(uvc.Nfreqs, dtype=int)
+    uvc.flex_spw_id_array[: uvc.Nfreqs // 2] = 1
+    uvc.check()
+
     uvf = UVFlag(uvc)
     assert uvf.metric_array.shape == uvc.flag_array.shape
     assert np.all(uvf.metric_array == 0)
@@ -659,6 +754,7 @@ def test_read_write_loop(
 ):
     uv = uvdata_obj
     uvf = UVFlag(uv, label="test", use_future_array_shapes=write_future_shapes)
+
     uvf.write(test_outfile, clobber=True)
     uvf2 = UVFlag(test_outfile, use_future_array_shapes=read_future_shapes)
     if read_future_shapes != write_future_shapes:
@@ -666,6 +762,22 @@ def test_read_write_loop(
             uvf2.use_current_array_shapes()
         else:
             uvf2.use_future_array_shapes()
+    assert uvf.__eq__(uvf2, check_history=True)
+    assert uvf2.filename == [os.path.basename(test_outfile)]
+
+
+def test_read_write_loop_spw(uvdata_obj, test_outfile):
+    uv = uvdata_obj
+    uvf = UVFlag(uv, label="test")
+
+    uvf.Nspws = 2
+    uvf.spw_array = np.array([0, 1])
+    uvf.flex_spw_id_array = np.zeros(uv.Nfreqs, dtype=int)
+    uvf.flex_spw_id_array[: uv.Nfreqs // 2] = 1
+    uvf.check()
+
+    uvf.write(test_outfile, clobber=True)
+    uvf2 = UVFlag(test_outfile)
     assert uvf.__eq__(uvf2, check_history=True)
     assert uvf2.filename == [os.path.basename(test_outfile)]
 
@@ -681,6 +793,294 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile):
         del h5f["/Header/Nblts"]
         del h5f["/Header/Nants_data"]
         del h5f["/Header/Nspws"]
+    uvf2 = UVFlag(test_outfile)
+    assert uvf.__eq__(uvf2, check_history=True)
+    assert uvf2.filename == [os.path.basename(test_outfile)]
+
+
+@pytest.mark.parametrize(
+    ["uvf_type", "param_list", "warn_type", "msg", "uv_mod"],
+    [
+        (
+            "baseline",
+            ["telescope_name"],
+            [UserWarning, DeprecationWarning],
+            [
+                "telescope_name not available in file, so telescope related parameters "
+                "cannot be set.",
+                "The telescope_name is not set. It will be a required parameter "
+                "starting in pyuvdata version 2.4",
+            ],
+            None,
+        ),
+        (
+            "baseline",
+            ["telescope_location"],
+            UserWarning,
+            "telescope_location are not set or being overwritten. Using known values",
+            "reset_telescope_params",
+        ),
+        (
+            "baseline",
+            ["antenna_names"],
+            UserWarning,
+            "antenna_names are not set or being overwritten. Using known values",
+            "reset_telescope_params",
+        ),
+        (
+            "baseline",
+            ["antenna_numbers"],
+            UserWarning,
+            "antenna_numbers are not set or being overwritten. Using known values",
+            "reset_telescope_params",
+        ),
+        (
+            "baseline",
+            ["antenna_positions"],
+            UserWarning,
+            "antenna_positions are not set or being overwritten. Using known values",
+            "reset_telescope_params",
+        ),
+        ("baseline", ["Nants_telescope"], None, "", "reset_telescope_params"),
+        (
+            "waterfall",
+            ["Nants_telescope", "telescope_name", "antenna_numbers"],
+            [UserWarning, DeprecationWarning, DeprecationWarning],
+            [
+                "telescope_name not available in file, so telescope related parameters "
+                "cannot be set.",
+                "The telescope_name is not set. It will be a required parameter "
+                "starting in pyuvdata version 2.4",
+                "The antenna_numbers is not set. It will be a required parameter "
+                "starting in pyuvdata version 2.4",
+            ],
+            None,
+        ),
+        (
+            "waterfall",
+            ["Nants_telescope", "telescope_name", "antenna_numbers", "antenna_names"],
+            [UserWarning, DeprecationWarning, DeprecationWarning, DeprecationWarning],
+            [
+                "telescope_name not available in file, so telescope related parameters "
+                "cannot be set.",
+                "The telescope_name is not set. It will be a required parameter "
+                "starting in pyuvdata version 2.4",
+                "The antenna_names is not set. It will be a required parameter "
+                "starting in pyuvdata version 2.4",
+                "The antenna_numbers is not set. It will be a required parameter "
+                "starting in pyuvdata version 2.4",
+            ],
+            None,
+        ),
+        (
+            "waterfall",
+            [
+                "Nants_telescope",
+                "telescope_name",
+                "antenna_numbers",
+                "antenna_names",
+                "antenna_positions",
+            ],
+            [UserWarning] + [DeprecationWarning] * 4,
+            [
+                "telescope_name not available in file, so telescope related parameters "
+                "cannot be set.",
+                "The telescope_name is not set. It will be a required parameter "
+                "starting in pyuvdata version 2.4",
+                "The antenna_names is not set. It will be a required parameter "
+                "starting in pyuvdata version 2.4",
+                "The antenna_numbers is not set. It will be a required parameter "
+                "starting in pyuvdata version 2.4",
+                "The antenna_positions is not set. It will be a required parameter "
+                "starting in pyuvdata version 2.4",
+            ],
+            None,
+        ),
+        (
+            "baseline",
+            ["antenna_names", "antenna_numbers", "antenna_positions"],
+            UserWarning,
+            "Nants_telescope, antenna_names, antenna_numbers, antenna_positions are "
+            "not set or being overwritten. Using known values for HERA.",
+            "reset_telescope_params",
+        ),
+        (
+            "baseline",
+            ["antenna_numbers"],
+            [UserWarning, UserWarning, DeprecationWarning],
+            [
+                "antenna_numbers is not set but cannot be set using known values for "
+                "HERA because the expected shapes don't match.",
+                "antenna_numbers not in file, cannot be set based on ant_1_array and "
+                "ant_2_array because Nants_telescope is greater than Nants_data.",
+                "The antenna_numbers is not set. It will be a required parameter "
+                "starting in pyuvdata version 2.4",
+            ],
+            None,
+        ),
+        (
+            "baseline",
+            ["antenna_names"],
+            UserWarning,
+            [
+                "antenna_names is not set but cannot be set using known values for "
+                "HERA because the expected shapes don't match.",
+                "antenna_names not in file, setting based on antenna_numbers",
+            ],
+            None,
+        ),
+        (
+            "baseline",
+            ["antenna_numbers"],
+            UserWarning,
+            [
+                "antenna_numbers is not set but cannot be set using known values for "
+                "HERA because the expected shapes don't match.",
+                "antenna_numbers not in file, setting based on ant_1_array and "
+                "ant_2_array.",
+            ],
+            "remove_extra_metadata",
+        ),
+        (
+            "antenna",
+            ["antenna_numbers"],
+            [UserWarning, UserWarning, DeprecationWarning],
+            [
+                "antenna_numbers is not set but cannot be set using known values for "
+                "HERA because the expected shapes don't match.",
+                "antenna_numbers not in file, cannot be set based on ant_array because "
+                "Nants_telescope is greater than Nants_data.",
+                "The antenna_numbers is not set. It will be a required parameter "
+                "starting in pyuvdata version 2.4",
+            ],
+            None,
+        ),
+        (
+            "antenna",
+            ["antenna_numbers"],
+            [UserWarning, UserWarning],
+            [
+                "antenna_numbers is not set but cannot be set using known values for "
+                "HERA because the expected shapes don't match.",
+                "antenna_numbers not in file, setting based on ant_array.",
+            ],
+            "remove_extra_metadata",
+        ),
+    ],
+)
+def test_read_write_loop_missing_telescope_info(
+    uvdata_obj, test_outfile, uvf_type, param_list, warn_type, msg, uv_mod
+):
+    if uvf_type == "antenna":
+        uv = UVCal()
+        uv.read_calfits(test_c_file)
+    else:
+        uv = uvdata_obj
+    if uv_mod == "reset_telescope_params":
+        with uvtest.check_warnings(
+            UserWarning,
+            match="Nants_telescope, antenna_diameters, antenna_names, antenna_numbers, "
+            "antenna_positions, telescope_location, telescope_name",
+        ):
+            uv.set_telescope_params(overwrite=True)
+    elif uv_mod == "remove_extra_metadata":
+        if uvf_type == "antenna":
+
+            ant_inds_keep = np.nonzero(np.isin(uv.antenna_numbers, uv.ant_array))[0]
+            uv.antenna_names = uv.antenna_names[ant_inds_keep]
+            uv.antenna_numbers = uv.antenna_numbers[ant_inds_keep]
+            uv.antenna_positions = uv.antenna_positions[ant_inds_keep]
+            uv.Nants_telescope = ant_inds_keep.size
+            uv.check()
+        else:
+            uv.select(
+                antenna_nums=np.union1d(uv.ant_1_array, uv.ant_2_array),
+                keep_all_metadata=False,
+            )
+
+    uvf = UVFlag(uv, label="test")
+    if uvf_type == "waterfall":
+        uvf.to_waterfall()
+
+    uvf.write(test_outfile, clobber=True)
+    with h5py.File(test_outfile, "r+") as h5f:
+        for param in param_list:
+            del h5f["/Header/" + param]
+    with uvtest.check_warnings(warn_type, match=msg):
+        uvf2 = UVFlag(test_outfile)
+    if uv_mod is None:
+        if param_list == ["antenna_names"]:
+            assert np.array_equal(uvf2.antenna_names, uvf2.antenna_numbers.astype(str))
+            uvf2.antenna_names = uvf.antenna_names
+        else:
+            for param in param_list:
+                if param != "Nants_telescope":
+                    assert getattr(uvf2, param) is None
+                setattr(uvf2, param, getattr(uv, param))
+    elif "telescope_name" in param_list:
+        assert uvf2.telescope_name is None
+        uvf2.telescope_name = uvf.telescope_name
+    assert uvf.__eq__(uvf2, check_history=True)
+    assert uvf2.filename == [os.path.basename(test_outfile)]
+
+
+def test_read_write_loop_wrong_nants_data(uvdata_obj, test_outfile):
+    uv = uvdata_obj
+    uvf = UVFlag(uv, label="test")
+    uvf.write(test_outfile, clobber=True)
+    with h5py.File(test_outfile, "r+") as h5f:
+        nants_data = int(h5f["/Header/Nants_data"][()])
+        del h5f["/Header/Nants_data"]
+        h5f["Header/Nants_data"] = nants_data - 1
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match="Nants_data in file does not match number of antennas with data. "
+        "Resetting Nants_data.",
+    ):
+        uvf2 = UVFlag(test_outfile)
+    assert uvf.__eq__(uvf2, check_history=True)
+    assert uvf2.filename == [os.path.basename(test_outfile)]
+
+
+def test_read_write_loop_missing_channel_width(uvdata_obj, test_outfile):
+    uv = uvdata_obj
+    uvf = UVFlag(uv, label="test")
+    uvf.write(test_outfile, clobber=True)
+    with h5py.File(test_outfile, "r+") as h5f:
+        del h5f["/Header/channel_width"]
+    with uvtest.check_warnings(
+        UserWarning,
+        match="channel_width not available in file, computing it from the freq_array "
+        "spacing.",
+    ):
+        uvf2 = UVFlag(test_outfile)
+    assert uvf.__eq__(uvf2, check_history=True)
+    assert uvf2.filename == [os.path.basename(test_outfile)]
+
+    uvf.freq_array[0, 0] -= uvf.channel_width[0]
+    uvf.channel_width[0] *= 2
+
+    uvf.write(test_outfile, clobber=True)
+    with h5py.File(test_outfile, "r+") as h5f:
+        del h5f["/Header/channel_width"]
+    with uvtest.check_warnings(
+        UserWarning,
+        match="channel_width not available in file, computing it from the freq_array "
+        "spacing. The freq_array does not have equal spacing, so the last "
+        "channel_width is set equal to the channel width below it.",
+    ):
+        uvf2 = UVFlag(test_outfile)
+    assert uvf.__eq__(uvf2, check_history=True)
+    assert uvf2.filename == [os.path.basename(test_outfile)]
+
+
+def test_read_write_loop_missing_spw_array(uvdata_obj, test_outfile):
+    uv = uvdata_obj
+    uvf = UVFlag(uv, label="test")
+    uvf.write(test_outfile, clobber=True)
+    with h5py.File(test_outfile, "r+") as h5f:
+        del h5f["/Header/spw_array"]
     uvf2 = UVFlag(test_outfile)
     assert uvf.__eq__(uvf2, check_history=True)
     assert uvf2.filename == [os.path.basename(test_outfile)]
@@ -998,6 +1398,55 @@ def test_lst_from_uv_error():
             "`set_lsts_from_time_array` method on the input object.",
         ):
             lst_from_uv(4)
+
+
+@pytest.mark.parametrize("background", [True, False])
+def test_set_lsts(uvf_from_data, background):
+    uvf = uvf_from_data
+
+    uvf2 = uvf.copy()
+    proc = uvf2.set_lsts_from_time_array(background=background)
+
+    if proc is not None:
+        proc.join()
+
+    assert uvf2._lst_array == uvf._lst_array
+
+
+@pytest.mark.filterwarnings("ignore:Nants_telescope, antenna_")
+def test_set_telescope_params(uvdata_obj):
+    uvd = uvdata_obj
+    uvd.set_telescope_params(overwrite=True)
+    ants_with_data = np.union1d(uvd.ant_1_array, uvd.ant_2_array)
+    uvd2 = uvd.select(
+        antenna_nums=ants_with_data[: uvd.Nants_data // 2],
+        keep_all_metadata=False,
+        inplace=False,
+    )
+    uvf = UVFlag(uvd2)
+    assert uvf._antenna_names == uvd2._antenna_names
+    assert uvf._antenna_numbers == uvd2._antenna_numbers
+    assert uvf._antenna_positions == uvd2._antenna_positions
+
+    uvf.set_telescope_params(overwrite=True)
+    assert uvf._antenna_names == uvd._antenna_names
+    assert uvf._antenna_numbers == uvd._antenna_numbers
+    assert uvf._antenna_positions == uvd._antenna_positions
+
+    uvf = UVFlag(uvd2)
+    uvf.antenna_positions = None
+    with uvtest.check_warnings(
+        UserWarning,
+        match="antenna_positions is not set but cannot be set using "
+        "known values for HERA because the expected shapes don't match.",
+    ):
+        uvf.set_telescope_params()
+    assert uvf.antenna_positions is None
+
+    uvf = UVFlag(uvd2)
+    uvf.telescope_name = "foo"
+    with pytest.raises(ValueError, match="Telescope foo is not in known_telescopes."):
+        uvf.set_telescope_params()
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
@@ -1613,9 +2062,24 @@ def test_to_baseline_metric(uvdata_obj, uvd_future_shapes, uvf_future_shapes):
 
     uvf = UVFlag(uv, use_future_array_shapes=uvf_future_shapes)
     uvf.to_waterfall()
+    # remove telescope info to check that it's set properly
+    uvf.telescope_name = None
+    uvf.telescope_location = None
+
+    # remove antenna info to check that it's set properly
+    uvf.antenna_names = None
+    uvf.antenna_numbers = None
+    uvf.antenna_positions = None
+
     uvf.metric_array[0, 10, 0] = 3.2  # Fill in time0, chan10
     uvf.metric_array[1, 15, 0] = 2.1  # Fill in time1, chan15
     uvf.to_baseline(uv)
+    assert uvf.telescope_name == uv.telescope_name
+    assert np.all(uvf.telescope_location == uv.telescope_location)
+    assert np.all(uvf.antenna_names == uv.antenna_names)
+    assert np.all(uvf.antenna_numbers == uv.antenna_numbers)
+    assert np.all(uvf.antenna_positions == uv.antenna_positions)
+
     assert np.all(uvf.baseline_array == uv.baseline_array)
     assert np.all(uvf.time_array == uv.time_array)
     times = np.unique(uvf.time_array)
@@ -1663,21 +2127,32 @@ def test_baseline_to_baseline(uvdata_obj):
 def test_to_baseline_metric_error(uvdata_obj, uvf_from_uvcal):
     uvf = uvf_from_uvcal
     uv = uvdata_obj
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "The freq_array on uv is not the same as the freq_array on this object. "
+            f"The value on this object is {uvf.freq_array}; the value on uv is "
+            f"{uv.freq_array}"
+        ),
+    ):
+        uvf.to_baseline(uv)
     uvf.select(
         polarizations=uvf.polarization_array[0], frequencies=np.squeeze(uv.freq_array)
     )
     with uvtest.check_warnings(
         UserWarning,
-        match=["Nants_telescope, antenna_names, antenna_numbers, antenna_positions"]
-        * 2,
+        match=[
+            "telescope_location is not the same this object and on uv. The value on",
+            "antenna_names is not the same this object and on uv. The value on",
+            "antenna_numbers is not the same this object and on uv. The value on",
+            "antenna_positions is not the same this object and on uv. The value on",
+        ],
     ):
-        uvf.set_telescope_params(overwrite=True)
-        uv.set_telescope_params(overwrite=True)
-    with pytest.raises(
-        NotImplementedError,
-        match="Cannot currently convert from antenna type, metric mode",
-    ):
-        uvf.to_baseline(uv, force_pol=True)
+        with pytest.raises(
+            NotImplementedError,
+            match="Cannot currently convert from antenna type, metric mode",
+        ):
+            uvf.to_baseline(uv, force_pol=True)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -1761,38 +2236,52 @@ def test_to_baseline_errors(uvdata_obj):
     uv = uvdata_obj
     uvf = UVFlag(test_f_file)
 
-    uvf.select(frequencies=np.squeeze(uv.freq_array))
-    with uvtest.check_warnings(
-        UserWarning,
-        match=["Nants_telescope, antenna_names, antenna_numbers, antenna_positions"]
-        * 2,
-    ):
-        uvf.set_telescope_params(overwrite=True)
-        uv.set_telescope_params(overwrite=True)
-
     uvf.to_waterfall()
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Must pass in UVData object or UVFlag object"):
         uvf.to_baseline(7.3)  # invalid matching object
-    assert str(cm.value).startswith("Must pass in UVData object or UVFlag object")
 
-    uvf = UVFlag(test_f_file)
-    uvf.select(frequencies=np.squeeze(uv.freq_array))
-    with uvtest.check_warnings(
-        UserWarning,
-        match=["Nants_telescope, antenna_names, antenna_numbers, antenna_positions"],
-    ):
-        uvf.set_telescope_params(overwrite=True)
+    uvf.channel_width = uvf.channel_width / 2.0
 
-    assert uv._freq_array == uvf._freq_array
-    uvf.to_waterfall()
+    uvf.Nspws = 2
+    uvf.spw_array = np.array([0, 1])
+    uvf.flex_spw_id_array = np.zeros(uv.Nfreqs, dtype=int)
+    uvf.flex_spw_id_array[: uv.Nfreqs // 2] = 1
+    uvf.check()
+
     uvf2 = uvf.copy()
     uvf.polarization_array[0] = -4
-    with pytest.raises(ValueError, match="Polarizations do not match."):
-        uvf.to_baseline(uv)  # Mismatched pols
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "telescope_location is not the same this object and on uv. The value on",
+            "antenna_names is not the same this object and on uv. The value on",
+            "antenna_numbers is not the same this object and on uv. The value on",
+            "antenna_positions is not the same this object and on uv. The value on",
+            "channel_width is not the same this object and on uv. The value on",
+            "spw_array is not the same this object and on uv. The value on",
+            "flex_spw_id_array is not the same this object and on uv. The value on",
+        ],
+    ):
+        with pytest.raises(ValueError, match="Polarizations do not match."):
+            uvf.to_baseline(uv)  # Mismatched pols
     uvf.__iadd__(uvf2, axis="polarization")
 
-    with pytest.raises(ValueError, match="Polarizations could not be made to match."):
-        uvf.to_baseline(uv)  # Mismatched pols, can't be forced
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "telescope_location is not the same this object and on uv. The value on",
+            "antenna_names is not the same this object and on uv. The value on",
+            "antenna_numbers is not the same this object and on uv. The value on",
+            "antenna_positions is not the same this object and on uv. The value on",
+            "channel_width is not the same this object and on uv. The value on",
+            "spw_array is not the same this object and on uv. The value on",
+            "flex_spw_id_array is not the same this object and on uv. The value on",
+        ],
+    ):
+        with pytest.raises(
+            ValueError, match="Polarizations could not be made to match."
+        ):
+            uvf.to_baseline(uv)  # Mismatched pols, can't be forced
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -1919,9 +2408,24 @@ def test_to_antenna_metric(future_shapes):
     uvc.read_calfits(test_c_file)
     uvf = UVFlag(uvc, use_future_array_shapes=future_shapes)
     uvf.to_waterfall()
+    # remove telescope info to check that it's set properly
+    uvf.telescope_name = None
+    uvf.telescope_location = None
+
+    # remove antenna info to check that it's set properly
+    uvf.antenna_names = None
+    uvf.antenna_numbers = None
+    uvf.antenna_positions = None
+
     uvf.metric_array[0, 10, 0] = 3.2  # Fill in time0, chan10
     uvf.metric_array[1, 15, 0] = 2.1  # Fill in time1, chan15
     uvf.to_antenna(uvc)
+    assert uvf.telescope_name == uvc.telescope_name
+    assert np.all(uvf.telescope_location == uvc.telescope_location)
+    assert np.all(uvf.antenna_names == uvc.antenna_names)
+    assert np.all(uvf.antenna_numbers == uvc.antenna_numbers)
+    assert np.all(uvf.antenna_positions == uvc.antenna_positions)
+
     assert np.all(uvf.ant_array == uvc.ant_array)
     assert np.all(uvf.time_array == uvc.time_array)
     if future_shapes:
@@ -1978,26 +2482,59 @@ def test_to_antenna_errors(uvdata_obj):
         uvf.to_antenna(uvc)  # Cannot pass in baseline type
 
     uvf = UVFlag(test_f_file)
+    uvf.to_waterfall()
+
+    uvf.channel_width = uvf.channel_width / 2.0
+
+    uvf.Nspws = 2
+    uvf.spw_array = np.array([0, 1])
+    uvf.flex_spw_id_array = np.zeros(uv.Nfreqs, dtype=int)
+    uvf.flex_spw_id_array[: uv.Nfreqs // 2] = 1
+    uvf.check()
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "The freq_array on uv is not the same as the freq_array on this "
+            f"object. The value on this object is {uvf.freq_array}; the value "
+            f"on uv is {uvc.freq_array}"
+        ),
+    ):
+        uvf.to_antenna(uvc)  # Mismatched pols
+
     uvc.select(frequencies=np.squeeze(uvf.freq_array))
+    uvf2 = uvf.copy()
+    uvf.polarization_array[0] = -4
     with uvtest.check_warnings(
         UserWarning,
         match=[
-            "Nants_telescope, antenna_names, antenna_numbers, antenna_positions",
-            "telescope_location is not set. Using known values for HERA.",
-            "antenna_positions is not set. Using known values for HERA.",
+            "antenna_names is not the same this object and on uv. The value on",
+            "antenna_numbers is not the same this object and on uv. The value on",
+            "antenna_positions is not the same this object and on uv. The value on",
+            "channel_width is not the same this object and on uv. The value on",
+            "spw_array is not the same this object and on uv. The value on",
+            "flex_spw_id_array is not the same this object and on uv. The value on",
         ],
     ):
-        uvf.set_telescope_params(overwrite=True)
-        uvc.set_telescope_params(overwrite=True)
-    uvf.to_waterfall()
-    uvf2 = uvf.copy()
-    uvf.polarization_array[0] = -4
-    with pytest.raises(ValueError, match="Polarizations do not match."):
-        uvf.to_antenna(uvc)  # Mismatched pols
+        with pytest.raises(ValueError, match="Polarizations do not match."):
+            uvf.to_antenna(uvc)  # Mismatched pols
 
     uvf.__iadd__(uvf2, axis="polarization")
-    with pytest.raises(ValueError, match="Polarizations could not be made to match."):
-        uvf.to_antenna(uvc)  # Mismatched pols, can't be forced
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "antenna_names is not the same this object and on uv. The value on",
+            "antenna_numbers is not the same this object and on uv. The value on",
+            "antenna_positions is not the same this object and on uv. The value on",
+            "channel_width is not the same this object and on uv. The value on",
+            "spw_array is not the same this object and on uv. The value on",
+            "flex_spw_id_array is not the same this object and on uv. The value on",
+        ],
+    ):
+        with pytest.raises(
+            ValueError, match="Polarizations could not be made to match."
+        ):
+            uvf.to_antenna(uvc)  # Mismatched pols, can't be forced
 
 
 def test_to_antenna_force_pol():
