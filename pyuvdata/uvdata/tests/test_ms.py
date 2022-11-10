@@ -77,7 +77,8 @@ def test_cotter_ms():
         UserWarning,
         match=[
             "Warning: select on read keyword set",
-            "telescope_location is not set. Using known values for MWA.",
+            "telescope_location are not set or being overwritten. Using known values "
+            "for MWA.",
             "UVW orientation appears to be flipped,",
         ],
     ):

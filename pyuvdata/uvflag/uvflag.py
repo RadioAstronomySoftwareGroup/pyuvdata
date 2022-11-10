@@ -967,10 +967,6 @@ class UVFlag(UVBase):
             "antenna_numbers",
             "antenna_positions",
         ]
-        if self.type == "waterfall":
-            params_to_warn.append("Nspws")
-        if self.type != "baseline":
-            params_to_warn.append("Nants_telescope")
         for param in params_to_warn:
             if getattr(self, param) is None:
                 warnings.warn(
@@ -996,7 +992,7 @@ class UVFlag(UVBase):
             if self.Nbls != len(np.unique(self.baseline_array)):
                 raise ValueError(
                     "Nbls must be equal to the number of unique "
-                    "baselines in the data_array"
+                    "baselines in the baseline_array"
                 )
 
             if self.Ntimes != len(np.unique(self.time_array)):
@@ -1043,6 +1039,7 @@ class UVFlag(UVBase):
             "channel_width",
             "spw_array",
             "Nspws",
+            "flex_spw_id_array",
             "antenna_names",
             "antenna_numbers",
             "antenna_positions",
@@ -1162,7 +1159,11 @@ class UVFlag(UVBase):
         telescope_obj = uvtel.get_telescope(self.telescope_name)
         if telescope_obj is not False:
             params_set = []
-            for p in telescope_obj:
+            telescope_params = list(telescope_obj.__iter__())
+            # ensure that the Nants_telescope comes first so shapes work out below
+            telescope_params.remove("_Nants_telescope")
+            telescope_params.insert(0, "_Nants_telescope")
+            for p in telescope_params:
                 telescope_param = getattr(telescope_obj, p)
                 if p in self:
                     self_param = getattr(self, p)
@@ -1178,38 +1179,20 @@ class UVFlag(UVBase):
                         prop_name = self_param.name
                         setattr(self, prop_name, getattr(telescope_obj, prop_name))
                     else:
-                        # expected shapes aren't equal. This can happen
-                        # e.g. with diameters,
-                        # which is a single value on the telescope object but is
-                        # an array of length Nants_telescope on the UVData object
-                        if telescope_shape == () and self_shape != "str":
-                            # this parameter is as of this comment most likely a float
-                            # since only diameters and antenna positions will probably
-                            # trigger this else statement
-                            # assign float64 as the type of the array
-                            array_val = (
-                                np.zeros(
-                                    self_shape,
-                                    dtype=np.float64,
-                                )
-                                + telescope_param.value
-                            )
-                            params_set.append(self_param.name)
-                            prop_name = self_param.name
-                            setattr(self, prop_name, array_val)
-                        elif np.all(np.in1d(self_param.value, telescope_param.value)):
-                            # values on self are a subset. use telescope values
-                            setattr(self, prop_name, getattr(telescope_obj, prop_name))
+                        # Note dropped handling for antenna diameters that appears in
+                        # UVData because they don't exist on UVFlag.
+                        warnings.warn(
+                            f"{self_param.name} is not set but cannot be set using "
+                            f"known values for {telescope_obj.telescope_name} "
+                            "because the expected shapes don't match."
+                        )
 
             if len(params_set) > 0:
                 params_set_str = ", ".join(params_set)
                 if warn:
                     warnings.warn(
-                        "{params} is not set. Using known values "
-                        "for {telescope_name}.".format(
-                            params=params_set_str,
-                            telescope_name=telescope_obj.telescope_name,
-                        )
+                        f"{params_set_str} are not set or being overwritten. Using "
+                        f"known values for {telescope_obj.telescope_name}."
                     )
         else:
             raise ValueError(
@@ -1606,25 +1589,20 @@ class UVFlag(UVBase):
                 '"baseline" to match.'
             )
 
-        if uv.freq_array.ndim == self.freq_array.ndim:
-            if self._freq_array != uv._freq_array:
-                raise ValueError(
-                    "The freq_array on uv is not the same as the freq_array on this "
-                    f"object. The value on this object is {self.freq_array}; the value "
-                    f"on uv is {uv.freq_array}"
-                )
-        else:
-            if self.Nfreqs != uv.Nfreqs or not np.allclose(
-                np.squeeze(self.freq_array),
-                np.squeeze(uv.freq_array),
-                rtol=self._freq_array.tols[0],
-                atol=self._freq_array.tols[1],
-            ):
-                raise ValueError(
-                    "The freq_array on uv is not the same as the freq_array on this "
-                    f"object. The value on this object is {self.freq_array}; the value "
-                    f"on uv is {uv.freq_array}"
-                )
+        # write it out this rather than comparing the UVParameters because
+        # future_array_shapes might be different. In the future, when shapes are not
+        # variable, this can be done by comparing the UVParameters.
+        if self.Nfreqs != uv.Nfreqs or not np.allclose(
+            np.squeeze(self.freq_array),
+            np.squeeze(uv.freq_array),
+            rtol=self._freq_array.tols[0],
+            atol=self._freq_array.tols[1],
+        ):
+            raise ValueError(
+                "The freq_array on uv is not the same as the freq_array on this "
+                f"object. The value on this object is {self.freq_array}; the value "
+                f"on uv is {uv.freq_array}"
+            )
 
         # TODO: should Nants_telescope and Nspws be in this list?
         warn_compatibility_params = [
@@ -1637,7 +1615,7 @@ class UVFlag(UVBase):
             "spw_array",
         ]
         if self.Nspws > 1:
-            warn_compatibility_params.append("spw_flex_id_array")
+            warn_compatibility_params.append("flex_spw_id_array")
 
         for param in warn_compatibility_params:
             if (
@@ -1900,25 +1878,20 @@ class UVFlag(UVBase):
                 'Cannot convert from type "' + self.type + '" to "antenna".'
             )
 
-        if uv.freq_array.ndim == self.freq_array.ndim:
-            if self._freq_array != uv._freq_array:
-                raise ValueError(
-                    "The freq_array on uv is not the same as the freq_array on this "
-                    f"object. The value on this object is {self.freq_array}; the value "
-                    f"on uv is {uv.freq_array}"
-                )
-        else:
-            if self.Nfreqs != uv.Nfreqs or not np.allclose(
-                np.squeeze(self.freq_array),
-                np.squeeze(uv.freq_array),
-                rtol=self._freq_array.tols[0],
-                atol=self._freq_array.tols[1],
-            ):
-                raise ValueError(
-                    "The freq_array on uv is not the same as the freq_array on this "
-                    f"object. The value on this object is {self.freq_array}; the value "
-                    f"on uv is {uv.freq_array}"
-                )
+        # write it out this rather than comparing the UVParameters because
+        # future_array_shapes might be different. In the future, when shapes are not
+        # variable, this can be done by comparing the UVParameters.
+        if self.Nfreqs != uv.Nfreqs or not np.allclose(
+            np.squeeze(self.freq_array),
+            np.squeeze(uv.freq_array),
+            rtol=self._freq_array.tols[0],
+            atol=self._freq_array.tols[1],
+        ):
+            raise ValueError(
+                "The freq_array on uv is not the same as the freq_array on this "
+                f"object. The value on this object is {self.freq_array}; the value "
+                f"on uv is {uv.freq_array}"
+            )
 
         # TODO: should Nants_telescope and Nspws be in this list?
         warn_compatibility_params = [
@@ -1931,7 +1904,7 @@ class UVFlag(UVBase):
             "spw_array",
         ]
         if self.Nspws > 1:
-            warn_compatibility_params.append("spw_flex_id_array")
+            warn_compatibility_params.append("flex_spw_id_array")
         for param in warn_compatibility_params:
             if (
                 issubclass(uv.__class__, UVCal)
@@ -3390,7 +3363,7 @@ class UVFlag(UVBase):
                             "channel_width is set equal to the channel width below it."
                         )
                         self.channel_width = np.concatenate(
-                            freq_delta, np.array(freq_delta[-1])
+                            (freq_delta, np.array([freq_delta[-1]]))
                         )
                     warnings.warn(msg)
 
@@ -3406,8 +3379,6 @@ class UVFlag(UVBase):
 
                 if "flex_spw_id_array" in header.keys():
                     self.flex_spw_id_array = header["flex_spw_id_array"][()]
-                else:
-                    self.flex_spw_id_array = np.full(self.Nfreqs, 0, dtype=int)
 
                 if "telescope_name" in header.keys():
                     self.telescope_name = header["telescope_name"][()].decode("utf8")
@@ -3519,9 +3490,13 @@ class UVFlag(UVBase):
                     or self.antenna_names is None
                     or self.antenna_positions is None
                 ):
+                    if (
+                        self.antenna_numbers is None
+                        and self.antenna_names is None
+                        and self.antenna_positions is None
+                    ):
+                        self.Nants_telescope = None
                     self.set_telescope_params()
-                    if self.antenna_numbers is not None:
-                        self.Nants_telescope = self.antenna_numbers.size
 
                 if self.antenna_numbers is None and self.type in [
                     "baseline",
@@ -3564,12 +3539,8 @@ class UVFlag(UVBase):
                         self.Nants_telescope = self.antenna_numbers.size
                     elif self.antenna_names is not None:
                         self.Nants_telescope = self.antenna_names.size
-                    else:
-                        self.Nants_telescope = self.Nants_data
-                        warnings.warn(
-                            "Nants_telescope not available in file, setting equal to "
-                            "Nants_data."
-                        )
+                    elif self.antenna_positions is not None:
+                        self.Nants_telescope = (self.antenna_positions.shape)[0]
 
             self.clear_unused_attributes()
 

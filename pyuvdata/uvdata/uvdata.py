@@ -2409,7 +2409,7 @@ class UVData(UVBase):
                 params_set_str = ", ".join(params_set)
                 if warn:
                     warnings.warn(
-                        "{params} is not set. Using known values "
+                        "{params} are not set or being overwritten. Using known values "
                         "for {telescope_name}.".format(
                             params=params_set_str,
                             telescope_name=telescope_obj.telescope_name,
