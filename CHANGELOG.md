@@ -3,6 +3,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Several new attributes to UVFlag: `telescope_name`, `telescope_location`,
+`antenna_names`, `antenna_numbers`, `antenna_positions`, `channel_width`, `spw_array`,
+`flex_spw_id_array`, enabling support for flexible spectral windows. All of these except
+`flex_spw_id_array` will eventually be required for all UVFlag object types, as will
+`Nspws` (which used to only be required for baseline and antenna types). These
+parameters all already exist on UVData and UVCal objects and UVFlag objects initialized
+from them will inherit them. UVFlag objects will also inherit these parameters when
+they are converted between types using UVData and UVCalobjects.
+- The `UVFlag.set_telescope_params` method, similar to the ones on UVData and UVCal,
+to set several of these new parameters.
+
+### Deprecated
+- The `lst_from_uv` function in the uvflag module.
+
 ## [2.2.12] - 2022-12-07
 
 ### Changed
