@@ -3194,18 +3194,7 @@ def test_uvcalibrate_flag_propagation(
         uvd.get_data(0, 12, "xx"), uvdcal.get_data(0, 12, "xx")
     )
 
-    uvd_ant_dict = dict(zip(uvd.antenna_numbers, uvd.antenna_names))
-    uvc_ant_dict = dict(zip(uvc.antenna_numbers, uvc.antenna_names))
-
-    for key in uvc_ant_dict.keys():
-        if key in uvd_ant_dict.keys():
-            uvc_ant_dict[key] = str(uvd_ant_dict[key])
-        else:
-            uvc_ant_dict[key] = str(uvd_ant_dict[key])
-
-    uvc.antenna_names = np.array(
-        [uvc_ant_dict[ant_number] for ant_number in uvc.antenna_numbers]
-    )
+    uvc.set_telescope_params(overwrite=True)
 
     uvc_sub = uvc.select(antenna_nums=[1, 12], inplace=False)
 
