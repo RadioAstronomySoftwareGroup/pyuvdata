@@ -63,7 +63,7 @@ def mir_uv(mir_uv_main):
 
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
 @pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped,")
-@pytest.mark.filterwarnings("ignore:telescope_location is not set")
+@pytest.mark.filterwarnings("ignore:telescope_location are not set")
 def test_cotter_ms():
     """Test reading in an ms made from MWA data with cotter (no dysco compression)"""
     uvobj = UVData()
@@ -146,7 +146,7 @@ def test_read_lwa(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:telescope_location is not set")
+@pytest.mark.filterwarnings("ignore:telescope_location are not set")
 def test_no_spw():
     """Test reading in a PAPER ms converted by CASA from a uvfits with no spw axis."""
     uvobj = UVData()
@@ -167,7 +167,7 @@ def test_spwsupported():
 
 @pytest.mark.filterwarnings("ignore:Coordinate reference frame not detected,")
 @pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped,")
-@pytest.mark.filterwarnings("ignore:telescope_location is not set")
+@pytest.mark.filterwarnings("ignore:telescope_location are not set")
 def test_extra_pol_setup(tmp_path):
     """Test reading in an ms file with extra polarization setups (not used in data)."""
     uvobj = UVData()
